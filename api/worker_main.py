@@ -19,9 +19,11 @@ worker context.
 """
 import os
 import sys
+import asyncio
 import threading
 import time
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 import uvicorn
@@ -333,8 +335,27 @@ def _start_keepwarm():
     threading.Thread(target=loop, daemon=True, name="keepwarm").start()
 
 
+@asynccontextmanager
+async def _worker_lifespan(app):
+    """Worker app lifespan. On SIGTERM shutdown, gracefully stop the OPRA
+    consumer so the Massive slot is released with a clean close frame (the P1
+    contract) — required for a zero-gap handoff once P5 moves the consumer here.
+    Mirrors main.py's teardown: defensive getattr, idempotent, and a safe no-op
+    before cutover (the worker's consumer isn't connected while MASSIVE_WS_ENABLED=0)."""
+    yield
+    try:
+        from api import massive_ws_worker
+        stop = getattr(massive_ws_worker, "stop", None)
+        if callable(stop):
+            await asyncio.to_thread(stop)
+            logging.getLogger("uvicorn.error").info("[worker] OPRA consumer stop() complete")
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger("uvicorn.error").warning("[worker] consumer stop failed: %s", e)
+
+
 def _build_app() -> FastAPI:
-    app = FastAPI(title="UCT Worker", docs_url=None, redoc_url=None)
+    app = FastAPI(title="UCT Worker", docs_url=None, redoc_url=None,
+                  lifespan=_worker_lifespan)
 
     def _health_payload():
         # The worker NEVER pulls (it's the producer), so .last_sync_ts is
@@ -392,7 +413,61 @@ def _build_app() -> FastAPI:
     def health_alias():
         return _health_payload()
 
+    # P5 (dark): once this worker owns the Massive consumer + flow.db, serve the
+    # flow-family read/upload endpoints locally so web can reverse-proxy them.
+    # Gated (WORKER_SERVES_FLOW=1) + lazy-imported so the worker's boot path is
+    # UNCHANGED until cutover (honors "nothing slow before uvicorn"). /api/live
+    # (Bullflow) is intentionally NOT mounted here — that consumer stays on web.
+    if os.environ.get("WORKER_SERVES_FLOW", "0") == "1":
+        _mount_flow_routers(app)
+
     return app
+
+
+def _mount_flow_routers(app) -> None:
+    """Include every flow.db / OPRA-consumer-state router on the worker.
+
+    Mirrors the web registrations exactly (same prefixes) so a request proxied
+    to `http://<worker>.railway.internal:$PORT/api/flow/...` resolves the same
+    way it did on web. Import failures are logged but non-fatal so a single bad
+    router can't stop the worker from booting + serving /api/health.
+    """
+    def _try(desc, fn):
+        try:
+            fn()
+        except Exception as e:  # noqa: BLE001
+            logging.getLogger("uvicorn.error").warning(
+                "[worker-flow] failed to mount %s: %s", desc, e)
+
+    def _core():
+        from api.top_flow_router import router as top_flow_router
+        from api.flow_scoreboard import router as flow_scoreboard_router
+        from api.flow_explain import router as flow_explain_router
+        from api.flow_router import flow_router
+        from api.flow_summary import flow_summary_router
+        from api.oi_snapshot_router import router as oi_snapshot_router
+        from api.notable_flow_router import router as notable_flow_router
+        from api.routers.liveflow_health import router as liveflow_health_router
+        from api.live_massive_router import router as live_massive_router
+        from api.darkpool_router import router as darkpool_router
+        from api.dealer_positioning_router import router as dealer_positioning_router
+        for r in (top_flow_router, flow_scoreboard_router, flow_explain_router,
+                  flow_router, flow_summary_router, oi_snapshot_router,
+                  notable_flow_router, liveflow_health_router, live_massive_router,
+                  darkpool_router, dealer_positioning_router):
+            app.include_router(r)
+
+    _try("core flow routers", _core)
+
+    if os.environ.get("FLOW_GAP_AUTOFILL_ENABLED", "0") == "1":
+        _try("flow_gap_autofill_router", lambda: app.include_router(
+            __import__("api.flow_gap_autofill", fromlist=["router"]).router))
+    if os.environ.get("FLOW_BACKUP_ENABLED", "0") == "1":
+        _try("flow_backup_router", lambda: app.include_router(
+            __import__("api.flow_backup", fromlist=["router"]).router))
+
+    logging.getLogger("uvicorn.error").info(
+        "[worker-flow] WORKER_SERVES_FLOW=1 -> flow routers mounted on worker")
 
 
 def main():

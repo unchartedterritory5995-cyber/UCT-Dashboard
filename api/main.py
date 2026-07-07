@@ -2965,6 +2965,17 @@ app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
 app.include_router(sector_strength_router.router)
+# P5 (dark): when FLOW_READS_PROXY_ENABLED=1 + WORKER_INTERNAL_URL are set, the
+# Massive OPRA consumer + flow.db live on the WORKER, so forward every flow-family
+# read/upload path to the worker over private networking. Registered BEFORE the
+# local flow routers so its catch-alls win; flag off = not registered = web serves
+# locally exactly as today. Import is local so a bad env can't affect module load.
+from api import flow_proxy as _flow_proxy
+if _flow_proxy.PROXY_ENABLED:
+    app.include_router(_flow_proxy.build_flow_proxy_router())
+    logging.getLogger("uvicorn.error").info(
+        "[flow-proxy] ENABLED -> forwarding flow reads to %s", _flow_proxy.WORKER_INTERNAL_URL)
+
 app.include_router(top_flow_router)
 app.include_router(flow_scoreboard_router)
 app.include_router(flow_explain_router)
