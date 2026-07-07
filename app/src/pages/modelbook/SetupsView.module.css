@@ -529,13 +529,15 @@
      (the block sizes to this content box) — no bottom band that would let the
      next example peek. */
   padding: 6px 4px 0 0;
-  /* Each example is a full-viewport slide; mandatory snapping always lands on a
-     whole chart, so the next setup is never partly visible at the bottom. */
-  scroll-snap-type: y mandatory;
+  /* No CSS scroll-snap: mandatory snapping made the mouse wheel choppy — it
+     re-targeted on every wheel notch and yanked the view to a full slide.
+     Free-wheel scrolling is now native-smooth. Precise per-chart flipping is
+     still available via the ↑/↓ keys, which land cleanly through JS
+     scrollIntoView({block:'start'}) regardless of CSS snap. */
+  scroll-snap-type: none;
 }
-/* While the admin add/edit form is open, disable snapping — the form is taller
-   than the viewport and isn't a snap point, so mandatory snapping would keep
-   pulling the scroll back down to the selected chart. */
+/* Kept for symmetry with the (now default) no-snap behavior; harmless while the
+   admin add/edit form is open. */
 .stageExamplesFullNoSnap { scroll-snap-type: none; }
 
 /* ── Playbook hover panel ── */
