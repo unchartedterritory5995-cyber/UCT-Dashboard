@@ -19,6 +19,12 @@
 - **Bullflow SSE worker** got the same treatment (graceful stop, read-timeout instead of the infinite hang, and day-state rehydration so alert caps/dedup survive deploys).
 - **Live tape is actually live now**: the 43s `/recent` query is fixed (covering index + micro-cache → 0.1s cached), both live pages back to 5s polling, and `/live-massive` is promoted into the nav as "Live Flow" with an honest feed-health badge.
 
+**Two things I changed in your ingest area (additive-only, flag me if you disagree):**
+- **F3 — a real data-loss bug**: the aggregator's volume floor and premium floor were an AND, so an expensive low-lot print (big dollars, few contracts — a $120K 20-lot index option) got dropped and never hit flow.db. Added a high-premium escape (`MASSIVE_HIGH_PREMIUM_ESCAPE`, default $25K): a below-volume print is kept if its premium clears the escape. Absolute $10K premium floor still applies to everything, so it ONLY adds genuinely-large prints, never noise. New stat `kept_high_premium_low_volume`. Tested (5 cases), live.
+- **F2 honesty (additive)**: added a `sideConfidence` field (measured|presumed) so the tape can distinguish a real NBBO-classified side from an empty-side sweep that's *presumed* buyer-driven. The SIDE cell now shows "≈ask" (dimmed, tooltip) for presumed rows instead of a bare "—". **I did NOT touch `_derive_direction`** — your bid-side-is-unreliable drop and the sweep-empty-side-as-ask presumption are your calls, left exactly as-is.
+
+**Two F2 items I deliberately left for YOU (product judgment, not bugs):** (1) whether B-side/bid rows should show as bearish instead of being dropped — your comment says bid-side is an unreliable directional signal, so that's your decision; (2) raising the ~53% NBBO side coverage — that's deep tuning of your ingest classification. Happy to pair on either.
+
 **Three questions for you (your call, no rush):**
 1. **Delete-window vs per-contract reconciliation** for the T+1 gap-fill — I went delete-window (deterministic, provably single-source per second; reasoning in the spec). Good with that?
 2. Optional 3-line hardening of `_current_version()` in `flow_router.py` (add `MAX(id)` so any fill changes the version persistently) — want me to, or keep the boot-rebump I already added?
