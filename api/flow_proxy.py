@@ -22,6 +22,7 @@ Fully gated: FLOW_READS_PROXY_ENABLED=1 AND WORKER_INTERNAL_URL set. Off by
 default -> zero behavior change. This ships dark and is flipped only at cutover.
 """
 import os
+import json
 import logging
 
 import httpx
@@ -94,6 +95,32 @@ def _get_client() -> httpx.AsyncClient:
     return _client
 
 
+def _inject_proxy_auth(request: Request, fwd_headers: dict) -> None:
+    """Web-side: validate the uct_session cookie against web's auth.db and, if
+    valid, vouch for the user to the worker via HMAC-signed headers (the worker
+    trusts them only under FLOW_PROXY_TRUST=1). Best-effort: on any failure we
+    simply don't inject and the worker rejects auth'd endpoints. The caller has
+    already stripped any client-supplied x-uct-proxy-* headers, so these can't
+    be forged from outside."""
+    try:
+        cookie = request.cookies.get("uct_session")
+        if not cookie:
+            return
+        from api.services.auth_service import validate_session
+        from api.flow_admin_auth import proxy_sign_user
+        user = validate_session(cookie)
+        if not user:
+            return
+        payload = json.dumps(
+            {"id": user.get("id"), "email": user.get("email"),
+             "role": user.get("role"), "plan": user.get("plan")},
+            separators=(",", ":"), sort_keys=True)
+        fwd_headers["x-uct-proxy-user"] = payload
+        fwd_headers["x-uct-proxy-sig"] = proxy_sign_user(payload)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[flow-proxy] auth inject skipped: %s", e)
+
+
 async def _proxy(request: Request):
     if not WORKER_INTERNAL_URL:
         return Response("flow proxy enabled but WORKER_INTERNAL_URL unset",
@@ -103,8 +130,12 @@ async def _proxy(request: Request):
     if request.url.query:
         target += "?" + request.url.query
 
+    # Strip any client-supplied proxy-auth headers (never trust them), then let
+    # web validate the cookie and inject its own signed vouch.
     fwd_headers = {k: v for k, v in request.headers.items()
-                   if k.lower() not in _HOP}
+                   if k.lower() not in _HOP
+                   and k.lower() not in ("x-uct-proxy-user", "x-uct-proxy-sig")}
+    _inject_proxy_auth(request, fwd_headers)
     body = await request.body()  # empty for GET; buffered for the rare T+1 upload
 
     client = _get_client()
