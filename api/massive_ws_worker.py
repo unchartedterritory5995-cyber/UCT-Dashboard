@@ -1287,7 +1287,15 @@ async def _consume_forever():
             async with websockets.connect(
                 MASSIVE_OPTIONS_WS_URL,
                 ping_interval=20,
-                ping_timeout=20,
+                # 2026-07-07: raised 20 -> 45 (env MASSIVE_WS_PING_TIMEOUT). At
+                # the busy open the consumer's event loop can stall past 20s on
+                # the synchronous DB flush (the "Class B" ping-timeout flapping:
+                # keepalive can't be serviced -> 1011 drop -> reconnect -> repeat,
+                # losing ~1 min of tape per cycle). A 45s window tolerates the
+                # stalls; the 60s stale watchdog remains the backstop for a
+                # genuinely dead peer. Proper fix = offload the flush off the
+                # loop (deferred, higher-risk).
+                ping_timeout=float(os.environ.get("MASSIVE_WS_PING_TIMEOUT", "45")),
                 close_timeout=3,   # bound the closing handshake: shutdown and
                                    # watchdog closes must not hang on a dead
                                    # peer (library default is 10s)
