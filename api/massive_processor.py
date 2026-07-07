@@ -14,6 +14,7 @@ V1 limitations (documented, fixed in V2):
 - Spot, IV, OI, MktCap, Sector, ER stubbed (wired to existing helpers at deploy)
 """
 
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, date
@@ -223,9 +224,22 @@ class TradeAggregator:
     WINDOW_NS = WINDOW_MS * 1_000_000
     PRICE_EPS = 0.0001
 
-    def __init__(self, min_premium: float = 10_000, min_volume: int = 50):
+    def __init__(self, min_premium: float = 10_000, min_volume: int = 50,
+                 high_premium_escape: float = None):
         self.min_premium = min_premium
         self.min_volume = min_volume
+        # High-premium escape (2026-07-07, audit F3): the volume floor and the
+        # premium floor were an AND, so an expensive low-lot institutional print
+        # — small in CONTRACT count but large in DOLLARS (e.g. a $120K 20-lot
+        # index option) — was dropped entirely and never entered flow.db. A
+        # print whose premium clears this bar is kept even when it is below the
+        # volume floor. Absolute premium floor (min_premium) still applies to
+        # everything, so this only ADDS genuinely-large prints, never noise.
+        # Env-tunable so it can be adjusted without a code change.
+        if high_premium_escape is None:
+            high_premium_escape = float(
+                os.environ.get("MASSIVE_HIGH_PREMIUM_ESCAPE", "25000"))
+        self.high_premium_escape = high_premium_escape
         # Active bucket per ticker -- newest still-growing burst.
         # Fix 3 (2026-07-03): keyed by ticker only (was ticker+price).
         self._pending: dict[str, list[RawTrade]] = {}
@@ -234,6 +248,7 @@ class TradeAggregator:
         self._stats = {
             'added': 0, 'emitted': 0, 'dropped_unparseable': 0,
             'dropped_below_premium': 0, 'dropped_below_volume': 0,
+            'kept_high_premium_low_volume': 0,
         }
 
     # 2026-07-03 (Fix 3): bucket key changed from (ticker, price) to just ticker.
@@ -316,16 +331,25 @@ class TradeAggregator:
         if total_size <= 0:
             return None
 
-        if total_size < self.min_volume:
-            self._stats['dropped_below_volume'] += 1
-            return None
-
+        # Compute premium BEFORE the volume gate (audit F3): premium is what
+        # decides whether an expensive low-lot print escapes the volume floor.
         weighted_price = sum(t.price * t.size for t in trades) / total_size
         premium = sum(t.price * t.size for t in trades) * 100.0
 
+        # Absolute premium floor — applies to everything, kills dollar-noise.
         if premium < self.min_premium:
             self._stats['dropped_below_premium'] += 1
             return None
+
+        # Volume floor, WITH a high-premium escape: a print below the volume
+        # floor is kept only if its premium is genuinely large (>= escape).
+        # This recovers institutional low-lot / high-dollar prints (e.g. a
+        # $120K 20-lot index option) that the old volume-first AND dropped.
+        if total_size < self.min_volume:
+            if premium < self.high_premium_escape:
+                self._stats['dropped_below_volume'] += 1
+                return None
+            self._stats['kept_high_premium_low_volume'] += 1
 
         parsed = parse_occ(trades[0].ticker)
         if parsed is None:

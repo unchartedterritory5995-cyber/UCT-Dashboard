@@ -1040,6 +1040,12 @@ def _row_to_alert(row: dict) -> dict | None:
     if direction is None:
         # Unclassified side → can't determine bull/bear → skip
         return None
+    # Side provenance (audit F2 honesty): a kept row's direction is either
+    # MEASURED from a real NBBO side (A/AA/B/BB) or PRESUMED from the empty-side
+    # sweep heuristic (sweeps are presumed buyer-driven). Expose which, so the
+    # UI can honestly distinguish inferred direction from measured — WITHOUT
+    # changing what shows or how the tape is curated (that stays Ravi's logic).
+    side_confidence = "measured" if side.strip().upper() in ("A", "AA", "B", "BB") else "presumed"
 
     strike = _parse_strike(row["Strike"])
     spot = _parse_float(row["Spot"])
@@ -1202,6 +1208,7 @@ def _row_to_alert(row: dict) -> dict | None:
         "gatePassed": True,              # gating not implemented in test phase
         "forwardedToDiscord": False,     # not wired in test phase
         # Massive-specific extras (useful for debugging / future UI)
+        "sideConfidence": side_confidence,   # 'measured' | 'presumed' (F2 honesty)
         "_color": row["Color"],
         "_side": side,
         "_type": row["Type"],

@@ -1134,8 +1134,19 @@ const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, o
       }}>
         {alert.grade}
       </span>
-      <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}>
-        {alert._side || "—"}
+      {/* SIDE — the measured NBBO side (A/AA/B/BB). When a sweep has no
+          measured side, its direction is PRESUMED buyer-driven; show "≈"
+          (dimmed) with a tooltip instead of a bare "—" so an inferred
+          direction is never passed off as measured (F2 honesty). */}
+      <span style={{
+        color: alert.sideConfidence === "presumed" ? P.mt : P.dm,
+        fontSize: secondaryFontSize, textAlign: "center",
+        fontStyle: alert.sideConfidence === "presumed" && !alert._side ? "italic" : "normal",
+      }}
+        title={alert.sideConfidence === "presumed"
+          ? "Presumed buyer-driven (sweep, no measured NBBO side)"
+          : (alert._side ? "Measured from NBBO at execution" : "")}>
+        {alert._side || (alert.sideConfidence === "presumed" ? "≈ask" : "—")}
       </span>
       {/* TYPE — derived from OPRA condition code (SWEEP, BLOCK, ML, etc).
           Regular trades show "—". Hover reveals the full label. */}
