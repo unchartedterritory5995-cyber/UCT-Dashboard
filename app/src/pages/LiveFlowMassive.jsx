@@ -1755,6 +1755,31 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
         </div>
       </div>
 
+      {/* 7/7: Admin gate for the ETF/index pipeline. When off (default),
+          only source='stocks' rows flow through — SPY/QQQ/SOXL/NDXP etc.
+          are ingested but not surfaced. When on, source='indexes' rows
+          also flow through, and the user-facing Stocks/ETFs/All toggle
+          in the header can actually partition them. */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+          ETFs / INDEXES — surface in the alert stream:
+        </div>
+        <div style={{ display: "flex", gap: 16, paddingLeft: 12, alignItems: "center" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, color: P.wh, fontSize: 11, cursor: "pointer" }}>
+            <input type="checkbox"
+              checked={!!thresholds.etf_enabled}
+              onChange={e => setPath(["etf_enabled"], e.target.checked)} />
+            Include source='indexes' rows (SPY, QQQ, SOXL, NDXP, VIX, TLT, GDX, …)
+          </label>
+        </div>
+        <div style={{ paddingLeft: 12, marginTop: 6, color: P.mt, fontSize: 10, fontStyle: "italic" }}>
+          Off (default): stocks-only stream, ETFs suppressed at query time.
+          On: both flow through; users can toggle Stocks/ETFs/All in the
+          header row to filter what they see. Change takes effect on next
+          5s poll cycle after Save.
+        </div>
+      </div>
+
       {/* Dormant tickers status + recompute control. Lives inside Unusual
           section since it directly drives Unusual classification. */}
       <DormantStatusPanel />
