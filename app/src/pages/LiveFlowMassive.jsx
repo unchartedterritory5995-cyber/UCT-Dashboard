@@ -49,6 +49,38 @@ const ROW_LIMIT_ALL_VALUE = 20000;  // sent to backend when user picks "All"
 const LS_KEY_ROW_LIMIT = "uct_liveflow_massive_rowlimit_v1";
 const LS_KEY_HIDE_ALGO = "uct_liveflow_massive_hidealgo_v1";
 const LS_KEY_CURATED   = "uct_liveflow_massive_curated_v1";
+const LS_KEY_STOCK_ETF = "uct_liveflow_massive_stocketf_v1";
+
+// 7/7: client-side classification set for the Stocks/ETFs toggle. Mirrors
+// backend INDEX_SYMBOLS in api/massive_processor.py — keep the two in sync
+// when new indexes/ETFs are added. Client-side because historical rows in
+// flow.db may have been stamped with the wrong StockEtf before NDXP-class
+// symbols got added upstream; classifying here works regardless of DB state.
+const KNOWN_ETFS_INDEXES = new Set([
+  // Pure indexes
+  'SPX','SPXW','XSP','NDX','NDXP','NQX','RUT','RUTW','VIX','VIXW',
+  // Major broad-market ETFs
+  'SPY','QQQ','IWM','DIA','VOO','VTI','VT','VXUS','VUG','RSP','MAGS',
+  // Sector ETFs
+  'XLK','XLF','XLE','XLV','XLY','XLP','XLI','XLB','XLU','XLC','XLRE',
+  'XBI','XHB','XME','XOP','XSD','XTL',
+  // Industry / thematic ETFs
+  'SMH','SOXX','IBB','IGV','KWEB','FXI','MCHI','ASHR','EWY','EWJ',
+  'EWT','EWZ','EEM','EFA','IWD','IWF','MTUM','IHI','JETS','TAN',
+  'COPX','GDX','GDXJ','SIL','SILJ','OIH','KRE','IYR',
+  // Bond ETFs
+  'TLT','IEF','HYG','LQD','BHYP','TLH','ZROZ','EDV','TMF',
+  // Leveraged / inverse
+  'TQQQ','SQQQ','SOXL','SOXS','SPXL','SPXS','TNA','TZA','UVXY','SVXY',
+  'UDOW','FAS','DPST','GUSH','BOIL','KOLD','TSLL','MSTU','MSTX','MSFL',
+  'AMDL','NXT','CHAU','KORU',
+  // Commodities
+  'GLD','IAU','SLV','USO','UNG','UCO','SCO','BNO','LIT','URA','CPER',
+  // Crypto ETFs
+  'IBIT','FBTC','BITX','BITO','GBTC','ETHA','ETHU','FETH',
+  // Volatility / niche
+  'VXX','JNUG','REMX','EUAD','EUV','FXY','SPCH','SPCX',
+]);
 
 // ─── Tier metadata (matches LiveFlow.jsx) ─────────────────────────────────
 // Two extra keys vs LiveFlow.jsx: "bearish" is its own tier in our endpoint
@@ -747,7 +779,7 @@ function MarketReadCard({ stats }) {
 // This is the click-to-focus pattern used by other dashboards (Bloomberg,
 // Twitter, etc.) — clicking always either isolates or restores, never the
 // confusing in-between multi-select state.
-function FilterChips({ filters, onChange, counts }) {
+function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChange }) {
   const allOn = TIER_ORDER.every(t => filters[t]);
   const onlyOnTier = (() => {
     const ons = TIER_ORDER.filter(t => filters[t]);
@@ -776,6 +808,47 @@ function FilterChips({ filters, onChange, counts }) {
       display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
       padding: "10px 0", marginBottom: 12, borderBottom: `1px solid ${P.bd}`,
     }}>
+      {/* 7/7: Stocks / ETFs / All partition. Sits BEFORE the tier chips
+          since it partitions the universe of alerts before the tier filter
+          applies. Client-side via KNOWN_ETFS_INDEXES. */}
+      {onStockEtfChange && (
+        <>
+          <div style={{
+            display: "inline-flex", border: `1px solid ${P.bd}`,
+            borderRadius: 4, overflow: "hidden", marginRight: 4,
+          }}>
+            {[
+              { key: "stocks", label: "Stocks" },
+              { key: "etfs",   label: "ETFs" },
+              { key: "all",    label: "All" },
+            ].map(opt => {
+              const active = stockEtfFilter === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => onStockEtfChange(opt.key)}
+                  title={
+                    opt.key === "stocks" ? "Show only individual stock names" :
+                    opt.key === "etfs"   ? "Show only ETFs and index products" :
+                                           "Show both stocks and ETFs"
+                  }
+                  style={{
+                    background: active ? P.wh : "transparent",
+                    color: active ? P.bg : P.dm,
+                    border: "none",
+                    padding: "5px 10px", cursor: "pointer", fontSize: 13,
+                    fontWeight: active ? 700 : 400,
+                    borderRight: opt.key !== "all" ? `1px solid ${P.bd}` : "none",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <span style={{ color: P.bd, fontSize: 13, marginRight: 4 }}>·</span>
+        </>
+      )}
       <span style={{ color: P.dm, fontSize: 13, marginRight: 4 }}>Show:</span>
       <button
         onClick={handleShowAll}
@@ -1870,6 +1943,13 @@ export default function LiveFlowMassive() {
   const [hideAlgo, setHideAlgo] = useState(() =>
     localStorage.getItem(LS_KEY_HIDE_ALGO) === "1"
   );
+  // 7/7: Stocks / ETFs / All partition filter. 'all' shows everything (today's
+  // behavior). 'stocks' hides tickers in KNOWN_ETFS_INDEXES; 'etfs' shows only
+  // those. Client-side, so it works against historical rows regardless of
+  // whether their StockEtf field was stamped correctly upstream.
+  const [stockEtfFilter, setStockEtfFilter] = useState(() =>
+    localStorage.getItem(LS_KEY_STOCK_ETF) || "all"
+  );
   // Curated mode — show only alerts that meet stacked criteria (best-of-best).
   // Default ON for product mode; admin can flip to "All Flow" for the firehose.
   // Cards stay day-scoped to FULL classifiable flow regardless — only the
@@ -1947,6 +2027,7 @@ export default function LiveFlowMassive() {
   useEffect(() => { localStorage.setItem(LS_KEY_MINGRADE, minGrade); }, [minGrade]);
   useEffect(() => { localStorage.setItem(LS_KEY_ROW_LIMIT, String(rowLimit)); }, [rowLimit]);
   useEffect(() => { localStorage.setItem(LS_KEY_HIDE_ALGO, hideAlgo ? "1" : "0"); }, [hideAlgo]);
+  useEffect(() => { localStorage.setItem(LS_KEY_STOCK_ETF, stockEtfFilter); }, [stockEtfFilter]);
   useEffect(() => { localStorage.setItem(LS_KEY_CURATED, curated ? "1" : "0"); }, [curated]);
 
   // Load thresholds when entering tuning mode. Only fetches once per page
@@ -2163,6 +2244,13 @@ export default function LiveFlowMassive() {
       const tier = a._tierKey || "algo";
       if (hideAlgo && tier === "algo") return false;  // global Algo hide
       if (!filters[tier]) return false;
+      // 7/7: Stocks / ETFs partition filter — client-side classification
+      // via KNOWN_ETFS_INDEXES set (mirrors backend INDEX_SYMBOLS).
+      if (stockEtfFilter !== "all") {
+        const isEtf = KNOWN_ETFS_INDEXES.has(a.ticker);
+        if (stockEtfFilter === "stocks" && isEtf) return false;
+        if (stockEtfFilter === "etfs" && !isEtf) return false;
+      }
       if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) return false;
       if (contractFilter.size > 0) {
         const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
@@ -2412,7 +2500,8 @@ export default function LiveFlowMassive() {
         paddingLeft: 16, paddingRight: 16,
         paddingTop: 4, paddingBottom: 4,
       }}>
-        <FilterChips filters={filters} onChange={setFilters} counts={tierCounts} />
+        <FilterChips filters={filters} onChange={setFilters} counts={tierCounts}
+                     stockEtfFilter={stockEtfFilter} onStockEtfChange={setStockEtfFilter} />
 
         <ColumnHeaders />
       </div>
