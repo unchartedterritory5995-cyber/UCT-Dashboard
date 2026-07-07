@@ -9,7 +9,8 @@ POST /api/top-flow/snapshot — WRITE-only: manual trigger to record a new price
                               and return the index.html shell. To read the most recent snapshot, use /history.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from api.flow_admin_auth import require_flow_admin, require_flow_user
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/top-flow", tags=["top-flow"])
@@ -30,7 +31,7 @@ class Pick(BaseModel):
 
 
 @router.post("/save")
-def save_picks(picks: list[Pick]):
+def save_picks(picks: list[Pick], _auth: dict = Depends(require_flow_user)):
     from api.top_flow_tracker import save_picks as _save
     result = _save([p.model_dump() for p in picks])
     return result
@@ -43,7 +44,7 @@ def get_history():
 
 
 @router.post("/snapshot")
-async def trigger_snapshot():
+async def trigger_snapshot(_auth: dict = Depends(require_flow_user)):
     """Trigger a new price snapshot for all active top-flow picks.
 
     POST-only by design — this is a write/side-effect endpoint that records a
@@ -76,6 +77,7 @@ async def migrate_entries(
     force: bool = False,
     allow_backfill: bool = True,
     threshold: float = 50.0,
+    _auth: dict = Depends(require_flow_admin),
 ):
     """One-shot bug-fix migration. Replaces stock-price `entry` values with
     the contract's actual price near dateSaved.
@@ -112,7 +114,7 @@ async def migrate_entries(
 
 
 @router.post("/archive-now")
-def trigger_archive():
+def trigger_archive(_auth: dict = Depends(require_flow_admin)):
     """Debug endpoint — just archive expired picks, no Schwab calls."""
     from api.top_flow_tracker import archive_expired, get_all
     count = archive_expired()
@@ -121,7 +123,7 @@ def trigger_archive():
 
 
 @router.post("/wipe")
-def wipe_all():
+def wipe_all(_auth: dict = Depends(require_flow_admin)):
     """Wipe ALL picks (active + archived). Use carefully — irreversible.
     Intended for one-time clean-slate before switching tracker data sources."""
     from api.top_flow_tracker import _data, _save

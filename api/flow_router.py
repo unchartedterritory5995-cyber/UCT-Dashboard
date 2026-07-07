@@ -36,7 +36,8 @@ Performance design:
   payload.
 """
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
+from api.flow_admin_auth import require_flow_admin
 from fastapi.responses import JSONResponse, Response
 from api.flow_db import FlowDB
 from collections import OrderedDict
@@ -193,7 +194,7 @@ def _parse_query_days(request: Request):
 
 
 @flow_router.post("/upload")
-async def upload_flow(request: Request):
+async def upload_flow(request: Request, _auth: dict = Depends(require_flow_admin)):
     """
     Upload a BBS CSV file. Automatically deduplicates.
     ?source=stocks (default) or ?source=indexes
@@ -287,7 +288,7 @@ async def get_version():
 
 
 @flow_router.post("/bump-version")
-async def bump_version_endpoint():
+async def bump_version_endpoint(_auth: dict = Depends(require_flow_admin)):
     """Manually bump the data version and clear in-memory response cache.
 
     Useful when:
@@ -315,7 +316,7 @@ async def bump_version_endpoint():
 
 
 @flow_router.post("/prune")
-async def prune_expired(request: Request):
+async def prune_expired(request: Request, _auth: dict = Depends(require_flow_admin)):
     """Manually prune expired contracts."""
     try:
         buffer_str = request.query_params.get("buffer_days", "7")

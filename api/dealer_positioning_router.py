@@ -30,7 +30,8 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from api.flow_admin_auth import require_flow_admin
 
 from api.dealer_positioning import (
     init_db,
@@ -105,6 +106,7 @@ def status():
 def trigger_backfill(
     start: Optional[str] = Query(None, description="Optional start date ISO YYYY-MM-DD"),
     end: Optional[str] = Query(None, description="Optional end date ISO YYYY-MM-DD"),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """Kick off backfill in a background thread. Returns immediately.
 
@@ -162,7 +164,7 @@ def trigger_backfill(
 
 
 @router.post("/compute/{snap_date}")
-def manual_compute(snap_date: str):
+def manual_compute(snap_date: str, _auth: dict = Depends(require_flow_admin)):
     """Recompute a single date. Format ISO (YYYY-MM-DD).
 
     Useful for testing changes to the attribution algorithm against a

@@ -30,7 +30,8 @@ number → clients append it as ?v=N → CF treats it as a fresh URL.
 Both client-side and server-side caches invalidate in sync.
 """
 
-from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Request
+from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Request, Depends
+from api.flow_admin_auth import require_flow_admin
 from fastapi.responses import JSONResponse, Response
 from collections import OrderedDict
 from api.darkpool_db import (
@@ -179,7 +180,7 @@ async def get_darkpool_aggregated(
 
 # ── Admin: Manually trigger aggregation pre-build ────────────────────────────
 @router.post("/prebuild")
-async def prebuild_now():
+async def prebuild_now(_auth: dict = Depends(require_flow_admin)):
     """Kick off background pre-compute of all common windows.
     Called automatically on upload — exposed here for manual ops use."""
     prebuild_all_windows_background()
@@ -222,7 +223,7 @@ async def get_version():
 
 # ── Admin: Upload CSV data ────────────────────────────────────────────────────
 @router.post("/upload")
-async def upload_darkpool_csv(file: UploadFile = File(...)):
+async def upload_darkpool_csv(file: UploadFile = File(...), _auth: dict = Depends(require_flow_admin)):
     """Upload a BBS dark pool CSV export. Deduplicates automatically."""
     try:
         content = await file.read()
@@ -251,7 +252,7 @@ async def upload_darkpool_csv(file: UploadFile = File(...)):
 
 # ── Admin: Upload CSV as raw text (for admin JSX fetch) ───────────────────────
 @router.post("/upload-text")
-async def upload_darkpool_text(body: dict):
+async def upload_darkpool_text(body: dict, _auth: dict = Depends(require_flow_admin)):
     """Upload CSV as raw text in JSON body { "csv_text": "..." }."""
     try:
         csv_text = body.get("csv_text", "")
@@ -281,7 +282,7 @@ async def darkpool_stats():
 
 # ── Admin: Prune old data ────────────────────────────────────────────────────
 @router.post("/prune")
-async def prune_data(keep_days: int = Query(default=120)):
+async def prune_data(keep_days: int = Query(default=120), _auth: dict = Depends(require_flow_admin)):
     """Remove data older than keep_days trading days."""
     try:
         deleted = prune_old_data(keep_days)
@@ -295,7 +296,7 @@ async def prune_data(keep_days: int = Query(default=120)):
 
 # ── Admin: Clear all data ────────────────────────────────────────────────────
 @router.delete("/clear")
-async def clear_data():
+async def clear_data(_auth: dict = Depends(require_flow_admin)):
     """Delete ALL dark pool data. Use with caution."""
     try:
         clear_all()

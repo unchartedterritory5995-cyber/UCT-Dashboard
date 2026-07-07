@@ -17,14 +17,15 @@ Webhook config: set DISCORD_NOTABLE_WEBHOOK_URL on Railway. Separate from
 DISCORD_FLOW_WEBHOOK_URL (watchlist bot) and DISCORD_WEBHOOK_URL (breadth bot).
 """
 
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Query, Depends
+from api.flow_admin_auth import require_flow_admin
 from api import notable_flow
 
 router = APIRouter(prefix="/api/notable-flow", tags=["notable-flow"])
 
 
 @router.post("/post")
-async def post_notable(payload: dict = Body(...)):
+async def post_notable(payload: dict = Body(...), _auth: dict = Depends(require_flow_admin)):
     """Main entry — frontend POSTs after CSV upload completes and D rebuilds.
 
     Body shape:
@@ -55,7 +56,7 @@ async def post_notable(payload: dict = Body(...)):
 
 
 @router.post("/post-single")
-async def post_single(payload: dict = Body(...)):
+async def post_single(payload: dict = Body(...), _auth: dict = Depends(require_flow_admin)):
     """Manual 🚨 button — pushes one ticker. force=true (default) bypasses
     the 24h dedupe so admin can re-alert any ticker on demand."""
     force = payload.get("force", True)
@@ -74,7 +75,7 @@ def get_settings():
 
 
 @router.post("/settings")
-def update_settings(payload: dict = Body(...)):
+def update_settings(payload: dict = Body(...), _auth: dict = Depends(require_flow_admin)):
     """Body: {"enabled": true|false}"""
     if "enabled" in payload:
         notable_flow.set_setting("enabled", "1" if payload["enabled"] else "0")
@@ -91,7 +92,7 @@ def get_dedupe():
 
 
 @router.delete("/dedupe")
-def clear_dedupe(ticker: str | None = Query(None)):
+def clear_dedupe(ticker: str | None = Query(None), _auth: dict = Depends(require_flow_admin)):
     """Clear dedupe entries. ?ticker=AAPL clears one, no query clears all."""
     removed = notable_flow.clear_dedupe(ticker)
     return {"ok": True, "cleared": ticker or "all", "removed": removed}
