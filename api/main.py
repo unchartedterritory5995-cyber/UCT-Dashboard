@@ -107,7 +107,6 @@ from api.dealer_positioning_router import router as dealer_positioning_router
 from api.watchlist_router import router as watchlist_router
 from api import watchlist_tracker as _watchlist_tracker
 from api.flow_reconcile_router import router as flow_reconcile_router
-   app.include_router(flow_reconcile_router)
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 
@@ -2999,6 +2998,7 @@ app.include_router(notable_flow_router)
 app.include_router(liveflow_router)
 app.include_router(liveflow_health_router)
 app.include_router(live_massive_router)
+app.include_router(flow_reconcile_router)
 app.include_router(alert_tester_router)
 app.include_router(csv_ingest_router)
 app.include_router(darkpool_router)
