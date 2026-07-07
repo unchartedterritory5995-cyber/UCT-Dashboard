@@ -41,27 +41,39 @@ PROXY_ENABLED = os.environ.get("FLOW_READS_PROXY_ENABLED", "0") == "1"
 # state) IS. Matching is per-segment so /api/flow never captures a hypothetical
 # unrelated /api/flowXYZ, and each -scoreboard/-explain/-gap-fill/-backup prefix
 # is listed explicitly.
+# CORRECTED after the P5 code review: only prefixes whose data is genuinely in
+# flow.db (the DB that moves to the worker) OR the OPRA consumer's in-process
+# state. Endpoints with their OWN web-local store were REMOVED — proxying them
+# would serve an empty DB on the worker:
+#   /api/darkpool        -> darkpool.db (web-only, CSV-seeded)
+#   /api/top-flow        -> /data/top_flow_picks.json (web-only)
+#   /api/flow-scoreboard -> reads top_flow_picks.json (web-only)
+#   /api/flow-explain    -> flow_explain.db (web-only) + per-user auth (auth.db)
+# Those stay web-local. flow-explain still needs flow.db post-cutover — tracked
+# as the auth-at-proxy remaining work, NOT proxied blindly here.
 PROXY_PREFIXES = (
-    "/api/flow",
-    "/api/flow-scoreboard",
-    "/api/flow-explain",
-    "/api/flow-gap-fill",
-    "/api/flow-backup",
-    "/api/flow-reconcile",
-    "/api/darkpool",
-    "/api/dealer-positioning",
-    "/api/notable-flow",
-    "/api/top-flow",
-    "/api/oi-snapshot",
-    "/api/liveflow",
-    "/api/live/massive",
+    "/api/flow",              # flow_router + flow_summary (flow.db)
+    "/api/flow-gap-fill",     # heals flow.db
+    "/api/flow-backup",       # backs up flow.db
+    "/api/flow-reconcile",    # reconciles flow.db
+    "/api/dealer-positioning",  # flow.db
+    "/api/notable-flow",      # flow.db (primary read)
+    "/api/oi-snapshot",       # flow.db
+    "/api/liveflow",          # OPRA consumer in-process state
+    "/api/live/massive",      # OPRA consumer state + flow.db
 )
 
 # RFC 7230 6.1 hop-by-hop headers + framing headers we must not pass through.
+# NOTE: content-encoding is PRESERVED (not stripped) — see _proxy: we forward the
+# worker's already-gzipped bytes RAW (aiter_raw) and keep Content-Encoding: gzip so
+# (a) web's GZipMiddleware skips re-compressing (no double-gzip on the shared loop)
+# and (b) the buffered Response carries a Content-Length, keeping /api/flow/data
+# Cloudflare-edge-cacheable (the whole point of Option B). Only framing headers +
+# content-length (Response recomputes it from the buffered body) are stripped.
 _HOP = frozenset({
     "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
     "te", "trailers", "transfer-encoding", "upgrade", "host",
-    "content-length", "content-encoding",
+    "content-length",
 })
 
 _TIMEOUT = httpx.Timeout(
@@ -107,18 +119,21 @@ async def _proxy(request: Request):
                        request.method, request.url.path, e)
         return Response(f"flow proxy upstream error: {e}", status_code=502)
 
+    # Buffer the RAW (still-encoded) upstream bytes — do NOT decode. This
+    # preserves the worker's gzip so web never gunzips+regzips the ~60MB CSV on
+    # the shared event loop (the 524 surface), and a buffered Response gets a
+    # Content-Length so Cloudflare edge-caches it (proxy hop happens only on
+    # cache-miss). Flow responses are bounded (JSON/CSV), so buffering is safe.
+    try:
+        raw = b"".join([chunk async for chunk in upstream.aiter_raw()])
+    finally:
+        await upstream.aclose()
+
     resp_headers = {k: v for k, v in upstream.headers.items()
                     if k.lower() not in _HOP}
 
-    async def _body():
-        try:
-            async for chunk in upstream.aiter_bytes():  # decoded; web re-gzips
-                yield chunk
-        finally:
-            await upstream.aclose()
-
-    return StreamingResponse(
-        _body(),
+    return Response(
+        content=raw,
         status_code=upstream.status_code,
         headers=resp_headers,
         media_type=upstream.headers.get("content-type"),

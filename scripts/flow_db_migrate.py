@@ -73,9 +73,14 @@ def do_export(dry_run: bool) -> int:
     try:
         _sqlite_backup(DB_PATH, tmp_db)
         snap_rows = _row_count(tmp_db)
-        if snap_rows != src_rows:
-            _log(f"WARN: snapshot rows={snap_rows} != source rows={src_rows} "
-                 f"(writes in flight? run after 4:20 PM ET)")
+        # snap_rows >= src_rows is benign (new prints landed during the online
+        # backup). snap_rows < src_rows is real LOSS -> refuse to publish, since
+        # import can only self-verify download integrity, not source fidelity.
+        if snap_rows < src_rows:
+            _log(f"ERROR: snapshot LOST rows vs source (snap={snap_rows} < "
+                 f"src={src_rows}) — refusing to publish a lossy snapshot. "
+                 f"Run after 4:20 PM ET when the tape is silent.")
+            return 2
         with open(tmp_db, "rb") as f_in, gzip.open(tmp_gz, "wb", compresslevel=6) as f_out:
             shutil.copyfileobj(f_in, f_out)
         size_mb = os.path.getsize(tmp_gz) / 1e6
@@ -146,7 +151,15 @@ def do_import(dry_run: bool, scratch: str) -> int:
             _log(f"existing {dest} preserved at {backup}")
         os.replace(staged, dest)
         staged = None  # consumed
-        _log(f"IMPORT OK: installed {got_rows} rows at {dest}")
+        # Delete any stale -wal/-shm from a PRIOR flow.db, or SQLite would replay
+        # the OLD database's WAL frames onto the freshly-installed file on next
+        # open = silent corruption of the non-replayable options DB.
+        for side in ("-wal", "-shm"):
+            try:
+                os.remove(dest + side)
+            except OSError:
+                pass
+        _log(f"IMPORT OK: installed {got_rows} rows at {dest} (stale WAL sidecars cleared)")
         _log("Restart the worker (or ensure it opens the new file) before flipping MASSIVE_WS_ENABLED=1.")
         return 0
     finally:

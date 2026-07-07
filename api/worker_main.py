@@ -439,26 +439,25 @@ def _mount_flow_routers(app) -> None:
             logging.getLogger("uvicorn.error").warning(
                 "[worker-flow] failed to mount %s: %s", desc, e)
 
-    def _core():
-        from api.top_flow_router import router as top_flow_router
-        from api.flow_scoreboard import router as flow_scoreboard_router
-        from api.flow_explain import router as flow_explain_router
-        from api.flow_router import flow_router
-        from api.flow_summary import flow_summary_router
-        from api.oi_snapshot_router import router as oi_snapshot_router
-        from api.notable_flow_router import router as notable_flow_router
-        from api.routers.liveflow_health import router as liveflow_health_router
-        from api.live_massive_router import router as live_massive_router
-        from api.darkpool_router import router as darkpool_router
-        from api.dealer_positioning_router import router as dealer_positioning_router
-        from api.flow_reconcile_router import router as flow_reconcile_router
-        for r in (top_flow_router, flow_scoreboard_router, flow_explain_router,
-                  flow_router, flow_summary_router, oi_snapshot_router,
-                  notable_flow_router, liveflow_health_router, live_massive_router,
-                  darkpool_router, dealer_positioning_router, flow_reconcile_router):
-            app.include_router(r)
-
-    _try("core flow routers", _core)
+    # CORRECTED set (P5 review): only flow.db-backed / OPRA-consumer-state
+    # routers. top-flow/flow-scoreboard (top_flow_picks.json), darkpool
+    # (darkpool.db), and flow-explain (flow_explain.db + per-user auth) have
+    # web-local backing stores -> they stay on WEB, are NOT mounted here.
+    # Each mounted independently so one bad import degrades only that endpoint,
+    # not the whole flow family.
+    _MOUNTS = (
+        ("flow_router", "api.flow_router", "flow_router"),
+        ("flow_summary", "api.flow_summary", "flow_summary_router"),
+        ("oi_snapshot", "api.oi_snapshot_router", "router"),
+        ("notable_flow", "api.notable_flow_router", "router"),
+        ("liveflow_health", "api.routers.liveflow_health", "router"),
+        ("live_massive", "api.live_massive_router", "router"),
+        ("dealer_positioning", "api.dealer_positioning_router", "router"),
+        ("flow_reconcile", "api.flow_reconcile_router", "router"),
+    )
+    for _desc, _mod, _attr in _MOUNTS:
+        _try(_desc, lambda m=_mod, a=_attr: app.include_router(
+            getattr(__import__(m, fromlist=[a]), a)))
 
     if os.environ.get("FLOW_GAP_AUTOFILL_ENABLED", "0") == "1":
         _try("flow_gap_autofill_router", lambda: app.include_router(
@@ -549,7 +548,12 @@ def main():
 
     port = int(os.environ.get("PORT", "8080"))
     log.info(f"worker HTTP listening on :{port} (healthcheck only)")
-    uvicorn.run(_build_app(), host="0.0.0.0", port=port, log_level="info")
+    # timeout_graceful_shutdown=5 mirrors the web branch's --timeout-graceful-shutdown 5:
+    # bounds in-flight (proxied flow) requests so uvicorn reaches lifespan.shutdown ->
+    # massive_ws_worker.stop() (clean OPRA slot release) within Railway's 30s drain,
+    # instead of a SIGKILL that skips the clean close and gaps the next consumer.
+    uvicorn.run(_build_app(), host="0.0.0.0", port=port, log_level="info",
+                timeout_graceful_shutdown=5)
 
 
 if __name__ == "__main__":

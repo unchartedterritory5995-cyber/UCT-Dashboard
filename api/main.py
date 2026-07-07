@@ -2971,7 +2971,10 @@ app.include_router(sector_strength_router.router)
 # local flow routers so its catch-alls win; flag off = not registered = web serves
 # locally exactly as today. Import is local so a bad env can't affect module load.
 from api import flow_proxy as _flow_proxy
-if _flow_proxy.PROXY_ENABLED:
+# Gate on BOTH the flag AND a configured worker URL: a half-applied env (flag on,
+# URL missing = cutover not finished) is then a no-op and web keeps serving flow
+# locally — instead of 503-ing every flow endpoint while local flow.db is healthy.
+if _flow_proxy.PROXY_ENABLED and _flow_proxy.WORKER_INTERNAL_URL:
     app.include_router(_flow_proxy.build_flow_proxy_router())
     logging.getLogger("uvicorn.error").info(
         "[flow-proxy] ENABLED -> forwarding flow reads to %s", _flow_proxy.WORKER_INTERNAL_URL)
