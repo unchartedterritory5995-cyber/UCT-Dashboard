@@ -33,7 +33,10 @@ OCC_PATTERN = re.compile(r'^O:([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$')
 # Built from your June 22 Indexes-data.csv top tickers + standard set.
 INDEX_SYMBOLS = frozenset({
     # Pure indexes
-    'SPX', 'SPXW', 'XSP', 'NDX', 'NQX', 'RUT', 'RUTW', 'VIX', 'VIXW',
+    'SPX', 'SPXW', 'XSP', 'NDX', 'NDXP', 'NQX', 'RUT', 'RUTW', 'VIX', 'VIXW',
+    #                    ^^^^ 7/7: NDXP (PM-settled Nasdaq-100 Index) was
+    #                    missing, so its prints were routing to source='stocks'
+    #                    and stamped StockEtf='STOCK'. Fixed.
     # Major broad-market ETFs
     'SPY', 'QQQ', 'IWM', 'DIA', 'VOO', 'VTI', 'VT', 'VXUS', 'VUG', 'RSP', 'MAGS',
     # Sector ETFs (SPDR)
