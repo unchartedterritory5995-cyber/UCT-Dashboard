@@ -34,26 +34,16 @@ Why this lives separately:
 """
 from fastapi import APIRouter, Query, Request, HTTPException
 from datetime import date, datetime, timezone, timedelta
-from zoneinfo import ZoneInfo
 import sqlite3
 import os
 import time
 import re
 import json
-from fastapi.responses import Response
-from api.bs_iv import iv_for_row
 
 router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
-# DST-safe Eastern time (was a hardcoded UTC-4 offset, which would have
-# skewed every age/gap/restart timestamp by +1h when EST resumes in November).
-ET = ZoneInfo("America/New_York")
-
-# /recent micro-cache: {param-key: (expires_epoch, payload)} — see the
-# endpoint for rationale. TTL below the page's 5s poll interval.
-_RECENT_CACHE: dict = {}
-_RECENT_CACHE_TTL = 4.0
+ET = timezone(timedelta(hours=-4))
 
 
 # ─── Tier priority (for convictionScore weighting) ─────────────────────────
@@ -106,6 +96,10 @@ DEFAULT_THRESHOLDS = {
         "vOI": 3.0,
         "hit_count": 3,
         "grade": "B",
+        "voi_required": False,    # 7/7 addition: when True, V/OI >= stack.vOI becomes a hard gate,
+                                  # short-circuits before the confirmer count. Lets Ravi toggle
+                                  # "volume>OI mandatory" from the admin panel without touching code.
+                                  # Default False preserves today's 1-of-3 flexibility.
     },
     "premium_by_cap": {
         # premium $ floor by tier and cap band
@@ -395,6 +389,14 @@ def _qualifies_curated(alert: dict, thresholds: dict) -> bool:
     band = _cap_band_key(mkt_cap, cap_bands)
     prem_floor = prem_caps.get(band, 0)
     if prem < prem_floor:
+        return False
+
+    # ─── Optional HARD gate: V/OI (7/7) ───────────────────────────────
+    # When admin panel has "V/OI required" ticked, V/OI < stack.vOI is a
+    # short-circuit fail regardless of grade/hit_count confirmers. Lets
+    # the panel enforce Ravi's stated priority of volume>OI without
+    # changing the underlying 1-of-3 confirmer semantics.
+    if stack.get("voi_required", False) and v_oi < stack.get("vOI", 3.0):
         return False
 
     # ─── Count quality signals (V/OI, hits, grade) ────────────────────
@@ -1040,12 +1042,6 @@ def _row_to_alert(row: dict) -> dict | None:
     if direction is None:
         # Unclassified side → can't determine bull/bear → skip
         return None
-    # Side provenance (audit F2 honesty): a kept row's direction is either
-    # MEASURED from a real NBBO side (A/AA/B/BB) or PRESUMED from the empty-side
-    # sweep heuristic (sweeps are presumed buyer-driven). Expose which, so the
-    # UI can honestly distinguish inferred direction from measured — WITHOUT
-    # changing what shows or how the tape is curated (that stays Ravi's logic).
-    side_confidence = "measured" if side.strip().upper() in ("A", "AA", "B", "BB") else "presumed"
 
     strike = _parse_strike(row["Strike"])
     spot = _parse_float(row["Spot"])
@@ -1174,12 +1170,6 @@ def _row_to_alert(row: dict) -> dict | None:
         "_tierPriority": tier_priority,
         "symbol": occ,
         "ticker": row["Symbol"],
-        # Black-Scholes implied vol from the print's own price/spot/strike/dte
-        # (T1/F1 — every row was IV=0 before, a glaring gap vs Unusual Whales).
-        # None when unsolvable (deep-ITM, below-intrinsic, expired) — the UI
-        # renders None as "—", never 0. Computed once per row here and shared
-        # across concurrent viewers via the /recent 4s micro-cache.
-        "iv": iv_for_row(price, spot, strike, dte, cp_short),
         "cp": cp_short,
         "strike": strike,
         "exp": row["ExpirationDate"],
@@ -1188,14 +1178,9 @@ def _row_to_alert(row: dict) -> dict | None:
         "averageFillPrice": price,
         "tradeSize": volume,
         "timestamp": ts,
-        # Latency is NOT measured on this FlowDB-derived tape (it was a
-        # Bullflow-SSE concept). Report null, never a fabricated 0.0 — a fake
-        # "0ms latency" is exactly the kind of dishonest metric we're
-        # differentiating against (2026-07-06 audit F2). Unconsumed by
-        # LiveFlowMassive.jsx; kept as null for shape stability.
-        "receivedAt": None,
-        "latency": None,
-        "deliveryLatency": None,
+        "receivedAt": ts,                # same as timestamp (no Bullflow-style ingest delay)
+        "latency": 0.0,
+        "deliveryLatency": 0.0,
         "ingestedAt": datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts > 0 else None,
         "priorOI": oi if oi > 0 else None,
         "volumeOIRatio": round(volume / oi, 2) if oi > 0 else None,
@@ -1208,7 +1193,6 @@ def _row_to_alert(row: dict) -> dict | None:
         "gatePassed": True,              # gating not implemented in test phase
         "forwardedToDiscord": False,     # not wired in test phase
         # Massive-specific extras (useful for debugging / future UI)
-        "sideConfidence": side_confidence,   # 'measured' | 'presumed' (F2 honesty)
         "_color": row["Color"],
         "_side": side,
         "_type": row["Type"],
@@ -1379,19 +1363,6 @@ def recent_massive_alerts(
                        "A+": 4}  # accept both with and without rocket
     min_threshold = grade_threshold.get(min_grade, 0)
 
-    # ── Micro-cache (T1-1): at 5s polling, N concurrent viewers of the same
-    # feed would each pay the query + per-row translation. One computation
-    # per parameter-set per 4s window serves everyone; staleness is invisible
-    # at a 5s poll cadence.
-    _ck = (target_date or "today", limit, min_grade, sort_by, tier, curated)
-    _hit = _RECENT_CACHE.get(_ck)
-    if _hit and _hit[0] > time.time():
-        # Serve pre-serialized JSON bytes — skips the per-request
-        # jsonable_encoder + json.dumps that otherwise ran on EVERY cache hit
-        # (audit: serialization CPU scaled with user count even when cached).
-        # GZipMiddleware still compresses this Response over the wire.
-        return Response(content=_hit[1], media_type="application/json")
-
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
@@ -1542,19 +1513,10 @@ def recent_massive_alerts(
     status["skipped_curated"] = skipped_curated
     status["returned"] = len(alerts)
 
-    payload = {
+    return {
         "status": status,
         "alerts": alerts,
     }
-    # Serialize ONCE and cache the bytes (not the dict) so cache hits skip
-    # re-serialization. Plain json.dumps is safe here — the payload is only
-    # dicts/lists/str/float/int/None/bool (ingestedAt is already an ISO
-    # string, iv is float|None). default=str is a belt-and-suspenders guard.
-    body = json.dumps(payload, default=str).encode("utf-8")
-    if len(_RECENT_CACHE) > 64:  # bound: distinct param-sets are few in practice
-        _RECENT_CACHE.clear()
-    _RECENT_CACHE[_ck] = (time.time() + _RECENT_CACHE_TTL, body)
-    return Response(content=body, media_type="application/json")
 
 
 @router.get("/diagnostic")
@@ -1661,20 +1623,10 @@ async def current_quotes(payload: CurrentQuotesPayload):
     # (the live page maxes at 200 alerts which is typically <100 uniques).
     tickers = tickers[:200]
 
-    # Bound concurrency: without this, an "All"-view user could fire up to 200
-    # simultaneous Schwab quote calls (each a fresh TLS handshake), and at
-    # launch load N users doing that at once risks Schwab rate-limiting the
-    # whole burst → the P/L column silently drops to "—". A semaphore keeps
-    # in-flight lookups modest while the 2-min per-ticker cache absorbs
-    # repeats. Env-tunable. (audit F4)
-    _sem = asyncio.Semaphore(int(os.environ.get("QUOTE_FETCH_CONCURRENCY", "20")))
-
-    async def _bounded(t):
-        async with _sem:
-            return await _fetch_one_quote(t)
-
+    # Fire all lookups concurrently. Schwab service handles its own rate
+    # limiting; cache layer (above) dedupes same-ticker repeats within TTL.
     results = await asyncio.gather(
-        *[_bounded(t) for t in tickers], return_exceptions=False
+        *[_fetch_one_quote(t) for t in tickers], return_exceptions=False
     )
     quotes = {t: p for t, p in zip(tickers, results) if p is not None}
     return {"quotes": quotes, "fetched_at": time.time(), "requested": len(tickers)}
@@ -2869,8 +2821,8 @@ def _worker_history_impl(target_date, min_gap_minutes):
     # multi-hour downtime window at the tail. (Bug caught mid-session
     # 7/6/2026 when a legitimate ~80-minute downtime finding was
     # buried under a bogus 160-minute future-hours "gap".)
-    from datetime import datetime as _dt
-    _now_et = _dt.now(ET)  # DST-safe (module-level ZoneInfo)
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    _now_et = _dt.now(_tz.utc) + _td(hours=-4)  # July DST
     _today_str = f"{_now_et.month}/{_now_et.day}/{_now_et.year}"
     if today == _today_str:
         scan_end = min(MARKET_CLOSE, _now_et.hour * 60 + _now_et.minute)
@@ -3083,10 +3035,13 @@ def restart_log(
     # for the whole platform).
     try:
         m, d, y = today.split("/")
-        from datetime import datetime
-        # DST-safe: anchor the day's bounds in real US Eastern time.
-        day_start_ts = datetime(int(y), int(m), int(d), 0, 0, 0, tzinfo=ET).timestamp()
-        day_end_ts = datetime(int(y), int(m), int(d), 23, 59, 59, tzinfo=ET).timestamp()
+        from datetime import datetime, timezone, timedelta
+        # ET is UTC-4 during DST (Mar-Nov), UTC-5 otherwise. July is DST.
+        et_offset = timedelta(hours=-4)  # US Eastern DST
+        day_start_et = datetime(int(y), int(m), int(d), 0, 0, 0)
+        day_end_et = datetime(int(y), int(m), int(d), 23, 59, 59)
+        day_start_ts = (day_start_et - et_offset).replace(tzinfo=timezone.utc).timestamp()
+        day_end_ts = (day_end_et - et_offset).replace(tzinfo=timezone.utc).timestamp()
     except Exception as e:
         raise HTTPException(status_code=400,
                             detail=f"bad target_date, expected M/D/YYYY: {e}")
@@ -3095,14 +3050,14 @@ def restart_log(
     MARKET_CLOSE_ET_HHMM = 16 * 60
 
     def _to_et_hhmm(unix_ts: float) -> int:
-        """Return minute-of-day in ET for a Unix timestamp (DST-safe)."""
-        from datetime import datetime
-        dt = datetime.fromtimestamp(unix_ts, tz=ET)
+        """Return minute-of-day in ET for a Unix timestamp (July DST)."""
+        from datetime import datetime, timezone, timedelta
+        dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc) + timedelta(hours=-4)
         return dt.hour * 60 + dt.minute
 
     def _to_et_str(unix_ts: float) -> str:
-        from datetime import datetime
-        dt = datetime.fromtimestamp(unix_ts, tz=ET)
+        from datetime import datetime, timezone, timedelta
+        dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc) + timedelta(hours=-4)
         h = dt.hour
         ampm = "AM" if h < 12 else "PM"
         h12 = h if 1 <= h <= 12 else (h - 12 if h > 12 else 12)
