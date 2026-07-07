@@ -1918,6 +1918,7 @@ async def save_thresholds(request: Request):
     # Basic shape validation — top-level keys we accept
     allowed_top = {
         "stack", "premium_by_cap", "unusual", "cap_bands", "premium_override",
+        "etf_enabled",               # 7/7: admin gate for source='indexes' pipeline
         # Alpha Gold quality gates (added 6/29-6/30)
         "alpha_max_itm_pct",         # deep-ITM filter threshold (Alpha only)
         "alpha_min_vol_oi_ratio",    # vol > OI fresh-positioning gate
