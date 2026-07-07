@@ -106,6 +106,8 @@ from api.gex_router import router as gex_router
 from api.dealer_positioning_router import router as dealer_positioning_router
 from api.watchlist_router import router as watchlist_router
 from api import watchlist_tracker as _watchlist_tracker
+from api.flow_reconcile_router import router as flow_reconcile_router
+   app.include_router(flow_reconcile_router)
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 
