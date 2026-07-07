@@ -17,9 +17,25 @@ these via a Railway-backed admin route, but for now: edit code, push,
 Railway redeploys.
 
 Out of scope still:
-  - SQLite persistence (in-memory only)
   - Migration to `worker` Railway service (still on `web`)
   - Editable filter UI
+
+Deploy survival (2026-07-06):
+  - The SSE stream NO LONGER uses timeout=None. _consume_stream sets a bounded
+    httpx.Timeout (read = LIVEFLOW_SSE_READ_TIMEOUT, default 90s — Bullflow
+    sends `heartbeat` events well inside that), so a silently-dead connection
+    raises httpx.ReadTimeout out of aiter_lines() and run_forever's existing
+    except/backoff path reconnects, instead of hanging forever on a zombie
+    socket that never delivers another byte.
+  - Cooperative stop: run_forever's reconnect loop honors the module-level
+    _STOP flag; liveflow_worker_threaded.stop() flips it AND cancels the root
+    task threadsafe, so the `async with httpx.AsyncClient()` blocks unwind and
+    both clients close cleanly inside Railway's drain window.
+  - Boot rehydration: _rehydrate_from_db() reloads TODAY's (ET) alerts and the
+    Discord cap/dedup day-state (per-(alert,ticker) posted marks, global
+    per-ticker counters, repeat/follow-through counters, contract aggregates
+    incl. discord_message_id) from live_alerts_db at startup, so a mid-day
+    deploy doesn't reset the caps (no duplicate-cap-reset Discord spam).
 """
 import asyncio
 import json
@@ -83,6 +99,29 @@ DISCORD_WEBHOOK_URL = (
 MAX_BUFFER = 1000
 RECONNECT_MIN_SEC = 1.0
 RECONNECT_MAX_SEC = 30.0
+
+# Read timeout (seconds) for the Bullflow SSE stream. Bullflow emits
+# `heartbeat` events every few seconds on a healthy stream, so 90s of total
+# silence means the connection is dead (NAT reset, LB swap, half-open TCP)
+# even though the socket looks alive. With this bound, aiter_lines() raises
+# httpx.ReadTimeout → run_forever's except/backoff path reconnects. Env-tunable
+# so ops can widen it without a code change if Bullflow ever slows heartbeats.
+def _read_timeout_env() -> float:
+    try:
+        v = float(os.getenv("LIVEFLOW_SSE_READ_TIMEOUT", "90") or 90)
+        return v if v > 0 else 90.0
+    except (TypeError, ValueError):
+        return 90.0
+
+
+LIVEFLOW_SSE_READ_TIMEOUT = _read_timeout_env()
+
+# Cooperative stop flag — set (only) by liveflow_worker_threaded.stop() as the
+# backup path when task cancellation can't be delivered (e.g. stop() raced the
+# thread before loop/task refs were captured). run_forever checks it at the top
+# and on every reconnect iteration; with the bounded read timeout above, the
+# worst-case exit latency via this flag alone is ~read_timeout + backoff.
+_STOP = False
 
 # ─── Filter Engine v1 ────────────────────────────────────────────────────────
 # Table filter — alerts must pass ALL of these to appear in the LiveFlow UI.
@@ -2831,8 +2870,18 @@ def get_status():
 async def _consume_stream(client, discord_client):
     params = {"key": BULLFLOW_API_KEY}
     log.info("[liveflow] connecting to %s", BULLFLOW_SSE_URL)
+    # Bounded timeouts replace the old timeout=None (2026-07-06). read=90s is
+    # generous vs. Bullflow's heartbeat cadence; a silently-dead connection now
+    # raises httpx.ReadTimeout from aiter_lines() instead of hanging forever,
+    # and run_forever's except/backoff path turns that into a reconnect.
+    sse_timeout = httpx.Timeout(
+        connect=15.0,
+        read=LIVEFLOW_SSE_READ_TIMEOUT,
+        write=15.0,
+        pool=15.0,
+    )
     async with client.stream(
-        "GET", BULLFLOW_SSE_URL, params=params, timeout=None
+        "GET", BULLFLOW_SSE_URL, params=params, timeout=sse_timeout
     ) as response:
         if response.status_code != 200:
             body = await response.aread()
@@ -3059,6 +3108,253 @@ async def _delayed_discord_forward(discord_client, alert: dict):
 
 
 
+# ─── Boot rehydration (deploy survival) ──────────────────────────────────────
+def _iso_to_unix(iso_str):
+    """Parse an ISO-8601 timestamp string to Unix seconds. Naive timestamps
+    are treated as UTC (ingested_at is always written tz-aware UTC, but be
+    defensive about hand-inserted/backfilled rows). Returns None on garbage."""
+    if not iso_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.timestamp()
+    except (ValueError, TypeError):
+        return None
+
+
+def _rehydrate_from_db() -> None:
+    """
+    Best-effort restore of TODAY's (ET) in-memory day state from live_alerts_db
+    after a process restart (deploy, crash, OOM). Called once at the top of
+    run_forever, after init_db. Never raises — any failure logs and leaves the
+    worker running with empty state (exactly the pre-rehydration behavior).
+
+    Rebuilds, faithfully mirroring the live write paths:
+      - _alerts ring buffer (newest MAX_BUFFER rows, chronological order) so
+        /api/live/alerts/recent doesn't blank out after a deploy
+      - _alerts_posted_today: per-(alert_name, ticker) Discord post marks —
+        from rows with gate_passed=1 or forwarded_to_discord=1, only for alerts
+        whose gates configure max_per_ticker_per_day (mirrors the guard in
+        _delayed_discord_forward before _mark_alert_posted_for_ticker)
+      - _global_posted_today: per-ticker NEW-post counts — from rows with
+        forwarded_to_discord=1 (that column is only stamped on a successful
+        POST of a NEW Discord message, never on PATCHes, which mirrors the
+        was_new_post condition around _bump_global_ticker_counter)
+      - _contract_repeats: count = max persisted contractRepeatCount per
+        contract, first_seen = earliest ingest time (the 12h prune window
+        self-corrects any early-morning rows)
+      - _follow_through_tracker: ingest timestamps within the widest configured
+        follow-through window (15min default — mostly relevant for fast
+        restarts, which is exactly the deploy case)
+      - _dedup_cache: winners from rows ingested within DEDUP_WINDOW_SEC
+      - _contract_aggregates: running totals + discord_message_id per contract,
+        so the next fire on an already-posted contract PATCHes the existing
+        Discord message instead of POSTing a duplicate
+
+    Known approximations (acceptable, documented):
+      - Aggregate totals include gate-blocked rows that never reached
+        _update_aggregate live (gate_passed=0 is ambiguous between the
+        _passes_alert_gates block and the in-_post_to_discord grade gate);
+        the embed's running totals may read slightly high after a restart.
+      - _followThroughCount stamps on buffered alerts are not restored (the
+        gate falls back to a fresh _count_follow_through_in_window read).
+    """
+    try:
+        now = time.time()
+        today_et = datetime.now(ET).date().isoformat()
+        # date_iso in the DB is the UTC date of ingestion. After 8 PM ET the
+        # UTC date is already "tomorrow", so widen the query range and filter
+        # each row by its actual ET calendar date below.
+        today_utc = datetime.now(timezone.utc).date().isoformat()
+        date_to = max(today_et, today_utc)
+
+        rows = live_alerts_db.query_alerts(today_et, date_to, limit=MAX_BUFFER)
+
+        # Keep only rows whose ET calendar date is today; order chronologically
+        # (query_alerts returns newest-first).
+        todays: list = []
+        for r in rows:
+            ts = _iso_to_unix(r.get("ingestedAt"))
+            if ts is None:
+                continue
+            if datetime.fromtimestamp(ts, tz=ET).date().isoformat() != today_et:
+                continue
+            todays.append((ts, r))
+        todays.sort(key=lambda p: p[0])
+
+        if not todays:
+            log.info(
+                "[liveflow] rehydrated 0 alerts, 0 ticker-day marks, "
+                "0 contract counters from live_alerts_db"
+            )
+            return
+
+        # Widest follow-through window across configured gates — same
+        # computation as _track_follow_through_increment.
+        max_ft_window = max(
+            (g.get("follow_through_window_sec", 0)
+             for g in ALERT_CONVICTION_GATES.values()),
+            default=900,
+        ) or 900
+        ft_cutoff = now - max_ft_window
+        dedup_cutoff = now - DEDUP_WINDOW_SEC
+
+        # Aggregates are keyed by (contract_key, date.today() NAIVE) — that is
+        # what _update_aggregate/_prune_aggregates use at runtime, so restored
+        # entries MUST use the same key or live lookups miss them.
+        agg_date = datetime.now().date().isoformat()
+
+        n_buffered = 0
+        repeat_seen: dict = {}   # contract_key -> {count, first_seen, first_alert_id}
+        agg_rows: dict = {}      # contract_key -> [alert dicts, chronological]
+
+        for ts, a in todays:
+            # 1) Ring buffer — deque(maxlen=MAX_BUFFER) self-bounds.
+            _alerts.append(a)
+            n_buffered += 1
+
+            ckey = _make_contract_key(a)
+
+            # 2) Repeat counter — max stamped count wins (supersede-inherited
+            #    counts make max() the faithful reconstruction).
+            entry = repeat_seen.get(ckey)
+            count = a.get("contractRepeatCount") or 1
+            try:
+                count = max(1, int(count))
+            except (TypeError, ValueError):
+                count = 1
+            if entry is None:
+                repeat_seen[ckey] = {
+                    "count": count,
+                    "first_seen": ts,
+                    "first_alert_id": a.get("id"),
+                }
+            else:
+                entry["count"] = max(entry["count"], count)
+                entry["first_seen"] = min(entry["first_seen"], ts)
+
+            # 3) Follow-through tracker — only timestamps still inside the
+            #    widest window matter (the live pruner drops the rest anyway).
+            if ts >= ft_cutoff:
+                _follow_through_tracker.setdefault(ckey, []).append(ts)
+
+            # 4) Dedup cache — only the last DEDUP_WINDOW_SEC matters. Mirror
+            #    _dedup_check: best (lowest) priority wins, earliest first_seen
+            #    is preserved across supersedes.
+            if ts >= dedup_cutoff and not a.get("_superseded"):
+                dkey = _make_dedup_key(a)
+                pri = _alert_priority(a)
+                existing = _dedup_cache.get(dkey)
+                if existing is None:
+                    _dedup_cache[dkey] = {
+                        "alert_id": a.get("id"),
+                        "priority": pri,
+                        "first_seen": ts,
+                    }
+                elif pri < existing["priority"]:
+                    existing["alert_id"] = a.get("id")
+                    existing["priority"] = pri
+
+            # 5) Posted-today marks + global counters — only rows that reached
+            #    the Discord decision stage.
+            name = (a.get("alertName") or "").strip()
+            ticker = (a.get("ticker") or "").upper()
+            reached_discord = bool(a.get("forwardedToDiscord")) or a.get("gatePassed") is True
+            if reached_discord and ticker:
+                gates = _get_alert_gates(name)
+                if int(gates.get("max_per_ticker_per_day", 0) or 0) > 0 and name:
+                    _alerts_posted_today.setdefault(today_et, set()).add(
+                        (name, ticker)
+                    )
+            if a.get("forwardedToDiscord") and ticker:
+                tg = _global_posted_today.setdefault(today_et, {})
+                tg[ticker] = tg.get(ticker, 0) + 1
+
+            # 6) Contract aggregates — collect rows that (approximately)
+            #    reached _post_to_discord: non-superseded with a recorded gate
+            #    decision or forward.
+            if not a.get("_superseded") and (
+                a.get("gatePassed") is not None or a.get("forwardedToDiscord")
+            ):
+                agg_rows.setdefault(ckey, []).append(a)
+
+        # Install repeat counters.
+        _contract_repeats.update(repeat_seen)
+
+        # Build aggregates, mirroring _update_aggregate's field set.
+        for ckey, group in agg_rows.items():
+            first, last = group[0], group[-1]
+            premiums = [float(x.get("alertPremium") or 0) for x in group]
+            sizes = [x.get("tradeSize") or 0 for x in group]
+            names_seen = {
+                (x.get("alertName") or "").strip()
+                for x in group if (x.get("alertName") or "").strip()
+            }
+            best = min(group, key=_alert_priority)
+            message_id = None
+            for x in reversed(group):
+                if x.get("discordMessageId"):
+                    message_id = str(x["discordMessageId"])
+                    break
+            prior_oi = next(
+                (x.get("priorOI") for x in group if x.get("priorOI") is not None),
+                None,
+            )
+            oi_snap_date = next(
+                (x.get("oiSnapshotDate") for x in group
+                 if x.get("priorOI") is not None),
+                None,
+            )
+            spot_row = next(
+                (x for x in reversed(group) if x.get("spot") is not None), last
+            )
+            _contract_aggregates[(ckey, agg_date)] = {
+                "contract_key": ckey,
+                "date": agg_date,
+                "ticker": last.get("ticker"),
+                "cp": last.get("cp"),
+                "strike": last.get("strike"),
+                "exp": last.get("exp"),
+                "dte": last.get("dte"),
+                "alert_type": last.get("alertType"),
+                "total_premium": sum(premiums),
+                "max_premium": max(premiums) if premiums else 0,
+                "total_size": sum(s or 0 for s in sizes),
+                "max_size": max((s or 0 for s in sizes), default=0),
+                "fire_count": len(group),
+                "first_fire_ts": first.get("timestamp") or _iso_to_unix(first.get("ingestedAt")),
+                "last_fire_ts": last.get("timestamp") or _iso_to_unix(last.get("ingestedAt")),
+                "first_fill_price": first.get("averageFillPrice"),
+                "last_fill_price": last.get("averageFillPrice"),
+                "best_alert_name": (best.get("alertName") or "").strip(),
+                "best_alert_priority": _alert_priority(best),
+                "alert_names_seen": names_seen,
+                "prior_oi": prior_oi,
+                "oi_snapshot_date": oi_snap_date,
+                "spot": spot_row.get("spot"),
+                "moneyness_pct": spot_row.get("moneynessPct"),
+                "moneyness_label": spot_row.get("moneynessLabel"),
+                # Restoring message_id is THE anti-duplicate lever: the next
+                # fire on this contract PATCHes the existing Discord message.
+                "discord_message_id": message_id,
+                "discord_webhook_base": None,  # write-only field; never read
+            }
+
+        log.info(
+            "[liveflow] rehydrated %d alerts, %d ticker-day marks, "
+            "%d contract counters from live_alerts_db",
+            n_buffered,
+            len(_alerts_posted_today.get(today_et, ())),
+            len(repeat_seen),
+        )
+    except Exception:
+        # Rehydration is strictly best-effort — any failure means we boot with
+        # empty day state, which is exactly the pre-rehydration behavior.
+        log.exception("[liveflow] _rehydrate_from_db failed — starting with empty state")
+
+
 # ─── Forever loop with exponential-backoff reconnect ─────────────────────────
 async def run_forever():
     if not BULLFLOW_API_KEY:
@@ -3077,17 +3373,31 @@ async def run_forever():
     except Exception as e:
         log.warning("[liveflow] live_alerts_db.init_db failed at startup: %s", e)
 
+    # Boot rehydration — restore today's buffer + Discord cap/dedup day-state
+    # from live_alerts_db so a deploy doesn't reset the caps. Best-effort:
+    # never raises, never blocks startup beyond one bounded SQLite read.
+    _rehydrate_from_db()
+
+    if _STOP:
+        log.info("[liveflow] stop requested before connect — exiting run_forever")
+        return
+
     backoff = RECONNECT_MIN_SEC
-    # Two separate clients — sse client has timeout=None for long-lived streaming;
-    # discord client uses default timeouts and is fire-and-forget short requests.
+    # Two separate clients — the SSE client gets a bounded read timeout inside
+    # _consume_stream (LIVEFLOW_SSE_READ_TIMEOUT, default 90s) so a dead stream
+    # raises instead of hanging; discord client uses default timeouts and is
+    # fire-and-forget short requests.
     async with httpx.AsyncClient() as sse_client, httpx.AsyncClient() as discord_client:
-        while True:
+        while not _STOP:
             try:
                 await _consume_stream(sse_client, discord_client)
                 log.info("[liveflow] stream ended cleanly, reconnecting in %.1fs",
                          RECONNECT_MIN_SEC)
                 backoff = RECONNECT_MIN_SEC
             except asyncio.CancelledError:
+                # Terminal cancel from liveflow_worker_threaded.stop(). Re-raise
+                # so the async-with client contexts unwind (clients close) and
+                # the root coroutine in the thread wrapper sees the cancel.
                 log.info("[liveflow] worker cancelled, exiting")
                 _status["connected"] = False
                 raise
@@ -3097,5 +3407,9 @@ async def run_forever():
                 _status["reconnect_count"] += 1
                 log.warning("[liveflow] connection error: %s (next attempt in %.1fs)",
                             e, backoff)
+            if _STOP:
+                break
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, RECONNECT_MAX_SEC)
+    _status["connected"] = False
+    log.info("[liveflow] run_forever exiting (stop requested)")

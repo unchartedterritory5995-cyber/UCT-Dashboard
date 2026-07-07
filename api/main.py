@@ -2783,6 +2783,17 @@ async def lifespan(app: FastAPI):
             print("[shutdown] Massive WS stop() not present -- skipping (pre-patch module)")
     except Exception as e:
         print(f"[shutdown] Massive WS stop failed (non-fatal): {e}")
+    # Graceful Bullflow SSE worker stop — same pattern, same reason (clean
+    # close so the day's alert state survives via DB rehydration on boot).
+    try:
+        from api import liveflow_worker_threaded as _lf_threaded
+        _lf_stop = getattr(_lf_threaded, "stop", None)
+        if callable(_lf_stop):
+            _lf_clean = await _aio.to_thread(_lf_stop, 5.0)
+            print(f"[shutdown] Bullflow SSE worker stop: "
+                  f"{'clean' if _lf_clean else 'join timed out (daemon finishing in drain window)'}")
+    except Exception as e:
+        print(f"[shutdown] Bullflow worker stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
     stop_snapshot_scheduler()
