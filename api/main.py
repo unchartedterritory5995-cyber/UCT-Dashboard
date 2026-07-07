@@ -2748,6 +2748,17 @@ async def lifespan(app: FastAPI):
                 print("[startup] Massive Flat Files cron NOT registered (disabled or no S3 keys)")
         except Exception as e:
             print(f"[startup] Massive Flat Files cron registration failed (non-fatal): {e}")
+        # T+1 flow gap-autofill (deploy-survival P2) — post-close self-healing
+        # of live-flow write gaps from Massive's flat file. Ships dark
+        # (FLOW_GAP_AUTOFILL_ENABLED=0); startup_check re-bumps the flow CSV
+        # cache version after a recent fill (the offset is process-local).
+        try:
+            from api import flow_gap_autofill
+            flow_gap_autofill.startup_check()
+            if flow_gap_autofill.register_jobs(_scheduler):
+                print("[startup] Flow gap-autofill cron registered (16:45/21:00/08:00 ET Mon-Fri)")
+        except Exception as e:
+            print(f"[startup] Flow gap-autofill registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
@@ -2915,6 +2926,11 @@ app.include_router(dealer_positioning_router)
 app.include_router(watchlist_router)
 app.include_router(flow_router)
 app.include_router(flow_summary_router)
+try:
+    from api.flow_gap_autofill import router as flow_gap_autofill_router
+    app.include_router(flow_gap_autofill_router)
+except Exception as _e:
+    print(f"[startup] flow_gap_autofill router not mounted (non-fatal): {_e}")
 app.include_router(oi_snapshot_router)
 app.include_router(notable_flow_router)
 app.include_router(liveflow_router)
