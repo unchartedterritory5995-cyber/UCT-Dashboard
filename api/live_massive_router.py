@@ -40,6 +40,7 @@ import os
 import time
 import re
 import json
+from api.bs_iv import iv_for_row
 
 router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 
@@ -1166,6 +1167,12 @@ def _row_to_alert(row: dict) -> dict | None:
         "_tierPriority": tier_priority,
         "symbol": occ,
         "ticker": row["Symbol"],
+        # Black-Scholes implied vol from the print's own price/spot/strike/dte
+        # (T1/F1 — every row was IV=0 before, a glaring gap vs Unusual Whales).
+        # None when unsolvable (deep-ITM, below-intrinsic, expired) — the UI
+        # renders None as "—", never 0. Computed once per row here and shared
+        # across concurrent viewers via the /recent 4s micro-cache.
+        "iv": iv_for_row(price, spot, strike, dte, cp_short),
         "cp": cp_short,
         "strike": strike,
         "exp": row["ExpirationDate"],

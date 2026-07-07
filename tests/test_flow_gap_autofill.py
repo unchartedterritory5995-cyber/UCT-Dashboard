@@ -246,3 +246,92 @@ def test_startup_rebump_after_recent_fill(db, monkeypatch):
 def test_startup_no_bump_without_recent_fill(db):
     gf.startup_check()
     assert not db["bumps"]
+
+
+# --- Walkback sweep (audit finding B2 — whole-day miss coverage) ---------------
+
+# Monday. Its prior trading days deliberately straddle a holiday + weekend:
+# _prev_trading_day chain from 7/6 = 7/2, 7/1, 6/30, 6/29 (7/3 = observed
+# Independence Day full closure, 7/4-7/5 = weekend, all skipped).
+WALKBACK_ANCHOR = date(2026, 7, 6)
+
+
+def _insert_session_for(db_path, target_date, gap=None, sym="SPY"):
+    """Insert a full 09:30-16:00 one-row-per-minute session for target_date,
+    minus the optional `gap` set of minute-of-day values."""
+    mdy = gf._mdy(target_date)
+    rows = []
+    for m in range(gf.SESSION_START_MIN, 16 * 60):
+        if gap and m in gap:
+            continue
+        h24, mm = divmod(m, 60)
+        ampm = "AM" if h24 < 12 else "PM"
+        h12 = h24 % 12 or 12
+        r = {c: "" for c in COLUMNS}
+        r.update({
+            "CreatedDate": mdy, "CreatedTime": f"{h12}:{mm:02d}:30 {ampm}",
+            "Symbol": sym, "Type": "SWEEP", "Volume": "100", "Price": "1.25",
+            "CallPut": "C", "Strike": "200", "ExpirationDate": "7/17/2026",
+            "Premium": "50000", "Dte": "11", "StockEtf": "STOCK",
+        })
+        rows.append(r)
+    _insert_live(db_path, rows)
+
+
+def _by_date(result):
+    return {r["target_date"]: r for r in result["results"]}
+
+
+def test_walkback_heals_middle_day_gap_when_newer_days_clean(db):
+    # T-1 (7/6) and T-2 (7/2) clean; T-3 (7/1) has a 10-min session gap that
+    # the single-day T-1 jobs never caught. The sweep must still detect it.
+    _insert_session_for(db["path"], date(2026, 7, 6))
+    _insert_session_for(db["path"], date(2026, 7, 2))
+    _insert_session_for(db["path"], date(2026, 7, 1), gap=set(range(700, 710)))
+    result = gf.run_fill_walkback(max_days=3, end_date=WALKBACK_ANCHOR, dry_run=True)
+    assert result["status"] == "walkback_complete" and result["days_checked"] == 3
+    by = _by_date(result)
+    assert by["7/6/2026"]["status"] == "no_gaps"
+    assert by["7/2/2026"]["status"] == "no_gaps"
+    # middle day: detected AND (dry-run) reported the exact window
+    assert by["7/1/2026"]["status"] == "dry_run"
+    assert by["7/1/2026"]["windows"] == [(700, 710)]
+    assert result["healed"] == ["7/1/2026"]
+    assert not db["bumps"], "dry-run walkback must write nothing"
+
+
+def test_walkback_respects_manifest_skip_on_completed_day(db):
+    # A recent completed run for 7/2 -> that day is a cheap skipped_recent
+    # no-op; the other days still get checked.
+    with sqlite3.connect(db["path"]) as m:
+        m.execute("INSERT INTO flow_fill_runs (target_date, status, mode, "
+                  "started_at, heartbeat_at, finished_at) VALUES "
+                  "(?, 'completed', 'windows', datetime('now'), datetime('now'), "
+                  "datetime('now'))", ("7/2/2026",))
+    _insert_session_for(db["path"], date(2026, 7, 6))
+    _insert_session_for(db["path"], date(2026, 7, 1))
+    result = gf.run_fill_walkback(max_days=3, end_date=WALKBACK_ANCHOR, dry_run=True)
+    by = _by_date(result)
+    assert by["7/2/2026"]["status"] == "skipped_recent"
+    assert by["7/6/2026"]["status"] == "no_gaps"
+    assert by["7/1/2026"]["status"] == "no_gaps"
+
+
+def test_walkback_skips_weekends_and_holidays(db):
+    # 5 trading days back from Mon 7/6 must skip Fri 7/3 (observed July 4th
+    # closure) + the 7/4-7/5 weekend, landing only on real sessions.
+    result = gf.run_fill_walkback(max_days=5, end_date=WALKBACK_ANCHOR, dry_run=True)
+    assert result["days"] == ["2026-07-06", "2026-07-02", "2026-07-01",
+                              "2026-06-30", "2026-06-29"]
+    for iso in ("2026-07-03", "2026-07-04", "2026-07-05"):
+        assert iso not in result["days"]
+    for iso in result["days"]:
+        assert gf._is_trading_day(date.fromisoformat(iso)), iso
+
+
+def test_walkback_default_days_from_constant(db, monkeypatch):
+    # max_days=None -> WALKBACK_TRADING_DAYS trading days off the anchor.
+    monkeypatch.setattr(gf, "WALKBACK_TRADING_DAYS", 2)
+    result = gf.run_fill_walkback(end_date=WALKBACK_ANCHOR, dry_run=True)
+    assert result["days_checked"] == 2
+    assert result["days"] == ["2026-07-06", "2026-07-02"]

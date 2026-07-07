@@ -888,7 +888,7 @@ function FlowExplainModal({ alert, onClose }) {
         dte: Number(alert.dte) || 0, premium: Number(alert.alertPremium) || 0,
         volume: Number(alert.tradeSize) || 0, oi: Number(alert.priorOI) || 0,
         side: alert._side || "", spot: Number(alert.spot) || 0,
-        order_type: alert._type || "", color: alert.color || "",
+        order_type: alert._type || "", color: alert._color || "",
         grade: alert.grade || null, tier: alert._tierKey || null,
       }),
     })
@@ -1021,8 +1021,8 @@ const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, o
       title="Click for an AI read of this print"
       style={{
       display: "grid",
-      // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
-      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
+      // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | IV | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 55px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: isAlpha ? "10px 12px" : "8px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
@@ -1115,6 +1115,12 @@ const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, o
         fontWeight: alert.oiExceeded ? 600 : 400,
       }}>
         {alert.volumeOIRatio ? `${alert.volumeOIRatio.toFixed(1)}x` : "—"}
+      </span>
+      {/* IV — Black-Scholes implied vol from this print (null when unsolvable
+          → "—", never a fake 0). */}
+      <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}
+        title={alert.iv != null ? "Implied volatility (Black-Scholes, from this print)" : "IV not solvable for this print"}>
+        {alert.iv != null ? `${Math.round(alert.iv * 100)}%` : "—"}
       </span>
       <span style={{ color: premColor, fontWeight: premWeight, textAlign: "center" }}>
         {fmtPremium(alert.alertPremium)}
@@ -1513,8 +1519,8 @@ function ColumnHeaders() {
   return (
     <div style={{
       display: "grid",
-      // TIME | TICKER | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
-      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
+      // TIME | TICKER | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | IV | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 55px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: "6px 12px",
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
@@ -1530,6 +1536,7 @@ function ColumnHeaders() {
       <span style={{ textAlign: "center" }}>VOL</span>
       <span style={{ textAlign: "center" }}>OI</span>
       <span style={{ textAlign: "center" }}>V/OI</span>
+      <span style={{ textAlign: "center" }}>IV</span>
       <span style={{ textAlign: "center" }}>PREMIUM</span>
       <span style={{ textAlign: "center" }}>GRADE</span>
       <span style={{ textAlign: "center" }}>SIDE</span>

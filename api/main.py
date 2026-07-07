@@ -2760,8 +2760,35 @@ async def lifespan(app: FastAPI):
                 print("[startup] Flow gap-autofill cron registered (16:45/21:00/08:00 ET Mon-Fri)")
         except Exception as e:
             print(f"[startup] Flow gap-autofill registration failed (non-fatal): {e}")
+        # Nightly offsite backup of flow.db to R2 (deploy-survival B4). Ships
+        # dark (FLOW_BACKUP_ENABLED=0); 02:30 ET Mon-Sat. flow.db currently has
+        # backups only on the same volume = no corruption/loss recovery.
+        try:
+            from api import flow_backup
+            if flow_backup.register_jobs(_scheduler):
+                print("[startup] Flow DB backup cron registered (02:30 ET Mon-Sat)")
+        except Exception as e:
+            print(f"[startup] Flow DB backup registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
+
+    # flow.db boot integrity probe (deploy-survival B4) — runs on EVERY web pod
+    # in a daemon thread so a multi-second PRAGMA scan on the ~800MB DB never
+    # delays healthcheck readiness. Alerts Discord on corruption.
+    try:
+        import threading as _thr
+        def _flow_integrity_probe():
+            try:
+                from api import flow_backup
+                _fb = flow_backup.startup_integrity_check()
+                if not _fb.get("ok"):
+                    print(f"[startup] FLOW DB INTEGRITY FAILED: {_fb.get('detail')}")
+            except Exception as _e:
+                print(f"[startup] flow.db integrity check failed (non-fatal): {_e}")
+        _thr.Thread(target=_flow_integrity_probe, name="flow-integrity-probe",
+                    daemon=True).start()
+    except Exception as _e:
+        print(f"[startup] flow.db integrity probe thread failed to start: {_e}")
 
     yield
     # -- Massive WS graceful stop (deploy-survival P1) ---------------------
@@ -2945,6 +2972,11 @@ try:
     app.include_router(flow_gap_autofill_router)
 except Exception as _e:
     print(f"[startup] flow_gap_autofill router not mounted (non-fatal): {_e}")
+try:
+    from api.flow_backup import router as flow_backup_router
+    app.include_router(flow_backup_router)
+except Exception as _e:
+    print(f"[startup] flow_backup router not mounted (non-fatal): {_e}")
 app.include_router(oi_snapshot_router)
 app.include_router(notable_flow_router)
 app.include_router(liveflow_router)

@@ -157,6 +157,16 @@ def _prev_trading_day(d: date) -> date:
     return d
 
 
+def _latest_completed_trading_day(now_et: datetime) -> date:
+    """The latest trading day whose session is fully over. Today only counts
+    once its session has been closed ~45min; otherwise the prior trading day.
+    Shared by run_fill's default target AND the walkback anchor."""
+    target = now_et.date()
+    if not _is_trading_day(target) or now_et.hour * 60 + now_et.minute < _session_end_min(target) + 45:
+        target = _prev_trading_day(target)
+    return target
+
+
 # --- Detection (pure, unit-tested) --------------------------------------------
 
 SESSION_START_MIN = 9 * 60 + 30  # 09:30 ET
@@ -429,10 +439,8 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
         _init_schema()
         now_et = datetime.now(ET)
         if target is None:
-            target = now_et.date()
             # Today only counts once its session is over; otherwise T-1.
-            if not _is_trading_day(target) or now_et.hour * 60 + now_et.minute < _session_end_min(target) + 45:
-                target = _prev_trading_day(target)
+            target = _latest_completed_trading_day(now_et)
         mdy = _mdy(target)
 
         with _conn() as c:
@@ -570,6 +578,64 @@ def _finish(run_id: int, status: str, *, error: str = None, mode: str = None,
         c.commit()
 
 
+# --- Walkback sweep ----------------------------------------------------------
+
+def run_fill_walkback(max_days: int = None, *, end_date: date = None,
+                      dry_run: bool = None) -> dict:
+    """Morning catch-up: walk back the last WALKBACK_TRADING_DAYS *trading*
+    days and run the existing single-day fill on each.
+
+    Rationale (audit finding B2): run_fill only ever heals ONE target day
+    (T-1 or an explicit date). If a whole session is missed — worker down all
+    day, or a scheduled fire that failed — nothing walked back to heal it. This
+    sweeps the window that WALKBACK_TRADING_DAYS was always meant to cover.
+
+    A thin loop over run_fill(target=...): the 24h manifest skip guard makes
+    already-healed days cheap no-ops ('skipped_recent' / 'no_gaps'), and DRY_RUN
+    is honored per day (dry-run just reports each day's windows, no writes).
+    Checks EVERY day in the window — a *middle* day can hold a gap even when the
+    newer days are clean, so we never stop early. Never raises.
+
+    max_days overrides WALKBACK_TRADING_DAYS; end_date overrides the anchor
+    (defaults to the latest completed trading day)."""
+    if dry_run is None:
+        dry_run = DRY_RUN
+    n = WALKBACK_TRADING_DAYS if max_days is None else int(max_days)
+    n = max(0, min(n, 30))          # sane ceiling; never a runaway backfill
+
+    anchor = end_date or _latest_completed_trading_day(datetime.now(ET))
+    if not _is_trading_day(anchor):
+        anchor = _prev_trading_day(anchor)
+
+    # anchor, then the (n-1) prior *trading* days (non-trading days skipped).
+    days = []
+    d = anchor
+    for _ in range(n):
+        days.append(d)
+        d = _prev_trading_day(d)
+
+    results, by_status, healed = [], {}, []
+    for day in days:
+        try:
+            res = run_fill(target=day, dry_run=dry_run)
+        except Exception as e:      # run_fill is meant to never raise; be safe
+            logger.exception("[gap-fill] walkback day %s failed: %s", day, e)
+            res = {"status": "error", "target_date": _mdy(day),
+                   "error": str(e)[:300]}
+        results.append(res)
+        st = res.get("status")
+        by_status[st] = by_status.get(st, 0) + 1
+        if res.get("windows"):      # gap detected (dry-run reported OR filled)
+            healed.append(res.get("target_date"))
+
+    logger.info("[gap-fill] walkback swept %d trading day(s) (dry_run=%s): %s",
+                len(days), dry_run, by_status)
+    return {"status": "walkback_complete", "dry_run": dry_run,
+            "days_checked": len(days),
+            "days": [d.isoformat() for d in days],
+            "by_status": by_status, "healed": healed, "results": results}
+
+
 # --- Rollback --------------------------------------------------------------------
 
 def rollback_run(run_id: int) -> dict:
@@ -661,8 +727,17 @@ def register_jobs(scheduler) -> bool:
             run_fill, CronTrigger(day_of_week="mon-fri", hour=hh, minute=mm),
             id=f"flow_gap_autofill_{hh:02d}{mm:02d}",
             max_instances=1, replace_existing=True)
-    logger.info("[gap-fill] scheduled 16:45 / 21:00 / 08:00 ET Mon-Fri "
-                "(dry_run=%s)", DRY_RUN)
+    # 4th job: the morning is the right place to sweep the whole window and
+    # catch a fully-missed session the single-day T-1 jobs never healed
+    # (worker down all session / a failed fire). Runs 15min after the 08:00
+    # T-1 job so already-healed days are cheap manifest no-ops.
+    scheduler.add_job(
+        run_fill_walkback, CronTrigger(day_of_week="mon-fri", hour=8, minute=15),
+        id="flow_gap_autofill_walkback",
+        max_instances=1, replace_existing=True)
+    logger.info("[gap-fill] scheduled 16:45 / 21:00 / 08:00 T-1 + 08:15 walkback "
+                "(%d trading days) ET Mon-Fri (dry_run=%s)",
+                WALKBACK_TRADING_DAYS, DRY_RUN)
     return True
 
 
