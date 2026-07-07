@@ -113,6 +113,22 @@ DEFAULT_THRESHOLDS = {
         "min_premium": 100_000,
         "vOI": 5.0,
     },
+    # 7/7: ETF/index-specific thresholds. Applied when source='indexes'.
+    # ETFs (SPY/QQQ/SOXL/etc.) have fundamentally different premium scales
+    # than single-name stocks — $100K-$500K on SPY is retail dust, not
+    # institutional. These floors are ~5x stock levels; tune from admin
+    # panel. No cap bands because all major ETFs are mega-scale.
+    "etf_premium_floors": {
+        "alpha":   5_000_000,
+        "size":    2_500_000,
+        "leaps":   2_500_000,
+        "bullish": 1_250_000,
+        "bearish": 1_250_000,
+    },
+    "etf_unusual": {
+        "min_premium":   500_000,
+        "vOI": 10.0,
+    },
     "cap_bands": {
         # in $ market cap. Below mid_small_max = "mid_small";
         # mid_small_max to large_max = "large"; above large_max = "mega"
@@ -379,10 +395,16 @@ def _qualifies_curated(alert: dict, thresholds: dict) -> bool:
     hit_count = alert.get("_hitCount") or 1
     grade = alert.get("grade", "")
     mkt_cap = alert.get("_mktCap") or 0
+    # 7/7: source-aware branch. ETFs have fundamentally different premium
+    # scales — $100K on SPY is retail dust, but institutional on a $10B stock.
+    # etf_premium_floors is a flat dict keyed by tier (no cap bands, since
+    # major ETFs are all mega-scale). Falls back to stock floors if unset.
+    is_etf = alert.get("source") == "indexes"
 
     # Unusual: own path. V/OI anomaly + small premium IS the signal.
     if tier == "unusual":
-        u = thresholds.get("unusual", {})
+        u = (thresholds.get("etf_unusual") if is_etf
+             else thresholds.get("unusual", {})) or {}
         return (prem >= u.get("min_premium", 100_000) and
                 v_oi >= u.get("vOI", 5.0))
 
@@ -390,12 +412,17 @@ def _qualifies_curated(alert: dict, thresholds: dict) -> bool:
         return False
 
     stack = thresholds.get("stack", {})
-    prem_caps = thresholds.get("premium_by_cap", {}).get(tier, {})
     cap_bands = thresholds.get("cap_bands", {})
 
-    # ─── HARD requirement: premium tier+cap floor ─────────────────────
-    band = _cap_band_key(mkt_cap, cap_bands)
-    prem_floor = prem_caps.get(band, 0)
+    # ─── HARD requirement: premium tier floor ─────────────────────────
+    if is_etf:
+        # Flat ETF floors, no cap band
+        etf_floors = thresholds.get("etf_premium_floors", {}) or {}
+        prem_floor = etf_floors.get(tier, 0)
+    else:
+        prem_caps = thresholds.get("premium_by_cap", {}).get(tier, {})
+        band = _cap_band_key(mkt_cap, cap_bands)
+        prem_floor = prem_caps.get(band, 0)
     if prem < prem_floor:
         return False
 
@@ -1210,6 +1237,10 @@ def _row_to_alert(row: dict) -> dict | None:
         "_er": row["ER"],
         "_uoa": row["Uoa"],
         "_direction": direction,
+        # 7/7: expose source ('stocks' or 'indexes') so downstream code —
+        # both the ETF-branch in _qualifies_curated and the frontend
+        # ETF/Stocks toggle — can classify without a hardcoded ticker list.
+        "source": row.get("source", "stocks"),
     }
 
 
@@ -1919,6 +1950,8 @@ async def save_thresholds(request: Request):
     allowed_top = {
         "stack", "premium_by_cap", "unusual", "cap_bands", "premium_override",
         "etf_enabled",               # 7/7: admin gate for source='indexes' pipeline
+        "etf_premium_floors",        # 7/7: ETF-specific tier premium floors
+        "etf_unusual",               # 7/7: ETF-specific Unusual tier thresholds
         # Alpha Gold quality gates (added 6/29-6/30)
         "alpha_max_itm_pct",         # deep-ITM filter threshold (Alpha only)
         "alpha_min_vol_oi_ratio",    # vol > OI fresh-positioning gate
