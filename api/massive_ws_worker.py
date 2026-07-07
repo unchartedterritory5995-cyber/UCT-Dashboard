@@ -173,6 +173,13 @@ _state = {
 _nbbo_table: dict = {}        # {contract_sym: (bid, ask, ts_ms)}
 _q_subscribed: set = set()    # contract syms we're currently subscribed to Q for
 _q_last_seen: dict = {}       # {contract_sym: ts_ns} - LRU tracking
+_q_cumulative_premium: dict = {}  # {contract_sym: int premium} — value-weighted eviction priority.
+                                  # Added in the SWEEP Side-classification fix (7/7): pure LRU
+                                  # drops big-flow contracts when they briefly quiet down, which
+                                  # is exactly when we need NBBO on the next burst. Sorting
+                                  # eviction candidates by (cumulative_premium ASC, last_seen ASC)
+                                  # keeps institutional-signal contracts sticky within the 950
+                                  # slot budget, since Massive's 1000-cap prevents pool expansion.
 _q_pending_subscribe: list = []   # queued contracts to subscribe (added by event loop)
 _q_pending_unsubscribe: list = [] # queued contracts to unsubscribe (LRU evictions)
 
@@ -711,9 +718,16 @@ def _queue_q_subscriptions_for_events(events: list) -> None:
     """Phase 2c: enqueue Q subscriptions for contracts that emitted events
     but aren't yet in our subscription pool.
 
-    Eviction policy: LRU based on _q_last_seen. When the pool is full
-    (MAX_Q_SUBSCRIPTIONS), the least-recently-traded contract gets
-    unsubscribed to make room.
+    Eviction policy (7/7 revision): PREMIUM-WEIGHTED LRU.
+    Pure LRU dropped contracts by recency alone, which meant a $10K sweep
+    would keep its slot while a $5M sweep from 30 minutes ago got evicted.
+    Since NBBO coverage on the next burst is what determines Side
+    classification, evicting big-flow contracts is the opposite of what we
+    want. Revised eviction sorts candidates by
+    (cumulative_premium ASC, last_seen_ns ASC) — smallest total premium
+    leaves first; recency is the tiebreaker for equally-quiet contracts.
+    Contracts that emitted a big event stay sticky within the 950 slot
+    budget (Massive hard-caps at 1000 per connection).
 
     The actual subscribe/unsubscribe WS messages are sent by the
     q_subscription_manager task on its 5-second cadence -- we just queue
@@ -721,23 +735,34 @@ def _queue_q_subscriptions_for_events(events: list) -> None:
     """
     for evt in events:
         sym = _reconstruct_occ_symbol(evt.root, evt.expiry, evt.cp, evt.strike)
-        # Already subscribed (or pending) -- nothing to do
+        # Track cumulative premium for every emitted event, whether the
+        # contract is already subscribed or not. This keeps eviction priority
+        # in sync with actual institutional-flow value across the session.
+        try:
+            _q_cumulative_premium[sym] = _q_cumulative_premium.get(sym, 0) + int(evt.premium or 0)
+        except (TypeError, ValueError):
+            pass
+        # Already subscribed (or pending) -- nothing more to do
         if sym in _q_subscribed or sym in _q_pending_subscribe:
             continue
         # Room in the pool -- queue subscribe directly
         if len(_q_subscribed) + len(_q_pending_subscribe) < MAX_Q_SUBSCRIPTIONS:
             _q_pending_subscribe.append(sym)
             continue
-        # Pool full -- evict LRU contract that isn't itself pending eviction
-        candidates = [(s, _q_last_seen.get(s, 0))
+        # Pool full -- evict lowest-premium contract (recency tiebreaker)
+        # that isn't itself pending eviction. This preserves NBBO coverage
+        # on institutional-signal contracts even when they briefly quiet.
+        candidates = [(s,
+                       _q_cumulative_premium.get(s, 0),
+                       _q_last_seen.get(s, 0))
                       for s in _q_subscribed
                       if s not in _q_pending_unsubscribe]
         if not candidates:
             # Everything is already pending eviction -- skip and try next flush
             continue
-        candidates.sort(key=lambda kv: kv[1])
-        lru_sym = candidates[0][0]
-        _q_pending_unsubscribe.append(lru_sym)
+        candidates.sort(key=lambda kv: (kv[1], kv[2]))  # premium ASC, then LRU
+        evict_sym = candidates[0][0]
+        _q_pending_unsubscribe.append(evict_sym)
         _q_pending_subscribe.append(sym)
 
 
@@ -779,17 +804,23 @@ def _build_warm_start_contracts(limit: int = 950) -> list:
         return out
 
     placeholders = ",".join("?" for _ in date_strs)
+    # 7/7 revision: order by SUM(Premium) instead of SUM(Volume). Volume
+    # favors penny options with lots of size but low institutional value.
+    # Premium is a direct proxy for the alerts we actually surface, so the
+    # warm-start pool now allocates its 950 slots to contracts historically
+    # more likely to emit big-flow events. Same slot budget, better priors.
     sql = f"""
-        SELECT Symbol, CallPut, Strike, ExpirationDate, SUM(CAST(Volume AS INTEGER)) AS total_vol
+        SELECT Symbol, CallPut, Strike, ExpirationDate,
+               SUM(CAST(Premium AS INTEGER)) AS total_prem
         FROM flow
         WHERE CreatedDate IN ({placeholders})
           AND Symbol IS NOT NULL AND Symbol != ''
           AND CallPut IN ('CALL', 'PUT')
           AND Strike IS NOT NULL AND Strike != ''
           AND ExpirationDate IS NOT NULL AND ExpirationDate != ''
-          AND Volume IS NOT NULL AND Volume != '' AND Volume != '0'
+          AND Premium IS NOT NULL AND Premium != '' AND Premium != '0'
         GROUP BY Symbol, CallPut, Strike, ExpirationDate
-        ORDER BY total_vol DESC
+        ORDER BY total_prem DESC
         LIMIT ?
     """
 
@@ -805,7 +836,7 @@ def _build_warm_start_contracts(limit: int = 950) -> list:
     today_date = datetime.utcnow().date()
     skipped_expired = 0
     skipped_malformed = 0
-    for sym, cp, strike_str, exp_str, _vol in rows:
+    for sym, cp, strike_str, exp_str, _prem in rows:
         # Skip adjusted/when-issued symbols (Massive rejects these too)
         if sym and sym[-1].isdigit():
             skipped_malformed += 1
@@ -1425,6 +1456,7 @@ async def _run_session(ws):
     _nbbo_table.clear()
     _q_subscribed.clear()
     _q_last_seen.clear()
+    _q_cumulative_premium.clear()
     _q_pending_subscribe.clear()
     _q_pending_unsubscribe.clear()
     _state["q_subscribed_count"] = 0
