@@ -777,6 +777,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread-burst watch failed to start (non-fatal): {e}")
 
+    # Record this web deploy (P5 decision evidence — how often do we redeploy
+    # web during market hours? see api/deploy_log.py). Best-effort.
+    try:
+        from api import deploy_log
+        deploy_log.record_boot()
+    except Exception as e:
+        print(f"[startup] deploy_log.record_boot failed (non-fatal): {e}")
+
     try:
         _init_auth_db()
     except Exception as e:
@@ -2912,6 +2920,19 @@ def health_threads():
     the count crosses THREAD_BURST_LOG_THRESHOLD, so unattended bursts
     self-document in the Railway logs."""
     return _thread_groups()
+
+
+@app.get("/api/admin/deploy-log")
+def admin_deploy_log(full: bool = False):
+    """P5 decision evidence: how often does web redeploy during market hours?
+    Summary by default; ?full=1 for the raw per-boot records. No-auth read
+    (matches the other /api/admin/*-status probes; contains only deploy
+    timestamps + commit SHAs)."""
+    from api import deploy_log
+    out = {"summary": deploy_log.summarize()}
+    if full:
+        out["records"] = deploy_log.get_log(limit=500)
+    return out
 
 
 @app.get("/api/health/cache")
