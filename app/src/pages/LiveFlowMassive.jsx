@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 /**
@@ -838,6 +838,35 @@ function computePL(alert, currentSpot) {
 }
 
 // ─── Single row ───────────────────────────────────────────────────────────
+// Identity-preserving merge: for each incoming alert, reuse the previous
+// object reference when its rendered fields are unchanged, so React.memo can
+// skip the row. A given alert id is an immutable print; only OI enrichment
+// and side classification can change for an existing id between polls.
+function mergeAlertsById(prev, incoming) {
+  if (!prev || prev.length === 0) return incoming;
+  const prevById = new Map(prev.map(a => [a.id, a]));
+  let anyReused = false;
+  const out = incoming.map(a => {
+    const old = prevById.get(a.id);
+    if (old
+        && old.priorOI === a.priorOI
+        && old.volumeOIRatio === a.volumeOIRatio
+        && old.oiExceeded === a.oiExceeded
+        && old._side === a._side
+        && old.grade === a.grade) {
+      anyReused = true;
+      return old;  // stable identity → memoized row does not re-render
+    }
+    return a;
+  });
+  // If nothing at all changed (same length, all reused), keep the prev array
+  // reference so the list itself doesn't trigger a re-render either.
+  if (anyReused && out.length === prev.length && out.every((o, i) => o === prev[i])) {
+    return prev;
+  }
+  return out;
+}
+
 // ─── AI Print Explainer modal (T1-3) ───────────────────────────────────────
 // Click any tape row → Claude explains the print in plain English (opening vs
 // closing, aggression, moneyness, earnings proximity) grounded ONLY in the
@@ -945,7 +974,7 @@ function FlowExplainModal({ alert, onClose }) {
   );
 }
 
-function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onExplain }) {
+const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onExplain }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
@@ -1174,7 +1203,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       </span>
     </div>
   );
-}
+});
 
 // ─── Header ───────────────────────────────────────────────────────────────
 function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
@@ -2158,7 +2187,12 @@ export default function LiveFlowMassive() {
         newIdsRef.current = newIds;
         // Apply persisted OI enrichment before setAlerts so button-populated
         // values survive the poll refresh (fix for OI-disappears-after-5s bug).
-        setAlerts(applyOiEnrichment(incoming));
+        // Then identity-preserving merge: reuse the prior object for any id
+        // whose rendered content is unchanged, so React.memo(AlertRow) skips
+        // re-rendering the ~500 unchanged rows every 5s poll instead of
+        // reconciling ~10K elements each cycle (S1, 2026-07-06 audit).
+        const enriched = applyOiEnrichment(incoming);
+        setAlerts(prev => mergeAlertsById(prev, enriched));
         setStatus(d.status);
         setError(null);
       } catch (e) {
@@ -2184,14 +2218,23 @@ export default function LiveFlowMassive() {
   // which compares historical alert spot to today's price — meaningful
   // for a multi-day-old alert ("MU bear at $1100 strike — stock has since
   // dropped 5%"), but interpret cautiously.
+  // alertsRef always points at the LATEST alerts so the (stable) poll loop
+  // below reads fresh tickers each cycle. Prior bug: dep array was
+  // `[alerts.length > 0]` (a boolean), so the effect ran once and the
+  // pollQuotes closure captured the FIRST alert snapshot forever — every
+  // ticker that appeared after the initial load got no quote and its P/L
+  // column stayed "—" all session (S2, 2026-07-06 audit).
+  const alertsRef = useRef(alerts);
+  alertsRef.current = alerts;
+
   useEffect(() => {
     let cancelled = false;
     let timer;
 
     async function pollQuotes() {
-      const uniqueTickers = [...new Set(alerts.map(a => a.ticker).filter(Boolean))];
+      const uniqueTickers = [...new Set(alertsRef.current.map(a => a.ticker).filter(Boolean))];
       if (uniqueTickers.length === 0) {
-        timer = setTimeout(pollQuotes, 30000);
+        if (!cancelled) timer = setTimeout(pollQuotes, 30000);
         return;
       }
       try {
@@ -2212,18 +2255,15 @@ export default function LiveFlowMassive() {
       }
     }
 
-    // Trigger first quote fetch as soon as we have alerts, then every 30s
-    if (alerts.length > 0) pollQuotes();
-    else timer = setTimeout(pollQuotes, 5000);
+    // One stable loop for the page's lifetime; it reads fresh tickers from
+    // alertsRef each cycle, so new tickers always get quoted.
+    timer = setTimeout(pollQuotes, 800);
 
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-    // alerts.length in dep array, not alerts itself — re-trigger only when
-    // we go from 0 alerts to having alerts, not on every alert update
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alerts.length > 0]);
+  }, []);
 
   // Day-scoped Market Read polling — 30s cadence. Backend caches for 30s
   // server-side too, so this is effectively cache-aligned. Re-triggers
@@ -2306,20 +2346,20 @@ export default function LiveFlowMassive() {
     hitCounts[k] = (hitCounts[k] || 0) + 1;
   }
 
-  const handleClickTicker = (t) => {
+  const handleClickTicker = useCallback((t) => {
     setTickerFilter(prev => {
       const next = new Set(prev);
       if (next.has(t)) next.delete(t); else next.add(t);
       return next;
     });
-  };
-  const handleClickContract = (k) => {
+  }, []);
+  const handleClickContract = useCallback((k) => {
     setContractFilter(prev => {
       const next = new Set(prev);
       if (next.has(k)) next.delete(k); else next.add(k);
       return next;
     });
-  };
+  }, []);
   const handleClearFilters = () => {
     setTickerFilter(new Set());
     setContractFilter(new Set());

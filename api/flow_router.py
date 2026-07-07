@@ -44,6 +44,7 @@ from collections import OrderedDict
 import os
 import gzip
 import io
+import time
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 db = FlowDB(DB_PATH)
@@ -83,18 +84,32 @@ _RESPONSE_CACHE_MAX = 8
 # store (DB metadata table, file mtime, etc.).
 _FORCE_BUMP_OFFSET = 0
 
+# Cache-key quantum for the CSV data version (seconds). The version changes at
+# most once per bucket, so continuous market-hours WS inserts no longer
+# invalidate the response cache on every client poll. 60s keeps the historical
+# /data CSV reasonably fresh while collapsing N concurrent users into ONE
+# rebuild per bucket. (The LIVE tape is /api/live/massive/recent at 5s — this
+# endpoint is the heavier day/multi-day CSV, where ≤60s staleness is invisible.)
+_VERSION_BUCKET_SEC = 60
+
 
 def _current_version() -> int:
-    """DB row count + manual bump offset — used as the cache invalidation key.
-    Row count handles inserts/deletes (uploads, prune). The bump offset handles
-    in-place updates from admin mutation endpoints. Matches /version endpoint
-    so client-side and server-side caches invalidate in sync."""
-    try:
-        stats = db.stats()
-        row_count = stats.get("total_rows") or stats.get("count") or stats.get("rows") or 0
-        return row_count + _FORCE_BUMP_OFFSET * 10_000_000
-    except Exception:
-        return _FORCE_BUMP_OFFSET * 10_000_000
+    """Cache-invalidation key for the CSV responses. O(1): a coarse time bucket
+    plus the manual bump offset — NO per-request DB work.
+
+    Prior implementation called db.stats() (3× COUNT(*) + a DISTINCT scan over
+    ~835K rows ≈ 300ms) on EVERY /version poll and EVERY /data request, AND
+    returned the live row count, which changes every few seconds as the WS
+    worker ingests — so during market hours the in-memory cache was permanently
+    stale and each of ~200 users refetched the full multi-MB CSV every 60s
+    (the 2026-07-01 524 outage class; 2026-07-06 audit finding B1).
+
+    Now: a request in a given 60s window sees a stable version, so the first
+    request rebuilds+gzips once and the rest serve from the LRU / CF edge.
+    Admin mutations (upload/prune/in-place updates) call bump_data_version(),
+    which shifts the offset and clears the cache for an immediate refresh —
+    they never wait for the bucket."""
+    return int(time.time() // _VERSION_BUCKET_SEC) + _FORCE_BUMP_OFFSET * 10_000_000
 
 
 def bump_data_version() -> int:
@@ -237,7 +252,9 @@ async def upload_flow(request: Request, _auth: dict = Depends(require_flow_admin
 
 
 @flow_router.get("/data")
-async def get_flow_data(request: Request):
+# sync def (not async): the gzip+stream build is CPU/sync work; a `def`
+# handler runs in the threadpool instead of blocking the single event loop.
+def get_flow_data(request: Request):
     """
     Serve stock flow data as gzipped CSV (cached at CF edge).
     ?days=N (default 1) — last N trading days.
@@ -248,7 +265,7 @@ async def get_flow_data(request: Request):
 
 
 @flow_router.get("/indexes-data")
-async def get_indexes_data(request: Request):
+def get_indexes_data(request: Request):
     """Serve indexes/ETF flow data as gzipped CSV (cached at CF edge)."""
     days = _parse_query_days(request)
     return _serve_csv("indexes", days, request)
@@ -264,7 +281,7 @@ async def get_stats():
 
 
 @flow_router.get("/version")
-async def get_version():
+def get_version():
     """Cache-busting version key. Returns DB row count, which changes whenever
     rows are inserted (uploads) or removed (prune). Clients append this as
     &v=<version> to /data and /indexes-data requests so CF treats each version

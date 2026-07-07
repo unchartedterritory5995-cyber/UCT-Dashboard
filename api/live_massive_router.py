@@ -1174,9 +1174,14 @@ def _row_to_alert(row: dict) -> dict | None:
         "averageFillPrice": price,
         "tradeSize": volume,
         "timestamp": ts,
-        "receivedAt": ts,                # same as timestamp (no Bullflow-style ingest delay)
-        "latency": 0.0,
-        "deliveryLatency": 0.0,
+        # Latency is NOT measured on this FlowDB-derived tape (it was a
+        # Bullflow-SSE concept). Report null, never a fabricated 0.0 — a fake
+        # "0ms latency" is exactly the kind of dishonest metric we're
+        # differentiating against (2026-07-06 audit F2). Unconsumed by
+        # LiveFlowMassive.jsx; kept as null for shape stability.
+        "receivedAt": None,
+        "latency": None,
+        "deliveryLatency": None,
         "ingestedAt": datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts > 0 else None,
         "priorOI": oi if oi > 0 else None,
         "volumeOIRatio": round(volume / oi, 2) if oi > 0 else None,
