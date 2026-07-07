@@ -111,11 +111,51 @@ def _start_consumer():
         log.exception("consumer failed to start (non-fatal): %s", e)
 
 
+def _start_flow_schedulers():
+    """flow.db lives on THIS pod now, so its safety nets must run HERE — the R2
+    backup (a snapshot of the ONLY, non-replayable copy) and the T+1 gap-fill
+    heal. On web those jobs run against web's now-frozen copy, so they must be
+    DISABLED on web at cutover (unset FLOW_BACKUP_ENABLED / FLOW_GAP_AUTOFILL_
+    ENABLED there) and set HERE. Each is internally flag-gated. Returned handle
+    kept alive by main()'s local scope. Matches web's scheduler config."""
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from zoneinfo import ZoneInfo
+        sched = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
+        n = 0
+        try:
+            from api import flow_gap_autofill
+            flow_gap_autofill.startup_check()
+            if flow_gap_autofill.register_jobs(sched):
+                n += 1
+        except Exception as e:  # noqa: BLE001
+            log.warning("gap-fill scheduling failed: %s", e)
+        try:
+            from api import flow_backup
+            if flow_backup.register_jobs(sched):
+                n += 1
+            flow_backup.startup_integrity_check()
+        except Exception as e:  # noqa: BLE001
+            log.warning("backup scheduling failed: %s", e)
+        if n:
+            sched.start()
+            log.info("[startup] flow-worker schedulers started (%d job group(s): "
+                     "backup + gap-fill own flow.db here now)", n)
+        else:
+            log.info("[startup] no flow schedulers enabled "
+                     "(FLOW_BACKUP_ENABLED / FLOW_GAP_AUTOFILL_ENABLED off)")
+        return sched
+    except Exception as e:  # noqa: BLE001
+        log.exception("flow scheduler start failed (non-fatal): %s", e)
+        return None
+
+
 def main():
     # This pod OWNS the consumer + flow.db and serves the flow routers.
     os.environ.setdefault("WORKER_SERVES_FLOW", "1")
     log.info("[startup] flow-worker: consumer + flow routers only (no bars prewarm)")
     _start_consumer()
+    _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
     app = _build_app()
     port = int(os.environ.get("PORT", "8080"))
     # timeout_graceful_shutdown=5 mirrors web/worker: reach lifespan.shutdown ->

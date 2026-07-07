@@ -113,12 +113,20 @@ def session_minutes(now_et: datetime) -> int:
 # --- Pure classification ----------------------------------------------------
 
 def classify_poll(http_ok: bool, payload, staleness_sec: float,
-                  threshold: float = STALE_THRESHOLD_SEC) -> str:
+                  threshold: float = STALE_THRESHOLD_SEC,
+                  status_code: int = None) -> str:
     """Classify one poll. `staleness_sec` = seconds since max_id last advanced
     (monotonic, computed by the caller) — NOT the payload's age field, which
     carries the router's UTC-4 DST skew. A skewed age with an advancing
-    max_id must classify HEALTHY (unit-tested)."""
+    max_id must classify HEALTHY (unit-tested).
+
+    `status_code`: after P5 the web status endpoint reverse-proxies to the flow
+    worker, so a 502/503/504 means web is UP but the WORKER is down — that must
+    alarm LOUD (WORKER_DOWN), not soft/suppressed (BLIND_WEB). A connection
+    failure with no status (web genuinely unreachable) stays BLIND_WEB."""
     if not http_ok:
+        if status_code in (502, 503, 504):
+            return WORKER_DOWN
         return BLIND_WEB
     if not isinstance(payload, dict):
         return BLIND_WEB
@@ -219,9 +227,12 @@ def grade_day(minutes_with_writes: int, expected_minutes: int,
 # --- Network + delivery (best-effort, never raise) ---------------------------
 
 def _http_get_json(url: str, timeout: float = 15.0):
-    """Returns (http_ok, payload_or_None). Cache-busted; browser-ish UA
-    (Cloudflare 1010-blocks raw python UAs on this domain)."""
+    """Returns (http_ok, payload_or_None, status_code_or_None). Cache-busted;
+    browser-ish UA (Cloudflare 1010-blocks raw python UAs on this domain).
+    status_code is the HTTP status (incl. an error status like 502 from a
+    reverse-proxy upstream failure), or None on a connection-level failure."""
     import urllib.request
+    import urllib.error
     sep = "&" if "?" in url else "?"
     req = urllib.request.Request(
         f"{url}{sep}_={int(time.time())}",
@@ -229,10 +240,12 @@ def _http_get_json(url: str, timeout: float = 15.0):
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             if r.status != 200:
-                return False, None
-            return True, json.loads(r.read())
+                return False, None, r.status
+            return True, json.loads(r.read()), 200
+    except urllib.error.HTTPError as e:
+        return False, None, e.code    # e.g. 502 = web up, proxied worker down
     except Exception:
-        return False, None
+        return False, None, None      # connection failure = web unreachable
 
 
 def _post_discord(content: str) -> bool:
@@ -257,7 +270,7 @@ def _post_discord(content: str) -> bool:
 
 def _consumer_hint() -> str:
     """Cross-check the consumer's in-process state for alert wording."""
-    ok, cs = _http_get_json(CONSUMER_STATE_URL, timeout=10)
+    ok, cs, _ = _http_get_json(CONSUMER_STATE_URL, timeout=10)
     if not ok or not isinstance(cs, dict) or not cs.get("ok", True):
         return "consumer-state: unavailable"
     if cs.get("connected"):
@@ -329,12 +342,12 @@ def _trailing_coverage(now_et: datetime, days: int = 5):
 
 def _post_scorecard(now_et: datetime) -> None:
     date_param = f"{now_et.month}/{now_et.day}/{now_et.year}"
-    ok_h, hist = _http_get_json(
+    ok_h, hist, _ = _http_get_json(
         f"{WEB_ORIGIN}/api/live/massive/worker-history?target_date={date_param}&min_gap_minutes=2",
         timeout=30)
-    ok_r, rlog = _http_get_json(
+    ok_r, rlog, _ = _http_get_json(
         f"{WEB_ORIGIN}/api/live/massive/restart-log?target_date={date_param}", timeout=30)
-    _, cs = _http_get_json(CONSUMER_STATE_URL, timeout=10)
+    _, cs, _ = _http_get_json(CONSUMER_STATE_URL, timeout=10)
 
     if not ok_h or not isinstance(hist, dict):
         _post_discord("\U0001F4CA LIVE FLOW SCORECARD -- could not fetch worker-history "
@@ -417,7 +430,7 @@ def _loop():
 
             in_session, _, _ = session_window(now_et)
 
-            http_ok, payload = _http_get_json(STATUS_URL)
+            http_ok, payload, status_code = _http_get_json(STATUS_URL)
             mono = time.monotonic()
             if http_ok and isinstance(payload, dict) and payload.get("max_id") is not None:
                 mid = payload.get("max_id")
@@ -427,7 +440,7 @@ def _loop():
             staleness = mono - last_advance_mono
 
             if in_session:
-                cls = classify_poll(http_ok, payload, staleness)
+                cls = classify_poll(http_ok, payload, staleness, status_code=status_code)
                 state, event = _liveflow_alert_decision(state, cls, time.time())
                 if event:
                     if msgs_today < DAILY_MSG_CAP:

@@ -37,6 +37,18 @@ def test_classify_blind_db_and_blind_web():
     assert lm.classify_poll(True, "not-a-dict", staleness_sec=0) == lm.BLIND_WEB
 
 
+def test_classify_proxied_upstream_error_is_worker_down_not_blind():
+    # P5: after cutover web's status endpoint proxies to the flow worker, so a
+    # 502/503/504 means web is UP but the WORKER is down -> LOUD WORKER_DOWN,
+    # never suppressed BLIND_WEB.
+    for code in (502, 503, 504):
+        assert lm.classify_poll(False, None, staleness_sec=0,
+                                status_code=code) == lm.WORKER_DOWN
+    # a real web-unreachable (no status) or a non-upstream error stays BLIND_WEB
+    assert lm.classify_poll(False, None, staleness_sec=0, status_code=None) == lm.BLIND_WEB
+    assert lm.classify_poll(False, None, staleness_sec=0, status_code=404) == lm.BLIND_WEB
+
+
 # --- alert state machine ------------------------------------------------------
 
 def _run(seq, t0=1000.0, step=60.0):
