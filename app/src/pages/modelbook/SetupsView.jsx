@@ -20,10 +20,6 @@ const STOP_COLOR = '#ff5b5b'    // brighter red — reads clearly on the dark ch
 const TARGET_COLOR = '#c9a84c'
 const NO_PRICE_LINES = []
 
-// Small decorative pattern used as the Setup Library wordmark mark (a clean
-// base-breakout sketch). Rendered by <SetupGlyph/> like any other pattern.
-const WORDMARK_GLYPH = { candles: [1.5, 4, 7, -1, 0.6, -0.8, 0.5, 8], pivot: { idx: 2, side: 'h' } }
-
 // Parse a stored drawings_json (chart annotations) → array; [] on missing/bad.
 function parseDrawings(json) {
   if (!json) return []
@@ -1112,7 +1108,6 @@ export default function SetupsView({ onExit }) {
       <div className={styles.topbar}>
         <button className={styles.backBtn} onClick={onExit}>‹ Model Book</button>
         <div className={styles.wordmark}>
-          <SetupGlyph setup={WORDMARK_GLYPH} className={styles.wordmarkGlyph} />
           {/* Real heading (not a span): the page's accessible title — screen
               readers and tests find the library by its name again. */}
           <h1 className={styles.wordmarkText}>Setup Library</h1>
