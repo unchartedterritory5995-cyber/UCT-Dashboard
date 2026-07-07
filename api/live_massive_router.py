@@ -119,6 +119,14 @@ DEFAULT_THRESHOLDS = {
         "mid_small_max":  10_000_000_000,    # <$10B = mid/small cap
         "large_max":     200_000_000_000,    # $10B-$200B = large; >$200B = mega
     },
+    # 7/7: Whether to include source='indexes' rows (ETFs + index products
+    # like SPY, QQQ, NDXP, VIX, TLT, GDX...) in the /recent alert stream.
+    # Default False preserves the "stocks only" behavior the pipeline has
+    # had since 6/26. When True, the frontend's Stocks/ETFs/All toggle can
+    # actually partition returned alerts; when False, ETFs mode shows only
+    # historical mis-routed indexes (nothing going forward). Wire through
+    # the same admin panel that hosts voi_required and premium floors.
+    "etf_enabled": False,
     # Big sweeps/blocks on fresh strikes (OI=0) get classified WHITE because
     # Massive's V/OI classifier can't compute a ratio without OI. This rule
     # promotes those rows to MAGENTA-equivalent classification so they
@@ -1382,12 +1390,20 @@ def recent_massive_alerts(
         # below any reasonable premium_override.min_premium setting.
         override_cfg = _load_thresholds().get("premium_override", {})
         override_sql_floor = 500_000  # absolute SQL floor; refined in Python
-        cur = conn.execute("""
+        # 7/7: source clause is conditional on the etf_enabled admin threshold.
+        # When enabled, both 'stocks' and 'indexes' rows flow through so the
+        # frontend's Stocks/ETFs toggle can partition them. When disabled
+        # (default, today's behavior), only 'stocks' — indexes stay excluded
+        # per the 6/26 aggregation-boundary concern documented at file top.
+        etf_enabled = _load_thresholds().get("etf_enabled", False)
+        source_clause = ("source IN ('stocks','indexes')" if etf_enabled
+                         else "source = 'stocks'")
+        cur = conn.execute(f"""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
                    Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
               FROM flow
-             WHERE source = 'stocks'
+             WHERE {source_clause}
                AND CreatedDate = ?
                AND (Color IN ('MAGENTA', 'YELLOW')
                     OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
@@ -1668,12 +1684,17 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
-        cur = conn.execute("""
+        # 7/7: same conditional source clause as /recent so bull/bear card
+        # counts stay consistent with the alert stream when ETFs are enabled.
+        etf_enabled = _load_thresholds().get("etf_enabled", False)
+        source_clause = ("source IN ('stocks','indexes')" if etf_enabled
+                         else "source = 'stocks'")
+        cur = conn.execute(f"""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
                    Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
               FROM flow
-             WHERE source = 'stocks'
+             WHERE {source_clause}
                AND CreatedDate = ?
                AND (Color IN ('MAGENTA', 'YELLOW')
                     OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
