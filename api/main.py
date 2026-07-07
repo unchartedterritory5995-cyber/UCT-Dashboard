@@ -2790,6 +2790,16 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] flow.db integrity probe thread failed to start: {_e}")
 
+    # Event-loop wedge watchdog (audit B3) — the single web process's loop is
+    # the whole site's liveness. Ships DARK: does nothing unless WATCHDOG_OBSERVE=1
+    # (measure baseline lag) or WATCHDOG_ENABLED=1 (arm the force-restart on a
+    # sustained wedge). Captures the running loop; must start before yield.
+    try:
+        from api import event_loop_watchdog
+        event_loop_watchdog.start_watchdog()
+    except Exception as _e:
+        print(f"[startup] event-loop watchdog failed to start (non-fatal): {_e}")
+
     yield
     # -- Massive WS graceful stop (deploy-survival P1) ---------------------
     # Runs on SIGTERM during the Railway drain window. Sends a clean WS close
@@ -2977,6 +2987,11 @@ try:
     app.include_router(flow_backup_router)
 except Exception as _e:
     print(f"[startup] flow_backup router not mounted (non-fatal): {_e}")
+try:
+    from api.event_loop_watchdog import router as event_loop_watchdog_router
+    app.include_router(event_loop_watchdog_router)
+except Exception as _e:
+    print(f"[startup] event_loop_watchdog router not mounted (non-fatal): {_e}")
 app.include_router(oi_snapshot_router)
 app.include_router(notable_flow_router)
 app.include_router(liveflow_router)

@@ -40,6 +40,7 @@ import os
 import time
 import re
 import json
+from fastapi.responses import Response
 from api.bs_iv import iv_for_row
 
 router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
@@ -1378,7 +1379,11 @@ def recent_massive_alerts(
     _ck = (target_date or "today", limit, min_grade, sort_by, tier, curated)
     _hit = _RECENT_CACHE.get(_ck)
     if _hit and _hit[0] > time.time():
-        return _hit[1]
+        # Serve pre-serialized JSON bytes — skips the per-request
+        # jsonable_encoder + json.dumps that otherwise ran on EVERY cache hit
+        # (audit: serialization CPU scaled with user count even when cached).
+        # GZipMiddleware still compresses this Response over the wire.
+        return Response(content=_hit[1], media_type="application/json")
 
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
@@ -1534,10 +1539,15 @@ def recent_massive_alerts(
         "status": status,
         "alerts": alerts,
     }
+    # Serialize ONCE and cache the bytes (not the dict) so cache hits skip
+    # re-serialization. Plain json.dumps is safe here — the payload is only
+    # dicts/lists/str/float/int/None/bool (ingestedAt is already an ISO
+    # string, iv is float|None). default=str is a belt-and-suspenders guard.
+    body = json.dumps(payload, default=str).encode("utf-8")
     if len(_RECENT_CACHE) > 64:  # bound: distinct param-sets are few in practice
         _RECENT_CACHE.clear()
-    _RECENT_CACHE[_ck] = (time.time() + _RECENT_CACHE_TTL, payload)
-    return payload
+    _RECENT_CACHE[_ck] = (time.time() + _RECENT_CACHE_TTL, body)
+    return Response(content=body, media_type="application/json")
 
 
 @router.get("/diagnostic")
@@ -1644,10 +1654,20 @@ async def current_quotes(payload: CurrentQuotesPayload):
     # (the live page maxes at 200 alerts which is typically <100 uniques).
     tickers = tickers[:200]
 
-    # Fire all lookups concurrently. Schwab service handles its own rate
-    # limiting; cache layer (above) dedupes same-ticker repeats within TTL.
+    # Bound concurrency: without this, an "All"-view user could fire up to 200
+    # simultaneous Schwab quote calls (each a fresh TLS handshake), and at
+    # launch load N users doing that at once risks Schwab rate-limiting the
+    # whole burst → the P/L column silently drops to "—". A semaphore keeps
+    # in-flight lookups modest while the 2-min per-ticker cache absorbs
+    # repeats. Env-tunable. (audit F4)
+    _sem = asyncio.Semaphore(int(os.environ.get("QUOTE_FETCH_CONCURRENCY", "20")))
+
+    async def _bounded(t):
+        async with _sem:
+            return await _fetch_one_quote(t)
+
     results = await asyncio.gather(
-        *[_fetch_one_quote(t) for t in tickers], return_exceptions=False
+        *[_bounded(t) for t in tickers], return_exceptions=False
     )
     quotes = {t: p for t, p in zip(tickers, results) if p is not None}
     return {"quotes": quotes, "fetched_at": time.time(), "requested": len(tickers)}
