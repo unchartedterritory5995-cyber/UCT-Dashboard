@@ -72,7 +72,8 @@ def test_massive_prefix_is_proxied_but_bare_live_is_not(proxy_app):
 
 @pytest.mark.parametrize("path", [
     "/api/flow/data", "/api/flow/version", "/api/flow-scoreboard",
-    "/api/flow-explain", "/api/darkpool/recent", "/api/dealer-positioning",
+    "/api/flow-explain", "/api/flow-reconcile", "/api/flow-reconcile/run",
+    "/api/darkpool/recent", "/api/dealer-positioning",
     "/api/notable-flow", "/api/top-flow", "/api/oi-snapshot/x", "/api/liveflow/consumer-state",
 ])
 def test_all_flow_prefixes_route_to_worker(proxy_app, path):

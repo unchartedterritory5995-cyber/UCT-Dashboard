@@ -451,10 +451,11 @@ def _mount_flow_routers(app) -> None:
         from api.live_massive_router import router as live_massive_router
         from api.darkpool_router import router as darkpool_router
         from api.dealer_positioning_router import router as dealer_positioning_router
+        from api.flow_reconcile_router import router as flow_reconcile_router
         for r in (top_flow_router, flow_scoreboard_router, flow_explain_router,
                   flow_router, flow_summary_router, oi_snapshot_router,
                   notable_flow_router, liveflow_health_router, live_massive_router,
-                  darkpool_router, dealer_positioning_router):
+                  darkpool_router, dealer_positioning_router, flow_reconcile_router):
             app.include_router(r)
 
     _try("core flow routers", _core)

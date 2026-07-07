@@ -47,6 +47,7 @@ PROXY_PREFIXES = (
     "/api/flow-explain",
     "/api/flow-gap-fill",
     "/api/flow-backup",
+    "/api/flow-reconcile",
     "/api/darkpool",
     "/api/dealer-positioning",
     "/api/notable-flow",
