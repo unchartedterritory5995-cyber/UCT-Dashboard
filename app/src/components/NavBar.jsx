@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
   { to: '/patterns',     label: 'Patterns',      icon: 'patterns' },
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
+  { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
   { to: '/post-market',  label: 'Post Market',   icon: 'moon' },
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
   { to: '/desk',         label: 'The Desk',      icon: 'desk' },
@@ -30,7 +31,7 @@ const NAV_ITEMS = [
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
 // Keep in sync with FREE_PAGES in AuthGuard.jsx + MoreSheet.jsx.
-const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/journal', '/model-book']
+const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/live-massive', '/journal', '/model-book']
 
 export default function NavBar() {
   const { user, isPaid } = useAuth()

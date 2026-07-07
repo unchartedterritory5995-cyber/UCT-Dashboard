@@ -106,6 +106,13 @@ class FlowDB:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_symbol ON flow(Symbol)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_exp ON flow(ExpirationDate)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_source_date ON flow(source, CreatedDate)")
+            # Covering index for the live-tape hot path (T1-1): /recent's
+            # `WHERE source=? AND CreatedDate=? ... ORDER BY id DESC LIMIT ?`
+            # otherwise degrades to a reverse rowid scan over the whole table
+            # (measured 43s on 774MB, 2026-07-01). With (source, CreatedDate,
+            # id) SQLite walks the index backwards touching only today's rows.
+            # One-time build on a large existing DB takes ~30-60s at boot.
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_source_date_id ON flow(source, CreatedDate, id)")
 
     @staticmethod
     def _make_dedup_key(row: dict, source: str) -> str:

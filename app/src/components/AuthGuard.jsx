@@ -83,7 +83,7 @@ export default function AuthGuard() {
   // Landing page's "five tools, no card required" promise (Dashboard + Breadth
   // + Charts + Options Flow + Journal) plus the free Model Book library.
   // Keep in sync with FREE_PAGES in NavBar.jsx + MoreSheet.jsx.
-  const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/journal', '/model-book']
+  const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/live-massive', '/journal', '/model-book']
   // Where to bounce a non-paid user who hits a locked page. MUST be a free page.
   const FREE_HOME = '/dashboard'
 
@@ -104,13 +104,13 @@ export default function AuthGuard() {
     return <Outlet />
   }
 
-  // Live Flow pages — accessible via direct URL for any logged-in user during
-  // test/validation phase. Not in FREE_PAGES nav (deliberately no sidebar
-  // entry — discovered via URL only). Once test phase is complete and we
-  // wire NavBar links, this can move into FREE_PAGES or admin-only gating.
+  // Live Flow pages (promoted 2026-07-06, roadmap T1-1 — the ingest rail is
+  // deploy-survival hardened + gap-self-healing, so the tape is production
+  // grade). /live-massive is in FREE_PAGES + nav ("Live Flow"); packaging
+  // may re-gate cadence for free users later (roadmap T2-5).
   //
-  // /live-massive: TEST page that polls Massive WS via FlowDB
-  // /live-flow:    PRODUCTION page that polls Bullflow SSE (existing)
+  // /live-massive: Massive OPRA full-tape feed via FlowDB (canonical)
+  // /live-flow:    Bullflow SSE alert feed (URL-only pending T2-6 merge)
   if (location.pathname === '/live-flow' || location.pathname === '/live-massive') {
     return <Outlet />
   }

@@ -48,6 +48,11 @@ DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 # skewed every age/gap/restart timestamp by +1h when EST resumes in November).
 ET = ZoneInfo("America/New_York")
 
+# /recent micro-cache: {param-key: (expires_epoch, payload)} — see the
+# endpoint for rationale. TTL below the page's 5s poll interval.
+_RECENT_CACHE: dict = {}
+_RECENT_CACHE_TTL = 4.0
+
 
 # ─── Tier priority (for convictionScore weighting) ─────────────────────────
 # Lower priority number = higher quality signal. Matches Bullflow taxonomy.
@@ -1354,6 +1359,15 @@ def recent_massive_alerts(
                        "A+": 4}  # accept both with and without rocket
     min_threshold = grade_threshold.get(min_grade, 0)
 
+    # ── Micro-cache (T1-1): at 5s polling, N concurrent viewers of the same
+    # feed would each pay the query + per-row translation. One computation
+    # per parameter-set per 4s window serves everyone; staleness is invisible
+    # at a 5s poll cadence.
+    _ck = (target_date or "today", limit, min_grade, sort_by, tier, curated)
+    _hit = _RECENT_CACHE.get(_ck)
+    if _hit and _hit[0] > time.time():
+        return _hit[1]
+
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
@@ -1504,10 +1518,14 @@ def recent_massive_alerts(
     status["skipped_curated"] = skipped_curated
     status["returned"] = len(alerts)
 
-    return {
+    payload = {
         "status": status,
         "alerts": alerts,
     }
+    if len(_RECENT_CACHE) > 64:  # bound: distinct param-sets are few in practice
+        _RECENT_CACHE.clear()
+    _RECENT_CACHE[_ck] = (time.time() + _RECENT_CACHE_TTL, payload)
+    return payload
 
 
 @router.get("/diagnostic")
