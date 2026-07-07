@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 
 /**
@@ -1475,16 +1475,27 @@ function qualifiesCurated(alert, thresholds) {
   const hitCount = alert._hitCount || 1;
   const grade = alert.grade || "";
   const mktCap = alert._mktCap || 0;
+  // 7/7: source-aware branch. Prefer backend source field (added same day);
+  // fall back to client-side KNOWN_ETFS_INDEXES lookup for alerts served
+  // before the backend change deployed. Same classification either way.
+  const isEtf = alert.source === "indexes" || KNOWN_ETFS_INDEXES.has(alert.ticker);
   if (tier === "unusual") {
-    const u = thresholds?.unusual || {};
-    return prem >= (u.min_premium ?? 100000) && vOI >= (u.vOI ?? 5.0);
+    const u = (isEtf ? thresholds?.etf_unusual : thresholds?.unusual) || {};
+    return prem >= (u.min_premium ?? (isEtf ? 500000 : 100000))
+        && vOI >= (u.vOI ?? (isEtf ? 10.0 : 5.0));
   }
   if (!["alpha","size","leaps","bullish","bearish"].includes(tier)) return false;
   const stack = thresholds?.stack || {};
-  const premCaps = thresholds?.premium_by_cap?.[tier] || {};
-  const band = _capBandFE(mktCap, thresholds?.cap_bands);
-  // HARD requirement: premium tier+cap floor
-  const premFloor = premCaps[band] ?? 0;
+  // HARD requirement: premium tier floor. ETF path is flat (no cap band);
+  // stock path uses tier × cap band matrix.
+  let premFloor;
+  if (isEtf) {
+    premFloor = (thresholds?.etf_premium_floors || {})[tier] ?? 0;
+  } else {
+    const premCaps = thresholds?.premium_by_cap?.[tier] || {};
+    const band = _capBandFE(mktCap, thresholds?.cap_bands);
+    premFloor = premCaps[band] ?? 0;
+  }
   if (prem < premFloor) return false;
   // Optional HARD gate: V/OI required (7/7). Mirrors backend logic — when
   // the admin panel toggles this on, V/OI < stack.vOI is a short-circuit
@@ -1777,6 +1788,61 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
           On: both flow through; users can toggle Stocks/ETFs/All in the
           header row to filter what they see. Change takes effect on next
           5s poll cycle after Save.
+        </div>
+      </div>
+
+      {/* 7/7: ETF PREMIUM FLOORS — separate from stocks because $100K-$500K
+          on SPY/QQQ is retail dust, not institutional. No cap bands (major
+          ETFs are all mega-scale). */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+          ETF PREMIUM FLOORS (HARD REQUIREMENT) — used when source='indexes':
+        </div>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "160px 1fr",
+          rowGap: 6, columnGap: 12, paddingLeft: 12,
+          fontSize: 11, color: P.wh,
+        }}>
+          <div style={{ color: P.dm, fontSize: 10 }}>Tier</div>
+          <div style={{ color: P.dm, fontSize: 10 }}>Floor</div>
+          {["alpha","size","leaps","bullish","bearish"].map(tier => (
+            <Fragment key={tier}>
+              <div style={{ color: TIER_META[tier]?.color || P.wh, textTransform: "uppercase" }}>
+                {TIER_META[tier]?.label || tier}
+              </div>
+              <div>
+                <NumberInput
+                  value={thresholds.etf_premium_floors?.[tier] ?? 0}
+                  onChange={v => setPath(["etf_premium_floors", tier], v)}
+                  step={100000}
+                />
+              </div>
+            </Fragment>
+          ))}
+        </div>
+        <div style={{ paddingLeft: 12, marginTop: 6, color: P.mt, fontSize: 10, fontStyle: "italic" }}>
+          Applied to SPY, QQQ, SOXL, NDXP, VIX, etc. Stock tickers continue
+          to use the Premium Floors table above.
+        </div>
+      </div>
+
+      {/* 7/7: ETF UNUSUAL — own path, higher floor than stock Unusual because
+          the same argument applies (small ETF prints = retail, not signal). */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+          ETF UNUSUAL TIER — used when source='indexes':
+        </div>
+        <div style={{ display: "flex", gap: 16, paddingLeft: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div><Label>Min premium</Label>
+            <NumberInput value={thresholds.etf_unusual?.min_premium ?? 500000}
+              onChange={v => setPath(["etf_unusual","min_premium"], v)} step={100000} />
+          </div>
+          <div><Label>V/OI ≥</Label>
+            <NumberInput value={thresholds.etf_unusual?.vOI ?? 10.0}
+              onChange={v => setPath(["etf_unusual","vOI"], v)} step={1.0} />
+            <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>x</span>
+          </div>
         </div>
       </div>
 
