@@ -838,7 +838,114 @@ function computePL(alert, currentSpot) {
 }
 
 // ─── Single row ───────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract }) {
+// ─── AI Print Explainer modal (T1-3) ───────────────────────────────────────
+// Click any tape row → Claude explains the print in plain English (opening vs
+// closing, aggression, moneyness, earnings proximity) grounded ONLY in the
+// print's own facts. Backend caches per contract-shape + cost-guards; a
+// deterministic fallback still explains the print if the LLM is unavailable.
+function FlowExplainModal({ alert, onClose }) {
+  const [state, setState] = useState({ loading: true, data: null, error: null });
+  useEffect(() => {
+    if (!alert) return;
+    let cancelled = false;
+    setState({ loading: true, data: null, error: null });
+    fetch("/api/flow-explain/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        ticker: alert.ticker, cp: alert.cp || "C",
+        strike: Number(alert.strike) || 0, exp: alert.exp || "",
+        dte: Number(alert.dte) || 0, premium: Number(alert.alertPremium) || 0,
+        volume: Number(alert.tradeSize) || 0, oi: Number(alert.priorOI) || 0,
+        side: alert._side || "", spot: Number(alert.spot) || 0,
+        order_type: alert._type || "", color: alert.color || "",
+        grade: alert.grade || null, tier: alert._tierKey || null,
+      }),
+    })
+      .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(j.detail || "error")))
+      .then(d => { if (!cancelled) setState({ loading: false, data: d, error: null }); })
+      .catch(e => { if (!cancelled) setState({ loading: false, data: null, error: String(e) }); });
+    return () => { cancelled = true; };
+  }, [alert]);
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!alert) return null;
+  const contract = `${alert.ticker} ${fmtStrike(alert.strike)}${alert.cp || ""} ${alert.exp || ""}`;
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000,
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+    }}>
+      <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Flow print explanation"
+        style={{
+          background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 8,
+          maxWidth: 560, width: "100%", maxHeight: "82vh", overflowY: "auto",
+          boxShadow: "0 12px 48px rgba(0,0,0,0.5)",
+        }}>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 18px", borderBottom: `1px solid ${P.bd}`,
+        }}>
+          <div>
+            <div style={{ color: P.ac, fontWeight: 700, fontSize: 15, letterSpacing: 0.5 }}>
+              ✦ What this print means
+            </div>
+            <div style={{ color: P.dm, fontSize: 12, marginTop: 2 }}>{contract}</div>
+          </div>
+          <button onClick={onClose} aria-label="Close" style={{
+            background: "none", border: "none", color: P.dm, fontSize: 22,
+            cursor: "pointer", lineHeight: 1, padding: 4,
+          }}>×</button>
+        </div>
+        <div style={{ padding: 18 }}>
+          {state.loading && (
+            <div style={{ color: P.dm, fontSize: 14, padding: "20px 0", textAlign: "center" }}>
+              Reading the tape…
+            </div>
+          )}
+          {state.error && (
+            <div style={{ color: P.be, fontSize: 13 }}>
+              Couldn’t generate an explanation: {state.error}
+            </div>
+          )}
+          {state.data && (
+            <>
+              <p style={{ color: P.wh, fontSize: 14.5, lineHeight: 1.65, margin: "0 0 16px" }}>
+                {state.data.explanation}
+              </p>
+              {Array.isArray(state.data.signals) && state.data.signals.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  {state.data.signals.map((s, i) => (
+                    <div key={i} style={{
+                      display: "flex", gap: 8, alignItems: "baseline",
+                      color: P.dm, fontSize: 12.5, lineHeight: 1.45,
+                    }}>
+                      <span style={{ color: P.ac, flexShrink: 0 }}>▸</span>
+                      <span>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ color: P.mt, fontSize: 10.5, marginTop: 16, lineHeight: 1.5 }}>
+                {state.data.model === "deterministic-fallback"
+                  ? "Rule-based read (AI capacity reached for today)."
+                  : "AI-generated from this print’s own data. Not advice; not a prediction."}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onExplain }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
@@ -880,14 +987,17 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   const cpDisplayColor = dirIsBull ? DIR_BULL : dirIsBear ? DIR_BEAR : P.dm;
 
   return (
-    <div style={{
+    <div
+      onClick={() => onExplain && onExplain(alert)}
+      title="Click for an AI read of this print"
+      style={{
       display: "grid",
       // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
       gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: isAlpha ? "10px 12px" : "8px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
-      alignItems: "center",
+      alignItems: "center", cursor: "pointer",
       ...flashStyle,
     }}>
       <span style={{ color: P.dm, whiteSpace: "nowrap", textAlign: "center" }}>
@@ -896,7 +1006,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
         <span
           style={{ color: tickerColor, fontWeight: tickerWeight, cursor: "pointer" }}
-          onClick={() => onClickTicker(alert.ticker)}
+          onClick={(e) => { e.stopPropagation(); onClickTicker(alert.ticker); }}
           title={`Filter to ${alert.ticker}`}
         >
           {alert.ticker}
@@ -923,7 +1033,8 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       </span>
       <span
         style={{ color: strikeColor, fontWeight: strikeWeight, textAlign: "center", cursor: "pointer", whiteSpace: "nowrap" }}
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           if (alert.cp && alert.strike != null && alert.exp) {
             onClickContract(`${alert.ticker}|${alert.cp}|${alert.strike}|${alert.exp}`);
           }
@@ -1076,6 +1187,25 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
   const connected = status?.connected;
   const lastEvent = status?.last_event_at;
   const returned = status?.returned;
+  // T1-5 feed-health badge: honest 3-state health from the worker's own
+  // freshness. GREEN = connected + a print within the last ~90s (market
+  // hours); YELLOW = connected but quiet (or market closed); RED = the
+  // worker isn't connected. The exact seconds render so users can audit us
+  // rather than trust a vague "real-time" claim.
+  const ageSec = (() => {
+    if (!lastEvent) return null;
+    const ms = Date.now() - new Date(lastEvent).getTime();
+    return ms >= 0 ? Math.round(ms / 1000) : null;
+  })();
+  const health = (() => {
+    if (!connected) return { tone: P.be, dot: "●", label: "FEED DOWN" };
+    if (ageSec != null && ageSec <= 90) return { tone: P.bu, dot: "●", label: "LIVE" };
+    return { tone: P.ac, dot: "◐", label: "CONNECTED · QUIET" };
+  })();
+  const ageLabel = ageSec == null ? null
+    : ageSec < 90 ? `${ageSec}s ago`
+    : ageSec < 3600 ? `${Math.round(ageSec / 60)}m ago`
+    : `${Math.round(ageSec / 3600)}h ago`;
   // Convert M/D/YYYY ↔ YYYY-MM-DD for the native <input type="date"> field.
   // Native input requires ISO format; our backend uses M/D/YYYY.
   const dateInputValue = (() => {
@@ -1100,17 +1230,18 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
         <span style={{
           color: P.ac, fontWeight: 700, fontSize: 14, letterSpacing: 1,
         }}>
-          LIVE FLOW — MASSIVE (TEST)
+          LIVE OPTIONS FLOW
         </span>
-        <span style={{
-          padding: "2px 8px", borderRadius: 3, fontSize: 11,
-          background: connected ? P.bu : P.be, color: P.wh,
-        }}>
-          {connected ? "● WORKER LIVE" : "○ WORKER IDLE"}
+        <span title="Feed health from the OPRA worker's last write — the actual number, not a vague 'real-time' badge."
+          style={{
+            padding: "2px 9px", borderRadius: 3, fontSize: 11, fontWeight: 700,
+            background: health.tone, color: P.wh, letterSpacing: 0.5,
+          }}>
+          {health.dot} {health.label}
         </span>
-        {lastEvent && (
+        {ageLabel && (
           <span style={{ color: P.dm, fontSize: 11 }}>
-            last event: {new Date(lastEvent).toLocaleTimeString()}
+            last print: {ageLabel}
           </span>
         )}
         <span style={{ marginLeft: "auto", color: P.dm, fontSize: 12 }}>
@@ -1868,6 +1999,7 @@ export default function LiveFlowMassive() {
   // than the 5s alert poll so this is the right cadence). Key: ticker → spot.
   const [quotes, setQuotes] = useState({});
   const [quotesFetchedAt, setQuotesFetchedAt] = useState(null);
+  const [explainAlert, setExplainAlert] = useState(null);  // T1-3: AI print explainer modal
   // Day-scoped Market Read stats (aggregated over ALL classifiable Y/M rows
   // for the target date, independent of filters). Polled every 30s — slower
   // than alerts because the aggregate moves slower than individual events.
@@ -2422,9 +2554,14 @@ export default function LiveFlowMassive() {
             currentSpot={quotes[a.ticker]}
             onClickTicker={handleClickTicker}
             onClickContract={handleClickContract}
+            onExplain={setExplainAlert}
           />
         );
       })}
+
+      {explainAlert && (
+        <FlowExplainModal alert={explainAlert} onClose={() => setExplainAlert(null)} />
+      )}
 
       {visibleAlerts.length === 0 && !error && (
         <div style={{

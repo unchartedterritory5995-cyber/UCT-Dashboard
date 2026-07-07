@@ -83,7 +83,7 @@ export default function AuthGuard() {
   // Landing page's "five tools, no card required" promise (Dashboard + Breadth
   // + Charts + Options Flow + Journal) plus the free Model Book library.
   // Keep in sync with FREE_PAGES in NavBar.jsx + MoreSheet.jsx.
-  const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/live-massive', '/journal', '/model-book']
+  const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/live-massive', '/flow-scoreboard', '/journal', '/model-book']
   // Where to bounce a non-paid user who hits a locked page. MUST be a free page.
   const FREE_HOME = '/dashboard'
 

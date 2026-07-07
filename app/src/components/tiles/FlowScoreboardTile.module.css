@@ -1,0 +1,70 @@
+/* FlowScoreboardTile.module.css — compact dashboard tile */
+
+.tile { min-width: 0; }
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+  padding: 2px 0;
+}
+
+.muted {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.headline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.headlineValue {
+  font-family: var(--font-sans);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--ut-gold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.headlineLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  max-width: 180px;
+}
+
+.winnerLine {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.winnerSym {
+  font-weight: 700;
+  color: var(--ut-cream);
+  letter-spacing: 0.5px;
+}
+.winnerContract {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.winnerGain {
+  color: var(--gain);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ut-gold);
+  letter-spacing: 0.4px;
+}
+.body:hover .cta { text-decoration: underline; }

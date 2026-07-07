@@ -26,6 +26,7 @@ const NAV_SECTIONS = [
       { to: '/breadth', label: 'Breadth', icon: 'breadth' },
       { to: '/options-flow', label: 'Options Flow', icon: 'flow' },
       { to: '/live-massive', label: 'Live Flow', icon: 'bolt' },
+      { to: '/flow-scoreboard', label: 'Scoreboard', icon: 'check' },
       { to: '/post-market', label: 'Post Market', icon: 'moon' },
     ],
   },
@@ -55,7 +56,7 @@ const NAV_SECTIONS = [
 ]
 
 // Keep in sync with FREE_PAGES in AuthGuard.jsx + NavBar.jsx.
-const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/live-massive', '/journal', '/model-book']
+const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/live-massive', '/flow-scoreboard', '/journal', '/model-book']
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
 export default function MoreSheet({ open, onClose }) {

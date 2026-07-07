@@ -10,6 +10,7 @@ import CatalystFlow from '../components/tiles/CatalystFlow'
 import LeadershipTile from '../components/tiles/LeadershipTile'
 import TapeFeed from '../components/tiles/TapeFeed'
 import JournalSnapshotTile from '../components/tiles/JournalSnapshotTile'
+import FlowScoreboardTile from '../components/tiles/FlowScoreboardTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import DeskVideoRail from '../components/dashboard/DeskVideoRail'
@@ -84,6 +85,7 @@ export default function Dashboard() {
             </div>
             <div className={styles.rail}>
               <JournalSnapshotTile />
+              <FlowScoreboardTile />
               <div className={styles.railMovers}>
                 <MoversSidebar />
               </div>
@@ -194,6 +196,8 @@ export default function Dashboard() {
             >
               <OptionsFlowPreview embedded />
             </MobileSection>
+            {/* Flow Scoreboard — verified Top Flow track record */}
+            <FlowScoreboardTile />
             {/* From the Desk — video discovery rail */}
             <DeskVideoRail />
             {/* Compass noticed — self-hiding awareness feed */}
