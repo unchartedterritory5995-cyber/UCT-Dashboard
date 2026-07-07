@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 /**
@@ -33,10 +33,10 @@ const P = {
   mt: "#6a6660",
 };
 
-// T1-1 (2026-07-06): restored to 5s. The 43s flow.db query is fixed by a
-// covering index (source, CreatedDate, id) + a 4s server-side micro-cache
-// on /recent, so concurrent viewers share one query per window.
-const POLL_INTERVAL_MS = 5000;
+// Bridge 2026-07-01: bumped from 5000 -> 20000 while flow.db query perf
+// (diagnostic 43s for 11K rows) is being addressed. Restore to 5000 once
+// /api/live/massive/recent returns to sub-second on the DB side.
+const POLL_INTERVAL_MS = 20000;
 // Default cap on alerts in the live feed. Backend supports up to 20000.
 // 500 covers ~8-15 minutes of market-open activity (initial flood ~100/min
 // settling to 30-50/min). User can change via selector in the toolbar.
@@ -838,143 +838,7 @@ function computePL(alert, currentSpot) {
 }
 
 // ─── Single row ───────────────────────────────────────────────────────────
-// Identity-preserving merge: for each incoming alert, reuse the previous
-// object reference when its rendered fields are unchanged, so React.memo can
-// skip the row. A given alert id is an immutable print; only OI enrichment
-// and side classification can change for an existing id between polls.
-function mergeAlertsById(prev, incoming) {
-  if (!prev || prev.length === 0) return incoming;
-  const prevById = new Map(prev.map(a => [a.id, a]));
-  let anyReused = false;
-  const out = incoming.map(a => {
-    const old = prevById.get(a.id);
-    if (old
-        && old.priorOI === a.priorOI
-        && old.volumeOIRatio === a.volumeOIRatio
-        && old.oiExceeded === a.oiExceeded
-        && old._side === a._side
-        && old.grade === a.grade) {
-      anyReused = true;
-      return old;  // stable identity → memoized row does not re-render
-    }
-    return a;
-  });
-  // If nothing at all changed (same length, all reused), keep the prev array
-  // reference so the list itself doesn't trigger a re-render either.
-  if (anyReused && out.length === prev.length && out.every((o, i) => o === prev[i])) {
-    return prev;
-  }
-  return out;
-}
-
-// ─── AI Print Explainer modal (T1-3) ───────────────────────────────────────
-// Click any tape row → Claude explains the print in plain English (opening vs
-// closing, aggression, moneyness, earnings proximity) grounded ONLY in the
-// print's own facts. Backend caches per contract-shape + cost-guards; a
-// deterministic fallback still explains the print if the LLM is unavailable.
-function FlowExplainModal({ alert, onClose }) {
-  const [state, setState] = useState({ loading: true, data: null, error: null });
-  useEffect(() => {
-    if (!alert) return;
-    let cancelled = false;
-    setState({ loading: true, data: null, error: null });
-    fetch("/api/flow-explain/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        ticker: alert.ticker, cp: alert.cp || "C",
-        strike: Number(alert.strike) || 0, exp: alert.exp || "",
-        dte: Number(alert.dte) || 0, premium: Number(alert.alertPremium) || 0,
-        volume: Number(alert.tradeSize) || 0, oi: Number(alert.priorOI) || 0,
-        side: alert._side || "", spot: Number(alert.spot) || 0,
-        order_type: alert._type || "", color: alert._color || "",
-        grade: alert.grade || null, tier: alert._tierKey || null,
-      }),
-    })
-      .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(j.detail || "error")))
-      .then(d => { if (!cancelled) setState({ loading: false, data: d, error: null }); })
-      .catch(e => { if (!cancelled) setState({ loading: false, data: null, error: String(e) }); });
-    return () => { cancelled = true; };
-  }, [alert]);
-
-  useEffect(() => {
-    const onKey = e => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  if (!alert) return null;
-  const contract = `${alert.ticker} ${fmtStrike(alert.strike)}${alert.cp || ""} ${alert.exp || ""}`;
-  return (
-    <div onClick={onClose} style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000,
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
-    }}>
-      <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Flow print explanation"
-        style={{
-          background: P.cd, border: `1px solid ${P.bd}`, borderRadius: 8,
-          maxWidth: 560, width: "100%", maxHeight: "82vh", overflowY: "auto",
-          boxShadow: "0 12px 48px rgba(0,0,0,0.5)",
-        }}>
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 18px", borderBottom: `1px solid ${P.bd}`,
-        }}>
-          <div>
-            <div style={{ color: P.ac, fontWeight: 700, fontSize: 15, letterSpacing: 0.5 }}>
-              ✦ What this print means
-            </div>
-            <div style={{ color: P.dm, fontSize: 12, marginTop: 2 }}>{contract}</div>
-          </div>
-          <button onClick={onClose} aria-label="Close" style={{
-            background: "none", border: "none", color: P.dm, fontSize: 22,
-            cursor: "pointer", lineHeight: 1, padding: 4,
-          }}>×</button>
-        </div>
-        <div style={{ padding: 18 }}>
-          {state.loading && (
-            <div style={{ color: P.dm, fontSize: 14, padding: "20px 0", textAlign: "center" }}>
-              Reading the tape…
-            </div>
-          )}
-          {state.error && (
-            <div style={{ color: P.be, fontSize: 13 }}>
-              Couldn’t generate an explanation: {state.error}
-            </div>
-          )}
-          {state.data && (
-            <>
-              <p style={{ color: P.wh, fontSize: 14.5, lineHeight: 1.65, margin: "0 0 16px" }}>
-                {state.data.explanation}
-              </p>
-              {Array.isArray(state.data.signals) && state.data.signals.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                  {state.data.signals.map((s, i) => (
-                    <div key={i} style={{
-                      display: "flex", gap: 8, alignItems: "baseline",
-                      color: P.dm, fontSize: 12.5, lineHeight: 1.45,
-                    }}>
-                      <span style={{ color: P.ac, flexShrink: 0 }}>▸</span>
-                      <span>{s}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div style={{ color: P.mt, fontSize: 10.5, marginTop: 16, lineHeight: 1.5 }}>
-                {state.data.model === "deterministic-fallback"
-                  ? "Rule-based read (AI capacity reached for today)."
-                  : "AI-generated from this print’s own data. Not advice; not a prediction."}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onExplain }) {
+function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
@@ -1016,17 +880,14 @@ const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, o
   const cpDisplayColor = dirIsBull ? DIR_BULL : dirIsBear ? DIR_BEAR : P.dm;
 
   return (
-    <div
-      onClick={() => onExplain && onExplain(alert)}
-      title="Click for an AI read of this print"
-      style={{
+    <div style={{
       display: "grid",
-      // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | IV | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
-      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 55px 95px 60px 50px 55px 75px 1fr",
+      // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: isAlpha ? "10px 12px" : "8px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
-      alignItems: "center", cursor: "pointer",
+      alignItems: "center",
       ...flashStyle,
     }}>
       <span style={{ color: P.dm, whiteSpace: "nowrap", textAlign: "center" }}>
@@ -1035,7 +896,7 @@ const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, o
       <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
         <span
           style={{ color: tickerColor, fontWeight: tickerWeight, cursor: "pointer" }}
-          onClick={(e) => { e.stopPropagation(); onClickTicker(alert.ticker); }}
+          onClick={() => onClickTicker(alert.ticker)}
           title={`Filter to ${alert.ticker}`}
         >
           {alert.ticker}
@@ -1062,8 +923,7 @@ const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, o
       </span>
       <span
         style={{ color: strikeColor, fontWeight: strikeWeight, textAlign: "center", cursor: "pointer", whiteSpace: "nowrap" }}
-        onClick={(e) => {
-          e.stopPropagation();
+        onClick={() => {
           if (alert.cp && alert.strike != null && alert.exp) {
             onClickContract(`${alert.ticker}|${alert.cp}|${alert.strike}|${alert.exp}`);
           }
@@ -1116,12 +976,6 @@ const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, o
       }}>
         {alert.volumeOIRatio ? `${alert.volumeOIRatio.toFixed(1)}x` : "—"}
       </span>
-      {/* IV — Black-Scholes implied vol from this print (null when unsolvable
-          → "—", never a fake 0). */}
-      <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}
-        title={alert.iv != null ? "Implied volatility (Black-Scholes, from this print)" : "IV not solvable for this print"}>
-        {alert.iv != null ? `${Math.round(alert.iv * 100)}%` : "—"}
-      </span>
       <span style={{ color: premColor, fontWeight: premWeight, textAlign: "center" }}>
         {fmtPremium(alert.alertPremium)}
       </span>
@@ -1134,19 +988,8 @@ const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, o
       }}>
         {alert.grade}
       </span>
-      {/* SIDE — the measured NBBO side (A/AA/B/BB). When a sweep has no
-          measured side, its direction is PRESUMED buyer-driven; show "≈"
-          (dimmed) with a tooltip instead of a bare "—" so an inferred
-          direction is never passed off as measured (F2 honesty). */}
-      <span style={{
-        color: alert.sideConfidence === "presumed" ? P.mt : P.dm,
-        fontSize: secondaryFontSize, textAlign: "center",
-        fontStyle: alert.sideConfidence === "presumed" && !alert._side ? "italic" : "normal",
-      }}
-        title={alert.sideConfidence === "presumed"
-          ? "Presumed buyer-driven (sweep, no measured NBBO side)"
-          : (alert._side ? "Measured from NBBO at execution" : "")}>
-        {alert._side || (alert.sideConfidence === "presumed" ? "≈ask" : "—")}
+      <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}>
+        {alert._side || "—"}
       </span>
       {/* TYPE — derived from OPRA condition code (SWEEP, BLOCK, ML, etc).
           Regular trades show "—". Hover reveals the full label. */}
@@ -1220,7 +1063,7 @@ const AlertRow = memo(function AlertRow({ alert, isNew, hitCount, currentSpot, o
       </span>
     </div>
   );
-});
+}
 
 // ─── Header ───────────────────────────────────────────────────────────────
 function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
@@ -1233,25 +1076,6 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
   const connected = status?.connected;
   const lastEvent = status?.last_event_at;
   const returned = status?.returned;
-  // T1-5 feed-health badge: honest 3-state health from the worker's own
-  // freshness. GREEN = connected + a print within the last ~90s (market
-  // hours); YELLOW = connected but quiet (or market closed); RED = the
-  // worker isn't connected. The exact seconds render so users can audit us
-  // rather than trust a vague "real-time" claim.
-  const ageSec = (() => {
-    if (!lastEvent) return null;
-    const ms = Date.now() - new Date(lastEvent).getTime();
-    return ms >= 0 ? Math.round(ms / 1000) : null;
-  })();
-  const health = (() => {
-    if (!connected) return { tone: P.be, dot: "●", label: "FEED DOWN" };
-    if (ageSec != null && ageSec <= 90) return { tone: P.bu, dot: "●", label: "LIVE" };
-    return { tone: P.ac, dot: "◐", label: "CONNECTED · QUIET" };
-  })();
-  const ageLabel = ageSec == null ? null
-    : ageSec < 90 ? `${ageSec}s ago`
-    : ageSec < 3600 ? `${Math.round(ageSec / 60)}m ago`
-    : `${Math.round(ageSec / 3600)}h ago`;
   // Convert M/D/YYYY ↔ YYYY-MM-DD for the native <input type="date"> field.
   // Native input requires ISO format; our backend uses M/D/YYYY.
   const dateInputValue = (() => {
@@ -1276,18 +1100,17 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
         <span style={{
           color: P.ac, fontWeight: 700, fontSize: 14, letterSpacing: 1,
         }}>
-          LIVE OPTIONS FLOW
+          LIVE FLOW — MASSIVE (TEST)
         </span>
-        <span title="Feed health from the OPRA worker's last write — the actual number, not a vague 'real-time' badge."
-          style={{
-            padding: "2px 9px", borderRadius: 3, fontSize: 11, fontWeight: 700,
-            background: health.tone, color: P.wh, letterSpacing: 0.5,
-          }}>
-          {health.dot} {health.label}
+        <span style={{
+          padding: "2px 8px", borderRadius: 3, fontSize: 11,
+          background: connected ? P.bu : P.be, color: P.wh,
+        }}>
+          {connected ? "● WORKER LIVE" : "○ WORKER IDLE"}
         </span>
-        {ageLabel && (
+        {lastEvent && (
           <span style={{ color: P.dm, fontSize: 11 }}>
-            last print: {ageLabel}
+            last event: {new Date(lastEvent).toLocaleTimeString()}
           </span>
         )}
         <span style={{ marginLeft: "auto", color: P.dm, fontSize: 12 }}>
@@ -1530,8 +1353,8 @@ function ColumnHeaders() {
   return (
     <div style={{
       display: "grid",
-      // TIME | TICKER | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | IV | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
-      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 55px 95px 60px 50px 55px 75px 1fr",
+      // TIME | TICKER | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: "6px 12px",
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
@@ -1547,7 +1370,6 @@ function ColumnHeaders() {
       <span style={{ textAlign: "center" }}>VOL</span>
       <span style={{ textAlign: "center" }}>OI</span>
       <span style={{ textAlign: "center" }}>V/OI</span>
-      <span style={{ textAlign: "center" }}>IV</span>
       <span style={{ textAlign: "center" }}>PREMIUM</span>
       <span style={{ textAlign: "center" }}>GRADE</span>
       <span style={{ textAlign: "center" }}>SIDE</span>
@@ -1591,6 +1413,10 @@ function qualifiesCurated(alert, thresholds) {
   // HARD requirement: premium tier+cap floor
   const premFloor = premCaps[band] ?? 0;
   if (prem < premFloor) return false;
+  // Optional HARD gate: V/OI required (7/7). Mirrors backend logic — when
+  // the admin panel toggles this on, V/OI < stack.vOI is a short-circuit
+  // fail regardless of confirmer count.
+  if (stack.voi_required && vOI < (stack.vOI ?? 3.0)) return false;
   // Count quality signals (V/OI, hits, grade) — premium NOT counted here
   let qualitySignals = 0;
   if (vOI >= (stack.vOI ?? 3.0)) qualitySignals++;
@@ -1627,6 +1453,13 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
 
   // Live preview — count how many of current alerts would pass Curated
   const previewPass = alerts.filter(a => qualifiesCurated(a, thresholds)).length;
+  // 7/7: also compute what would pass with V/OI required forced on, so
+  // the impact of ticking the checkbox is visible before you tick it.
+  const thresholdsIfVoiReq = {
+    ...thresholds,
+    stack: { ...(thresholds.stack || {}), voi_required: true },
+  };
+  const previewPassVoiReq = alerts.filter(a => qualifiesCurated(a, thresholdsIfVoiReq)).length;
   const previewTotal = alerts.length;
 
   const NumberInput = ({ value, onChange, step = 50000, min = 0, suffix = "" }) => (
@@ -1700,6 +1533,11 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
         Live preview: <span style={{ color: P.ac, fontWeight: 700 }}>
           {previewPass} of {previewTotal}
         </span> visible alerts would pass Curated with current settings.
+        {!thresholds.stack?.voi_required && previewPass !== previewPassVoiReq && (
+          <span style={{ color: P.dm, marginLeft: 8 }}>
+            ({previewPassVoiReq} of {previewTotal} if V/OI required)
+          </span>
+        )}
       </div>
 
       {/* Stacking criteria */}
@@ -1716,6 +1554,16 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
             <NumberInput value={thresholds.stack.vOI}
               onChange={v => setPath(["stack","vOI"], v)} step={0.5} />
             <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>x</span>
+            <label style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              marginLeft: 12, fontSize: 10, color: P.wh, cursor: "pointer",
+            }}>
+              <input type="checkbox"
+                checked={!!thresholds.stack.voi_required}
+                onChange={e => setPath(["stack","voi_required"], e.target.checked)}
+                style={{ margin: 0, cursor: "pointer" }} />
+              required
+            </label>
           </div>
           <div><Label>Hit count ≥</Label>
             <NumberInput value={thresholds.stack.hit_count}
@@ -2046,7 +1894,6 @@ export default function LiveFlowMassive() {
   // than the 5s alert poll so this is the right cadence). Key: ticker → spot.
   const [quotes, setQuotes] = useState({});
   const [quotesFetchedAt, setQuotesFetchedAt] = useState(null);
-  const [explainAlert, setExplainAlert] = useState(null);  // T1-3: AI print explainer modal
   // Day-scoped Market Read stats (aggregated over ALL classifiable Y/M rows
   // for the target date, independent of filters). Polled every 30s — slower
   // than alerts because the aggregate moves slower than individual events.
@@ -2205,12 +2052,7 @@ export default function LiveFlowMassive() {
         newIdsRef.current = newIds;
         // Apply persisted OI enrichment before setAlerts so button-populated
         // values survive the poll refresh (fix for OI-disappears-after-5s bug).
-        // Then identity-preserving merge: reuse the prior object for any id
-        // whose rendered content is unchanged, so React.memo(AlertRow) skips
-        // re-rendering the ~500 unchanged rows every 5s poll instead of
-        // reconciling ~10K elements each cycle (S1, 2026-07-06 audit).
-        const enriched = applyOiEnrichment(incoming);
-        setAlerts(prev => mergeAlertsById(prev, enriched));
+        setAlerts(applyOiEnrichment(incoming));
         setStatus(d.status);
         setError(null);
       } catch (e) {
@@ -2236,23 +2078,14 @@ export default function LiveFlowMassive() {
   // which compares historical alert spot to today's price — meaningful
   // for a multi-day-old alert ("MU bear at $1100 strike — stock has since
   // dropped 5%"), but interpret cautiously.
-  // alertsRef always points at the LATEST alerts so the (stable) poll loop
-  // below reads fresh tickers each cycle. Prior bug: dep array was
-  // `[alerts.length > 0]` (a boolean), so the effect ran once and the
-  // pollQuotes closure captured the FIRST alert snapshot forever — every
-  // ticker that appeared after the initial load got no quote and its P/L
-  // column stayed "—" all session (S2, 2026-07-06 audit).
-  const alertsRef = useRef(alerts);
-  alertsRef.current = alerts;
-
   useEffect(() => {
     let cancelled = false;
     let timer;
 
     async function pollQuotes() {
-      const uniqueTickers = [...new Set(alertsRef.current.map(a => a.ticker).filter(Boolean))];
+      const uniqueTickers = [...new Set(alerts.map(a => a.ticker).filter(Boolean))];
       if (uniqueTickers.length === 0) {
-        if (!cancelled) timer = setTimeout(pollQuotes, 30000);
+        timer = setTimeout(pollQuotes, 30000);
         return;
       }
       try {
@@ -2273,15 +2106,18 @@ export default function LiveFlowMassive() {
       }
     }
 
-    // One stable loop for the page's lifetime; it reads fresh tickers from
-    // alertsRef each cycle, so new tickers always get quoted.
-    timer = setTimeout(pollQuotes, 800);
+    // Trigger first quote fetch as soon as we have alerts, then every 30s
+    if (alerts.length > 0) pollQuotes();
+    else timer = setTimeout(pollQuotes, 5000);
 
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, []);
+    // alerts.length in dep array, not alerts itself — re-trigger only when
+    // we go from 0 alerts to having alerts, not on every alert update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alerts.length > 0]);
 
   // Day-scoped Market Read polling — 30s cadence. Backend caches for 30s
   // server-side too, so this is effectively cache-aligned. Re-triggers
@@ -2364,20 +2200,20 @@ export default function LiveFlowMassive() {
     hitCounts[k] = (hitCounts[k] || 0) + 1;
   }
 
-  const handleClickTicker = useCallback((t) => {
+  const handleClickTicker = (t) => {
     setTickerFilter(prev => {
       const next = new Set(prev);
       if (next.has(t)) next.delete(t); else next.add(t);
       return next;
     });
-  }, []);
-  const handleClickContract = useCallback((k) => {
+  };
+  const handleClickContract = (k) => {
     setContractFilter(prev => {
       const next = new Set(prev);
       if (next.has(k)) next.delete(k); else next.add(k);
       return next;
     });
-  }, []);
+  };
   const handleClearFilters = () => {
     setTickerFilter(new Set());
     setContractFilter(new Set());
@@ -2612,14 +2448,9 @@ export default function LiveFlowMassive() {
             currentSpot={quotes[a.ticker]}
             onClickTicker={handleClickTicker}
             onClickContract={handleClickContract}
-            onExplain={setExplainAlert}
           />
         );
       })}
-
-      {explainAlert && (
-        <FlowExplainModal alert={explainAlert} onClose={() => setExplainAlert(null)} />
-      )}
 
       {visibleAlerts.length === 0 && !error && (
         <div style={{
