@@ -1517,12 +1517,27 @@ async def _run_session(ws):
             events = agg.drain()
             if events:
                 _state["events_emitted"] += len(events)
-                # Phase 2c: classify Side for each event using current NBBO
+                # Phase 2c: classify Side for each event using current NBBO.
+                # Stays on the loop -- it reads the shared _nbbo_table that the
+                # recv loop writes, so it must NOT move to a thread.
                 _classify_events_side(events)
                 # Phase 2c: queue Q subscriptions for any newly-active contracts
                 # so future events on these contracts get classified
                 _queue_q_subscriptions_for_events(events)
-                _write_events(events)
+                # 2026-07-07: OFFLOAD the SQLite enrichment + write off the
+                # event loop. At the market-open firehose this call did 5 DB
+                # read passes + an insert of hundreds of rows, blocking the loop
+                # for tens of seconds -> the WS keepalive ping couldn't be
+                # serviced -> 1011 disconnect/flap (the 7/7 open incident, which
+                # no ping_timeout value could fully fix). Running it in a thread
+                # keeps the recv loop responsive; `await` serializes flushes so
+                # there is never a concurrent FlowDB writer from here.
+                # Thread-safe: _write_events uses per-call SQLite connections and
+                # touches no loop-shared in-memory cache (only benign _state
+                # diagnostic counters). Mirrors the OI-persist / color-refresh
+                # run_in_executor offloads already in this file.
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, _write_events, events)
 
     async def q_subscription_manager():
         """Drain subscribe/unsubscribe queues in batches every 5 seconds.
