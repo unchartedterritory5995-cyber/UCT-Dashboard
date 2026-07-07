@@ -38,9 +38,20 @@ import time
 import asyncio
 import threading
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, date, timedelta
 from io import StringIO
 from typing import Optional
+
+# Dedicated single-worker executor for FlowDB writes (2026-07-07). Writes run
+# here — NOT the default asyncio executor — so (a) they're serialized in ONE
+# thread (never two concurrent FlowDB writers) and (b) they don't compete with
+# the OI-persist / color-refresh / spot offloads on the default pool. Paired
+# with the async write-queue in _run_session: the flusher enqueues small 2s
+# batches without blocking, this thread drains them continuously, so the tape
+# stays real-time while the event loop never stalls on the write.
+_WRITE_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="massive-write")
+_WRITE_QUEUE_MAX = int(os.environ.get("MASSIVE_WRITE_QUEUE_MAX", "2000"))
 
 logger = logging.getLogger(__name__)
 
@@ -1504,6 +1515,34 @@ async def _run_session(ws):
     # Periodic flusher task -- runs alongside the receive loop
     stop_event = asyncio.Event()
 
+    # Background write pipeline (2026-07-07): the flusher enqueues small batches
+    # here; the writer task below drains them to FlowDB via the dedicated
+    # single-thread executor. Bounded so a slow disk can't grow memory without
+    # limit -- a full queue makes the flusher's `await put` apply backpressure.
+    write_queue: asyncio.Queue = asyncio.Queue(maxsize=_WRITE_QUEUE_MAX)
+
+    async def writer():
+        """Drain the write queue to FlowDB, one batch at a time, off the loop.
+
+        Runs on the event loop but only ever AWAITs the executor, so it never
+        blocks recv. Single consumer + single-worker executor => writes are
+        strictly serialized and ordered; no concurrent FlowDB writer. On stop,
+        finishes the queue before exiting so no buffered batch is lost."""
+        loop = asyncio.get_running_loop()
+        while True:
+            try:
+                events = await asyncio.wait_for(write_queue.get(), timeout=1.0)
+            except asyncio.TimeoutError:
+                if stop_event.is_set() and write_queue.empty():
+                    break
+                continue
+            try:
+                await loop.run_in_executor(_WRITE_EXECUTOR, _write_events, events)
+            except Exception as e:
+                logger.warning("[massive-ws] writer batch failed: %s", e)
+            finally:
+                write_queue.task_done()
+
     async def flusher():
         while not stop_event.is_set():
             try:
@@ -1524,20 +1563,18 @@ async def _run_session(ws):
                 # Phase 2c: queue Q subscriptions for any newly-active contracts
                 # so future events on these contracts get classified
                 _queue_q_subscriptions_for_events(events)
-                # 2026-07-07: OFFLOAD the SQLite enrichment + write off the
-                # event loop. At the market-open firehose this call did 5 DB
-                # read passes + an insert of hundreds of rows, blocking the loop
-                # for tens of seconds -> the WS keepalive ping couldn't be
-                # serviced -> 1011 disconnect/flap (the 7/7 open incident, which
-                # no ping_timeout value could fully fix). Running it in a thread
-                # keeps the recv loop responsive; `await` serializes flushes so
-                # there is never a concurrent FlowDB writer from here.
-                # Thread-safe: _write_events uses per-call SQLite connections and
-                # touches no loop-shared in-memory cache (only benign _state
-                # diagnostic counters). Mirrors the OI-persist / color-refresh
-                # run_in_executor offloads already in this file.
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, _write_events, events)
+                # 2026-07-07: hand the write batch to the background writer
+                # instead of doing it here. The enrichment+insert (5 DB passes +
+                # hundreds of rows) is too slow to run inline at the open
+                # firehose -- doing it on the loop stalled the WS keepalive
+                # (flapping); awaiting it here serialized flushes and lagged the
+                # tape ~2 min. Enqueuing keeps flushes at FLUSH_INTERVAL_SEC
+                # (small batches) while a dedicated thread drains writes
+                # continuously -> real-time tape, no loop stall. `await put`
+                # applies async backpressure if the writer ever falls behind
+                # (yields to the loop, so recv keeps flowing) -- bounded, never
+                # blocking, never dropping.
+                await write_queue.put(events)
 
     async def q_subscription_manager():
         """Drain subscribe/unsubscribe queues in batches every 5 seconds.
@@ -1935,6 +1972,7 @@ async def _run_session(ws):
                 return  # exit watchdog; outer loop will reconnect
 
     flusher_task = asyncio.create_task(flusher())
+    writer_task = asyncio.create_task(writer())
     q_mgr_task = asyncio.create_task(q_subscription_manager())
     oi_mgr_task = asyncio.create_task(oi_fetch_manager())
     spot_mgr_task = asyncio.create_task(spot_fetch_manager())
@@ -2023,6 +2061,14 @@ async def _run_session(ws):
         try:
             await flusher_task
         except Exception:
+            pass
+        # After the flusher stops enqueuing, drain the write queue: the writer
+        # keeps going (stop_event set) until the queue is empty, then exits, so
+        # every buffered batch is written before the session ends (no loss on
+        # disconnect/deploy). Bounded wait so a wedged write can't hang teardown.
+        try:
+            await asyncio.wait_for(writer_task, timeout=8.0)
+        except (Exception, asyncio.TimeoutError):
             pass
         try:
             await q_mgr_task
