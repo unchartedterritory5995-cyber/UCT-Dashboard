@@ -34,6 +34,9 @@ _FIELDS = (
     "last_error", "last_trade_ts", "last_write_ts",
     "trades_received", "events_written_stocks", "events_written_indexes",
     "min_reconnect_gap", "graceful_stop",
+    # write-pipeline depth (Ravi 2026-07-08): surface the drain backlog so a
+    # queue-lag (like this morning's) is visible/alarmable, not silent.
+    "write_queue_depth", "last_write_drained_batches",
 )
 
 
