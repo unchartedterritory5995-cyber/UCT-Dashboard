@@ -1427,8 +1427,16 @@ def recent_massive_alerts(
         # for conviction/premium we pull more upfront. When a tier filter is
         # active we also pull 20000 since the tier might be rare — limit*3
         # won't have enough of that tier to satisfy `limit` post-filter.
-        if sort_by != "recent" or tier:
-            sql_limit = 20000
+        # 7/8: curated needs the whole day, not just recent tail. Curation
+        # has cross-alert dependencies — contract_totals for rollup rescue,
+        # hit_counts for the confirmer signal — that produce wrong answers
+        # when computed over a slice. 100K covers heaviest observed days
+        # (7/8 had 161K raw rows). This is a reapplication of an earlier
+        # 7/8 fix that got reverted during a subsequent deploy.
+        if curated:
+            sql_limit = 100_000
+        elif sort_by != "recent" or tier:
+            sql_limit = max(20_000, limit + 1000)
         else:
             sql_limit = max(limit * 3, limit + 1000)  # safety margin for grade filter
         # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
@@ -1442,16 +1450,16 @@ def recent_massive_alerts(
         # When enabled, both 'stocks' and 'indexes' rows flow through so the
         # frontend's Stocks/ETFs toggle can partition them. When disabled
         # (default, today's behavior), only 'stocks' — indexes stay excluded
-        # per the 6/26 aggregation-boundary concern documented at file top.
-        # Also include reconcile_* rows so manually-inserted backfills (via
-        # /api/flow-reconcile/insert) actually surface — bug found 7/7 evening
-        # when MSFT/BE/DIS/ARM/WEN reconciles landed in flow.db but were
-        # filtered out by this exact clause.
+        # 7/7: source clause is conditional on the etf_enabled admin threshold.
+        # When enabled, both 'stocks' and 'indexes' rows flow through so the
+        # frontend's Stocks/ETFs toggle can partition them. When disabled
+        # (default), only 'stocks' — indexes stay excluded per the 6/26
+        # aggregation-boundary concern documented at file top.
         etf_enabled = _load_thresholds().get("etf_enabled", False)
         if etf_enabled:
-            source_clause = "(source IN ('stocks','indexes') OR source LIKE 'reconcile_%')"
+            source_clause = "source IN ('stocks','indexes')"
         else:
-            source_clause = "(source = 'stocks' OR source LIKE 'reconcile_%')"
+            source_clause = "source = 'stocks'"
         cur = conn.execute(f"""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
@@ -1749,13 +1757,11 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
         conn.row_factory = sqlite3.Row
         # 7/7: same conditional source clause as /recent so bull/bear card
         # counts stay consistent with the alert stream when ETFs are enabled.
-        # Also picks up reconcile_* rows so backfilled alerts contribute to
-        # day-stats numbers (matches display behavior).
         etf_enabled = _load_thresholds().get("etf_enabled", False)
         if etf_enabled:
-            source_clause = "(source IN ('stocks','indexes') OR source LIKE 'reconcile_%')"
+            source_clause = "source IN ('stocks','indexes')"
         else:
-            source_clause = "(source = 'stocks' OR source LIKE 'reconcile_%')"
+            source_clause = "source = 'stocks'"
         cur = conn.execute(f"""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
