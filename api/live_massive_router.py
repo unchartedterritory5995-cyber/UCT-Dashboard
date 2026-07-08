@@ -1718,10 +1718,18 @@ async def current_quotes(payload: CurrentQuotesPayload):
     # (the live page maxes at 200 alerts which is typically <100 uniques).
     tickers = tickers[:200]
 
-    # Fire all lookups concurrently. Schwab service handles its own rate
-    # limiting; cache layer (above) dedupes same-ticker repeats within TTL.
+    # Fire lookups concurrently but BOUNDED (restored 2026-07-08 — a web-UI edit
+    # dropped this Semaphore, leaving up to 200 concurrent fetches that can
+    # saturate the pod under load). Schwab service handles its own rate limiting;
+    # cache layer (above) dedupes same-ticker repeats within TTL.
+    _sem = asyncio.Semaphore(int(os.environ.get("QUOTE_FETCH_CONCURRENCY", "20")))
+
+    async def _bounded(t):
+        async with _sem:
+            return await _fetch_one_quote(t)
+
     results = await asyncio.gather(
-        *[_fetch_one_quote(t) for t in tickers], return_exceptions=False
+        *[_bounded(t) for t in tickers], return_exceptions=False
     )
     quotes = {t: p for t, p in zip(tickers, results) if p is not None}
     return {"quotes": quotes, "fetched_at": time.time(), "requested": len(tickers)}
