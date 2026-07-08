@@ -1427,7 +1427,15 @@ def recent_massive_alerts(
         # for conviction/premium we pull more upfront. When a tier filter is
         # active we also pull 20000 since the tier might be rare — limit*3
         # won't have enough of that tier to satisfy `limit` post-filter.
-        if sort_by != "recent" or tier:
+        # 7/8: curated mode also needs the whole day. Curation has cross-alert
+        # dependencies — contract_totals for rollup rescue, hit_counts for the
+        # confirmer signal — that produce wrong answers when computed over a
+        # tail slice. NFLX $77 C 7/31 (7/7) surfaced this: sql_limit=15000
+        # cut off the morning events, contract_totals undercounted, rollup
+        # couldn't rescue the events that did make it. Curated correctness
+        # requires whole-day input; small user `limit` is applied to output
+        # only, not to the SQL scan.
+        if sort_by != "recent" or tier or curated:
             sql_limit = 20000
         else:
             sql_limit = max(limit * 3, limit + 1000)  # safety margin for grade filter
