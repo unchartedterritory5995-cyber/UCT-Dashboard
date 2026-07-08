@@ -52,6 +52,16 @@ from typing import Optional
 # stays real-time while the event loop never stalls on the write.
 _WRITE_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="massive-write")
 _WRITE_QUEUE_MAX = int(os.environ.get("MASSIVE_WRITE_QUEUE_MAX", "2000"))
+# Drain coalescing (2026-07-08): each _write_events call pays a FIXED cost — 5
+# enrichment passes (metadata/OI/cum-vol/spot/ER, per-symbol overhead) + one
+# insert transaction. Draining one 2s flush-batch at a time made the writer fall
+# behind the open firehose (~60% of ingest → DB clock drifted ~15 min/hr behind
+# wall time → UI staleness grew all day). When the writer is behind, merge all
+# pending batches into ONE write so that fixed cost is amortized across the whole
+# backlog (symbols dedup across the merge). Drain rate then scales with backlog
+# depth and the tape catches back up. Bounds keep any single write sane.
+_WRITE_COALESCE_MAX_EVENTS = int(os.environ.get("MASSIVE_WRITE_COALESCE_EVENTS", "8000"))
+_WRITE_COALESCE_MAX_BATCHES = int(os.environ.get("MASSIVE_WRITE_COALESCE_BATCHES", "400"))
 
 logger = logging.getLogger(__name__)
 
@@ -1568,12 +1578,33 @@ async def _run_session(ws):
                 if stop_event.is_set() and write_queue.empty():
                     break
                 continue
+            # Coalesce any batches already waiting behind this one into a single
+            # write so the fixed per-write enrichment+insert cost is amortized
+            # across the backlog (see _WRITE_COALESCE_* above). No-op at steady
+            # state (queue near-empty); kicks in only when the writer is behind.
+            drained = 1
+            events = list(events) if events else []
+            while (len(events) < _WRITE_COALESCE_MAX_EVENTS
+                   and drained < _WRITE_COALESCE_MAX_BATCHES):
+                try:
+                    more = write_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+                if more:
+                    events.extend(more)
+                drained += 1
             try:
-                await loop.run_in_executor(_WRITE_EXECUTOR, _write_events, events)
+                if events:
+                    await loop.run_in_executor(_WRITE_EXECUTOR, _write_events, events)
             except Exception as e:
                 logger.warning("[massive-ws] writer batch failed: %s", e)
             finally:
-                write_queue.task_done()
+                for _ in range(drained):
+                    write_queue.task_done()
+                # Telemetry so the drain can be watched: depth should sit near 0
+                # once caught up; a persistently rising depth = writer behind.
+                _state["write_queue_depth"] = write_queue.qsize()
+                _state["last_write_drained_batches"] = drained
 
     async def flusher():
         while not stop_event.is_set():
