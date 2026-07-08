@@ -38,19 +38,25 @@ const P = {
 // /api/live/massive/recent returns to sub-second on the DB side.
 const POLL_INTERVAL_MS = 20000;
 // Default cap on alerts in the live feed. Backend supports up to 20000.
-// 2000 covers a full trading day of normal-to-heavy flow (typical 800-1500
-// curated alerts/day; heavy days can push higher). Was 500 previously —
-// truncated morning alerts on busy days (7/7 screenshot showed 10:55 AM
-// as earliest visible, hiding ~2h20m of post-open flow). User can change
-// via selector in the toolbar. "All" sends 20000 — returns the full day.
+// "All" (20000) is the correct default — curated view has only ~80-150
+// rows/day so rendering all of them is instant, and the All-Flow view
+// generates 3000-15000 rows/day (uncurated firehose) which needs the full
+// day to avoid silently truncating morning alerts. 7/7 evidence:
+//   - Original 500 default cut off at 10:55 AM CT (~2h25m of morning hidden)
+//   - 2000 default cut off at 11:26 AM CT (~2h56m of morning hidden)
+//     because uncurated for 7/7 was 3594 rows/day
+//   - "All" default fetches all ~3594 → shows from market open at 8:30 AM
+// User can still drop to lower limits via toolbar for fast-scroll tape mode.
 // Note: BULL/BEAR/NET cards are day-scoped via a separate endpoint, so
 // they ALWAYS include every classifiable alert regardless of this setting.
 const ROW_LIMIT_OPTIONS = [500, 1000, 2000, 5000, "All"];
-const ROW_LIMIT_DEFAULT = 2000;
+const ROW_LIMIT_DEFAULT = "All";
 const ROW_LIMIT_ALL_VALUE = 20000;  // sent to backend when user picks "All"
-// LS key bumped v1→v2 on 7/8: prior stored value of 200/500 would override
-// the new default of 2000 and re-truncate morning alerts silently.
-const LS_KEY_ROW_LIMIT = "uct_liveflow_massive_rowlimit_v2";
+// LS key bumped v2→v3 on 7/8: prior stored 500/1000/2000 would override
+// the new "All" default and re-truncate morning alerts silently. Third
+// bump this session — pattern: any default change that reduces truncation
+// needs a fresh LS key to nuke stored smaller values.
+const LS_KEY_ROW_LIMIT = "uct_liveflow_massive_rowlimit_v3";
 const LS_KEY_HIDE_ALGO = "uct_liveflow_massive_hidealgo_v1";
 const LS_KEY_CURATED   = "uct_liveflow_massive_curated_v1";
 const LS_KEY_STOCK_ETF = "uct_liveflow_massive_stocketf_v1";
