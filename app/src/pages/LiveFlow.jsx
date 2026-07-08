@@ -26,17 +26,17 @@ import UIcon from "../components/ui/UIcon";
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const P = {
   bg: "#0e0f0d",
-  cd: "#161714",
-  bd: "#2a2926",
+  cd: "#1a1c17",
+  bd: "#2e3127",
   ac: "#c9a84c",   // amber accent — UI elements (buttons, sort, status); kept
                    // slightly muted so the brighter Alpha Gold tier (#FFD93B)
                    // pops against the UI chrome rather than blending into it.
   bl: "#5b9bd5",   // blue
   bu: "#4F8266",   // calls/green — matches dimmed Bullish tier color
   be: "#8F4F4F",   // puts/red — matches dimmed Bearish tier color
-  wh: "#e8e6df",
+  wh: "#e0dac8",
   dm: "#a8a290",
-  mt: "#6a6660",
+  mt: "#706b5e",
 };
 
 // T1-1 (2026-07-06): restored to 5s. The 43s flow.db query is fixed by a
@@ -422,7 +422,7 @@ function UserBlocklistPanel({ visible, onSaved }) {
       borderBottom: "1px solid " + P.bd,
       background: P.bg,
       fontSize: 11,
-      fontFamily: "ui-monospace, monospace",
+      fontFamily: "inherit",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span
@@ -564,7 +564,7 @@ function AlertRow({
       {/* First cell carries the tier-colored left border */}
       <td style={{
         padding: "8px 10px", color: P.dm, fontSize: 10,
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: "inherit",
         borderLeft: tierColor ? "4px solid " + tierColor : "none",
       }}>
         {fmtTime(alert.timestamp)}
@@ -620,11 +620,11 @@ function AlertRow({
       </td>
       <td style={{
         padding: "8px 10px", fontWeight: 800, color: accentTextColor, fontSize: 12,
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: "inherit",
       }}>{fmtPremium(alert.alertPremium)}</td>
       <td style={{
         padding: "8px 10px", color: P.dm, fontSize: 11,
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: "inherit",
       }}>
         {alert.averageFillPrice != null ? "$" + Number(alert.averageFillPrice).toFixed(2) : "—"}
       </td>
@@ -634,7 +634,7 @@ function AlertRow({
           ATM), amber 15-40%, red >40% on non-LEAPS (lottery — gate blocks). */}
       <td style={{
         padding: "8px 10px", fontSize: 11, textAlign: "center",
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: "inherit",
       }}>
         {(() => {
           const pct = alert.moneynessPct;
@@ -661,7 +661,7 @@ function AlertRow({
       <td style={{
         padding: "8px 10px", color: primaryTextColor, fontSize: 11,
         textAlign: "center",
-        fontFamily: "ui-monospace, monospace", fontWeight: 600,
+        fontFamily: "inherit", fontWeight: 600,
       }}>
         {alert.tradeSize != null ? alert.tradeSize.toLocaleString() : "—"}
       </td>
@@ -671,7 +671,7 @@ function AlertRow({
       <td style={{
         padding: "8px 10px", color: P.dm, fontSize: 11,
         textAlign: "center",
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: "inherit",
       }}>
         {alert.priorOI != null ? alert.priorOI.toLocaleString() : "—"}
       </td>
@@ -695,7 +695,7 @@ function AlertRow({
             <span style={{
               marginRight: 6, fontSize: 8, padding: "1px 5px", borderRadius: 3,
               background: spColor + "22", color: spColor, fontWeight: 800,
-              fontFamily: "ui-monospace, monospace", letterSpacing: 0.5,
+              fontFamily: "inherit", letterSpacing: 0.5,
               verticalAlign: "1px",
             }}>{spLabel}</span>
           );
@@ -707,7 +707,7 @@ function AlertRow({
             style={{
               marginLeft: 6, fontSize: 9, padding: "1px 5px", borderRadius: 8,
               background: P.dm + "20", color: P.dm, cursor: "help",
-              fontWeight: 700, fontFamily: "ui-monospace, monospace",
+              fontWeight: 700, fontFamily: "inherit",
               verticalAlign: "1px",
             }}>
             +{alert._matchedNames.length - 1}
@@ -727,7 +727,7 @@ function AlertRow({
                 marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 8,
                 background: (heavy ? P.be : P.ac) + "22",
                 color:      (heavy ? P.be : P.ac),
-                fontWeight: 800, fontFamily: "ui-monospace, monospace",
+                fontWeight: 800, fontFamily: "inherit",
                 letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
               }}>
               <UIcon name="refresh" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} />{c}x
@@ -749,7 +749,7 @@ function AlertRow({
             style={{
               marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 8,
               background: P.bu + "22", color: P.bu,
-              fontWeight: 800, fontFamily: "ui-monospace, monospace",
+              fontWeight: 800, fontFamily: "inherit",
               letterSpacing: 0.3, verticalAlign: "1px", cursor: "help",
             }}>
             <UIcon name="rocket" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} />OI BREAK
@@ -758,7 +758,7 @@ function AlertRow({
       </td>
       <td style={{
         padding: "8px 10px", fontSize: 12, fontWeight: 800,
-        fontFamily: "ui-monospace, monospace", textAlign: "center",
+        fontFamily: "inherit", textAlign: "center",
       }}>
         {(() => {
           const grade = alert.grade;
@@ -810,7 +810,7 @@ function AlertRow({
                 fontSize: 8, padding: "2px 6px", borderRadius: 3,
                 background: badgeColor + "22", color: badgeColor,
                 fontWeight: 800, letterSpacing: 0.5,
-                fontFamily: "ui-monospace, monospace",
+                fontFamily: "inherit",
               }}>{label}</span>
             );
           })()}
@@ -990,7 +990,7 @@ function SimulationPanel({ simulation, view, setView }) {
       <div style={{
         padding: "12px 20px", display: "flex", gap: 22,
         alignItems: "center", flexWrap: "wrap",
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: "inherit",
       }}>
         <span style={{
           fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
@@ -1057,7 +1057,7 @@ function SimulationPanel({ simulation, view, setView }) {
               background: "transparent",
               color: view === k ? P.wh : P.dm,
               cursor: "pointer", fontSize: 11,
-              fontFamily: "ui-monospace, monospace",
+              fontFamily: "inherit",
               textTransform: "uppercase", letterSpacing: 0.5,
             }}
           >
@@ -1072,7 +1072,7 @@ function SimulationPanel({ simulation, view, setView }) {
       {/* Tabbed list */}
       <div style={{
         maxHeight: 360, overflowY: "auto",
-        fontFamily: "ui-monospace, monospace", fontSize: 11,
+        fontFamily: "inherit", fontSize: 11,
       }}>
         {listLen === 0 ? (
           <div style={{ padding: 20, color: P.dm, fontSize: 11 }}>
@@ -1605,7 +1605,7 @@ export default function LiveFlow() {
   return (
     <div style={{
       minHeight: "100vh", background: P.bg, color: P.wh,
-      fontFamily: "Inter, system-ui, sans-serif",
+      fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums",
       display: "flex", flexDirection: "column",
     }}>
       <style>{`
@@ -1680,7 +1680,7 @@ export default function LiveFlow() {
                   fontSize: 10, padding: "2px 4px",
                   background: P.bg, color: P.wh,
                   border: "1px solid " + P.bd, borderRadius: 3,
-                  fontFamily: "ui-monospace, monospace",
+                  fontFamily: "inherit",
                   colorScheme: "dark",
                 }}
               />
@@ -1702,7 +1702,7 @@ export default function LiveFlow() {
                   fontSize: 10, padding: "2px 4px",
                   background: P.bg, color: P.wh,
                   border: "1px solid " + P.bd, borderRadius: 3,
-                  fontFamily: "ui-monospace, monospace",
+                  fontFamily: "inherit",
                   colorScheme: "dark",
                 }}
               />
@@ -1768,7 +1768,7 @@ export default function LiveFlow() {
                   fontSize: 10, padding: "2px 4px",
                   background: P.bg, color: P.wh,
                   border: "1px solid " + P.bd, borderRadius: 3,
-                  fontFamily: "ui-monospace, monospace",
+                  fontFamily: "inherit",
                   colorScheme: "dark",
                 }}
               />
@@ -1790,7 +1790,7 @@ export default function LiveFlow() {
           {status && (
             <div style={{
               fontSize: 10, color: P.dm,
-              fontFamily: "ui-monospace, monospace",
+              fontFamily: "inherit",
               display: "flex", gap: 10,
             }}>
               <span title="Alerts in current view">
@@ -1821,7 +1821,7 @@ export default function LiveFlow() {
             {oiFetchResult && (
               <span style={{
                 fontSize: 10, color: oiFetchResult.error ? P.be : P.bu,
-                fontFamily: "ui-monospace, monospace",
+                fontFamily: "inherit",
               }}>
                 {oiFetchResult.error
                   ? `error: ${oiFetchResult.error}`
@@ -1909,7 +1909,7 @@ export default function LiveFlow() {
             borderRadius: 12, cursor: "pointer", letterSpacing: 0.3,
             fontFamily: "inherit",
           }}>clear all</button>
-          <span style={{ marginLeft: "auto", fontSize: 9, color: P.dm, fontFamily: "ui-monospace, monospace" }}>
+          <span style={{ marginLeft: "auto", fontSize: 9, color: P.dm, fontFamily: "inherit" }}>
             {visibleTotal} of {dedupedAlerts.length}
           </span>
         </div>
@@ -1923,7 +1923,7 @@ export default function LiveFlow() {
             padding: "10px 20px", borderBottom: "1px solid " + P.bl + "30",
             background: P.bl + "10", fontSize: 11, color: P.bl,
             display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap",
-            fontFamily: "ui-monospace, monospace",
+            fontFamily: "inherit",
           }}>
             <span style={{
               fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
@@ -2090,7 +2090,7 @@ export default function LiveFlow() {
           <div style={{
             padding: "12px 20px", background: P.rd + "20",
             borderBottom: "1px solid " + P.rd + "40", color: P.rd,
-            fontSize: 12, fontFamily: "ui-monospace, monospace",
+            fontSize: 12, fontFamily: "inherit",
           }}>
             simulation failed: {simulation.error}
           </div>
@@ -2099,7 +2099,7 @@ export default function LiveFlow() {
           <div style={{
             padding: "12px 20px", background: P.rd + "20",
             borderBottom: "1px solid " + P.rd + "40", color: P.rd,
-            fontSize: 12, fontFamily: "ui-monospace, monospace",
+            fontSize: 12, fontFamily: "inherit",
           }}>
             upload error: {uploadError}
           </div>
@@ -2152,7 +2152,7 @@ export default function LiveFlow() {
                           {isAdmin && (
                             <>
                               {" "}Admin: seed this range via{" "}
-                              <code style={{ color: P.ac, fontFamily: "ui-monospace, monospace", fontSize: 10 }}>
+                              <code style={{ color: P.ac, fontFamily: "inherit", fontSize: 10 }}>
                                 /api/admin/bullflow/backfill?date_from={historyFrom}{historyFrom !== historyTo ? `&date_to=${historyTo}` : ""}
                               </code>
                               {" "}(Bullflow caps at ~100 alerts/day).
@@ -2164,7 +2164,7 @@ export default function LiveFlow() {
             {!isBacktest && !isHistory && status?.started_at && (
               <div style={{
                 fontSize: 9, color: P.mt, marginTop: 8,
-                fontFamily: "ui-monospace, monospace",
+                fontFamily: "inherit",
               }}>worker started {relTime(status.started_at)}</div>
             )}
           </div>
@@ -2184,7 +2184,7 @@ export default function LiveFlow() {
         ) : (
           <table style={{
             width: "100%", borderCollapse: "collapse",
-            fontFamily: "Inter, system-ui, sans-serif",
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums",
           }}>
             <thead style={{ position: "sticky", top: 0, background: P.cd, zIndex: 1 }}>
               <tr style={{ borderBottom: "1px solid " + P.bd }}>
@@ -2269,7 +2269,7 @@ export default function LiveFlow() {
         padding: "8px 20px", borderTop: "1px solid " + P.bd,
         background: P.cd, fontSize: 9, color: P.mt,
         display: "flex", justifyContent: "space-between", alignItems: "center",
-        fontFamily: "ui-monospace, monospace", flexShrink: 0,
+        fontFamily: "inherit", flexShrink: 0,
       }}>
         <div>
           {isBacktest

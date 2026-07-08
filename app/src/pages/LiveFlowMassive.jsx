@@ -22,15 +22,15 @@ import { useSearchParams } from "react-router-dom";
 // ─── Palette (matches LiveFlow.jsx) ───────────────────────────────────────
 const P = {
   bg: "#0e0f0d",
-  cd: "#161714",
-  bd: "#2a2926",
+  cd: "#1a1c17",
+  bd: "#2e3127",
   ac: "#c9a84c",
   bl: "#5b9bd5",
   bu: "#4F8266",
   be: "#8F4F4F",
-  wh: "#e8e6df",
+  wh: "#e0dac8",
   dm: "#a8a290",
-  mt: "#6a6660",
+  mt: "#706b5e",
 };
 
 // Bridge 2026-07-01: bumped from 5000 -> 20000 while flow.db query perf
@@ -1969,7 +1969,7 @@ function DormantStatusPanel() {
             </span>
           </div>
           <div>Sample:</div>
-          <div style={{ color: P.mt, fontFamily: "monospace", fontSize: 9 }}>
+          <div style={{ color: P.mt, fontFamily: "inherit", fontSize: 9 }}>
             {(status.sample_active || []).slice(0, 20).join(", ")}
             {(status.sample_active || []).length >= 20 && "…"}
           </div>
@@ -2532,7 +2532,7 @@ export default function LiveFlowMassive() {
   return (
     <div style={{
       background: P.bg, color: P.wh, minHeight: "100vh",
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+      fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums",
       padding: 16,
     }}>
       <style>{`
