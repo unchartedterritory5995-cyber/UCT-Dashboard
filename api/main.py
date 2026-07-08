@@ -2953,6 +2953,40 @@ def health_threads():
     return _thread_groups()
 
 
+@app.get("/api/health/thread-stacks")
+def health_thread_stacks():
+    """Companion to /threads: dump WHERE each thread is stuck (deepest app-level
+    stack frame) so a thread / anyio-worker burst can be pinned to the exact
+    blocking call site. Hit this DURING a burst. Read-only, cheap."""
+    import sys as _sys
+    import traceback as _tb
+    from collections import Counter as _Counter
+    frames = _sys._current_frames()
+    hist = _Counter()
+    samples: dict = {}
+    for t in threading.enumerate():
+        fr = frames.get(t.ident)
+        if fr is None:
+            continue
+        stack = _tb.extract_stack(fr)
+        app_frame = None
+        for f in reversed(stack):
+            fn = f.filename.replace("\\", "/")
+            if "/api/" in fn or fn.endswith("/main.py"):
+                app_frame = f
+                break
+        ref = app_frame or (stack[-1] if stack else None)
+        key = f"{ref.filename.replace(chr(92), '/').split('/')[-1]}:{ref.lineno}:{ref.name}" if ref else "?"
+        grp = (t.name or "unnamed").split("-")[0].split("_")[0]
+        hist[f"{grp} @ {key}"] += 1
+        if key not in samples and stack:
+            samples[key] = [f"{s.filename.replace(chr(92), '/').split('/')[-1]}:{s.lineno}:{s.name}"
+                            for s in stack[-6:]]
+    return {"total": threading.active_count(),
+            "by_location": dict(hist.most_common(30)),
+            "samples": samples}
+
+
 @app.get("/api/health/cache")
 def health_cache():
     from api.services.data_sync import get_local_sync_state
