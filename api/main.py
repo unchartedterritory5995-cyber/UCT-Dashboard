@@ -804,6 +804,35 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Admin promotion (non-fatal): {e}")
 
+    # 7/8 one-shot migration — purge any reconcile_* rows from flow.db. These
+    # were inserted via the (now-removed) /api/flow-reconcile/insert endpoint
+    # as manual BBS backfills. Principle established 7/7 session: Massive is
+    # the source of truth for LiveFlow migration; every reconcile row papers
+    # over a real pipeline gap. Router mount + source_clause read paths were
+    # removed in the same commit as this migration. Idempotent — DELETE with
+    # no matches on subsequent boots is a no-op. Safe to leave in indefinitely
+    # as a defensive belt against any accidental future reinsertion.
+    try:
+        import sqlite3 as _sq
+        with _sq.connect("/data/flow.db", timeout=30) as _conn:
+            _cur = _conn.execute(
+                "SELECT COUNT(*) FROM flow WHERE source LIKE 'reconcile_%'"
+            )
+            _n_before = _cur.fetchone()[0]
+            if _n_before:
+                _cur = _conn.execute(
+                    "DELETE FROM flow WHERE source LIKE 'reconcile_%'"
+                )
+                _conn.commit()
+                print(f"[startup] Purged {_cur.rowcount} reconcile_* row(s) "
+                      f"from flow.db (one-shot 7/8 migration)")
+            else:
+                # Post-first-run steady state — leave a quiet trace to confirm
+                # the migration is still wired without spamming logs.
+                pass
+    except Exception as e:
+        print(f"[startup] Reconcile purge migration (non-fatal): {e}")
+
     # Initialize tweets.db schema unconditionally -- the schema is tiny and
     # idempotent. Frontend tweet UI (VITE_TWITTER_UI_ENABLED, default ON)
     # fires requests on every page load; without a schema, the read
