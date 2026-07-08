@@ -32,7 +32,7 @@ Why this lives separately:
   2. The Bullflow worker (liveflow_worker.py) and this router can coexist
   3. Once validated, swap LiveFlow.jsx data source URL — no other changes needed
 """
-from fastapi import APIRouter, Query, Request, HTTPException, Response
+from fastapi import APIRouter, Query, Request, HTTPException
 from datetime import date, datetime, timezone, timedelta
 import sqlite3
 import os
@@ -40,21 +40,10 @@ import time
 import re
 import json
 
-from api.bs_iv import iv_for_row  # F1: per-print implied vol (restored 2026-07-08)
-
 router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 ET = timezone(timedelta(hours=-4))
-
-# /recent micro-cache (restored 2026-07-08): the ~200-user/5s poll cadence was
-# re-scanning the growing flow.db on EVERY request, which contended with the OPRA
-# writer — the writer fell behind (chunky tape) and heavy reads intermittently
-# timed out (page flickered to WORKER IDLE). Serve identical polls from a short
-# TTL cache instead. Bounded so large limit=20000 bodies can't grow memory.
-_RECENT_CACHE: dict = {}
-_RECENT_CACHE_TTL = float(os.environ.get("MASSIVE_RECENT_CACHE_TTL", "6.0"))
-_RECENT_CACHE_MAX = 48
 
 
 # ─── Tier priority (for convictionScore weighting) ─────────────────────────
@@ -1251,11 +1240,6 @@ def _row_to_alert(row: dict) -> dict | None:
         "spot": spot if spot > 0 else None,
         "moneynessPct": money_pct,
         "moneynessLabel": money_label,
-        # IV placeholder — the Black-Scholes solve is DEFERRED to the returned
-        # slice in /recent (below). _row_to_alert runs over EVERY scanned row
-        # (up to 100K in curated mode); computing IV here made /recent time out
-        # by midday (7/8). None here; filled for the ≤limit returned rows only.
-        "iv": None,
         "grade": grade,
         "convictionScore": score,
         "gatePassed": True,              # gating not implemented in test phase
@@ -1263,9 +1247,6 @@ def _row_to_alert(row: dict) -> dict | None:
         # Massive-specific extras (useful for debugging / future UI)
         "_color": row["Color"],
         "_side": side,
-        # F2 honesty (restored 2026-07-08): 'measured' from a real NBBO side
-        # (A/AA/B/BB) vs 'presumed' from the empty-side sweep heuristic.
-        "sideConfidence": "measured" if (side or "").strip().upper() in ("A", "AA", "B", "BB") else "presumed",
         "_type": row["Type"],
         "_sector": row["Sector"],
         "_mktCap": _parse_int(row["MktCap"]),
@@ -1434,13 +1415,6 @@ def recent_massive_alerts(
     # /restart-log endpoint below for the read side.
     _log_startup_if_new()
 
-    # Micro-cache check — serve identical polls from the short TTL cache and
-    # skip the whole flow.db scan (the source of the read/writer contention).
-    _ck = (today, limit, min_grade, sort_by, tier, curated)
-    _hit = _RECENT_CACHE.get(_ck)
-    if _hit is not None and _hit[0] > time.time():
-        return Response(content=_hit[1], media_type="application/json")
-
     grade_threshold = {"A+ 🚀": 4, "A": 3, "B": 2, "C": 1, "D": 0,
                        "A+": 4}  # accept both with and without rocket
     min_threshold = grade_threshold.get(min_grade, 0)
@@ -1453,20 +1427,8 @@ def recent_massive_alerts(
         # for conviction/premium we pull more upfront. When a tier filter is
         # active we also pull 20000 since the tier might be rare — limit*3
         # won't have enough of that tier to satisfy `limit` post-filter.
-        # 7/8: curated mode needs the WHOLE day, not just a slice. Curation
-        # has cross-alert dependencies — contract_totals for rollup rescue,
-        # hit_counts for the confirmer signal — that produce wrong answers
-        # when computed over a tail slice. Prior fix used 20000 which was
-        # undersized: heavy days can have 30K-100K matching rows and the
-        # oldest morning events fall outside the top-20K by id DESC.
-        # 7/7 example: 34,979 matching rows for the day, curated with
-        # sql_limit=20000 excluded everything before ~12:27 PM ET, giving
-        # a false "3-hour morning gap" that was really just SQL truncation.
-        # 100K covers the heaviest observed days comfortably.
-        if curated:
-            sql_limit = 100_000
-        elif sort_by != "recent" or tier:
-            sql_limit = max(20_000, limit + 1000)
+        if sort_by != "recent" or tier:
+            sql_limit = 20000
         else:
             sql_limit = max(limit * 3, limit + 1000)  # safety margin for grade filter
         # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
@@ -1481,11 +1443,15 @@ def recent_massive_alerts(
         # frontend's Stocks/ETFs toggle can partition them. When disabled
         # (default, today's behavior), only 'stocks' — indexes stay excluded
         # per the 6/26 aggregation-boundary concern documented at file top.
+        # Also include reconcile_* rows so manually-inserted backfills (via
+        # /api/flow-reconcile/insert) actually surface — bug found 7/7 evening
+        # when MSFT/BE/DIS/ARM/WEN reconciles landed in flow.db but were
+        # filtered out by this exact clause.
         etf_enabled = _load_thresholds().get("etf_enabled", False)
         if etf_enabled:
-            source_clause = "source IN ('stocks','indexes')"
+            source_clause = "(source IN ('stocks','indexes') OR source LIKE 'reconcile_%')"
         else:
-            source_clause = "source = 'stocks'"
+            source_clause = "(source = 'stocks' OR source LIKE 'reconcile_%')"
         cur = conn.execute(f"""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
@@ -1614,13 +1580,6 @@ def recent_massive_alerts(
 
     alerts = all_alerts[:limit]
 
-    # F1 IV: compute Black-Scholes implied vol on the RETURNED slice only
-    # (≤limit rows) — never in _row_to_alert, which runs over the full scan
-    # (up to 100K rows in curated mode → /recent timed out midday 7/8).
-    for a in alerts:
-        a["iv"] = iv_for_row(a.get("averageFillPrice"), a.get("spot"),
-                             a.get("strike"), a.get("dte"), a.get("cp"))
-
     status = _get_worker_status()
     status["query_date"] = today
     status["sort_by"] = sort_by
@@ -1633,19 +1592,10 @@ def recent_massive_alerts(
     status["skipped_curated"] = skipped_curated
     status["returned"] = len(alerts)
 
-    # Serialize once + store in the micro-cache. default=str is a belt-and-
-    # suspenders guard (everything should already be JSON-native; iv is
-    # float|None). Bound memory: drop expired entries, then hard-clear if the
-    # cache is still over cap (large limit=20000 bodies).
-    body = json.dumps({"status": status, "alerts": alerts}, default=str)
-    if len(_RECENT_CACHE) > _RECENT_CACHE_MAX:
-        _now = time.time()
-        for _k in [k for k, v in _RECENT_CACHE.items() if v[0] <= _now]:
-            _RECENT_CACHE.pop(_k, None)
-        if len(_RECENT_CACHE) > _RECENT_CACHE_MAX:
-            _RECENT_CACHE.clear()
-    _RECENT_CACHE[_ck] = (time.time() + _RECENT_CACHE_TTL, body)
-    return Response(content=body, media_type="application/json")
+    return {
+        "status": status,
+        "alerts": alerts,
+    }
 
 
 @router.get("/diagnostic")
@@ -1752,18 +1702,10 @@ async def current_quotes(payload: CurrentQuotesPayload):
     # (the live page maxes at 200 alerts which is typically <100 uniques).
     tickers = tickers[:200]
 
-    # Fire lookups concurrently but BOUNDED (restored 2026-07-08 — a web-UI edit
-    # dropped this Semaphore, leaving up to 200 concurrent fetches that can
-    # saturate the pod under load). Schwab service handles its own rate limiting;
-    # cache layer (above) dedupes same-ticker repeats within TTL.
-    _sem = asyncio.Semaphore(int(os.environ.get("QUOTE_FETCH_CONCURRENCY", "20")))
-
-    async def _bounded(t):
-        async with _sem:
-            return await _fetch_one_quote(t)
-
+    # Fire all lookups concurrently. Schwab service handles its own rate
+    # limiting; cache layer (above) dedupes same-ticker repeats within TTL.
     results = await asyncio.gather(
-        *[_bounded(t) for t in tickers], return_exceptions=False
+        *[_fetch_one_quote(t) for t in tickers], return_exceptions=False
     )
     quotes = {t: p for t, p in zip(tickers, results) if p is not None}
     return {"quotes": quotes, "fetched_at": time.time(), "requested": len(tickers)}
@@ -1807,11 +1749,13 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
         conn.row_factory = sqlite3.Row
         # 7/7: same conditional source clause as /recent so bull/bear card
         # counts stay consistent with the alert stream when ETFs are enabled.
+        # Also picks up reconcile_* rows so backfilled alerts contribute to
+        # day-stats numbers (matches display behavior).
         etf_enabled = _load_thresholds().get("etf_enabled", False)
         if etf_enabled:
-            source_clause = "source IN ('stocks','indexes')"
+            source_clause = "(source IN ('stocks','indexes') OR source LIKE 'reconcile_%')"
         else:
-            source_clause = "source = 'stocks'"
+            source_clause = "(source = 'stocks' OR source LIKE 'reconcile_%')"
         cur = conn.execute(f"""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
@@ -2878,6 +2822,139 @@ def spot_check(target_date: str = Query(default=None, description="M/D/YYYY. Def
 # Complementary approach: forward-looking restart log. Not built here — see
 # the response note for the ~5-line patch to massive_ws_worker.py that
 # would give you exact restart timestamps going forward.
+
+# ─── Q pool subscription history ──────────────────────────────────────────
+# 7/8: added after the 7/7 OPRA analysis proved that VRT/ORCL/MSFT/etc. gaps
+# were not upstream (Massive had every print) or aggregator (big prints
+# clear the $10K floor trivially) or Side classification (empty-Side events
+# still land in flow.db as uncurated). Remaining explanation is Q pool
+# coverage: worker wasn't subscribed to the specific OCC symbol at print
+# time, so nothing was ever received via WebSocket.
+#
+# This endpoint reads q_pool_events (populated by massive_ws_worker.py's
+# q_pool_log_flusher) so we can answer "was contract X in the pool at
+# time T?" in one query for future gap diagnosis. Diagnostic-only — does
+# not change subscription behavior.
+@router.get("/q-pool-history")
+def q_pool_history(
+    occ: str = Query(default=None,
+                     description="Exact OCC symbol, e.g. 'O:VRT260821P00330000'"),
+    ticker: str = Query(default=None,
+                        description="Ticker filter — matches OCC symbols starting with 'O:<TICKER>'"),
+    ts_unix: float = Query(default=None,
+                           description="Point-in-time: return most recent event for OCC(s) "
+                                       "at-or-before this unix timestamp. Requires occ or ticker."),
+    since_unix: float = Query(default=None,
+                              description="Return events with ts_unix >= this. Combines with occ/ticker."),
+    limit: int = Query(default=500, ge=1, le=10000),
+):
+    """Query Q pool subscription history for gap diagnosis.
+
+    Three modes:
+      1. Full event stream for one contract:
+         /q-pool-history?occ=O:VRT260821P00330000
+      2. Point-in-time state for one contract:
+         /q-pool-history?occ=O:VRT260821P00330000&ts_unix=1783519000
+         Returns [{action: 'sub'|'unsub'|'warmstart', ...}] — most recent
+         event at-or-before ts_unix. Interpret: if last event was 'sub' or
+         'warmstart', contract was subscribed at that moment.
+      3. All events for a ticker across the day:
+         /q-pool-history?ticker=VRT&since_unix=1783483200
+    """
+    if not occ and not ticker:
+        return {"ok": False,
+                "error": "Provide at least one of: occ, ticker.",
+                "hint": "Try ?occ=O:VRT260821P00330000 or ?ticker=VRT"}
+
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        try:
+            conn.row_factory = sqlite3.Row
+            where = []
+            params: list = []
+            if occ:
+                where.append("occ = ?")
+                params.append(occ)
+            elif ticker:
+                # OCC format: O:TICKERYYMMDD[C|P]STRIKE. Prefix match on ticker.
+                # Anchored at position 3 (after "O:") so 'BE' doesn't match 'BEAR'.
+                # We use LIKE because ticker length varies; SQLite handles the
+                # prefix scan fine with the ix_qpe_occ_ts index for equality
+                # cases, and a full-scan is bounded by other filters anyway.
+                where.append("occ LIKE ?")
+                params.append(f"O:{ticker}%")
+
+            if ts_unix is not None:
+                # Point-in-time mode — take most-recent event(s) at-or-before
+                where.append("ts_unix <= ?")
+                params.append(float(ts_unix))
+                sql = (f"SELECT ts_unix, action, occ, reason, "
+                       f"pool_size_after, evicted_for "
+                       f"FROM q_pool_events "
+                       f"WHERE {' AND '.join(where)} "
+                       f"ORDER BY ts_unix DESC LIMIT ?")
+                params.append(int(limit))
+            else:
+                if since_unix is not None:
+                    where.append("ts_unix >= ?")
+                    params.append(float(since_unix))
+                sql = (f"SELECT ts_unix, action, occ, reason, "
+                       f"pool_size_after, evicted_for "
+                       f"FROM q_pool_events "
+                       f"WHERE {' AND '.join(where)} "
+                       f"ORDER BY ts_unix ASC LIMIT ?")
+                params.append(int(limit))
+
+            try:
+                rows = conn.execute(sql, params).fetchall()
+            except sqlite3.OperationalError as _e:
+                # Table might not exist yet if worker hasn't started emitting
+                if 'no such table' in str(_e).lower():
+                    return {"ok": True, "events": [], "count": 0,
+                            "note": "q_pool_events table does not exist yet — "
+                                    "worker hasn't recorded any subscription "
+                                    "events (either not deployed or no writes "
+                                    "since deploy)."}
+                raise
+
+            events = [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+        # For point-in-time queries, group by occ so caller sees the most
+        # recent state per contract in a single response (useful when using
+        # ?ticker=X&ts_unix=T to check "which of this ticker's contracts
+        # were subscribed at moment T").
+        pit_by_occ = None
+        if ts_unix is not None:
+            pit_by_occ = {}
+            for e in events:
+                if e['occ'] not in pit_by_occ:
+                    pit_by_occ[e['occ']] = e
+            pit_by_occ = {
+                k: {
+                    'last_action': v['action'],
+                    'last_ts_unix': v['ts_unix'],
+                    'reason': v['reason'],
+                    'subscribed_at_query_time': v['action'] in ('sub', 'warmstart'),
+                } for k, v in pit_by_occ.items()
+            }
+
+        return {
+            "ok": True,
+            "count": len(events),
+            "events": events,
+            "point_in_time_state": pit_by_occ,
+            "note": (
+                "action='sub' or 'warmstart' means contract entered pool. "
+                "action='unsub' means contract left pool. "
+                "For point-in-time queries, interpret last_action to determine "
+                "whether contract was subscribed at query_ts_unix."
+            ),
+        }
+    except Exception as _e:
+        return {"ok": False, "error": str(_e), "error_type": type(_e).__name__}
+
 
 @router.get("/worker-history")
 def worker_history(
