@@ -110,6 +110,25 @@ def _recent_session_video_summaries(limit: int = 8) -> list[dict]:
     } for v in with_uuid[:limit]]
 
 
+@router.post("/repolish/{video_id}")
+def repolish(video_id: int, request: Request):
+    """Admin backfill: re-run the recap polish (headline + takeaways + poster)
+    for an already-published session video from its STORED insights/transcript
+    — for videos published before the polish pass existed, whose stored text
+    is Zoom's generic prose hard-truncated mid-sentence. PUSH_SECRET bearer,
+    mirroring /sessions-status. Sync `def` on purpose: the LLM call blocks,
+    so FastAPI must run this in the threadpool, never on the event loop."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_session_insights
+    try:
+        return desk_session_insights.repolish_video(int(video_id))
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:400]}
+
+
 @router.get("/insights-status")
 async def insights_status(request: Request):
     """Diagnostics for the session-insights backfill pass: pending queue +

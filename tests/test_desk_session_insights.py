@@ -194,14 +194,43 @@ def test_parse_zoom_summary_sorts_chapters_and_caps_summary_at_6():
 
 
 def test_parse_zoom_summary_trims_headline_summary_and_chapter_title():
+    long_prose = ("They discussed market conditions in detail. " * 20).strip()  # ~880 chars
     raw = json.dumps({
-        "overall_summary": "x" * 250,
-        "items": [{"label": "z" * 100, "start_time": "00:00:00.000", "summary": "y" * 400}],
+        "overall_summary": long_prose,
+        "items": [{"label": "z" * 100, "start_time": "00:00:00.000", "summary": long_prose}],
     })
     out = si.parse_zoom_summary(raw)
-    assert len(out["headline"]) == 200
-    assert len(out["summary"][0]) == 300
+    # Sentence-safe bounds: never a mid-sentence hard slice.
+    assert len(out["headline"]) <= 400 and out["headline"].endswith(".")
+    assert len(out["summary"][0]) <= 600 and out["summary"][0].endswith(".")
     assert len(out["chapters"][0]["title"]) == 80
+
+
+# ── _sentence_trim ───────────────────────────────────────────────────────────────
+
+def test_sentence_trim_short_text_untouched():
+    assert si._sentence_trim("NVDA held the 50-day.", 300) == "NVDA held the 50-day."
+
+
+def test_sentence_trim_cuts_at_sentence_boundary():
+    t = "First point here. Second point follows. " + "x" * 400
+    out = si._sentence_trim(t, 100)
+    assert out == "First point here. Second point follows."
+
+
+def test_sentence_trim_no_sentence_end_falls_back_to_word_ellipsis():
+    t = "alpha bravo charlie delta echo foxtrot golf hotel india juliet"
+    out = si._sentence_trim(t, 30)
+    assert out.endswith("…")
+    assert " " not in out[-2]          # ellipsis follows a full word, not a space
+    assert t.startswith(out[:-1])      # word-boundary prefix, no mid-word cut
+
+
+def test_sentence_trim_ignores_too_early_sentence_end():
+    t = "Hi. " + "word " * 100
+    out = si._sentence_trim(t, 200)
+    assert out != "Hi."                # a 2%-of-window sentence must not win
+    assert out.endswith("…")
 
 
 # ── _find_summary_file ───────────────────────────────────────────────────────────
@@ -268,6 +297,9 @@ def edu_db(monkeypatch):
 @pytest.fixture(autouse=False)
 def chapters_enabled(monkeypatch):
     monkeypatch.setenv("DESK_SESSION_CHAPTERS_ENABLED", "1")
+    # Keep orchestration tests hermetic: the recap polish is a real LLM call
+    # (default ON in prod). Polish-specific tests re-enable + stub it.
+    monkeypatch.setenv("DESK_RECAP_POLISH", "0")
 
 
 def _seed_session_video(title="Live Trading Session — June 24, 2026", meeting_uuid="UUID1"):
@@ -539,6 +571,113 @@ def test_salvage_truncated_json_recovers_leading_objects():
     data = _json.loads(si._salvage_truncated_json(raw))
     assert data["ticker_moments"] == [
         {"t": 1, "ticker": "AAPL"}, {"t": 50, "ticker": "NVDA"}]
+
+
+# ── Recap polish ─────────────────────────────────────────────────────────────────
+
+def test_recap_polish_enabled_default_on(monkeypatch):
+    monkeypatch.delenv("DESK_RECAP_POLISH", raising=False)
+    assert si._recap_polish_enabled()
+    monkeypatch.setenv("DESK_RECAP_POLISH", "0")
+    assert not si._recap_polish_enabled()
+
+
+def test_recap_model_defaults_to_opus():
+    assert "opus" in si._RECAP_MODEL
+
+
+def test_sampled_excerpt_bounded_and_spans_session():
+    cues = [{"t": i * 30, "text": f"minute {i} " + "talk " * 20} for i in range(500)]
+    out = si._sampled_excerpt(cues, max_chars=5_000)
+    assert 0 < len(out) <= 5_000
+    lines = out.split("\n")
+    # Spans the session, not just the head: last sampled cue is deep in.
+    assert lines[0].startswith("[0:00]")
+    parts = [int(p) for p in lines[-1].split("]")[0].lstrip("[").split(":")]
+    last_t = (parts[0] * 3600 + parts[1] * 60 + parts[2]) if len(parts) == 3 \
+        else (parts[0] * 60 + parts[1])
+    assert last_t > 500 * 30 * 0.5
+
+
+def test_zoom_path_applies_polish_when_enabled(edu_db, chapters_enabled, monkeypatch):
+    monkeypatch.setenv("DESK_RECAP_POLISH", "1")
+    monkeypatch.setattr(si, "generate_ticker_moments", lambda title, cues: [])
+    monkeypatch.setattr(si, "polish_recap",
+                        lambda title, headline, summary, chapters, cues: {
+                            "headline": "NVDA led a broad-tape reversal.",
+                            "summary": ["b1.", "b2.", "b3."]})
+
+    v = _seed_session_video(title="Live Trading Session — July 7, 2026", meeting_uuid="UUIDP1")
+    rec = {"recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
+         "download_url": "http://x/vtt"},
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    assert any(r.get("action") == "generated" and r.get("source") == "zoom+polish" for r in out)
+    row = edu.get_video(v["id"])
+    assert row["headline"] == "NVDA led a broad-tape reversal."
+    assert json.loads(row["summary"]) == ["b1.", "b2.", "b3."]
+    # Chapters still come from Zoom untouched.
+    assert len(json.loads(row["chapters"])) == 2
+    assert zoom.deleted == ["UUIDP1"]
+
+
+def test_zoom_path_polish_failure_keeps_zoom_text(edu_db, chapters_enabled, monkeypatch):
+    monkeypatch.setenv("DESK_RECAP_POLISH", "1")
+    monkeypatch.setattr(si, "generate_ticker_moments", lambda title, cues: [])
+    monkeypatch.setattr(si, "polish_recap",
+                        lambda *a: (_ for _ in ()).throw(RuntimeError("billing boom")))
+
+    v = _seed_session_video(title="Live Trading Session — July 8, 2026", meeting_uuid="UUIDP2")
+    rec = {"recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
+         "download_url": "http://x/vtt"},
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    assert any(r.get("action") == "generated" and r.get("source") == "zoom" for r in out)
+    row = edu.get_video(v["id"])
+    assert row["headline"] == "Traders reviewed NVDA momentum and the broader tape."
+    assert zoom.deleted == ["UUIDP2"]  # polish failure never blocks publish/trash
+
+
+def test_repolish_video_updates_recap_and_poster(edu_db, monkeypatch):
+    monkeypatch.setattr(si, "polish_recap",
+                        lambda title, headline, summary, chapters, cues: {
+                            "headline": "Polished headline.",
+                            "summary": ["p1.", "p2.", "p3.", "p4."]})
+    v = _seed_session_video(title="Live Trading Session — July 7, 2026", meeting_uuid="UUIDR1")
+    edu.set_video_insights(
+        v["id"], transcript="[0:05] MBIS holding support here.",
+        chapters=[{"t": 0, "title": "Open"}],
+        ticker_moments=[{"ticker": "MBIS", "t": 5, "note": ""}],
+        headline="Patrick and Uncharted discussed stock market performa",
+        summary=["Truncated old bullet abou"])
+
+    out = si.repolish_video(v["id"])
+
+    assert out["headline"] == "Polished headline."
+    row = edu.get_video(v["id"])
+    assert row["headline"] == "Polished headline."
+    assert json.loads(row["summary"]) == ["p1.", "p2.", "p3.", "p4."]
+    from api.services import desk_recap_poster
+    assert os.path.exists(desk_recap_poster.poster_path(v["id"]))
+    assert row["poster"] == 1
+
+
+def test_repolish_video_unknown_or_empty_raises(edu_db, monkeypatch):
+    with pytest.raises(ValueError):
+        si.repolish_video(999999)
+    v = _seed_session_video(title="Live Trading Session — July 6, 2026", meeting_uuid="UUIDR2")
+    with pytest.raises(ValueError):
+        si.repolish_video(v["id"])  # nothing stored to polish yet
 
 
 def test_salvage_truncated_json_nothing_usable():

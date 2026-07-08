@@ -48,6 +48,13 @@ _MODEL = os.environ.get("DESK_CHAPTERS_MODEL", "claude-haiku-4-5")
 # on its own. Used ONLY by generate_ticker_moments.
 _TICKER_MODEL = os.environ.get("DESK_TICKERS_MODEL", "claude-sonnet-5")
 
+# Recap polish (headline + key-takeaway bullets) is the most user-visible text
+# in the product — Zoom's own summary prose is generic ("Patrick and Uncharted
+# discussed…") and was shipped verbatim. The polish input is TINY (Zoom summary
+# + chapter titles + a sampled transcript excerpt, never the full transcript),
+# so the per-session cost stays cents even on Opus.
+_RECAP_MODEL = os.environ.get("DESK_RECAP_MODEL", "claude-opus-4-8")
+
 
 def is_enabled() -> bool:
     return os.environ.get("DESK_SESSION_CHAPTERS_ENABLED", "") == "1"
@@ -140,6 +147,27 @@ def _parse_timestamped_block(text: str) -> list[dict]:
 
 # ── Zoom-native summary parsing (free chapters — no LLM) ────────────────────────
 
+_SENT_END = re.compile(r"[.!?][\"')\]]?\s")
+
+
+def _sentence_trim(text: str, max_chars: int) -> str:
+    """Bound `text` to max_chars WITHOUT cutting mid-sentence (the old hard
+    [:N] slice shipped bullets ending "…The conversa" to the UI + poster).
+    Prefer the last complete sentence inside the window; if the window holds
+    no sentence end, cut at a word boundary and mark the cut with an ellipsis."""
+    t = (text or "").strip()
+    if len(t) <= max_chars:
+        return t
+    window = t[:max_chars]
+    ends = [m.end() for m in _SENT_END.finditer(window + " ")]
+    # A sentence end too early in the window would throw away most of the
+    # budget — only take it when it keeps at least ~40% of the window.
+    if ends and ends[-1] >= max_chars * 0.4:
+        return window[:ends[-1]].strip()
+    cut = window.rsplit(" ", 1)[0].rstrip(" ,;:—-")
+    return (cut + "…") if cut else window
+
+
 _HMS = re.compile(r"^(\d+):(\d{2}):(\d{2})(?:[.,]\d+)?$")
 
 
@@ -189,10 +217,12 @@ def parse_zoom_summary(raw: str) -> dict:
             continue
         s = str(it.get("summary") or "").strip()
         if s:
-            summary.append(s[:300])
+            # Sentence-safe bound (generous — the polish pass compresses; this
+            # is a runaway-input guard, not the display length).
+            summary.append(_sentence_trim(s, 600))
     summary = summary[:6]
 
-    headline = str(data.get("overall_summary") or "").strip()[:200]
+    headline = _sentence_trim(str(data.get("overall_summary") or ""), 400)
     return {"headline": headline, "summary": summary, "chapters": chapters}
 
 
@@ -296,12 +326,12 @@ def _clean_tickers(items):
     return out
 
 
-def _clean_summary(items):
+def _clean_summary(items, max_len: int = 200):
     out = []
     for s in items or []:
         t = str(s or "").strip()
         if t:
-            out.append(t[:200])
+            out.append(_sentence_trim(t, max_len))
     return out[:6]
 
 
@@ -336,6 +366,109 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
         "chapters": _clean_chapters(data.get("chapters")),
         "ticker_moments": _clean_tickers(data.get("tickers")),
     }
+
+
+# ── Recap polish — small LLM rewrite of Zoom's generic summary prose ────────────
+
+def _recap_polish_enabled() -> bool:
+    return os.environ.get("DESK_RECAP_POLISH", "1") != "0"
+
+
+_RECAP_SYS = (
+    "You are the head editor for a stock-trading firm's video library. You are "
+    "given machine-generated summary notes for a recorded live trading session, "
+    "plus chapter titles and a sampled transcript excerpt for grounding. Rewrite "
+    "them into a session recap traders actually want to read. Return STRICT JSON "
+    "only (no prose, no code fences):\n"
+    '{ "headline": "<=110 chars", "summary": ["<=170 chars", ...] }\n'
+    "Rules:\n"
+    "- headline: ONE complete punchy sentence — the day's thesis / what mattered "
+    "most. No date, no 'In this session', no 'The group discussed'.\n"
+    "- summary: 4-6 key-takeaway bullets. Each is a COMPLETE sentence, specific "
+    "and concrete: name the tickers, levels, setups, and decisions (e.g. 'MBIS "
+    "and ARMS held as focus longs around key support' beats 'they discussed "
+    "specific stocks'). Pull specifics from the transcript excerpt when the "
+    "notes are vague.\n"
+    "- NEVER write meta-narration: no 'Patrick and X discussed', 'The "
+    "conversation covered', 'They analyzed'. State the market content itself.\n"
+    "- Only include facts supported by the notes/excerpt — do not invent "
+    "prices, levels, or outcomes.\n"
+    "- Output ONLY the JSON object."
+)
+
+
+def _sampled_excerpt(cues: list[dict], max_chars: int = 12_000) -> str:
+    """Evenly-sampled timestamped lines spanning the WHOLE session (a head-only
+    slice would bias the polish toward the open). Tiny by design — grounding
+    for specifics, not a re-summarization of the full transcript."""
+    if not cues:
+        return ""
+    lines = [f"[{_hhmmss(c['t'])}] {c['text']}" for c in cues]
+    total = sum(len(ln) + 1 for ln in lines)
+    if total <= max_chars:
+        return "\n".join(lines)
+    # Walk evenly across the cue list, keeping every k-th line until budget.
+    step = max(1, int(total / max_chars))
+    out, used = [], 0
+    for ln in lines[::step]:
+        if used + len(ln) + 1 > max_chars:
+            break
+        out.append(ln)
+        used += len(ln) + 1
+    return "\n".join(out)
+
+
+def polish_recap(title: str, headline: str, summary: list[str],
+                 chapters: list[dict], cues: list[dict]) -> dict:
+    """One small LLM call that turns Zoom's generic truncated summary prose into
+    a punchy trader-grade headline + takeaways. Input is bounded (~a few K
+    tokens) regardless of session length. Raises on failure — callers MUST
+    treat this as best-effort and keep the sentence-trimmed Zoom text."""
+    from api.services.engine import _get_anthropic_client
+    notes = "\n".join(f"- {s}" for s in summary if (s or "").strip())
+    chap = "\n".join(f"[{_hhmmss(c['t'])}] {c['title']}" for c in (chapters or []))
+    user = (
+        f"VIDEO TITLE: {title}\n\n"
+        f"MACHINE HEADLINE:\n{headline or '(none)'}\n\n"
+        f"MACHINE SUMMARY NOTES:\n{notes or '(none)'}\n\n"
+        f"CHAPTERS:\n{chap or '(none)'}\n\n"
+        f"TRANSCRIPT EXCERPT (sampled):\n{_sampled_excerpt(cues) or '(none)'}"
+    )
+    client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
+    msg = client.messages.create(
+        model=_RECAP_MODEL,
+        max_tokens=1200,
+        # Mechanical budget discipline (same trap as the ticker call): thinking
+        # shares max_tokens, and this rewrite doesn't need it.
+        thinking={"type": "disabled"},
+        system=_RECAP_SYS,
+        messages=[{"role": "user", "content": user}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content)
+    data = json.loads(_strip_json(raw))
+    out = {
+        "headline": _sentence_trim(str(data.get("headline") or ""), 160),
+        "summary": _clean_summary(data.get("summary"), max_len=240),
+    }
+    if not out["headline"] or len(out["summary"]) < 3:
+        raise ValueError(f"polish returned thin recap "
+                         f"(headline={bool(out['headline'])}, bullets={len(out['summary'])})")
+    return out
+
+
+def _apply_recap_polish(ins: dict, title: str, cues: list[dict]) -> bool:
+    """Best-effort in-place polish of ins[headline/summary]; True on success.
+    A polish failure must NEVER block storing/publishing the free Zoom recap."""
+    if not _recap_polish_enabled():
+        return False
+    try:
+        polished = polish_recap(title, ins.get("headline", ""),
+                                ins.get("summary", []), ins.get("chapters", []), cues)
+    except Exception as pe:
+        print(f"[session-insights] recap polish failed (non-fatal): {pe}")
+        return False
+    ins["headline"], ins["summary"] = polished["headline"], polished["summary"]
+    return True
 
 
 # ── Ticker-moments — LLM-only, best-effort (never blocks the Zoom-first path) ───
@@ -499,7 +632,9 @@ def _generate_poster(vid: int, v: dict, ins: dict) -> bool:
             date_text=_recap_date(v.get("title")),
             headline=ins.get("headline", ""),
             summary=ins.get("summary", []),
-            tickers=[t["ticker"] for t in ins["ticker_moments"]],
+            # De-dup revisits (MU can appear 3× in ticker_moments) so the
+            # poster's pill slots aren't wasted on repeats.
+            tickers=list(dict.fromkeys(t["ticker"] for t in ins["ticker_moments"])),
         )
         return True
     except Exception as pe:
@@ -619,6 +754,8 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
                 "ticker_moments": ticker_moments,
             }
             source = "zoom"
+            if _apply_recap_polish(ins, v.get("title") or "", cues):
+                source = "zoom+polish"
         elif cues:
             # 2) LLM fallback — only when no usable summary file exists.
             ins = generate_insights(v.get("title") or "", cues)
@@ -725,6 +862,40 @@ def process_pending_session_insights(*, zoom=None) -> list[dict]:
     _run_ticker_backfill(results, errors)
     _RECENT_PASSES.append({"ts": int(time.time()), "results": list(results), "errors": errors})
     return results
+
+
+def repolish_video(video_id: int) -> dict:
+    """One-shot recap re-polish for an ALREADY-published video, entirely from
+    stored data (the Zoom recording is long gone): stored headline/summary/
+    chapters + an excerpt of the stored transcript → polish_recap → store +
+    re-render the poster. Backfills videos published before the polish pass
+    existed (their stored text is Zoom's generic prose, hard-truncated
+    mid-sentence). Raises on failure — the admin endpoint surfaces the error."""
+    v = education_service.get_video(int(video_id))
+    if not v:
+        raise ValueError(f"video {video_id} not found")
+    stored = education_service.get_insights(int(video_id))
+    ins = {
+        "headline": stored.get("headline", ""),
+        "summary": stored.get("summary", []),
+        "chapters": stored.get("chapters", []),
+        "ticker_moments": stored.get("ticker_moments", []),
+    }
+    if not ins["summary"] and not ins["headline"]:
+        raise ValueError(f"video {video_id} has no stored recap to polish")
+    cues = _parse_timestamped_block(v.get("transcript") or "")
+    polished = polish_recap(v.get("title") or "", ins["headline"], ins["summary"],
+                            ins["chapters"], cues)
+    ins["headline"], ins["summary"] = polished["headline"], polished["summary"]
+    poster_ok = _generate_poster(int(video_id), v, ins)
+    education_service.set_video_insights(
+        int(video_id),
+        headline=ins["headline"],
+        summary=ins["summary"],
+        poster=poster_ok or None,  # never clear an existing poster flag on a render hiccup
+    )
+    return {"id": int(video_id), "headline": ins["headline"],
+            "summary": ins["summary"], "poster": poster_ok}
 
 
 def get_insights_status() -> dict:
