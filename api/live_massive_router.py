@@ -32,7 +32,7 @@ Why this lives separately:
   2. The Bullflow worker (liveflow_worker.py) and this router can coexist
   3. Once validated, swap LiveFlow.jsx data source URL — no other changes needed
 """
-from fastapi import APIRouter, Query, Request, HTTPException
+from fastapi import APIRouter, Query, Request, HTTPException, Response
 from datetime import date, datetime, timezone, timedelta
 import sqlite3
 import os
@@ -46,6 +46,15 @@ router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 ET = timezone(timedelta(hours=-4))
+
+# /recent micro-cache (restored 2026-07-08): the ~200-user/5s poll cadence was
+# re-scanning the growing flow.db on EVERY request, which contended with the OPRA
+# writer — the writer fell behind (chunky tape) and heavy reads intermittently
+# timed out (page flickered to WORKER IDLE). Serve identical polls from a short
+# TTL cache instead. Bounded so large limit=20000 bodies can't grow memory.
+_RECENT_CACHE: dict = {}
+_RECENT_CACHE_TTL = float(os.environ.get("MASSIVE_RECENT_CACHE_TTL", "4.0"))
+_RECENT_CACHE_MAX = 48
 
 
 # ─── Tier priority (for convictionScore weighting) ─────────────────────────
@@ -1425,6 +1434,13 @@ def recent_massive_alerts(
     # /restart-log endpoint below for the read side.
     _log_startup_if_new()
 
+    # Micro-cache check — serve identical polls from the short TTL cache and
+    # skip the whole flow.db scan (the source of the read/writer contention).
+    _ck = (today, limit, min_grade, sort_by, tier, curated)
+    _hit = _RECENT_CACHE.get(_ck)
+    if _hit is not None and _hit[0] > time.time():
+        return Response(content=_hit[1], media_type="application/json")
+
     grade_threshold = {"A+ 🚀": 4, "A": 3, "B": 2, "C": 1, "D": 0,
                        "A+": 4}  # accept both with and without rocket
     min_threshold = grade_threshold.get(min_grade, 0)
@@ -1617,10 +1633,19 @@ def recent_massive_alerts(
     status["skipped_curated"] = skipped_curated
     status["returned"] = len(alerts)
 
-    return {
-        "status": status,
-        "alerts": alerts,
-    }
+    # Serialize once + store in the micro-cache. default=str is a belt-and-
+    # suspenders guard (everything should already be JSON-native; iv is
+    # float|None). Bound memory: drop expired entries, then hard-clear if the
+    # cache is still over cap (large limit=20000 bodies).
+    body = json.dumps({"status": status, "alerts": alerts}, default=str)
+    if len(_RECENT_CACHE) > _RECENT_CACHE_MAX:
+        _now = time.time()
+        for _k in [k for k, v in _RECENT_CACHE.items() if v[0] <= _now]:
+            _RECENT_CACHE.pop(_k, None)
+        if len(_RECENT_CACHE) > _RECENT_CACHE_MAX:
+            _RECENT_CACHE.clear()
+    _RECENT_CACHE[_ck] = (time.time() + _RECENT_CACHE_TTL, body)
+    return Response(content=body, media_type="application/json")
 
 
 @router.get("/diagnostic")
