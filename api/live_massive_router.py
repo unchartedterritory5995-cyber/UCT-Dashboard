@@ -1427,16 +1427,20 @@ def recent_massive_alerts(
         # for conviction/premium we pull more upfront. When a tier filter is
         # active we also pull 20000 since the tier might be rare — limit*3
         # won't have enough of that tier to satisfy `limit` post-filter.
-        # 7/8: curated mode also needs the whole day. Curation has cross-alert
-        # dependencies — contract_totals for rollup rescue, hit_counts for the
-        # confirmer signal — that produce wrong answers when computed over a
-        # tail slice. NFLX $77 C 7/31 (7/7) surfaced this: sql_limit=15000
-        # cut off the morning events, contract_totals undercounted, rollup
-        # couldn't rescue the events that did make it. Curated correctness
-        # requires whole-day input; small user `limit` is applied to output
-        # only, not to the SQL scan.
-        if sort_by != "recent" or tier or curated:
-            sql_limit = 20000
+        # 7/8: curated mode needs the WHOLE day, not just a slice. Curation
+        # has cross-alert dependencies — contract_totals for rollup rescue,
+        # hit_counts for the confirmer signal — that produce wrong answers
+        # when computed over a tail slice. Prior fix used 20000 which was
+        # undersized: heavy days can have 30K-100K matching rows and the
+        # oldest morning events fall outside the top-20K by id DESC.
+        # 7/7 example: 34,979 matching rows for the day, curated with
+        # sql_limit=20000 excluded everything before ~12:27 PM ET, giving
+        # a false "3-hour morning gap" that was really just SQL truncation.
+        # 100K covers the heaviest observed days comfortably.
+        if curated:
+            sql_limit = 100_000
+        elif sort_by != "recent" or tier:
+            sql_limit = max(20_000, limit + 1000)
         else:
             sql_limit = max(limit * 3, limit + 1000)  # safety margin for grade filter
         # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
