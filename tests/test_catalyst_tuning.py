@@ -129,10 +129,20 @@ def test_get_threshold_precedence(monkeypatch, tmp_path):
 
 def test_get_threshold_clamps_override_to_bounds(monkeypatch, tmp_path):
     store, tuning = _setup_tuning(monkeypatch, tmp_path)
-    tuning._write_overrides({"CATALYST_MIN_PRICE": 999.0})  # above hi=8.0
-    assert tuning.get_threshold("CATALYST_MIN_PRICE", 3.0) == 8.0
+    tuning._write_overrides({"CATALYST_MIN_PRICE": 999.0})  # above hi=5.0
+    assert tuning.get_threshold("CATALYST_MIN_PRICE", 3.0) == 5.0
     tuning._write_overrides({"CATALYST_MIN_PRICE": 0.5})  # below lo=2.0
     assert tuning.get_threshold("CATALYST_MIN_PRICE", 3.0) == 2.0
+
+
+def test_knob_ceilings_stay_near_defaults():
+    """The hi bounds are the last line of defense against the tighten-runaway
+    (2026-07-08: cap walked 300M -> 1B and the board shrank to 5 rows). Keep
+    every ceiling within ~2x of its default."""
+    from api.services.catalyst import tuning
+    for knob, (default, lo, hi) in tuning.KNOBS.items():
+        assert hi <= default * 2, f"{knob} ceiling {hi} > 2x default {default}"
+        assert lo <= default <= hi
 
 
 def _seed_bad(store, n, price):
@@ -250,3 +260,68 @@ def test_autotune_disabled(monkeypatch, tmp_path):
     monkeypatch.setenv("CATALYST_AUTOTUNE_ENABLED", "0")
     res = tuning.run_autotune()
     assert res == {"enabled": False, "changes": []}
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# New-evidence brake — the same static 👎 pool must not compound nightly
+# ─────────────────────────────────────────────────────────────────────────
+
+def test_autotune_does_not_compound_on_stale_feedback(monkeypatch, tmp_path):
+    """Second run with NO new feedback since the first tighten must be a
+    no-op — this is the brake that stops the 15%/night runaway."""
+    store, tuning = _setup_tuning(monkeypatch, tmp_path)
+    _no_metadata(monkeypatch)
+    monkeypatch.setattr(tuning, "_loosen_hits", lambda: {})
+    _seed_bad(store, 12, 5.0)
+    tuning.run_autotune()
+    first = tuning.get_threshold("CATALYST_MIN_PRICE", 3.0)
+    assert first > 3.0
+    res2 = tuning.run_autotune()  # same pool, nothing new
+    assert res2["changes"] == []
+    assert tuning.get_threshold("CATALYST_MIN_PRICE", 3.0) == first
+
+
+def test_autotune_resumes_on_fresh_feedback(monkeypatch, tmp_path):
+    """New 👎 rows arriving after the last change re-arm the tighten."""
+    store, tuning = _setup_tuning(monkeypatch, tmp_path)
+    _no_metadata(monkeypatch)
+    monkeypatch.setattr(tuning, "_loosen_hits", lambda: {})
+    _seed_bad(store, 12, 5.0)
+    tuning.run_autotune()
+    first = tuning.get_threshold("CATALYST_MIN_PRICE", 3.0)
+    # Fresh evidence: 3 new bad rows (>= CATALYST_AUTOTUNE_MIN_NEW_BAD default)
+    # stamped strictly after the logged change.
+    import time as _time
+    _time.sleep(1.1)  # created_at is epoch-seconds; get past the change ts
+    for i in range(3):
+        store.record_feedback(user_id="u", market_date="2026-06-16",
+                              ticker=f"N{i}", verdict="bad",
+                              row={"price": 5.0})
+    res2 = tuning.run_autotune()
+    assert res2["changes"], "fresh feedback should re-arm the tighten"
+    assert tuning.get_threshold("CATALYST_MIN_PRICE", 3.0) > first
+
+
+def test_coverage_audit_excluded_falls_back_to_rejections(monkeypatch, tmp_path):
+    """A gate-dropped mover must classify as 'excluded' (feeding the loosen
+    signal) even when the in-memory exclusion cache is empty — e.g. after a
+    redeploy — by falling back to the persistent rejections table."""
+    store = _reload_store(monkeypatch, tmp_path)
+    store.log_rejection(market_date="2026-07-08", ticker="UAN",
+                        reason="liquidity $4.5M/day below $9M floor",
+                        price=117.0, dollar_vol=4_500_000)
+    from api.services.catalyst import coverage_audit
+    importlib.reload(coverage_audit)
+    monkeypatch.setattr(coverage_audit, "_biggest_movers",
+                        lambda *a, **k: [{"ticker": "UAN", "gap_pct": 8.0,
+                                          "dollar_vol": 4_500_000}])
+    monkeypatch.setattr(coverage_audit, "_grade_analyst_coverage",
+                        lambda d: {"total": 0, "caught": 0, "missed": []})
+    # In-memory exclusion cache empty (fresh process) — the old behavior
+    # classified UAN as "missed"; the fallback must classify it "excluded".
+    monkeypatch.setattr("api.services.catalyst.engine.get_exclusion_reason",
+                        lambda d, s: None)
+    report = coverage_audit.run_audit("2026-07-08")
+    assert report["counts"]["excluded"] == 1
+    assert report["counts"]["missed"] == 0
+    assert report["buckets"]["excluded"][0]["reason"].startswith("liquidity")

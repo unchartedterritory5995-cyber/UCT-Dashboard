@@ -39,11 +39,18 @@ from api.services.catalyst.store import _DB_PATH  # noqa: E402
 
 # ── Knob registry: name -> (default, lo, hi). Bounds are hard — an override or
 # a tuned target is always clamped into this range. ──
+# The hi bounds are deliberately close to the defaults: 👎 feedback is mostly
+# about THESIS quality on liquid names, so p75-of-bad metrics sit far above any
+# sane gate and a permissive ceiling lets the tighten loop walk the gate up
+# until the tile only shows megacaps (2026-07-08 incident: cap crept 300M→1B,
+# dollar-vol 5M→8.7M targeting 99M, and the board shrank 20 rows→5). The
+# market-cap ceiling in particular must stay near the firm-wide "Small+ over
+# $300M" scan standard.
 KNOBS = {
-    "CATALYST_MIN_PRICE":      (3.0, 2.0, 8.0),
-    "CATALYST_MIN_DOLLAR_VOL": (5_000_000, 3_000_000, 40_000_000),
-    "CATALYST_MIN_FLOAT":      (5_000_000, 2_000_000, 25_000_000),
-    "CATALYST_MIN_MARKET_CAP": (300_000_000, 100_000_000, 1_000_000_000),
+    "CATALYST_MIN_PRICE":      (3.0, 2.0, 5.0),
+    "CATALYST_MIN_DOLLAR_VOL": (5_000_000, 3_000_000, 10_000_000),
+    "CATALYST_MIN_FLOAT":      (5_000_000, 2_000_000, 10_000_000),
+    "CATALYST_MIN_MARKET_CAP": (300_000_000, 100_000_000, 500_000_000),
 }
 
 # Knob -> the feedback-row metric whose distribution drives a tighten.
@@ -106,6 +113,10 @@ def _loosen_min_hits() -> int:
     return int(_envf("CATALYST_AUTOTUNE_LOOSEN_HITS", 3))
 
 
+def _min_new_bad() -> int:
+    return int(_envf("CATALYST_AUTOTUNE_MIN_NEW_BAD", 3))
+
+
 def _envf(name: str, default: float) -> float:
     raw = os.environ.get(name)
     if raw in (None, ""):
@@ -152,6 +163,22 @@ def _log_change(knob: str, old: float, new: float, evidence: dict) -> None:
             c.commit()
     except Exception:
         logger.exception("[catalyst-tuning] log_change failed")
+
+
+def last_change_ts(knob: str) -> int:
+    """Epoch of the most recent logged change (tighten/loosen/revert) for a
+    knob, or 0 if it has never been touched. Never raises."""
+    try:
+        _ensure_init()
+        with contextlib.closing(_connect()) as c:
+            row = c.execute(
+                "SELECT MAX(ts) AS ts FROM catalyst_tuning_log WHERE knob = ?",
+                (knob,),
+            ).fetchone()
+            return int(row["ts"] or 0) if row else 0
+    except Exception:
+        logger.exception("[catalyst-tuning] last_change_ts failed")
+        return 0
 
 
 def recent_log(limit: int = 100) -> list[dict]:
@@ -335,7 +362,19 @@ def run_autotune() -> dict:
                 evidence = {"action": "loosen", "loosen_hits": hits}
             else:
                 bad_vals = _num_metric_vals(bad, metric)
-                if len(bad_vals) >= min_samples:
+                # New-evidence brake: a tighten step must be justified by
+                # feedback the trader gave SINCE the knob last moved. Without
+                # this, the same static pool of 👎 rows re-satisfies the
+                # min_samples check every night and the knob compounds
+                # max_step/night for the whole lookback window (the 2026-07-08
+                # runaway). First-ever tighten (no log) is exempt.
+                since = last_change_ts(knob)
+                new_bad = [r for r in bad
+                           if int(r.get("created_at") or 0) > since]
+                new_bad_vals = _num_metric_vals(new_bad, metric)
+                has_new_evidence = (since == 0
+                                    or len(new_bad_vals) >= _min_new_bad())
+                if len(bad_vals) >= min_samples and has_new_evidence:
                     cand = percentile(bad_vals, 75)
                     good_vals = _num_metric_vals(good, metric)
                     if good_vals:
@@ -345,6 +384,7 @@ def run_autotune() -> dict:
                         evidence = {
                             "action": "tighten",
                             "bad_samples": len(bad_vals),
+                            "new_bad_since_last_change": len(new_bad_vals),
                             "p75_bad": round(percentile(bad_vals, 75), 4),
                             "good_floor": (round(min(good_vals), 4)
                                            if good_vals else None),

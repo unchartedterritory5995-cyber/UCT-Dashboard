@@ -136,6 +136,20 @@ def run_audit(market_date: str) -> dict:
         all_rows = {r["ticker"].upper(): r
                     for r in store.get_for_date(market_date, ranked_only=False)}
 
+        # Persistent gate-rejection reasons for this date. get_exclusion_reason
+        # is an in-memory per-process cache — empty after any restart/redeploy,
+        # which misclassified every gate-dropped mover as "missed" and starved
+        # the auto-tuner's loosen signal (it counts "excluded" hits). The
+        # catalyst_gate_rejections table is the durable source of truth.
+        rejected_by_sym: dict[str, str] = {}
+        try:
+            for rj in store.recent_rejections(limit=2000, market_date=market_date):
+                sym = (rj.get("ticker") or "").upper()
+                if sym and sym not in rejected_by_sym:
+                    rejected_by_sym[sym] = rj.get("reason") or ""
+        except Exception:
+            logger.debug("[catalyst-audit] rejection lookup failed")
+
         buckets = {"ranked": [], "scored_hidden": [], "excluded": [], "missed": []}
         for m in movers:
             sym = m["ticker"]
@@ -150,6 +164,8 @@ def run_audit(market_date: str) -> dict:
                     reason = get_exclusion_reason(market_date, sym)
                 except Exception:
                     pass
+                if not reason:
+                    reason = rejected_by_sym.get(sym) or None
                 bucket = "excluded" if reason else "missed"
                 if reason:
                     m = {**m, "reason": reason}
