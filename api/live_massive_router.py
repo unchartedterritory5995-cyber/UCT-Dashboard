@@ -53,7 +53,7 @@ ET = timezone(timedelta(hours=-4))
 # timed out (page flickered to WORKER IDLE). Serve identical polls from a short
 # TTL cache instead. Bounded so large limit=20000 bodies can't grow memory.
 _RECENT_CACHE: dict = {}
-_RECENT_CACHE_TTL = float(os.environ.get("MASSIVE_RECENT_CACHE_TTL", "4.0"))
+_RECENT_CACHE_TTL = float(os.environ.get("MASSIVE_RECENT_CACHE_TTL", "6.0"))
 _RECENT_CACHE_MAX = 48
 
 
