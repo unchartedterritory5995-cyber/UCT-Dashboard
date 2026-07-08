@@ -2242,15 +2242,26 @@ async def lifespan(app: FastAPI):
                 kwargs={"hunt": False},
                 id="catalyst_preopen", max_instances=1, replace_existing=True)
 
-            # AMC earnings burst: hunts at 4:00 + 4:30, feed-only 4:05-4:25 PM ET
+            # AMC earnings burst — the EOD focus window is 4:00-5:00 PM ET
+            # (user-defined 2026-07-08): hunts at 4:00 + 4:30 + a final 5:00
+            # sweep; feed-only ticks fill the gaps (every 5min to 4:25, every
+            # 10min to 4:55). Anything that breaks after 5:00 PM is deliberately
+            # left for the premarket sweeps to catch.
             _scheduler.add_job(_cat_refresh,
                 trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="0,30"),
                 kwargs={"hunt": True},
                 id="catalyst_amc_burst_hunt", max_instances=1, replace_existing=True)
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="5-25/5"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="5-25/5,35,45,55"),
                 kwargs={"hunt": False},
                 id="catalyst_amc_burst", max_instances=1, replace_existing=True)
+            # Final EOD hunt: 5:00 PM ET — catches the 4:30-5:00 AMC stragglers
+            # (late reporters, post-close guidance) before the engine goes
+            # quiet for the evening.
+            _scheduler.add_job(_cat_refresh,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="17", minute="0"),
+                kwargs={"hunt": True},
+                id="catalyst_eod_final_hunt", max_instances=1, replace_existing=True)
 
             # Coverage self-audit: 8:15 PM ET weekdays -- after the AMC burst +
             # any post-close moves have settled. Classifies the day's biggest
