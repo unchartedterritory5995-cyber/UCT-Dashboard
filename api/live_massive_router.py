@@ -40,6 +40,8 @@ import time
 import re
 import json
 
+from api.bs_iv import iv_for_row  # F1: per-print implied vol (restored 2026-07-08)
+
 router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
@@ -1240,6 +1242,9 @@ def _row_to_alert(row: dict) -> dict | None:
         "spot": spot if spot > 0 else None,
         "moneynessPct": money_pct,
         "moneynessLabel": money_label,
+        # Black-Scholes implied vol from the print's own price/spot/strike/dte
+        # (F1 — restored 2026-07-08 after a web-UI edit dropped it; kills IV=0).
+        "iv": iv_for_row(price, spot, strike, dte, cp_short),
         "grade": grade,
         "convictionScore": score,
         "gatePassed": True,              # gating not implemented in test phase
@@ -1247,6 +1252,9 @@ def _row_to_alert(row: dict) -> dict | None:
         # Massive-specific extras (useful for debugging / future UI)
         "_color": row["Color"],
         "_side": side,
+        # F2 honesty (restored 2026-07-08): 'measured' from a real NBBO side
+        # (A/AA/B/BB) vs 'presumed' from the empty-side sweep heuristic.
+        "sideConfidence": "measured" if (side or "").strip().upper() in ("A", "AA", "B", "BB") else "presumed",
         "_type": row["Type"],
         "_sector": row["Sector"],
         "_mktCap": _parse_int(row["MktCap"]),
