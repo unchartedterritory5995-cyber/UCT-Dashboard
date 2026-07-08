@@ -368,19 +368,23 @@ def _cap_band_key(mkt_cap, cap_bands: dict) -> str:
     return "mega"
 
 
-def _qualifies_curated(alert: dict, thresholds: dict) -> bool:
+def _qualifies_curated(alert: dict, thresholds: dict,
+                       contract_totals: dict | None = None) -> bool:
     """Apply Curated-mode filter to a single alert.
     Returns True if the alert should be visible in Curated mode.
 
     Rule (for alpha/size/leaps/bullish/bearish tiers):
-      1. Premium MUST meet tier+cap floor (HARD requirement, no skip)
+      1. Premium MUST meet tier+cap floor (HARD requirement)
+         - 7/7 rollup rescue: if the individual event's premium is below
+           the tier floor but the same contract's total premium across the
+           day is above the floor, the individual event is promoted. This
+           fixes the NFLX $77 C 7/31 case (BBS $2.76M total → Massive split
+           into two $0.4M events, each individually failing the $1M Alpha
+           floor). Only applies when contract_totals is passed in.
       2. AND ≥ stack.min_signals of these 3 quality signals must also pass:
             - V/OI ≥ stack.vOI
             - hit count ≥ stack.hit_count
             - grade ≥ stack.grade
-         min_signals=0 → premium alone qualifies
-         min_signals=1 → premium + 1 confirmer (recommended default)
-         min_signals=3 → premium + all confirmers (strictest)
 
     Rule (for unusual tier): own path — premium + V/OI thresholds only
     Rule (for algo tier): always excluded
@@ -424,7 +428,20 @@ def _qualifies_curated(alert: dict, thresholds: dict) -> bool:
         band = _cap_band_key(mkt_cap, cap_bands)
         prem_floor = prem_caps.get(band, 0)
     if prem < prem_floor:
-        return False
+        # 7/7 rollup rescue: check if this contract's daily aggregate crosses
+        # the floor. Only fires when caller passes contract_totals. Rescue
+        # ONLY applies to the premium floor — V/OI required + confirmer count
+        # still have to pass on this individual event. Prevents rollup from
+        # laundering low-conviction fragments through a big-total shell.
+        if contract_totals is not None:
+            key = (f"{alert.get('ticker','')}|{alert.get('cp','')}|"
+                   f"{alert.get('strike','')}|{alert.get('exp','')}")
+            aggregate = contract_totals.get(key, 0)
+            if aggregate < prem_floor:
+                return False
+            # Rescue applies — fall through to remaining checks
+        else:
+            return False
 
     # ─── Optional HARD gate: V/OI (7/7) ───────────────────────────────
     # When admin panel has "V/OI required" ticked, V/OI < stack.vOI is a
@@ -1493,9 +1510,18 @@ def recent_massive_alerts(
     skipped_curated = 0
     if curated:
         thresholds = _load_thresholds()
+        # 7/7: precompute per-contract daily premium totals across ALL uncurated
+        # alerts. Passed into _qualifies_curated so alerts whose individual
+        # premium fails the tier floor can be rescued when the contract's
+        # aggregated total clears it. Fixes NFLX-shape aggregation splitting.
+        contract_totals: dict[str, float] = {}
+        for a in all_alerts:
+            k = (f"{a.get('ticker','')}|{a.get('cp','')}|"
+                 f"{a.get('strike','')}|{a.get('exp','')}")
+            contract_totals[k] = contract_totals.get(k, 0) + (a.get("alertPremium") or 0)
         kept = []
         for a in all_alerts:
-            if _qualifies_curated(a, thresholds):
+            if _qualifies_curated(a, thresholds, contract_totals=contract_totals):
                 kept.append(a)
             else:
                 skipped_curated += 1
