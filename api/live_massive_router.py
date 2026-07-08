@@ -1443,15 +1443,11 @@ def recent_massive_alerts(
         # frontend's Stocks/ETFs toggle can partition them. When disabled
         # (default, today's behavior), only 'stocks' — indexes stay excluded
         # per the 6/26 aggregation-boundary concern documented at file top.
-        # Also include reconcile_* rows so manually-inserted backfills (via
-        # /api/flow-reconcile/insert) actually surface — bug found 7/7 evening
-        # when MSFT/BE/DIS/ARM/WEN reconciles landed in flow.db but were
-        # filtered out by this exact clause.
         etf_enabled = _load_thresholds().get("etf_enabled", False)
         if etf_enabled:
-            source_clause = "(source IN ('stocks','indexes') OR source LIKE 'reconcile_%')"
+            source_clause = "source IN ('stocks','indexes')"
         else:
-            source_clause = "(source = 'stocks' OR source LIKE 'reconcile_%')"
+            source_clause = "source = 'stocks'"
         cur = conn.execute(f"""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
@@ -1749,13 +1745,11 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
         conn.row_factory = sqlite3.Row
         # 7/7: same conditional source clause as /recent so bull/bear card
         # counts stay consistent with the alert stream when ETFs are enabled.
-        # Also picks up reconcile_* rows so backfilled alerts contribute to
-        # day-stats numbers (matches display behavior).
         etf_enabled = _load_thresholds().get("etf_enabled", False)
         if etf_enabled:
-            source_clause = "(source IN ('stocks','indexes') OR source LIKE 'reconcile_%')"
+            source_clause = "source IN ('stocks','indexes')"
         else:
-            source_clause = "(source = 'stocks' OR source LIKE 'reconcile_%')"
+            source_clause = "source = 'stocks'"
         cur = conn.execute(f"""
             SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                    Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
