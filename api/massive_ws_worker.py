@@ -52,16 +52,6 @@ from typing import Optional
 # stays real-time while the event loop never stalls on the write.
 _WRITE_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="massive-write")
 _WRITE_QUEUE_MAX = int(os.environ.get("MASSIVE_WRITE_QUEUE_MAX", "2000"))
-# Drain coalescing (2026-07-08): each _write_events call pays a FIXED cost — 5
-# enrichment passes (metadata/OI/cum-vol/spot/ER, per-symbol overhead) + one
-# insert transaction. Draining one 2s flush-batch at a time made the writer fall
-# behind the open firehose (~60% of ingest → DB clock drifted ~15 min/hr behind
-# wall time → UI staleness grew all day). When the writer is behind, merge all
-# pending batches into ONE write so that fixed cost is amortized across the whole
-# backlog (symbols dedup across the merge). Drain rate then scales with backlog
-# depth and the tape catches back up. Bounds keep any single write sane.
-_WRITE_COALESCE_MAX_EVENTS = int(os.environ.get("MASSIVE_WRITE_COALESCE_EVENTS", "8000"))
-_WRITE_COALESCE_MAX_BATCHES = int(os.environ.get("MASSIVE_WRITE_COALESCE_BATCHES", "400"))
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +182,41 @@ _q_cumulative_premium: dict = {}  # {contract_sym: int premium} — value-weight
                                   # slot budget, since Massive's 1000-cap prevents pool expansion.
 _q_pending_subscribe: list = []   # queued contracts to subscribe (added by event loop)
 _q_pending_unsubscribe: list = [] # queued contracts to unsubscribe (LRU evictions)
+
+# 7/8: Q pool event log — persists subscribe/unsubscribe events to flow.db so
+# we can retroactively answer "was contract X in the pool at time T?" This is
+# diagnostic-only: it doesn't change subscription behavior. Added after 7/7
+# analysis showed the raw OPRA had abundant prints for VRT/ORCL/MSFT gaps
+# (all $2M+ notional), meaning the loss was Q pool coverage. Without this
+# log we can't distinguish "wasn't subscribed at print time" from other
+# causes for future gaps.
+#
+# Buffered in-memory to keep the event loop lock-free; flushed to flow.db in
+# batches by a dedicated background task. Table is created lazily on first
+# flush (idempotent CREATE TABLE IF NOT EXISTS).
+_q_pool_event_log: list = []  # [(ts_unix, action, occ, reason, pool_size_after, evicted_for)]
+_Q_POOL_LOG_MAX_BUFFER = 5000  # drop oldest if writer falls behind — diagnostic, not authoritative
+
+
+def _log_q_event(action: str, occ: str, reason: str = None,
+                 pool_size_after: int = None, evicted_for: str = None) -> None:
+    """Append a Q pool subscription event to the in-memory buffer.
+
+    action: 'sub' | 'unsub' | 'warmstart'
+    occ:    OCC symbol (e.g. 'O:VRT260821P00330000')
+    reason: 'demand' | 'eviction' | 'startup' | 'session_reset'
+    pool_size_after: len(_q_subscribed) after this event applied
+    evicted_for: if action='unsub' and reason='eviction', the OCC that took this slot
+
+    Hot-path call — must not do I/O or acquire locks. Just appends to a list.
+    Background task drains and writes to flow.db.
+    """
+    entry = (time.time(), action, occ, reason, pool_size_after, evicted_for)
+    _q_pool_event_log.append(entry)
+    # Cap the buffer so a stalled writer can't grow it unboundedly. Drop
+    # oldest since newer events are more diagnostically valuable.
+    if len(_q_pool_event_log) > _Q_POOL_LOG_MAX_BUFFER:
+        del _q_pool_event_log[:len(_q_pool_event_log) - _Q_POOL_LOG_MAX_BUFFER]
 
 # Phase 2f: on-demand OI fetch queue. The flusher adds contracts that miss
 # the 2-stage snapshot+flow lookup; a background task drains the queue and
@@ -1541,6 +1566,11 @@ async def _run_session(ws):
         now_ns = time.time_ns()
         for sym in warm:
             _q_last_seen[sym] = now_ns
+        # 7/8: log warm-start subscriptions to Q pool event log for future
+        # gap diagnosis. Pool size is len(warm) since we cleared _q_subscribed
+        # in reset before this block.
+        for sym in warm:
+            _log_q_event('warmstart', sym, reason='startup', pool_size_after=len(warm))
         _state["q_subscribed_count"] = len(_q_subscribed)
         _state["q_subscribes_sent"] = (len(warm) + BATCH - 1) // BATCH
         logger.info(
@@ -1578,33 +1608,12 @@ async def _run_session(ws):
                 if stop_event.is_set() and write_queue.empty():
                     break
                 continue
-            # Coalesce any batches already waiting behind this one into a single
-            # write so the fixed per-write enrichment+insert cost is amortized
-            # across the backlog (see _WRITE_COALESCE_* above). No-op at steady
-            # state (queue near-empty); kicks in only when the writer is behind.
-            drained = 1
-            events = list(events) if events else []
-            while (len(events) < _WRITE_COALESCE_MAX_EVENTS
-                   and drained < _WRITE_COALESCE_MAX_BATCHES):
-                try:
-                    more = write_queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    break
-                if more:
-                    events.extend(more)
-                drained += 1
             try:
-                if events:
-                    await loop.run_in_executor(_WRITE_EXECUTOR, _write_events, events)
+                await loop.run_in_executor(_WRITE_EXECUTOR, _write_events, events)
             except Exception as e:
                 logger.warning("[massive-ws] writer batch failed: %s", e)
             finally:
-                for _ in range(drained):
-                    write_queue.task_done()
-                # Telemetry so the drain can be watched: depth should sit near 0
-                # once caught up; a persistently rising depth = writer behind.
-                _state["write_queue_depth"] = write_queue.qsize()
-                _state["last_write_drained_batches"] = drained
+                write_queue.task_done()
 
     async def flusher():
         while not stop_event.is_set():
@@ -1677,6 +1686,13 @@ async def _run_session(ws):
                     _state["q_unsubscribes_sent"] += 1
                     logger.info("[massive-ws] Q.unsubscribed %d contracts "
                                 "(pool now %d)", len(unsubs), len(_q_subscribed))
+                    # 7/8: log confirmed unsubscribes for gap diagnosis. Reason
+                    # is always 'eviction' at this point — the only path that
+                    # queues to _q_pending_unsubscribe is eviction in
+                    # _queue_q_subscriptions_for_events.
+                    for _u in unsubs:
+                        _log_q_event('unsub', _u, reason='eviction',
+                                     pool_size_after=len(_q_subscribed))
                 except Exception as e:
                     logger.warning("[massive-ws] Q unsubscribe failed: %s", e)
                     # On failure, leave the contract in our local set so we
@@ -1694,6 +1710,13 @@ async def _run_session(ws):
                     _state["q_subscribes_sent"] += 1
                     logger.info("[massive-ws] Q.subscribed %d contracts "
                                 "(pool now %d)", len(subs), len(_q_subscribed))
+                    # 7/8: log confirmed subscribes. Reason is 'demand' because
+                    # subscribes queue via _queue_q_subscriptions_for_events
+                    # from emitted events. Warm-start doesn't go through this
+                    # path (it does its own send + log).
+                    for _s in subs:
+                        _log_q_event('sub', _s, reason='demand',
+                                     pool_size_after=len(_q_subscribed))
                 except Exception as e:
                     logger.warning("[massive-ws] Q subscribe failed: %s", e)
             _state["q_subscribed_count"] = len(_q_subscribed)
@@ -2034,12 +2057,89 @@ async def _run_session(ws):
                     logger.debug("[massive-ws] WATCHDOG ws.close error: %s", e)
                 return  # exit watchdog; outer loop will reconnect
 
+    async def q_pool_log_flusher():
+        """7/8: drain _q_pool_event_log buffer to flow.db every 15 sec.
+
+        Diagnostic-only — persists Q pool subscribe/unsubscribe events so
+        we can retroactively answer "was contract X in the pool at time T?"
+        Zero impact on subscription behavior.
+
+        Uses asyncio.to_thread for the DB write so the sqlite call doesn't
+        block the event loop. Batches all pending events into a single
+        multi-row INSERT for efficiency (typical batch: 10-200 rows).
+
+        Table schema (created lazily on first flush, idempotent):
+            id INTEGER PRIMARY KEY,
+            ts_unix REAL,          -- Unix timestamp of the event
+            action TEXT,           -- 'sub' | 'unsub' | 'warmstart'
+            occ TEXT,              -- OCC symbol
+            reason TEXT,           -- 'demand' | 'eviction' | 'startup'
+            pool_size_after INT,   -- len(_q_subscribed) after event applied
+            evicted_for TEXT       -- OCC that took this slot (unsub only)
+        """
+        import sqlite3
+        db_path = FlowDB().db_path
+        # Table creation runs once and is idempotent
+        try:
+            def _init():
+                with sqlite3.connect(db_path, timeout=10) as conn:
+                    conn.execute("""
+                        CREATE TABLE IF NOT EXISTS q_pool_events (
+                            id INTEGER PRIMARY KEY,
+                            ts_unix REAL NOT NULL,
+                            action TEXT NOT NULL,
+                            occ TEXT NOT NULL,
+                            reason TEXT,
+                            pool_size_after INTEGER,
+                            evicted_for TEXT
+                        )
+                    """)
+                    conn.execute("CREATE INDEX IF NOT EXISTS ix_qpe_ts "
+                                 "ON q_pool_events(ts_unix)")
+                    conn.execute("CREATE INDEX IF NOT EXISTS ix_qpe_occ_ts "
+                                 "ON q_pool_events(occ, ts_unix)")
+                    conn.commit()
+            await asyncio.to_thread(_init)
+            logger.info("[massive-ws] q_pool_events table ready")
+        except Exception as e:
+            logger.warning("[massive-ws] q_pool_events table init failed "
+                           "(non-fatal, will retry): %s", e)
+
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=15.0)
+            except asyncio.TimeoutError:
+                pass
+            else:
+                # Teardown — try one final flush so we don't lose the tail
+                pass
+            if not _q_pool_event_log:
+                continue
+            # Snapshot and clear so the hot path can keep appending
+            batch = _q_pool_event_log[:]
+            del _q_pool_event_log[:len(batch)]
+            try:
+                def _flush(rows):
+                    with sqlite3.connect(db_path, timeout=10) as conn:
+                        conn.executemany(
+                            "INSERT INTO q_pool_events "
+                            "(ts_unix, action, occ, reason, pool_size_after, evicted_for) "
+                            "VALUES (?, ?, ?, ?, ?, ?)",
+                            rows,
+                        )
+                        conn.commit()
+                await asyncio.to_thread(_flush, batch)
+            except Exception as e:
+                logger.warning("[massive-ws] q_pool_events flush failed "
+                               "(%d events dropped): %s", len(batch), e)
+
     flusher_task = asyncio.create_task(flusher())
     writer_task = asyncio.create_task(writer())
     q_mgr_task = asyncio.create_task(q_subscription_manager())
     oi_mgr_task = asyncio.create_task(oi_fetch_manager())
     spot_mgr_task = asyncio.create_task(spot_fetch_manager())
     watchdog_task = asyncio.create_task(stale_connection_watchdog())
+    q_log_flusher_task = asyncio.create_task(q_pool_log_flusher())
 
     try:
         async for msg in ws:
@@ -2148,6 +2248,11 @@ async def _run_session(ws):
         try:
             watchdog_task.cancel()
             await watchdog_task
+        except (Exception, asyncio.CancelledError):
+            pass
+        try:
+            q_log_flusher_task.cancel()
+            await q_log_flusher_task
         except (Exception, asyncio.CancelledError):
             pass
         # Final flush so we don't lose the last few seconds on disconnect
