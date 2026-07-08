@@ -36,7 +36,7 @@ const P = {
 // Bridge 2026-07-01: bumped from 5000 -> 20000 while flow.db query perf
 // (diagnostic 43s for 11K rows) is being addressed. Restore to 5000 once
 // /api/live/massive/recent returns to sub-second on the DB side.
-const POLL_INTERVAL_MS = 5000;  // 5s tape refresh (was 20s → prints arrived in chunks); paired with the /recent micro-cache (6s TTL) so faster polling doesn't add DB load
+const POLL_INTERVAL_MS = 20000;  // 20s (reverted from 5s 2026-07-08): the 5s cadence 4x'd concurrent /recent handler builds (limit=20000 = ~34K-row responses in memory), piling up anyio workers + ballooning RSS → tipped the pre-existing thread burst into OOM crashes. Restore true-instant later via SSE + a capped response, not fast polling.
 // Default cap on alerts in the live feed. Backend supports up to 20000.
 // "All" (20000) is the correct default — curated view has only ~80-150
 // rows/day so rendering all of them is instant, and the All-Flow view
