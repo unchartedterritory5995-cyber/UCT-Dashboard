@@ -106,7 +106,6 @@ from api.gex_router import router as gex_router
 from api.dealer_positioning_router import router as dealer_positioning_router
 from api.watchlist_router import router as watchlist_router
 from api import watchlist_tracker as _watchlist_tracker
-from api.flow_reconcile_router import router as flow_reconcile_router
 
 _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 
@@ -776,14 +775,6 @@ async def lifespan(app: FastAPI):
         _start_thread_burst_watch()
     except Exception as e:
         print(f"[startup] thread-burst watch failed to start (non-fatal): {e}")
-
-    # Record this web deploy (P5 decision evidence — how often do we redeploy
-    # web during market hours? see api/deploy_log.py). Best-effort.
-    try:
-        from api import deploy_log
-        deploy_log.record_boot()
-    except Exception as e:
-        print(f"[startup] deploy_log.record_boot failed (non-fatal): {e}")
 
     try:
         _init_auth_db()
@@ -2922,19 +2913,6 @@ def health_threads():
     return _thread_groups()
 
 
-@app.get("/api/admin/deploy-log")
-def admin_deploy_log(full: bool = False):
-    """P5 decision evidence: how often does web redeploy during market hours?
-    Summary by default; ?full=1 for the raw per-boot records. No-auth read
-    (matches the other /api/admin/*-status probes; contains only deploy
-    timestamps + commit SHAs)."""
-    from api import deploy_log
-    out = {"summary": deploy_log.summarize()}
-    if full:
-        out["records"] = deploy_log.get_log(limit=500)
-    return out
-
-
 @app.get("/api/health/cache")
 def health_cache():
     from api.services.data_sync import get_local_sync_state
@@ -2965,20 +2943,6 @@ app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
 app.include_router(sector_strength_router.router)
-# P5 (dark): when FLOW_READS_PROXY_ENABLED=1 + WORKER_INTERNAL_URL are set, the
-# Massive OPRA consumer + flow.db live on the WORKER, so forward every flow-family
-# read/upload path to the worker over private networking. Registered BEFORE the
-# local flow routers so its catch-alls win; flag off = not registered = web serves
-# locally exactly as today. Import is local so a bad env can't affect module load.
-from api import flow_proxy as _flow_proxy
-# Gate on BOTH the flag AND a configured worker URL: a half-applied env (flag on,
-# URL missing = cutover not finished) is then a no-op and web keeps serving flow
-# locally — instead of 503-ing every flow endpoint while local flow.db is healthy.
-if _flow_proxy.PROXY_ENABLED and _flow_proxy.WORKER_INTERNAL_URL:
-    app.include_router(_flow_proxy.build_flow_proxy_router())
-    logging.getLogger("uvicorn.error").info(
-        "[flow-proxy] ENABLED -> forwarding flow reads to %s", _flow_proxy.WORKER_INTERNAL_URL)
-
 app.include_router(top_flow_router)
 app.include_router(flow_scoreboard_router)
 app.include_router(flow_explain_router)
@@ -3033,7 +2997,6 @@ app.include_router(notable_flow_router)
 app.include_router(liveflow_router)
 app.include_router(liveflow_health_router)
 app.include_router(live_massive_router)
-app.include_router(flow_reconcile_router)
 app.include_router(alert_tester_router)
 app.include_router(csv_ingest_router)
 app.include_router(darkpool_router)
