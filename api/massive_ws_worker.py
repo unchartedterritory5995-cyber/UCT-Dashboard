@@ -2078,6 +2078,7 @@ async def _run_session(ws):
             evicted_for TEXT       -- OCC that took this slot (unsub only)
         """
         import sqlite3
+        from api.flow_db import FlowDB
         db_path = FlowDB().db_path
         # Table creation runs once and is idempotent
         try:
