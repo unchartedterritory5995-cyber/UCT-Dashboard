@@ -78,6 +78,10 @@
 
 .table {
   width: 100%;
+  /* Fixed layout is load-bearing: with auto layout the long catalyst text
+     blew the table wider than the tile → horizontal scroll that hid the
+     When column. Fixed columns force the text to wrap inside its cell. */
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
   font-family: var(--font-sans);
@@ -107,25 +111,42 @@
 .table tr:last-child td { border-bottom: none; }
 .table tr:hover { background: var(--bg-hover, rgba(255,255,255,0.02)); }
 
-.colSym     { width: 104px; white-space: nowrap; }
+.colSym     { width: 118px; white-space: nowrap; }
 
 .symCell {
   display: flex;
   align-items: center;
   gap: 7px;
 }
-.colPrice   { width: 80px; white-space: nowrap; }
-.colGap     { width: 80px; font-weight: 600; white-space: nowrap; }
-.colVol     { width: 70px; white-space: nowrap; }
-.colTag     { width: 100px; white-space: nowrap; }
+.colPrice   { width: 72px; white-space: nowrap; }
+.colGap     { width: 88px; font-weight: 600; white-space: nowrap; }
+.colVol     { width: 56px; white-space: nowrap; }
 .colThesis  { width: auto; line-height: 1.5; }
 .colUpdated {
-  width: 110px;
+  width: 96px;
   white-space: nowrap;
   font-size: 10px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+/* Stacked ET timestamp: time over short date (date line hidden when today). */
+.whenStack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.whenTime {
+  font-size: 11px;
+  color: var(--ut-cream, #e8e2d4);
+  opacity: 0.85;
+}
+.whenDay {
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  opacity: 0.6;
 }
 .fallbackTime {
   /* Dimmed + italicized when we don't have a real source timestamp
@@ -355,37 +376,14 @@
 .tagNews     { background: rgba(180, 180, 180, 0.12); color: #cbd5e1; }
 .tagDefault  { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 
-/* Catalyst strength grade — letter badge next to the tag */
-.gradeBadge {
-  display: inline-block;
-  margin-left: 5px;
-  min-width: 16px;
-  padding: 1px 5px;
-  border-radius: 5px;
-  font-size: 10px;
-  font-weight: 700;
-  text-align: center;
-  vertical-align: middle;
-}
-.gradeA { background: rgba(74, 222, 128, 0.18); color: #4ade80; border: 1px solid rgba(74,222,128,0.4); }
-.gradeB { background: rgba(251, 191, 36, 0.16); color: #fbbf24; border: 1px solid rgba(251,191,36,0.35); }
-.gradeC { background: rgba(160, 160, 160, 0.14); color: #9ca3af; border: 1px solid rgba(160,160,160,0.3); }
-
-/* "NEW" badge — fresh catalyst first surfaced today (r.is_new) */
-.newBadge {
-  display: inline-block;
-  margin-right: 5px;
-  padding: 1px 5px;
-  border-radius: 5px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  text-align: center;
-  vertical-align: middle;
-  background: rgba(34, 197, 94, 0.16);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.4);
+/* Quiet "new today" dot beside the ticker (replaces the per-row NEW badge). */
+.newDot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
 }
 
 /* PRE-MOVE: confirmed catalyst not yet moving. Gold to read as "watch this",
@@ -433,20 +431,35 @@
   border: 1px solid rgba(160, 160, 160, 0.35);
 }
 
-/* Catalyst type chip — small label leading the thesis text */
-.typeChip {
-  display: inline-block;
-  margin-right: 6px;
-  padding: 1px 6px;
+/* Lead chip — the row's ONE badge: catalyst type (or tag bucket) + grade
+   fused into a single unit leading the thesis text. */
+.leadChip {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  margin-right: 7px;
+  padding: 1.5px 7px;
   border-radius: 6px;
   font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
-  background: rgba(201, 168, 76, 0.13);
+  background: rgba(201, 168, 76, 0.12);
+  border: 1px solid rgba(201, 168, 76, 0.28);
   color: var(--ut-gold, #c9a84c);
-  vertical-align: middle;
+  vertical-align: -2.5px;
 }
+.leadGrade {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid rgba(201, 168, 76, 0.35);
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 1;
+}
+.leadGradeA { color: #4ade80; }
+.leadGradeB { color: #fbbf24; }
+.leadGradeC { color: #9ca3af; }
 
 /* 👍 / 👎 feedback buttons — trains the engine on what's lame */
 .feedbackWrap {
@@ -477,7 +490,7 @@
 }
 .thesisToggle {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   width: 100%;
   background: none;
@@ -489,26 +502,31 @@
   font: inherit;
   cursor: pointer;
 }
-.thesisHeadline {
+.thesisText {
   flex: 1 1 auto;
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.55;
   color: var(--ut-cream, #e8e2d4);
+  overflow-wrap: anywhere;
+}
+/* Collapsed: the catalyst wraps to two full lines then ellipses — readable in
+   place, instead of the old nowrap headline that forced horizontal scroll. */
+.thesisClamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .thesisChevron {
   flex: 0 0 auto;
   margin-left: auto;
+  margin-top: 3px;
   color: var(--text-muted);
   opacity: 0.6;
   transition: opacity 0.12s;
 }
 .thesisToggle:hover .thesisChevron { opacity: 1; }
-.thesisToggle:hover .thesisHeadline { color: #fff; }
-.thesisFull {
-  line-height: 1.5;
-}
+.thesisToggle:hover .thesisText { color: #fff; }
 .thesisActions {
   display: flex;
   align-items: center;
@@ -578,12 +596,17 @@
   .colVol  { font-size: 12px; color: var(--text-muted); }
   .colVol::before { content: 'Vol '; opacity: 0.6; }
 
-  .colTag    { display: block; width: auto; margin: 6px 0 4px; }
-  .colThesis { display: block; width: auto; font-size: 13px; line-height: 1.55; }
+  /* Sector banner: badge over summary — side-by-side starves the text column */
+  .sectorBanner { flex-direction: column; gap: 6px; }
+
+  .colThesis { display: block; width: auto; margin-top: 6px; font-size: 13px; line-height: 1.55; }
+  .thesisClamp { -webkit-line-clamp: 3; }
   .colUpdated {
     display: block; width: auto; text-align: left;
     margin-top: 6px; font-size: 10px;
   }
+  /* Time reads inline on cards: "9:32 AM · Jul 7" */
+  .colUpdated .whenStack { flex-direction: row; align-items: baseline; gap: 6px; }
 
   /* ── Touch tap-targets ── */
   /* Filter chips: scrollable strip so they never clip; comfortable height */

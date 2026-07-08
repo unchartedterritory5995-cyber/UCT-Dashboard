@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import useCatalysts from '../../hooks/useCatalysts'
 import useUserTickerSet from '../../hooks/useUserTickerSet'
 import useLivePrices from '../../hooks/useLivePrices'
-import HighlightThesis, { thesisHeadline } from '../../utils/highlightThesis'
-import { timeAgo, formatET } from '../../utils/timeAgo'
+import HighlightThesis from '../../utils/highlightThesis'
+import { timeAgo } from '../../utils/timeAgo'
 import TickerPopup from '../TickerPopup'
 import CompanyLogo from '../CompanyLogo'
 import { useAuth } from '../../context/AuthContext'
@@ -37,31 +37,34 @@ function TagChip({ tag, active, onClick, count }) {
   )
 }
 
-function RowTagChip({ tag }) {
-  const cls = {
-    Catalyst: styles.tagCatalyst,
-    Earnings: styles.tagEarnings,
-    Gapper:   styles.tagGapper,
-    News:     styles.tagNews,
-  }[tag] || styles.tagDefault
-  return <span className={`${styles.tag} ${cls}`}>{tag || '—'}</span>
-}
-
-function NewBadge({ isNew }) {
+// Fresh-today marker — a quiet dot beside the ticker instead of a per-row NEW
+// badge (on a busy morning every row is new, so a badge column was pure noise).
+function NewDot({ isNew }) {
   if (!isNew) return null
-  return (
-    <span className={styles.newBadge} title="New catalyst — first surfaced today">
-      NEW
-    </span>
-  )
+  return <span className={styles.newDot} role="img" aria-label="New today" title="First surfaced today" />
 }
 
-function GradeBadge({ grade }) {
-  if (!grade) return null
-  const cls = { A: styles.gradeA, B: styles.gradeB, C: styles.gradeC }[grade] || styles.gradeB
+// Compact ET timestamp, stacked: "9:32 AM" over "Jul 7" (day line only when
+// not today) — narrow enough that the When column always stays on-screen.
+const _ET_TIME = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })
+const _ET_DAY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' })
+const _ET_YMD = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
+
+function tsToMs(ts) {
+  if (ts == null || ts === '') return null
+  const ms = typeof ts === 'number' ? (ts < 1e12 ? ts * 1000 : ts) : new Date(ts).getTime()
+  return Number.isNaN(ms) ? null : ms
+}
+
+function WhenStack({ ts, dimmed }) {
+  const ms = tsToMs(ts)
+  if (ms == null) return '—'
+  const d = new Date(ms)
+  const sameDay = _ET_YMD.format(d) === _ET_YMD.format(new Date())
   return (
-    <span className={`${styles.gradeBadge} ${cls}`} title={`Catalyst strength: grade ${grade}`}>
-      {grade}
+    <span className={`${styles.whenStack} ${dimmed ? styles.fallbackTime : ''}`}>
+      <span className={styles.whenTime}>{_ET_TIME.format(d)}</span>
+      {!sameDay && <span className={styles.whenDay}>{_ET_DAY.format(d)}</span>}
     </span>
   )
 }
@@ -86,12 +89,21 @@ function PreMoveChip({ preMove }) {
   )
 }
 
-function TypeChip({ type }) {
-  if (!type || type === 'None') return null
-  const icon = TYPE_ICONS[type]
+// ONE chip per row: catalyst type (falling back to the tag bucket) fused with
+// the strength grade — replaces the old Tag chip + Grade badge + Type chip
+// pile-up that made rows read as a wall of badges.
+function LeadChip({ type, tag, grade }) {
+  const label = type && type !== 'None' ? type : (tag || null)
+  if (!label && !grade) return null
+  const icon = label ? TYPE_ICONS[label] : null
+  const gradeCls = { A: styles.leadGradeA, B: styles.leadGradeB, C: styles.leadGradeC }[grade] || styles.leadGradeC
+  const title = [label ? `Catalyst type: ${label}` : null, grade ? `strength grade ${grade}` : null]
+    .filter(Boolean).join(' · ')
   return (
-    <span className={styles.typeChip} title="Catalyst type">
-      {icon ? <UIcon name={icon} size={12} style={{ marginRight: 4, verticalAlign: '-1px' }} /> : null}{type}
+    <span className={styles.leadChip} title={title}>
+      {icon ? <UIcon name={icon} size={11} style={{ marginRight: 4, verticalAlign: '-1.5px' }} /> : null}
+      {label}
+      {grade ? <span className={`${styles.leadGrade} ${gradeCls}`}>{grade}</span> : null}
     </span>
   )
 }
@@ -382,7 +394,6 @@ export default function CatalystTable() {
       case 'price':     return (live?.price != null ? live.price : row.price) ?? 0
       case 'change':    return (live?.change_pct != null ? live.change_pct : row.gap_pct) ?? 0
       case 'volx':      return row.vol_x ?? 0
-      case 'tag':       return row.tag || ''
       case 'when':      return row.catalyst_at ?? row.thesis_at ?? 0
       default:          return row.rank ?? 999
     }
@@ -566,9 +577,8 @@ export default function CatalystTable() {
                 <SortableTh col="price"  className={styles.colPrice}   sortBy={sortBy} onSort={toggleSort}>Price</SortableTh>
                 <SortableTh col="change" className={styles.colGap}     sortBy={sortBy} onSort={toggleSort}>% Change</SortableTh>
                 <SortableTh col="volx"   className={styles.colVol}     sortBy={sortBy} onSort={toggleSort}>Vol×</SortableTh>
-                <SortableTh col="tag"    className={styles.colTag}     sortBy={sortBy} onSort={toggleSort}>Tag</SortableTh>
                 <th className={styles.colThesis}>Catalyst</th>
-                <SortableTh col="when"   className={styles.colUpdated} sortBy={sortBy} onSort={toggleSort}>When</SortableTh>
+                <SortableTh col="when"   className={styles.colUpdated} sortBy={sortBy} onSort={toggleSort}>When · ET</SortableTh>
               </tr>
             </thead>
             <tbody>
@@ -596,6 +606,7 @@ export default function CatalystTable() {
                             {r.ticker}
                           </span>
                         </TickerPopup>
+                        <NewDot isNew={r.is_new} />
                       </span>
                     </td>
                     <td className={styles.colPrice}>{fmtPrice(displayPrice)}</td>
@@ -603,12 +614,6 @@ export default function CatalystTable() {
                       {fmtPct(displayChange)}
                     </td>
                     <td className={styles.colVol}>{fmtVolX(r.vol_x)}</td>
-                    <td className={styles.colTag}>
-                      <NewBadge isNew={r.is_new} />
-                      <PreMoveChip preMove={r.pre_move} />
-                      <RowTagChip tag={r.tag} />
-                      <GradeBadge grade={r.grade} />
-                    </td>
                     <td className={styles.colThesis}>
                       {(() => {
                         const isExp = expanded.has(r.ticker)
@@ -621,13 +626,12 @@ export default function CatalystTable() {
                               aria-expanded={isExp}
                               title={isExp ? 'Collapse' : 'Show full catalyst'}
                             >
-                              <TypeChip type={r.catalyst_type} />
-                              <RatingChangeChip rc={r.rating_change} />
-                              {!isExp && (
-                                <span className={styles.thesisHeadline}>
-                                  {thesisHeadline(r.thesis_text)}
-                                </span>
-                              )}
+                              <span className={`${styles.thesisText} ${isExp ? '' : styles.thesisClamp}`}>
+                                <LeadChip type={r.catalyst_type} tag={r.tag} grade={r.grade} />
+                                <PreMoveChip preMove={r.pre_move} />
+                                <RatingChangeChip rc={r.rating_change} />
+                                <HighlightThesis text={r.thesis_text} />
+                              </span>
                               <UIcon
                                 name={isExp ? 'chevronDown' : 'chevronRight'}
                                 size={13}
@@ -636,17 +640,14 @@ export default function CatalystTable() {
                               />
                             </button>
                             {isExp && (
-                              <div className={styles.thesisFull}>
-                                <HighlightThesis text={r.thesis_text} />
-                                <div className={styles.thesisActions}>
-                                  <CitationsPopover sources={parseSources(r.thesis_sources)} />
-                                  <FeedbackButtons
-                                    ticker={r.ticker}
-                                    marketDate={marketDate}
-                                    verdict={votes[r.ticker]}
-                                    onVote={vote}
-                                  />
-                                </div>
+                              <div className={styles.thesisActions}>
+                                <CitationsPopover sources={parseSources(r.thesis_sources)} />
+                                <FeedbackButtons
+                                  ticker={r.ticker}
+                                  marketDate={marketDate}
+                                  verdict={votes[r.ticker]}
+                                  onVote={vote}
+                                />
                               </div>
                             )}
                           </div>
@@ -659,9 +660,7 @@ export default function CatalystTable() {
                         ? `Catalyst occurred ${timeAgo(r.catalyst_at)}\nSynthesized ${r.thesis_at ? timeAgo(r.thesis_at) : '—'}`
                         : (r.thesis_at ? `Synthesized ${timeAgo(r.thesis_at)} (no source timestamp)` : 'No data yet')}
                     >
-                      {r.catalyst_at
-                        ? formatET(r.catalyst_at)
-                        : (r.thesis_at ? <span className={styles.fallbackTime}>{formatET(r.thesis_at)}</span> : '—')}
+                      <WhenStack ts={r.catalyst_at ?? r.thesis_at} dimmed={!r.catalyst_at && !!r.thesis_at} />
                     </td>
                   </tr>
                 )
