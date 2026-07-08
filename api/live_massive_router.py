@@ -1242,9 +1242,11 @@ def _row_to_alert(row: dict) -> dict | None:
         "spot": spot if spot > 0 else None,
         "moneynessPct": money_pct,
         "moneynessLabel": money_label,
-        # Black-Scholes implied vol from the print's own price/spot/strike/dte
-        # (F1 — restored 2026-07-08 after a web-UI edit dropped it; kills IV=0).
-        "iv": iv_for_row(price, spot, strike, dte, cp_short),
+        # IV placeholder — the Black-Scholes solve is DEFERRED to the returned
+        # slice in /recent (below). _row_to_alert runs over EVERY scanned row
+        # (up to 100K in curated mode); computing IV here made /recent time out
+        # by midday (7/8). None here; filled for the ≤limit returned rows only.
+        "iv": None,
         "grade": grade,
         "convictionScore": score,
         "gatePassed": True,              # gating not implemented in test phase
@@ -1595,6 +1597,13 @@ def recent_massive_alerts(
         all_alerts = deduped
 
     alerts = all_alerts[:limit]
+
+    # F1 IV: compute Black-Scholes implied vol on the RETURNED slice only
+    # (≤limit rows) — never in _row_to_alert, which runs over the full scan
+    # (up to 100K rows in curated mode → /recent timed out midday 7/8).
+    for a in alerts:
+        a["iv"] = iv_for_row(a.get("averageFillPrice"), a.get("spot"),
+                             a.get("strike"), a.get("dte"), a.get("cp"))
 
     status = _get_worker_status()
     status["query_date"] = today
