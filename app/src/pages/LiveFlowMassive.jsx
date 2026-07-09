@@ -65,7 +65,7 @@ const STREAM_RECONCILE_MS = 60000;
 // they ALWAYS include every classifiable alert regardless of this setting.
 const ROW_LIMIT_OPTIONS = [500, 1000, 2000, 5000, "All"];
 const ROW_LIMIT_DEFAULT = "All";
-const ROW_LIMIT_ALL_VALUE = 20000;  // sent to backend when user picks "All"
+const ROW_LIMIT_ALL_VALUE = 1200;  // "All" cap (2026-07-09): scanning for 20K classified rows among ~400K mostly-WHITE rows at midday timed out /recent (30s+). With SSE streaming, the snapshot only needs recent history; new prints arrive live. Backend also caps sql_limit as a hard floor.
 // LS key bumped v2→v3 on 7/8: prior stored 500/1000/2000 would override
 // the new "All" default and re-truncate morning alerts silently. Third
 // bump this session — pattern: any default change that reduces truncation
