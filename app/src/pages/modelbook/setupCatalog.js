@@ -48,9 +48,8 @@ export const FAMILY_CHIP = {
 export const SETUP_CATALOG = [
   // ── Bases & Breakouts ──────────────────────────────────────────────────────
   {
-    // Flat Top Breakout merged with VCP — same family of base breakout. Keeps
-    // the Flat Top write-up but adopts the VCP contraction glyph.
-    name: 'Flat Top Breakout (VCP)',
+    // Flat Base Breakout — base breakout with a VCP-style contraction glyph.
+    name: 'Flat Base Breakout',
     family: 'Bases & Breakouts',
     direction: 'long',
     essence: 'A coiling price structure where each pullback is smaller than the last, reflecting drying-up selling pressure and compressed volatility before the move through resistance.',
@@ -137,15 +136,15 @@ export const SETUP_CATALOG = [
     candles: [0.4, -0.3, 0.5, -0.6, 0.4, -0.4, 0.3, [14, 2, 0.3, 4], 3.5, [2.5, 0, 0.3]],
   },
   {
-    name: 'Delayed Episodic Pivot',
+    name: 'Power Earnings Gap',
     family: 'Gaps & Catalysts',
     direction: 'long',
-    essence: 'The catalyst gap that digests sideways for days first — the delayed breakout is the entry the crowd misses.',
-    candles: [-0.4, 0.5, -0.5, 0.4, [10, 1.5, 0.3, 4], -1.2, 0.8, -0.6, 0.5, [7.5, 0, 0, 1]],
-    pivot: { idx: 4, side: 'h' },
+    essence: 'Blowout numbers gap the stock above its base on huge volume — institutions repricing in real time.',
+    candles: [0.5, -0.4, 0.8, -0.6, 0.7, -0.5, 0.6, [11, 1, 0.4], 2.5, [3, 0, 0]],
+    pivot: { idx: 2, side: 'h' },
   },
   {
-    name: 'News/Catalyst Gapper',
+    name: 'News/Earnings Gapper',
     family: 'Gaps & Catalysts',
     direction: 'long',
     essence: 'A headline-driven gap that holds its range — traded off the first pullback and reclaim.',
@@ -153,12 +152,12 @@ export const SETUP_CATALOG = [
     pivot: { idx: 5, side: 'h' },
   },
   {
-    name: 'Power Earnings Gap',
+    name: 'High Volume Edge',
     family: 'Gaps & Catalysts',
     direction: 'long',
-    essence: 'Blowout numbers gap the stock above its base on huge volume — institutions repricing in real time.',
-    candles: [0.5, -0.4, 0.8, -0.6, 0.7, -0.5, 0.6, [11, 1, 0.4], 2.5, [3, 0, 0]],
-    pivot: { idx: 2, side: 'h' },
+    essence: 'A surge on the highest volume in the lookback, closing strong — that day’s close becomes the pivot price must defend.',
+    candles: [0.6, -0.5, 1, -0.8, 0.6, [9, 0.8, 0.5], -1, 0.8, -0.6, [5, 0, 0.4, 0.8]],
+    pivot: { idx: 5, side: 'c' },
   },
   {
     name: 'Gap Support',
@@ -174,22 +173,6 @@ export const SETUP_CATALOG = [
     direction: 'long',
     essence: 'The prior day closes weak, looking broken — then a catalyst gaps it up to close above that day’s high, trapping shorts.',
     candles: [1, -1.5, -2, -2.5, -3, -2, -2.8, [9, 1.5, 0.3], 2.5, [4, 0, 0]],
-  },
-  {
-    name: 'HVC (High Volume Close)',
-    family: 'Gaps & Catalysts',
-    direction: 'long',
-    essence: 'A surge on the highest volume in the lookback, closing strong — that day’s close becomes the pivot price must defend.',
-    candles: [0.6, -0.5, 1, -0.8, 0.6, [9, 0.8, 0.5], -1, 0.8, -0.6, [5, 0, 0.4, 0.8]],
-    pivot: { idx: 5, side: 'c' },
-  },
-  {
-    name: 'Delayed Earnings Reaction',
-    family: 'Gaps & Catalysts',
-    direction: 'long',
-    essence: 'Strong earnings, but a muted first reaction — the real move arrives days later as institutions finish digesting the report.',
-    candles: [0.4, 0.5, -0.4, 0.4, [2.5, 1.5, 1], -0.6, 0.5, -0.4, 8, [3.5, 0, 0.3]],
-    pivot: { idx: 4, side: 'h' },
   },
 
   // ── Reversals & Reclaims ───────────────────────────────────────────────────

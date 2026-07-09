@@ -71,7 +71,7 @@ export const SETUP_PLAYBOOKS = {
     ],
   },
 
-  'Flat Top Breakout (VCP)': {
+  'Flat Base Breakout': {
     intro:
       'One of the most common and effective continuation patterns the community trades. ' +
       'The shorthand is “1 tap, 2 tap, 3 tap, breakout” — price repeatedly tests a flat ' +
