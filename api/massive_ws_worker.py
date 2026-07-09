@@ -1186,27 +1186,37 @@ def _load_cumulative_volume(events: list) -> dict:
         if key not in contracts:
             contracts[key] = strike_strs
 
-    # Query FlowDB for day-to-date cumulative volume per contract
+    # Query FlowDB for day-to-date cumulative volume -- ONE batched GROUP BY.
+    # WAS a SUM(Volume) query PER CONTRACT (docstring assumed 50 events/30
+    # contracts). At the open with coalesced batches that's THOUSANDS of scans
+    # over the growing 400K-row flow table per write -> 72s blocking writes, the
+    # writer fell minutes behind wall (2026-07-09). One grouped scan for the
+    # whole batch instead, matched back to contracts in Python (identical result).
     db_vol = {}  # (root, cp, strike, exp_mdy) -> sum(Volume)
     try:
         from api.flow_db import FlowDB
         db = FlowDB()
-        with sqlite3.connect(db.db_path, timeout=10) as conn:
-            for key, strike_strs in contracts.items():
-                root, cp, strike, exp_mdy = key
-                total = 0
-                for strike_str in strike_strs:
-                    cur = conn.execute(
-                        "SELECT COALESCE(SUM(CAST(Volume AS INTEGER)), 0) "
-                        "FROM flow WHERE Symbol=? AND CallPut=? AND "
-                        "Strike=? AND ExpirationDate=? AND CreatedDate=?",
-                        (root, cp, strike_str, exp_mdy, trade_date_mdY),
-                    )
-                    row = cur.fetchone()
-                    if row and row[0]:
-                        total += int(row[0])
-                if total > 0:
-                    db_vol[key] = total
+        syms = list({e.root for e in events})
+        db_agg = {}  # (Symbol, CallPut, StrikeStr, Exp) -> sum(Volume)
+        if syms:
+            with sqlite3.connect(db.db_path, timeout=10) as conn:
+                ph = ",".join("?" * len(syms))
+                cur = conn.execute(
+                    "SELECT Symbol, CallPut, Strike, ExpirationDate, "
+                    "COALESCE(SUM(CAST(Volume AS INTEGER)),0) "
+                    "FROM flow WHERE CreatedDate=? AND Symbol IN (" + ph + ") "
+                    "GROUP BY Symbol, CallPut, Strike, ExpirationDate",
+                    [trade_date_mdY, *syms],
+                )
+                for r in cur.fetchall():
+                    db_agg[(r[0], r[1], str(r[2]), r[3])] = int(r[4] or 0)
+        for key, strike_strs in contracts.items():
+            root, cp, strike, exp_mdy = key
+            total = 0
+            for strike_str in strike_strs:
+                total += db_agg.get((root, cp, strike_str, exp_mdy), 0)
+            if total > 0:
+                db_vol[key] = total
     except Exception as e:
         logger.warning("[massive-ws] cumulative volume lookup failed: %s", e)
 
