@@ -22,7 +22,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services.journal_two import (
     accounts as accounts_service,
     analytics as analytics_service,
@@ -40,6 +40,7 @@ from api.services.journal_two import (
     settings as settings_service,
     setup_stats as setup_stats_service,
     trades as trades_service,
+    trading_day_backfill,
 )
 
 router = APIRouter(prefix="/api/j2", tags=["journal-2-0"])
@@ -468,6 +469,17 @@ def import_confirm(
         user["id"], trades, settings, account_id=account_id,
     )
     return result
+
+
+@router.post("/admin/trading-day-backfill")
+def trading_day_backfill_route(
+    force: bool = False,
+    user: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Admin-only. Batched, idempotent backfill of trading_day_et/hour_et on
+    legacy rows. Returns which trades' calendar day MOVES vs the old
+    to_et_date bucketing. Run OFF-HOURS (writer locks auth.db)."""
+    return trading_day_backfill.run_backfill(force=force)
 
 
 # ── Accounts (Phase 2) ───────────────────────────────────────────────────────
