@@ -65,7 +65,7 @@ const STREAM_RECONCILE_MS = 60000;
 // they ALWAYS include every classifiable alert regardless of this setting.
 const ROW_LIMIT_OPTIONS = [500, 1000, 2000, 5000, "All"];
 const ROW_LIMIT_DEFAULT = "All";
-const ROW_LIMIT_ALL_VALUE = 3000;  // "All" cap (2026-07-09): with the Color-aware DB index /recent skips unclassified rows, so 3000 classified loads fast; backend caps sql_limit to match. (Was unbounded 20000 → 30s+ timeout at midday scale.)
+const ROW_LIMIT_ALL_VALUE = 10000;  // "All" (2026-07-09): the Color index makes a full-day scan cheap, so show the whole firehose. (3000 was too tight — surfaced only ~220; unbounded 20000 timed out pre-index.)
 // LS key bumped v2→v3 on 7/8: prior stored 500/1000/2000 would override
 // the new "All" default and re-truncate morning alerts silently. Third
 // bump this session — pattern: any default change that reduces truncation

@@ -1493,7 +1493,14 @@ def recent_massive_alerts(
             # Color index keeps the full-day scan fast (~2-3s).
             sql_limit = int(os.environ.get("MASSIVE_RECENT_SQL_CAP_WIDE", "80000"))
         else:
-            sql_limit = min(sql_limit, int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "3000")))
+            # 2026-07-09 (Ravi flagged "missing flow"): the default ALL FLOW tape
+            # is the raw firehose — users expect the whole day's classified prints,
+            # not a thin recent slice. The Color index (idx_flow_classified) makes a
+            # wide scan cheap (curated scans 80K in ~0.9s), so a 3000 cap was leaving
+            # ~90% of the day's flow hidden (only ~220 of thousands shown). Raised so
+            # limit*3 (30000 at the "All" = 10000 frontend value) governs; the cap is
+            # now just a heavy-day ceiling. Env-tunable.
+            sql_limit = min(sql_limit, int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "30000")))
         # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
         # override threshold so they get a chance at promotion in
         # _derive_alert_name. SQL filter avoids loading every WHITE row (huge
@@ -1829,10 +1836,14 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
              ORDER BY id DESC
              LIMIT ?
         """, (today, override_sql_floor,
-              int(os.environ.get("MASSIVE_DAYSTATS_CAP", "3000"))))
+              int(os.environ.get("MASSIVE_DAYSTATS_CAP", "30000"))))
         # CAP (2026-07-09): was unbounded (_row_to_alert over ALL ~39K classified
         # rows by midday → 30s+ timeout, "Loading market read…" stuck forever).
-        # Latest-N is a faithful enough "market read" snapshot + fast + cached 30s.
+        # Raised 3000→30000 to match the ALL FLOW tape scan so the hero's bull/bear
+        # totals represent the whole day's flow, not a thin recent slice (Ravi's
+        # "missing flow"). Sync endpoint (runs in the threadpool, not the event
+        # loop) + cached 30s, so the ~1.8s _row_to_alert pass over 30K rows is
+        # absorbed once per 30s and never blocks users. Env-tunable.
         rows = cur.fetchall()
     finally:
         conn.close()
