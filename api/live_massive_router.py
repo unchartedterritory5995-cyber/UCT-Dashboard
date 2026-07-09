@@ -39,6 +39,7 @@ import os
 import time
 import re
 import json
+import threading
 
 router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 
@@ -1417,6 +1418,30 @@ def curated_shim(
     )
 
 
+# ─── /recent result cache (2026-07-09) ──────────────────────────────────────
+# _row_to_alert over the (now wide) scan is CPU-heavy (~1-2s); at ~200 users
+# polling, an uncached /recent would pin the anyio threadpool = the 524 outage
+# class. The snapshot only needs to be seconds-fresh — the SSE stream
+# (massive_stream) delivers new prints live on top of it, so a short snapshot
+# cache is invisible to users. Single-flight + serve-stale: a fresh entry
+# returns instantly; a STALE entry is served immediately while ONE request
+# refreshes in the background (never blocks); only the very first fill (empty
+# cache) blocks — and warm-on-boot (main.py) does that fill before users arrive.
+_recent_cache: dict = {}          # key -> (computed_at_unix, payload)
+_recent_cache_locks: dict = {}    # key -> threading.Lock
+_recent_cache_guard = threading.Lock()
+_RECENT_CACHE_TTL = float(os.environ.get("MASSIVE_RECENT_CACHE_TTL", "15"))
+
+
+def _recent_lock_for(key):
+    with _recent_cache_guard:
+        lk = _recent_cache_locks.get(key)
+        if lk is None:
+            lk = threading.Lock()
+            _recent_cache_locks[key] = lk
+        return lk
+
+
 @router.get("/recent")
 def recent_massive_alerts(
     limit: int = Query(default=200, ge=1, le=20000),
@@ -1448,6 +1473,31 @@ def recent_massive_alerts(
     # /restart-log endpoint below for the read side.
     _log_startup_if_new()
 
+    # Snapshot cache (single-flight + serve-stale) — see _recent_cache above.
+    ck = (today, limit, min_grade, sort_by, tier, curated)
+    now = time.time()
+    hit = _recent_cache.get(ck)
+    if hit is not None and now - hit[0] < _RECENT_CACHE_TTL:
+        return hit[1]                              # fresh
+    # Stale or missing. Become the single refresher; if we already hold a stale
+    # value, DON'T block — serve it while another request refreshes.
+    lock = _recent_lock_for(ck)
+    if not lock.acquire(blocking=(hit is None)):
+        return hit[1]                              # stale served; refresh in flight
+    try:
+        hit = _recent_cache.get(ck)
+        if hit is not None and time.time() - hit[0] < _RECENT_CACHE_TTL:
+            return hit[1]                          # filled while we waited on the lock
+        payload = _compute_recent(today, limit, min_grade, sort_by, tier, curated)
+        _recent_cache[ck] = (time.time(), payload)
+        return payload
+    finally:
+        lock.release()
+
+
+def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
+    """Heavy scan + classify for /recent, split out so the endpoint can cache
+    the result. All params already resolved (today = concrete M/D/YYYY)."""
     grade_threshold = {"A+ 🚀": 4, "A": 3, "B": 2, "C": 1, "D": 0,
                        "A+": 4}  # accept both with and without rocket
     min_threshold = grade_threshold.get(min_grade, 0)
@@ -1495,12 +1545,14 @@ def recent_massive_alerts(
         else:
             # 2026-07-09 (Ravi flagged "missing flow"): the default ALL FLOW tape
             # is the raw firehose — users expect the whole day's classified prints,
-            # not a thin recent slice. The Color index (idx_flow_classified) makes a
-            # wide scan cheap (curated scans 80K in ~0.9s), so a 3000 cap was leaving
-            # ~90% of the day's flow hidden (only ~220 of thousands shown). Raised so
-            # limit*3 (30000 at the "All" = 10000 frontend value) governs; the cap is
-            # now just a heavy-day ceiling. Env-tunable.
-            sql_limit = min(sql_limit, int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "30000")))
+            # not a thin recent slice. A 3000 cap left ~90% of the day's flow hidden
+            # (only ~220 of thousands shown). Raised to 20000 (limit*3 = 30000 at the
+            # "All" = 10000 frontend value is capped here) → ~1400 prints, the full
+            # working tape. The _row_to_alert pass over 20K rows is ~1.5s, but the
+            # /recent result cache (single-flight, above) means users hit that cost at
+            # most once per TTL window — the SSE stream keeps the tape live between
+            # snapshots. Env-tunable.
+            sql_limit = min(sql_limit, int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "20000")))
         # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
         # override threshold so they get a chance at promotion in
         # _derive_alert_name. SQL filter avoids loading every WHITE row (huge
@@ -1836,13 +1888,13 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
              ORDER BY id DESC
              LIMIT ?
         """, (today, override_sql_floor,
-              int(os.environ.get("MASSIVE_DAYSTATS_CAP", "30000"))))
+              int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))))
         # CAP (2026-07-09): was unbounded (_row_to_alert over ALL ~39K classified
         # rows by midday → 30s+ timeout, "Loading market read…" stuck forever).
-        # Raised 3000→30000 to match the ALL FLOW tape scan so the hero's bull/bear
+        # Raised 3000→20000 to match the ALL FLOW tape scan so the hero's bull/bear
         # totals represent the whole day's flow, not a thin recent slice (Ravi's
         # "missing flow"). Sync endpoint (runs in the threadpool, not the event
-        # loop) + cached 30s, so the ~1.8s _row_to_alert pass over 30K rows is
+        # loop) + cached 30s, so the ~1.5s _row_to_alert pass over 20K rows is
         # absorbed once per 30s and never blocks users. Env-tunable.
         rows = cur.fetchall()
     finally:

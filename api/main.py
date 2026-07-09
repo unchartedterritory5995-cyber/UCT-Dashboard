@@ -551,11 +551,26 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.routers.calendar import get_calendar
             get_calendar()
 
+        def _flow_tape():
+            # Fill the /recent snapshot cache + warm the flow.db OS page cache so
+            # the first user after a deploy isn't hit by the cold wide-scan read
+            # (~20-30s cold vs ~1.5s warm). Covers the default ALL FLOW tape, the
+            # curated Discord feed, and the market-read hero. flow.db is WAL so this
+            # read never stalls the WS writer. See _recent_cache in
+            # live_massive_router.
+            from api.live_massive_router import recent_massive_alerts, day_stats
+            recent_massive_alerts(limit=10000, min_grade="D", target_date=None,
+                                  sort_by="recent", tier=None, curated=False)
+            recent_massive_alerts(limit=5000, min_grade="D", target_date=None,
+                                  sort_by="recent", tier=None, curated=True)
+            day_stats(target_date=None, exclude_algo=False)
+
         _warm("movers", _movers)
         _warm("themes", _themes)
         _warm("news", _news)
         _warm("breadth", _breadth)
         _warm("calendar", _calendar)
+        _warm("flow-tape", _flow_tape)
 
     threading.Thread(target=_delayed, daemon=True, name="dashboard-warmer").start()
 
