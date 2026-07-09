@@ -50,7 +50,12 @@ const STREAM_ENABLED = (() => {
   } catch { /* ignore */ }
   return false;
 })();
-const STREAM_RECONCILE_MS = 60000;
+const STREAM_RECONCILE_MS = 30000;  // 2026-07-09: 60s→30s. Belt-and-suspenders max
+// staleness — even a healthy-but-quiet stream reconciles the full authoritative
+// list this often, so no user can drift far behind the true tape.
+const SSE_STALL_MS = 40000;  // no server contact (a print OR the 15s heartbeat) for
+// this long = the EventSource is silently half-dead (proxy dropped it, no onerror)
+// → force a reconnect. >2.5x the server's 15s heartbeat so quiet markets don't trip it.
 // Default cap on alerts in the live feed. Backend supports up to 20000.
 // "All" (20000) is the correct default — curated view has only ~80-150
 // rows/day so rendering all of them is instant, and the All-Flow view
@@ -2204,6 +2209,18 @@ export default function LiveFlowMassive() {
     }
   };
 
+  // SSE resilience (2026-07-09): a proxy can silently drop the EventSource with
+  // no onerror, leaving a user stuck behind everyone else ("lagging more than
+  // you"). We watchdog the server's 15s heartbeat and force a reconnect +
+  // immediate catch-up reconcile when contact goes stale. sseNonce bump =
+  // reconnect the stream; reconcileNonce bump = immediate /recent catch-up.
+  const [sseNonce, setSseNonce] = useState(0);
+  const [reconcileNonce, setReconcileNonce] = useState(0);
+  const lastSseContactRef = useRef(Date.now());
+  // Feed-gap transparency: the day's detected downtime windows so users SEE
+  // missed-flow windows instead of silently missing lines.
+  const [gapInfo, setGapInfo] = useState(null);
+
   // Polling
   useEffect(() => {
     let cancelled = false;
@@ -2269,7 +2286,9 @@ export default function LiveFlowMassive() {
       if (timer) clearTimeout(timer);
       if (abort) abort.abort();
     };
-  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated]);
+    // reconcileNonce: an SSE (re)connect bumps it to force an immediate catch-up
+    // poll so prints missed during a stream gap appear without waiting a cycle.
+  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated, reconcileNonce]);
 
   // ── Live SSE stream (dark, VITE_MASSIVE_STREAM=1) ──────────────────────────
   // Prepends new prints the instant the server tailer sees them — NO /recent
@@ -2290,7 +2309,14 @@ export default function LiveFlowMassive() {
     } catch {
       return;
     }
+    lastSseContactRef.current = Date.now();
+    const touch = () => { lastSseContactRef.current = Date.now(); };
+    // 'connected' fires on the initial open AND every reconnect → catch up any
+    // prints missed during the gap via an immediate reconcile (don't wait a cycle).
+    es.addEventListener("connected", () => { touch(); setReconcileNonce((n) => n + 1); });
+    es.addEventListener("heartbeat", touch);  // 15s healthy-idle signal
     es.onmessage = (ev) => {
+      touch();
       let incoming;
       try {
         incoming = JSON.parse(ev.data).alerts || [];
@@ -2324,14 +2350,50 @@ export default function LiveFlowMassive() {
     es.onerror = () => {
       /* keep rendered data; browser EventSource auto-reconnects */
     };
+    // Watchdog: an EventSource can go half-dead through a proxy without ever
+    // firing onerror (the "user lags behind everyone" bug). If no server contact
+    // — a print OR a 15s heartbeat — arrives for SSE_STALL_MS, treat the stream
+    // as dead and force a fresh reconnect by bumping sseNonce.
+    const wd = setInterval(() => {
+      if (Date.now() - lastSseContactRef.current > SSE_STALL_MS) {
+        lastSseContactRef.current = Date.now();  // give the reconnect a fresh window
+        setSseNonce((n) => n + 1);
+      }
+    }, 10000);
     return () => {
+      clearInterval(wd);
       try {
         es.close();
       } catch {
         /* ignore */
       }
     };
-  }, [curated, minGrade, sortBy, filters]);
+  }, [curated, minGrade, sortBy, filters, sseNonce]);
+
+  // Feed-gap surfacing (2026-07-09): fetch the day's detected downtime windows
+  // so users SEE missed-flow windows ("9:36–9:53 · backfilling overnight")
+  // instead of silently missing lines. Soft, refreshed every 3 min, tracks the
+  // currently-viewed date.
+  useEffect(() => {
+    let cancelled = false, timer;
+    async function fetchGaps() {
+      try {
+        const params = new URLSearchParams({ min_gap_minutes: "2" });
+        if (targetDate) params.set("target_date", targetDate);
+        const r = await fetch(`/api/live/massive/worker-history?${params}`);
+        if (r.ok) {
+          const d = await r.json();
+          if (!cancelled) setGapInfo({
+            windows: d.downtime_windows_strict || [],
+            estDropped: d.total_estimated_dropped_events || 0,
+          });
+        }
+      } catch { /* soft — no banner on failure */ }
+      finally { if (!cancelled) timer = setTimeout(fetchGaps, 180000); }
+    }
+    fetchGaps();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [targetDate]);
 
   // Quotes polling — fetches current spot for unique tickers in the
   // current alert set every 30s. Decoupled from alert polling (5s) since
@@ -2666,6 +2728,25 @@ export default function LiveFlowMassive() {
           (NOT sticky) so it doesn't consume scroll real estate. Users
           who want to see it again scroll back to top of the alert list. */}
       <MarketReadCard stats={dayStats} />
+
+      {/* FEED-GAP TRANSPARENCY — surface detected downtime windows so users
+          never silently miss flow; the T+1 healer backfills them overnight. */}
+      {gapInfo && gapInfo.windows && gapInfo.windows.length > 0 && (
+        <div style={{
+          margin: "8px 0", padding: "8px 12px", borderRadius: 8,
+          background: "rgba(180,130,20,0.12)", borderLeft: "3px solid #d8ae4e",
+          color: P.text, fontSize: 12.5, lineHeight: 1.5,
+        }}>
+          <strong style={{ color: "#d8ae4e", letterSpacing: 0.5 }}>
+            {gapInfo.windows.length} FEED GAP{gapInfo.windows.length > 1 ? "S" : ""} TODAY
+          </strong>
+          {" — "}
+          {gapInfo.windows.map((w, i) => `${i > 0 ? ", " : ""}${w.start}–${w.end}`).join("")}
+          {gapInfo.estDropped > 0 && ` · ~${gapInfo.estDropped.toLocaleString()} prints missed live`}
+          {" · "}
+          <span style={{ opacity: 0.85 }}>backfilling overnight from the official OPRA tape</span>
+        </div>
+      )}
 
       {/* STICKY HEADER GROUP — only the essential controls follow scroll:
           tier-filter chips + column headers. The Market Read above scrolls

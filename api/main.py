@@ -551,26 +551,36 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.routers.calendar import get_calendar
             get_calendar()
 
-        def _flow_tape():
-            # Fill the /recent snapshot cache + warm the flow.db OS page cache so
-            # the first user after a deploy isn't hit by the cold wide-scan read
-            # (~20-30s cold vs ~1.5s warm). Covers the default ALL FLOW tape, the
-            # curated Discord feed, and the market-read hero. flow.db is WAL so this
+        def _flow_tape_critical():
+            # The surfaces users hit FIRST — default ALL FLOW tape + market-read
+            # hero. Fills the /recent snapshot cache + warms the flow.db OS page
+            # cache so the first user after a deploy isn't hit by the cold
+            # wide-scan read (~20-30s cold vs ~1.5s warm). flow.db is WAL so this
             # read never stalls the WS writer. See _recent_cache in
-            # live_massive_router.
+            # live_massive_router. Runs FIRST (before the dashboard warms) so the
+            # tape is hot in seconds, not behind everything else.
             from api.live_massive_router import recent_massive_alerts, day_stats
             recent_massive_alerts(limit=10000, min_grade="D", target_date=None,
                                   sort_by="recent", tier=None, curated=False)
-            recent_massive_alerts(limit=5000, min_grade="D", target_date=None,
-                                  sort_by="recent", tier=None, curated=True)
             day_stats(target_date=None, exclude_algo=False)
 
+        def _flow_tape_curated():
+            # Curated (the Discord feed) scans the whole day (~100K rows) — heavy,
+            # so pre-warm it LAST, after the critical ALL FLOW warm, so it never
+            # delays the tape users see first. Curated is a less-frequent, opt-in
+            # mode; one cold load there is acceptable, and the snapshot cache
+            # covers every subsequent read.
+            from api.live_massive_router import recent_massive_alerts
+            recent_massive_alerts(limit=5000, min_grade="D", target_date=None,
+                                  sort_by="recent", tier=None, curated=True)
+
+        _warm("flow-tape", _flow_tape_critical)   # FIRST — the tape is the priority surface
         _warm("movers", _movers)
         _warm("themes", _themes)
         _warm("news", _news)
         _warm("breadth", _breadth)
         _warm("calendar", _calendar)
-        _warm("flow-tape", _flow_tape)
+        _warm("flow-curated", _flow_tape_curated)  # LAST — heavy 100K scan, non-critical
 
     threading.Thread(target=_delayed, daemon=True, name="dashboard-warmer").start()
 
