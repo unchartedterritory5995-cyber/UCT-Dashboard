@@ -30,17 +30,22 @@ function fmtMonthLabel(year, month) {
 // For months other than the current week, we leave mySets applied via mySets prop.
 function mergeMineFlagIntoMonthDay(monthDay, mySets, activeSources) {
   if (!mySets || !activeSources || activeSources.length === 0) return monthDay
-  const allSources = activeSources
-  const allSyms = [...(monthDay.bmo || []), ...(monthDay.amc || [])]
-  const taggedBmo = (monthDay.bmo || []).map(e => ({
-    ...e,
-    mine: allSources.some(s => (mySets[s] || []).includes(e.sym?.toUpperCase())),
-  }))
-  const taggedAmc = (monthDay.amc || []).map(e => ({
-    ...e,
-    mine: allSources.some(s => (mySets[s] || []).includes(e.sym?.toUpperCase())),
-  }))
-  return { ...monthDay, bmo: taggedBmo, amc: taggedAmc }
+  const isMineSym = e =>
+    activeSources.some(s => (mySets[s] || []).includes(e.sym?.toUpperCase()))
+  return {
+    ...monthDay,
+    bmo: (monthDay.bmo || []).map(e => ({ ...e, mine: isMineSym(e) })),
+    amc: (monthDay.amc || []).map(e => ({ ...e, mine: isMineSym(e) })),
+    tbd: (monthDay.tbd || []).map(e => ({ ...e, mine: isMineSym(e) })),
+  }
+}
+
+// 4-step count-heat tier for the cell's reporter-count pill.
+function heatClass(n) {
+  if (n >= 16) return styles.cntH4
+  if (n >= 9)  return styles.cntH3
+  if (n >= 4)  return styles.cntH2
+  return styles.cntH1
 }
 
 // ── MonthGrid cell ─────────────────────────────────────────────────────────
@@ -53,6 +58,8 @@ function mergeMineFlagIntoMonthDay(monthDay, mySets, activeSources) {
 const MONTH_MAX_PER_TIMING = 6   // logo+ticker chips wrap horizontally; overflow → "+N more"
 
 function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
+  // An empty session renders NOTHING — the "—" stamp vocabulary is dead.
+  if (!syms.length) return null
   const shown = syms.slice(0, MONTH_MAX_PER_TIMING)
   const overflow = syms.length - MONTH_MAX_PER_TIMING
   return (
@@ -60,25 +67,23 @@ function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
       <div className={`${styles.mbandHd} ${hdClass}`}>
         <UIcon name={icon} size={12} aria-hidden="true" /> {label}
       </div>
-      {shown.length ? (
-        <div className={styles.mitems}>
-          {shown.map(s => (
-            <div key={s} className={styles.mrow}>
-              <CompanyLogo sym={s} size={34} tile />
-              <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
-            </div>
-          ))}
-          {overflow > 0 && <div className={styles.mmoreChip}>+{overflow} more</div>}
-        </div>
-      ) : (
-        <div className={styles.mbandEmpty}>—</div>
-      )}
+      <div className={styles.mitems}>
+        {shown.map(s => (
+          <div key={s} className={styles.mrow}>
+            <CompanyLogo sym={s} size={34} tile />
+            <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
+          </div>
+        ))}
+        {overflow > 0 && <div className={styles.mmoreChip}>+{overflow} more</div>}
+      </div>
     </div>
   )
 }
 
 function MonthCell({ cell, onOpenDay }) {
-  const empty = cell.bmoSyms.length === 0 && cell.amcSyms.length === 0
+  const total = cell.bmoSyms.length + cell.amcSyms.length + (cell.tbdSyms?.length || 0)
+  const empty = total === 0
+  const anyMine = cell.mineSyms.size > 0
   return (
     <div
       className={[
@@ -89,19 +94,26 @@ function MonthCell({ cell, onOpenDay }) {
       ].join(' ')}
       onClick={() => cell.inMonth && onOpenDay(cell.ds)}
     >
-      <div className={styles.dn}>
-        {cell.dayNum}
-        {cell.hasMacro && <span className={styles.macroStar}> <UIcon name="star-fill" size={11} /></span>}
+      <div className={styles.dnRow}>
+        <span className={styles.dn}>
+          {cell.dayNum}
+          {cell.hasMacro && <span className={styles.macroStar}> <UIcon name="star-fill" size={11} /></span>}
+        </span>
+        {!empty && (
+          <span className={`${styles.cnt} ${heatClass(total)}`}
+                title={`${total} ${total === 1 ? 'company' : 'companies'} reporting`}>
+            {total}
+            {anyMine && <UIcon name="star-fill" size={8} style={{ verticalAlign: '0px', marginLeft: 3 }} />}
+          </span>
+        )}
       </div>
-      {empty ? (
-        <div className={styles.mempty}>
-          <span className={styles.wemptyDot} aria-hidden="true" />
-          No earnings
-        </div>
-      ) : (
+      {/* Empty cells recede silently — a recessed dashed container already
+          reads as "nothing here"; ~25 "No earnings" stamps read as breakage. */}
+      {!empty && (
         <div className={styles.mtimings}>
           <MonthTimingGroup label="BMO" icon="sparkle" hdClass={styles.bmoHd} syms={cell.bmoSyms} mineSyms={cell.mineSyms} />
           <MonthTimingGroup label="AMC" icon="moon" hdClass={styles.amcHd} syms={cell.amcSyms} mineSyms={cell.mineSyms} />
+          <MonthTimingGroup label="TBD" icon="clock" hdClass={styles.tbdHd} syms={cell.tbdSyms || []} mineSyms={cell.mineSyms} />
         </div>
       )}
     </div>
@@ -182,7 +194,7 @@ export default function MonthView({
           const day = monthDaysMap[cell.ds] || {}
           rows.push({
             ds: cell.ds,
-            entries: [...(day.bmo || []), ...(day.amc || [])],
+            entries: [...(day.bmo || []), ...(day.amc || []), ...(day.tbd || [])],
           })
         }
       }

@@ -49,7 +49,9 @@ function fmtHistStats(hs) {
   if (!hs) return null
   const { avg_abs_move, up_count, total, last_n } = hs
   if (avg_abs_move == null || total == null) return null
-  const n = last_n ?? total
+  // last_n is an ARRAY of recent moves — interpolating it directly rendered
+  // "over 5.1,-2.3,…" garbage. The count is its length.
+  const n = Array.isArray(last_n) ? (last_n.length || total) : (last_n ?? total)
   const upStr = up_count != null ? ` · up ${up_count}/${total}` : ''
   return `avg ±${avg_abs_move.toFixed(1)}% over ${n}${upStr}`
 }
@@ -59,7 +61,10 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
   const beats = (entry.beat_history || []).slice(0, 4).reverse()
   const beatCount = beats.filter(b => b.beat === true).length
   const em = entry.expected_move?.pct
-  const px = livePrice != null ? `$${livePrice.toFixed(2)}` : '—'
+  // Live SSE price first, day-metrics price as the fallback (covers past days
+  // and names outside the live-prices universe). Null → the row is SUPPRESSED.
+  const priceVal = livePrice ?? entry._price ?? null
+  const px = priceVal != null ? `$${Number(priceVal).toFixed(2)}` : null
   // C6: hist_stats from enrichment
   const histStatsLabel = fmtHistStats(entry.hist_stats)
 
@@ -84,7 +89,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
       >
         {entry.mine && <span className={styles.star}><UIcon name="star-fill" size={13} /></span>}
         <div className={styles.cardTop}>
-          <CompanyLogo sym={entry.sym} size={46} tile />
+          <CompanyLogo sym={entry.sym} size={28} tile />
           <div className={styles.cardHead}>
             <div className={styles.sym}>
               {entry.sym}
@@ -109,9 +114,16 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
 
         {!reported ? (
           <>
-            <div className={styles.met}><span className={styles.dim}>EPS est</span><span className={styles.mono}>{fmtEps(entry.eps_est)}</span></div>
-            <div className={styles.met}><span className={styles.dim}>Rev est</span><span className={styles.mono}>{fmtRev(entry.rev_est)}</span></div>
-            <div className={styles.met}><span className={styles.dim}>Price</span><span className={styles.mono}>{px}</span></div>
+            {/* Null metrics render NOTHING — a wall of "—" rows is banned. */}
+            {entry.eps_est != null && (
+              <div className={styles.met}><span className={styles.dim}>EPS est</span><span className={styles.mono}>{fmtEps(entry.eps_est)}</span></div>
+            )}
+            {entry.rev_est != null && (
+              <div className={styles.met}><span className={styles.dim}>Rev est</span><span className={styles.mono}>{fmtRev(entry.rev_est)}</span></div>
+            )}
+            {px != null && (
+              <div className={styles.met}><span className={styles.dim}>Price</span><span className={styles.mono}>{px}</span></div>
+            )}
 
             {/* A4: Extended-hours price line */}
             {showExt && (
@@ -130,7 +142,9 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             {countdown && <div className={styles.countdown}><UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{countdown}</div>}
 
             {em != null && (
-              <div className={styles.emv}><span className={styles.emvLbl}>Expected move</span><span className={styles.emvBig}>±{em}%</span></div>
+              <div className={styles.emv}
+                   title={`The options market prices roughly a ±${em}% swing after this report`}>
+                <span className={styles.emvLbl}>Expected move</span><span className={styles.emvBig}>±{em}%</span></div>
             )}
             {/* C6: Historical post-earnings reaction stats (pending cards too) */}
             {histStatsLabel && (

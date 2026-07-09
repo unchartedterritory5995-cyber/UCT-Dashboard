@@ -92,12 +92,14 @@ function _makeCell(d, inMonth, todayStr, daysMap) {
   const day = daysMap?.[ds] || {}
   const bmo = day.bmo || []
   const amc = day.amc || []
-  const all = [...bmo, ...amc]
+  const tbd = day.tbd || []   // session-unconfirmed reporters (never coerced into AMC)
+  const all = [...bmo, ...amc, ...tbd]
   const syms = all.map(e => e.sym).filter(Boolean)
   const mineSyms = new Set(all.filter(e => e.mine).map(e => e.sym).filter(Boolean))
   // Per-timing symbol lists so the month cell can split BMO (top) / AMC (bottom).
   const bmoSyms = bmo.map(e => e.sym).filter(Boolean)
   const amcSyms = amc.map(e => e.sym).filter(Boolean)
+  const tbdSyms = tbd.map(e => e.sym).filter(Boolean)
   const hasMacro = !!(day.econ?.some(e => e.is_key) || day.fed?.length)
   return {
     ds,
@@ -107,6 +109,7 @@ function _makeCell(d, inMonth, todayStr, daysMap) {
     syms,
     bmoSyms,
     amcSyms,
+    tbdSyms,
     mineSyms,
     hasMacro,
   }

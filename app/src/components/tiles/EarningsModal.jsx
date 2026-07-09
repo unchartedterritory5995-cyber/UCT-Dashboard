@@ -85,6 +85,44 @@ function fmtRev(m) {
   return m >= 1000 ? `$${(m / 1000).toFixed(2)}B` : `$${Math.round(m)}M`
 }
 
+// Plain-language SEC form labels — bare form numbers are jargon dead-ends.
+const FILING_LABELS = {
+  '4':       'Insider trade (Form 4)',
+  '3':       'Insider ownership (Form 3)',
+  '5':       'Insider annual (Form 5)',
+  '8-K':     'Current report (8-K)',
+  '10-Q':    'Quarterly report (10-Q)',
+  '10-K':    'Annual report (10-K)',
+  '144':     'Insider sale notice (144)',
+  'DEF 14A': 'Proxy statement (DEF 14A)',
+  'S-8':     'Employee stock plan (S-8)',
+  'SC 13G':  'Passive stake (13G)',
+  'SC 13D':  'Activist stake (13D)',
+  '13F-HR':  'Fund holdings (13F)',
+}
+
+function filingLabel(form) {
+  const f = (form || '').trim()
+  return FILING_LABELS[f] || FILING_LABELS[f.replace('/A', '')] || `Form ${f}`
+}
+
+// Dedupe identical filings + collapse same-form-same-day runs (nine identical
+// "4" rows carried zero information) → one row with a ×N count, capped at 5.
+function groupFilings(filings) {
+  const seen = new Set()
+  const groups = new Map()   // `${form}|${filed}` → {form, filed, url, count}
+  for (const f of filings || []) {
+    const uniq = f.url || `${f.form}|${f.filed}|${f.title || ''}`
+    if (seen.has(uniq)) continue   // exact duplicate row
+    seen.add(uniq)
+    const key = `${f.form}|${f.filed}`
+    const g = groups.get(key)
+    if (g) g.count += 1
+    else groups.set(key, { form: f.form, filed: f.filed, url: f.url, count: 1 })
+  }
+  return [...groups.values()].slice(0, 5)
+}
+
 export default function EarningsModal({ row, label, onClose }) {
   const navigate = useNavigate()
   const { isPaid } = useAuth()
@@ -94,8 +132,9 @@ export default function EarningsModal({ row, label, onClose }) {
   const [transcriptOpen, setTranscriptOpen] = useState(false)
 
   // C1: Fundamentals strip — fetched by FundamentalsStrip itself (null-safe, lazy)
-  // C2: SEC Filings
+  // C2: SEC Filings (deduped + grouped + capped at 5)
   const { data: filingsData } = useFilings(row?.sym)
+  const groupedFilings = groupFilings(filingsData?.filings)
   // C5: Call recap + audio
   const { data: recapData } = useCallRecap(row?.sym)
   const { data: audioData } = useEarningsAudio(row?.sym)
@@ -303,12 +342,10 @@ export default function EarningsModal({ row, label, onClose }) {
                 <NewsList items={aiState.data.news} />
               )}
             </div>
-          ) : (
-            // No preview_text — either data was empty or fetch failed/aborted.
-            // Show explicit fallback rather than rendering nothing so the user
-            // knows the request finished (vs a perpetual spinner).
-            <div className={styles.previewUnavailable}>Preview unavailable</div>
-          )
+          ) : null
+          // No preview_text → the section doesn't render. A thin-coverage name
+          // shows a short confident dossier, never a stack of apologies (the
+          // loading state above already distinguishes in-flight from finished).
         )}
 
         {/* ── Trend block (YoY EPS + beat-magnitude bars or fallback) ───── */}
@@ -374,11 +411,11 @@ export default function EarningsModal({ row, label, onClose }) {
         )}
 
         {/* ── C2: SEC Filings section ──────────────────────────────────── */}
-        {filingsData?.filings?.length > 0 && (
+        {groupedFilings.length > 0 && (
           <div className={styles.filingsSection}>
             <div className={styles.watchLabel}>SEC FILINGS</div>
             <div className={styles.filingsList}>
-              {filingsData.filings.slice(0, 8).map((f, i) => (
+              {groupedFilings.map((f, i) => (
                 <a
                   key={i}
                   href={f.url}
@@ -386,7 +423,7 @@ export default function EarningsModal({ row, label, onClose }) {
                   rel="noopener noreferrer"
                   className={styles.filingItem}
                 >
-                  <span className={styles.filingForm}>{f.form}</span>
+                  <span className={styles.filingForm}>{filingLabel(f.form)}{f.count > 1 ? ` ×${f.count}` : ''}</span>
                   <span className={styles.filingDate}>{f.filed}</span>
                   <span className={styles.filingArrow}>↗</span>
                 </a>
@@ -404,7 +441,10 @@ export default function EarningsModal({ row, label, onClose }) {
                 avg ±{row.hist_stats.avg_abs_move.toFixed(1)}%
                 {row.hist_stats.total != null && (
                   <span className={styles.muted}>
-                    {' '}over {row.hist_stats.last_n ?? row.hist_stats.total}
+                    {/* last_n is an ARRAY of moves — its length is the count */}
+                    {' '}over {Array.isArray(row.hist_stats.last_n)
+                      ? (row.hist_stats.last_n.length || row.hist_stats.total)
+                      : (row.hist_stats.last_n ?? row.hist_stats.total)}
                   </span>
                 )}
                 {row.hist_stats.up_count != null && row.hist_stats.total != null && (

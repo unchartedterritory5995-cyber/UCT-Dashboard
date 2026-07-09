@@ -10,7 +10,12 @@ export default function MacroBand({ econ = [], fed = [] }) {
         <span key={`e${i}`} className={styles.mtag}>
           <span className={styles.mtagTm}>{ev.time || '—'}</span>
           <span className={ev.is_key ? styles.mtagKey : ''}>{ev.is_key ? <UIcon name="star-fill" size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} /> : ''}{ev.event}</span>
-          {ev.actual && <span className={styles.pos}> A:{ev.actual}</span>}
+          {/* est/prior were fetched and thrown away — an estimate is the bar
+              the release must clear. Actual stays NEUTRAL-bright: whether a
+              hot CPI is "good" depends on your book, so we don't color it. */}
+          {ev.estimate && <span className={styles.mtagMeta}>est {ev.estimate}</span>}
+          {ev.prior    && <span className={styles.mtagMeta}>prior {ev.prior}</span>}
+          {ev.actual   && <span className={styles.mtagActual}>→ {ev.actual}</span>}
         </span>
       ))}
       {fed.map((ev, i) => (

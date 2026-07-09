@@ -11,6 +11,22 @@ function DeltaChip({ change }) {
   return <span className={`${styles.chip} ${chipClass(change)}`}>{CHIP[change]}</span>
 }
 
+// Raw machine output must not leak to users:
+// - Reported institutional % can exceed 100 (derivatives/short double-counting)
+//   → clamp the display and say why.
+// - as_of arrives as "2026-03-31 00:00:00" → render "Mar 31, 2026".
+function fmtInstPct(v) {
+  if (v == null) return null
+  return v > 100 ? '>100% (incl. derivatives)' : `${v}%`
+}
+
+function fmtAsOf(s) {
+  if (!s) return null
+  const d = new Date(String(s).slice(0, 10) + 'T12:00:00')
+  if (Number.isNaN(d.getTime())) return String(s)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export default function OwnershipPanel({ sym }) {
   const { data } = useOwnership(sym)
   if (!sym) return <div className={styles.hint}>Pick a ticker.</div>
@@ -20,8 +36,8 @@ export default function OwnershipPanel({ sym }) {
   return (
     <div className={styles.root}>
       <div className={styles.header}>
-        {data.inst_pct != null && <span><b>{data.inst_pct}%</b> <span className={styles.muted}>institutional</span></span>}
-        {data.as_of && <span className={styles.muted}>as of {data.as_of}</span>}
+        {data.inst_pct != null && <span><b>{fmtInstPct(data.inst_pct)}</b> <span className={styles.muted}>institutional</span></span>}
+        {data.as_of && <span className={styles.muted}>as of {fmtAsOf(data.as_of)}</span>}
       </div>
       <div className={styles.sectionLabel}>Top holders</div>
       <table className={styles.tbl}><tbody>

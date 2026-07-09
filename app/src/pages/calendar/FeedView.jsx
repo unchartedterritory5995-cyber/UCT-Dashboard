@@ -1,6 +1,7 @@
 // app/src/pages/calendar/FeedView.jsx
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
+import CompanyLogo from '../../components/CompanyLogo'
 import EarningsCard from './EarningsCard'
 import EventCard from './EventCard'
 import MacroBand from './MacroBand'
@@ -68,12 +69,23 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     return dividendsForDay
   }, [activeTypes, dividendsForDay])
 
+  // Zero-data names never earn a card — they collapse into the day-level
+  // "Also reporting" cluster (a card of em-dashes carries no information).
+  // A MY-STOCKS name always keeps its card, even data-thin.
+  const hasCardData = e => (
+    e.mine ||
+    e.eps_est != null || e.rev_est != null || e.eps_act != null ||
+    e.expected_move?.pct != null || (e.beat_history || []).length > 0
+  )
+  const cardEntries    = useMemo(() => entries.filter(hasCardData), [entries])
+  const compactEntries = useMemo(() => entries.filter(e => !hasCardData(e)), [entries])
+
   // Split reporters by session so the feed shows the same clear grouping as
   // the month grid. Filtering + sorting already applied above; filter
   // preserves relative order within each session.
-  const bmoEntries = useMemo(() => entries.filter(e => e._timing === 'bmo'), [entries])
-  const amcEntries = useMemo(() => entries.filter(e => e._timing === 'amc'), [entries])
-  const tbdEntries = useMemo(() => entries.filter(e => e._timing === 'tbd'), [entries])
+  const bmoEntries = useMemo(() => cardEntries.filter(e => e._timing === 'bmo'), [cardEntries])
+  const amcEntries = useMemo(() => cardEntries.filter(e => e._timing === 'amc'), [cardEntries])
+  const tbdEntries = useMemo(() => cardEntries.filter(e => e._timing === 'tbd'), [cardEntries])
 
   const hasEarnings = entries.length > 0
   const hasMacro    = !!(day.econ?.length || day.fed?.length)
@@ -105,6 +117,8 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
         entries={tbdEntries} prices={prices} reactions={reactions} onSelect={onSelect}
         pulseSym={pulseSym} />
 
+      <CompactCluster entries={compactEntries} onSelect={onSelect} />
+
       {/* B3: IPO + dividend/split event cards (no BMO/AMC timing) */}
       {hasEvents && (
         <div className={styles.cards}>
@@ -113,6 +127,35 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
           ))}
           {divEvents.map((ev, i) => (
             <EventCard key={`div-${ev.sym}-${ev.type}-${i}`} event={ev} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Collapsed strip for zero-data reporters: "Also reporting (12) ▸" expands to
+// compact logo+ticker+session lines. Clicking a line still opens the modal.
+function CompactCluster({ entries, onSelect }) {
+  const [open, setOpen] = useState(false)
+  if (!entries.length) return null
+  const glyph = t => t === 'bmo' ? 'BMO' : t === 'amc' ? 'AMC' : 'TBD'
+  return (
+    <div className={styles.compactWrap}>
+      <button className={styles.compactToggle} onClick={() => setOpen(o => !o)}
+              aria-expanded={open}>
+        Also reporting ({entries.length}) <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className={styles.compactList}>
+          {entries.map(e => (
+            <div key={`c-${e.sym}`} className={styles.compactRow}
+                 onClick={() => onSelect?.(e, e._timing)}>
+              <CompanyLogo sym={e.sym} size={20} tile />
+              <span className={styles.compactSym}>{e.sym}</span>
+              {e.name && <span className={styles.compactName}>{e.name}</span>}
+              <span className={styles.compactGlyph}>{glyph(e._timing)}</span>
+            </div>
           ))}
         </div>
       )}
