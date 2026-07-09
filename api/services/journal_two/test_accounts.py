@@ -554,6 +554,44 @@ def test_goal_progress_with_targets(db_conn):
     assert got["periods"]["daily"]["progress"] == 0.5
 
 
+def test_goal_progress_buckets_on_trading_day_et_spine(db_conn):
+    """A date-only trade stored at UTC midnight (T00:00:00Z) must bucket on its
+    stamped trading_day_et, NOT the previous ET day that to_et_date() yields —
+    so Goals agree with Calendar/Analytics on which session day a trade lands
+    (P1a cross-surface truth-spine consistency)."""
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, update_goals, goal_progress,
+    )
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:  # pragma: no cover
+        from backports.zoneinfo import ZoneInfo  # type: ignore
+
+    et_today = datetime.now(ZoneInfo("America/New_York")).date()
+
+    _add_user(db_conn, "u1", "u1@x.com")
+    acc = get_or_migrate_default_account("u1", conn=db_conn)
+    update_goals("u1", acc["id"], {
+        "daily": 100, "weekly": 500, "monthly": 2000, "yearly": 24000,
+    }, conn=db_conn)
+
+    # Date-only trade: exit_date is UTC midnight of today's ET session, which
+    # to_et_date() would roll back to the PREVIOUS ET day. The spine column is
+    # stamped to today's literal ET date and must win.
+    _add_trade(db_conn, "u1", account_id=acc["id"], pnl=50, result="Win")
+    db_conn.execute(
+        "UPDATE j2_trades SET exit_date = ?, trading_day_et = ? WHERE user_id = ?",
+        (et_today.isoformat() + "T00:00:00Z", et_today.isoformat(), "u1"),
+    )
+    db_conn.commit()
+
+    got = goal_progress("u1", acc["id"], conn=db_conn)
+    # Counts toward TODAY's daily bucket via the spine, not the prior ET day.
+    assert got["periods"]["daily"]["pnl"] == 50
+    assert got["periods"]["daily"]["progress"] == 0.5
+
+
 def test_upsert_account_settings_round_trip(db_conn):
     from api.services.journal_two.accounts import (
         get_or_migrate_default_account, upsert_account_settings,

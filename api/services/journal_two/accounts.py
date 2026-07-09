@@ -813,10 +813,12 @@ def goal_progress(
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any] | None:
     """Return current Daily/Weekly/Monthly/Yearly P&L totals + each
-    goal's percentage. Uses ET calendar day boundaries via calendar.to_et_date.
+    goal's percentage. Buckets each trade on its ET trading-session day via
+    the shared calendar._row_et_day spine (stamped trading_day_et when present,
+    else to_et_date(exit_date)) so Goals agree with Calendar/Analytics.
     """
     from datetime import date as Date, timedelta
-    from api.services.journal_two.calendar import to_et_date, ET
+    from api.services.journal_two.calendar import _row_et_day, ET
 
     owned = conn is None
     conn = conn or get_connection()
@@ -834,7 +836,7 @@ def goal_progress(
 
         rows = conn.execute(
             """
-            SELECT exit_date, pnl_dollar
+            SELECT exit_date, trading_day_et, pnl_dollar
               FROM j2_trades
              WHERE user_id = ? AND account_id = ?
                AND exit_date >= ?
@@ -847,7 +849,7 @@ def goal_progress(
         monthly_pnl = 0.0
         yearly_pnl = 0.0
         for r in rows:
-            d_str = to_et_date(r["exit_date"])
+            d_str = _row_et_day(r, "exit_date")
             d = Date.fromisoformat(d_str)
             pnl = float(r["pnl_dollar"] or 0)
             if d >= year_start:
