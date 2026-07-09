@@ -42,7 +42,8 @@ New service module `api/services/community_db.py` + router `api/routers/communit
 
 ### Tables
 
-- **threads** — `id`, `space`, `author_id`, `title`, `body` (markdown), `ticker_tags` (JSON),
+- **threads** — `id`, `space`, `author_id`, `title`, `body` (TipTap JSON, matching the
+  Notebook editor — amended from markdown during planning), `ticker_tags` (JSON),
   `pinned`, `locked`, `answered`, `desk_content_id` (nullable — Desk seed key), `deleted`
   (soft), `created_at`, `last_activity_at`
 - **posts** — `id`, `thread_id`, `author_id`, `parent_post_id` (nullable — **one level of
@@ -54,7 +55,8 @@ New service module `api/services/community_db.py` + router `api/routers/communit
   (`open`/`hidden`/`dismissed`), `created_at`
 - **read_state** — `user_id`, `thread_id`, `last_seen_post_id` — powers unread badges
 
-Identity from existing auth (display name + avatar); `is_mentor` flag on the owner's account.
+Identity from existing auth (display name; avatars via the existing `GET /api/auth/avatar/{user_id}`).
+Mentor = existing `role == 'admin'` — no new user column (amended during planning).
 No anonymous posting.
 
 ### Deliberately excluded from v1
@@ -64,7 +66,7 @@ edit history, search (v2).
 
 ## 3. Mentor tools
 
-All gated by `is_mentor`:
+All gated by `role == 'admin'` (mentor == admin):
 
 - **Badge:** gold "UCT Mentor" chip on name + subtle gold left border on mentor posts.
 - **Pin / lock** threads per space.
@@ -93,14 +95,16 @@ All gated by `is_mentor`:
 - **Composer:** TipTap (as shipped in Notebook; use the latest-callback-ref pattern —
   `onUpdate` stale-closure gotcha). Bold/lists/links, image paste, `$TICKER` autocomplete
   rendering chips that link to `/charts/{ticker}`.
-- **Images:** v1 ships chart-screenshot upload — images only, size-capped, stored to the
-  existing R2 bucket.
+- **Images:** v1 ships chart-screenshot upload — images only, 5 MB cap, Pillow→WebP on the
+  `/data` Railway volume (house pattern, same as avatars/journal screenshots — amended from
+  R2 during planning; R2 is reserved for the bars/brain data rails).
 - **Mobile:** left rail collapses to a space-switcher header; layout via CSS media queries,
   **not** `useMediaQuery` (first-paint gotcha).
 - **Visual language:** existing dark theme + gold tokens + Instrument Sans; custom gold SVG
   reactions. Must feel native to UCT, not a bolted-on forum.
-- **Notifications (v1):** unread-count badge on the nav item + in-page "replies to you"
-  indicator. No email/push in v1.
+- **Notifications (v1):** unread-count badge on the nav item + per-space unread badges in
+  the left rail (amended during planning: the per-space badges replace a dedicated
+  "replies to you" indicator, which moves to v2 with digests). No email/push in v1.
 
 ## 6. Moderation, safety & compliance
 
