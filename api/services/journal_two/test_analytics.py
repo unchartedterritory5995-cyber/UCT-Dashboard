@@ -59,6 +59,7 @@ def _add_trade(
     conn, user_id, *, account_id=None,
     exit_date_iso="2026-04-19T18:00:00Z", pnl=100, r=1.5, result="Win",
     side="Long", setup="VCP", symbol="NVDA",
+    trading_day_et=None, hour_et=None,
 ):
     tid = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
@@ -69,13 +70,14 @@ def _add_trade(
             entry_price, entry_date, exit_price, exit_date,
             original_stop, setup, notes, pnl_dollar, pnl_percent,
             r_multiple, hold_days, result, context_at_entry,
-            account_id, created_at
+            account_id, created_at, trading_day_et, hour_et
         ) VALUES (?, ?, 'manual', ?, ?, 100, 500, ?, 510, ?,
-                  490, ?, NULL, ?, 0.02, ?, 1, ?, '{}', ?, ?)
+                  490, ?, NULL, ?, 0.02, ?, 1, ?, '{}', ?, ?, ?, ?)
         """,
         (
             tid, user_id, symbol, side, exit_date_iso, exit_date_iso,
             setup, pnl, r, result, account_id, now,
+            trading_day_et, hour_et,
         ),
     )
     conn.commit()
@@ -146,13 +148,19 @@ def test_equity_drawdown_kpis(db_conn):
 
 
 def test_hourly_buckets_use_et(db_conn):
-    """A 23:00 UTC trade in EDT = 19:00 ET → hour 19 bucket."""
+    """A 23:00 UTC trade in EDT = 19:00 ET → hour 19 bucket.
+
+    Task 4: the hour report reads the stamped hour_et column (rows with
+    NULL hour_et are excluded per spec §3), so stamp it here the same
+    way every real write path does — via compute_hour_et."""
     from api.services.journal_two.analytics import get_analytics
+    from api.services.journal_two.timeutil import compute_hour_et
     _add_user(db_conn, "u1", "u1@x.com")
     aid = _add_account(db_conn, "u1")
 
+    iso = "2026-04-19T23:00:00Z"
     _add_trade(db_conn, "u1", account_id=aid,
-               exit_date_iso="2026-04-19T23:00:00Z", pnl=140)
+               exit_date_iso=iso, pnl=140, hour_et=compute_hour_et(iso))
 
     got = get_analytics("u1", account_id=aid, conn=db_conn)
     hourly = {h["hour"]: h for h in got["performance"]["hourly"]}
@@ -403,3 +411,52 @@ def test_options_section_with_closed_strategies(db_conn):
     # dteScatter: only strategies with r_multiple have points
     # long_call has max_risk, credit_spread has max_risk → both have R → 2 points
     assert len(opts["dteScatter"]) == 2
+
+
+# ─── trading_day_et spine (Task 4) ────────────────────────────────────────────
+
+
+def test_spine_column_wins_over_utc_refilter(db_conn):
+    """Row whose UTC date and spine day differ: spine must decide membership.
+
+    exit 2026-04-19T00:00:00Z is 2026-04-18 20:00 ET, so the legacy
+    to_et_date re-filter put it on the 18th (excluded from a 19th-only
+    range). With trading_day_et='2026-04-19' stamped, the spine wins."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_account(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T00:00:00Z", pnl=100)
+    db_conn.execute(
+        "UPDATE j2_trades SET trading_day_et='2026-04-19', hour_et=NULL")
+    db_conn.commit()
+
+    out = get_analytics("u1", date_from="2026-04-19", date_to="2026-04-19",
+                        conn=db_conn)
+    # Trade included on the 19th (old code put it on the 18th → dropped)
+    assert out["tradeCount"] == 1
+    assert out["performance"]["byDay"] == [{"date": "2026-04-19", "pnl": 100.0}]
+
+
+def test_hour_report_excludes_null_hours(db_conn):
+    """Date-only trades (hour_et NULL) must vanish from the hour histogram
+    instead of clustering at a fake midnight/8PM ET hour (spec §3)."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_account(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T14:30:00Z", pnl=100)
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-20T00:00:00Z", pnl=50)  # date-only
+    db_conn.execute(
+        "UPDATE j2_trades SET trading_day_et = substr(exit_date, 1, 10)")
+    db_conn.execute(
+        "UPDATE j2_trades SET hour_et = 10 WHERE exit_date LIKE '%14:30%'")
+    db_conn.commit()
+
+    out = get_analytics("u1", conn=db_conn)
+    hours = out["performance"]["hourly"]
+    # Only the real-timestamp trade appears in an hour bucket
+    assert sum(1 for h in hours if h["tradeCount"]) == 1
+    by_hour = {h["hour"]: h for h in hours}
+    assert by_hour[10]["tradeCount"] == 1
+    assert by_hour[10]["pnl"] == 100.0

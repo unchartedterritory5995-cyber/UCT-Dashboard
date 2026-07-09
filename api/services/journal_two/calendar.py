@@ -51,6 +51,16 @@ def to_et_date(iso_utc: str) -> str:
     return dt.astimezone(ET).strftime("%Y-%m-%d")
 
 
+def _row_et_day(r, ts_key: str) -> str | None:
+    """ET trading day for a row: the stamped trading_day_et spine column
+    when present, else legacy to_et_date() on the row's timestamp column.
+    Row-safe (defensive `in keys()` — works for sqlite3.Row and dict)."""
+    if "trading_day_et" in r.keys() and r["trading_day_et"]:
+        return r["trading_day_et"]
+    ts = r[ts_key]
+    return to_et_date(ts) if ts else None
+
+
 def _iso_week_bounds(year: int, week: int) -> tuple[Date, Date]:
     """ISO 8601 week → (Monday, Sunday) date pair."""
     jan4 = Date(year, 1, 4)
@@ -142,7 +152,7 @@ def _aggregate_trades(
     """
     bucket: dict[str, dict[str, Any]] = _extra_bucket or {}
     for r in rows:
-        d = to_et_date(r["exit_date"])
+        d = _row_et_day(r, "exit_date")
         b = bucket.setdefault(d, _empty_bucket(d))
         b["pnlDollar"] += float(r["pnl_dollar"] or 0)
         if r["r_multiple"] is not None:
@@ -372,30 +382,30 @@ def _fetch_strategies_in_window(
     conn: sqlite3.Connection,
     *,
     account_id: str | None = None,
+    et_lo: str,
+    et_hi: str,
 ) -> list[sqlite3.Row]:
-    """Closed option strategies with closed_at in the SQL range.
-    ET-bucket filtering happens on the caller side."""
+    """Closed option strategies in the window. Rows with a stamped
+    trading_day_et are filtered on the spine against the unbuffered
+    [et_lo, et_hi] ET-date range; legacy NULL-spine rows keep the
+    buffered closed_at range [sql_lo, sql_hi], with ET-bucket filtering
+    on the caller side."""
+    sql = (
+        "SELECT id, closed_at, pnl_dollar, r_multiple, result, status, "
+        "       trading_day_et "
+        "  FROM j2_option_strategies "
+        " WHERE user_id = ? "
+        "   AND status != 'open' "
+        "   AND (COALESCE(trading_day_et, '') >= ?"
+        "        OR (trading_day_et IS NULL AND closed_at >= ?)) "
+        "   AND (COALESCE(trading_day_et, '~') <= ?"
+        "        OR (trading_day_et IS NULL AND closed_at <= ?))"
+    )
+    params: list[Any] = [user_id, et_lo, sql_lo, et_hi, sql_hi]
     if account_id:
-        return conn.execute(
-            """
-            SELECT id, closed_at, pnl_dollar, r_multiple, result, status
-              FROM j2_option_strategies
-             WHERE user_id = ? AND account_id = ?
-               AND status != 'open'
-               AND closed_at >= ? AND closed_at <= ?
-            """,
-            (user_id, account_id, sql_lo, sql_hi),
-        ).fetchall()
-    return conn.execute(
-        """
-        SELECT id, closed_at, pnl_dollar, r_multiple, result, status
-          FROM j2_option_strategies
-         WHERE user_id = ?
-           AND status != 'open'
-           AND closed_at >= ? AND closed_at <= ?
-        """,
-        (user_id, sql_lo, sql_hi),
-    ).fetchall()
+        sql += " AND account_id = ?"
+        params.append(account_id)
+    return conn.execute(sql, params).fetchall()
 
 
 def _fetch_expiring_legs(
@@ -428,12 +438,13 @@ def _union_strategy_aggregates(
     start_iso: str,
     end_iso: str,
 ) -> None:
-    """Fold closed option strategies into existing day buckets (by ET
-    bucketed closed_at). Mutates `bucket` in place."""
+    """Fold closed option strategies into existing day buckets (by the
+    trading_day_et spine, falling back to ET-bucketed closed_at for
+    legacy NULL-spine rows). Mutates `bucket` in place."""
     for s in strategies:
-        if s["closed_at"] is None:
+        d = _row_et_day(s, "closed_at")
+        if d is None:
             continue
-        d = to_et_date(s["closed_at"])
         if not (start_iso <= d <= end_iso):
             continue
         b = bucket.setdefault(d, _empty_bucket(d))
@@ -512,47 +523,45 @@ def get_calendar(
         raise ValueError(f"unknown view: {view}")
 
     # Convert ET-date bounds to ISO-string range for the SQL filter.
-    # We grab a 1-day buffer on each side because exit_date is UTC and
-    # the ET conversion can push a row into the prior/next day. The
-    # in-memory bucket loop drops anything outside [start, end].
+    # Rows with a stamped trading_day_et are range-filtered directly on
+    # the spine column. Legacy NULL-spine rows keep the old 1-day buffer
+    # on each side (exit_date is UTC and the ET conversion can push a row
+    # into the prior/next day); the in-memory bucket loop drops anything
+    # outside [start, end].
     sql_lo = (start - timedelta(days=1)).isoformat() + "T00:00:00Z"
     sql_hi = (end + timedelta(days=1)).isoformat() + "T23:59:59Z"
+    start_iso, end_iso = start.isoformat(), end.isoformat()
 
     owned = conn is None
     conn = conn or get_connection()
     try:
+        sql = (
+            "SELECT exit_date, pnl_dollar, r_multiple, result, trading_day_et "
+            "  FROM j2_trades "
+            " WHERE user_id = ? "
+            "   AND (COALESCE(trading_day_et, '') >= ?"
+            "        OR (trading_day_et IS NULL AND exit_date >= ?)) "
+            "   AND (COALESCE(trading_day_et, '~') <= ?"
+            "        OR (trading_day_et IS NULL AND exit_date <= ?))"
+        )
+        params: list[Any] = [user_id, start_iso, sql_lo, end_iso, sql_hi]
         if account_id:
-            rows = conn.execute(
-                """
-                SELECT exit_date, pnl_dollar, r_multiple, result
-                  FROM j2_trades
-                 WHERE user_id = ? AND account_id = ?
-                   AND exit_date >= ? AND exit_date <= ?
-                """,
-                (user_id, account_id, sql_lo, sql_hi),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                """
-                SELECT exit_date, pnl_dollar, r_multiple, result
-                  FROM j2_trades
-                 WHERE user_id = ?
-                   AND exit_date >= ? AND exit_date <= ?
-                """,
-                (user_id, sql_lo, sql_hi),
-            ).fetchall()
+            sql += " AND account_id = ?"
+            params.append(account_id)
+        rows = conn.execute(sql, params).fetchall()
 
-        # Filter rows whose ET date falls outside the requested period.
+        # Filter rows whose ET trading day falls outside the requested
+        # period (spine wins; legacy rows use to_et_date exactly as before).
         in_window = []
-        start_iso, end_iso = start.isoformat(), end.isoformat()
         for r in rows:
-            et_d = to_et_date(r["exit_date"])
+            et_d = _row_et_day(r, "exit_date")
             if start_iso <= et_d <= end_iso:
                 in_window.append(r)
 
         # Fold closed option strategies into the same day buckets.
         strategies = _fetch_strategies_in_window(
             user_id, sql_lo, sql_hi, conn, account_id=account_id,
+            et_lo=start_iso, et_hi=end_iso,
         )
         extra_bucket: dict[str, dict[str, Any]] = {}
         _union_strategy_aggregates(extra_bucket, strategies, start_iso, end_iso)
@@ -631,8 +640,10 @@ def get_day_detail(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        # Pull all of user's trades and filter to this ET-date in code
-        # (avoids forcing SQL-side timezone math).
+        # Rows with a stamped trading_day_et match the requested date on
+        # the spine column directly. Legacy NULL-spine rows keep the old
+        # ET-midnight −1/+2-day window + Python to_et_date filter (avoids
+        # forcing SQL-side timezone math).
         sql_lo = (
             datetime.fromisoformat(date).replace(tzinfo=ET) - timedelta(days=1)
         ).astimezone(UTC).isoformat()
@@ -641,36 +652,31 @@ def get_day_detail(
             + timedelta(days=2)
         ).astimezone(UTC).isoformat()
 
+        sql = (
+            "SELECT * FROM j2_trades "
+            " WHERE user_id = ? "
+            "   AND (COALESCE(trading_day_et, '') >= ?"
+            "        OR (trading_day_et IS NULL AND exit_date >= ?)) "
+            "   AND (COALESCE(trading_day_et, '~') <= ?"
+            "        OR (trading_day_et IS NULL AND exit_date <= ?))"
+        )
+        params: list[Any] = [user_id, date, sql_lo, date, sql_hi]
         if account_id:
-            rows = conn.execute(
-                """
-                SELECT * FROM j2_trades
-                 WHERE user_id = ? AND account_id = ?
-                   AND exit_date >= ? AND exit_date <= ?
-                 ORDER BY exit_date ASC
-                """,
-                (user_id, account_id, sql_lo, sql_hi),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                """
-                SELECT * FROM j2_trades
-                 WHERE user_id = ?
-                   AND exit_date >= ? AND exit_date <= ?
-                 ORDER BY exit_date ASC
-                """,
-                (user_id, sql_lo, sql_hi),
-            ).fetchall()
+            sql += " AND account_id = ?"
+            params.append(account_id)
+        sql += " ORDER BY exit_date ASC"
+        rows = conn.execute(sql, params).fetchall()
 
-        same_day = [r for r in rows if to_et_date(r["exit_date"]) == date]
+        same_day = [r for r in rows if _row_et_day(r, "exit_date") == date]
 
         # Option strategies: closed on this day + open ones expiring today.
         closed_strategies = _fetch_strategies_in_window(
             user_id, sql_lo, sql_hi, conn, account_id=account_id,
+            et_lo=date, et_hi=date,
         )
         same_day_strategies = [
             s for s in closed_strategies
-            if s["closed_at"] and to_et_date(s["closed_at"]) == date
+            if _row_et_day(s, "closed_at") == date
         ]
         expiring_today = _fetch_expiring_legs(
             user_id, date, date, conn, account_id=account_id,

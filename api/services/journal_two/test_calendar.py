@@ -52,6 +52,7 @@ def _add_trade(
     conn, user_id, *,
     exit_date_iso, pnl=100.0, r=2.0, result="Win",
     symbol="NVDA", entry_price=500.0, exit_price=510.0, shares=100,
+    trading_day_et=None, hour_et=None,
 ):
     tid = str(uuid.uuid4())
     conn.execute(
@@ -60,15 +61,17 @@ def _add_trade(
             id, user_id, position_id, symbol, side, shares,
             entry_price, entry_date, exit_price, exit_date,
             original_stop, setup, notes, pnl_dollar, pnl_percent,
-            r_multiple, hold_days, result, context_at_entry, created_at
+            r_multiple, hold_days, result, context_at_entry, created_at,
+            trading_day_et, hour_et
         ) VALUES (?, ?, 'manual', ?, 'Long', ?, ?, ?, ?, ?, ?, NULL, NULL,
-                  ?, 0.02, ?, 1, ?, '{}', ?)
+                  ?, 0.02, ?, 1, ?, '{}', ?, ?, ?)
         """,
         (
             tid, user_id, symbol, shares, entry_price,
             exit_date_iso, exit_price, exit_date_iso,
             entry_price * 0.98, pnl, r, result,
             datetime.now(timezone.utc).isoformat(),
+            trading_day_et, hour_et,
         ),
     )
     conn.commit()
@@ -472,6 +475,24 @@ def test_calendar_unions_option_strategies(db_conn):
     assert bucket is not None
     assert bucket["pnlDollar"] == 400   # 100 + 300
     assert bucket["tradeCount"] == 2    # 1 trade + 1 strategy
+
+
+def test_calendar_spine_column_wins_over_utc_refilter(db_conn):
+    """A T00:00:00Z trade with trading_day_et stamped appears on the SPINE
+    day in the month view — not the previous ET calendar day (the legacy
+    to_et_date bucketing put 2026-04-19T00:00:00Z on the 18th)."""
+    from api.services.journal_two.calendar import get_calendar
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T00:00:00Z", pnl=100,
+               trading_day_et="2026-04-19")
+
+    got = get_calendar("u1", view="month", year=2026, month=4, conn=db_conn)
+    by_date = {d["date"]: d for d in got["days"]}
+    assert "2026-04-18" not in by_date
+    assert by_date["2026-04-19"]["pnlDollar"] == pytest.approx(100.0)
+    assert by_date["2026-04-19"]["tradeCount"] == 1
 
 
 def test_calendar_marks_expiring_strategies(db_conn):

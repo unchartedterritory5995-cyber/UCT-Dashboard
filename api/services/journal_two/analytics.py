@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover
     from backports.zoneinfo import ZoneInfo  # type: ignore
 
 from api.services.auth_db import get_connection
-from api.services.journal_two.calendar import to_et_date
+from api.services.journal_two.calendar import _row_et_day, to_et_date
 
 
 ET = ZoneInfo("America/New_York")
@@ -107,7 +107,7 @@ def _fetch_trades(
     sql = (
         "SELECT exit_date, entry_date, pnl_dollar, pnl_percent, "
         "       r_multiple, hold_days, result, side, setup, symbol, "
-        "       account_id "
+        "       account_id, trading_day_et, hour_et "
         "  FROM j2_trades "
         " WHERE user_id = ?"
     )
@@ -115,23 +115,34 @@ def _fetch_trades(
     if account_id:
         sql += " AND account_id = ?"
         params.append(account_id)
+    # Rows with a stamped trading_day_et are range-filtered directly on the
+    # spine column; legacy NULL rows keep the old ±1-day UTC buffer (the
+    # Python re-filter below applies to_et_date to exactly those rows).
     if date_from:
-        # Buffer ±1 day on each side because exit_date is UTC and ET
-        # bucketing might shift by up to 24h. We re-filter in Python.
-        sql += " AND exit_date >= ?"
+        sql += (" AND (COALESCE(trading_day_et, '') >= ?"
+                " OR (trading_day_et IS NULL AND exit_date >= ?))")
+        params.append(date_from)
         params.append((Date.fromisoformat(date_from) - timedelta(days=1)).isoformat() + "T00:00:00Z")
     if date_to:
-        sql += " AND exit_date <= ?"
+        sql += (" AND (COALESCE(trading_day_et, '~') <= ?"
+                " OR (trading_day_et IS NULL AND exit_date <= ?))")
+        params.append(date_to)
         params.append((Date.fromisoformat(date_to) + timedelta(days=1)).isoformat() + "T23:59:59Z")
     sql += " ORDER BY exit_date ASC"
 
     rows = conn.execute(sql, params).fetchall()
 
-    # Re-filter on ET-bucketed exit date if range was given
+    # Re-filter on the ET trading day if a range was given. Spine rows use
+    # the column (a no-op re-check of the SQL filter); legacy NULL rows get
+    # exactly the pre-spine to_et_date behavior.
     if date_from or date_to:
         out = []
         for r in rows:
-            d = to_et_date(r["exit_date"])
+            d = (
+                r["trading_day_et"]
+                if "trading_day_et" in r.keys() and r["trading_day_et"]
+                else to_et_date(r["exit_date"])
+            )
             if date_from and d < date_from:
                 continue
             if date_to and d > date_to:
@@ -206,10 +217,10 @@ def _equity_section(rows: list[sqlite3.Row], starting_balance: float) -> dict[st
             "curve": [],
         }
 
-    # Aggregate per ET-bucketed day
+    # Aggregate per ET trading day (spine column, legacy to_et_date fallback)
     by_day: dict[str, float] = defaultdict(float)
     for r in rows:
-        d = to_et_date(r["exit_date"])
+        d = _row_et_day(r, "exit_date")
         by_day[d] += float(r["pnl_dollar"] or 0)
 
     sorted_days = sorted(by_day.keys())
@@ -270,7 +281,7 @@ def _performance_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
 
     for r in rows:
         pnl = float(r["pnl_dollar"] or 0)
-        d_str = to_et_date(r["exit_date"])
+        d_str = _row_et_day(r, "exit_date")
         d = Date.fromisoformat(d_str)
 
         by_day[d_str] += pnl
@@ -282,14 +293,14 @@ def _performance_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
         by_month[d.strftime("%Y-%m")] += pnl
         by_year[d.year] += pnl
 
-        # Hour in ET
-        dt = datetime.fromisoformat(r["exit_date"].replace("Z", "+00:00"))
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        et_dt = dt.astimezone(ET)
-        h = et_dt.hour
-        by_hour[h]["pnl"] += pnl
-        by_hour[h]["tradeCount"] += 1
+        # Hour in ET — read the stamped hour_et column ONLY. Rows with a
+        # NULL hour_et (date-only trades) are EXCLUDED from the hour
+        # histogram by design (spec §3: they were fake midnight/8PM ET
+        # clusters, not real execution times). No timestamp fallback.
+        h = r["hour_et"] if "hour_et" in r.keys() else None
+        if h is not None:
+            by_hour[h]["pnl"] += pnl
+            by_hour[h]["tradeCount"] += 1
 
         dow_label = DOW_LABELS[d.weekday()]
         by_dow[dow_label]["pnl"] += pnl
@@ -603,7 +614,8 @@ def _fetch_option_strategies(
     sql = (
         "SELECT id, underlying, strategy_type, direction, net_entry, fees, "
         "       entry_date, closed_at, net_exit, exit_fees, pnl_dollar, "
-        "       pnl_percent, r_multiple, result, status, account_id "
+        "       pnl_percent, r_multiple, result, status, account_id, "
+        "       trading_day_et "
         "  FROM j2_option_strategies "
         " WHERE user_id = ? AND status != 'open'"
     )
@@ -611,23 +623,33 @@ def _fetch_option_strategies(
     if account_id:
         sql += " AND account_id = ?"
         params.append(account_id)
+    # Spine rows filter on trading_day_et; legacy NULL rows keep the old
+    # ±1-day UTC buffer + Python to_et_date re-filter.
     if date_from:
-        sql += " AND closed_at >= ?"
+        sql += (" AND (COALESCE(trading_day_et, '') >= ?"
+                " OR (trading_day_et IS NULL AND closed_at >= ?))")
+        params.append(date_from)
         params.append((Date.fromisoformat(date_from) - timedelta(days=1)).isoformat() + "T00:00:00Z")
     if date_to:
-        sql += " AND closed_at <= ?"
+        sql += (" AND (COALESCE(trading_day_et, '~') <= ?"
+                " OR (trading_day_et IS NULL AND closed_at <= ?))")
+        params.append(date_to)
         params.append((Date.fromisoformat(date_to) + timedelta(days=1)).isoformat() + "T23:59:59Z")
     sql += " ORDER BY closed_at ASC"
 
     rows = conn.execute(sql, params).fetchall()
-    # Re-filter on ET-bucketed closed_at if range was given
+    # Re-filter on the ET trading day if a range was given (spine wins;
+    # legacy NULL rows get exactly the pre-spine behavior).
     if date_from or date_to:
         out = []
         for r in rows:
-            closed = r["closed_at"]
-            if closed is None:
-                continue
-            d = to_et_date(closed)
+            if "trading_day_et" in r.keys() and r["trading_day_et"]:
+                d = r["trading_day_et"]
+            else:
+                closed = r["closed_at"]
+                if closed is None:
+                    continue
+                d = to_et_date(closed)
             if date_from and d < date_from:
                 continue
             if date_to and d > date_to:
