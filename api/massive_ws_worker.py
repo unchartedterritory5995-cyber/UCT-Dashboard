@@ -1601,6 +1601,14 @@ async def _run_session(ws):
         strictly serialized and ordered; no concurrent FlowDB writer. On stop,
         finishes the queue before exiting so no buffered batch is lost."""
         loop = asyncio.get_running_loop()
+        # Drain coalescing (re-applied 2026-07-09 after the open drowned the
+        # one-batch-at-a-time writer): merge all already-queued batches into ONE
+        # _write_events call so the fixed per-write cost (5 enrichment passes +
+        # insert txn) is amortized across the whole backlog. Without it the writer
+        # pays that cost per 2s flush-batch and falls minutes behind the ~650/s
+        # open firehose. Bounds keep any single write sane; env-tunable.
+        _c_max_ev = int(os.environ.get("MASSIVE_WRITE_COALESCE_EVENTS", "8000"))
+        _c_max_ba = int(os.environ.get("MASSIVE_WRITE_COALESCE_BATCHES", "400"))
         while True:
             try:
                 events = await asyncio.wait_for(write_queue.get(), timeout=1.0)
@@ -1608,12 +1616,20 @@ async def _run_session(ws):
                 if stop_event.is_set() and write_queue.empty():
                     break
                 continue
+            drained = 1
+            while len(events) < _c_max_ev and drained < _c_max_ba:
+                try:
+                    events.extend(write_queue.get_nowait())
+                except asyncio.QueueEmpty:
+                    break
+                drained += 1
             try:
                 await loop.run_in_executor(_WRITE_EXECUTOR, _write_events, events)
             except Exception as e:
                 logger.warning("[massive-ws] writer batch failed: %s", e)
             finally:
-                write_queue.task_done()
+                for _ in range(drained):
+                    write_queue.task_done()
 
     async def flusher():
         while not stop_event.is_set():
