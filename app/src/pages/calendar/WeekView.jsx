@@ -32,7 +32,9 @@ export default function WeekView({ weekDates, days, filters, onSelect }) {
           (day.bmo||[]).map(e=>({...e,_timing:'bmo'})), filters), filters.sort)
         const amc = sortEntries(applyFilters(
           (day.amc||[]).map(e=>({...e,_timing:'amc'})), filters), filters.sort)
-        const empty = !bmo.length && !amc.length
+        const tbd = sortEntries(applyFilters(
+          (day.tbd||[]).map(e=>({...e,_timing:'tbd'})), filters), filters.sort)
+        const empty = !bmo.length && !amc.length && !tbd.length
         return (
           <div key={ds} className={`${styles.wcol} ${day.is_today ? styles.wcolToday : ''}`}>
             <div className={styles.wd}>{day.label || ds}</div>
@@ -42,10 +44,17 @@ export default function WeekView({ weekDates, days, filters, onSelect }) {
                 No earnings
               </div>
             ) : (
-              <div className={styles.wtimings}>
-                <WeekTimingGroup label="BMO" icon="sparkle" hdClass={styles.bmoHd} rows={bmo} onSelect={onSelect} />
-                <WeekTimingGroup label="AMC" icon="moon" hdClass={styles.amcHd} rows={amc} onSelect={onSelect} />
-              </div>
+              <>
+                <div className={styles.wtimings}>
+                  <WeekTimingGroup label="BMO" icon="sparkle" hdClass={styles.bmoHd} rows={bmo} onSelect={onSelect} />
+                  <WeekTimingGroup label="AMC" icon="moon" hdClass={styles.amcHd} rows={amc} onSelect={onSelect} />
+                </div>
+                {tbd.length > 0 && (
+                  <div className={styles.wtbd}>
+                    <WeekTimingGroup label="TIME TBD" icon="clock" hdClass={styles.tbdHd} rows={tbd} onSelect={onSelect} />
+                  </div>
+                )}
+              </>
             )}
           </div>
         )

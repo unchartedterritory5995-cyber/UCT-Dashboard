@@ -1,8 +1,9 @@
 // app/src/pages/calendar/CalendarHeader.jsx
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import { FiltersSheet } from '../../components/mobile'
+import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
@@ -27,15 +28,196 @@ const MONTH_NAMES = [
   'July','August','September','October','November','December',
 ]
 
+// ── Ticker search (header) ────────────────────────────────────────────────────
+// Typeahead over /api/ticker-search (prewarmed ticker_meta names). Selecting a
+// name resolves its report date: found in the loaded week → jump+pulse; outside
+// → ONE /api/calendar/next-report fetch (never per keystroke) → jump to that
+// week. '/' focuses the input from anywhere on the page.
+
+function CalendarSearch({ onJump }) {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState([])
+  const [open, setOpen] = useState(false)
+  const [notice, setNotice] = useState(null)     // "no scheduled report" line
+  const [resolving, setResolving] = useState(null)
+  const [hi, setHi] = useState(0)
+  const inputRef = useRef(null)
+  const boxRef = useRef(null)
+  const debounceRef = useRef(null)
+
+  // '/' focuses search from anywhere (ignored while typing elsewhere)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== '/') return
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      e.preventDefault()
+      inputRef.current?.focus()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // Click-outside closes the dropdown
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (boxRef.current && !boxRef.current.contains(e.target)) {
+        setOpen(false); setNotice(null)
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  const runSearch = useCallback((text) => {
+    clearTimeout(debounceRef.current)
+    if (!text.trim()) { setResults([]); setOpen(false); return }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/ticker-search?q=${encodeURIComponent(text.trim())}&limit=8`)
+        const j = r.ok ? await r.json() : { results: [] }
+        setResults(j.results || [])
+        setHi(0)
+        setOpen(true)
+      } catch { setResults([]) }
+    }, 150)
+  }, [])
+
+  const select = useCallback(async (ticker) => {
+    const sym = (ticker || '').toUpperCase()
+    if (!sym) return
+    setNotice(null)
+    setResolving(sym)
+    try {
+      // ONE resolve call on selection (6h-cached server-side)
+      const r = await fetch(`/api/calendar/next-report?sym=${encodeURIComponent(sym)}`,
+                            { credentials: 'include' })
+      const j = r.ok ? await r.json() : null
+      if (j?.date) {
+        onJump(sym, j.date)
+        setOpen(false)
+        setQ('')
+        setResults([])
+      } else {
+        setNotice(`${sym} — no scheduled report found`)
+      }
+    } catch {
+      setNotice(`${sym} — lookup failed, try again`)
+    } finally {
+      setResolving(null)
+    }
+  }, [onJump])
+
+  const onKeyDown = (e) => {
+    if (!open || !results.length) {
+      if (e.key === 'Enter' && q.trim()) select(q.trim())
+      if (e.key === 'Escape') { setOpen(false); setNotice(null); e.target.blur() }
+      return
+    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, results.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
+    else if (e.key === 'Enter') { e.preventDefault(); select(results[hi]?.ticker || q.trim()) }
+    else if (e.key === 'Escape') { setOpen(false); setNotice(null); e.target.blur() }
+  }
+
+  return (
+    <span className={styles.searchWrap} ref={boxRef}>
+      <UIcon name="search" size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+      <input
+        ref={inputRef}
+        className={styles.searchInput}
+        placeholder="When does… (press /)"
+        value={q}
+        aria-label="Search a ticker's report date"
+        onChange={e => { setQ(e.target.value); setNotice(null); runSearch(e.target.value) }}
+        onFocus={() => { if (results.length) setOpen(true) }}
+        onKeyDown={onKeyDown}
+      />
+      {(open || notice) && (
+        <div className={styles.searchPop}>
+          {notice && <div className={styles.searchNotice}>{notice}</div>}
+          {!notice && results.map((r, i) => (
+            <div
+              key={r.ticker}
+              className={`${styles.searchRow} ${i === hi ? styles.searchRowHi : ''}`}
+              onMouseEnter={() => setHi(i)}
+              onClick={() => select(r.ticker)}
+            >
+              <CompanyLogo sym={r.ticker} size={16} tile />
+              <span className={styles.searchRowSym}>{r.ticker}</span>
+              <span className={styles.searchRowName}>
+                {resolving === r.ticker ? 'Finding report date…' : (r.name || '')}
+              </span>
+            </div>
+          ))}
+          {!notice && !results.length && (
+            <div className={styles.searchNotice}>No matches</div>
+          )}
+        </div>
+      )}
+    </span>
+  )
+}
+
+// ── Week picker popover (± 8 weeks) ──────────────────────────────────────────
+
+// The picker anchors on the TRUE current week's Monday (ET), regardless of
+// which week is being viewed — offset 0 is always "this week".
+function mondayOfTodayEt() {
+  const iso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
+    .format(new Date())
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return d.toISOString().slice(0, 10)
+}
+
+function fmtPickerWeek(mondayIso) {
+  const s = new Date(mondayIso + 'T12:00:00')
+  const e = new Date(s); e.setDate(s.getDate() + 4)
+  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  return s.getMonth() === e.getMonth()
+    ? `${M[s.getMonth()]} ${s.getDate()}–${e.getDate()}`
+    : `${M[s.getMonth()]} ${s.getDate()} – ${M[e.getMonth()]} ${e.getDate()}`
+}
+
+function WeekPicker({ currentMonday, activeMonday, onPick, onClose }) {
+  const weeks = []
+  for (let i = -8; i <= 8; i++) {
+    const d = new Date(currentMonday + 'T12:00:00')
+    d.setDate(d.getDate() + i * 7)
+    weeks.push({ monday: d.toISOString().slice(0, 10), offset: i })
+  }
+  return (
+    <div className={styles.wkPop}>
+      {weeks.map(w => (
+        <button
+          key={w.monday}
+          className={`${styles.wkPopItem} ${w.monday === activeMonday ? styles.wkPopItemActive : ''}`}
+          onClick={() => { onPick(w.offset === 0 ? null : w.monday); onClose() }}
+        >
+          <span>Week of {fmtPickerWeek(w.monday)}</span>
+          {w.offset === 0 && <span className={styles.wkPopThis}>this week</span>}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function CalendarHeader({
   view, setView, weekLabel, filters, setFilters,
   mySources, setMySources,
   monthCursor, setMonthCursor,
   eventTypes, setEventTypes,
+  // Week Navigator (flagship 1b)
+  dayTabs = [],
+  isCurrentWeek = true,
+  onPrevWeek, onNextWeek, onGotoToday, onGotoWeek, onDayTab, onSearchJump,
 }) {
   const isPhone = useIsPhone()
   const [panelOpen, setPanelOpen] = useState(false)            // desktop ⚙ Filters popover
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const pickerRef = useRef(null)
   // Export state
   const [copying, setCopying] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -45,6 +227,16 @@ export default function CalendarHeader({
   const setNum = (k, v) => setFilters({ ...filters, [k]: v === '' ? null : Number(v) })
   const toggleSource = s => setMySources(
     mySources.includes(s) ? mySources.filter(x => x !== s) : [...mySources, s])
+
+  // Click-outside closes the week picker
+  useEffect(() => {
+    if (!pickerOpen) return
+    const onDoc = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) setPickerOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [pickerOpen])
 
   const toggleEventType = type => {
     if (!setEventTypes) return
@@ -121,7 +313,13 @@ export default function CalendarHeader({
 
   const audienceChips = AUDIENCE.map(([k, lbl, icon]) => (
     <span key={k} className={`${styles.chip} ${filters.audience === k ? styles.chipOn : ''}`}
-          onClick={() => set('audience', k)}>
+          onClick={() => set('audience', k)}
+          title={
+            k === 'all'   ? 'Every US company with a market cap of $300M or more' :
+            k === 'uct20' ? "UCT's 20 leadership names" :
+            k === 'mine'  ? 'Your watchlists + flagged + broker positions + UCT20 (pick sources in Filters)' :
+            undefined
+          }>
       {icon && <UIcon name={icon} size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />}{lbl}
     </span>
   ))
@@ -233,6 +431,16 @@ export default function CalendarHeader({
     </button>
   )
 
+  // Short weekday label for a day tab: "THU 9" from "Thu Jul 9"
+  const tabLabel = (t) => {
+    const parts = (t.label || '').split(' ')
+    const wd = (parts[0] || '').toUpperCase()
+    const dayNum = parts[2] || parts[1] || ''
+    return `${wd} ${dayNum}`.trim()
+  }
+
+  const currentMonday = dayTabs.length ? dayTabs[0].ds : null
+
   return (
     <div className={styles.header}>
       <div className={styles.hrow}>
@@ -243,9 +451,7 @@ export default function CalendarHeader({
                   onClick={() => setView(v.toLowerCase())}>{v}</span>
           ))}
         </span>
-        {view !== 'month' ? (
-          <span className={styles.wk}>{weekLabel}</span>
-        ) : (
+        {view === 'month' && (
           <span className={styles.monthNavHeader}>
             <button className={styles.monthNavBtn} onClick={prevMonth} aria-label="Previous month">‹</button>
             <span className={styles.monthNavLbl}>
@@ -255,13 +461,16 @@ export default function CalendarHeader({
           </span>
         )}
 
-        {/* Desktop: audience chips inline (primary filter) + ⚙ Filters popover */}
+        {/* Desktop: audience chips inline (primary filter) + search + ⚙ Filters popover */}
         {!isPhone && <span className={styles.sep} />}
         {!isPhone && audienceChips}
         {!isPhone && (
-          <span className={styles.filterWrap} style={{ marginLeft: 'auto' }}>
-            {filterBtn(() => setPanelOpen(o => !o))}
-            {panelOpen && <div className={styles.gearPop}>{panelSections}</div>}
+          <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {onSearchJump && <CalendarSearch onJump={onSearchJump} />}
+            <span className={styles.filterWrap}>
+              {filterBtn(() => setPanelOpen(o => !o))}
+              {panelOpen && <div className={styles.gearPop}>{panelSections}</div>}
+            </span>
           </span>
         )}
 
@@ -272,10 +481,55 @@ export default function CalendarHeader({
           </span>
         )}
 
-        <Link to="/calendar/mystocks" className={styles.hubLink} title="My Stocks Hub">
+        <Link to="/calendar/mystocks" className={styles.hubLink} title="My Stocks hub — earnings, news, calls, filings">
           <UIcon name="star-fill" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Hub
         </Link>
       </div>
+
+      {/* ── Week Navigator: the page's time spine (Feed + Week views) ── */}
+      {view !== 'month' && (
+        <div className={styles.navRow}>
+          <button className={styles.monthNavBtn} onClick={onPrevWeek} aria-label="Previous week">‹</button>
+          <span className={styles.dayTabs}>
+            {dayTabs.map(t => (
+              <button
+                key={t.ds}
+                className={`${styles.dayTab} ${t.is_today ? styles.dayTabToday : ''}`}
+                onClick={() => onDayTab?.(t.ds)}
+                aria-label={`Go to ${t.label}`}
+              >
+                <span className={styles.dayTabLbl}>{tabLabel(t)}</span>
+                <span className={styles.dayTabCount}>{t.count}</span>
+                {t.mineN > 0 && (
+                  <span className={styles.dayTabMine}>
+                    <UIcon name="star-fill" size={9} style={{ verticalAlign: '-1px' }} />{t.mineN}
+                  </span>
+                )}
+              </button>
+            ))}
+          </span>
+          <button className={styles.monthNavBtn} onClick={onNextWeek} aria-label="Next week">›</button>
+
+          {!isCurrentWeek && (
+            <button className={styles.todayPill} onClick={onGotoToday}>Today</button>
+          )}
+
+          <span className={styles.wkBtnWrap} ref={pickerRef}>
+            <button className={styles.wkBtn} onClick={() => setPickerOpen(o => !o)}
+                    aria-label="Pick a week">
+              {weekLabel || 'Pick a week'} <span aria-hidden="true">▾</span>
+            </button>
+            {pickerOpen && (
+              <WeekPicker
+                currentMonday={mondayOfTodayEt()}
+                activeMonday={currentMonday}
+                onPick={(monday) => onGotoWeek?.(monday)}
+                onClose={() => setPickerOpen(false)}
+              />
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Phone filter sheet — audience moves inside since it isn't inline on phone */}
       {isPhone && (

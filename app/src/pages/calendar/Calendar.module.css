@@ -1388,6 +1388,26 @@
     gap: 8px;
   }
 
+  /* Week Navigator: one horizontally-scrollable strip on phone */
+  .navRow {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .navRow::-webkit-scrollbar { display: none; }
+  .dayTab {
+    min-height: var(--tap-min, 44px);
+    flex: 0 0 auto;
+  }
+  .todayPill, .wkBtn {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+  .wkBtnWrap { margin-left: 0; }
+
   /* Feed/Week/Month toggle — finger-sized segments on phone (44px tall). */
   .view span {
     display: inline-flex;
@@ -1682,6 +1702,326 @@
   font-weight: 800;
   color: var(--cal-gold);
   margin-bottom: 10px;
+}
+
+/* ── Flagship 1b: Week Navigator (the page's time spine) ─────────────────── */
+
+.navRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--cal-line);
+  background: var(--bg);
+}
+
+.dayTabs {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.dayTab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  color: var(--cal-txt);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.dayTab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--cal-line);
+}
+
+.dayTabToday {
+  border-bottom: 2px solid var(--cal-gold);
+  border-radius: 8px 8px 2px 2px;
+}
+
+.dayTabLbl { white-space: nowrap; }
+
+.dayTabCount {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cal-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dayTabMine {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cal-gold);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.todayPill {
+  background: none;
+  border: 1px solid rgba(201, 168, 76, 0.5);
+  border-radius: 999px;
+  color: var(--cal-gold);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.todayPill:hover { background: rgba(201, 168, 76, 0.12); }
+
+.wkBtnWrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.wkBtn {
+  background: none;
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+  color: var(--cal-dim);
+  font-size: 12px;
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.wkBtn:hover {
+  border-color: var(--cal-line2);
+  color: var(--cal-txt);
+}
+
+.wkPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 10px;
+  padding: 6px;
+  z-index: 60;
+  min-width: 230px;
+  max-height: 320px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wkPopItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: var(--cal-txt);
+  font-size: 12px;
+  padding: 7px 10px;
+  text-align: left;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.wkPopItem:hover { background: rgba(255, 255, 255, 0.06); }
+
+.wkPopItemActive {
+  color: var(--cal-gold);
+  font-weight: 700;
+}
+
+.wkPopThis {
+  font-size: 10px;
+  color: var(--cal-gold);
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+/* ── Flagship 1b: header ticker search ───────────────────────────────────── */
+
+.searchWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.searchInput {
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 8px;
+  color: var(--cal-txt);
+  font-size: 12px;
+  padding: 6px 10px 6px 28px;
+  width: 200px;
+  box-sizing: border-box;
+  transition: border-color 0.1s, width 0.15s;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--cal-gold);
+  width: 240px;
+}
+
+.searchInput::placeholder { color: var(--cal-muted); }
+
+.searchPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  min-width: 260px;
+  background: var(--cal-panel2);
+  border: 1px solid var(--cal-line2);
+  border-radius: 10px;
+  padding: 4px;
+  z-index: 60;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.searchRowHi { background: rgba(255, 255, 255, 0.07); }
+
+.searchRowSym {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  flex-shrink: 0;
+}
+
+.searchRowName {
+  font-size: 11px;
+  color: var(--cal-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.searchNotice {
+  font-size: 11px;
+  color: var(--cal-muted);
+  padding: 9px 10px;
+}
+
+/* ── Flagship 1b: TBD session grouping ───────────────────────────────────── */
+
+/* Neutral (deliberately neither gold nor blue): the session is UNKNOWN. */
+.tbdHd {
+  color: var(--cal-muted);
+  border-bottom-color: var(--cal-line);
+}
+
+.sessionTbd { color: var(--cal-muted); }
+
+.dateEst {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--cal-muted);
+  letter-spacing: 0.3px;
+}
+
+/* TBD block under the BMO|AMC split in Week view — full width */
+.wtbd {
+  margin-top: 8px;
+  border-top: 1px solid var(--cal-line);
+  padding-top: 6px;
+}
+
+/* ── Flagship 1b: search/jump pulse, skeletons, error retry ──────────────── */
+
+.cardPulse {
+  animation: calCardPulse 0.9s ease-in-out 2;
+}
+
+@keyframes calCardPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); border-color: var(--cal-line); }
+  50%      { box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.35); border-color: var(--cal-gold); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardPulse { animation: none; border-color: var(--cal-gold); }
+}
+
+.retryBtn {
+  background: rgba(201, 168, 76, 0.12);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 7px;
+  color: var(--cal-gold);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 14px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.retryBtn:hover { background: rgba(201, 168, 76, 0.2); }
+
+.skeletonWrap {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.skeletonDay {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeletonBar,
+.skeletonRow,
+.skeletonRowShort {
+  border-radius: 8px;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: calSkeleton 1.4s ease-in-out infinite;
+}
+
+.skeletonBar      { height: 14px; width: 180px; }
+.skeletonRow      { height: 92px; width: 100%; }
+.skeletonRowShort { height: 92px; width: 72%; }
+
+@keyframes calSkeleton {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonBar, .skeletonRow, .skeletonRowShort { animation: none; }
+}
+
+.feedEmpty {
+  padding: 40px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--cal-muted);
 }
 
 /* E2: Export menu */

@@ -54,7 +54,7 @@ function fmtHistStats(hs) {
   return `avg ±${avg_abs_move.toFixed(1)}% over ${n}${upStr}`
 }
 
-export default function EarningsCard({ entry, timing, livePrice, liveSnap, reaction, onSelect }) {
+export default function EarningsCard({ entry, timing, livePrice, liveSnap, reaction, onSelect, pulsed }) {
   const reported = entry.eps_act != null
   const beats = (entry.beat_history || []).slice(0, 4).reverse()
   const beatCount = beats.filter(b => b.beat === true).length
@@ -78,7 +78,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
   return (
     <>
       <div
-        className={`${styles.card} ${entry.mine ? styles.cardMine : ''}`}
+        className={`${styles.card} ${entry.mine ? styles.cardMine : ''} ${pulsed ? styles.cardPulse : ''}`}
         onClick={() => onSelect?.(entry, timing)}
         {...longPressProps(entry.sym)}
       >
@@ -93,8 +93,17 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             </div>
             <div className={styles.nm}>{entry.name || ''}</div>
           </div>
-          <span className={`${styles.session} ${timing === 'bmo' ? styles.sessionBmo : styles.sessionAmc}`}>
-            {(timing || '').toUpperCase()}
+          <span
+            className={`${styles.session} ${
+              timing === 'bmo' ? styles.sessionBmo
+              : timing === 'amc' ? styles.sessionAmc
+              : styles.sessionTbd}`}
+            title={timing === 'bmo' ? 'Before market open'
+                 : timing === 'amc' ? 'After market close'
+                 : 'Report session not yet confirmed'}
+          >
+            {timing === 'tbd' ? 'TBD' : (timing || '').toUpperCase()}
+            {entry.date_est && <span className={styles.dateEst}> · est.</span>}
           </span>
         </div>
 

@@ -1,7 +1,10 @@
 // app/src/pages/Calendar.jsx
 // Dominant-feed calendar: Feed / Week / Month views with logo cards, enrichment overlay,
 // and My Stocks personalization. Route stays at this path so nav is unchanged.
-import { useState, useMemo } from 'react'
+// Week paging (?week=YYYY-MM-DD&d=YYYY-MM-DD), ticker search jump, and
+// land-on-today: calendar flagship Deploy 1b.
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import ErrorBoundary from '../components/ErrorBoundary'
 import EarningsModal from '../components/tiles/EarningsModal'
 import { toModalRow, timingLabel } from './calendar/earningsModalRow'
@@ -27,18 +30,6 @@ import styles from './calendar/Calendar.module.css'
 // ── Helpers ported verbatim from the original Calendar.jsx ──────────────────
 // These keep EarningsModal rendering identical to the old page.
 
-function fmtEps(v) {
-  if (v == null) return null
-  const sign = v < 0 ? '-' : ''
-  return `${sign}$${Math.abs(v).toFixed(2)}`
-}
-
-function fmtRev(v) {
-  if (v == null) return null
-  if (v >= 1000) return `$${(v / 1000).toFixed(1)}B`
-  return `$${Math.round(v)}M`
-}
-
 function fmtWeekRange(start, end) {
   const s = new Date(start + 'T00:00:00')
   const e = new Date(end   + 'T00:00:00')
@@ -47,6 +38,23 @@ function fmtWeekRange(start, end) {
     return `${months[s.getMonth()]} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`
   }
   return `${months[s.getMonth()]} ${s.getDate()} – ${months[e.getMonth()]} ${e.getDate()}, ${s.getFullYear()}`
+}
+
+// ── Time helpers (Week Navigator) ────────────────────────────────────────────
+
+// Monday (ISO date string) of the week containing an ISO date string.
+export function mondayOf(iso) {
+  const d = new Date(iso + 'T12:00:00')       // noon-anchored: DST-safe date math
+  const shift = (d.getDay() + 6) % 7          // Mon=0 … Sun=6
+  d.setDate(d.getDate() - shift)
+  return d.toISOString().slice(0, 10)
+}
+
+// ET-anchored "today" — the backend anchors its week the same way, so a
+// late-evening West-coast user lands on the day the payload flags is_today.
+function todayIso() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
+    .format(new Date())
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -63,11 +71,24 @@ function currentMonthCursor() {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Calendar() {
-  const { data, error } = useCalendar()
+  // ── URL time state: /calendar?week=YYYY-MM-DD&d=YYYY-MM-DD (deep-linkable) ──
+  const [searchParams, setSearchParams] = useSearchParams()
+  const rawWeek = searchParams.get('week')
+  const weekParam = useMemo(() => {
+    if (!rawWeek || !/^\d{4}-\d{2}-\d{2}$/.test(rawWeek)) return null
+    const monday = mondayOf(rawWeek)
+    // The current week rides the bare endpoint (legacy calendar_weekly cache
+    // key) — treat an explicit current-week param as "no param".
+    return monday === mondayOf(todayIso()) ? null : monday
+  }, [rawWeek])
+  const dParam = searchParams.get('d')
+
+  const { data, error, mutate } = useCalendar(weekParam)
   const { data: mySets } = useCalendarMySets()
   const { prefs, setPref } = usePreferences()
   const [selected, setSelected] = useState(null)   // { row, label }
   const [openDay, setOpenDay] = useState(null)      // { ds, day } for DayDetailDrawer
+  const [pulse, setPulse] = useState(null)           // { sym, ds } — search jump target
 
   // Month cursor — component state (not persisted; resets to current month on page mount)
   const [monthCursor, setMonthCursor] = useState(currentMonthCursor)
@@ -165,10 +186,100 @@ export default function Calendar() {
         )
         return { ...mergeEnrichment(entry, dayEnrich), mine, _sources: sources }
       })
-      out[ds] = { ...d, bmo: tag(d.bmo), amc: tag(d.amc) }
+      out[ds] = { ...d, bmo: tag(d.bmo), amc: tag(d.amc), tbd: tag(d.tbd) }
     }
     return out
   }, [data, weekDates, mySets, mySources, enrichmentByDate])
+
+  // ── Week Navigator: per-day tab info (count + mine count) ─────────────────
+  const dayTabs = useMemo(() => weekDates.map(ds => {
+    const d = days[ds] || {}
+    const all = [...(d.bmo || []), ...(d.amc || []), ...(d.tbd || [])]
+    return {
+      ds,
+      label:    d.label || ds,
+      count:    all.length,
+      mineN:    all.filter(e => e.mine).length,
+      is_today: !!d.is_today,
+    }
+  }), [weekDates, days])
+
+  const isCurrentWeek = !weekParam
+
+  // ── Navigation handlers ────────────────────────────────────────────────────
+  const gotoWeek = useCallback((mondayIso, dayIso = null) => {
+    const next = {}
+    if (mondayIso && mondayIso !== mondayOf(todayIso())) next.week = mondayIso
+    if (dayIso) next.d = dayIso
+    setSearchParams(next)
+  }, [setSearchParams])
+
+  const shiftWeek = useCallback((deltaDays) => {
+    const base = weekParam || mondayOf(todayIso())
+    const d = new Date(base + 'T12:00:00')
+    d.setDate(d.getDate() + deltaDays)
+    gotoWeek(d.toISOString().slice(0, 10))
+  }, [weekParam, gotoWeek])
+
+  const scrollToDay = useCallback((ds) => {
+    const el = document.getElementById(`day-${ds}`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  const gotoToday = useCallback(() => {
+    const t = todayIso()
+    gotoWeek(null)
+    // Already on the current week → the payload won't change; scroll now.
+    if (isCurrentWeek) scrollToDay(t)
+  }, [gotoWeek, isCurrentWeek, scrollToDay])
+
+  const onDayTab = useCallback((ds) => {
+    // ONE verb in every view: "take me to that day". Feed scrolls; Week/Month
+    // switch to Feed and scroll — a primary control must never no-op.
+    if (view !== 'feed') setView('feed')
+    setSearchParams(prev => {
+      const p = new URLSearchParams(prev)
+      p.set('d', ds)
+      return p
+    }, { replace: true })
+    requestAnimationFrame(() => scrollToDay(ds))
+  }, [view, setView, scrollToDay, setSearchParams])
+
+  // ── Search jump: sym in this week → scroll+pulse; else page to its week ────
+  const onSearchJump = useCallback((sym, dateIso) => {
+    const S = (sym || '').toUpperCase()
+    if (!dateIso) return
+    if (view !== 'feed') setView('feed')
+    setPulse({ sym: S, ds: dateIso })
+    if (weekDates.includes(dateIso)) {
+      requestAnimationFrame(() => scrollToDay(dateIso))
+    } else {
+      gotoWeek(mondayOf(dateIso), dateIso)
+    }
+  }, [weekDates, view, setView, gotoWeek, scrollToDay])
+
+  // Clear the pulse after the animation has played (2 × ~0.9s + settle)
+  useEffect(() => {
+    if (!pulse) return
+    const t = setTimeout(() => setPulse(null), 2400)
+    return () => clearTimeout(t)
+  }, [pulse])
+
+  // ── Land on today / on the deep-linked day (once per payload) ─────────────
+  const landedRef = useRef(null)
+  useEffect(() => {
+    if (!data || view !== 'feed') return
+    const key = `${data.week_start}|${dParam || ''}`
+    if (landedRef.current === key) return
+    landedRef.current = key
+    const target = dParam && weekDates.includes(dParam)
+      ? dParam
+      : (isCurrentWeek ? todayIso() : null)
+    if (target) {
+      // Wait one frame so the day groups exist in the DOM.
+      requestAnimationFrame(() => scrollToDay(target))
+    }
+  }, [data, dParam, weekDates, isCurrentWeek, view, scrollToDay])
 
   // ── onSelect: build the EarningsModal row using toModalRow (CORRECTION 2) ──
   const onSelect = (entry, timing) => {
@@ -176,11 +287,45 @@ export default function Calendar() {
     setSelected({ row: toModalRow(entry), label })
   }
 
-  // ── Loading / error states ───────────────────────────────────────────────
-  if (error) {
+  const weekLabel = data?.week_start && data?.week_end
+    ? `Week of ${fmtWeekRange(data.week_start, data.week_end)}`
+    : ''
+
+  // ── Header is ALWAYS rendered — navigation must survive a failed week load
+  //    (an arrow that strands you on a dead error page reads as broken). ─────
+  const headerEl = (
+    <CalendarHeader
+      view={view}
+      setView={setView}
+      weekLabel={weekLabel}
+      filters={filters}
+      setFilters={setFilters}
+      mySources={mySources}
+      setMySources={setMySources}
+      monthCursor={monthCursor}
+      setMonthCursor={setMonthCursor}
+      eventTypes={eventTypes}
+      setEventTypes={setEventTypes}
+      dayTabs={dayTabs}
+      isCurrentWeek={isCurrentWeek}
+      onPrevWeek={() => shiftWeek(-7)}
+      onNextWeek={() => shiftWeek(7)}
+      onGotoToday={gotoToday}
+      onGotoWeek={gotoWeek}
+      onDayTab={onDayTab}
+      onSearchJump={onSearchJump}
+    />
+  )
+
+  // ── Loading / error states (below the always-live header) ────────────────
+  if (error || (data && (data.source === 'error' || data.source === 'out_of_range'))) {
     return (
       <div className={styles.page}>
-        <div className={styles.error}>Failed to load calendar data</div>
+        {headerEl}
+        <div className={styles.error}>
+          Couldn&apos;t load that week.{' '}
+          <button className={styles.retryBtn} onClick={() => mutate()}>Retry</button>
+        </div>
       </div>
     )
   }
@@ -188,30 +333,23 @@ export default function Calendar() {
   if (!data) {
     return (
       <div className={styles.page}>
-        <div className={styles.loading}>Loading calendar…</div>
+        {headerEl}
+        <div className={styles.skeletonWrap} aria-label="Loading calendar">
+          {[0, 1, 2].map(i => (
+            <div key={i} className={styles.skeletonDay}>
+              <div className={styles.skeletonBar} />
+              <div className={styles.skeletonRow} />
+              <div className={styles.skeletonRowShort} />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
 
-  const weekLabel = data.week_start && data.week_end
-    ? `Week of ${fmtWeekRange(data.week_start, data.week_end)}`
-    : ''
-
   return (
     <div className={styles.page}>
-      <CalendarHeader
-        view={view}
-        setView={setView}
-        weekLabel={weekLabel}
-        filters={filters}
-        setFilters={setFilters}
-        mySources={mySources}
-        setMySources={setMySources}
-        monthCursor={monthCursor}
-        setMonthCursor={setMonthCursor}
-        eventTypes={eventTypes}
-        setEventTypes={setEventTypes}
-      />
+      {headerEl}
 
       <div className={styles.body}>
         {view === 'feed' && (
@@ -223,6 +361,7 @@ export default function Calendar() {
             eventTypes={eventTypes}
             iposByDate={iposByDate}
             dividendsByDate={dividendsByDate}
+            pulse={pulse}
           />
         )}
         {view === 'week' && (

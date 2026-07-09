@@ -34,9 +34,16 @@ export function isMine(sym, sets, sources) {
   return (sources || []).some(src => (sets[src] || []).includes(S))
 }
 
-export function useCalendar() {
-  return useMobileSWR('/api/calendar', fetcher, {
-    refreshInterval: 2 * 60 * 1000, revalidateOnFocus: false, marketHoursOnly: true,
+export function useCalendar(week) {
+  // week = Monday ISO (YYYY-MM-DD) for paged weeks, or null/undefined for the
+  // current week. Non-current weeks are near-static server-side (1-6 h cache),
+  // so the client polls only the current week.
+  const url = week ? `/api/calendar?week=${week}` : '/api/calendar'
+  return useMobileSWR(url, fetcher, {
+    refreshInterval: week ? 0 : 2 * 60 * 1000,
+    revalidateOnFocus: false,
+    marketHoursOnly: !week,
+    keepPreviousData: false,
   })
 }
 

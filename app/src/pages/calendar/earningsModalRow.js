@@ -34,7 +34,8 @@ export function toModalRow(entry) {
 
 // Session timing ('bmo'/'amc' or already-normalized) → EarningsModal label.
 export function timingLabel(timing) {
-  return timing === 'bmo' || timing === 'BEFORE MARKET OPEN'
-    ? 'BEFORE MARKET OPEN'
-    : 'AFTER MARKET CLOSE'
+  // An unconfirmed session must read as unconfirmed — never "AFTER MARKET CLOSE".
+  if (timing === 'bmo' || timing === 'BEFORE MARKET OPEN') return 'BEFORE MARKET OPEN'
+  if (timing === 'amc' || timing === 'AFTER MARKET CLOSE') return 'AFTER MARKET CLOSE'
+  return 'TIME TBD'
 }

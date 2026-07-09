@@ -10,9 +10,9 @@ import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
 import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
-function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay }) {
-  // Memoize bmo/amc so the entries useMemo dep-check isn't always invalidated
-  // by freshly-mapped arrays on every parent render.
+function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay, pulse }) {
+  // Memoize the session lists so the entries useMemo dep-check isn't always
+  // invalidated by freshly-mapped arrays on every parent render.
   const bmo = useMemo(
     () => (day.bmo || []).map(e => ({ ...e, _timing: 'bmo' })),
     [day.bmo],
@@ -21,11 +21,15 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     () => (day.amc || []).map(e => ({ ...e, _timing: 'amc' })),
     [day.amc],
   )
+  const tbd = useMemo(
+    () => (day.tbd || []).map(e => ({ ...e, _timing: 'tbd' })),
+    [day.tbd],
+  )
 
   // A3: fetch per-day metrics (price, avg_vol, mc_b) and merge onto entries
   const { data: metricsMap } = useDayMetrics(ds)
   const entries = useMemo(() => {
-    let all = [...bmo, ...amc]
+    let all = [...bmo, ...amc, ...tbd]
     // Merge _price and _avg_vol from metricsMap (null-safe: if no metric, field stays undefined)
     if (metricsMap) {
       all = all.map(e => {
@@ -43,7 +47,7 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     all = applyFilters(all, filters)
     all = sortEntries(all, filters.sort)
     return all
-  }, [bmo, amc, metricsMap, filters])
+  }, [bmo, amc, tbd, metricsMap, filters])
 
   const syms = useMemo(() => entries.map(e => e.sym), [entries])
   const { prices } = useRealtimePrices(syms)
@@ -64,11 +68,12 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     return dividendsForDay
   }, [activeTypes, dividendsForDay])
 
-  // Split reporters into BMO (before open) / AMC (after close) so the feed shows
-  // the same clear top/bottom distinction as the month grid. Filtering + sorting
-  // already applied above; filter preserves relative order within each timing.
+  // Split reporters by session so the feed shows the same clear grouping as
+  // the month grid. Filtering + sorting already applied above; filter
+  // preserves relative order within each session.
   const bmoEntries = useMemo(() => entries.filter(e => e._timing === 'bmo'), [entries])
   const amcEntries = useMemo(() => entries.filter(e => e._timing === 'amc'), [entries])
+  const tbdEntries = useMemo(() => entries.filter(e => e._timing === 'tbd'), [entries])
 
   const hasEarnings = entries.length > 0
   const hasMacro    = !!(day.econ?.length || day.fed?.length)
@@ -77,20 +82,28 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
   if (!hasEarnings && !hasMacro && !hasEvents) return null
 
   const mineN = entries.filter(e => e.mine).length
+  const pulseSym = pulse && pulse.ds === ds ? pulse.sym : null
   return (
-    <div className={styles.daygrp}>
+    <div className={styles.daygrp} id={`day-${ds}`}>
       <div className={styles.dayhd}>
         <span className={styles.d1}>{(day.label || ds).toUpperCase()}</span>
-        <span className={styles.d2}>{entries.length} reporters</span>
+        <span className={styles.d2}>
+          {entries.length} {entries.length === 1 ? 'company reporting' : 'companies reporting'}
+        </span>
         <span className={styles.ln} />
         {mineN > 0 && <span className={styles.mineN}>{mineN} of yours</span>}
       </div>
       <MacroBand econ={day.econ} fed={day.fed} />
 
       <TimingSection label="Before Open" icon="☀" hdClass={styles.bmoHd}
-        entries={bmoEntries} prices={prices} reactions={reactions} onSelect={onSelect} />
+        entries={bmoEntries} prices={prices} reactions={reactions} onSelect={onSelect}
+        pulseSym={pulseSym} />
       <TimingSection label="After Close" icon={<UIcon name="moon" size={14} />} hdClass={styles.amcHd}
-        entries={amcEntries} prices={prices} reactions={reactions} onSelect={onSelect} />
+        entries={amcEntries} prices={prices} reactions={reactions} onSelect={onSelect}
+        pulseSym={pulseSym} />
+      <TimingSection label="Time TBD" icon={<UIcon name="clock" size={14} />} hdClass={styles.tbdHd}
+        entries={tbdEntries} prices={prices} reactions={reactions} onSelect={onSelect}
+        pulseSym={pulseSym} />
 
       {/* B3: IPO + dividend/split event cards (no BMO/AMC timing) */}
       {hasEvents && (
@@ -107,8 +120,8 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
   )
 }
 
-// One timing-grouped section (Before Open / After Close) inside a day group.
-function TimingSection({ label, icon, hdClass, entries, prices, reactions, onSelect }) {
+// One session-grouped section (Before Open / After Close / Time TBD) inside a day group.
+function TimingSection({ label, icon, hdClass, entries, prices, reactions, onSelect, pulseSym }) {
   if (!entries.length) return null
   return (
     <div className={styles.timedGroup}>
@@ -123,6 +136,7 @@ function TimingSection({ label, icon, hdClass, entries, prices, reactions, onSel
             livePrice={prices[e.sym]?.price}
             liveSnap={prices[e.sym] ?? null}
             reaction={reactions?.[e.sym]}
+            pulsed={pulseSym === e.sym}
             onSelect={onSelect} />
         ))}
       </div>
@@ -130,7 +144,12 @@ function TimingSection({ label, icon, hdClass, entries, prices, reactions, onSel
   )
 }
 
-export default function FeedView({ weekDates, days, filters, onSelect, eventTypes, iposByDate, dividendsByDate }) {
+export default function FeedView({ weekDates, days, filters, onSelect, eventTypes, iposByDate, dividendsByDate, pulse }) {
+  const anyContent = weekDates.some(ds => {
+    const d = days[ds]
+    if (!d) return false
+    return (d.bmo?.length || d.amc?.length || d.tbd?.length || d.econ?.length || d.fed?.length)
+  })
   return (
     <div className={styles.feed}>
       {weekDates.map(ds => days[ds]
@@ -143,7 +162,13 @@ export default function FeedView({ weekDates, days, filters, onSelect, eventType
             eventTypes={eventTypes}
             iposForDay={iposByDate?.[ds] || null}
             dividendsForDay={dividendsByDate?.[ds] || null}
+            pulse={pulse}
           /> : null)}
+      {!anyContent && (
+        <div className={styles.feedEmpty}>
+          No companies reporting this week{filters.audience !== 'all' ? ' in this view — try All ($300M+)' : ''}.
+        </div>
+      )}
     </div>
   )
 }
