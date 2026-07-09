@@ -101,10 +101,6 @@ def massive_stream_test(request: Request):
 
 @router.get("/api/live/massive/stream-status")
 def massive_stream_status():
-    """Observability: is the stream armed + how many browsers are attached."""
-    return {
-        "enabled": massive_stream.ENABLED,
-        "subscribers": massive_stream.subscriber_count(),
-        "tail_sec": massive_stream.TAIL_SEC,
-        "last_id": massive_stream._last_id,
-    }
+    """Observability: armed? subscribers? is the tailer advancing + broadcasting?
+    (flat broadcasts_total while subscribers>0 during RTH = stream stalled)."""
+    return massive_stream.stats()

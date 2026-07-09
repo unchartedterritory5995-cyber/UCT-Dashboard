@@ -15,6 +15,7 @@ import asyncio
 import logging
 import os
 import sqlite3
+import time
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +33,12 @@ _WHITE_PREMIUM_FLOOR = 500_000
 _subscribers: "set[asyncio.Queue]" = set()
 _last_id = 0
 _started = False
+# telemetry (observability for the open / launch — flat broadcasts while
+# subscribers>0 during market hours = "stream silently stalled")
+_broadcasts_total = 0
+_alerts_streamed_total = 0
+_last_broadcast_ts = 0.0
+_last_tail_ts = 0.0
 
 
 # ── pub/sub ──────────────────────────────────────────────────────────────────
@@ -54,8 +61,13 @@ def subscriber_count() -> int:
 
 
 def _broadcast(alerts: list) -> None:
+    global _broadcasts_total, _alerts_streamed_total, _last_broadcast_ts
     if not alerts:
         return
+    import time as _t
+    _broadcasts_total += 1
+    _alerts_streamed_total += len(alerts)
+    _last_broadcast_ts = _t.time()
     for q in list(_subscribers):
         try:
             q.put_nowait(alerts)
@@ -148,8 +160,10 @@ async def _tail_loop():
     _last_id = await asyncio.to_thread(_current_max_id)
     log.info("[massive-stream] tailer armed at id=%s (tail=%.1fs)", _last_id, TAIL_SEC)
     while True:
+        global _last_tail_ts
         try:
             if _subscribers:  # no readers → skip the DB work entirely
+                _last_tail_ts = time.time()
                 alerts, new_last = await asyncio.to_thread(_fetch_new_alerts, _last_id)
                 if new_last > _last_id:
                     _last_id = new_last
@@ -158,6 +172,23 @@ async def _tail_loop():
         except Exception as e:
             log.warning("[massive-stream] tail loop error: %s", e)
         await asyncio.sleep(TAIL_SEC)
+
+
+def stats() -> dict:
+    """Observability snapshot for /stream-status and monitors."""
+    import time as _t
+    now = _t.time()
+    return {
+        "enabled": ENABLED,
+        "started": _started,
+        "subscribers": len(_subscribers),
+        "last_id": _last_id,
+        "tail_sec": TAIL_SEC,
+        "broadcasts_total": _broadcasts_total,
+        "alerts_streamed_total": _alerts_streamed_total,
+        "last_broadcast_age_sec": round(now - _last_broadcast_ts, 1) if _last_broadcast_ts else None,
+        "last_tail_age_sec": round(now - _last_tail_ts, 1) if _last_tail_ts else None,
+    }
 
 
 def start() -> None:
