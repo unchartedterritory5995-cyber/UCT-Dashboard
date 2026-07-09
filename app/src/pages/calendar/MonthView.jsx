@@ -163,21 +163,27 @@ export default function MonthView({
   // Fetch full-month data from backend
   const { data: monthData } = useMonthCalendar(year, month)
 
-  // Build day map: prefer weekly tagged data for current week, month data otherwise
+  // Build day map: prefer weekly tagged data for current week, month data
+  // otherwise. Iterate the UNION of both key sets — a current-week day the
+  // month payload happens to miss must still render from the weekly data
+  // (iterating only month keys silently dropped those days).
   const monthDaysMap = useMemo(() => {
     const raw = monthData?.days || {}
+    const prefix = `${year}-${String(month).padStart(2, '0')}`
+    const keys = new Set([
+      ...Object.keys(raw),
+      ...Object.keys(weeklyDays || {}).filter(ds => ds.startsWith(prefix)),
+    ])
     const out = {}
-    for (const [ds, day] of Object.entries(raw)) {
-      // If this day exists in the weekly tagged data (current week), use that (has mine flags)
+    for (const ds of keys) {
       if (weeklyDays?.[ds]) {
-        out[ds] = weeklyDays[ds]
-      } else {
-        // Apply mine flags from mySets for non-week days
-        out[ds] = mergeMineFlagIntoMonthDay(day, mySets, mySources)
+        out[ds] = weeklyDays[ds]   // current week: tagged, EW-merged, richest
+      } else if (raw[ds]) {
+        out[ds] = mergeMineFlagIntoMonthDay(raw[ds], mySets, mySources)
       }
     }
     return out
-  }, [monthData, weeklyDays, mySets, mySources])
+  }, [monthData, weeklyDays, mySets, mySources, year, month])
 
   // Build the 5-column weekday grid (pure function, tested)
   const grid = useMemo(

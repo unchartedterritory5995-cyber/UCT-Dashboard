@@ -774,65 +774,33 @@ def get_month_calendar(year: int = 0, month: int = 0):
     if cached is not None:
         return cached
 
-    # Compute first and last day of the requested month
+    # ── ASSEMBLED FROM PER-WEEK FETCHES — never one whole-month range call. ──
+    # Finnhub silently caps a range response at 1,500 rows and fills it from
+    # the END of the range backward (probe-verified 2026-07-09: a July query
+    # returned ONLY Jul 17-31 — the first two weeks vanished). That cap was
+    # the structural root cause of "Month contradicts Week". Week-sized
+    # chunks stay far under the cap, and riding _get_or_build_range_week
+    # means Month and the paged Feed share ONE cache, one universe rule, and
+    # one TBD mapping — the views cannot disagree by construction.
     _, last_day = _cal_module.monthrange(year, month)
-    from_date = f"{year:04d}-{month:02d}-01"
-    to_date   = f"{year:04d}-{month:02d}-{last_day:02d}"
+    month_prefix = f"{year:04d}-{month:02d}"
+    first = date(year, month, 1)
+    last  = date(year, month, last_day)
 
-    cap_uni = _load_cap_universe()
-
-    raw = _fh_get_month(from_date, to_date)
     days: dict[str, dict] = {}
-
-    if raw:
-        _EPS_SENTINELS = frozenset({999.0, -999.0, 9999.0, -9999.0, 999.99, -999.99})
-
-        def _clean_eps(v):
-            if v is None:
-                return None
-            try:
-                fv = float(v)
-            except (TypeError, ValueError):
-                return None
-            if fv in _EPS_SENTINELS or abs(fv) > 200:
-                return None
-            return round(fv, 2)
-
-        for row in raw.get("earningsCalendar", []):
-            sym = (row.get("symbol") or "").strip().upper()
-            if not sym:
+    monday = _monday_of(first)
+    while monday <= last:
+        wk = _get_or_build_range_week(monday)
+        for ds, day in ((wk or {}).get("days") or {}).items():
+            if not ds.startswith(month_prefix):
                 continue
-            # Filter to cap_universe when available
-            if cap_uni and sym not in cap_uni:
-                continue
-
-            ds = (row.get("date") or "").strip()
-            if not ds or not ds.startswith(f"{year:04d}-{month:02d}"):
-                continue
-
-            # hour field: "bmo" | "amc" | "dmh" | "" — anything that isn't an
-            # explicit bmo/amc is an UNCONFIRMED session and stays "tbd".
-            # (75% of forward-week Finnhub rows have hour="" — coercing those
-            # into amc rendered confident lies.)
-            hour = (row.get("hour") or "").lower()
-            timing = hour if hour in ("bmo", "amc") else "tbd"
-
-            rev_est_raw = row.get("revenueEstimate")
-            rev_act_raw = row.get("revenueActual")
-
-            entry = {
-                "sym":     sym,
-                "timing":  timing,
-                "eps_est": _clean_eps(row.get("epsEstimate")),
-                "eps_act": _clean_eps(row.get("epsActual")),
-                # Store in millions (Finnhub returns raw dollars)
-                "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
-                "rev_act": round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
-            }
-
-            if ds not in days:
-                days[ds] = {"bmo": [], "amc": [], "tbd": []}
-            days[ds][timing].append(entry)
+            bucket = {"bmo": [], "amc": [], "tbd": []}
+            for timing in ("bmo", "amc", "tbd"):
+                for e in day.get(timing, []) or []:
+                    bucket[timing].append({**e, "timing": timing})
+            if bucket["bmo"] or bucket["amc"] or bucket["tbd"]:
+                days[ds] = bucket
+        monday += timedelta(days=7)
 
     result = {"month": f"{year:04d}-{month:02d}", "days": days}
     cache.set(cache_key, result, ttl=_MONTH_CACHE_TTL)

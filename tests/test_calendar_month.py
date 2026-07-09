@@ -37,7 +37,7 @@ def test_month_returns_correct_structure():
          mock.patch("api.routers.calendar.cache.set"), \
          mock.patch("api.routers.calendar._load_cap_universe", return_value=_CAP_UNIVERSE), \
          mock.patch("api.routers.calendar._fh_get_month",
-                    return_value=_FH_RESPONSE):
+                    return_value=_FH_RESPONSE),          mock.patch("api.routers.calendar._attach_names"),          mock.patch("api.routers.calendar._curate_econ_events"):
         r = client.get("/api/calendar/month?year=2026&month=6")
     assert r.status_code == 200
     body = r.json()
@@ -50,7 +50,7 @@ def test_month_filters_to_cap_universe():
          mock.patch("api.routers.calendar.cache.set"), \
          mock.patch("api.routers.calendar._load_cap_universe", return_value=_CAP_UNIVERSE), \
          mock.patch("api.routers.calendar._fh_get_month",
-                    return_value=_FH_RESPONSE):
+                    return_value=_FH_RESPONSE),          mock.patch("api.routers.calendar._attach_names"),          mock.patch("api.routers.calendar._curate_econ_events"):
         r = client.get("/api/calendar/month?year=2026&month=6")
     body = r.json()
     days = body["days"]
@@ -64,7 +64,7 @@ def test_month_bmo_amc_bucketing():
          mock.patch("api.routers.calendar.cache.set"), \
          mock.patch("api.routers.calendar._load_cap_universe", return_value=_CAP_UNIVERSE), \
          mock.patch("api.routers.calendar._fh_get_month",
-                    return_value=_FH_RESPONSE):
+                    return_value=_FH_RESPONSE),          mock.patch("api.routers.calendar._attach_names"),          mock.patch("api.routers.calendar._curate_econ_events"):
         r = client.get("/api/calendar/month?year=2026&month=6")
     body = r.json()
     days = body["days"]
@@ -83,7 +83,7 @@ def test_month_entry_fields():
          mock.patch("api.routers.calendar.cache.set"), \
          mock.patch("api.routers.calendar._load_cap_universe", return_value=_CAP_UNIVERSE), \
          mock.patch("api.routers.calendar._fh_get_month",
-                    return_value=_FH_RESPONSE):
+                    return_value=_FH_RESPONSE),          mock.patch("api.routers.calendar._attach_names"),          mock.patch("api.routers.calendar._curate_econ_events"):
         r = client.get("/api/calendar/month?year=2026&month=6")
     body = r.json()
     aapl = next(e for e in body["days"]["2026-06-02"]["bmo"] if e["sym"] == "AAPL")
@@ -106,7 +106,7 @@ def test_month_empty_safe_on_fh_failure():
     with mock.patch("api.routers.calendar.cache.get", return_value=None), \
          mock.patch("api.routers.calendar.cache.set"), \
          mock.patch("api.routers.calendar._load_cap_universe", return_value=_CAP_UNIVERSE), \
-         mock.patch("api.routers.calendar._fh_get_month", return_value=None):
+         mock.patch("api.routers.calendar._fh_get_month", return_value=None),          mock.patch("api.routers.calendar._fmp_range_week", return_value=None),          mock.patch("api.routers.calendar._attach_names"),          mock.patch("api.routers.calendar._curate_econ_events"):
         r = client.get("/api/calendar/month?year=2026&month=6")
     assert r.status_code == 200
     body = r.json()

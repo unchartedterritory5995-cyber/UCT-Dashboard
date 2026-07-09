@@ -159,12 +159,20 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
           </>
         ) : (
           <>
+            {/* Reported grammar: the estimate arrow renders only when the
+                estimate exists; null surprise/revenue rows render NOTHING. */}
             <div className={styles.met}><span className={styles.dim}>EPS</span>
-              <span className={styles.mono}><span className={styles.dim}>{fmtEps(entry.eps_est)}→ </span>{fmtEps(entry.eps_act)}</span></div>
-            <div className={styles.met}><span className={styles.dim}>Surprise</span>
-              <span className={styles.mono}>{surprise(entry.eps_act, entry.eps_est) ?? '—'}</span></div>
-            <div className={styles.met}><span className={styles.dim}>Revenue</span>
-              <span className={styles.mono}>{fmtRev(entry.rev_act)} <span className={styles.dim}>/ {fmtRev(entry.rev_est)}</span></span></div>
+              <span className={styles.mono}>
+                {entry.eps_est != null && <span className={styles.dim}>{fmtEps(entry.eps_est)}→ </span>}
+                {fmtEps(entry.eps_act)}</span></div>
+            {surprise(entry.eps_act, entry.eps_est) != null && (
+              <div className={styles.met}><span className={styles.dim}>Surprise</span>
+                <span className={styles.mono}>{surprise(entry.eps_act, entry.eps_est)}</span></div>
+            )}
+            {entry.rev_act != null && (
+              <div className={styles.met}><span className={styles.dim}>Revenue</span>
+                <span className={styles.mono}>{fmtRev(entry.rev_act)}{entry.rev_est != null && <span className={styles.dim}> / {fmtRev(entry.rev_est)}</span>}</span></div>
+            )}
             {reaction != null && (
               <div className={styles.react}><span className={styles.dim}>Post-print gap</span>
                 <span className={reaction >= 0 ? styles.pos : styles.neg}>
