@@ -260,6 +260,51 @@ def get_asset_type(ticker: str) -> str:
         conn.close()
 
 
+# ─── In-memory classifier for the WRITE PATH (2026-07-09) ────────────────────
+# massive_processor.is_index_source() runs per-event on the WS hot path, so it
+# CANNOT open a SQLite connection per call (get_asset_type does — fine for admin
+# lookups, fatal on the hot path per the 524-outage lessons). Load the full
+# ticker→class map into two frozensets once, TTL-refreshed. Empty-safe: any
+# failure keeps the prior sets so callers fall back to the legacy hardcoded list.
+_CLS_CACHE = {"etf_index": frozenset(), "stock": frozenset(), "loaded_at": 0.0}
+_CLS_TTL = int(os.environ.get("TICKER_TYPES_MEM_TTL", "21600"))  # 6h
+
+
+def _load_class_sets(force: bool = False) -> None:
+    now = time.time()
+    if not force and _CLS_CACHE["loaded_at"] and now - _CLS_CACHE["loaded_at"] < _CLS_TTL:
+        return
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        try:
+            ensure_schema(conn)
+            rows = conn.execute("SELECT ticker, asset_type FROM ticker_types").fetchall()
+        finally:
+            conn.close()
+        etf = frozenset(t for t, a in rows if a in ("ETF", "INDEX"))
+        stk = frozenset(t for t, a in rows if a == "STOCK")
+        if etf or stk:                       # only replace on a non-empty load
+            _CLS_CACHE.update(etf_index=etf, stock=stk, loaded_at=now)
+    except Exception as e:                   # keep stale/empty — never raise on the write path
+        logger.warning("[ticker_types] in-memory class-set load failed: %s", e)
+
+
+def classify(ticker: str) -> str:
+    """'ETF' (ETF or INDEX) | 'STOCK' | 'UNKNOWN' — O(1), zero I/O per call."""
+    t = (ticker or "").upper().strip()
+    _load_class_sets()
+    if t in _CLS_CACHE["etf_index"]:
+        return "ETF"
+    if t in _CLS_CACHE["stock"]:
+        return "STOCK"
+    return "UNKNOWN"
+
+
+def refresh_class_sets() -> None:
+    """Force a reload — call after a sync completes."""
+    _load_class_sets(force=True)
+
+
 def backfill_flow_source(target_date: str = None) -> dict:
     """Apply ticker_types classifications to existing rows in the `flow` table.
 

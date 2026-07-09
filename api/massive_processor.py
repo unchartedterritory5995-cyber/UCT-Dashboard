@@ -184,7 +184,26 @@ def parse_occ(ticker: str) -> Optional[dict]:
 
 
 def is_index_source(root: str) -> bool:
-    """Decide whether an underlying root goes to source='indexes' (vs 'stocks')."""
+    """Decide whether an underlying root goes to source='indexes' (vs 'stocks').
+
+    2026-07-09 (Ravi-area): authoritative-first. The Massive ticker_types cache
+    (/v3/reference/tickers, refreshed daily) is ground truth for ETF-vs-stock, so
+    it OVERRIDES the hardcoded INDEX_SYMBOLS — which was both incomplete (new ETFs
+    like DRAM defaulted to 'stocks') and wrong (SPCX, a stock, was listed as an
+    ETF). classify() is O(1) in-memory (no per-event I/O) and fail-soft: on any
+    error or an unknown ticker it returns UNKNOWN and we fall back to the legacy
+    hardcoded set = today's exact behavior. The STOCK branch is what actually
+    corrects SPCX — a plain OR-fallback couldn't, since SPCX is *in* INDEX_SYMBOLS.
+    """
+    try:
+        from api.ticker_types import classify
+        cls = classify(root)
+        if cls == "ETF":
+            return True     # e.g. DRAM → indexes  ✓
+        if cls == "STOCK":
+            return False    # e.g. SPCX, BOT → stocks  ✓ (overrides a stale INDEX_SYMBOLS entry)
+    except Exception:
+        pass                # cache unavailable → legacy behavior below
     return root in INDEX_SYMBOLS
 
 

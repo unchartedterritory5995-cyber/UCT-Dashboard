@@ -1504,10 +1504,11 @@ function qualifiesCurated(alert, thresholds) {
   const hitCount = alert._hitCount || 1;
   const grade = alert.grade || "";
   const mktCap = alert._mktCap || 0;
-  // 7/7: source-aware branch. Prefer backend source field (added same day);
-  // fall back to client-side KNOWN_ETFS_INDEXES lookup for alerts served
-  // before the backend change deployed. Same classification either way.
-  const isEtf = alert.source === "indexes" || KNOWN_ETFS_INDEXES.has(alert.ticker);
+  // 7/7 + 7/9: source-aware branch. The backend `source` is now AUTHORITATIVE
+  // (Massive ticker_types), so PREFER it — only fall back to the client-side
+  // KNOWN_ETFS_INDEXES set when source is absent (pre-change rows). The old code
+  // OR'd them, which let the stale set (e.g. SPCX) override a correct source.
+  const isEtf = alert.source ? alert.source === "indexes" : KNOWN_ETFS_INDEXES.has(alert.ticker);
   if (tier === "unusual") {
     const u = (isEtf ? thresholds?.etf_unusual : thresholds?.unusual) || {};
     return prem >= (u.min_premium ?? (isEtf ? 500000 : 100000))
@@ -2487,10 +2488,11 @@ export default function LiveFlowMassive() {
       const tier = a._tierKey || "algo";
       if (hideAlgo && tier === "algo") return false;  // global Algo hide
       if (!filters[tier]) return false;
-      // 7/7: Stocks / ETFs partition filter — client-side classification
-      // via KNOWN_ETFS_INDEXES set (mirrors backend INDEX_SYMBOLS).
+      // 7/7 + 7/9: Stocks / ETFs partition filter. PREFER the authoritative
+      // backend source (Massive ticker_types); fall back to KNOWN_ETFS_INDEXES
+      // only when source is absent. (Was set-only, which mis-partitioned SPCX etc.)
       if (stockEtfFilter !== "all") {
-        const isEtf = KNOWN_ETFS_INDEXES.has(a.ticker);
+        const isEtf = a.source ? a.source === "indexes" : KNOWN_ETFS_INDEXES.has(a.ticker);
         if (stockEtfFilter === "stocks" && isEtf) return false;
         if (stockEtfFilter === "etfs" && !isEtf) return false;
       }

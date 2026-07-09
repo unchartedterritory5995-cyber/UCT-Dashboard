@@ -2061,6 +2061,23 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
 
+        # Ticker-type sync (2026-07-09) — keep the Massive ETF/stock reference
+        # (ticker_types table) fresh so the flow write path classifies new ETFs
+        # correctly (fixed SPCX/DRAM-class mislabels + auto-picks-up new launches
+        # so a hardcoded list never goes stale again). 5:30 AM ET: before the
+        # pre-market tape, outside the deploy blackout. Fail-soft + gated.
+        if os.environ.get("TICKER_TYPES_SYNC_ENABLED", "1") == "1":
+            def _ticker_types_sync():
+                try:
+                    from api import ticker_types
+                    ticker_types.sync_from_massive("stocks")
+                    ticker_types.sync_from_massive("indices")
+                    ticker_types.refresh_class_sets()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[ticker_types] daily sync failed: %s", _e)
+            _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30),
+                               id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
+
         # Broker Sync -- background incremental sync across all connected users.
         # Gated by BROKER_SYNC_ENABLED (default OFF -> fully inert). Runs on the
         # web pod (auth.db is web-local). Bounded async concurrency inside the
