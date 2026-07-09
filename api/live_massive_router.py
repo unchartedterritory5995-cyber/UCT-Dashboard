@@ -207,6 +207,24 @@ DEFAULT_THRESHOLDS = {
     # liquidity-takers, not negotiable, and V/OI dominance is a cleaner
     # signal for sweeps than for blocks.
     "alpha_exclude_block_type": True,
+    # Weekly exclusion for Alpha Gold (added 7/8 evening).
+    #
+    # Short-dated calls/puts expiring within N days are speculative
+    # weekly plays, not high-conviction directional positioning. Even
+    # when premium is huge (>$1M) and V/OI dominant, a 2-DTE $945 call
+    # on MU is more likely event-driven momentum than an institution
+    # building a real exposure. Fall through to Size tier where they
+    # still surface but not at top conviction.
+    #
+    # Default 7 = this Friday's expirations excluded from Alpha Gold.
+    # Set to 0 to disable this gate (recover previous behavior — all
+    # short-dated big prints eligible for Alpha Gold).
+    #
+    # Applied AFTER the LEAPS gate (>=180 DTE), so the DTE bands are:
+    #   0 to alpha_max_weekly_dte    → excluded from Alpha (Size fallback)
+    #   alpha_max_weekly_dte to 179  → Alpha Gold eligible
+    #   180+                         → LEAPS tier
+    "alpha_max_weekly_dte": 7,
     # Global deep-ITM filter (added 6/30 morning).
     #
     # Trades deeper than this threshold are "synthetic stock substitute"
@@ -881,6 +899,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             deep_itm_threshold = thresholds.get("alpha_max_itm_pct", 25.0)
             min_vol_oi_ratio = thresholds.get("alpha_min_vol_oi_ratio", 1.0)
             exclude_blocks = thresholds.get("alpha_exclude_block_type", True)
+            max_weekly_dte = thresholds.get("alpha_max_weekly_dte", 7)
 
             # Gate 1 — Deep-ITM filter (added 6/29 audit):
             # Deep in-the-money calls/puts are delta-exposure plays
@@ -922,7 +941,21 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             is_block = ("BLOCK" in type_up_g) or type_up_g in ("BLK", "BL", "BT")
             block_disqualifies = exclude_blocks and is_block
 
-            if not is_deep_itm and vol_exceeds_oi and not block_disqualifies:
+            # Gate 4 — Weekly exclusion (added 7/8 evening):
+            # Short-dated calls/puts (DTE < alpha_max_weekly_dte, default 7)
+            # are weekly speculation, not high-conviction positioning. Even
+            # $1M+ SWEEPs on 2-DTE strikes are more likely event-driven
+            # momentum than institutional exposure builds. Excluded from
+            # Alpha Gold; fall through to Size tier where they still
+            # surface at the $500K-$1M floor if premium clears it.
+            #
+            # Threshold is tunable via /thresholds admin panel. Setting
+            # alpha_max_weekly_dte to 0 disables this gate (recovers
+            # previous behavior — short-dated big prints eligible for Alpha).
+            is_weekly = (dte is not None and dte < max_weekly_dte)
+
+            if (not is_deep_itm and vol_exceeds_oi
+                    and not block_disqualifies and not is_weekly):
                 return (f"UCT Alpha Gold {direction}", "alpha", TIER_PRIORITY["alpha"])
             # Any gate failed → fall through to Size / Unusual / Bullish-Bearish
         # LEAPS
@@ -1998,6 +2031,7 @@ async def save_thresholds(request: Request):
         "alpha_max_itm_pct",         # deep-ITM filter threshold (Alpha only)
         "alpha_min_vol_oi_ratio",    # vol > OI fresh-positioning gate
         "alpha_exclude_block_type",  # BLOCK trades excluded from Alpha Gold
+        "alpha_max_weekly_dte",      # 7/8: short-dated (weekly) exclusion from Alpha
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
