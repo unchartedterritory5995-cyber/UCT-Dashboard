@@ -113,6 +113,13 @@ class FlowDB:
             # id) SQLite walks the index backwards touching only today's rows.
             # One-time build on a large existing DB takes ~30-60s at boot.
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_source_date_id ON flow(source, CreatedDate, id)")
+            # Color-aware index (2026-07-09): /recent + /day-stats scan for the
+            # latest N *classified* (MAGENTA/YELLOW + premium-WHITE) rows. With
+            # only (source,CreatedDate,id) SQLite walks backward through every
+            # unclassified WHITE row to find them — by midday (~400K rows/day)
+            # that's a 8-30s scan/timeout. Adding Color lets the planner jump
+            # straight to MAGENTA/YELLOW ranges. One-time build at boot.
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_classified ON flow(source, CreatedDate, Color, id)")
 
     @staticmethod
     def _make_dedup_key(row: dict, source: str) -> str:

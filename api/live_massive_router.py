@@ -1478,7 +1478,7 @@ def recent_massive_alerts(
         # market-read). Cap the scan — with SSE streaming the snapshot only needs
         # recent history, new prints arrive live. Env-tunable; proper fix = a
         # Color-aware index (after-close).
-        sql_limit = min(sql_limit, int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "1200")))
+        sql_limit = min(sql_limit, int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "3000")))
         # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
         # override threshold so they get a chance at promotion in
         # _derive_alert_name. SQL filter avoids loading every WHITE row (huge
@@ -1814,7 +1814,7 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
              ORDER BY id DESC
              LIMIT ?
         """, (today, override_sql_floor,
-              int(os.environ.get("MASSIVE_DAYSTATS_CAP", "2000"))))
+              int(os.environ.get("MASSIVE_DAYSTATS_CAP", "3000"))))
         # CAP (2026-07-09): was unbounded (_row_to_alert over ALL ~39K classified
         # rows by midday → 30s+ timeout, "Loading market read…" stuck forever).
         # Latest-N is a faithful enough "market read" snapshot + fast + cached 30s.
