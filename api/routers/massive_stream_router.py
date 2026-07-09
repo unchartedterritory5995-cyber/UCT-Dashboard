@@ -67,6 +67,38 @@ async def massive_stream_sse(request: Request):
     return StreamingResponse(gen(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
+@router.post("/api/live/massive/stream-test")
+def massive_stream_test(request: Request):
+    """Push a synthetic 'ZZTEST' print through the live stream — proves the
+    tailer→broadcast→SSE→browser path without needing live market flow. Gated by
+    PUSH_SECRET (Bearer header or ?token=). Harmless: fake ticker, huge synthetic
+    id so it never collides with a real row."""
+    import os
+    import time as _t
+
+    secret = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    token = request.query_params.get("token", "")
+    if not secret or (auth != f"Bearer {secret}" and token != secret):
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
+
+    now = _t.time()
+    fake = {
+        "id": 9_999_999_999,
+        "alertType": "massive", "alertName": "TEST PRINT (stream check)",
+        "symbol": "ZZTEST", "ticker": "ZZTEST",
+        "cp": "C", "strike": 100.0, "exp": "1/16/2026", "dte": 30,
+        "alertPremium": 123456.0, "averageFillPrice": 1.23, "tradeSize": 100,
+        "timestamp": now, "receivedAt": now,
+        "spot": 99.0, "moneynessPct": 1.0, "moneynessLabel": "OTM",
+        "grade": "A", "convictionScore": 99, "_tierKey": "size",
+        "priorOI": 50, "volumeOIRatio": 2.0, "oiExceeded": True,
+        "_isTest": True,
+    }
+    massive_stream._broadcast([fake])
+    return {"broadcast_to": massive_stream.subscriber_count(), "sent_id": fake["id"]}
+
+
 @router.get("/api/live/massive/stream-status")
 def massive_stream_status():
     """Observability: is the stream armed + how many browsers are attached."""
