@@ -56,6 +56,19 @@ def _week_dates() -> list[date]:
     return [monday + timedelta(days=i) for i in range(5)]
 
 
+def _monday_of(d: date) -> date:
+    """ISO Monday of the week containing d (Sat/Sun snap back to that Monday)."""
+    return d - timedelta(days=d.weekday())
+
+
+def _week_dates_for(monday: date) -> list[date]:
+    return [monday + timedelta(days=i) for i in range(5)]
+
+
+# Paging horizon: how far from the current week a ?week= request may reach.
+_WEEK_HORIZON_WEEKS = 52
+
+
 def _empty_day(d: date, today: date) -> dict:
     return {
         "label":    d.strftime("%a %b ") + str(d.day),
@@ -63,9 +76,15 @@ def _empty_day(d: date, today: date) -> dict:
         "is_today": d == today,
         "bmo":      [],
         "amc":      [],
+        "tbd":      [],   # session unconfirmed — NEVER coerced into amc
         "econ":     [],
         "fed":      [],
     }
+
+
+def _day_entries(day: dict) -> list[dict]:
+    """All earnings entries of a day across every session bucket."""
+    return (day.get("bmo") or []) + (day.get("amc") or []) + (day.get("tbd") or [])
 
 
 # ── Wire data path ─────────────────────────────────────────────────────────────
@@ -129,6 +148,7 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date, cap_uni
             "is_today": d == today,
             "bmo":      [_chip(c) for c in wd.get("bmo", []) if _keep(c)],
             "amc":      [_chip(c) for c in wd.get("amc", []) if _keep(c)],
+            "tbd":      [],   # wire data carries only bmo/amc buckets
             "econ":     [],   # placeholder — always overwritten by ForexFactory below
             "fed":      [],
         }
@@ -323,6 +343,7 @@ def _build_live(week_dates: list[date], today: date) -> dict:
             "is_today": d == today,
             "bmo":      bmo,
             "amc":      amc,
+            "tbd":      [],     # EW timing is binary; Finviz merge may add tbd names
             "_seen":    seen,   # temp field for Finviz merge
             "econ":     [],
             "fed":      [],
@@ -339,17 +360,19 @@ def _build_live(week_dates: list[date], today: date) -> dict:
     # Wait for the (parallel) Finviz bulk call
     fv_done.wait(timeout=5)
 
-    # Merge Finviz tickers not already in EW, using Finviz estimates
+    # Merge Finviz tickers not already in EW, using Finviz estimates.
+    # A Finviz row with no session marker lands in "tbd" — an unknown session is
+    # rendered as unknown, never coerced into AMC (that lie burned us).
     for ds, day in results.items():
         seen = day.pop("_seen", set())
         fv_day = fv_result.get(ds, {})
-        for timing_key, bucket_key in (("bmo", "bmo"), ("amc", "amc"), ("tbd", "amc")):
+        for timing_key in ("bmo", "amc", "tbd"):
             for fv_entry in fv_day.get(timing_key, []):
                 sym = fv_entry["sym"]
                 if sym in seen:
                     continue
                 seen.add(sym)
-                day[bucket_key].append({
+                day[timing_key].append({
                     "sym":     sym,
                     "eps_est": fv_entry["eps_est"],
                     "eps_act": None,
@@ -358,10 +381,9 @@ def _build_live(week_dates: list[date], today: date) -> dict:
                     "ew":      0,
                 })
 
-        day["bmo"].sort(key=lambda x: x["ew"], reverse=True)
-        day["amc"].sort(key=lambda x: x["ew"], reverse=True)
-        day["bmo"] = day["bmo"][:40]
-        day["amc"] = day["amc"][:40]
+        for bucket in ("bmo", "amc", "tbd"):
+            day[bucket].sort(key=lambda x: x["ew"], reverse=True)
+            day[bucket] = day[bucket][:40]
 
     return results
 
@@ -383,7 +405,7 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
     if not fh_key:
         return
 
-    all_entries = day.get("bmo", []) + day.get("amc", [])
+    all_entries = _day_entries(day)
     pending = [e for e in all_entries if e.get("eps_act") is None and e.get("sym")]
     if not pending:
         return
@@ -472,6 +494,260 @@ def _fh_get_month(from_date: str, to_date: str) -> dict | None:
         return None
 
 
+# ── Company names (batched, non-blocking) ─────────────────────────────────────
+# EarningsCard renders entry.name — permanently blank until now. Names come
+# from the ticker_meta mem/disk cache ONLY (prewarmed for the cap universe);
+# misses are queued to a tiny background pool so the NEXT build resolves them.
+# This must NEVER block the calendar build on a provider call.
+
+from concurrent.futures import ThreadPoolExecutor as _TPE  # noqa: E402
+
+_NAME_POOL = _TPE(max_workers=2, thread_name_prefix="cal-names")
+_NAME_INFLIGHT: set[str] = set()
+_NAME_GUARD = threading.Lock()
+_NAME_INFLIGHT_MAX = 24
+
+
+def _attach_names(days: dict) -> None:
+    """Best-effort company names onto every entry, cache-hits only."""
+    try:
+        from api.services.ticker_meta import _mem, _disk_get, _base_meta
+    except Exception:
+        return
+    for day in days.values():
+        for e in _day_entries(day):
+            sym = (e.get("sym") or "").upper()
+            if not sym or e.get("name"):
+                continue
+            meta = _mem.get(f"tmeta_{sym}")
+            if meta is None:
+                try:
+                    meta = _disk_get(sym)
+                except Exception:
+                    meta = None
+            if meta and meta.get("name"):
+                e["name"] = meta["name"]
+                continue
+            # Miss → bounded async backfill (resolves for the next request)
+            with _NAME_GUARD:
+                if sym in _NAME_INFLIGHT or len(_NAME_INFLIGHT) >= _NAME_INFLIGHT_MAX:
+                    continue
+                _NAME_INFLIGHT.add(sym)
+
+            def _backfill(s=sym):
+                try:
+                    _base_meta(s)
+                except Exception:
+                    pass
+                finally:
+                    with _NAME_GUARD:
+                        _NAME_INFLIGHT.discard(s)
+
+            _NAME_POOL.submit(_backfill)
+
+
+# ── Range-week builder (non-current weeks) ─────────────────────────────────────
+# Finnhub /calendar/earnings range is PRIMARY (US-focused, carries the session
+# where known); FMP stable/earnings-calendar is the fallback (broader tape but
+# no session field + international noise). EarningsWhispers is NEVER paged —
+# its scraper is paced for the current week only and gets connection-dropped
+# on bursts. Every week passes the SAME universe rule (cap_universe) and the
+# same [:40] per-session cap as the current week so day counts stay
+# comparable when paging ("THU 9 · 21" must mean the same thing every week).
+
+_RANGE_WEEK_TTL_FUTURE = 3600       # 1 h — forward schedules move
+_RANGE_WEEK_TTL_PAST   = 6 * 3600   # 6 h — history is near-immutable
+_US_SYM_RE = None  # lazy-compiled
+
+_range_week_locks: dict[str, threading.Lock] = {}
+_range_week_locks_guard = threading.Lock()
+
+
+def _is_us_symbol(sym: str) -> bool:
+    global _US_SYM_RE
+    if _US_SYM_RE is None:
+        import re
+        _US_SYM_RE = re.compile(r"^[A-Z]{1,5}$")
+    return bool(_US_SYM_RE.match(sym))
+
+
+def _fmp_range_week(from_date: str, to_date: str) -> list[dict] | None:
+    """FMP stable/earnings-calendar rows for a date range, or None on failure.
+    Probe-verified on this plan 2026-07-09 (200, actuals inline, lastUpdated —
+    but NO session field and international symbols mixed in)."""
+    key = os.environ.get("FMP_API_KEY", "")
+    if not key:
+        return None
+    try:
+        import requests
+        r = requests.get(
+            "https://financialmodelingprep.com/stable/earnings-calendar",
+            params={"from": from_date, "to": to_date, "apikey": key},
+            timeout=15,
+        )
+        if not r.ok:
+            _logger.warning("Calendar range: FMP HTTP %d", r.status_code)
+            return None
+        data = r.json()
+        return data if isinstance(data, list) else None
+    except Exception as exc:
+        _logger.warning("Calendar range: FMP fetch failed: %s", exc)
+        return None
+
+
+def _build_range_week(monday: date) -> dict:
+    """Build a non-current week's payload from provider range calendars."""
+    week_dates = _week_dates_for(monday)
+    today      = _today_et()
+    week_start = week_dates[0].isoformat()
+    week_end   = week_dates[-1].isoformat()
+    cap_uni    = _load_cap_universe()
+
+    days = {d.strftime("%Y-%m-%d"): _empty_day(d, today) for d in week_dates}
+
+    _EPS_SENTINELS = frozenset({999.0, -999.0, 9999.0, -9999.0, 999.99, -999.99})
+
+    def _clean_eps(v):
+        if v is None:
+            return None
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            return None
+        if fv in _EPS_SENTINELS or abs(fv) > 200:
+            return None
+        return round(fv, 2)
+
+    def _keep(sym: str) -> bool:
+        if cap_uni:
+            return sym in cap_uni
+        return _is_us_symbol(sym)
+
+    source = "range_empty"
+
+    raw = _fh_get_month(week_start, week_end)
+    fh_rows = (raw or {}).get("earningsCalendar") or []
+    if fh_rows:
+        source = "range_finnhub"
+        for row in fh_rows:
+            sym = (row.get("symbol") or "").strip().upper()
+            ds  = (row.get("date") or "").strip()
+            if not sym or ds not in days or not _keep(sym):
+                continue
+            hour = (row.get("hour") or "").lower()
+            timing = hour if hour in ("bmo", "amc") else "tbd"
+            rev_est_raw = row.get("revenueEstimate")
+            rev_act_raw = row.get("revenueActual")
+            days[ds][timing].append({
+                "sym":      sym,
+                "eps_est":  _clean_eps(row.get("epsEstimate")),
+                "eps_act":  _clean_eps(row.get("epsActual")),
+                "rev_est":  round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
+                "rev_act":  round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
+                "ew":       0,
+                "mc_b":     None,
+                "time_et":  None,
+                # Heuristic until the Phase-3 revision table: an unconfirmed
+                # session on a non-current week usually means a projected date.
+                "date_est": timing == "tbd",
+            })
+    else:
+        fmp_rows = _fmp_range_week(week_start, week_end)
+        if fmp_rows:
+            source = "range_fmp"
+            for row in fmp_rows:
+                sym = (row.get("symbol") or "").strip().upper()
+                ds  = str(row.get("date") or "")[:10]
+                if not sym or ds not in days or not _keep(sym):
+                    continue
+                rev_est_raw = row.get("revenueEstimated")
+                rev_act_raw = row.get("revenueActual")
+                days[ds]["tbd"].append({
+                    "sym":      sym,
+                    "eps_est":  _clean_eps(row.get("epsEstimated")),
+                    "eps_act":  _clean_eps(row.get("epsActual")),
+                    "rev_est":  round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
+                    "rev_act":  round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
+                    "ew":       0,
+                    "mc_b":     None,
+                    "time_et":  None,
+                    "date_est": True,   # FMP range carries no session/confirmation
+                })
+
+    # Same ordering rule every week: estimate-bearing names first, then alpha;
+    # same [:40] per-session cap as the current-week live path.
+    for day in days.values():
+        for bucket in ("bmo", "amc", "tbd"):
+            day[bucket].sort(key=lambda e: (
+                e.get("eps_est") is None and e.get("rev_est") is None,
+                e.get("sym") or "",
+            ))
+            day[bucket] = day[bucket][:40]
+
+    # FF serves this week + next week only — silently a no-op beyond that.
+    _curate_econ_events(week_start, week_end, days)
+    _attach_names(days)
+
+    return {
+        "week_start":      week_start,
+        "week_end":        week_end,
+        "days":            days,
+        "source":          source,
+        "is_current_week": False,
+    }
+
+
+def _get_or_build_range_week(monday: date) -> dict | None:
+    """Read-through per-week cache with a per-key build lock (a cold week must
+    not fire duplicate provider calls under concurrent paging)."""
+    ck = f"calendar_week_{monday.isoformat()}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    with _range_week_locks_guard:
+        lock = _range_week_locks.setdefault(monday.isoformat(), threading.Lock())
+    with lock:
+        hit = cache.get(ck)
+        if hit is not None:
+            return hit
+        try:
+            payload = _build_range_week(monday)
+        except Exception as exc:
+            _logger.warning("Calendar: range week build failed for %s: %s", monday, exc)
+            return None
+        if payload.get("source") == "range_empty":
+            # Both providers failed (e.g. a transient Finnhub 429). Caching that
+            # for hours would resurrect the empty-calendar trust bug — keep it
+            # only long enough to absorb a click-storm, then self-heal.
+            cache.set(ck, payload, ttl=120)
+            return payload
+        is_past = _week_dates_for(monday)[-1] < _today_et()
+        cache.set(ck, payload,
+                  ttl=_RANGE_WEEK_TTL_PAST if is_past else _RANGE_WEEK_TTL_FUTURE)
+        return payload
+
+
+def _days_for_date(ds: str) -> dict | None:
+    """Resolve one day's dict from whichever week cache owns that date.
+
+    Current week: read-only against the calendar_weekly cache (cold cache →
+    None, preserving the historical contract for /reactions etc.). Any other
+    week within the horizon: read-through per-week cache."""
+    try:
+        d = date.fromisoformat(ds)
+    except (ValueError, TypeError):
+        return None
+    cur_monday = _week_dates()[0]
+    monday = _monday_of(d)
+    if monday == cur_monday:
+        cal = cache.get("calendar_weekly")
+        return (cal or {}).get("days", {}).get(ds)
+    if abs((monday - cur_monday).days) // 7 > _WEEK_HORIZON_WEEKS:
+        return None
+    wk = _get_or_build_range_week(monday)
+    return (wk or {}).get("days", {}).get(ds)
+
+
 _MONTH_CACHE_TTL = 1800  # 30 minutes
 
 
@@ -534,9 +810,12 @@ def get_month_calendar(year: int = 0, month: int = 0):
             if not ds or not ds.startswith(f"{year:04d}-{month:02d}"):
                 continue
 
-            # hour field: "bmo" | "amc" | "dmh" → dmh goes to amc bucket
-            hour = (row.get("hour") or "amc").lower()
-            timing = "bmo" if hour == "bmo" else "amc"
+            # hour field: "bmo" | "amc" | "dmh" | "" — anything that isn't an
+            # explicit bmo/amc is an UNCONFIRMED session and stays "tbd".
+            # (75% of forward-week Finnhub rows have hour="" — coercing those
+            # into amc rendered confident lies.)
+            hour = (row.get("hour") or "").lower()
+            timing = hour if hour in ("bmo", "amc") else "tbd"
 
             rev_est_raw = row.get("revenueEstimate")
             rev_act_raw = row.get("revenueActual")
@@ -552,7 +831,7 @@ def get_month_calendar(year: int = 0, month: int = 0):
             }
 
             if ds not in days:
-                days[ds] = {"bmo": [], "amc": []}
+                days[ds] = {"bmo": [], "amc": [], "tbd": []}
             days[ds][timing].append(entry)
 
     result = {"month": f"{year:04d}-{month:02d}", "days": days}
@@ -563,7 +842,38 @@ def get_month_calendar(year: int = 0, month: int = 0):
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
 @router.get("/api/calendar")
-def get_calendar():
+def get_calendar(week: str | None = None):
+    """Weekly calendar. Optional ?week=YYYY-MM-DD pages to any week within
+    ±52 weeks (snapped to that date's Monday). The current week keeps the
+    EW+Finviz merged path and the legacy calendar_weekly cache key untouched
+    (calendar_alerts, awareness R5, the ics collector, and warm-on-boot all
+    read that key); other weeks come from provider range calendars."""
+    if week:
+        import re as _re
+        if _re.match(r"^\d{4}-\d{2}-\d{2}$", week):
+            target_monday = _monday_of(date.fromisoformat(week))
+            cur_monday = _week_dates()[0]
+            if target_monday != cur_monday:
+                if abs((target_monday - cur_monday).days) // 7 > _WEEK_HORIZON_WEEKS:
+                    return {
+                        "week_start": target_monday.isoformat(),
+                        "week_end":   (target_monday + timedelta(days=4)).isoformat(),
+                        "days":       {},
+                        "source":     "out_of_range",
+                        "is_current_week": False,
+                    }
+                payload = _get_or_build_range_week(target_monday)
+                if payload is not None:
+                    return payload
+                return {
+                    "week_start": target_monday.isoformat(),
+                    "week_end":   (target_monday + timedelta(days=4)).isoformat(),
+                    "days":       {},
+                    "source":     "error",
+                    "is_current_week": False,
+                }
+        # Malformed or current-week param → fall through to the current week.
+
     cached = cache.get("calendar_weekly")
     if cached is not None:
         return cached
@@ -633,11 +943,15 @@ def get_calendar():
     #    Overlays econ/fed on whichever earnings path ran above.
     _curate_econ_events(week_start, week_end, days)
 
+    # ── 6. Company names from the ticker_meta cache (non-blocking) ───────────
+    _attach_names(days)
+
     result = {
-        "week_start": week_start,
-        "week_end":   week_end,
-        "days":       days,
-        "source":     source,
+        "week_start":      week_start,
+        "week_end":        week_end,
+        "days":            days,
+        "source":          source,
+        "is_current_week": True,
     }
     cache.set("calendar_weekly", result, ttl=_CACHE_TTL)
     return result
@@ -847,30 +1161,103 @@ def refresh_calendar(user: dict = Depends(require_admin)):
 
     _patch_today_actuals(days, today.isoformat())
     _curate_econ_events(week_start, week_end, days)
+    _attach_names(days)
 
     result = {
-        "week_start": week_start,
-        "week_end":   week_end,
-        "days":       days,
-        "source":     "refresh",
+        "week_start":      week_start,
+        "week_end":        week_end,
+        "days":            days,
+        "source":          "refresh",
+        "is_current_week": True,
     }
     cache.set("calendar_weekly", result, ttl=_CACHE_TTL)
-    totals = {ds: {"bmo": len(d["bmo"]), "amc": len(d["amc"]), "econ": len(d["econ"])} for ds, d in days.items()}
+    totals = {ds: {"bmo": len(d["bmo"]), "amc": len(d["amc"]),
+                   "tbd": len(d.get("tbd", [])), "econ": len(d["econ"])}
+              for ds, d in days.items()}
     return {"ok": True, "totals": totals}
 
 
 # ── Live price reactions for reported tickers (Massive batch snapshot) ─────────
 
-_REACTIONS_TTL = 30  # seconds — stays in sync with Massive movers polling
+_REACTIONS_TTL = 30              # seconds — live during market hours
+_PAST_REACTIONS_TTL = 24 * 3600  # a past print's reaction never changes
+_PAST_REACTIONS_MAX_SYMS = 80
+
+
+def _past_reactions(target: str, day: dict) -> dict:
+    """Post-print reaction %% for a PAST date, computed from daily bars.
+
+    BMO/TBD reporter on D → D close vs D-1 close; AMC reporter on D → D+1
+    close vs D close. One Massive agg call per sym (bounded pool, capped,
+    cached 24h by the caller) — todaysChangePerc is meaningless for past days.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from api.services.massive import get_agg_bars
+
+    d = date.fromisoformat(target)
+    from_date = (d - timedelta(days=9)).isoformat()
+    to_date   = (d + timedelta(days=6)).isoformat()
+
+    jobs: list[tuple[str, bool]] = []          # (sym, is_amc)
+    for bucket, is_amc in (("bmo", False), ("tbd", False), ("amc", True)):
+        for e in day.get(bucket, []) or []:
+            if e.get("eps_act") is not None and e.get("sym"):
+                jobs.append((e["sym"], is_amc))
+    jobs = jobs[:_PAST_REACTIONS_MAX_SYMS]
+    if not jobs:
+        return {}
+
+    target_ms_day = target
+
+    def _one(job):
+        sym, is_amc = job
+        try:
+            bars = get_agg_bars(sym, from_date, to_date) or []
+            # (YYYY-MM-DD, close) pairs, ascending
+            closes = []
+            for b in bars:
+                ts = b.get("t")
+                c  = b.get("c")
+                if ts is None or c is None:
+                    continue
+                ds = datetime.fromtimestamp(ts / 1000, tz=_ET).strftime("%Y-%m-%d")
+                closes.append((ds, float(c)))
+            idx = next((i for i, (ds, _) in enumerate(closes) if ds >= target_ms_day), None)
+            if idx is None:
+                return sym, None
+            if closes[idx][0] != target_ms_day:
+                # No session bar on the report date (halt/holiday edge) — skip.
+                return sym, None
+            if is_amc:
+                if idx + 1 >= len(closes):
+                    return sym, None
+                prev_c, next_c = closes[idx][1], closes[idx + 1][1]
+            else:
+                if idx == 0:
+                    return sym, None
+                prev_c, next_c = closes[idx - 1][1], closes[idx][1]
+            if not prev_c:
+                return sym, None
+            return sym, round((next_c - prev_c) / prev_c * 100, 2)
+        except Exception:
+            return sym, None
+
+    out: dict = {}
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        for sym, pct in ex.map(_one, jobs):
+            if pct is not None:
+                out[sym] = pct
+    return out
 
 
 @router.get("/api/calendar/reactions")
 def get_reactions(date: str | None = None):
-    """Return live todaysChangePerc for all reported tickers on a given date.
+    """Return post-print reaction %% for all reported tickers on a given date.
 
-    Uses Massive batch snapshot — one API call regardless of reporter count.
-    TTL: 30s (live during market hours).
-    Falls back to empty dict if Massive is unavailable.
+    Today/future: live todaysChangePerc via ONE Massive batch snapshot (30s TTL).
+    Past dates: computed once from daily bars (24h TTL) — the live snapshot is
+    meaningless for a print that happened days ago.
+    Resolves the day from whichever week cache owns the date (paging-aware).
     """
     import re as _re
     if date and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
@@ -883,14 +1270,23 @@ def get_reactions(date: str | None = None):
     if cached is not None:
         return cached
 
-    # Pull reported tickers from the calendar cache (no extra network call)
-    cal = cache.get("calendar_weekly")
-    if not cal:
+    day = _days_for_date(target)
+    if not day:
         return {}
 
-    day = cal.get("days", {}).get(target, {})
+    # ── Past date: bars-based reaction, long TTL ──────────────────────────────
+    if target < _today_et().isoformat():
+        try:
+            reactions = _past_reactions(target, day)
+        except Exception as exc:
+            _logger.warning("Calendar past reactions failed for %s: %s", target, exc)
+            reactions = {}
+        cache.set(cache_key, reactions, ttl=_PAST_REACTIONS_TTL)
+        return reactions
+
+    # ── Today / future: live batch snapshot ──────────────────────────────────
     reported = [
-        e["sym"] for e in (day.get("bmo", []) + day.get("amc", []))
+        e["sym"] for e in _day_entries(day)
         if e.get("eps_act") is not None and e.get("sym")
     ]
     if not reported:
@@ -933,15 +1329,24 @@ def get_day_metrics(date: str | None = None):
     if cached is not None:
         return cached
 
-    # Pull all tickers for the target date from calendar cache
-    cal = cache.get("calendar_weekly")
-    if not cal:
+    # Tiered TTLs: a past date's price/vol/cap are effectively immutable —
+    # re-firing the Finviz bulk call every 2 min for history is pure waste.
+    today_iso = _today_et().isoformat()
+    if target < today_iso:
+        ttl = 24 * 3600
+    elif target == today_iso:
+        ttl = _METRICS_TTL
+    else:
+        ttl = 3600
+
+    # Resolve the day from whichever week cache owns the date (paging-aware)
+    day = _days_for_date(target)
+    if not day:
         return {}
 
-    day = cal.get("days", {}).get(target, {})
-    all_entries = day.get("bmo", []) + day.get("amc", [])
+    all_entries = _day_entries(day)
     if not all_entries:
-        cache.set(cache_key, {}, ttl=_METRICS_TTL)
+        cache.set(cache_key, {}, ttl=ttl)
         return {}
 
     # Seed mc_b from chip data (wire-computed, already in billions)
@@ -1023,7 +1428,7 @@ def get_day_metrics(date: str | None = None):
         except Exception as exc:
             _logger.warning("Calendar metrics: Massive fallback failed: %s", exc)
 
-    cache.set(cache_key, result, ttl=_METRICS_TTL)
+    cache.set(cache_key, result, ttl=ttl)
     return result
 
 
@@ -1038,14 +1443,32 @@ def calendar_my_sets(user: dict = Depends(get_current_user)):
 
 # ── Enrichment overlay endpoint ────────────────────────────────────────────────
 
-_ENRICH_TTL = 300  # 5 min — options move is itself 60s-cached upstream
+_ENRICH_TTL = 300                    # 5 min — current week (live options data)
+_ENRICH_TTL_FUTURE_WEEK = 4 * 3600   # non-current future weeks move slowly
+_ENRICH_TTL_PAST = 12 * 3600         # past history is stable
+_ENRICH_WINDOW_DAYS = 14             # current week ±2 weeks — hard compute gate
+
+# At most 2 week-days' enrichment computing at once — concurrent week-paging
+# must never stack unbounded yfinance option-chain storms on the request path
+# (the 2026-07-01 threadpool-exhaustion class).
+_ENRICH_SEMAPHORE = threading.Semaphore(2)
+
+# Coverage telemetry: a silent universe-wide enrichment failure would silently
+# flatten the (Phase-2) hierarchy — make it observable instead.
+_ENRICH_STATS: dict[str, dict] = {}
 
 
 def _compute_enrichment_for_date(target: str) -> dict:
     """Per-ticker expected move + 4-quarter beat history + hist_stats for one day.
 
-    Bounded + cached (_ENRICH_TTL) so the core /api/calendar paints instantly and
-    this overlays on top. Empty dict if the calendar cache isn't warm yet.
+    Bounded + cached so the core /api/calendar paints instantly and this
+    overlays on top. Empty dict if the owning week cache isn't warm yet.
+
+    Safety rails (do not remove):
+      • compute gate: only dates within current week ±2 weeks are enriched
+      • implied move SKIPPED for past dates — yfinance only lists future
+        expiries, so a past-date "expected move" would be confident garbage
+      • per-call bounded_call timeout + a 2-wide semaphore across dates
 
     hist_stats shape: {avg_abs_move, up_count, total, last_n}
       avg_abs_move — average absolute post-earnings move over last N reports
@@ -1060,15 +1483,33 @@ def _compute_enrichment_for_date(target: str) -> dict:
     if hit is not None:
         return hit
 
-    cal = cache.get("calendar_weekly")
-    if not cal:
+    today_iso = _today_et().isoformat()
+    is_past = target < today_iso
+
+    # ── Compute-window gate ───────────────────────────────────────────────────
+    try:
+        gap_days = abs((date.fromisoformat(target) - _today_et()).days)
+    except (ValueError, TypeError):
         return {}
-    day = cal.get("days", {}).get(target, {})
-    syms = [e["sym"] for e in (day.get("bmo", []) + day.get("amc", [])) if e.get("sym")]
+    if gap_days > _ENRICH_WINDOW_DAYS:
+        cache.set(ck, {}, ttl=_ENRICH_TTL_PAST if is_past else _ENRICH_TTL_FUTURE_WEEK)
+        return {}
+
+    day = _days_for_date(target)
+    if not day:
+        return {}
+    syms = [e["sym"] for e in _day_entries(day) if e.get("sym")]
     if not syms:
         cache.set(ck, {}, ttl=_ENRICH_TTL)
         return {}
 
+    cur_monday = _week_dates()[0]
+    in_current_week = _monday_of(date.fromisoformat(target)) == cur_monday
+    ttl = (_ENRICH_TTL if in_current_week
+           else _ENRICH_TTL_PAST if is_past
+           else _ENRICH_TTL_FUTURE_WEEK)
+
+    from api.services.yf_util import bounded_call
     from api.services.earnings_enrichment import get_implied_move, get_historical_earnings_moves
     from api.services.earnings_estimates import get_earnings_intel
 
@@ -1101,10 +1542,13 @@ def _compute_enrichment_for_date(target: str) -> dict:
         move = None
         hist = None
         hist_stats = None
-        try:
-            move = get_implied_move(sym, earnings_date=target)
-        except Exception:
-            pass
+        if not is_past:
+            # bounded_call: a hung yfinance option-chain call frees this worker
+            # after the timeout instead of pinning it (524-outage class).
+            move = bounded_call(
+                lambda s=sym: get_implied_move(s, earnings_date=target),
+                None, timeout=15.0,
+            )
         try:
             intel = get_earnings_intel(sym)
             hist = intel.get("beat_history") if intel else None
@@ -1117,12 +1561,42 @@ def _compute_enrichment_for_date(target: str) -> dict:
         return sym, {"expected_move": move, "beat_history": hist, "hist_stats": hist_stats}
 
     out: dict = {}
-    with ThreadPoolExecutor(max_workers=6) as ex:
-        for sym, data in ex.map(_one, syms):
-            out[sym] = data
+    with _ENRICH_SEMAPHORE:
+        # Re-check under the semaphore — a queued duplicate request for the
+        # same date should reuse the winner's work, not recompute it.
+        hit = cache.get(ck)
+        if hit is not None:
+            return hit
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            for sym, data in ex.map(_one, syms):
+                out[sym] = data
 
-    cache.set(ck, out, ttl=_ENRICH_TTL)
+    _ENRICH_STATS[target] = {
+        "total":     len(syms),
+        "with_em":   sum(1 for v in out.values() if v.get("expected_move")),
+        "with_hist": sum(1 for v in out.values() if v.get("hist_stats")),
+        "past":      is_past,
+        "computed_at": datetime.now(_ET).isoformat(timespec="seconds"),
+    }
+    # Bound the telemetry dict (it would otherwise grow one key per browsed day)
+    if len(_ENRICH_STATS) > 60:
+        for k in sorted(_ENRICH_STATS)[:-40]:
+            _ENRICH_STATS.pop(k, None)
+
+    cache.set(ck, out, ttl=ttl)
     return out
+
+
+@router.get("/api/admin/calendar-enrichment-status")
+def calendar_enrichment_status():
+    """Read-only enrichment coverage telemetry (mirrors reconciliation-status).
+    A day whose with_em collapses to ~0 while total is large = the yfinance
+    option-chain path is failing universe-wide — investigate before trusting
+    expected-move displays (and the Phase-2 importance hierarchy)."""
+    return {
+        "dates": {k: _ENRICH_STATS[k] for k in sorted(_ENRICH_STATS, reverse=True)[:20]},
+        "window_days": _ENRICH_WINDOW_DAYS,
+    }
 
 
 @router.get("/api/calendar/enrichment")
@@ -1254,9 +1728,29 @@ def _build_vevent(sym: str, report_date: str, timing: str) -> str:
     """Build a single VEVENT block for an earnings reporter.
 
     report_date: YYYY-MM-DD
-    timing: 'bmo' | 'amc'
+    timing: 'bmo' | 'amc' | 'tbd'
+
+    An unconfirmed session ('tbd') exports as an honest ALL-DAY event — never
+    a fabricated 4 PM slot (session anchors are already approximations; a fake
+    clock time on an unknown session is a lie in the user's own calendar).
     """
-    # DTSTART: BMO → 7 AM ET (12:00 UTC), AMC → 4 PM ET (21:00 UTC)
+    uid = f"{sym}-{report_date}-earnings@uctintelligence.com"
+
+    if timing == "tbd":
+        d0 = report_date.replace("-", "")
+        d1 = (date.fromisoformat(report_date) + timedelta(days=1)).strftime("%Y%m%d")
+        return (
+            "BEGIN:VEVENT\r\n"
+            f"UID:{uid}\r\n"
+            f"DTSTART;VALUE=DATE:{d0}\r\n"
+            f"DTEND;VALUE=DATE:{d1}\r\n"
+            f"SUMMARY:{sym} earnings (time TBD)\r\n"
+            "CATEGORIES:EARNINGS\r\n"
+            "END:VEVENT\r\n"
+        )
+
+    # DTSTART: BMO → 7 AM ET, AMC → 4 PM ET (session anchors, not exact times —
+    # no wired provider publishes clock times).
     # Using floating local-time form (TZID=America/New_York) so calendar apps
     # display it correctly in the user's local zone.
     hour = "07" if timing == "bmo" else "16"
@@ -1264,7 +1758,6 @@ def _build_vevent(sym: str, report_date: str, timing: str) -> str:
     dtend_hour = "08" if timing == "bmo" else "17"
     dtend = f"TZID=America/New_York:{report_date.replace('-', '')}T{dtend_hour}0000"
     session_label = "BMO" if timing == "bmo" else "AMC"
-    uid = f"{sym}-{report_date}-earnings@uctintelligence.com"
     summary = f"{sym} earnings ({session_label})"
     return (
         "BEGIN:VEVENT\r\n"
@@ -1314,14 +1807,11 @@ def _collect_reporters_for_ics(scope: str, user_id: str | None) -> list[tuple[st
 
     def _add_from_days(days: dict) -> None:
         for ds, day in days.items():
-            for entry in day.get("bmo", []):
-                sym = (entry.get("sym") or "").upper()
-                if sym and (scope == "all" or sym in mine):
-                    result.append((sym, ds, "bmo"))
-            for entry in day.get("amc", []):
-                sym = (entry.get("sym") or "").upper()
-                if sym and (scope == "all" or sym in mine):
-                    result.append((sym, ds, "amc"))
+            for timing in ("bmo", "amc", "tbd"):
+                for entry in day.get(timing, []) or []:
+                    sym = (entry.get("sym") or "").upper()
+                    if sym and (scope == "all" or sym in mine):
+                        result.append((sym, ds, timing))
 
     # Try weekly cache first
     cal = cache.get("calendar_weekly")
@@ -1336,16 +1826,12 @@ def _collect_reporters_for_ics(scope: str, user_id: str | None) -> list[tuple[st
         try:
             month_data = get_month_calendar(year=yr, month=mo)
             for ds, day in month_data.get("days", {}).items():
-                for entry in day.get("bmo", []):
-                    sym = (entry.get("sym") or "").upper()
-                    if sym and (scope == "all" or sym in mine):
-                        if not any(t[0] == sym and t[1] == ds for t in result):
-                            result.append((sym, ds, "bmo"))
-                for entry in day.get("amc", []):
-                    sym = (entry.get("sym") or "").upper()
-                    if sym and (scope == "all" or sym in mine):
-                        if not any(t[0] == sym and t[1] == ds for t in result):
-                            result.append((sym, ds, "amc"))
+                for timing in ("bmo", "amc", "tbd"):
+                    for entry in day.get(timing, []) or []:
+                        sym = (entry.get("sym") or "").upper()
+                        if sym and (scope == "all" or sym in mine):
+                            if not any(t[0] == sym and t[1] == ds for t in result):
+                                result.append((sym, ds, timing))
         except Exception:
             pass
 
@@ -1358,6 +1844,53 @@ def _collect_reporters_for_ics(scope: str, user_id: str | None) -> list[tuple[st
             seen.add(key)
             deduped.append((sym, ds, timing))
     return deduped
+
+
+# ── Next-report lookup (header ticker search) ─────────────────────────────────
+
+_NEXT_REPORT_TTL = 6 * 3600
+
+
+@router.get("/api/calendar/next-report")
+def get_next_report(sym: str, user: dict = Depends(get_current_user)):
+    """Next scheduled report date for ONE symbol — powers the header search's
+    "NVDA — Wed Aug 26 · Jump to week" answer for names outside the loaded
+    window. FMP stable/earnings future row primary, Finnhub calendar fallback
+    (both inside earnings_table._next_report_date). Cached 6 h per sym.
+    The frontend fires this on SELECTION only — never per keystroke."""
+    sym = (sym or "").upper().strip()
+    core = sym.replace(".", "").replace("-", "")
+    if not sym or len(core) > 6 or not core.isalpha():
+        return {"sym": sym, "date": None, "timing": None, "date_est": None}
+
+    ck = f"calendar_next_report_{sym}"
+    cached = cache.get(ck)
+    if cached is not None:
+        return cached
+
+    d = None
+    try:
+        from api.services.earnings_table import _next_report_date
+        d = _next_report_date(sym)
+    except Exception as exc:
+        _logger.warning("Calendar next-report failed for %s: %s", sym, exc)
+
+    timing = None
+    date_est = None
+    if d:
+        day = _days_for_date(d)   # one cached range-week build at most
+        if day:
+            for t in ("bmo", "amc", "tbd"):
+                entry = next((e for e in (day.get(t) or [])
+                              if (e.get("sym") or "").upper() == sym), None)
+                if entry is not None:
+                    timing = t
+                    date_est = entry.get("date_est")
+                    break
+
+    out = {"sym": sym, "date": d, "timing": timing, "date_est": date_est}
+    cache.set(ck, out, ttl=_NEXT_REPORT_TTL)
+    return out
 
 
 @router.get("/api/calendar/export-token")

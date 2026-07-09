@@ -88,8 +88,8 @@ def _get_reporters_for_date(market_date: str) -> set[str]:
         cal = cache.get("calendar_weekly") or {}
         days = cal.get("days") or {}
         day = days.get(market_date) or {}
-        for bucket in ("bmo", "amc"):
-            for entry in day.get(bucket, []):
+        for bucket in ("bmo", "amc", "tbd"):
+            for entry in day.get(bucket, []) or []:
                 sym = (entry.get("sym") or "").strip().upper()
                 if sym:
                     result.add(sym)

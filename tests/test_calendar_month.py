@@ -16,7 +16,7 @@ _FH_ROWS = [
     # ticker NOT in cap_universe → should be filtered out
     {"symbol": "TINY", "date": "2026-06-05", "hour": "bmo",
      "epsEstimate": 0.10, "epsActual": None, "revenueEstimate": None, "revenueActual": None},
-    # bmo via dmh (during market hours → treat as amc per spec)
+    # dmh (during market hours) — not an explicit bmo/amc → tbd (session truth)
     {"symbol": "MSFT", "date": "2026-06-15", "hour": "dmh",
      "epsEstimate": 3.10, "epsActual": None, "revenueEstimate": 64000000000, "revenueActual": None},
 ]
@@ -72,8 +72,10 @@ def test_month_bmo_amc_bucketing():
     assert any(e["sym"] == "AAPL" for e in days.get("2026-06-02", {}).get("bmo", []))
     # NVDA on Jun 10 amc
     assert any(e["sym"] == "NVDA" for e in days.get("2026-06-10", {}).get("amc", []))
-    # MSFT dmh → amc
-    assert any(e["sym"] == "MSFT" for e in days.get("2026-06-15", {}).get("amc", []))
+    # MSFT dmh → tbd (an unconfirmed session is rendered as unknown, never
+    # coerced into amc — the coercion shipped confident lies for 75% of
+    # forward-week Finnhub rows)
+    assert any(e["sym"] == "MSFT" for e in days.get("2026-06-15", {}).get("tbd", []))
 
 
 def test_month_entry_fields():
