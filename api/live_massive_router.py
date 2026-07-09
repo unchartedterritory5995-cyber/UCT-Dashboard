@@ -1487,10 +1487,13 @@ def recent_massive_alerts(
         # (Permanent instant-everywhere fix = store tier/grade as SQL columns at
         # write time so these filter in SQL; after-close, Ravi-area.)
         if curated or tier:
-            _cap = int(os.environ.get("MASSIVE_RECENT_SQL_CAP_WIDE", "60000"))
+            # OVERRIDE up to full-day coverage (not min — tier's base sql_limit is
+            # only 20000 = recent ~half-day, so min() left the morning's rare-tier
+            # prints out of range and tier=alpha returned 0). Set it wide; the
+            # Color index keeps the full-day scan fast (~2-3s).
+            sql_limit = int(os.environ.get("MASSIVE_RECENT_SQL_CAP_WIDE", "80000"))
         else:
-            _cap = int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "3000"))
-        sql_limit = min(sql_limit, _cap)
+            sql_limit = min(sql_limit, int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "3000")))
         # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
         # override threshold so they get a chance at promotion in
         # _derive_alert_name. SQL filter avoids loading every WHITE row (huge
