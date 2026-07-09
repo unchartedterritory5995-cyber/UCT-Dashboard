@@ -163,6 +163,14 @@ _EXAMPLE_FIELDS = ("setup_name", "symbol", "company", "sector", "industry",
                    "watermark_x", "watermark_y", "drawings_json", "result_drawings_json",
                    "scale_mode", "sort_order")
 
+# Setup Library catalog renames → re-key existing charted examples on startup so
+# a display-name change never loses the authored examples. old name : new name.
+_EXAMPLE_SETUP_RENAMES = {
+    "Flat Top Breakout (VCP)": "Flat Base Breakout",
+    "News/Catalyst Gapper": "News/Earnings Gapper",
+    "HVC (High Volume Close)": "High Volume Edge",
+}
+
 
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(_DB_PATH, timeout=10.0)
@@ -212,6 +220,25 @@ def _init_db() -> None:
             except sqlite3.OperationalError as e:
                 if "duplicate column name" not in str(e).lower():
                     raise
+
+        # One-shot data migrations: when a Setup Library catalog name is
+        # renamed (setupCatalog.js), the charted examples keep the OLD
+        # setup_name and would orphan. Re-key them to the new name. Naturally
+        # idempotent — after the first run no rows match the old name, so
+        # re-running on every boot is a no-op. Child result_drawings rows key
+        # off example_id, so annotations follow automatically.
+        for old_name, new_name in _EXAMPLE_SETUP_RENAMES.items():
+            try:
+                cur = c.execute(
+                    "UPDATE modelbook_setup_examples SET setup_name = ? "
+                    "WHERE setup_name = ?",
+                    (new_name, old_name),
+                )
+                if cur.rowcount:
+                    print(f"[modelbook] re-keyed {cur.rowcount} setup example(s): "
+                          f"{old_name!r} -> {new_name!r}")
+            except sqlite3.OperationalError:
+                pass
         c.commit()
 
 
