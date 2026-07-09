@@ -432,14 +432,17 @@ export const tradeRMultiple = (t) =>
     : safeDivide(t.entryPrice - t.exitPrice, t.originalStop - t.entryPrice)
 
 /**
- * Calendar days between entry and exit, floored.
+ * Calendar days between entry and exit, floored, clamped to ≥ 0.
  * Uses UTC ISO dates — no timezone drift per §14.5 edge case #10.
+ * Python (api/services/journal_two/calculations.py:hold_days) is the
+ * authority and clamps a negative span (exit before entry) to 0; the
+ * clamp here keeps the JS mirror in exact parity (see parity.test.js).
  * @param {string} entryDate
  * @param {string} exitDate
  */
 export const holdDays = (entryDate, exitDate) => {
   const ms = new Date(exitDate).getTime() - new Date(entryDate).getTime()
-  return Math.floor(ms / 86400000)
+  return Math.max(0, Math.floor(ms / 86400000))
 }
 
 /**

@@ -1,0 +1,181 @@
+{
+  "equity": [
+    {
+      "inputs": {
+        "side": "Long",
+        "entryPrice": 29.57,
+        "exitPrice": 34.5,
+        "shares": 100,
+        "originalStop": 27.99,
+        "entryDate": "2026-03-02T14:35:00Z",
+        "exitDate": "2026-03-09T18:10:00Z",
+        "breakevenRange": {
+          "enabled": false,
+          "unit": "$",
+          "value": 0.0
+        }
+      },
+      "expected": {
+        "pnlDollar": 493.0,
+        "pnlPercent": 0.16672303009807235,
+        "rMultiple": 3.1202531645569582,
+        "holdDays": 7,
+        "result": "Win"
+      }
+    },
+    {
+      "inputs": {
+        "side": "Short",
+        "entryPrice": 50.0,
+        "exitPrice": 45.0,
+        "shares": 200,
+        "originalStop": 52.5,
+        "entryDate": "2026-03-02",
+        "exitDate": "2026-03-04",
+        "breakevenRange": {
+          "enabled": false,
+          "unit": "$",
+          "value": 0.0
+        }
+      },
+      "expected": {
+        "pnlDollar": 1000.0,
+        "pnlPercent": 0.1,
+        "rMultiple": 2.0,
+        "holdDays": 2,
+        "result": "Win"
+      }
+    },
+    {
+      "inputs": {
+        "side": "Long",
+        "entryPrice": 10.0,
+        "exitPrice": 10.0,
+        "shares": 100,
+        "originalStop": 9.5,
+        "entryDate": "2026-03-02",
+        "exitDate": "2026-03-02",
+        "breakevenRange": {
+          "enabled": false,
+          "unit": "$",
+          "value": 0.0
+        }
+      },
+      "expected": {
+        "pnlDollar": 0.0,
+        "pnlPercent": 0.0,
+        "rMultiple": 0.0,
+        "holdDays": 0,
+        "result": "BE"
+      }
+    },
+    {
+      "inputs": {
+        "side": "Long",
+        "entryPrice": 100.0,
+        "exitPrice": 100.4,
+        "shares": 50,
+        "originalStop": 99.0,
+        "entryDate": "2026-03-02",
+        "exitDate": "2026-03-03",
+        "breakevenRange": {
+          "enabled": true,
+          "unit": "%",
+          "value": 0.5
+        }
+      },
+      "expected": {
+        "pnlDollar": 20.000000000000284,
+        "pnlPercent": 0.0040000000000000565,
+        "rMultiple": 0.4000000000000057,
+        "holdDays": 1,
+        "result": "BE"
+      }
+    },
+    {
+      "inputs": {
+        "side": "Long",
+        "entryPrice": 100.0,
+        "exitPrice": 100.0,
+        "shares": 10,
+        "originalStop": 100.0,
+        "entryDate": "2026-03-02",
+        "exitDate": "2026-03-01",
+        "breakevenRange": {
+          "enabled": false,
+          "unit": "$",
+          "value": 0.0
+        }
+      },
+      "expected": {
+        "pnlDollar": 0.0,
+        "pnlPercent": 0.0,
+        "rMultiple": null,
+        "holdDays": 0,
+        "result": "BE"
+      }
+    }
+  ],
+  "options": [
+    {
+      "inputs": {
+        "legs": [
+          {
+            "side": "buy",
+            "qty": 1,
+            "entryPrice": 2.5,
+            "exitPrice": 4.1
+          }
+        ]
+      },
+      "expected": {
+        "netEntry": 250.0,
+        "netExit": 410.0,
+        "pnl": 160.0,
+        "debitCredit": "debit"
+      }
+    },
+    {
+      "inputs": {
+        "legs": [
+          {
+            "side": "buy",
+            "qty": 1,
+            "entryPrice": 3.0,
+            "exitPrice": 1.0
+          },
+          {
+            "side": "sell",
+            "qty": 1,
+            "entryPrice": 1.2,
+            "exitPrice": 0.3
+          }
+        ]
+      },
+      "expected": {
+        "netEntry": 180.0,
+        "netExit": 70.0,
+        "pnl": -110.0,
+        "debitCredit": "debit"
+      }
+    },
+    {
+      "inputs": {
+        "legs": [
+          {
+            "side": "sell",
+            "qty": 2,
+            "entryPrice": 1.1,
+            "exitPrice": null
+          }
+        ]
+      },
+      "expected": {
+        "netEntry": -220.0,
+        "netExit": null,
+        "pnl": null,
+        "debitCredit": "credit"
+      }
+    }
+  ]
+}
