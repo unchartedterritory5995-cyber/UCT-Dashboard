@@ -25,6 +25,7 @@ from datetime import date as Date, datetime, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.timeutil import compute_trading_day_et
 
 
 # ── Allowed strategy types (matches frontend StrategyTemplates.js keys) ──────
@@ -765,19 +766,22 @@ def close_strategy(
                     (exit_price, leg_id),
                 )
             now = _now_iso()
+            closed_at_iso = exit_dt.astimezone(timezone.utc).isoformat()
             conn.execute(
                 """
                 UPDATE j2_option_strategies
                    SET status = ?, closed_at = ?, net_exit = ?,
                        exit_fees = ?, pnl_dollar = ?, pnl_percent = ?,
                        r_multiple = ?, result = ?, notes = ?,
-                       updated_at = ?
+                       updated_at = ?, trading_day_et = ?
                  WHERE id = ? AND user_id = ?
                 """,
                 (
-                    status, exit_dt.astimezone(timezone.utc).isoformat(),
+                    status, closed_at_iso,
                     net_exit, exit_fees, pnl, pnl_pct,
-                    r_multiple, result, new_notes, now, strategy_id, user_id,
+                    r_multiple, result, new_notes, now,
+                    compute_trading_day_et(closed_at_iso),
+                    strategy_id, user_id,
                 ),
             )
             conn.commit()

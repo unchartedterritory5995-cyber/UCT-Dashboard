@@ -27,6 +27,7 @@ from api.services.auth_db import get_connection
 from api.services.journal_two import calculations as calc
 from api.services.journal_two import regime as regime_service
 from api.services.journal_two.positions import _row_to_position
+from api.services.journal_two.timeutil import compute_trading_day_et, compute_hour_et
 
 
 class CloseValidationError(ValueError):
@@ -171,8 +172,8 @@ def close_position(
                     original_stop, setup, notes, pnl_dollar, pnl_percent,
                     r_multiple, hold_days, result, context_at_entry,
                     account_id, fees, created_at, regime,
-                    mistake_tags, emotion_tags
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    mistake_tags, emotion_tags, trading_day_et, hour_et
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     trade_id,
@@ -200,6 +201,8 @@ def close_position(
                     regime_service.get_current_regime().get("regime"),
                     json.dumps(normalized["mistake_tags"]),
                     json.dumps(normalized["emotion_tags"]),
+                    compute_trading_day_et(normalized["exit_date"]),
+                    compute_hour_et(normalized["exit_date"]),
                 ),
             )
 
@@ -420,8 +423,8 @@ def create_trade_manual(
                 original_stop, setup, notes, pnl_dollar, pnl_percent,
                 r_multiple, hold_days, result, context_at_entry,
                 account_id, fees, created_at, regime,
-                mistake_tags, emotion_tags
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                mistake_tags, emotion_tags, trading_day_et, hour_et
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 trade_id,
@@ -449,6 +452,8 @@ def create_trade_manual(
                 regime_service.get_current_regime().get("regime"),
                 json.dumps(validated["mistake_tags"]),
                 json.dumps(validated["emotion_tags"]),
+                compute_trading_day_et(validated["exitDate"]),
+                compute_hour_et(validated["exitDate"]),
             ),
         )
         conn.commit()
@@ -670,8 +675,9 @@ def bulk_insert_trades(
                         original_stop, setup, notes, pnl_dollar, pnl_percent,
                         r_multiple, hold_days, result, context_at_entry,
                         account_id, fees, created_at, regime,
-                        mistake_tags, emotion_tags, source, external_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        mistake_tags, emotion_tags, source, external_id,
+                        trading_day_et, hour_et
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         trade_id,
@@ -701,6 +707,8 @@ def bulk_insert_trades(
                         '[]',
                         source,
                         external_id,
+                        compute_trading_day_et(pt["exitDate"]),
+                        compute_hour_et(pt["exitDate"]),
                     ),
                 )
                 inserted += 1

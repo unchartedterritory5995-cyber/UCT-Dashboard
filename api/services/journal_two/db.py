@@ -630,6 +630,12 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_broker_accounts ADD COLUMN warming_until TEXT",
     "ALTER TABLE j2_broker_accounts ADD COLUMN warming_last_activity_count INTEGER",
     "ALTER TABLE j2_broker_accounts ADD COLUMN warming_stable_ticks INTEGER NOT NULL DEFAULT 0",
+    # Journal A+ P1a — ET trading-day spine (2026-07-09 spec §3)
+    "ALTER TABLE j2_trades ADD COLUMN trading_day_et TEXT",
+    "ALTER TABLE j2_trades ADD COLUMN hour_et INTEGER",
+    "ALTER TABLE j2_option_strategies ADD COLUMN trading_day_et TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_j2_trades_tday ON j2_trades(user_id, trading_day_et)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_opts_tday ON j2_option_strategies(user_id, trading_day_et)",
 ]
 
 
