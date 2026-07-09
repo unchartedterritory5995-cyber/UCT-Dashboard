@@ -2363,7 +2363,12 @@ export default function OptionsFlowDashboard() {
     setSearch("");
     setOiSearch("");
     setCapFilter("All");
-    setTab("Market Read");
+    // 7/9: Preserve current tab across data refetches. This effect fires
+    // whenever csvFile changes, which includes background dataVersion bumps
+    // (e.g. after gap-fill or nightly rebuild). Resetting the tab bounced
+    // users off Watchlist mid-workflow. Tab reset now only happens on
+    // explicit user actions (range change, mode change) via the reset
+    // handlers that own those actions.
     const t0 = performance.now();
 
     fetch(csvFile)  // versioned via &v= from /api/flow/version — see useEffect above; CF can cache safely
@@ -5166,6 +5171,11 @@ export default function OptionsFlowDashboard() {
               cc.forEach(t => {
                 if (t.D==="BULL") rawTotalBull+=t.P; if (t.D==="BEAR") rawTotalBear+=t.P;
                 if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0 };
+                // 7/9: If ticker was first seen with mktcap=0 (gap-fill row),
+                // upgrade to the real mktcap when a later row provides it.
+                // Prevents AAPL/META etc. from getting stuck as Unknown when
+                // even one row is missing mktcap data.
+                else if (!tkMap[t.S].mktcap && t.mktcap) tkMap[t.S].mktcap = t.mktcap;
                 const tk = tkMap[t.S];
                 if (t.D==="BULL") tk.bull+=t.P; if (t.D==="BEAR") tk.bear+=t.P; tk.n++;
               });
@@ -5873,6 +5883,13 @@ export default function OptionsFlowDashboard() {
               ad.forEach(t => {
                 if (!tkMap[t.S]) tkMap[t.S]={sym:t.S,bull:0,bear:0,n:0,swp:0,blk:0,swpAsk:0,swpBid:0,confirmed:0,band:capBand(t.mktcap),
                   contracts:{},hasER:!!t.er,minDTE:999,mktcap:t.mktcap||0,sector:t.sector||"",lastDate:null,hasUOA:false};
+                // 7/9: Upgrade mktcap + band when a real value shows up. Prevents
+                // gap-fill rows (mktcap=0 → Unknown) from locking a ticker's cap
+                // band. See matching fix at line 6410 for full explanation.
+                else if (!tkMap[t.S].mktcap && t.mktcap) {
+                  tkMap[t.S].mktcap = t.mktcap;
+                  tkMap[t.S].band = capBand(t.mktcap);
+                }
                 const tk=tkMap[t.S];
                 if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
                 tk.n++;
@@ -6408,6 +6425,14 @@ export default function OptionsFlowDashboard() {
           const tkMap = {};
           filtered.forEach(t => {
             if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
+            // 7/9: Upgrade mktcap when a real value shows up. Same fix as
+            // line 5168 — prevents gap-fill rows (mktcap=0 by design) from
+            // locking a ticker into "Unknown" band. This is the exact source
+            // of "Mid-Small filter includes AAPL/META" bug seen on 7/9 after
+            // 7/8 OPRA CSV gap-fill: AAPL rows from gap-fill had mktcap=0,
+            // and if seen first, AAPL entered tkMap as Unknown → matchesLBCap
+            // let it through the Mid-Small filter.
+            else if (!tkMap[t.S].mktcap && t.mktcap) tkMap[t.S].mktcap = t.mktcap;
             const tk = tkMap[t.S];
             if (t.D==="BULL") tk.bull += t.P;
             if (t.D==="BEAR") tk.bear += t.P;
