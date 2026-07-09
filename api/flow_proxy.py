@@ -155,6 +155,26 @@ async def _proxy(request: Request):
     # the shared event loop (the 524 surface), and a buffered Response gets a
     # Content-Length so Cloudflare edge-caches it (proxy hop happens only on
     # cache-miss). Flow responses are bounded (JSON/CSV), so buffering is safe.
+    # SSE passthrough (2026-07-08): an event-stream body NEVER ends, so the
+    # buffered join below would hang forever + leak the held connection. Stream
+    # these chunks straight through. Covers /api/live/massive/stream (the flow
+    # tape) so the instant tape survives the P5 cutover -- the tailer runs on the
+    # worker (where flow.db lives post-flip), reached via this proxy.
+    _ctype = upstream.headers.get("content-type", "")
+    if "text/event-stream" in _ctype or request.url.path.endswith("/massive/stream"):
+        async def _sse_passthrough():
+            try:
+                async for chunk in upstream.aiter_raw():
+                    yield chunk
+            finally:
+                await upstream.aclose()
+        return StreamingResponse(
+            _sse_passthrough(),
+            status_code=upstream.status_code,
+            headers={k: v for k, v in upstream.headers.items() if k.lower() not in _HOP},
+            media_type=_ctype or "text/event-stream",
+        )
+
     try:
         raw = b"".join([chunk async for chunk in upstream.aiter_raw()])
     finally:
