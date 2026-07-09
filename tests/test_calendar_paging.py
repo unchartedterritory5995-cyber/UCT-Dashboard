@@ -191,6 +191,45 @@ def test_past_reactions_bmo_vs_amc_offsets():
     assert out["BBB"] == 10.0   # 110 → 121 the day after the AMC print
 
 
+def test_week_param_calendar_invalid_dates_fall_through_not_500():
+    """'2026-13-05' passes the regex but is calendar-invalid — must land on
+    the current-week fallback (200), never a 500 on the public endpoint."""
+    sentinel = {"week_start": "x", "days": {}, "source": "cached", "is_current_week": True}
+
+    def _cache_get(key):
+        return sentinel if key == "calendar_weekly" else None
+
+    for bad in ("2026-13-05", "2026-02-31", "0000-01-01"):
+        with mock.patch("api.routers.calendar.cache.get", side_effect=_cache_get):
+            r = client.get(f"/api/calendar?week={bad}")
+        assert r.status_code == 200, bad
+        assert r.json()["source"] == "cached", bad   # current-week fallback
+
+
+def test_current_week_cap_filter_applies_to_tbd():
+    """The tbd bucket passes the SAME universe rule as bmo/amc — a $50M
+    Finviz name without a session marker must not leak into the current week
+    (or into calendar_alerts/ics via the shared payload)."""
+    live_days = {"2026-07-09": {
+        "label": "Thu Jul 9", "day": "Thursday", "is_today": True,
+        "bmo": [{"sym": "BIG", "ew": 1}], "amc": [],
+        "tbd": [{"sym": "TINY", "ew": 0}, {"sym": "PEP", "ew": 0}],
+        "econ": [], "fed": [],
+    }}
+    wire = {"cap_universe": ["BIG", "PEP"]}
+    with mock.patch("api.routers.calendar.cache.get", return_value=None), \
+         mock.patch("api.routers.calendar.cache.set"), \
+         mock.patch.object(cal_mod, "_build_live", return_value=live_days), \
+         mock.patch("api.services.engine._load_wire_data", return_value=wire), \
+         mock.patch.object(cal_mod, "_patch_today_actuals"), \
+         mock.patch.object(cal_mod, "_curate_econ_events"), \
+         mock.patch.object(cal_mod, "_attach_names"):
+        r = client.get("/api/calendar")
+    day = r.json()["days"]["2026-07-09"]
+    assert [e["sym"] for e in day["tbd"]] == ["PEP"]   # TINY cap-filtered
+    assert [e["sym"] for e in day["bmo"]] == ["BIG"]
+
+
 def test_alerts_reporters_include_tbd():
     from api.services import calendar_alerts as ca
     cal = {"days": {"2026-07-16": {

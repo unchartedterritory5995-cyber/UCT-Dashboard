@@ -42,12 +42,21 @@ function fmtWeekRange(start, end) {
 
 // ── Time helpers (Week Navigator) ────────────────────────────────────────────
 
+// Format a Date's LOCAL calendar parts as ISO — never toISOString(), which
+// converts to UTC and shifts the date for UTC+13/+14 browsers (NZDT, Samoa).
+function localIso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // Monday (ISO date string) of the week containing an ISO date string.
+// Returns null for calendar-invalid input ('2026-13-05' passes the URL regex
+// but must fall back to the current week, not crash the render).
 export function mondayOf(iso) {
   const d = new Date(iso + 'T12:00:00')       // noon-anchored: DST-safe date math
+  if (Number.isNaN(d.getTime())) return null
   const shift = (d.getDay() + 6) % 7          // Mon=0 … Sun=6
   d.setDate(d.getDate() - shift)
-  return d.toISOString().slice(0, 10)
+  return localIso(d)
 }
 
 // ET-anchored "today" — the backend anchors its week the same way, so a
@@ -76,7 +85,8 @@ export default function Calendar() {
   const rawWeek = searchParams.get('week')
   const weekParam = useMemo(() => {
     if (!rawWeek || !/^\d{4}-\d{2}-\d{2}$/.test(rawWeek)) return null
-    const monday = mondayOf(rawWeek)
+    const monday = mondayOf(rawWeek)   // null for calendar-invalid dates
+    if (!monday) return null
     // The current week rides the bare endpoint (legacy calendar_weekly cache
     // key) — treat an explicit current-week param as "no param".
     return monday === mondayOf(todayIso()) ? null : monday
@@ -216,9 +226,11 @@ export default function Calendar() {
 
   const shiftWeek = useCallback((deltaDays) => {
     const base = weekParam || mondayOf(todayIso())
+    if (!base) return
     const d = new Date(base + 'T12:00:00')
+    if (Number.isNaN(d.getTime())) return
     d.setDate(d.getDate() + deltaDays)
-    gotoWeek(d.toISOString().slice(0, 10))
+    gotoWeek(localIso(d))
   }, [weekParam, gotoWeek])
 
   const scrollToDay = useCallback((ds) => {
@@ -258,17 +270,25 @@ export default function Calendar() {
     }
   }, [weekDates, view, setView, gotoWeek, scrollToDay])
 
-  // Clear the pulse after the animation has played (2 × ~0.9s + settle)
+  // Clear the pulse after the animation has played (2 × ~0.9s + settle).
+  // The timer starts only once the TARGET DAY is actually rendered — starting
+  // at click time expired the pulse while a cold paged week was still
+  // building (3-15s), silently losing the highlight on far jumps.
   useEffect(() => {
     if (!pulse) return
+    if (!data?.days?.[pulse.ds]) return   // target week not loaded yet
     const t = setTimeout(() => setPulse(null), 2400)
     return () => clearTimeout(t)
-  }, [pulse])
+  }, [pulse, data])
 
   // ── Land on today / on the deep-linked day (once per payload) ─────────────
   const landedRef = useRef(null)
   useEffect(() => {
     if (!data || view !== 'feed') return
+    // Never stamp the landing key on an error/empty payload — the scroll
+    // can't succeed there, and stamping would suppress the landing after a
+    // successful Retry of the same week.
+    if (data.source === 'error' || data.source === 'out_of_range') return
     const key = `${data.week_start}|${dParam || ''}`
     if (landedRef.current === key) return
     landedRef.current = key

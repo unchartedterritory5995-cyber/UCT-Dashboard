@@ -34,7 +34,7 @@ const MONTH_NAMES = [
 // → ONE /api/calendar/next-report fetch (never per keystroke) → jump to that
 // week. '/' focuses the input from anywhere on the page.
 
-function CalendarSearch({ onJump }) {
+function CalendarSearch({ onJump, onDidJump }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
   const [open, setOpen] = useState(false)
@@ -44,6 +44,9 @@ function CalendarSearch({ onJump }) {
   const inputRef = useRef(null)
   const boxRef = useRef(null)
   const debounceRef = useRef(null)
+  // Monotonic request id — a slow response for an OLD query must never
+  // overwrite results for the current one (or reopen a closed dropdown).
+  const reqIdRef = useRef(0)
 
   // '/' focuses search from anywhere (ignored while typing elsewhere)
   useEffect(() => {
@@ -69,17 +72,24 @@ function CalendarSearch({ onJump }) {
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
 
+  // Clear any pending debounce on unmount
+  useEffect(() => () => clearTimeout(debounceRef.current), [])
+
   const runSearch = useCallback((text) => {
     clearTimeout(debounceRef.current)
+    const myId = ++reqIdRef.current
     if (!text.trim()) { setResults([]); setOpen(false); return }
     debounceRef.current = setTimeout(async () => {
       try {
         const r = await fetch(`/api/ticker-search?q=${encodeURIComponent(text.trim())}&limit=8`)
         const j = r.ok ? await r.json() : { results: [] }
+        if (reqIdRef.current !== myId) return   // stale response — drop it
         setResults(j.results || [])
         setHi(0)
         setOpen(true)
-      } catch { setResults([]) }
+      } catch {
+        if (reqIdRef.current === myId) setResults([])
+      }
     }, 150)
   }, [])
 
@@ -98,6 +108,7 @@ function CalendarSearch({ onJump }) {
         setOpen(false)
         setQ('')
         setResults([])
+        onDidJump?.()
       } else {
         setNotice(`${sym} — no scheduled report found`)
       }
@@ -161,6 +172,13 @@ function CalendarSearch({ onJump }) {
 
 // ── Week picker popover (± 8 weeks) ──────────────────────────────────────────
 
+// Local-parts ISO formatter — toISOString() converts to UTC and shifts the
+// date for UTC+13/+14 browsers (NZDT, Samoa), turning every Monday into a
+// Sunday and breaking the arrows/picker for those users.
+function localIso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // The picker anchors on the TRUE current week's Monday (ET), regardless of
 // which week is being viewed — offset 0 is always "this week".
 function mondayOfTodayEt() {
@@ -168,7 +186,7 @@ function mondayOfTodayEt() {
     .format(new Date())
   const d = new Date(iso + 'T12:00:00')
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
-  return d.toISOString().slice(0, 10)
+  return localIso(d)
 }
 
 function fmtPickerWeek(mondayIso) {
@@ -185,7 +203,7 @@ function WeekPicker({ currentMonday, activeMonday, onPick, onClose }) {
   for (let i = -8; i <= 8; i++) {
     const d = new Date(currentMonday + 'T12:00:00')
     d.setDate(d.getDate() + i * 7)
-    weeks.push({ monday: d.toISOString().slice(0, 10), offset: i })
+    weeks.push({ monday: localIso(d), offset: i })
   }
   return (
     <div className={styles.wkPop}>
@@ -542,6 +560,17 @@ export default function CalendarHeader({
           activeCount={activeCount}
           applyLabel="Done"
         >
+          {/* Search leads the sheet — "when does NVDA report" is the #1 entry
+              intent and must exist on phones too, not only in the desktop bar. */}
+          {onSearchJump && (
+            <div className={styles.sheetSec}>
+              <div className={styles.sheetLbl}>Find a report</div>
+              <CalendarSearch
+                onJump={onSearchJump}
+                onDidJump={() => setMobileFiltersOpen(false)}
+              />
+            </div>
+          )}
           <div className={styles.sheetSec}>
             <div className={styles.sheetLbl}>Audience</div>
             <div className={styles.sheetChips}>{audienceChips}</div>

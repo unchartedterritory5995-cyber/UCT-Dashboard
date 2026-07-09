@@ -34,12 +34,22 @@ export function isMine(sym, sets, sources) {
   return (sources || []).some(src => (sets[src] || []).includes(S))
 }
 
+// The calendar hook's fetcher THROWS on !ok (unlike the shared null-mapping
+// fetcher) so an HTTP failure reaches SWR's `error` and the page renders the
+// Retry branch — a paged week has refreshInterval 0, so a null-mapped 502
+// would otherwise be a permanent skeleton with no way out.
+const calendarFetcher = async (url) => {
+  const r = await fetch(url)
+  if (!r.ok) throw new Error(`calendar ${r.status}`)
+  return r.json()
+}
+
 export function useCalendar(week) {
   // week = Monday ISO (YYYY-MM-DD) for paged weeks, or null/undefined for the
   // current week. Non-current weeks are near-static server-side (1-6 h cache),
   // so the client polls only the current week.
   const url = week ? `/api/calendar?week=${week}` : '/api/calendar'
-  return useMobileSWR(url, fetcher, {
+  return useMobileSWR(url, calendarFetcher, {
     refreshInterval: week ? 0 : 2 * 60 * 1000,
     revalidateOnFocus: false,
     marketHoursOnly: !week,

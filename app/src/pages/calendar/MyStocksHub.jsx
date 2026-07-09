@@ -88,12 +88,18 @@ function EarningsTab({ mineSyms, onSelect, seen, markSeen }) {
       for (const e of (day.amc || [])) {
         if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'amc', mine: true })
       }
+      // Session-unconfirmed reporters live in tbd now (never coerced into
+      // amc) — the hub must not silently lose names it showed before.
+      for (const e of (day.tbd || [])) {
+        if (mineSyms.has(e.sym?.toUpperCase())) out.push({ ...e, _timing: 'tbd', mine: true })
+      }
     }
     return out
   }, [calData, mineSyms])
 
   const bmoEntries = useMemo(() => entries.filter(e => e._timing === 'bmo'), [entries])
   const amcEntries = useMemo(() => entries.filter(e => e._timing === 'amc'), [entries])
+  const tbdEntries = useMemo(() => entries.filter(e => e._timing === 'tbd'), [entries])
 
   if (!entries.length) {
     return <div className={styles.hubEmpty}>No upcoming earnings for your stocks.</div>
@@ -105,6 +111,8 @@ function EarningsTab({ mineSyms, onSelect, seen, markSeen }) {
         entries={bmoEntries} seen={seen} markSeen={markSeen} onSelect={onSelect} />
       <HubTimingSection label="After Close" icon="moon" hdClass={styles.amcHd}
         entries={amcEntries} seen={seen} markSeen={markSeen} onSelect={onSelect} />
+      <HubTimingSection label="Time TBD" icon="clock" hdClass={styles.tbdHd}
+        entries={tbdEntries} seen={seen} markSeen={markSeen} onSelect={onSelect} />
     </>
   )
 }
@@ -196,7 +204,7 @@ function CallsTab({ mineSyms, seen, markSeen }) {
     if (!calData || !mineSyms.size) return []
     const out = []
     for (const [, day] of Object.entries(calData.days || {})) {
-      for (const e of [...(day.bmo || []), ...(day.amc || [])]) {
+      for (const e of [...(day.bmo || []), ...(day.amc || []), ...(day.tbd || [])]) {
         if (mineSyms.has(e.sym?.toUpperCase()) && e.eps_act != null) {
           out.push(e)
         }

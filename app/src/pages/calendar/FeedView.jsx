@@ -188,10 +188,21 @@ function TimingSection({ label, icon, hdClass, entries, prices, reactions, onSel
 }
 
 export default function FeedView({ weekDates, days, filters, onSelect, eventTypes, iposByDate, dividendsByDate, pulse }) {
+  // Empty-state check uses the FILTERED view of each day — checking the raw
+  // payload rendered a blank feed with no message when the audience filter
+  // hid everything (each DayGroup nulls itself on filtered emptiness). Metric
+  // filters needing per-day price data are approximated here (that data lives
+  // inside DayGroup), which at worst delays the message one render.
   const anyContent = weekDates.some(ds => {
     const d = days[ds]
     if (!d) return false
-    return (d.bmo?.length || d.amc?.length || d.tbd?.length || d.econ?.length || d.fed?.length)
+    if (d.econ?.length || d.fed?.length) return true
+    const all = [
+      ...(d.bmo || []).map(e => ({ ...e, _timing: 'bmo' })),
+      ...(d.amc || []).map(e => ({ ...e, _timing: 'amc' })),
+      ...(d.tbd || []).map(e => ({ ...e, _timing: 'tbd' })),
+    ]
+    return applyFilters(all, filters).length > 0
   })
   return (
     <div className={styles.feed}>

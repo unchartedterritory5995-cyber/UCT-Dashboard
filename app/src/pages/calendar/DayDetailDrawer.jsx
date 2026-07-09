@@ -22,6 +22,9 @@ export default function DayDetailDrawer({ ds, day, onClose, onSelect }) {
   if (!day) return null
   const bmo = (day.bmo||[]).map(e=>({...e,_timing:'bmo'}))
   const amc = (day.amc||[]).map(e=>({...e,_timing:'amc'}))
+  // FMP-fallback weeks put EVERY reporter in tbd — omitting the bucket made
+  // month drill-downs show a counted cell open into an empty drawer.
+  const tbd = (day.tbd||[]).map(e=>({...e,_timing:'tbd'}))
   return (
     <div className={styles.drawerBackdrop} onClick={onClose}>
       <div className={styles.drawer} onClick={e => e.stopPropagation()}>
@@ -29,6 +32,7 @@ export default function DayDetailDrawer({ ds, day, onClose, onSelect }) {
         <MacroBand econ={day.econ} fed={day.fed} />
         <DrawerTimingSection label="Before Open" icon="sparkle" hdClass={styles.bmoHd} rows={bmo} onSelect={onSelect} />
         <DrawerTimingSection label="After Close" icon="moon" hdClass={styles.amcHd} rows={amc} onSelect={onSelect} />
+        <DrawerTimingSection label="Time TBD" icon="clock" hdClass={styles.tbdHd} rows={tbd} onSelect={onSelect} />
       </div>
     </div>
   )

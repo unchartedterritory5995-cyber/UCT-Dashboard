@@ -647,9 +647,11 @@ def _build_range_week(monday: date) -> dict:
                 "ew":       0,
                 "mc_b":     None,
                 "time_et":  None,
-                # Heuristic until the Phase-3 revision table: an unconfirmed
-                # session on a non-current week usually means a projected date.
-                "date_est": timing == "tbd",
+                # Heuristic until the Phase-3 revision table: an EMPTY hour on
+                # a non-current week usually means a projected date. "dmh"
+                # (during market hours) is a CONFIRMED session — it renders in
+                # the TBD group but its date is not flagged as an estimate.
+                "date_est": hour not in ("bmo", "amc", "dmh"),
             })
     else:
         fmp_rows = _fmp_range_week(week_start, week_end)
@@ -684,8 +686,11 @@ def _build_range_week(monday: date) -> dict:
             ))
             day[bucket] = day[bucket][:40]
 
-    # FF serves this week + next week only — silently a no-op beyond that.
-    _curate_econ_events(week_start, week_end, days)
+    # FF serves ONLY this week + next week — for any other week the two
+    # faireconomy fetches are pure request-path waste (2 × 12s timeouts on a
+    # cold month assembly). Skip them outside that range.
+    if abs((monday - _week_dates()[0]).days) <= 7:
+        _curate_econ_events(week_start, week_end, days)
     _attach_names(days)
 
     return {
@@ -787,10 +792,19 @@ def get_month_calendar(year: int = 0, month: int = 0):
     first = date(year, month, 1)
     last  = date(year, month, last_day)
 
+    # Same paging horizon as get_calendar (~±52 weeks) — the endpoint is
+    # unauthenticated and each out-of-horizon month would otherwise fire
+    # provider calls for 5-6 permanently-empty weeks.
+    if abs((date(year, month, 15) - today).days) > 400:
+        return {"month": month_prefix, "days": {}}
+
     days: dict[str, dict] = {}
+    degraded = False   # any week missing/empty from a provider failure?
     monday = _monday_of(first)
     while monday <= last:
         wk = _get_or_build_range_week(monday)
+        if wk is None or wk.get("source") == "range_empty":
+            degraded = True
         for ds, day in ((wk or {}).get("days") or {}).items():
             if not ds.startswith(month_prefix):
                 continue
@@ -803,7 +817,10 @@ def get_month_calendar(year: int = 0, month: int = 0):
         monday += timedelta(days=7)
 
     result = {"month": f"{year:04d}-{month:02d}", "days": days}
-    cache.set(cache_key, result, ttl=_MONTH_CACHE_TTL)
+    # A degraded assembly must self-heal on the WEEK caches' 120s clock — a
+    # 30-min empty month while the Week view heals in 2 minutes would be the
+    # Month-contradicts-Week bug wearing a new hat.
+    cache.set(cache_key, result, ttl=120 if degraded else _MONTH_CACHE_TTL)
     return result
 
 
@@ -818,8 +835,16 @@ def get_calendar(week: str | None = None):
     read that key); other weeks come from provider range calendars."""
     if week:
         import re as _re
+        target_monday = None
         if _re.match(r"^\d{4}-\d{2}-\d{2}$", week):
-            target_monday = _monday_of(date.fromisoformat(week))
+            try:
+                # The regex admits calendar-invalid dates (2026-13-05, 2026-02-31)
+                # — those must land on the documented current-week fallback, not
+                # a 500 on the flagship public endpoint.
+                target_monday = _monday_of(date.fromisoformat(week))
+            except ValueError:
+                target_monday = None
+        if target_monday is not None:
             cur_monday = _week_dates()[0]
             if target_monday != cur_monday:
                 if abs((target_monday - cur_monday).days) // 7 > _WEEK_HORIZON_WEEKS:
@@ -868,9 +893,14 @@ def get_calendar(week: str | None = None):
     try:
         days = _build_live(week_dates, today)
         if cap_uni:
+            # ALL THREE buckets pass the same universe rule — tbd skipping the
+            # gate let sub-$300M Finviz names into the current week (and into
+            # calendar_alerts/ics via the shared payload) while range weeks
+            # filtered them: the exact count-incomparability class this
+            # redesign exists to kill.
             for ds, day in days.items():
-                day["bmo"] = [e for e in day["bmo"] if e["sym"] in cap_uni]
-                day["amc"] = [e for e in day["amc"] if e["sym"] in cap_uni]
+                for bucket in ("bmo", "amc", "tbd"):
+                    day[bucket] = [e for e in day[bucket] if e["sym"] in cap_uni]
         for d in week_dates:
             ds = d.strftime("%Y-%m-%d")
             if ds not in days:
@@ -882,7 +912,9 @@ def get_calendar(week: str | None = None):
     # ── 1b. If live came back with ZERO earnings (e.g. EW throttled every day),
     #         don't accept an empty calendar — fall through to wire earnings. ──
     if days is not None:
-        live_total = sum(len(dy.get("bmo", [])) + len(dy.get("amc", [])) for dy in days.values())
+        live_total = sum(
+            len(dy.get("bmo", [])) + len(dy.get("amc", [])) + len(dy.get("tbd", []))
+            for dy in days.values())
         if live_total == 0 and wire and wire.get("weekly_calendar"):
             try:
                 days = _from_wire(wire["weekly_calendar"], week_dates, today, cap_universe=cap_uni)
@@ -1148,8 +1180,9 @@ def refresh_calendar(user: dict = Depends(require_admin)):
 # ── Live price reactions for reported tickers (Massive batch snapshot) ─────────
 
 _REACTIONS_TTL = 30              # seconds — live during market hours
-_PAST_REACTIONS_TTL = 24 * 3600  # a past print's reaction never changes
+_PAST_REACTIONS_TTL = 24 * 3600  # settled history only (see get_reactions)
 _PAST_REACTIONS_MAX_SYMS = 80
+_past_reaction_locks: dict[str, threading.Lock] = {}
 
 
 def _past_reactions(target: str, day: dict) -> dict:
@@ -1242,15 +1275,44 @@ def get_reactions(date: str | None = None):
     if not day:
         return {}
 
-    # ── Past date: bars-based reaction, long TTL ──────────────────────────────
+    # ── Past date: bars-based reaction ────────────────────────────────────────
     if target < _today_et().isoformat():
-        try:
-            reactions = _past_reactions(target, day)
-        except Exception as exc:
-            _logger.warning("Calendar past reactions failed for %s: %s", target, exc)
-            reactions = {}
-        cache.set(cache_key, reactions, ttl=_PAST_REACTIONS_TTL)
-        return reactions
+        # The 24h TTL applies only once the reaction window is SETTLED — an AMC
+        # reporter on day D needs D+1's CLOSED session. Yesterday (and Friday
+        # viewed on Monday) is not settled: pre-market has no D+1 bar at all,
+        # and intraday would freeze a partial-day gap for a day. (Market
+        # holidays can mark a day settled one session early — the short-TTL
+        # path below bounds that error to minutes, accepted.)
+        def _prev_trading_day(d: date) -> date:
+            d = d - timedelta(days=1)
+            while d.weekday() >= 5:
+                d -= timedelta(days=1)
+            return d
+
+        settled = date.fromisoformat(target) < _prev_trading_day(_today_et())
+
+        # Per-date build lock: N concurrent cold views of the same past day
+        # must not each fan out 80 Massive agg calls.
+        with _range_week_locks_guard:
+            lock = _past_reaction_locks.setdefault(target, threading.Lock())
+        with lock:
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
+            try:
+                reactions = _past_reactions(target, day)
+            except Exception as exc:
+                _logger.warning("Calendar past reactions failed for %s: %s", target, exc)
+                reactions = {}
+            had_reported = any(e.get("eps_act") is not None for e in _day_entries(day))
+            if had_reported and not reactions:
+                ttl = 120                       # total provider failure — self-heal fast
+            elif settled:
+                ttl = _PAST_REACTIONS_TTL       # immutable history
+            else:
+                ttl = 600                       # D+1 session still open/absent
+            cache.set(cache_key, reactions, ttl=ttl)
+            return reactions
 
     # ── Today / future: live batch snapshot ──────────────────────────────────
     reported = [
@@ -1420,6 +1482,25 @@ _ENRICH_WINDOW_DAYS = 14             # current week ±2 weeks — hard compute g
 # must never stack unbounded yfinance option-chain storms on the request path
 # (the 2026-07-01 threadpool-exhaustion class).
 _ENRICH_SEMAPHORE = threading.Semaphore(2)
+# How long a request thread may WAIT for a compute slot before giving up and
+# returning empty (uncached — the winner's result lands for the next poll).
+# Without this, a post-deploy SWR burst parks dozens of anyio threads here.
+_ENRICH_ACQUIRE_TIMEOUT = 8.0
+
+# Dedicated pool for implied-move yfinance calls. Deliberately NOT
+# yf_util._POOL: enrichment bursts (2 dates × 6 workers × option chains)
+# would monopolize the shared 6-thread pool and starve fundamentals/dividends
+# bounded calls into their timeouts.
+_ENRICH_EM_POOL = _TPE(max_workers=4, thread_name_prefix="cal-em")
+
+
+def _bounded_em(fn, timeout: float = 15.0):
+    """Run an implied-move callable with a hard timeout on the dedicated pool.
+    Returns None on timeout or any exception (the calling thread is freed)."""
+    try:
+        return _ENRICH_EM_POOL.submit(fn).result(timeout=timeout)
+    except Exception:
+        return None
 
 # Coverage telemetry: a silent universe-wide enrichment failure would silently
 # flatten the (Phase-2) hierarchy — make it observable instead.
@@ -1477,7 +1558,6 @@ def _compute_enrichment_for_date(target: str) -> dict:
            else _ENRICH_TTL_PAST if is_past
            else _ENRICH_TTL_FUTURE_WEEK)
 
-    from api.services.yf_util import bounded_call
     from api.services.earnings_enrichment import get_implied_move, get_historical_earnings_moves
     from api.services.earnings_estimates import get_earnings_intel
 
@@ -1511,12 +1591,10 @@ def _compute_enrichment_for_date(target: str) -> dict:
         hist = None
         hist_stats = None
         if not is_past:
-            # bounded_call: a hung yfinance option-chain call frees this worker
-            # after the timeout instead of pinning it (524-outage class).
-            move = bounded_call(
-                lambda s=sym: get_implied_move(s, earnings_date=target),
-                None, timeout=15.0,
-            )
+            # _bounded_em: a hung yfinance option-chain call frees this worker
+            # after the timeout instead of pinning it (524-outage class), on a
+            # pool ISOLATED from yf_util's shared one.
+            move = _bounded_em(lambda s=sym: get_implied_move(s, earnings_date=target))
         try:
             intel = get_earnings_intel(sym)
             hist = intel.get("beat_history") if intel else None
@@ -1528,8 +1606,13 @@ def _compute_enrichment_for_date(target: str) -> dict:
             pass
         return sym, {"expected_move": move, "beat_history": hist, "hist_stats": hist_stats}
 
+    # Bounded WAIT for a compute slot — a request that can't get one returns
+    # empty (uncached) instead of parking an anyio thread for the duration of
+    # someone else's compute; SWR's next poll picks up the winner's cache.
+    if not _ENRICH_SEMAPHORE.acquire(timeout=_ENRICH_ACQUIRE_TIMEOUT):
+        return cache.get(ck) or {}
     out: dict = {}
-    with _ENRICH_SEMAPHORE:
+    try:
         # Re-check under the semaphore — a queued duplicate request for the
         # same date should reuse the winner's work, not recompute it.
         hit = cache.get(ck)
@@ -1538,6 +1621,8 @@ def _compute_enrichment_for_date(target: str) -> dict:
         with ThreadPoolExecutor(max_workers=6) as ex:
             for sym, data in ex.map(_one, syms):
                 out[sym] = data
+    finally:
+        _ENRICH_SEMAPHORE.release()
 
     _ENRICH_STATS[target] = {
         "total":     len(syms),
@@ -1857,7 +1942,10 @@ def get_next_report(sym: str, user: dict = Depends(get_current_user)):
                     break
 
     out = {"sym": sym, "date": d, "timing": timing, "date_est": date_est}
-    cache.set(ck, out, ttl=_NEXT_REPORT_TTL)
+    # A None date is indistinguishable from a transient provider failure —
+    # negative-cache it briefly (the 6h TTL pinned "no upcoming report" lies
+    # for symbols searched during an FMP blip).
+    cache.set(ck, out, ttl=_NEXT_REPORT_TTL if d else 300)
     return out
 
 
