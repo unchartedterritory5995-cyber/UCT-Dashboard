@@ -1478,7 +1478,19 @@ def recent_massive_alerts(
         # market-read). Cap the scan — with SSE streaming the snapshot only needs
         # recent history, new prints arrive live. Env-tunable; proper fix = a
         # Color-aware index (after-close).
-        sql_limit = min(sql_limit, int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "3000")))
+        # Mode-aware cap (2026-07-09): the default recent tape stays instant
+        # (3000). But tier-isolation and curated are deliberate "show me ALL the
+        # day's Alpha Golds / stacked contracts" queries where FULL-DAY coverage
+        # matters more than sub-second speed — a 3000 cap made tier=alpha return 0
+        # (the day's rare-tier prints fired earlier + fell outside the window).
+        # The Color index keeps even a full-day scan reasonable. Env-tunable.
+        # (Permanent instant-everywhere fix = store tier/grade as SQL columns at
+        # write time so these filter in SQL; after-close, Ravi-area.)
+        if curated or tier:
+            _cap = int(os.environ.get("MASSIVE_RECENT_SQL_CAP_WIDE", "60000"))
+        else:
+            _cap = int(os.environ.get("MASSIVE_RECENT_SQL_CAP", "3000"))
+        sql_limit = min(sql_limit, _cap)
         # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
         # override threshold so they get a chance at promotion in
         # _derive_alert_name. SQL filter avoids loading every WHITE row (huge
