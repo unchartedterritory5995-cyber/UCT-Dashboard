@@ -94,6 +94,7 @@ from api.notable_flow_router import router as notable_flow_router
 from api.liveflow_router import router as liveflow_router
 from api.routers.liveflow_health import router as liveflow_health_router
 from api.live_massive_router import router as live_massive_router
+from api.routers.massive_stream_router import router as massive_stream_router  # flow SSE (dark)
 from api.alert_tester import router as alert_tester_router
 from api.csv_ingest import router as csv_ingest_router
 from api.darkpool_router import router as darkpool_router
@@ -1097,6 +1098,16 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] realtime_candle reconciliation_worker scheduled")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
+
+    # Live options-flow SSE tailer (2026-07-08) — the instant-tape backend.
+    # Reads flow.db for new prints and pushes them to connected browsers. Inert
+    # unless MASSIVE_STREAM_ENABLED=1 (dark by default); decoupled from the OPRA
+    # write path. start() is a no-op without a running loop or when disabled.
+    try:
+        from api import massive_stream
+        massive_stream.start()
+    except Exception as e:
+        logging.getLogger(__name__).exception("[startup] massive_stream start failed: %s", e)
 
     # Live Flow worker -- RE-ENABLED 2026-06-17 with thread isolation (Option 2).
     # Previously disabled because the in-process SSE consumer was starving
@@ -2888,7 +2899,9 @@ class _GZipSkipSSE(_GZipBase):
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         path = scope.get("path") or ""
         if scope.get("type") == "http" and (
-            path.startswith("/api/stream") or path.startswith("/assets/")
+            path.startswith("/api/stream")
+            or path.startswith("/api/live/massive/stream")  # flow SSE — never gzip
+            or path.startswith("/assets/")
         ):
             await self.app(scope, receive, send)
         else:
@@ -3071,6 +3084,7 @@ app.include_router(notable_flow_router)
 app.include_router(liveflow_router)
 app.include_router(liveflow_health_router)
 app.include_router(live_massive_router)
+app.include_router(massive_stream_router)  # /api/live/massive/stream — flow SSE (dark)
 app.include_router(alert_tester_router)
 app.include_router(csv_ingest_router)
 app.include_router(darkpool_router)

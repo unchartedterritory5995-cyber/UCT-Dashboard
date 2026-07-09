@@ -37,6 +37,20 @@ const P = {
 // (diagnostic 43s for 11K rows) is being addressed. Restore to 5000 once
 // /api/live/massive/recent returns to sub-second on the DB side.
 const POLL_INTERVAL_MS = 20000;  // 20s (reverted from 5s 2026-07-08): the 5s cadence 4x'd concurrent /recent handler builds (limit=20000 = ~34K-row responses in memory), piling up anyio workers + ballooning RSS → tipped the pre-existing thread burst into OOM crashes. Restore true-instant later via SSE + a capped response, not fast polling.
+// SSE instant-tape (dark, VITE_MASSIVE_STREAM=1). When on, new prints arrive via
+// EventSource (zero /recent load) and the poll drops to a 60s reconcile. When off
+// (default), behavior is unchanged — 20s polling.
+const STREAM_ENABLED = (() => {
+  try {
+    if (import.meta.env.VITE_MASSIVE_STREAM === "1") return true; // global rollout
+    // dark-test escapes (don't enable for everyone): ?stream in the URL, or
+    // localStorage.setItem('uct.massiveStream','1') in DevTools.
+    if (typeof localStorage !== "undefined" && localStorage.getItem("uct.massiveStream") === "1") return true;
+    if (typeof location !== "undefined" && new URLSearchParams(location.search).has("stream")) return true;
+  } catch { /* ignore */ }
+  return false;
+})();
+const STREAM_RECONCILE_MS = 60000;
 // Default cap on alerts in the live feed. Backend supports up to 20000.
 // "All" (20000) is the correct default — curated view has only ~80-150
 // rows/day so rendering all of them is instant, and the All-Flow view
@@ -2241,7 +2255,11 @@ export default function LiveFlowMassive() {
         if (e?.name === "AbortError") return;
         if (!cancelled) setError(e?.message || String(e));
       } finally {
-        if (!cancelled) timer = setTimeout(poll, POLL_INTERVAL_MS);
+        // When the SSE stream owns live updates, the poll becomes a slow
+        // reconcile (authoritative full list + status/OI refresh) instead of
+        // the primary update path. Curated mode has no stream → normal cadence.
+        const nextMs = (STREAM_ENABLED && !curated) ? STREAM_RECONCILE_MS : POLL_INTERVAL_MS;
+        if (!cancelled) timer = setTimeout(poll, nextMs);
       }
     }
 
@@ -2252,6 +2270,68 @@ export default function LiveFlowMassive() {
       if (abort) abort.abort();
     };
   }, [sortBy, minGrade, targetDate, rowLimit, filters, curated]);
+
+  // ── Live SSE stream (dark, VITE_MASSIVE_STREAM=1) ──────────────────────────
+  // Prepends new prints the instant the server tailer sees them — NO /recent
+  // re-fetch, so it adds zero heavy-build load (the thing that OOM'd on 7/8).
+  // Curated mode keeps polling (its stacking logic is server-side). On any
+  // disconnect the rendered data STAYS PUT and EventSource auto-reconnects —
+  // the tape never blanks on a hiccup.
+  useEffect(() => {
+    if (!STREAM_ENABLED || curated) return;
+    const isolatedTier = (() => {
+      const ons = TIER_ORDER.filter((t) => filters[t]);
+      return ons.length === 1 ? ons[0] : null;
+    })();
+    const minRank = _GRADE_NUMERIC_FE[minGrade] ?? 0;
+    let es;
+    try {
+      es = new EventSource("/api/live/massive/stream");
+    } catch {
+      return;
+    }
+    es.onmessage = (ev) => {
+      let incoming;
+      try {
+        incoming = JSON.parse(ev.data).alerts || [];
+      } catch {
+        return;
+      }
+      if (!incoming.length) return;
+      // client-side mirror of the server's grade + isolated-tier gates so
+      // streamed prints match exactly what a /recent poll would have returned
+      const fresh = incoming.filter(
+        (a) =>
+          (_GRADE_NUMERIC_FE[a.grade] ?? 0) >= minRank &&
+          (!isolatedTier || (a._tierKey || "algo") === isolatedTier)
+      );
+      if (!fresh.length) return;
+      setAlerts((prev) => {
+        const seen = new Set(prev.map((a) => a.id));
+        const add = fresh.filter((a) => !seen.has(a.id));
+        if (!add.length) return prev;
+        newIdsRef.current = new Set(add.map((a) => a.id)); // flash the new batch
+        let merged = [...add, ...prev];
+        if (sortBy === "premium")
+          merged.sort((x, y) => (y.alertPremium || 0) - (x.alertPremium || 0));
+        else if (sortBy === "conviction")
+          merged.sort((x, y) => (y.convictionScore || 0) - (x.convictionScore || 0));
+        else merged.sort((x, y) => (y.id || 0) - (x.id || 0)); // recent
+        if (merged[0]) lastIdRef.current = merged[0].id;
+        return applyOiEnrichment(merged.slice(0, 4000));
+      });
+    };
+    es.onerror = () => {
+      /* keep rendered data; browser EventSource auto-reconnects */
+    };
+    return () => {
+      try {
+        es.close();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [curated, minGrade, sortBy, filters]);
 
   // Quotes polling — fetches current spot for unique tickers in the
   // current alert set every 30s. Decoupled from alert polling (5s) since
@@ -2691,7 +2771,7 @@ export default function LiveFlowMassive() {
         marginTop: 30, padding: 12, color: P.mt, fontSize: 10,
         textAlign: "center", borderTop: `1px solid ${P.bd}`,
       }}>
-        Source: Massive WS via FlowDB ・ Polling every {POLL_INTERVAL_MS/1000}s ・
+        Source: Massive WS via FlowDB ・ {STREAM_ENABLED && !curated ? "Live stream (SSE)" : `Polling every ${POLL_INTERVAL_MS/1000}s`} ・
         TEST PAGE — sister to <a href="/live-flow" style={{ color: P.ac }}>/live-flow</a> (Bullflow)
       </div>
     </div>
