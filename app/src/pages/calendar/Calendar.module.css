@@ -1772,6 +1772,20 @@
 }
 .sectorChipOn .sectorChipCount { opacity: 0.85; }
 
+/* Peer read-through — the AI sector one-liner under the chip row */
+.sectorRead {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 18px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--cal-txt);
+  background: var(--bg);
+  border-bottom: 1px solid var(--cal-line);
+}
+.sectorReadBusy { color: var(--cal-muted); font-style: italic; }
+
 .dayTabs {
   display: inline-flex;
   gap: 4px;

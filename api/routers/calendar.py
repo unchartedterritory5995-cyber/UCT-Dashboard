@@ -2224,3 +2224,67 @@ def most_anticipated_png(week: str | None = None):
     cache.set(ck, png, ttl=ttl)
     return _Response(content=png, media_type="image/png",
                      headers={"Cache-Control": "public, max-age=1800"})
+
+
+@router.get("/api/calendar/sector-read")
+def sector_read(sector: str, week: str | None = None, user=Depends(get_current_user)):
+    """One AI sentence on a GICS sector's earnings setup this week, grounded on
+    that sector's actual reporters. Auth-required (paid feature). Cost-guarded +
+    cached per (sector, week); returns cached line, {status:'generating'} (fires
+    a deduped background job), or {status:'unavailable'}."""
+    from api.services import calendar_sector_read as _sr
+
+    sec = (sector or "").strip()
+    if not sec:
+        return {"status": "unavailable"}
+
+    import re as _re
+    from datetime import date as _date_cls
+    monday = None
+    if week and _re.match(r"^\d{4}-\d{2}-\d{2}$", week):
+        try:
+            monday = _monday_of(_date_cls.fromisoformat(week))
+        except ValueError:
+            monday = None
+    if monday is None:
+        monday = _week_dates()[0]
+    week_key = monday.isoformat()
+
+    # Fast path: already generated → return without touching providers.
+    cached = _sr.status_for(sec, week_key)
+    if cached.get("status") in ("ready", "unavailable"):
+        return cached
+
+    # Need to (maybe) kick off generation — assemble this sector's reporters.
+    cur_monday = _week_dates()[0]
+    if abs((monday - cur_monday).days) // 7 > _WEEK_HORIZON_WEEKS:
+        return {"status": "unavailable"}
+
+    payload = get_calendar(week=week_key)
+    days = (payload or {}).get("days", {}) or {}
+
+    reporters: list[dict] = []
+    for ds, day in days.items():
+        metrics = {}
+        try:
+            metrics = get_day_metrics(date=ds) or {}
+        except Exception:
+            pass
+        for bucket in ("bmo", "amc", "tbd"):
+            for e in day.get(bucket, []):
+                if (e.get("sector") or "") != sec:
+                    continue
+                sym = (e.get("sym") or "").upper()
+                if not sym:
+                    continue
+                mc = e.get("mc_b")
+                if mc is None:
+                    mc = (metrics.get(sym) or {}).get("mc_b")
+                reporters.append({"sym": sym, "name": e.get("name"),
+                                  "mc_b": mc, "timing": bucket})
+
+    if not reporters:
+        return {"status": "unavailable"}
+
+    _sr.request_generation(sec, week_key, reporters)
+    return _sr.status_for(sec, week_key)

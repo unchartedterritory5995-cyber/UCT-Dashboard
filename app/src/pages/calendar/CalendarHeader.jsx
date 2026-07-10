@@ -5,6 +5,7 @@ import { useIsPhone } from '../../hooks/useBreakpoint'
 import { FiltersSheet } from '../../components/mobile'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
+import useSectorRead from '../../hooks/useSectorRead'
 import styles from './Calendar.module.css'
 
 const AUDIENCE = [
@@ -241,6 +242,12 @@ export default function CalendarHeader({
   const [copying, setCopying] = useState(false)
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
+
+  // Peer read-through — one AI line on the scoped sector's setup this week.
+  // Keyed to the viewed week's Monday; null sector → hook is inert.
+  const sectorReadWeek = dayTabs.length ? dayTabs[0].ds : null
+  const { line: sectorReadLine, generating: sectorReadBusy } =
+    useSectorRead(filters.sector || null, sectorReadWeek)
 
   const set = (k, v) => setFilters({ ...filters, [k]: v })
   const setNum = (k, v) => setFilters({ ...filters, [k]: v === '' ? null : Number(v) })
@@ -597,6 +604,16 @@ export default function CalendarHeader({
               {sector}<span className={styles.sectorChipCount}>{count}</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Peer read-through — the AI one-liner for the scoped sector this week */}
+      {showSectorRow && activeSector && (sectorReadLine || sectorReadBusy) && (
+        <div className={styles.sectorRead}>
+          <UIcon name="sparkle" size={12} style={{ verticalAlign: '-1px', marginRight: 6, flex: '0 0 auto' }} />
+          {sectorReadLine
+            ? <span>{sectorReadLine}</span>
+            : <span className={styles.sectorReadBusy}>Reading the {activeSector} tape…</span>}
         </div>
       )}
 
