@@ -844,7 +844,7 @@ function MarketReadCard({ stats }) {
 // This is the click-to-focus pattern used by other dashboards (Bloomberg,
 // Twitter, etc.) — clicking always either isolates or restores, never the
 // confusing in-between multi-select state.
-function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChange }) {
+function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChange, search, onSearchChange }) {
   const allOn = TIER_ORDER.every(t => filters[t]);
   const onlyOnTier = (() => {
     const ons = TIER_ORDER.filter(t => filters[t]);
@@ -962,6 +962,46 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
           </button>
         );
       })}
+
+      {/* Ticker search — lives at the end of the tier-chip row (after Algo) for
+          visibility. Client-side substring match on the fetched feed; at the
+          default "Show: All" limit that's the full trading day. Pushed right
+          with marginLeft:auto so it anchors to the far end of the row. */}
+      {onSearchChange && (
+        <div style={{
+          position: "relative", display: "inline-flex", alignItems: "center",
+          marginLeft: "auto",
+        }}>
+          <span style={{
+            position: "absolute", left: 9, color: P.mt, fontSize: 12,
+            pointerEvents: "none",
+          }}>🔍</span>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search ticker…"
+            style={{
+              background: P.bg, color: P.wh,
+              border: `1px solid ${search ? P.ac : P.bd}`, borderRadius: 4,
+              padding: "5px 26px 5px 28px", fontSize: 13,
+              fontFamily: "inherit", width: 170, outline: "none",
+              textTransform: "uppercase",
+            }}
+          />
+          {search && (
+            <button
+              onClick={() => onSearchChange("")}
+              title="Clear search"
+              style={{
+                position: "absolute", right: 6, background: "transparent",
+                border: "none", color: P.dm, cursor: "pointer",
+                fontSize: 13, lineHeight: 1, padding: 2,
+              }}
+            >✕</button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1213,7 +1253,6 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
                   rowLimit, onRowLimitChange,
                   hideAlgo, onHideAlgoChange,
                   curated, onCuratedChange,
-                  search, onSearchChange,
                   tickerFilter, contractFilter, onClearFilters,
                   targetDate, onDateChange, onOiFetch, oiFetchState,
                   nullOICount }) {
@@ -1266,42 +1305,6 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         marginTop: 10, paddingTop: 10, borderTop: `1px solid ${P.bd}`,
       }}>
-        {/* Ticker search — client-side substring match on the fetched feed.
-            At the default "Show: All" limit this is the full trading day; at a
-            reduced row limit it only searches the fetched window. */}
-        <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-          <span style={{
-            position: "absolute", left: 8, color: P.mt, fontSize: 11,
-            pointerEvents: "none",
-          }}>🔍</span>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search ticker…"
-            style={{
-              background: P.bg, color: P.wh,
-              border: `1px solid ${search ? P.ac : P.bd}`, borderRadius: 3,
-              padding: "3px 24px 3px 26px", fontSize: 11,
-              fontFamily: "inherit", width: 150, outline: "none",
-              textTransform: "uppercase",
-            }}
-          />
-          {search && (
-            <button
-              onClick={() => onSearchChange("")}
-              title="Clear search"
-              style={{
-                position: "absolute", right: 4, background: "transparent",
-                border: "none", color: P.dm, cursor: "pointer",
-                fontSize: 12, lineHeight: 1, padding: 2,
-              }}
-            >✕</button>
-          )}
-        </div>
-
-        <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
-
         <label style={{ color: P.dm, fontSize: 12 }}>Date:</label>
         <input
           type="date"
@@ -2559,6 +2562,10 @@ export default function LiveFlowMassive() {
         const params = new URLSearchParams();
         if (targetDate) params.set("target_date", targetDate);
         if (hideAlgo) params.set("exclude_algo", "true");
+        // 7/9: partition the Market Read to match the Stocks/ETFs/All toggle
+        // so the card describes the same universe as the row feed. Backend
+        // treats "all" as no-op (both sources, subject to the etf gate).
+        params.set("stock_etf", stockEtfFilter);
         const r = await fetch(`/api/live/massive/day-stats?${params}`);
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
@@ -2575,7 +2582,7 @@ export default function LiveFlowMassive() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [targetDate, hideAlgo]);
+  }, [targetDate, hideAlgo, stockEtfFilter]);
 
   // Apply client-side filters: tier chips, ticker, contract, hideAlgo, search.
   // Tier filtering now happens here (was previously per-section); the
@@ -2878,8 +2885,6 @@ export default function LiveFlowMassive() {
         onHideAlgoChange={setHideAlgo}
         curated={curated}
         onCuratedChange={setCurated}
-        search={search}
-        onSearchChange={setSearch}
         tickerFilter={tickerFilter}
         contractFilter={contractFilter}
         onClearFilters={handleClearFilters}
@@ -2947,7 +2952,8 @@ export default function LiveFlowMassive() {
         paddingTop: 4, paddingBottom: 4,
       }}>
         <FilterChips filters={filters} onChange={setFilters} counts={tierCounts}
-                     stockEtfFilter={stockEtfFilter} onStockEtfChange={setStockEtfFilter} />
+                     stockEtfFilter={stockEtfFilter} onStockEtfChange={setStockEtfFilter}
+                     search={search} onSearchChange={setSearch} />
 
         <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} />
       </div>
