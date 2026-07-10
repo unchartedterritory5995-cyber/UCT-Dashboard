@@ -130,8 +130,9 @@ export default function VideoDockSlot() {
 
   return (
     <div className={styles.theater}>
-      <div className={styles.videoGrid}>
-        <div className={styles.mainCol}>
+      <div className={styles.fourZone}>
+        {/* CENTER — the player + its title/subtitle. */}
+        <div className={styles.centerCol}>
           {/* Reserved 16:9 box the fixed player host positions itself over. */}
           <div ref={boxRef} className={styles.dockBox} aria-label={`Now playing: ${current.title}`} />
           <div className={styles.meta}>
@@ -141,22 +142,41 @@ export default function VideoDockSlot() {
           </div>
         </div>
 
-        {/* Right rail — recap, tickers, chapters, and notes read beside the
-            video instead of below it. Stacks under the video on ≤1024px. */}
-        <aside className={styles.railCol}>
-      {(posterUrl || summary.length > 0) && (
-        <div className={styles.recapWrap}>
-          {posterUrl && (
-            <a
-              className={styles.posterLink}
-              href={posterUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open the full session recap poster"
-            >
-              <img className={styles.poster} src={posterUrl} alt="Session recap poster" />
-            </a>
+        {/* LEFT — chapter nav + the recap poster. */}
+        <aside className={styles.leftRail}>
+          {chapters.length > 0 && (
+            <div className={styles.chaptersWrap}>
+              <div className={styles.insHead}>Chapters</div>
+              <ol className={styles.chapterList}>
+                {chapters.map((c, i) => (
+                  <li key={`${c.t}-${i}`}>
+                    <button className={styles.chapterRow} onClick={() => seekTo(c.t)}>
+                      <span className={styles.chapterTime}>{fmtT(c.t)}</span>
+                      <span className={styles.chapterTitle}>{c.title}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
+          {posterUrl && (
+            <div className={styles.posterWrap}>
+              <div className={styles.insHead}>Session recap</div>
+              <a
+                className={styles.posterLink}
+                href={posterUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open the full session recap poster"
+              >
+                <img className={styles.poster} src={posterUrl} alt="Session recap poster" />
+              </a>
+            </div>
+          )}
+        </aside>
+
+        {/* RIGHT — key takeaways + tickers covered. */}
+        <aside className={styles.rightRail}>
           {summary.length > 0 && (
             <div className={styles.recapBody}>
               <div className={styles.insHead}>Key takeaways</div>
@@ -165,123 +185,106 @@ export default function VideoDockSlot() {
               </ul>
             </div>
           )}
-        </div>
-      )}
-
-      {tickerMoments.length > 0 && (
-        <div className={styles.tickersWrap}>
-          <div className={styles.insHead}>Tickers covered</div>
-          <div className={styles.tickerRow}>
-            {tickerMoments.map((tm, i) => (
-              <span
-                key={`${tm.ticker}-${tm.t}-${i}`}
-                className={styles.tickerChip}
-                title={tm.note || tm.ticker}
-              >
-                {/* Click the symbol → open the chart; click the time → seek the video. */}
-                <TickerPopup sym={tm.ticker} as="button" className={styles.tickerSym}>
-                  {tm.ticker}
-                </TickerPopup>
-                <button
-                  className={styles.tickerTime}
-                  onClick={() => seekTo(tm.t)}
-                  title={`Jump to ${fmtT(tm.t)} in the video`}
-                >
-                  {fmtT(tm.t)}
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {chapters.length > 0 && (
-        <div className={styles.chaptersWrap}>
-          <div className={styles.insHead}>Chapters</div>
-          <ol className={styles.chapterList}>
-            {chapters.map((c, i) => (
-              <li key={`${c.t}-${i}`}>
-                <button className={styles.chapterRow} onClick={() => seekTo(c.t)}>
-                  <span className={styles.chapterTime}>{fmtT(c.t)}</span>
-                  <span className={styles.chapterTitle}>{c.title}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-
-      {/* My notes — jot a thought at the current timestamp; click to jump back. */}
-      <div className={styles.notesWrap}>
-        <div className={styles.notesHead}>
-          <span className={styles.insHead}>My notes</span>
-          <button className={styles.noteAddBtn} onClick={startNote}>+ Note at {fmtT(getCurrentTime())}</button>
-        </div>
-        {draft && (
-          <div className={styles.noteComposer}>
-            <span className={styles.noteComposerT}>{fmtT(draft.t)}</span>
-            <textarea
-              className={styles.noteInput}
-              autoFocus
-              rows={2}
-              placeholder="What just happened? (saved at this timestamp)"
-              value={draft.text}
-              onChange={(e) => setDraft((d) => ({ ...d, text: e.target.value }))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveDraft()
-                if (e.key === 'Escape') setDraft(null)
-              }}
-            />
-            <div className={styles.noteComposerBtns}>
-              <button className={styles.noteSaveBtn} onClick={saveDraft}>Save</button>
-              <button className={styles.noteCancelBtn} onClick={() => setDraft(null)}>Cancel</button>
+          {tickerMoments.length > 0 && (
+            <div className={styles.tickersWrap}>
+              <div className={styles.insHead}>Tickers covered</div>
+              <div className={styles.tickerRow}>
+                {tickerMoments.map((tm, i) => (
+                  <span
+                    key={`${tm.ticker}-${tm.t}-${i}`}
+                    className={styles.tickerChip}
+                    title={tm.note || tm.ticker}
+                  >
+                    {/* Click the symbol → open the chart; click the time → seek the video. */}
+                    <TickerPopup sym={tm.ticker} as="button" className={styles.tickerSym}>
+                      {tm.ticker}
+                    </TickerPopup>
+                    <button
+                      className={styles.tickerTime}
+                      onClick={() => seekTo(tm.t)}
+                      title={`Jump to ${fmtT(tm.t)} in the video`}
+                    >
+                      {fmtT(tm.t)}
+                    </button>
+                  </span>
+                ))}
+              </div>
             </div>
+          )}
+          {/* My notes — jot a thought at the current timestamp; click to jump back. */}
+          <div className={styles.notesWrap}>
+          <div className={styles.notesHead}>
+            <span className={styles.insHead}>My notes</span>
+            <button className={styles.noteAddBtn} onClick={startNote}>+ Note at {fmtT(getCurrentTime())}</button>
           </div>
-        )}
-        {notes.length > 0 && (
-          <>
-            <ul className={styles.noteList}>
-              {notes.map((n) => (
-                <li key={n.id} className={styles.noteRow}>
-                  <button className={styles.noteTime} onClick={() => seekTo(n.t_seconds)} title="Jump to this moment">
-                    {fmtT(n.t_seconds)}
-                  </button>
-                  <span className={styles.noteText}>{n.text}</span>
-                  <button className={styles.noteDel} onClick={() => removeNote(n.id)} aria-label="Delete note">×</button>
-                </li>
-              ))}
-            </ul>
-            <button className={styles.notebookBtn} onClick={saveToNotebook} disabled={savingNb === 'saving'}>
-              {savingNb === 'saved' ? '✓ Saved to Notebook'
-                : savingNb === 'error' ? 'Couldn’t save — retry'
-                : savingNb === 'saving' ? 'Saving…'
-                : 'Save notes to Journal Notebook'}
-            </button>
-          </>
-        )}
-      </div>
+          {draft && (
+            <div className={styles.noteComposer}>
+              <span className={styles.noteComposerT}>{fmtT(draft.t)}</span>
+              <textarea
+                className={styles.noteInput}
+                autoFocus
+                rows={2}
+                placeholder="What just happened? (saved at this timestamp)"
+                value={draft.text}
+                onChange={(e) => setDraft((d) => ({ ...d, text: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveDraft()
+                  if (e.key === 'Escape') setDraft(null)
+                }}
+              />
+              <div className={styles.noteComposerBtns}>
+                <button className={styles.noteSaveBtn} onClick={saveDraft}>Save</button>
+                <button className={styles.noteCancelBtn} onClick={() => setDraft(null)}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {notes.length > 0 && (
+            <>
+              <ul className={styles.noteList}>
+                {notes.map((n) => (
+                  <li key={n.id} className={styles.noteRow}>
+                    <button className={styles.noteTime} onClick={() => seekTo(n.t_seconds)} title="Jump to this moment">
+                      {fmtT(n.t_seconds)}
+                    </button>
+                    <span className={styles.noteText}>{n.text}</span>
+                    <button className={styles.noteDel} onClick={() => removeNote(n.id)} aria-label="Delete note">×</button>
+                  </li>
+                ))}
+              </ul>
+              <button className={styles.notebookBtn} onClick={saveToNotebook} disabled={savingNb === 'saving'}>
+                {savingNb === 'saved' ? '✓ Saved to Notebook'
+                  : savingNb === 'error' ? 'Couldn’t save — retry'
+                  : savingNb === 'saving' ? 'Saving…'
+                  : 'Save notes to Journal Notebook'}
+              </button>
+            </>
+          )}
+          </div>
         </aside>
       </div>
 
-      {upcoming.length > 0 && (
-        <div className={styles.upNext}>
-          <div className={styles.upNextHead}>Up next in this section</div>
-          <div className={styles.upNextRail}>
-            {upcoming.map((v, i) => (
-              <button
-                key={v.id ?? v.youtube_id}
-                className={styles.upNextItem}
-                onClick={() => playIndex(index + 1 + i)}
-              >
-                <span className={styles.upNextThumbWrap}>
-                  <img className={styles.upNextThumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
-                </span>
-                <span className={styles.upNextTitle}>{v.title}</span>
-              </button>
-            ))}
+      {/* BOTTOM — full-width up-next related-videos shelf. */}
+      <div className={styles.bottomBand}>
+        {upcoming.length > 0 && (
+          <div className={styles.upNext}>
+            <div className={styles.upNextHead}>Up next in this section</div>
+            <div className={styles.upNextRail}>
+              {upcoming.map((v, i) => (
+                <button
+                  key={v.id ?? v.youtube_id}
+                  className={styles.upNextItem}
+                  onClick={() => playIndex(index + 1 + i)}
+                >
+                  <span className={styles.upNextThumbWrap}>
+                    <img className={styles.upNextThumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
+                  </span>
+                  <span className={styles.upNextTitle}>{v.title}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

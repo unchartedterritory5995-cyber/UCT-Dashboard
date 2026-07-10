@@ -2,36 +2,53 @@
   margin: 0 0 18px;
 }
 
-/* Two-column theater: the video + its title stay on the left; the session
-   rail (recap / tickers / chapters / notes) sits to the right of the video
-   instead of stacking below it. Single column on phone + tablet so the
-   video keeps full width; the rail becomes a right column at ≥1025px. */
-.videoGrid {
+/* Four-zone theater — CENTER video, LEFT rail (chapters + recap poster),
+   RIGHT rail (key takeaways + tickers), and a full-width BOTTOM band (notes +
+   up-next). Single stacked column on phone + tablet; the grid engages at
+   ≥1025px so the video keeps full width on small screens. */
+.fourZone {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-.mainCol {
+.centerCol {
   min-width: 0;
 }
-.railCol {
+.leftRail,
+.rightRail {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.bottomBand {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
 }
 /* Section blocks carry their own margin-top for the stacked layout — the
-   rail uses `gap` for spacing, so neutralize the doubled top margin. */
-.railCol > * {
+   rails/band use `gap` for spacing, so neutralize the doubled top margin. */
+.leftRail > *,
+.rightRail > *,
+.bottomBand > * {
   margin-top: 0;
 }
 @media (min-width: 1025px) {
-  .videoGrid {
+  .fourZone {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 24px;
+    grid-template-columns: 250px minmax(0, 1fr) 330px;
+    grid-template-areas: 'left center right';
+    gap: 22px;
     align-items: start;
   }
+  .leftRail { grid-area: left; }
+  .centerCol { grid-area: center; }
+  .rightRail { grid-area: right; }
+}
+/* Recap poster fills the left rail width. */
+.posterWrap .poster {
+  width: 100%;
 }
 
 /* Slim "playing in mini-player" strip shown on the Desk while the user has
@@ -291,7 +308,7 @@
 }
 .upNextItem {
   flex: 0 0 auto;
-  width: 150px;
+  width: 220px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -300,7 +317,7 @@
 }
 .upNextThumbWrap {
   display: block;
-  width: 150px;
+  width: 220px;
   aspect-ratio: 16 / 9;
   border-radius: 8px;
   overflow: hidden;
