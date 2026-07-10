@@ -16,11 +16,14 @@ Endpoints landing per phase:
 Spec §5, audit §4.3.
 """
 
+import csv
+import io
 import json
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services.journal_two import (
@@ -42,6 +45,7 @@ from api.services.journal_two import (
     trading_day_backfill,
 )
 from api.services.journal_two.filters import FilterSpec, parse_filter_query
+from api.services.journal_two.timeutil import ET, UTC
 
 router = APIRouter(prefix="/api/j2", tags=["journal-2-0"])
 
@@ -303,6 +307,108 @@ def list_trades(
         "limit": spec.limit,
         "offset": spec.offset,
     }
+
+
+# CSV column set (A11) — a STABLE, documented header. entryTime/exitTime are
+# always present (stable column set) but only populated for timed entries;
+# date-only entries (stored at UTC midnight) leave them blank. mistakeTags /
+# emotionTags are semicolon-joined. Order is a public contract — append only.
+_EXPORT_CSV_HEADERS = [
+    "symbol", "side", "entryDate", "entryTime", "exitDate", "exitTime",
+    "shares", "entryPrice", "exitPrice", "pnlDollarNet", "rMultiple",
+    "setup", "mistakeTags", "emotionTags", "source",
+]
+
+
+def _split_export_datetime(iso: Any) -> tuple[str, str]:
+    """(date, time-of-day) for a stored ISO timestamp, matching the trading-day
+    spine convention: a date-only entry (bare date OR exact UTC midnight) →
+    (YYYY-MM-DD, '') with no time; a timed entry → its ET (YYYY-MM-DD, HH:MM).
+    Unparseable input degrades to (first-10-chars, '')."""
+    if not iso:
+        return "", ""
+    s = str(iso)
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return s[:10], ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    utc = dt.astimezone(UTC)
+    if "T" not in s or (utc.hour == 0 and utc.minute == 0 and utc.second == 0):
+        return utc.strftime("%Y-%m-%d"), ""
+    et = dt.astimezone(ET)
+    return et.strftime("%Y-%m-%d"), et.strftime("%H:%M")
+
+
+def _export_cell(value: Any) -> Any:
+    """None → '' so the csv module never writes the literal string 'None'."""
+    return "" if value is None else value
+
+
+# ROUTE ORDER: `/trades/export` MUST be registered BEFORE `/trades/{trade_id}`,
+# or FastAPI matches `export` as a trade_id (→ 404). Keep it here, immediately
+# after the `/trades` list route and before the dynamic detail route below.
+@router.get("/trades/export")
+def export_trades(
+    format: str = "csv",
+    account_id: str | None = None,
+    spec: FilterSpec = Depends(parse_filter_query),
+    user: dict = Depends(get_current_user),
+) -> Response:
+    """Filtered CSV/JSON export over the SAME FilterSpec as `/trades` — so the
+    file leaving with the user == exactly what's on screen (spec §8). Returns a
+    downloadable attachment (`Content-Disposition`). CSV columns are a stable,
+    documented set (see `_EXPORT_CSV_HEADERS`), built via the stdlib `csv`
+    module for safe quoting; JSON is the full filtered `list_trades_for_user`
+    row list. Unknown format → 422."""
+    fmt = (format or "").strip().lower()
+    if fmt not in ("csv", "json"):
+        raise HTTPException(status_code=422, detail="format must be 'csv' or 'json'")
+
+    # SAME filtered read the on-screen list uses (drop the paging total — export
+    # is the full match set unless the caller explicitly paged via limit/offset).
+    trades, _total = trades_service.list_trades_for_user(
+        user["id"], account_id=account_id, spec=spec,
+    )
+
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    filename = f"uct-journal-trades-{date_str}.{fmt}"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+
+    if fmt == "json":
+        return Response(
+            content=json.dumps(trades, ensure_ascii=False),
+            media_type="application/json",
+            headers=headers,
+        )
+
+    # CSV — stdlib csv.writer over a StringIO quotes any field with a comma /
+    # quote / newline automatically (no fragile hand-rolled joining).
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_EXPORT_CSV_HEADERS)
+    for t in trades:
+        entry_date, entry_time = _split_export_datetime(t.get("entryDate"))
+        exit_date, exit_time = _split_export_datetime(t.get("exitDate"))
+        writer.writerow([
+            _export_cell(t.get("symbol")),
+            _export_cell(t.get("side")),
+            entry_date,
+            entry_time,
+            exit_date,
+            exit_time,
+            _export_cell(t.get("shares")),
+            _export_cell(t.get("entryPrice")),
+            _export_cell(t.get("exitPrice")),
+            _export_cell(t.get("pnlDollarNet")),
+            _export_cell(t.get("rMultiple")),
+            _export_cell(t.get("setup")),
+            ";".join(t.get("mistakeTags") or []),
+            ";".join(t.get("emotionTags") or []),
+            _export_cell(t.get("source")),
+        ])
+    return Response(content=buf.getvalue(), media_type="text/csv", headers=headers)
 
 
 @router.get("/trades/{trade_id}")

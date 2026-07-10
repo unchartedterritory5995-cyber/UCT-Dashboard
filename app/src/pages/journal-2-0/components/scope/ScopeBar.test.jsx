@@ -178,6 +178,53 @@ describe('ScopeBar — shared-link account hydration', () => {
   })
 })
 
+describe('ScopeBar — filtered export (A11)', () => {
+  it('desktop: Export CSV downloads the scoped, server-authoritative URL', async () => {
+    const user = userEvent.setup()
+    let href = null
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function () {
+        href = this.href
+      })
+    renderBar({}, { route: '/journal?sc_setup=VCP&sc_v=1' })
+
+    await user.click(screen.getByRole('button', { name: /Export CSV/i }))
+
+    expect(href).toContain('/api/j2/trades/export')
+    expect(href).toContain('format=csv')
+    // The active scope rides along (export == what's on screen).
+    expect(href).toContain('setups=VCP')
+    clickSpy.mockRestore()
+  })
+
+  it('desktop: Export JSON downloads with format=json + the scope', async () => {
+    const user = userEvent.setup()
+    let href = null
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function () {
+        href = this.href
+      })
+    renderBar({}, { route: '/journal?sc_setup=VCP&sc_v=1' })
+
+    await user.click(screen.getByRole('button', { name: /Export JSON/i }))
+
+    expect(href).toContain('format=json')
+    expect(href).toContain('setups=VCP')
+    clickSpy.mockRestore()
+  })
+
+  it('mobile: export buttons live in the Sheet', async () => {
+    mockIsTouch = true
+    const user = userEvent.setup()
+    renderBar()
+    await user.click(screen.getByRole('button', { name: /scope/i }))
+    expect(screen.getByRole('button', { name: /Export CSV/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Export JSON/i })).toBeInTheDocument()
+  })
+})
+
 describe('ScopeBar — no emoji', () => {
   it('renders no emoji characters (icons are UIcon SVGs)', () => {
     const { container } = renderBar(

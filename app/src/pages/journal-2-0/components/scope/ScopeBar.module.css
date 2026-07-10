@@ -271,6 +271,71 @@
   flex-shrink: 0;
 }
 
+/* ── export controls ────────────────────────────────────────────────────────*/
+.exportGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.exportBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.exportBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+}
+
+.exportGlyph {
+  flex-shrink: 0;
+}
+
+/* ── export controls (mobile Sheet footer) ──────────────────────────────────*/
+.sheetFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exportGroupSheet {
+  display: flex;
+  gap: 8px;
+}
+
+.exportBtnSheet {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.exportBtnSheet:active {
+  background: var(--bg-hover);
+}
+
 /* ── touch chip ─────────────────────────────────────────────────────────────*/
 .chip {
   display: inline-flex;

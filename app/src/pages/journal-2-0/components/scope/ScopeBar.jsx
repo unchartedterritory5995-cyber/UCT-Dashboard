@@ -44,6 +44,38 @@ const SC_KEYS = ['sc_acct', 'sc_from', 'sc_to', 'sc_sym', 'sc_side', 'sc_setup',
 const ALL_ACCOUNTS = '_all_'
 const PRESETS = ['Today', 'Week', 'Month', 'YTD', 'All']
 
+/**
+ * Build the server-authoritative export URL for the ACTIVE scope. `apiParams`
+ * (snake_case, from `useScope`) already carries the whole FilterSpec —
+ * account_id/date_from/date_to/symbol/sides/setups/tags — so the download ==
+ * exactly what's on screen. URLSearchParams encodes each value ONCE (the codec
+ * already member-encoded multi-value facets; never hand-concatenate → no
+ * double-encode).
+ */
+function buildExportUrl(format, apiParams) {
+  const params = new URLSearchParams()
+  params.set('format', format)
+  for (const [k, v] of Object.entries(apiParams || {})) {
+    if (v == null || v === '') continue
+    params.set(k, String(v))
+  }
+  return `/api/j2/trades/export?${params.toString()}`
+}
+
+/**
+ * Navigate an anchor to the export endpoint so the browser downloads the
+ * server-authoritative file (the backend's `Content-Disposition: attachment`
+ * names it). Same-origin GET → the session cookie rides along.
+ */
+function triggerExport(format, apiParams) {
+  const a = document.createElement('a')
+  a.href = buildExportUrl(format, apiParams)
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+}
+
 /** Local-timezone YYYY-MM-DD (avoids the toISOString UTC-shift day-boundary bug). */
 function localIso(d) {
   const y = d.getFullYear()
@@ -244,6 +276,37 @@ function FacetPopover({ label, count, children }) {
   )
 }
 
+/**
+ * Export control — two buttons (CSV / JSON) that download the SCOPED file from
+ * the backend endpoint. `apiParams` carries the active scope; the server does
+ * the filtering + quoting (authoritative). `variant='sheet'` widens the buttons
+ * for the mobile Sheet footer.
+ */
+function ExportControls({ apiParams, variant }) {
+  const cls = variant === 'sheet' ? styles.exportGroupSheet : styles.exportGroup
+  const btn = variant === 'sheet' ? styles.exportBtnSheet : styles.exportBtn
+  return (
+    <div className={cls}>
+      <button
+        type="button"
+        className={btn}
+        onClick={() => triggerExport('csv', apiParams)}
+      >
+        <UIcon name="download" size={13} className={styles.exportGlyph} />
+        Export CSV
+      </button>
+      <button
+        type="button"
+        className={btn}
+        onClick={() => triggerExport('json', apiParams)}
+      >
+        <UIcon name="download" size={13} className={styles.exportGlyph} />
+        Export JSON
+      </button>
+    </div>
+  )
+}
+
 /** All facets stacked as labelled sections — used inside the mobile Sheet. */
 function ScopeContent({
   scope,
@@ -313,7 +376,7 @@ export default function ScopeBar({
   resultCount = null,
   totalCount = null,
 }) {
-  const { scope, setFacet, toggleMember, clearScope } = useScope()
+  const { scope, setFacet, toggleMember, clearScope, apiParams } = useScope()
   const { accountId, accounts } = useJ2SelectedAccount()
   const { settings } = useJ2Settings()
   const isTouch = useIsTouch()
@@ -430,17 +493,20 @@ export default function ScopeBar({
           title="Scope"
           ariaLabel="Scope filters"
           footer={
-            filtersActive ? (
-              <button
-                type="button"
-                className={styles.sheetClearAll}
-                onClick={() => {
-                  clearScope()
-                }}
-              >
-                Clear all
-              </button>
-            ) : null
+            <div className={styles.sheetFooter}>
+              <ExportControls apiParams={apiParams} variant="sheet" />
+              {filtersActive ? (
+                <button
+                  type="button"
+                  className={styles.sheetClearAll}
+                  onClick={() => {
+                    clearScope()
+                  }}
+                >
+                  Clear all
+                </button>
+              ) : null}
+            </div>
           }
         >
           <div className={styles.sheetBody}>
@@ -520,6 +586,8 @@ export default function ScopeBar({
           {resultCount} of {totalCount} trades
         </span>
       )}
+
+      <ExportControls apiParams={apiParams} />
 
       {filtersActive && (
         <button type="button" className={styles.clearBtn} onClick={clearScope}>
