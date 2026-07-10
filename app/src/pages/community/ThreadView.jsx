@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import Composer from './Composer'
-import { useThread, apiCall } from './hooks/useCommunity'
+import { useThread, useCommunityStatus, apiCall } from './hooks/useCommunity'
 import { renderBodyHTML } from './lib/renderBody'
+import { useAuth } from '../../context/AuthContext'
 import styles from './Community.module.css'
 
 // Icon names come from the UIcon registry (never emoji): `flame` added for
@@ -34,7 +35,7 @@ function Author({ author, authorId }) {
   )
 }
 
-function Post({ post, replies, onReact, onReply }) {
+function Post({ post, replies, onReact, onReply, isMentor, onHighlight, onReport, onDelete, meId }) {
   return (
     <div className={`${styles.post} ${post.author?.is_mentor ? styles.postMentor : ''} ${post.mentor_highlight ? styles.postHighlight : ''}`}>
       <div className={styles.postHead}>
@@ -60,11 +61,23 @@ function Post({ post, replies, onReact, onReply }) {
         {!post.parent_post_id && (
           <button className={styles.replyBtn} onClick={() => onReply(post.id)}>Reply</button>
         )}
+        {isMentor && !post.parent_post_id && (
+          <button className={styles.modBtn}
+                  onClick={() => onHighlight(post.id, !post.mentor_highlight)}>
+            {post.mentor_highlight ? 'Unhighlight' : 'Highlight'}
+          </button>
+        )}
+        <button className={styles.reportBtn} onClick={() => onReport({ post_id: post.id })}>Report</button>
+        {(isMentor || post.author_id === meId) && !post.deleted && (
+          <button className={styles.reportBtn} onClick={() => onDelete(post.id)}>Remove</button>
+        )}
       </div>
       {replies.length > 0 && (
         <div className={styles.replies}>
           {replies.map((r) => (
-            <Post key={r.id} post={r} replies={[]} onReact={onReact} onReply={onReply} />
+            <Post key={r.id} post={r} replies={[]} onReact={onReact} onReply={onReply}
+                  isMentor={isMentor} onHighlight={onHighlight} onReport={onReport}
+                  onDelete={onDelete} meId={meId} />
           ))}
         </div>
       )}
@@ -74,6 +87,10 @@ function Post({ post, replies, onReact, onReply }) {
 
 export default function ThreadView({ threadId }) {
   const { data: thread, mutate } = useThread(threadId)
+  const { data: status } = useCommunityStatus()
+  const isMentor = !!status?.is_mentor
+  const { user } = useAuth()
+  const meId = user?.id
   const [replyTo, setReplyTo] = useState(null)
 
   // mark read once loaded
@@ -108,6 +125,26 @@ export default function ThreadView({ threadId }) {
 
   const onReply = (postId) => setReplyTo(postId)
 
+  const mod = async (patch) => {
+    await apiCall(`/api/community/threads/${thread.id}/mod`, patch, 'PATCH')
+    mutate()
+  }
+  const reportItem = async (target) => {
+    const reason = window.prompt('Why are you reporting this?') || ''
+    if (!reason.trim()) return
+    await apiCall('/api/community/reports', { ...target, reason })
+    window.alert('Reported — a moderator will review it.')
+  }
+  const onHighlight = async (postId, value) => {
+    await apiCall(`/api/community/posts/${postId}/highlight`, { value }, 'PATCH')
+    mutate()
+  }
+  const onDelete = async (postId) => {
+    if (!window.confirm('Remove this post?')) return
+    await apiCall(`/api/community/posts/${postId}`, undefined, 'DELETE')
+    mutate()
+  }
+
   return (
     <div className={styles.threadView}>
       <Link to="/community" className={styles.backLink}>&larr; The Floor</Link>
@@ -125,11 +162,33 @@ export default function ThreadView({ threadId }) {
         </div>
         <div className={styles.postBody}
              dangerouslySetInnerHTML={{ __html: renderBodyHTML(thread.body) }} />
+        <div className={styles.postActions}>
+          {isMentor && (
+            <>
+              <button className={styles.modBtn} onClick={() => mod({ pinned: !thread.pinned })}>
+                {thread.pinned ? 'Unpin' : 'Pin'}
+              </button>
+              <button className={styles.modBtn} onClick={() => mod({ locked: !thread.locked })}>
+                {thread.locked ? 'Unlock' : 'Lock'}
+              </button>
+              {thread.space === 'questions' && (
+                <button className={styles.modBtn} onClick={() => mod({ answered: !thread.answered })}>
+                  {thread.answered ? 'Unmark Answered' : 'Mark Answered'}
+                </button>
+              )}
+            </>
+          )}
+          <button className={styles.reportBtn} onClick={() => reportItem({ thread_id: thread.id })}>
+            Report
+          </button>
+        </div>
       </div>
       <div className={styles.postsList}>
         {topLevel.map((p) => (
           <Post key={p.id} post={p} replies={byParent[p.id] || []}
-                onReact={onReact} onReply={onReply} />
+                onReact={onReact} onReply={onReply}
+                isMentor={isMentor} onHighlight={onHighlight}
+                onReport={reportItem} onDelete={onDelete} meId={meId} />
         ))}
       </div>
       {!thread.locked && (

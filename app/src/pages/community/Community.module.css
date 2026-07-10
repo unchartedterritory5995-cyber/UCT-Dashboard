@@ -131,3 +131,24 @@
   font-size: 11.5px; margin-bottom: 6px;
 }
 .replyingChip button { background: none; border: none; color: var(--text); cursor: pointer; }
+
+/* ── Ack gate + mod tools + report (Task 13) ───────────────────────────── */
+.ackBackdrop {
+  position: fixed; inset: 0; z-index: var(--z-modal, 1200);
+  background: rgba(0, 0, 0, 0.72); display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.ackCard {
+  max-width: 480px; background: var(--bg-elevated); border: 1px solid var(--ut-gold-glow);
+  border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px;
+}
+.ackText { color: var(--text); font-size: 12.5px; line-height: 1.65; margin: 0; }
+.modBtn {
+  background: none; border: 1px solid var(--ut-gold-glow); color: var(--ut-gold);
+  border-radius: 6px; font-size: 11px; padding: 3px 8px; cursor: pointer; min-height: 28px;
+}
+.reportBtn {
+  background: none; border: none; color: var(--text); opacity: 0.55;
+  font-size: 11px; cursor: pointer; min-height: 28px;
+}
+.reportBtn:hover { opacity: 1; color: var(--ut-red); }

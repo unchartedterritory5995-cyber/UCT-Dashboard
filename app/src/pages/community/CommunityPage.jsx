@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import ThreadView from './ThreadView'
 import Composer from './Composer'
+import AckGate from './AckGate'
 import { useCommunityStatus, useSpaces, useThreads, apiCall } from './hooks/useCommunity'
 import styles from './Community.module.css'
 
@@ -18,7 +19,7 @@ function timeAgo(epoch) {
 export default function CommunityPage() {
   const navigate = useNavigate()
   const { threadId } = useParams()
-  const { data: status } = useCommunityStatus()
+  const { data: status, mutate: refreshStatus } = useCommunityStatus()
   const enabled = !!status?.enabled
   const [space, setSpace] = useState('mentor-desk')
   const { data: spaces } = useSpaces(enabled)
@@ -40,6 +41,7 @@ export default function CommunityPage() {
 
   return (
     <div className={styles.page}>
+      <AckGate status={status} onAcked={() => refreshStatus()} />
       <aside className={styles.rail}>
         <div className={styles.railTitle}>
           <UIcon name="community" size={16} /> The Floor
