@@ -475,6 +475,14 @@ def _fmt_strike(s: float) -> str:
     return f"{s:.1f}".rstrip('0').rstrip('.')
 
 
+# When OI is unknown (contract never snapshotted -> stored as 0), compute_color
+# can't judge OI exceedance. Instead of burying the flow as WHITE, it falls back
+# to these premium floors. Conservative so unknown-OI dust stays WHITE; the
+# downstream rollup/day-stats gates are cap-scaled, so flat floors are fine here.
+OI_UNKNOWN_MAGENTA_PREMIUM = 250_000
+OI_UNKNOWN_YELLOW_PREMIUM = 100_000
+
+
 def compute_color(premium: float, type_: str, *, volume: int = 0, oi: int = 0) -> str:
     """
     BBS-style Color label for an aggregated event.
@@ -489,14 +497,29 @@ def compute_color(premium: float, type_: str, *, volume: int = 0, oi: int = 0) -
     illiquid strike is more directionally meaningful than a $1M trade on a
     heavily-held contract just churning between holders.
 
-    When OI is unknown (oi=0), we can't compute exceedance, so default WHITE.
-    Volume/OI >= 1.5 ratio is the MAGENTA threshold - significant exceedance
-    that suggests aggressive opening positioning. Tuned to roughly match BBS's
-    color distribution against the June 22 export (52% confirmed = MAGENTA+YELLOW).
+    When OI is unknown (oi=0), we can't compute exceedance. Rather than bury
+    the flow as WHITE (which silently hid a $1.08M NBIS sweep whose contract
+    was never OI-snapshotted), fall back to a premium proxy — see the oi<=0
+    branch. Volume/OI >= 1.5 ratio is the MAGENTA threshold - significant
+    exceedance that suggests aggressive opening positioning. Tuned to roughly
+    match BBS's color distribution against the June 22 export (52% confirmed).
     """
-    # No OI data -> can't compute, default WHITE (consistent with how BBS
-    # treats contracts without OI data -- never confirmed).
-    if oi <= 0 or volume <= 0:
+    if volume <= 0:
+        return 'WHITE'
+
+    # OI unknown (contract never snapshotted -> stored as 0). We can't judge
+    # exceedance, but defaulting to WHITE buries significant flow. Both readings
+    # of oi=0 argue for surfacing rather than burying: if OI is truly unknown, a
+    # large print is still notable; if OI is genuinely zero, ANY volume is 100%
+    # exceedance (new positioning) — the strongest signal, not the weakest. So
+    # fall back to a premium proxy, with a conservative floor so unknown-OI dust
+    # stays WHITE. Downstream rollup/day-stats gates are cap-scaled, so a flat
+    # floor here is fine. Tunable via the OI_UNKNOWN_*_PREMIUM constants.
+    if oi <= 0:
+        if premium >= OI_UNKNOWN_MAGENTA_PREMIUM:
+            return 'MAGENTA'
+        if premium >= OI_UNKNOWN_YELLOW_PREMIUM:
+            return 'YELLOW'
         return 'WHITE'
 
     if volume >= int(1.5 * oi):
