@@ -153,6 +153,12 @@
 }
 .reportBtn:hover { opacity: 1; color: var(--ut-red); }
 
+.previewPill {
+  margin-left: auto; text-transform: none; letter-spacing: 0.4px;
+  font-size: 9.5px; font-weight: 700; color: #14150f; background: var(--ut-gold);
+  border-radius: 6px; padding: 1px 6px;
+}
+
 /* Touch: every interactive control meets the 44px tap-min (mobile constraint). */
 @media (max-width: 1024px) {
   .reactBtn, .replyBtn, .modBtn, .reportBtn,

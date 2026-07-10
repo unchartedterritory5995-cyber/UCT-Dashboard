@@ -28,20 +28,19 @@ def _enabled() -> bool:
     return os.environ.get("COMMUNITY_ENABLED", "0") == "1"
 
 
+def _enabled_for(user: dict) -> bool:
+    """The feature is live when the flag is on OR the viewer is an admin. Admins get
+    a full PRODUCTION PREVIEW while The Floor is dark for everyone else — so the owner
+    can look at and judge the real thing before the public flag flip."""
+    return _enabled() or user.get("role") == "admin"
+
+
 def require_community(user: dict = Depends(get_current_user_with_plan)) -> dict:
-    if not _enabled():
+    if not _enabled_for(user):
         raise HTTPException(status_code=503, detail="Community is not enabled")
     if not is_paid_user(user):
         raise HTTPException(status_code=402, detail="The Floor requires a paid plan")
     return user
-
-
-def require_admin_enabled(admin: dict = Depends(require_admin)) -> dict:
-    """Admin gate that ALSO honors the COMMUNITY_ENABLED flag (constraint: every
-    /api/community/* endpoint except /status must 503 when the feature is dark)."""
-    if not _enabled():
-        raise HTTPException(status_code=503, detail="Community is not enabled")
-    return admin
 
 
 def _is_mentor(user: dict) -> bool:
@@ -81,12 +80,13 @@ def _attach_authors(items):
 
 @router.get("/status")
 def status(user: dict = Depends(get_current_user)):
-    enabled = _enabled()
+    enabled = _enabled_for(user)   # admins preview while dark
     return {
         "enabled": enabled,
         "acked": store.has_ack(user["id"]) if enabled else False,
         "is_mentor": _is_mentor(user),
         "muted": store.is_muted(user["id"]) if enabled else False,
+        "public": _enabled(),      # false while dark — the nav can badge it "Preview"
     }
 
 
@@ -309,7 +309,7 @@ def delete_post(post_id: int, user: dict = Depends(require_community)):
 # ── Mentor / moderator ───────────────────────────────────────────────────────
 
 @router.patch("/threads/{thread_id}/mod")
-def mod_thread(thread_id: int, body: ModIn, admin: dict = Depends(require_admin_enabled)):
+def mod_thread(thread_id: int, body: ModIn, admin: dict = Depends(require_admin)):
     if not store.get_thread(thread_id):
         raise HTTPException(status_code=404, detail="Thread not found")
     for field in ("pinned", "locked", "answered"):
@@ -320,7 +320,7 @@ def mod_thread(thread_id: int, body: ModIn, admin: dict = Depends(require_admin_
 
 
 @router.patch("/posts/{post_id}/highlight")
-def highlight(post_id: int, body: HighlightIn, admin: dict = Depends(require_admin_enabled)):
+def highlight(post_id: int, body: HighlightIn, admin: dict = Depends(require_admin)):
     if not store.get_post(post_id):
         raise HTTPException(status_code=404, detail="Post not found")
     store.set_highlight(post_id, body.value)
@@ -328,13 +328,13 @@ def highlight(post_id: int, body: HighlightIn, admin: dict = Depends(require_adm
 
 
 @router.get("/admin/reports")
-def admin_reports(status: str = Query("open"), admin: dict = Depends(require_admin_enabled)):
+def admin_reports(status: str = Query("open"), admin: dict = Depends(require_admin)):
     return {"reports": store.list_reports(status)}
 
 
 @router.patch("/admin/reports/{report_id}")
 def admin_report_action(report_id: int, body: ReportActionIn,
-                        admin: dict = Depends(require_admin_enabled)):
+                        admin: dict = Depends(require_admin)):
     reports = {r["id"]: r for r in store.list_reports("open")}
     r = reports.get(report_id)
     if not r:
@@ -353,7 +353,7 @@ def admin_report_action(report_id: int, body: ReportActionIn,
 
 
 @router.post("/admin/mute/{user_id}")
-def admin_mute(user_id: str, body: MuteIn, admin: dict = Depends(require_admin_enabled)):
+def admin_mute(user_id: str, body: MuteIn, admin: dict = Depends(require_admin)):
     store.set_muted(user_id, body.muted)
     return {"ok": True}
 

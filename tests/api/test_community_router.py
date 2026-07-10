@@ -274,12 +274,20 @@ async def test_reaction_requires_ack_and_not_muted(client_for):
 
 
 @pytest.mark.asyncio
-async def test_admin_endpoints_503_when_flag_off(client_for, monkeypatch):
+async def test_admin_preview_while_flag_off(client_for, monkeypatch):
+    """When COMMUNITY_ENABLED is off, an admin still gets a full production preview
+    (feature dark for everyone else), so the owner can look at + judge it pre-launch."""
     monkeypatch.setenv("COMMUNITY_ENABLED", "0")
     async with client_for(ADMIN) as ac:
-        assert (await ac.get("/api/community/admin/reports")).status_code == 503
-        assert (await ac.patch("/api/community/threads/1/mod",
-                               json={"pinned": True})).status_code == 503
+        st = (await ac.get("/api/community/status")).json()
+        assert st["enabled"] is True and st["public"] is False   # visible to admin, still dark publicly
+        assert (await ac.get("/api/community/spaces")).status_code == 200
+        assert (await ac.get("/api/community/admin/reports")).status_code == 200
+    # a regular paid member sees nothing while dark
+    async with client_for(MEMBER) as ac:
+        st = (await ac.get("/api/community/status")).json()
+        assert st["enabled"] is False
+        assert (await ac.get("/api/community/spaces")).status_code == 503
 
 
 @pytest.mark.asyncio

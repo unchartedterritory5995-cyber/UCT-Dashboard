@@ -45,6 +45,11 @@ export default function CommunityPage() {
       <aside className={styles.rail}>
         <div className={styles.railTitle}>
           <UIcon name="community" size={16} /> The Floor
+          {status && status.public === false && (
+            <span className={styles.previewPill} title="Visible to admins only — not yet launched to members">
+              Preview
+            </span>
+          )}
         </div>
         {(spaces || []).map((s) => (
           <button
