@@ -1,7 +1,16 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AddPositionModal from './AddPositionModal'
+import usePreTradeVerdict from '../hooks/usePreTradeVerdict'
+
+// Control the verdict directly so the attachment branches are testable without
+// wiring a live account + fetch.
+vi.mock('../hooks/usePreTradeVerdict', () => ({
+  default: vi.fn(),
+}))
+
+const NO_VERDICT = { run: vi.fn(), verdict: null, isLoading: false, error: null, reset: vi.fn() }
 
 const BASE_SETTINGS = {
   accountSize: 100_000,
@@ -11,6 +20,10 @@ const BASE_SETTINGS = {
 }
 
 describe('AddPositionModal', () => {
+  beforeEach(() => {
+    usePreTradeVerdict.mockReturnValue(NO_VERDICT)
+  })
+
   it('mounts', () => {
     render(<AddPositionModal settings={BASE_SETTINGS} onSave={vi.fn()} onClose={vi.fn()} />)
     // Use the heading specifically (button also says "Add Position")
@@ -47,6 +60,31 @@ describe('AddPositionModal', () => {
     expect(payload.shares).toBe(100)
     expect(payload.entryPrice).toBe(500)
     expect(payload.stopPrice).toBeNull()
+    // No verdict run → empty attachment.
+    expect(payload.contextAtEntry).toEqual({})
+  })
+
+  it('attaches the Compass verdict to the submitted payload when one has run', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    usePreTradeVerdict.mockReturnValue({
+      ...NO_VERDICT,
+      verdict: { verdict_id: 'v-9', label: 'GO', paragraph: 'Clean.', factors: [] },
+    })
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={vi.fn()} />)
+
+    await user.type(screen.getByPlaceholderText('e.g. NVDA'), 'NVDA')
+    const numberInputs = screen.getAllByRole('spinbutton')
+    await user.type(numberInputs[0], '100')  // shares
+    await user.type(numberInputs[1], '500')  // entry
+
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    expect(onSave).toHaveBeenCalledTimes(1)
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.contextAtEntry).toEqual({
+      compass_verdict_id: 'v-9',
+      compass_verdict_label: 'GO',
+    })
   })
 
   it('rejects Long stop above entry', async () => {

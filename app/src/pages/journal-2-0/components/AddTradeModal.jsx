@@ -16,16 +16,19 @@ import {
 import { computeImpliedRiskPct } from '../lib/disciplineGuards'
 import styles from './ModalShell.module.css'
 import bannerStyles from './AlertBanner.module.css'
-import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
 import DisciplineLockBanner from './DisciplineLockBanner'
 import useJ2SetupStats from '../hooks/useJ2SetupStats'
 import SetupStatsPanel from './SetupStatsPanel'
 import TagChipPicker from './TagChipPicker'
+import usePreTradeVerdict from '../hooks/usePreTradeVerdict'
+import PreTradeVerdictCard from './PreTradeVerdictCard'
+import { useIsPaid } from '../../../context/AuthContext'
+import UIcon from '../../../components/ui/UIcon'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
-export default function AddTradeModal({ settings, onSave, onClose, accountName }) {
+export default function AddTradeModal({ settings, onSave, onClose, accountName, accountId }) {
   const titleId = useId()
   const setups = settings?.setups ?? []
 
@@ -50,7 +53,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
   const [saving, setSaving] = useState(false)
   const [overrideArmed, setOverrideArmed] = useState(false)
 
-  const { accountId } = useJ2SelectedAccount()
+  const isPaid = useIsPaid()
+  const { run: runVerdict, verdict, isLoading: verdictLoading, error: verdictError } = usePreTradeVerdict(accountId)
   const { state: disciplineState } = useJ2DisciplineState(accountId)
   const [disciplineOverrideArmed, setDisciplineOverrideArmed] = useState(false)
   const { stats: setupStats } = useJ2SetupStats(accountId, setupVal)
@@ -136,7 +140,11 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
         fees: fees === '' ? 0 : Number(fees),
         mistakeTags: selectedMistakes,
         emotionTags: selectedEmotions,
-        contextAtEntry: {},
+        // Verdict→trade attachment: carry the Compass verdict id + label when a
+        // pre-trade verdict was run for this trade, else an empty object.
+        contextAtEntry: verdict?.verdict_id
+          ? { compass_verdict_id: verdict.verdict_id, compass_verdict_label: verdict.label }
+          : {},
       })
       onClose?.()
     } catch (e) {
@@ -146,8 +154,29 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
     }
   }, [
     validate, symbol, side, shares, entryPrice, entryDate, entryTime, exitPrice, exitDate,
-    exitTime, originalStop, setupVal, notes, fees, selectedMistakes, selectedEmotions, onSave, onClose,
+    exitTime, originalStop, setupVal, notes, fees, selectedMistakes, selectedEmotions,
+    verdict, onSave, onClose,
   ])
+
+  // Pre-trade verdict run (paid-gated footer button). Snake_case payload — the
+  // verdict endpoint wants snake_case, unlike the camelCase trades endpoints.
+  // Fires fire-and-forget telemetry on each run.
+  const handleRunVerdict = useCallback(() => {
+    runVerdict({
+      symbol: symbol.trim().toUpperCase(),
+      side,
+      shares: Number(shares),
+      entry_price: Number(entryPrice),
+      stop_price: Number(originalStop),
+      setup: setupVal || undefined,
+    })
+    fetch('/api/j2/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ event: 'verdict_embed_run' }),
+    }).catch(() => {})
+  }, [runVerdict, symbol, side, shares, entryPrice, originalStop, setupVal])
 
   const impliedRiskPct = computeImpliedRiskPct({
     accountSize: settings?.accountSize,
@@ -412,15 +441,39 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
           {errorMsg && <div className={styles.errorBanner} role="alert">{errorMsg}</div>}
         </div>
 
-        <div className={styles.footer}>
-          <button type="button" className={styles.ghostBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={
-              saving
-              || (overCap && !overrideArmed)
-              || (disciplineState?.locked && !disciplineOverrideArmed)
-            }>
-            {saving ? 'Saving…' : 'Add Trade'}
-          </button>
+        <div className={styles.footer} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          {isPaid && (
+            <>
+              <PreTradeVerdictCard verdict={verdict} isLoading={verdictLoading} error={verdictError} />
+              <button
+                type="button"
+                onClick={handleRunVerdict}
+                disabled={verdictLoading || !symbol || !shares || !entryPrice || !originalStop}
+                title={!originalStop ? 'add a stop to check with Compass' : undefined}
+                style={{
+                  width: '100%', padding: '8px 14px', fontSize: 12, fontWeight: 600,
+                  background: 'rgba(201,168,76,0.10)', color: 'var(--ut-gold, #c9a84c)',
+                  border: '1px solid rgba(201,168,76,0.5)', borderRadius: 6,
+                  cursor: verdictLoading ? 'wait' : 'pointer',
+                  margin: '0 0 6px',
+                }}
+              >
+                {verdictLoading
+                  ? <><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compass is thinking…</>
+                  : <><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Check with Compass</>}
+              </button>
+            </>
+          )}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button type="button" className={styles.ghostBtn} onClick={onClose} disabled={saving}>Cancel</button>
+            <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={
+                saving
+                || (overCap && !overrideArmed)
+                || (disciplineState?.locked && !disciplineOverrideArmed)
+              }>
+              {saving ? 'Saving…' : 'Add Trade'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

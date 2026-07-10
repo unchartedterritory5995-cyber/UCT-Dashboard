@@ -418,10 +418,37 @@ def test_manual_add_trade_positionId_uses_manual_sentinel(db_conn):
 
 
 def test_manual_add_trade_context_is_empty_dict(db_conn):
-    """Market-context capture was removed; manual trades store an empty dict."""
+    """No verdict → manual trades store an empty context dict."""
     from api.services.journal_two import trades as svc
 
     t = svc.create_trade_manual("u1", _valid_manual_payload(), SETTINGS_STD, conn=db_conn)
+    assert t["contextAtEntry"] == {}
+
+
+def test_manual_add_trade_persists_verdict_attachment(db_conn):
+    """Verdict→trade loop: payload.contextAtEntry (Compass verdict id + label)
+    is persisted verbatim so the attachment survives on the resulting trade."""
+    from api.services.journal_two import trades as svc
+
+    payload = _valid_manual_payload()
+    payload["contextAtEntry"] = {
+        "compass_verdict_id": "v-123",
+        "compass_verdict_label": "GO",
+    }
+    t = svc.create_trade_manual("u1", payload, SETTINGS_STD, conn=db_conn)
+    assert t["contextAtEntry"] == {
+        "compass_verdict_id": "v-123",
+        "compass_verdict_label": "GO",
+    }
+
+
+def test_manual_add_trade_context_dict_guarded_against_non_dict(db_conn):
+    """A malformed contextAtEntry (non-dict) falls back to an empty dict."""
+    from api.services.journal_two import trades as svc
+
+    payload = _valid_manual_payload()
+    payload["contextAtEntry"] = "not-a-dict"
+    t = svc.create_trade_manual("u1", payload, SETTINGS_STD, conn=db_conn)
     assert t["contextAtEntry"] == {}
 
 

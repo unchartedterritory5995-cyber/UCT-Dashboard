@@ -206,9 +206,16 @@ def create_position(
     if not acc_id:
         default = accounts_service.get_or_migrate_default_account(user["id"])
         acc_id = default["id"]
+    # Verdict→trade attachment: AddPositionModal stamps payload.contextAtEntry
+    # with {compass_verdict_id, compass_verdict_label} after a pre-trade
+    # verdict run (else {}). Persist it verbatim; on close, close_position
+    # copies context_at_entry forward to the resulting trade. Dict-guarded.
+    ctx = payload.get("contextAtEntry")
+    if not isinstance(ctx, dict):
+        ctx = {}
     try:
         return positions_service.create_position(
-            user["id"], payload, {}, account_id=acc_id,
+            user["id"], payload, ctx, account_id=acc_id,
         )
     except positions_service.PositionValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))

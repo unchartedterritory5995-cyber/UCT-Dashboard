@@ -461,7 +461,14 @@ def create_trade_manual(
         breakeven_range=settings["breakevenRange"],
     )
 
-    context: dict[str, Any] = {}
+    # Verdict→trade attachment: the manual Add Trade modal stamps
+    # payload.contextAtEntry with {compass_verdict_id, compass_verdict_label}
+    # after a pre-trade verdict run (else {}). Persist it verbatim so the
+    # designed verdict→trade loop actually closes. Dict-guarded against a
+    # malformed body.
+    context = payload.get("contextAtEntry")
+    if not isinstance(context, dict):
+        context = {}
 
     owned_conn = conn is None
     conn = conn or get_connection()

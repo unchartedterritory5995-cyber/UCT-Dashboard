@@ -237,6 +237,12 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
         stopPrice: stopPrice === '' ? null : Number(stopPrice),
         setup: setup.trim() || null,
         notes: notes.trim() || null,
+        // Verdict→trade attachment: carry the Compass verdict id + label when a
+        // pre-trade verdict was run, else an empty object. On close, the trade
+        // inherits this context_at_entry verbatim.
+        contextAtEntry: verdict?.verdict_id
+          ? { compass_verdict_id: verdict.verdict_id, compass_verdict_label: verdict.label }
+          : {},
       }
       await onSave(payload)
       onClose?.()
@@ -245,7 +251,7 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
     } finally {
       setSaving(false)
     }
-  }, [validate, symbol, side, entryDate, shares, entryPrice, stopPrice, setup, notes, onSave, onClose])
+  }, [validate, symbol, side, entryDate, shares, entryPrice, stopPrice, setup, notes, verdict, onSave, onClose])
 
   const suggestedTarget = computeSuggestedTarget({
     side,

@@ -426,6 +426,7 @@ export default function TradeJournalTab({ settings }) {
           onSave={handleAdd}
           onClose={() => setAddOpen(false)}
           accountName={accounts.find((a) => a.id === selectedAccountId)?.name || accounts[0]?.name}
+          accountId={selectedAccountId}
         />
       )}
       {deleteAllOpen && (
