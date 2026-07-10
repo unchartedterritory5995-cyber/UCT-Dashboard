@@ -270,3 +270,135 @@ def count_recent_posts(author_id, seconds=3600):
         return conn.execute(
             "SELECT COUNT(*) FROM posts WHERE author_id=? AND created_at > ?",
             (author_id, _now() - seconds)).fetchone()[0]
+
+
+# ── Mentor tools, reactions, read state, reports, mute, ack ─────────────────
+
+def set_highlight(post_id, value):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        row = conn.execute("SELECT thread_id FROM posts WHERE id=?", (post_id,)).fetchone()
+        if not row:
+            return
+        if value:
+            conn.execute("UPDATE posts SET mentor_highlight=0 WHERE thread_id=?",
+                         (row["thread_id"],))
+        conn.execute("UPDATE posts SET mentor_highlight=? WHERE id=?",
+                     (1 if value else 0, post_id))
+        conn.commit()
+
+
+def toggle_reaction(post_id, user_id, kind):
+    if kind not in REACTION_KINDS:
+        raise ValueError("bad-kind")
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        existing = conn.execute(
+            "SELECT 1 FROM reactions WHERE post_id=? AND user_id=? AND kind=?",
+            (post_id, user_id, kind)).fetchone()
+        if existing:
+            conn.execute(
+                "DELETE FROM reactions WHERE post_id=? AND user_id=? AND kind=?",
+                (post_id, user_id, kind))
+            conn.commit()
+            return False
+        conn.execute(
+            "INSERT INTO reactions (post_id, user_id, kind, created_at) VALUES (?,?,?,?)",
+            (post_id, user_id, kind, _now()))
+        conn.commit()
+        return True
+
+
+def mark_read(user_id, thread_id, last_seen_post_id):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute(
+            """INSERT INTO read_state (user_id, thread_id, last_seen_post_id, seen_at)
+               VALUES (?,?,?,?)
+               ON CONFLICT(user_id, thread_id) DO UPDATE SET
+                 last_seen_post_id = MAX(read_state.last_seen_post_id, excluded.last_seen_post_id),
+                 seen_at = excluded.seen_at""",
+            (user_id, thread_id, int(last_seen_post_id or 0), _now()))
+        conn.commit()
+
+
+def unread_summary(user_id):
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            """SELECT t.space,
+                      (SELECT COALESCE(MAX(p.id), 0) FROM posts p
+                        WHERE p.thread_id = t.id AND p.deleted = 0) AS last_post_id,
+                      COALESCE(rs.last_seen_post_id, -1) AS seen
+                 FROM threads t
+                 LEFT JOIN read_state rs
+                        ON rs.thread_id = t.id AND rs.user_id = ?
+                WHERE t.deleted = 0""",
+            (user_id,)).fetchall()
+    by_space = {k: 0 for k in SPACES}
+    total = 0
+    for r in rows:
+        # unread = never opened (seen == -1) or new posts since last visit
+        if r["seen"] == -1 or r["last_post_id"] > r["seen"]:
+            by_space[r["space"]] = by_space.get(r["space"], 0) + 1
+            total += 1
+    return {"total": total, "by_space": by_space}
+
+
+def create_report(reporter_id, reason, thread_id=None, post_id=None):
+    if bool(thread_id) == bool(post_id):   # exactly one target
+        raise ValueError("bad-target")
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        cur = conn.execute(
+            """INSERT INTO reports (thread_id, post_id, reporter_id, reason, created_at)
+               VALUES (?,?,?,?,?)""",
+            (thread_id, post_id, reporter_id, (reason or "")[:500], _now()))
+        conn.commit()
+        return cur.lastrowid
+
+
+def list_reports(status="open"):
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            """SELECT r.*,
+                      COALESCE(t.title, substr(p.body, 1, 200), '') AS preview,
+                      COALESCE(t.author_id, p.author_id) AS target_author_id
+                 FROM reports r
+                 LEFT JOIN threads t ON t.id = r.thread_id
+                 LEFT JOIN posts p ON p.id = r.post_id
+                WHERE r.status = ?
+                ORDER BY r.created_at DESC""",
+            (status,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def set_report_status(report_id, status):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute("UPDATE reports SET status=? WHERE id=?", (status, report_id))
+        conn.commit()
+
+
+def set_muted(user_id, muted):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        if muted:
+            conn.execute(
+                "INSERT OR REPLACE INTO muted_users (user_id, muted_at) VALUES (?,?)",
+                (user_id, _now()))
+        else:
+            conn.execute("DELETE FROM muted_users WHERE user_id=?", (user_id,))
+        conn.commit()
+
+
+def is_muted(user_id):
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            "SELECT 1 FROM muted_users WHERE user_id=?", (user_id,)).fetchone() is not None
+
+
+def set_ack(user_id):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute("INSERT OR IGNORE INTO acks (user_id, acked_at) VALUES (?,?)",
+                     (user_id, _now()))
+        conn.commit()
+
+
+def has_ack(user_id):
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            "SELECT 1 FROM acks WHERE user_id=?", (user_id,)).fetchone() is not None

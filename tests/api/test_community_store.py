@@ -79,3 +79,62 @@ def test_rate_limit_counters(store):
         store.create_thread("trade-ideas", "u9", "t")
     assert store.count_recent_threads("u9") == 3
     assert store.count_recent_threads("someone-else") == 0
+
+
+def test_highlight_is_exclusive_per_thread(store):
+    tid = store.create_thread("questions", "u1", "q")
+    p1 = store.create_post(tid, "u2", "{}")
+    p2 = store.create_post(tid, "u3", "{}")
+    store.set_highlight(p1, True)
+    store.set_highlight(p2, True)
+    posts = {p["id"]: p for p in store.get_thread(tid)["posts"]}
+    assert posts[p1]["mentor_highlight"] == 0
+    assert posts[p2]["mentor_highlight"] == 1
+
+
+def test_reaction_toggle(store):
+    tid = store.create_thread("wins-lessons", "u1", "w")
+    pid = store.create_post(tid, "u2", "{}")
+    assert store.toggle_reaction(pid, "u3", "fire") is True
+    assert store.get_thread(tid)["posts"][0]["reactions"] == {"fire": 1}
+    assert store.toggle_reaction(pid, "u3", "fire") is False
+    assert store.get_thread(tid)["posts"][0]["reactions"] == {}
+    with pytest.raises(ValueError, match="bad-kind"):
+        store.toggle_reaction(pid, "u3", "rocketship")
+
+
+def test_unread_summary_and_mark_read(store):
+    tid = store.create_thread("trade-ideas", "u1", "t")
+    pid = store.create_post(tid, "u2", "{}")
+    s = store.unread_summary("u3")
+    assert s["total"] == 1 and s["by_space"]["trade-ideas"] == 1
+    store.mark_read("u3", tid, pid)
+    assert store.unread_summary("u3")["total"] == 0
+    # monotonic: marking an older post doesn't regress
+    p2 = store.create_post(tid, "u2", "{}")
+    store.mark_read("u3", tid, p2)
+    store.mark_read("u3", tid, pid)
+    assert store.unread_summary("u3")["total"] == 0
+
+
+def test_reports_lifecycle(store):
+    tid = store.create_thread("questions", "u1", "spam thread")
+    rid = store.create_report("u2", "spam", thread_id=tid)
+    open_reports = store.list_reports("open")
+    assert [r["id"] for r in open_reports] == [rid]
+    assert "spam thread" in open_reports[0]["preview"]
+    store.set_report_status(rid, "dismissed")
+    assert store.list_reports("open") == []
+    with pytest.raises(ValueError, match="bad-target"):
+        store.create_report("u2", "both", thread_id=1, post_id=1)
+
+
+def test_mute_and_ack(store):
+    assert store.is_muted("u1") is False
+    store.set_muted("u1", True)
+    assert store.is_muted("u1") is True
+    store.set_muted("u1", False)
+    assert store.is_muted("u1") is False
+    assert store.has_ack("u1") is False
+    store.set_ack("u1")
+    assert store.has_ack("u1") is True
