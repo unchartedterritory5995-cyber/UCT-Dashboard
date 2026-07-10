@@ -53,6 +53,13 @@ MULTI_LEG_CONDITIONS = set(range(232, 248))
 ISO_CONDITION = 219
 SINGLE_LEG_CONDITIONS = {227, 228, 229, 230, 231}
 
+# 2026-07-10: exchange-breadth override — a burst spanning >= this many venues
+# is a SWEEP even when a stray single-leg (227-231) print is bucketed with it
+# (a genuine single-leg trade is one exchange). Runs BEFORE the single-leg BLOCK
+# check; conservative 4 leaves real 1-2 venue blocks as BLOCK. Lower to 2 to
+# fully match BBS. KEEP IN SYNC with massive_processor.py.
+SWEEP_BREADTH_OVERRIDE = 4
+
 # Same INDEX_SYMBOLS list as massive_processor — these route to indexes table
 INDEX_SYMBOLS = {
     "SPX", "SPXW", "NDX", "NDXW", "NDXP", "RUT", "RUTW",
@@ -106,10 +113,23 @@ def classify_type(conditions_seen, n_exchanges) -> str:
     2026-07-03: fallback threshold lowered from >= 3 to >= 2 exchanges.
     Matches BBS's treatment of 2-exchange same-price bursts as sweeps.
     See massive_processor.py comment for evidence trace.
+
+    2026-07-10: exchange breadth now wins OVER single-leg conditions. A burst
+    spanning >= SWEEP_MIN_EXCHANGES venues is an intermarket sweep even when a
+    stray single-leg (227-231) print lands in the same aggregation window.
+    Previously that single-leg print short-circuited the whole event to BLOCK
+    before the breadth test ran. Evidence: HUBS 195C 12/18 on 7/8 — a 15-
+    exchange, condition-209 sweep (BBS: SWEEP, side A, $2.3M) was mislabeled
+    BLOCK because two small 227 prints were bucketed with it, which then
+    blocked the empty-side ASK rescue (sweep_empty_side_as_ask) and hid it.
+    KEEP IN SYNC with massive_processor.py's classifier.
     """
     if conditions_seen & MULTI_LEG_CONDITIONS:
         return "ML/"
     if ISO_CONDITION in conditions_seen:
+        return "SWEEP"
+    # Breadth beats a stray single-leg print (see docstring / HUBS 7/8).
+    if n_exchanges >= SWEEP_BREADTH_OVERRIDE:
         return "SWEEP"
     if conditions_seen & SINGLE_LEG_CONDITIONS:
         return "BLOCK"
