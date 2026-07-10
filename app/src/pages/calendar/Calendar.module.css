@@ -1758,60 +1758,48 @@
   background: var(--bg);
 }
 
-/* ── Sector scoping chip row ── */
-.sectorRow {
+/* ── Active-sector indicator (only shown WHEN a sector filter is on) ── */
+.sectorActive {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   padding: 7px 18px;
   border-bottom: 1px solid var(--cal-line);
   background: var(--bg);
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-.sectorRow::-webkit-scrollbar { display: none; }
-.sectorChip {
-  flex: 0 0 auto;
+.sectorActivePill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--cal-dim);
-  background: var(--cal-panel);
-  border: 1px solid var(--cal-line2);
-  border-radius: 999px;
-  padding: 4px 11px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color 0.12s, color 0.12s, background 0.12s;
-}
-.sectorChip:hover { border-color: var(--cal-gold); color: var(--cal-txt); }
-.sectorChipOn {
+  gap: 4px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 800;
   color: #1a1408;
   background: var(--cal-gold);
-  border-color: var(--cal-gold);
-  font-weight: 800;
+  border-radius: 999px;
+  padding: 3px 6px 3px 11px;
 }
-.sectorChipCount {
-  font-size: 10px;
-  font-weight: 700;
-  opacity: 0.7;
-  font-variant-numeric: tabular-nums;
+.sectorClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.18);
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  color: #1a1408;
+  cursor: pointer;
+  padding: 0;
 }
-.sectorChipOn .sectorChipCount { opacity: 0.85; }
-
-/* Peer read-through — the AI sector one-liner under the chip row */
-.sectorRead {
+.sectorClear:hover { background: rgba(0, 0, 0, 0.32); }
+.sectorReadInline {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 8px 18px;
   font-size: 12.5px;
   line-height: 1.45;
   color: var(--cal-txt);
-  background: var(--bg);
-  border-bottom: 1px solid var(--cal-line);
 }
 .sectorReadBusy { color: var(--cal-muted); font-style: italic; }
 /* Collapsed opt-in toggle — small, dim, no visual weight until asked */

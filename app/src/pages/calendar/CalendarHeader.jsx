@@ -440,6 +440,18 @@ export default function CalendarHeader({
         <div className={styles.sheetLbl}>Cap &amp; sort</div>
         <div className={styles.sheetRow}>{capSelect}{sortSelect}</div>
       </div>
+      {view !== 'month' && availableSectors.length > 1 && (
+        <div className={styles.sheetSec}>
+          <div className={styles.sheetLbl}>Sector</div>
+          <select className={styles.sel} value={filters.sector || ''}
+                  onChange={e => set('sector', e.target.value || null)}>
+            <option value="">All sectors</option>
+            {availableSectors.map(([s, c]) => (
+              <option key={s} value={s}>{s} ({c})</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className={styles.sheetSec}>
         <div className={styles.sheetLbl}>Metric filters</div>
         {metricInputs}
@@ -492,9 +504,6 @@ export default function CalendarHeader({
 
   const currentMonday = dayTabs.length ? dayTabs[0].ds : null
 
-  // Sector scoping row — chips for the sectors actually present this week.
-  // Only worth showing when there's more than one sector to pick between.
-  const showSectorRow = view !== 'month' && availableSectors.length > 1
   const activeSector = filters.sector || null
 
   return (
@@ -587,43 +596,30 @@ export default function CalendarHeader({
         </div>
       )}
 
-      {/* ── Sector scoping: one-tap narrow to a GICS sector present this week ── */}
-      {showSectorRow && (
-        <div className={styles.sectorRow} role="group" aria-label="Filter by sector">
-          <button
-            className={`${styles.sectorChip} ${!activeSector ? styles.sectorChipOn : ''}`}
-            onClick={() => set('sector', null)}
-          >
-            All sectors
-          </button>
-          {availableSectors.map(([sector, count]) => (
-            <button
-              key={sector}
-              className={`${styles.sectorChip} ${activeSector === sector ? styles.sectorChipOn : ''}`}
-              onClick={() => set('sector', activeSector === sector ? null : sector)}
-              title={`${count} reporter${count === 1 ? '' : 's'} in ${sector}`}
-            >
-              {sector}<span className={styles.sectorChipCount}>{count}</span>
+      {/* Sector scoping lives in Filters now (the always-on 8-chip band read as
+          clutter). When a sector IS active, a single removable pill appears —
+          zero chrome by default, a clear "you're filtered" cue when you opt in. */}
+      {activeSector && view !== 'month' && (
+        <div className={styles.sectorActive}>
+          <span className={styles.sectorActivePill}>
+            {activeSector}
+            <button className={styles.sectorClear} onClick={() => set('sector', null)}
+                    aria-label={`Clear ${activeSector} filter`}>
+              <UIcon name="x" size={11} />
             </button>
-          ))}
-        </div>
-      )}
-
-      {/* Peer read-through — OPT-IN: a compact toggle, expands to the AI line */}
-      {showSectorRow && activeSector && (
-        <div className={styles.sectorRead}>
+          </span>
           {!sectorReadOpen ? (
             <button className={styles.sectorReadToggle} onClick={() => setSectorReadOpen(true)}>
               <UIcon name="sparkle" size={11} style={{ verticalAlign: '-1px', marginRight: 5 }} />
               Read the {activeSector} tape
             </button>
           ) : (
-            <>
+            <span className={styles.sectorReadInline}>
               <UIcon name="sparkle" size={12} style={{ verticalAlign: '-1px', marginRight: 6, flex: '0 0 auto' }} />
               {sectorReadLine
                 ? <span>{sectorReadLine}</span>
                 : <span className={styles.sectorReadBusy}>Reading the {activeSector} tape…</span>}
-            </>
+            </span>
           )}
         </div>
       )}
