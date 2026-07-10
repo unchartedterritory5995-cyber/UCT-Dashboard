@@ -1,10 +1,12 @@
 /**
  * Trade Journal tab — Journal 2.0.
- * Spec §11.
+ * Spec §11 · P3 §6 (global Scope).
  *
- * Stats grid (6×2) + toolbar + trades table + columns picker.
- * `+ Add Trade` and `Delete All` are live; `☰ Filters` opens in Phase 6;
- * `Import CSV` opens in Phase 7.
+ * Stats grid (6×2) + ScopeBar + trades table + columns picker. Filtering is
+ * SERVER-SIDE: the URL-backed `useScope` supplies a snake_case FilterSpec
+ * (`apiParams`) that `useJ2Trades` threads into `GET /api/j2/trades`. The old
+ * client-side Period pills + `☰ Filters` popover (useJ2Filters/applyFilters)
+ * were replaced by `<ScopeBar>` in A9.
  */
 
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -15,14 +17,13 @@ import useJ2Trades from '../hooks/useJ2Trades'
 import useJ2OptionStrategies from '../hooks/useJ2OptionStrategies'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useReviewedTradeIds from '../hooks/useReviewedTradeIds'
+import useScope from '../hooks/useScope'
 import TradeDrawer from '../components/TradeDrawer'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
-import useJ2Filters from '../hooks/useJ2Filters'
-import { applyFilters } from '../hooks/useJ2Filters'
 import StatsGrid from '../components/StatsGrid'
 import TradesTable, { buildTradesColumns } from '../components/TradesTable'
 import ColumnsPicker from '../components/ColumnsPicker'
-import FiltersPanel from '../components/FiltersPanel'
+import ScopeBar from '../components/scope/ScopeBar'
 import AddTradeModal from '../components/AddTradeModal'
 import DeleteAllModal from '../components/DeleteAllModal'
 import ImportCsvModal from '../components/ImportCsvModal'
@@ -34,6 +35,32 @@ import UIcon from '../../../components/ui/UIcon'
 import styles from './TradeJournalTab.module.css'
 
 const COLUMN_STORAGE_KEY = 'uct.j2.tradeJournal.columns'
+
+// Empty-state styling — inline (this tab owns no dedicated empty-state class).
+const EMPTY_WRAP = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 10,
+  padding: '48px 24px',
+  textAlign: 'center',
+  background: 'var(--bg-surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 10,
+}
+const EMPTY_TITLE = {
+  margin: 0,
+  fontSize: 15,
+  fontWeight: 700,
+  color: 'var(--text-bright)',
+}
+const EMPTY_HINT = {
+  margin: 0,
+  maxWidth: 360,
+  fontSize: 13,
+  lineHeight: 1.5,
+  color: 'var(--text-muted)',
+}
 
 async function jsonFetch(url, method, body) {
   const res = await fetch(url, {
@@ -55,8 +82,8 @@ async function jsonFetch(url, method, body) {
 
 // Normalize a CLOSED option strategy into a trade-table row so options sit in
 // the same closed-trades table as shares (Symbol "CRWV Oct 16 $110C", Side
-// "Long Call"). Field shape matches TradesTable/summaryStats/applyFilters
-// exactly (pnlPercent is a fraction, like share trades), so no table changes.
+// "Long Call"). Field shape matches TradesTable/summaryStats exactly
+// (pnlPercent is a fraction, like share trades), so no table changes.
 function optionClosedToRow(s) {
   const leg = (s.legs && s.legs[0]) || {}
   const isLong = s.strategyType === 'long_call' || s.strategyType === 'long_put'
@@ -96,14 +123,42 @@ function optionClosedToRow(s) {
   }
 }
 
+// The closed-options union is NOT server-scoped (A9 filters SHARES server-side).
+// To keep the table scope-consistent — never leak an out-of-scope option row (a
+// broker-mirror user seeing "vanished"/stray trades is a trust incident, P3
+// Global Constraint) — match each option row against the active Scope client-
+// side, mirroring the FilterSpec facets: symbol starts-with, side (prefix so a
+// "Long" facet includes "Long Call"), setup, and the exit-date spine. The tag
+// facet drops all option rows (they carry no mistake/emotion tags).
+function optionRowMatchesScope(row, scope) {
+  if (scope.symbol) {
+    const s = String(scope.symbol).toUpperCase()
+    if (!row.symbol || !row.symbol.toUpperCase().startsWith(s)) return false
+  }
+  if (scope.sides.length) {
+    if (!scope.sides.some((sd) => (row.side || '').startsWith(sd))) return false
+  }
+  if (scope.setups.length) {
+    if (!row.setup || !scope.setups.includes(row.setup)) return false
+  }
+  if (scope.tags.length) return false
+  if (scope.from || scope.to) {
+    const d = (row.exitDate || '').slice(0, 10)
+    if (scope.from && d < scope.from) return false
+    if (scope.to && d > scope.to) return false
+  }
+  return true
+}
+
 export default function TradeJournalTab({ settings }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { trades, isLoading, error, refresh, mutate: mutateTrades } = useJ2Trades()
+  const { scope, apiParams, clearScope } = useScope()
+  const { trades, total, isLoading, error, refresh, mutate: mutateTrades } =
+    useJ2Trades(apiParams)
   const {
     strategies: closedStrategies,
     isLoading: stratLoading,
-    error: stratError,
   } = useJ2OptionStrategies({ status: 'closed' })
   const { accountId: selectedAccountId, accounts } = useJ2SelectedAccount()
   const { mutate } = useSWRConfig()
@@ -125,24 +180,27 @@ export default function TradeJournalTab({ settings }) {
     resetColumns,
   } = useJ2ColumnPrefs(COLUMN_STORAGE_KEY, defaultColumns)
 
-  const { filters, setFilter, toggleSetMember, resetFilters, activeCount } =
-    useJ2Filters()
+  // "Loud active" = any FILTER facet set (EXCLUDING account) — matches ScopeBar.
+  const filterActive = !!(
+    scope.from || scope.to || scope.symbol ||
+    scope.sides.length || scope.setups.length || scope.tags.length
+  )
 
-  // Closed shares + closed option strategies (as rows) in one unified list.
+  // Closed shares (server-scoped) + closed option strategies (client-scoped) in
+  // one unified list.
   const allClosed = useMemo(
     () => [
       ...(showShares ? trades : []),
-      ...(showOptions ? closedStrategies.map(optionClosedToRow) : []),
+      ...(showOptions
+        ? closedStrategies
+            .map(optionClosedToRow)
+            .filter((r) => optionRowMatchesScope(r, scope))
+        : []),
     ],
-    [showShares, showOptions, trades, closedStrategies],
+    [showShares, showOptions, trades, closedStrategies, scope],
   )
 
-  const filteredTrades = useMemo(
-    () => applyFilters(allClosed, filters),
-    [allClosed, filters],
-  )
-
-  const summary = useMemo(() => summaryStats(filteredTrades), [filteredTrades])
+  const summary = useMemo(() => summaryStats(allClosed), [allClosed])
 
   // Trade detail drawer
   const [drawerTrade, setDrawerTrade] = useState(null)
@@ -153,27 +211,11 @@ export default function TradeJournalTab({ settings }) {
   const [importOpen, setImportOpen] = useState(false)
   const pickerBtnRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const filtersBtnRef = useRef(null)
-  const [filtersOpen, setFiltersOpen] = useState(false)
   const [toast, setToast] = useState(null)
 
-  // Tab-scoped shortcuts. '/' focuses the Symbol filter input — opens
-  // the filters panel first if needed.
+  // Tab-scoped shortcuts. ('/' + symbol focus is owned by the ScopeBar.)
   useHotkeys('t', () => setAddOpen(true))
-  useHotkeys('f', () => setFiltersOpen((x) => !x))
   useHotkeys('c', () => setPickerOpen((x) => !x))
-  useHotkeys(
-    '/',
-    (e) => {
-      e.preventDefault()
-      setFiltersOpen(true)
-      // Defer focusing until the panel mounts
-      setTimeout(() => {
-        const el = document.querySelector('input[aria-label="Symbol starts-with filter"]')
-        if (el) el.focus()
-      }, 60)
-    },
-  )
 
   const showToast = useCallback((message, tone = 'info') => {
     setToast({ message, tone })
@@ -225,7 +267,7 @@ export default function TradeJournalTab({ settings }) {
   const handleDeleteAll = useCallback(async () => {
     const res = await jsonFetch('/api/j2/trades', 'DELETE', { confirm: 'DELETE' })
     await refresh()
-    // Also invalidate any positions cache just in case future Phase 6 filter
+    // Also invalidate any positions cache just in case future filter logic
     // relies on shared data.
     await mutate('/api/j2/positions')
     showToast(`Deleted ${res.deleted} trade${res.deleted === 1 ? '' : 's'}.`, 'success')
@@ -239,108 +281,21 @@ export default function TradeJournalTab({ settings }) {
     )
   }
 
-  const applyPeriod = (preset) => {
-    const now = new Date()
-    const y = now.getUTCFullYear()
-    const m = now.getUTCMonth()
-    const d = now.getUTCDate()
-    const iso = (dt) => dt.toISOString().slice(0, 10)
-    let from = ''
-    let to = iso(now)
-    switch (preset) {
-      case 'today': from = iso(now); break
-      case 'week': {
-        const dow = now.getUTCDay()
-        from = iso(new Date(Date.UTC(y, m, d - ((dow + 6) % 7))))
-        break
-      }
-      case 'month': from = `${y}-${String(m + 1).padStart(2, '0')}-01`; break
-      case 'ytd':   from = `${y}-01-01`; break
-      case 'all':   from = ''; to = ''; break
-    }
-    setFilter('dateFrom', from)
-    setFilter('dateTo', to)
-  }
-
-  const activePeriod = (() => {
-    const now = new Date()
-    const iso = (dt) => dt.toISOString().slice(0, 10)
-    const today = iso(now)
-    const f = filters.dateFrom, t = filters.dateTo
-    if (!f && !t) return 'all'
-    if (f === today && t === today) return 'today'
-    const y = now.getUTCFullYear()
-    if (f === `${y}-01-01` && t === today) return 'ytd'
-    const m = now.getUTCMonth()
-    if (f === `${y}-${String(m + 1).padStart(2, '0')}-01` && t === today) return 'month'
-    return null
-  })()
+  const loadingTrades = (isLoading || stratLoading) && allClosed.length === 0
 
   return (
     <div className={styles.wrap}>
       {warming && <BrokerImportingBanner broker={warmingBroker} />}
       <StatsGrid summary={summary} />
 
-      <div className={styles.periodRow}>
-        <span className={styles.periodLabel}>Period</span>
-        <div className={styles.periodPills}>
-          {[
-            ['today', 'Today'],
-            ['week', 'Week'],
-            ['month', 'Month'],
-            ['ytd', 'YTD'],
-            ['all', 'All'],
-          ].map(([k, lbl]) => (
-            <button
-              key={k}
-              type="button"
-              className={`${styles.periodPill} ${activePeriod === k ? styles.periodPillActive : ''}`}
-              onClick={() => applyPeriod(k)}
-            >
-              {lbl}
-            </button>
-          ))}
-        </div>
-        <span className={styles.periodCount}>
-          {filteredTrades.length} trade{filteredTrades.length === 1 ? '' : 's'}
-        </span>
-      </div>
+      <ScopeBar
+        surface="journal"
+        resultCount={trades.length}
+        totalCount={total}
+      />
 
       <div className={styles.toolbar}>
-        <div className={styles.toolbarLeft}>
-          <div className={styles.filtersWrap}>
-            <button
-              ref={filtersBtnRef}
-              type="button"
-              className={styles.ghostBtn}
-              onClick={() => setFiltersOpen((x) => !x)}
-              aria-haspopup="dialog"
-              aria-expanded={filtersOpen}
-            >
-              <UIcon name="menu" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Filters ▾
-              {activeCount > 0 && (
-                <span className={styles.activeBadge}>{activeCount}</span>
-              )}
-            </button>
-            <FiltersPanel
-              open={filtersOpen}
-              anchorRef={filtersBtnRef}
-              filters={filters}
-              setFilter={setFilter}
-              toggleSetMember={toggleSetMember}
-              resetFilters={resetFilters}
-              activeCount={activeCount}
-              settings={settings}
-              trades={trades}
-              onClose={() => setFiltersOpen(false)}
-            />
-          </div>
-          {activeCount > 0 && trades.length !== filteredTrades.length && (
-            <span className={styles.filterCount}>
-              {filteredTrades.length} of {trades.length}
-            </span>
-          )}
-        </div>
+        <div className={styles.toolbarLeft} />
         <div className={styles.toolbarRight}>
           <div className={styles.pickerWrap}>
             <button
@@ -397,11 +352,41 @@ export default function TradeJournalTab({ settings }) {
       </div>
 
       {(showShares || showOptions) && (
-        (isLoading || stratLoading) && filteredTrades.length === 0 ? (
+        loadingTrades ? (
           <div className={styles.loading}>Loading trades…</div>
+        ) : allClosed.length === 0 ? (
+          filterActive ? (
+            // Scoped-empty is a designed state — NEVER a bare empty table (a
+            // broker-mirror user concluding trades vanished is a trust incident,
+            // P3 Global Constraint).
+            <div style={EMPTY_WRAP} role="status">
+              <UIcon name="screener" size={22} />
+              <p style={EMPTY_TITLE}>No trades match this scope</p>
+              <p style={EMPTY_HINT}>
+                No closed trades fall inside the active filter. Widen it, or clear
+                the filter to see all your trades.
+              </p>
+              <button
+                type="button"
+                className={styles.ghostBtn}
+                onClick={clearScope}
+              >
+                <UIcon name="x" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <div style={EMPTY_WRAP} role="status">
+              <p style={EMPTY_TITLE}>No trades yet</p>
+              <p style={EMPTY_HINT}>
+                Closed trades appear here. Add a trade or import a CSV to get
+                started.
+              </p>
+            </div>
+          )
         ) : (
           <TradesTable
-            trades={filteredTrades}
+            trades={allClosed}
             visibleColumns={visibleColumns}
             reviewedIds={reviewedIds}
             setups={settings?.setups || []}
@@ -411,7 +396,7 @@ export default function TradeJournalTab({ settings }) {
               // Option rows keep the quick-peek drawer (their id is a strategy
               // id, not a j2_trades row → the trade page would 404). Equity
               // rows navigate to the full unified detail page, preserving the
-              // active filter params so prev/next honors the same set.
+              // active scope params so prev/next honors the same set.
               if (trade.isOption) { setDrawerTrade(trade); return }
               navigate(`/journal-2-0/trade/${trade.id}${location.search}`)
             }}
