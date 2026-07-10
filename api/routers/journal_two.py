@@ -647,22 +647,33 @@ def attachments_backup_route(user: dict = Depends(require_admin)) -> dict[str, A
 
 
 @router.post("/admin/excursion-backfill")
-def excursion_backfill_route(user: dict = Depends(require_admin)) -> dict[str, Any]:
+def excursion_backfill_route(
+    limit: int | None = None,
+    user: dict = Depends(require_admin),
+) -> dict[str, Any]:
     """Admin-only manual trigger of the closed-trade excursion backfill. Runs
     OFF the request path on a daemon thread (a full batch fetches bars per trade
     and can take many seconds) — check /admin/excursion-status or logs for the
     result. When EXCURSION_ENGINE_ENABLED is off, returns
     {started: False, reason: "disabled"} WITHOUT spawning a thread (honest vs a
-    misleading {started: True})."""
+    misleading {started: True}).
+
+    Optional `?limit=N` caps the number of COMPUTES this run (skip-already-computed
+    rows don't count) — for a controlled first backfill on a large book. If a run
+    is already in flight, returns {started: False, reason: "already running"}
+    instead of spawning a redundant thread."""
     import threading
 
     from api.services.journal_two import excursion_jobs
 
     if not excursion_jobs._enabled():
         return {"started": False, "reason": "disabled"}
+    if excursion_jobs.get_state().get("running"):
+        return {"started": False, "reason": "already running"}
 
     threading.Thread(
         target=excursion_jobs.run_backfill,
+        kwargs={"limit": limit},
         daemon=True,
         name="j2-excursion-backfill-manual",
     ).start()

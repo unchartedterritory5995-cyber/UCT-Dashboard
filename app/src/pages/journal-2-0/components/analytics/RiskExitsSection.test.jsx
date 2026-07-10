@@ -102,6 +102,9 @@ describe('RiskExitsSection', () => {
     expect(screen.getByText('+4.5R')).toBeInTheDocument()
     // both charts render (efficiency bar + actual-vs-potential line)
     expect(screen.getAllByTestId('echart')).toHaveLength(2)
+    // the N-of-M coverage caveat PERSISTS into the ready state (honesty: the
+    // numbers never look like they came from every trade)
+    expect(screen.getByText(/Based on 20 of 20 closed trades analyzed/i)).toBeInTheDocument()
     // options excluded surfaced in the methodology footer
     expect(screen.getByText(/2 option trades excluded/i)).toBeInTheDocument()
     // no-favorable exclusion note

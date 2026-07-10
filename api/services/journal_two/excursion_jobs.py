@@ -60,6 +60,10 @@ _state: dict = {
     "errors": 0,
     "symbols": 0,
     "error": None,
+    # Concurrency guard: True while a backfill is in flight. Refuses an
+    # overlapping run (double-click, or an admin click at 03:09 racing the
+    # 03:10 cron). Set/cleared under _STATE_LOCK.
+    "running": False,
 }
 
 
@@ -76,7 +80,7 @@ def _now_iso() -> str:
 # ── core batch ────────────────────────────────────────────────────────────────
 
 def run_backfill(*, user_id: str | None = None, force: bool = False,
-                 bar_fetch=None, conn=None) -> dict:
+                 bar_fetch=None, conn=None, limit: int | None = None) -> dict:
     """Compute + persist excursions for closed equity trades + closed option
     strategies. All users, or one when `user_id` is given.
 
@@ -85,17 +89,44 @@ def run_backfill(*, user_id: str | None = None, force: bool = False,
     in `errors`). Updates the module status state. Returns the counts dict:
     `{trades_done, options_done, insufficient, errors, symbols}`.
 
+    `limit` (when set) caps the number of COMPUTES this run — a controlled first
+    backfill on a large book. Skipped-because-already-computed rows do NOT count
+    against it (only rows we actually attempt to compute do). Default None =
+    unbounded (the nightly cron).
+
+    Concurrency: refuses an overlapping run — if a backfill is already in flight
+    (`_state['running']`) it returns `{"skipped": "already running"}` WITHOUT
+    touching the DB. The flag is cleared in a finally so a crash can't wedge it.
+
     `bar_fetch` (when injected) is threaded into `compute_for_*` — that keeps the
     core network-free for tests. `conn` (when injected) is used for the SELECTs
     and threaded into the compute upserts (tests inject an in-memory conn); in
     production it opens/closes its own `get_connection()` (auth.db).
     """
+    # ── concurrency guard ─────────────────────────────────────────────────────
+    with _STATE_LOCK:
+        if _state.get("running"):
+            return {"skipped": "already running"}
+        _state["running"] = True
+    try:
+        return _run_backfill_locked(
+            user_id=user_id, force=force, bar_fetch=bar_fetch, conn=conn, limit=limit,
+        )
+    finally:
+        with _STATE_LOCK:
+            _state["running"] = False
+
+
+def _run_backfill_locked(*, user_id, force, bar_fetch, conn, limit) -> dict:
+    """The actual batch, run under the `_state['running']` guard set by
+    `run_backfill`. Split out so the guard's try/finally stays trivial."""
     started = _now_iso()
     own = conn is None
     if own:
         conn = get_connection()
 
     trades_done = options_done = insufficient = errors = 0
+    processed = 0  # rows we ATTEMPTED to compute — the `limit` cap counts these
     symbols: set[str] = set()
     fatal_error: str | None = None
 
@@ -121,11 +152,14 @@ def run_backfill(*, user_id: str | None = None, force: bool = False,
             ).fetchall()
 
         for row in trade_rows:
+            if limit is not None and processed >= limit:
+                break
             try:
                 uid = row["user_id"]
                 ref = trade_ref_for_row(row)
                 if not force and ref in _refs_for(uid):
-                    continue
+                    continue  # already computed — does NOT count against `limit`
+                processed += 1
                 rec = compute_for_trade(row, bar_fetch=bar_fetch, conn=conn)
                 trades_done += 1
                 sym = rec.get("symbol")
@@ -149,11 +183,14 @@ def run_backfill(*, user_id: str | None = None, force: bool = False,
             ).fetchall()
 
         for row in opt_rows:
+            if limit is not None and processed >= limit:
+                break
             try:
                 uid = row["user_id"]
                 ref = f"id:{row['id']}"  # options are never in j2_trades
                 if not force and ref in _refs_for(uid):
-                    continue
+                    continue  # already computed — does NOT count against `limit`
+                processed += 1
                 legs = conn.execute(
                     "SELECT * FROM j2_option_legs WHERE strategy_id = ? "
                     "ORDER BY leg_index ASC",

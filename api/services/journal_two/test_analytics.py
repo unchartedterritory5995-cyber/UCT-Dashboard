@@ -576,9 +576,11 @@ def test_exit_quality_below_10_computed_suppresses(db_conn):
     assert eq["actualVsPotential"] is None
 
 
-def test_exit_quality_underlying_excluded(db_conn):
-    """An 'underlying'-tier excursion (options) is excluded from computed count
-    and the $ aggregates — equity only."""
+def test_exit_quality_underlying_excursion_on_equity_ref_not_computed(db_conn):
+    """A stray 'underlying'-tier excursion keyed onto an equity ref (a data
+    anomaly — options key id:<strategy_id>) is NOT counted as a computed equity
+    excursion, and does NOT inflate optionsExcluded (that counts real strategies
+    only). Equity aggregates stay clean."""
     from api.services.journal_two.analytics import get_analytics
     _add_user(db_conn, "u1", "u1@x.com")
     aid = _add_account(db_conn, "u1")
@@ -592,11 +594,57 @@ def test_exit_quality_underlying_excluded(db_conn):
                     mfe_r=None, data_quality="underlying")
 
     eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
-    # underlying row is eligible (an equity j2_trades row) but NOT computed
-    assert eq["coverage"] == {"eligible": 11, "computed": 10, "optionsExcluded": 1}
-    # 10/11 = 0.909 >= 0.9 → ready, computed 10 → real metrics
+    # 11 equity rows eligible; the underlying-keyed one is NOT computed; no real
+    # option strategies exist → optionsExcluded 0 (not the old structural miscount)
+    assert eq["coverage"] == {"eligible": 11, "computed": 10, "optionsExcluded": 0}
     assert eq["coverageReady"] is True
     assert eq["avgExitEfficiency"] == 0.5
+
+
+def test_exit_quality_options_excluded_counts_real_strategies(db_conn):
+    """optionsExcluded is HONEST: it counts the user's closed option strategies
+    that have a computed underlying-move excursion (keyed id:<strategy_id>) — NOT
+    equity rows. The equity aggregates never fold options in."""
+    from datetime import date, timedelta
+    from api.services.journal_two.analytics import get_analytics
+    from api.services.journal_two.options import create_strategy, close_strategy
+    from api.services.journal_two import excursions_store
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    # 10 equity trades with real (daily) excursions → coverage-ready
+    for i in range(10):
+        tid = _add_trade(db_conn, "u1", account_id=aid,
+                         exit_date_iso=f"2026-01-{i+1:02d}T18:00:00Z", pnl=10)
+        _seed_excursion(db_conn, "u1", tid, efficiency=0.5, missed_r=1.0, mfe_r=2.0)
+
+    # a real closed option strategy WITH a computed underlying excursion
+    exp = (date.today() + timedelta(days=30)).isoformat()
+    s1 = create_strategy("u1", {
+        "underlying": "CRWV", "strategy_type": "long_call", "direction": "bullish",
+        "entry_date": date.today().isoformat(), "accountId": aid,
+        "legs": [{"side": "buy", "contract_type": "call", "strike": 100,
+                  "expiration": exp, "qty": 1, "entry_price": 5}],
+    }, conn=db_conn)
+    close_strategy("u1", s1["id"], {
+        "exitPrices": {"0": 8}, "exitDate": date.today().isoformat(),
+    }, conn=db_conn)
+    excursions_store.upsert_excursion(
+        "u1", f"id:{s1['id']}",
+        {
+            "symbol": "CRWV", "mfe_price": 120.0, "mae_price": 90.0,
+            "mfe_r": None, "mae_r": None, "mfe_ts": 1000, "mae_ts": 1000,
+            "exit_efficiency": None, "missed_r": None,
+            "bar_resolution": "D", "data_quality": "underlying",
+        },
+        db_conn,
+    )
+
+    eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
+    # 10 equity eligible + computed; the option strategy is excluded + surfaced
+    assert eq["coverage"] == {"eligible": 10, "computed": 10, "optionsExcluded": 1}
+    assert eq["coverageReady"] is True
+    assert eq["avgExitEfficiency"] == 0.5  # options never fold into the equity mean
 
 
 # ─── Exit Quality: actualVsPotential curve ────────────────────────────────────

@@ -226,8 +226,20 @@ def compute_for_trade(trade_row, *, bar_fetch=None, conn=None) -> dict:
     if original_stop is None:
         original_stop = entry_price  # R becomes None; efficiency still computes
 
+    # DAILY-tier exit-day inclusion: daily bars are anchored at each day's UTC
+    # NOON (_day_midday_seconds), but a date-only exit_date parses to that day's
+    # 00:00 UTC — so the exit-DAY bar (noon > exit_ts) would fall OUTSIDE
+    # compute_excursion's inclusive [entry_ts, exit_ts] window and the final
+    # day's high/low would be silently dropped. Widen the window END to the end
+    # of the exit calendar day for the DAILY tier ONLY (intraday tiers keep the
+    # exact exit_ts — their bars are second-accurate). The daily fetch only pulls
+    # bars up to the exit date, so no later bars can leak in.
+    window_end = exit_ts
+    if tf_code == "D":
+        window_end = exit_ts + _SECONDS_PER_DAY - 1
+
     result = compute_excursion(
-        side, entry_price, original_stop, entry_ts, exit_ts, bars, exit_price=exit_price,
+        side, entry_price, original_stop, entry_ts, window_end, bars, exit_price=exit_price,
     )
     if result is None:
         # bars existed but none fell inside [entry_ts, exit_ts].

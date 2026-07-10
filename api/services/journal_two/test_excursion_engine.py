@@ -144,6 +144,31 @@ def test_hold_over_a_year_is_daily():
     assert result["data_quality"] == "daily"
 
 
+# ── daily tier includes the EXIT-day bar (noon-anchored > date-only exit_ts) ─
+def test_daily_tier_includes_exit_day_bar():
+    conn = _conn()
+
+    def daily_fetch(symbol, entry_ts, exit_ts, tf_code):
+        assert tf_code == "D"
+        # Daily bars anchored at each day's UTC NOON (mirrors _day_midday_seconds
+        # in the engine). A date-only exit_date parses to 00:00 UTC, so the
+        # exit-day bar (noon = exit_ts + 43200) sits AFTER exit_ts.
+        return [
+            {"t": entry_ts + 43200, "h": 105.0, "l": 98.0},          # entry-day noon
+            {"t": exit_ts - 86400 + 43200, "h": 120.0, "l": 100.0},  # day before exit
+            {"t": exit_ts + 43200, "h": 150.0, "l": 96.0},           # EXIT-day noon (peak high)
+        ]
+
+    # > 365-day hold → daily tier; date-only entry/exit → exit_ts at 00:00 UTC.
+    row = _trade_row(entry_date="2024-01-05", exit_date="2025-06-05")
+    result = compute_for_trade(row, bar_fetch=daily_fetch, conn=conn)
+    assert result["data_quality"] == "daily"
+    # the exit-DAY bar's high (150) IS captured — not dropped by the window filter
+    assert result["mfe_price"] == 150.0
+    out = get_excursion("u1", "id:t1", conn)
+    assert out["mfePrice"] == 150.0
+
+
 # ── empty bar_fetch → insufficient record stored ─────────────────────────
 def test_empty_bars_stores_insufficient():
     conn = _conn()

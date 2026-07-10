@@ -40,6 +40,10 @@ const INSUFFICIENT_TITLE = 'Insufficient intraday bars for this trade'
 const NO_EXCURSION_TITLE = 'No favorable excursion'
 const EFFICIENCY_METHOD_TITLE =
   'Exit efficiency = captured move ÷ max favorable move, from intraday excursion bars'
+// Options carry only the UNDERLYING's price excursion (no option-price entry/stop),
+// so there is no exit-efficiency % to show — the header renders a plain dash.
+const UNDERLYING_TITLE =
+  'Options use the underlying-price excursion — no exit-efficiency % is computed'
 
 // bar_resolution tf-code (or dataQuality tier) → short human label for the
 // "bar-approx · 5m" caption on real values.
@@ -371,9 +375,14 @@ export default function TradeDetailPage() {
           ) : excursion.dataQuality === 'insufficient' ? (
             <div className={styles.outcomeValueMuted} title={INSUFFICIENT_TITLE}>N/A</div>
           ) : excursion.dataQuality === 'underlying' ? (
+            // Options: only the underlying-price excursion exists, so there is no
+            // exit-efficiency %. Show a muted dash + explanatory title rather than
+            // a bare "—" under the confusing "captured ÷ favorable" tooltip.
             <div className={styles.effWrap}>
-              <div className={styles.effValue} title={EFFICIENCY_METHOD_TITLE}>
-                {percent(out.exitEfficiency, { isRatio: true })}
+              <div className={styles.outcomeValueMuted} title={UNDERLYING_TITLE}>
+                {out.exitEfficiency == null
+                  ? '—'
+                  : percent(out.exitEfficiency, { isRatio: true })}
               </div>
               <div className={styles.effMeta}>underlying-based</div>
             </div>

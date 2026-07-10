@@ -228,9 +228,12 @@ export default function RiskExitsSection({ data }) {
         )}
       </div>
 
-      {/* Methodology footer — coverage + exclusions visible, never silent */}
+      {/* Methodology footer — coverage caveat + exclusions visible, never
+          silent. The "N of M" denominator persists into the ready state so the
+          numbers never look like they came from every trade. */}
       <p className={styles.footer}>
-        Bar-approximate excursions from intraday bars.
+        Based on {computed} of {eligible} closed trade{eligible === 1 ? '' : 's'} analyzed.
+        {' '}Bar-approximate excursions from intraday bars.
         {optionsExcluded > 0 &&
           ` ${optionsExcluded} option trade${optionsExcluded === 1 ? '' : 's'} excluded from these figures.`}
       </p>

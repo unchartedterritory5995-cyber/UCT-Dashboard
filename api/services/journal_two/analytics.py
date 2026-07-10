@@ -93,7 +93,7 @@ def get_analytics(
             "distribution": _distribution_section(rows),
             "attribution": _attribution_section(rows),
             "edgeScore": _edge_score(rows),
-            "exitQuality": _exit_quality_section(rows, excursions_map),
+            "exitQuality": _exit_quality_section(rows, excursions_map, strategies),
             "options": _options_section(rows, strategies),
         }
     finally:
@@ -618,7 +618,13 @@ def _exit_moment_key(row) -> tuple:
     ed = row["exit_date"] if "exit_date" in keys else None
     if ed:
         try:
-            return (0, datetime.fromisoformat(str(ed).replace("Z", "+00:00")).timestamp())
+            dt = datetime.fromisoformat(str(ed).replace("Z", "+00:00"))
+            # A date-only exit_date parses NAIVE; interpret it as UTC (matching
+            # the full-ISO path) so .timestamp() doesn't apply the host's local
+            # offset — which would reorder same-day curve points on a non-UTC host.
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return (0, dt.timestamp())
         except (ValueError, TypeError):
             return (1, str(ed))
     tde = row["trading_day_et"] if "trading_day_et" in keys else None
@@ -627,6 +633,7 @@ def _exit_moment_key(row) -> tuple:
 
 def _exit_quality_section(
     rows: list[sqlite3.Row], excursions_map: dict[str, dict],
+    strategies: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Exit-quality aggregate over the closed EQUITY trades, joined to their
     persisted excursions (MFE/MAE/exit-efficiency).
@@ -654,32 +661,41 @@ def _exit_quality_section(
     rather than fabricate a dollar figure.
 
     Options-derived excursions (data_quality='underlying') are equity-only
-    excluded from the coverage count and every aggregate.
+    excluded from every aggregate; `optionsExcluded` counts the user's closed
+    option strategies that DO have a computed underlying excursion (they key on
+    id:<strategy_id> in `excursions_map`, distinct from equity id:<trade_id> /
+    ext: refs — so an equity row can never resolve to one).
     """
     eligible = len(rows)
 
     computed_pairs: list[tuple] = []  # (row, exc) for the REAL excursions
-    options_excluded = 0  # underlying-tier (options) excursions seen — see coverage
     for r in rows:
         exc = excursions_map.get(trade_ref_for_row(r))
         if exc is None:
             continue
         dq = exc.get("dataQuality")
-        if dq == "underlying":
-            options_excluded += 1
-            continue
-        if dq == "insufficient":
+        # 'insufficient' = no bars; 'underlying' = an options excursion mis-keyed
+        # onto an equity ref (shouldn't happen — options key id:<strategy_id>).
+        # Either way it isn't a real equity excursion → not counted as computed.
+        if dq in ("underlying", "insufficient"):
             continue
         computed_pairs.append((r, exc))
+
+    # Honest options-excluded count: closed option strategies (already scoped to
+    # this account/date range by the caller's fetch) that have a computed
+    # underlying-move excursion. This surfaces the deliberate equity-only omission
+    # truthfully — the old equity-loop count was structurally always 0 because
+    # equity refs never match an option strategy's id:<strategy_id> excursion.
+    options_excluded = sum(
+        1 for s in (strategies or [])
+        if (excursions_map.get(f"id:{s['id']}") or {}).get("dataQuality") == "underlying"
+    )
 
     computed = [exc for _row, exc in computed_pairs]
     computed_n = len(computed)
     coverage = {
         "eligible": eligible,
         "computed": computed_n,
-        # options-derived (data_quality='underlying') excursions seen but NOT
-        # folded into any $/R aggregate — surfaced so that deliberate omission
-        # of options from the equity-only aggregates is visible, not silent.
         "optionsExcluded": options_excluded,
     }
     coverage_ready = eligible > 0 and (computed_n / eligible) >= _COVERAGE_READY_RATIO

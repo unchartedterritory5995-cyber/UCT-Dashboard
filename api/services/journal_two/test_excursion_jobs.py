@@ -173,6 +173,47 @@ def test_get_state_after_run():
     assert excursion_jobs.get_state()["tradesDone"] == 1
 
 
+# ── limit caps the number of computes; skips don't count against it ───────
+def test_backfill_limit_caps_computes():
+    conn = _conn()
+    _seed_trade(conn, "t1", symbol="NVDA")
+    _seed_trade(conn, "t2", symbol="AMD")
+    _seed_trade(conn, "t3", symbol="TSLA")
+
+    first = excursion_jobs.run_backfill(
+        user_id="u1", limit=2, bar_fetch=_synthetic_fetch, conn=conn,
+    )
+    assert first["trades_done"] == 2
+    # exactly 2 of the 3 computed → 1 remains uncomputed (retriable)
+    stored = [get_excursion("u1", f"id:{t}", conn) is not None for t in ("t1", "t2", "t3")]
+    assert sum(stored) == 2
+
+    # a follow-up run with NO limit computes the remaining one (skips don't count)
+    second = excursion_jobs.run_backfill(user_id="u1", bar_fetch=_synthetic_fetch, conn=conn)
+    assert second["trades_done"] == 1
+    assert all(get_excursion("u1", f"id:{t}", conn) is not None for t in ("t1", "t2", "t3"))
+
+
+# ── concurrency guard: an overlapping run is refused ─────────────────────
+def test_backfill_concurrency_guard():
+    # simulate an in-flight run by setting the flag directly, then call again
+    excursion_jobs._state["running"] = True
+    try:
+        out = excursion_jobs.run_backfill(user_id="u1", bar_fetch=_synthetic_fetch)
+        assert out == {"skipped": "already running"}
+    finally:
+        excursion_jobs._state["running"] = False
+
+    # once the flag clears, a normal run proceeds (no conn needed — returns early
+    # only when running; here it opens/uses its own path via injected conn)
+    conn = _conn()
+    _seed_trade(conn, "t1", symbol="NVDA")
+    out2 = excursion_jobs.run_backfill(user_id="u1", bar_fetch=_synthetic_fetch, conn=conn)
+    assert out2["trades_done"] == 1
+    # flag is cleared again in the finally so subsequent runs aren't blocked
+    assert excursion_jobs._state["running"] is False
+
+
 # ── _enabled reads the env fresh ─────────────────────────────────────────
 def test_enabled_env(monkeypatch):
     monkeypatch.delenv("EXCURSION_ENGINE_ENABLED", raising=False)
