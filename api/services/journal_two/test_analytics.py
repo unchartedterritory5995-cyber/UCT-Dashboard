@@ -494,10 +494,11 @@ def test_exit_quality_empty_no_crash(db_conn):
     _add_account(db_conn, "u1")
 
     eq = get_analytics("u1", conn=db_conn)["exitQuality"]
-    assert eq["coverage"] == {"eligible": 0, "computed": 0}
+    assert eq["coverage"] == {"eligible": 0, "computed": 0, "optionsExcluded": 0}
     assert eq["coverageReady"] is False
     assert eq["avgExitEfficiency"] is None
     assert eq["efficiencyBuckets"] == []
+    assert eq["actualVsPotential"] is None
 
 
 def test_exit_quality_coverage_gate_suppresses_below_90pct(db_conn):
@@ -518,11 +519,12 @@ def test_exit_quality_coverage_gate_suppresses_below_90pct(db_conn):
                         data_quality="insufficient")
 
     eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
-    assert eq["coverage"] == {"eligible": 12, "computed": 10}
+    assert eq["coverage"] == {"eligible": 12, "computed": 10, "optionsExcluded": 0}
     assert eq["coverageReady"] is False
     assert eq["avgExitEfficiency"] is None
     assert eq["missedRTotal"] is None
     assert eq["efficiencyBuckets"] == []
+    assert eq["actualVsPotential"] is None
 
 
 def test_exit_quality_ready_computes_aggregates(db_conn):
@@ -543,7 +545,7 @@ def test_exit_quality_ready_computes_aggregates(db_conn):
                     mfe_r=None, data_quality="daily")
 
     eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
-    assert eq["coverage"] == {"eligible": 11, "computed": 11}
+    assert eq["coverage"] == {"eligible": 11, "computed": 11, "optionsExcluded": 0}
     assert eq["coverageReady"] is True
     # mean over the 10 non-null efficiencies = 5.90 / 10 = 0.59 (null excluded)
     assert eq["avgExitEfficiency"] == 0.59
@@ -567,10 +569,11 @@ def test_exit_quality_below_10_computed_suppresses(db_conn):
         _seed_excursion(db_conn, "u1", tid, efficiency=0.7, missed_r=1.0, mfe_r=2.0)
 
     eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
-    assert eq["coverage"] == {"eligible": 9, "computed": 9}
+    assert eq["coverage"] == {"eligible": 9, "computed": 9, "optionsExcluded": 0}
     assert eq["coverageReady"] is True
     assert eq["avgExitEfficiency"] is None
     assert eq["efficiencyBuckets"] == []
+    assert eq["actualVsPotential"] is None
 
 
 def test_exit_quality_underlying_excluded(db_conn):
@@ -590,7 +593,119 @@ def test_exit_quality_underlying_excluded(db_conn):
 
     eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
     # underlying row is eligible (an equity j2_trades row) but NOT computed
-    assert eq["coverage"] == {"eligible": 11, "computed": 10}
+    assert eq["coverage"] == {"eligible": 11, "computed": 10, "optionsExcluded": 1}
     # 10/11 = 0.909 >= 0.9 → ready, computed 10 → real metrics
     assert eq["coverageReady"] is True
     assert eq["avgExitEfficiency"] == 0.5
+
+
+# ─── Exit Quality: actualVsPotential curve ────────────────────────────────────
+
+
+def test_exit_quality_actual_vs_potential_curve(db_conn):
+    """>=10 computed w/ r_multiple + mfeR → ordered cumulative-R curve where
+    cumulative potential >= cumulative actual at every point (better exits never
+    lose to actual), one point per computable row, exact cumulative sums."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    # (r_multiple, mfe_r) per trade → per-trade potential = max(r, 0.8*mfe_r)
+    rows = [
+        (1.0, 3.0),   # max(1.0, 2.4) = 2.4  (left 1.4R on the table)
+        (-0.5, 1.0),  # max(-0.5, 0.8) = 0.8
+        (2.0, 2.0),   # max(2.0, 1.6) = 2.0  (captured full move)
+        (0.5, 2.0),   # max(0.5, 1.6) = 1.6
+        (1.5, 3.0),   # max(1.5, 2.4) = 2.4
+        (-1.0, 0.5),  # max(-1.0, 0.4) = 0.4
+        (3.0, 4.0),   # max(3.0, 3.2) = 3.2
+        (0.2, 1.5),   # max(0.2, 1.2) = 1.2
+        (1.0, 2.0),   # max(1.0, 1.6) = 1.6
+        (2.5, 2.5),   # max(2.5, 2.0) = 2.5
+    ]
+    for i, (r, mfe) in enumerate(rows):
+        tid = _add_trade(db_conn, "u1", account_id=aid, r=r, pnl=int(r * 100),
+                         exit_date_iso=f"2026-05-{i+1:02d}T18:00:00Z")
+        _seed_excursion(db_conn, "u1", tid, efficiency=0.5, missed_r=1.0, mfe_r=mfe)
+
+    eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
+    assert eq["coverageReady"] is True
+    avp = eq["actualVsPotential"]
+    # one point per computable (real excursion + non-null r) row, ordered
+    assert len(avp) == len(rows)
+    assert [p["i"] for p in avp] == list(range(1, len(rows) + 1))
+    # first point = the earliest-dated trade's own realized/potential
+    assert avp[0]["actual"] == 1.0
+    assert avp[0]["potential"] == 2.4
+    # cumulative potential is never below cumulative actual
+    assert all(p["potential"] >= p["actual"] for p in avp)
+    # cumulative sums (sum r = 10.2, sum potential = 18.1)
+    assert avp[-1]["actual"] == 10.2
+    assert avp[-1]["potential"] == 18.1
+
+
+def test_exit_quality_actual_vs_potential_needs_two_points(db_conn):
+    """Ready (10 computed) but only 1 row has a non-null r_multiple → a curve
+    needs >= 2 points, so actualVsPotential is []."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+    # 1 row with r, 9 rows with r_multiple NULL — all still computed excursions
+    for i in range(10):
+        r = 1.5 if i == 0 else None
+        tid = _add_trade(db_conn, "u1", account_id=aid, r=r, pnl=10,
+                         exit_date_iso=f"2026-06-{i+1:02d}T18:00:00Z")
+        _seed_excursion(db_conn, "u1", tid, efficiency=0.6, missed_r=1.0, mfe_r=2.0)
+
+    eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
+    assert eq["coverage"]["computed"] == 10
+    assert eq["coverageReady"] is True
+    assert eq["actualVsPotential"] == []
+
+
+def _make_broker_trade(conn, user_id, *, account_id, external_id,
+                       exit_date_iso, r=1.5, pnl=10):
+    """A broker-imported closed trade: source='broker' + external_id, so its
+    trade_ref is 'ext:<external_id>' (not 'id:<row id>')."""
+    tid = _add_trade(conn, user_id, account_id=account_id, r=r, pnl=pnl,
+                     exit_date_iso=exit_date_iso)
+    conn.execute(
+        "UPDATE j2_trades SET source='broker', external_id=? WHERE id=?",
+        (external_id, tid),
+    )
+    conn.commit()
+    return tid
+
+
+def test_exit_quality_broker_rows_key_to_excursions(db_conn):
+    """Broker rows key excursions by 'ext:<external_id>' (uuid ids churn on
+    resync). Excursions upserted at 'ext:bk:<n>' must join to their broker rows
+    — proving the join isn't hard-wired to the manual 'id:' ref."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    for i in range(10):
+        ext = f"bk:{i}"
+        _make_broker_trade(db_conn, "u1", account_id=aid, external_id=ext,
+                           exit_date_iso=f"2026-07-{i+1:02d}T18:00:00Z", r=1.0)
+        # key the excursion by the broker ref, NOT id:<tid>
+        from api.services.journal_two import excursions_store
+        excursions_store.upsert_excursion(
+            "u1", f"ext:{ext}",
+            {
+                "symbol": "NVDA", "mfe_price": 110.0, "mae_price": 95.0,
+                "mfe_r": 2.0, "mae_r": None, "mfe_ts": 1000, "mae_ts": 1000,
+                "exit_efficiency": 0.5, "missed_r": 1.0,
+                "bar_resolution": "D", "data_quality": "daily",
+            },
+            db_conn,
+        )
+
+    eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
+    # all 10 broker excursions joined → computed 10 (would be 0 if keyed by id:)
+    assert eq["coverage"] == {"eligible": 10, "computed": 10, "optionsExcluded": 0}
+    assert eq["coverageReady"] is True
+    assert eq["avgExitEfficiency"] == 0.5
+    # curve built from the broker-keyed rows
+    assert len(eq["actualVsPotential"]) == 10

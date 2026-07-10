@@ -599,6 +599,31 @@ _EFFICIENCY_BINS = [
 _COVERAGE_READY_RATIO = 0.9
 _EXIT_QUALITY_MIN_COMPUTED = 10
 
+# "Potential" equity curve assumption: you'd have captured 80% of each trade's
+# favorable excursion (MFE) with better exits. A bounded, HONEST what-if — you
+# never nail the exact top, and per-trade potential is floored at what you
+# actually realized (max(realized, 0.8*mfeR)), so the potential curve can never
+# dip below the actual curve or invent an R you couldn't have made. R is the
+# unit; no fabricated dollars.
+_AVP_MFE_CAPTURE_FRACTION = 0.8
+
+
+def _exit_moment_key(row) -> tuple:
+    """Ascending sort key = the trade's exit moment. Parse exit_date (ISO);
+    fall back to the trading_day_et spine, then a stable empty key. The leading
+    tier int keeps heterogeneous fallbacks from comparing float-vs-str, and a
+    STABLE sort over it means same-moment ties keep input (SQL exit_date ASC)
+    order."""
+    keys = row.keys()
+    ed = row["exit_date"] if "exit_date" in keys else None
+    if ed:
+        try:
+            return (0, datetime.fromisoformat(str(ed).replace("Z", "+00:00")).timestamp())
+        except (ValueError, TypeError):
+            return (1, str(ed))
+    tde = row["trading_day_et"] if "trading_day_et" in keys else None
+    return (2, str(tde) if tde else "")
+
 
 def _exit_quality_section(
     rows: list[sqlite3.Row], excursions_map: dict[str, dict],
@@ -617,7 +642,10 @@ def _exit_quality_section(
       - When ready AND computed >= 10 → real `avgExitEfficiency` (mean over rows
         with a non-null efficiency; a null efficiency = no-favorable move, EXCLUDED
         from the mean but still counted as computed), `efficiencyBuckets` histogram,
-        and `missedRTotal`/`avgMissedR`.
+        `missedRTotal`/`avgMissedR`, and `actualVsPotential` — cumulative realized-R
+        vs cumulative-potential-R curves (the equity you'd have with better exits),
+        ordered by exit date. `actualVsPotential` is None when NOT ready / n<10,
+        and `[]` when fewer than 2 rows are computable (a curve needs >= 2 points).
 
     `missedDollars` is deliberately OMITTED: R is the only honest unit here. A
     per-trade "missed $" would need risk-$-per-trade, which isn't among the
@@ -630,18 +658,30 @@ def _exit_quality_section(
     """
     eligible = len(rows)
 
-    computed: list[dict] = []  # the REAL excursions joined to a fetched row
+    computed_pairs: list[tuple] = []  # (row, exc) for the REAL excursions
+    options_excluded = 0  # underlying-tier (options) excursions seen — see coverage
     for r in rows:
         exc = excursions_map.get(trade_ref_for_row(r))
         if exc is None:
             continue
         dq = exc.get("dataQuality")
-        if dq == "insufficient" or dq == "underlying":
+        if dq == "underlying":
+            options_excluded += 1
             continue
-        computed.append(exc)
+        if dq == "insufficient":
+            continue
+        computed_pairs.append((r, exc))
 
+    computed = [exc for _row, exc in computed_pairs]
     computed_n = len(computed)
-    coverage = {"eligible": eligible, "computed": computed_n}
+    coverage = {
+        "eligible": eligible,
+        "computed": computed_n,
+        # options-derived (data_quality='underlying') excursions seen but NOT
+        # folded into any $/R aggregate — surfaced so that deliberate omission
+        # of options from the equity-only aggregates is visible, not silent.
+        "optionsExcluded": options_excluded,
+    }
     coverage_ready = eligible > 0 and (computed_n / eligible) >= _COVERAGE_READY_RATIO
 
     # Gate: not enough coverage OR too few computed → suppress the aggregates
@@ -657,6 +697,7 @@ def _exit_quality_section(
             "avgMissedR": None,
             "missedRSampleSize": None,
             "efficiencyBuckets": [],
+            "actualVsPotential": None,
         }
 
     # ── Exit efficiency (null = no-favorable, excluded from the mean) ────────
@@ -686,6 +727,35 @@ def _exit_quality_section(
     missed_r_total = round(sum(missed), 4) if missed else None
     avg_missed_r = round(sum(missed) / len(missed), 4) if missed else None
 
+    # ── Actual vs Potential cumulative-R curves ──────────────────────────────
+    # Two equity curves in R, ordered by exit date: what you actually banked
+    # (cumulative realized r_multiple) vs what you'd have with better exits
+    # (cumulative per-trade potential = max(realized, 0.8*mfeR) — capture 80% of
+    # the favorable move, never below realized). Only rows with a real excursion
+    # AND a non-null r_multiple are plotted; a curve needs >= 2 points, else [].
+    avp_pairs = [
+        (r, exc) for (r, exc) in computed_pairs if r["r_multiple"] is not None
+    ]
+    avp_pairs.sort(key=lambda pair: _exit_moment_key(pair[0]))  # stable → exit-date ASC, ties keep input order
+    actual_vs_potential: list[dict[str, Any]] = []
+    if len(avp_pairs) >= 2:
+        cum_actual = 0.0
+        cum_potential = 0.0
+        for i, (r, exc) in enumerate(avp_pairs, start=1):
+            realized = float(r["r_multiple"])
+            mfe_r = exc.get("mfeR")
+            per_trade_potential = (
+                max(realized, _AVP_MFE_CAPTURE_FRACTION * float(mfe_r))
+                if mfe_r is not None else realized
+            )
+            cum_actual += realized
+            cum_potential += per_trade_potential
+            actual_vs_potential.append({
+                "i": i,
+                "actual": round(cum_actual, 4),
+                "potential": round(cum_potential, 4),
+            })
+
     return {
         "coverage": coverage,
         "coverageReady": True,
@@ -696,6 +766,7 @@ def _exit_quality_section(
         "avgMissedR": avg_missed_r,
         "missedRSampleSize": len(missed),
         "efficiencyBuckets": efficiency_buckets,
+        "actualVsPotential": actual_vs_potential,
     }
 
 
