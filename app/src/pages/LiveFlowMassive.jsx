@@ -157,6 +157,42 @@ const TIER_ORDER = ["alpha", "size", "bullish", "bearish", "leaps", "unusual", "
 const LS_KEY_FILTERS = "uct_liveflow_massive_filters_v1";
 const LS_KEY_SORT    = "uct_liveflow_massive_sort_v1";
 const LS_KEY_MINGRADE= "uct_liveflow_massive_mingrade_v1";
+const LS_KEY_COLSORT = "uct_liveflow_massive_colsort_v1";  // per-column table sort (col+dir)
+
+// ─── Column config (single source for the sortable header row) ────────────
+// Keys drive the click-to-sort comparator in LiveFlowMassive; labels/align
+// must stay 1:1 with the AlertRow grid below (same order + gridTemplateColumns).
+// `dir` = the direction applied on the FIRST click of that column (numeric
+// columns default to descending — biggest first; text columns to ascending).
+const COLUMNS = [
+  { key: "time",      label: "TIME",     align: "center", dir: "desc" },
+  { key: "ticker",    label: "TICKER",   align: "center", dir: "asc"  },
+  { key: "spot",      label: "SPOT",     align: "center", dir: "desc" },
+  { key: "strike",    label: "STRIKE",   align: "center", dir: "asc"  },
+  { key: "cp",        label: "C/P",      align: "center", dir: "asc"  },
+  { key: "exp",       label: "EXP",      align: "center", dir: "asc"  },
+  { key: "moneyness", label: "%ITM/OTM", align: "center", dir: "desc" },
+  { key: "price",     label: "PRICE",    align: "center", dir: "desc" },
+  { key: "vol",       label: "VOL",      align: "center", dir: "desc" },
+  { key: "oi",        label: "OI",       align: "center", dir: "desc" },
+  { key: "voi",       label: "V/OI",     align: "center", dir: "desc" },
+  { key: "premium",   label: "PREMIUM",  align: "center", dir: "desc" },
+  { key: "grade",     label: "GRADE",    align: "center", dir: "desc" },
+  { key: "side",      label: "SIDE",     align: "center", dir: "asc"  },
+  { key: "type",      label: "TYPE",     align: "center", dir: "asc"  },
+  { key: "pl",        label: "P/L",      align: "center", dir: "desc" },
+  { key: "tier",      label: "ALERT",    align: "left",   dir: "asc"  },
+];
+
+// Turn an M/D/YYYY expiration into a sortable YYYYMMDD-ish integer.
+function _expSortVal(exp) {
+  if (!exp) return null;
+  const p = String(exp).split("/");
+  if (p.length !== 3) return null;
+  const [m, d, y] = p.map(Number);
+  if (!y) return null;
+  return y * 10000 + (m || 0) * 100 + (d || 0);
+}
 
 function loadFilters() {
   try {
@@ -940,7 +976,7 @@ function computePL(alert, currentSpot) {
 }
 
 // ─── Single row ───────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract }) {
+function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onClickTier }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
@@ -1144,22 +1180,27 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       </span>
       <span style={{ fontSize: secondaryFontSize, display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
         <span
-          title={meta.desc ? `${meta.label} — ${meta.desc}` : meta.label}
+          onClick={() => onClickTier && onClickTier(tier)}
+          title={`${meta.label}${meta.desc ? " — " + meta.desc : ""}\n\nClick to show only ${meta.label}`}
           style={{
             fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
             padding: isAlpha ? "3px 7px" : "2px 6px", borderRadius: 3,
             background: isAlpha ? meta.color : `${meta.color}25`,
             color: isAlpha ? P.bg : meta.color,
             textTransform: "uppercase", flexShrink: 0,
-            cursor: "help",
+            cursor: "pointer",
           }}>
           {isAlpha && "★ "}{meta.label}
         </span>
-        <span style={{
-          color: alertNameColor,
-          fontWeight: isAlpha ? 600 : 500,
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        }}>
+        <span
+          onClick={() => onClickTier && onClickTier(tier)}
+          title={`Click to show only ${meta.label}`}
+          style={{
+            color: alertNameColor,
+            fontWeight: isAlpha ? 600 : 500,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            cursor: "pointer",
+          }}>
           {alert.alertName}
         </span>
       </span>
@@ -1172,6 +1213,7 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
                   rowLimit, onRowLimitChange,
                   hideAlgo, onHideAlgoChange,
                   curated, onCuratedChange,
+                  search, onSearchChange,
                   tickerFilter, contractFilter, onClearFilters,
                   targetDate, onDateChange, onOiFetch, oiFetchState,
                   nullOICount }) {
@@ -1224,6 +1266,42 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         marginTop: 10, paddingTop: 10, borderTop: `1px solid ${P.bd}`,
       }}>
+        {/* Ticker search — client-side substring match on the fetched feed.
+            At the default "Show: All" limit this is the full trading day; at a
+            reduced row limit it only searches the fetched window. */}
+        <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+          <span style={{
+            position: "absolute", left: 8, color: P.mt, fontSize: 11,
+            pointerEvents: "none",
+          }}>🔍</span>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search ticker…"
+            style={{
+              background: P.bg, color: P.wh,
+              border: `1px solid ${search ? P.ac : P.bd}`, borderRadius: 3,
+              padding: "3px 24px 3px 26px", fontSize: 11,
+              fontFamily: "inherit", width: 150, outline: "none",
+              textTransform: "uppercase",
+            }}
+          />
+          {search && (
+            <button
+              onClick={() => onSearchChange("")}
+              title="Clear search"
+              style={{
+                position: "absolute", right: 4, background: "transparent",
+                border: "none", color: P.dm, cursor: "pointer",
+                fontSize: 12, lineHeight: 1, padding: 2,
+              }}
+            >✕</button>
+          )}
+        </div>
+
+        <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
+
         <label style={{ color: P.dm, fontSize: 12 }}>Date:</label>
         <input
           type="date"
@@ -1451,33 +1529,39 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
 }
 
 // ─── Column headers ───────────────────────────────────────────────────────
-function ColumnHeaders() {
+// Click any header to sort the table by that column. 1st click applies the
+// column's default direction, 2nd click flips it, 3rd click resets to the
+// natural TIME-descending tape order. The active column shows ▲/▼ in gold.
+function ColumnHeaders({ sortCol, sortDir, onSort }) {
   return (
     <div style={{
       display: "grid",
       // TIME | TICKER | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
       gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
       gap: 8, padding: "6px 12px",
-      fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
+      fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
     }}>
-      <span style={{ textAlign: "center" }}>TIME</span>
-      <span style={{ textAlign: "center" }}>TICKER</span>
-      <span style={{ textAlign: "center" }}>SPOT</span>
-      <span style={{ textAlign: "center" }}>STRIKE</span>
-      <span style={{ textAlign: "center" }}>C/P</span>
-      <span style={{ textAlign: "center" }}>EXP</span>
-      <span style={{ textAlign: "center" }}>%ITM/OTM</span>
-      <span style={{ textAlign: "center" }}>PRICE</span>
-      <span style={{ textAlign: "center" }}>VOL</span>
-      <span style={{ textAlign: "center" }}>OI</span>
-      <span style={{ textAlign: "center" }}>V/OI</span>
-      <span style={{ textAlign: "center" }}>PREMIUM</span>
-      <span style={{ textAlign: "center" }}>GRADE</span>
-      <span style={{ textAlign: "center" }}>SIDE</span>
-      <span style={{ textAlign: "center" }}>TYPE</span>
-      <span style={{ textAlign: "center" }}>P/L</span>
-      <span style={{ textAlign: "left", paddingLeft: 4 }}>ALERT</span>
+      {COLUMNS.map(col => {
+        const active = sortCol === col.key;
+        return (
+          <span
+            key={col.key}
+            onClick={() => onSort(col.key)}
+            title={`Sort by ${col.label}`}
+            style={{
+              textAlign: col.align,
+              paddingLeft: col.align === "left" ? 4 : 0,
+              color: active ? P.ac : P.mt,
+              cursor: "pointer",
+              userSelect: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {col.label}{active ? (sortDir === "desc" ? " ▼" : " ▲") : ""}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -2048,6 +2132,22 @@ export default function LiveFlowMassive() {
   const [minGrade, setMinGrade] = useState(() =>
     localStorage.getItem(LS_KEY_MINGRADE) || "D"
   );
+  // Free-text ticker search — client-side substring filter over the fetched
+  // feed (ephemeral; intentionally not persisted so a stale query never
+  // silently hides the tape on reload).
+  const [search, setSearch] = useState("");
+  // Per-column table sort. Defaults to time/desc, which is identical to the
+  // page's prior always-time-descending behavior. `sortBy` above still selects
+  // WHICH alerts the backend returns (recent/conviction/premium top-N); this
+  // controls the DISPLAY order of that set, so the two are orthogonal.
+  const [sortCol, setSortCol] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem(LS_KEY_COLSORT) || ""); return s?.c || "time"; }
+    catch { return "time"; }
+  });
+  const [sortDir, setSortDir] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem(LS_KEY_COLSORT) || ""); return s?.d || "desc"; }
+    catch { return "desc"; }
+  });
   // How many recent alerts to keep in the feed. Defaults to 500 (~8-15 min
   // of market-open activity); user can bump to 1000 or "All" (full day). The
   // BULL/BEAR cards are always day-scoped and unaffected by this setting.
@@ -2146,6 +2246,9 @@ export default function LiveFlowMassive() {
   useEffect(() => { saveFilters(filters); }, [filters]);
   useEffect(() => { localStorage.setItem(LS_KEY_SORT, sortBy); }, [sortBy]);
   useEffect(() => { localStorage.setItem(LS_KEY_MINGRADE, minGrade); }, [minGrade]);
+  useEffect(() => {
+    localStorage.setItem(LS_KEY_COLSORT, JSON.stringify({ c: sortCol, d: sortDir }));
+  }, [sortCol, sortDir]);
   useEffect(() => { localStorage.setItem(LS_KEY_ROW_LIMIT, String(rowLimit)); }, [rowLimit]);
   useEffect(() => { localStorage.setItem(LS_KEY_HIDE_ALGO, hideAlgo ? "1" : "0"); }, [hideAlgo]);
   useEffect(() => { localStorage.setItem(LS_KEY_STOCK_ETF, stockEtfFilter); }, [stockEtfFilter]);
@@ -2474,15 +2577,65 @@ export default function LiveFlowMassive() {
     };
   }, [targetDate, hideAlgo]);
 
-  // Apply client-side filters: tier chips, ticker, contract, hideAlgo.
+  // Apply client-side filters: tier chips, ticker, contract, hideAlgo, search.
   // Tier filtering now happens here (was previously per-section); the
-  // remaining list goes straight into the flat chronological feed.
+  // remaining list goes straight into the flat feed.
   //
-  // Final sort is ALWAYS by timestamp descending — even when the backend
-  // returned alerts ranked by conviction or premium. The sort criterion
-  // selects WHICH alerts the page sees (top N by conviction, etc.) but
-  // they're always displayed chronologically so the trader can scan the
-  // session's flow in real time order.
+  // Display order is controlled by the clickable column headers (sortCol/
+  // sortDir), defaulting to time-descending — the natural tape order. The
+  // `sortBy` toggle (recent/conviction/premium) selects WHICH alerts the
+  // backend returns; column sort re-orders that set for display, so the two
+  // are independent.
+  const searchQ = search.trim().toUpperCase();
+
+  // Value extractor for a given sort column. Keeps null/missing separate so
+  // the comparator can always push blanks to the bottom regardless of dir.
+  const _colValue = (a, key) => {
+    switch (key) {
+      case "time":      return a.timestamp || 0;
+      case "ticker":    return a.ticker || "";
+      case "spot":      return a.spot != null ? Number(a.spot) : null;
+      case "strike":    return a.strike != null ? Number(a.strike) : null;
+      case "cp":        return a.cp || "";
+      case "exp":       return _expSortVal(a.exp);
+      case "moneyness": {
+        if (a.moneynessPct == null) return null;
+        const sign = a.moneynessLabel === "OTM" ? -1 : 1;  // ITM up, OTM down
+        return sign * Math.abs(Number(a.moneynessPct));
+      }
+      case "price":     return a.averageFillPrice != null ? Number(a.averageFillPrice) : null;
+      case "vol":       return a.tradeSize != null ? Number(a.tradeSize) : null;
+      case "oi":        return a.priorOI != null ? Number(a.priorOI) : null;
+      case "voi":       return a.volumeOIRatio != null ? Number(a.volumeOIRatio) : null;
+      case "premium":   return a.alertPremium != null ? Number(a.alertPremium) : null;
+      case "grade":     return _GRADE_NUMERIC_FE[a.grade] ?? null;
+      case "side":      return a._side || "";
+      case "type":      return a._type || "";
+      case "pl":        return computePL(a, quotes[a.ticker]);
+      case "tier":      return TIER_ORDER.indexOf(a._tierKey || "algo");
+      default:          return a.timestamp || 0;
+    }
+  };
+  const _cmp = (a, b) => {
+    const va = _colValue(a, sortCol);
+    const vb = _colValue(b, sortCol);
+    const na = va == null || va === "";
+    const nb = vb == null || vb === "";
+    if (na && nb) return (b.timestamp || 0) - (a.timestamp || 0);
+    if (na) return 1;   // blanks always last
+    if (nb) return -1;
+    let r;
+    if (typeof va === "string" || typeof vb === "string") {
+      r = String(va).localeCompare(String(vb));
+    } else {
+      r = va - vb;
+    }
+    if (sortDir === "desc") r = -r;
+    // Stable tiebreak: newest first within an equal sort key.
+    if (r === 0) return (b.timestamp || 0) - (a.timestamp || 0);
+    return r;
+  };
+
   const visibleAlerts = alerts
     .filter(a => {
       const tier = a._tierKey || "algo";
@@ -2496,6 +2649,7 @@ export default function LiveFlowMassive() {
         if (stockEtfFilter === "stocks" && isEtf) return false;
         if (stockEtfFilter === "etfs" && !isEtf) return false;
       }
+      if (searchQ && !(a.ticker || "").toUpperCase().includes(searchQ)) return false;
       if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) return false;
       if (contractFilter.size > 0) {
         const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
@@ -2503,7 +2657,7 @@ export default function LiveFlowMassive() {
       }
       return true;
     })
-    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    .sort(_cmp);
 
   // Per-tier counts (for filter chip badges). Built from ALL alerts that
   // pass the ticker/contract filter — independent of which tiers are toggled
@@ -2512,6 +2666,7 @@ export default function LiveFlowMassive() {
   const tierCounts = {};
   for (const t of TIER_ORDER) tierCounts[t] = 0;
   for (const a of alerts) {
+    if (searchQ && !(a.ticker || "").toUpperCase().includes(searchQ)) continue;
     if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) continue;
     if (contractFilter.size > 0) {
       const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
@@ -2550,6 +2705,31 @@ export default function LiveFlowMassive() {
   const handleClearFilters = () => {
     setTickerFilter(new Set());
     setContractFilter(new Set());
+  };
+
+  // Column-header click: 1st → column's default dir, 2nd → flip, 3rd → reset
+  // to the natural time-descending tape order.
+  const handleSortColumn = (key) => {
+    const def = COLUMNS.find(c => c.key === key)?.dir || "desc";
+    if (sortCol !== key) {
+      setSortCol(key);
+      setSortDir(def);
+    } else if (sortDir === def) {
+      setSortDir(def === "desc" ? "asc" : "desc");
+    } else {
+      setSortCol("time");
+      setSortDir("desc");
+    }
+  };
+
+  // Tier badge / alert-name click inside a row: isolate that tier (mirrors the
+  // FilterChips toggle — clicking the already-isolated tier restores all).
+  const handleClickTier = (tier) => {
+    const ons = TIER_ORDER.filter(t => filters[t]);
+    const isolated = ons.length === 1 && ons[0] === tier;
+    const next = {};
+    for (const t of TIER_ORDER) next[t] = isolated ? true : (t === tier);
+    setFilters(next);
   };
 
   // OI fetch — same backend endpoint LiveFlow.jsx uses for /live-flow.
@@ -2698,6 +2878,8 @@ export default function LiveFlowMassive() {
         onHideAlgoChange={setHideAlgo}
         curated={curated}
         onCuratedChange={setCurated}
+        search={search}
+        onSearchChange={setSearch}
         tickerFilter={tickerFilter}
         contractFilter={contractFilter}
         onClearFilters={handleClearFilters}
@@ -2767,7 +2949,7 @@ export default function LiveFlowMassive() {
         <FilterChips filters={filters} onChange={setFilters} counts={tierCounts}
                      stockEtfFilter={stockEtfFilter} onStockEtfChange={setStockEtfFilter} />
 
-        <ColumnHeaders />
+        <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} />
       </div>
 
       {/* TuningPanel — admin-only, shown when ?tune=1 in URL. Sits below the
@@ -2823,6 +3005,7 @@ export default function LiveFlowMassive() {
             currentSpot={quotes[a.ticker]}
             onClickTicker={handleClickTicker}
             onClickContract={handleClickContract}
+            onClickTier={handleClickTier}
           />
         );
       })}
