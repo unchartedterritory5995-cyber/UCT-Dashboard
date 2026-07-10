@@ -247,3 +247,51 @@ async def test_desk_threads_batch(client_for):
     body = r.json()
     assert body["41"]["thread_id"] == tid and body["41"]["reply_count"] == 1
     assert "42" not in body
+
+
+# ── Fix-wave regression tests ────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_reaction_requires_ack_and_not_muted(client_for):
+    from api.services import community_store
+    tid = community_store.create_thread("questions", "u-x", "q", body=VALID_BODY)
+    pid = community_store.create_post(tid, "u-x", VALID_BODY)
+    # un-acked member cannot react
+    async with client_for(MEMBER) as ac:
+        r = await ac.post(f"/api/community/posts/{pid}/reactions", json={"kind": "fire"})
+        assert r.status_code == 403 and r.json()["detail"] == "acknowledgment_required"
+    # acked-but-muted member cannot react
+    community_store.set_ack(MEMBER["id"])
+    community_store.set_muted(MEMBER["id"], True)
+    async with client_for(MEMBER) as ac:
+        r = await ac.post(f"/api/community/posts/{pid}/reactions", json={"kind": "fire"})
+        assert r.status_code == 403
+    # acked + unmuted works
+    community_store.set_muted(MEMBER["id"], False)
+    async with client_for(MEMBER) as ac:
+        r = await ac.post(f"/api/community/posts/{pid}/reactions", json={"kind": "fire"})
+        assert r.status_code == 200 and r.json()["on"] is True
+
+
+@pytest.mark.asyncio
+async def test_admin_endpoints_503_when_flag_off(client_for, monkeypatch):
+    monkeypatch.setenv("COMMUNITY_ENABLED", "0")
+    async with client_for(ADMIN) as ac:
+        assert (await ac.get("/api/community/admin/reports")).status_code == 503
+        assert (await ac.patch("/api/community/threads/1/mod",
+                               json={"pinned": True})).status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_empty_post_body_rejected(client_for):
+    from api.services import community_store
+    community_store.set_ack(MEMBER["id"])
+    tid = community_store.create_thread("questions", "u-x", "q", body=VALID_BODY)
+    empty = '{"type":"doc","content":[{"type":"paragraph"}]}'
+    async with client_for(MEMBER) as ac:
+        r = await ac.post(f"/api/community/threads/{tid}/posts", json={"body": empty})
+        assert r.status_code == 400
+        # whitespace-only text also rejected
+        ws = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"   "}]}]}'
+        r2 = await ac.post(f"/api/community/threads/{tid}/posts", json={"body": ws})
+        assert r2.status_code == 400

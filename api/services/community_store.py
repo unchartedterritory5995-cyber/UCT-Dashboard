@@ -206,6 +206,26 @@ def get_thread_by_desk_id(desk_content_id):
     return _thread_row_to_dict(row) if row else None
 
 
+def get_desk_thread_summaries(desk_content_ids):
+    """Map desk_content_id (str) -> {thread_id, reply_count} for non-deleted seeded
+    threads, in ONE query (no per-id full-space scan, and correct for threads ranked
+    beyond any list window)."""
+    ids = [int(i) for i in desk_content_ids if str(i).isdigit()]
+    if not ids:
+        return {}
+    q = ",".join("?" * len(ids))
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            f"""SELECT t.desk_content_id AS dcid, t.id AS thread_id,
+                       (SELECT COUNT(*) FROM posts p
+                         WHERE p.thread_id = t.id AND p.deleted = 0) AS reply_count
+                  FROM threads t
+                 WHERE t.deleted = 0 AND t.desk_content_id IN ({q})""",
+            ids).fetchall()
+    return {str(r["dcid"]): {"thread_id": r["thread_id"],
+                             "reply_count": r["reply_count"]} for r in rows}
+
+
 def get_post(post_id):
     with closing(get_connection()) as conn:
         row = conn.execute("SELECT * FROM posts WHERE id=?", (post_id,)).fetchone()
@@ -329,8 +349,9 @@ def unread_summary(user_id):
                  FROM threads t
                  LEFT JOIN read_state rs
                         ON rs.thread_id = t.id AND rs.user_id = ?
-                WHERE t.deleted = 0""",
-            (user_id,)).fetchall()
+                WHERE t.deleted = 0
+                  AND (t.author_id IS NULL OR t.author_id != ?)""",
+            (user_id, user_id)).fetchall()
     by_space = {k: 0 for k in SPACES}
     total = 0
     for r in rows:

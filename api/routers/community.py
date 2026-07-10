@@ -36,6 +36,14 @@ def require_community(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+def require_admin_enabled(admin: dict = Depends(require_admin)) -> dict:
+    """Admin gate that ALSO honors the COMMUNITY_ENABLED flag (constraint: every
+    /api/community/* endpoint except /status must 503 when the feature is dark)."""
+    if not _enabled():
+        raise HTTPException(status_code=503, detail="Community is not enabled")
+    return admin
+
+
 def _is_mentor(user: dict) -> bool:
     return user.get("role") == "admin"
 
@@ -108,19 +116,8 @@ def threads(space: str = Query(...), limit: int = Query(50, ge=1, le=100),
 
 @router.get("/desk-threads")
 def desk_threads(ids: str = Query(""), user: dict = Depends(require_community)):
-    out = {}
-    for raw in ids.split(",")[:100]:
-        raw = raw.strip()
-        if not raw.isdigit():
-            continue
-        t = store.get_thread_by_desk_id(int(raw))
-        if not t or t.get("deleted"):
-            continue
-        detail = store.list_threads(t["space"], limit=1000)
-        match = next((x for x in detail if x["id"] == t["id"]), None)
-        out[raw] = {"thread_id": t["id"],
-                    "reply_count": match["reply_count"] if match else 0}
-    return out
+    wanted = [raw.strip() for raw in ids.split(",")[:100] if raw.strip().isdigit()]
+    return store.get_desk_thread_summaries(wanted)
 
 
 @router.get("/threads/{thread_id}")
@@ -180,10 +177,25 @@ class MuteIn(BaseModel):
     muted: bool
 
 
-def _validate_body(body: str) -> str:
+def _doc_has_text(doc) -> bool:
+    """True if a TipTap doc contains any non-whitespace text or an image node."""
+    if not isinstance(doc, dict):
+        return False
+    if doc.get("type") == "image":
+        return True
+    if isinstance(doc.get("text"), str) and doc["text"].strip():
+        return True
+    for child in doc.get("content") or []:
+        if _doc_has_text(child):
+            return True
+    return False
+
+
+def _validate_body(body: str, *, require_content: bool = False) -> str:
     body = body or ""
     if len(body.encode("utf-8", "ignore")) > MAX_BODY_BYTES:
         raise HTTPException(status_code=400, detail="Body too large")
+    doc = None
     if body:
         try:
             doc = json.loads(body)
@@ -191,6 +203,8 @@ def _validate_body(body: str) -> str:
                 raise ValueError
         except ValueError:
             raise HTTPException(status_code=400, detail="Body must be TipTap JSON")
+    if require_content and not (doc is not None and _doc_has_text(doc)):
+        raise HTTPException(status_code=400, detail="Empty post")
     return body
 
 
@@ -233,7 +247,8 @@ def create_post(thread_id: int, body: PostIn, user: dict = Depends(require_commu
     if not _is_mentor(user) and store.count_recent_posts(user["id"]) >= POSTS_PER_HOUR:
         raise HTTPException(status_code=429, detail="Post rate limit — try again later")
     try:
-        pid = store.create_post(thread_id, user["id"], _validate_body(body.body),
+        pid = store.create_post(thread_id, user["id"],
+                                _validate_body(body.body, require_content=True),
                                 parent_post_id=body.parent_post_id)
     except ValueError as e:
         code = {"no-thread": 404, "locked": 409, "bad-parent": 400}.get(str(e), 400)
@@ -243,6 +258,7 @@ def create_post(thread_id: int, body: PostIn, user: dict = Depends(require_commu
 
 @router.post("/posts/{post_id}/reactions")
 def react(post_id: int, body: ReactionIn, user: dict = Depends(require_community)):
+    _writer(user)   # reactions are participation — enforce ack + not-muted
     if not store.get_post(post_id):
         raise HTTPException(status_code=404, detail="Post not found")
     try:
@@ -293,7 +309,7 @@ def delete_post(post_id: int, user: dict = Depends(require_community)):
 # ── Mentor / moderator ───────────────────────────────────────────────────────
 
 @router.patch("/threads/{thread_id}/mod")
-def mod_thread(thread_id: int, body: ModIn, admin: dict = Depends(require_admin)):
+def mod_thread(thread_id: int, body: ModIn, admin: dict = Depends(require_admin_enabled)):
     if not store.get_thread(thread_id):
         raise HTTPException(status_code=404, detail="Thread not found")
     for field in ("pinned", "locked", "answered"):
@@ -304,7 +320,7 @@ def mod_thread(thread_id: int, body: ModIn, admin: dict = Depends(require_admin)
 
 
 @router.patch("/posts/{post_id}/highlight")
-def highlight(post_id: int, body: HighlightIn, admin: dict = Depends(require_admin)):
+def highlight(post_id: int, body: HighlightIn, admin: dict = Depends(require_admin_enabled)):
     if not store.get_post(post_id):
         raise HTTPException(status_code=404, detail="Post not found")
     store.set_highlight(post_id, body.value)
@@ -312,13 +328,13 @@ def highlight(post_id: int, body: HighlightIn, admin: dict = Depends(require_adm
 
 
 @router.get("/admin/reports")
-def admin_reports(status: str = Query("open"), admin: dict = Depends(require_admin)):
+def admin_reports(status: str = Query("open"), admin: dict = Depends(require_admin_enabled)):
     return {"reports": store.list_reports(status)}
 
 
 @router.patch("/admin/reports/{report_id}")
 def admin_report_action(report_id: int, body: ReportActionIn,
-                        admin: dict = Depends(require_admin)):
+                        admin: dict = Depends(require_admin_enabled)):
     reports = {r["id"]: r for r in store.list_reports("open")}
     r = reports.get(report_id)
     if not r:
@@ -337,7 +353,7 @@ def admin_report_action(report_id: int, body: ReportActionIn,
 
 
 @router.post("/admin/mute/{user_id}")
-def admin_mute(user_id: str, body: MuteIn, admin: dict = Depends(require_admin)):
+def admin_mute(user_id: str, body: MuteIn, admin: dict = Depends(require_admin_enabled)):
     store.set_muted(user_id, body.muted)
     return {"ok": True}
 
@@ -348,7 +364,7 @@ import io
 import re
 import uuid as _uuid
 
-from fastapi import File, UploadFile
+from fastapi import File, Request, UploadFile
 from fastapi.responses import FileResponse
 
 _ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
@@ -367,12 +383,21 @@ def _upload_dir() -> str:
 
 
 @router.post("/images")
-async def upload_image(file: UploadFile = File(...),
+async def upload_image(request: Request, file: UploadFile = File(...),
                        user: dict = Depends(require_community)):
     _writer(user)
     if file.content_type not in _ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Images only (png/jpg/webp/gif)")
-    raw = await file.read()
+    # Reject oversize up front by declared length, so we never buffer a huge body.
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except (TypeError, ValueError):
+        declared = 0
+    if declared > _MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=400, detail="Image must be 1 byte – 5 MB")
+    # Bounded read: cap RAM at ~5 MB regardless of the on-disk spool size. Reading
+    # one extra byte lets us detect an over-cap file that lied about Content-Length.
+    raw = await file.read(_MAX_IMAGE_BYTES + 1)
     if not raw or len(raw) > _MAX_IMAGE_BYTES:
         raise HTTPException(status_code=400, detail="Image must be 1 byte – 5 MB")
     from PIL import Image

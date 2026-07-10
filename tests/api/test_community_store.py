@@ -138,3 +138,29 @@ def test_mute_and_ack(store):
     assert store.has_ack("u1") is False
     store.set_ack("u1")
     assert store.has_ack("u1") is True
+
+
+def test_desk_thread_summaries_single_query(store):
+    t1 = store.create_thread("mentor-desk", None, "S1", desk_content_id=41)
+    store.create_post(t1, "u-a", "{}")
+    store.create_post(t1, "u-b", "{}")
+    store.create_thread("mentor-desk", None, "S2", desk_content_id=42)  # zero replies
+    summ = store.get_desk_thread_summaries(["41", "42", "99"])
+    assert summ["41"] == {"thread_id": t1, "reply_count": 2}
+    assert summ["42"]["reply_count"] == 0
+    assert "99" not in summ                       # no thread for that desk id
+    # soft-deleted seeded thread is excluded
+    store.soft_delete_thread(t1)
+    assert "41" not in store.get_desk_thread_summaries(["41"])
+
+
+def test_unread_excludes_own_threads_but_counts_mentor_seed(store):
+    # a member's own thread must NOT ping them as unread...
+    own = store.create_thread("trade-ideas", "u-me", "mine", body="{}")
+    assert store.unread_summary("u-me")["total"] == 0
+    # ...but a mentor-desk seed (author_id NULL) counts as unread for everyone
+    store.create_thread("mentor-desk", None, "Session", body="{}", desk_content_id=7)
+    s = store.unread_summary("u-me")
+    assert s["total"] == 1 and s["by_space"]["mentor-desk"] == 1
+    # and another member DOES see the first member's thread as unread
+    assert store.unread_summary("u-other")["by_space"]["trade-ideas"] == 1

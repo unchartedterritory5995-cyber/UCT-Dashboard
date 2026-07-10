@@ -16,8 +16,10 @@ function sanitizeNode(node) {
     })
   }
   if (node.type === 'image') {
+    // Community-hosted images only — strip external srcs (tracking-beacon /
+    // remote-content surface). All legit uploads live under /api/community/images/.
     const src = node?.attrs?.src || ''
-    if (!src.startsWith('/api/community/images/') && !src.startsWith('https://')) return null
+    if (!src.startsWith('/api/community/images/')) return null
   }
   if (Array.isArray(node.content)) {
     node.content = node.content.map(sanitizeNode).filter(Boolean)

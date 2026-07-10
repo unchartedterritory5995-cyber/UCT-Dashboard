@@ -50,28 +50,30 @@ function Post({ post, replies, onReact, onReply, isMentor, onHighlight, onReport
           dangerouslySetInnerHTML={{ __html: renderBodyHTML(post.body) }}
         />
       )}
-      <div className={styles.postActions}>
-        {REACTIONS.map((r) => (
-          <button key={r.kind} className={styles.reactBtn} title={r.label}
-                  onClick={() => onReact(post.id, r.kind)}>
-            <UIcon name={r.icon} size={14} />
-            {post.reactions?.[r.kind] ? <span>{post.reactions[r.kind]}</span> : null}
-          </button>
-        ))}
-        {!post.parent_post_id && (
-          <button className={styles.replyBtn} onClick={() => onReply(post.id)}>Reply</button>
-        )}
-        {isMentor && !post.parent_post_id && (
-          <button className={styles.modBtn}
-                  onClick={() => onHighlight(post.id, !post.mentor_highlight)}>
-            {post.mentor_highlight ? 'Unhighlight' : 'Highlight'}
-          </button>
-        )}
-        <button className={styles.reportBtn} onClick={() => onReport({ post_id: post.id })}>Report</button>
-        {(isMentor || post.author_id === meId) && !post.deleted && (
-          <button className={styles.reportBtn} onClick={() => onDelete(post.id)}>Remove</button>
-        )}
-      </div>
+      {!post.deleted && (
+        <div className={styles.postActions}>
+          {REACTIONS.map((r) => (
+            <button key={r.kind} className={styles.reactBtn} title={r.label}
+                    onClick={() => onReact(post.id, r.kind)}>
+              <UIcon name={r.icon} size={14} />
+              {post.reactions?.[r.kind] ? <span>{post.reactions[r.kind]}</span> : null}
+            </button>
+          ))}
+          {!post.parent_post_id && (
+            <button className={styles.replyBtn} onClick={() => onReply(post.id)}>Reply</button>
+          )}
+          {isMentor && !post.parent_post_id && (
+            <button className={styles.modBtn}
+                    onClick={() => onHighlight(post.id, !post.mentor_highlight)}>
+              {post.mentor_highlight ? 'Unhighlight' : 'Highlight'}
+            </button>
+          )}
+          <button className={styles.reportBtn} onClick={() => onReport({ post_id: post.id })}>Report</button>
+          {(isMentor || post.author_id === meId) && (
+            <button className={styles.reportBtn} onClick={() => onDelete(post.id)}>Remove</button>
+          )}
+        </div>
+      )}
       {replies.length > 0 && (
         <div className={styles.replies}>
           {replies.map((r) => (
