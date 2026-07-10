@@ -1842,6 +1842,7 @@ async def current_quotes(payload: CurrentQuotesPayload):
 
 _day_stats_cache: dict = {}  # date_key → (computed_at_unix, payload)
 _DAY_STATS_TTL = 30  # 30s — fast enough for live, slow enough to skip work
+_day_stats_lock = threading.Lock()  # single-flight: bound concurrent heavy recomputes to 1
 
 
 def _build_day_stats(today: str, exclude_algo: bool = False,
@@ -2115,9 +2116,27 @@ def day_stats(
     cached = _day_stats_cache.get(cache_key)
     if cached and (now - cached[0]) < _DAY_STATS_TTL:
         return cached[1]
-    payload = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
-    _day_stats_cache[cache_key] = (now, payload)
-    return payload
+    # Single-flight + stale-serve. Only ONE heavy recompute runs at a time; a
+    # concurrent request holding a stale value gets it instantly instead of
+    # launching a second 30s+ pass. Those parallel passes are what piled up in
+    # the threadpool and starved /recent (feed lag). Staleness is bounded to one
+    # refresh — identical to what the 30s cache already allowed.
+    if not _day_stats_lock.acquire(blocking=False):
+        if cached:
+            return cached[1]                      # serve stale, don't queue behind the compute
+        with _day_stats_lock:                     # first-ever for this key: must compute once
+            c2 = _day_stats_cache.get(cache_key)
+            if c2 and (time.time() - c2[0]) < _DAY_STATS_TTL:
+                return c2[1]
+            payload = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
+            _day_stats_cache[cache_key] = (time.time(), payload)
+            return payload
+    try:
+        payload = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
+        _day_stats_cache[cache_key] = (time.time(), payload)
+        return payload
+    finally:
+        _day_stats_lock.release()
 
 
 # ─── By-Contract rollup (accumulation view) ───────────────────────────────
@@ -2128,6 +2147,7 @@ def day_stats(
 # their own scale; META's 41-print 620C churn doesn't qualify, ACI's stack does.
 _by_contract_cache: dict = {}          # (date, stock_etf, min_hits, excl_algo) -> (ts, payload)
 _BY_CONTRACT_TTL = 30
+_by_contract_lock = threading.Lock()  # single-flight: bound concurrent heavy recomputes to 1
 
 # Per-print NOISE floor by cap band — a print must clear this to count as a
 # "hit". Deliberately LOW (it only rejects dust): repetition of small clips on
@@ -2336,9 +2356,24 @@ def by_contract(
     cached = _by_contract_cache.get(key)
     if cached and (now - cached[0]) < _BY_CONTRACT_TTL:
         return cached[1]
-    payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo))
-    _by_contract_cache[key] = (now, payload)
-    return payload
+    # Single-flight + stale-serve (see day_stats). Bounds concurrent heavy
+    # recomputes to 1 so the 30s+ rollup pass can't pile up and starve /recent.
+    if not _by_contract_lock.acquire(blocking=False):
+        if cached:
+            return cached[1]
+        with _by_contract_lock:
+            c2 = _by_contract_cache.get(key)
+            if c2 and (time.time() - c2[0]) < _BY_CONTRACT_TTL:
+                return c2[1]
+            payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo))
+            _by_contract_cache[key] = (time.time(), payload)
+            return payload
+    try:
+        payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo))
+        _by_contract_cache[key] = (time.time(), payload)
+        return payload
+    finally:
+        _by_contract_lock.release()
 
 
 # ─── Curated thresholds endpoints (admin tuning panel) ────────────────────
