@@ -2,20 +2,24 @@
  * Analytics tab — single-scroll page with 4 sections (Equity / Performance /
  * Distribution / Attribution) covering ~14 charts via ECharts.
  *
- * Account-scoped via useJ2SelectedAccount; time-range filtered via URL
- * params (?from=YYYY-MM-DD&to=YYYY-MM-DD). Live unrealized equity toggle
- * (J2.0-unique) lands in Phase 3 / Step 7.
+ * Filtered by the global Scope (P3 §6): the URL-backed `useScope` supplies a
+ * snake_case FilterSpec (`apiParams`) — account + date range + symbol/side/
+ * setup/tag — that `useJ2Analytics` sends to `GET /api/j2/analytics`. The old
+ * local Range pill row (afrom/ato) was replaced by `<ScopeBar>` in A10; the
+ * date-range presets now live in the ScopeBar's date facet. Live unrealized
+ * equity toggle (J2.0-unique) lands in Phase 3 / Step 7.
  */
 
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import useJ2Analytics from '../hooks/useJ2Analytics'
 import useJ2Positions from '../hooks/useJ2Positions'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import useScope from '../hooks/useScope'
 import PerformancePanel from '../components/PerformancePanel'
 import CollapsibleSection from '../components/CollapsibleSection'
+import ScopeBar from '../components/scope/ScopeBar'
 import RiskExitsSection from '../components/analytics/RiskExitsSection'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
@@ -70,70 +74,17 @@ const categoryAxis = {
   axisLabel: { color: CHART_COLORS.text },
 }
 
-// ── Range filter ─────────────────────────────────────────────────────────────
-
-const RANGE_PRESETS = [
-  { key: 'all', label: 'All time' },
-  { key: '30d', label: 'Last 30d' },
-  { key: '90d', label: 'Last 90d' },
-  { key: 'mtd', label: 'MTD' },
-  { key: 'qtd', label: 'QTD' },
-  { key: 'ytd', label: 'YTD' },
-  { key: '12mo', label: 'Last 12mo' },
-  { key: 'custom', label: 'Custom' },
-]
-
-function presetToRange(key) {
-  const today = todayET()
-  const [y, m, d] = today.split('-').map(Number)
-  const t = new Date(Date.UTC(y, m - 1, d))
-  const iso = (date) => date.toISOString().slice(0, 10)
-  switch (key) {
-    case 'all': return { from: null, to: null }
-    case '30d': {
-      const from = new Date(t); from.setUTCDate(t.getUTCDate() - 30)
-      return { from: iso(from), to: iso(t) }
-    }
-    case '90d': {
-      const from = new Date(t); from.setUTCDate(t.getUTCDate() - 90)
-      return { from: iso(from), to: iso(t) }
-    }
-    case 'mtd': return { from: `${y}-${String(m).padStart(2,'0')}-01`, to: iso(t) }
-    case 'qtd': {
-      const qStart = Math.floor((m - 1) / 3) * 3 + 1
-      return { from: `${y}-${String(qStart).padStart(2,'0')}-01`, to: iso(t) }
-    }
-    case 'ytd': return { from: `${y}-01-01`, to: iso(t) }
-    case '12mo': {
-      const from = new Date(t); from.setUTCMonth(t.getUTCMonth() - 12)
-      return { from: iso(from), to: iso(t) }
-    }
-    default: return { from: null, to: null }
-  }
-}
-
 // ── AnalyticsTab ─────────────────────────────────────────────────────────────
 
 export default function AnalyticsTab() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const from = searchParams.get('afrom') || null
-  const to = searchParams.get('ato') || null
-  const [activePreset, setActivePreset] = useState('all')
   const { accountId, account } = useJ2SelectedAccount()
+  // Analytics honors the FULL global Scope — date range + symbol/side/setup/tag.
+  // `apiParams` is the snake_case FilterSpec the fetch layer sends verbatim; the
+  // date-range presets that used to live in a local pill row now live in the
+  // ScopeBar's date facet (unified `from`/`to`), replacing the old afrom/ato.
+  const { apiParams } = useScope()
 
-  const { data, isLoading, error } = useJ2Analytics({ from, to })
-
-  const setRange = (preset) => {
-    setActivePreset(preset)
-    if (preset === 'custom') return
-    const { from: f, to: t } = presetToRange(preset)
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      if (f) next.set('afrom', f); else next.delete('afrom')
-      if (t) next.set('ato', t); else next.delete('ato')
-      return next
-    }, { replace: true })
-  }
+  const { data, isLoading, error } = useJ2Analytics(apiParams)
 
   return (
     <div className={styles.wrap}>
@@ -147,49 +98,7 @@ export default function AnalyticsTab() {
         </div>
       </div>
 
-      <div className={styles.rangeRow}>
-        <span className={styles.rangeLabel}>Range</span>
-        <div className={styles.rangePills}>
-          {RANGE_PRESETS.map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              className={`${styles.pill} ${activePreset === p.key ? styles.pillActive : ''}`}
-              onClick={() => setRange(p.key)}
-              aria-pressed={activePreset === p.key}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-        {activePreset === 'custom' && (
-          <div className={styles.customRange}>
-            <input
-              type="date"
-              value={from || ''}
-              onChange={(e) => setSearchParams((prev) => {
-                const n = new URLSearchParams(prev)
-                if (e.target.value) n.set('afrom', e.target.value)
-                else n.delete('afrom')
-                return n
-              }, { replace: true })}
-              className={styles.dateInput}
-            />
-            <span className={styles.dash}>–</span>
-            <input
-              type="date"
-              value={to || ''}
-              onChange={(e) => setSearchParams((prev) => {
-                const n = new URLSearchParams(prev)
-                if (e.target.value) n.set('ato', e.target.value)
-                else n.delete('ato')
-                return n
-              }, { replace: true })}
-              className={styles.dateInput}
-            />
-          </div>
-        )}
-      </div>
+      <ScopeBar surface="analytics" />
 
       {account?.balanceSource === 'broker' && accountId && (
         <div className={styles.section}>

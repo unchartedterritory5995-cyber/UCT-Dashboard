@@ -9,7 +9,9 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import useJ2Calendar from '../hooks/useJ2Calendar'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
+import useScope from '../hooks/useScope'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import ScopeBar from '../components/scope/ScopeBar'
 import CalendarHeader from '../components/calendar/CalendarHeader'
 import MonthView from '../components/calendar/MonthView'
 import YearView from '../components/calendar/YearView'
@@ -44,8 +46,19 @@ export default function CalendarTab() {
   const basisPref = parsePref(prefs.j2_calendar_pnl_basis, 'account')
   const effectiveBasis = isBroker ? basisPref : 'closed'
 
+  // The calendar navigates its OWN dates (view/year/month/week), so the global
+  // Scope date facet does NOT apply here — strip `date_from`/`date_to` and pass
+  // only the non-date facets (symbol/sides/setups/tags + account_id, which the
+  // scope's `apiParams` already carries) into the fetch. The A3 backend also
+  // strips dates itself; omitting them here keeps the URL honest too.
+  const { apiParams } = useScope()
+  const calendarScopeParams = useMemo(() => {
+    const { date_from, date_to, ...rest } = apiParams
+    return rest
+  }, [apiParams])
+
   const { days, totals, basis: serverBasis, isLoading, error } = useJ2Calendar({
-    view, year, month, week, accountId, basis: effectiveBasis,
+    view, year, month, week, basis: effectiveBasis, scopeParams: calendarScopeParams,
   })
   // The server downgrades account→closed when no broker snapshots exist. Cells
   // key their $-display off the ACTUAL data basis (serverBasis); the header
@@ -81,6 +94,7 @@ export default function CalendarTab() {
 
   return (
     <div className={styles.wrap}>
+      <ScopeBar surface="calendar" dateApplies={false} />
       <CalendarHeader
         view={view}
         year={year}
