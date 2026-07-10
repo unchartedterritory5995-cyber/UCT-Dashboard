@@ -16,6 +16,7 @@ import json
 import sqlite3
 
 from api.services.journal_two import db as j2db
+from api.services.journal_two.excursions_store import upsert_excursion
 from api.services.journal_two.trades import get_trade_detail
 
 
@@ -93,6 +94,53 @@ def test_returns_trade_and_ref():
     assert out["trade"]["symbol"] == "NVDA"
     assert out["tradeRef"] == "id:t1"
     assert out["brokerActivities"] == []
+    # excursion is attached (None when not yet computed → FE shows "pending nightly")
+    assert out["excursion"] is None
+
+
+# ── Excursion sub-object (Task 5) ────────────────────────────────────────────
+
+def test_excursion_present_for_computed_trade():
+    """When an excursion has been computed + stored for the trade's stable
+    tradeRef, get_trade_detail attaches it as the camelCase `excursion` dict."""
+    conn = _conn()
+    _seed_trade(conn)  # manual trade → tradeRef "id:t1"
+    upsert_excursion(
+        "u1",
+        "id:t1",
+        {
+            "symbol": "NVDA",
+            "mfe_price": 118.0,
+            "mae_price": 96.0,
+            "mfe_r": 3.6,
+            "mae_r": -0.8,
+            "mfe_ts": "2026-04-02T15:00:00Z",
+            "mae_ts": "2026-04-01T15:00:00Z",
+            "exit_efficiency": 0.55,
+            "missed_r": 1.6,
+            "bar_resolution": "5m",
+            "data_quality": "ok",
+        },
+        conn=conn,
+    )
+    out = get_trade_detail("u1", "t1", conn=conn)
+    exc = out["excursion"]
+    assert exc is not None
+    assert exc["symbol"] == "NVDA"
+    assert exc["mfePrice"] == 118.0
+    assert exc["maeR"] == -0.8
+    assert exc["exitEfficiency"] == 0.55
+    assert exc["barResolution"] == "5m"
+    assert exc["dataQuality"] == "ok"
+    assert exc["computedAt"]  # stamped by upsert
+
+
+def test_excursion_none_when_absent():
+    """No stored excursion → excursion is None (nightly job / backfill fills it)."""
+    conn = _conn()
+    _seed_trade(conn)
+    out = get_trade_detail("u1", "t1", conn=conn)
+    assert out["excursion"] is None
 
 
 def test_wrong_user_is_none():

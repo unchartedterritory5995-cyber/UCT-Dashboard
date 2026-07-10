@@ -39,6 +39,7 @@ from api.services.journal_two.timeutil import (
     compute_hour_et,
 )
 from api.services.journal_two.trade_refs import trade_ref_for_row
+from api.services.journal_two import excursions_store
 
 # Strict 24-hour HH:MM (e.g. '09:45', '14:30'). Rejects '9:5', '25:00', '10:60'.
 _HHMM_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
@@ -1110,10 +1111,16 @@ def get_trade_detail(
                     # Older DBs / column drift — provenance is best-effort.
                     activities = []
 
+        trade_ref = trade_ref_for_row(row)
         return {
             "trade": trade,
-            "tradeRef": trade_ref_for_row(row),
+            "tradeRef": trade_ref,
             "brokerActivities": activities,
+            # Stored-or-None; the nightly job + admin backfill populate it.
+            # None → FE shows "pending nightly". Reuse the live connection.
+            "excursion": excursions_store.get_excursion(
+                user_id, trade_ref, conn=conn
+            ),
         }
     finally:
         if owned:
