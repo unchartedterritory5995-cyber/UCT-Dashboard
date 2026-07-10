@@ -1844,7 +1844,8 @@ _day_stats_cache: dict = {}  # date_key → (computed_at_unix, payload)
 _DAY_STATS_TTL = 30  # 30s — fast enough for live, slow enough to skip work
 
 
-def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
+def _build_day_stats(today: str, exclude_algo: bool = False,
+                     stock_etf: str = "all") -> dict:
     """Compute aggregate stats for all Y/M classifiable stocks rows on `today`.
     Heavy SQL + Python pass over potentially 5K-10K rows; cache the result
     via the wrapper endpoint so repeated polls within 30s don't re-process.
@@ -1866,39 +1867,55 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
     # extra WHITE rows here that get dropped in _row_to_alert costs microseconds
     # per row and keeps the two code paths visually consistent.
     override_sql_floor = 500_000
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    try:
-        conn.row_factory = sqlite3.Row
-        # 7/7: same conditional source clause as /recent so bull/bear card
-        # counts stay consistent with the alert stream when ETFs are enabled.
-        etf_enabled = _load_thresholds().get("etf_enabled", False)
-        if etf_enabled:
-            source_clause = "source IN ('stocks','indexes')"
-        else:
-            source_clause = "source = 'stocks'"
-        cur = conn.execute(f"""
-            SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
-                   Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
-                   Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
-              FROM flow
-             WHERE {source_clause}
-               AND CreatedDate = ?
-               AND (Color IN ('MAGENTA', 'YELLOW')
-                    OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
-             ORDER BY id DESC
-             LIMIT ?
-        """, (today, override_sql_floor,
-              int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))))
-        # CAP (2026-07-09): was unbounded (_row_to_alert over ALL ~39K classified
-        # rows by midday → 30s+ timeout, "Loading market read…" stuck forever).
-        # Raised 3000→20000 to match the ALL FLOW tape scan so the hero's bull/bear
-        # totals represent the whole day's flow, not a thin recent slice (Ravi's
-        # "missing flow"). Sync endpoint (runs in the threadpool, not the event
-        # loop) + cached 30s, so the ~1.5s _row_to_alert pass over 20K rows is
-        # absorbed once per 30s and never blocks users. Env-tunable.
-        rows = cur.fetchall()
-    finally:
-        conn.close()
+    # 7/7: same conditional source clause as /recent so bull/bear card counts
+    # stay consistent with the alert stream when ETFs are enabled.
+    # 7/9: also honor the Stocks/ETFs/All partition (stock_etf) so the Market
+    # Read matches the row feed, which splits client-side on the source column
+    # (source=='indexes' → ETFs/indexes; else stocks). We narrow WITHIN the etf
+    # gate, so "ETFs" while the indexes pipeline is disabled yields nothing —
+    # exactly what the feed would show. `sources` holds only code-controlled
+    # literals ('stocks'/'indexes'), so interpolating them is injection-safe.
+    etf_enabled = _load_thresholds().get("etf_enabled", False)
+    base_sources = ["stocks", "indexes"] if etf_enabled else ["stocks"]
+    if stock_etf == "stocks":
+        sources = [s for s in base_sources if s == "stocks"]
+    elif stock_etf == "etfs":
+        sources = [s for s in base_sources if s == "indexes"]
+    else:
+        sources = base_sources
+
+    rows = []
+    if sources:
+        source_clause = (
+            "source = '%s'" % sources[0] if len(sources) == 1
+            else "source IN (%s)" % ",".join("'%s'" % s for s in sources)
+        )
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        try:
+            conn.row_factory = sqlite3.Row
+            cur = conn.execute(f"""
+                SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
+                       Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
+                       Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
+                  FROM flow
+                 WHERE {source_clause}
+                   AND CreatedDate = ?
+                   AND (Color IN ('MAGENTA', 'YELLOW')
+                        OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+                 ORDER BY id DESC
+                 LIMIT ?
+            """, (today, override_sql_floor,
+                  int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))))
+            # CAP (2026-07-09): was unbounded (_row_to_alert over ALL ~39K classified
+            # rows by midday → 30s+ timeout, "Loading market read…" stuck forever).
+            # Raised 3000→20000 to match the ALL FLOW tape scan so the hero's bull/bear
+            # totals represent the whole day's flow, not a thin recent slice (Ravi's
+            # "missing flow"). Sync endpoint (runs in the threadpool, not the event
+            # loop) + cached 30s, so the ~1.5s _row_to_alert pass over 20K rows is
+            # absorbed once per 30s and never blocks users. Env-tunable.
+            rows = cur.fetchall()
+        finally:
+            conn.close()
 
     # Translate each row to an alert (includes direction + dte + ticker)
     classified = []
@@ -2062,26 +2079,30 @@ def _build_day_stats(today: str, exclude_algo: bool = False) -> dict:
 def day_stats(
     target_date: str = Query(default=None),
     exclude_algo: bool = Query(default=False, description="Exclude multi-leg/Algo tier from the bull/bear/DTE/top-tickers aggregation. Useful for a 'pure directional' read since multi-leg trades aren't truly directional even when one leg prints at ask."),
+    stock_etf: str = Query(default="all", description="Partition the Market Read to match the row feed's Stocks/ETFs/All toggle. 'stocks' = source='stocks' only; 'etfs' = source='indexes' only; 'all' = both (subject to the etf_enabled gate)."),
 ):
     """
-    Aggregated bull/bear stats for ALL classifiable Y/M stocks rows on the
-    target date. Independent of filters — gives the page's Market Read a
-    stable macro view that doesn't shift when user toggles tier chips or
-    min-grade selector.
+    Aggregated bull/bear stats for ALL classifiable Y/M rows on the target
+    date, within the requested Stocks/ETFs/All partition. Independent of the
+    tier/min-grade/row-limit filters — gives the page's Market Read a stable
+    macro view — but DOES honor the Stocks/ETFs toggle so the card and the
+    feed agree on which universe they're describing.
 
-    Cached for 30s server-side per date. Historical dates never change so
-    cache hit rate is near-100% after first request.
+    Cached for 30s server-side per (date, exclude_algo, stock_etf). Historical
+    dates never change so cache hit rate is near-100% after first request.
 
     When exclude_algo=true, the Algo tier (multi-leg complex strategies) is
     skipped during aggregation. Single-leg directional alerts only.
     """
     today = target_date or _today_mdyyyy()
     now = time.time()
-    cache_key = (today, bool(exclude_algo))
+    if stock_etf not in ("stocks", "etfs", "all"):
+        stock_etf = "all"
+    cache_key = (today, bool(exclude_algo), stock_etf)
     cached = _day_stats_cache.get(cache_key)
     if cached and (now - cached[0]) < _DAY_STATS_TTL:
         return cached[1]
-    payload = _build_day_stats(today, exclude_algo=exclude_algo)
+    payload = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
     _day_stats_cache[cache_key] = (now, payload)
     return payload
 
