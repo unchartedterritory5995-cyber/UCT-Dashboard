@@ -3613,6 +3613,95 @@ async def _massive_reclassify_source(target_date: str = "7/8/2026"):
     return {"ok": True, "stats": stats}
 
 
+@app.post("/api/admin/massive/backfill-mktcap")
+async def _massive_backfill_mktcap(target_date: str = "7/10/2026"):
+    """Fill missing/zero MktCap on a date's rows from the ticker's most-recent
+    known cap in FlowDB history -- the SAME source the worker uses
+    (_load_ticker_metadata / the get_mktcap_batch pattern).
+
+    Fixes the permissive-default bug: _cap_band_key maps a missing cap to the
+    'mid_small' band (lowest floors), which under-gates large/mega names whose
+    cap didn't land at ingest -- e.g. a $499K RMD print clearing the $250K
+    mid_small floor instead of its $500K large floor. Tier/premium-floor gating
+    is computed at READ time from MktCap, so corrected caps take effect on the
+    next read; no rebuild needed.
+
+    Self-referential: a ticker's cap comes from any prior row where it was
+    populated (BBS upload, earlier session). Fresh IPOs with no cap anywhere
+    (e.g. CRCL) can't be resolved and stay 0 -- reported in unresolved_sample;
+    those remain mid_small until a cap source populates them.
+
+    Idempotent -- only writes rows whose MktCap is currently missing/0.
+    """
+    try:
+        import sqlite3
+        from api.flow_db import FlowDB
+    except Exception as e:
+        return {"ok": False, "error": f"import failed: {e}"}
+
+    today = target_date
+    stats = {"target_date": today, "symbols_missing": 0, "symbols_resolved": 0,
+             "symbols_unresolved": 0, "rows_updated": 0, "unresolved_sample": []}
+    try:
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=30) as conn:
+            missing = [r[0] for r in conn.execute(
+                "SELECT DISTINCT Symbol FROM flow "
+                "WHERE CreatedDate = ? AND Symbol IS NOT NULL AND Symbol != '' "
+                "AND (MktCap IS NULL OR MktCap = '' OR MktCap = '0')",
+                (today,)).fetchall() if r[0]]
+            stats["symbols_missing"] = len(missing)
+            if not missing:
+                return {"ok": True, "stats": stats}
+
+            # Most-recent NON-ZERO cap per symbol from FlowDB history (worker's
+            # _load_ticker_metadata mc_sql pattern, verbatim).
+            placeholders = ",".join("?" for _ in missing)
+            mc_sql = f"""
+                SELECT f.Symbol, f.MktCap
+                FROM flow f
+                INNER JOIN (
+                    SELECT Symbol, MAX(id) AS max_id
+                    FROM flow
+                    WHERE Symbol IN ({placeholders})
+                      AND MktCap IS NOT NULL AND MktCap != '' AND MktCap != '0'
+                    GROUP BY Symbol
+                ) latest ON f.id = latest.max_id
+            """
+            resolved = {}
+            for sym, mc_raw in conn.execute(mc_sql, missing):
+                if not sym:
+                    continue
+                try:
+                    mc = int(float((mc_raw or "0").strip()))
+                except (ValueError, TypeError):
+                    mc = 0
+                if mc > 0:
+                    resolved[sym.strip().upper()] = mc
+
+            for sym in missing:
+                cap = resolved.get((sym or "").strip().upper())
+                if not cap:
+                    stats["symbols_unresolved"] += 1
+                    if len(stats["unresolved_sample"]) < 15:
+                        stats["unresolved_sample"].append(sym)
+                    continue
+                upd = conn.execute(
+                    "UPDATE flow SET MktCap = ? "
+                    "WHERE CreatedDate = ? AND Symbol = ? "
+                    "AND (MktCap IS NULL OR MktCap = '' OR MktCap = '0')",
+                    (str(cap), today, sym))
+                if upd.rowcount:
+                    stats["symbols_resolved"] += 1
+                    stats["rows_updated"] += upd.rowcount
+            conn.commit()
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e),
+                "traceback": traceback.format_exc().splitlines()[-4:]}
+    return {"ok": True, "stats": stats}
+
+
 @app.post("/api/admin/massive/apply-cancel-patches")
 async def _massive_apply_cancel_patches(patches_file: str = "patches-6-26-cancels.json",
                                          target_date: str = "6/26/2026"):
