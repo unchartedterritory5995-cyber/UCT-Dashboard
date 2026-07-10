@@ -382,31 +382,38 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
 
 
 
-def _backfill_flow_oi(resolved_contracts: List[tuple]) -> int:
-    """Update flow.OI column on today's rows for contracts with newly-
-    resolved OI. Mirrors what the worker's _color_refresh_sync does after
-    on-demand OI fetches.
+def _backfill_flow_oi(resolved_contracts: List[tuple],
+                      target_date: str = None) -> int:
+    """Update flow.OI column for contracts with newly-resolved OI. Mirrors
+    what the worker's _color_refresh_sync does after on-demand OI fetches.
 
     resolved_contracts: [(contract_key, oi, source), ...]
         contract_key format: 'SYM|C/P|float_strike|M/D/YYYY'
+    target_date: M/D/YYYY to target a PAST day's rows (historical backfill).
+        Defaults to None → today (ET), the live bulk-fetch behavior.
 
     Returns total number of flow rows updated.
     """
     import sqlite3
     from api.flow_db import FlowDB
 
+    # Which CreatedDate to match. Live path = today (ET); a historical
+    # backfill passes target_date explicitly.
     # CRITICAL: use ET date, not UTC. Railway runs in UTC. After 8pm ET
     # (midnight UTC), date.today() returns tomorrow's date. But flow.CreatedDate
     # is stored as ET date. So we'd search for CreatedDate='7/1/2026' when
     # the rows have CreatedDate='6/30/2026'. Zero matches.
-    try:
-        from zoneinfo import ZoneInfo
-        et_now = datetime.now(ZoneInfo('America/New_York'))
-    except ImportError:
-        # Fallback: approximate ET as UTC-4 (EDT). Off during winter but
-        # close enough for the CreatedDate matching to work.
-        et_now = datetime.utcnow() + timedelta(hours=-4)
-    today_mdY = f"{et_now.month}/{et_now.day}/{et_now.year}"
+    if target_date:
+        today_mdY = target_date
+    else:
+        try:
+            from zoneinfo import ZoneInfo
+            et_now = datetime.now(ZoneInfo('America/New_York'))
+        except ImportError:
+            # Fallback: approximate ET as UTC-4 (EDT). Off during winter but
+            # close enough for the CreatedDate matching to work.
+            et_now = datetime.utcnow() + timedelta(hours=-4)
+        today_mdY = f"{et_now.month}/{et_now.day}/{et_now.year}"
 
     db = FlowDB()
     rows_updated = 0
@@ -486,6 +493,85 @@ def _backfill_flow_oi(resolved_contracts: List[tuple]) -> int:
         )
 
     return rows_updated
+
+
+@router.post("/backfill-flow-oi")
+def backfill_flow_oi_for_date(
+    target_date: str = Query(..., description="M/D/YYYY. Write OI from contract_oi_snapshots into this PAST date's flow.OI rows."),
+):
+    """One-shot: populate flow.OI for a HISTORICAL date from contract_oi_snapshots.
+
+    The live /bulk-fetch path only backfills TODAY's rows, so gap-filled days
+    (e.g. 7/8) land at OI=0 and /api/admin/massive/rebuild-color can't upgrade
+    them (no OI for cumulative volume to exceed). This reads the latest snapshot
+    (snap_date <= target_date, oi > 0) for every contract whose Symbol has an
+    empty-OI row on target_date, then writes OI into those rows.
+
+    Idempotent — only fills rows where OI is '0'/''/NULL. Follow with
+    POST /api/admin/massive/rebuild-color?target_date=<same date> so the newly
+    populated OI produces the MAGENTA/YELLOW upgrades.
+    """
+    import sqlite3
+    from api.flow_db import FlowDB
+
+    # M/D/YYYY → ISO for snap_date comparison (snap_date stored 'YYYY-MM-DD').
+    try:
+        m, d, y = target_date.split("/")
+        target_iso = f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+    except (ValueError, AttributeError):
+        raise HTTPException(400, "target_date must be M/D/YYYY")
+
+    db = FlowDB()
+    with sqlite3.connect(db.db_path, timeout=30) as conn:
+        # 1) Symbols with empty-OI rows on this date — bounds the snapshot scan.
+        sym_rows = conn.execute(
+            "SELECT DISTINCT Symbol FROM flow "
+            "WHERE CreatedDate = ? AND (OI = '0' OR OI = '' OR OI IS NULL)",
+            (target_date,),
+        ).fetchall()
+        symbols = {r[0] for r in sym_rows if r[0]}
+        if not symbols:
+            return {"ok": True, "target_date": target_date, "rows_updated": 0,
+                    "note": "No empty-OI rows on this date — nothing to backfill."}
+
+        # 2) Latest snapshot per contract_key (snap_date <= target, oi > 0),
+        #    kept only for the symbols that need it. contract_key format is
+        #    'SYM|C/P|float_strike|M/D/YYYY' — the same shape _backfill_flow_oi
+        #    parses and reverses into flow-row strike/exp candidates.
+        snap_by_key = {}
+        cur = conn.execute(
+            "SELECT contract_key, snap_date, oi FROM contract_oi_snapshots "
+            "WHERE snap_date <= ? ORDER BY contract_key, snap_date",
+            (target_iso,),
+        )
+        for ck, sd, oi_val in cur.fetchall():
+            oi_val = int(oi_val or 0)
+            if oi_val <= 0:
+                continue
+            if ck.split("|", 1)[0] not in symbols:
+                continue
+            prev = snap_by_key.get(ck)
+            if prev is None or sd > prev[0]:
+                snap_by_key[ck] = (sd, oi_val)
+
+    if not snap_by_key:
+        return {"ok": True, "target_date": target_date, "rows_updated": 0,
+                "symbols_with_empty_oi": len(symbols),
+                "note": "No snapshots (snap_date <= date, oi > 0) for this "
+                        "date's symbols."}
+
+    resolved = [(ck, oi, "snapshot-backfill")
+                for ck, (_sd, oi) in snap_by_key.items()]
+    rows_updated = _backfill_flow_oi(resolved, target_date=target_date)
+
+    return {
+        "ok": True,
+        "target_date": target_date,
+        "symbols_with_empty_oi": len(symbols),
+        "snapshot_contracts_matched": len(resolved),
+        "rows_updated": rows_updated,
+        "next": f"POST /api/admin/massive/rebuild-color?target_date={target_date}",
+    }
 
 
 # ── Diagnostic endpoint for Massive OI integration ───────────────────────
