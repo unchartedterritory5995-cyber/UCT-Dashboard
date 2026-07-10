@@ -1117,15 +1117,23 @@ def _compute_conviction(premium: int, oi: int, volume: int,
     return (round(score, 1), grade)
 
 
-def _row_to_alert(row: dict) -> dict | None:
+def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
     """Translate a FlowDB row to the alert shape LiveFlow.jsx expects.
-    Returns None if the row should be skipped (e.g., unclassified side)."""
+    Returns None if the row should be skipped (e.g., unclassified side).
+
+    require_direction=True (default, used by the tape/day-stats): a row with no
+    derivable direction is dropped. require_direction=False (by-contract rollup):
+    direction-less prints are KEPT (with _direction=None) so the accumulation view
+    counts repetition regardless of side quality — but true noise (deep-ITM,
+    lottery, spread legs) is still dropped. Side accuracy itself is a separate,
+    worker-side fix; here we just stop the broken sides from hiding real repeats.
+    """
     cp_full = row["CallPut"]
     cp_short = "C" if cp_full == "CALL" else ("P" if cp_full == "PUT" else "")
     side = row["Side"] or ""
 
     direction = _derive_direction(cp_full, side, row.get("Type", ""))
-    if direction is None:
+    if direction is None and require_direction:
         # Unclassified side → can't determine bull/bear → skip
         return None
 
@@ -1226,6 +1234,37 @@ def _row_to_alert(row: dict) -> dict | None:
     # tier detection, which is always excluded from curated).
     if type_str == "ML/" and oi > 0:
         return None  # BBS-format spread leg, not a directional signal
+
+    if direction is None:
+        # require_direction=False path: no clean direction, but the row passed
+        # every noise filter above (not deep-ITM/lottery/spread). Return a
+        # minimal alert so the by-contract rollup counts this print toward
+        # repetition/size. No tier/grade/name — those are direction-derived.
+        ts = _ts_from_row(row["CreatedDate"], row["CreatedTime"])
+        return {
+            "id": row["id"],
+            "ticker": row["Symbol"],
+            "cp": cp_short,
+            "strike": strike,
+            "exp": row["ExpirationDate"],
+            "dte": dte,
+            "source": row.get("source", "stocks"),
+            "alertPremium": float(premium),
+            "averageFillPrice": price,
+            "tradeSize": volume,
+            "timestamp": ts,
+            "priorOI": oi if oi > 0 else None,
+            "spot": spot if spot > 0 else None,
+            "moneynessPct": money_pct,
+            "moneynessLabel": money_label,
+            "_mktCap": _parse_int(row.get("MktCap")),
+            "_direction": None,
+            "_side": side.strip().upper(),
+            "_type": (row.get("Type") or ""),
+            "_color": row.get("Color"),
+            "grade": None,
+            "_tierKey": None,
+        }
 
     result = _derive_alert_name(row, direction, money_pct=money_pct)
     if result is None:
@@ -2229,7 +2268,11 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     # Group by contract
     contracts: dict = {}
     for r in rows:
-        a = _row_to_alert(dict(r))
+        # require_direction=False: count every meaningful print toward the
+        # accumulation, even ones the tape drops for unclassifiable side. The
+        # rollup's thesis is repetition; direction is derived from the sided
+        # subset and shown as bull/bear/mixed with a sided-% for honesty.
+        a = _row_to_alert(dict(r), require_direction=False)
         if a is None:
             continue
         if exclude_algo and a.get("_tierKey") == "algo":
@@ -2294,9 +2337,19 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         if qual < min_hits or g["total_premium"] < total_floor:
             continue
         bull, bear = g["bull_premium"], g["bear_premium"]
-        dirp = bull + bear
-        direction = "Bull" if bull > bear else ("Bear" if bear > bull else "Neutral")
-        consistency = round(max(bull, bear) / dirp, 2) if dirp > 0 else 0.0
+        sided = bull + bear
+        if bull > 0 and bear > 0:
+            direction = "Mixed"
+        elif bull > bear:
+            direction = "Bull"
+        elif bear > bull:
+            direction = "Bear"
+        else:
+            direction = "Unclear"   # no cleanly-sided prints (all empty/ambiguous)
+        consistency = round(max(bull, bear) / sided, 2) if sided > 0 else 0.0
+        # What fraction of the contract's premium is cleanly directional — lets
+        # the UI flag "8 hits / $2.87M, 50% sided" rather than overclaiming.
+        sided_pct = round(sided / g["total_premium"], 2) if g["total_premium"] > 0 else 0.0
         dormant = _is_dormant_ticker(g["ticker"]) if have_dormant else False
         voi = round(g["total_volume"] / g["max_oi"], 1) if g["max_oi"] > 0 else None
         # Soft-drop: cumulative volume UNDER open interest (< 1x, when we HAVE OI)
@@ -2321,6 +2374,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             "total_premium": round(g["total_premium"]), "total_volume": g["total_volume"],
             "bull_premium": round(bull), "bear_premium": round(bear),
             "direction": direction, "consistency": consistency,
+            "sided_pct": sided_pct, "sided_premium": round(sided),
             "sides": g["sides"], "types": sorted(g["types"]),
             "grade": _best_grade(g["grades"]), "cum_voi": voi, "max_oi": g["max_oi"],
             "dormant": dormant, "score": score,
