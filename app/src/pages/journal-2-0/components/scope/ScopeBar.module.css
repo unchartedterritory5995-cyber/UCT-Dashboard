@@ -1,0 +1,394 @@
+/* ScopeBar — Journal 2.0 P3 §6 global Scope filter.
+ * Mirrors FiltersPanel token usage. Responsive layout via @media (per the
+ * useIsTouch-first-paint-stale gotcha); useIsTouch only picks bar-vs-Sheet. */
+
+/* ── desktop inline bar ─────────────────────────────────────────────────────*/
+.bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: var(--font-sans);
+  color: var(--text-bright);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* "Loud active" — gold fill when any FILTER facet is set (never for account). */
+.barActive {
+  background: linear-gradient(
+    180deg,
+    rgba(201, 168, 76, 0.16),
+    rgba(201, 168, 76, 0.06)
+  );
+  border-color: var(--border-accent);
+  box-shadow: inset 0 0 0 1px rgba(201, 168, 76, 0.25);
+}
+
+.filterGlyph {
+  flex-shrink: 0;
+}
+
+.facet {
+  display: flex;
+  align-items: center;
+}
+
+.spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+/* ── controls ───────────────────────────────────────────────────────────────*/
+.select,
+.input {
+  padding: 6px 9px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.select {
+  cursor: pointer;
+  max-width: 160px;
+}
+
+.input:focus,
+.select:focus {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
+
+.input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dateFacet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dateInputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.miniLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dateNote {
+  margin: 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.presets {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.presetBtn {
+  padding: 4px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.presetBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+}
+
+.sideFacet {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.sideBtn {
+  padding: 4px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.sideBtn:hover {
+  background: var(--bg-hover);
+}
+
+.sideBtnActive {
+  background: var(--ut-gold);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+/* ── setup / tag popovers ───────────────────────────────────────────────────*/
+.popoverWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.popoverBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 9px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.popoverBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+}
+
+.popoverBtnActive {
+  border-color: var(--border-accent);
+  color: var(--ut-gold);
+}
+
+.caret {
+  flex-shrink: 0;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  min-width: 180px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.5);
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.checkRow:hover {
+  background: var(--bg-hover);
+}
+
+.checkRow input[type='checkbox'] {
+  accent-color: var(--ut-gold);
+  cursor: pointer;
+}
+
+.hint {
+  margin: 0;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* ── active affordances ─────────────────────────────────────────────────────*/
+.count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ut-gold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.clearBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
+  color: var(--ut-gold);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clearBtn:hover {
+  background: var(--bg-hover);
+}
+
+.clearGlyph {
+  flex-shrink: 0;
+}
+
+/* ── touch chip ─────────────────────────────────────────────────────────────*/
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chipActive {
+  background: linear-gradient(
+    180deg,
+    rgba(201, 168, 76, 0.18),
+    rgba(201, 168, 76, 0.07)
+  );
+  border-color: var(--border-accent);
+}
+
+.chipText {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── mobile Sheet content ───────────────────────────────────────────────────*/
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheetContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* ≥16px kills iOS focus-zoom; ≥44px = comfortable tap target. */
+.sheetContent .input,
+.sheetContent .select {
+  font-size: 16px;
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.sheetContent .select {
+  max-width: none;
+}
+
+.sheetContent .checkRow {
+  font-size: 16px;
+  min-height: 44px;
+  gap: 12px;
+}
+
+.sheetContent .checkRow input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.sheetContent .sideBtn {
+  padding: 9px 16px;
+  font-size: 14px;
+}
+
+.sheetContent .presetBtn {
+  min-height: 40px;
+  font-size: 13px;
+}
+
+.sheetClearAll {
+  width: 100%;
+  min-height: 44px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  color: var(--ut-gold);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sheetClearAll:active {
+  background: var(--bg-surface);
+}
+
+/* Let the bar wrap gracefully on smaller desktops/tablets. */
+@media (max-width: 1024px) {
+  .bar {
+    gap: 6px;
+  }
+  .select {
+    max-width: 130px;
+  }
+}
