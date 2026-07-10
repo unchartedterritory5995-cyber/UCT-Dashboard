@@ -147,6 +147,7 @@ export default function EarningsModal({ row, label, reportDate = null, timing = 
   const [transcriptState, setTranscriptState] = useState({ loading: false, data: null })
   const [transcriptOpen, setTranscriptOpen] = useState(false)
   const [previewExpanded, setPreviewExpanded] = useState(false)
+  const [showMore, setShowMore] = useState(false)
 
   // C1: Fundamentals strip — fetched by FundamentalsStrip itself (null-safe, lazy)
   // C2: SEC Filings (deduped + grouped + capped at 5)
@@ -430,17 +431,23 @@ export default function EarningsModal({ row, label, reportDate = null, timing = 
           </div>
         )}
 
-        {/* ── Analyst (consensus · price target · upgrades/downgrades) ──── */}
-        <AnalystPanel sym={row.sym} />
-
-        {/* ── Institutional ownership (13F) ────────────────────────────── */}
-        <OwnershipPanel sym={row.sym} />
-
-        {/* ── C1: Fundamentals strip ───────────────────────────────────── */}
-        <FundamentalsStrip ticker={row.sym} />
-
-        {/* ── C5: Sentiment gauge ──────────────────────────────────────── */}
-        <SentimentGauge ticker={row.sym} />
+        {/* Reference detail (analyst · 13F ownership · fundamentals · sentiment)
+            — collapsed by default so the modal leads with the EARNINGS answer,
+            not a reference-data dump. Collapsing also defers these panels' own
+            network fetches until the user actually asks for them. */}
+        <button className={styles.moreToggle} onClick={() => setShowMore(v => !v)}
+                aria-expanded={showMore}>
+          {showMore ? 'Hide company detail ▲'
+                    : 'Company detail — analyst · ownership · fundamentals ▾'}
+        </button>
+        {showMore && (
+          <>
+            <AnalystPanel sym={row.sym} />
+            <OwnershipPanel sym={row.sym} />
+            <FundamentalsStrip ticker={row.sym} />
+            <SentimentGauge ticker={row.sym} />
+          </>
+        )}
 
         {/* ── C5: Call recap + audio (+ lazy full transcript) ─────────── */}
         {recapData && (
