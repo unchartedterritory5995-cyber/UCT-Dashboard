@@ -8,12 +8,15 @@ import {
 } from './calculations'
 import {
   computeNetEntry, computeNetExit, computePnl, classifyDebitCredit,
+  computeMaxRisk, computeDaysToExpiration,
 } from '../../pages/journal-2-0/lib/optionCalcs'
 
 const close = (a, b) => {
-  if (a === null || b === null) return a === b
+  if (a === null || b === null) {
+    expect(a).toBe(b) // null must match null — a null-vs-number divergence FAILS
+    return
+  }
   expect(a).toBeCloseTo(b, 6)
-  return true
 }
 
 describe('JS↔Python equity parity', () => {
@@ -40,8 +43,15 @@ describe('JS↔Python options parity', () => {
       close(ne, f.expected.netEntry)
       const nx = computeNetExit(f.inputs.legs)
       close(nx, f.expected.netExit)
-      if (f.expected.pnl !== null) close(computePnl(ne, nx, 0, 0), f.expected.pnl)
+      close(computePnl(ne, nx, 0, 0), f.expected.pnl) // null-safe: open strategies expect null
       expect(classifyDebitCredit(ne)).toBe(f.expected.debitCredit)
+      close(computeMaxRisk(f.inputs.strategyType, f.inputs.legs, ne), f.expected.maxRisk)
+      // Whole-day DTE semantics: Python uses (date − as_of).days; anchoring the JS
+      // asOf at noon UTC makes Math.round land on the same integer for any date pair.
+      close(
+        computeDaysToExpiration(f.inputs.legs, new Date(`${f.inputs.asOf}T12:00:00Z`)),
+        f.expected.dte,
+      )
     })
   })
 })

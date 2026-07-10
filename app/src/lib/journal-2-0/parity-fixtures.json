@@ -119,6 +119,7 @@
   "options": [
     {
       "inputs": {
+        "strategyType": "custom",
         "legs": [
           {
             "side": "buy",
@@ -126,17 +127,21 @@
             "entryPrice": 2.5,
             "exitPrice": 4.1
           }
-        ]
+        ],
+        "asOf": "2026-07-01"
       },
       "expected": {
         "netEntry": 250.0,
         "netExit": 410.0,
         "pnl": 160.0,
-        "debitCredit": "debit"
+        "debitCredit": "debit",
+        "maxRisk": null,
+        "dte": null
       }
     },
     {
       "inputs": {
+        "strategyType": "custom",
         "legs": [
           {
             "side": "buy",
@@ -150,17 +155,21 @@
             "entryPrice": 1.2,
             "exitPrice": 0.3
           }
-        ]
+        ],
+        "asOf": "2026-07-01"
       },
       "expected": {
         "netEntry": 180.0,
         "netExit": 70.0,
         "pnl": -110.0,
-        "debitCredit": "debit"
+        "debitCredit": "debit",
+        "maxRisk": null,
+        "dte": null
       }
     },
     {
       "inputs": {
+        "strategyType": "custom",
         "legs": [
           {
             "side": "sell",
@@ -168,13 +177,96 @@
             "entryPrice": 1.1,
             "exitPrice": null
           }
-        ]
+        ],
+        "asOf": "2026-07-01"
       },
       "expected": {
         "netEntry": -220.0,
         "netExit": null,
         "pnl": null,
-        "debitCredit": "credit"
+        "debitCredit": "credit",
+        "maxRisk": null,
+        "dte": null
+      }
+    },
+    {
+      "inputs": {
+        "strategyType": "long_call",
+        "legs": [
+          {
+            "side": "buy",
+            "qty": 1,
+            "entryPrice": 2.5,
+            "exitPrice": 4.1,
+            "strike": 100.0,
+            "expiration": "2026-07-18"
+          }
+        ],
+        "asOf": "2026-07-01"
+      },
+      "expected": {
+        "netEntry": 250.0,
+        "netExit": 410.0,
+        "pnl": 160.0,
+        "debitCredit": "debit",
+        "maxRisk": 250.0,
+        "dte": 17
+      }
+    },
+    {
+      "inputs": {
+        "strategyType": "vertical_credit_call",
+        "legs": [
+          {
+            "side": "sell",
+            "qty": 1,
+            "entryPrice": 1.2,
+            "exitPrice": 0.3,
+            "strike": 100.0,
+            "expiration": "2026-08-21"
+          },
+          {
+            "side": "buy",
+            "qty": 1,
+            "entryPrice": 0.4,
+            "exitPrice": 0.05,
+            "strike": 105.0,
+            "expiration": "2026-08-21"
+          }
+        ],
+        "asOf": "2026-07-01"
+      },
+      "expected": {
+        "netEntry": -80.0,
+        "netExit": -25.0,
+        "pnl": 55.0,
+        "debitCredit": "credit",
+        "maxRisk": 420.0,
+        "dte": 51
+      }
+    },
+    {
+      "inputs": {
+        "strategyType": "short_put",
+        "legs": [
+          {
+            "side": "sell",
+            "qty": 2,
+            "entryPrice": 1.1,
+            "exitPrice": null,
+            "strike": 95.0,
+            "expiration": "2026-06-19"
+          }
+        ],
+        "asOf": "2026-07-01"
+      },
+      "expected": {
+        "netEntry": -220.0,
+        "netExit": null,
+        "pnl": null,
+        "debitCredit": "credit",
+        "maxRisk": null,
+        "dte": -12
       }
     }
   ]

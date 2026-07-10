@@ -12,6 +12,7 @@ intentional Python calc change.
 from __future__ import annotations
 
 import json
+from datetime import date as Date
 from pathlib import Path
 
 from api.services.journal_two import calculations as calc
@@ -19,6 +20,12 @@ from api.services.journal_two import options as opt
 
 BE_OFF = {"enabled": False, "unit": "$", "value": 0.0}
 BE_PCT = {"enabled": True, "unit": "%", "value": 0.5}
+
+# Pinned as-of date for DTE cases. Python calls compute_days_to_expiration with
+# as_of=Date.fromisoformat(AS_OF); JS calls computeDaysToExpiration with
+# new Date(AS_OF + 'T12:00:00Z') — the noon-UTC anchor makes JS's Math.round
+# land on Python's whole-day (date − date).days integer for any date pair.
+AS_OF = "2026-07-01"
 
 EQUITY_CASES = [
     # (side, entry, exit, shares, stop, entry_date, exit_date, breakeven)
@@ -29,12 +36,40 @@ EQUITY_CASES = [
     ("Long", 100.0, 100.0, 10, 100.0, "2026-03-02", "2026-03-01", BE_OFF),    # stop==entry (R null) + negative hold
 ]
 
-OPTION_LEG_SETS = [
-    [{"side": "buy", "qty": 1, "entryPrice": 2.50, "exitPrice": 4.10}],
-    [{"side": "buy", "qty": 1, "entryPrice": 3.00, "exitPrice": 1.00},
-     {"side": "sell", "qty": 1, "entryPrice": 1.20, "exitPrice": 0.30}],
-    [{"side": "sell", "qty": 2, "entryPrice": 1.10, "exitPrice": None}],      # open leg => netExit null
+# (strategy_type, legs) — legs use camelCase field names exactly as the JS
+# fixtures consume them; _py_leg maps to the snake_case the Python calcs expect.
+# strike/expiration only present where compute_max_risk / DTE need them.
+OPTION_CASES = [
+    ("custom",
+     [{"side": "buy", "qty": 1, "entryPrice": 2.50, "exitPrice": 4.10}]),
+    ("custom",
+     [{"side": "buy", "qty": 1, "entryPrice": 3.00, "exitPrice": 1.00},
+      {"side": "sell", "qty": 1, "entryPrice": 1.20, "exitPrice": 0.30}]),
+    ("custom",
+     [{"side": "sell", "qty": 2, "entryPrice": 1.10, "exitPrice": None}]),    # open leg => netExit null
+    # maxRisk + DTE coverage:
+    ("long_call",                                                             # long single-leg: risk = net debit
+     [{"side": "buy", "qty": 1, "entryPrice": 2.50, "exitPrice": 4.10,
+       "strike": 100.0, "expiration": "2026-07-18"}]),
+    ("vertical_credit_call",                                                  # credit spread: width×100×qty − credit
+     [{"side": "sell", "qty": 1, "entryPrice": 1.20, "exitPrice": 0.30,
+       "strike": 100.0, "expiration": "2026-08-21"},
+      {"side": "buy", "qty": 1, "entryPrice": 0.40, "exitPrice": 0.05,
+       "strike": 105.0, "expiration": "2026-08-21"}]),
+    ("short_put",                                                             # naked short: maxRisk None; past expiry => negative DTE
+     [{"side": "sell", "qty": 2, "entryPrice": 1.10, "exitPrice": None,
+       "strike": 95.0, "expiration": "2026-06-19"}]),
 ]
+
+
+def _py_leg(leg: dict) -> dict:
+    out = {"side": leg["side"], "qty": leg["qty"],
+           "entry_price": leg["entryPrice"], "exit_price": leg["exitPrice"]}
+    if "strike" in leg:
+        out["strike"] = leg["strike"]
+    if "expiration" in leg:
+        out["expiration"] = leg["expiration"]
+    return out
 
 
 def main() -> None:
@@ -53,18 +88,20 @@ def main() -> None:
                 "result": calc.trade_result(pnl, e, sh, be),
             },
         })
-    for legs in OPTION_LEG_SETS:
-        py_legs = [{"side": l["side"], "qty": l["qty"], "entry_price": l["entryPrice"],
-                    "exit_price": l["exitPrice"]} for l in legs]
+    for strategy_type, legs in OPTION_CASES:
+        py_legs = [_py_leg(l) for l in legs]
         ne = opt.compute_net_entry(py_legs)
         nx = opt.compute_net_exit(py_legs)
         fixtures["options"].append({
-            "inputs": {"legs": legs},
+            "inputs": {"strategyType": strategy_type, "legs": legs, "asOf": AS_OF},
             "expected": {
                 "netEntry": ne,
                 "netExit": nx,
                 "pnl": opt.compute_pnl(ne, nx, 0, 0) if nx is not None else None,
                 "debitCredit": opt.classify_debit_credit(ne),
+                "maxRisk": opt.compute_max_risk(strategy_type, py_legs, ne),
+                "dte": opt.compute_days_to_expiration(
+                    py_legs, as_of=Date.fromisoformat(AS_OF)),
             },
         })
     out = Path(__file__).resolve().parents[3] / "app" / "src" / "lib" / "journal-2-0" / "parity-fixtures.json"
