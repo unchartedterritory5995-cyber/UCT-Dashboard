@@ -2880,6 +2880,16 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 attachments backup registered (02:45 ET Mon-Sat)")
         except Exception as e:
             print(f"[startup] j2 attachments backup registration failed (non-fatal): {e}")
+        # Nightly closed-trade excursion (MFE/MAE/exit-efficiency) backfill
+        # (Journal A+ Phase 2). Ships dark (EXCURSION_ENGINE_ENABLED=0);
+        # 03:10 ET Mon-Sat. Idempotent (skips already-computed trade_refs);
+        # commits per row so its writer locks on auth.db stay short.
+        try:
+            from api.services.journal_two import excursion_jobs
+            if excursion_jobs.register_jobs(_scheduler):
+                print("[startup] j2 excursion backfill registered (03:10 ET Mon-Sat)")
+        except Exception as e:
+            print(f"[startup] j2 excursion backfill registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 

@@ -646,6 +646,39 @@ def attachments_backup_route(user: dict = Depends(require_admin)) -> dict[str, A
     return {"started": True}
 
 
+@router.post("/admin/excursion-backfill")
+def excursion_backfill_route(user: dict = Depends(require_admin)) -> dict[str, Any]:
+    """Admin-only manual trigger of the closed-trade excursion backfill. Runs
+    OFF the request path on a daemon thread (a full batch fetches bars per trade
+    and can take many seconds) — check /admin/excursion-status or logs for the
+    result. When EXCURSION_ENGINE_ENABLED is off, returns
+    {started: False, reason: "disabled"} WITHOUT spawning a thread (honest vs a
+    misleading {started: True})."""
+    import threading
+
+    from api.services.journal_two import excursion_jobs
+
+    if not excursion_jobs._enabled():
+        return {"started": False, "reason": "disabled"}
+
+    threading.Thread(
+        target=excursion_jobs.run_backfill,
+        daemon=True,
+        name="j2-excursion-backfill-manual",
+    ).start()
+    return {"started": True}
+
+
+@router.get("/admin/excursion-status")
+def excursion_status_route() -> dict[str, Any]:
+    """Last-run summary of the excursion backfill (no auth — read-only, mirrors
+    /api/admin/reconciliation-status): startedAt/finishedAt + tradesDone/
+    optionsDone/insufficient/errors/symbols + fatal error (if any)."""
+    from api.services.journal_two import excursion_jobs
+
+    return excursion_jobs.get_state()
+
+
 # ── Accounts (Phase 2) ───────────────────────────────────────────────────────
 
 
