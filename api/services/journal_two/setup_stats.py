@@ -12,6 +12,7 @@ import sqlite3
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.filters import FilterSpec, trades_where
 
 
 _RESULT_LETTER = {"Win": "W", "Loss": "L", "BE": "B"}
@@ -22,20 +23,32 @@ def get_setup_stats(
     account_id: str,
     setup: str,
     *,
+    spec: FilterSpec | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
-    """Aggregate stats for one (account, setup) pair."""
+    """Aggregate stats for one (account, setup) pair.
+
+    Scope (Task A4): a passed ``spec`` splices the full FilterSpec WHERE fragment
+    (date spine + symbol/sides/setups/tags via ``trades_where``) after the base
+    (user_id + account_id + setup) predicate. The ``setup`` arg picks the card;
+    the Scope ``setups`` facet COMPOSES with it (AND), narrowing the row universe
+    further. Absent ``spec`` → behavior identical to before.
+    """
     owned = conn is None
     conn = conn or get_connection()
     try:
-        rows = conn.execute(
-            """
-            SELECT result, pnl_dollar, r_multiple, exit_date FROM j2_trades
-             WHERE user_id = ? AND account_id = ? AND setup = ?
-             ORDER BY exit_date ASC
-            """,
-            (user_id, account_id, setup),
-        ).fetchall()
+        sql = (
+            "SELECT result, pnl_dollar, r_multiple, exit_date FROM j2_trades "
+            " WHERE user_id = ? AND account_id = ? AND setup = ?"
+        )
+        params: list[Any] = [user_id, account_id, setup]
+        if spec is not None:
+            frag, filter_params = trades_where(spec)
+            if frag:
+                sql += " " + frag
+                params.extend(filter_params)
+        sql += " ORDER BY exit_date ASC"
+        rows = conn.execute(sql, params).fetchall()
 
         if not rows:
             return _empty(setup)

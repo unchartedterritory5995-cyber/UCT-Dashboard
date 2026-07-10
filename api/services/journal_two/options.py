@@ -25,6 +25,7 @@ from datetime import date as Date, datetime, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.filters import FilterSpec
 from api.services.journal_two.timeutil import compute_trading_day_et
 
 
@@ -393,11 +394,29 @@ def list_strategies(
     status: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    spec: FilterSpec | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
-    """All strategies for a user. Optional filters."""
+    """All strategies for a user. Optional filters.
+
+    Scope (Task A4): a passed ``spec`` filters strategies by SYMBOL only, matched
+    against the ``underlying`` column (case-insensitive prefix) via the A3
+    calendar precedent (``_strategy_scope_where``). Side/setups/tags have no
+    option-strategy analog and are deliberately ignored. Unlike the calendar,
+    /options is a date-ranged list, so the Scope DATE facet DOES apply: when
+    ``spec`` supplies date_from/date_to they act as the existing entry_date range
+    filter (NOT stripped); an explicit date_from/date_to kwarg still wins for a
+    non-Scope caller. Absent ``spec`` → behavior identical to before.
+    """
     if status is not None and status not in VALID_STATUSES:
         raise OptionValidationError(f"invalid status filter: {status}")
+    if spec is not None:
+        # Scope date facet applies to /options (date-ranged list). Synthesize the
+        # entry_date range from the spec unless the caller passed explicit dates.
+        if date_from is None:
+            date_from = spec.date_from
+        if date_to is None:
+            date_to = spec.date_to
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -415,6 +434,15 @@ def list_strategies(
         if date_to:
             sql += " AND entry_date <= ?"
             params.append(date_to + "T23:59:59Z")
+        if spec is not None:
+            # Symbol-only Scope facet on the underlying (mirrors A3's
+            # _strategy_scope_where). Imported lazily to avoid any import cycle
+            # (calendar imports options lazily in get_day_detail).
+            from api.services.journal_two.calendar import _strategy_scope_where
+            scope_frag, scope_params = _strategy_scope_where(spec)
+            if scope_frag:
+                sql += " " + scope_frag
+                params.extend(scope_params)
         sql += " ORDER BY entry_date DESC, created_at DESC"
         rows = conn.execute(sql, params).fetchall()
         out = []

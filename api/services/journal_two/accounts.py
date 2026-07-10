@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.filters import FilterSpec, trades_where
 
 
 # 12-color curated palette — keys map to hex client-side.
@@ -664,8 +665,15 @@ def move_all_to(
 def comparison(
     user_id: str,
     conn: sqlite3.Connection | None = None,
+    *,
+    spec: FilterSpec | None = None,
 ) -> dict[str, Any]:
-    """Per-account aggregate metrics for the Comparison view."""
+    """Per-account aggregate metrics for the Comparison view.
+
+    Scope (Task A4): a passed ``spec`` scopes each account's trade-derived
+    metrics (via ``trades_where`` in ``_account_metrics``) — the full non-date +
+    date facets. Broker equity/return resolution is unchanged (account-row based,
+    not trade-derived). Absent ``spec`` → behavior identical to before."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -673,7 +681,9 @@ def comparison(
         accounts = list_accounts(user_id, conn=conn)
         out = []
         for a in accounts:
-            metrics = _account_metrics(user_id, a["id"], a["startingBalance"], conn)
+            metrics = _account_metrics(
+                user_id, a["id"], a["startingBalance"], conn, spec=spec,
+            )
             # Balance resolver chokepoint: broker-linked accounts report real
             # broker equity; manual accounts keep startingBalance + realized P&L
             # (identical to the prior currentBalance math → no regression).
@@ -724,16 +734,22 @@ def _account_metrics(
     account_id: str,
     starting_balance: float,
     conn: sqlite3.Connection,
+    *,
+    spec: FilterSpec | None = None,
 ) -> dict[str, Any]:
-    rows = conn.execute(
-        """
-        SELECT pnl_dollar, result, exit_date
-          FROM j2_trades
-         WHERE user_id = ? AND account_id = ?
-         ORDER BY exit_date ASC
-        """,
-        (user_id, account_id),
-    ).fetchall()
+    sql = (
+        "SELECT pnl_dollar, result, exit_date "
+        "  FROM j2_trades "
+        " WHERE user_id = ? AND account_id = ?"
+    )
+    params: list[Any] = [user_id, account_id]
+    if spec is not None:
+        frag, filter_params = trades_where(spec)
+        if frag:
+            sql += " " + frag
+            params.extend(filter_params)
+    sql += " ORDER BY exit_date ASC"
+    rows = conn.execute(sql, params).fetchall()
 
     if not rows:
         return {
@@ -811,11 +827,18 @@ def goal_progress(
     user_id: str,
     account_id: str,
     conn: sqlite3.Connection | None = None,
+    *,
+    spec: FilterSpec | None = None,
 ) -> dict[str, Any] | None:
     """Return current Daily/Weekly/Monthly/Yearly P&L totals + each
     goal's percentage. Buckets each trade on its ET trading-session day via
     the shared calendar._row_et_day spine (stamped trading_day_et when present,
     else to_et_date(exit_date)) so Goals agree with Calendar/Analytics.
+
+    Scope (Task A4): a passed ``spec`` splices the full FilterSpec WHERE fragment
+    (date spine + symbol/sides/setups/tags via ``trades_where``) after the base
+    predicate — this surface is date-bucketed on the spine, so the full facets
+    apply. Absent ``spec`` → behavior identical to before.
     """
     from datetime import date as Date, timedelta
     from api.services.journal_two.calendar import _row_et_day, ET
@@ -834,15 +857,21 @@ def goal_progress(
         month_start = today_et.replace(day=1)
         year_start = today_et.replace(month=1, day=1)
 
-        rows = conn.execute(
-            """
-            SELECT exit_date, trading_day_et, pnl_dollar
-              FROM j2_trades
-             WHERE user_id = ? AND account_id = ?
-               AND exit_date >= ?
-            """,
-            (user_id, account_id, year_start.isoformat() + "T00:00:00Z"),
-        ).fetchall()
+        sql = (
+            "SELECT exit_date, trading_day_et, pnl_dollar "
+            "  FROM j2_trades "
+            " WHERE user_id = ? AND account_id = ? "
+            "   AND exit_date >= ?"
+        )
+        params: list[Any] = [
+            user_id, account_id, year_start.isoformat() + "T00:00:00Z",
+        ]
+        if spec is not None:
+            frag, filter_params = trades_where(spec)
+            if frag:
+                sql += " " + frag
+                params.extend(filter_params)
+        rows = conn.execute(sql, params).fetchall()
 
         daily_pnl = 0.0
         weekly_pnl = 0.0

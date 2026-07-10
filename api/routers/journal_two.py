@@ -719,11 +719,14 @@ def create_account_route(
 
 @router.get("/accounts/comparison")
 def get_account_comparison(
+    spec: FilterSpec = Depends(parse_filter_query),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Per-account aggregate metrics for the Comparison view."""
+    """Per-account aggregate metrics for the Comparison view. The Scope
+    (FilterSpec: date_from/date_to/symbol/sides/setups/tags) scopes each
+    account's trade-derived metrics."""
     accounts_service.get_or_migrate_default_account(user["id"])
-    return accounts_service.comparison(user["id"])
+    return accounts_service.comparison(user["id"], spec=spec)
 
 
 @router.get("/accounts/{account_id}")
@@ -805,10 +808,12 @@ def put_account_goals(
 @router.get("/accounts/{account_id}/goal-progress")
 def get_account_goal_progress(
     account_id: str,
+    spec: FilterSpec = Depends(parse_filter_query),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Current Daily/Weekly/Monthly/Yearly P&L vs each target."""
-    got = accounts_service.goal_progress(user["id"], account_id)
+    """Current Daily/Weekly/Monthly/Yearly P&L vs each target. The Scope
+    (FilterSpec) filters which trades count toward each period."""
+    got = accounts_service.goal_progress(user["id"], account_id, spec=spec)
     if got is None:
         raise HTTPException(status_code=404, detail="Account not found")
     return got
@@ -868,10 +873,15 @@ def get_nudges_route(
 def get_setup_stats_route(
     account_id: str,
     setup: str = Query(...),
+    spec: FilterSpec = Depends(parse_filter_query),
     user: dict = Depends(get_current_user),
 ):
-    """Per-setup historical performance for the live coaching panel."""
-    return setup_stats_service.get_setup_stats(user["id"], account_id, setup)
+    """Per-setup historical performance for the live coaching panel. The
+    ``setup`` query param picks the card; the Scope (FilterSpec) composes,
+    narrowing the row universe."""
+    return setup_stats_service.get_setup_stats(
+        user["id"], account_id, setup, spec=spec,
+    )
 
 
 @router.get("/regime")
@@ -1077,19 +1087,21 @@ def delete_folder_endpoint(
 def list_option_strategies(
     account_id: str | None = None,
     status: str | None = None,
-    date_from: str | None = None,
-    date_to: str | None = None,
+    spec: FilterSpec = Depends(parse_filter_query),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """All option strategies for the user, newest-first. Filters are optional."""
+    """All option strategies for the user, newest-first. Filters are optional.
+
+    The Scope (FilterSpec) filters strategies by SYMBOL only (on ``underlying``);
+    its date facet acts as the entry_date range (parse_filter_query supplies
+    date_from/date_to). Side/setups/tags have no strategy analog (ignored)."""
     try:
         return {
             "strategies": options_service.list_strategies(
                 user["id"],
                 account_id=account_id,
                 status=status,
-                date_from=date_from,
-                date_to=date_to,
+                spec=spec,
             ),
         }
     except options_service.OptionValidationError as e:
