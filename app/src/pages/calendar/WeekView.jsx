@@ -130,7 +130,7 @@ export default function WeekView({ weekDates, days, filters, eventTypes, onSelec
               </div>
             ) : (
               <>
-                <WeekSessionGroup label="BMO" icon="sparkle" hdClass={styles.bmoHd}
+                <WeekSessionGroup label="BMO" icon="sun" hdClass={styles.bmoHd}
                   rows={bmo.slice(0, MAX_ROWS_PER_SESSION)} tiers={tiers} onSelect={onSelect}
                   onMore={openDrawer} moreCount={Math.max(bmo.length - MAX_ROWS_PER_SESSION, 0)} />
                 <WeekSessionGroup label="AMC" icon="moon" hdClass={styles.amcHd}

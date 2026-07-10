@@ -17,7 +17,7 @@ import styles from './Calendar.module.css'
 
 // Session groups, EarningsHub-style: a clean pill header + a tile gallery.
 const TILE_SESSIONS = [
-  ['bmo', 'Before Open', 'sparkle'],
+  ['bmo', 'Before Open', 'sun'],
   ['amc', 'After Close', 'moon'],
   ['tbd', 'Time TBD',    'clock'],
 ]
@@ -49,6 +49,7 @@ function EarningsTile({ e, onSelect }) {
         : em != null
           ? <span className={styles.etileEm}>±{em}%</span>
           : null}
+      {e.name && <span className={styles.etileName}>{e.name}</span>}
     </button>
   )
 }

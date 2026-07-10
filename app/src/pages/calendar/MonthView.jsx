@@ -57,7 +57,7 @@ function heatClass(n) {
 
 const MONTH_MAX_PER_TIMING = 6   // logo+ticker chips wrap horizontally; overflow → "+N more"
 
-function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
+function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms, verdicts }) {
   // An empty session renders NOTHING — the "—" stamp vocabulary is dead.
   if (!syms.length) return null
   const shown = syms.slice(0, MONTH_MAX_PER_TIMING)
@@ -68,19 +68,24 @@ function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
         <UIcon name={icon} size={12} aria-hidden="true" /> {label}
       </div>
       <div className={styles.mitems}>
-        {shown.map(s => (
-          <div key={s} className={styles.mrow}>
-            <CompanyLogo sym={s} size={34} tile />
-            <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
-          </div>
-        ))}
+        {shown.map(s => {
+          const v = verdicts?.[s]
+          return (
+            <div key={s} className={styles.mrow}>
+              <span className={v === 'beat' ? styles.mBeat : v === 'miss' ? styles.mMiss : ''}>
+                <CompanyLogo sym={s} size={34} tile />
+              </span>
+              <span className={`${styles.mt} ${mineSyms.has(s) ? styles.gold : ''}`}>{s}</span>
+            </div>
+          )
+        })}
         {overflow > 0 && <div className={styles.mmoreChip}>+{overflow} more</div>}
       </div>
     </div>
   )
 }
 
-function MonthCell({ cell, onOpenDay }) {
+function MonthCell({ cell, onOpenDay, verdicts }) {
   const total = cell.bmoSyms.length + cell.amcSyms.length + (cell.tbdSyms?.length || 0)
   const empty = total === 0
   const anyMine = cell.mineSyms.size > 0
@@ -111,9 +116,9 @@ function MonthCell({ cell, onOpenDay }) {
           reads as "nothing here"; ~25 "No earnings" stamps read as breakage. */}
       {!empty && (
         <div className={styles.mtimings}>
-          <MonthTimingGroup label="BMO" icon="sparkle" hdClass={styles.bmoHd} syms={cell.bmoSyms} mineSyms={cell.mineSyms} />
-          <MonthTimingGroup label="AMC" icon="moon" hdClass={styles.amcHd} syms={cell.amcSyms} mineSyms={cell.mineSyms} />
-          <MonthTimingGroup label="TBD" icon="clock" hdClass={styles.tbdHd} syms={cell.tbdSyms || []} mineSyms={cell.mineSyms} />
+          <MonthTimingGroup label="BMO" icon="sun" hdClass={styles.bmoHd} syms={cell.bmoSyms} mineSyms={cell.mineSyms} verdicts={verdicts} />
+          <MonthTimingGroup label="AMC" icon="moon" hdClass={styles.amcHd} syms={cell.amcSyms} mineSyms={cell.mineSyms} verdicts={verdicts} />
+          <MonthTimingGroup label="TBD" icon="clock" hdClass={styles.tbdHd} syms={cell.tbdSyms || []} mineSyms={cell.mineSyms} verdicts={verdicts} />
         </div>
       )}
     </div>
@@ -191,6 +196,20 @@ export default function MonthView({
     [year, month, monthDaysMap, mySources]
   )
 
+  // sym → 'beat' | 'miss' for names that already reported (a green/red ring on
+  // the month tile, matching the Feed + Week beat/miss badges).
+  const verdictBySym = useMemo(() => {
+    const m = {}
+    for (const day of Object.values(monthDaysMap)) {
+      for (const e of [...(day.bmo || []), ...(day.amc || []), ...(day.tbd || [])]) {
+        if (e.eps_act != null && e.eps_est != null && e.eps_est !== 0) {
+          m[e.sym] = (e.eps_act - e.eps_est) >= 0 ? 'beat' : 'miss'
+        }
+      }
+    }
+    return m
+  }, [monthDaysMap])
+
   // Agenda rows for mobile (flat sorted list of days with entries)
   const agendaRows = useMemo(() => {
     const rows = []
@@ -225,7 +244,7 @@ export default function MonthView({
       </div>
       <div className={`${styles.mgrid} ${styles.mgridDesktop}`}>
         {grid.flat().map(cell => (
-          <MonthCell key={cell.ds} cell={cell} onOpenDay={handleOpenDay} />
+          <MonthCell key={cell.ds} cell={cell} onOpenDay={handleOpenDay} verdicts={verdictBySym} />
         ))}
       </div>
 
