@@ -20,6 +20,11 @@ export default defineConfig({
           'vendor-charts': ['lightweight-charts'],
           'vendor-echarts': ['echarts', 'echarts-for-react'],
           'vendor-recharts': ['recharts'],
+          'vendor-tiptap': [
+            '@tiptap/react', '@tiptap/starter-kit', '@tiptap/core',
+            '@tiptap/extension-image', '@tiptap/extension-link',
+            '@tiptap/extension-placeholder', '@tiptap/suggestion',
+          ],
         },
       },
     },

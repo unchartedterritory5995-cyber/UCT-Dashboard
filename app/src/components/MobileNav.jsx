@@ -30,6 +30,7 @@ const ROUTE_TITLES = {
   '/setup-library': 'Setup Library',
   '/desk': 'The Desk',
   '/journal': 'Journal',
+  '/community': 'Community',
   '/support': 'Support',
   '/settings': 'Settings',
   '/admin': 'Admin',

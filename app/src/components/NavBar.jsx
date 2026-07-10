@@ -26,6 +26,7 @@ const NAV_ITEMS = [
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
   { to: '/desk',         label: 'The Desk',      icon: 'desk' },
   { to: '/journal',      label: 'Journal',       icon: 'journal' },
+  { to: '/community',    label: 'Community',     icon: 'community' },
   { to: '/support',      label: 'Support',       icon: 'chat' },
 ]
 
@@ -51,6 +52,18 @@ export default function NavBar() {
   )
   const compassUnread = pending?.insights?.length || 0
 
+  // The Floor (community) — dark-launch gate + unread badge. Status poll is
+  // cheap (2-min) and gates the nav item entirely while COMMUNITY_ENABLED is off.
+  const { data: communityStatus } = useSWR(user ? '/api/community/status' : null, fetcher, {
+    refreshInterval: 120_000,
+  })
+  const { data: communityUnread } = useSWR(
+    communityStatus?.enabled && isPaid ? '/api/community/unread' : null,
+    fetcher,
+    { refreshInterval: 30_000 },
+  )
+  const floorUnread = communityUnread?.total || 0
+
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>
       <Link
@@ -68,6 +81,8 @@ export default function NavBar() {
 
       <div className={styles.mainItems}>
         {NAV_ITEMS.map(item => {
+          // Dark launch: hide The Floor entirely until COMMUNITY_ENABLED is on.
+          if (item.to === '/community' && !communityStatus?.enabled) return null
           // Show paid tools instead of hiding them — a free user can't want what
           // they can't see. Locked rows are dimmed with a gold lock and route to
           // the upgrade page rather than the tool.
@@ -103,6 +118,11 @@ export default function NavBar() {
                 <span className={styles.compassBadge}
                       title={`${compassUnread} Compass insight${compassUnread === 1 ? '' : 's'} waiting`}>
                   {compassUnread > 9 ? '9+' : compassUnread}
+                </span>
+              )}
+              {item.to === '/community' && floorUnread > 0 && (
+                <span className={styles.compassBadge} title={`${floorUnread} unread`}>
+                  {floorUnread > 9 ? '9+' : floorUnread}
                 </span>
               )}
             </NavLink>

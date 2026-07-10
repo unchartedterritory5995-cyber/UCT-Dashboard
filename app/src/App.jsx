@@ -37,6 +37,7 @@ const ModelBook = lazy(() => import('./pages/ModelBook'))
 const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
 const Desk = lazy(() => import('./pages/desk/Desk'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
+const Community = lazy(() => import('./pages/community/CommunityPage'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
@@ -168,6 +169,8 @@ export default function App() {
                 <Route path="/desk" element={<Desk />} />
                 <Route path="/educational-videos" element={<Navigate to="/desk?section=videos" replace />} />
                 <Route path="/journal" element={<Journal />} />
+                <Route path="/community" element={<Community />} />
+                <Route path="/community/:threadId" element={<Community />} />
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />
                 <Route path="/journal-2-0/position/:sym" element={<J2PositionDetailPage />} />

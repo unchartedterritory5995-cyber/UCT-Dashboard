@@ -45,6 +45,7 @@ const NAV_SECTIONS = [
       { to: '/model-book', label: 'Model Book', icon: 'book' },
       { to: '/desk', label: 'The Desk', icon: 'desk' },
       { to: '/journal', label: 'Journal', icon: 'journal' },
+      { to: '/community', label: 'Community', icon: 'community' },
     ],
   },
   {
@@ -72,6 +73,14 @@ export default function MoreSheet({ open, onClose }) {
     { refreshInterval: 30_000 },
   )
   const compassUnread = pending?.insights?.length || 0
+
+  // Dark launch: hide the Community item until COMMUNITY_ENABLED is on
+  // (mirrors the NavBar gate).
+  const { data: communityStatus } = useSWR(
+    open && user ? '/api/community/status' : null,
+    fetcher,
+    { refreshInterval: 120_000 },
+  )
 
   if (!open) return null
   const go = (to) => { onClose?.(); navigate(to) }
@@ -117,7 +126,9 @@ export default function MoreSheet({ open, onClose }) {
           return (
             <div key={section.label} className={styles.section}>
               <div className={styles.sectionLabel}>{section.label}</div>
-              {section.items.map((l) => {
+              {section.items
+                .filter((l) => l.to !== '/community' || communityStatus?.enabled)
+                .map((l) => {
                 const locked = !showAll && !FREE_PAGES.includes(l.to)
                 return (
                   <button

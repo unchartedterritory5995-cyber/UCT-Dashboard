@@ -1,0 +1,63 @@
+/* app/src/pages/community/Community.module.css */
+.page { display: flex; height: 100%; overflow: hidden; background: var(--bg); }
+
+.rail {
+  width: 240px; min-width: 200px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  border-right: 1px solid var(--border); background: var(--bg-surface);
+  padding: 14px 8px; overflow-y: auto;
+}
+.railTitle {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--ut-gold); text-transform: uppercase; letter-spacing: 1px;
+  font-size: 12px; font-weight: 600; padding: 4px 10px 12px;
+}
+.railItem {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 10px; border: none; border-radius: 6px; background: none;
+  color: var(--text); font-size: 13px; cursor: pointer; text-align: left;
+  min-height: var(--tap-min);
+}
+.railItem:hover { background: var(--bg-hover); }
+.railItemActive { background: rgba(201, 168, 76, 0.08); border-left: 2px solid var(--ut-gold); color: var(--text-heading); }
+.railBadge {
+  background: var(--ut-gold); color: #14150f; border-radius: 9px;
+  font-size: 10px; font-weight: 700; padding: 1px 6px;
+}
+
+.main { flex: 1; min-width: 0; overflow-y: auto; padding: 16px 20px; }
+
+.threadList { display: flex; flex-direction: column; gap: 6px; max-width: 860px; }
+.threadRow {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px;
+}
+.threadRow:hover { border-color: var(--ut-gold-glow); background: var(--bg-elevated); }
+.threadTitleRow { display: flex; align-items: center; gap: 8px; }
+.threadTitle { color: var(--text-heading); font-size: 14px; font-weight: 600; }
+.pinIcon { color: var(--ut-gold); display: inline-flex; }
+.answeredTick {
+  color: var(--ut-green); font-size: 10px; letter-spacing: 0.6px;
+  text-transform: uppercase; border: 1px solid var(--ut-green);
+  border-radius: 4px; padding: 1px 6px;
+}
+.meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; color: var(--text); font-size: 11.5px; }
+.mentorBadge { color: var(--ut-gold); font-weight: 600; }
+.tickerChip { color: var(--ut-gold); background: var(--ut-gold-dim); border-radius: 4px; padding: 0 5px; font-size: 11px; }
+
+.empty { color: var(--text); padding: 40px; text-align: center; }
+.comingSoon {
+  height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px; color: var(--text);
+}
+
+@media (max-width: 1024px) {
+  .page { flex-direction: column; }
+  .rail {
+    width: 100%; min-width: 0; flex-direction: row; overflow-x: auto;
+    border-right: none; border-bottom: 1px solid var(--border); padding: 8px;
+  }
+  .railTitle { display: none; }
+  .railItem { flex-shrink: 0; }
+}
