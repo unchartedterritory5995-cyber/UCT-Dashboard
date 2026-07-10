@@ -3,15 +3,17 @@ import { useMemo, useState } from 'react'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
 import CompanyLogo from '../../components/CompanyLogo'
 import EarningsCard from './EarningsCard'
+import MainEventCard from './MainEventCard'
+import CalendarDayTable from './CalendarDayTable'
 import EventCard from './EventCard'
 import MacroBand from './MacroBand'
 import { applyFilters, sortEntries } from './filterLogic'
-import { useReactions, useDayMetrics } from './useCalendarData'
+import { impEff } from './importance'
+import { useReactions } from './useCalendarData'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
-import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
-function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay, pulse }) {
+function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay, pulse, tiers }) {
   // Memoize the session lists so the entries useMemo dep-check isn't always
   // invalidated by freshly-mapped arrays on every parent render.
   const bmo = useMemo(
@@ -27,28 +29,15 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     [day.tbd],
   )
 
-  // A3: fetch per-day metrics (price, avg_vol, mc_b) and merge onto entries
-  const { data: metricsMap } = useDayMetrics(ds)
+  // Metrics (price/avg_vol/mc_b) are merged UPSTREAM in Calendar.jsx via the
+  // week batch — they must exist before tiering, so DayGroup no longer fetches
+  // its own copy (was one request per day + a rank-after-render bug).
   const entries = useMemo(() => {
     let all = [...bmo, ...amc, ...tbd]
-    // Merge _price and _avg_vol from metricsMap (null-safe: if no metric, field stays undefined)
-    if (metricsMap) {
-      all = all.map(e => {
-        const m = metricsMap[e.sym]
-        if (!m) return e
-        return {
-          ...e,
-          _price:   m.price   ?? e._price,
-          _avg_vol: m.avg_vol ?? e._avg_vol,
-          // mc_b already on entry from wire; override only if metricsMap has a better value
-          mc_b: e.mc_b ?? m.mc_b,
-        }
-      })
-    }
     all = applyFilters(all, filters)
     all = sortEntries(all, filters.sort)
     return all
-  }, [bmo, amc, tbd, metricsMap, filters])
+  }, [bmo, amc, tbd, filters])
 
   const syms = useMemo(() => entries.map(e => e.sym), [entries])
   const { prices } = useRealtimePrices(syms)
@@ -69,23 +58,29 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     return dividendsForDay
   }, [activeTypes, dividendsForDay])
 
-  // Zero-data names never earn a card — they collapse into the day-level
-  // "Also reporting" cluster (a card of em-dashes carries no information).
-  // A MY-STOCKS name always keeps its card, even data-thin.
-  const hasCardData = e => (
-    e.mine ||
-    e.eps_est != null || e.rev_est != null || e.eps_act != null ||
-    e.expected_move?.pct != null || (e.beat_history || []).length > 0
-  )
-  const cardEntries    = useMemo(() => entries.filter(hasCardData), [entries])
-  const compactEntries = useMemo(() => entries.filter(e => !hasCardData(e)), [entries])
-
-  // Split reporters by session so the feed shows the same clear grouping as
-  // the month grid. Filtering + sorting already applied above; filter
-  // preserves relative order within each session.
-  const bmoEntries = useMemo(() => cardEntries.filter(e => e._timing === 'bmo'), [cardEntries])
-  const amcEntries = useMemo(() => cardEntries.filter(e => e._timing === 'amc'), [cardEntries])
-  const tbdEntries = useMemo(() => cardEntries.filter(e => e._timing === 'tbd'), [cardEntries])
+  // ── Tier partition (the hierarchy algorithm, computed once per week in
+  //    Calendar.jsx). Fallback when tiers are absent: everything → table. ──
+  const { mainEntry, featuredEntries, tableEntries, compactEntries } = useMemo(() => {
+    const t = tiers || { mainEvent: null, featured: new Set(), table: null, compact: new Set(), impBySym: new Map() }
+    const impOf = e => impEff(t.impBySym?.get?.(e.sym) ?? 0, e)
+    let main = null
+    const feat = []
+    const tab = []
+    const comp = []
+    for (const e of entries) {
+      if (t.mainEvent && e.sym === t.mainEvent) main = e
+      else if (t.featured?.has(e.sym)) feat.push(e)
+      else if (t.compact?.has(e.sym)) comp.push(e)
+      else tab.push(e)
+    }
+    // Featured ordered by personalized importance; the table keeps the user's
+    // chosen sort EXCEPT the default 'mine' sort, where importance rules.
+    feat.sort((a, b) => impOf(b) - impOf(a))
+    if (!filters.sort || filters.sort === 'mine') {
+      tab.sort((a, b) => (b.mine === true) - (a.mine === true) || impOf(b) - impOf(a))
+    }
+    return { mainEntry: main, featuredEntries: feat, tableEntries: tab, compactEntries: comp }
+  }, [entries, tiers, filters.sort])
 
   const hasEarnings = entries.length > 0
   const hasMacro    = !!(day.econ?.length || day.fed?.length)
@@ -107,15 +102,37 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
       </div>
       <MacroBand econ={day.econ} fed={day.fed} />
 
-      <TimingSection label="Before Open" icon="☀" hdClass={styles.bmoHd}
-        entries={bmoEntries} prices={prices} reactions={reactions} onSelect={onSelect}
-        pulseSym={pulseSym} />
-      <TimingSection label="After Close" icon={<UIcon name="moon" size={14} />} hdClass={styles.amcHd}
-        entries={amcEntries} prices={prices} reactions={reactions} onSelect={onSelect}
-        pulseSym={pulseSym} />
-      <TimingSection label="Time TBD" icon={<UIcon name="clock" size={14} />} hdClass={styles.tbdHd}
-        entries={tbdEntries} prices={prices} reactions={reactions} onSelect={onSelect}
-        pulseSym={pulseSym} />
+      {/* The curated lead — exactly one, only when the day earns it */}
+      {mainEntry && (
+        <div className={styles.mainEventWrap}>
+          <MainEventCard
+            entry={mainEntry}
+            timing={mainEntry._timing}
+            livePrice={prices[mainEntry.sym]?.price}
+            reaction={reactions?.[mainEntry.sym]}
+            hasKeyMacro={!!day.econ?.some(ev => ev.is_key)}
+            onSelect={onSelect}
+            pulsed={pulseSym === mainEntry.sym}
+          />
+        </div>
+      )}
+
+      {/* Featured strip — mine + megacaps + top importance, session chips on card */}
+      {featuredEntries.length > 0 && (
+        <div className={styles.cards}>
+          {featuredEntries.map(e => (
+            <EarningsCard key={`feat-${e.sym}`} entry={e} timing={e._timing}
+              livePrice={prices[e.sym]?.price}
+              liveSnap={prices[e.sym] ?? null}
+              reaction={reactions?.[e.sym]}
+              pulsed={pulseSym === e.sym}
+              onSelect={onSelect} />
+          ))}
+        </div>
+      )}
+
+      {/* The density engine — every remaining name with data, 36px rows */}
+      <CalendarDayTable entries={tableEntries} onSelect={onSelect} />
 
       <CompactCluster entries={compactEntries} onSelect={onSelect} />
 
@@ -163,31 +180,7 @@ function CompactCluster({ entries, onSelect }) {
   )
 }
 
-// One session-grouped section (Before Open / After Close / Time TBD) inside a day group.
-function TimingSection({ label, icon, hdClass, entries, prices, reactions, onSelect, pulseSym }) {
-  if (!entries.length) return null
-  return (
-    <div className={styles.timedGroup}>
-      <div className={`${styles.timedHd} ${hdClass}`}>
-        <span className={styles.timedIcon} aria-hidden="true">{icon}</span>
-        {label}
-        <span className={styles.timedCount}>{entries.length}</span>
-      </div>
-      <div className={styles.cards}>
-        {entries.map(e => (
-          <EarningsCard key={`earn-${e.sym}`} entry={e} timing={e._timing}
-            livePrice={prices[e.sym]?.price}
-            liveSnap={prices[e.sym] ?? null}
-            reaction={reactions?.[e.sym]}
-            pulsed={pulseSym === e.sym}
-            onSelect={onSelect} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-export default function FeedView({ weekDates, days, filters, onSelect, eventTypes, iposByDate, dividendsByDate, pulse }) {
+export default function FeedView({ weekDates, days, filters, onSelect, eventTypes, iposByDate, dividendsByDate, pulse, weekTiers }) {
   // Empty-state check uses the FILTERED view of each day — checking the raw
   // payload rendered a blank feed with no message when the audience filter
   // hid everything (each DayGroup nulls itself on filtered emptiness). Metric
@@ -217,6 +210,7 @@ export default function FeedView({ weekDates, days, filters, onSelect, eventType
             iposForDay={iposByDate?.[ds] || null}
             dividendsForDay={dividendsByDate?.[ds] || null}
             pulse={pulse}
+            tiers={weekTiers?.[ds]}
           /> : null)}
       {!anyContent && (
         <div className={styles.feedEmpty}>

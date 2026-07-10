@@ -26,7 +26,9 @@ describe('EarningsCard', () => {
     expect(screen.getByText('AAPL')).toBeTruthy()
   })
 
-  it('renders the beat history as a plain sentence (not bars)', () => {
+  it('renders the beat history as a dot strip with the count in its label', () => {
+    // Phase 2: the sentence became a dot strip — color never the sole carrier,
+    // the count lives in the accessible label + tooltip.
     render(
       <EarningsCard
         entry={{
@@ -36,6 +38,36 @@ describe('EarningsCard', () => {
         timing="amc"
       />,
     )
-    expect(screen.getByText(/Beat 3 of last 4 quarters/)).toBeTruthy()
+    expect(screen.getByLabelText('Beat 3 of last 4 quarters')).toBeTruthy()
+  })
+
+  it('shows the implied-vs-realized pair when both numbers exist', () => {
+    render(
+      <EarningsCard
+        entry={{
+          sym: 'NVDA', date: '2026-08-26',
+          expected_move: { pct: 8.2 },
+          hist_stats: { avg_abs_move: 4.1, last_n: [3.2, -1.1, 6.0] },
+        }}
+        timing="amc"
+      />,
+    )
+    expect(screen.getByText(/±8.2%/)).toBeTruthy()
+    expect(screen.getByText(/typ ±4.1%/)).toBeTruthy()
+    // 8.2 > 1.3 × 4.1 → options pricing flagged rich
+    expect(screen.getByText('· rich')).toBeTruthy()
+  })
+
+  it('prior actual rides beside the estimate', () => {
+    render(
+      <EarningsCard
+        entry={{
+          sym: 'PEP', date: '2026-07-16', eps_est: 2.21,
+          beat_history: [{ beat: true, actual: 2.05 }],
+        }}
+        timing="bmo"
+      />,
+    )
+    expect(screen.getByText(/last \$2.05/)).toBeTruthy()
   })
 })

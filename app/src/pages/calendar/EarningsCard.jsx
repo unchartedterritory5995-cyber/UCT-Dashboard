@@ -3,6 +3,7 @@ import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import { useTickerActions } from '../../components/TickerActions'
 import TickerActionsMenu from '../../components/TickerActions'
+import { BeatDots, ReactionSpark, ExpectedMovePair } from './cardBits'
 import styles from './Calendar.module.css'
 // NOTE: FwdPeChip (useFundamentals per card) removed — firing ~60 requests on
 // feed load is too expensive. If fwd-P/E is wanted on cards, batch it via the
@@ -44,29 +45,15 @@ function fmtCountdown(timeEt) {
   }
 }
 
-// C6: Format hist_stats for display on card
-function fmtHistStats(hs) {
-  if (!hs) return null
-  const { avg_abs_move, up_count, total, last_n } = hs
-  if (avg_abs_move == null || total == null) return null
-  // last_n is an ARRAY of recent moves — interpolating it directly rendered
-  // "over 5.1,-2.3,…" garbage. The count is its length.
-  const n = Array.isArray(last_n) ? (last_n.length || total) : (last_n ?? total)
-  const upStr = up_count != null ? ` · up ${up_count}/${total}` : ''
-  return `avg ±${avg_abs_move.toFixed(1)}% over ${n}${upStr}`
-}
-
 export default function EarningsCard({ entry, timing, livePrice, liveSnap, reaction, onSelect, pulsed }) {
   const reported = entry.eps_act != null
-  const beats = (entry.beat_history || []).slice(0, 4).reverse()
-  const beatCount = beats.filter(b => b.beat === true).length
   const em = entry.expected_move?.pct
+  // Most recent reported quarter's actual (beat_history arrives newest-first)
+  const priorEps = entry.beat_history?.[0]?.actual ?? null
   // Live SSE price first, day-metrics price as the fallback (covers past days
   // and names outside the live-prices universe). Null → the row is SUPPRESSED.
   const priceVal = livePrice ?? entry._price ?? null
   const px = priceVal != null ? `$${Number(priceVal).toFixed(2)}` : null
-  // C6: hist_stats from enrichment
-  const histStatsLabel = fmtHistStats(entry.hist_stats)
 
   // A4: Extended-hours price — only shown when regular session is closed
   const extPrice   = liveSnap?.ext_price ?? null
@@ -114,9 +101,14 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
 
         {!reported ? (
           <>
-            {/* Null metrics render NOTHING — a wall of "—" rows is banned. */}
+            {/* Null metrics render NOTHING — a wall of "—" rows is banned.
+                An estimate means little without the bar it must clear: the
+                most recent actual rides beside it when history exists. */}
             {entry.eps_est != null && (
-              <div className={styles.met}><span className={styles.dim}>EPS est</span><span className={styles.mono}>{fmtEps(entry.eps_est)}</span></div>
+              <div className={styles.met}><span className={styles.dim}>EPS est</span>
+                <span className={styles.mono}>{fmtEps(entry.eps_est)}
+                  {priorEps != null && <span className={styles.dim}> · last {fmtEps(priorEps)}</span>}
+                </span></div>
             )}
             {entry.rev_est != null && (
               <div className={styles.met}><span className={styles.dim}>Rev est</span><span className={styles.mono}>{fmtRev(entry.rev_est)}</span></div>
@@ -141,20 +133,15 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             {/* A5: Countdown (timing now lives in the de-pilled top-right label) */}
             {countdown && <div className={styles.countdown}><UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{countdown}</div>}
 
-            {em != null && (
-              <div className={styles.emv}
-                   title={`The options market prices roughly a ±${em}% swing after this report`}>
-                <span className={styles.emvLbl}>Expected move</span><span className={styles.emvBig}>±{em}%</span></div>
-            )}
-            {/* C6: Historical post-earnings reaction stats (pending cards too) */}
-            {histStatsLabel && (
-              <div className={styles.histStats}>
-                <span className={styles.dim}>Hist reactions</span>
-                <span className={styles.histStatsVal}>{histStatsLabel}</span>
+            {/* Implied vs realized — the pair no competitor puts on entries */}
+            <ExpectedMovePair em={em} typical={entry.hist_stats?.avg_abs_move} />
+            {/* Dot strip + reaction sparkline replace the text lines: same
+                data at 10× scan speed (counts live in the tooltips/labels) */}
+            {(entry.beat_history?.length > 0 || entry.hist_stats?.last_n?.length > 1) && (
+              <div className={styles.cardMetaRow}>
+                <BeatDots history={entry.beat_history} />
+                <ReactionSpark lastN={entry.hist_stats?.last_n} />
               </div>
-            )}
-            {beats.length > 0 && (
-              <div className={styles.beatNote}>Beat {beatCount} of last {beats.length} quarters</div>
             )}
           </>
         ) : (
@@ -178,11 +165,10 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
                 <span className={reaction >= 0 ? styles.pos : styles.neg}>
                   {reaction >= 0 ? '▲ +' : '▼ '}{reaction.toFixed(1)}%</span></div>
             )}
-            {/* C6: Historical post-earnings reaction stats */}
-            {histStatsLabel && (
-              <div className={styles.histStats}>
-                <span className={styles.dim}>Hist reactions</span>
-                <span className={styles.histStatsVal}>{histStatsLabel}</span>
+            {(entry.beat_history?.length > 0 || entry.hist_stats?.last_n?.length > 1) && (
+              <div className={styles.cardMetaRow}>
+                <BeatDots history={entry.beat_history} />
+                <ReactionSpark lastN={entry.hist_stats?.last_n} />
               </div>
             )}
             {/* A4: EXT price also shown on reported cards during ext hours */}

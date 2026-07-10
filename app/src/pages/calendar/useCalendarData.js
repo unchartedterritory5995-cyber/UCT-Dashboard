@@ -109,6 +109,22 @@ export function useDayMetrics(ds) {
   )
 }
 
+// Whole-week metrics in ONE request — merged into the day map BEFORE the
+// importance tiering runs (the hierarchy ranks on mc_b/dollar-volume; per-day
+// fetches inside DayGroup arrived AFTER tiering and left paged weeks ranking
+// on nothing). Single stable hook, same pattern as useWeekEnrichment.
+export function useWeekMetrics(weekDates) {
+  const key = weekDates && weekDates.length ? `metrics:${weekDates.join(',')}` : null
+  return useSWR(
+    key,
+    () => fetch(`/api/calendar/day-metrics-batch?dates=${weekDates.join(',')}`)
+      .then(r => (r.ok ? r.json() : {}))
+      .then(m => m || {})
+      .catch(() => ({})),
+    { refreshInterval: 2 * 60 * 1000, revalidateOnFocus: false }
+  )
+}
+
 // Full-month earnings from /api/calendar/month
 export function useMonthCalendar(year, month) {
   return useSWR(

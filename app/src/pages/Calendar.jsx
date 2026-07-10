@@ -13,6 +13,7 @@ import {
   useCalendar,
   useCalendarMySets,
   useWeekEnrichment,
+  useWeekMetrics,
   buildWeekDates,
   mergeEnrichment,
   isMine,
@@ -20,6 +21,7 @@ import {
   useDividends,
 } from './calendar/useCalendarData'
 import { DEFAULT_FILTERS } from './calendar/filterLogic'
+import { tierWeek } from './calendar/importance'
 import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
 import FeedView from './calendar/FeedView'
 import WeekView from './calendar/WeekView'
@@ -180,26 +182,72 @@ export default function Calendar() {
   // weekDates is [] before data loads → key is null → SWR skips. Length never
   // changes between renders within the same data version, so hook count is stable.
   const { data: enrichmentByDate } = useWeekEnrichment(weekDates)
+  const { data: metricsByDate } = useWeekMetrics(weekDates)
 
-  // Tag every entry with mine/sources flags and merge enrichment overlay
+  // Tag every entry with mine/sources flags and merge the enrichment +
+  // metrics overlays. Metrics MUST land here, before tiering — the importance
+  // hierarchy ranks on mc_b / dollar-volume.
   const days = useMemo(() => {
     if (!data) return {}
     const out = {}
     for (const ds of weekDates) {
       const d = data.days?.[ds]
       if (!d) continue
-      const dayEnrich = enrichmentByDate?.[ds] || {}
+      const dayEnrich  = enrichmentByDate?.[ds] || {}
+      const dayMetrics = metricsByDate?.[ds] || {}
       const tag = list => (list || []).map(entry => {
         const mine = isMine(entry.sym, mySets, mySources)
         const sources = ALL_SOURCES.filter(
           s => (mySets?.[s] || []).includes(entry.sym?.toUpperCase())
         )
-        return { ...mergeEnrichment(entry, dayEnrich), mine, _sources: sources }
+        const m = dayMetrics[entry.sym]
+        const withMetrics = m ? {
+          ...entry,
+          _price:   m.price   ?? entry._price,
+          _avg_vol: m.avg_vol ?? entry._avg_vol,
+          mc_b:     entry.mc_b ?? m.mc_b,
+        } : entry
+        return { ...mergeEnrichment(withMetrics, dayEnrich), mine, _sources: sources }
       })
       out[ds] = { ...d, bmo: tag(d.bmo), amc: tag(d.amc), tbd: tag(d.tbd) }
     }
     return out
-  }, [data, weekDates, mySets, mySources, enrichmentByDate])
+  }, [data, weekDates, mySets, mySources, enrichmentByDate, metricsByDate])
+
+  // ── The hierarchy: one tier map drives Board/Week/Month identically ───────
+  // Main Event is FROZEN per (week, day) once the enrichment overlay has
+  // landed — imp includes the expected-move term, so an unfrozen pick could
+  // flip seconds after first paint when enrichment arrives. At most one
+  // upgrade happens (pre-enrichment provisional → enriched pick), then it
+  // sticks for the payload's lifetime.
+  const mainEventFrozen = useRef({})
+  const weekTiers = useMemo(() => {
+    const tiers = tierWeek(days, weekDates)
+    const weekKey = data?.week_start || ''
+    for (const ds of weekDates) {
+      const t = tiers[ds]
+      if (!t) continue
+      const fkey = `${weekKey}|${ds}`
+      const frozen = mainEventFrozen.current[fkey]
+      const dayHas = sym => ['bmo', 'amc', 'tbd'].some(
+        b => (days[ds]?.[b] || []).some(e => e.sym === sym))
+      if (frozen !== undefined && (frozen === null || dayHas(frozen))) {
+        if (frozen !== t.mainEvent && frozen !== null) {
+          // demote the computed pick into featured so it isn't lost
+          if (t.mainEvent) t.featured.add(t.mainEvent)
+          t.featured.delete(frozen)
+          t.table.delete(frozen)
+        }
+        t.mainEvent = frozen
+      } else if (enrichmentByDate !== undefined && metricsByDate !== undefined) {
+        // Freeze only once BOTH overlays have resolved — imp ranks on the
+        // metrics caps AND the enrichment expected move; freezing earlier
+        // would lock a rank computed on nothing.
+        mainEventFrozen.current[fkey] = t.mainEvent
+      }
+    }
+    return tiers
+  }, [days, weekDates, data?.week_start, enrichmentByDate, metricsByDate])
 
   // ── Week Navigator: per-day tab info (count + mine count) ─────────────────
   const dayTabs = useMemo(() => weekDates.map(ds => {
@@ -269,6 +317,21 @@ export default function Calendar() {
       gotoWeek(mondayOf(dateIso), dateIso)
     }
   }, [weekDates, view, setView, gotoWeek, scrollToDay])
+
+  // ── Keyboard core: ←/→ page weeks, T jumps to today (terminal lens) ───────
+  useEffect(() => {
+    const onKey = (e) => {
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      if (view === 'month') return   // month nav owns time there
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); shiftWeek(-7) }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); shiftWeek(7) }
+      else if (e.key === 't' || e.key === 'T') { e.preventDefault(); gotoToday() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [view, shiftWeek, gotoToday])
 
   // Clear the pulse after the animation has played (2 × ~0.9s + settle).
   // The timer starts only once the TARGET DAY is actually rendered — starting
@@ -382,6 +445,7 @@ export default function Calendar() {
             iposByDate={iposByDate}
             dividendsByDate={dividendsByDate}
             pulse={pulse}
+            weekTiers={weekTiers}
           />
         )}
         {view === 'week' && (
@@ -390,6 +454,8 @@ export default function Calendar() {
             days={days}
             filters={filters}
             onSelect={onSelect}
+            weekTiers={weekTiers}
+            onOpenDay={(ds) => setOpenDay({ ds, day: days[ds] })}
           />
         )}
         {view === 'month' && (

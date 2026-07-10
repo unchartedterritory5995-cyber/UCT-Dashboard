@@ -1423,7 +1423,10 @@ def get_day_metrics(date: str | None = None):
                         if s.endswith("T"): return float(s[:-1]) * 1000
                         if s.endswith("B"): return float(s[:-1])
                         if s.endswith("M"): return float(s[:-1]) / 1000
-                        return float(s) / 1e9
+                        # Finviz export returns suffix-less caps in raw
+                        # MILLIONS (the UCT20 raw-millions incident class) —
+                        # dividing by 1e9 rendered every cap as "$0M".
+                        return float(s) / 1000
                     except ValueError: return None
 
                 for row in rows:
@@ -1460,6 +1463,24 @@ def get_day_metrics(date: str | None = None):
 
     cache.set(cache_key, result, ttl=ttl)
     return result
+
+
+@router.get("/api/calendar/day-metrics-batch")
+def get_day_metrics_batch(dates: str | None = None):
+    """Whole-week metrics in ONE request: {date: {SYM: {price, avg_vol, mc_b}}}.
+    Each date reuses get_day_metrics' per-date cache — the client needs the
+    caps BEFORE tiering (the importance hierarchy ranks on mc_b/dollar-volume;
+    fetching metrics per-DayGroup after tiering left paged weeks ranking on
+    nothing and featuring a $500M bank over UnitedHealth)."""
+    import re as _re
+    if not dates:
+        return {}
+    out: dict = {}
+    for d in dates.split(","):
+        d = d.strip()
+        if d and _re.match(r"^\d{4}-\d{2}-\d{2}$", d):
+            out[d] = get_day_metrics(date=d)
+    return out
 
 
 # ── Personalization endpoint ───────────────────────────────────────────────────

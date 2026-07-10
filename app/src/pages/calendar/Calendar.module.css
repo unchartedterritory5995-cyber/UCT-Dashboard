@@ -133,6 +133,7 @@
 .mono {
   font-family: var(--font-mono);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .dim {
@@ -259,7 +260,7 @@
 .d1 {
   font-size: 13px;
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--cal-txt);   /* cream — gold is rationed to signals, not headers */
   letter-spacing: 0.4px;
 }
 
@@ -415,19 +416,29 @@
 }
 
 .wd {
-  font-size: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 13px;
   font-weight: 800;
-  color: var(--cal-gold);
+  color: var(--cal-txt);   /* cream — gold is rationed to signals, not headers */
   letter-spacing: 0.3px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   text-transform: uppercase;
+}
+
+.wdCount {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cal-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .wrow {
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 9px 6px;
+  gap: 8px;
+  padding: 5px 6px;
   cursor: pointer;
   border-radius: 10px;
   transition: background 0.12s, transform 0.12s;
@@ -448,7 +459,7 @@
 }
 
 .t {
-  font-size: 19px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--cal-txt);
   flex: 1;
@@ -2194,4 +2205,331 @@
   font-weight: 700;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
+}
+
+
+/* ================================================================
+   Phase 2 — The Terminal: Main Event, day table, card intelligence,
+   week mosaic rows, gold rationing support
+   ================================================================ */
+
+.mainEventWrap { margin-bottom: 12px; }
+
+.cardMainEvent {
+  border-top: 2px solid rgba(201, 168, 76, 0.35);
+  border-radius: 14px;
+  padding: 14px 16px;
+  max-width: 560px;
+}
+
+.mainEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--cal-muted);
+  margin-bottom: 8px;
+}
+
+.macroCollide {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--cal-gold);
+  border: 1px solid rgba(201, 168, 76, 0.45);
+  border-radius: 5px;
+  padding: 0 6px;
+}
+
+.symMain { font-size: 18px; }
+
+.mainRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  align-self: flex-start;
+}
+
+.capBadge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cal-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.mainLede {
+  font-size: 12px;
+  color: var(--cal-dim);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.mainMetrics {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--cal-txt);
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.mainMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.missPill {
+  font-size: 8px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(231, 76, 60, 0.16);
+  color: var(--cal-red);
+}
+
+.cardMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.beatDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.beatDotUp, .beatDotDown, .beatDotNone {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.beatDotUp   { background: var(--cal-gold); }
+.beatDotDown { background: rgba(231, 76, 60, 0.75); }
+.beatDotNone { border: 1px solid var(--cal-line2); }
+
+.reactSpark { display: inline-block; }
+.sparkAxis  { stroke: var(--cal-line2); stroke-width: 1; }
+.sparkUp    { fill: var(--cal-green); opacity: 0.85; }
+.sparkDown  { fill: var(--cal-red);  opacity: 0.85; }
+
+.emvRich {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  letter-spacing: 0.5px;
+}
+
+.emvTypical {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cal-muted);
+}
+
+.emvBigger {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--cal-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The 36px day table (the density engine) */
+
+.dayTable {
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.dtHead {
+  display: grid;
+  grid-template-columns: minmax(180px, 2.2fr) 0.7fr 1.1fr 0.9fr 0.8fr 0.9fr;
+  gap: 8px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--cal-line);
+}
+
+.dtTh {
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--cal-muted);
+  padding: 7px 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dtTh:disabled { cursor: default; }
+.dtTh:not(:disabled):hover { color: var(--cal-txt); }
+.dtThActive { color: var(--cal-gold); }
+
+.dtSession {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 6px 12px 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--cal-line);
+}
+
+.dtRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 2.2fr) 0.7fr 1.1fr 0.9fr 0.8fr 0.9fr;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: background 0.1s;
+}
+
+.dtRow:hover { background: rgba(255, 255, 255, 0.04); }
+.dtRow:last-child { border-bottom: none; }
+
+.dtRowMine { box-shadow: inset 2px 0 0 var(--cal-gold); }
+
+.dtCompany {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dtSym {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cal-txt);
+  flex-shrink: 0;   /* the TICKER never truncates */
+}
+
+.dtName {
+  font-size: 11px;
+  color: var(--cal-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.dtNum {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--cal-txt);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dtMove { color: var(--cal-gold); }
+
+.dtBeats { display: flex; justify-content: flex-end; }
+
+/* Week mosaic rows */
+
+.wSym {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cal-dim);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wSymFeat {
+  font-weight: 800;
+  color: var(--cal-txt);
+}
+
+.wDatumEm {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cal-gold);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.wDatumCap {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cal-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.wMore {
+  width: 100%;
+  background: none;
+  border: 1px dashed var(--cal-line2);
+  border-radius: 8px;
+  color: var(--cal-muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 0;
+  margin-top: 4px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.wMore:hover { border-color: var(--cal-gold); color: var(--cal-gold); }
+
+.wMacro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: -4px 0 8px;
+}
+
+.wMacroChip {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cal-gold);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 5px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+.wMacroChipFed {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cal-blue);
+  border: 1px solid rgba(107, 163, 190, 0.4);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+/* Phone: the table drops cap/beats columns; Main Event goes full width */
+@media (max-width: 640px) {
+  .dtHead, .dtRow {
+    grid-template-columns: minmax(120px, 2fr) 1fr 0.9fr;
+  }
+  .dtHead .dtTh:nth-child(2), .dtRow .dtNum:nth-of-type(1),
+  .dtHead .dtTh:nth-child(6), .dtRow .dtBeats {
+    display: none;
+  }
+  .dtRow { min-height: 40px; }
+  .cardMainEvent { max-width: none; }
 }
