@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import ThreadView from './ThreadView'
-import { useCommunityStatus, useSpaces, useThreads } from './hooks/useCommunity'
+import Composer from './Composer'
+import { useCommunityStatus, useSpaces, useThreads, apiCall } from './hooks/useCommunity'
 import styles from './Community.module.css'
 
 function timeAgo(epoch) {
@@ -21,7 +22,11 @@ export default function CommunityPage() {
   const enabled = !!status?.enabled
   const [space, setSpace] = useState('mentor-desk')
   const { data: spaces } = useSpaces(enabled)
-  const { data: threadsData } = useThreads(space, enabled && !threadId)
+  const { data: threadsData, mutate: refreshThreads } = useThreads(space, enabled && !threadId)
+  const [composing, setComposing] = useState(false)
+  const [title, setTitle] = useState('')
+  const [posting, setPosting] = useState(false)
+  const canPost = spaces && !(spaces.find((s) => s.key === space)?.mentor_only) || status?.is_mentor
 
   if (status && !enabled) {
     return (
@@ -54,10 +59,44 @@ export default function CommunityPage() {
         {threadId ? (
           <ThreadView threadId={threadId} />
         ) : (
-          <ThreadList
-            threads={threadsData?.threads || []}
-            onOpen={(id) => navigate(`/community/${id}`)}
-          />
+          <>
+            {canPost && (
+              <button className={styles.newThreadBtn} onClick={() => setComposing(true)}>
+                New Thread
+              </button>
+            )}
+            {composing && (
+              <div className={styles.newThreadCard}>
+                <input
+                  className={styles.titleInput}
+                  placeholder="Title"
+                  maxLength={200}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+                <Composer
+                  submitLabel="Post Thread"
+                  busy={posting}
+                  onSubmit={async (body, tickers) => {
+                    setPosting(true)
+                    try {
+                      const { id } = await apiCall('/api/community/threads',
+                        { space, title, body, ticker_tags: tickers })
+                      setComposing(false); setTitle('')
+                      refreshThreads()
+                      navigate(`/community/${id}`)
+                    } finally {
+                      setPosting(false)
+                    }
+                  }}
+                />
+              </div>
+            )}
+            <ThreadList
+              threads={threadsData?.threads || []}
+              onOpen={(id) => navigate(`/community/${id}`)}
+            />
+          </>
         )}
       </main>
     </div>

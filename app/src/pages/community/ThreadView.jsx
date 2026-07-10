@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
+import Composer from './Composer'
 import { useThread, apiCall } from './hooks/useCommunity'
 import { renderBodyHTML } from './lib/renderBody'
 import styles from './Community.module.css'
@@ -73,6 +74,7 @@ function Post({ post, replies, onReact, onReply }) {
 
 export default function ThreadView({ threadId }) {
   const { data: thread, mutate } = useThread(threadId)
+  const [replyTo, setReplyTo] = useState(null)
 
   // mark read once loaded
   useEffect(() => {
@@ -104,8 +106,7 @@ export default function ThreadView({ threadId }) {
     } catch { /* noop */ }
   }
 
-  // onReply target is consumed by the Composer (Task 12); store in state there.
-  const onReply = () => {}
+  const onReply = (postId) => setReplyTo(postId)
 
   return (
     <div className={styles.threadView}>
@@ -131,6 +132,26 @@ export default function ThreadView({ threadId }) {
                 onReact={onReact} onReply={onReply} />
         ))}
       </div>
+      {!thread.locked && (
+        <div className={styles.replyComposer}>
+          {replyTo && (
+            <div className={styles.replyingChip}>
+              Replying to a comment
+              <button onClick={() => setReplyTo(null)}>×</button>
+            </div>
+          )}
+          <Composer
+            placeholder="Reply…"
+            submitLabel="Reply"
+            onSubmit={async (body) => {
+              await apiCall(`/api/community/threads/${thread.id}/posts`,
+                { body, parent_post_id: replyTo })
+              setReplyTo(null)
+              mutate()
+            }}
+          />
+        </div>
+      )}
       {!!thread.locked && <div className={styles.lockedNote}>This thread is locked.</div>}
     </div>
   )
