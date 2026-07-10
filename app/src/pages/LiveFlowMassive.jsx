@@ -158,6 +158,7 @@ const LS_KEY_FILTERS = "uct_liveflow_massive_filters_v1";
 const LS_KEY_SORT    = "uct_liveflow_massive_sort_v1";
 const LS_KEY_MINGRADE= "uct_liveflow_massive_mingrade_v1";
 const LS_KEY_COLSORT = "uct_liveflow_massive_colsort_v1";  // per-column table sort (col+dir)
+const LS_KEY_VIEWMODE = "uct_liveflow_massive_viewmode_v1";  // 'print' tape vs 'contract' rollup
 
 // ─── Column config (single source for the sortable header row) ────────────
 // Keys drive the click-to-sort comparator in LiveFlowMassive; labels/align
@@ -844,7 +845,7 @@ function MarketReadCard({ stats }) {
 // This is the click-to-focus pattern used by other dashboards (Bloomberg,
 // Twitter, etc.) — clicking always either isolates or restores, never the
 // confusing in-between multi-select state.
-function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChange, search, onSearchChange }) {
+function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChange, search, onSearchChange, viewMode, onViewModeChange }) {
   const allOn = TIER_ORDER.every(t => filters[t]);
   const onlyOnTier = (() => {
     const ons = TIER_ORDER.filter(t => filters[t]);
@@ -873,6 +874,34 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
       display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
       padding: "10px 0", marginBottom: 12, borderBottom: `1px solid ${P.bd}`,
     }}>
+      {/* View mode: live print tape vs by-contract accumulation rollup. */}
+      {onViewModeChange && (
+        <>
+          <div style={{ display: "inline-flex", border: `1px solid ${P.ac}`, borderRadius: 4, overflow: "hidden", marginRight: 4 }}>
+            {[{ key: "print", label: "By Print" }, { key: "contract", label: "By Contract" }].map(opt => {
+              const active = viewMode === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => onViewModeChange(opt.key)}
+                  title={opt.key === "print"
+                    ? "Live tape — one row per print"
+                    : "One row per contract — repeat accumulation (hit ≥3× at decent size). Click a row to expand its prints."}
+                  style={{
+                    background: active ? P.ac : "transparent", color: active ? P.bg : P.wh,
+                    border: "none", padding: "5px 12px", cursor: "pointer", fontSize: 13,
+                    fontWeight: active ? 700 : 500,
+                    borderRight: opt.key === "print" ? `1px solid ${P.ac}` : "none",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <span style={{ color: P.bd, fontSize: 13, marginRight: 4 }}>·</span>
+        </>
+      )}
       {/* 7/7: Stocks / ETFs / All partition. Sits BEFORE the tier chips
           since it partitions the universe of alerts before the tier filter
           applies. Client-side via KNOWN_ETFS_INDEXES. */}
@@ -2112,6 +2141,143 @@ function DormantStatusPanel() {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────
+// ─── By-Contract rollup (accumulation view) ───────────────────────────────
+// One row per contract for the day, showing repetition/conviction that the
+// flat print tape hides. Collapsed by default; click to expand the prints.
+const CONTRACT_GRID = "128px 118px 66px 76px 38px 92px 74px 66px 96px 86px 50px 92px 1fr";
+
+// Compact ET clock for the accumulation time-span, e.g. "10:25a". Explicit
+// America/New_York so it can't drift to browser-local (recurring 7/x bug).
+function fmtClock(ts) {
+  if (!ts) return "—";
+  try {
+    return new Date(ts * 1000)
+      .toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", hour12: true })
+      .replace(" AM", "a").replace(" PM", "p").replace(/^0/, "");
+  } catch { return "—"; }
+}
+
+function ContractColumnHeaders() {
+  const cols = ["SPAN", "TICKER", "SPOT", "STRIKE", "C/P", "EXP", "%ITM/OTM",
+                "V/OI", "PREMIUM", "SIDES", "GRADE", "TYPE", "SIGNAL"];
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: CONTRACT_GRID, gap: 8, padding: "6px 12px",
+      fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
+      borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
+    }}>
+      {cols.map((c, i) => (
+        <span key={c} style={{ textAlign: i === cols.length - 1 ? "left" : "center", paddingLeft: i === cols.length - 1 ? 4 : 0 }}>{c}</span>
+      ))}
+    </div>
+  );
+}
+
+function ContractRow({ c, onClickTicker }) {
+  const [open, setOpen] = useState(false);
+  const DIR_BULL = "#6BAA85", DIR_BEAR = "#C26A6A";
+  const isBull = c.direction === "Bull";
+  const isBear = c.direction === "Bear";
+  const dirColor = isBull ? DIR_BULL : isBear ? DIR_BEAR : P.wh;
+  const dirTint = isBull ? `${DIR_BULL}0E` : isBear ? `${DIR_BEAR}0E` : P.cd;
+  const consPct = Math.round((c.consistency || 0) * 100);
+  const s = c.sides || {};
+  const sideBits = [
+    (s.AA ? `${s.AA}AA` : ""), (s.A ? `${s.A}A` : ""),
+    (s.BB ? `${s.BB}BB` : ""), (s.B ? `${s.B}B` : ""),
+  ].filter(Boolean);
+
+  return (
+    <div style={{ marginBottom: 2 }}>
+      <div
+        role="button" tabIndex={0} aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(o => !o); } }}
+        style={{
+          display: "grid", gridTemplateColumns: CONTRACT_GRID, gap: 8,
+          padding: "9px 12px", alignItems: "center", fontSize: 13, cursor: "pointer",
+          background: c.dormant ? `${P.bl}10` : dirTint,
+          borderLeft: `4px solid ${c.dormant ? P.bl : dirColor}`,
+        }}
+        title={`${c.hit_count} prints · ${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)} · conviction score ${c.score?.toLocaleString?.() || c.score}`}
+      >
+        <span style={{ color: P.dm, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+          <i style={{ color: dirColor, fontSize: 11 }}>{open ? "▾" : "▸"}</i>
+          {fmtClock(c.first_ts)}–{fmtClock(c.last_ts)}
+        </span>
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
+          <span onClick={(e) => { e.stopPropagation(); onClickTicker && onClickTicker(c.ticker); }}
+                style={{ color: dirColor, fontWeight: 600, cursor: "pointer" }} title={`Filter to ${c.ticker}`}>
+            {c.ticker}
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: P.ac + "30", color: P.ac, flexShrink: 0 }} title={`${c.hit_count} prints on this contract`}>
+            ×{c.hit_count}
+          </span>
+          {c.dormant && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: `${P.bl}25`, color: P.bl, flexShrink: 0 }} title="Unusual — dormant ticker suddenly active">
+              ⚡
+            </span>
+          )}
+        </span>
+        <span style={{ color: P.dm, fontSize: 12, textAlign: "center" }}>{fmtSpot(c.spot)}</span>
+        <span style={{ color: dirColor, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap" }}>{fmtStrike(c.strike)}</span>
+        <span style={{ color: dirColor, fontWeight: 700, textAlign: "center" }}>{c.cp || "—"}</span>
+        <span style={{ color: P.dm, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{c.exp || "—"}</span>
+        <span style={{ color: P.dm, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{fmtMoneyness(c.moneynessPct, c.moneynessLabel)}</span>
+        <span style={{ color: c.cum_voi && c.cum_voi >= 3 ? P.ac : P.dm, fontWeight: c.cum_voi && c.cum_voi >= 3 ? 600 : 400, textAlign: "center" }}>
+          {c.cum_voi != null ? `${c.cum_voi}x` : "—"}
+        </span>
+        <span style={{ color: dirColor, fontWeight: 700, textAlign: "center" }}>{fmtPremium(c.total_premium)}</span>
+        <span style={{ fontSize: 11, textAlign: "center", color: P.dm, whiteSpace: "nowrap" }}>{sideBits.join(" ") || "—"}</span>
+        <span style={{
+          color: c.grade?.startsWith("A") ? P.ac : c.grade === "B" ? P.bl : c.grade === "C" ? P.dm : P.mt,
+          fontWeight: 700, textAlign: "center",
+        }}>{c.grade || "—"}</span>
+        <span style={{ textAlign: "center", display: "flex", gap: 3, justifyContent: "center", flexWrap: "wrap" }}>
+          {(c.types || []).map(t => {
+            const tl = tradeTypeLabel(t);
+            return tl ? (
+              <span key={t} style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: `${tl.color}25`, color: tl.color }}>{tl.code}</span>
+            ) : null;
+          })}
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", paddingLeft: 4 }}>
+          <span style={{ color: dirColor, fontSize: 12, whiteSpace: "nowrap", fontWeight: 500 }}>
+            Repeat accumulation
+          </span>
+          <span style={{ color: P.dm, fontSize: 11, whiteSpace: "nowrap" }}>
+            {consPct}% {isBull ? "bull" : isBear ? "bear" : "mixed"}
+          </span>
+        </span>
+      </div>
+
+      {open && (c.prints || []).map((p, i) => {
+        const pc = p.direction === "Bull" ? DIR_BULL : p.direction === "Bear" ? DIR_BEAR : P.dm;
+        const tl = tradeTypeLabel(p.type);
+        return (
+          <div key={i} style={{
+            display: "grid", gridTemplateColumns: CONTRACT_GRID, gap: 8,
+            padding: "5px 12px", alignItems: "center", fontSize: 12,
+            background: "#141510", borderLeft: `4px solid ${P.bd}`,
+          }}>
+            <span style={{ color: P.mt, paddingLeft: 18, whiteSpace: "nowrap" }}>{fmtTime(p.timestamp)}</span>
+            <span /><span /><span /><span /><span />
+            <span style={{ color: P.mt, fontSize: 11, textAlign: "center" }}>{fmtPrice(p.price)}</span>
+            <span style={{ color: P.mt, fontSize: 11, textAlign: "center" }}>{fmtCount(p.volume)}</span>
+            <span style={{ color: pc, fontWeight: 600, textAlign: "center" }}>{fmtPremium(p.premium)}</span>
+            <span style={{ color: pc, fontSize: 11, textAlign: "center" }}>{p.side || "—"}</span>
+            <span style={{ textAlign: "center" }}>
+              {tl && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: `${tl.color}25`, color: tl.color }}>{tl.code}</span>}
+            </span>
+            <span />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────
 export default function LiveFlowMassive() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Date picker driven via ?date= URL param so views are bookmarkable
@@ -2139,6 +2305,9 @@ export default function LiveFlowMassive() {
   // feed (ephemeral; intentionally not persisted so a stale query never
   // silently hides the tape on reload).
   const [search, setSearch] = useState("");
+  // By Print (live tape) vs By Contract (accumulation rollup). Persisted.
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem(LS_KEY_VIEWMODE) || "print");
+  const [byContract, setByContract] = useState(null);
   // Per-column table sort. Defaults to time/desc, which is identical to the
   // page's prior always-time-descending behavior. `sortBy` above still selects
   // WHICH alerts the backend returns (recent/conviction/premium top-N); this
@@ -2584,6 +2753,27 @@ export default function LiveFlowMassive() {
     };
   }, [targetDate, hideAlgo, stockEtfFilter]);
 
+  // Persist view mode.
+  useEffect(() => { localStorage.setItem(LS_KEY_VIEWMODE, viewMode); }, [viewMode]);
+
+  // By-Contract rollup fetch — only polls while in contract mode. Respects the
+  // date + Stocks/ETFs/All partition; backend caches 30s so we match cadence.
+  useEffect(() => {
+    if (viewMode !== "contract") return;
+    let cancelled = false, timer;
+    async function pull() {
+      try {
+        const params = new URLSearchParams({ stock_etf: stockEtfFilter, min_hits: "3" });
+        if (targetDate) params.set("target_date", targetDate);
+        const r = await fetch(`/api/live/massive/by-contract?${params.toString()}`);
+        if (r.ok) { const d = await r.json(); if (!cancelled) setByContract(d); }
+      } catch { /* soft-fail; keep last snapshot */ }
+      finally { if (!cancelled) timer = setTimeout(pull, 30000); }
+    }
+    pull();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [viewMode, targetDate, stockEtfFilter]);
+
   // Apply client-side filters: tier chips, ticker, contract, hideAlgo, search.
   // Tier filtering now happens here (was previously per-section); the
   // remaining list goes straight into the flat feed.
@@ -2665,6 +2855,14 @@ export default function LiveFlowMassive() {
       return true;
     })
     .sort(_cmp);
+
+  // By-Contract rollups, filtered by the same search / ticker-isolation the
+  // print feed uses (partition + algo already applied server-side).
+  const visibleContracts = (byContract?.contracts || []).filter(c => {
+    if (searchQ && !(c.ticker || "").toUpperCase().includes(searchQ)) return false;
+    if (tickerFilter.size > 0 && !tickerFilter.has(c.ticker)) return false;
+    return true;
+  });
 
   // Per-tier counts (for filter chip badges). Built from ALL alerts that
   // pass the ticker/contract filter — independent of which tiers are toggled
@@ -2953,9 +3151,12 @@ export default function LiveFlowMassive() {
       }}>
         <FilterChips filters={filters} onChange={setFilters} counts={tierCounts}
                      stockEtfFilter={stockEtfFilter} onStockEtfChange={setStockEtfFilter}
-                     search={search} onSearchChange={setSearch} />
+                     search={search} onSearchChange={setSearch}
+                     viewMode={viewMode} onViewModeChange={setViewMode} />
 
-        <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} />
+        {viewMode === "print"
+          ? <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} />
+          : <ContractColumnHeaders />}
       </div>
 
       {/* TuningPanel — admin-only, shown when ?tune=1 in URL. Sits below the
@@ -2982,6 +3183,7 @@ export default function LiveFlowMassive() {
           screenshot had 10:55 AM as earliest visible without user noticing
           morning alerts were cut). Shows the earliest visible timestamp so
           the user knows exactly where the visible window starts. */}
+      {viewMode === "print" && (<>
       {rowLimit !== "All" && alerts.length === rowLimit && alerts.length > 0 && (() => {
         const earliest = alerts[alerts.length - 1];
         const earliestTs = earliest?.CreatedTime || earliest?.ts || earliest?._ts || "?";
@@ -3038,6 +3240,35 @@ export default function LiveFlowMassive() {
           {rowLimit !== "All" && alerts.length === rowLimit && ` (limit ${rowLimit} — change in toolbar to see more)`}
         </div>
       )}
+      </>)}
+
+      {viewMode === "contract" && (<>
+        {visibleContracts.map(c => (
+          <ContractRow
+            key={`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`}
+            c={c}
+            onClickTicker={handleClickTicker}
+          />
+        ))}
+        {visibleContracts.length === 0 && !error && (
+          <div style={{
+            padding: 30, textAlign: "center", color: P.dm,
+            background: P.cd, borderRadius: 4, marginTop: 20,
+          }}>
+            {byContract == null
+              ? "Loading accumulation rollups…"
+              : "No contracts hit ≥3× at decent size today for this filter. Try All, or widen the date."}
+          </div>
+        )}
+        {visibleContracts.length > 0 && (
+          <div style={{
+            padding: 10, color: P.dm, fontSize: 11, textAlign: "right",
+            borderTop: `1px solid ${P.bd}`, marginTop: 8,
+          }}>
+            {visibleContracts.length} contracts accumulating · sorted by latest activity · click a row to expand prints
+          </div>
+        )}
+      </>)}
 
       <div style={{
         marginTop: 30, padding: 12, color: P.mt, fontSize: 10,
