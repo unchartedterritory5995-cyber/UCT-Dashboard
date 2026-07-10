@@ -75,15 +75,17 @@ describe('TodaysBrief', () => {
     expect(screen.getByText('tomorrow · before open')).toBeTruthy()      // AMD
   })
 
-  it('renders a dismissible empty state when the user has no names + nothing reported', () => {
-    render(
+  it('renders NOTHING when the user has no names + nothing reported (no empty-state band)', () => {
+    const { container } = render(
       <MemoryRouter>
         <TodaysBrief
           days={{ [TODAY]: { is_today: true, bmo: [], amc: [], tbd: [], econ: [], fed: [] } }}
           weekDates={weekDates} todayIso={TODAY} onSelect={vi.fn()} />
       </MemoryRouter>
     )
-    expect(screen.getByText(/Star names or connect your broker/)).toBeTruthy()
-    expect(screen.getByLabelText('Dismiss')).toBeTruthy()
+    // Decluttered: no "star names to build your brief" band — the component
+    // collapses to null so it never adds dead chrome atop the feed.
+    expect(container.firstChild).toBeNull()
+    expect(screen.queryByText(/Star names or connect your broker/)).toBeNull()
   })
 })

@@ -243,11 +243,13 @@ export default function CalendarHeader({
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
-  // Peer read-through — one AI line on the scoped sector's setup this week.
-  // Keyed to the viewed week's Monday; null sector → hook is inert.
+  // Peer read-through — OPT-IN (no auto-spend, no auto-chrome). A small toggle
+  // under the sector chips reveals the AI line only when the user asks for it.
+  const [sectorReadOpen, setSectorReadOpen] = useState(false)
+  useEffect(() => { setSectorReadOpen(false) }, [filters.sector])
   const sectorReadWeek = dayTabs.length ? dayTabs[0].ds : null
   const { line: sectorReadLine, generating: sectorReadBusy } =
-    useSectorRead(filters.sector || null, sectorReadWeek)
+    useSectorRead(sectorReadOpen ? (filters.sector || null) : null, sectorReadWeek)
 
   const set = (k, v) => setFilters({ ...filters, [k]: v })
   const setNum = (k, v) => setFilters({ ...filters, [k]: v === '' ? null : Number(v) })
@@ -607,13 +609,22 @@ export default function CalendarHeader({
         </div>
       )}
 
-      {/* Peer read-through — the AI one-liner for the scoped sector this week */}
-      {showSectorRow && activeSector && (sectorReadLine || sectorReadBusy) && (
+      {/* Peer read-through — OPT-IN: a compact toggle, expands to the AI line */}
+      {showSectorRow && activeSector && (
         <div className={styles.sectorRead}>
-          <UIcon name="sparkle" size={12} style={{ verticalAlign: '-1px', marginRight: 6, flex: '0 0 auto' }} />
-          {sectorReadLine
-            ? <span>{sectorReadLine}</span>
-            : <span className={styles.sectorReadBusy}>Reading the {activeSector} tape…</span>}
+          {!sectorReadOpen ? (
+            <button className={styles.sectorReadToggle} onClick={() => setSectorReadOpen(true)}>
+              <UIcon name="sparkle" size={11} style={{ verticalAlign: '-1px', marginRight: 5 }} />
+              Read the {activeSector} tape
+            </button>
+          ) : (
+            <>
+              <UIcon name="sparkle" size={12} style={{ verticalAlign: '-1px', marginRight: 6, flex: '0 0 auto' }} />
+              {sectorReadLine
+                ? <span>{sectorReadLine}</span>
+                : <span className={styles.sectorReadBusy}>Reading the {activeSector} tape…</span>}
+            </>
+          )}
         </div>
       )}
 

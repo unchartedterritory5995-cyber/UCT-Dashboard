@@ -90,6 +90,13 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
 
   if (!hasEarnings && !hasMacro && !hasEvents) return null
 
+  // A day with NO earnings (just Fed/econ chatter) is collapsed to one dim line
+  // instead of a full "0 companies reporting" header + macro band — the empty-
+  // day noise that made the feed feel clogged. Today stays open by default.
+  if (!hasEarnings && !hasEvents && hasMacro) {
+    return <MacroOnlyDay ds={ds} day={day} />
+  }
+
   const mineN = entries.filter(e => e.mine).length
   const pulseSym = pulse && pulse.ds === ds ? pulse.sym : null
   return (
@@ -154,6 +161,25 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// Macro-only day: a single dim, expandable line. Collapses the "0 companies
+// reporting" noise while keeping the Fed/econ events one click away.
+function MacroOnlyDay({ ds, day }) {
+  const [open, setOpen] = useState(!!day.is_today)
+  const count = (day.econ?.length || 0) + (day.fed?.length || 0)
+  return (
+    <div className={styles.macroOnly} id={`day-${ds}`}>
+      <button className={styles.macroOnlyToggle} onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span className={styles.macroOnlyLbl}>{(day.label || ds).toUpperCase()}</span>
+        <span className={styles.macroOnlyMeta}>
+          no earnings · {count} macro {count === 1 ? 'event' : 'events'}
+        </span>
+        <span className={styles.macroOnlyChev} aria-hidden="true">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && <MacroBand econ={day.econ} fed={day.fed} />}
     </div>
   )
 }

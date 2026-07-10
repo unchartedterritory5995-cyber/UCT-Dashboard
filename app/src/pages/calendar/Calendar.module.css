@@ -245,6 +245,31 @@
   margin-bottom: 20px;
 }
 
+/* Macro-only day — collapsed dim line (no earnings, just Fed/econ) */
+.macroOnly { margin-bottom: 8px; }
+.macroOnlyToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 5px 2px;
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 1px dashed var(--cal-line);
+}
+.macroOnlyToggle:hover .macroOnlyLbl { color: var(--cal-txt); }
+.macroOnlyLbl {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--cal-muted);
+  transition: color 0.12s;
+}
+.macroOnlyMeta { font-size: 11px; color: var(--cal-muted); opacity: 0.8; }
+.macroOnlyChev { margin-left: auto; font-size: 10px; color: var(--cal-muted); }
+
 .dayhd {
   display: flex;
   align-items: center;
@@ -1785,6 +1810,20 @@
   border-bottom: 1px solid var(--cal-line);
 }
 .sectorReadBusy { color: var(--cal-muted); font-style: italic; }
+/* Collapsed opt-in toggle — small, dim, no visual weight until asked */
+.sectorReadToggle {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cal-muted);
+  cursor: pointer;
+  transition: color 0.12s;
+}
+.sectorReadToggle:hover { color: var(--cal-gold); }
 
 .dayTabs {
   display: inline-flex;

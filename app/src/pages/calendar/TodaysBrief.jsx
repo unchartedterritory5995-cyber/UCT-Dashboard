@@ -4,15 +4,12 @@
 // badges no competitor shows live) · REPORTED (your verdicts since yesterday's
 // close) · MACRO TODAY. Pure client-side join over data the page already has —
 // zero new endpoints. Board + current week only.
-import { useMemo, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useCallback } from 'react'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import { useReactions } from './useCalendarData'
 import useSeen from '../../hooks/useSeen'
 import styles from './Calendar.module.css'
-
-const DISMISS_KEY = 'uct.calendar.brief.dismissed'
 
 // _sources → the single most meaningful badge (a broker POSITION outranks a
 // watch). Positions get the gold treatment; everything else is a dim tag.
@@ -32,13 +29,6 @@ function sessionPhrase(timing, isToday) {
 }
 
 export default function TodaysBrief({ days, weekDates, todayIso, onSelect }) {
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(DISMISS_KEY) === '1' } catch { return false }
-  })
-  const dismiss = useCallback(() => {
-    try { localStorage.setItem(DISMISS_KEY, '1') } catch { /* ignore */ }
-    setDismissed(true)
-  }, [])
 
   // today + tomorrow ISO within the loaded week
   const tomorrowIso = useMemo(() => {
@@ -103,18 +93,9 @@ export default function TodaysBrief({ days, weekDates, todayIso, onSelect }) {
   }
 
   const hasContent = yourReports.length || reportedMine.length || macroToday.length
-  if (!hasContent) {
-    if (dismissed) return null
-    return (
-      <div className={styles.briefEmpty}>
-        <span>Star names or connect your broker to build your brief.</span>
-        <Link to="/calendar/mystocks" className={styles.briefEmptyLink}>Open Hub →</Link>
-        <button className={styles.briefDismiss} onClick={dismiss} aria-label="Dismiss">
-          <UIcon name="x" size={12} />
-        </button>
-      </div>
-    )
-  }
+  // No content → render NOTHING. The old "star names to build your brief" band
+  // was dead chrome at the very top for anyone without saved names.
+  if (!hasContent) return null
 
   return (
     <div className={styles.brief} aria-label="Today's brief">
