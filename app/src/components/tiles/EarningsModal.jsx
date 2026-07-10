@@ -123,6 +123,22 @@ function groupFilings(filings) {
   return [...groups.values()].slice(0, 5)
 }
 
+// The AI preview essay can run 15+ lines. Show a 2-sentence gist by default.
+function _gist(text) {
+  if (!text) return ''
+  const t = text.trim()
+  let end = 0, count = 0
+  for (let i = 0; i < t.length && count < 2; i++) {
+    if ('.!?'.includes(t[i]) && (i + 1 >= t.length || t[i + 1] === ' ')) { end = i + 1; count++ }
+  }
+  let g = end > 0 ? t.slice(0, end) : t
+  if (g.length > 260) g = g.slice(0, 260).replace(/\s+\S*$/, '') + '…'
+  return g.trim()
+}
+function _isLong(text) {
+  return !!text && text.trim().length > _gist(text).length + 4
+}
+
 export default function EarningsModal({ row, label, reportDate = null, timing = null, onClose }) {
   const navigate = useNavigate()
   const { isPaid } = useAuth()
@@ -130,6 +146,7 @@ export default function EarningsModal({ row, label, reportDate = null, timing = 
   const [aiState, setAiState]               = useState({ loading: true, data: null })
   const [transcriptState, setTranscriptState] = useState({ loading: false, data: null })
   const [transcriptOpen, setTranscriptOpen] = useState(false)
+  const [previewExpanded, setPreviewExpanded] = useState(false)
 
   // C1: Fundamentals strip — fetched by FundamentalsStrip itself (null-safe, lazy)
   // C2: SEC Filings (deduped + grouped + capped at 5)
@@ -337,8 +354,18 @@ export default function EarningsModal({ row, label, reportDate = null, timing = 
           ) : aiState.data?.preview_text ? (
             <div className={styles.previewBox}>
               <span className={styles.badge}>EARNINGS PREVIEW</span>
-              <p className={styles.aiText}>{aiState.data.preview_text}</p>
-              {aiState.data.preview_bullets?.length > 0 && (
+              {/* The essay used to dump ~15 lines and bury the numbers. Show a
+                  2-sentence gist by default; the full text + Things to Watch are
+                  one click away. */}
+              <p className={styles.aiText}>
+                {previewExpanded ? aiState.data.preview_text : _gist(aiState.data.preview_text)}
+              </p>
+              {(_isLong(aiState.data.preview_text) || aiState.data.preview_bullets?.length > 0) && (
+                <button className={styles.readMore} onClick={() => setPreviewExpanded(v => !v)}>
+                  {previewExpanded ? 'Show less ▲' : 'Read full preview ▾'}
+                </button>
+              )}
+              {previewExpanded && aiState.data.preview_bullets?.length > 0 && (
                 <>
                   <div className={styles.watchLabel}>THINGS TO WATCH</div>
                   <ul className={styles.watchList}>
@@ -348,7 +375,7 @@ export default function EarningsModal({ row, label, reportDate = null, timing = 
                   </ul>
                 </>
               )}
-              {aiState.data.news?.length > 0 && (
+              {previewExpanded && aiState.data.news?.length > 0 && (
                 <NewsList items={aiState.data.news} />
               )}
             </div>
