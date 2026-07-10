@@ -2262,8 +2262,19 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         consistency = round(max(bull, bear) / dirp, 2) if dirp > 0 else 0.0
         dormant = _is_dormant_ticker(g["ticker"]) if have_dormant else False
         voi = round(g["total_volume"] / g["max_oi"], 1) if g["max_oi"] > 0 else None
+        # Soft-drop: cumulative volume UNDER open interest (< 1x, when we HAVE OI)
+        # means the flow may not be new positioning (Ravi's OI rule) — skip it
+        # unless the dollar size is large enough to matter on its own. When OI is
+        # unknown (voi is None) we can't judge, so keep. Tunable premium escape.
+        voi_keep_premium = thresholds.get("rollup_voi_keep_premium", 1_000_000)
+        if voi is not None and voi < 1.0 and g["total_premium"] < voi_keep_premium:
+            continue
+        # V/OI factor: reward relative volume (a core conviction signal), but
+        # compress the tail so a 176x doesn't dwarf a large-premium 3x. Bounded
+        # to 3x. None OI → neutral 1.0.
+        voi_factor = min(3.0, 1.0 + (voi / 10.0)) if voi is not None else 1.0
         score = int(qual * g["total_premium"] * (0.5 + 0.5 * consistency)
-                    * (2.0 if dormant else 1.0))
+                    * voi_factor * (2.0 if dormant else 1.0))
         out.append({
             "ticker": g["ticker"], "cp": g["cp"], "strike": g["strike"], "exp": g["exp"],
             "source": g["source"], "dte": g["dte"],
