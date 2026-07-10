@@ -10,11 +10,13 @@ from pydantic import BaseModel, field_validator
 
 
 class FilterSpec(BaseModel):
+    version: int = 1
     date_from: str | None = None
     date_to: str | None = None
     symbol: str | None = None
     sides: list[str] = []
     setups: list[str] = []
+    tags: list[str] = []
     limit: int | None = None
     offset: int | None = None
 
@@ -64,13 +66,27 @@ def trades_where(spec: FilterSpec) -> tuple[str, list]:
     if spec.setups:
         frag.append(f"AND setup IN ({','.join('?' * len(spec.setups))})")
         params.extend(spec.setups)
+    if spec.tags:
+        # A trade matches if ANY selected tag is present in EITHER the
+        # mistake_tags OR emotion_tags JSON-array TEXT column. Both are
+        # nullable → COALESCE to an empty array. Empty tags emits no fragment.
+        ph = ",".join("?" * len(spec.tags))
+        frag.append(
+            "AND (EXISTS (SELECT 1 FROM json_each(COALESCE(mistake_tags,'[]'))"
+            " WHERE value IN (%s))"
+            " OR EXISTS (SELECT 1 FROM json_each(COALESCE(emotion_tags,'[]'))"
+            " WHERE value IN (%s)))" % (ph, ph)
+        )
+        params.extend(spec.tags)
+        params.extend(spec.tags)
     return (" ".join(frag), params)
 
 
 def parse_filter_query(
     date_from: str | None = None, date_to: str | None = None,
     symbol: str | None = None, sides: str | None = None,
-    setups: str | None = None, limit: int | None = None, offset: int | None = None,
+    setups: str | None = None, tags: str | None = None,
+    limit: int | None = None, offset: int | None = None,
 ) -> FilterSpec:
     """FastAPI dependency: comma-joined sets, URL-decoded members.
 
@@ -87,6 +103,6 @@ def parse_filter_query(
 
     return FilterSpec(
         date_from=date_from, date_to=date_to, symbol=symbol,
-        sides=split(sides), setups=split(setups),
+        sides=split(sides), setups=split(setups), tags=split(tags),
         limit=limit, offset=offset,
     )

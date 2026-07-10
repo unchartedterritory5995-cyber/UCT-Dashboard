@@ -91,6 +91,56 @@ def test_date_spine_falls_back_to_exit_date():
     assert _ids(conn, FilterSpec(date_from="2026-05-03")) == []
 
 
+# ── tags facet (json_each over mistake_tags OR emotion_tags) ─────────────────
+
+def _insert_with_tags(conn, tid, mistake, emotion):
+    # mistake/emotion are TEXT JSON arrays (or None) on j2_trades.
+    conn.execute(
+        "INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares,"
+        " entry_price, entry_date, exit_price, exit_date, original_stop,"
+        " pnl_dollar, pnl_percent, hold_days, result, context_at_entry,"
+        " created_at, setup, trading_day_et, mistake_tags, emotion_tags) VALUES"
+        " (?, 'u1', 'p', 'AAA', 'Long', 10, 100, '2026-04-19', 110,"
+        " '2026-04-19T15:00:00Z', 95, 100, 10, 1, 'Win', '{}', '2026-01-01',"
+        " 'VCP', '2026-04-19', ?, ?)",
+        (tid, mistake, emotion),
+    )
+
+
+def test_tags_filter_emits_json_each_exists():
+    frag, params = trades_where(FilterSpec(tags=["fomo", "revenge"]))
+    # json_each EXISTS subquery over BOTH JSON columns.
+    assert "json_each" in frag
+    # tags applied to mistake_tags OR emotion_tags → the values appear twice.
+    assert params == ["fomo", "revenge", "fomo", "revenge"]
+    # Empty tags → no fragment at all (unbounded, mirrors sides/setups).
+    empty_frag, empty_params = trades_where(FilterSpec(tags=[]))
+    assert "json_each" not in empty_frag
+    assert empty_params == []
+
+
+def test_tags_filter_matches_mistake_or_emotion():
+    conn = _conn_with_trades()
+    _insert_with_tags(conn, "tm", '["fomo"]', None)          # mistake only
+    _insert_with_tags(conn, "te", None, '["revenge"]')       # emotion only
+    _insert_with_tags(conn, "tn", '["chasing"]', '["calm"]')  # neither selected
+    conn.commit()
+    assert _ids(conn, FilterSpec(tags=["fomo"])) == ["tm"]
+    assert _ids(conn, FilterSpec(tags=["revenge"])) == ["te"]
+    # ANY selected tag in EITHER column matches; ordered by id → te, tm.
+    assert _ids(conn, FilterSpec(tags=["fomo", "revenge"])) == ["te", "tm"]
+
+
+# ── version field ────────────────────────────────────────────────────────────
+
+def test_version_defaults_to_1():
+    assert FilterSpec().version == 1
+
+
+def test_version_roundtrips():
+    assert FilterSpec(version=2).version == 2
+
+
 # ── FilterSpec clamps ────────────────────────────────────────────────────────
 
 def test_limit_clamps():
@@ -119,6 +169,16 @@ def test_parse_defaults_are_empty_and_unbounded_page():
     # NOT a 500 default. A concrete default silently truncated heavy journals
     # (the FE reads data.trades with no paging).
     assert spec.limit is None and spec.offset is None
+
+
+def test_parse_filter_query_parses_tags():
+    spec = parse_filter_query(tags="fomo,revenge")
+    assert spec.tags == ["fomo", "revenge"]
+    # A literal comma inside a tag survives as %2C then decodes.
+    spec2 = parse_filter_query(tags="fomo,broke%2Crule")
+    assert spec2.tags == ["fomo", "broke,rule"]
+    # No tags param → empty list (unbounded, unchanged).
+    assert parse_filter_query().tags == []
 
 
 # ── list_trades_for_user dual-shape + pagination ─────────────────────────────
