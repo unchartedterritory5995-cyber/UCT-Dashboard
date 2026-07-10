@@ -2120,6 +2120,198 @@ def day_stats(
     return payload
 
 
+# ─── By-Contract rollup (accumulation view) ───────────────────────────────
+# Groups the day's flow into one row per contract (ticker+cp+strike+exp).
+# Purpose: surface REPETITION (Ravi rule #1) — a contract hit many times is
+# conviction that the flat print-tape structurally hides. Gate is cap-scaled
+# so a $250K print on a megacap and a $25K print on a $14 name are judged on
+# their own scale; META's 41-print 620C churn doesn't qualify, ACI's stack does.
+_by_contract_cache: dict = {}          # (date, stock_etf, min_hits, excl_algo) -> (ts, payload)
+_BY_CONTRACT_TTL = 30
+
+# Per-print premium floor by cap band. A print must clear this to COUNT toward a
+# contract's qualifying-hit gate. It does NOT reduce total_premium — that sums
+# every print (Ravi: "total premium should count all the values"). Tunable via
+# thresholds['rollup_min_print']; ETFs are all mega-scale so they use the mega
+# floor. Baselines (per-ticker, from baselines.py) can override this later —
+# structured so a baseline floor drops in as `floor = baseline or _rollup_floor(...)`.
+def _rollup_floor(mkt_cap, source, thresholds) -> int:
+    defaults = {"mid_small": 25_000, "large": 100_000, "mega": 250_000}
+    floors = thresholds.get("rollup_min_print", {}) or {}
+    if source == "indexes":
+        return int(floors.get("mega", defaults["mega"]))
+    band = _cap_band_key(mkt_cap, thresholds.get("cap_bands", {}))
+    return int(floors.get(band, defaults[band]))
+
+
+_ROLLUP_GRADE_RANK = {"A+ 🚀": 5, "A+": 4, "A": 3, "B": 2, "C": 1, "D": 0}
+def _best_grade(grades):
+    best, best_r = None, -1
+    for g in grades:
+        r = _ROLLUP_GRADE_RANK.get(g, _ROLLUP_GRADE_RANK.get((g or "").strip(), 0))
+        if r > best_r:
+            best_r, best = r, g
+    return best
+
+
+def _build_by_contract(today: str, stock_etf: str, min_hits: int,
+                       exclude_algo: bool) -> dict:
+    thresholds = _load_thresholds()
+    override_sql_floor = 500_000
+    etf_enabled = thresholds.get("etf_enabled", False)
+    base_sources = ["stocks", "indexes"] if etf_enabled else ["stocks"]
+    if stock_etf == "stocks":
+        sources = [s for s in base_sources if s == "stocks"]
+    elif stock_etf == "etfs":
+        sources = [s for s in base_sources if s == "indexes"]
+    else:
+        sources = base_sources
+
+    rows = []
+    if sources:
+        cap = int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))
+        select_cols = (
+            "SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume, "
+            "Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate, "
+            "Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI"
+        )
+        color_gate = ("(Color IN ('MAGENTA', 'YELLOW') "
+                      "OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))")
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        try:
+            conn.row_factory = sqlite3.Row
+            subqueries, params = [], []
+            for s in sources:
+                subqueries.append(
+                    f"SELECT * FROM ({select_cols} FROM flow "
+                    f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
+                    f"ORDER BY id DESC LIMIT ?)"
+                )
+                params.extend([s, today, override_sql_floor, cap])
+            cur = conn.execute(" UNION ALL ".join(subqueries), params)
+            rows = cur.fetchall()
+        finally:
+            conn.close()
+
+    # Group by contract
+    contracts: dict = {}
+    for r in rows:
+        a = _row_to_alert(dict(r))
+        if a is None:
+            continue
+        if exclude_algo and a.get("_tierKey") == "algo":
+            continue
+        tk, cp, strike, exp = a.get("ticker"), a.get("cp"), a.get("strike"), a.get("exp")
+        if not tk or cp is None or strike is None or not exp:
+            continue
+        ckey = (tk, cp, strike, exp)
+        g = contracts.get(ckey)
+        if g is None:
+            g = {
+                "ticker": tk, "cp": cp, "strike": strike, "exp": exp,
+                "source": a.get("source", "stocks"), "mkt_cap": a.get("_mktCap") or 0,
+                "spot": a.get("spot"), "dte": a.get("dte"),
+                "moneynessPct": a.get("moneynessPct"), "moneynessLabel": a.get("moneynessLabel"),
+                "total_premium": 0.0, "total_volume": 0,
+                "bull_premium": 0.0, "bear_premium": 0.0,
+                "sides": {"A": 0, "AA": 0, "B": 0, "BB": 0, "none": 0},
+                "types": set(), "grades": [], "max_oi": 0,
+                "first_ts": None, "last_ts": None, "prints": [],
+            }
+            contracts[ckey] = g
+        prem = a.get("alertPremium") or 0.0
+        vol = a.get("tradeSize") or 0
+        g["total_premium"] += prem
+        g["total_volume"] += vol
+        d = a.get("_direction")
+        if d == "Bull":
+            g["bull_premium"] += prem
+        elif d == "Bear":
+            g["bear_premium"] += prem
+        side = (a.get("_side") or "").strip().upper()
+        g["sides"][side if side in g["sides"] else "none"] += 1
+        if a.get("_type"):
+            g["types"].add(a["_type"])
+        if a.get("grade"):
+            g["grades"].append(a["grade"])
+        oi = a.get("priorOI") or 0
+        if oi and oi > g["max_oi"]:
+            g["max_oi"] = oi
+        ts = a.get("timestamp") or 0
+        if ts:
+            if g["first_ts"] is None or ts < g["first_ts"]:
+                g["first_ts"] = ts
+            if g["last_ts"] is None or ts > g["last_ts"]:
+                g["last_ts"] = ts
+        g["prints"].append({
+            "timestamp": ts, "price": a.get("averageFillPrice"), "volume": vol,
+            "side": side, "type": a.get("_type") or "", "premium": round(prem),
+            "direction": d, "grade": a.get("grade"), "color": a.get("_color"),
+        })
+
+    have_dormant = _has_dormant_data()
+    out = []
+    for g in contracts.values():
+        floor = _rollup_floor(g["mkt_cap"], g["source"], thresholds)
+        qual = sum(1 for p in g["prints"] if (p["premium"] or 0) >= floor)
+        if qual < min_hits:
+            continue  # accumulation view = repetition only; single prints stay on the tape
+        bull, bear = g["bull_premium"], g["bear_premium"]
+        dirp = bull + bear
+        direction = "Bull" if bull > bear else ("Bear" if bear > bull else "Neutral")
+        consistency = round(max(bull, bear) / dirp, 2) if dirp > 0 else 0.0
+        dormant = _is_dormant_ticker(g["ticker"]) if have_dormant else False
+        voi = round(g["total_volume"] / g["max_oi"], 1) if g["max_oi"] > 0 else None
+        score = int(qual * g["total_premium"] * (0.5 + 0.5 * consistency)
+                    * (2.0 if dormant else 1.0))
+        out.append({
+            "ticker": g["ticker"], "cp": g["cp"], "strike": g["strike"], "exp": g["exp"],
+            "source": g["source"], "dte": g["dte"],
+            "spot": g["spot"], "moneynessPct": g["moneynessPct"], "moneynessLabel": g["moneynessLabel"],
+            "hit_count": len(g["prints"]), "qualifying_hits": qual, "floor": floor,
+            "total_premium": round(g["total_premium"]), "total_volume": g["total_volume"],
+            "bull_premium": round(bull), "bear_premium": round(bear),
+            "direction": direction, "consistency": consistency,
+            "sides": g["sides"], "types": sorted(g["types"]),
+            "grade": _best_grade(g["grades"]), "cum_voi": voi, "max_oi": g["max_oi"],
+            "dormant": dormant, "score": score,
+            "first_ts": g["first_ts"], "last_ts": g["last_ts"],
+            "prints": sorted(g["prints"], key=lambda p: p["timestamp"] or 0, reverse=True),
+        })
+    # Default order: latest activity first, so the view still reads like a tape.
+    out.sort(key=lambda c: c["last_ts"] or 0, reverse=True)
+    return {
+        "query_date": today, "stock_etf": stock_etf, "min_hits": min_hits,
+        "contract_count": len(out), "contracts": out,
+    }
+
+
+@router.get("/by-contract")
+def by_contract(
+    target_date: str = Query(default=None),
+    stock_etf: str = Query(default="all", description="'stocks' | 'etfs' | 'all' — same partition as the feed."),
+    min_hits: int = Query(default=3, ge=1, le=20, description="Min qualifying prints (>= cap-scaled floor) for a contract to appear."),
+    exclude_algo: bool = Query(default=True),
+):
+    """One row per contract (ticker+cp+strike+exp) for the day, for contracts
+    that were hit >= min_hits times by prints clearing the cap-scaled floor.
+    total_premium sums ALL of the contract's prints; the floor only gates the
+    hit count. Each row carries its individual prints for expand-on-click.
+    Sorted by latest activity; also returns a `score` (qualifying_hits x total
+    premium x direction-consistency, x2 for dormant/unusual names) for optional
+    conviction-first sorting. Cached 30s per (date, stock_etf, min_hits)."""
+    today = target_date or _today_mdyyyy()
+    se = stock_etf if stock_etf in ("stocks", "etfs", "all") else "all"
+    now = time.time()
+    key = (today, se, int(min_hits), bool(exclude_algo))
+    cached = _by_contract_cache.get(key)
+    if cached and (now - cached[0]) < _BY_CONTRACT_TTL:
+        return cached[1]
+    payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo))
+    _by_contract_cache[key] = (now, payload)
+    return payload
+
+
 # ─── Curated thresholds endpoints (admin tuning panel) ────────────────────
 # Used by the in-page tuning panel (`?tune=1` on /live-massive). The frontend
 # fetches current thresholds, lets admin adjust sliders + preview the impact
