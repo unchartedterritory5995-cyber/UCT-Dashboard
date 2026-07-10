@@ -645,6 +645,18 @@ _PHASE_2_ALTERS = [
     "filename TEXT NOT NULL, label TEXT, created_at TEXT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS idx_j2_trade_att_ref "
     "ON j2_trade_attachments(user_id, trade_ref)",
+    # Journal A+ P2 — per-closed-trade excursion metrics (MFE/MAE/exit
+    # efficiency), keyed on the same stable trade_ref (ext:<external_id> broker /
+    # id:<row id> manual) as attachments so they survive the broker purge+reinsert
+    # cycle. Composite PK (user_id, trade_ref) makes INSERT OR REPLACE idempotent.
+    # data_quality ∈ 'intraday_1m'|'intraday_5m'|'daily'|'underlying'|'insufficient'.
+    "CREATE TABLE IF NOT EXISTS j2_trade_excursions ("
+    "user_id TEXT NOT NULL, trade_ref TEXT NOT NULL, symbol TEXT, "
+    "mfe_price REAL, mae_price REAL, mfe_r REAL, mae_r REAL, "
+    "mfe_ts INTEGER, mae_ts INTEGER, exit_efficiency REAL, missed_r REAL, "
+    "bar_resolution TEXT, data_quality TEXT, computed_at TEXT NOT NULL, "
+    "PRIMARY KEY (user_id, trade_ref))",
+    "CREATE INDEX IF NOT EXISTS idx_j2_excursions_user ON j2_trade_excursions(user_id)",
 ]
 
 
