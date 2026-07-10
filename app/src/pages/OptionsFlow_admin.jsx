@@ -4263,13 +4263,23 @@ export default function OptionsFlowDashboard() {
       const bearSyms = new Set(bears.map(b => b.sym));
       const fallbackBulls = [];
       const fallbackBears = [];
+      // 7/9: Cap filter check for fallback pass. Without this, cross-direction
+      // and dirty-dominant fallbacks add Mega/Large tickers back into a
+      // Mid-Small watchlist after the primary pass filtered them out.
+      const _fallbackCapFilter = (sym) => {
+        if (capFilter === "All") return true;
+        const mc = flowBy[sym]?.mktcap || 0;
+        return wlCapCheck({ sym, mktcap: mc }) === capFilter;
+      };
       bears.forEach(b => {
         if (bullSyms.has(b.sym)) return;
+        if (!_fallbackCapFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BULL", true);  // log per ticker
         if (fb) fallbackBulls.push(fb);
       });
       bulls.forEach(b => {
         if (bearSyms.has(b.sym)) return;
+        if (!_fallbackCapFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BEAR", true);
         if (fb) fallbackBears.push(fb);
       });
@@ -4364,6 +4374,7 @@ export default function OptionsFlowDashboard() {
         // Skip if already on either watchlist OR already picked up via cross-direction fallback
         if (bullSyms.has(sym) || bearSyms.has(sym)) return;
         if (crossFallbackBullSyms.has(sym) || crossFallbackBearSyms.has(sym)) return;
+        if (!_fallbackCapFilter(sym)) return;
         const bullTotal = flowBy[sym].BULL?.totalPrem || 0;
         const bearTotal = flowBy[sym].BEAR?.totalPrem || 0;
         // Try the dominant direction (whichever has more flow)
