@@ -636,6 +636,15 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_option_strategies ADD COLUMN trading_day_et TEXT",
     "CREATE INDEX IF NOT EXISTS idx_j2_trades_tday ON j2_trades(user_id, trading_day_et)",
     "CREATE INDEX IF NOT EXISTS idx_j2_opts_tday ON j2_option_strategies(user_id, trading_day_et)",
+    # Journal A+ P1b — trade screenshots, keyed on the stable trade_ref
+    # (ext:<external_id> for broker rows / id:<row id> for manual) so annotations
+    # survive the broker purge+reinsert cycle. Files live under _ATTACHMENT_ROOT
+    # so the P1a nightly R2 backup already covers them.
+    "CREATE TABLE IF NOT EXISTS j2_trade_attachments ("
+    "id TEXT PRIMARY KEY, user_id TEXT NOT NULL, trade_ref TEXT NOT NULL, "
+    "filename TEXT NOT NULL, label TEXT, created_at TEXT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_trade_att_ref "
+    "ON j2_trade_attachments(user_id, trade_ref)",
 ]
 
 

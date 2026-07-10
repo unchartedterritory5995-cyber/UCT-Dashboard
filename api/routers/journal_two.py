@@ -317,6 +317,72 @@ def get_trade_detail(
     return out
 
 
+# ── Trade screenshots (keyed on the stable trade_ref) ───────────────────────
+# Route ordering: `/trades/attachments/{user_id}/{ref_dir}/{filename}` is a
+# 3-segment literal-first path; `/trades/{trade_id}/attachments` is 2-segment;
+# `/trades/{trade_id}` is 1-segment. A path param never spans '/', so none of
+# these shadow each other regardless of registration order.
+
+@router.get("/trades/attachments/{user_id_param}/{ref_dir}/{filename}")
+def serve_trade_attachment(
+    user_id_param: str,
+    ref_dir: str,
+    filename: str,
+    user: dict = Depends(get_current_user),
+) -> Any:
+    if user["id"] != user_id_param:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from api.services.journal_two import trade_attachments
+    path = trade_attachments.serve_trade_attachment_path(user_id_param, ref_dir, filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(str(path))
+
+
+@router.get("/trades/{trade_id}/attachments")
+def list_trade_attachments_route(
+    trade_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """List a trade's screenshots. Resolves the trade → its stable ref first
+    (404 if the trade is gone / not the caller's)."""
+    from api.services.journal_two import trade_attachments
+    detail = trades_service.get_trade_detail(user["id"], trade_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    return {"attachments": trade_attachments.list_trade_attachments(
+        user["id"], detail["tradeRef"])}
+
+
+@router.post("/trades/{trade_id}/attachments")
+async def upload_trade_attachment(
+    trade_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    from api.services.journal_two import trade_attachments
+    detail = trades_service.get_trade_detail(user["id"], trade_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    try:
+        return await trade_attachments.save_trade_attachment(
+            user["id"], detail["tradeRef"], file)
+    except trade_attachments.TradeAttachmentError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/trades/attachments/{attachment_id}")
+def delete_trade_attachment_route(
+    attachment_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    from api.services.journal_two import trade_attachments
+    ok = trade_attachments.delete_trade_attachment(user["id"], attachment_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
 # ── Community feed — opt-in share ───────────────────────────────────────────
 
 @router.get("/community/traders")
