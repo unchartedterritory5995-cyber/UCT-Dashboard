@@ -1212,29 +1212,15 @@ def mark_expired_batch_route(
 @router.get("/analytics")
 def get_analytics_route(
     account_id: str | None = None,
-    date_from: str | None = None,
-    date_to: str | None = None,
+    spec: FilterSpec = Depends(parse_filter_query),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Single mega-endpoint returning all chart data for the Analytics
-    tab in one round-trip. Optional account_id + date range filters."""
-    if date_from:
-        try:
-            from datetime import date as Date
-            Date.fromisoformat(date_from)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="date_from must be YYYY-MM-DD")
-    if date_to:
-        try:
-            from datetime import date as Date
-            Date.fromisoformat(date_to)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="date_to must be YYYY-MM-DD")
+    """Single mega-endpoint returning all chart data for the Analytics tab in
+    one round-trip. Scope: optional ?account_id= base predicate + the full
+    FilterSpec (date_from/date_to/symbol/sides/setups/tags) parsed by
+    parse_filter_query, so filtered analytics agree with every other surface."""
     return analytics_service.get_analytics(
-        user["id"],
-        account_id=account_id,
-        date_from=date_from,
-        date_to=date_to,
+        user["id"], account_id=account_id, spec=spec,
     )
 
 

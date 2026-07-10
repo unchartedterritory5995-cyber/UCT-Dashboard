@@ -339,6 +339,74 @@ def test_user_isolation(db_conn):
     assert got["tradeCount"] == 1
 
 
+# ─── FilterSpec scope (Task A2) ───────────────────────────────────────────────
+
+
+def test_spec_setup_scoping_narrows_analytics(db_conn):
+    """A `spec` with a setups facet narrows both tradeCount and
+    attribution.bySetup to that setup only — the whole payload reflects the
+    scope because every section consumes the same scoped fetch."""
+    from api.services.journal_two.analytics import get_analytics
+    from api.services.journal_two.filters import FilterSpec
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", account_id=aid, setup="VCP", symbol="NVDA", pnl=100)
+    _add_trade(db_conn, "u1", account_id=aid, setup="VCP", symbol="AMD", pnl=50)
+    _add_trade(db_conn, "u1", account_id=aid, setup="EP", symbol="TSLA", pnl=200)
+
+    got = get_analytics("u1", account_id=aid,
+                        spec=FilterSpec(setups=["VCP"]), conn=db_conn)
+    assert got["tradeCount"] == 2
+    setups = {s["setup"] for s in got["attribution"]["bySetup"]}
+    assert setups == {"VCP"}
+
+
+def test_spec_symbol_scoping_narrows_analytics(db_conn):
+    """A `spec` with a symbol facet (case-insensitive prefix) narrows the
+    fetch → tradeCount + attribution.bySymbol/bySetup reflect only that name."""
+    from api.services.journal_two.analytics import get_analytics
+    from api.services.journal_two.filters import FilterSpec
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", account_id=aid, setup="VCP", symbol="NVDA", pnl=100)
+    _add_trade(db_conn, "u1", account_id=aid, setup="EP", symbol="AMD", pnl=50)
+
+    got = get_analytics("u1", account_id=aid,
+                        spec=FilterSpec(symbol="nvda"), conn=db_conn)
+    assert got["tradeCount"] == 1
+    assert {s["symbol"] for s in got["attribution"]["bySymbol"]} == {"NVDA"}
+    assert {s["setup"] for s in got["attribution"]["bySetup"]} == {"VCP"}
+
+
+def test_spec_date_range_matches_legacy_kwargs(db_conn):
+    """The spec date facet filters identically to the legacy date_from/date_to
+    kwargs (back-compat: one code path). Both yield the same scoped payload."""
+    from api.services.journal_two.analytics import get_analytics
+    from api.services.journal_two.filters import FilterSpec
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", account_id=aid,
+               exit_date_iso="2026-01-15T18:00:00Z", pnl=100)
+    _add_trade(db_conn, "u1", account_id=aid,
+               exit_date_iso="2026-04-20T18:00:00Z", pnl=200)
+
+    via_kwargs = get_analytics("u1", account_id=aid,
+                               date_from="2026-04-01", date_to="2026-04-30",
+                               conn=db_conn)
+    via_spec = get_analytics("u1", account_id=aid,
+                             spec=FilterSpec(date_from="2026-04-01",
+                                             date_to="2026-04-30"),
+                             conn=db_conn)
+    assert via_kwargs["tradeCount"] == via_spec["tradeCount"] == 1
+    assert (via_kwargs["distribution"]["longVsShort"]["long"]["totalPnl"]
+            == via_spec["distribution"]["longVsShort"]["long"]["totalPnl"]
+            == 200)
+    assert via_spec["dateRange"] == {"from": "2026-04-01", "to": "2026-04-30"}
+
+
 def test_options_section_empty(db_conn):
     """No strategies → zero-state for all options aggregates."""
     from api.services.journal_two.analytics import get_analytics

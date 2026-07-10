@@ -24,6 +24,7 @@ except ImportError:  # pragma: no cover
 from api.services.auth_db import get_connection
 from api.services.journal_two import excursions_store
 from api.services.journal_two.calendar import _row_et_day, to_et_date
+from api.services.journal_two.filters import FilterSpec, trades_where
 from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
@@ -51,17 +52,24 @@ def get_analytics(
     account_id: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    spec: FilterSpec | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
-    """Return the full analytics payload (4 sections, ~16 charts of data)."""
+    """Return the full analytics payload (4 sections, ~16 charts of data).
+
+    Scope: `account_id` stays a base predicate (its own ``account_id = ?``
+    clause, mirroring ``list_trades_for_user``); the FilterSpec's WHERE
+    fragment (date spine + symbol/sides/setups/tags) is spliced after it, so
+    every section reflects the full Scope automatically. When no ``spec`` is
+    passed, one is synthesized from ``date_from``/``date_to`` so there is a
+    SINGLE code path — existing date-kwarg callers behave identically.
+    """
+    if spec is None:
+        spec = FilterSpec(date_from=date_from, date_to=date_to)
     owned = conn is None
     conn = conn or get_connection()
     try:
-        rows = _fetch_trades(
-            conn, user_id,
-            account_id=account_id,
-            date_from=date_from, date_to=date_to,
-        )
+        rows = _fetch_trades(conn, user_id, account_id=account_id, spec=spec)
 
         starting_balance = _starting_balance(conn, user_id, account_id)
         # For a single broker-linked account, anchor the equity curve so its
@@ -73,10 +81,13 @@ def get_analytics(
             if be is not None:
                 starting_balance = be
 
+        # Option strategies honor the Scope date facet (the non-date facets on
+        # options land in Task A4). date_from/date_to come off the same spec so
+        # the synthesized and passed-spec paths stay identical.
         strategies = _fetch_option_strategies(
             conn, user_id,
             account_id=account_id,
-            date_from=date_from, date_to=date_to,
+            date_from=spec.date_from, date_to=spec.date_to,
         )
 
         # trade_ref → excursion dict (all of the user's persisted excursions;
@@ -87,7 +98,7 @@ def get_analytics(
         return {
             "tradeCount": len(rows),
             "strategyCount": len(strategies),
-            "dateRange": {"from": date_from, "to": date_to},
+            "dateRange": {"from": spec.date_from, "to": spec.date_to},
             "equity": _equity_section(rows, starting_balance),
             "performance": _performance_section(rows),
             "distribution": _distribution_section(rows),
@@ -109,9 +120,16 @@ def _fetch_trades(
     user_id: str,
     *,
     account_id: str | None,
-    date_from: str | None,
-    date_to: str | None,
+    spec: FilterSpec,
 ) -> list[sqlite3.Row]:
+    """Closed equity trades for the analytics sections, scoped by FilterSpec.
+
+    Base predicate = ``user_id`` (+ ``account_id`` when given, kept as its own
+    clause). The FilterSpec's WHERE fragment — the canonical
+    ``COALESCE(trading_day_et, substr(exit_date,1,10))`` date spine plus
+    symbol/sides/setups/tags — is spliced after the base predicate, the exact
+    pattern ``list_trades_for_user`` uses. One code path for every caller.
+    """
     sql = (
         "SELECT exit_date, entry_date, pnl_dollar, pnl_percent, "
         "       r_multiple, hold_days, result, side, setup, symbol, "
@@ -124,41 +142,13 @@ def _fetch_trades(
     if account_id:
         sql += " AND account_id = ?"
         params.append(account_id)
-    # Rows with a stamped trading_day_et are range-filtered directly on the
-    # spine column; legacy NULL rows keep the old ±1-day UTC buffer (the
-    # Python re-filter below applies to_et_date to exactly those rows).
-    if date_from:
-        sql += (" AND (COALESCE(trading_day_et, '') >= ?"
-                " OR (trading_day_et IS NULL AND exit_date >= ?))")
-        params.append(date_from)
-        params.append((Date.fromisoformat(date_from) - timedelta(days=1)).isoformat() + "T00:00:00Z")
-    if date_to:
-        sql += (" AND (COALESCE(trading_day_et, '~') <= ?"
-                " OR (trading_day_et IS NULL AND exit_date <= ?))")
-        params.append(date_to)
-        params.append((Date.fromisoformat(date_to) + timedelta(days=1)).isoformat() + "T23:59:59Z")
+    frag, filter_params = trades_where(spec)
+    if frag:
+        sql += " " + frag
+        params.extend(filter_params)
     sql += " ORDER BY exit_date ASC"
 
-    rows = conn.execute(sql, params).fetchall()
-
-    # Re-filter on the ET trading day if a range was given. Spine rows use
-    # the column (a no-op re-check of the SQL filter); legacy NULL rows get
-    # exactly the pre-spine to_et_date behavior.
-    if date_from or date_to:
-        out = []
-        for r in rows:
-            d = (
-                r["trading_day_et"]
-                if "trading_day_et" in r.keys() and r["trading_day_et"]
-                else to_et_date(r["exit_date"])
-            )
-            if date_from and d < date_from:
-                continue
-            if date_to and d > date_to:
-                continue
-            out.append(r)
-        return out
-    return rows
+    return conn.execute(sql, params).fetchall()
 
 
 def _broker_equity_baseline(
