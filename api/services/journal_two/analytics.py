@@ -22,7 +22,9 @@ except ImportError:  # pragma: no cover
     from backports.zoneinfo import ZoneInfo  # type: ignore
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import excursions_store
 from api.services.journal_two.calendar import _row_et_day, to_et_date
+from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
 ET = ZoneInfo("America/New_York")
@@ -77,6 +79,11 @@ def get_analytics(
             date_from=date_from, date_to=date_to,
         )
 
+        # trade_ref → excursion dict (all of the user's persisted excursions;
+        # keyed by the stable trade_ref so it survives broker resync). The
+        # Exit Quality aggregate joins the fetched rows against this map.
+        excursions_map = excursions_store.list_excursions_for_user(user_id, conn=conn)
+
         return {
             "tradeCount": len(rows),
             "strategyCount": len(strategies),
@@ -86,6 +93,7 @@ def get_analytics(
             "distribution": _distribution_section(rows),
             "attribution": _attribution_section(rows),
             "edgeScore": _edge_score(rows),
+            "exitQuality": _exit_quality_section(rows, excursions_map),
             "options": _options_section(rows, strategies),
         }
     finally:
@@ -107,7 +115,8 @@ def _fetch_trades(
     sql = (
         "SELECT exit_date, entry_date, pnl_dollar, pnl_percent, "
         "       r_multiple, hold_days, result, side, setup, symbol, "
-        "       account_id, trading_day_et, hour_et "
+        "       account_id, trading_day_et, hour_et, "
+        "       id, external_id, source "  # for trade_ref → excursion join (Task 7)
         "  FROM j2_trades "
         " WHERE user_id = ?"
     )
@@ -572,6 +581,121 @@ def _edge_score(rows: list[sqlite3.Row]) -> dict[str, Any]:
             "tradeCount": len(rows),
         },
         "trend": trend,
+    }
+
+
+# ── Section 5: Exit Quality (Journal A+ Phase 2, Task 7) ─────────────────────
+
+
+# Efficiency histogram bins: [0-0.25), [0.25-0.5), [0.5-0.75), [0.75-1.0].
+# The top bin is inclusive of 1.0 (exit_efficiency is clamped to [0,1] upstream).
+_EFFICIENCY_BINS = [
+    ("0-25%",   lambda e: e < 0.25),
+    ("25-50%",  lambda e: e < 0.5),
+    ("50-75%",  lambda e: e < 0.75),
+    ("75-100%", lambda e: True),
+]
+
+_COVERAGE_READY_RATIO = 0.9
+_EXIT_QUALITY_MIN_COMPUTED = 10
+
+
+def _exit_quality_section(
+    rows: list[sqlite3.Row], excursions_map: dict[str, dict],
+) -> dict[str, Any]:
+    """Exit-quality aggregate over the closed EQUITY trades, joined to their
+    persisted excursions (MFE/MAE/exit-efficiency).
+
+    Coverage-gated + n<10 shaded, mirroring `_edge_score`'s None-with-counts
+    pattern so the FE can explain *why* a number is missing:
+
+      - `coverage` = {eligible (all equity rows), computed (rows with a REAL —
+        non-insufficient, non-underlying — excursion)}.
+      - `coverageReady` = computed/eligible >= 0.9 (and eligible > 0).
+      - When NOT coverageReady OR computed < 10 → the aggregate fields are None
+        (the counts stay populated so the UI shows "computed from N of M").
+      - When ready AND computed >= 10 → real `avgExitEfficiency` (mean over rows
+        with a non-null efficiency; a null efficiency = no-favorable move, EXCLUDED
+        from the mean but still counted as computed), `efficiencyBuckets` histogram,
+        and `missedRTotal`/`avgMissedR`.
+
+    `missedDollars` is deliberately OMITTED: R is the only honest unit here. A
+    per-trade "missed $" would need risk-$-per-trade, which isn't among the
+    fetched columns; deriving it as pnl_dollar / r_multiple is fee-contaminated
+    and undefined at r_multiple None/0, so we report the excursions' native R
+    rather than fabricate a dollar figure.
+
+    Options-derived excursions (data_quality='underlying') are equity-only
+    excluded from the coverage count and every aggregate.
+    """
+    eligible = len(rows)
+
+    computed: list[dict] = []  # the REAL excursions joined to a fetched row
+    for r in rows:
+        exc = excursions_map.get(trade_ref_for_row(r))
+        if exc is None:
+            continue
+        dq = exc.get("dataQuality")
+        if dq == "insufficient" or dq == "underlying":
+            continue
+        computed.append(exc)
+
+    computed_n = len(computed)
+    coverage = {"eligible": eligible, "computed": computed_n}
+    coverage_ready = eligible > 0 and (computed_n / eligible) >= _COVERAGE_READY_RATIO
+
+    # Gate: not enough coverage OR too few computed → suppress the aggregates
+    # but hand back the counts (imitates _edge_score's None-with-counts shape).
+    if not coverage_ready or computed_n < _EXIT_QUALITY_MIN_COMPUTED:
+        return {
+            "coverage": coverage,
+            "coverageReady": coverage_ready,
+            "avgExitEfficiency": None,
+            "efficiencySampleSize": None,
+            "efficiencyExcludedNoFavorable": None,
+            "missedRTotal": None,
+            "avgMissedR": None,
+            "missedRSampleSize": None,
+            "efficiencyBuckets": [],
+        }
+
+    # ── Exit efficiency (null = no-favorable, excluded from the mean) ────────
+    effs = [
+        float(e["exitEfficiency"])
+        for e in computed
+        if e.get("exitEfficiency") is not None
+    ]
+    excluded_no_favorable = computed_n - len(effs)
+    avg_efficiency = round(sum(effs) / len(effs), 4) if effs else None
+
+    bin_counts = [0] * len(_EFFICIENCY_BINS)
+    for e in effs:
+        for i, (_label, fn) in enumerate(_EFFICIENCY_BINS):
+            if fn(e):
+                bin_counts[i] += 1
+                break
+    efficiency_buckets = [
+        {"bucket": label, "count": bin_counts[i]}
+        for i, (label, _fn) in enumerate(_EFFICIENCY_BINS)
+    ]
+
+    # ── Missed R (favorable R left on the table) — the honest unit ───────────
+    missed = [
+        float(e["missedR"]) for e in computed if e.get("missedR") is not None
+    ]
+    missed_r_total = round(sum(missed), 4) if missed else None
+    avg_missed_r = round(sum(missed) / len(missed), 4) if missed else None
+
+    return {
+        "coverage": coverage,
+        "coverageReady": True,
+        "avgExitEfficiency": avg_efficiency,
+        "efficiencySampleSize": len(effs),
+        "efficiencyExcludedNoFavorable": excluded_no_favorable,
+        "missedRTotal": missed_r_total,
+        "avgMissedR": avg_missed_r,
+        "missedRSampleSize": len(missed),
+        "efficiencyBuckets": efficiency_buckets,
     }
 
 

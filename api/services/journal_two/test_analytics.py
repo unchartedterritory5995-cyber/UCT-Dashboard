@@ -460,3 +460,137 @@ def test_hour_report_excludes_null_hours(db_conn):
     by_hour = {h["hour"]: h for h in hours}
     assert by_hour[10]["tradeCount"] == 1
     assert by_hour[10]["pnl"] == 100.0
+
+
+# ─── Exit Quality section (Task 7) ────────────────────────────────────────────
+
+
+def _seed_excursion(
+    conn, user_id, tid, *, efficiency, missed_r=None, mfe_r=None,
+    data_quality="daily", symbol="NVDA",
+):
+    """Persist one excursion keyed to a manual trade (trade_ref = id:<tid>)."""
+    from api.services.journal_two import excursions_store
+    excursions_store.upsert_excursion(
+        user_id, f"id:{tid}",
+        {
+            "symbol": symbol,
+            "mfe_price": 110.0, "mae_price": 95.0,
+            "mfe_r": mfe_r, "mae_r": None,
+            "mfe_ts": 1000, "mae_ts": 1000,
+            "exit_efficiency": efficiency,
+            "missed_r": missed_r,
+            "bar_resolution": "D",
+            "data_quality": data_quality,
+        },
+        conn,
+    )
+
+
+def test_exit_quality_empty_no_crash(db_conn):
+    """No rows / no excursions → zero coverage, not ready, metrics None."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_account(db_conn, "u1")
+
+    eq = get_analytics("u1", conn=db_conn)["exitQuality"]
+    assert eq["coverage"] == {"eligible": 0, "computed": 0}
+    assert eq["coverageReady"] is False
+    assert eq["avgExitEfficiency"] is None
+    assert eq["efficiencyBuckets"] == []
+
+
+def test_exit_quality_coverage_gate_suppresses_below_90pct(db_conn):
+    """10 of 12 rows computed (0.83 < 0.9) → aggregates suppressed even though
+    computed >= 10; coverage counts still populated."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+    tids = [
+        _add_trade(db_conn, "u1", account_id=aid,
+                   exit_date_iso=f"2026-04-{d:02d}T18:00:00Z", pnl=10)
+        for d in range(1, 13)
+    ]
+    for tid in tids[:10]:
+        _seed_excursion(db_conn, "u1", tid, efficiency=0.8, missed_r=1.0, mfe_r=2.0)
+    for tid in tids[10:]:  # 2 insufficient → don't count as computed
+        _seed_excursion(db_conn, "u1", tid, efficiency=None,
+                        data_quality="insufficient")
+
+    eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
+    assert eq["coverage"] == {"eligible": 12, "computed": 10}
+    assert eq["coverageReady"] is False
+    assert eq["avgExitEfficiency"] is None
+    assert eq["missedRTotal"] is None
+    assert eq["efficiencyBuckets"] == []
+
+
+def test_exit_quality_ready_computes_aggregates(db_conn):
+    """>=90% coverage + computed >= 10 → real avg efficiency + buckets; a
+    null-efficiency (no-favorable) row is excluded from the mean but counts."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+    effs = [0.10, 0.20, 0.30, 0.40, 0.55, 0.70, 0.80, 0.90, 0.95, 1.00]
+    for i, e in enumerate(effs):
+        tid = _add_trade(db_conn, "u1", account_id=aid,
+                         exit_date_iso=f"2026-03-{i+1:02d}T18:00:00Z", pnl=10)
+        _seed_excursion(db_conn, "u1", tid, efficiency=e, missed_r=1.0, mfe_r=2.0)
+    # extra computed row with NO favorable move → exitEfficiency None
+    tnull = _add_trade(db_conn, "u1", account_id=aid,
+                       exit_date_iso="2026-03-20T18:00:00Z", pnl=-5, result="Loss")
+    _seed_excursion(db_conn, "u1", tnull, efficiency=None, missed_r=None,
+                    mfe_r=None, data_quality="daily")
+
+    eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
+    assert eq["coverage"] == {"eligible": 11, "computed": 11}
+    assert eq["coverageReady"] is True
+    # mean over the 10 non-null efficiencies = 5.90 / 10 = 0.59 (null excluded)
+    assert eq["avgExitEfficiency"] == 0.59
+    assert eq["efficiencyExcludedNoFavorable"] == 1
+    counts = [b["count"] for b in eq["efficiencyBuckets"]]
+    assert counts == [2, 2, 2, 4]
+    # R is the honest unit; a dollar figure is deliberately NOT fabricated
+    assert eq["missedRTotal"] == 10.0
+    assert eq["avgMissedR"] == 1.0
+    assert "missedDollars" not in eq
+
+
+def test_exit_quality_below_10_computed_suppresses(db_conn):
+    """9 computed (100% coverage) but < 10 → None metrics + counts (n<10 gate)."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+    for i in range(9):
+        tid = _add_trade(db_conn, "u1", account_id=aid,
+                         exit_date_iso=f"2026-02-{i+1:02d}T18:00:00Z", pnl=10)
+        _seed_excursion(db_conn, "u1", tid, efficiency=0.7, missed_r=1.0, mfe_r=2.0)
+
+    eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
+    assert eq["coverage"] == {"eligible": 9, "computed": 9}
+    assert eq["coverageReady"] is True
+    assert eq["avgExitEfficiency"] is None
+    assert eq["efficiencyBuckets"] == []
+
+
+def test_exit_quality_underlying_excluded(db_conn):
+    """An 'underlying'-tier excursion (options) is excluded from computed count
+    and the $ aggregates — equity only."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+    for i in range(10):
+        tid = _add_trade(db_conn, "u1", account_id=aid,
+                         exit_date_iso=f"2026-01-{i+1:02d}T18:00:00Z", pnl=10)
+        _seed_excursion(db_conn, "u1", tid, efficiency=0.5, missed_r=1.0, mfe_r=2.0)
+    tund = _add_trade(db_conn, "u1", account_id=aid,
+                      exit_date_iso="2026-01-20T18:00:00Z", pnl=10)
+    _seed_excursion(db_conn, "u1", tund, efficiency=None, missed_r=None,
+                    mfe_r=None, data_quality="underlying")
+
+    eq = get_analytics("u1", account_id=aid, conn=db_conn)["exitQuality"]
+    # underlying row is eligible (an equity j2_trades row) but NOT computed
+    assert eq["coverage"] == {"eligible": 11, "computed": 10}
+    # 10/11 = 0.909 >= 0.9 → ready, computed 10 → real metrics
+    assert eq["coverageReady"] is True
+    assert eq["avgExitEfficiency"] == 0.5
