@@ -29,6 +29,7 @@ import { money, moneySigned, percent, dateShort } from '../../../../lib/journal-
 import { useIsPaid } from '../../../../context/AuthContext'
 import UIcon from '../../../../components/ui/UIcon'
 import { outcomeModel, buildTradeMarkers, neighborIds } from './tradePageModel'
+import TradeScreenshots from './TradeScreenshots'
 import styles from './TradeDetailPage.module.css'
 
 const EFFICIENCY_TITLE = 'Excursion analysis coming — computed nightly from intraday bars'
@@ -433,10 +434,10 @@ export default function TradeDetailPage() {
           />
         </div>
 
-        {/* Screenshots strip — mount point filled by a later P1b task. */}
+        {/* Screenshots — paste / drop / browse chart captures for this trade. */}
         <div className={styles.field} data-trade-screenshots-mount>
           <span className={styles.fieldLabel}>Screenshots</span>
-          <div className={styles.screenshotsPlaceholder}>Screenshot uploads are coming soon.</div>
+          <TradeScreenshots tradeId={id} />
         </div>
       </section>
 
