@@ -23,12 +23,15 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from datetime import timedelta
+
 from api.services.auth_db import get_connection
 from api.services.journal_two import calculations as calc
 from api.services.journal_two.filters import FilterSpec, trades_where
 from api.services.journal_two import regime as regime_service
 from api.services.journal_two.positions import _row_to_position
 from api.services.journal_two.timeutil import compute_trading_day_et, compute_hour_et
+from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
 class CloseValidationError(ValueError):
@@ -852,4 +855,113 @@ def list_trades_for_user(
         return [_row_to_trade(r) for r in rows], int(total)
     finally:
         if owned_conn:
+            conn.close()
+
+
+# ── Single-trade detail + best-effort broker provenance (P1b) ────────────────
+
+def _provenance_window(entry_date: Any, exit_date: Any) -> tuple[str, str] | None:
+    """Lexical [lo, hi] bounds for the ± 1-day holding window, comparable
+    against a stored ISO `occurred_at` string. Returns None when either date
+    can't be parsed. `hi` is suffixed with '~' (sorts after any ISO char) so an
+    activity at ANY time-of-day on the exit+1d day is still included."""
+    def _parse(value):
+        try:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+
+    lo_dt = _parse(entry_date)
+    hi_dt = _parse(exit_date)
+    if lo_dt is None or hi_dt is None:
+        return None
+    lo = (lo_dt - timedelta(days=1)).date().isoformat()
+    hi = (hi_dt + timedelta(days=1)).date().isoformat() + "~"
+    return lo, hi
+
+
+def _activity_num(raw_json: Any, key: str) -> float | None:
+    """Best-effort float pull from a stored raw_json activity payload."""
+    try:
+        data = json.loads(raw_json) if raw_json else {}
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    val = data.get(key)
+    if val is None or val == "":
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def get_trade_detail(
+    user_id: str,
+    trade_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """One trade (user-scoped) + its stable tradeRef + best-effort broker
+    provenance. Returns None when the trade doesn't exist or belongs to another
+    user (option-strategy ids simply aren't in j2_trades → natural None → 404).
+
+    `brokerActivities` is populated ONLY for broker-source trades: rows from the
+    raw j2_broker_activities ledger whose symbol matches and whose `occurred_at`
+    falls inside the ± 1-day holding window. It is labeled best-effort
+    (`matchBasis: "symbol+window"`) — a heuristic association, NOT a claim of
+    exact fill lineage. The query is wrapped so older DBs / column drift
+    (sqlite3.OperationalError) degrade to an empty list rather than 500.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM j2_trades WHERE user_id = ? AND id = ?",
+            (user_id, trade_id),
+        ).fetchone()
+        if row is None:
+            return None
+
+        trade = _row_to_trade(row)
+        activities: list[dict[str, Any]] = []
+
+        keys = row.keys()
+        is_broker = "source" in keys and row["source"] == "broker"
+        if is_broker and trade.get("entryDate") and trade.get("exitDate"):
+            bounds = _provenance_window(trade["entryDate"], trade["exitDate"])
+            if bounds is not None:
+                lo, hi = bounds
+                try:
+                    acts = conn.execute(
+                        "SELECT id, activity_type, symbol, occurred_at, raw_json"
+                        "  FROM j2_broker_activities"
+                        " WHERE user_id = ? AND symbol = ?"
+                        "   AND occurred_at >= ? AND occurred_at <= ?"
+                        " ORDER BY occurred_at ASC LIMIT 50",
+                        (user_id, row["symbol"], lo, hi),
+                    ).fetchall()
+                    activities = [
+                        {
+                            "id": a["id"],
+                            "activityType": a["activity_type"],
+                            "symbol": a["symbol"],
+                            "occurredAt": a["occurred_at"],
+                            "units": _activity_num(a["raw_json"], "units"),
+                            "price": _activity_num(a["raw_json"], "price"),
+                            "matchBasis": "symbol+window",
+                        }
+                        for a in acts
+                    ]
+                except sqlite3.OperationalError:
+                    # Older DBs / column drift — provenance is best-effort.
+                    activities = []
+
+        return {
+            "trade": trade,
+            "tradeRef": trade_ref_for_row(row),
+            "brokerActivities": activities,
+        }
+    finally:
+        if owned:
             conn.close()

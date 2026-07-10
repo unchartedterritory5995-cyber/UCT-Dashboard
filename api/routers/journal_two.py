@@ -298,6 +298,25 @@ def list_trades(
     }
 
 
+@router.get("/trades/{trade_id}")
+def get_trade_detail(
+    trade_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """One closed trade + its stable tradeRef + best-effort broker provenance
+    (activities matched by symbol within the ±1-day holding window). 404 when
+    the trade doesn't exist or belongs to another user — option-strategy ids
+    are simply not in j2_trades, so they 404 naturally.
+
+    Route ordering: a `{trade_id}` GET can't shadow the POST /trades/import/*
+    routes (different method + segment count); this stays reachable and the
+    static import routes stay reachable. See test_trade_detail route test."""
+    out = trades_service.get_trade_detail(user["id"], trade_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    return out
+
+
 # ── Community feed — opt-in share ───────────────────────────────────────────
 
 @router.get("/community/traders")
