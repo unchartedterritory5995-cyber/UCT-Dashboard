@@ -5069,6 +5069,43 @@ if os.path.exists(DIST):
     def _serve_vite_svg():
         return FileResponse(os.path.join(DIST, "vite.svg"), media_type="image/svg+xml")
 
+    @app.get("/pip-embed", include_in_schema=False)
+    def _serve_pip_embed(v: str = "", t: int = 0):
+        # Same-origin shim for the Desk video pop-out (Document Picture-in-Picture).
+        # A YouTube /embed iframe loaded straight into the PiP window's about:blank
+        # document sends NO HTTP Referer, so YouTube rejects it with Error 153
+        # (embedder.identity.missing.referrer) — referrerpolicy can't help because
+        # about:blank has no URL to derive a referrer from. Interposing THIS real
+        # same-origin page gives the nested embed a valid https referrer. See
+        # app/src/components/video/documentPip.js.
+        import re as _re
+        vid = _re.sub(r"[^A-Za-z0-9_-]", "", v or "")[:24]
+        try:
+            start = max(0, int(t))
+        except (TypeError, ValueError):
+            start = 0
+        if not vid:
+            return Response(content="missing v", media_type="text/plain", status_code=400)
+        qs = "autoplay=1&rel=0&modestbranding=1&playsinline=1&fs=1"
+        if start:
+            qs += f"&start={start}"
+        src = f"https://www.youtube.com/embed/{vid}?{qs}"
+        html = (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}"
+            "iframe{position:fixed;inset:0;width:100%;height:100%;border:0}</style></head>"
+            "<body><iframe src='" + src + "' "
+            "allow='autoplay; encrypted-media; picture-in-picture; fullscreen' "
+            "allowfullscreen referrerpolicy='strict-origin-when-cross-origin'></iframe>"
+            "</body></html>"
+        )
+        return Response(
+            content=html,
+            media_type="text/html; charset=utf-8",
+            headers={"Cache-Control": "no-store"},
+        )
+
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
         return FileResponse(
