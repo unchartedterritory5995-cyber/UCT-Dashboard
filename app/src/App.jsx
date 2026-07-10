@@ -41,6 +41,7 @@ const Community = lazy(() => import('./pages/community/CommunityPage'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
+const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trade/TradeDetailPage'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const MultiChart = lazy(() => import('./pages/MultiChart'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
@@ -174,6 +175,7 @@ export default function App() {
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />
                 <Route path="/journal-2-0/position/:sym" element={<J2PositionDetailPage />} />
+                <Route path="/journal-2-0/trade/:id" element={<J2TradeDetailPage />} />
                 <Route path="/patterns" element={<Patterns />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />

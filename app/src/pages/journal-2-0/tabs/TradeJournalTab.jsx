@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Trades from '../hooks/useJ2Trades'
@@ -96,6 +97,8 @@ function optionClosedToRow(s) {
 }
 
 export default function TradeJournalTab({ settings }) {
+  const navigate = useNavigate()
+  const location = useLocation()
   const { trades, isLoading, error, refresh, mutate: mutateTrades } = useJ2Trades()
   const {
     strategies: closedStrategies,
@@ -404,8 +407,13 @@ export default function TradeJournalTab({ settings }) {
             setups={settings?.setups || []}
             onUpdateSetup={handleUpdateSetup}
             onRowAction={(action, trade) => {
-              // Option rows have no trade drawer (yet) — only shares open it.
-              if (action === 'open' && !trade.isOption) setDrawerTrade(trade)
+              if (action !== 'open') return
+              // Option rows keep the quick-peek drawer (their id is a strategy
+              // id, not a j2_trades row → the trade page would 404). Equity
+              // rows navigate to the full unified detail page, preserving the
+              // active filter params so prev/next honors the same set.
+              if (trade.isOption) { setDrawerTrade(trade); return }
+              navigate(`/journal-2-0/trade/${trade.id}${location.search}`)
             }}
           />
         )
