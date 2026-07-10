@@ -166,7 +166,9 @@ function inPrintWindow() {
     const h = new Date().toLocaleString('en-US', {
       timeZone: 'America/New_York', hour: '2-digit', hour12: false,
     })
-    const hour = parseInt(h, 10)   // "24" at midnight ET on some engines → falls through fine
+    // WebKit renders midnight as "24" with hour12:false — normalize to 0 so the
+    // 00:00-00:59 hour stays OUT of the window (24 >= 16 would wrongly admit it).
+    const hour = parseInt(h, 10) % 24
     return hour >= 16 || (hour >= 6 && hour < 10)   // post-close OR pre-open
   } catch { return false }
 }

@@ -382,6 +382,11 @@ export default function Calendar() {
     // can't succeed there, and stamping would suppress the landing after a
     // successful Retry of the same week.
     if (data.source === 'error' || data.source === 'out_of_range') return
+    // Wait for the personalization set on the CURRENT week before landing: the
+    // Brief rail grows above the feed once my-sets resolves (its cluster height
+    // is unknown until then), and scrolling before that growth leaves today
+    // pushed below the top. On a paged week there is no Brief rail — land now.
+    if (isCurrentWeek && mySets === undefined) return
     const key = `${data.week_start}|${dParam || ''}`
     if (landedRef.current === key) return
     landedRef.current = key
@@ -389,10 +394,11 @@ export default function Calendar() {
       ? dParam
       : (isCurrentWeek ? todayIso() : null)
     if (target) {
-      // Wait one frame so the day groups exist in the DOM.
-      requestAnimationFrame(() => scrollToDay(target))
+      // Two frames: one for the day groups + the now-settled Brief rail to
+      // exist in the DOM, one for their final layout before we measure offsets.
+      requestAnimationFrame(() => requestAnimationFrame(() => scrollToDay(target)))
     }
-  }, [data, dParam, weekDates, isCurrentWeek, view, scrollToDay])
+  }, [data, dParam, weekDates, isCurrentWeek, view, mySets, scrollToDay])
 
   // ── onSelect: build the EarningsModal row using toModalRow (CORRECTION 2) ──
   const onSelect = (entry, timing) => {
