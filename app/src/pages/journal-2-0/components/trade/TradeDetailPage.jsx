@@ -32,7 +32,22 @@ import { outcomeModel, buildTradeMarkers, neighborIds } from './tradePageModel'
 import TradeScreenshots from './TradeScreenshots'
 import styles from './TradeDetailPage.module.css'
 
+// Exit-efficiency honest-state copy. EFFICIENCY_TITLE = the pending default
+// (kept for the "not yet computed" state + shown in the chart footer then).
 const EFFICIENCY_TITLE = 'Excursion analysis coming — computed nightly from intraday bars'
+const PENDING_TITLE = 'Analyzed nightly — excursion lands ~3 AM ET'
+const INSUFFICIENT_TITLE = 'Insufficient intraday bars for this trade'
+const NO_EXCURSION_TITLE = 'No favorable excursion'
+const EFFICIENCY_METHOD_TITLE =
+  'Exit efficiency = captured move ÷ max favorable move, from intraday excursion bars'
+
+// bar_resolution tf-code (or dataQuality tier) → short human label for the
+// "bar-approx · 5m" caption on real values.
+function barResLabel(excursion) {
+  const byCode = { 1: '1m', 5: '5m', D: 'daily' }
+  const byTier = { intraday_1m: '1m', intraday_5m: '5m', daily: 'daily' }
+  return byCode[excursion?.barResolution] || byTier[excursion?.dataQuality] || null
+}
 
 const TF_TABS = [
   { code: '5', label: '5m' },
@@ -211,11 +226,31 @@ export default function TradeDetailPage() {
     )
   }
 
-  const out = outcomeModel(trade)
+  // P2 excursion — camelCase dict from the trade-detail endpoint (Task 5), or
+  // null when the nightly job hasn't computed it yet.
+  const excursion = data?.excursion || null
+  const out = outcomeModel(trade, excursion)
   const isLong = trade.side === 'Long'
   const isDateOnly = !String(trade.entryDate || '').includes('T')
-  const chart = buildTradeMarkers(trade, tf)
+  const chart = buildTradeMarkers(trade, tf, excursion)
   const isBroker = trade.source === 'broker'
+
+  // Chart-footer legend hint: keep EFFICIENCY_TITLE while pending (null), swap
+  // to the methodology once a real excursion exists.
+  const legendHint = (() => {
+    if (excursion == null) return { text: EFFICIENCY_TITLE, title: EFFICIENCY_TITLE }
+    if (excursion.dataQuality === 'insufficient') {
+      return {
+        text: 'No intraday bars for this trade — exit efficiency unavailable.',
+        title: INSUFFICIENT_TITLE,
+      }
+    }
+    const res = barResLabel(excursion)
+    return {
+      text: `MFE / MAE overlay · exit efficiency = captured ÷ max favorable move${res ? ` · bar-approx ${res}` : ''}`,
+      title: EFFICIENCY_METHOD_TITLE,
+    }
+  })()
 
   const setupOptions = (() => {
     const base = settings?.setups || []
@@ -329,7 +364,31 @@ export default function TradeDetailPage() {
         </div>
         <div className={styles.outcomeCell}>
           <div className={styles.outcomeLabel}>Exit efficiency</div>
-          <div className={styles.outcomeValueMuted} title={EFFICIENCY_TITLE}>—</div>
+          {/* Honest state machine — efficiency is neutral-gold (not a P&L, so
+              never green/red). pending → N/A → underlying-based → real %. */}
+          {excursion == null ? (
+            <div className={styles.outcomeValueMuted} title={PENDING_TITLE}>Pending</div>
+          ) : excursion.dataQuality === 'insufficient' ? (
+            <div className={styles.outcomeValueMuted} title={INSUFFICIENT_TITLE}>N/A</div>
+          ) : excursion.dataQuality === 'underlying' ? (
+            <div className={styles.effWrap}>
+              <div className={styles.effValue} title={EFFICIENCY_METHOD_TITLE}>
+                {percent(out.exitEfficiency, { isRatio: true })}
+              </div>
+              <div className={styles.effMeta}>underlying-based</div>
+            </div>
+          ) : out.exitEfficiency == null ? (
+            <div className={styles.outcomeValueMuted} title={NO_EXCURSION_TITLE}>—</div>
+          ) : (
+            <div className={styles.effWrap}>
+              <div className={styles.effValue} title={EFFICIENCY_METHOD_TITLE}>
+                {percent(out.exitEfficiency, { isRatio: true })}
+              </div>
+              {barResLabel(excursion) && (
+                <div className={styles.effMeta}>{`bar-approx · ${barResLabel(excursion)}`}</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -367,7 +426,7 @@ export default function TradeDetailPage() {
           />
         </div>
         <div className={styles.chartFoot}>
-          <span className={styles.legendHint} title={EFFICIENCY_TITLE}>{EFFICIENCY_TITLE}</span>
+          <span className={styles.legendHint} title={legendHint.title}>{legendHint.text}</span>
           {isDateOnly && (
             <span className={styles.caption}>
               Daily chart — no execution times logged.{' '}

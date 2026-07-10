@@ -46,7 +46,35 @@ const T1 = {
 }
 
 const swrData = {
+  // No `excursion` key → pending state.
   '/api/j2/trades/t1': { trade: T1, tradeRef: 'ref1', brokerActivities: [] },
+  // Real excursion → colored % + bar-approx label + MFE/MAE overlay.
+  '/api/j2/trades/treal': {
+    trade: { ...T1, id: 'treal', symbol: 'REAL' },
+    brokerActivities: [],
+    excursion: {
+      symbol: 'REAL', mfePrice: 62, maePrice: 48, mfeR: 3, maeR: -1,
+      exitEfficiency: 0.667, missedR: 1, barResolution: '5', dataQuality: 'intraday_5m',
+    },
+  },
+  // Insufficient tier → "N/A".
+  '/api/j2/trades/tinsuff': {
+    trade: { ...T1, id: 'tinsuff', symbol: 'INSF' },
+    brokerActivities: [],
+    excursion: {
+      symbol: 'INSF', mfePrice: null, maePrice: null, exitEfficiency: null,
+      barResolution: null, dataQuality: 'insufficient',
+    },
+  },
+  // Options underlying tier → labeled "underlying-based".
+  '/api/j2/trades/tunder': {
+    trade: { ...T1, id: 'tunder', symbol: 'UNDR' },
+    brokerActivities: [],
+    excursion: {
+      symbol: 'UNDR', mfePrice: 110, maePrice: 90, exitEfficiency: null,
+      barResolution: '5', dataQuality: 'underlying',
+    },
+  },
   '/api/j2/trades/missing': null,
 }
 
@@ -91,11 +119,35 @@ describe('TradeDetailPage', () => {
     expect(screen.getByRole('button', { name: '+ Add stop' })).toBeInTheDocument()
   })
 
-  it('renders the excursion-analysis placeholder copy', () => {
+  it('renders the excursion-analysis placeholder copy (pending, no excursion)', () => {
     renderPage()
     expect(
       screen.getByText('Excursion analysis coming — computed nightly from intraday bars'),
     ).toBeInTheDocument()
+  })
+
+  it('null excursion shows the Pending exit-efficiency state', () => {
+    renderPage()
+    expect(screen.getByText('Pending')).toBeInTheDocument()
+  })
+
+  it('a real excursion renders the % + bar-approx resolution label', () => {
+    renderPage('treal')
+    expect(screen.getByText('66.70%')).toBeInTheDocument()          // 0.667 ratio
+    expect(screen.getByText('bar-approx · 5m')).toBeInTheDocument()
+    // footer swaps off the pending copy to the methodology
+    expect(screen.getByText(/exit efficiency = captured/)).toBeInTheDocument()
+  })
+
+  it('insufficient data quality shows N/A', () => {
+    renderPage('tinsuff')
+    expect(screen.getByText('N/A')).toBeInTheDocument()
+    expect(screen.queryByText('Pending')).not.toBeInTheDocument()
+  })
+
+  it('underlying data quality is labeled underlying-based', () => {
+    renderPage('tunder')
+    expect(screen.getByText('underlying-based')).toBeInTheDocument()
   })
 
   it('keeps the executions section collapsed by default', () => {

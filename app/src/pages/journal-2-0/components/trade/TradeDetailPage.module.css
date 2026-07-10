@@ -134,6 +134,28 @@
 .pos { color: var(--gain, #22c55e); }
 .neg { color: var(--loss, #ef4444); }
 
+/* Exit efficiency — neutral-gold (it's a quality score, NOT a P&L, so it must
+   never read green/red). Value + a small bar-approx/underlying meta caption. */
+.effWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.effValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent, #c9a84c);
+}
+
+.effMeta {
+  font-size: 10.5px;
+  letter-spacing: 0.3px;
+  color: var(--text-muted, #8a8a8a);
+}
+
 .rNoStop {
   display: flex;
   flex-direction: column;

@@ -46,15 +46,25 @@ function holdLabelFor(trade) {
 /**
  * Outcome-header view-model. `netPnl` uses the UI's Net convention
  * (`pnlDollarNet ?? pnlDollar`); `pnlPct` stays the raw FRACTION (the caller
- * formats via percent() with the ratio convention). `exitEfficiency` is a
- * reserved slot — P2 fills it from nightly intraday excursion analysis.
+ * formats via percent() with the ratio convention).
+ *
+ * `exitEfficiency` + the `mfeR`/`maeR`/`missedR`/`dataQuality` display fields
+ * come from the OPTIONAL P2 excursion dict (nightly intraday excursion
+ * analysis, camelCase from `excursions_store._row_to_dict`). When no excursion
+ * is passed (or it's null / not yet computed) every excursion field is null so
+ * the header can render its honest "pending" / "N/A" states. PURE.
  *
  * @param {object} trade
+ * @param {object|null} [excursion]  {exitEfficiency, mfeR, maeR, missedR,
+ *   dataQuality, ...} or null
  * @returns {{netPnl:number|null, pnlPct:number|null, r:number|null,
- *   rLabel:string, holdLabel:string, noStop:boolean, exitEfficiency:null}}
+ *   rLabel:string, holdLabel:string, noStop:boolean,
+ *   exitEfficiency:number|null, mfeR:number|null, maeR:number|null,
+ *   missedR:number|null, dataQuality:string|null}}
  */
-export function outcomeModel(trade) {
+export function outcomeModel(trade, excursion = null) {
   const t = trade || {}
+  const ex = excursion || {}
   const netPnl = t.pnlDollarNet ?? t.pnlDollar ?? null
   const pnlPct = t.pnlPercent ?? null
   const r = t.rMultiple ?? null
@@ -67,7 +77,11 @@ export function outcomeModel(trade) {
     rLabel,
     holdLabel: holdLabelFor(t),
     noStop,
-    exitEfficiency: null,
+    exitEfficiency: ex.exitEfficiency ?? null,
+    mfeR: ex.mfeR ?? null,
+    maeR: ex.maeR ?? null,
+    missedR: ex.missedR ?? null,
+    dataQuality: ex.dataQuality ?? null,
   }
 }
 
@@ -98,11 +112,17 @@ function compareTime(a, b) {
  * real stop was logged (originalStop == entryPrice) so it doesn't overdraw the
  * entry line. Shapes mirror useJ2ChartMarkers.js.
  *
+ * When a real P2 `excursion` is passed, two extra DOTTED horizontal lines are
+ * drawn — MFE (best price reached, green) + MAE (worst price reached, red) —
+ * distinct from the DASHED entry/stop lines. Gracefully skipped for the
+ * insufficient tier (null prices) or when no excursion is passed.
+ *
  * @param {object} trade
  * @param {string} tf  "1"|"5"|"15"|"30"|"60"|"D"|"W"|"M"
+ * @param {object|null} [excursion]  {mfePrice, maePrice, ...} or null
  * @returns {{ markers: Array, priceLines: Array }}
  */
-export function buildTradeMarkers(trade, tf) {
+export function buildTradeMarkers(trade, tf, excursion = null) {
   if (!trade || !tf) return EMPTY_MARKERS
   const isLong = trade.side === 'Long'
   const markers = []
@@ -157,6 +177,32 @@ export function buildTradeMarkers(trade, tf) {
       lineStyle: 2,
       axisLabelVisible: true,
       title: 'Stop',
+    })
+  }
+
+  // P2 excursion overlay — MFE (best) green + MAE (worst) red, DOTTED so they
+  // read as distinct from the DASHED entry/stop lines. Only real records carry
+  // finite prices (the insufficient tier stores null → skipped).
+  const mfe = Number(excursion?.mfePrice)
+  if (Number.isFinite(mfe) && mfe > 0) {
+    priceLines.push({
+      price: mfe,
+      color: COLOR_GREEN,
+      lineWidth: 1,
+      lineStyle: 1,               // dotted
+      axisLabelVisible: true,
+      title: 'MFE',
+    })
+  }
+  const mae = Number(excursion?.maePrice)
+  if (Number.isFinite(mae) && mae > 0) {
+    priceLines.push({
+      price: mae,
+      color: COLOR_RED,
+      lineWidth: 1,
+      lineStyle: 1,               // dotted
+      axisLabelVisible: true,
+      title: 'MAE',
     })
   }
 

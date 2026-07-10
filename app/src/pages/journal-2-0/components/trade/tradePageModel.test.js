@@ -52,6 +52,48 @@ describe('outcomeModel', () => {
   })
 })
 
+describe('outcomeModel — excursion passthrough (P2)', () => {
+  const trade = { side: 'Long', entryPrice: 50, originalStop: 47, rMultiple: 2, pnlDollar: 90 }
+
+  it('fills exitEfficiency + passthrough display fields from a real excursion', () => {
+    const m = outcomeModel(trade, {
+      exitEfficiency: 0.667, dataQuality: 'intraday_5m', mfeR: 3, maeR: -1, missedR: 1,
+    })
+    expect(m.exitEfficiency).toBe(0.667)
+    expect(m.dataQuality).toBe('intraday_5m')
+    expect(m.mfeR).toBe(3)
+    expect(m.maeR).toBe(-1)
+    expect(m.missedR).toBe(1)
+    // core outcome fields still computed
+    expect(m.r).toBe(2)
+    expect(m.rLabel).toBe('R: +2.0R')
+  })
+
+  it('excursion === null → every excursion field is null', () => {
+    const m = outcomeModel(trade, null)
+    expect(m.exitEfficiency).toBeNull()
+    expect(m.mfeR).toBeNull()
+    expect(m.maeR).toBeNull()
+    expect(m.missedR).toBeNull()
+    expect(m.dataQuality).toBeNull()
+  })
+
+  it('no 2nd arg → excursion fields default to null (back-compat)', () => {
+    const m = outcomeModel(trade)
+    expect(m.exitEfficiency).toBeNull()
+    expect(m.mfeR).toBeNull()
+    expect(m.maeR).toBeNull()
+    expect(m.missedR).toBeNull()
+    expect(m.dataQuality).toBeNull()
+  })
+
+  it('a null-metric (insufficient) excursion keeps exitEfficiency null but passes dataQuality', () => {
+    const m = outcomeModel(trade, { exitEfficiency: null, dataQuality: 'insufficient' })
+    expect(m.exitEfficiency).toBeNull()
+    expect(m.dataQuality).toBe('insufficient')
+  })
+})
+
 describe('buildTradeMarkers', () => {
   const base = {
     side: 'Long', shares: 100, entryPrice: 50, exitPrice: 60,
@@ -84,6 +126,28 @@ describe('buildTradeMarkers', () => {
   it('returns empty results when trade or tf is missing', () => {
     expect(buildTradeMarkers(null, 'D')).toEqual({ markers: [], priceLines: [] })
     expect(buildTradeMarkers(base, null)).toEqual({ markers: [], priceLines: [] })
+  })
+
+  it('adds MFE (green) + MAE (red) price lines when a real excursion is passed', () => {
+    const { priceLines } = buildTradeMarkers(
+      { ...base, result: 'Win' }, 'D',
+      { mfePrice: 65, maePrice: 48, dataQuality: 'intraday_5m' },
+    )
+    const byTitle = Object.fromEntries(priceLines.map((l) => [l.title, l]))
+    expect(byTitle.MFE.price).toBe(65)
+    expect(byTitle.MFE.color).toBe('#22c55e')
+    expect(byTitle.MAE.price).toBe(48)
+    expect(byTitle.MAE.color).toBe('#ef4444')
+    // entry + stop still present
+    expect(priceLines.map((l) => l.title).sort()).toEqual(['Entry', 'MAE', 'MFE', 'Stop'])
+  })
+
+  it('skips MFE/MAE lines for an insufficient excursion (null prices)', () => {
+    const { priceLines } = buildTradeMarkers(
+      { ...base, result: 'Win' }, 'D',
+      { mfePrice: null, maePrice: null, dataQuality: 'insufficient' },
+    )
+    expect(priceLines.map((l) => l.title).sort()).toEqual(['Entry', 'Stop'])
   })
 })
 
