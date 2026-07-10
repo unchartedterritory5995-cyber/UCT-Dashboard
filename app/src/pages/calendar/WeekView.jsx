@@ -84,17 +84,11 @@ function WeekMacroChips({ econ = [], fed = [] }) {
 }
 
 export default function WeekView({ weekDates, days, filters, onSelect, weekTiers, onOpenDay }) {
-  // Load-proportional columns: each day's track grows with its reporter count.
-  const counts = useMemo(() => weekDates.map(ds => {
-    const d = days[ds]
-    if (!d) return 1
-    const all = [...(d.bmo || []), ...(d.amc || []), ...(d.tbd || [])]
-    return Math.max(applyFilters(all, filters).length, 1)
-  }), [weekDates, days, filters])
-
-  const template = counts
-    .map(c => `minmax(150px, ${Math.max(Math.sqrt(c), 1).toFixed(2)}fr)`)
-    .join(' ')
+  // Equal-width day columns (a proper week calendar, like the competitors). The
+  // old load-proportional width made a busy Thursday a giant column and quiet
+  // days skinny boxes — lopsided and awkward. Each column sizes its own HEIGHT
+  // to its content (align-items:start in CSS), so a busy day is just taller.
+  const template = weekDates.map(() => 'minmax(0, 1fr)').join(' ')
 
   return (
     // The fr template rides a CSS VARIABLE, not gridTemplateColumns directly —
