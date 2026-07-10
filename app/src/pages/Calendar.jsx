@@ -219,6 +219,20 @@ export default function Calendar() {
     return out
   }, [data, weekDates, mySets, mySources, enrichmentByDate, metricsByDate])
 
+  // Sectors actually present this week, most-reporters-first — drives the
+  // sector-scoping chip row. Derived from loaded entries so counts are honest.
+  const availableSectors = useMemo(() => {
+    const counts = {}
+    for (const ds of weekDates) {
+      const d = days[ds]
+      if (!d) continue
+      for (const e of [...(d.bmo || []), ...(d.amc || []), ...(d.tbd || [])]) {
+        if (e.sector) counts[e.sector] = (counts[e.sector] || 0) + 1
+      }
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])
+  }, [days, weekDates])
+
   // ── The hierarchy: one tier map drives Board/Week/Month identically ───────
   // Main Event is FROZEN per (week, day) once the enrichment overlay has
   // landed — imp includes the expected-move term, so an unfrozen pick could
@@ -425,6 +439,7 @@ export default function Calendar() {
       setMonthCursor={setMonthCursor}
       eventTypes={eventTypes}
       setEventTypes={setEventTypes}
+      availableSectors={availableSectors}
       dayTabs={dayTabs}
       isCurrentWeek={isCurrentWeek}
       onPrevWeek={() => shiftWeek(-7)}

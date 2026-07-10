@@ -7,6 +7,8 @@ export const DEFAULT_FILTERS = {
   minAvgVol: null,    // minimum avg volume (shares), e.g. 500000
   priceMin: null,     // minimum price, e.g. 5
   priceMax: null,     // maximum price, e.g. 1000
+  confirmedOnly: false, // hide entries whose report DATE is only an estimate
+  sector: null,       // scope to one GICS sector (null = all)
 }
 
 export function applyFilters(rows, f) {
@@ -27,6 +29,15 @@ export function applyFilters(rows, f) {
   if (f.priceMax != null && f.priceMax > 0) {
     out = out.filter(r => r._price == null || r._price <= f.priceMax)
   }
+
+  // Date-integrity: hide reporters whose date is only an estimate (unconfirmed).
+  if (f.confirmedOnly) out = out.filter(r => !r.date_est)
+
+  // Sector scoping — one GICS sector at a time. Strict match: the chips are
+  // derived only from sectors actually present in the loaded data, so their
+  // counts stay honest. A name whose sector hasn't resolved yet simply isn't
+  // offered under any chip (it still shows in the unscoped "All" view).
+  if (f.sector) out = out.filter(r => r.sector === f.sector)
 
   return out
 }

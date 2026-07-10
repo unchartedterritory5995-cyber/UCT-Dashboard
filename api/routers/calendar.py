@@ -508,8 +508,47 @@ _NAME_GUARD = threading.Lock()
 _NAME_INFLIGHT_MAX = 24
 
 
+def _attach_date_moves(days: dict) -> None:
+    """Observe each reporter's date into the date-integrity store, then stamp
+    any detected shift onto the entry as date_moved={from,to} (WSH-grade date
+    drift). Best-effort — never breaks the calendar; a bad DB is a silent no-op.
+    Only FUTURE-facing reporters are observed (a past date can't 'move')."""
+    try:
+        from api.services import calendar_date_integrity as _cdi
+    except Exception:
+        return
+    today = _today_et().isoformat()
+    pairs: list[tuple[str, str]] = []
+    syms: list[str] = []
+    for ds, day in days.items():
+        if ds < today:
+            continue
+        for e in _day_entries(day):
+            sym = (e.get("sym") or "").upper()
+            if sym:
+                pairs.append((sym, ds))
+                syms.append(sym)
+    if not pairs:
+        return
+    try:
+        _cdi.observe_many(pairs)
+        moves = _cdi.get_moves(syms)
+    except Exception as exc:
+        _logger.warning("Calendar date-integrity failed: %s", exc)
+        return
+    if not moves:
+        return
+    for day in days.values():
+        for e in _day_entries(day):
+            mv = moves.get((e.get("sym") or "").upper())
+            if mv and mv.get("to") != mv.get("from"):
+                e["date_moved"] = mv
+
+
 def _attach_names(days: dict) -> None:
-    """Best-effort company names onto every entry, cache-hits only."""
+    """Best-effort company names + GICS sector onto every entry, cache-hits only.
+    Both come from the same ticker_meta cache; sector powers the calendar's
+    sector-scoping filter chips (never blocks the build — miss → next request)."""
     try:
         from api.services.ticker_meta import _mem, _disk_get, _base_meta
     except Exception:
@@ -517,7 +556,7 @@ def _attach_names(days: dict) -> None:
     for day in days.values():
         for e in _day_entries(day):
             sym = (e.get("sym") or "").upper()
-            if not sym or e.get("name"):
+            if not sym or (e.get("name") and e.get("sector")):
                 continue
             meta = _mem.get(f"tmeta_{sym}")
             if meta is None:
@@ -525,9 +564,13 @@ def _attach_names(days: dict) -> None:
                     meta = _disk_get(sym)
                 except Exception:
                     meta = None
-            if meta and meta.get("name"):
-                e["name"] = meta["name"]
-                continue
+            if meta and (meta.get("name") or meta.get("sector")):
+                if meta.get("name"):
+                    e["name"] = meta["name"]
+                if meta.get("sector") and not e.get("sector"):
+                    e["sector"] = meta["sector"]
+                if meta.get("name"):
+                    continue
             # Miss → bounded async backfill (resolves for the next request)
             with _NAME_GUARD:
                 if sym in _NAME_INFLIGHT or len(_NAME_INFLIGHT) >= _NAME_INFLIGHT_MAX:
@@ -692,6 +735,7 @@ def _build_range_week(monday: date) -> dict:
     if abs((monday - _week_dates()[0]).days) <= 7:
         _curate_econ_events(week_start, week_end, days)
     _attach_names(days)
+    _attach_date_moves(days)
 
     return {
         "week_start":      week_start,
@@ -945,6 +989,7 @@ def get_calendar(week: str | None = None):
 
     # ── 6. Company names from the ticker_meta cache (non-blocking) ───────────
     _attach_names(days)
+    _attach_date_moves(days)
 
     result = {
         "week_start":      week_start,
@@ -1162,6 +1207,7 @@ def refresh_calendar(user: dict = Depends(require_admin)):
     _patch_today_actuals(days, today.isoformat())
     _curate_econ_events(week_start, week_end, days)
     _attach_names(days)
+    _attach_date_moves(days)
 
     result = {
         "week_start":      week_start,
@@ -1495,6 +1541,17 @@ def get_day_metrics_batch(dates: str | None = None):
 
 
 # ── Personalization endpoint ───────────────────────────────────────────────────
+
+@router.get("/api/admin/calendar-date-integrity")
+def calendar_date_integrity_status():
+    """Read-only date-drift telemetry: how many symbols tracked + how many
+    have a recorded date move."""
+    try:
+        from api.services import calendar_date_integrity as _cdi
+        return _cdi.status()
+    except Exception as exc:
+        return {"error": str(exc)}
+
 
 @router.get("/api/calendar/my-sets")
 def calendar_my_sets(user: dict = Depends(get_current_user)):
@@ -2080,3 +2137,90 @@ def export_single_report_ics(sym: str, date: str, timing: str = "tbd"):
             "Cache-Control": "no-cache",
         },
     )
+
+
+@router.get("/api/calendar/most-anticipated.png")
+def most_anticipated_png(week: str | None = None):
+    """A shareable PNG of the week's biggest earnings reporters, ranked by
+    market cap, on a branded UCT card. Public (no auth) — a top-of-funnel
+    share asset. Cached per week; logos come from the on-disk logo cache."""
+    import re as _re
+    from datetime import date as _date_cls
+
+    monday = None
+    if week and _re.match(r"^\d{4}-\d{2}-\d{2}$", week):
+        try:
+            monday = _monday_of(_date_cls.fromisoformat(week))
+        except ValueError:
+            monday = None
+    if monday is None:
+        monday = _week_dates()[0]
+
+    cur_monday = _week_dates()[0]
+    if abs((monday - cur_monday).days) // 7 > _WEEK_HORIZON_WEEKS:
+        return _Response(content="out of range", status_code=400, media_type="text/plain")
+
+    ck = f"calendar_anticipated_png_{monday.isoformat()}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return _Response(content=hit, media_type="image/png",
+                         headers={"Cache-Control": "public, max-age=1800"})
+
+    payload = get_calendar(week=monday.isoformat())
+    days = (payload or {}).get("days", {}) or {}
+
+    from api.services import ticker_logos as _logos
+    from api.services.calendar_anticipated_png import render_anticipated_png
+
+    WD = ["MON", "TUE", "WED", "THU", "FRI"]
+    ds_to_wd = {d.isoformat(): WD[i] for i, d in enumerate(_week_dates_for(monday))}
+
+    # Flatten earnings across the week, filling mc_b from cached day-metrics.
+    best: dict[str, dict] = {}
+    for ds, day in days.items():
+        metrics = {}
+        try:
+            metrics = get_day_metrics(date=ds) or {}
+        except Exception:
+            pass
+        for bucket in ("bmo", "amc", "tbd"):
+            for e in day.get(bucket, []):
+                sym = (e.get("sym") or "").upper()
+                if not sym:
+                    continue
+                mc = e.get("mc_b")
+                if mc is None:
+                    mc = (metrics.get(sym) or {}).get("mc_b")
+                row = {
+                    "sym": sym,
+                    "name": e.get("name"),
+                    "timing": bucket,
+                    "weekday": ds_to_wd.get(ds, ""),
+                    "mc_b": mc,
+                    "logo_path": _logos.get_logo_path(sym),
+                }
+                cur = best.get(sym)
+                if cur is None or (mc or -1) > (cur["mc_b"] or -1):
+                    best[sym] = row
+
+    ranked = sorted(best.values(),
+                    key=lambda e: (e["mc_b"] is not None, e["mc_b"] or 0),
+                    reverse=True)
+
+    end = monday + timedelta(days=4)
+    if monday.month == end.month:
+        wl = f"Week of {monday.strftime('%b')} {monday.day}–{end.day}, {monday.year}"
+    else:
+        wl = (f"Week of {monday.strftime('%b')} {monday.day} – "
+              f"{end.strftime('%b')} {end.day}, {monday.year}")
+
+    try:
+        png = render_anticipated_png(wl, ranked)
+    except Exception as exc:
+        _logger.warning("Most-anticipated PNG render failed: %s", exc)
+        return _Response(content="render error", status_code=500, media_type="text/plain")
+
+    ttl = 6 * 3600 if end < _today_et() else 1800
+    cache.set(ck, png, ttl=ttl)
+    return _Response(content=png, media_type="image/png",
+                     headers={"Cache-Control": "public, max-age=1800"})

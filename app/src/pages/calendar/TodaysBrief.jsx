@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import { useReactions } from './useCalendarData'
+import useSeen from '../../hooks/useSeen'
 import styles from './Calendar.module.css'
 
 const DISMISS_KEY = 'uct.calendar.brief.dismissed'
@@ -47,13 +48,17 @@ export default function TodaysBrief({ days, weekDates, todayIso, onSelect }) {
 
   const { data: reactions } = useReactions(weekDates.includes(todayIso) ? todayIso : null)
 
+  // Read-unseen dots — the same earnings seen-store the My Stocks hub writes to.
+  // Key = `${sym}:${reportDate}` so a name is "new" until the user opens it.
+  const { seen, markSeen } = useSeen('earnings')
+
   const entriesFor = useCallback((ds) => {
     const d = days[ds]
     if (!d) return []
     return [
-      ...(d.bmo || []).map(e => ({ ...e, _timing: 'bmo' })),
-      ...(d.amc || []).map(e => ({ ...e, _timing: 'amc' })),
-      ...(d.tbd || []).map(e => ({ ...e, _timing: 'tbd' })),
+      ...(d.bmo || []).map(e => ({ ...e, _timing: 'bmo', _ds: ds })),
+      ...(d.amc || []).map(e => ({ ...e, _timing: 'amc', _ds: ds })),
+      ...(d.tbd || []).map(e => ({ ...e, _timing: 'tbd', _ds: ds })),
     ]
   }, [days])
 
@@ -119,9 +124,12 @@ export default function TodaysBrief({ days, weekDates, todayIso, onSelect }) {
           <div className={styles.briefScroll}>
             {yourReports.map(e => {
               const badge = sourceBadge(e._sources)
+              const key = `${e.sym}:${e._ds}`
+              const unseen = !seen.has(key)
               return (
                 <button key={`yr-${e.sym}`} className={styles.briefCard}
-                        onClick={() => onSelect?.(e, e._timing)}>
+                        onClick={() => { markSeen(key); onSelect?.(e, e._timing) }}>
+                  {unseen && <span className={styles.briefUnseen} title="New — not yet opened" />}
                   <CompanyLogo sym={e.sym} size={24} tile />
                   <span className={styles.briefSym}>{e.sym}</span>
                   <span className={styles.briefWhen}>{sessionPhrase(e._timing, e._isToday)}</span>
@@ -148,7 +156,7 @@ export default function TodaysBrief({ days, weekDates, todayIso, onSelect }) {
               return (
                 <button key={`rp-${e.sym}`}
                         className={`${styles.briefChip} ${beat === false ? styles.briefChipMiss : beat ? styles.briefChipBeat : ''}`}
-                        onClick={() => onSelect?.(e, e._timing || 'amc')}>
+                        onClick={() => { markSeen(`${e.sym}:${e._ds}`); onSelect?.(e, e._timing || 'amc') }}>
                   <span className={styles.briefSym}>{e.sym}</span>
                   {beat != null && <span>{beat ? 'BEAT' : 'MISS'}</span>}
                   {gap != null && (

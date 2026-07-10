@@ -3,7 +3,7 @@ import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import { useTickerActions } from '../../components/TickerActions'
 import TickerActionsMenu from '../../components/TickerActions'
-import { BeatDots, ReactionSpark, ExpectedMovePair } from './cardBits'
+import { BeatDots, ReactionSpark, ExpectedMovePair, DateMovedChip } from './cardBits'
 import { isReportingNow } from './calendarTime'
 import styles from './Calendar.module.css'
 // NOTE: FwdPeChip (useFundamentals per card) removed — firing ~60 requests on
@@ -91,6 +91,7 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
               )}
             </div>
             <div className={styles.nm}>{entry.name || ''}</div>
+            <DateMovedChip moved={entry.date_moved} />
           </div>
           {isReportingNow(entry) ? (
             <span className={styles.reportingChip} title="In its reporting window now — results expected shortly">

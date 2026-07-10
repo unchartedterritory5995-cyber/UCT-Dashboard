@@ -226,6 +226,7 @@ export default function CalendarHeader({
   mySources, setMySources,
   monthCursor, setMonthCursor,
   eventTypes, setEventTypes,
+  availableSectors = [],
   // Week Navigator (flagship 1b)
   dayTabs = [],
   isCurrentWeek = true,
@@ -300,16 +301,29 @@ export default function CalendarHeader({
     setCopying(false)
   }, [])
 
+  // "Most Anticipated" shareable image — opens the branded weekly PNG in a new
+  // tab for the currently-viewed week (right-click save / share the URL).
+  const shareWeekImage = useCallback(() => {
+    const monday = dayTabs.length ? dayTabs[0].ds : ''
+    const url = monday
+      ? `/api/calendar/most-anticipated.png?week=${monday}`
+      : '/api/calendar/most-anticipated.png'
+    window.open(url, '_blank', 'noopener')
+    setPanelOpen(false)
+  }, [dayTabs])
+
   // ── Active-filter count for the ⚙ Filters badge ──
   const evTypes = eventTypes || DEFAULT_EVENT_TYPES
   const eventTypesChanged = evTypes.has('ipos') || evTypes.has('dividends')
   const activeCount =
     (filters.minAvgVol ? 1 : 0) + (filters.priceMin ? 1 : 0) +
     (filters.priceMax ? 1 : 0) + (filters.minMcap > 0 ? 1 : 0) +
-    (eventTypesChanged ? 1 : 0) + (filters.sort !== 'mine' ? 1 : 0)
+    (eventTypesChanged ? 1 : 0) + (filters.sort !== 'mine' ? 1 : 0) +
+    (filters.confirmedOnly ? 1 : 0) + (filters.sector ? 1 : 0)
 
   const clearAllFilters = () => setFilters({
     ...filters, minAvgVol: null, priceMin: null, priceMax: null, minMcap: 0,
+    confirmedOnly: false, sector: null,
   })
 
   // ── Shared control fragments (used by desktop panel + phone sheet) ──
@@ -374,6 +388,10 @@ export default function CalendarHeader({
                placeholder="e.g. 500" value={filters.priceMax ?? ''}
                onChange={e => setNum('priceMax', e.target.value)} />
       </div>
+      <label className={styles.gearRow} title="Hide reporters whose date is only a projection">
+        <input type="checkbox" checked={!!filters.confirmedOnly}
+               onChange={e => set('confirmedOnly', e.target.checked)} /> Confirmed dates only
+      </label>
     </>
   )
 
@@ -391,6 +409,12 @@ export default function CalendarHeader({
       <button className={styles.exportItem} onClick={copyWebcal} disabled={copying}>
         {copied ? <><UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Copied!</> : copying ? 'Copying…' : <><UIcon name="link" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Copy webcal URL</>}
       </button>
+      {view !== 'month' && (
+        <button className={styles.exportItem} onClick={shareWeekImage}
+                title="Open a shareable image of this week's biggest reporters">
+          <UIcon name="flame" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Most Anticipated image
+        </button>
+      )}
     </div>
   )
 
@@ -458,6 +482,11 @@ export default function CalendarHeader({
   }
 
   const currentMonday = dayTabs.length ? dayTabs[0].ds : null
+
+  // Sector scoping row — chips for the sectors actually present this week.
+  // Only worth showing when there's more than one sector to pick between.
+  const showSectorRow = view !== 'month' && availableSectors.length > 1
+  const activeSector = filters.sector || null
 
   return (
     <div className={styles.header}>
@@ -546,6 +575,28 @@ export default function CalendarHeader({
               />
             )}
           </span>
+        </div>
+      )}
+
+      {/* ── Sector scoping: one-tap narrow to a GICS sector present this week ── */}
+      {showSectorRow && (
+        <div className={styles.sectorRow} role="group" aria-label="Filter by sector">
+          <button
+            className={`${styles.sectorChip} ${!activeSector ? styles.sectorChipOn : ''}`}
+            onClick={() => set('sector', null)}
+          >
+            All sectors
+          </button>
+          {availableSectors.map(([sector, count]) => (
+            <button
+              key={sector}
+              className={`${styles.sectorChip} ${activeSector === sector ? styles.sectorChipOn : ''}`}
+              onClick={() => set('sector', activeSector === sector ? null : sector)}
+              title={`${count} reporter${count === 1 ? '' : 's'} in ${sector}`}
+            >
+              {sector}<span className={styles.sectorChipCount}>{count}</span>
+            </button>
+          ))}
         </div>
       )}
 

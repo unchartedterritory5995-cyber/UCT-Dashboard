@@ -8,7 +8,7 @@ import { useTickerActions } from '../../components/TickerActions'
 import TickerActionsMenu from '../../components/TickerActions'
 import { editorialLine } from './importance'
 import { isReportingNow } from './calendarTime'
-import { BeatDots, ReactionSpark, ExpectedMovePair } from './cardBits'
+import { BeatDots, ReactionSpark, ExpectedMovePair, DateMovedChip } from './cardBits'
 import styles from './Calendar.module.css'
 
 function fmtEps(v) { return v == null ? null : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}` }
@@ -75,6 +75,7 @@ export default function MainEventCard({ entry, timing, livePrice, reaction, hasK
               )}
             </div>
             <div className={styles.nm}>{entry.name || ''}</div>
+            <DateMovedChip moved={entry.date_moved} />
           </div>
           <span className={styles.mainRight}>
             {isReportingNow(entry) ? (

@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
-import { BeatDots } from './cardBits'
+import { BeatDots, DateMovedChip } from './cardBits'
 import styles from './Calendar.module.css'
 
 function fmtEps(v) { return v == null ? '' : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}` }
@@ -53,7 +53,7 @@ function Row({ e, onSelect }) {
           {e.mine && <UIcon name="star-fill" size={10} style={{ marginLeft: 4, verticalAlign: '-1px' }} />}
         </span>
         {e.name && <span className={styles.dtName}>{e.name}</span>}
-        {e.date_est && <span className={styles.dateEst}>est.</span>}
+        {e.date_moved ? <DateMovedChip moved={e.date_moved} /> : (e.date_est && <span className={styles.dateEst}>est.</span>)}
       </span>
       <span className={styles.dtNum}>{fmtCap(e.mc_b)}</span>
       <span className={styles.dtNum}>

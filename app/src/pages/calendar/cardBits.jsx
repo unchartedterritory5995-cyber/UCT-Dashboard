@@ -2,6 +2,26 @@
 // Small presentational pieces shared by cards + the day table.
 import styles from './Calendar.module.css'
 
+// ── Date-moved chip ──────────────────────────────────────────────────────────
+// Wall Street Horizon sells date-drift to institutions; a shifted earnings date
+// burns options traders and no retail product flags it. moved = {from, to} ISO.
+function fmtShort(iso) {
+  if (!iso) return ''
+  const d = new Date(iso + 'T12:00:00')
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+export function DateMovedChip({ moved }) {
+  if (!moved?.from || !moved?.to || moved.from === moved.to) return null
+  return (
+    <span className={styles.dateMoved}
+          title={`This report's date shifted from ${fmtShort(moved.from)} to ${fmtShort(moved.to)}`}>
+      date moved {fmtShort(moved.from)} → {fmtShort(moved.to)}
+    </span>
+  )
+}
+
 // ── Beat/miss dot strip ──────────────────────────────────────────────────────
 // Robinhood's most-copied earnings visualization: last N quarters as dots —
 // gold = beat, muted red = miss, hollow = unknown. Color is never the sole

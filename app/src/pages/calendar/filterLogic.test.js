@@ -95,4 +95,35 @@ describe('filterLogic', () => {
     expect(out.map(r => r.sym)).not.toContain('CCC')
     expect(out.map(r => r.sym)).toContain('DDD')
   })
+
+  // 5a: confirmed-dates-only drops estimate-dated reporters
+  it('confirmedOnly drops rows flagged date_est', () => {
+    const dated = [
+      { sym: 'AAA', mine: false, date_est: false },
+      { sym: 'BBB', mine: false, date_est: true },
+      { sym: 'CCC', mine: false },   // no flag → treated as confirmed
+    ]
+    const out = applyFilters(dated, { ...DEFAULT_FILTERS, audience: 'all', confirmedOnly: true })
+    expect(out.map(r => r.sym)).toEqual(['AAA', 'CCC'])
+  })
+
+  // 5c: sector scoping — strict match, drops names in other/unknown sectors
+  it('sector filter keeps only the chosen sector (strict)', () => {
+    const sectored = [
+      { sym: 'AAA', mine: false, sector: 'Technology' },
+      { sym: 'BBB', mine: false, sector: 'Financials' },
+      { sym: 'CCC', mine: false },   // unresolved sector → not offered under any chip
+    ]
+    const out = applyFilters(sectored, { ...DEFAULT_FILTERS, audience: 'all', sector: 'Technology' })
+    expect(out.map(r => r.sym)).toEqual(['AAA'])
+  })
+
+  it('sector=null keeps every sector', () => {
+    const sectored = [
+      { sym: 'AAA', mine: false, sector: 'Technology' },
+      { sym: 'BBB', mine: false, sector: 'Financials' },
+    ]
+    const out = applyFilters(sectored, { ...DEFAULT_FILTERS, audience: 'all', sector: null })
+    expect(out).toHaveLength(2)
+  })
 })
