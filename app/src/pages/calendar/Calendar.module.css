@@ -397,7 +397,11 @@
 /* WeekView */
 .weekgrid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* --week-cols is the load-proportional fr template supplied inline by
+     WeekView; falls back to five even tracks. The phone rule below overrides
+     the whole property (a media query can't override an inline property, but
+     it CAN override this stylesheet-declared one). */
+  grid-template-columns: var(--week-cols, repeat(5, minmax(150px, 1fr)));
   gap: 10px;
   padding: 16px 18px;
 }
@@ -2521,13 +2525,20 @@
   padding: 1px 6px;
 }
 
-/* Phone: the table drops cap/beats columns; Main Event goes full width */
+/* Phone: the 6-column desktop table collapses to 3 ALIGNED columns —
+   Company · EPS · Move. Cap (col 2), Rev (col 4) and Beats (col 6) hide on
+   BOTH the header row and the data rows so cell counts stay matched (hiding
+   only 2 of 6 left 4 cells in a 3-track grid → wrap + misalignment). */
 @media (max-width: 640px) {
   .dtHead, .dtRow {
-    grid-template-columns: minmax(120px, 2fr) 1fr 0.9fr;
+    grid-template-columns: minmax(110px, 2fr) 0.9fr 0.8fr;
   }
-  .dtHead .dtTh:nth-child(2), .dtRow .dtNum:nth-of-type(1),
-  .dtHead .dtTh:nth-child(6), .dtRow .dtBeats {
+  .dtHead .dtTh:nth-child(2),
+  .dtHead .dtTh:nth-child(4),
+  .dtHead .dtTh:nth-child(6),
+  .dtRow .dtNum:nth-of-type(1),
+  .dtRow .dtNum:nth-of-type(3),
+  .dtRow .dtBeats {
     display: none;
   }
   .dtRow { min-height: 40px; }

@@ -1372,6 +1372,9 @@ def get_day_metrics(date: str | None = None):
     # Resolve the day from whichever week cache owns the date (paging-aware)
     day = _days_for_date(target)
     if not day:
+        # Cache the empty briefly so a bad/paged-out date doesn't re-resolve the
+        # week (and possibly rebuild it) on every 2-min poll.
+        cache.set(cache_key, {}, ttl=300)
         return {}
 
     all_entries = _day_entries(day)
@@ -1471,15 +1474,23 @@ def get_day_metrics_batch(dates: str | None = None):
     Each date reuses get_day_metrics' per-date cache — the client needs the
     caps BEFORE tiering (the importance hierarchy ranks on mc_b/dollar-volume;
     fetching metrics per-DayGroup after tiering left paged weeks ranking on
-    nothing and featuring a $500M bank over UnitedHealth)."""
+    nothing and featuring a $500M bank over UnitedHealth).
+
+    HARD CAP at 7 dates: a cold date can fire a Finviz bulk call on the request
+    path; the endpoint is unauthenticated, so an unbounded `dates` list would be
+    a serial-fetch DoS vector. A week is 5 days — 7 covers any real caller."""
     import re as _re
     if not dates:
         return {}
     out: dict = {}
+    seen = 0
     for d in dates.split(","):
         d = d.strip()
         if d and _re.match(r"^\d{4}-\d{2}-\d{2}$", d):
             out[d] = get_day_metrics(date=d)
+            seen += 1
+            if seen >= 7:
+                break
     return out
 
 
@@ -1695,10 +1706,14 @@ def get_enrichment_batch(dates: str | None = None):
     if not dates:
         return {}
     out: dict = {}
+    seen = 0
     for d in dates.split(","):
         d = d.strip()
         if d and _re.match(r"^\d{4}-\d{2}-\d{2}$", d):
             out[d] = _compute_enrichment_for_date(d)
+            seen += 1
+            if seen >= 7:   # a week is 5 days; bound this unauthenticated endpoint
+                break
     return out
 
 

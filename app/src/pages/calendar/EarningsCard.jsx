@@ -80,8 +80,14 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
           <div className={styles.cardHead}>
             <div className={styles.sym}>
               {entry.sym}
-              {reported && <span className={styles.beatPill}>{
-                surprise(entry.eps_act, entry.eps_est)?.startsWith('-') ? 'MISS' : 'BEAT'}</span>}
+              {/* Only render a verdict when a surprise is COMPUTABLE — a
+                  no-estimate report has no BEAT/MISS basis. Negatives use the
+                  red miss pill (was always the green beat pill). */}
+              {reported && surprise(entry.eps_act, entry.eps_est) && (
+                <span className={surprise(entry.eps_act, entry.eps_est).startsWith('-') ? styles.missPill : styles.beatPill}>
+                  {surprise(entry.eps_act, entry.eps_est).startsWith('-') ? 'MISS' : 'BEAT'}
+                </span>
+              )}
             </div>
             <div className={styles.nm}>{entry.name || ''}</div>
           </div>

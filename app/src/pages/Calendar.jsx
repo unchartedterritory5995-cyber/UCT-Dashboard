@@ -21,7 +21,7 @@ import {
   useDividends,
 } from './calendar/useCalendarData'
 import { DEFAULT_FILTERS } from './calendar/filterLogic'
-import { tierWeek } from './calendar/importance'
+import { tierWeek, FEATURED_CAP } from './calendar/importance'
 import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
 import FeedView from './calendar/FeedView'
 import WeekView from './calendar/WeekView'
@@ -182,7 +182,7 @@ export default function Calendar() {
   // weekDates is [] before data loads → key is null → SWR skips. Length never
   // changes between renders within the same data version, so hook count is stable.
   const { data: enrichmentByDate } = useWeekEnrichment(weekDates)
-  const { data: metricsByDate } = useWeekMetrics(weekDates)
+  const { data: metricsByDate } = useWeekMetrics(weekDates, !weekParam)
 
   // Tag every entry with mine/sources flags and merge the enrichment +
   // metrics overlays. Metrics MUST land here, before tiering — the importance
@@ -197,7 +197,11 @@ export default function Calendar() {
       const dayMetrics = metricsByDate?.[ds] || {}
       const tag = list => (list || []).map(entry => {
         const mine = isMine(entry.sym, mySets, mySources)
-        const sources = ALL_SOURCES.filter(
+        // _sources drives the imp_eff personalization boost AND the future
+        // Brief-rail badges — it MUST honor the user's active source picker,
+        // exactly like `mine` does. Using ALL_SOURCES boosted names via a
+        // source the user disabled (a phantom position weighting the ranking).
+        const sources = mySources.filter(
           s => (mySets?.[s] || []).includes(entry.sym?.toUpperCase())
         )
         const m = dayMetrics[entry.sym]
@@ -224,6 +228,11 @@ export default function Calendar() {
   const weekTiers = useMemo(() => {
     const tiers = tierWeek(days, weekDates)
     const weekKey = data?.week_start || ''
+    // Freeze ONLY once metrics have actually DELIVERED data for this week —
+    // mc_b is the dominant imp term and arrives lazily. A failed batch resolves
+    // to {} (defined but empty); gating on `!== undefined` froze the pick on a
+    // metrics-less ranking that never healed. Non-empty ⇒ real data landed.
+    const metricsReady = !!metricsByDate && Object.keys(metricsByDate).length > 0
     for (const ds of weekDates) {
       const t = tiers[ds]
       if (!t) continue
@@ -233,21 +242,36 @@ export default function Calendar() {
         b => (days[ds]?.[b] || []).some(e => e.sym === sym))
       if (frozen !== undefined && (frozen === null || dayHas(frozen))) {
         if (frozen !== t.mainEvent && frozen !== null) {
-          // demote the computed pick into featured so it isn't lost
+          // Override to the frozen pick; demote the newly-computed pick into
+          // featured so it isn't lost — then keep the card budget: the frozen
+          // main event + featured must not exceed FEATURED_CAP total.
           if (t.mainEvent) t.featured.add(t.mainEvent)
           t.featured.delete(frozen)
           t.table.delete(frozen)
+          t.compact.delete(frozen)
+          while (t.featured.size > FEATURED_CAP - 1) {
+            const lowest = [...t.featured].pop()   // Set is ranked-desc insertion order
+            t.featured.delete(lowest)
+            t.table.add(lowest)
+          }
         }
         t.mainEvent = frozen
-      } else if (enrichmentByDate !== undefined && metricsByDate !== undefined) {
-        // Freeze only once BOTH overlays have resolved — imp ranks on the
-        // metrics caps AND the enrichment expected move; freezing earlier
-        // would lock a rank computed on nothing.
+      } else if (metricsReady) {
         mainEventFrozen.current[fkey] = t.mainEvent
       }
     }
     return tiers
   }, [days, weekDates, data?.week_start, enrichmentByDate, metricsByDate])
+
+  // Prune freeze keys from weeks the user has paged away from — the ref would
+  // otherwise grow one entry per (week, day) across a long browsing session.
+  useEffect(() => {
+    const live = new Set(weekDates.map(ds => `${data?.week_start || ''}|${ds}`))
+    const store = mainEventFrozen.current
+    for (const k of Object.keys(store)) {
+      if (!live.has(k)) delete store[k]
+    }
+  }, [weekDates, data?.week_start])
 
   // ── Week Navigator: per-day tab info (count + mine count) ─────────────────
   const dayTabs = useMemo(() => weekDates.map(ds => {
@@ -319,10 +343,15 @@ export default function Calendar() {
   }, [weekDates, view, setView, gotoWeek, scrollToDay])
 
   // ── Keyboard core: ←/→ page weeks, T jumps to today (terminal lens) ───────
+  // Latest-state ref so the listener stays stable but sees live modal state.
+  const kbdBlockedRef = useRef(false)
+  kbdBlockedRef.current = !!selected || !!openDay   // modal / drawer open
   useEffect(() => {
     const onKey = (e) => {
+      if (kbdBlockedRef.current) return   // don't page weeks behind a modal
       const t = e.target
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'
+                || t.tagName === 'SELECT' || t.isContentEditable)) return
       if (e.ctrlKey || e.metaKey || e.altKey) return
       if (view === 'month') return   // month nav owns time there
       if (e.key === 'ArrowLeft')  { e.preventDefault(); shiftWeek(-7) }

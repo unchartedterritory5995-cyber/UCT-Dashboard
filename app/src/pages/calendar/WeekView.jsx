@@ -97,7 +97,11 @@ export default function WeekView({ weekDates, days, filters, onSelect, weekTiers
     .join(' ')
 
   return (
-    <div className={styles.weekgrid} style={{ gridTemplateColumns: template }}>
+    // The fr template rides a CSS VARIABLE, not gridTemplateColumns directly —
+    // an inline grid-template-columns beats the 640px media query (specificity),
+    // which forced the 5-column desktop template onto phones = horizontal
+    // overflow. A custom property lets the phone rule override cleanly.
+    <div className={styles.weekgrid} style={{ '--week-cols': template }}>
       {weekDates.map(ds => {
         const day = days[ds]; if (!day) return null
         const tiers = weekTiers?.[ds]

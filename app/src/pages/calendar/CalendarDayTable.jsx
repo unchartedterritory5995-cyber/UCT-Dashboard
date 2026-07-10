@@ -111,7 +111,14 @@ export default function CalendarDayTable({ entries, onSelect }) {
             className={`${styles.dtTh} ${sort?.key === c.key ? styles.dtThActive : ''}`}
             onClick={() => c.sortable && clickSort(c.key)}
             disabled={!c.sortable}
-            aria-sort={sort?.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}
+            /* aria-sort is only valid on role=columnheader; these are plain
+               buttons in a div grid. Encode the tri-state sort in the
+               accessible name instead (aria-pressed can't express 3 states). */
+            aria-label={c.sortable
+              ? (sort?.key === c.key
+                  ? `${c.label}, sorted ${sort.dir === 1 ? 'ascending' : 'descending'}`
+                  : `${c.label}, not sorted`)
+              : c.label}
           >
             {c.label}{sort?.key === c.key ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}
           </button>

@@ -63,9 +63,13 @@ export default function MainEventCard({ entry, timing, livePrice, reaction, hasK
             <div className={`${styles.sym} ${styles.symMain}`}>
               {entry.sym}
               {entry.mine && <UIcon name="star-fill" size={13} />}
-              {reported && (
-                <span className={surp?.startsWith('-') ? styles.missPill : styles.beatPill}>
-                  {surp?.startsWith('-') ? 'MISS' : 'BEAT'}
+              {/* BEAT/MISS only when a surprise is actually COMPUTABLE — a
+                  reported name with no estimate (or a $0 estimate) has no
+                  basis for either verdict; branding it 'BEAT' is misinformation
+                  on the flagship card. Mirrors the Surprise-row guard below. */}
+              {reported && surp && (
+                <span className={surp.startsWith('-') ? styles.missPill : styles.beatPill}>
+                  {surp.startsWith('-') ? 'MISS' : 'BEAT'}
                 </span>
               )}
             </div>
@@ -98,10 +102,12 @@ export default function MainEventCard({ entry, timing, livePrice, reaction, hasK
 
         {!reported && <ExpectedMovePair em={em} typical={typical} big />}
 
-        <div className={styles.mainMetaRow}>
-          <BeatDots history={entry.beat_history} />
-          <ReactionSpark lastN={entry.hist_stats?.last_n} />
-        </div>
+        {(entry.beat_history?.length > 0 || entry.hist_stats?.last_n?.length > 1) && (
+          <div className={styles.mainMetaRow}>
+            <BeatDots history={entry.beat_history} />
+            <ReactionSpark lastN={entry.hist_stats?.last_n} />
+          </div>
+        )}
       </div>
       {menu && <TickerActionsMenu menu={menu} onClose={closeMenu} />}
     </>

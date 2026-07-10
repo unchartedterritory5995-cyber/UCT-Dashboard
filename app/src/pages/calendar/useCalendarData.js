@@ -113,7 +113,11 @@ export function useDayMetrics(ds) {
 // importance tiering runs (the hierarchy ranks on mc_b/dollar-volume; per-day
 // fetches inside DayGroup arrived AFTER tiering and left paged weeks ranking
 // on nothing). Single stable hook, same pattern as useWeekEnrichment.
-export function useWeekMetrics(weekDates) {
+//
+// `isCurrentWeek` gates the poll: a paged week's caps/prices are server-side
+// immutable (1-24 h cache), so it fetches once and never polls — only the
+// current week refreshes, and only during market hours.
+export function useWeekMetrics(weekDates, isCurrentWeek = true) {
   const key = weekDates && weekDates.length ? `metrics:${weekDates.join(',')}` : null
   return useSWR(
     key,
@@ -121,7 +125,7 @@ export function useWeekMetrics(weekDates) {
       .then(r => (r.ok ? r.json() : {}))
       .then(m => m || {})
       .catch(() => ({})),
-    { refreshInterval: 2 * 60 * 1000, revalidateOnFocus: false }
+    { refreshInterval: isCurrentWeek ? 2 * 60 * 1000 : 0, revalidateOnFocus: false }
   )
 }
 
