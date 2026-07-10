@@ -42,6 +42,7 @@ export default function VideoDockSlot() {
   const { notes, add: addNote, remove: removeNote } = useVideoNotes(currentYt)
   const [draft, setDraft] = useState(null) // { t, text } while composing, else null
   const [savingNb, setSavingNb] = useState('')
+  const [tickersOpen, setTickersOpen] = useState(true) // collapsible ticker cloud
 
   const startNote = useCallback(() => setDraft({ t: getCurrentTime(), text: '' }), [])
   const saveDraft = useCallback(async () => {
@@ -187,28 +188,49 @@ export default function VideoDockSlot() {
           )}
           {tickerMoments.length > 0 && (
             <div className={styles.tickersWrap}>
-              <div className={styles.insHead}>Tickers covered</div>
-              <div className={styles.tickerRow}>
-                {tickerMoments.map((tm, i) => (
-                  <span
-                    key={`${tm.ticker}-${tm.t}-${i}`}
-                    className={styles.tickerChip}
-                    title={tm.note || tm.ticker}
-                  >
-                    {/* Click the symbol → open the chart; click the time → seek the video. */}
-                    <TickerPopup sym={tm.ticker} as="button" className={styles.tickerSym}>
-                      {tm.ticker}
-                    </TickerPopup>
-                    <button
-                      className={styles.tickerTime}
-                      onClick={() => seekTo(tm.t)}
-                      title={`Jump to ${fmtT(tm.t)} in the video`}
-                    >
-                      {fmtT(tm.t)}
-                    </button>
-                  </span>
-                ))}
-              </div>
+              {/* Collapsible so a long stream's ticker cloud doesn't dominate
+                  the rail; scroll-capped when open. */}
+              <button
+                type="button"
+                className={styles.tickersToggle}
+                onClick={() => setTickersOpen((o) => !o)}
+                aria-expanded={tickersOpen}
+              >
+                <svg
+                  className={`${styles.tickersChevron} ${tickersOpen ? styles.tickersChevronOpen : ''}`}
+                  width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"
+                >
+                  <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor"
+                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className={styles.insHead}>Tickers covered</span>
+                <span className={styles.tickersCount}>{tickerMoments.length}</span>
+              </button>
+              {tickersOpen && (
+                <div className={styles.tickerScroll}>
+                  <div className={styles.tickerRow}>
+                    {tickerMoments.map((tm, i) => (
+                      <span
+                        key={`${tm.ticker}-${tm.t}-${i}`}
+                        className={styles.tickerChip}
+                        title={tm.note || tm.ticker}
+                      >
+                        {/* Click the symbol → open the chart; click the time → seek the video. */}
+                        <TickerPopup sym={tm.ticker} as="button" className={styles.tickerSym}>
+                          {tm.ticker}
+                        </TickerPopup>
+                        <button
+                          className={styles.tickerTime}
+                          onClick={() => seekTo(tm.t)}
+                          title={`Jump to ${fmtT(tm.t)} in the video`}
+                        >
+                          {fmtT(tm.t)}
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {/* My notes — jot a thought at the current timestamp; click to jump back. */}

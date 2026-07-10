@@ -146,6 +146,47 @@
 .tickersWrap {
   margin-top: 14px;
 }
+/* Collapsible header (chevron + label + count). */
+.tickersToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.tickersToggle .insHead {
+  margin-bottom: 0;
+}
+.tickersChevron {
+  flex: none;
+  color: var(--text-secondary, #a8a290);
+  transform: rotate(-90deg); /* collapsed → points right */
+  transition: transform 0.15s ease;
+}
+.tickersChevronOpen {
+  transform: rotate(0deg); /* open → points down */
+}
+.tickersCount {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c9a84c;
+  background: rgba(201, 168, 76, 0.12);
+  border: 1px solid rgba(201, 168, 76, 0.28);
+  border-radius: 999px;
+  padding: 0 7px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.tickerScroll {
+  margin-top: 8px;
+  max-height: 132px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
 .tickerRow {
   display: flex;
   flex-wrap: wrap;
