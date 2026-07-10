@@ -14,6 +14,7 @@ import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, playIndex, exp
 import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { useVideoNotes } from '../../hooks/useVideoNotes'
 import TickerPopup from '../TickerPopup'
+import TranscriptPanel from './TranscriptPanel'
 import styles from './VideoDockSlot.module.css'
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
@@ -35,7 +36,7 @@ export default function VideoDockSlot() {
   const boxRef = useRef(null)
   // Chapters + ticker-moments + recap for the now-playing video (empty for
   // non-session videos or before generation). Hook runs unconditionally.
-  const { chapters, tickerMoments, headline, summary, posterUrl, loading } =
+  const { chapters, tickerMoments, headline, summary, posterUrl, loading, hasTranscript } =
     useVideoInsights(active ? list[index]?.id : null)
   // Timestamped notes for the now-playing video (keyed by youtube_id).
   const currentYt = active ? list[index]?.youtube_id : null
@@ -180,6 +181,8 @@ export default function VideoDockSlot() {
             {headline && <p className={styles.headline}>{headline}</p>}
             {!headline && current.description && <p className={styles.desc}>{current.description}</p>}
           </div>
+          {/* Search-and-seek transcript — collapsed by default, lazy-loaded. */}
+          <TranscriptPanel videoId={current.id} hasTranscript={hasTranscript} onSeek={seekTo} />
         </div>
 
         {/* LEFT — chapter nav + the recap poster. Only rendered when it has

@@ -421,6 +421,21 @@ def get_insights(video_id: int) -> dict:
     }
 
 
+def get_transcript_cues(video_id: int) -> list[dict]:
+    """Timed transcript cues [{t: seconds, text}] for search-and-seek. The stored
+    transcript is the timestamped-block form, so recover cues with the session
+    insights parser. Returns [] when no transcript is captured."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT transcript FROM edu_videos WHERE id = ?", (int(video_id),)
+        ).fetchone()
+    if not row or not row["transcript"]:
+        return []
+    # Imported lazily — desk_session_insights imports this module (avoid a cycle).
+    from api.services.desk_session_insights import _parse_timestamped_block
+    return _parse_timestamped_block(row["transcript"])
+
+
 def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
                        chapters: Optional[list] = None,
                        ticker_moments: Optional[list] = None,

@@ -136,6 +136,13 @@ def get_video_insights(video_id: int, _user: dict = Depends(require_paid)):
     return out
 
 
+@router.get("/videos/{video_id}/transcript")
+def get_video_transcript(video_id: int, _user: dict = Depends(require_paid)):
+    """Timed transcript cues [{t, text}] for search-and-seek. Empty list when a
+    video has no captured transcript (non-session or not yet processed)."""
+    return {"cues": svc.get_transcript_cues(video_id)}
+
+
 @router.get("/videos/{video_id}/poster")
 def get_video_poster(video_id: int, _user: dict = Depends(require_paid)):
     """Serve the branded session-recap poster PNG (rendered from the transcript
