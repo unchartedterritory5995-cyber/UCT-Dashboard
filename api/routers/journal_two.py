@@ -42,6 +42,7 @@ from api.services.journal_two import (
     trades as trades_service,
     trading_day_backfill,
 )
+from api.services.journal_two.filters import FilterSpec, parse_filter_query
 
 router = APIRouter(prefix="/api/j2", tags=["journal-2-0"])
 
@@ -256,14 +257,22 @@ def close_position(
 @router.get("/trades")
 def list_trades(
     account_id: str | None = None,
+    spec: FilterSpec = Depends(parse_filter_query),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """All trades for the current user, newest-first.
-    Optional ?account_id= filters to one account."""
+    Optional ?account_id= filters to one account. Phase-6 additive filter +
+    pagination params (date_from/date_to/symbol/sides/setups/limit/offset) are
+    parsed by parse_filter_query. The response envelope is ADDITIVE: `trades`
+    is unchanged; `total`/`limit`/`offset` are new keys for paging clients."""
+    trades, total = trades_service.list_trades_for_user(
+        user["id"], account_id=account_id, spec=spec,
+    )
     return {
-        "trades": trades_service.list_trades_for_user(
-            user["id"], account_id=account_id,
-        ),
+        "trades": trades,
+        "total": total,
+        "limit": spec.limit,
+        "offset": spec.offset,
     }
 
 

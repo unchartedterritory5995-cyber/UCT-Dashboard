@@ -25,6 +25,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import calculations as calc
+from api.services.journal_two.filters import FilterSpec, trades_where
 from api.services.journal_two import regime as regime_service
 from api.services.journal_two.positions import _row_to_position
 from api.services.journal_two.timeutil import compute_trading_day_et, compute_hour_et
@@ -782,47 +783,63 @@ def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+_TRADE_COLS = """id, user_id, position_id, symbol, side, shares,
+                       entry_price, entry_date, exit_price, exit_date,
+                       original_stop, setup, notes, pnl_dollar, pnl_percent,
+                       r_multiple, hold_days, result, context_at_entry,
+                       account_id, fees, created_at, mistake_tags, emotion_tags,
+                       source"""
+
+
 def list_trades_for_user(
     user_id: str,
     conn: sqlite3.Connection | None = None,
     *,
     account_id: str | None = None,
-) -> list[dict[str, Any]]:
-    """All trades for a user, newest-entry first. Optional account_id filter."""
+    spec: "FilterSpec | None" = None,
+) -> list[dict[str, Any]] | tuple[list[dict[str, Any]], int]:
+    """Trades for a user, newest-entry first. Optional account_id filter.
+
+    Dual-shape by design (every existing internal caller passes no spec and
+    relies on the plain-list shape):
+
+      * ``spec=None`` (default) → returns the FULL unbounded ``list[dict]``,
+        identical to the pre-Phase-6 behavior.
+      * ``spec`` given (the GET /trades route) → applies the FilterSpec's
+        WHERE fragment + ``LIMIT``/``OFFSET`` and returns a ``(trades, total)``
+        tuple, where ``total`` is the full match count (ignoring the page
+        window) so the client can paginate. Order is preserved on both paths.
+    """
     owned_conn = conn is None
     conn = conn or get_connection()
     try:
+        where = ["user_id = ?"]
+        params: list[Any] = [user_id]
         if account_id:
+            where.append("account_id = ?")
+            params.append(account_id)
+        where_sql = " AND ".join(where)
+
+        if spec is None:
             rows = conn.execute(
-                """
-                SELECT id, user_id, position_id, symbol, side, shares,
-                       entry_price, entry_date, exit_price, exit_date,
-                       original_stop, setup, notes, pnl_dollar, pnl_percent,
-                       r_multiple, hold_days, result, context_at_entry,
-                       account_id, fees, created_at, mistake_tags, emotion_tags,
-                       source
-                  FROM j2_trades
-                 WHERE user_id = ? AND account_id = ?
-                 ORDER BY entry_date DESC, created_at DESC
-                """,
-                (user_id, account_id),
+                f"SELECT {_TRADE_COLS} FROM j2_trades WHERE {where_sql}"
+                " ORDER BY entry_date DESC, created_at DESC",
+                params,
             ).fetchall()
-        else:
-            rows = conn.execute(
-                """
-                SELECT id, user_id, position_id, symbol, side, shares,
-                       entry_price, entry_date, exit_price, exit_date,
-                       original_stop, setup, notes, pnl_dollar, pnl_percent,
-                       r_multiple, hold_days, result, context_at_entry,
-                       account_id, fees, created_at, mistake_tags, emotion_tags,
-                       source
-                  FROM j2_trades
-                 WHERE user_id = ?
-                 ORDER BY entry_date DESC, created_at DESC
-                """,
-                (user_id,),
-            ).fetchall()
-        return [_row_to_trade(r) for r in rows]
+            return [_row_to_trade(r) for r in rows]
+
+        frag, filter_params = trades_where(spec)
+        frag_sql = f" {frag}" if frag else ""
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM j2_trades WHERE {where_sql}{frag_sql}",
+            [*params, *filter_params],
+        ).fetchone()[0]
+        rows = conn.execute(
+            f"SELECT {_TRADE_COLS} FROM j2_trades WHERE {where_sql}{frag_sql}"
+            " ORDER BY entry_date DESC, created_at DESC LIMIT ? OFFSET ?",
+            [*params, *filter_params, spec.limit, spec.offset],
+        ).fetchall()
+        return [_row_to_trade(r) for r in rows], int(total)
     finally:
         if owned_conn:
             conn.close()
