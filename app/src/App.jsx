@@ -30,7 +30,6 @@ const Screener = lazy(() => import('./pages/Screener'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const LiveFlow = lazy(() => import('./pages/LiveFlow'))
 const LiveFlowMassive = lazy(() => import('./pages/LiveFlowMassive'))
-const FlowScoreboard = lazy(() => import('./pages/FlowScoreboard'))
 const DarkPool = lazy(() => import('./pages/DarkPool'))
 const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
@@ -167,7 +166,9 @@ export default function App() {
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
                 <Route path="/options-flow" element={<OptionsFlow />} />
-                <Route path="/flow-scoreboard" element={<FlowScoreboard />} />
+                {/* Flow Scoreboard is now a section INSIDE Options Flow (not its own
+                    nav section). Redirect old links/bookmarks to that section. */}
+                <Route path="/flow-scoreboard" element={<Navigate to="/options-flow?view=scoreboard" replace />} />
                 <Route path="/dark-pool" element={<DarkPool />} />
                 <Route path="/post-market" element={<PostMarket />} />
                 <Route path="/model-book" element={<ModelBook />} />

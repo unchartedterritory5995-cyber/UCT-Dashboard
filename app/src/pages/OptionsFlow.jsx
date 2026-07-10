@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
+import FlowScoreboard from "./FlowScoreboard";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -1949,7 +1950,12 @@ function processFlowData(rows) {
 const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
-  const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
+  const [dataMode, setDataMode] = useState(() => {
+    // Deep-link support: /options-flow?view=scoreboard lands on the Scoreboard
+    // section (the old /flow-scoreboard route + the Dashboard tile redirect here).
+    try { return new URLSearchParams(window.location.search).get("view") === "scoreboard" ? "scoreboard" : "stocks"; }
+    catch { return "stocks"; }
+  }); // "stocks" | "index" | "darkpool" | "gex" | "scoreboard"
   const [tab, setTab] = useState("Market Read");
   // ─── Remote ETF/INDEX ticker list ─────────────────────────────────────────
   // Fetched once from /api/ticker-types/etf-index-symbols on mount. Merges
@@ -3774,11 +3780,11 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if (csvError && dataMode !== "gex" && dataMode !== "darkpool") return (
+  if (csvError && dataMode !== "gex" && dataMode !== "darkpool" && dataMode !== "scoreboard") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
-          {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
+          {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"],["scoreboard","Scoreboard"]].map(([m,label])=>(
             <button key={m} onClick={()=>{
               if (m === "liveflow") { window.open("/live-flow", "_blank", "noopener,noreferrer"); return; }
               if(dataMode!==m) {
@@ -3802,7 +3808,7 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool") return (
+  if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool" && dataMode !== "scoreboard") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
@@ -4113,10 +4119,10 @@ export default function OptionsFlowDashboard() {
         {/* Data Mode Toggle */}
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
-            {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>{
+            {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"],["scoreboard","Scoreboard"]].map(([m,label])=>{
               // Live Flow navigates to a separate page; other modes switch dataMode in place.
               const isLive = m === "liveflow";
-              const accent = m==="gex" ? "#c9a84c" : m==="darkpool" ? "#6ba3be" : isLive ? "#3cb868" : null;
+              const accent = m==="gex" ? "#c9a84c" : m==="darkpool" ? "#6ba3be" : m==="scoreboard" ? "#c9a84c" : isLive ? "#3cb868" : null;
               const hasAccent = accent !== null;
               return (
                 <button key={m} onClick={()=>{
@@ -4145,7 +4151,7 @@ export default function OptionsFlowDashboard() {
         </div>
 
         {/* Date Filter — rolling windows + presets + calendar */}
-        {dataMode !== "gex" && dataMode !== "darkpool" && availableDates.length > 0 && (
+        {dataMode !== "gex" && dataMode !== "darkpool" && dataMode !== "scoreboard" && availableDates.length > 0 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
             <div className="of-chiprow-wrap" style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
               {[
@@ -5052,7 +5058,9 @@ export default function OptionsFlowDashboard() {
 
         {dataMode === "darkpool" && <DarkPool embedded />}
 
-        {dataMode !== "gex" && dataMode !== "darkpool" && D && (<>
+        {dataMode === "scoreboard" && <FlowScoreboard embedded />}
+
+        {dataMode !== "gex" && dataMode !== "darkpool" && dataMode !== "scoreboard" && D && (<>
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
           <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />

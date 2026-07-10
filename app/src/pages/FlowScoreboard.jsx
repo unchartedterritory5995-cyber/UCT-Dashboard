@@ -65,7 +65,7 @@ function OiBadge({ confirmed }) {
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
 
-export default function FlowScoreboard() {
+export default function FlowScoreboard({ embedded = false }) {
   const { data, isLoading } = useSWR('/api/flow-scoreboard', fetcher, {
     refreshInterval: 300_000,
     revalidateOnFocus: false,
@@ -75,7 +75,7 @@ export default function FlowScoreboard() {
   const hasData = (data?.picks_tracked ?? 0) > 0
 
   return (
-    <div className={styles.page}>
+    <div className={embedded ? `${styles.page} ${styles.embedded}` : styles.page}>
       {/* ── Hero band ──────────────────────────────────────────────────── */}
       <div className={styles.hero}>
         <div className={styles.heroEyebrow}>

@@ -7,6 +7,13 @@
   margin: 0 auto;
 }
 
+/* Rendered as a section INSIDE the Options Flow page — that page already
+   supplies the outer container/padding/max-width, so strip ours. */
+.embedded {
+  padding: 0;
+  max-width: none;
+}
+
 /* ── Hero band ─────────────────────────────────────────────────────────── */
 
 .hero {

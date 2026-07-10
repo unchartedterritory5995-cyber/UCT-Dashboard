@@ -21,7 +21,6 @@ const NAV_ITEMS = [
   { to: '/patterns',     label: 'Patterns',      icon: 'patterns' },
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
   { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
-  { to: '/flow-scoreboard', label: 'Scoreboard', icon: 'check' },
   { to: '/post-market',  label: 'Post Market',   icon: 'moon' },
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
   { to: '/desk',         label: 'The Desk',      icon: 'desk' },

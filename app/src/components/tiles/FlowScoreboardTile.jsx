@@ -1,6 +1,7 @@
 /**
- * FlowScoreboardTile — compact Dashboard entry point to the public
- * Flow Scoreboard (/flow-scoreboard): the verified Top Flow track record.
+ * FlowScoreboardTile — compact Dashboard entry point to the
+ * Flow Scoreboard section of Options Flow (/options-flow?view=scoreboard):
+ * the verified Top Flow track record.
  *
  * Headline = share of picks whose contract hit +25% at peak, plus the best
  * recent standout. Read-only, one cheap request (server caches 5 min).
@@ -33,7 +34,7 @@ export default function FlowScoreboardTile() {
 
   return (
     <TileCard title="Flow Scoreboard" icon="check" className={styles.tile}>
-      <Link to="/flow-scoreboard" className={styles.body} aria-label="Open the Flow Scoreboard">
+      <Link to="/options-flow?view=scoreboard" className={styles.body} aria-label="Open the Flow Scoreboard">
         {isLoading && !data ? (
           <div className={styles.muted}>Loading…</div>
         ) : !hasData ? (
