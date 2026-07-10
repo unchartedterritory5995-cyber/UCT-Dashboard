@@ -114,13 +114,16 @@ export default function Calendar() {
   const setFilters = f => setPref('calendar_filters', f)
   const setMySources = s => setPref('calendar_mystocks_sources', s)
 
-  // B3: event type filter — persisted as array (Set not JSON-serializable)
-  const _savedEventTypes = parsePref(prefs.calendar_event_types, null)
+  // Event type filter — persisted as array (Set not JSON-serializable). KEY
+  // BUMPED to _v2: macro used to be a locked always-on chip, so every legacy
+  // saved pref carries macro not by choice. Bumping the key resets everyone to
+  // the new earnings-only default; macro/IPO/dividend toggles persist under v2.
+  const _savedEventTypes = parsePref(prefs.calendar_event_types_v2, null)
   const eventTypes = useMemo(
     () => _savedEventTypes ? new Set(_savedEventTypes) : DEFAULT_EVENT_TYPES,
     [_savedEventTypes],
   )
-  const setEventTypes = next => setPref('calendar_event_types', [...next])
+  const setEventTypes = next => setPref('calendar_event_types_v2', [...next])
 
   // Build stable weekDates array from API data
   const weekDates = useMemo(() => {
