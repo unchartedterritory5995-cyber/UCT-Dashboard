@@ -52,6 +52,14 @@ logger = logging.getLogger(__name__)
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 
+# When a contract's MAX(OI) across all its rows is 0 (never OI-snapshotted), we
+# can't judge exceedance. Rather than leave it WHITE and bury real flow (a $1.08M
+# NBIS sweep hid this way), fall back to the contract's largest single-trade
+# premium. KEEP IN SYNC with massive_processor.compute_color's OI_UNKNOWN_* floors
+# — worker colors per-row at write time, this promotes the whole contract at EOD.
+OI_UNKNOWN_MAGENTA_PREMIUM = 250_000
+OI_UNKNOWN_YELLOW_PREMIUM = 100_000
+
 
 def _safe_int(v) -> int:
     """Parse Volume/OI stored as TEXT. Returns 0 on parse failure."""
@@ -93,6 +101,7 @@ def run_color_rebuild(target_date: str) -> dict:
         "contracts_cum_exceeded": 0,
         "contracts_no_exceed": 0,
         "contracts_no_oi": 0,
+        "contracts_oi_unknown_premium": 0,  # oi=0 but promoted on premium fallback
         "rows_upgraded_to_magenta": 0,
         "rows_upgraded_to_yellow": 0,
         "rows_unchanged_white": 0,
@@ -107,7 +116,7 @@ def run_color_rebuild(target_date: str) -> dict:
         # Pull all rows for target_date
         cur.execute("""
             SELECT id, Symbol, CallPut, Strike, ExpirationDate,
-                   Volume, OI, Color
+                   Volume, OI, Color, Premium
             FROM flow
             WHERE CreatedDate = ?
         """, (target_date,))
@@ -128,18 +137,22 @@ def run_color_rebuild(target_date: str) -> dict:
         oi_max = defaultdict(int)
         vol_max = defaultdict(int)
         vol_sum = defaultdict(int)
+        prem_max = defaultdict(int)   # largest single-trade premium (OI-unknown fallback)
 
         for r in rows:
-            (rid, sym, cp, strike, exp, vol_s, oi_s, color) = r
+            (rid, sym, cp, strike, exp, vol_s, oi_s, color, prem_s) = r
             key = (sym, cp, _normalize_strike(strike), exp)
             vol = _safe_int(vol_s)
             oi = _safe_int(oi_s)
+            prem = _safe_int(prem_s)
             current_color = (color or "WHITE").upper()
             all_rows[key].append({"id": rid, "vol": vol, "color": current_color})
             if oi > oi_max[key]:
                 oi_max[key] = oi
             if vol > vol_max[key]:
                 vol_max[key] = vol
+            if prem > prem_max[key]:
+                prem_max[key] = prem
             vol_sum[key] += vol
 
         stats["contracts_evaluated"] = len(all_rows)
@@ -154,8 +167,17 @@ def run_color_rebuild(target_date: str) -> dict:
         for key in all_rows:
             oi = oi_max[key]
             if oi <= 0:
-                contract_target[key] = None
-                stats["contracts_no_oi"] += 1
+                # OI unknown (never snapshotted). Fall back to the contract's
+                # largest single-trade premium instead of burying it WHITE.
+                if prem_max[key] >= OI_UNKNOWN_MAGENTA_PREMIUM:
+                    contract_target[key] = "MAGENTA"
+                    stats["contracts_oi_unknown_premium"] += 1
+                elif prem_max[key] >= OI_UNKNOWN_YELLOW_PREMIUM:
+                    contract_target[key] = "YELLOW"
+                    stats["contracts_oi_unknown_premium"] += 1
+                else:
+                    contract_target[key] = None
+                    stats["contracts_no_oi"] += 1
                 continue
             if vol_max[key] > oi:
                 contract_target[key] = "MAGENTA"
