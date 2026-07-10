@@ -774,6 +774,11 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
                 summary=ins.get("summary", []),
                 poster=poster_ok,
             )
+            try:  # refresh the community thread body with the polished recap (non-fatal)
+                from api.services import community_seed
+                community_seed.upsert_desk_thread(vid)
+            except Exception as ce:
+                print(f"[desk-insights] community seed refresh failed (non-fatal): {ce}")
             has_chapters = True
             results.append({"id": vid, "action": "generated", "source": source,
                             "chapters": len(ins["chapters"]),
@@ -894,6 +899,11 @@ def repolish_video(video_id: int) -> dict:
         summary=ins["summary"],
         poster=poster_ok or None,  # never clear an existing poster flag on a render hiccup
     )
+    try:  # refresh the community thread body with the polished recap (non-fatal)
+        from api.services import community_seed
+        community_seed.upsert_desk_thread(video_id)
+    except Exception as ce:
+        print(f"[desk-insights] community seed refresh failed (non-fatal): {ce}")
     return {"id": int(video_id), "headline": ins["headline"],
             "summary": ins["summary"], "poster": poster_ok}
 

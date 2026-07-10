@@ -278,6 +278,11 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             done.append({"meeting_uuid": uuid, "youtube_id": vid, "title": title})
             if created_now:                 # alert once, only on a genuinely-new publish
                 _notify_published(title, vid, section)
+                try:  # seed the community Mentor Desk thread — NEVER fail publish over it
+                    from api.services import community_seed
+                    community_seed.seed_for_youtube_id(vid)
+                except Exception as ce:
+                    print(f"[desk-sessions] community seed failed (non-fatal): {ce}")
         except Exception as e:
             desk_session_jobs.mark_error(uuid, e)
         finally:

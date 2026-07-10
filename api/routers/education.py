@@ -189,7 +189,13 @@ def add_video(body: VideoIn, _admin: dict = Depends(require_admin)):
         raise HTTPException(400, "title required")
     payload = body.model_dump()
     payload["youtube_id"] = yt
-    return svc.create_video(payload)
+    created = svc.create_video(payload)
+    try:  # seed a community discussion thread for the new video (non-fatal)
+        from api.services import community_seed
+        community_seed.upsert_desk_thread(created["id"])
+    except Exception as ce:
+        print(f"[education] community seed failed (non-fatal): {ce}")
+    return created
 
 
 @router.patch("/videos/{video_id}")
