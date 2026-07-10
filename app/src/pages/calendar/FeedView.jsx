@@ -297,7 +297,7 @@ export default function FeedView({ weekDates, days, filters, onSelect, eventType
           /> : null)}
       {!anyContent && (
         <div className={styles.feedEmpty}>
-          No companies reporting this week{filters.audience !== 'all' ? ' in this view — try All ($300M+)' : ''}.
+          No companies reporting this week{filters.audience !== 'all' ? ' in this view — try the All filter' : ''}.
         </div>
       )}
     </div>

@@ -427,6 +427,10 @@
      the whole property (a media query can't override an inline property, but
      it CAN override this stylesheet-declared one). */
   grid-template-columns: var(--week-cols, repeat(5, minmax(150px, 1fr)));
+  /* start (not the default stretch): each day's column sizes to its OWN
+     content, so a quiet Monday doesn't stretch to Thursday's height leaving a
+     big empty box. Load-proportional WIDTH + content HEIGHT = real mosaic. */
+  align-items: start;
   gap: 10px;
   padding: 16px 18px;
 }
@@ -436,7 +440,7 @@
   border: 1px solid var(--cal-line);
   border-radius: 12px;
   padding: 16px;
-  min-height: 240px;
+  min-height: 150px;
 }
 
 .wcolToday {

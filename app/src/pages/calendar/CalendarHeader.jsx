@@ -10,7 +10,7 @@ import styles from './Calendar.module.css'
 
 const AUDIENCE = [
   ['mine', 'My Stocks', 'star-fill'], ['watchlist', 'Watchlist'], ['positions', 'Positions'],
-  ['uct20', 'UCT20'], ['all', 'All ($300M+)'],
+  ['uct20', 'UCT20'], ['all', 'All'],
 ]
 const SORTS = [['mine', 'My stocks first'], ['time', 'Time'], ['mcap', 'Market cap'], ['move', 'Expected move']]
 const SOURCES = [['watchlist','Watchlists'],['flagged','Flagged'],['positions','Positions'],['uct20','UCT20']]
