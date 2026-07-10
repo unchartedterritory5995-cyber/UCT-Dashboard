@@ -22,7 +22,6 @@ const COLUMNS = [
   { key: 'sym',  label: 'Company',  sortable: true,  numeric: false },
   { key: 'mc_b', label: 'Cap',      sortable: true,  numeric: true },
   { key: 'eps',  label: 'EPS est',  sortable: true,  numeric: true },
-  { key: 'rev',  label: 'Rev est',  sortable: true,  numeric: true },
   { key: 'move', label: 'Move ±%',  sortable: true,  numeric: true },
   { key: 'beat', label: 'Beats',    sortable: false, numeric: false },
 ]
@@ -63,7 +62,6 @@ function Row({ e, onSelect }) {
             )}</>
           : fmtEps(e.eps_est)}
       </span>
-      <span className={styles.dtNum}>{reported ? fmtRev(e.rev_act) : fmtRev(e.rev_est)}</span>
       <span className={`${styles.dtNum} ${styles.dtMove}`}>
         {e.expected_move?.pct != null ? `±${e.expected_move.pct}%` : ''}
       </span>

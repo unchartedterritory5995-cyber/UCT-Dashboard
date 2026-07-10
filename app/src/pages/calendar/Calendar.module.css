@@ -2446,7 +2446,9 @@
 
 .dtHead {
   display: grid;
-  grid-template-columns: minmax(180px, 2.2fr) 0.7fr 1.1fr 0.9fr 0.8fr 0.9fr;
+  /* 5 content columns clustered left + a flex spacer so the data reads as a
+     tight list, not a spreadsheet stretched thin across the whole width. */
+  grid-template-columns: minmax(200px, 2.2fr) 92px 128px 116px 128px 1.4fr;
   gap: 8px;
   padding: 0 12px;
   background: rgba(255, 255, 255, 0.02);
@@ -2485,7 +2487,7 @@
 
 .dtRow {
   display: grid;
-  grid-template-columns: minmax(180px, 2.2fr) 0.7fr 1.1fr 0.9fr 0.8fr 0.9fr;
+  grid-template-columns: minmax(200px, 2.2fr) 92px 128px 116px 128px 1.4fr;
   gap: 8px;
   align-items: center;
   min-height: 36px;
@@ -2613,19 +2615,17 @@
   padding: 1px 6px;
 }
 
-/* Phone: the 6-column desktop table collapses to 3 ALIGNED columns —
-   Company · EPS · Move. Cap (col 2), Rev (col 4) and Beats (col 6) hide on
-   BOTH the header row and the data rows so cell counts stay matched (hiding
-   only 2 of 6 left 4 cells in a 3-track grid → wrap + misalignment). */
+/* Phone: the 5-column desktop table collapses to 3 ALIGNED columns —
+   Company · EPS · Move. Cap (col 2) and Beats (col 5) hide on BOTH the header
+   row and the data rows so cell counts stay matched (a mismatch → wrap +
+   misalignment). Cap = .dtNum:nth-of-type(1); EPS = 2; Move = 3. */
 @media (max-width: 640px) {
   .dtHead, .dtRow {
     grid-template-columns: minmax(110px, 2fr) 0.9fr 0.8fr;
   }
   .dtHead .dtTh:nth-child(2),
-  .dtHead .dtTh:nth-child(4),
-  .dtHead .dtTh:nth-child(6),
+  .dtHead .dtTh:nth-child(5),
   .dtRow .dtNum:nth-of-type(1),
-  .dtRow .dtNum:nth-of-type(3),
   .dtRow .dtBeats {
     display: none;
   }
