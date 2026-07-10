@@ -2061,7 +2061,10 @@ def export_single_report_ics(sym: str, date: str, timing: str = "tbd"):
     from datetime import date as _date_cls   # the `date` param shadows the import
     s = (sym or "").upper().strip()
     core = s.replace(".", "").replace("-", "")
-    if not s or len(core) > 6 or not core.isalpha() or not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+    # ASCII letters ONLY — str.isalpha() is Unicode-broad (日本/café pass), and a
+    # non-latin-1 sym crashes latin-1 header encoding → an unauth 500.
+    if not s or len(core) > 6 or not (core.isascii() and core.isalpha()) \
+            or not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
         return _Response(content="bad request", status_code=400, media_type="text/plain")
     try:
         _date_cls.fromisoformat(date)   # reject 2026-13-05 etc.

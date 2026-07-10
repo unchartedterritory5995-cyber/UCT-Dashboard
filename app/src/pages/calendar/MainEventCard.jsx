@@ -7,6 +7,7 @@ import UIcon from '../../components/ui/UIcon'
 import { useTickerActions } from '../../components/TickerActions'
 import TickerActionsMenu from '../../components/TickerActions'
 import { editorialLine } from './importance'
+import { isReportingNow } from './calendarTime'
 import { BeatDots, ReactionSpark, ExpectedMovePair } from './cardBits'
 import styles from './Calendar.module.css'
 
@@ -76,10 +77,16 @@ export default function MainEventCard({ entry, timing, livePrice, reaction, hasK
             <div className={styles.nm}>{entry.name || ''}</div>
           </div>
           <span className={styles.mainRight}>
-            <span className={`${styles.session} ${sessionCls}`}
-                  title={timing === 'bmo' ? 'Before market open' : timing === 'amc' ? 'After market close' : 'Report session not yet confirmed'}>
-              {sessionLbl}
-            </span>
+            {isReportingNow(entry) ? (
+              <span className={styles.reportingChip} title="In its reporting window now — results expected shortly">
+                REPORTING
+              </span>
+            ) : (
+              <span className={`${styles.session} ${sessionCls}`}
+                    title={timing === 'bmo' ? 'Before market open' : timing === 'amc' ? 'After market close' : 'Report session not yet confirmed'}>
+                {sessionLbl}
+              </span>
+            )}
             {fmtCap(entry.mc_b) && <span className={styles.capBadge}>{fmtCap(entry.mc_b)}</span>}
           </span>
         </div>

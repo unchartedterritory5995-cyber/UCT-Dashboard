@@ -20,11 +20,14 @@ export default function DayDetailDrawer({ ds, day, onClose, onSelect }) {
     return () => { document.body.style.overflow = prev }
   }, [day])
   if (!day) return null
-  const bmo = (day.bmo||[]).map(e=>({...e,_timing:'bmo'}))
-  const amc = (day.amc||[]).map(e=>({...e,_timing:'amc'}))
+  // Stamp _ds from the drawer's own date so entries from the month payload
+  // (which never carry it) still power the modal's Add-to-calendar button;
+  // current-week entries already have _ds and keep it.
+  const bmo = (day.bmo||[]).map(e=>({...e,_timing:'bmo',_ds:e._ds||ds}))
+  const amc = (day.amc||[]).map(e=>({...e,_timing:'amc',_ds:e._ds||ds}))
   // FMP-fallback weeks put EVERY reporter in tbd — omitting the bucket made
   // month drill-downs show a counted cell open into an empty drawer.
-  const tbd = (day.tbd||[]).map(e=>({...e,_timing:'tbd'}))
+  const tbd = (day.tbd||[]).map(e=>({...e,_timing:'tbd',_ds:e._ds||ds}))
   return (
     <div className={styles.drawerBackdrop} onClick={onClose}>
       <div className={styles.drawer} onClick={e => e.stopPropagation()}>

@@ -302,3 +302,6 @@ def test_report_ics_rejects_bad_input():
     assert mod.export_single_report_ics(sym="TOOLONGSYM", date="2026-07-16").status_code == 400
     assert mod.export_single_report_ics(sym="PEP", date="2026-13-05").status_code == 400
     assert mod.export_single_report_ics(sym="PEP", date="notadate").status_code == 400
+    # non-ASCII letters pass str.isalpha() but must be rejected (latin-1 header crash)
+    assert mod.export_single_report_ics(sym="日本", date="2026-07-16").status_code == 400
+    assert mod.export_single_report_ics(sym="café", date="2026-07-16").status_code == 400
