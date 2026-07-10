@@ -130,14 +130,20 @@ export default function VideoDockSlot() {
 
   return (
     <div className={styles.theater}>
-      {/* Reserved 16:9 box the fixed player host positions itself over. */}
-      <div ref={boxRef} className={styles.dockBox} aria-label={`Now playing: ${current.title}`} />
-      <div className={styles.meta}>
-        <div className={styles.title}>{current.title}</div>
-        {headline && <p className={styles.headline}>{headline}</p>}
-        {!headline && current.description && <p className={styles.desc}>{current.description}</p>}
-      </div>
+      <div className={styles.videoGrid}>
+        <div className={styles.mainCol}>
+          {/* Reserved 16:9 box the fixed player host positions itself over. */}
+          <div ref={boxRef} className={styles.dockBox} aria-label={`Now playing: ${current.title}`} />
+          <div className={styles.meta}>
+            <div className={styles.title}>{current.title}</div>
+            {headline && <p className={styles.headline}>{headline}</p>}
+            {!headline && current.description && <p className={styles.desc}>{current.description}</p>}
+          </div>
+        </div>
 
+        {/* Right rail — recap, tickers, chapters, and notes read beside the
+            video instead of below it. Stacks under the video on ≤1024px. */}
+        <aside className={styles.railCol}>
       {(posterUrl || summary.length > 0) && (
         <div className={styles.recapWrap}>
           {posterUrl && (
@@ -253,6 +259,8 @@ export default function VideoDockSlot() {
             </button>
           </>
         )}
+      </div>
+        </aside>
       </div>
 
       {upcoming.length > 0 && (

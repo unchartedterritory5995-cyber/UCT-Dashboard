@@ -2,6 +2,38 @@
   margin: 0 0 18px;
 }
 
+/* Two-column theater: the video + its title stay on the left; the session
+   rail (recap / tickers / chapters / notes) sits to the right of the video
+   instead of stacking below it. Single column on phone + tablet so the
+   video keeps full width; the rail becomes a right column at ≥1025px. */
+.videoGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mainCol {
+  min-width: 0;
+}
+.railCol {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* Section blocks carry their own margin-top for the stacked layout — the
+   rail uses `gap` for spacing, so neutralize the doubled top margin. */
+.railCol > * {
+  margin-top: 0;
+}
+@media (min-width: 1025px) {
+  .videoGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
+  }
+}
+
 /* Slim "playing in mini-player" strip shown on the Desk while the user has
    parked the video in the corner. One click restores the full theater. */
 .restoreStrip {
@@ -153,7 +185,8 @@
 }
 .recapWrap {
   display: flex;
-  gap: 14px;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 14px;
   align-items: flex-start;
 }
