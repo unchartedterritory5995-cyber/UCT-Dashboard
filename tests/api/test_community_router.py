@@ -222,3 +222,28 @@ async def test_image_upload_roundtrip(client_for, monkeypatch, tmp_path):
         r3 = await ac.post("/api/community/images",
                            files={"file": ("x.txt", b"hello", "text/plain")})
         assert r3.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_threads_carry_author_names(client_for, monkeypatch):
+    from api.services import community_store
+    # seeded thread (author_id NULL) + a member thread
+    seeded = community_store.create_thread("mentor-desk", None, "Session", body="{}",
+                                           desk_content_id=41)
+    async with client_for(MEMBER) as ac:
+        rows = (await ac.get("/api/community/threads",
+                             params={"space": "mentor-desk"})).json()["threads"]
+    assert rows[0]["author"] == {"name": "UCT Mentor", "is_mentor": True}
+
+
+@pytest.mark.asyncio
+async def test_desk_threads_batch(client_for):
+    from api.services import community_store
+    tid = community_store.create_thread("mentor-desk", None, "Session", body="{}",
+                                        desk_content_id=41)
+    community_store.create_post(tid, "u-z", "{}")
+    async with client_for(MEMBER) as ac:
+        r = await ac.get("/api/community/desk-threads", params={"ids": "41,42"})
+    body = r.json()
+    assert body["41"]["thread_id"] == tid and body["41"]["reply_count"] == 1
+    assert "42" not in body

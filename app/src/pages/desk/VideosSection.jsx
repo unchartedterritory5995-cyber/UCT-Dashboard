@@ -3,6 +3,7 @@
 // Videos live unlisted on YouTube; we embed via youtube-nocookie.com. Admins
 // manage the catalog inline (add/edit/remove) — no code edits to add a video.
 import { useState, useMemo, useCallback, useEffect, useSyncExternalStore } from 'react'
+import { Link } from 'react-router-dom'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
@@ -63,6 +64,18 @@ export default function VideosSection() {
     )
   }, [data])
   const total = data?.total ?? 0
+
+  // Community "Discussion" links: one batch lookup of desk-seeded threads for
+  // every video on the page. Flag-off → endpoint 503s → fetcher returns null →
+  // no links render (the desired dark behavior).
+  const allVideoIds = useMemo(
+    () => (categories || []).flatMap((c) => c.videos.map((v) => v.id)).filter(Boolean),
+    [categories],
+  )
+  const { data: deskThreads } = useSWR(
+    allVideoIds.length ? `/api/community/desk-threads?ids=${allVideoIds.join(',')}` : null,
+    fetcher,
+  )
 
   // "Continue watching": started-but-unfinished videos, newest first. Each opens
   // the player inside its own category so the Up Next rail keeps working.
@@ -271,6 +284,15 @@ export default function VideosSection() {
                 <div className={styles.cardBody}>
                   <div className={styles.cardTitle}>{v.title}</div>
                   {v.description && <div className={styles.cardDesc}>{v.description}</div>}
+                  {deskThreads?.[String(v.id)] && (
+                    <Link
+                      to={`/community/${deskThreads[String(v.id)].thread_id}`}
+                      className={styles.discussLink}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Discussion ({deskThreads[String(v.id)].reply_count})
+                    </Link>
+                  )}
                 </div>
                 {isAdmin && (
                   <div className={styles.cardAdmin}>

@@ -5,6 +5,7 @@ Spec: docs/superpowers/specs/2026-07-09-community-space-design.md
 """
 import json
 import os
+from contextlib import closing as _closing
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -39,6 +40,37 @@ def _is_mentor(user: dict) -> bool:
     return user.get("role") == "admin"
 
 
+_MENTOR_AUTHOR = {"name": "UCT Mentor", "is_mentor": True}
+
+
+def _author_map(ids):
+    ids = sorted({i for i in ids if i})
+    if not ids:
+        return {}
+    try:
+        from api.services.auth_db import get_connection as _auth_conn
+        q = ",".join("?" * len(ids))
+        with _closing(_auth_conn()) as conn:
+            rows = conn.execute(
+                f"SELECT id, display_name, email, role FROM users WHERE id IN ({q})",
+                ids).fetchall()
+        return {r["id"]: {"name": r["display_name"]
+                                  or (r["email"] or "member").split("@")[0],
+                          "is_mentor": r["role"] == "admin"}
+                for r in rows}
+    except Exception:
+        return {}
+
+
+def _attach_authors(items):
+    amap = _author_map([i.get("author_id") for i in items])
+    for i in items:
+        aid = i.get("author_id")
+        i["author"] = dict(_MENTOR_AUTHOR) if aid is None else \
+            amap.get(aid, {"name": "member", "is_mentor": False})
+    return items
+
+
 @router.get("/status")
 def status(user: dict = Depends(get_current_user)):
     enabled = _enabled()
@@ -71,7 +103,24 @@ def threads(space: str = Query(...), limit: int = Query(50, ge=1, le=100),
             user: dict = Depends(require_community)):
     if space not in store.SPACES:
         raise HTTPException(status_code=400, detail="Unknown space")
-    return {"threads": store.list_threads(space, limit=limit, offset=offset)}
+    return {"threads": _attach_authors(store.list_threads(space, limit=limit, offset=offset))}
+
+
+@router.get("/desk-threads")
+def desk_threads(ids: str = Query(""), user: dict = Depends(require_community)):
+    out = {}
+    for raw in ids.split(",")[:100]:
+        raw = raw.strip()
+        if not raw.isdigit():
+            continue
+        t = store.get_thread_by_desk_id(int(raw))
+        if not t or t.get("deleted"):
+            continue
+        detail = store.list_threads(t["space"], limit=1000)
+        match = next((x for x in detail if x["id"] == t["id"]), None)
+        out[raw] = {"thread_id": t["id"],
+                    "reply_count": match["reply_count"] if match else 0}
+    return out
 
 
 @router.get("/threads/{thread_id}")
@@ -79,6 +128,8 @@ def thread_detail(thread_id: int, user: dict = Depends(require_community)):
     t = store.get_thread(thread_id)
     if not t:
         raise HTTPException(status_code=404, detail="Thread not found")
+    _attach_authors([t])
+    _attach_authors(t["posts"])
     return t
 
 
