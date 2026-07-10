@@ -34,7 +34,6 @@ from api.services.journal_two import (
     discipline as discipline_service,
     nudges as nudges_service,
     options as options_service,
-    playbook as playbook_service,
     positions as positions_service,
     regime as regime_service,
     settings as settings_service,
