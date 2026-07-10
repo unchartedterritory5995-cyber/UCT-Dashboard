@@ -93,6 +93,19 @@ async def test_delete_scoped_to_owner(env):
     assert len(ta.list_trade_attachments("u1", "id:t1")) == 1
 
 
+async def test_save_rejects_traversal_ref(env):
+    ta = env
+    # Defense-in-depth: a trade_ref that would escape the user dir is rejected
+    # at write time (mirrors the serve-path guard). Not reachable via any
+    # current endpoint, but future ref derivations can't punch through.
+    for bad in ("id:../../etc", "ext:bk:../x", "id:/abs"):
+        with pytest.raises(ta.TradeAttachmentError):
+            await ta.save_trade_attachment("u1", bad, _FakeUpload(_PNG, "x.png", "image/png"))
+    # A normal broker ref still works (':' → '_', no traversal chars)
+    out = await ta.save_trade_attachment("u1", "ext:bk:abc123", _FakeUpload(_PNG, "x.png", "image/png"))
+    assert "/ext_bk_abc123/" in out["url"]
+
+
 async def test_serve_path_rejects_traversal(env):
     ta = env
     out = await ta.save_trade_attachment("u1", "id:t1", _FakeUpload(_PNG, "x.png", "image/png"))

@@ -40,8 +40,14 @@ def _now_iso() -> str:
 
 def _ref_dir(trade_ref: str) -> str:
     """Filesystem-safe directory name for a trade_ref. Refs contain ':' which is
-    invalid in Windows filenames and dangerous in a path — map it to '_'."""
-    return trade_ref.replace(":", "_")
+    invalid in Windows filenames and dangerous in a path — map it to '_'.
+    Defense-in-depth: reject any separator/traversal characters so a future
+    trade_ref derivation can never make the write path escape the user dir
+    (every current ref is server-safe: id:<uuid> / bk:/bkopt:/csv: + sha1-hex)."""
+    safe = trade_ref.replace(":", "_")
+    if "/" in safe or "\\" in safe or safe.startswith(".") or ".." in safe:
+        raise TradeAttachmentError("Invalid trade reference")
+    return safe
 
 
 async def save_trade_attachment(user_id: str, trade_ref: str, upload) -> dict[str, Any]:

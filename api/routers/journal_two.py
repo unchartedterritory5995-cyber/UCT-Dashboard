@@ -573,6 +573,12 @@ def import_confirm(
     trades = payload.get("trades") if isinstance(payload, dict) else None
     if not isinstance(trades, list):
         raise HTTPException(status_code=400, detail="trades[] is required")
+    # Bound the confirm body — the /import/preview CSV read is 10MB-capped, but
+    # a hand-crafted JSON confirm bypasses that. One giant transaction holds the
+    # serialized SQLite write lock on the shared event loop (the 524-outage
+    # class), so cap the batch. Real imports are far under this.
+    if len(trades) > 10000:
+        raise HTTPException(status_code=400, detail="Too many trades in one import (max 10,000)")
 
     # Minimal re-validation defense: required fields present, shapes sane.
     # The pre-matched parser already validated everything; this is a

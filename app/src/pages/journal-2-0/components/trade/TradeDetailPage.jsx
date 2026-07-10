@@ -103,15 +103,18 @@ export default function TradeDetailPage() {
   } = useTradeReview(accountId)
   useEffect(() => { resetReview() }, [id, resetReview])
 
-  // Fire-and-forget page-open telemetry once per mount (P1a event).
+  // Fire-and-forget page-open telemetry per trade viewed. Keyed on `id` (not
+  // []) so prev/next browsing — which changes the param without remounting —
+  // counts each trade opened, matching the "trade-page opens per session" goal.
   useEffect(() => {
+    if (!id) return
     fetch('/api/j2/telemetry', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ event: 'trade_page_open' }),
     }).catch(() => {})
-  }, [])
+  }, [id])
 
   // Seed / reset per-trade local drafts when the LOADED trade changes — keyed
   // on trade?.id (not the route id) so notes populate once the async fetch
@@ -223,6 +226,12 @@ export default function TradeDetailPage() {
   const submitStop = () => {
     const v = Number(stopInput)
     if (!Number.isFinite(v) || v <= 0) { setPatchError('Enter a stop price above 0.'); return }
+    // A stop equal to entry is the "no stop logged" sentinel (R stays null), so
+    // saving it would silently re-render the same "R: —" state. Reject it with
+    // a clear hint instead of a confusing no-op.
+    if (trade?.entryPrice != null && v === Number(trade.entryPrice)) {
+      setPatchError('Stop must differ from entry price.'); return
+    }
     patchTrade({ originalStop: v }, { originalStop: v })
     setAddingStop(false)
   }
