@@ -75,3 +75,128 @@ async def test_spaces_and_threads_read(client_for):
         assert (await ac.get("/api/community/threads/999999")).status_code == 404
         assert (await ac.get("/api/community/threads",
                              params={"space": "nope"})).status_code == 400
+
+
+VALID_BODY = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"hi"}]}]}'
+
+
+async def _ack(ac):
+    assert (await ac.post("/api/community/ack")).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_thread_write_requires_ack(client_for):
+    async with client_for(MEMBER) as ac:
+        r = await ac.post("/api/community/threads",
+                          json={"space": "trade-ideas", "title": "t", "body": VALID_BODY})
+        assert r.status_code == 403 and r.json()["detail"] == "acknowledgment_required"
+        await _ack(ac)
+        r = await ac.post("/api/community/threads",
+                          json={"space": "trade-ideas", "title": "t", "body": VALID_BODY})
+        assert r.status_code == 200 and r.json()["id"] > 0
+
+
+@pytest.mark.asyncio
+async def test_member_cannot_post_thread_in_mentor_desk(client_for):
+    async with client_for(MEMBER) as ac:
+        await _ack(ac)
+        r = await ac.post("/api/community/threads",
+                          json={"space": "mentor-desk", "title": "t", "body": VALID_BODY})
+        assert r.status_code == 403
+    async with client_for(ADMIN) as ac:
+        await _ack(ac)
+        r = await ac.post("/api/community/threads",
+                          json={"space": "mentor-desk", "title": "lesson", "body": VALID_BODY})
+        assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_muted_member_cannot_write(client_for):
+    from api.services import community_store
+    community_store.set_ack(MEMBER["id"])
+    community_store.set_muted(MEMBER["id"], True)
+    async with client_for(MEMBER) as ac:
+        r = await ac.post("/api/community/threads",
+                          json={"space": "trade-ideas", "title": "t", "body": VALID_BODY})
+        assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_thread_rate_limit_429(client_for):
+    async with client_for(MEMBER) as ac:
+        await _ack(ac)
+        for _ in range(5):
+            r = await ac.post("/api/community/threads",
+                              json={"space": "trade-ideas", "title": "t", "body": VALID_BODY})
+            assert r.status_code == 200
+        r = await ac.post("/api/community/threads",
+                          json={"space": "trade-ideas", "title": "t", "body": VALID_BODY})
+        assert r.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_reply_locked_and_bad_parent(client_for):
+    from api.services import community_store
+    community_store.set_ack(MEMBER["id"])
+    tid = community_store.create_thread("questions", "u-x", "q", body=VALID_BODY)
+    async with client_for(MEMBER) as ac:
+        p1 = (await ac.post(f"/api/community/threads/{tid}/posts",
+                            json={"body": VALID_BODY})).json()["id"]
+        p2 = (await ac.post(f"/api/community/threads/{tid}/posts",
+                            json={"body": VALID_BODY, "parent_post_id": p1})).json()["id"]
+        r = await ac.post(f"/api/community/threads/{tid}/posts",
+                          json={"body": VALID_BODY, "parent_post_id": p2})
+        assert r.status_code == 400
+        community_store.set_thread_flag(tid, "locked", 1)
+        r = await ac.post(f"/api/community/threads/{tid}/posts", json={"body": VALID_BODY})
+        assert r.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_mod_actions_admin_only(client_for):
+    from api.services import community_store
+    tid = community_store.create_thread("questions", "u-x", "q", body=VALID_BODY)
+    async with client_for(MEMBER) as ac:
+        assert (await ac.patch(f"/api/community/threads/{tid}/mod",
+                               json={"pinned": True})).status_code == 403
+    async with client_for(ADMIN) as ac:
+        assert (await ac.patch(f"/api/community/threads/{tid}/mod",
+                               json={"pinned": True, "answered": True})).status_code == 200
+    assert community_store.get_thread(tid)["pinned"] == 1
+
+
+@pytest.mark.asyncio
+async def test_delete_own_content_only(client_for):
+    from api.services import community_store
+    community_store.set_ack(MEMBER["id"])
+    tid = community_store.create_thread("questions", "other-user", "q", body=VALID_BODY)
+    async with client_for(MEMBER) as ac:
+        assert (await ac.delete(f"/api/community/threads/{tid}")).status_code == 403
+    async with client_for(ADMIN) as ac:
+        assert (await ac.delete(f"/api/community/threads/{tid}")).status_code == 200
+    assert community_store.get_thread(tid) is None
+
+
+@pytest.mark.asyncio
+async def test_report_hide_flow(client_for):
+    from api.services import community_store
+    tid = community_store.create_thread("questions", "u-x", "bad", body=VALID_BODY)
+    async with client_for(MEMBER) as ac:
+        rid = (await ac.post("/api/community/reports",
+                             json={"thread_id": tid, "reason": "spam"})).json()["id"]
+    async with client_for(ADMIN) as ac:
+        reports = (await ac.get("/api/community/admin/reports")).json()["reports"]
+        assert reports[0]["id"] == rid
+        assert (await ac.patch(f"/api/community/admin/reports/{rid}",
+                               json={"action": "hide"})).status_code == 200
+    assert community_store.get_thread(tid) is None          # soft-deleted
+    assert community_store.list_reports("hidden")[0]["id"] == rid
+
+
+@pytest.mark.asyncio
+async def test_invalid_body_json_400(client_for):
+    async with client_for(MEMBER) as ac:
+        await _ack(ac)
+        r = await ac.post("/api/community/threads",
+                          json={"space": "trade-ideas", "title": "t", "body": "not json{"})
+        assert r.status_code == 400
