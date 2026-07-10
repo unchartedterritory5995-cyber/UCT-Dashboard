@@ -228,6 +228,22 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
         </span>
       )}
 
+      {/* Guidance chip — the field already rides the recap payload (zero new
+          spend). Guidance moves stocks as much as the print and appears in no
+          retail calendar. */}
+      {recap.guidance && recap.guidance !== 'none' && (
+        <span
+          className={
+            recap.guidance === 'raised' ? styles.guideUp :
+            recap.guidance === 'cut' ? styles.guideDn :
+            styles.guideFlat
+          }
+          title="Management's forward guidance vs. prior"
+        >
+          GUIDANCE {recap.guidance === 'raised' ? 'RAISED' : recap.guidance === 'cut' ? 'LOWERED' : 'MAINTAINED'}
+        </span>
+      )}
+
       {/* Bullets */}
       {filteredBullets.length > 0 && (
         <>

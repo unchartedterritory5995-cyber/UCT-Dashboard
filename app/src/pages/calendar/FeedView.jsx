@@ -11,6 +11,7 @@ import { applyFilters, sortEntries } from './filterLogic'
 import { impEff } from './importance'
 import { useReactions } from './useCalendarData'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
+import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
 function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay, pulse, tiers }) {
@@ -102,6 +103,11 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
       </div>
       <MacroBand econ={day.econ} fed={day.fed} />
 
+      {/* Print Tape — today's market-wide scoreboard during the print window */}
+      {day.is_today && inPrintWindow() && (
+        <PrintTape entries={entries} reactions={reactions} onSelect={onSelect} />
+      )}
+
       {/* The curated lead — exactly one, only when the day earns it */}
       {mainEntry && (
         <div className={styles.mainEventWrap}>
@@ -147,6 +153,66 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Print Tape ───────────────────────────────────────────────────────────────
+// After the close (and pre-open for BMO), today's board leads with a
+// market-wide scoreboard of what just reported, sorted by |surprise|. No
+// competitor reflows the calendar itself in real time. Pure client-side.
+function inPrintWindow() {
+  try {
+    const h = new Date().toLocaleString('en-US', {
+      timeZone: 'America/New_York', hour: '2-digit', hour12: false,
+    })
+    const hour = parseInt(h, 10)   // "24" at midnight ET on some engines → falls through fine
+    return hour >= 16 || (hour >= 6 && hour < 10)   // post-close OR pre-open
+  } catch { return false }
+}
+
+function PrintTape({ entries, reactions, onSelect }) {
+  const reported = useMemo(() => {
+    const withActual = entries.filter(e => e.eps_act != null)
+    const surp = e => {
+      if (e.eps_est == null || e.eps_est === 0) return 0
+      return Math.abs((e.eps_act - e.eps_est) / e.eps_est)
+    }
+    return [...withActual].sort((a, b) => surp(b) - surp(a)).slice(0, 12)
+  }, [entries])
+  if (!reported.length) return null
+  const surprise = (a, e) => (a == null || e == null || e === 0)
+    ? null : ((a - e) / Math.abs(e)) * 100
+  return (
+    <div className={styles.printTape}>
+      <div className={styles.printTapeHd}>
+        <UIcon name="bolt" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+        Print Tape<span className={styles.printTapeCap}>· just reported, biggest surprise first</span>
+      </div>
+      <div className={styles.printTapeRows}>
+        {reported.map(e => {
+          const s = surprise(e.eps_act, e.eps_est)
+          const gap = reactions?.[e.sym]
+          const beat = s == null ? null : s >= 0
+          return (
+            <button key={`pt-${e.sym}`} className={styles.printRow}
+                    onClick={() => onSelect?.(e, e._timing)}>
+              <CompanyLogo sym={e.sym} size={18} tile />
+              <span className={styles.printSym}>{e.sym}</span>
+              {beat != null && (
+                <span className={beat ? styles.printBeat : styles.printMiss}>
+                  {beat ? 'BEAT' : 'MISS'}{s != null && ` ${s >= 0 ? '+' : ''}${s.toFixed(0)}%`}
+                </span>
+              )}
+              {gap != null && (
+                <span className={gap >= 0 ? styles.pos : styles.neg}>
+                  {gap >= 0 ? '▲ +' : '▼ '}{gap.toFixed(1)}%
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

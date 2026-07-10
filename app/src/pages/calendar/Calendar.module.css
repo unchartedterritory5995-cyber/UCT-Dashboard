@@ -2544,3 +2544,109 @@
   .dtRow { min-height: 40px; }
   .cardMainEvent { max-width: none; }
 }
+
+
+/* ================================================================
+   Phase 3 — Today's Brief rail (the retention moat, Board only)
+   ================================================================ */
+
+.brief {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 18px;
+  margin: 0 18px 4px;
+  border: 1px solid var(--cal-line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.04), transparent);
+}
+.briefCluster { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.briefLbl {
+  flex: 0 0 92px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--cal-muted);
+}
+.briefScroll {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  min-width: 0; padding-bottom: 2px;
+}
+.briefScroll::-webkit-scrollbar { display: none; }
+.briefCard {
+  display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
+  background: var(--cal-panel); border: 1px solid var(--cal-line2);
+  border-radius: 10px; padding: 5px 10px 5px 6px; cursor: pointer;
+  transition: border-color 0.12s;
+}
+.briefCard:hover { border-color: var(--cal-gold); }
+.briefSym { font-size: 13px; font-weight: 800; color: var(--cal-txt); }
+.briefWhen { font-size: 10px; color: var(--cal-muted); white-space: nowrap; }
+.briefBadge, .briefBadgeGold {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
+  border-radius: 4px; padding: 1px 5px;
+}
+.briefBadge { color: var(--cal-dim); background: rgba(255, 255, 255, 0.06); }
+.briefBadgeGold { color: #1a1408; background: var(--cal-gold); }
+.briefChip {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  background: var(--cal-panel); border: 1px solid var(--cal-line2);
+  border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 700;
+  cursor: pointer; color: var(--cal-dim); transition: border-color 0.12s;
+}
+.briefChip:hover { border-color: var(--cal-line2); }
+.briefChipBeat { border-color: rgba(60, 184, 104, 0.4); }
+.briefChipMiss { border-color: rgba(231, 76, 60, 0.4); }
+.briefMacro {
+  display: inline-flex; align-items: center; flex: 0 0 auto;
+  font-size: 11px; color: var(--cal-dim); white-space: nowrap;
+}
+.briefMacroTm { color: var(--cal-muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
+.briefMacroEst { color: var(--cal-muted); }
+.briefEmpty {
+  display: flex; align-items: center; gap: 10px; padding: 10px 18px;
+  margin: 0 18px 4px; border: 1px dashed var(--cal-line2); border-radius: 10px;
+  font-size: 11px; color: var(--cal-muted);
+}
+.briefEmpty > span:first-child { flex: 1; }
+.briefEmptyLink { color: var(--cal-gold); text-decoration: none; font-weight: 700; }
+.briefDismiss {
+  margin-left: 4px; background: none; border: none; color: var(--cal-muted);
+  cursor: pointer; padding: 4px; display: inline-flex;
+}
+.briefDismiss:hover { color: var(--cal-txt); }
+
+/* ── Phase 3 — Print Tape (today's reported scoreboard) ──────────────────── */
+
+.printTape {
+  border: 1px solid rgba(201, 168, 76, 0.3); border-radius: 12px;
+  background: rgba(201, 168, 76, 0.04); padding: 12px 14px; margin-bottom: 14px;
+}
+.printTapeHd {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--cal-gold); margin-bottom: 10px;
+}
+.printTapeCap {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
+  text-transform: none; color: var(--cal-muted); margin-left: 6px;
+}
+.printTapeRows {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 4px 12px;
+}
+.printRow {
+  display: flex; align-items: center; gap: 8px; background: none; border: none;
+  padding: 5px 6px; border-radius: 8px; cursor: pointer; min-width: 0;
+  transition: background 0.1s;
+}
+.printRow:hover { background: rgba(255, 255, 255, 0.05); }
+.printSym { font-size: 13px; font-weight: 800; color: var(--cal-txt); flex: 0 0 auto; }
+.printBeat, .printMiss { font-size: 10px; font-weight: 800; letter-spacing: 0.3px; flex: 0 0 auto; }
+.printBeat { color: var(--cal-green); }
+.printMiss { color: var(--cal-red); }
+
+@media (max-width: 640px) {
+  .brief { margin: 0 12px 4px; padding: 10px 12px; }
+  .briefCluster { flex-direction: column; align-items: stretch; gap: 5px; }
+  .briefLbl { flex: none; }
+  .briefEmpty { margin: 0 12px 4px; }
+  .printTapeRows { grid-template-columns: 1fr; }
+}

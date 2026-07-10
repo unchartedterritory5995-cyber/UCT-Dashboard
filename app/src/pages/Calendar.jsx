@@ -24,6 +24,7 @@ import { DEFAULT_FILTERS } from './calendar/filterLogic'
 import { tierWeek, FEATURED_CAP } from './calendar/importance'
 import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
 import FeedView from './calendar/FeedView'
+import TodaysBrief from './calendar/TodaysBrief'
 import WeekView from './calendar/WeekView'
 import MonthView from './calendar/MonthView'
 import DayDetailDrawer from './calendar/DayDetailDrawer'
@@ -465,17 +466,27 @@ export default function Calendar() {
 
       <div className={styles.body}>
         {view === 'feed' && (
-          <FeedView
-            weekDates={weekDates}
-            days={days}
-            filters={filters}
-            onSelect={onSelect}
-            eventTypes={eventTypes}
-            iposByDate={iposByDate}
-            dividendsByDate={dividendsByDate}
-            pulse={pulse}
-            weekTiers={weekTiers}
-          />
+          <>
+            {isCurrentWeek && (
+              <TodaysBrief
+                days={days}
+                weekDates={weekDates}
+                todayIso={todayIso()}
+                onSelect={onSelect}
+              />
+            )}
+            <FeedView
+              weekDates={weekDates}
+              days={days}
+              filters={filters}
+              onSelect={onSelect}
+              eventTypes={eventTypes}
+              iposByDate={iposByDate}
+              dividendsByDate={dividendsByDate}
+              pulse={pulse}
+              weekTiers={weekTiers}
+            />
+          </>
         )}
         {view === 'week' && (
           <WeekView

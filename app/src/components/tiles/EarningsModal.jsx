@@ -454,6 +454,24 @@ export default function EarningsModal({ row, label, onClose }) {
                 )}
               </span>
             </div>
+            {/* Post-print playbook — the swing-trader's "do I chase the gap?"
+                read, derived from the reaction distribution already on the
+                wire (biggest up + down move over the sampled prints). */}
+            {Array.isArray(row.hist_stats.last_n) && row.hist_stats.last_n.length > 1 && (() => {
+              const moves = row.hist_stats.last_n.filter(v => v != null && Number.isFinite(v))
+              if (moves.length < 2) return null
+              const up = Math.max(...moves)
+              const dn = Math.min(...moves)
+              return (
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>PLAYBOOK</span>
+                  <span className={styles.statVal}>
+                    biggest {up >= 0 ? '+' : ''}{up.toFixed(1)}% · {dn >= 0 ? '+' : ''}{dn.toFixed(1)}%
+                    <span className={styles.muted}> over last {moves.length} prints</span>
+                  </span>
+                </div>
+              )
+            })()}
           </div>
         )}
 

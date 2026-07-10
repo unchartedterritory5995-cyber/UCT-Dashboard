@@ -402,3 +402,14 @@
   color: var(--text-muted);
   margin: 0;
 }
+
+
+/* Guidance chip — mirrors the sentiment badge scale, gold for the raised case */
+.guideUp, .guideDn, .guideFlat {
+  font-family: var(--font-mono, monospace);
+  font-size: 8px; font-weight: 700; letter-spacing: 1px;
+  padding: 1px 6px; border-radius: 4px; align-self: flex-start; margin-left: 6px;
+}
+.guideUp { color: var(--gain, #4ade80); border: 1px solid rgba(74,222,128,0.3); background: rgba(74,222,128,0.08); }
+.guideDn { color: var(--loss, #f87171); border: 1px solid rgba(248,113,113,0.3); background: rgba(248,113,113,0.08); }
+.guideFlat { color: var(--text-muted, #8b8678); border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); }
