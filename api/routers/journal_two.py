@@ -517,10 +517,15 @@ def trading_day_backfill_route(
 def attachments_backup_route(user: dict = Depends(require_admin)) -> dict[str, Any]:
     """Admin-only manual trigger of the J2 attachments R2 backup. Fire-and-forget
     on a daemon thread (a full tar.gz + upload can take many seconds); check the
-    marker / logs for the result. No-op when J2_ATTACHMENT_BACKUP_ENABLED is off."""
+    marker / logs for the result. When J2_ATTACHMENT_BACKUP_ENABLED is off, returns
+    {started: False, reason: "disabled"} WITHOUT spawning a thread (the daemon would
+    only no-op) — an honest response instead of a misleading {started: True}."""
     import threading
 
     from api import j2_attachments_backup
+
+    if not j2_attachments_backup._enabled():
+        return {"started": False, "reason": "disabled"}
 
     threading.Thread(
         target=j2_attachments_backup.backup_j2_attachments_to_r2,

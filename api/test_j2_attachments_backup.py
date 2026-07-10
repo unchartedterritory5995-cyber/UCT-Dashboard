@@ -198,3 +198,50 @@ def test_prune_recent_backups_all_kept(monkeypatch):
     assert out["deleted"] == []
     assert len(out["kept"]) == 7
     assert client.deleted == []
+
+
+# --- admin route honesty (POST /api/j2/admin/attachments-backup) -------------
+
+def test_route_disabled_reports_honestly_without_spawning(monkeypatch):
+    """When J2_ATTACHMENT_BACKUP_ENABLED is off the route must NOT spawn the
+    daemon (it would only no-op) and must report the truth, not {started: True}."""
+    import threading
+
+    from api.routers import journal_two
+    from api import j2_attachments_backup as mod
+
+    monkeypatch.setattr(mod, "_enabled", lambda: False)
+
+    def _boom(*a, **k):
+        raise AssertionError("no thread may be spawned while disabled")
+
+    monkeypatch.setattr(threading, "Thread", _boom)
+
+    out = journal_two.attachments_backup_route(user={"id": "admin", "role": "admin"})
+    assert out == {"started": False, "reason": "disabled"}
+
+
+def test_route_enabled_spawns_and_reports_started(monkeypatch):
+    import threading
+
+    from api.routers import journal_two
+    from api import j2_attachments_backup as mod
+
+    monkeypatch.setattr(mod, "_enabled", lambda: True)
+    # Neutralize the work the spawned thread would run (no R2, no tarball).
+    monkeypatch.setattr(mod, "backup_j2_attachments_to_r2", lambda: {"skipped": "test"})
+
+    started = {"count": 0}
+
+    class _FakeThread:
+        def __init__(self, *a, **k):
+            pass
+
+        def start(self):
+            started["count"] += 1  # don't actually run the target in-test
+
+    monkeypatch.setattr(threading, "Thread", _FakeThread)
+
+    out = journal_two.attachments_backup_route(user={"id": "admin", "role": "admin"})
+    assert out == {"started": True}
+    assert started["count"] == 1

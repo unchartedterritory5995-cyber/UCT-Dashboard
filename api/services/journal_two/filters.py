@@ -15,20 +15,25 @@ class FilterSpec(BaseModel):
     symbol: str | None = None
     sides: list[str] = []
     setups: list[str] = []
-    limit: int = 500
-    offset: int = 0
+    limit: int | None = None
+    offset: int | None = None
 
     @field_validator("limit")
     @classmethod
-    def _clamp_limit(cls, v: int) -> int:
-        # Clamp to 1..2000 (community_trades bound). The field default (500)
-        # covers the unset case, so an explicit 0 clamps to the floor rather
-        # than resetting to the default.
+    def _clamp_limit(cls, v: int | None) -> int | None:
+        # None = "no paging requested" → stays None so list_trades_for_user
+        # emits NO SQL LIMIT (fully unbounded — the pre-regression contract).
+        # A concrete value clamps to 1..2000 (community_trades bound); an
+        # explicit 0 clamps to the floor.
+        if v is None:
+            return None
         return max(1, min(int(v), 2000))
 
     @field_validator("offset")
     @classmethod
-    def _clamp_offset(cls, v: int) -> int:
+    def _clamp_offset(cls, v: int | None) -> int | None:
+        if v is None:
+            return None
         return max(0, int(v))
 
 
@@ -65,12 +70,15 @@ def trades_where(spec: FilterSpec) -> tuple[str, list]:
 def parse_filter_query(
     date_from: str | None = None, date_to: str | None = None,
     symbol: str | None = None, sides: str | None = None,
-    setups: str | None = None, limit: int = 500, offset: int = 0,
+    setups: str | None = None, limit: int | None = None, offset: int | None = None,
 ) -> FilterSpec:
     """FastAPI dependency: comma-joined sets, URL-decoded members.
 
     A comma inside a member (e.g. a setup name) is expected on the wire as
     %2C so it survives the comma split, then unquote() restores the literal.
+
+    An UNSET limit/offset query param stays None (no paging requested → the
+    query is unbounded, matching the pre-Phase-6 route). Paging is opt-in.
     """
     from urllib.parse import unquote
 

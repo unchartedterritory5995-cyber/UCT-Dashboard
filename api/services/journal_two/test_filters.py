@@ -115,7 +115,10 @@ def test_parse_splits_comma_sets_and_unquotes_members():
 def test_parse_defaults_are_empty_and_unbounded_page():
     spec = parse_filter_query()
     assert spec.sides == [] and spec.setups == []
-    assert spec.limit == 500 and spec.offset == 0
+    # No limit/offset on the wire = "no paging requested" = unbounded (None),
+    # NOT a 500 default. A concrete default silently truncated heavy journals
+    # (the FE reads data.trades with no paging).
+    assert spec.limit is None and spec.offset is None
 
 
 # ── list_trades_for_user dual-shape + pagination ─────────────────────────────
@@ -153,6 +156,27 @@ def test_spec_filter_narrows_total():
     )
     assert total == 2
     assert sorted(t["id"] for t in trades) == ["t1", "t3"]
+
+
+def test_default_no_limit_returns_all_rows():
+    """Regression: the DEFAULT (no limit param) must be UNBOUNDED. The old
+    /trades route had no SQL LIMIT and the FE reads data.trades with no paging,
+    so a concrete limit-default silently truncates a >cap journal. A default
+    parse_filter_query() → spec.limit is None → NO LIMIT/OFFSET emitted; passing
+    an explicit limit still pages within the full total."""
+    conn = _conn_with_trades()
+    spec = parse_filter_query()  # nothing on the wire = no paging requested
+    assert spec.limit is None and spec.offset is None
+    trades, total = trades_service.list_trades_for_user("u1", conn=conn, spec=spec)
+    assert total == 3
+    assert [t["id"] for t in trades] == ["t3", "t2", "t1"]  # ALL rows, newest first
+
+    # Opt-in paging: an explicit limit=2 returns exactly 2, total is still the full 3.
+    trades2, total2 = trades_service.list_trades_for_user(
+        "u1", conn=conn, spec=parse_filter_query(limit=2)
+    )
+    assert total2 == 3
+    assert [t["id"] for t in trades2] == ["t3", "t2"]
 
 
 # ── GET /api/j2/trades additive envelope ─────────────────────────────────────
@@ -193,10 +217,10 @@ def test_route_envelope_is_additive(route_client):
     body = r.json()
     # Existing consumers read only `trades`; it must still be there + full.
     assert [t["id"] for t in body["trades"]] == ["t3", "t2", "t1"]
-    # New additive keys.
+    # New additive keys. No paging requested → limit/offset echo as null (unbounded).
     assert body["total"] == 3
-    assert body["limit"] == 500
-    assert body["offset"] == 0
+    assert body["limit"] is None
+    assert body["offset"] is None
 
 
 def test_route_paginates_and_filters(route_client):

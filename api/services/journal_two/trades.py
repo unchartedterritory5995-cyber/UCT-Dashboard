@@ -806,9 +806,12 @@ def list_trades_for_user(
       * ``spec=None`` (default) → returns the FULL unbounded ``list[dict]``,
         identical to the pre-Phase-6 behavior.
       * ``spec`` given (the GET /trades route) → applies the FilterSpec's
-        WHERE fragment + ``LIMIT``/``OFFSET`` and returns a ``(trades, total)``
-        tuple, where ``total`` is the full match count (ignoring the page
-        window) so the client can paginate. Order is preserved on both paths.
+        WHERE fragment and returns a ``(trades, total)`` tuple, where ``total``
+        is the full match count (ignoring the page window). Paging is OPT-IN:
+        when ``spec.limit is None`` NO ``LIMIT``/``OFFSET`` is emitted (fully
+        unbounded — identical to the ``spec=None`` contract); only a concrete
+        ``spec.limit`` applies ``LIMIT ? OFFSET ?`` (offset None → 0). Order is
+        preserved on both paths.
     """
     owned_conn = conn is None
     conn = conn or get_connection()
@@ -834,11 +837,18 @@ def list_trades_for_user(
             f"SELECT COUNT(*) FROM j2_trades WHERE {where_sql}{frag_sql}",
             [*params, *filter_params],
         ).fetchone()[0]
-        rows = conn.execute(
+        base_sql = (
             f"SELECT {_TRADE_COLS} FROM j2_trades WHERE {where_sql}{frag_sql}"
-            " ORDER BY entry_date DESC, created_at DESC LIMIT ? OFFSET ?",
-            [*params, *filter_params, spec.limit, spec.offset],
-        ).fetchall()
+            " ORDER BY entry_date DESC, created_at DESC"
+        )
+        if spec.limit is None:
+            # No paging requested → fully unbounded (no LIMIT), same as spec=None.
+            rows = conn.execute(base_sql, [*params, *filter_params]).fetchall()
+        else:
+            rows = conn.execute(
+                base_sql + " LIMIT ? OFFSET ?",
+                [*params, *filter_params, spec.limit, spec.offset or 0],
+            ).fetchall()
         return [_row_to_trade(r) for r in rows], int(total)
     finally:
         if owned_conn:
