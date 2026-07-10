@@ -61,7 +61,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .cardHead {
@@ -196,8 +196,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 0 0 11px;
-  padding: 6px 9px;
+  margin: 0 0 8px;
+  padding: 5px 9px;
   background: transparent;
   border: 1px solid var(--cal-line);
   border-left: 2px solid rgba(107, 163, 190, 0.5);
@@ -242,7 +242,7 @@
 }
 
 .daygrp {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 /* Macro-only day — collapsed dim line (no earnings, just Fed/econ) */
@@ -274,11 +274,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   position: sticky;
   top: 0;
   background: var(--cal-bg);
-  padding: 6px 0;
+  padding: 5px 0;
   z-index: 2;
 }
 
@@ -2225,7 +2225,7 @@
 /* ── Flagship 1c: zero-data compact cluster ("Also reporting") ───────────── */
 
 .compactWrap {
-  margin: 2px 0 14px;
+  margin: 2px 0 8px;
 }
 
 .compactToggle {
@@ -2237,7 +2237,7 @@
   color: var(--cal-dim);
   font-size: 11px;
   font-weight: 700;
-  padding: 8px 12px;
+  padding: 6px 12px;
   cursor: pointer;
   transition: border-color 0.12s, color 0.12s;
 }
@@ -2313,12 +2313,12 @@
    week mosaic rows, gold rationing support
    ================================================================ */
 
-.mainEventWrap { margin-bottom: 12px; }
+.mainEventWrap { margin-bottom: 8px; }
 
 .cardMainEvent {
   border-top: 2px solid rgba(201, 168, 76, 0.35);
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 12px 15px;
   max-width: 560px;
 }
 
@@ -2330,7 +2330,7 @@
   font-weight: 800;
   letter-spacing: 0.8px;
   color: var(--cal-muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .macroCollide {
@@ -2363,8 +2363,8 @@
 .mainLede {
   font-size: 12px;
   color: var(--cal-dim);
-  line-height: 1.5;
-  margin-bottom: 8px;
+  line-height: 1.45;
+  margin-bottom: 5px;
 }
 
 .mainMetrics {
@@ -2381,7 +2381,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 9px;
+  margin-top: 6px;
 }
 
 .missPill {
