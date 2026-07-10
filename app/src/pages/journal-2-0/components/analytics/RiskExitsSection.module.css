@@ -1,0 +1,175 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-family: var(--font-sans);
+}
+
+/* ── Plain-language module ───────────────────────────────────────────────── */
+
+.module {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.moduleHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.moduleTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.moduleSub {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Headline figures ────────────────────────────────────────────────────── */
+
+.headlineRow {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.headlineBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.headline {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--ut-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.headlineSecondary {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.headlineLabel {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+/* ── Chart card (mirrors AnalyticsTab) ───────────────────────────────────── */
+
+.chartCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.chartTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+/* ── Small notes + footer ────────────────────────────────────────────────── */
+
+.note {
+  margin: 0;
+  font-size: 11px;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.footer {
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+/* ── Check-back / empty state ────────────────────────────────────────────── */
+
+.checkBack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 28px 24px;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.checkBackTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.checkBackText {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.coverageMeter {
+  margin-top: 4px;
+  height: 6px;
+  width: 100%;
+  max-width: 320px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.coverageFill {
+  height: 100%;
+  background: var(--ut-gold);
+  border-radius: 999px;
+  transition: width 240ms ease;
+}
+
+.coverageLabel {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .headlineRow {
+    gap: 18px;
+  }
+  .headline {
+    font-size: 26px;
+  }
+}

@@ -16,6 +16,7 @@ import useJ2Positions from '../hooks/useJ2Positions'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import PerformancePanel from '../components/PerformancePanel'
 import CollapsibleSection from '../components/CollapsibleSection'
+import RiskExitsSection from '../components/analytics/RiskExitsSection'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
   fmtSignedDollar,
@@ -238,6 +239,11 @@ export default function AnalyticsTab() {
           <CollapsibleSection id="attribution" title="Attribution">
             <AttributionSection attribution={data.attribution} />
           </CollapsibleSection>
+          {data.exitQuality && (
+            <CollapsibleSection id="riskExits" title="Risk & Exits">
+              <RiskExitsSection data={data.exitQuality} />
+            </CollapsibleSection>
+          )}
         </>
       )}
       {data && (data.strategyCount ?? 0) > 0 && data.options && (
