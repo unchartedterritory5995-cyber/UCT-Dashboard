@@ -198,3 +198,74 @@ describe('TradeJournalTab — non-empty renders the table', () => {
     expect(table).toHaveTextContent('1 rows')
   })
 })
+
+describe('TradeJournalTab — closed-option scope match (A4 parity: symbol + date only)', () => {
+  // The closed-options union is client-scoped (shares are server-scoped). Per
+  // the A4 LOCKED rule, option strategies filter by SYMBOL (underlying prefix)
+  // ONLY — side has no strategy analog, and setups/tags are NOT applied. The
+  // Calendar day P&L unions these same strategies WITHOUT side/setup/tag, so a
+  // side/setup/tag scope must NOT make an option row vanish from the journal
+  // (it would still count in the Calendar day total = trust violation). The
+  // trades envelope is empty in every case, so a rendered table = the OPTION
+  // survived; "No trades match this scope" = it was dropped.
+  //
+  // row.side = "Long Call", row.setup = "Breakout" (deliberately DIFFERENT from
+  // the side/setup facets below) so the pre-fix code — which honored those
+  // facets — WOULD have dropped the row; the fix keeps it.
+  const OPTION = {
+    id: 'opt1',
+    strategyType: 'long_call',
+    underlying: 'AAPL',
+    result: 'win',
+    entryDate: '2026-06-01',
+    closedAt: '2026-06-15',
+    pnlDollar: 250,
+    pnlPercent: 0.25,
+    rMultiple: 1.5,
+    setup: 'Breakout',
+    source: 'manual',
+    legs: [{ strike: 150, qty: 1, entryPrice: 2, exitPrice: 4.5, expiration: '2026-07-18' }],
+  }
+
+  it('a MATCHING symbol scope keeps the option row', async () => {
+    mockStrategies = [OPTION]
+    renderTab({ route: '/journal?sc_sym=AAPL&sc_v=1' })
+    const table = await screen.findByTestId('trades-table')
+    expect(table).toHaveTextContent('1 rows')
+  })
+
+  it('a NON-matching symbol scope drops the option row', async () => {
+    mockStrategies = [OPTION]
+    renderTab({ route: '/journal?sc_sym=TSLA&sc_v=1' })
+    expect(await screen.findByText(/No trades match this scope/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('trades-table')).not.toBeInTheDocument()
+  })
+
+  it('a SIDE scope does NOT drop the option row (strategies ignore side)', async () => {
+    mockStrategies = [OPTION] // row.side = "Long Call"
+    renderTab({ route: '/journal?sc_side=Short&sc_v=1' })
+    const table = await screen.findByTestId('trades-table')
+    expect(table).toHaveTextContent('1 rows')
+  })
+
+  it('a SETUP scope does NOT drop the option row (strategies ignore setup)', async () => {
+    mockStrategies = [OPTION] // row.setup = "Breakout"
+    renderTab({ route: '/journal?sc_setup=VCP&sc_v=1' })
+    const table = await screen.findByTestId('trades-table')
+    expect(table).toHaveTextContent('1 rows')
+  })
+
+  it('a TAG scope does NOT drop the option row (strategies carry no tags)', async () => {
+    mockStrategies = [OPTION]
+    renderTab({ route: '/journal?sc_tag=fomo&sc_v=1' })
+    const table = await screen.findByTestId('trades-table')
+    expect(table).toHaveTextContent('1 rows')
+  })
+
+  it('an out-of-range DATE scope drops the option row (exit-date spine IS honored)', async () => {
+    mockStrategies = [OPTION] // closedAt = 2026-06-15
+    renderTab({ route: '/journal?sc_from=2026-07-01&sc_v=1' })
+    expect(await screen.findByText(/No trades match this scope/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('trades-table')).not.toBeInTheDocument()
+  })
+})

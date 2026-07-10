@@ -123,25 +123,21 @@ function optionClosedToRow(s) {
   }
 }
 
-// The closed-options union is NOT server-scoped (A9 filters SHARES server-side).
-// To keep the table scope-consistent — never leak an out-of-scope option row (a
-// broker-mirror user seeing "vanished"/stray trades is a trust incident, P3
-// Global Constraint) — match each option row against the active Scope client-
-// side, mirroring the FilterSpec facets: symbol starts-with, side (prefix so a
-// "Long" facet includes "Long Call"), setup, and the exit-date spine. The tag
-// facet drops all option rows (they carry no mistake/emotion tags).
+// The closed-options union is NOT server-scoped (A9 filters SHARES server-side),
+// so each option row is matched against the active Scope client-side. Per the
+// A4 LOCKED rule, option STRATEGIES filter by SYMBOL (underlying prefix) ONLY:
+// side has no strategy analog, and setups/tags are NOT applied to strategies.
+// The Calendar day P&L unions these SAME closed strategies WITHOUT side/setup/
+// tag filtering, so honoring those facets here would make option rows VANISH
+// from the journal table while still counting in the Calendar day total — a
+// cross-surface "numbers disagree / trades vanished" trust violation (the exact
+// thing P3 must prevent). Match SYMBOL + the exit-date spine ONLY, and `.trim()`
+// the symbol to mirror the backend's `spec.symbol.strip().upper()`.
 function optionRowMatchesScope(row, scope) {
   if (scope.symbol) {
-    const s = String(scope.symbol).toUpperCase()
-    if (!row.symbol || !row.symbol.toUpperCase().startsWith(s)) return false
+    const s = String(scope.symbol).trim().toUpperCase()
+    if (s && (!row.symbol || !row.symbol.toUpperCase().startsWith(s))) return false
   }
-  if (scope.sides.length) {
-    if (!scope.sides.some((sd) => (row.side || '').startsWith(sd))) return false
-  }
-  if (scope.setups.length) {
-    if (!row.setup || !scope.setups.includes(row.setup)) return false
-  }
-  if (scope.tags.length) return false
   if (scope.from || scope.to) {
     const d = (row.exitDate || '').slice(0, 10)
     if (scope.from && d < scope.from) return false
