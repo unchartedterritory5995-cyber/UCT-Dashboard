@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
+import ThreadView from './ThreadView'
 import { useCommunityStatus, useSpaces, useThreads } from './hooks/useCommunity'
 import styles from './Community.module.css'
 
@@ -51,7 +52,7 @@ export default function CommunityPage() {
       </aside>
       <main className={styles.main}>
         {threadId ? (
-          <div className={styles.empty}>Thread {threadId}</div>
+          <ThreadView threadId={threadId} />
         ) : (
           <ThreadList
             threads={threadsData?.threads || []}

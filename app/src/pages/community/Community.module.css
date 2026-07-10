@@ -61,3 +61,39 @@
   .railTitle { display: none; }
   .railItem { flex-shrink: 0; }
 }
+
+/* ── Thread view (Task 11) ─────────────────────────────────────────────── */
+.threadView { max-width: 860px; }
+.backLink { color: var(--text); font-size: 12px; text-decoration: none; }
+.backLink:hover { color: var(--ut-gold); }
+.opCard {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 18px; margin: 12px 0 18px;
+}
+.opTitle { display: flex; align-items: center; gap: 8px; color: var(--text-heading); font-size: 18px; margin: 0 0 10px; }
+.postsList { display: flex; flex-direction: column; gap: 10px; }
+.post { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.postMentor { border-left: 2px solid var(--ut-gold); }
+.postHighlight { background: rgba(201, 168, 76, 0.06); border-color: var(--ut-gold-glow); }
+.highlightTag { color: var(--ut-gold); font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
+.postHead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.authorWrap { display: inline-flex; align-items: center; gap: 6px; }
+.avatar { border-radius: 50%; }
+.authorName { color: var(--text-heading); font-size: 12.5px; }
+.mentorChip {
+  margin-left: 6px; color: var(--ut-gold); border: 1px solid var(--ut-gold);
+  border-radius: 4px; padding: 0 4px; font-size: 9px; letter-spacing: 0.8px;
+}
+.postBody { color: var(--text); font-size: 13.5px; line-height: 1.6; }
+.postBody img { max-width: 100%; border-radius: 6px; }
+.deletedBody { color: var(--text); font-style: italic; opacity: 0.6; font-size: 12.5px; }
+.postActions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.reactBtn, .replyBtn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 11.5px; padding: 3px 8px; cursor: pointer;
+  min-height: 28px;
+}
+.reactBtn:hover, .replyBtn:hover { border-color: var(--ut-gold-glow); color: var(--text-heading); }
+.replies { margin: 10px 0 0 22px; display: flex; flex-direction: column; gap: 8px; }
+.lockedNote { color: var(--text); font-size: 12px; margin-top: 14px; font-style: italic; }
