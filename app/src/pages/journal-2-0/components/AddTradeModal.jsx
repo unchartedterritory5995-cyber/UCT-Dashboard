@@ -35,8 +35,10 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
   const [shares, setShares] = useState('')
   const [entryPrice, setEntryPrice] = useState('')
   const [entryDate, setEntryDate] = useState(TODAY_ISO())
+  const [entryTime, setEntryTime] = useState('')
   const [exitPrice, setExitPrice] = useState('')
   const [exitDate, setExitDate] = useState(TODAY_ISO())
+  const [exitTime, setExitTime] = useState('')
   const [originalStop, setOriginalStop] = useState('')
   const [setupVal, setSetupVal] = useState('')
   const [notes, setNotes] = useState('')
@@ -124,8 +126,10 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
         shares: Number(shares),
         entryPrice: Number(entryPrice),
         entryDate,
+        entryTimeEt: entryTime || null,
         exitPrice: Number(exitPrice),
         exitDate,
+        exitTimeEt: exitTime || null,
         originalStop: originalStop === '' ? null : Number(originalStop),
         setup: setupVal.trim() || null,
         notes: notes.trim() || null,
@@ -141,8 +145,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
       setSaving(false)
     }
   }, [
-    validate, symbol, side, shares, entryPrice, entryDate, exitPrice, exitDate,
-    originalStop, setupVal, notes, fees, selectedMistakes, selectedEmotions, onSave, onClose,
+    validate, symbol, side, shares, entryPrice, entryDate, entryTime, exitPrice, exitDate,
+    exitTime, originalStop, setupVal, notes, fees, selectedMistakes, selectedEmotions, onSave, onClose,
   ])
 
   const impliedRiskPct = computeImpliedRiskPct({
@@ -266,6 +270,14 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
                 className={styles.textInput}
                 max={TODAY_ISO()}
               />
+              <input
+                type="time"
+                value={entryTime}
+                onChange={(e) => setEntryTime(e.target.value)}
+                className={styles.textInput}
+                aria-label="Entry time (ET)"
+              />
+              <span className={styles.helper}>optional — unlocks time-of-day analytics</span>
             </label>
           </div>
 
@@ -293,6 +305,14 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName }
                 className={styles.textInput}
                 max={TODAY_ISO()}
               />
+              <input
+                type="time"
+                value={exitTime}
+                onChange={(e) => setExitTime(e.target.value)}
+                className={styles.textInput}
+                aria-label="Exit time (ET)"
+              />
+              <span className={styles.helper}>optional — unlocks time-of-day analytics</span>
             </label>
           </div>
 

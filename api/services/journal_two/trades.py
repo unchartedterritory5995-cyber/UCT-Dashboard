@@ -18,6 +18,7 @@ Transaction semantics (spec §4, §10):
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -30,8 +31,16 @@ from api.services.journal_two import calculations as calc
 from api.services.journal_two.filters import FilterSpec, trades_where
 from api.services.journal_two import regime as regime_service
 from api.services.journal_two.positions import _row_to_position
-from api.services.journal_two.timeutil import compute_trading_day_et, compute_hour_et
+from api.services.journal_two.timeutil import (
+    ET,
+    UTC,
+    compute_trading_day_et,
+    compute_hour_et,
+)
 from api.services.journal_two.trade_refs import trade_ref_for_row
+
+# Strict 24-hour HH:MM (e.g. '09:45', '14:30'). Rejects '9:5', '25:00', '10:60'.
+_HHMM_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 
 
 class CloseValidationError(ValueError):
@@ -284,6 +293,50 @@ class ManualTradeValidationError(ValueError):
     """Raised when a manual Add Trade payload fails validation."""
 
 
+def _combine_manual_datetime(
+    date_raw: Any, time_raw: Any, date_field: str, time_field: str
+) -> datetime:
+    """Normalize a required 'YYYY-MM-DD' date + OPTIONAL 'HH:MM' ET time.
+
+    - time present + valid HH:MM → interpret `date + time` as an ET-LOCAL
+      datetime and convert to the DST-correct UTC instant (so P1a's stamping
+      computes the real hour_et). e.g. exitDate '2026-04-19' + exitTimeEt
+      '10:30' → 2026-04-19T14:30:00+00:00 (EDT).
+    - time absent (None or '') → the EXISTING date-only convention UNCHANGED:
+      bare date → UTC midnight; a full ISO passes through parsed as-is.
+    - malformed time → ManualTradeValidationError (400).
+
+    Returns a tz-aware datetime (callers normalize to UTC ISO for storage).
+    """
+    if not isinstance(date_raw, str) or not date_raw:
+        raise ManualTradeValidationError(f"{date_field} is required")
+
+    if time_raw is not None and time_raw != "":
+        if not isinstance(time_raw, str) or not _HHMM_RE.match(time_raw):
+            raise ManualTradeValidationError(
+                f"{time_field} must be 'HH:MM' (24-hour)"
+            )
+        # A time is only meaningful against a bare calendar day; if a full ISO
+        # slipped in, combine with its date part.
+        date_part = date_raw.split("T", 1)[0]
+        try:
+            local = datetime.fromisoformat(f"{date_part}T{time_raw}:00").replace(
+                tzinfo=ET
+            )
+        except ValueError as e:
+            raise ManualTradeValidationError(f"{date_field} invalid: {e}")
+        return local.astimezone(UTC)
+
+    try:
+        return (
+            datetime.fromisoformat(date_raw.replace("Z", "+00:00"))
+            if "T" in date_raw
+            else datetime.fromisoformat(date_raw + "T00:00:00+00:00")
+        )
+    except ValueError as e:
+        raise ManualTradeValidationError(f"{date_field} invalid: {e}")
+
+
 def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Spec §11.4 manual Add Trade. Server computes derived via
     compute_trade_derived (A3)."""
@@ -310,31 +363,31 @@ def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(exit_price, (int, float)) or exit_price <= 0:
         raise ManualTradeValidationError("exitPrice must be > 0")
 
-    entry_date_raw = payload.get("entryDate")
-    if not isinstance(entry_date_raw, str) or not entry_date_raw:
-        raise ManualTradeValidationError("entryDate is required")
-    try:
-        entry_dt = (
-            datetime.fromisoformat(entry_date_raw.replace("Z", "+00:00"))
-            if "T" in entry_date_raw
-            else datetime.fromisoformat(entry_date_raw + "T00:00:00+00:00")
-        )
-    except ValueError as e:
-        raise ManualTradeValidationError(f"entryDate invalid: {e}")
+    # Optional ET time-of-day: when present, date+time combine as an ET-local
+    # instant (DST-correct UTC); when absent, the date-only UTC-midnight
+    # convention is preserved. See _combine_manual_datetime.
+    entry_dt = _combine_manual_datetime(
+        payload.get("entryDate"), payload.get("entryTimeEt"),
+        "entryDate", "entryTimeEt",
+    )
+    exit_dt = _combine_manual_datetime(
+        payload.get("exitDate"), payload.get("exitTimeEt"),
+        "exitDate", "exitTimeEt",
+    )
 
-    exit_date_raw = payload.get("exitDate")
-    if not isinstance(exit_date_raw, str) or not exit_date_raw:
-        raise ManualTradeValidationError("exitDate is required")
-    try:
-        exit_dt = (
-            datetime.fromisoformat(exit_date_raw.replace("Z", "+00:00"))
-            if "T" in exit_date_raw
-            else datetime.fromisoformat(exit_date_raw + "T00:00:00+00:00")
-        )
-    except ValueError as e:
-        raise ManualTradeValidationError(f"exitDate invalid: {e}")
-
-    if exit_dt.astimezone(timezone.utc) < entry_dt.astimezone(timezone.utc):
+    # Ordering guard. When BOTH sides carry a time, compare the precise instants
+    # (catches a genuine same-day exit-before-entry reversal). Otherwise a time
+    # can't be meaningfully compared against an untimed (midnight) day, so fall
+    # back to comparing ET trading days — a same-day round trip stays valid.
+    # (Both-untimed reduces to the original midnight-vs-midnight date compare.)
+    entry_iso = entry_dt.astimezone(timezone.utc).isoformat()
+    exit_iso = exit_dt.astimezone(timezone.utc).isoformat()
+    both_timed = bool(payload.get("entryTimeEt")) and bool(payload.get("exitTimeEt"))
+    if both_timed:
+        out_of_order = exit_dt.astimezone(timezone.utc) < entry_dt.astimezone(timezone.utc)
+    else:
+        out_of_order = compute_trading_day_et(exit_iso) < compute_trading_day_et(entry_iso)
+    if out_of_order:
         raise ManualTradeValidationError("exitDate cannot be before entryDate")
 
     original_stop = payload.get("originalStop")
