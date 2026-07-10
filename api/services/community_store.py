@@ -118,3 +118,155 @@ def _init_db() -> None:
 
 def _now() -> int:
     return int(time.time())
+
+
+# ── Threads & posts ──────────────────────────────────────────────────────────
+
+def create_thread(space, author_id, title, body="", ticker_tags=None,
+                  desk_content_id=None, pinned=0):
+    if space not in SPACES:
+        raise ValueError("bad-space")
+    now = _now()
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        cur = conn.execute(
+            """INSERT INTO threads (space, author_id, title, body, ticker_tags,
+                                    pinned, desk_content_id, created_at, last_activity_at)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (space, author_id, title, body, json.dumps(ticker_tags or []),
+             1 if pinned else 0, desk_content_id, now, now))
+        conn.commit()
+        return cur.lastrowid
+
+
+def update_thread(thread_id, *, title=None, body=None):
+    sets, vals = [], []
+    if title is not None:
+        sets.append("title=?"); vals.append(title)
+    if body is not None:
+        sets.append("body=?"); vals.append(body)
+    if not sets:
+        return
+    vals.append(thread_id)
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute(f"UPDATE threads SET {', '.join(sets)} WHERE id=?", vals)
+        conn.commit()
+
+
+def _thread_row_to_dict(row):
+    d = dict(row)
+    d["ticker_tags"] = json.loads(d.get("ticker_tags") or "[]")
+    return d
+
+
+def list_threads(space, limit=50, offset=0):
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            """SELECT t.*,
+                      (SELECT COUNT(*) FROM posts p
+                        WHERE p.thread_id = t.id AND p.deleted = 0) AS reply_count,
+                      (SELECT COALESCE(MAX(p.id), 0) FROM posts p
+                        WHERE p.thread_id = t.id AND p.deleted = 0) AS last_post_id
+                 FROM threads t
+                WHERE t.space = ? AND t.deleted = 0
+                ORDER BY t.pinned DESC, t.last_activity_at DESC
+                LIMIT ? OFFSET ?""",
+            (space, limit, offset)).fetchall()
+    return [_thread_row_to_dict(r) for r in rows]
+
+
+def get_thread(thread_id):
+    with closing(get_connection()) as conn:
+        row = conn.execute(
+            "SELECT * FROM threads WHERE id=? AND deleted=0", (thread_id,)).fetchone()
+        if not row:
+            return None
+        posts = [dict(p) for p in conn.execute(
+            "SELECT * FROM posts WHERE thread_id=? ORDER BY created_at, id",
+            (thread_id,)).fetchall()]
+        counts = conn.execute(
+            """SELECT post_id, kind, COUNT(*) AS n FROM reactions
+                WHERE post_id IN (SELECT id FROM posts WHERE thread_id=?)
+                GROUP BY post_id, kind""", (thread_id,)).fetchall()
+    by_post = {}
+    for c in counts:
+        by_post.setdefault(c["post_id"], {})[c["kind"]] = c["n"]
+    for p in posts:
+        if p["deleted"]:
+            p["body"] = ""
+        p["reactions"] = by_post.get(p["id"], {})
+    d = _thread_row_to_dict(row)
+    d["posts"] = posts
+    return d
+
+
+def get_thread_by_desk_id(desk_content_id):
+    with closing(get_connection()) as conn:
+        row = conn.execute(
+            "SELECT * FROM threads WHERE desk_content_id=?", (desk_content_id,)).fetchone()
+    return _thread_row_to_dict(row) if row else None
+
+
+def get_post(post_id):
+    with closing(get_connection()) as conn:
+        row = conn.execute("SELECT * FROM posts WHERE id=?", (post_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def create_post(thread_id, author_id, body, parent_post_id=None):
+    now = _now()
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        t = conn.execute(
+            "SELECT locked FROM threads WHERE id=? AND deleted=0", (thread_id,)).fetchone()
+        if not t:
+            raise ValueError("no-thread")
+        if t["locked"]:
+            raise ValueError("locked")
+        if parent_post_id is not None:
+            parent = conn.execute(
+                "SELECT thread_id, parent_post_id, deleted FROM posts WHERE id=?",
+                (parent_post_id,)).fetchone()
+            if (not parent or parent["deleted"] or parent["thread_id"] != thread_id
+                    or parent["parent_post_id"] is not None):
+                raise ValueError("bad-parent")
+        cur = conn.execute(
+            """INSERT INTO posts (thread_id, author_id, parent_post_id, body, created_at)
+               VALUES (?,?,?,?,?)""",
+            (thread_id, author_id, parent_post_id, body, now))
+        conn.execute("UPDATE threads SET last_activity_at=? WHERE id=?", (now, thread_id))
+        conn.commit()
+        return cur.lastrowid
+
+
+def soft_delete_thread(thread_id):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute("UPDATE threads SET deleted=1 WHERE id=?", (thread_id,))
+        conn.commit()
+
+
+def soft_delete_post(post_id):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute("UPDATE posts SET deleted=1 WHERE id=?", (post_id,))
+        conn.commit()
+
+
+def set_thread_flag(thread_id, field, value):
+    if field not in ("pinned", "locked", "answered"):
+        raise ValueError("bad-field")
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute(f"UPDATE threads SET {field}=? WHERE id=?",
+                     (1 if value else 0, thread_id))
+        conn.commit()
+
+
+def count_recent_threads(author_id, seconds=3600):
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            "SELECT COUNT(*) FROM threads WHERE author_id=? AND created_at > ?",
+            (author_id, _now() - seconds)).fetchone()[0]
+
+
+def count_recent_posts(author_id, seconds=3600):
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            "SELECT COUNT(*) FROM posts WHERE author_id=? AND created_at > ?",
+            (author_id, _now() - seconds)).fetchone()[0]
