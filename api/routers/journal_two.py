@@ -47,6 +47,29 @@ from api.services.journal_two.filters import FilterSpec, parse_filter_query
 router = APIRouter(prefix="/api/j2", tags=["journal-2-0"])
 
 
+# Allow-list of FE telemetry events (landing_analytics.py:32-45 pattern). Only
+# these are accepted by POST /telemetry; anything else → 400. P1b fires these.
+_J2_TELEMETRY_EVENTS = {
+    "trade_page_open", "import_preset_used", "verdict_embed_run",
+    "scope_applied", "surface_visit", "screenshot_added", "reflection_saved",
+}
+
+
+@router.post("/telemetry")
+def j2_telemetry(payload: dict, user: dict = Depends(get_current_user)):
+    """Record an allow-listed FE telemetry event to the shared auth activity_log.
+
+    Body: {"event": str, "props": dict|None}. Unknown event → 400. Writes via
+    auth_service.log_activity(action=f"j2:{event}", details=json.dumps(props)[:500]).
+    """
+    event = str(payload.get("event") or "")
+    if event not in _J2_TELEMETRY_EVENTS:
+        raise HTTPException(status_code=400, detail="Unknown event")
+    from api.services.auth_service import log_activity
+    log_activity(user["id"], f"j2:{event}", json.dumps(payload.get("props") or {})[:500])
+    return {"ok": True}
+
+
 def _unified_enabled() -> bool:
     """Feature flag — flip UNIFIED_COMPASS_ENABLED=false in Railway env to
     fully revert to the per-account-only 'select a single account' guard."""
