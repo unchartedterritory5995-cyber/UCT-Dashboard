@@ -42,6 +42,10 @@ ALLOWED_EVENTS = {
     "footer_cta_click",
     "billing_toggle",
     "faq_open",
+    # /compare marketing page
+    "compare_view",
+    "compare_cta_signup_click",
+    "compare_cta_switch_click",
 }
 
 

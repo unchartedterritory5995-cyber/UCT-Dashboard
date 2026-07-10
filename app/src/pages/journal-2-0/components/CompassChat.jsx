@@ -11,6 +11,7 @@ import useJ2CoachChat from '../hooks/useJ2CoachChat'
 import ChatMessage from './ChatMessage'
 import ChatActionCard from './ChatActionCard'
 import VoiceInputButton from './VoiceInputButton'
+import UnlimitedBadge from './UnlimitedBadge'
 import { VoiceContext } from '../../../context/VoiceContext'
 import useRealtimeSession from '../../../hooks/useRealtimeSession'
 import styles from './CompassChat.module.css'
@@ -302,6 +303,9 @@ export default function CompassChat({ accountId }) {
       )}
 
       <div style={{ marginTop: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+          <UnlimitedBadge />
+        </div>
         <textarea
           rows={2}
           className={styles.composerInput}

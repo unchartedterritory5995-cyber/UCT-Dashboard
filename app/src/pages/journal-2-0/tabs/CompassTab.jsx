@@ -25,6 +25,7 @@ import useProfileSuggestions from '../hooks/useProfileSuggestions'
 import useCompassOverview from '../hooks/useCompassOverview'
 import CompassOverview from '../components/CompassOverview'
 import UIcon from '../../../components/ui/UIcon'
+import UnlimitedBadge from '../components/UnlimitedBadge'
 
 function mostRecentClosedMondayISO() {
   const now = new Date()
@@ -139,9 +140,12 @@ export default function CompassTab() {
 
   return (
     <div style={{ padding: '16px 20px' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 8 }}>
-        <UIcon name="compass" size={20} style={{ verticalAlign: '-3px', marginRight: 6 }} />Compass{isUnified ? ' — Portfolio' : ''}
-      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+        <h1 style={{ fontSize: 22, margin: 0 }}>
+          <UIcon name="compass" size={20} style={{ verticalAlign: '-3px', marginRight: 6 }} />Compass{isUnified ? ' — Portfolio' : ''}
+        </h1>
+        <UnlimitedBadge />
+      </div>
       <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 0 }}>
         {isUnified
           ? 'Coaching across every account where Compass is enabled.'
