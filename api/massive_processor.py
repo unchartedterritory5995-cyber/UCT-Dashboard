@@ -132,6 +132,18 @@ SINGLE_LEG_CONDITIONS = frozenset({
     231,  # SLFT -- Single Leg Floor Trade
 })
 
+# 2026-07-10: exchange-breadth override. A burst spanning >= this many distinct
+# venues is a SWEEP even when a single-leg (227-231) print is bucketed with it.
+# A genuine single-leg auction/cross/floor trade executes on ONE exchange, so
+# 4+ venues means the burst is really an intermarket sweep that a stray single-
+# leg print got merged into by the 500ms ticker-bucketing. Deliberately
+# conservative (4) so real single-leg blocks on 1-2 venues are unaffected; lower
+# to 2 to fully match BBS's "2-exchange burst = sweep" convention. Evidence:
+# HUBS 195C 12/18 on 7/8 -- a 15-venue, condition-209 sweep (BBS: SWEEP, side A,
+# $2.3M) was vetoed to BLOCK by two stray 227 prints, which then cost it the
+# empty-side ASK rescue and hid it. KEEP IN SYNC with build_gap_fill_csv.py.
+SWEEP_BREADTH_OVERRIDE = 4
+
 
 @dataclass
 class RawTrade:
@@ -388,8 +400,10 @@ class TradeAggregator:
         # Priority order:
         #   1. Any ML/combo code in the burst -> 'ML/' (multi-leg)
         #   2. ISOI (219) -> 'SWEEP' (Intermarket Sweep Order)
-        #   3. Any single-leg auction/cross/floor code -> 'BLOCK'
-        #   4. Fallback: n_exchanges >= 2 -> 'SWEEP', else 'BLOCK'
+        #   3. >= SWEEP_BREADTH_OVERRIDE venues -> 'SWEEP' (breadth beats a
+        #      stray single-leg print merged in by 500ms ticker-bucketing)
+        #   4. Any single-leg auction/cross/floor code -> 'BLOCK'
+        #   5. Fallback: n_exchanges >= 2 -> 'SWEEP', else 'BLOCK'
         #
         # 2026-07-03: fallback threshold lowered from 3 to 2 exchanges.
         # Empirical: BBS classifies 2-exchange near-simultaneous prints as
@@ -397,10 +411,17 @@ class TradeAggregator:
         # cases like SPCX 10:36:22 (2 exchanges, 480 vol) that BBS surfaced
         # as $2.4M SWEEP. Bumped ML/SINGLE_LEG explicit codes still win over
         # this fallback, so genuine blocks marked with 227/229 stay BLOCK.
+        #
+        # 2026-07-10: added the step-3 breadth override. Single-leg codes are
+        # still authoritative for genuine 1-2 venue blocks, but a print
+        # spanning 4+ venues can't be a real single-leg trade -- it's a sweep
+        # that a stray 227-231 print was bucketed into. See HUBS 7/8.
         conditions_seen = {t.conditions for t in trades}
         if conditions_seen & MULTI_LEG_CONDITIONS:
             type_ = 'ML/'
         elif ISO_CONDITION in conditions_seen:
+            type_ = 'SWEEP'
+        elif len(exchanges) >= SWEEP_BREADTH_OVERRIDE:
             type_ = 'SWEEP'
         elif conditions_seen & SINGLE_LEG_CONDITIONS:
             type_ = 'BLOCK'
