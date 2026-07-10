@@ -2831,7 +2831,13 @@ export default function OptionsFlowDashboard() {
     //     stocketf is empty because the live worker doesn't populate it)
     const isStock = (c) => !isETF(c.sym, c.stocketf);
     const wlTabFilter = dataMode === "stocks" ? isStock : ((c) => !isStock(c));
-    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && wlTabFilter(c))).slice(0,20).map(c=>{
+    // 7/9: Respect CAP FILTER when auto-populating Watchlist. Previously
+    // wlPopulate picked top 20 conviction picks across ALL caps and just
+    // labeled each with its cap band — so clicking Mid-Small then Auto-Fill
+    // still filled with AAPL/META/etc. Uses wlCapCheck which falls back to
+    // capLookup for tickers with mktcap=0 (gap-fill rows).
+    const capFilterOk = c => capFilter === "All" || wlCapCheck(c) === capFilter;
+    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && wlTabFilter(c) && capFilterOk(c))).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
@@ -2845,7 +2851,7 @@ export default function OptionsFlowDashboard() {
         convScore: c.score||0, rankScore: c._rankScore||c.score||0, isExit: !!c._isExit
       };
     });
-    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR" && wlTabFilter(c))).slice(0,20).map(c=>{
+    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR" && wlTabFilter(c) && capFilterOk(c))).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
