@@ -2657,6 +2657,18 @@
   flex-shrink: 0;
 }
 
+/* Reported beat/miss badge on Week rows (matches the Feed tiles) */
+.wBeat, .wMiss {
+  flex-shrink: 0;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.wBeat { color: #0b1f12; background: var(--cal-green, #4ade80); }
+.wMiss { color: #fff; background: var(--cal-red, #ef4444); }
+
 .wMore {
   width: 100%;
   background: none;

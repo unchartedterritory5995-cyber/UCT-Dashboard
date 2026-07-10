@@ -517,6 +517,7 @@ export default function Calendar() {
             weekDates={weekDates}
             days={days}
             filters={filters}
+            eventTypes={eventTypes}
             onSelect={onSelect}
             weekTiers={weekTiers}
             onOpenDay={(ds) => setOpenDay({ ds, day: days[ds] })}

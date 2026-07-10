@@ -9,6 +9,7 @@ import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import { applyFilters, sortEntries } from './filterLogic'
 import { impEff } from './importance'
+import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
 import styles from './Calendar.module.css'
 
 const MAX_ROWS_PER_SESSION = 8
@@ -20,15 +21,16 @@ function fmtCap(v) {
 
 function WeekRow({ e, isFeatured, onSelect }) {
   const em = e.expected_move?.pct
-  // ONE datum per row, labeled by tier: featured → the move the options
-  // market prices; default → size. Never a bare zero-data 19px ticker again.
-  const datum = isFeatured && em != null
-    ? <span className={styles.wDatumEm}>±{em}%</span>
-    : e.mc_b != null
-      ? <span className={styles.wDatumCap}>{fmtCap(e.mc_b)}</span>
-      : em != null
-        ? <span className={styles.wDatumEm}>±{em}%</span>
-        : null
+  const reported = e.eps_act != null
+  const surp = (reported && e.eps_est != null && e.eps_est !== 0)
+    ? ((e.eps_act - e.eps_est) / Math.abs(e.eps_est)) * 100 : null
+  // Same clean signal as the Feed tiles: a reported beat/miss, else the
+  // options-implied move — never cap filler under every row.
+  const datum = reported && surp != null
+    ? <span className={surp >= 0 ? styles.wBeat : styles.wMiss}>{surp >= 0 ? 'BEAT' : 'MISS'}</span>
+    : em != null
+      ? <span className={styles.wDatumEm}>±{em}%</span>
+      : null
   return (
     <div className={styles.wrow} onClick={() => onSelect(e, e._timing)}>
       <CompanyLogo sym={e.sym} size={isFeatured ? 24 : 20} tile />
@@ -83,7 +85,9 @@ function WeekMacroChips({ econ = [], fed = [] }) {
   )
 }
 
-export default function WeekView({ weekDates, days, filters, onSelect, weekTiers, onOpenDay }) {
+export default function WeekView({ weekDates, days, filters, eventTypes, onSelect, weekTiers, onOpenDay }) {
+  // Macro chips in the column headers respect the same opt-in as the Feed.
+  const showMacro = (eventTypes || DEFAULT_EVENT_TYPES).has('macro')
   // Equal-width day columns (a proper week calendar, like the competitors). The
   // old load-proportional width made a busy Thursday a giant column and quiet
   // days skinny boxes — lopsided and awkward. Each column sizes its own HEIGHT
@@ -118,7 +122,7 @@ export default function WeekView({ weekDates, days, filters, onSelect, weekTiers
               {day.label || ds}
               <span className={styles.wdCount}>{bmo.length + amc.length + tbd.length}</span>
             </div>
-            <WeekMacroChips econ={day.econ} fed={day.fed} />
+            {showMacro && <WeekMacroChips econ={day.econ} fed={day.fed} />}
             {empty ? (
               <div className={styles.wempty}>
                 <span className={styles.wemptyDot} aria-hidden="true" />
