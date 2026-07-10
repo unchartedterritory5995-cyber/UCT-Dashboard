@@ -24,6 +24,11 @@ import styles from './ImportCsvModal.module.css'
 
 const MAX_BYTES = 10 * 1024 * 1024
 
+// Competitor journal exports that are auto-detected + mapped (Task 7). When one
+// of these was the detected format, confirm success fires the import_preset_used
+// telemetry event.
+const PRESET_FORMATS = new Set(['tradezella', 'tradervue', 'tradersync'])
+
 function resultBadge(result) {
   const cls =
     result === 'Win'
@@ -144,7 +149,17 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
         throw new Error(body || `${res.status}`)
       }
       const data = await res.json()
-      onConfirmed?.(data.imported, preview.errors?.length || 0)
+      // Preset-format confirms fire import_preset_used (best-effort telemetry).
+      if (PRESET_FORMATS.has(preview.format)) {
+        fetch('/api/j2/telemetry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ event: 'import_preset_used', props: { format: preview.format } }),
+        }).catch(() => {})
+      }
+      // Surface the dedupe-skipped count from confirm (re-imported duplicates).
+      onConfirmed?.(data.imported, data.skipped || 0)
       onClose?.()
     } catch (e) {
       setErrorMsg(String(e?.message || e))
@@ -227,6 +242,9 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
                   <p className={styles.dropHint}>
                     Max 10 MB. UTF-8 or Windows-1252 text only.
                   </p>
+                  <p className={styles.dropHint}>
+                    Exports from TradeZella, Tradervue, and TraderSync are detected automatically.
+                  </p>
                 </div>
               </div>
 
@@ -234,6 +252,9 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
                 <div className={styles.formatsTitle}>Supported formats</div>
                 <ul className={styles.formatList}>
                   <li><strong>Pre-matched</strong> — canonical format, required columns: symbol, side, shares, entry_price, entry_date, exit_price, exit_date. ISO dates.</li>
+                  <li><strong>TradeZella</strong> — trade-log CSV export. Auto-detected.</li>
+                  <li><strong>Tradervue</strong> — generic / fill-level export. Auto-detected.</li>
+                  <li><strong>TraderSync</strong> — trade CSV export. Auto-detected.</li>
                   <li><strong>Schwab</strong> — web-export Brokerage transactions download. Auto-detected.</li>
                   <li><strong>IBKR</strong> — Trade Confirmation Report, stocks only. Auto-detected.</li>
                   <li><strong>E*Trade</strong> — Portfolio download, Bought/Sold rows only. Auto-detected.</li>
@@ -283,6 +304,11 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
                 {preview.errors.length > 0 && (
                   <span className={styles.warn}>
                     {preview.errors.length} skipped
+                  </span>
+                )}
+                {preview.duplicates > 0 && (
+                  <span className={styles.warn}>
+                    {preview.duplicates} duplicate{preview.duplicates === 1 ? '' : 's'} will be skipped
                   </span>
                 )}
               </div>

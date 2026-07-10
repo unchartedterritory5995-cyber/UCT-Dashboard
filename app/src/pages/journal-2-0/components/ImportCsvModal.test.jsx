@@ -20,14 +20,24 @@ describe('ImportCsvModal — step 1 (drop)', () => {
     expect(screen.getByRole('button', { name: /Raw executions template/ })).toBeInTheDocument()
   })
 
-  it('lists all 5 supported formats', () => {
+  it('lists all supported formats incl. competitor presets', () => {
     render(<ImportCsvModal onConfirmed={vi.fn()} onClose={vi.fn()} />)
     // Match bold format names only (anchor to <strong> text)
     expect(screen.getByText('Pre-matched', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('TradeZella', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('Tradervue', { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('TraderSync', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('Schwab', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('IBKR', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('E*Trade', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('Unknown', { selector: 'strong' })).toBeInTheDocument()
+  })
+
+  it('shows the auto-detect subtitle for competitor exports', () => {
+    render(<ImportCsvModal onConfirmed={vi.fn()} onClose={vi.fn()} />)
+    expect(
+      screen.getByText(/Exports from TradeZella, Tradervue, and TraderSync are detected automatically/),
+    ).toBeInTheDocument()
   })
 
   it('Esc closes the modal', () => {
@@ -208,5 +218,114 @@ describe('ImportCsvModal — preview + confirm flow', () => {
     await user.upload(input, file)
 
     expect(screen.getByRole('alert')).toHaveTextContent(/exceeds 10 MB/i)
+  })
+})
+
+describe('ImportCsvModal — competitor presets + re-import dedupe', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn()
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const TRADE = {
+    symbol: 'NVDA',
+    side: 'Long',
+    shares: 100,
+    entryPrice: 500,
+    exitPrice: 520,
+    entryDate: '2026-04-01T13:35:00Z',
+    exitDate: '2026-04-02T19:58:00Z',
+  }
+
+  function mockFlow(previewResponse, confirmResponse) {
+    global.fetch.mockImplementation(async (url) => {
+      if (url.includes('/import/preview') && !url.includes('preview-mapped')) {
+        return { ok: true, json: async () => previewResponse }
+      }
+      if (url.includes('/import/confirm')) {
+        return { ok: true, json: async () => confirmResponse }
+      }
+      // telemetry + anything else
+      return { ok: true, json: async () => ({ ok: true }) }
+    })
+  }
+
+  async function upload() {
+    const user = userEvent.setup()
+    const file = new File(['x'], 'export.csv', { type: 'text/csv' })
+    const input = document.querySelector('input[type="file"]')
+    await user.upload(input, file)
+    return user
+  }
+
+  it('preview shows "N duplicates will be skipped"', async () => {
+    mockFlow(
+      { format: 'tradezella', trades: [TRADE], errors: [], warnings: [], headers: [], raw_rows: [], duplicates: 3 },
+      { imported: 1, skipped: 0 },
+    )
+    render(<ImportCsvModal onConfirmed={vi.fn()} onClose={vi.fn()} />)
+    await upload()
+    await waitFor(() => {
+      expect(screen.getByText(/3 duplicates will be skipped/)).toBeInTheDocument()
+    })
+  })
+
+  it('fires import_preset_used telemetry on confirm for a preset format', async () => {
+    mockFlow(
+      { format: 'tradersync', trades: [TRADE], errors: [], warnings: [], headers: [], raw_rows: [], duplicates: 0 },
+      { imported: 1, skipped: 0 },
+    )
+    render(<ImportCsvModal onConfirmed={vi.fn()} onClose={vi.fn()} />)
+    const user = await upload()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Import 1 trade/ })).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('button', { name: /Import 1 trade/ }))
+
+    await waitFor(() => {
+      const telem = global.fetch.mock.calls.find((c) => c[0] === '/api/j2/telemetry')
+      expect(telem).toBeTruthy()
+      expect(JSON.parse(telem[1].body)).toMatchObject({
+        event: 'import_preset_used',
+        props: { format: 'tradersync' },
+      })
+    })
+  })
+
+  it('does NOT fire preset telemetry for a non-preset (pre_matched) format', async () => {
+    mockFlow(
+      { format: 'pre_matched', trades: [TRADE], errors: [], warnings: [], headers: [], raw_rows: [], duplicates: 0 },
+      { imported: 1, skipped: 0 },
+    )
+    render(<ImportCsvModal onConfirmed={vi.fn()} onClose={vi.fn()} />)
+    const user = await upload()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Import 1 trade/ })).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('button', { name: /Import 1 trade/ }))
+
+    await waitFor(() => {
+      expect(global.fetch.mock.calls.some((c) => c[0] === '/api/j2/trades/import/confirm')).toBe(true)
+    })
+    expect(global.fetch.mock.calls.some((c) => c[0] === '/api/j2/telemetry')).toBe(false)
+  })
+
+  it('surfaces the dedupe-skipped count to onConfirmed', async () => {
+    mockFlow(
+      { format: 'tradezella', trades: [TRADE, { ...TRADE, symbol: 'AAPL' }], errors: [], warnings: [], headers: [], raw_rows: [], duplicates: 1 },
+      { imported: 1, skipped: 1 },
+    )
+    const onConfirmed = vi.fn()
+    render(<ImportCsvModal onConfirmed={onConfirmed} onClose={vi.fn()} />)
+    const user = await upload()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Import 2 trades/ })).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('button', { name: /Import 2 trades/ }))
+    await waitFor(() => {
+      expect(onConfirmed).toHaveBeenCalledWith(1, 1)
+    })
   })
 })

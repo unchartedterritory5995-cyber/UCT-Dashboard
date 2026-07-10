@@ -17,6 +17,7 @@ Transaction semantics (spec §4, §10):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sqlite3
@@ -654,6 +655,98 @@ def delete_trade(
         return cursor.rowcount > 0
     finally:
         if owned_conn:
+            conn.close()
+
+
+# ── CSV re-import dedupe (Task 7) ────────────────────────────────────────────
+# CSV rows carry no externalId, so re-importing the same file used to DOUBLE
+# every trade. We stamp a stable `csv:` fingerprint on the confirm path so
+# bulk_insert_trades' existing (user_id, external_id) skip dedupes re-imports.
+#
+# Recipe mirrors broker/reconstruct.py::assign_external_ids (prefix 'csv:'
+# instead of 'bk:', and NO broker-account component — a CSV has none, and
+# omitting it keeps the preview's dry-run count identical to the confirm's
+# skipped count since the preview has no account context). A per-batch ordinal
+# disambiguates genuinely-identical round-trips WITHIN a file; it is STABLE
+# across re-imports because parsing the same CSV yields the same trade order
+# every time (trade-level rows preserve row order; Tradervue's FIFO is
+# deterministic). originalStop is intentionally NOT in the fingerprint — same as
+# the broker recipe; two trades differing only in stop would collide.
+
+_CSV_EXTERNAL_PREFIX = "csv:"
+
+
+def _csv_fingerprint_key(t: dict[str, Any]) -> str:
+    return "|".join(str(x) for x in (
+        t["symbol"], t["side"], t["entryDate"], t["exitDate"],
+        t["shares"], t["entryPrice"], t["exitPrice"],
+    ))
+
+
+def csv_external_id(trade: dict[str, Any], ordinal: int) -> str:
+    """Stable `csv:` fingerprint for one round-trip trade + its per-batch ordinal."""
+    base = f"{_csv_fingerprint_key(trade)}|{ordinal}"
+    return _CSV_EXTERNAL_PREFIX + hashlib.sha1(base.encode("utf-8")).hexdigest()
+
+
+def _fingerprint_trades(trades: list[dict[str, Any]]) -> list[str | None]:
+    """The csv: external_id each trade WOULD receive (no mutation). A trade
+    already carrying an externalId keeps it; one missing required fields → None."""
+    out: list[str | None] = []
+    seen: dict[str, int] = {}
+    for t in trades:
+        existing = t.get("externalId")
+        if existing:
+            out.append(existing)
+            continue
+        try:
+            key = _csv_fingerprint_key(t)
+        except (KeyError, TypeError):
+            out.append(None)
+            continue
+        n = seen.get(key, 0)
+        seen[key] = n + 1
+        out.append(csv_external_id(t, n))
+    return out
+
+
+def assign_csv_external_ids(trades: list[dict[str, Any]]) -> None:
+    """Stamp a stable csv: externalId in place on every trade lacking one."""
+    for t, fid in zip(trades, _fingerprint_trades(trades)):
+        if fid is not None and not t.get("externalId"):
+            t["externalId"] = fid
+
+
+def count_csv_duplicates(
+    user_id: str,
+    trades: list[dict[str, Any]],
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """Dry-run (NO writes): how many of these trades already exist for the user
+    under the csv: fingerprint → the count the preview shows and the number
+    confirm will skip. Does not mutate the caller's trade dicts."""
+    ids = [fid for fid in _fingerprint_trades(trades) if fid is not None]
+    if not ids:
+        return 0
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        existing: set[str] = set()
+        uniq = list(dict.fromkeys(ids))
+        CHUNK = 400
+        for i in range(0, len(uniq), CHUNK):
+            chunk = uniq[i:i + CHUNK]
+            placeholders = ",".join("?" * len(chunk))
+            rows = conn.execute(
+                f"SELECT external_id FROM j2_trades "
+                f"WHERE user_id = ? AND external_id IN ({placeholders})",
+                (user_id, *chunk),
+            ).fetchall()
+            for r in rows:
+                existing.add(r[0])
+        return sum(1 for fid in ids if fid in existing)
+    finally:
+        if owned:
             conn.close()
 
 

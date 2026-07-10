@@ -1,0 +1,7 @@
+Open Date,Close Date,Symbol,Side,Instrument,Size,Avg Entry,Avg Exit,Return $,Return %,Setup,Mistake,Notes
+04/01/2026 09:32,04/02/2026 15:55,NVDA,Long,Stock,100,500.00,521.00,2100.00,4.20,VCP,,Held through the day
+04/03/2026 10:01,04/03/2026 13:20,SMCI,Long,Stock,15,820.00,845.00,375.00,3.05,Flag,FOMO entry,
+04/07/2026 09:40,04/09/2026 11:10,COIN,Short,Stock,30,245.00,232.00,390.00,5.31,Parabolic Short,,Faded the spike
+04/10/2026 11:15,04/10/2026 14:45,PLTR,Long,Stock,200,24.50,23.90,-120.00,-2.45,Episodic Pivot,Cut winner early,Small loss
+04/14/2026 09:31,04/16/2026 10:05,MSFT,Long,Stock,60,410.00,428.00,1080.00,4.39,Base Breakout,,
+04/21/2026 09:50,04/21/2026 14:30,AMD,Long,Stock,120,108.00,111.75,450.00,3.47,20 EMA Pullback,,Bounced off the 20

@@ -520,7 +520,12 @@ async def import_preview(
         result = csv_import_service.parse_csv(raw)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return result.to_dict()
+    out = result.to_dict()
+    # Dry-run dupe count (Task 7) — how many of these rows already exist under
+    # the csv: fingerprint. WRITE-FREE; the modal shows "N duplicates will be
+    # skipped" and it equals the confirm's skipped count.
+    out["duplicates"] = trades_service.count_csv_duplicates(user["id"], result.trades)
+    return out
 
 
 @router.post("/trades/import/preview-mapped")
@@ -553,7 +558,9 @@ async def import_preview_mapped(
         result = csv_import_service.parse_with_mapping(headers, data_rows, mapping_dict)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return result.to_dict()
+    out = result.to_dict()
+    out["duplicates"] = trades_service.count_csv_duplicates(user["id"], result.trades)
+    return out
 
 
 @router.post("/trades/import/confirm")
@@ -588,8 +595,14 @@ def import_confirm(
         default = accounts_service.get_or_migrate_default_account(user["id"])
         account_id = default["id"]
     settings = accounts_service.get_account_settings(user["id"], account_id)
+
+    # Task 7 — re-import dedupe: stamp a stable csv: fingerprint on every trade
+    # lacking an externalId so bulk_insert_trades' (user_id, external_id) skip
+    # dedupes a re-import of the same file to zero. source='csv' keeps regime
+    # stamping (only source=='broker' nulls regime).
+    trades_service.assign_csv_external_ids(trades)
     result = trades_service.bulk_insert_trades(
-        user["id"], trades, settings, account_id=account_id,
+        user["id"], trades, settings, account_id=account_id, source="csv",
     )
     return result
 
