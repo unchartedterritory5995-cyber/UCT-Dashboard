@@ -3023,17 +3023,28 @@ export default function OptionsFlowDashboard() {
       // which checks both stocketf CSV metadata and KNOWN_ETF_TICKERS.
       const _symIsStock = (sym) => !isETF(sym, flowBy[sym]?.stocketf);
       const _fallbackTabFilter = dataMode === "stocks" ? _symIsStock : ((s) => !_symIsStock(s));
+      // 7/9: Same capFilter check for the fallback passes. Without this, the
+      // fallback silently adds Mega/Large tickers back into a Mid-Small
+      // watchlist after the primary pass filtered them out. Uses wlCapCheck
+      // (falls back to capLookup for tickers with mktcap=0).
+      const _fallbackCapFilter = (sym) => {
+        if (capFilter === "All") return true;
+        const mc = flowBy[sym]?.mktcap || 0;
+        return wlCapCheck({ sym, mktcap: mc }) === capFilter;
+      };
 
       // Pass 1+2: cross-direction
       bears.forEach(b => {
         if (bullSyms.has(b.sym)) return;
         if (!_fallbackTabFilter(b.sym)) return;
+        if (!_fallbackCapFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BULL");
         if (fb) fallbackBulls.push(fb);
       });
       bulls.forEach(b => {
         if (bearSyms.has(b.sym)) return;
         if (!_fallbackTabFilter(b.sym)) return;
+        if (!_fallbackCapFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BEAR");
         if (fb) fallbackBears.push(fb);
       });
@@ -3045,6 +3056,7 @@ export default function OptionsFlowDashboard() {
         if (bullSyms.has(sym) || bearSyms.has(sym)) return;
         if (crossFallbackBullSyms.has(sym) || crossFallbackBearSyms.has(sym)) return;
         if (!_fallbackTabFilter(sym)) return;
+        if (!_fallbackCapFilter(sym)) return;
         const bullTotal = flowBy[sym].BULL?.totalPrem || 0;
         const bearTotal = flowBy[sym].BEAR?.totalPrem || 0;
         if (bullTotal >= bearTotal && bullTotal > 0) {
