@@ -1886,33 +1886,46 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
 
     rows = []
     if sources:
-        source_clause = (
-            "source = '%s'" % sources[0] if len(sources) == 1
-            else "source IN (%s)" % ",".join("'%s'" % s for s in sources)
+        cap = int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))
+        select_cols = (
+            "SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume, "
+            "Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate, "
+            "Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI"
         )
+        color_gate = ("(Color IN ('MAGENTA', 'YELLOW') "
+                      "OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))")
         conn = sqlite3.connect(DB_PATH, timeout=10)
         try:
             conn.row_factory = sqlite3.Row
-            cur = conn.execute(f"""
-                SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
-                       Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
-                       Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
-                  FROM flow
-                 WHERE {source_clause}
-                   AND CreatedDate = ?
-                   AND (Color IN ('MAGENTA', 'YELLOW')
-                        OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
-                 ORDER BY id DESC
-                 LIMIT ?
-            """, (today, override_sql_floor,
-                  int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))))
-            # CAP (2026-07-09): was unbounded (_row_to_alert over ALL ~39K classified
-            # rows by midday → 30s+ timeout, "Loading market read…" stuck forever).
-            # Raised 3000→20000 to match the ALL FLOW tape scan so the hero's bull/bear
-            # totals represent the whole day's flow, not a thin recent slice (Ravi's
-            # "missing flow"). Sync endpoint (runs in the threadpool, not the event
-            # loop) + cached 30s, so the ~1.5s _row_to_alert pass over 20K rows is
-            # absorbed once per 30s and never blocks users. Env-tunable.
+            if len(sources) == 1:
+                cur = conn.execute(
+                    f"{select_cols} FROM flow "
+                    f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
+                    f"ORDER BY id DESC LIMIT ?",
+                    (sources[0], today, override_sql_floor, cap),
+                )
+            else:
+                # 'all' = a TRUE UNION of the partitions: cap PER SOURCE and union,
+                # not "latest N of the merged pool". The old merged-pool LIMIT dropped
+                # the morning on heavy days (>cap combined color-gate rows) and made
+                # All < Stocks -- 7/9: stocks classified 2137 vs all 1685, undercounting
+                # the day by ~$86M bull. Per-source cap keeps each partition's full day,
+                # so All == Stocks u ETFs by construction. Each source stays under the
+                # cap, so it's the same per-source work, just no longer truncated.
+                subqueries, params = [], []
+                for s in sources:
+                    subqueries.append(
+                        f"SELECT * FROM ({select_cols} FROM flow "
+                        f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
+                        f"ORDER BY id DESC LIMIT ?)"
+                    )
+                    params.extend([s, today, override_sql_floor, cap])
+                cur = conn.execute(" UNION ALL ".join(subqueries), params)
+            # CAP (2026-07-09; per-source since 2026-07-10): _row_to_alert over an
+            # unbounded row set timed out (30s+) at midday, so we cap. Applied PER
+            # SOURCE so the ALL view is a real union of full-day partitions instead of
+            # a truncated latest-N of the merged pool. Sync endpoint (threadpool) +
+            # 30s cache absorbs the pass. Env-tunable via MASSIVE_DAYSTATS_CAP.
             rows = cur.fetchall()
         finally:
             conn.close()
