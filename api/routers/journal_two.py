@@ -482,6 +482,23 @@ def trading_day_backfill_route(
     return trading_day_backfill.run_backfill(force=force)
 
 
+@router.post("/admin/attachments-backup")
+def attachments_backup_route(user: dict = Depends(require_admin)) -> dict[str, Any]:
+    """Admin-only manual trigger of the J2 attachments R2 backup. Fire-and-forget
+    on a daemon thread (a full tar.gz + upload can take many seconds); check the
+    marker / logs for the result. No-op when J2_ATTACHMENT_BACKUP_ENABLED is off."""
+    import threading
+
+    from api import j2_attachments_backup
+
+    threading.Thread(
+        target=j2_attachments_backup.backup_j2_attachments_to_r2,
+        daemon=True,
+        name="j2-attach-backup-manual",
+    ).start()
+    return {"started": True}
+
+
 # ── Accounts (Phase 2) ───────────────────────────────────────────────────────
 
 

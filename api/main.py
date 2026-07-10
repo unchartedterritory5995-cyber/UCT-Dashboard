@@ -2870,6 +2870,16 @@ async def lifespan(app: FastAPI):
                 print("[startup] Flow DB backup cron registered (02:30 ET Mon-Sat)")
         except Exception as e:
             print(f"[startup] Flow DB backup registration failed (non-fatal): {e}")
+        # Nightly offsite backup of the J2 image-attachments tree to R2 (gates
+        # the P1b screenshots feature). Ships dark (J2_ATTACHMENT_BACKUP_ENABLED=0);
+        # 02:45 ET Mon-Sat. Attachments live only on the WEB volume = no recovery
+        # path without this — which is why it registers in the web scheduler.
+        try:
+            from api import j2_attachments_backup
+            if j2_attachments_backup.register_jobs(_scheduler):
+                print("[startup] j2 attachments backup registered (02:45 ET Mon-Sat)")
+        except Exception as e:
+            print(f"[startup] j2 attachments backup registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
