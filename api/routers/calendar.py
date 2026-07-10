@@ -391,31 +391,38 @@ def _build_live(week_dates: list[date], today: date) -> dict:
 # ── Finnhub actuals patch ─────────────────────────────────────────────────────
 
 def _patch_today_actuals(days: dict, today_str: str) -> None:
-    """For today's pending earnings, fetch live actuals from Finnhub.
+    """Fill ACTUALS for every reporter this week whose date is today OR EARLIER.
 
-    Catches BMO reporters that file between 7:35 AM (wire run) and 9:30 AM
-    (market open), and AMC reporters that filed last night but weren't in wire.
-    Silent no-op if Finnhub key is absent or the call fails.
+    A Thursday BMO name (e.g. PEP) that already printed must show its beat/miss
+    on Friday — patching only 'today' left every earlier-this-week reporter stuck
+    on its estimate (the "PEP earnings went live but aren't there" bug). One
+    Finnhub range call over [earliest past day … today] covers them all; future
+    days can't have actuals so they're skipped. Silent no-op without a key.
     """
-    day = days.get(today_str)
-    if not day:
-        return
-
     fh_key = os.environ.get("FINNHUB_API_KEY")
     if not fh_key:
         return
 
-    all_entries = _day_entries(day)
-    pending = [e for e in all_entries if e.get("eps_act") is None and e.get("sym")]
-    if not pending:
+    # Only days that could already have printed (today or earlier).
+    past_dates = sorted(ds for ds in days.keys() if ds <= today_str)
+    if not past_dates:
         return
 
-    pending_syms = {e["sym"] for e in pending}
+    # Every still-pending reporter across those days, grouped by symbol (a name
+    # can appear once per week, but group defensively).
+    pending_by_sym: dict[str, list[dict]] = {}
+    for ds in past_dates:
+        for e in _day_entries(days[ds]):
+            if e.get("eps_act") is None and e.get("sym"):
+                pending_by_sym.setdefault(e["sym"], []).append(e)
+    if not pending_by_sym:
+        return
+
     try:
         import requests
         r = requests.get(
             "https://finnhub.io/api/v1/calendar/earnings",
-            params={"from": today_str, "to": today_str, "token": fh_key},
+            params={"from": past_dates[0], "to": today_str, "token": fh_key},
             timeout=10,
         )
         if not r.ok:
@@ -423,25 +430,26 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
         fh_map = {
             e["symbol"]: e
             for e in r.json().get("earningsCalendar", [])
-            if e.get("symbol") in pending_syms and e.get("epsActual") is not None
+            if e.get("symbol") in pending_by_sym and e.get("epsActual") is not None
         }
         patched = 0
-        for entry in pending:
-            fh = fh_map.get(entry["sym"])
+        for sym, entries in pending_by_sym.items():
+            fh = fh_map.get(sym)
             if not fh:
                 continue
-            entry["eps_act"] = round(float(fh["epsActual"]), 2)
-            if entry.get("eps_est") is None and fh.get("epsEstimate") is not None:
-                entry["eps_est"] = round(float(fh["epsEstimate"]), 2)
-            rev_a = fh.get("revenueActual")
-            rev_e = fh.get("revenueEstimate")
-            if rev_a:
-                entry["rev_act"] = rev_a / 1_000_000
-            if rev_e and entry.get("rev_est") is None:
-                entry["rev_est"] = rev_e / 1_000_000
-            patched += 1
+            for entry in entries:
+                entry["eps_act"] = round(float(fh["epsActual"]), 2)
+                if entry.get("eps_est") is None and fh.get("epsEstimate") is not None:
+                    entry["eps_est"] = round(float(fh["epsEstimate"]), 2)
+                rev_a = fh.get("revenueActual")
+                rev_e = fh.get("revenueEstimate")
+                if rev_a:
+                    entry["rev_act"] = rev_a / 1_000_000
+                if rev_e and entry.get("rev_est") is None:
+                    entry["rev_est"] = rev_e / 1_000_000
+                patched += 1
         if patched:
-            _logger.info("Calendar: Finnhub patched %d actuals for %s", patched, today_str)
+            _logger.info("Calendar: Finnhub patched %d actuals through %s", patched, today_str)
     except Exception as exc:
         _logger.warning("Calendar: Finnhub actuals patch failed: %s", exc)
 
