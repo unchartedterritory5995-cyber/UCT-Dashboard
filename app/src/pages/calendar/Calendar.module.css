@@ -245,6 +245,90 @@
   margin-bottom: 15px;
 }
 
+/* ── Logo-tile gallery (EarningsHub-style) ── */
+.tileSession { margin: 2px 0 12px; }
+.tileSessionHd {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--cal-muted);
+  background: var(--cal-panel);
+  border: 1px solid var(--cal-line2);
+  border-radius: 999px;
+  padding: 4px 12px;
+  margin-bottom: 12px;
+}
+.tileSessionN {
+  margin-left: 8px;
+  color: var(--cal-dim);
+  font-variant-numeric: tabular-nums;
+}
+.etileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 84px);
+  gap: 14px 10px;
+  justify-content: start;
+}
+.etile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  width: 84px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.etileLogo {
+  position: relative;
+  display: block;
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
+  overflow: hidden;
+  border: 1px solid var(--cal-line2);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.etile:hover .etileLogo {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+.etileMine {
+  border-color: var(--cal-gold);
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.5);
+}
+.etileStar {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--cal-bg);
+  border-radius: 50%;
+  line-height: 0;
+  padding: 1px;
+}
+.etileSym {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--cal-txt);
+  letter-spacing: 0.3px;
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.etileEm { font-size: 10px; font-weight: 700; color: var(--cal-gold); }
+.etileCap { font-size: 10px; color: var(--cal-muted); font-variant-numeric: tabular-nums; }
+.etileBeat, .etileMiss {
+  font-size: 8.5px; font-weight: 800; letter-spacing: 0.4px;
+  padding: 1px 6px; border-radius: 4px;
+}
+.etileBeat { color: #0b1f12; background: var(--cal-green, #4ade80); }
+.etileMiss { color: #fff; background: var(--cal-red, #ef4444); }
+
 /* Macro-only day — collapsed dim line (no earnings, just Fed/econ) */
 .macroOnly { margin-bottom: 8px; }
 .macroOnlyToggle {

@@ -15,6 +15,41 @@ import { inPrintWindow } from './calendarTime'
 import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
+// Session groups, EarningsHub-style: a clean pill header + a tile gallery.
+const TILE_SESSIONS = [
+  ['bmo', 'Before Open', 'sparkle'],
+  ['amc', 'After Close', 'moon'],
+  ['tbd', 'Time TBD',    'clock'],
+]
+
+function fmtTileCap(v) {
+  if (v == null || v <= 0) return null
+  return v >= 1000 ? `$${(v / 1000).toFixed(1)}T` : v >= 1 ? `$${Math.round(v)}B` : `$${Math.round(v * 1000)}M`
+}
+
+// The hero: a big logo tile + ticker + ONE signal. Click → detail modal.
+function EarningsTile({ e, onSelect }) {
+  const reported = e.eps_act != null
+  const surp = (reported && e.eps_est != null && e.eps_est !== 0)
+    ? ((e.eps_act - e.eps_est) / Math.abs(e.eps_est)) * 100 : null
+  const em = e.expected_move?.pct
+  return (
+    <button className={styles.etile} onClick={() => onSelect?.(e, e._timing)}
+            title={e.name ? `${e.sym} · ${e.name}` : e.sym}>
+      <span className={`${styles.etileLogo} ${e.mine ? styles.etileMine : ''}`}>
+        <CompanyLogo sym={e.sym} size={54} tile />
+        {e.mine && <span className={styles.etileStar}><UIcon name="star-fill" size={11} /></span>}
+      </span>
+      <span className={styles.etileSym}>{e.sym}</span>
+      {reported && surp != null
+        ? <span className={surp >= 0 ? styles.etileBeat : styles.etileMiss}>{surp >= 0 ? 'BEAT' : 'MISS'}</span>
+        : em != null
+          ? <span className={styles.etileEm}>±{em}%</span>
+          : <span className={styles.etileCap}>{fmtTileCap(e.mc_b) || ''}</span>}
+    </button>
+  )
+}
+
 function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay, pulse, tiers }) {
   // Memoize the session lists so the entries useMemo dep-check isn't always
   // invalidated by freshly-mapped arrays on every parent render.
@@ -103,10 +138,23 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
         <PrintTape entries={entries} reactions={reactions} onSelect={onSelect} />
       )}
 
-      {/* Flat, uniform list — every reporter as one clean row, session-grouped,
-          importance-ordered. No lead card / featured tier: ONE treatment per
-          day, not four (the "feels like a lot" was that layered stack). */}
-      <CalendarDayTable entries={orderedEntries} onSelect={onSelect} />
+      {/* Logo-tile gallery (EarningsHub-style): the company logo IS the content.
+          Session-grouped, importance-ordered, minimal text — click for detail. */}
+      {TILE_SESSIONS.map(([key, label, icon]) => {
+        const rows = orderedEntries.filter(e => (e._timing || 'tbd') === key)
+        if (!rows.length) return null
+        return (
+          <div key={key} className={styles.tileSession}>
+            <div className={styles.tileSessionHd}>
+              <UIcon name={icon} size={12} style={{ verticalAlign: '-1px', marginRight: 6 }} />
+              {label}<span className={styles.tileSessionN}>{rows.length}</span>
+            </div>
+            <div className={styles.etileGrid}>
+              {rows.map(e => <EarningsTile key={`${key}-${e.sym}`} e={e} onSelect={onSelect} />)}
+            </div>
+          </div>
+        )
+      })}
 
       {/* B3: IPO + dividend/split event cards (no BMO/AMC timing) */}
       {hasEvents && (
