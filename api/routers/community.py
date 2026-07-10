@@ -289,3 +289,64 @@ def admin_report_action(report_id: int, body: ReportActionIn,
 def admin_mute(user_id: str, body: MuteIn, admin: dict = Depends(require_admin)):
     store.set_muted(user_id, body.muted)
     return {"ok": True}
+
+
+# ── Image upload (chart screenshots) ─────────────────────────────────────────
+
+import io
+import re
+import uuid as _uuid
+
+from fastapi import File, UploadFile
+from fastapi.responses import FileResponse
+
+_ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024
+_MAX_DIM = 1920
+_SAFE_NAME = re.compile(r"^[a-f0-9]{32}\.webp$")
+
+
+def _upload_dir() -> str:
+    d = os.environ.get("COMMUNITY_UPLOAD_DIR")
+    if d:
+        return d
+    if os.path.isdir("/data"):
+        return "/data/community_uploads"
+    return os.path.join(os.path.dirname(__file__), "..", "..", "data", "community_uploads")
+
+
+@router.post("/images")
+async def upload_image(file: UploadFile = File(...),
+                       user: dict = Depends(require_community)):
+    _writer(user)
+    if file.content_type not in _ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Images only (png/jpg/webp/gif)")
+    raw = await file.read()
+    if not raw or len(raw) > _MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=400, detail="Image must be 1 byte – 5 MB")
+    from PIL import Image
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img.load()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not read image")
+    if img.mode not in ("RGB", "RGBA"):
+        img = img.convert("RGB")
+    img.thumbnail((_MAX_DIM, _MAX_DIM), Image.LANCZOS)
+    name = f"{_uuid.uuid4().hex}.webp"
+    user_dir = os.path.join(_upload_dir(), user["id"])
+    os.makedirs(user_dir, exist_ok=True)
+    img.save(os.path.join(user_dir, name), format="WEBP", quality=85)
+    return {"url": f"/api/community/images/{user['id']}/{name}",
+            "width": img.width, "height": img.height}
+
+
+@router.get("/images/{owner_id}/{name}")
+def serve_image(owner_id: str, name: str, user: dict = Depends(require_community)):
+    if not _SAFE_NAME.match(name) or "/" in owner_id or ".." in owner_id:
+        raise HTTPException(status_code=404, detail="Not found")
+    path = os.path.join(_upload_dir(), owner_id, name)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="image/webp",
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"})

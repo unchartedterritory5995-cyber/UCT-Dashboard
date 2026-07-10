@@ -200,3 +200,25 @@ async def test_invalid_body_json_400(client_for):
         r = await ac.post("/api/community/threads",
                           json={"space": "trade-ideas", "title": "t", "body": "not json{"})
         assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_image_upload_roundtrip(client_for, monkeypatch, tmp_path):
+    monkeypatch.setenv("COMMUNITY_UPLOAD_DIR", str(tmp_path / "uploads"))
+    from PIL import Image
+    import io
+    buf = io.BytesIO()
+    Image.new("RGB", (900, 500), (20, 20, 20)).save(buf, format="PNG")
+    async with client_for(MEMBER) as ac:
+        await _ack(ac)
+        r = await ac.post("/api/community/images",
+                          files={"file": ("chart.png", buf.getvalue(), "image/png")})
+        assert r.status_code == 200
+        url = r.json()["url"]
+        assert url.startswith("/api/community/images/") and url.endswith(".webp")
+        r2 = await ac.get(url)
+        assert r2.status_code == 200
+        # non-image rejected
+        r3 = await ac.post("/api/community/images",
+                           files={"file": ("x.txt", b"hello", "text/plain")})
+        assert r3.status_code == 400
