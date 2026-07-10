@@ -1235,11 +1235,16 @@ def get_calendar(
     week: int | None = None,
     account_id: str | None = None,
     basis: str = "closed",
+    spec: FilterSpec = Depends(parse_filter_query),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Aggregate trades into per-day buckets for the requested period.
     `view` = year|month|week. `basis` = closed|account (account-balance mode
-    is broker-only; falls back to closed when unavailable)."""
+    is broker-only; falls back to closed when unavailable).
+
+    Scope: the FilterSpec's NON-date facets (symbol/sides/setups/tags) filter
+    which trades count toward each day; the calendar's own view/year/month/week
+    window is unchanged (the Scope date facet is ignored here)."""
     if year is None:
         from datetime import datetime
         year = datetime.now().year
@@ -1252,6 +1257,7 @@ def get_calendar(
             week=week,
             account_id=account_id,
             basis=basis,
+            spec=spec,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1262,9 +1268,11 @@ def get_calendar_day(
     date: str,
     account_id: str | None = None,
     basis: str = "closed",
+    spec: FilterSpec = Depends(parse_filter_query),
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Per-day metrics + trade list + saved reflection notes."""
+    """Per-day metrics + trade list + saved reflection notes. The Scope's
+    non-date facets filter the day's trades; the day itself is fixed."""
     # Validate date format YYYY-MM-DD
     from datetime import date as Date
     try:
@@ -1272,7 +1280,7 @@ def get_calendar_day(
     except ValueError:
         raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
     return calendar_service.get_day_detail(
-        user["id"], date, account_id=account_id, basis=basis,
+        user["id"], date, account_id=account_id, basis=basis, spec=spec,
     )
 
 

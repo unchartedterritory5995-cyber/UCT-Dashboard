@@ -25,10 +25,43 @@ except ImportError:  # pragma: no cover — Python 3.8
     from backports.zoneinfo import ZoneInfo  # type: ignore
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.filters import FilterSpec, trades_where
 
 
 ET = ZoneInfo("America/New_York")
 UTC = timezone.utc
+
+
+def _non_date_trade_where(spec: FilterSpec | None) -> tuple[str, list]:
+    """Compile the FilterSpec's NON-date clauses (symbol/sides/setups/tags) for
+    the equity-trade aggregation, AND-prefixed for splicing after the calendar's
+    own base predicate.
+
+    Task A3: the calendar navigates dates itself (view/year/month/week), so the
+    Scope DATE facet must NOT apply here. Enforced by compiling a spec copy with
+    ``date_from``/``date_to`` forced to None before ``trades_where`` runs, so a
+    passed-through date facet is ignored even when present. Returns ("", []) when
+    ``spec`` is None (every pre-A3 caller → unchanged behavior)."""
+    if spec is None:
+        return "", []
+    non_date = spec.model_copy(update={"date_from": None, "date_to": None})
+    return trades_where(non_date)
+
+
+def _strategy_scope_where(
+    spec: FilterSpec | None, *, col: str = "underlying"
+) -> tuple[str, list]:
+    """Symbol-only Scope fragment for option strategies (AND-prefixed), matched
+    against the strategy's ``underlying`` (aliased via ``col`` for joined queries).
+
+    Task A3: the Scope symbol facet filters which strategies union into a day's
+    P&L. Side (Long/Short) has NO option-strategy analog (strategies carry a
+    bullish/bearish/neutral ``direction``, not a trade side) and setups/tags are
+    NOT stored on strategies — so those facets are deliberately not applied to
+    strategy rows. Date facets never apply on the calendar."""
+    if spec is None or not spec.symbol:
+        return "", []
+    return f"AND UPPER({col}) LIKE ? || '%'", [spec.symbol.strip().upper()]
 
 
 # ── Date utilities ───────────────────────────────────────────────────────────
@@ -384,12 +417,16 @@ def _fetch_strategies_in_window(
     account_id: str | None = None,
     et_lo: str,
     et_hi: str,
+    spec: FilterSpec | None = None,
 ) -> list[sqlite3.Row]:
     """Closed option strategies in the window. Rows with a stamped
     trading_day_et are filtered on the spine against the unbuffered
     [et_lo, et_hi] ET-date range; legacy NULL-spine rows keep the
     buffered closed_at range [sql_lo, sql_hi], with ET-bucket filtering
-    on the caller side."""
+    on the caller side.
+
+    The Scope symbol facet (`spec`) filters by ``underlying`` (setups/tags/side
+    do not apply to strategies — see ``_strategy_scope_where``)."""
     sql = (
         "SELECT id, closed_at, pnl_dollar, r_multiple, result, status, "
         "       trading_day_et "
@@ -405,6 +442,10 @@ def _fetch_strategies_in_window(
     if account_id:
         sql += " AND account_id = ?"
         params.append(account_id)
+    scope_frag, scope_params = _strategy_scope_where(spec)
+    if scope_frag:
+        sql += " " + scope_frag
+        params.extend(scope_params)
     return conn.execute(sql, params).fetchall()
 
 
@@ -415,9 +456,14 @@ def _fetch_expiring_legs(
     conn: sqlite3.Connection,
     *,
     account_id: str | None = None,
+    spec: FilterSpec | None = None,
 ) -> list[sqlite3.Row]:
     """Open-strategy legs whose expiration falls in the date window.
-    Returns one row per leg with its strategy id + expiration."""
+    Returns one row per leg with its strategy id + expiration.
+
+    The Scope symbol facet (`spec`) filters expiring strategies by ``underlying``
+    so an active symbol scope keeps the expiring-badge set consistent with the
+    filtered day P&L (setups/tags/side do not apply to strategies)."""
     params: list[Any] = [user_id, start_iso, end_iso]
     sql = (
         "SELECT s.id AS strategy_id, l.expiration "
@@ -429,6 +475,10 @@ def _fetch_expiring_legs(
     if account_id:
         sql += " AND s.account_id = ?"
         params.append(account_id)
+    scope_frag, scope_params = _strategy_scope_where(spec, col="s.underlying")
+    if scope_frag:
+        sql += " " + scope_frag
+        params.extend(scope_params)
     return conn.execute(sql, params).fetchall()
 
 
@@ -501,14 +551,20 @@ def get_calendar(
     week: int | None = None,
     account_id: str | None = None,
     basis: str = "closed",
+    spec: FilterSpec | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Aggregate the user's trades for the requested period.
 
     Returns a payload matching design-spec §6.1: {view, year, month?,
-    week?, days[], totals}. `account_id` is accepted but unused until
-    Phase 2 (Accounts) ships; passes through cleanly.
-    """
+    week?, days[], totals}.
+
+    `spec` (Task A3): when present, the trade-side aggregation splices the
+    FilterSpec's NON-date facets only (symbol/sides/setups/tags via
+    ``_non_date_trade_where``); the calendar's own date window is UNCHANGED (the
+    Scope date facet does NOT apply — the calendar sets its own dates). Option
+    strategies unioned into day P&L honor only the symbol facet
+    (``_strategy_scope_where``)."""
     if view == "year":
         start, end = _year_bounds(year)
     elif view == "month":
@@ -548,6 +604,12 @@ def get_calendar(
         if account_id:
             sql += " AND account_id = ?"
             params.append(account_id)
+        # Splice the Scope non-date facets (symbol/sides/setups/tags). The date
+        # window above is the calendar's own — the Scope date facet is ignored.
+        trade_frag, trade_params = _non_date_trade_where(spec)
+        if trade_frag:
+            sql += " " + trade_frag
+            params.extend(trade_params)
         rows = conn.execute(sql, params).fetchall()
 
         # Filter rows whose ET trading day falls outside the requested
@@ -561,14 +623,14 @@ def get_calendar(
         # Fold closed option strategies into the same day buckets.
         strategies = _fetch_strategies_in_window(
             user_id, sql_lo, sql_hi, conn, account_id=account_id,
-            et_lo=start_iso, et_hi=end_iso,
+            et_lo=start_iso, et_hi=end_iso, spec=spec,
         )
         extra_bucket: dict[str, dict[str, Any]] = {}
         _union_strategy_aggregates(extra_bucket, strategies, start_iso, end_iso)
 
         # Expiring-soon badge counts — open strategies with legs expiring in window.
         expiring_legs = _fetch_expiring_legs(
-            user_id, start_iso, end_iso, conn, account_id=account_id,
+            user_id, start_iso, end_iso, conn, account_id=account_id, spec=spec,
         )
         expiring_by_date = _expiring_counts(expiring_legs, start_iso, end_iso)
 
@@ -634,9 +696,15 @@ def get_day_detail(
     *,
     account_id: str | None = None,
     basis: str = "closed",
+    spec: FilterSpec | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
-    """Return the day's metrics + trade list + (optional) saved notes."""
+    """Return the day's metrics + trade list + (optional) saved notes.
+
+    `spec` (Task A3): the trade-side query splices the FilterSpec's NON-date
+    facets only (symbol/sides/setups/tags); the day is fixed by ``date`` (the
+    Scope date facet does not apply). Option strategies honor only the symbol
+    facet."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -664,6 +732,11 @@ def get_day_detail(
         if account_id:
             sql += " AND account_id = ?"
             params.append(account_id)
+        # Splice the Scope non-date facets; the day is fixed by `date` above.
+        trade_frag, trade_params = _non_date_trade_where(spec)
+        if trade_frag:
+            sql += " " + trade_frag
+            params.extend(trade_params)
         sql += " ORDER BY exit_date ASC"
         rows = conn.execute(sql, params).fetchall()
 
@@ -672,14 +745,14 @@ def get_day_detail(
         # Option strategies: closed on this day + open ones expiring today.
         closed_strategies = _fetch_strategies_in_window(
             user_id, sql_lo, sql_hi, conn, account_id=account_id,
-            et_lo=date, et_hi=date,
+            et_lo=date, et_hi=date, spec=spec,
         )
         same_day_strategies = [
             s for s in closed_strategies
             if _row_et_day(s, "closed_at") == date
         ]
         expiring_today = _fetch_expiring_legs(
-            user_id, date, date, conn, account_id=account_id,
+            user_id, date, date, conn, account_id=account_id, spec=spec,
         )
         expiring_strategy_ids = {r["strategy_id"] for r in expiring_today}
 

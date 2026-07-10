@@ -527,6 +527,147 @@ def test_calendar_marks_expiring_strategies(db_conn):
     assert by_date[exp]["expiringCount"] == 1
 
 
+# ─── Scope (FilterSpec) — non-date facets filter day aggregates (Task A3) ──────
+
+
+def test_calendar_spec_symbol_filters_day_aggregate(db_conn):
+    """A Scope symbol facet narrows which trades count toward each day's
+    pnlDollar/tradeCount — AAPL only, on the SAME day two symbols reported."""
+    from api.services.journal_two.calendar import get_calendar
+    from api.services.journal_two.filters import FilterSpec
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T18:00:00Z",
+               pnl=100, symbol="AAPL")
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T18:00:00Z",
+               pnl=250, symbol="MSFT")
+
+    # Unfiltered: both symbols count.
+    full = get_calendar("u1", view="month", year=2026, month=4, conn=db_conn)
+    by_full = {d["date"]: d for d in full["days"]}
+    assert by_full["2026-04-19"]["pnlDollar"] == pytest.approx(350.0)
+    assert by_full["2026-04-19"]["tradeCount"] == 2
+
+    # Scoped to AAPL: only the AAPL trade's P&L / count.
+    got = get_calendar("u1", view="month", year=2026, month=4,
+                       spec=FilterSpec(symbol="AAPL"), conn=db_conn)
+    by_date = {d["date"]: d for d in got["days"]}
+    assert by_date["2026-04-19"]["pnlDollar"] == pytest.approx(100.0)
+    assert by_date["2026-04-19"]["tradeCount"] == 1
+    assert got["totals"]["tradeCount"] == 1
+
+
+def test_calendar_spec_date_facet_is_ignored(db_conn):
+    """The Scope DATE facet must NOT shrink the calendar's own window — the
+    calendar navigates dates itself. A spec.date_from AFTER a trade's day
+    still includes that trade (date facet compiled away in the adapter)."""
+    from api.services.journal_two.calendar import get_calendar
+    from api.services.journal_two.filters import FilterSpec
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-05T18:00:00Z",
+               pnl=100, symbol="AAPL")
+
+    # date_from far AFTER the trade day would drop it if the date facet applied.
+    got = get_calendar("u1", view="month", year=2026, month=4,
+                       spec=FilterSpec(date_from="2026-04-20", date_to="2026-04-25"),
+                       conn=db_conn)
+    by_date = {d["date"]: d for d in got["days"]}
+    assert by_date["2026-04-05"]["pnlDollar"] == pytest.approx(100.0)
+    assert got["totals"]["tradeCount"] == 1
+
+
+def test_day_detail_spec_symbol_filters(db_conn):
+    """get_day_detail honors the Scope symbol facet on its trade list + metrics."""
+    from api.services.journal_two.calendar import get_day_detail
+    from api.services.journal_two.filters import FilterSpec
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T15:00:00Z",
+               pnl=80, symbol="AAPL")
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T16:00:00Z",
+               pnl=20, symbol="MSFT")
+
+    got = get_day_detail("u1", "2026-04-19",
+                         spec=FilterSpec(symbol="AAPL"), conn=db_conn)
+    assert got["metrics"]["tradeCount"] == 1
+    assert got["metrics"]["netPnlDollar"] == pytest.approx(80.0)
+    assert {t["symbol"] for t in got["trades"]} == {"AAPL"}
+
+
+def test_calendar_spec_symbol_excludes_other_underlying_strategy(db_conn):
+    """The symbol facet filters option strategies by underlying too — a
+    strategy on a different underlying does not union into a scoped day."""
+    from datetime import date, timedelta
+    from api.services.journal_two.calendar import get_calendar
+    from api.services.journal_two.filters import FilterSpec
+    from api.services.journal_two.options import create_strategy, close_strategy
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    today = date.today()
+    exp = (today + timedelta(days=21)).isoformat()
+
+    _add_trade(db_conn, "u1", exit_date_iso=f"{today.isoformat()}T18:00:00Z",
+               pnl=100, symbol="AAPL")
+    s = create_strategy("u1", {
+        "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
+        "entry_date": today.isoformat(),
+        "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
+                  "expiration": exp, "qty": 1, "entry_price": 5}],
+    }, conn=db_conn)
+    close_strategy("u1", s["id"], {
+        "exitPrices": {"0": 8}, "exitDate": today.isoformat(),
+    }, conn=db_conn)
+
+    got = get_calendar("u1", view="month", year=today.year, month=today.month,
+                       spec=FilterSpec(symbol="AAPL"), conn=db_conn)
+    by_date = {d["date"]: d for d in got["days"]}
+    bucket = by_date.get(today.isoformat())
+    assert bucket is not None
+    # Only the AAPL equity trade — the NVDA strategy is excluded by symbol scope.
+    assert bucket["pnlDollar"] == pytest.approx(100.0)
+    assert bucket["tradeCount"] == 1
+
+
+def test_calendar_spec_setup_does_not_filter_strategies(db_conn):
+    """Setups/tags do NOT apply to option strategies (they aren't stored/filtered
+    on strategies): a setup scope narrows equities but leaves the strategy union
+    intact (documented A3 behavior)."""
+    from datetime import date, timedelta
+    from api.services.journal_two.calendar import get_calendar
+    from api.services.journal_two.filters import FilterSpec
+    from api.services.journal_two.options import create_strategy, close_strategy
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    today = date.today()
+    exp = (today + timedelta(days=21)).isoformat()
+
+    # Equity trade has NO setup (NULL) → excluded by a setups=['VCP'] scope.
+    _add_trade(db_conn, "u1", exit_date_iso=f"{today.isoformat()}T18:00:00Z",
+               pnl=100, symbol="AAPL")
+    s = create_strategy("u1", {
+        "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
+        "entry_date": today.isoformat(),
+        "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
+                  "expiration": exp, "qty": 1, "entry_price": 5}],
+    }, conn=db_conn)
+    close_strategy("u1", s["id"], {
+        "exitPrices": {"0": 8}, "exitDate": today.isoformat(),
+    }, conn=db_conn)
+
+    got = get_calendar("u1", view="month", year=today.year, month=today.month,
+                       spec=FilterSpec(setups=["VCP"]), conn=db_conn)
+    by_date = {d["date"]: d for d in got["days"]}
+    bucket = by_date.get(today.isoformat())
+    assert bucket is not None
+    # Equity trade (no VCP setup) excluded; NVDA strategy still unions in.
+    assert bucket["pnlDollar"] == pytest.approx(300.0)
+    assert bucket["tradeCount"] == 1
 
 
 # ─── Account-balance basis ────────────────────────────────────────────────────
