@@ -2049,3 +2049,31 @@ def export_calendar_ics(
             "Cache-Control": "no-cache",
         },
     )
+
+
+@router.get("/api/calendar/report.ics")
+def export_single_report_ics(sym: str, date: str, timing: str = "tbd"):
+    """One earnings report as a downloadable calendar event ("Add to calendar"
+    on a card/modal). No auth, no token — it's a single public event the user
+    already sees. bmo/amc anchor to the session; anything else = honest all-day.
+    Reuses the same _build_vevent as the full export (TBD → all-day)."""
+    import re as _re
+    from datetime import date as _date_cls   # the `date` param shadows the import
+    s = (sym or "").upper().strip()
+    core = s.replace(".", "").replace("-", "")
+    if not s or len(core) > 6 or not core.isalpha() or not _re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+        return _Response(content="bad request", status_code=400, media_type="text/plain")
+    try:
+        _date_cls.fromisoformat(date)   # reject 2026-13-05 etc.
+    except ValueError:
+        return _Response(content="bad date", status_code=400, media_type="text/plain")
+    t = timing if timing in ("bmo", "amc") else "tbd"
+    body = _build_vcalendar([_build_vevent(s, date, t)])
+    return _Response(
+        content=body,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{s}-earnings.ics"',
+            "Cache-Control": "no-cache",
+        },
+    )

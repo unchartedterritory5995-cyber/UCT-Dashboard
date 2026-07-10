@@ -11,6 +11,7 @@ import { applyFilters, sortEntries } from './filterLogic'
 import { impEff } from './importance'
 import { useReactions } from './useCalendarData'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
+import { inPrintWindow } from './calendarTime'
 import UIcon from '../../components/ui/UIcon'
 import styles from './Calendar.module.css'
 
@@ -161,18 +162,6 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
 // After the close (and pre-open for BMO), today's board leads with a
 // market-wide scoreboard of what just reported, sorted by |surprise|. No
 // competitor reflows the calendar itself in real time. Pure client-side.
-function inPrintWindow() {
-  try {
-    const h = new Date().toLocaleString('en-US', {
-      timeZone: 'America/New_York', hour: '2-digit', hour12: false,
-    })
-    // WebKit renders midnight as "24" with hour12:false — normalize to 0 so the
-    // 00:00-00:59 hour stays OUT of the window (24 >= 16 would wrongly admit it).
-    const hour = parseInt(h, 10) % 24
-    return hour >= 16 || (hour >= 6 && hour < 10)   // post-close OR pre-open
-  } catch { return false }
-}
-
 function PrintTape({ entries, reactions, onSelect }) {
   const reported = useMemo(() => {
     const withActual = entries.filter(e => e.eps_act != null)

@@ -2650,3 +2650,24 @@
   .briefEmpty { margin: 0 12px 4px; }
   .printTapeRows { grid-template-columns: 1fr; }
 }
+
+
+/* ── Phase 4 — lifecycle REPORTING chip (today, in-window, gold pulse) ───── */
+.reportingChip {
+  align-self: flex-start;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #1a1408;
+  background: var(--cal-gold);
+  border-radius: 5px;
+  padding: 2px 7px;
+  animation: calReporting 1.3s ease-in-out infinite;
+}
+@keyframes calReporting {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.5); }
+  50%      { box-shadow: 0 0 0 4px rgba(201, 168, 76, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reportingChip { animation: none; }
+}

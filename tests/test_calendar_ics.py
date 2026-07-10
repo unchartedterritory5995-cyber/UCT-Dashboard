@@ -267,3 +267,38 @@ def test_export_ics_mine_valid_token():
     assert "AAPL" in r.text
     # Ensure _collect_reporters_for_ics was called with scope=mine + user_id
     collect.assert_called_once_with("mine", "u99")
+
+
+# ── Phase 4: single-report .ics ("Add to calendar") ──────────────────────────
+def test_report_ics_single_event_bmo():
+    mod = _import_router()
+    r = mod.export_single_report_ics(sym="PEP", date="2026-07-16", timing="bmo")
+    assert r.status_code == 200
+    body = r.body.decode() if isinstance(r.body, bytes) else r.body
+    assert body.count("BEGIN:VEVENT") == 1
+    assert "PEP earnings (BMO)" in body
+    assert "T070000" in body                        # session-anchored, not all-day
+
+
+def test_report_ics_tbd_is_all_day():
+    mod = _import_router()
+    r = mod.export_single_report_ics(sym="WAFD", date="2026-07-16", timing="tbd")
+    assert r.status_code == 200
+    body = r.body.decode() if isinstance(r.body, bytes) else r.body
+    assert "DTSTART;VALUE=DATE:20260716" in body
+    assert "time TBD" in body
+
+
+def test_report_ics_unknown_timing_falls_back_to_all_day():
+    mod = _import_router()
+    r = mod.export_single_report_ics(sym="X", date="2026-07-16", timing="garbage")
+    assert r.status_code == 200
+    body = r.body.decode() if isinstance(r.body, bytes) else r.body
+    assert "DTSTART;VALUE=DATE:20260716" in body   # not bmo/amc -> all-day
+
+
+def test_report_ics_rejects_bad_input():
+    mod = _import_router()
+    assert mod.export_single_report_ics(sym="TOOLONGSYM", date="2026-07-16").status_code == 400
+    assert mod.export_single_report_ics(sym="PEP", date="2026-13-05").status_code == 400
+    assert mod.export_single_report_ics(sym="PEP", date="notadate").status_code == 400

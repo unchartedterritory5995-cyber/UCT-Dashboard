@@ -123,7 +123,7 @@ function groupFilings(filings) {
   return [...groups.values()].slice(0, 5)
 }
 
-export default function EarningsModal({ row, label, onClose }) {
+export default function EarningsModal({ row, label, reportDate = null, timing = null, onClose }) {
   const navigate = useNavigate()
   const { isPaid } = useAuth()
   const [gap, setGap]                       = useState(null)
@@ -234,6 +234,16 @@ export default function EarningsModal({ row, label, onClose }) {
         <div className={styles.header}>
           <CompanyLogo sym={row.sym} size={38} tile />
           <span className={styles.sym} id="earnings-modal-title">{row.sym}</span>
+          {reportDate && (
+            <a
+              className={styles.addCal}
+              href={`/api/calendar/report.ics?sym=${encodeURIComponent(row.sym)}&date=${reportDate}&timing=${timing || 'tbd'}`}
+              title="Downloads a calendar event — opens in Google/Apple Calendar"
+              onClick={e => e.stopPropagation()}
+            >
+              <UIcon name="calendar" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Add to calendar
+            </a>
+          )}
           <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
         </div>
 
@@ -298,7 +308,7 @@ export default function EarningsModal({ row, label, onClose }) {
               )}
               {aiState.data.pre_earnings?.label && (
                 <div className={styles.statRow}>
-                  <span className={styles.statLabel}>HEADING IN</span>
+                  <span className={styles.statLabel} title="Price action heading into the report">RUN-IN</span>
                   <span className={styles.statVal}>{aiState.data.pre_earnings.label}</span>
                 </div>
               )}

@@ -4,6 +4,7 @@ import UIcon from '../../components/ui/UIcon'
 import { useTickerActions } from '../../components/TickerActions'
 import TickerActionsMenu from '../../components/TickerActions'
 import { BeatDots, ReactionSpark, ExpectedMovePair } from './cardBits'
+import { isReportingNow } from './calendarTime'
 import styles from './Calendar.module.css'
 // NOTE: FwdPeChip (useFundamentals per card) removed — firing ~60 requests on
 // feed load is too expensive. If fwd-P/E is wanted on cards, batch it via the
@@ -91,18 +92,24 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             </div>
             <div className={styles.nm}>{entry.name || ''}</div>
           </div>
-          <span
-            className={`${styles.session} ${
-              timing === 'bmo' ? styles.sessionBmo
-              : timing === 'amc' ? styles.sessionAmc
-              : styles.sessionTbd}`}
-            title={timing === 'bmo' ? 'Before market open'
-                 : timing === 'amc' ? 'After market close'
-                 : 'Report session not yet confirmed'}
-          >
-            {timing === 'tbd' ? 'TBD' : (timing || '').toUpperCase()}
-            {entry.date_est && <span className={styles.dateEst}> · est.</span>}
-          </span>
+          {isReportingNow(entry) ? (
+            <span className={styles.reportingChip} title="In its reporting window now — results expected shortly">
+              REPORTING
+            </span>
+          ) : (
+            <span
+              className={`${styles.session} ${
+                timing === 'bmo' ? styles.sessionBmo
+                : timing === 'amc' ? styles.sessionAmc
+                : styles.sessionTbd}`}
+              title={timing === 'bmo' ? 'Before market open'
+                   : timing === 'amc' ? 'After market close'
+                   : 'Report session not yet confirmed'}
+            >
+              {timing === 'tbd' ? 'TBD' : (timing || '').toUpperCase()}
+              {entry.date_est && <span className={styles.dateEst}> · est.</span>}
+            </span>
+          )}
         </div>
 
         {!reported ? (

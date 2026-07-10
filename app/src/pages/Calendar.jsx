@@ -212,7 +212,7 @@ export default function Calendar() {
           _avg_vol: m.avg_vol ?? entry._avg_vol,
           mc_b:     entry.mc_b ?? m.mc_b,
         } : entry
-        return { ...mergeEnrichment(withMetrics, dayEnrich), mine, _sources: sources }
+        return { ...mergeEnrichment(withMetrics, dayEnrich), mine, _sources: sources, _ds: ds }
       })
       out[ds] = { ...d, bmo: tag(d.bmo), amc: tag(d.amc), tbd: tag(d.tbd) }
     }
@@ -403,7 +403,7 @@ export default function Calendar() {
   // ── onSelect: build the EarningsModal row using toModalRow (CORRECTION 2) ──
   const onSelect = (entry, timing) => {
     const label = timingLabel(timing)
-    setSelected({ row: toModalRow(entry), label })
+    setSelected({ row: toModalRow(entry), label, reportDate: entry._ds, timing })
   }
 
   const weekLabel = data?.week_start && data?.week_end
@@ -537,6 +537,8 @@ export default function Calendar() {
           <EarningsModal
             row={selected.row}
             label={selected.label}
+            reportDate={selected.reportDate}
+            timing={selected.timing}
             onClose={() => setSelected(null)}
           />
         </ErrorBoundary>
