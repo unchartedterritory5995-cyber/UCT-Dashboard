@@ -41,11 +41,14 @@ function EarningsTile({ e, onSelect }) {
         {e.mine && <span className={styles.etileStar}><UIcon name="star-fill" size={11} /></span>}
       </span>
       <span className={styles.etileSym}>{e.sym}</span>
+      {/* One signal, only when it means something — a reported beat/miss or the
+          options-implied move. No filler stat (cap etc.): logo + ticker is the
+          clean default, like the competitors. */}
       {reported && surp != null
         ? <span className={surp >= 0 ? styles.etileBeat : styles.etileMiss}>{surp >= 0 ? 'BEAT' : 'MISS'}</span>
         : em != null
           ? <span className={styles.etileEm}>±{em}%</span>
-          : <span className={styles.etileCap}>{fmtTileCap(e.mc_b) || ''}</span>}
+          : null}
     </button>
   )
 }
@@ -106,15 +109,17 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     return entries
   }, [entries, tiers, filters.sort])
 
+  // Macro (Fed speakers / econ prints) is opt-in — it's not earnings, and by
+  // default it was just noise on an earnings calendar. Off unless the user turns
+  // the Macro chip on in Filters.
+  const showMacro = activeTypes.has('macro')
   const hasEarnings = entries.length > 0
-  const hasMacro    = !!(day.econ?.length || day.fed?.length)
+  const hasMacro    = showMacro && !!(day.econ?.length || day.fed?.length)
   const hasEvents   = ipoEvents.length > 0 || divEvents.length > 0
 
   if (!hasEarnings && !hasMacro && !hasEvents) return null
 
-  // A day with NO earnings (just Fed/econ chatter) is collapsed to one dim line
-  // instead of a full "0 companies reporting" header + macro band — the empty-
-  // day noise that made the feed feel clogged. Today stays open by default.
+  // Macro-only day → one dim collapsed line (only when macro is on).
   if (!hasEarnings && !hasEvents && hasMacro) {
     return <MacroOnlyDay ds={ds} day={day} />
   }
@@ -125,18 +130,15 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     <div className={styles.daygrp} id={`day-${ds}`}>
       <div className={styles.dayhd}>
         <span className={styles.d1}>{(day.label || ds).toUpperCase()}</span>
-        <span className={styles.d2}>
-          {entries.length} {entries.length === 1 ? 'company reporting' : 'companies reporting'}
-        </span>
+        {entries.length > 0 && <span className={styles.d2}>{entries.length}</span>}
         <span className={styles.ln} />
-        {mineN > 0 && <span className={styles.mineN}>{mineN} of yours</span>}
+        {mineN > 0 && (
+          <span className={styles.mineN}>
+            <UIcon name="star-fill" size={9} style={{ verticalAlign: '-1px', marginRight: 3 }} />{mineN}
+          </span>
+        )}
       </div>
-      <MacroBand econ={day.econ} fed={day.fed} />
-
-      {/* Print Tape — today's market-wide scoreboard during the print window */}
-      {day.is_today && inPrintWindow() && (
-        <PrintTape entries={entries} reactions={reactions} onSelect={onSelect} />
-      )}
+      {hasMacro && <MacroBand econ={day.econ} fed={day.fed} />}
 
       {/* Logo-tile gallery (EarningsHub-style): the company logo IS the content.
           Session-grouped, importance-ordered, minimal text — click for detail. */}

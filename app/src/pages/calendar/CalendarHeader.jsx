@@ -15,8 +15,10 @@ const AUDIENCE = [
 const SORTS = [['mine', 'My stocks first'], ['time', 'Time'], ['mcap', 'Market cap'], ['move', 'Expected move']]
 const SOURCES = [['watchlist','Watchlists'],['flagged','Flagged'],['positions','Positions'],['uct20','UCT20']]
 
-// B3: event-type chips — Earnings + Macro are always on (baseline); IPOs + Dividends are toggleable
-export const DEFAULT_EVENT_TYPES = new Set(['earnings', 'macro'])
+// Event-type chips — Earnings is the calendar (always on). Macro (Fed/econ),
+// IPOs, Dividends are all opt-in — off by default so an earnings calendar shows
+// earnings, not Fed-speaker noise.
+export const DEFAULT_EVENT_TYPES = new Set(['earnings'])
 const EVENT_TYPE_CHIPS = [
   ['earnings', 'Earnings'],
   ['macro',    'Macro'],
@@ -268,7 +270,7 @@ export default function CalendarHeader({
 
   const toggleEventType = type => {
     if (!setEventTypes) return
-    const locked = type === 'earnings' || type === 'macro'
+    const locked = type === 'earnings'
     if (locked) return
     const next = new Set(eventTypes || DEFAULT_EVENT_TYPES)
     if (next.has(type)) next.delete(type)
@@ -323,7 +325,7 @@ export default function CalendarHeader({
 
   // ── Active-filter count for the ⚙ Filters badge ──
   const evTypes = eventTypes || DEFAULT_EVENT_TYPES
-  const eventTypesChanged = evTypes.has('ipos') || evTypes.has('dividends')
+  const eventTypesChanged = evTypes.has('ipos') || evTypes.has('dividends') || evTypes.has('macro')
   const activeCount =
     (filters.minAvgVol ? 1 : 0) + (filters.priceMin ? 1 : 0) +
     (filters.priceMax ? 1 : 0) + (filters.minMcap > 0 ? 1 : 0) +
@@ -338,7 +340,7 @@ export default function CalendarHeader({
   // ── Shared control fragments (used by desktop panel + phone sheet) ──
   const eventTypeChips = view !== 'month' && EVENT_TYPE_CHIPS.map(([type, lbl]) => {
     const active = evTypes.has(type)
-    const locked = type === 'earnings' || type === 'macro'
+    const locked = type === 'earnings'
     return (
       <span
         key={type}

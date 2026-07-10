@@ -21,7 +21,7 @@ function renderHeader(overrides = {}) {
     filters: baseFilters, setFilters: vi.fn(),
     mySources: ['watchlist', 'flagged', 'positions', 'uct20'], setMySources: vi.fn(),
     monthCursor: { year: 2026, month: 6 }, setMonthCursor: vi.fn(),
-    eventTypes: new Set(['earnings', 'macro']), setEventTypes: vi.fn(),
+    eventTypes: new Set(['earnings']), setEventTypes: vi.fn(),
     ...overrides,
   }
   return render(<MemoryRouter><CalendarHeader {...props} /></MemoryRouter>)
@@ -102,7 +102,7 @@ describe('CalendarHeader — Week Navigator', () => {
           filters={baseFilters} setFilters={vi.fn()}
           mySources={[]} setMySources={vi.fn()}
           monthCursor={{ year: 2026, month: 7 }} setMonthCursor={vi.fn()}
-          eventTypes={new Set(['earnings', 'macro'])} setEventTypes={vi.fn()}
+          eventTypes={new Set(['earnings'])} setEventTypes={vi.fn()}
           dayTabs={DAY_TABS} isCurrentWeek={false}
           onGotoToday={onToday} onSearchJump={vi.fn()}
         />
