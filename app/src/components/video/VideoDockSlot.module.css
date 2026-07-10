@@ -45,10 +45,71 @@
   .leftRail { grid-area: left; }
   .centerCol { grid-area: center; }
   .rightRail { grid-area: right; }
+  /* Plain videos (no chapters/poster) drop the left column entirely. */
+  .fourZone.noLeft {
+    grid-template-columns: minmax(0, 1fr) 330px;
+    grid-template-areas: 'center right';
+  }
 }
+/* Mobile stack order: video → right rail (takeaways/tickers/notes) → left rail
+   (chapters/poster). `order` is ignored by the desktop grid's explicit areas. */
+.rightRail { order: 1; }
+.leftRail { order: 2; }
 /* Recap poster fills the left rail width. */
 .posterWrap .poster {
   width: 100%;
+}
+/* Active chapter — highlighted + gold spine as the video plays. */
+.chapterRowActive {
+  background: rgba(201, 168, 76, 0.14);
+  box-shadow: inset 2px 0 0 #c9a84c;
+}
+.chapterRowActive .chapterTitle {
+  color: #f3efe2;
+  font-weight: 600;
+}
+.chapterRowActive .chapterTime {
+  color: #e6cf86;
+}
+/* Loading skeletons — reserve the rail space so insights don't pop in. */
+.skelList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skelRow { height: 30px; border-radius: 8px; }
+.skelLine { height: 13px; border-radius: 6px; }
+.skelLine:nth-child(3n) { width: 72%; }
+.skelRow,
+.skelLine {
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 37%,
+    rgba(255, 255, 255, 0.04) 63%);
+  background-size: 400% 100%;
+  animation: skelShimmer 1.4s ease infinite;
+}
+@keyframes skelShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+/* Visible keyboard focus across the theater's controls. */
+.chapterRow:focus-visible,
+.tickersToggle:focus-visible,
+.tickerSym:focus-visible,
+.tickerTime:focus-visible,
+.noteTime:focus-visible,
+.noteAddBtn:focus-visible,
+.notebookBtn:focus-visible,
+.upNextItem:focus-visible,
+.posterLink:focus-visible {
+  outline: 2px solid #c9a84c;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skelRow,
+  .skelLine { animation: none; }
 }
 
 /* Slim "playing in mini-player" strip shown on the Desk while the user has

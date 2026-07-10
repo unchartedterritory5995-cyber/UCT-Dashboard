@@ -17,6 +17,9 @@ export function useVideoInsights(videoId) {
   })
   const d = data || EMPTY
   return {
+    // `loading` is true only while the first fetch is in flight (key set, no
+    // data yet) — lets the theater show skeletons instead of empty rails.
+    loading: key != null && data === undefined,
     chapters: Array.isArray(d.chapters) ? d.chapters : [],
     tickerMoments: Array.isArray(d.ticker_moments) ? d.ticker_moments : [],
     hasTranscript: !!d.has_transcript,

@@ -35,14 +35,27 @@ export default function VideoDockSlot() {
   const boxRef = useRef(null)
   // Chapters + ticker-moments + recap for the now-playing video (empty for
   // non-session videos or before generation). Hook runs unconditionally.
-  const { chapters, tickerMoments, headline, summary, posterUrl } =
+  const { chapters, tickerMoments, headline, summary, posterUrl, loading } =
     useVideoInsights(active ? list[index]?.id : null)
   // Timestamped notes for the now-playing video (keyed by youtube_id).
   const currentYt = active ? list[index]?.youtube_id : null
   const { notes, add: addNote, remove: removeNote } = useVideoNotes(currentYt)
   const [draft, setDraft] = useState(null) // { t, text } while composing, else null
   const [savingNb, setSavingNb] = useState('')
-  const [tickersOpen, setTickersOpen] = useState(true) // collapsible ticker cloud
+  // Collapsible ticker cloud — remember the user's choice across videos.
+  const [tickersOpen, setTickersOpen] = useState(() => {
+    try { return window.localStorage.getItem('uct.desk.tickersOpen') !== '0' } catch { return true }
+  })
+  const toggleTickers = useCallback(() => {
+    setTickersOpen((o) => {
+      const next = !o
+      try { window.localStorage.setItem('uct.desk.tickersOpen', next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
+  }, [])
+  // Which chapter is playing now — for the left-rail highlight + auto-scroll.
+  const [activeChapter, setActiveChapter] = useState(-1)
+  const chapterListRef = useRef(null)
 
   const startNote = useCallback(() => setDraft({ t: getCurrentTime(), text: '' }), [])
   const saveDraft = useCallback(async () => {
@@ -107,6 +120,29 @@ export default function VideoDockSlot() {
     }
   }, [docked, report])
 
+  // Track the playing chapter by polling the player clock (the store exposes no
+  // time subscription); highlight it + scroll it into view in the left rail.
+  useEffect(() => {
+    if (!docked || chapters.length === 0) { setActiveChapter(-1); return }
+    const tick = () => {
+      const now = getCurrentTime()
+      let idx = -1
+      for (let i = 0; i < chapters.length; i++) {
+        if (now >= (chapters[i].t || 0) - 0.5) idx = i
+        else break
+      }
+      setActiveChapter((prev) => (prev === idx ? prev : idx))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [docked, chapters])
+
+  useEffect(() => {
+    const el = chapterListRef.current?.querySelector('[data-active="true"]')
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' })
+  }, [activeChapter])
+
   if (!active) return null
 
   const current = list[index]
@@ -128,10 +164,13 @@ export default function VideoDockSlot() {
   }
 
   const upcoming = list.slice(index + 1)
+  // Left rail only earns its column when it has content (or is still loading);
+  // plain library videos with no insights collapse to video + right rail.
+  const hasLeft = loading || chapters.length > 0 || !!posterUrl
 
   return (
     <div className={styles.theater}>
-      <div className={styles.fourZone}>
+      <div className={`${styles.fourZone} ${hasLeft ? '' : styles.noLeft}`}>
         {/* CENTER — the player + its title/subtitle. */}
         <div className={styles.centerCol}>
           {/* Reserved 16:9 box the fixed player host positions itself over. */}
@@ -143,41 +182,63 @@ export default function VideoDockSlot() {
           </div>
         </div>
 
-        {/* LEFT — chapter nav + the recap poster. */}
-        <aside className={styles.leftRail}>
-          {chapters.length > 0 && (
-            <div className={styles.chaptersWrap}>
-              <div className={styles.insHead}>Chapters</div>
-              <ol className={styles.chapterList}>
-                {chapters.map((c, i) => (
-                  <li key={`${c.t}-${i}`}>
-                    <button className={styles.chapterRow} onClick={() => seekTo(c.t)}>
-                      <span className={styles.chapterTime}>{fmtT(c.t)}</span>
-                      <span className={styles.chapterTitle}>{c.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-          {posterUrl && (
-            <div className={styles.posterWrap}>
-              <div className={styles.insHead}>Session recap</div>
-              <a
-                className={styles.posterLink}
-                href={posterUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Open the full session recap poster"
-              >
-                <img className={styles.poster} src={posterUrl} alt="Session recap poster" />
-              </a>
-            </div>
-          )}
-        </aside>
+        {/* LEFT — chapter nav + the recap poster. Only rendered when it has
+            content (or is still loading); plain videos collapse it away. */}
+        {hasLeft && (
+          <aside className={styles.leftRail}>
+            {loading && chapters.length === 0 ? (
+              <div className={styles.chaptersWrap}>
+                <div className={styles.insHead}>Chapters</div>
+                <div className={styles.skelList}>
+                  {[0, 1, 2, 3].map((i) => <div key={i} className={styles.skelRow} />)}
+                </div>
+              </div>
+            ) : chapters.length > 0 ? (
+              <div className={styles.chaptersWrap}>
+                <div className={styles.insHead}>Chapters</div>
+                <ol className={styles.chapterList} ref={chapterListRef}>
+                  {chapters.map((c, i) => (
+                    <li key={`${c.t}-${i}`}>
+                      <button
+                        className={`${styles.chapterRow} ${i === activeChapter ? styles.chapterRowActive : ''}`}
+                        data-active={i === activeChapter}
+                        onClick={() => seekTo(c.t)}
+                      >
+                        <span className={styles.chapterTime}>{fmtT(c.t)}</span>
+                        <span className={styles.chapterTitle}>{c.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+            {posterUrl && (
+              <div className={styles.posterWrap}>
+                <div className={styles.insHead}>Session recap</div>
+                <a
+                  className={styles.posterLink}
+                  href={posterUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open the full session recap poster"
+                >
+                  <img className={styles.poster} src={posterUrl} alt="Session recap poster" />
+                </a>
+              </div>
+            )}
+          </aside>
+        )}
 
-        {/* RIGHT — key takeaways + tickers covered. */}
+        {/* RIGHT — key takeaways + tickers covered + your notes. */}
         <aside className={styles.rightRail}>
+          {loading && summary.length === 0 && (
+            <div className={styles.recapBody}>
+              <div className={styles.insHead}>Key takeaways</div>
+              <div className={styles.skelList}>
+                {[0, 1, 2, 3].map((i) => <div key={i} className={styles.skelLine} />)}
+              </div>
+            </div>
+          )}
           {summary.length > 0 && (
             <div className={styles.recapBody}>
               <div className={styles.insHead}>Key takeaways</div>
@@ -193,7 +254,7 @@ export default function VideoDockSlot() {
               <button
                 type="button"
                 className={styles.tickersToggle}
-                onClick={() => setTickersOpen((o) => !o)}
+                onClick={toggleTickers}
                 aria-expanded={tickersOpen}
               >
                 <svg
