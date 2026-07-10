@@ -23,7 +23,11 @@ except ImportError:  # pragma: no cover
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import excursions_store
-from api.services.journal_two.calendar import _row_et_day, to_et_date
+from api.services.journal_two.calendar import (
+    _row_et_day,
+    _strategy_scope_where,
+    to_et_date,
+)
 from api.services.journal_two.filters import FilterSpec, trades_where
 from api.services.journal_two.trade_refs import trade_ref_for_row
 
@@ -44,6 +48,23 @@ _R_BUCKETS = [
     ("2R..3R",   lambda r: 2 <= r < 3),
     ("> 3R",    lambda r: r >= 3),
 ]
+
+
+def _valid_date_bound(d: str | None) -> str | None:
+    """Return ``d`` iff it parses as an ISO date, else None (Finding 2).
+
+    Used by the option-strategy fetch to defuse a malformed shared-link date
+    (``?sc_from=garbage``): a non-ISO bound is treated as ABSENT rather than
+    raising ``ValueError`` → HTTP 500. The equity path stays untouched — it
+    compares dates as opaque strings and never parses them.
+    """
+    if not d:
+        return None
+    try:
+        Date.fromisoformat(d)
+        return d
+    except (ValueError, TypeError):
+        return None
 
 
 def get_analytics(
@@ -81,13 +102,18 @@ def get_analytics(
             if be is not None:
                 starting_balance = be
 
-        # Option strategies honor the Scope date facet (the non-date facets on
-        # options land in Task A4). date_from/date_to come off the same spec so
-        # the synthesized and passed-spec paths stay identical.
+        # Option strategies honor the Scope date facet AND the symbol facet
+        # (symbol-only, on `underlying` — mirroring the SHIPPED Calendar/Trade
+        # Journal rule; side/setups/tags have no option-strategy analog). Passing
+        # the full spec keeps Analytics "Options Breakdown"/strategyCount/exit-
+        # quality in agreement with Calendar/Journal under a symbol scope.
+        # date_from/date_to come off the same spec so the synthesized and
+        # passed-spec paths stay identical.
         strategies = _fetch_option_strategies(
             conn, user_id,
             account_id=account_id,
             date_from=spec.date_from, date_to=spec.date_to,
+            spec=spec,
         )
 
         # trade_ref → excursion dict (all of the user's persisted excursions;
@@ -806,12 +832,27 @@ def _fetch_option_strategies(
     account_id: str | None,
     date_from: str | None,
     date_to: str | None,
+    spec: FilterSpec | None = None,
 ) -> list[dict[str, Any]]:
     """All CLOSED option strategies for the user, re-filtered on ET date.
 
     Open strategies are excluded from analytics since they have no realized
     P&L yet; they're still visible in Open Positions + Expiring-soon banner.
+
+    The Scope symbol facet (``spec``) filters strategies by ``underlying`` ONLY
+    — side/setups/tags have no option-strategy analog — mirroring the SHIPPED
+    rule Trade Journal + Calendar already apply, so Analytics options agree with
+    those surfaces under a symbol scope. The date facet (date_from/date_to) still
+    applies (analytics options are date-ranged).
     """
+    # Defensive date parse (Finding 2): a shared link with a non-ISO bound
+    # (e.g. ?sc_from=garbage) must NOT 500. A bound that won't parse as an ISO
+    # date is treated as ABSENT (the date filter for that bound is skipped),
+    # consistent with the tolerant equity path — trades_where compares dates as
+    # opaque strings and never parses them, so it can't raise.
+    date_from = _valid_date_bound(date_from)
+    date_to = _valid_date_bound(date_to)
+
     sql = (
         "SELECT id, underlying, strategy_type, direction, net_entry, fees, "
         "       entry_date, closed_at, net_exit, exit_fees, pnl_dollar, "
@@ -836,6 +877,14 @@ def _fetch_option_strategies(
                 " OR (trading_day_et IS NULL AND closed_at <= ?))")
         params.append(date_to)
         params.append((Date.fromisoformat(date_to) + timedelta(days=1)).isoformat() + "T23:59:59Z")
+    # Scope symbol facet (Finding 1): symbol-only, on the `underlying` column.
+    # MIRROR: calendar._strategy_scope_where / filters.py symbol semantics — the
+    # helper is REUSED directly (calendar is already imported here, no cycle); a
+    # later refactor consolidates both into a shared filters.strategy_scope_where.
+    scope_frag, scope_params = _strategy_scope_where(spec)
+    if scope_frag:
+        sql += " " + scope_frag
+        params.extend(scope_params)
     sql += " ORDER BY closed_at ASC"
 
     rows = conn.execute(sql, params).fetchall()

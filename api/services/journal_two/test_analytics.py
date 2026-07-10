@@ -825,3 +825,111 @@ def test_exit_quality_broker_rows_key_to_excursions(db_conn):
     assert eq["avgExitEfficiency"] == 0.5
     # curve built from the broker-keyed rows
     assert len(eq["actualVsPotential"]) == 10
+
+
+# ─── Options honor the Scope SYMBOL facet (whole-branch A · Finding 1) ─────────
+
+
+def _seed_closed_long_call(db_conn, account_id, underlying, *, user_id="u1"):
+    """Seed one CLOSED long-call strategy on `underlying`. Uses a far-future
+    expiration (today + 30d) so the past-expiration guard never rejects it —
+    deliberately NOT inheriting test_options.py's time-brittle past-expiry trap."""
+    from datetime import date, timedelta
+    from api.services.journal_two.options import create_strategy, close_strategy
+    exp = (date.today() + timedelta(days=30)).isoformat()
+    s = create_strategy(user_id, {
+        "underlying": underlying, "strategy_type": "long_call",
+        "direction": "bullish",
+        "entry_date": date.today().isoformat(), "accountId": account_id,
+        "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
+                  "expiration": exp, "qty": 1, "entry_price": 5}],
+    }, conn=db_conn)
+    close_strategy(user_id, s["id"], {
+        "exitPrices": {"0": 8}, "exitDate": date.today().isoformat(),
+    }, conn=db_conn)
+    return s
+
+
+def test_options_honor_symbol_scope_matches_calendar_journal(db_conn):
+    """Finding 1: the Analytics options path filters strategies by the Scope
+    SYMBOL facet on `underlying` ONLY — an AAPL scope drops a NVDA option
+    strategy (strategyCount 0), a NVDA scope keeps it (1), and no symbol counts
+    both. This aligns Analytics options with the SHIPPED Calendar/Trade Journal
+    rule (previously non-matching strategies were still counted under a scope)."""
+    from api.services.journal_two.analytics import get_analytics
+    from api.services.journal_two.filters import FilterSpec
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    # An AAPL equity trade + a closed NVDA option strategy.
+    _add_trade(db_conn, "u1", account_id=aid, symbol="AAPL", pnl=100)
+    _seed_closed_long_call(db_conn, aid, "NVDA")
+
+    # symbol=AAPL → the NVDA strategy is excluded; the AAPL equity trade stays.
+    aapl = get_analytics("u1", account_id=aid,
+                         spec=FilterSpec(symbol="AAPL"), conn=db_conn)
+    assert aapl["strategyCount"] == 0
+    assert aapl["tradeCount"] == 1
+    assert aapl["options"]["headline"]["count"] == 0
+
+    # symbol=NVDA → the strategy is kept; the AAPL equity trade is excluded.
+    nvda = get_analytics("u1", account_id=aid,
+                         spec=FilterSpec(symbol="NVDA"), conn=db_conn)
+    assert nvda["strategyCount"] == 1
+    assert nvda["tradeCount"] == 0
+    assert nvda["options"]["headline"]["count"] == 1
+
+    # No symbol → both counted (proves the scope, not a blanket exclusion).
+    both = get_analytics("u1", account_id=aid, conn=db_conn)
+    assert both["strategyCount"] == 1
+    assert both["tradeCount"] == 1
+
+
+def test_options_symbol_scope_prefix_case_insensitive(db_conn):
+    """The strategy symbol predicate mirrors filters.py: case-insensitive PREFIX
+    on `underlying` (not exact-match), so 'nv' → NVDA and side/setups/tags never
+    touch strategies."""
+    from api.services.journal_two.analytics import get_analytics
+    from api.services.journal_two.filters import FilterSpec
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    _seed_closed_long_call(db_conn, aid, "NVDA")
+    _seed_closed_long_call(db_conn, aid, "AMD")
+
+    # lowercase prefix 'nv' → only NVDA
+    got = get_analytics("u1", account_id=aid,
+                        spec=FilterSpec(symbol="nv"), conn=db_conn)
+    assert got["strategyCount"] == 1
+    assert got["options"]["headline"]["count"] == 1
+
+    # a strategy-irrelevant facet (side) must NOT filter strategies → both count
+    sides = get_analytics("u1", account_id=aid,
+                          spec=FilterSpec(sides=["Short"]), conn=db_conn)
+    assert sides["strategyCount"] == 2
+
+
+def test_options_malformed_scope_date_does_not_500(db_conn):
+    """Finding 2: a shared link with a non-ISO date bound (?sc_from=garbage) must
+    NOT raise — the option-strategy date parse is defensive (a bad bound is
+    treated as ABSENT), matching the tolerant equity path. get_analytics returns
+    normally instead of 500-ing on Date.fromisoformat('garbage')."""
+    from api.services.journal_two.analytics import get_analytics
+    from api.services.journal_two.filters import FilterSpec
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    # A closed strategy so the date-parse branch is actually exercised.
+    _seed_closed_long_call(db_conn, aid, "NVDA")
+
+    # Bad date_from must not raise (previously ValueError → HTTP 500).
+    got = get_analytics("u1", account_id=aid,
+                        spec=FilterSpec(date_from="garbage"), conn=db_conn)
+    assert got is not None
+    assert "strategyCount" in got
+
+    # Bad date_to (and both bad) must also be tolerated.
+    got2 = get_analytics("u1", account_id=aid,
+                         spec=FilterSpec(date_from="garbage", date_to="also-bad"),
+                         conn=db_conn)
+    assert got2 is not None
