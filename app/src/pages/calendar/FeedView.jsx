@@ -60,28 +60,15 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
     return dividendsForDay
   }, [activeTypes, dividendsForDay])
 
-  // ── Tier partition (the hierarchy algorithm, computed once per week in
-  //    Calendar.jsx). Fallback when tiers are absent: everything → table. ──
-  const { mainEntry, featuredEntries, tableEntries, compactEntries } = useMemo(() => {
-    const t = tiers || { mainEvent: null, featured: new Set(), table: null, compact: new Set(), impBySym: new Map() }
-    const impOf = e => impEff(t.impBySym?.get?.(e.sym) ?? 0, e)
-    let main = null
-    const feat = []
-    const tab = []
-    const comp = []
-    for (const e of entries) {
-      if (t.mainEvent && e.sym === t.mainEvent) main = e
-      else if (t.featured?.has(e.sym)) feat.push(e)
-      else if (t.compact?.has(e.sym)) comp.push(e)
-      else tab.push(e)
-    }
-    // Featured ordered by personalized importance; the table keeps the user's
-    // chosen sort EXCEPT the default 'mine' sort, where importance rules.
-    feat.sort((a, b) => impOf(b) - impOf(a))
+  // ── Flat ordering: one uniform list, no tiers. Mine pinned first, then
+  //    personalized importance (default sort); an explicit sort choice wins.
+  //    (CalendarDayTable handles the BMO/AMC session grouping internally.) ──
+  const orderedEntries = useMemo(() => {
+    const impOf = e => impEff(tiers?.impBySym?.get?.(e.sym) ?? 0, e)
     if (!filters.sort || filters.sort === 'mine') {
-      tab.sort((a, b) => (b.mine === true) - (a.mine === true) || impOf(b) - impOf(a))
+      return [...entries].sort((a, b) => (b.mine === true) - (a.mine === true) || impOf(b) - impOf(a))
     }
-    return { mainEntry: main, featuredEntries: feat, tableEntries: tab, compactEntries: comp }
+    return entries
   }, [entries, tiers, filters.sort])
 
   const hasEarnings = entries.length > 0
@@ -116,39 +103,10 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
         <PrintTape entries={entries} reactions={reactions} onSelect={onSelect} />
       )}
 
-      {/* The curated lead — exactly one, only when the day earns it */}
-      {mainEntry && (
-        <div className={styles.mainEventWrap}>
-          <MainEventCard
-            entry={mainEntry}
-            timing={mainEntry._timing}
-            livePrice={prices[mainEntry.sym]?.price}
-            reaction={reactions?.[mainEntry.sym]}
-            hasKeyMacro={!!day.econ?.some(ev => ev.is_key)}
-            onSelect={onSelect}
-            pulsed={pulseSym === mainEntry.sym}
-          />
-        </div>
-      )}
-
-      {/* Featured strip — mine + megacaps + top importance, session chips on card */}
-      {featuredEntries.length > 0 && (
-        <div className={styles.cards}>
-          {featuredEntries.map(e => (
-            <EarningsCard key={`feat-${e.sym}`} entry={e} timing={e._timing}
-              livePrice={prices[e.sym]?.price}
-              liveSnap={prices[e.sym] ?? null}
-              reaction={reactions?.[e.sym]}
-              pulsed={pulseSym === e.sym}
-              onSelect={onSelect} />
-          ))}
-        </div>
-      )}
-
-      {/* The density engine — every remaining name with data, 36px rows */}
-      <CalendarDayTable entries={tableEntries} onSelect={onSelect} />
-
-      <CompactCluster entries={compactEntries} onSelect={onSelect} />
+      {/* Flat, uniform list — every reporter as one clean row, session-grouped,
+          importance-ordered. No lead card / featured tier: ONE treatment per
+          day, not four (the "feels like a lot" was that layered stack). */}
+      <CalendarDayTable entries={orderedEntries} onSelect={onSelect} />
 
       {/* B3: IPO + dividend/split event cards (no BMO/AMC timing) */}
       {hasEvents && (
