@@ -3526,6 +3526,64 @@ async def _massive_apply_gap_fill(fill_file: str = "fill-6-26-stocks.csv",
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/api/admin/massive/reclassify-source")
+async def _massive_reclassify_source(target_date: str = "7/8/2026"):
+    """Re-stamp source (+ StockEtf) for a date's rows using the SAME
+    authoritative classifier the live worker uses: is_index_source(), which
+    checks the Massive ticker_types cache first and falls back to the broad
+    INDEX_SYMBOLS set.
+
+    Fixes gap-filled days where ETFs (SPY/QQQ/IWM/TQQQ/SMH...) landed under
+    source='stocks' because build_gap_fill_csv.py's INDEX_SYMBOLS is a stale,
+    pure-index-only subset that never got the ETF additions massive_processor
+    has. After this runs, backfilled rows match live classification exactly:
+    SPY -> indexes, SPCX -> stocks (ticker_types overrides the stale
+    INDEX_SYMBOLS entry), new ETFs like DRAM -> indexes. Run it right after
+    apply-gap-fill (before rebuild-color is fine too; order doesn't matter).
+
+    Idempotent -- only rewrites rows whose source/StockEtf is already wrong.
+    """
+    try:
+        import sqlite3
+        from api.massive_processor import is_index_source
+        from api.flow_db import FlowDB
+    except Exception as e:
+        return {"ok": False, "error": f"import failed: {e}"}
+
+    today = target_date
+    stats = {"target_date": today, "symbols_seen": 0,
+             "rows_moved_to_indexes": 0, "rows_moved_to_stocks": 0,
+             "rows_updated": 0}
+    try:
+        db = FlowDB()
+        with sqlite3.connect(db.db_path, timeout=30) as conn:
+            syms = [r[0] for r in conn.execute(
+                "SELECT DISTINCT Symbol FROM flow WHERE CreatedDate = ?",
+                (today,)).fetchall() if r[0]]
+            stats["symbols_seen"] = len(syms)
+            for sym in syms:
+                want_source = "indexes" if is_index_source(sym) else "stocks"
+                want_etf = "ETF" if want_source == "indexes" else "STOCK"
+                upd = conn.execute(
+                    "UPDATE flow SET source = ?, StockEtf = ? "
+                    "WHERE CreatedDate = ? AND Symbol = ? "
+                    "AND (source != ? OR StockEtf != ?)",
+                    (want_source, want_etf, today, sym, want_source, want_etf),
+                )
+                if upd.rowcount:
+                    stats["rows_updated"] += upd.rowcount
+                    if want_source == "indexes":
+                        stats["rows_moved_to_indexes"] += upd.rowcount
+                    else:
+                        stats["rows_moved_to_stocks"] += upd.rowcount
+            conn.commit()
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e),
+                "traceback": traceback.format_exc().splitlines()[-4:]}
+    return {"ok": True, "stats": stats}
+
+
 @app.post("/api/admin/massive/apply-cancel-patches")
 async def _massive_apply_cancel_patches(patches_file: str = "patches-6-26-cancels.json",
                                          target_date: str = "6/26/2026"):
