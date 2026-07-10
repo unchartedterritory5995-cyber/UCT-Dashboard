@@ -56,6 +56,7 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
 from api.routers import watchlist_alerts as watchlist_alerts_router
@@ -972,6 +973,13 @@ async def lifespan(app: FastAPI):
         _dsj_boot._init_db()
     except Exception as _e:
         print(f"[startup] desk_session_jobs init skipped: {_e}")
+
+    try:
+        from api.services import community_store
+        community_store._init_db()
+        logging.getLogger(__name__).info("community store ready")
+    except Exception as e:
+        logging.getLogger(__name__).exception(f"community store init failed: {e}")
 
     # Load ticker baselines (per-ticker premium percentiles) into in-memory
     # cache for fast lookup by the LiveFlow worker's gate-check logic. Data
@@ -3083,6 +3091,7 @@ app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
+app.include_router(community_router.router)
 app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
