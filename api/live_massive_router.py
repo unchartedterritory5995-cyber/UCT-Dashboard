@@ -2129,15 +2129,28 @@ def day_stats(
 _by_contract_cache: dict = {}          # (date, stock_etf, min_hits, excl_algo) -> (ts, payload)
 _BY_CONTRACT_TTL = 30
 
-# Per-print premium floor by cap band. A print must clear this to COUNT toward a
-# contract's qualifying-hit gate. It does NOT reduce total_premium — that sums
-# every print (Ravi: "total premium should count all the values"). Tunable via
-# thresholds['rollup_min_print']; ETFs are all mega-scale so they use the mega
-# floor. Baselines (per-ticker, from baselines.py) can override this later —
-# structured so a baseline floor drops in as `floor = baseline or _rollup_floor(...)`.
+# Per-print NOISE floor by cap band — a print must clear this to count as a
+# "hit". Deliberately LOW (it only rejects dust): repetition of small clips on
+# a small name IS the signal (ACI: 13x $10-40K on a $14 stock). Mega stays high
+# so megacap churn (META: 41x ~$70K) doesn't rack up hits. Tunable via
+# thresholds['rollup_min_print']. ETFs are mega-scale → mega floor.
 def _rollup_floor(mkt_cap, source, thresholds) -> int:
-    defaults = {"mid_small": 25_000, "large": 100_000, "mega": 250_000}
+    defaults = {"mid_small": 15_000, "large": 25_000, "mega": 250_000}
     floors = thresholds.get("rollup_min_print", {}) or {}
+    if source == "indexes":
+        return int(floors.get("mega", defaults["mega"]))
+    band = _cap_band_key(mkt_cap, thresholds.get("cap_bands", {}))
+    return int(floors.get(band, defaults[band]))
+
+
+# Contract-TOTAL floor by cap band — the sum of all the contract's prints must
+# clear this for the contract to be worth surfacing. This is where cap-scaling
+# does its real work: a mega name must total big to matter (silences churn that
+# survives the hit gate), while a small name qualifies on a modest aggregate.
+# Tunable via thresholds['rollup_min_total'].
+def _rollup_total_floor(mkt_cap, source, thresholds) -> int:
+    defaults = {"mid_small": 100_000, "large": 250_000, "mega": 1_000_000}
+    floors = thresholds.get("rollup_min_total", {}) or {}
     if source == "indexes":
         return int(floors.get("mega", defaults["mega"]))
     band = _cap_band_key(mkt_cap, thresholds.get("cap_bands", {}))
@@ -2254,8 +2267,12 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     for g in contracts.values():
         floor = _rollup_floor(g["mkt_cap"], g["source"], thresholds)
         qual = sum(1 for p in g["prints"] if (p["premium"] or 0) >= floor)
-        if qual < min_hits:
-            continue  # accumulation view = repetition only; single prints stay on the tape
+        total_floor = _rollup_total_floor(g["mkt_cap"], g["source"], thresholds)
+        # Gate: enough repeated meaningful clips AND a total that clears the
+        # cap-scaled bar. The hit floor is low (repetition of small clips on a
+        # small name is the signal); the cap-scaling lives in the total floor.
+        if qual < min_hits or g["total_premium"] < total_floor:
+            continue
         bull, bear = g["bull_premium"], g["bear_premium"]
         dirp = bull + bear
         direction = "Bull" if bull > bear else ("Bear" if bear > bull else "Neutral")
@@ -2280,6 +2297,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             "source": g["source"], "dte": g["dte"],
             "spot": g["spot"], "moneynessPct": g["moneynessPct"], "moneynessLabel": g["moneynessLabel"],
             "hit_count": len(g["prints"]), "qualifying_hits": qual, "floor": floor,
+            "total_floor": total_floor,
             "total_premium": round(g["total_premium"]), "total_volume": g["total_volume"],
             "bull_premium": round(bull), "bear_premium": round(bear),
             "direction": direction, "consistency": consistency,
