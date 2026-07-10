@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import styles from './Admin.module.css'
 import UIcon from '../components/ui/UIcon'
 import TwitterAccountsPanel from '../components/admin/TwitterAccountsPanel'
+import CommunityReportsPanel from '../components/admin/CommunityReportsPanel'
 import { formatETDate } from '../utils/timeAgo'
 
 // ── Constants ──
@@ -1998,6 +1999,9 @@ export default function Admin() {
 
       {/* ── Section 6c: Twitter News Ingestion (spec 2026-05-25) ── */}
       <TwitterAccountsPanel />
+
+      {/* ── Section 6d: Community Reports (The Floor) ── */}
+      <CommunityReportsPanel />
 
       {/* ── Section 7: System Health ── */}
       <div className={styles.healthSection}>
