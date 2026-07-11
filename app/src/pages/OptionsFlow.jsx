@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
-import FlowScoreboard from "./FlowScoreboard";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -230,7 +229,7 @@ function Card({ children, title, sub }) {
 
 function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE"].filter(Boolean);
+  const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,priceFn?"Status":null,"DTE"].filter(Boolean);
   const colCount = cols.length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
@@ -258,6 +257,16 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
           // snapshot OI — net closing activity since the trade printed. Used
           // by the Search tab to visually de-emphasize stale conviction.
           const isStale = fadeOnStale && dOI < 0;
+          // Position status from Live OI vs entry OI — answers "did they add,
+          // hold, take partial, or exit?" Only meaningful once Live OI is fetched.
+          const oiRatio = (priceFn && curOI > 0 && csvOI > 0) ? curOI / csvOI : null;
+          let posLabel = null, posColor = P.dm, posTitle = "";
+          if (oiRatio != null) {
+            if (oiRatio >= 1.10) { posLabel = "BUILDING"; posColor = P.bu; posTitle = "OI grew "+Math.round((oiRatio-1)*100)+"% since entry — still adding"; }
+            else if (oiRatio >= 0.90) { posLabel = "HELD"; posColor = "#5b9bd5"; posTitle = "OI ~flat vs entry — position held, not exited"; }
+            else if (oiRatio > 0.15) { posLabel = "TRIMMED"; posColor = "#c9a84c"; posTitle = "OI down "+Math.round((1-oiRatio)*100)+"% — partial exit / profit-taking"; }
+            else { posLabel = "CLOSED"; posColor = P.be; posTitle = "OI down to ~"+Math.round(oiRatio*100)+"% of entry — position closed"; }
+          }
           return (
             <Fragment key={i}>
             <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", textAlign:"center", cursor:"pointer", opacity:isStale?0.55:1 }} title={isStale?"Live OI is below snapshot OI — net closing activity":undefined}>
@@ -274,6 +283,11 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }} title={curOI>0?undefined:csvOI>0?"BBS snapshot (live unavailable)":undefined}>{curOI>0?curOI.toLocaleString():csvOI>0?csvOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px" }} title={posTitle}>
+                {posLabel
+                  ? <span style={{ fontSize:8, fontWeight:800, padding:"2px 6px", borderRadius:4, background:posColor+"22", color:posColor, letterSpacing:0.3, whiteSpace:"nowrap" }}>{posLabel}</span>
+                  : <span style={{ color:P.mt }}>—</span>}
+              </td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
             </tr>
             {isExpanded && onRowClick && (
@@ -1950,12 +1964,7 @@ function processFlowData(rows) {
 const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist"];
 
 export default function OptionsFlowDashboard() {
-  const [dataMode, setDataMode] = useState(() => {
-    // Deep-link support: /options-flow?view=scoreboard lands on the Scoreboard
-    // section (the old /flow-scoreboard route + the Dashboard tile redirect here).
-    try { return new URLSearchParams(window.location.search).get("view") === "scoreboard" ? "scoreboard" : "stocks"; }
-    catch { return "stocks"; }
-  }); // "stocks" | "index" | "darkpool" | "gex" | "scoreboard"
+  const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
   const [tab, setTab] = useState("Market Read");
   // ─── Remote ETF/INDEX ticker list ─────────────────────────────────────────
   // Fetched once from /api/ticker-types/etf-index-symbols on mount. Merges
@@ -3780,11 +3789,11 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if (csvError && dataMode !== "gex" && dataMode !== "darkpool" && dataMode !== "scoreboard") return (
+  if (csvError && dataMode !== "gex" && dataMode !== "darkpool") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
         <div style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:20 }}>
-          {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"],["scoreboard","Scoreboard"]].map(([m,label])=>(
+          {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
             <button key={m} onClick={()=>{
               if (m === "liveflow") { window.open("/live-flow", "_blank", "noopener,noreferrer"); return; }
               if(dataMode!==m) {
@@ -3808,7 +3817,7 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool" && dataMode !== "scoreboard") return (
+  if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
@@ -4119,10 +4128,10 @@ export default function OptionsFlowDashboard() {
         {/* Data Mode Toggle */}
         <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
           <div style={{ display:"flex", background:P.al, borderRadius:8, padding:3, border:"1px solid "+P.bd }}>
-            {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"],["scoreboard","Scoreboard"]].map(([m,label])=>{
+            {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>{
               // Live Flow navigates to a separate page; other modes switch dataMode in place.
               const isLive = m === "liveflow";
-              const accent = m==="gex" ? "#c9a84c" : m==="darkpool" ? "#6ba3be" : m==="scoreboard" ? "#c9a84c" : isLive ? "#3cb868" : null;
+              const accent = m==="gex" ? "#c9a84c" : m==="darkpool" ? "#6ba3be" : isLive ? "#3cb868" : null;
               const hasAccent = accent !== null;
               return (
                 <button key={m} onClick={()=>{
@@ -4151,7 +4160,7 @@ export default function OptionsFlowDashboard() {
         </div>
 
         {/* Date Filter — rolling windows + presets + calendar */}
-        {dataMode !== "gex" && dataMode !== "darkpool" && dataMode !== "scoreboard" && availableDates.length > 0 && (
+        {dataMode !== "gex" && dataMode !== "darkpool" && availableDates.length > 0 && (
           <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}>
             <div className="of-chiprow-wrap" style={{ display:"flex", gap:4, alignItems:"center", background:P.al, borderRadius:6, padding:4, border:"1px solid "+P.bd, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
               {[
@@ -5058,9 +5067,7 @@ export default function OptionsFlowDashboard() {
 
         {dataMode === "darkpool" && <DarkPool embedded />}
 
-        {dataMode === "scoreboard" && <FlowScoreboard embedded />}
-
-        {dataMode !== "gex" && dataMode !== "darkpool" && dataMode !== "scoreboard" && D && (<>
+        {dataMode !== "gex" && dataMode !== "darkpool" && D && (<>
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
           <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
@@ -8182,17 +8189,8 @@ export default function OptionsFlowDashboard() {
                         contracts whose OI grew in the days after the trade.
                         Reveals real institutional adds vs same-day churn.
                         Load button only enabled until data is fetched, then
-                        toggle switches display. Window selector picks how
-                        many post-trade days to look at (5/10/20/60). */}
+                        toggle switches display. */}
                     <div style={{ marginLeft:12, display:"flex", gap:6, alignItems:"center", borderLeft:"1px solid "+P.bd, paddingLeft:12 }}>
-                      <span style={{ fontSize:9, color:P.dm, fontWeight:600 }}>OI window:</span>
-                      {[5, 10, 20, 60].map(d => (
-                        <button key={d} onClick={()=>{ setOiConfirmWindow(d); setOiConfirmMap({}); setOiConfirmMeta(null); setOiConfirmedOnly(false); }} style={{
-                          padding:"3px 8px", borderRadius:12, border:"1px solid "+(oiConfirmWindow===d?P.ac:P.bd),
-                          cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit",
-                          background:oiConfirmWindow===d?P.ac+"22":"transparent", color:oiConfirmWindow===d?P.ac:P.mt,
-                        }}>{d}d</button>
-                      ))}
                       <button
                         onClick={()=>{
                           if (oiConfirmMeta) {
