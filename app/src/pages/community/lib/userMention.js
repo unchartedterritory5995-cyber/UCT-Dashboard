@@ -4,6 +4,12 @@
 // server-side to fan out notifications.
 import { Node, mergeAttributes } from '@tiptap/core'
 import Suggestion from '@tiptap/suggestion'
+import { PluginKey } from '@tiptap/pm/state'
+
+// Distinct key so this Suggestion can coexist with TickerMention's ($) Suggestion in
+// the same editor — two suggestions sharing the default 'suggestion$' key throws
+// "Adding different instances of a keyed plugin".
+const userMentionPluginKey = new PluginKey('userMentionSuggestion')
 
 async function searchMembers(query) {
   try {
@@ -75,6 +81,7 @@ export const UserMention = Node.create({
 
     return [
       Suggestion({
+        pluginKey: userMentionPluginKey,
         editor: this.editor,
         char: '@',
         allowSpaces: false,

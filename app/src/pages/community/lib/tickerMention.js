@@ -2,6 +2,10 @@
 // $TICKER inline chip + $-triggered autocomplete (vanilla-DOM dropdown, no tippy).
 import { Node, mergeAttributes } from '@tiptap/core'
 import Suggestion from '@tiptap/suggestion'
+import { PluginKey } from '@tiptap/pm/state'
+
+// Explicit key so it can coexist with the @-mention Suggestion in the same editor.
+const tickerPluginKey = new PluginKey('tickerSuggestion')
 
 export function extractTickers(doc) {
   const out = []
@@ -85,6 +89,7 @@ export const TickerMention = Node.create({
 
     return [
       Suggestion({
+        pluginKey: tickerPluginKey,
         editor: this.editor,
         char: '$',
         allowSpaces: false,
