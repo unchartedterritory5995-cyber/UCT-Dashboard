@@ -44,6 +44,24 @@ for _envpath in (os.path.join(_ROOT, ".env"), r"C:\Users\Patrick\uct-dashboard\.
 from youtube_transcript_api import YouTubeTranscriptApi  # noqa: E402
 from api.services.desk_session_insights import generate_insights, _timestamped_block  # noqa: E402
 
+
+def _proxy_config():
+    """YouTube blocks bulk caption scraping from any hammered IP. Route through a
+    residential proxy — Webshare (native, auto-retries on block) or a generic
+    proxy URL — via env vars:
+        WEBSHARE_PROXY_USERNAME + WEBSHARE_PROXY_PASSWORD   (Webshare residential)
+        YT_PROXY_URL=http://user:pass@host:port             (any provider)
+    """
+    wu, wp = os.environ.get("WEBSHARE_PROXY_USERNAME"), os.environ.get("WEBSHARE_PROXY_PASSWORD")
+    if wu and wp:
+        from youtube_transcript_api.proxies import WebshareProxyConfig
+        return WebshareProxyConfig(proxy_username=wu, proxy_password=wp), "Webshare"
+    url = os.environ.get("YT_PROXY_URL")
+    if url:
+        from youtube_transcript_api.proxies import GenericProxyConfig
+        return GenericProxyConfig(http_url=url, https_url=url), "generic"
+    return None, "NONE"
+
 BASE = "https://uctintelligence.com"
 if "--base" in sys.argv:
     BASE = sys.argv[sys.argv.index("--base") + 1]
@@ -54,7 +72,10 @@ HEADERS = {
     "Authorization": f"Bearer {SECRET}",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 uct-backfill",
 }
-_yt = YouTubeTranscriptApi()
+_pc, _pc_name = _proxy_config()
+_yt = YouTubeTranscriptApi(proxy_config=_pc) if _pc else YouTubeTranscriptApi()
+print(f"caption proxy: {_pc_name}"
+      + ("  (WARNING: no proxy set — YouTube will IP-block after a few fetches)" if _pc is None else ""))
 
 
 def fetch_cues(youtube_id: str):
