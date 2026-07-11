@@ -4,6 +4,7 @@ import useJ2Notes from '../hooks/useJ2Notes'
 import NoteCard from '../components/notebook/NoteCard'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
+import { TEMPLATES } from '../lib/notebookTemplates'
 import styles from './NotebookTab.module.css'
 
 export default function NotebookTab() {
@@ -15,6 +16,7 @@ export default function NotebookTab() {
   const [q, setQ] = useState('')
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const { notes, isLoading, error, refresh } = useJ2Notes({
     folderId, tag, q: q || undefined, sort,
@@ -36,15 +38,18 @@ export default function NotebookTab() {
     refresh()
   }
 
-  const createNote = async () => {
+  // Create a note. Blank note passes no title/body; a template seeds both.
+  const createNote = async ({ title = '', bodyJson } = {}) => {
     setCreating(true)
+    setMenuOpen(false)
     try {
       const res = await fetch('/api/j2/notes', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: '',
+          title,
+          ...(bodyJson ? { bodyJson } : {}),
           ...(folderId && folderId !== '__unfiled__' ? { folderId } : {}),
         }),
       })
@@ -57,6 +62,9 @@ export default function NotebookTab() {
       setCreating(false)
     }
   }
+
+  const createFromTemplate = (tpl) =>
+    createNote({ title: tpl.defaultTitle, bodyJson: tpl.build() })
 
   if (noteId) {
     return <NoteEditorPage noteId={noteId} onBack={closeNote} />
@@ -98,14 +106,61 @@ export default function NotebookTab() {
               Clear filter
             </button>
           )}
-          <button
-            type="button"
-            className={styles.newBtn}
-            onClick={createNote}
-            disabled={creating}
-          >
-            + New note
-          </button>
+          <div className={styles.newWrap}>
+            <button
+              type="button"
+              className={styles.newBtn}
+              onClick={() => createNote()}
+              disabled={creating}
+            >
+              + New note
+            </button>
+            <button
+              type="button"
+              className={styles.newCaret}
+              onClick={() => setMenuOpen((o) => !o)}
+              disabled={creating}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="New from template"
+              title="New from template"
+            >
+              ▾
+            </button>
+            {menuOpen && (
+              <>
+                <div
+                  className={styles.menuBackdrop}
+                  onClick={() => setMenuOpen(false)}
+                  aria-hidden="true"
+                />
+                <div className={styles.newMenu} role="menu">
+                  <div className={styles.newMenuLabel}>New from template</div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={styles.newMenuItem}
+                    onClick={() => createNote()}
+                    disabled={creating}
+                  >
+                    Blank note
+                  </button>
+                  {TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.key}
+                      type="button"
+                      role="menuitem"
+                      className={styles.newMenuItem}
+                      onClick={() => createFromTemplate(tpl)}
+                      disabled={creating}
+                    >
+                      {tpl.defaultTitle}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {error && (

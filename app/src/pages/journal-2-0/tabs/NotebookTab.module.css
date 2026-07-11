@@ -42,18 +42,75 @@
   cursor: pointer;
   font-size: 12px;
 }
-.newBtn {
+.newWrap {
   margin-left: auto;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+.newBtn {
   background: #c9a84c;
   color: #14171c;
   border: none;
   padding: 7px 14px;
-  border-radius: 6px;
+  border-radius: 6px 0 0 6px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
 }
 .newBtn:hover { background: #d8b962; }
+.newCaret {
+  background: #c9a84c;
+  color: #14171c;
+  border: none;
+  border-left: 1px solid rgba(20, 23, 28, 0.35);
+  padding: 7px 9px;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.newCaret:hover { background: #d8b962; }
+.newBtn:disabled, .newCaret:disabled { opacity: 0.6; cursor: default; }
+.menuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.newMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 41;
+  min-width: 180px;
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.newMenuLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted, #98a0aa);
+  padding: 4px 8px 6px;
+}
+.newMenuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary, #e8eaed);
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.newMenuItem:hover { background: rgba(201, 168, 76, 0.14); }
+.newMenuItem:disabled { opacity: 0.6; cursor: default; }
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -78,5 +135,5 @@
   .wrap { flex-direction: column; }
   /* 16px inputs avoid the iOS focus-zoom; let New note keep the row to itself */
   .search, .sortSelect { font-size: 16px; }
-  .newBtn { margin-left: 0; }
+  .newWrap { margin-left: 0; }
 }
