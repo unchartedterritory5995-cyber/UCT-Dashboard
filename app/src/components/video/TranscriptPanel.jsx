@@ -66,6 +66,19 @@ export default function TranscriptPanel({ videoId, hasTranscript, onSeek }) {
     if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' })
   }, [activeCue])
 
+  const plain = () => cues.map((c) => `[${fmt(c.t)}] ${c.text}`).join('\n')
+  const copyAll = async () => {
+    try { await navigator.clipboard.writeText(plain()) } catch { /* ignore */ }
+  }
+  const downloadAll = () => {
+    const blob = new Blob([plain()], { type: 'text/plain' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'transcript.txt'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   if (!hasTranscript) return null
 
   return (
@@ -106,11 +119,15 @@ export default function TranscriptPanel({ videoId, hasTranscript, onSeek }) {
             <div className={styles.hint}>Transcript isn’t available for this video yet.</div>
           ) : (
             <>
-              {query && (
-                <div className={styles.count}>
-                  {filtered.length} {filtered.length === 1 ? 'match' : 'matches'}
-                </div>
-              )}
+              <div className={styles.toolbar}>
+                {query
+                  ? <span className={styles.count}>{filtered.length} {filtered.length === 1 ? 'match' : 'matches'}</span>
+                  : <span className={styles.count}>{cues.length} lines</span>}
+                <span className={styles.toolbarActions}>
+                  <button type="button" className={styles.txBtn} onClick={copyAll}>Copy</button>
+                  <button type="button" className={styles.txBtn} onClick={downloadAll}>Download</button>
+                </span>
+              </div>
               <div className={styles.list} ref={listRef}>
                 {filtered.map((c, i) => (
                   <button

@@ -15,6 +15,7 @@ import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { useVideoNotes } from '../../hooks/useVideoNotes'
 import TickerPopup from '../TickerPopup'
 import TranscriptPanel from './TranscriptPanel'
+import CompassAssistButton from '../voice/CompassAssistButton'
 import styles from './VideoDockSlot.module.css'
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
@@ -211,6 +212,20 @@ export default function VideoDockSlot() {
             {headline && <p className={styles.headline}>{headline}</p>}
             {!headline && current.description && <p className={styles.desc}>{current.description}</p>}
           </div>
+          {/* Actions under the video: talk it through with Compass + transcript. */}
+          {(summary.length > 0 || chapters.length > 0) && (
+            <div className={styles.compassRow}>
+              <CompassAssistButton
+                label="Ask Compass about this session"
+                pageHint={
+                  `The user is watching the Desk trading session "${current.title}". ` +
+                  (headline ? `One-liner: ${headline} ` : '') +
+                  (summary.length ? `Key takeaways: ${summary.join(' | ')} ` : '') +
+                  (chapters.length ? `Chapters: ${chapters.map((c) => c.title).join(', ')}.` : '')
+                }
+              />
+            </div>
+          )}
           {/* Search-and-seek transcript — collapsed by default, lazy-loaded. */}
           <TranscriptPanel videoId={current.id} hasTranscript={hasTranscript} onSeek={seekTo} />
         </div>

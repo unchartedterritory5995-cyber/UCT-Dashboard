@@ -186,6 +186,9 @@
 .meta {
   margin-top: 10px;
 }
+.compassRow {
+  margin-top: 12px;
+}
 .title {
   font-size: 16px;
   font-weight: 700;
