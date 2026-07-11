@@ -106,11 +106,14 @@ export default function Calendar() {
   // Month cursor — component state (not persisted; resets to current month on page mount)
   const [monthCursor, setMonthCursor] = useState(currentMonthCursor)
 
-  // Persisted view / filter preferences
-  const view = prefs.calendar_view || 'feed'
+  // Persisted view / filter preferences. VIEW key bumped to _v2: the Week grid
+  // is now the flagship competitor-style board (big logo tiles, the EarningsHub
+  // look), so it's the new default landing view. Bumping the key resets every
+  // legacy 'feed' pref to Week once; the choice persists under v2 thereafter.
+  const view = prefs.calendar_view_v2 || 'week'
   const filters = { ...DEFAULT_FILTERS, ...parsePref(prefs.calendar_filters, {}) }
   const mySources = parsePref(prefs.calendar_mystocks_sources, ALL_SOURCES)
-  const setView = v => setPref('calendar_view', v)
+  const setView = v => setPref('calendar_view_v2', v)
   const setFilters = f => setPref('calendar_filters', f)
   const setMySources = s => setPref('calendar_mystocks_sources', s)
 
