@@ -231,6 +231,12 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
   const [expandedKey, setExpandedKey] = useState(null);
   const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,priceFn?"Status":null,"DTE"].filter(Boolean);
   const colCount = cols.length;
+  // Today's market date (ET). OI settles overnight, so a trade whose entry is
+  // TODAY has no settled OI to compare against yet — its exit status only firms
+  // up after tomorrow's OI print. Those rows show PENDING instead of a firm
+  // BUILDING/TRIMMED/CLOSED (which could misread on unsettled intraday OI).
+  const _nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const _todayStr = (_nowET.getMonth()+1) + "/" + _nowET.getDate() + "/" + _nowET.getFullYear();
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
       <thead>
@@ -261,7 +267,12 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
           // hold, take partial, or exit?" Only meaningful once Live OI is fetched.
           const oiRatio = (priceFn && curOI > 0 && csvOI > 0) ? curOI / csvOI : null;
           let posLabel = null, posColor = P.dm, posTitle = "";
-          if (oiRatio != null) {
+          const _entryIsToday = (r.Dt || "").trim() === _todayStr;
+          if (_entryIsToday && oiRatio != null) {
+            // Entry is today — OI hasn't settled overnight, so don't call the exit yet.
+            posLabel = "PENDING"; posColor = P.mt;
+            posTitle = "Entry is today — OI settles overnight; exit status confirms after tomorrow's OI print.";
+          } else if (oiRatio != null) {
             if (oiRatio >= 1.10) { posLabel = "BUILDING"; posColor = P.bu; posTitle = "OI grew "+Math.round((oiRatio-1)*100)+"% since entry — still adding"; }
             else if (oiRatio >= 0.90) { posLabel = "HELD"; posColor = "#5b9bd5"; posTitle = "OI ~flat vs entry — position held, not exited"; }
             else if (oiRatio > 0.15) { posLabel = "TRIMMED"; posColor = "#c9a84c"; posTitle = "OI down "+Math.round((1-oiRatio)*100)+"% — partial exit / profit-taking"; }
@@ -2366,10 +2377,11 @@ export default function OptionsFlowDashboard() {
   }, [parsedRows, dateFilter, dateFrom, dateTo, loadedFetchDays, fetchDays]);
 
   useEffect(() => {
-    // Wait for dataVersion before fetching — avoids a double-fetch on mount
-    // (once with no &v=, once with the version). Version arrives within ~50ms,
-    // so the UX delay is imperceptible and we save one full CSV download.
-    if (dataVersion == null) return;
+    // Fetch on mount and whenever csvFile changes (range/mode). csvFile is now
+    // version-STABLE (today's freshness comes from the delta-merge effect), so
+    // there's no version in the URL to wait for — fetch immediately. (Previously
+    // this waited for dataVersion because the version lived in csvFile; keeping
+    // that guard after making csvFile version-stable stalled the initial load.)
 
     // Capture fetchDays at fetch initiation so we know what range this fetch
     // represents — even if user clicks a different range mid-fetch.
