@@ -1,0 +1,310 @@
+/* Journal 2.0 — Today surface (P4 B1).
+   Single-column, one-desktop-viewport intent. Phone collapse is CSS-only
+   (@media 640), never a JS breakpoint read (first-paint-stale trap). */
+
+.today {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 960px;
+}
+
+/* Muted "Scope not applied on Today" note (Today ignores the global Scope). */
+.scopeNote {
+  display: flex;
+  align-items: center;
+  padding: 7px 12px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ── shared card ───────────────────────────────────────────────────────────── */
+
+.card {
+  padding: 18px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-bright);
+}
+
+.cardEyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.cardTitle {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.cardLead {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.cardSub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.bigNumber {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-heading);
+}
+
+.pos { color: var(--gain, #3cb868); }
+.neg { color: var(--loss, #e74c3c); }
+
+/* ── zero-data checklist ───────────────────────────────────────────────────── */
+
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.checkIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.checkHead {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.checkSub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.checkBtn,
+.checkBtnPrimary {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.checkBtn {
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  color: var(--text-bright);
+}
+
+.checkBtn:hover {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+
+.checkBtnPrimary {
+  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
+  color: var(--ut-gold, #c9a84c);
+}
+
+.checkBtnPrimary:hover:not(:disabled) {
+  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.2));
+  border-color: var(--ut-gold, #c9a84c);
+}
+
+.checkBtnPrimary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.compassIntro {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ── premarket readiness ───────────────────────────────────────────────────── */
+
+.readyList {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.readyRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+/* ── manual (no-sync) lead ─────────────────────────────────────────────────── */
+
+.manualHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.manualActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* ── post-close recap ──────────────────────────────────────────────────────── */
+
+.postHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.recapCta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.recapError {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--loss, #e74c3c);
+}
+
+/* ── all-accounts lead ─────────────────────────────────────────────────────── */
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 6px 0 14px;
+}
+
+.statBlock {
+  padding: 10px 12px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-heading);
+}
+
+.regimePill {
+  padding: 3px 10px;
+  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.4));
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ut-gold, #c9a84c);
+}
+
+.selectAcctNote {
+  display: flex;
+  align-items: center;
+  padding: 11px 14px;
+  background: var(--bg-hover);
+  border: 1px dashed var(--border-accent);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── phone: single column, no overflow ─────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .today {
+    max-width: 100%;
+    gap: 12px;
+  }
+  .checkRow {
+    flex-wrap: wrap;
+  }
+  .checkBtn,
+  .checkBtnPrimary {
+    width: 100%;
+  }
+  .manualHead {
+    flex-direction: column;
+  }
+  .manualActions {
+    flex-direction: row;
+    width: 100%;
+  }
+  .statRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .recapCta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

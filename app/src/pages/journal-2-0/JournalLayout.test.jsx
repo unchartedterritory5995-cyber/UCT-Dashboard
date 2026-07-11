@@ -74,6 +74,13 @@ vi.mock('./tabs/CompassTab', () => ({ default: () => <div data-testid="compass" 
 vi.mock('./tabs/CommunityTab', () => ({ default: () => <div data-testid="community" /> }))
 vi.mock('./tabs/AccountsTab', () => ({ default: () => <div data-testid="accounts" /> }))
 
+// Today is a heavy assembly surface (B1) with its own hook tree; this file is a
+// routing test, so stub it to a marker — the index route resolving to the Today
+// surface is what's under test here, not the surface internals.
+vi.mock('./surfaces/TodaySurface', () => ({
+  default: () => <div data-testid="today-surface" />,
+}))
+
 import JournalLayout, { HOTKEY_ROUTES } from './JournalLayout'
 import TodaySurface from './surfaces/TodaySurface'
 import TradesSurface from './surfaces/TradesSurface'
@@ -133,9 +140,9 @@ describe('JournalLayout — primary nav', () => {
 })
 
 describe('JournalLayout — surfaces via nested routes', () => {
-  it('the index route renders the Today placeholder', () => {
+  it('the index route renders the Today surface', () => {
     renderAt('/journal')
-    expect(screen.getByText('Today — coming in this release')).toBeInTheDocument()
+    expect(screen.getByTestId('today-surface')).toBeInTheDocument()
   })
 
   it('navigating to Trades renders TradesSurface with the Open segment active', () => {
@@ -191,7 +198,7 @@ describe('JournalLayout — permanent ?j2tab= redirect shim (A3)', () => {
     renderAt('/journal?j2tab=analytics&ins=edge')
     // Landed on the Insights surface (Analytics tab), NOT the Today placeholder.
     expect(screen.getByTestId('analytics')).toBeInTheDocument()
-    expect(screen.queryByText('Today — coming in this release')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('today-surface')).not.toBeInTheDocument()
     // URL rewritten + ins= preserved + j2tab stripped (no loop).
     expect(screen.getByTestId('loc')).toHaveTextContent('/journal/insights?ins=edge')
   })
@@ -220,7 +227,7 @@ describe('JournalLayout — permanent ?j2tab= redirect shim (A3)', () => {
 
   it('plain /journal (no j2tab) does NOT redirect — Today renders', () => {
     renderAt('/journal')
-    expect(screen.getByText('Today — coming in this release')).toBeInTheDocument()
+    expect(screen.getByTestId('today-surface')).toBeInTheDocument()
     expect(screen.getByTestId('loc')).toHaveTextContent('/journal')
   })
 })
@@ -267,7 +274,7 @@ describe('JournalLayout — g> navigation hotkeys (A4)', () => {
     expect(screen.getByTestId('analytics')).toBeInTheDocument()
     pressChord('KeyO')
     expect(loc()).toBe('/journal')
-    expect(screen.getByText('Today — coming in this release')).toBeInTheDocument()
+    expect(screen.getByTestId('today-surface')).toBeInTheDocument()
   })
 
   it('g>p navigates to Trades / Open segment', () => {
