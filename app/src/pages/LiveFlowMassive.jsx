@@ -1076,12 +1076,18 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   const rowBorder = isAlpha ? `5px solid ${P.ac}` : `3px solid ${meta.color}`;
   const fontSize = isAlpha ? 14 : 13;
   const secondaryFontSize = 12;
-  // Field coloring: alpha → gold, otherwise direction-based
-  const tickerColor = isAlpha ? P.ac : dirColor;
+  // Field coloring: alpha → gold, otherwise direction-based.
+  // OI status: volume that did NOT exceed OI (_color === "WHITE") renders in a
+  // muted white so it's visually clear it bled through on other criteria and is
+  // NOT new positioning. Alpha Gold always stays gold to keep attention
+  // regardless of OI. MAGENTA/YELLOW (exceeded OI) keep their bright direction color.
+  const _oiDim = alert._color === "WHITE" && !isAlpha;
+  const DIM_WHITE = "#9aa0a6";
+  const tickerColor = isAlpha ? P.ac : (_oiDim ? DIM_WHITE : dirColor);
   const tickerWeight = isAlpha ? 700 : 600;
-  const strikeColor = isAlpha ? P.ac : dirColor;
+  const strikeColor = isAlpha ? P.ac : (_oiDim ? DIM_WHITE : dirColor);
   const strikeWeight = isAlpha ? 700 : (isSize ? 700 : 600);
-  const premColor = isAlpha ? P.ac : dirColor;
+  const premColor = isAlpha ? P.ac : (_oiDim ? DIM_WHITE : dirColor);
   const premWeight = isAlpha ? 700 : 600;
   const alertNameColor = isAlpha ? P.wh : (dirColor === P.wh ? P.dm : dirColor);
   const cpDisplayColor = dirIsBull ? DIR_BULL : dirIsBear ? DIR_BEAR : P.dm;
