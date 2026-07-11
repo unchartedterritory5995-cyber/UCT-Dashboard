@@ -58,8 +58,11 @@ export default function CommunityPage() {
   }, [chatOn, liveRooms, sel, refreshThreads])
 
   // Default selection: last channel (persisted) → first pulse channel → mentor-desk.
+  // When chat is on, WAIT for the channel list before choosing so we land on the
+  // live Pulse (not prematurely on a Board while chan is still loading).
   useEffect(() => {
     if (sel || threadId) return
+    if (chatOn && !chan) return
     if (chatOn && chan?.channels?.length) {
       const saved = localStorage.getItem(LAST_CH_KEY)
       const pick = chan.channels.find((c) => c.slug === saved) || chan.channels[0]

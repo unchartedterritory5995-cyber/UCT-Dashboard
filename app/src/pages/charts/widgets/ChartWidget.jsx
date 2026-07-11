@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
+import ShareToFloor from '../../../components/community/ShareToFloor'
 import { useWorkspace } from '../WorkspaceContext'
 import styles from '../ChartsWorkspace.module.css'
 
@@ -89,6 +90,9 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             onClick={() => setTf(code)}
           >{label}</button>
         ))}
+        <span style={{ marginLeft: 'auto' }}>
+          <ShareToFloor card={{ kind: 'chart', ticker: sym, tf }} compact />
+        </span>
       </div>
       <div
         ref={focusableRef}
