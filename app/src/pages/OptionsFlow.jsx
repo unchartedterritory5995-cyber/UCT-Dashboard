@@ -2253,10 +2253,15 @@ export default function OptionsFlowDashboard() {
   // Cache-busting version param — fetched from /api/flow/version on mount &
   // on tab focus. When new data is uploaded, version bumps and Cloudflare
   // sees a new URL, busting the stale cache entry.
-  const _vsuffix = dataVersion != null ? `&v=${dataVersion}` : "";
+  // Full-range URL is version-STABLE: on a data bump we splice in ONLY today's
+  // trades (see the delta-merge effect below) rather than reloading the whole
+  // range. So the base range can be Cloudflare-cached and a version bump never
+  // triggers a full refetch — which is what reloaded 100k+ trades on every bump
+  // and crashed 60-day tabs with Out-of-Memory. dataVersion still drives the
+  // delta below, so it's not orphaned.
   const csvFile = dataMode === "index"
-    ? (fetchDays === 0 ? "/api/flow/indexes-data?all_data=true"+_vsuffix : `/api/flow/indexes-data?days=${fetchDays}${_vsuffix}`)
-    : (fetchDays === 0 ? "/api/flow/data?all_data=true"+_vsuffix : `/api/flow/data?days=${fetchDays}${_vsuffix}`);
+    ? (fetchDays === 0 ? "/api/flow/indexes-data?all_data=true" : `/api/flow/indexes-data?days=${fetchDays}`)
+    : (fetchDays === 0 ? "/api/flow/data?all_data=true" : `/api/flow/data?days=${fetchDays}`);
 
   // Extract unique dates from parsed rows
   const availableDates = useMemo(() => {
@@ -2420,6 +2425,44 @@ export default function OptionsFlowDashboard() {
         .catch(err => { if (!cancelled) { setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); } });
     return () => { cancelled = true; };
   }, [csvFile]);
+
+  // ─── Incremental live update (today-delta merge) ─────────────────────────
+  // When the DB version bumps during the session, refetch ONLY today's trades
+  // (days=1, a few thousand rows) and splice them into the loaded dataset —
+  // replacing the existing rows for today's date(s). Keeps every range (incl.
+  // 60d/All) live during the trading day WITHOUT reloading the whole range,
+  // which reloaded 100k+ trades on each bump and OOM-crashed the tab (and made
+  // a screenshot's focus-refetch fatal). The base range URL is version-stable
+  // and Cloudflare-cached; today's freshness comes from this small delta.
+  const _lastMergedVer = useRef(null);
+  useEffect(() => {
+    if (dataVersion == null) return;
+    if (_lastMergedVer.current === dataVersion) return;
+    if (dataMode === "gex" || dataMode === "darkpool") return;  // non-flow views
+    let cancelled = false;
+    const url = dataMode === "index"
+      ? `/api/flow/indexes-data?days=1&v=${dataVersion}`
+      : `/api/flow/data?days=1&v=${dataVersion}`;
+    fetch(url, { cache: "no-store" })
+      .then(r => r.ok ? r.text() : null)
+      .then(text => {
+        if (cancelled || !text || text.trim().startsWith("<")) return;
+        const todayRows = parseCSV(text);
+        if (!todayRows || !todayRows.length) return;
+        const todayDates = new Set(
+          todayRows.map(r => (r.date || "").trim()).filter(Boolean)
+        );
+        if (!todayDates.size) return;
+        setParsedRows(prev => {
+          if (!prev || !prev.length) return prev;  // base not loaded yet — skip
+          _lastMergedVer.current = dataVersion;
+          const base = prev.filter(r => !todayDates.has((r.date || "").trim()));
+          return base.concat(todayRows);
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [dataVersion, dataMode]);
 
 
   // Cap-filtered view: recompute charts using only the selected cap band's
