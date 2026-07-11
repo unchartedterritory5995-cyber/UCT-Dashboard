@@ -41,6 +41,12 @@ function renderSection(overrides = {}, props = {}) {
 
 beforeEach(() => {
   localStorage.clear()
+  // The pitch card now mounts RapidTagFlow, which fetches recent trades + reads
+  // settings via SWR. Stub fetch so opening the flow is deterministic (empty
+  // trades → the flow's friendly empty state; no real network).
+  global.fetch = vi.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ trades: [] }) }),
+  )
 })
 
 describe('PsychologySection', () => {
@@ -119,7 +125,7 @@ describe('PsychologySection', () => {
     expect(screen.queryByText(/needs execution times/i)).not.toBeInTheDocument()
   })
 
-  it('taggedTradeCount === 0 → the pitch card; its button calls onStartRapidTag', () => {
+  it('taggedTradeCount === 0 → the pitch card; its button calls onStartRapidTag', async () => {
     const onStartRapidTag = vi.fn()
     renderSection({ taggedTradeCount: 0 }, { onStartRapidTag })
     // The three data panels are replaced by the pitch card.
@@ -129,12 +135,27 @@ describe('PsychologySection', () => {
     const btn = screen.getByRole('button', { name: /tag my trades/i })
     fireEvent.click(btn)
     expect(onStartRapidTag).toHaveBeenCalledTimes(1)
+    // The click also opens the flow — settle its async load (stubbed empty).
+    await screen.findByText(/no closed trades to tag yet/i)
   })
 
-  it('pitch-card button is a harmless no-op when onStartRapidTag is absent', () => {
+  it('pitch-card button is a harmless no-op when onStartRapidTag is absent', async () => {
     renderSection({ taggedTradeCount: 0 })
     const btn = screen.getByRole('button', { name: /tag my trades/i })
     expect(() => fireEvent.click(btn)).not.toThrow()
+    // Let the mounted flow settle (fetch → empty state) so no act() leaks.
+    await screen.findByText(/no closed trades to tag yet/i)
+  })
+
+  it('clicking the pitch-card button opens the RapidTagFlow', async () => {
+    renderSection({ taggedTradeCount: 0 })
+    // Flow not mounted until the pitch button is pressed.
+    expect(screen.queryByText(/tag recent trades/i)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /tag my trades/i }))
+    // The flow's Sheet (portaled to document.body) mounts with its own title.
+    expect(screen.getByText(/tag recent trades/i)).toBeInTheDocument()
+    // Settle the async load (stubbed empty) to avoid an act() warning.
+    await screen.findByText(/no closed trades to tag yet/i)
   })
 
   it('is resilient to a missing psychology slice (no crash, no data panels)', () => {

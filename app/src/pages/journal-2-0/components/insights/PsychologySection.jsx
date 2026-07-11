@@ -34,8 +34,10 @@
  */
 
 import { useCallback, useState } from 'react'
+import { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfidenceStat from '../analytics/ConfidenceStat'
+import RapidTagFlow from '../psychology/RapidTagFlow'
 import styles from './PsychologySection.module.css'
 
 const CONF_MIN = 10 // canonical confidence threshold — win rate grayed below it
@@ -73,6 +75,23 @@ function saveDismissed(arr) {
 
 export default function PsychologySection({ analytics, onStartRapidTag }) {
   const [dismissed, setDismissed] = useState(loadDismissed)
+  const [rapidTagOpen, setRapidTagOpen] = useState(false)
+  const { mutate } = useSWRConfig()
+
+  // Open the rapid-tag flow from the pitch card. The optional `onStartRapidTag`
+  // prop is kept as an additional hook for a parent that wants to know (called
+  // too when present) — but the section owns the flow's open state itself.
+  const startRapidTag = useCallback(() => {
+    setRapidTagOpen(true)
+    onStartRapidTag?.()
+  }, [onStartRapidTag])
+
+  // Tagging trades feeds every psychology panel — revalidate the analytics key
+  // so the section comes alive, then close.
+  const completeRapidTag = useCallback(() => {
+    mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/analytics'))
+    setRapidTagOpen(false)
+  }, [mutate])
 
   const dismiss = useCallback((pairKey) => {
     if (!pairKey) return
@@ -102,13 +121,21 @@ export default function PsychologySection({ analytics, onStartRapidTag }) {
       </div>
 
       {taggedTradeCount === 0 ? (
-        <PitchCard onStartRapidTag={onStartRapidTag} />
+        <PitchCard onStart={startRapidTag} />
       ) : (
         <div className={styles.panels}>
           <EmotionPanel emotions={emotionOutcomes} />
           <CostPanel cost={cost} />
           <RevengePanel revenge={revenge} dismissed={dismissed} onDismiss={dismiss} />
         </div>
+      )}
+
+      {rapidTagOpen && (
+        <RapidTagFlow
+          open
+          onClose={() => setRapidTagOpen(false)}
+          onComplete={completeRapidTag}
+        />
       )}
     </div>
   )
@@ -313,7 +340,7 @@ function RevengePanel({ revenge, dismissed, onDismiss }) {
 
 // ── Empty state: the rapid-tag pitch card (taggedTradeCount === 0) ───────────
 
-function PitchCard({ onStartRapidTag }) {
+function PitchCard({ onStart }) {
   return (
     <div className={styles.pitch}>
       <UIcon name="tag" size={26} className={styles.pitchGlyph} />
@@ -326,7 +353,7 @@ function PitchCard({ onStartRapidTag }) {
       <button
         type="button"
         className={styles.pitchBtn}
-        onClick={() => onStartRapidTag && onStartRapidTag()}
+        onClick={() => onStart && onStart()}
       >
         Tag my trades
       </button>
