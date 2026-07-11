@@ -19,6 +19,7 @@ vi.mock('swr', () => ({
 }))
 
 import EducationalVideos from './EducationalVideos'
+import { MemoryRouter } from 'react-router-dom'
 
 beforeEach(() => {
   mockRole = null
@@ -37,7 +38,7 @@ beforeEach(() => {
 })
 
 test('renders the page heading and videos', () => {
-  render(<EducationalVideos />)
+  render(<MemoryRouter><EducationalVideos /></MemoryRouter>)
   expect(screen.getByRole('heading', { name: /educational videos/i })).toBeTruthy()
   expect(screen.getByText('Welcome')).toBeTruthy()
   expect(screen.getByText('The Basics')).toBeTruthy()
@@ -46,7 +47,7 @@ test('renders the page heading and videos', () => {
 
 test('non-admin sees no add/edit controls', () => {
   mockRole = null
-  render(<EducationalVideos />)
+  render(<MemoryRouter><EducationalVideos /></MemoryRouter>)
   expect(screen.queryByText(/add video/i)).toBeNull()
   expect(screen.queryByText('Edit')).toBeNull()
   expect(screen.queryByText('Delete')).toBeNull()
@@ -54,7 +55,7 @@ test('non-admin sees no add/edit controls', () => {
 
 test('admin sees add and per-video edit/delete controls', () => {
   mockRole = 'admin'
-  render(<EducationalVideos />)
+  render(<MemoryRouter><EducationalVideos /></MemoryRouter>)
   expect(screen.getByText(/add video/i)).toBeTruthy()
   expect(screen.getAllByText('Edit').length).toBe(2)
   expect(screen.getAllByText('Delete').length).toBe(2)
@@ -63,14 +64,14 @@ test('admin sees add and per-video edit/delete controls', () => {
 test('empty state shows admin add prompt for admins', () => {
   mockRole = 'admin'
   mockData = { total: 0, categories: [] }
-  render(<EducationalVideos />)
+  render(<MemoryRouter><EducationalVideos /></MemoryRouter>)
   expect(screen.getByText(/add the first video/i)).toBeTruthy()
 })
 
 test('empty state shows coming-soon for non-admins', () => {
   mockRole = null
   mockData = { total: 0, categories: [] }
-  render(<EducationalVideos />)
+  render(<MemoryRouter><EducationalVideos /></MemoryRouter>)
   expect(screen.getByText(/being loaded in/i)).toBeTruthy()
   expect(screen.queryByText(/add the first video/i)).toBeNull()
 })
