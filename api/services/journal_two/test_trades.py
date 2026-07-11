@@ -517,6 +517,33 @@ def test_manual_add_trade_short_side(db_conn):
     assert t["rMultiple"] == pytest.approx(5.96 / 1.67, abs=1e-3)
 
 
+# ═══ P5 A6: regime surfaces through _row_to_trade / _TRADE_COLS ══════════════
+
+
+def test_row_to_trade_surfaces_regime_none_when_null(db_conn):
+    """A fresh manual trade stamps regime from get_current_regime, which returns
+    None when wire data is unavailable (the test env) — so it surfaces as None,
+    not absent, through the full SELECT/_TRADE_COLS/_row_to_trade path."""
+    from api.services.journal_two import trades as svc
+
+    svc.create_trade_manual("u1", _valid_manual_payload(), SETTINGS_STD, conn=db_conn)
+    trades = svc.list_trades_for_user("u1", conn=db_conn)
+    assert len(trades) == 1
+    assert "regime" in trades[0]
+    assert trades[0]["regime"] is None
+
+
+def test_row_to_trade_surfaces_regime_value_when_set(db_conn):
+    """When the column holds a value it must reach the API dict verbatim."""
+    from api.services.journal_two import trades as svc
+
+    t = svc.create_trade_manual("u1", _valid_manual_payload(), SETTINGS_STD, conn=db_conn)
+    db_conn.execute("UPDATE j2_trades SET regime = 'amber' WHERE id = ?", (t["id"],))
+    db_conn.commit()
+    trades = svc.list_trades_for_user("u1", conn=db_conn)
+    assert trades[0]["regime"] == "amber"
+
+
 # ═══ Phase 5: delete_trade + delete_all_trades ═══════════════════════════════
 
 

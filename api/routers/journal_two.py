@@ -40,6 +40,7 @@ from api.services.journal_two import (
     playbook_stats as playbook_stats_service,
     positions as positions_service,
     regime as regime_service,
+    regime_backfill,
     settings as settings_service,
     setup_stats as setup_stats_service,
     trades as trades_service,
@@ -821,6 +822,21 @@ def trading_day_backfill_route(
     legacy rows. Returns which trades' calendar day MOVES vs the old
     to_et_date bucketing. Run OFF-HOURS (writer locks auth.db)."""
     return trading_day_backfill.run_backfill(force=force)
+
+
+@router.post("/admin/regime-backfill")
+def regime_backfill_route(
+    limit: int | None = None,
+    force: bool = False,
+    user: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Admin-only. Batched, idempotent backfill of `j2_trades.regime` from
+    breadth history: reclassify each historical day's UCT exposure score → regime
+    label and stamp it on NULL-regime trades whose day (trading_day_et, else
+    exit_date) matches. Broker/CSV rows with no matching breadth day stay NULL.
+    Global across all users. Run OFF-HOURS (writer locks auth.db). Returns
+    {scanned, updated, skipped_no_day_match}."""
+    return regime_backfill.backfill_regime(limit=limit, force=force)
 
 
 @router.post("/admin/attachments-backup")
