@@ -2240,6 +2240,7 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState }) {
   const _dayHits = c.day_hits || [];
   const _shapeMeta = ({
     accelerating: { label: `🔥 ACCEL ${_daysN}D`, color: "#FF8C42" },
+    intraday_burst: { label: `⚡ SWIFT ${c.swift_hits || ""}×${c.burst_rising ? " ↑" : ""}`, color: "#E8C547" },
     steady: { label: `🔁 STEADY ${_daysN}D`, color: P.ac },
     fading: { label: "▽ fading", color: P.dm },
   })[_shape] || null;
