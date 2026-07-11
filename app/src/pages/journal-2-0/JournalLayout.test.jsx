@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 
 // ── controllable paid state ──────────────────────────────────────────────────
@@ -28,6 +28,37 @@ vi.mock('./components/PortfolioSettingsModal', () => ({ default: () => null }))
 vi.mock('./components/accounts/NewAccountModal', () => ({ default: () => null }))
 vi.mock('./components/GenerateReportModal', () => ({ default: () => null }))
 vi.mock('./components/ShortcutCheatSheet', () => ({ default: () => null }))
+
+// ── "+ Log Trade" (A5) deps: selected-account hook + the two heavy add modals ─
+vi.mock('./hooks/useJ2SelectedAccount', () => ({
+  default: () => ({
+    accountId: 'a1',
+    account: { id: 'a1', name: 'Default' },
+    accounts: [{ id: 'a1', name: 'Default' }],
+    setAccount: vi.fn(),
+    isLoading: false,
+  }),
+}))
+vi.mock('./components/AddPositionModal', () => ({
+  default: ({ onSave, onClose }) => (
+    <div data-testid="add-position-modal" role="dialog" aria-label="Add Position">
+      <button type="button" onClick={() => onSave({ symbol: 'NVDA', side: 'Long' })}>
+        save-position
+      </button>
+      <button type="button" onClick={onClose}>close-position</button>
+    </div>
+  ),
+}))
+vi.mock('./components/AddTradeModal', () => ({
+  default: ({ onSave, onClose }) => (
+    <div data-testid="add-trade-modal" role="dialog" aria-label="Add Trade">
+      <button type="button" onClick={() => onSave({ symbol: 'NVDA', side: 'Long' })}>
+        save-trade
+      </button>
+      <button type="button" onClick={onClose}>close-trade</button>
+    </div>
+  ),
+}))
 
 // ── heavy tab components the surfaces host (simple stubs) ─────────────────────
 vi.mock('./tabs/OpenPositionsTab', () => ({
@@ -256,5 +287,111 @@ describe('JournalLayout — g> navigation hotkeys (A4)', () => {
     renderAt('/journal', { paid: false })
     pressChord('KeyK')
     expect(loc()).toBe('/journal')
+  })
+})
+
+// ── "+ Log Trade" header action (Task A5) ────────────────────────────────────
+describe('JournalLayout — "+ Log Trade" header action (A5)', () => {
+  it('renders a persistent "+ Log Trade" action in the header', () => {
+    renderAt('/journal')
+    expect(screen.getByRole('button', { name: /log trade/i })).toBeInTheDocument()
+  })
+
+  it('is present on every surface, not just Today', () => {
+    renderAt('/journal/insights')
+    expect(screen.getByRole('button', { name: /log trade/i })).toBeInTheDocument()
+  })
+
+  it('clicking "+ Log Trade" opens a menu with the two log choices', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
+    const menu = screen.getByRole('menu', { name: /log a trade/i })
+    expect(within(menu).getByRole('menuitem', { name: /open position/i })).toBeInTheDocument()
+    expect(within(menu).getByRole('menuitem', { name: /closed trade/i })).toBeInTheDocument()
+  })
+
+  it('"Log open position" opens the AddPositionModal add flow', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /open position/i }))
+    expect(screen.getByTestId('add-position-modal')).toBeInTheDocument()
+    expect(screen.queryByTestId('add-trade-modal')).not.toBeInTheDocument()
+  })
+
+  it('"Log closed trade" opens the AddTradeModal add flow', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /closed trade/i }))
+    expect(screen.getByTestId('add-trade-modal')).toBeInTheDocument()
+    expect(screen.queryByTestId('add-position-modal')).not.toBeInTheDocument()
+  })
+
+  it('the add flow closes via the modal onClose', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /open position/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'close-position' }))
+    expect(screen.queryByTestId('add-position-modal')).not.toBeInTheDocument()
+  })
+
+  it('the Log Trade menu uses no emoji', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
+    const menu = screen.getByRole('menu', { name: /log a trade/i })
+    const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/u
+    expect(menu.textContent).not.toMatch(emoji)
+  })
+})
+
+// ── Community + Accounts relocated to the header overflow (Task A5) ───────────
+describe('JournalLayout — Community/Accounts overflow (A5)', () => {
+  it('keeps the primary nav at exactly the 5 sections (no Community/Accounts)', () => {
+    renderAt('/journal')
+    const nav = screen.getByRole('navigation', { name: 'Journal sections' })
+    expect(nav.textContent).toBe('TodayTradesJournalInsightsCompass')
+    expect(within(nav).queryByText('Community')).not.toBeInTheDocument()
+    expect(within(nav).queryByText('Accounts')).not.toBeInTheDocument()
+  })
+
+  it('the header exposes a "More" overflow trigger', () => {
+    renderAt('/journal')
+    expect(screen.getByRole('button', { name: /more/i })).toBeInTheDocument()
+  })
+
+  it('the overflow menu links to both Community and Accounts routes', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: /more/i }))
+    expect(screen.getByRole('link', { name: /community/i })).toHaveAttribute(
+      'href',
+      '/journal/community',
+    )
+    expect(screen.getByRole('link', { name: /accounts/i })).toHaveAttribute(
+      'href',
+      '/journal/accounts',
+    )
+  })
+
+  it('clicking Community in the overflow navigates to the Community route', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: /more/i }))
+    fireEvent.click(screen.getByRole('link', { name: /community/i }))
+    expect(screen.getByTestId('community')).toBeInTheDocument()
+    expect(loc()).toBe('/journal/community')
+  })
+
+  it('clicking Accounts in the overflow navigates to the Accounts route', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: /more/i }))
+    fireEvent.click(screen.getByRole('link', { name: /accounts/i }))
+    expect(screen.getByTestId('accounts')).toBeInTheDocument()
+    expect(loc()).toBe('/journal/accounts')
+  })
+
+  it('the overflow menu uses no emoji', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: /more/i }))
+    const menu = screen.getByTestId('j2-more-menu')
+    const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/u
+    expect(menu.textContent).not.toMatch(emoji)
   })
 })

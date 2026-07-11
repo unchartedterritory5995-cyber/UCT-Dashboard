@@ -33,6 +33,7 @@ import AccountSelector from './components/accounts/AccountSelector'
 import NewAccountModal from './components/accounts/NewAccountModal'
 import GenerateReportModal from './components/GenerateReportModal'
 import ShortcutCheatSheet from './components/ShortcutCheatSheet'
+import LogTradeButton from './LogTradeButton'
 import styles from './JournalLayout.module.css'
 
 // The 5 primary surfaces. Compass is `paidOnly` — shown always (never hidden;
@@ -84,6 +85,9 @@ export default function JournalLayout() {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showNewAccount, setShowNewAccount] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  // Header overflow: Community + Accounts are NOT primary nav items (A5) — they
+  // live here so the primary rail stays exactly 5. The routes still exist (A2).
+  const [showMore, setShowMore] = useState(false)
 
   const openSettings = useCallback(() => setShowSettings(true), [])
   const closeSettings = useCallback(() => setShowSettings(false), [])
@@ -134,6 +138,9 @@ export default function JournalLayout() {
       <div className={styles.header}>
         <h1 className={styles.heading}>Trade Journal</h1>
         <div className={styles.headerRight}>
+          {/* Persistent "+ Log Trade" — the primary write affordance, on every
+              surface (A5). Owns its own add-position / add-trade modals. */}
+          <LogTradeButton />
           <button
             type="button"
             className={styles.shortcutsBtn}
@@ -163,6 +170,49 @@ export default function JournalLayout() {
           >
             <span className={styles.gearIcon} aria-hidden="true"><UIcon name="gear" size={16} /></span>
           </button>
+
+          {/* Overflow "More" — Community + Accounts (not primary nav; A5). Real
+              <NavLink>s so they stay first-class routes, just off the main rail. */}
+          <div className={styles.moreWrap}>
+            <button
+              type="button"
+              className={styles.shortcutsBtn}
+              onClick={() => setShowMore((x) => !x)}
+              aria-haspopup="menu"
+              aria-expanded={showMore}
+              aria-label="More"
+              title="More — Community, Accounts"
+            >
+              <UIcon name="more" size={16} />
+            </button>
+            {showMore && (
+              <>
+                <div
+                  className={styles.menuBackdrop}
+                  onClick={() => setShowMore(false)}
+                  aria-hidden="true"
+                />
+                <div className={styles.menu} data-testid="j2-more-menu">
+                  <NavLink
+                    to="/journal/community"
+                    className={styles.menuItem}
+                    onClick={() => setShowMore(false)}
+                  >
+                    <UIcon name="community" size={14} aria-hidden="true" />
+                    Community
+                  </NavLink>
+                  <NavLink
+                    to="/journal/accounts"
+                    className={styles.menuItem}
+                    onClick={() => setShowMore(false)}
+                  >
+                    <UIcon name="user" size={14} aria-hidden="true" />
+                    Accounts
+                  </NavLink>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
