@@ -124,8 +124,12 @@ beforeEach(() => {
 describe('JournalLayout — primary nav', () => {
   it('renders the 5 primary nav items as links (paid)', () => {
     renderAt('/journal')
+    // Scope to the DESKTOP rail — the phone JournalMobileNav (B5) renders the
+    // same 5 section links (CSS-hidden on desktop, but present in jsdom), so a
+    // bare getByRole would be ambiguous.
+    const nav = screen.getByRole('navigation', { name: 'Journal sections' })
     for (const label of ['Today', 'Trades', 'Journal', 'Insights', 'Compass']) {
-      expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
+      expect(within(nav).getByRole('link', { name: label })).toBeInTheDocument()
     }
   })
 
@@ -147,7 +151,8 @@ describe('JournalLayout — surfaces via nested routes', () => {
 
   it('navigating to Trades renders TradesSurface with the Open segment active', () => {
     renderAt('/journal')
-    fireEvent.click(screen.getByRole('link', { name: 'Trades' }))
+    const nav = screen.getByRole('navigation', { name: 'Journal sections' })
+    fireEvent.click(within(nav).getByRole('link', { name: 'Trades' }))
     // Open segment default → Open Positions tab renders, Trade Journal does not.
     expect(screen.getByTestId('open-positions')).toBeInTheDocument()
     expect(screen.queryByTestId('trade-journal')).not.toBeInTheDocument()
@@ -172,18 +177,21 @@ describe('JournalLayout — surfaces via nested routes', () => {
 describe('JournalLayout — Compass paid gating', () => {
   it('shows Compass as a link when paid', () => {
     renderAt('/journal', { paid: true })
-    expect(screen.getByRole('link', { name: 'Compass' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Compass' })).not.toBeInTheDocument()
+    // Scope to the desktop rail (the phone nav mirrors the same Compass entry).
+    const nav = screen.getByRole('navigation', { name: 'Journal sections' })
+    expect(within(nav).getByRole('link', { name: 'Compass' })).toBeInTheDocument()
+    expect(within(nav).queryByRole('button', { name: 'Compass' })).not.toBeInTheDocument()
   })
 
   it('shows Compass as a present-but-disabled teaser when NOT paid (never hidden)', () => {
     renderAt('/journal', { paid: false })
+    const nav = screen.getByRole('navigation', { name: 'Journal sections' })
     // Still present — never hidden from free users.
-    expect(screen.getByText('Compass')).toBeInTheDocument()
+    expect(within(nav).getByText('Compass')).toBeInTheDocument()
     // Teaser is a disabled button, not a navigable link.
-    const compass = screen.getByRole('button', { name: 'Compass' })
+    const compass = within(nav).getByRole('button', { name: 'Compass' })
     expect(compass).toBeDisabled()
-    expect(screen.queryByRole('link', { name: 'Compass' })).not.toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: 'Compass' })).not.toBeInTheDocument()
   })
 
   it('gates the Compass route with a teaser for a free deep-link', () => {
@@ -400,5 +408,86 @@ describe('JournalLayout — Community/Accounts overflow (A5)', () => {
     const menu = screen.getByTestId('j2-more-menu')
     const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/u
     expect(menu.textContent).not.toMatch(emoji)
+  })
+})
+
+// ── Mobile section nav + quick-log FAB (Task B5) ─────────────────────────────
+// Both are ALWAYS mounted and CSS-hidden on desktop (`@media (max-width:640px)`
+// swaps the desktop rail for the phone nav; the FAB is display:none on desktop).
+// jsdom applies no CSS, so both are present in the DOM here — assert presence +
+// structure + that the add flow is wired.
+const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/u
+
+describe('JournalLayout — mobile section nav (B5)', () => {
+  it('mounts the phone JournalMobileNav alongside the desktop rail', () => {
+    renderAt('/journal')
+    expect(
+      screen.getByRole('navigation', { name: 'Journal sections (mobile)' }),
+    ).toBeInTheDocument()
+  })
+
+  it('the mobile nav carries all 5 sections', () => {
+    renderAt('/journal')
+    const mnav = screen.getByRole('navigation', { name: 'Journal sections (mobile)' })
+    for (const label of ['Today', 'Trades', 'Journal', 'Insights', 'Compass']) {
+      expect(within(mnav).getByRole('link', { name: label })).toBeInTheDocument()
+    }
+  })
+
+  it('the desktop rail is the hide-on-phone class + the mobile nav is hide-on-desktop', () => {
+    renderAt('/journal')
+    const rail = screen.getByRole('navigation', { name: 'Journal sections' })
+    const mnav = screen.getByRole('navigation', { name: 'Journal sections (mobile)' })
+    // CSS-module local names survive in the generated class string.
+    expect(rail.className).toContain('navDesktop')
+    expect(mnav.className).toContain('mobileNav')
+  })
+
+  it('the mobile nav uses no emoji', () => {
+    renderAt('/journal')
+    const mnav = screen.getByRole('navigation', { name: 'Journal sections (mobile)' })
+    expect(mnav.textContent).not.toMatch(EMOJI)
+  })
+})
+
+describe('JournalLayout — mobile quick-log FAB (B5)', () => {
+  it('mounts a phone quick-log FAB (distinct from the header "+ Log Trade")', () => {
+    renderAt('/journal')
+    const fab = screen.getByRole('button', { name: 'Log a trade' })
+    expect(fab).toBeInTheDocument()
+    // Its own fixed wrapper (CSS-hidden on desktop) — not the header pill.
+    expect(fab.parentElement.className).toContain('logFab')
+  })
+
+  it('is present on every surface, not just Today', () => {
+    renderAt('/journal/insights')
+    expect(screen.getByRole('button', { name: 'Log a trade' })).toBeInTheDocument()
+  })
+
+  it('opens a two-choice add menu that opens the AddPositionModal add flow', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: 'Log a trade' }))
+    const menu = screen.getByRole('menu', { name: /quick log a trade/i })
+    expect(within(menu).getByRole('menuitem', { name: /open position/i })).toBeInTheDocument()
+    fireEvent.click(within(menu).getByRole('menuitem', { name: /open position/i }))
+    expect(screen.getByTestId('add-position-modal')).toBeInTheDocument()
+    expect(screen.queryByTestId('add-trade-modal')).not.toBeInTheDocument()
+  })
+
+  it('the "Log closed trade" choice opens the AddTradeModal add flow', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: 'Log a trade' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /closed trade/i }))
+    expect(screen.getByTestId('add-trade-modal')).toBeInTheDocument()
+    expect(screen.queryByTestId('add-position-modal')).not.toBeInTheDocument()
+  })
+
+  it('the FAB + its menu use no emoji', () => {
+    renderAt('/journal')
+    const fab = screen.getByRole('button', { name: 'Log a trade' })
+    expect(fab.textContent).not.toMatch(EMOJI)
+    fireEvent.click(fab)
+    const menu = screen.getByRole('menu', { name: /quick log a trade/i })
+    expect(menu.textContent).not.toMatch(EMOJI)
   })
 })

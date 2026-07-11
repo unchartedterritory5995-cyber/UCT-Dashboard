@@ -242,20 +242,13 @@
   min-height: 240px;
 }
 
-/* Touch: 5 items still fit most phones, but let the bar scroll rather than
-   clip on the narrowest devices (CSS @media, not JS — first-paint-stale trap). */
+/* Phone: the desktop tab rail is replaced by <JournalMobileNav/> (a top
+   segmented scroller) + the <JournalLogFab/> quick-log. `.navDesktop` is the
+   hide-on-phone hook — CSS @media, not a JS isPhone branch (first-paint-stale
+   trap). */
 @media (max-width: 640px) {
-  .nav {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    flex-wrap: nowrap;
-  }
-  .nav::-webkit-scrollbar { display: none; }
-  .navItem {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    min-height: var(--tap-min);
+  .navDesktop {
+    display: none;
   }
 }
 
@@ -327,4 +320,56 @@
   padding: 32px;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+/* ── Mobile quick-log FAB (B5) — phone only ───────────────────────────────────
+   Desktop: hidden (the header "+ Log Trade" pill serves). Phone: a fixed FAB in
+   the bottom-LEFT column, ABOVE the app-wide MobileTabBar (bottom:0, z ~300) and
+   the feedback "?" widget (docks bottom-left ~70px on touch). The voice orb is
+   bottom-RIGHT, so this left column above feedback is clear of all three. */
+.logFab {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .logFab {
+    display: block;
+    position: fixed;
+    left: 14px;
+    /* 70px feedback dock + its 40px height + a gap, all above the tab bar. */
+    bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+    z-index: 450; /* above content + tab bar (300); below the voice orb (8000) */
+  }
+}
+
+.logFabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: var(--tap-min);
+  padding: 0 18px;
+  background: var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #c9a84c);
+  border-radius: 999px;
+  color: #16130a; /* dark ink on gold — high-contrast, prominent */
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(201, 168, 76, 0.35);
+}
+
+.logFabBtn span {
+  white-space: nowrap;
+}
+
+/* The FAB sits at the screen bottom, so its split menu opens UPWARD + left. */
+.logFabMenu {
+  top: auto;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: auto;
 }

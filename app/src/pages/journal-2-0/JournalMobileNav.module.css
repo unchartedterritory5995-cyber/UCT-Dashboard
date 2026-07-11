@@ -1,0 +1,93 @@
+/* Journal 2.0 — phone section nav (Task B5).
+   A horizontal segmented scroller shown ONLY on phone (≤640px); the desktop tab
+   rail (.nav in JournalLayout.module.css) hides on phone. Non-colliding with the
+   app-wide fixed MobileTabBar (this is an in-flow TOP nav, not a fixed bottom
+   bar). Show/hide is CSS `@media` — NOT a JS isPhone branch (first-paint-stale
+   trap). */
+
+/* Desktop: hidden — the .nav rail serves. */
+.mobileNav {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobileNav {
+    display: flex;
+    gap: 4px;
+    align-items: stretch;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+    margin: 0 0 18px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mobileNav::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.item {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 62px;
+  min-height: var(--tap-min);
+  padding: 7px 12px 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms;
+}
+
+.item:hover {
+  color: var(--text-bright);
+}
+
+.itemActive {
+  color: var(--ut-gold);
+  border-bottom-color: var(--ut-gold);
+}
+
+/* Compass while unpaid — muted, non-navigating teaser with a lock glyph. */
+.itemLocked {
+  color: var(--text-muted);
+  opacity: 0.7;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.icon svg {
+  display: block;
+}
+
+.label {
+  line-height: 1;
+}
+
+.lock {
+  display: inline-flex;
+  align-items: center;
+  position: absolute;
+  top: 4px;
+  right: 8px;
+}

@@ -36,6 +36,8 @@ import NewAccountModal from './components/accounts/NewAccountModal'
 import GenerateReportModal from './components/GenerateReportModal'
 import ShortcutCheatSheet from './components/ShortcutCheatSheet'
 import LogTradeButton from './LogTradeButton'
+import JournalMobileNav from './JournalMobileNav'
+import JournalLogFab from './JournalLogFab'
 import styles from './JournalLayout.module.css'
 
 // The 5 primary surfaces. Compass is `paidOnly` — shown always (never hidden;
@@ -232,7 +234,7 @@ export default function JournalLayout() {
         </div>
       )}
 
-      <nav className={styles.nav} aria-label="Journal sections">
+      <nav className={`${styles.nav} ${styles.navDesktop}`} aria-label="Journal sections">
         {PRIMARY_NAV.map((item) => {
           const locked = item.paidOnly && !isPaid
           if (locked) {
@@ -271,6 +273,12 @@ export default function JournalLayout() {
         })}
       </nav>
 
+      {/* Phone section nav (Task B5): a top segmented scroller of the same 5
+          surfaces, shown ONLY on phone (the desktop rail above hides via CSS).
+          A TOP nav — NOT a second fixed bottom bar — so it never collides with
+          the app-wide MobileTabBar. Always mounted; CSS decides where it shows. */}
+      <JournalMobileNav />
+
       {/* Shared J2 price provider (Task A6): a STABLE base subscription to the
           browser-wide SSE pool for the current account's open positions, held
           across intra-journal surface switches (the provider mounts here, not
@@ -304,6 +312,12 @@ export default function JournalLayout() {
       )}
 
       <ShortcutCheatSheet open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+
+      {/* Mobile quick-log FAB (Task B5): a phone-only fixed "+ Log" button that
+          opens the same add flow as the header LogTradeButton. Placed clear of
+          the global bottom bar + voice orb + feedback widget; CSS-hidden on
+          desktop (the header pill serves). */}
+      <JournalLogFab />
     </div>
   )
 }
