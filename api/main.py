@@ -2984,15 +2984,23 @@ app.add_middleware(_CORS, allow_origins=["*"], allow_methods=["*"], allow_header
 from starlette.middleware.gzip import GZipMiddleware as _GZipBase
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+def _is_gzip_exempt(path: str) -> bool:
+    """Paths that must NEVER be gzip-buffered. SSE endpoints in particular: GZip
+    buffers the whole body, so an event-stream never flushes and no events reach
+    the client (caught live 2026-07-11 on the Floor chat stream). Keep every SSE
+    route here. Testable so a main.py refactor can't silently drop one."""
+    return (
+        path.startswith("/api/stream")
+        or path.startswith("/api/live/massive/stream")  # flow SSE
+        or path == "/api/community/chat/stream"          # Floor live-chat SSE
+        or path.startswith("/assets/")
+    )
+
+
 class _GZipSkipSSE(_GZipBase):
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         path = scope.get("path") or ""
-        if scope.get("type") == "http" and (
-            path.startswith("/api/stream")
-            or path.startswith("/api/live/massive/stream")  # flow SSE — never gzip
-            or path == "/api/community/chat/stream"          # Floor chat SSE — never gzip
-            or path.startswith("/assets/")
-        ):
+        if scope.get("type") == "http" and _is_gzip_exempt(path):
             await self.app(scope, receive, send)
         else:
             await super().__call__(scope, receive, send)
