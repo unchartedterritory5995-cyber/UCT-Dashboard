@@ -2766,11 +2766,16 @@ def force_push_discord(
             # alone (that was the "contract not found" 404).
             payload = _build_by_contract(target_date, se, 1, False, int(lookback_days))
             cpU = cp.strip().upper()[:1]
+            def _strike_eq(a, b):
+                try:
+                    return abs(float(a) - float(str(b).strip().lstrip("$"))) < 1e-6
+                except (TypeError, ValueError):
+                    return str(a).strip() == str(b).strip().lstrip("$")
             match = next(
                 (c for c in payload.get("contracts", [])
                  if c.get("ticker") == ticker.strip().upper()
                  and (c.get("cp") or "").upper() == cpU
-                 and str(c.get("strike")) == str(strike).strip().lstrip("$")
+                 and _strike_eq(c.get("strike"), strike)
                  and _exp_us(c.get("exp")) == _exp_us(exp)),
                 None,
             )
