@@ -17,8 +17,9 @@
  * P3 status:
  *   - Exit Quality → the existing `RiskExitsSection`, reused UNCHANGED (already
  *     headerless + coverage-gated).
- *   - Edge → a lightweight score + 4-component summary read from
- *     `analytics.edgeScore` (the shareable Edge card is Task B5).
+ *   - Edge → `EdgeScoreCard` — the branded dark/gold shareable Edge Score card
+ *     (score + formula + 4 confidence-shaded components + Copy-link) read from
+ *     `analytics.edgeScore` (Task B5).
  *   - Playbook → `PlaybookSection` — the real per-setup cards with
  *     PF/expectancy/exit-efficiency + scope drill-through (Task B4). It
  *     self-fetches the dedicated `/playbook` aggregate via `useJ2Playbook`.
@@ -33,6 +34,7 @@ import { useSearchParams } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
 import RiskExitsSection from '../analytics/RiskExitsSection'
 import PlaybookSection from './PlaybookSection'
+import EdgeScoreCard from './EdgeScoreCard'
 import styles from './InsightsHub.module.css'
 
 // The five hub sections. `key` is the `?ins=` value; order = the sub-nav order.
@@ -90,7 +92,7 @@ export default function InsightsHub({ analytics }) {
       <div className={styles.body}>
         {active === 'playbook' && <PlaybookSection />}
         {active === 'exit' && <RiskExitsSection data={analytics?.exitQuality} />}
-        {active === 'edge' && <EdgeSection edge={analytics?.edgeScore} />}
+        {active === 'edge' && <EdgeScoreCard edge={analytics?.edgeScore} />}
         {active === 'psychology' && (
           <ComingSoon
             icon="chat"
@@ -106,58 +108,6 @@ export default function InsightsHub({ analytics }) {
           />
         )}
       </div>
-    </div>
-  )
-}
-
-// ── Edge summary (lightweight — the shareable card is Task B5) ────────────────
-
-function EdgeSection({ edge }) {
-  const score = edge?.score
-  const c = edge?.components || {}
-  const hasComponents = c.winRate != null
-
-  return (
-    <section className={styles.edgeCard}>
-      <div className={styles.edgeMain}>
-        {score == null ? (
-          <>
-            <span className={styles.edgeScoreDim}>—</span>
-            <span className={styles.edgeNeed}>
-              Need 10+ trades with R-multiples to compute an Edge Score.
-            </span>
-          </>
-        ) : (
-          <>
-            <span className={styles.edgeScore}>{score.toFixed(3)}</span>
-            <span className={styles.edgeFormula}>= Win × PF × R-consistency</span>
-          </>
-        )}
-      </div>
-
-      {hasComponents && (
-        <div className={styles.edgeComps}>
-          <EdgeComp label="Win Rate" value={`${(c.winRate * 100).toFixed(1)}%`} />
-          <EdgeComp
-            label="Profit Factor"
-            value={c.profitFactor === 5 ? '5.0+' : Number(c.profitFactor).toFixed(2)}
-          />
-          <EdgeComp
-            label="R Consistency"
-            value={c.rConsistency != null ? `${(c.rConsistency * 100).toFixed(0)}%` : '—'}
-          />
-          <EdgeComp label="Trades" value={c.tradeCount} />
-        </div>
-      )}
-    </section>
-  )
-}
-
-function EdgeComp({ label, value }) {
-  return (
-    <div className={styles.edgeComp}>
-      <span className={styles.edgeCompLabel}>{label}</span>
-      <span className={styles.edgeCompValue}>{value}</span>
     </div>
   )
 }

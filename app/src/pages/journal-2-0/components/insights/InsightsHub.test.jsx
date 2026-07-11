@@ -15,6 +15,16 @@ vi.mock('./PlaybookSection', () => ({
   default: () => <div>Playbook mounted</div>,
 }))
 
+// The Edge section now renders EdgeScoreCard, which reads the live Scope via
+// useScope (for its Copy-link only — no fetch). Stub it so this shell test
+// doesn't drag in account fetching; EdgeScoreCard's own behavior is covered by
+// EdgeScoreCard.test.jsx.
+vi.mock('../../hooks/useScope', () => ({
+  default: () => ({
+    scope: { acct: null, from: null, to: null, symbol: null, sides: [], setups: [], tags: [] },
+  }),
+}))
+
 import InsightsHub from './InsightsHub'
 
 // Surfaces the live querystring so we can assert ?ins= persistence + coexistence.

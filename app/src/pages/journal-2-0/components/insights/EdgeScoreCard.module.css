@@ -1,0 +1,206 @@
+/* EdgeScoreCard — the branded dark/gold "Edge Score" card (P3 Task B5).
+   Self-contained so it reads well as the Edge hub section AND standalone
+   (screenshot / share). Gold accents on a deep surface = the premium
+   "Zella Score" answer. */
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 22px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(201, 168, 76, 0.28);
+  /* Deep near-black base with a soft gold glow bleeding from the top-left —
+     the premium, embossed brand feel. */
+  background:
+    radial-gradient(120% 80% at 12% 0%, rgba(201, 168, 76, 0.12), transparent 55%),
+    linear-gradient(180deg, rgba(20, 21, 26, 0.9), rgba(12, 13, 17, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 8px 26px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+/* A thin gold hairline riding the very top edge. */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(201, 168, 76, 0.65) 20%,
+    rgba(232, 209, 140, 0.85) 50%,
+    rgba(201, 168, 76, 0.65) 80%,
+    transparent
+  );
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 168, 76, 0.34);
+  background: radial-gradient(80% 80% at 50% 20%, rgba(201, 168, 76, 0.18), transparent);
+}
+
+.titleWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.eyebrow {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.8);
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: var(--text-bright, #f2f3f6);
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  min-height: 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(201, 168, 76, 0.1);
+  color: #e6cd8a;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.copyBtn:hover {
+  background: rgba(201, 168, 76, 0.18);
+  border-color: rgba(201, 168, 76, 0.6);
+  color: #f0dca0;
+}
+
+.copyBtn:active {
+  transform: translateY(0.5px);
+}
+
+/* ── Hero score + formula ───────────────────────────────────────────────────── */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.score {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 54px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: #e8d18c;
+  text-shadow: 0 0 22px rgba(201, 168, 76, 0.28);
+}
+
+.scoreDim {
+  font-family: var(--font-mono);
+  font-size: 54px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-muted, #8a8f9a);
+  opacity: 0.7;
+}
+
+.formula {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-muted, #9aa0ab);
+}
+
+.formulaEq {
+  color: rgba(201, 168, 76, 0.85);
+  font-weight: 800;
+}
+
+.need {
+  margin: 0;
+  max-width: 480px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted, #9aa0ab);
+}
+
+/* ── Components grid ─────────────────────────────────────────────────────────── */
+
+.comps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 10px;
+}
+
+.comp {
+  display: flex;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/* ── Footer / brand watermark ───────────────────────────────────────────────── */
+
+.footer {
+  display: flex;
+  align-items: center;
+  min-height: 18px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tagline {
+  font-size: 11px;
+  font-style: italic;
+  letter-spacing: 0.2px;
+  color: rgba(201, 168, 76, 0.55);
+}
+
+.copyFail {
+  font-size: 11.5px;
+  color: var(--color-warning, #e0a52a);
+}
+
+@media (max-width: 640px) {
+  .score,
+  .scoreNull {
+    font-size: 44px;
+  }
+}
