@@ -13,6 +13,10 @@ import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import IntroAnimation from './components/intro/IntroAnimation'
 import GlobalVideoLayer from './components/video/GlobalVideoLayer'
+// Journal 2.0 P4 runtime shell kill-switch (Task A1). Eager (tiny — only imports
+// react) so window.__uctJ2Shell is wired at app boot and the /journal selector
+// can read the flag without a reload. Mirrors StockChart's uct.barsPush gate.
+import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const Login = lazy(() => import('./pages/Login'))
@@ -36,6 +40,10 @@ const ModelBook = lazy(() => import('./pages/ModelBook'))
 const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
 const Desk = lazy(() => import('./pages/desk/Desk'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
+// A2 adds the new nested-route shell:
+//   const JournalLayout = lazy(() => import('./pages/journal-2-0/JournalLayout'))
+// It does NOT exist yet, so A1 does not reference it at runtime (would break the
+// build). The JournalShellSelector below is the seam A2 swaps into.
 const Community = lazy(() => import('./pages/community/CommunityPage'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
@@ -104,6 +112,18 @@ const SWR_CONFIG = {
   dedupingInterval: 8000,
   focusThrottleInterval: 10000,
   errorRetryCount: 3,
+}
+
+/** Journal 2.0 P4 shell selector — the Task A1 seam (runtime kill-switch).
+ *  Reads `uct.j2.shell` via useJ2Shell(): 'v8' → the legacy 8-tab JournalTwoRoot,
+ *  'v5' → the new nested-route shell. A1 renders JournalTwoRoot for BOTH branches
+ *  (the flag machinery + this seam are the A1 deliverable); A2 swaps in
+ *  <JournalLayout/> for the 'v5' branch. Reversible at runtime without a deploy:
+ *  window.__uctJ2Shell('v8') restores the old shell, 'v5' the new. */
+function JournalShellSelector() {
+  const shell = useJ2Shell()
+  if (shell === 'v8') return <Journal />   // legacy 8-tab shell (unchanged)
+  return <Journal />                        // A2 will render <JournalLayout/> for 'v5'
 }
 
 export default function App() {
@@ -175,7 +195,7 @@ export default function App() {
                 <Route path="/setup-library" element={<SetupLibrary />} />
                 <Route path="/desk" element={<Desk />} />
                 <Route path="/educational-videos" element={<Navigate to="/desk?section=videos" replace />} />
-                <Route path="/journal" element={<Journal />} />
+                <Route path="/journal" element={<JournalShellSelector />} />
                 <Route path="/community" element={<Community />} />
                 <Route path="/community/:threadId" element={<Community />} />
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
