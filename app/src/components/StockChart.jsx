@@ -1493,7 +1493,7 @@ export default function StockChart({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll } = useChartDrawings(sym)
+  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
   addDrawingRef.current = addDrawing
 
   // ── Annotation CRUD (Model Book) — operate on the `annotations` prop and
@@ -6229,6 +6229,9 @@ export default function StockChart({
             selectedId={selectedId}
             setSelectedId={setSelectedId}
             repeatMode={repeatMode}
+            undo={undo}
+            redo={redo}
+            snapshotHistory={snapshotHistory}
           />
           <ChartToolbar
             ref={toolbarRef}
@@ -6241,6 +6244,10 @@ export default function StockChart({
             hasSelection={!!selectedId}
             onDelete={() => { removeDrawing(selectedId); setSelectedId(null) }}
             onClearAll={clearAll}
+            onUndo={undo}
+            onRedo={redo}
+            canUndo={canUndo}
+            canRedo={canRedo}
             drawingCount={drawings.length}
             repeatMode={repeatMode}
             setRepeatMode={handleSetRepeatMode}

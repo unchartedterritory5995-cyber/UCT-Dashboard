@@ -42,6 +42,8 @@ const ICONS = {
   position:   I(<><line x1="1" y1="5" x2="15" y2="5" strokeDasharray="none" /><line x1="1" y1="8" x2="15" y2="8" strokeDasharray="2 1" /><line x1="1" y1="11" x2="15" y2="11" strokeDasharray="none" /><text x="12" y="7" fontSize="4" fill="currentColor" stroke="none">T</text><text x="12" y="12" fontSize="4" fill="currentColor" stroke="none">S</text></>),
   delete:     I(<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>),
   clear:      I(<><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></>),
+  undo:       I(<><polyline points="6,4 2.5,7.5 6,11" /><path d="M2.5 7.5 H10 a3.5 3.5 0 0 1 0 7 H6.5" /></>),
+  redo:       I(<><polyline points="10,4 13.5,7.5 10,11" /><path d="M13.5 7.5 H6 a3.5 3.5 0 0 0 0 7 H9.5" /></>),
   camera:     I(<><path d="M2 5.5h12v8H2z" /><circle cx="8" cy="9.5" r="2" /><path d="M5.5 5.5l1-2h3l1 2" /></>),
   replay:     I(<><circle cx="8" cy="8" r="6" /><polyline points="8,5 8,8 10,10" /><path d="M3 8 A5 5 0 0 1 8 3" strokeDasharray="2 1" /></>),
 }
@@ -729,6 +731,7 @@ function ChartToolbar({
   color, setColor,
   lineWidth, setLineWidth,
   hasSelection, onDelete, onClearAll,
+  onUndo = null, onRedo = null, canUndo = false, canRedo = false,
   drawingCount,
   repeatMode, setRepeatMode,
   chartSettings, onUpdateSettings,
@@ -1134,6 +1137,28 @@ function ChartToolbar({
               </div>
             )}
           </div>
+        )}
+
+        {/* Undo / Redo */}
+        {onUndo && (
+          <button
+            className={styles.btn}
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+          >
+            {ICONS.undo}
+          </button>
+        )}
+        {onRedo && (
+          <button
+            className={styles.btn}
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Y)"
+          >
+            {ICONS.redo}
+          </button>
         )}
 
         {/* Delete selected */}

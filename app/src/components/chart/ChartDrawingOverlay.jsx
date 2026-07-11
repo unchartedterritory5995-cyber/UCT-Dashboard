@@ -681,6 +681,9 @@ export default function ChartDrawingOverlay({
   textFadeRef = null,        // 0..1 opacity for text annotations (Model Book focus-zoom fade); null = always visible
   fadeWholeLayer = false,    // Model Book "show all" OFF: fade the WHOLE layer (lines + text) with the zoom, not just text
   redrawHandleRef = null,    // parent-held ref; the overlay assigns its redraw fn here so a chart snap (instant Setup⇄Result flip) can force the annotations to re-resolve to the NEW mapping in the same frame (no 1-frame position pop)
+  undo = null,               // undo/redo/snapshotHistory — wired for the MAIN user-drawings
+  redo = null,               //   overlay (useChartDrawings). Annotation overlays omit them
+  snapshotHistory = null,    //   (no-op), so Ctrl+Z there does nothing.
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -722,6 +725,10 @@ export default function ChartDrawingOverlay({
   // drawing can be grabbed / moved / reshaped / right-clicked without first
   // arming the cursor tool. Empty space keeps the overlay transparent (chart pans).
   const [hoverActive, setHoverActive] = useState(false)
+  // Live drawings snapshot for the window-level keydown handler (avoids
+  // re-subscribing the listener on every drawings change, incl. mid-drag).
+  const drawingsRef = useRef(drawings)
+  drawingsRef.current = drawings
 
   // ── Time → bar index lookup ──
   const timeToIndex = useMemo(() => {
@@ -1451,6 +1458,7 @@ export default function ChartDrawingOverlay({
       if (handle) {
         const d = drawings.find(d => d.id === handle.drawingId)
         if (d) {
+          if (d.locked) { setSelectedId(d.id); e.preventDefault(); return }   // locked → select, no reshape
           dragRef.current = {
             drawingId: handle.drawingId,
             handleIdx: handle.handleIdx,
@@ -1470,6 +1478,7 @@ export default function ChartDrawingOverlay({
         setSelectedId(hitId)
         const d = drawings.find(d => d.id === hitId)
         if (d) {
+          if (d.locked) { e.preventDefault(); return }   // locked → selected but not movable
           dragRef.current = {
             drawingId: hitId,
             handleIdx: null, // null = whole body
@@ -1610,8 +1619,10 @@ export default function ChartDrawingOverlay({
         })
       }
 
-      // Live update — write to state for immediate visual feedback
-      updateDrawing(drag.drawingId, { points: newPoints })
+      // First move of a drag → snapshot the pre-drag state ONCE so the whole drag
+      // collapses into a single undo step; per-move writes then skip history.
+      if (!drag.snapped) { snapshotHistory?.(); drag.snapped = true }
+      updateDrawing(drag.drawingId, { points: newPoints }, { record: false })
       requestRedraw()
       return
     }
@@ -1630,7 +1641,7 @@ export default function ChartDrawingOverlay({
     // Standard preview for drawing tools — snap so the preview shows the magnet target
     setMouseCoords(snap(coords))
     requestRedraw()
-  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, bars, updateDrawing, hitTestAll, hitTestHandle])
+  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
 
   const handlePointerUp = useCallback((e) => {
     if (e?.pointerId != null) activePointersRef.current.delete(e.pointerId)
@@ -1662,9 +1673,19 @@ export default function ChartDrawingOverlay({
         setTextInput(null)
         e.preventDefault()
       }
+      // Undo / redo (Ctrl+Z · Ctrl+Shift+Z / Ctrl+Y). Window-level so it works
+      // whether or not a tool is armed. No-op on overlays without history wired.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+        const k = e.key.toLowerCase()
+        if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo?.(); return }
+        if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo?.(); return }
+      }
+      // Delete / Backspace → remove the selected drawing (locked ones are spared).
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedId && (activeTool === 'cursor' || !activeTool)) {
           e.preventDefault()
+          const sel = drawingsRef.current.find(d => d.id === selectedId)
+          if (!sel?.locked) { removeDrawing(selectedId); setSelectedId(null) }
         }
       }
       // Tool shortcuts
@@ -1683,7 +1704,7 @@ export default function ChartDrawingOverlay({
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTool, pendingPoints, selectedId, isDragging, setActiveTool, setSelectedId])
+  }, [activeTool, pendingPoints, selectedId, isDragging, setActiveTool, setSelectedId, removeDrawing, undo, redo])
 
   // Reset pending on tool change
   useEffect(() => {
@@ -1724,7 +1745,7 @@ export default function ChartDrawingOverlay({
   if (isDrawingTool) canvasCursor = 'crosshair'
   else if (isDragging) canvasCursor = 'grabbing'
   else if (hoverDrawingId === '__handle__') canvasCursor = 'grab'
-  else if (hoverDrawingId) canvasCursor = 'move'
+  else if (hoverDrawingId) canvasCursor = drawings.find(d => d.id === hoverDrawingId)?.locked ? 'not-allowed' : 'move'
   else if (activeTool === 'cursor') canvasCursor = 'default'
 
   // Close context menu on any click/tap (pointerdown covers touch + mouse)
@@ -1765,14 +1786,37 @@ export default function ChartDrawingOverlay({
           onCancel={() => setTextInput(null)}
         />
       )}
-      {ctxMenu && (
-        <DrawingContextMenu
-          x={ctxMenu.x}
-          y={ctxMenu.y}
-          onDelete={() => { removeDrawing(ctxMenu.drawingId); setSelectedId(null); setCtxMenu(null) }}
-          onClose={() => setCtxMenu(null)}
-        />
-      )}
+      {ctxMenu && (() => {
+        const d = drawings.find(dd => dd.id === ctxMenu.drawingId)
+        if (!d) return null
+        return (
+          <DrawingContextMenu
+            x={ctxMenu.x}
+            y={ctxMenu.y}
+            drawing={d}
+            onSetColor={(c) => updateDrawing(ctxMenu.drawingId, { color: c })}
+            onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
+            onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
+            onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
+            onDuplicate={() => {
+              const { id: _id, ...rest } = d
+              // Small offset so the copy is visible: nudge price ~0.5% (or the
+              // volume-pane fraction) but keep the same time anchors.
+              const shifted = (d.points || []).map(p => ({
+                ...p,
+                ...(p.paneRelY != null
+                  ? { paneRelY: Math.min(1, p.paneRelY + 0.03) }
+                  : (p.price != null ? { price: p.price * 0.995 } : {})),
+              }))
+              const nid = addDrawing({ ...rest, points: shifted, locked: false })
+              setSelectedId(nid)
+              setCtxMenu(null)
+            }}
+            onDelete={() => { removeDrawing(ctxMenu.drawingId); setSelectedId(null); setCtxMenu(null) }}
+            onClose={() => setCtxMenu(null)}
+          />
+        )
+      })()}
     </>
   )
 }
@@ -1837,7 +1881,31 @@ function TextInputOverlay({ x, y, color, onSubmit, onCancel }) {
 
 // ─── Right-click context menu ───────────────────────────────────────────────
 
-function DrawingContextMenu({ x, y, onDelete, onClose }) {
+const MENU_COLORS = ['#c9a84c', '#4ade80', '#ef4444', '#60a5fa', '#a78bfa', '#e2dfd6']
+const MENU_WIDTHS = [1, 2, 3, 4]
+
+// A full-width action row (icon + label), used for Duplicate / Lock / Delete.
+function MenuAction({ icon, label, onClick, danger = false }) {
+  const base = danger ? '#ef4444' : '#e2dfd6'
+  const hover = danger ? 'rgba(239,68,68,0.12)' : 'rgba(201,168,76,0.12)'
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+        padding: '6px 12px', background: 'none', border: 'none', color: base,
+        cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', textAlign: 'left',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = hover }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+    >
+      <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+      {label}
+    </button>
+  )
+}
+
+function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, onDelete, onClose }) {
   const menuRef = useRef(null)
   // Clamp to the viewport so the menu always lands right next to the cursor —
   // flips to the cursor's left/up edge when it would overflow (drawings near the
@@ -1846,8 +1914,8 @@ function DrawingContextMenu({ x, y, onDelete, onClose }) {
   const [pos, setPos] = useState({ left: x, top: y, ready: false })
   useLayoutEffect(() => {
     const el = menuRef.current
-    const w = el?.offsetWidth || 150
-    const h = el?.offsetHeight || 40
+    const w = el?.offsetWidth || 180
+    const h = el?.offsetHeight || 180
     const M = 8
     let left = x + w > window.innerWidth - M ? x - w : x
     let top = y + h > window.innerHeight - M ? y - h : y
@@ -1862,6 +1930,14 @@ function DrawingContextMenu({ x, y, onDelete, onClose }) {
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
+  const locked = !!drawing?.locked
+  const curColor = (drawing?.color || '').toLowerCase()
+  const curWidth = drawing?.lineWidth || 1
+  const dashed = drawing?.lineStyle === 'dashed'
+
+  const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }
+  const labelStyle = { fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase', color: '#8a8674', minWidth: 40 }
+
   return (
     <div
       ref={menuRef}
@@ -1872,40 +1948,87 @@ function DrawingContextMenu({ x, y, onDelete, onClose }) {
         top: pos.top,
         visibility: pos.ready ? 'visible' : 'hidden',
         zIndex: 20,
-        minWidth: 140,
+        minWidth: 176,
         background: '#1a1c17',
         border: '1px solid #2e3127',
         borderRadius: 4,
         boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-        padding: '3px 0',
+        padding: '4px 0',
         fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 11,
+        userSelect: 'none',
       }}
     >
-      <button
+      {/* Color */}
+      <div style={rowStyle}>
+        <span style={labelStyle}>Color</span>
+        <div style={{ display: 'flex', gap: 5 }}>
+          {MENU_COLORS.map(c => (
+            <button key={c} onClick={() => onSetColor(c)} title={c}
+              style={{
+                width: 15, height: 15, borderRadius: '50%', background: c, cursor: 'pointer', padding: 0,
+                border: curColor === c.toLowerCase() ? '2px solid #fff' : '1px solid #3a3d31',
+                boxShadow: curColor === c.toLowerCase() ? '0 0 0 1px #1a1c17' : 'none',
+              }} />
+          ))}
+        </div>
+      </div>
+      {/* Width */}
+      <div style={rowStyle}>
+        <span style={labelStyle}>Width</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {MENU_WIDTHS.map(w => (
+            <button key={w} onClick={() => onSetWidth(w)} title={`${w}px`}
+              style={{
+                width: 24, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0,
+                background: curWidth === w ? 'rgba(201,168,76,0.18)' : 'none',
+                border: curWidth === w ? '1px solid #c9a84c' : '1px solid #3a3d31', borderRadius: 3,
+              }}>
+              <span style={{ display: 'block', width: 15, height: w, background: '#e2dfd6', borderRadius: 2 }} />
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Style */}
+      <div style={rowStyle}>
+        <span style={labelStyle}>Style</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[['solid', 'Solid'], ['dashed', 'Dashed']].map(([v, lab]) => {
+            const on = dashed ? v === 'dashed' : v === 'solid'
+            return (
+              <button key={v} onClick={() => onSetStyle(v)}
+                style={{
+                  padding: '3px 9px', fontSize: 10, cursor: 'pointer', color: '#e2dfd6', fontFamily: 'inherit',
+                  background: on ? 'rgba(201,168,76,0.18)' : 'none',
+                  border: on ? '1px solid #c9a84c' : '1px solid #3a3d31', borderRadius: 3,
+                }}>
+                {lab}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div style={{ height: 1, background: '#2e3127', margin: '4px 0' }} />
+
+      <MenuAction
+        label="Duplicate"
+        onClick={onDuplicate}
+        icon={<><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="5.5" y="5.5" width="8" height="8" rx="1" /></>}
+      />
+      <MenuAction
+        label={locked ? 'Unlock' : 'Lock'}
+        onClick={onToggleLock}
+        icon={locked
+          ? <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 5.7-1.2" /></>
+          : <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 6 0v2.5" /></>}
+      />
+      <MenuAction
+        label="Delete Drawing"
         onClick={onDelete}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          width: '100%',
-          padding: '6px 12px',
-          background: 'none',
-          border: 'none',
-          color: '#ef4444',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          fontSize: 'inherit',
-          textAlign: 'left',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
-      >
-        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" />
-        </svg>
-        Delete Drawing
-      </button>
+        danger
+        icon={<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>}
+      />
     </div>
   )
 }
