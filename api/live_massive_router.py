@@ -2407,9 +2407,32 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         first_seen = _dates_sorted[0] if _dates_sorted else None
         day_hits = [{"date": d, "hits": g["dates"][d]} for d in _dates_sorted]
         is_multiday = days_active >= 2
-        multiday_factor = 1.0 + 0.25 * (days_active - 1)
+        # Accumulation SHAPE — the daily hit pattern matters more than the raw
+        # day count. Separates real builders from noise:
+        #   accelerating — latest day is the peak & above the first (ramping in)
+        #   steady       — sustained multi-day, not clearly accel/fade
+        #   fading       — big early, collapsed late (a one-day event, not a build)
+        #   incidental   — 1-2/day trickle, no real concentration (drop these)
+        #   single       — one day only
+        _h = [x["hits"] for x in day_hits]
+        if days_active < 2:
+            accumulation_shape = "single"
+        else:
+            _peak = max(_h); _first = _h[0]; _last = _h[-1]; _tot = sum(_h)
+            if _peak <= 2 and _tot <= days_active * 2:
+                accumulation_shape = "incidental"
+            elif _last < _peak * 0.34 and _peak >= 5:
+                accumulation_shape = "fading"
+            elif _last >= _peak * 0.9 and _last > _first:
+                accumulation_shape = "accelerating"
+            else:
+                accumulation_shape = "steady"
+        # Score factor by shape: reward accelerating multi-day builds, keep steady
+        # neutral-ish, and push fading/incidental DOWN so they don't crowd the top.
+        _shape_factor = {"accelerating": 1.6, "steady": 1.2, "single": 1.0,
+                         "fading": 0.6, "incidental": 0.4}.get(accumulation_shape, 1.0)
         score = int(qual * g["total_premium"] * (0.5 + 0.5 * consistency)
-                    * voi_factor * multiday_factor * (2.0 if dormant else 1.0))
+                    * voi_factor * _shape_factor * (2.0 if dormant else 1.0))
         out.append({
             "ticker": g["ticker"], "cp": g["cp"], "strike": g["strike"], "exp": g["exp"],
             "source": g["source"], "dte": g["dte"],
@@ -2417,6 +2440,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             "hit_count": len(g["prints"]), "qualifying_hits": qual, "floor": floor,
             "days_active": days_active, "first_seen": first_seen,
             "day_hits": day_hits, "is_multiday": is_multiday,
+            "accumulation_shape": accumulation_shape,
             "total_floor": total_floor,
             "total_premium": round(g["total_premium"]), "total_volume": g["total_volume"],
             "bull_premium": round(bull), "bear_premium": round(bear),
