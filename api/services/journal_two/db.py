@@ -661,6 +661,19 @@ _PHASE_2_ALTERS = [
     # trade of that setup is graded against later). JSON blob parallel to
     # `setups`: {setupName: [{id, label}]}. Defaults to {} for legacy rows.
     "ALTER TABLE j2_accounts ADD COLUMN setup_rules TEXT NOT NULL DEFAULT '{}'",
+    # Journal A+ P5-A3 — per-closed-trade rule ADHERENCE (which of a setup's
+    # rules the trader followed on a given trade), keyed on the same stable
+    # trade_ref (ext:<external_id> broker / id:<row id> manual) as attachments
+    # and excursions so a record survives the broker purge+reinsert cycle.
+    # Composite PK (user_id, trade_ref) makes INSERT OR REPLACE idempotent.
+    # checked_rule_ids is a JSON array of the rule ids the trader followed;
+    # adherence_pct = len(checked)/total_rules (0.0 when total_rules == 0).
+    "CREATE TABLE IF NOT EXISTS j2_trade_adherence ("
+    "user_id TEXT NOT NULL, trade_ref TEXT NOT NULL, setup TEXT, "
+    "checked_rule_ids TEXT NOT NULL DEFAULT '[]', total_rules INTEGER, "
+    "adherence_pct REAL, updated_at TEXT NOT NULL, "
+    "PRIMARY KEY (user_id, trade_ref))",
+    "CREATE INDEX IF NOT EXISTS idx_j2_adherence_user ON j2_trade_adherence(user_id)",
 ]
 
 

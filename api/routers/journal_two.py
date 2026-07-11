@@ -497,6 +497,62 @@ def delete_trade_attachment_route(
     return {"ok": True}
 
 
+# ── Per-trade rule adherence (keyed on the stable trade_ref, P5-A3) ──────────
+# Both routes resolve trade_id → the trade's stable ref via get_trade_detail
+# (404 if the trade is gone / not the caller's), then read/write the
+# j2_trade_adherence side table keyed on that ref — same pattern as the
+# excursion attachment on get_trade_detail above.
+
+@router.get("/trades/{trade_id}/adherence")
+def get_trade_adherence_route(
+    trade_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any] | None:
+    """The stored rule-adherence record for a trade, or null when none exists
+    yet. Resolves the trade → its stable ref first (404 if the trade is gone /
+    not the caller's)."""
+    from api.services.journal_two import adherence_store
+    detail = trades_service.get_trade_detail(user["id"], trade_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    return adherence_store.get_adherence(user["id"], detail["tradeRef"])
+
+
+@router.put("/trades/{trade_id}/adherence")
+def put_trade_adherence_route(
+    trade_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Upsert the rule-adherence record for a trade.
+
+    Body: {setup, checkedRuleIds, totalRules}. Resolves the trade → its stable
+    ref (404 if the trade is gone / not the caller's), validates the body, and
+    stores the record keyed on that ref. Returns the stored record."""
+    from api.services.journal_two import adherence_store
+
+    detail = trades_service.get_trade_detail(user["id"], trade_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Trade not found")
+
+    setup = payload.get("setup")
+    if setup is not None and not isinstance(setup, str):
+        raise HTTPException(status_code=400, detail="setup must be a string")
+
+    checked = payload.get("checkedRuleIds", [])
+    if not isinstance(checked, list) or not all(isinstance(x, str) for x in checked):
+        raise HTTPException(
+            status_code=400, detail="checkedRuleIds must be a list of strings")
+
+    total_rules = payload.get("totalRules", 0)
+    if isinstance(total_rules, bool) or not isinstance(total_rules, int) or total_rules < 0:
+        raise HTTPException(
+            status_code=400, detail="totalRules must be a non-negative integer")
+
+    return adherence_store.upsert_adherence(
+        user["id"], detail["tradeRef"], setup, checked, total_rules)
+
+
 # ── Sync Trust Center: orphaned-annotation reattach queue (Task B7) ──────────
 # Static suffixes under /trust/orphans — no path params, so no route shadowing.
 
