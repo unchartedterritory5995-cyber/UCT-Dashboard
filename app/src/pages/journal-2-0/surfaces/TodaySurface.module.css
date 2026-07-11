@@ -166,6 +166,88 @@
   color: var(--text-muted);
 }
 
+/* ── zero-data path cards (First-Insight funnel, flag firstInsight ON) ──────── */
+
+.pathGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.pathCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 16px 18px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.pathIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.35));
+}
+
+.pathHead {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.pathSub {
+  flex: 1;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.pathBtn,
+.pathBtnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  margin-top: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.pathBtn {
+  background: transparent;
+  border: 1px solid var(--border-accent, var(--border));
+  color: var(--text-bright);
+}
+
+.pathBtn:hover {
+  border-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+
+.pathBtnPrimary {
+  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.14));
+  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
+  color: var(--ut-gold, #c9a84c);
+}
+
+.pathBtnPrimary:hover {
+  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.22));
+  border-color: var(--ut-gold, #c9a84c);
+}
+
 /* ── premarket readiness ───────────────────────────────────────────────────── */
 
 .readyList {
@@ -291,6 +373,13 @@
   }
   .checkBtn,
   .checkBtnPrimary {
+    width: 100%;
+  }
+  .pathGrid {
+    grid-template-columns: 1fr;
+  }
+  .pathBtn,
+  .pathBtnPrimary {
     width: 100%;
   }
   .manualHead {

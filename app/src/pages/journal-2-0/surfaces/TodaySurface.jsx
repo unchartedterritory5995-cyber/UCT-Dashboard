@@ -23,6 +23,7 @@ import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import useTodayState from '../hooks/useTodayState'
+import useFirstReport from '../hooks/useFirstReport'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2Positions from '../hooks/useJ2Positions'
 import useCompassOverview from '../hooks/useCompassOverview'
@@ -33,6 +34,7 @@ import AddTradeModal from '../components/AddTradeModal'
 import AddPositionModal from '../components/AddPositionModal'
 import GoalProgress from '../components/accounts/GoalProgress'
 import TodayZeroData from './today/TodayZeroData'
+import FirstEdgeReport from '../components/onboarding/FirstEdgeReport'
 import TodayAllAccountsLead from './today/TodayAllAccountsLead'
 import TodayPremarketLead from './today/TodayPremarketLead'
 import TodayMarketLead from './today/TodayMarketLead'
@@ -64,6 +66,7 @@ async function jsonFetch(url, method, body) {
 export default function TodaySurface() {
   const { settings } = useOutletContext() || {}
   const { session, zeroData, allAccounts, isLoading } = useTodayState()
+  const { show: showFirstReport, dismiss: dismissFirstReport } = useFirstReport()
   const { accountId, account, accounts } = useJ2SelectedAccount()
   const { overview } = useCompassOverview(accountId)
   const { isActive: scopeActive } = useScope()
@@ -129,6 +132,23 @@ export default function TodaySurface() {
     )
   }
 
+  // ── First-Insight onboarding (P0) ───────────────────────────────────────────
+  // Once the account crosses 10 closed trades and the report hasn't been seen,
+  // Today leads with "Your First Edge Report" INSTEAD of the normal lead — the
+  // funnel ends at a generated insight, not an empty dashboard. Evaluated AFTER
+  // the loading gate so the closed-trade count has settled (no flash). A CSV
+  // import / broker first-sync revalidates the comparison key, so crossing 10
+  // makes this re-render and the report appear with no bespoke event. Dismissing
+  // ("Continue to Today") sets the seen flag and drops through to the normal lead.
+  if (showFirstReport) {
+    return (
+      <div className={styles.today} data-testid="today-surface">
+        {scopeNote}
+        <FirstEdgeReport accountId={accountId} onDismiss={dismissFirstReport} />
+      </div>
+    )
+  }
+
   // ── the ONE lead module ────────────────────────────────────────────────────
   let lead
   if (zeroData) {
@@ -178,7 +198,15 @@ export default function TodaySurface() {
 
       {modal === 'import' && (
         <ImportCsvModal
-          onConfirmed={() => { refreshPositions(); closeModal() }}
+          onConfirmed={() => {
+            // Revalidate positions AND the zero-data / trade-count signals so the
+            // Today re-render picks up the import naturally — when the closed-trade
+            // count crosses 10, useFirstReport flips and the First Edge Report leads
+            // (no bespoke event; the comparison key is the trade-count source).
+            refreshPositions()
+            refreshTodaySignals()
+            closeModal()
+          }}
           onClose={closeModal}
         />
       )}

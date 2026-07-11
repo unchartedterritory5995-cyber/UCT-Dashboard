@@ -27,6 +27,15 @@ describe('featureFlags', () => {
     }
   })
 
+  it('the P0 firstInsight flag is registered, defaults ON, and is revertible', () => {
+    expect(FEATURE_DEFAULTS.firstInsight).toBe(true)
+    expect(resolveFeatureFlag('firstInsight')).toBe(true)
+    setFeatureFlag('firstInsight', false)
+    expect(resolveFeatureFlag('firstInsight')).toBe(false)
+    setFeatureFlag('firstInsight', null)
+    expect(resolveFeatureFlag('firstInsight')).toBe(true)
+  })
+
   it('an unknown feature name defaults OFF (a typo cannot silently enable a surface)', () => {
     expect(resolveFeatureFlag('does-not-exist')).toBe(false)
   })

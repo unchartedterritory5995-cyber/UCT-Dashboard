@@ -42,6 +42,10 @@ let scopeActive = false
 // Controls the isLoading flag of the three fetches behind useTodayState's
 // zeroData signal — flip true to exercise the cold-cache loading gate (I1).
 let loading = false
+// P0 First-Insight: controls whether the First Edge Report leads. Default OFF so
+// the existing routing tests are unaffected (the trigger's own gating logic is
+// unit-tested in useFirstReport / FirstEdgeReport tests).
+let firstReportShow = false
 
 vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => market }))
 vi.mock('../hooks/useJ2SelectedAccount', () => ({
@@ -67,6 +71,19 @@ vi.mock('../hooks/useJ2EODRecaps', () => ({
 }))
 vi.mock('../hooks/useJ2DisciplineState', () => ({
   default: () => ({ state: disciplineState, isLoading: false, error: null, refresh: vi.fn() }),
+}))
+// P0 First-Insight trigger — controllable per test (default OFF).
+vi.mock('../hooks/useFirstReport', () => ({
+  default: () => ({ show: firstReportShow, dismiss: vi.fn() }),
+}))
+// The report self-fetches analytics; stub it so these routing tests stay about
+// the lead-module state machine (its stats + composition are tested separately).
+vi.mock('../components/onboarding/FirstEdgeReport', () => ({
+  default: ({ onDismiss }) => (
+    <div data-testid="first-edge-report">
+      <button type="button" onClick={onDismiss}>Continue to Today</button>
+    </div>
+  ),
 }))
 vi.mock('../../../hooks/useRealtimePrices', () => ({
   default: () => ({ prices: {}, isStreaming: false, isLoading: false, staleSymbols: [] }),
@@ -161,6 +178,7 @@ beforeEach(() => {
   disciplineState = null
   scopeActive = false
   loading = false
+  firstReportShow = false
 })
 
 describe('TodaySurface — session leads (concrete account with data)', () => {
@@ -367,6 +385,28 @@ describe('TodaySurface — I1 cold-cache loading gate', () => {
     renderToday()
     expect(screen.queryByTestId('today-loading')).not.toBeInTheDocument()
     expect(screen.getByTestId('today-zero-data')).toBeInTheDocument()
+  })
+})
+
+describe('TodaySurface — First Edge Report lead (P0 First-Insight)', () => {
+  it('leads with the First Edge Report when the trigger fires (suppresses the normal lead + modules)', () => {
+    firstReportShow = true
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    // default beforeEach data: concrete broker account w/ positions + 12 trades →
+    // would normally show the broker hero; the report must win.
+    renderToday()
+    expect(screen.getByTestId('first-edge-report')).toBeInTheDocument()
+    expect(screen.queryByTestId('broker-hero')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('today-week-strip')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('goal-progress')).not.toBeInTheDocument()
+  })
+
+  it('does NOT show the report when the trigger is off (the normal lead renders)', () => {
+    firstReportShow = false
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    renderToday()
+    expect(screen.queryByTestId('first-edge-report')).not.toBeInTheDocument()
+    expect(screen.getByTestId('broker-hero')).toBeInTheDocument()
   })
 })
 

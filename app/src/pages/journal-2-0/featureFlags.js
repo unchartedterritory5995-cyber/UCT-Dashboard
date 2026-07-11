@@ -29,6 +29,8 @@ export const FEATURE_DEFAULTS = {
   tagSuggest: true,   // deterministic AI-suggested mistake/emotion tags
   makeRule: true,     // "make this a rule" (evidence-linked, suggestion-only)
   celebrate: true,    // celebration moments (CoachStrip success rows)
+  // P0 launch — First-Insight onboarding
+  firstInsight: true, // Your First Edge Report at the end of the new-user funnel
 }
 
 const KEY_PREFIX = 'uct.j2.feature.'          // per-feature override: '1' | '0'
