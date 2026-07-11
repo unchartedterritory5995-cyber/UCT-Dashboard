@@ -2226,8 +2226,17 @@ def _best_grade(grades):
     return best
 
 
+def _parse_mdy(s):
+    """M/D/YYYY → sortable (Y,M,D) tuple. (0,0,0) on malformed."""
+    try:
+        m, d, y = str(s).strip().split("/")
+        return (int(y), int(m), int(d))
+    except Exception:
+        return (0, 0, 0)
+
+
 def _build_by_contract(today: str, stock_etf: str, min_hits: int,
-                       exclude_algo: bool) -> dict:
+                       exclude_algo: bool, lookback_days: int = 1) -> dict:
     thresholds = _load_thresholds()
     override_sql_floor = 500_000
     etf_enabled = thresholds.get("etf_enabled", False)
@@ -2240,8 +2249,28 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         sources = base_sources
 
     rows = []
+    # Multi-day accumulation: aggregate a contract's hits across the last
+    # `lookback_days` trading days present in the data (default 1 = today).
+    # Same-strike/same-exp repeats across days are the strongest accumulation
+    # signal — someone building a position with conviction.
+    lookback_days = max(1, min(int(lookback_days or 1), 5))
+    if lookback_days <= 1:
+        target_dates = [today]
+    else:
+        _c = sqlite3.connect(DB_PATH, timeout=10)
+        try:
+            all_dates = [r[0] for r in _c.execute(
+                "SELECT DISTINCT CreatedDate FROM flow").fetchall() if r[0]]
+        finally:
+            _c.close()
+        today_key = _parse_mdy(today)
+        dated = sorted([d for d in all_dates if _parse_mdy(d) <= today_key],
+                       key=_parse_mdy, reverse=True)
+        target_dates = dated[:lookback_days] or [today]
+
     if sources:
-        cap = int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))
+        base_cap = int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))
+        cap = min(base_cap * len(target_dates), 100000)  # scale for the window
         select_cols = (
             "SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume, "
             "Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate, "
@@ -2253,13 +2282,16 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         try:
             conn.row_factory = sqlite3.Row
             subqueries, params = [], []
+            date_ph = ",".join("?" for _ in target_dates)
             for s in sources:
                 subqueries.append(
                     f"SELECT * FROM ({select_cols} FROM flow "
-                    f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
+                    f"WHERE source = ? AND CreatedDate IN ({date_ph}) AND {color_gate} "
                     f"ORDER BY id DESC LIMIT ?)"
                 )
-                params.extend([s, today, override_sql_floor, cap])
+                params.append(s)
+                params.extend(target_dates)
+                params.extend([override_sql_floor, cap])
             cur = conn.execute(" UNION ALL ".join(subqueries), params)
             rows = cur.fetchall()
         finally:
@@ -2293,8 +2325,12 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                 "sides": {"A": 0, "AA": 0, "B": 0, "BB": 0, "none": 0},
                 "types": set(), "grades": [], "max_oi": 0,
                 "first_ts": None, "last_ts": None, "prints": [],
+                "dates": {},  # M/D/YYYY -> hit count, for multi-day accumulation
             }
             contracts[ckey] = g
+        rdate = r["CreatedDate"] if "CreatedDate" in r.keys() else None
+        if rdate:
+            g["dates"][rdate] = g["dates"].get(rdate, 0) + 1
         prem = a.get("alertPremium") or 0.0
         vol = a.get("tradeSize") or 0
         g["total_premium"] += prem
@@ -2363,13 +2399,24 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         # compress the tail so a 176x doesn't dwarf a large-premium 3x. Bounded
         # to 3x. None OI → neutral 1.0.
         voi_factor = min(3.0, 1.0 + (voi / 10.0)) if voi is not None else 1.0
+        # Multi-day span: same contract accumulated across N days is a stronger
+        # conviction signal than a single day. Boost score 25% per extra day so
+        # multi-day builds surface to the top.
+        _dates_sorted = sorted(g["dates"].keys(), key=_parse_mdy)
+        days_active = len(_dates_sorted)
+        first_seen = _dates_sorted[0] if _dates_sorted else None
+        day_hits = [{"date": d, "hits": g["dates"][d]} for d in _dates_sorted]
+        is_multiday = days_active >= 2
+        multiday_factor = 1.0 + 0.25 * (days_active - 1)
         score = int(qual * g["total_premium"] * (0.5 + 0.5 * consistency)
-                    * voi_factor * (2.0 if dormant else 1.0))
+                    * voi_factor * multiday_factor * (2.0 if dormant else 1.0))
         out.append({
             "ticker": g["ticker"], "cp": g["cp"], "strike": g["strike"], "exp": g["exp"],
             "source": g["source"], "dte": g["dte"],
             "spot": g["spot"], "moneynessPct": g["moneynessPct"], "moneynessLabel": g["moneynessLabel"],
             "hit_count": len(g["prints"]), "qualifying_hits": qual, "floor": floor,
+            "days_active": days_active, "first_seen": first_seen,
+            "day_hits": day_hits, "is_multiday": is_multiday,
             "total_floor": total_floor,
             "total_premium": round(g["total_premium"]), "total_volume": g["total_volume"],
             "bull_premium": round(bull), "bear_premium": round(bear),
@@ -2395,6 +2442,7 @@ def by_contract(
     stock_etf: str = Query(default="all", description="'stocks' | 'etfs' | 'all' — same partition as the feed."),
     min_hits: int = Query(default=3, ge=1, le=20, description="Min qualifying prints (>= cap-scaled floor) for a contract to appear."),
     exclude_algo: bool = Query(default=True),
+    lookback_days: int = Query(default=1, ge=1, le=5, description="Aggregate a contract's hits across the last N trading days (multi-day accumulation). 1 = today only."),
 ):
     """One row per contract (ticker+cp+strike+exp) for the day, for contracts
     that were hit >= min_hits times by prints clearing the cap-scaled floor.
@@ -2406,7 +2454,7 @@ def by_contract(
     today = target_date or _today_mdyyyy()
     se = stock_etf if stock_etf in ("stocks", "etfs", "all") else "all"
     now = time.time()
-    key = (today, se, int(min_hits), bool(exclude_algo))
+    key = (today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
     cached = _by_contract_cache.get(key)
     if cached and (now - cached[0]) < _BY_CONTRACT_TTL:
         return cached[1]
@@ -2419,11 +2467,11 @@ def by_contract(
             c2 = _by_contract_cache.get(key)
             if c2 and (time.time() - c2[0]) < _BY_CONTRACT_TTL:
                 return c2[1]
-            payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo))
+            payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
             _by_contract_cache[key] = (time.time(), payload)
             return payload
     try:
-        payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo))
+        payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
         _by_contract_cache[key] = (time.time(), payload)
         return payload
     finally:
