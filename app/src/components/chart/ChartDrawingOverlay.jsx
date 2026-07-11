@@ -1678,6 +1678,46 @@ export default function ChartDrawingOverlay({
 
   // ── Hit test all drawings ── (already defined above)
 
+  // ── Keyboard nudge of the selected drawing ──
+  // Held in a ref (reassigned every render) so the window keydown effect below can
+  // keep MINIMAL deps — bars/timeToIndex/seriesRef change on every live tick, and we
+  // must not re-subscribe the global listener that often. Mirrors the drag transform:
+  // time shifts by whole bar-indices; price shifts by pixels→price (log-safe); volume-
+  // pane (paneRelY) points shift by a pixel-fraction. One updateDrawing = one undo step.
+  const nudgeRef = useRef(null)
+  nudgeRef.current = (dBars, dPx) => {
+    if (!selectedId) return
+    const sel = drawingsRef.current.find(d => d.id === selectedId)
+    if (!sel || sel.locked) return
+    const ser = seriesRef?.current
+    const H = sizeRef.current.h || 0
+    const clamp01 = v => Math.max(0, Math.min(1, v))
+    const newPoints = sel.points.map(p => {
+      const np = { ...p }
+      if (dBars && p.time != null) {
+        const i = timeToIndex.get(p.time)
+        if (i != null) {
+          const ni = Math.max(0, Math.min(bars.length - 1, i + dBars))
+          np.time = bars[ni]?.t ?? p.time
+        }
+      }
+      if (dPx) {
+        if (p.paneRelY != null) {
+          np.paneRelY = clamp01(p.paneRelY + (H ? dPx / H : 0))
+        } else if (p.price != null) {
+          let y = null; try { y = ser?.priceToCoordinate(p.price) } catch { /* disposed */ }
+          if (y != null) {
+            let npr = null; try { npr = ser?.coordinateToPrice(y + dPx) } catch { /* disposed */ }
+            if (npr != null && npr > 0) np.price = npr
+          }
+        }
+      }
+      return np
+    })
+    updateDrawing(selectedId, { points: newPoints })
+    requestRedraw()
+  }
+
   // ── Keyboard shortcuts ──
   useEffect(() => {
     const handler = (e) => {
@@ -1729,6 +1769,24 @@ export default function ChartDrawingOverlay({
           const sel = drawingsRef.current.find(d => d.id === selectedId)
           if (!sel?.locked) { removeDrawing(selectedId); setSelectedId(null) }
         }
+      }
+      // Arrow keys nudge the selected drawing (←/→ = ±1 bar · ↑/↓ = ±1px · Shift = ×10).
+      // Gated to THIS chart's focus — body, or focus inside the overlay's DOM subtree —
+      // so a drawing selected here never hijacks Watchlists/other-widget arrow navigation.
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (selectedId && (activeTool === 'cursor' || !activeTool)) {
+          const wrap = canvasRef.current?.parentElement
+          const ownFocus = e.target === document.body || (wrap && wrap.contains(e.target))
+          const sel = drawingsRef.current.find(d => d.id === selectedId)
+          if (ownFocus && !sel?.locked) {
+            e.preventDefault()
+            const step = e.shiftKey ? 10 : 1
+            const dBars = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0
+            const dPx = e.key === 'ArrowDown' ? step : e.key === 'ArrowUp' ? -step : 0
+            nudgeRef.current?.(dBars, dPx)
+          }
+        }
+        return
       }
       // Tool shortcuts
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
