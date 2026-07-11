@@ -662,6 +662,22 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
   }
 }
 
+// In-memory clipboard for copy/paste of a drawing — module-level so a copy on one
+// chart can be pasted onto another (any symbol). Holds a drawing minus its id.
+let _drawingClipboard = null
+
+// Clone a drawing's points with a small visible offset (price −0.5%, or +0.03 of the
+// volume-pane fraction), keeping the time anchors. Shared by Duplicate + Paste so a
+// clone never lands exactly on top of the original.
+function offsetPoints(points) {
+  return (points || []).map(p => ({
+    ...p,
+    ...(p.paneRelY != null
+      ? { paneRelY: Math.min(1, p.paneRelY + 0.03) }
+      : (p.price != null ? { price: p.price * 0.995 } : {})),
+  }))
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function ChartDrawingOverlay({
@@ -1479,8 +1495,16 @@ export default function ChartDrawingOverlay({
         const d = drawings.find(d => d.id === hitId)
         if (d) {
           if (d.locked) { e.preventDefault(); return }   // locked → selected but not movable
+          // Alt-drag = clone: spawn a copy at the same spot and drag THAT, leaving
+          // the original where it was (TradingView's duplicate-drag gesture).
+          let dragId = hitId
+          if (e.altKey) {
+            const { id: _cid, ...rest } = d
+            dragId = addDrawing({ ...rest, points: d.points.map(p => ({ ...p })), locked: false })
+            setSelectedId(dragId)
+          }
           dragRef.current = {
-            drawingId: hitId,
+            drawingId: dragId,
             handleIdx: null, // null = whole body
             startPixel: pos,
             startCoords: coords,
@@ -1679,6 +1703,24 @@ export default function ChartDrawingOverlay({
         const k = e.key.toLowerCase()
         if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo?.(); return }
         if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo?.(); return }
+        // Copy the selected drawing to the module clipboard — but only if the user
+        // isn't copying actual page text (let native Ctrl+C win then).
+        if (k === 'c' && selectedId && !window.getSelection?.()?.toString()) {
+          const sel = drawingsRef.current.find(d => d.id === selectedId)
+          if (sel) {
+            const { id: _cid, ...rest } = sel
+            _drawingClipboard = JSON.parse(JSON.stringify(rest))
+            e.preventDefault()
+          }
+          return
+        }
+        // Paste an offset clone onto THIS chart (works across symbols/charts).
+        if (k === 'v' && _drawingClipboard && (activeTool === 'cursor' || !activeTool)) {
+          e.preventDefault()
+          const nid = addDrawing({ ..._drawingClipboard, points: offsetPoints(_drawingClipboard.points), locked: false })
+          setSelectedId(nid)
+          return
+        }
       }
       // Delete / Backspace → remove the selected drawing (locked ones are spared).
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -1704,7 +1746,7 @@ export default function ChartDrawingOverlay({
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTool, pendingPoints, selectedId, isDragging, setActiveTool, setSelectedId, removeDrawing, undo, redo])
+  }, [activeTool, pendingPoints, selectedId, isDragging, setActiveTool, setSelectedId, removeDrawing, addDrawing, undo, redo])
 
   // Reset pending on tool change
   useEffect(() => {
@@ -1719,7 +1761,14 @@ export default function ChartDrawingOverlay({
 
   // ── Text input submit ──
   const handleTextSubmit = (text) => {
-    if (!textInput || !text.trim()) { setTextInput(null); return }
+    if (!textInput) return
+    // Editing an existing note (double-click): update its text; empty leaves it.
+    if (textInput.editId) {
+      if (text.trim()) updateDrawing(textInput.editId, { text: text.trim() })
+      setTextInput(null)
+      return
+    }
+    if (!text.trim()) { setTextInput(null); return }
     addDrawing({
       type: 'text',
       points: [{ time: textInput.time, price: textInput.price, ...(textInput.paneRelY != null ? { paneRelY: textInput.paneRelY } : {}) }],
@@ -1730,6 +1779,18 @@ export default function ChartDrawingOverlay({
     })
     setTextInput(null)
     if (!repeatMode) setActiveTool(null)
+  }
+
+  // ── Double-click a text annotation to edit it in place ──
+  const handleDoubleClick = (e) => {
+    if (activeTool && activeTool !== 'cursor') return   // not while placing new drawings
+    const pos = getCanvasPos(e)
+    if (!pos) return
+    const d = drawings.find(dd => dd.id === hitTestAll(pos.x, pos.y))
+    if (d?.type === 'text') {
+      setSelectedId(d.id)
+      setTextInput({ x: e.clientX, y: e.clientY, editId: d.id, initialValue: d.text || '' })
+    }
   }
 
   // ── Determine cursor ──
@@ -1772,6 +1833,7 @@ export default function ChartDrawingOverlay({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
         onPointerLeave={() => {
           if (!isDragging) { setMouseCoords(null); setHoverDrawingId(null) }
           requestRedraw()
@@ -1782,6 +1844,7 @@ export default function ChartDrawingOverlay({
           x={textInput.x}
           y={textInput.y}
           color={color}
+          initialValue={textInput.initialValue || ''}
           onSubmit={handleTextSubmit}
           onCancel={() => setTextInput(null)}
         />
@@ -1800,15 +1863,7 @@ export default function ChartDrawingOverlay({
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
             onDuplicate={() => {
               const { id: _id, ...rest } = d
-              // Small offset so the copy is visible: nudge price ~0.5% (or the
-              // volume-pane fraction) but keep the same time anchors.
-              const shifted = (d.points || []).map(p => ({
-                ...p,
-                ...(p.paneRelY != null
-                  ? { paneRelY: Math.min(1, p.paneRelY + 0.03) }
-                  : (p.price != null ? { price: p.price * 0.995 } : {})),
-              }))
-              const nid = addDrawing({ ...rest, points: shifted, locked: false })
+              const nid = addDrawing({ ...rest, points: offsetPoints(d.points), locked: false })
               setSelectedId(nid)
               setCtxMenu(null)
             }}
@@ -1823,8 +1878,8 @@ export default function ChartDrawingOverlay({
 
 // ─── Inline text input ──────────────────────────────────────────────────────
 
-function TextInputOverlay({ x, y, color, onSubmit, onCancel }) {
-  const [value, setValue] = useState('')
+function TextInputOverlay({ x, y, color, initialValue = '', onSubmit, onCancel }) {
+  const [value, setValue] = useState(initialValue)
   const ref = useRef(null)
   const readyRef = useRef(false)
 
