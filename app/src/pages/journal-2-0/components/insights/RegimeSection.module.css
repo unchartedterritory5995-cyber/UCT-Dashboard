@@ -1,0 +1,244 @@
+/* RegimeSection — win-rate-by-regime bars + "what are regimes?" popover (P5 A7).
+   Matches the J2 insights idiom (bg-surface, --border, --ut-gold, mono nums). */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.headMain {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.helpBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.helpBtn:hover {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold);
+}
+
+.helpBtn:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+
+.sub {
+  margin: 0;
+  max-width: 560px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* ── "What are regimes?" popover panel ─────────────────────────────────────── */
+
+.help {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.helpLede {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.helpList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.helpRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.helpDot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.helpLabel {
+  flex: 0 0 54px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.helpBlurb {
+  color: var(--text-muted);
+}
+
+/* ── Regime rows ───────────────────────────────────────────────────────────── */
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rowLabel {
+  flex: 0 0 118px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barTrack {
+  flex: 1 1 auto;
+  min-width: 60px;
+  height: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* n < 10 → the bar is still drawn (it's an estimate, not hidden) but muted,
+   mirroring ConfidenceStat's dim treatment of the number beside it. */
+.barDim {
+  opacity: 0.4;
+}
+
+.rowStat {
+  flex: 0 0 auto;
+  min-width: 66px;
+  display: flex;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.rowSecondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-left: 18px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.count {
+  font-weight: 600;
+}
+
+/* ── Empty state (honest, never a bare blank) ──────────────────────────────── */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 24px;
+  text-align: center;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+.emptyGlyph {
+  opacity: 0.8;
+}
+
+.emptyText {
+  margin: 0;
+  max-width: 420px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* ── Unknown-bucket footnote ───────────────────────────────────────────────── */
+
+.footnote {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--text-muted);
+}

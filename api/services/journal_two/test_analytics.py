@@ -59,7 +59,7 @@ def _add_trade(
     conn, user_id, *, account_id=None,
     exit_date_iso="2026-04-19T18:00:00Z", pnl=100, r=1.5, result="Win",
     side="Long", setup="VCP", symbol="NVDA",
-    trading_day_et=None, hour_et=None,
+    trading_day_et=None, hour_et=None, regime=None,
 ):
     tid = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
@@ -80,6 +80,10 @@ def _add_trade(
             trading_day_et, hour_et,
         ),
     )
+    # `regime` is a later-added column with a NULL default; set it only when
+    # supplied so existing NULL-regime tests stay untouched.
+    if regime is not None:
+        conn.execute("UPDATE j2_trades SET regime = ? WHERE id = ?", (regime, tid))
     conn.commit()
     return tid
 
@@ -933,3 +937,87 @@ def test_options_malformed_scope_date_does_not_500(db_conn):
                          spec=FilterSpec(date_from="garbage", date_to="also-bad"),
                          conn=db_conn)
     assert got2 is not None
+
+
+# ─── Regime section (Journal A+ P5, Task A7) ──────────────────────────────────
+
+
+def test_regime_section_empty_no_trades(db_conn):
+    """No trades → an honest empty section (byRegime [], unknownCount 0)."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_account(db_conn, "u1")
+
+    reg = get_analytics("u1", conn=db_conn)["regime"]
+    assert reg == {"byRegime": [], "unknownCount": 0}
+
+
+def test_regime_section_buckets_by_regime_ordered(db_conn):
+    """Closed trades bucket by regime with correct winRate/tradeCount/avgR/
+    expectancy; the labels come out ordered green→amber→orange→red; a regime
+    with 0 trades is omitted from byRegime."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    # green: 3 trades (2 W, 1 L) → winRate 2/3; pnls 100/50/-30 → exp 40; r all 1.5
+    _add_trade(db_conn, "u1", account_id=aid, regime="green", pnl=100, result="Win")
+    _add_trade(db_conn, "u1", account_id=aid, regime="green", pnl=50, result="Win")
+    _add_trade(db_conn, "u1", account_id=aid, regime="green", pnl=-30, result="Loss")
+    # amber: 1 trade (W) → winRate 1.0
+    _add_trade(db_conn, "u1", account_id=aid, regime="amber", pnl=200, result="Win")
+    # orange: none (must be omitted from byRegime)
+    # red: 2 trades (0 W, 2 L) → winRate 0.0
+    _add_trade(db_conn, "u1", account_id=aid, regime="red", pnl=-20, result="Loss")
+    _add_trade(db_conn, "u1", account_id=aid, regime="red", pnl=-40, result="Loss")
+
+    reg = get_analytics("u1", account_id=aid, conn=db_conn)["regime"]
+    # green→amber→orange→red ordering, with the 0-trade orange bucket omitted
+    assert [b["regime"] for b in reg["byRegime"]] == ["green", "amber", "red"]
+
+    by = {b["regime"]: b for b in reg["byRegime"]}
+    assert by["green"]["tradeCount"] == 3
+    assert abs(by["green"]["winRate"] - 2 / 3) < 1e-9
+    assert by["green"]["avgR"] == 1.5
+    assert by["green"]["expectancy"] == 40.0
+    assert by["amber"]["tradeCount"] == 1
+    assert by["amber"]["winRate"] == 1.0
+    assert by["red"]["tradeCount"] == 2
+    assert by["red"]["winRate"] == 0.0
+    assert reg["unknownCount"] == 0
+
+
+def test_regime_null_and_empty_go_to_unknown_not_a_bucket(db_conn):
+    """NULL / empty-string / whitespace regime → unknownCount, NEVER a real
+    bucket (broker/historical imports carry no regime)."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", account_id=aid, regime="green", pnl=100, result="Win")
+    _add_trade(db_conn, "u1", account_id=aid, regime=None, pnl=50, result="Win")     # NULL
+    _add_trade(db_conn, "u1", account_id=aid, regime="", pnl=-10, result="Loss")     # empty
+    _add_trade(db_conn, "u1", account_id=aid, regime="  ", pnl=-10, result="Loss")   # whitespace
+
+    reg = get_analytics("u1", account_id=aid, conn=db_conn)["regime"]
+    # Only the real green bucket exists; the three no-regime rows are the unknown count.
+    assert [b["regime"] for b in reg["byRegime"]] == ["green"]
+    assert reg["byRegime"][0]["tradeCount"] == 1
+    assert reg["unknownCount"] == 3
+
+
+def test_regime_unknown_bucket_never_a_fake_regime_label(db_conn):
+    """An unrecognized regime string (not one of the four) is also treated as
+    unknown — the four-label vocabulary is closed, so garbage never becomes a bar."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", account_id=aid, regime="GREEN", pnl=10, result="Win")   # case → still green
+    _add_trade(db_conn, "u1", account_id=aid, regime="bull", pnl=10, result="Win")    # unknown label
+
+    reg = get_analytics("u1", account_id=aid, conn=db_conn)["regime"]
+    labels = {b["regime"] for b in reg["byRegime"]}
+    assert labels == {"green"}          # uppercase normalizes into green
+    assert "bull" not in labels
+    assert reg["unknownCount"] == 1

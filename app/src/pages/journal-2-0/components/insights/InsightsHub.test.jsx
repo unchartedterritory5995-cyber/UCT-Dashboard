@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 
@@ -23,6 +23,18 @@ vi.mock('../../hooks/useScope', () => ({
   default: () => ({
     scope: { acct: null, from: null, to: null, symbol: null, sides: [], setups: [], tags: [] },
   }),
+}))
+
+// P5 A7: Regime is real when the `regime` feature flag is on (default ON). Stub
+// the section (its own behavior is covered by RegimeSection.test.jsx) and mock
+// the flag so this shell test can flip it to exercise BOTH the real section and
+// the coming-soon fallback.
+vi.mock('./RegimeSection', () => ({
+  default: () => <div>Regime mounted</div>,
+}))
+let regimeFlagOn = true
+vi.mock('../../featureFlags', () => ({
+  useFeatureFlag: (name) => (name === 'regime' ? regimeFlagOn : true),
 }))
 
 import InsightsHub from './InsightsHub'
@@ -54,6 +66,10 @@ function renderHub({ route = '/journal', data = analytics } = {}) {
 }
 
 const NAV_LABELS = ['Playbook', 'Exit Quality', 'Edge', 'Psychology', 'Regime']
+
+beforeEach(() => {
+  regimeFlagOn = true
+})
 
 describe('InsightsHub — sub-nav shell', () => {
   it('renders the 5-item Insights sub-nav', () => {
@@ -88,11 +104,20 @@ describe('InsightsHub — sub-nav shell', () => {
     expect(screen.queryByTestId('echart')).not.toBeInTheDocument()
   })
 
-  it('Regime shows a designed placeholder', () => {
+  it('Regime mounts the real RegimeSection when the flag is on (default)', () => {
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: 'Regime' }))
+    expect(screen.getByText('Regime mounted')).toBeInTheDocument()
+    // Not the coming-soon fallback when the flag is on.
+    expect(screen.queryByText(/Coming with the regime release/i)).not.toBeInTheDocument()
+  })
+
+  it('Regime falls back to the designed placeholder when the flag is off', () => {
+    regimeFlagOn = false
     renderHub()
     fireEvent.click(screen.getByRole('button', { name: 'Regime' }))
     expect(screen.getByText(/Coming with the regime release/i)).toBeInTheDocument()
-    expect(screen.queryByTestId('echart')).not.toBeInTheDocument()
+    expect(screen.queryByText('Regime mounted')).not.toBeInTheDocument()
   })
 
   it('Edge section renders the score + its 4 components', () => {
@@ -106,7 +131,7 @@ describe('InsightsHub — sub-nav shell', () => {
 
   it('honors an initial ?ins= from the URL', () => {
     renderHub({ route: '/journal?ins=regime' })
-    expect(screen.getByText(/Coming with the regime release/i)).toBeInTheDocument()
+    expect(screen.getByText('Regime mounted')).toBeInTheDocument()
     // Default Playbook not shown.
     expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
   })

@@ -132,6 +132,7 @@ def get_analytics(
             "edgeScore": _edge_score(rows),
             "exitQuality": _exit_quality_section(rows, excursions_map, strategies),
             "options": _options_section(rows, strategies),
+            "regime": _regime_section(rows),
         }
     finally:
         if owned:
@@ -158,7 +159,7 @@ def _fetch_trades(
     """
     sql = (
         "SELECT exit_date, entry_date, pnl_dollar, pnl_percent, "
-        "       r_multiple, hold_days, result, side, setup, symbol, "
+        "       r_multiple, hold_days, result, side, setup, symbol, regime, "
         "       account_id, trading_day_et, hour_et, "
         "       id, external_id, source "  # for trade_ref → excursion join (Task 7)
         "  FROM j2_trades "
@@ -509,6 +510,79 @@ def _attribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
         "bySymbol": by_symbol,
         "rollingWinRate": {"windows": windows},
     }
+
+
+# ── Section: Win rate by regime (Journal A+ P5, Task A7) ─────────────────────
+
+
+# The market-exposure backdrop labels, in the canonical severity order the FE
+# renders them (best → worst). The vocabulary is CLOSED: any value outside this
+# set (NULL, "", whitespace, or an unrecognized string) is the honest `unknown`
+# bucket, never a fabricated bar.
+_REGIME_ORDER = ("green", "amber", "orange", "red")
+
+
+def _regime_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
+    """Win-rate-by-regime over the CLOSED equity trades (byRegime + unknownCount).
+
+    Groups closed trades by their market-regime backdrop at entry
+    (``j2_trades.regime`` ∈ green/amber/orange/red, lowercase). NULL / empty /
+    unrecognized regime is an explicit ``unknownCount`` — NEVER folded into a
+    real bucket (broker/historical imports and un-backfilled days carry no
+    regime). This is the P5 "your edge, by market regime" section.
+
+    Per-bucket stats reuse the exact idiom the attribution/options sections use
+    (so units match the rest of the payload):
+      - ``winRate`` — wins / (wins + losses), a 0..1 fraction (BE excluded from
+        the denominator), or None when no decided trades — SAME as bySetup.
+      - ``avgR`` — mean r_multiple over rows with a non-null R (rounded 3).
+      - ``expectancy`` — mean pnl_dollar per trade in the bucket (rounded 2).
+
+    ``byRegime`` lists only regimes with >= 1 trade, ordered green→amber→
+    orange→red. Null-safe: no trades → ``{"byRegime": [], "unknownCount": 0}``.
+    """
+    by_regime: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"pnls": [], "rs": [], "wins": 0, "losses": 0, "count": 0}
+    )
+    unknown_count = 0
+
+    for r in rows:
+        raw = r["regime"] if "regime" in r.keys() else None
+        reg = (raw or "").strip().lower()
+        if reg not in _REGIME_ORDER:
+            # NULL / empty / unrecognized → the honest unknown bucket (a count,
+            # not a bar). Never miscount a no-regime row as a real regime.
+            unknown_count += 1
+            continue
+        g = by_regime[reg]
+        g["count"] += 1
+        g["pnls"].append(float(r["pnl_dollar"] or 0))
+        result = r["result"]
+        if result == "Win":
+            g["wins"] += 1
+        elif result == "Loss":
+            g["losses"] += 1
+        if r["r_multiple"] is not None:
+            g["rs"].append(float(r["r_multiple"]))
+
+    by_regime_out: list[dict[str, Any]] = []
+    for reg in _REGIME_ORDER:  # canonical green→amber→orange→red order
+        if reg not in by_regime:
+            continue  # a regime with 0 trades is omitted, never a zero bar
+        g = by_regime[reg]
+        wl = g["wins"] + g["losses"]
+        win_rate = (g["wins"] / wl) if wl > 0 else None
+        avg_r = (sum(g["rs"]) / len(g["rs"])) if g["rs"] else None
+        expectancy = (sum(g["pnls"]) / len(g["pnls"])) if g["pnls"] else None
+        by_regime_out.append({
+            "regime": reg,
+            "tradeCount": g["count"],
+            "winRate": win_rate,
+            "avgR": round(avg_r, 3) if avg_r is not None else None,
+            "expectancy": round(expectancy, 2) if expectancy is not None else None,
+        })
+
+    return {"byRegime": by_regime_out, "unknownCount": unknown_count}
 
 
 def _edge_score(rows: list[sqlite3.Row]) -> dict[str, Any]:

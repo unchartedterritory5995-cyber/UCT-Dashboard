@@ -35,6 +35,8 @@ import UIcon from '../../../../components/ui/UIcon'
 import RiskExitsSection from '../analytics/RiskExitsSection'
 import PlaybookSection from './PlaybookSection'
 import EdgeScoreCard from './EdgeScoreCard'
+import RegimeSection from './RegimeSection'
+import { useFeatureFlag } from '../../featureFlags'
 import styles from './InsightsHub.module.css'
 
 // The five hub sections. `key` is the `?ins=` value; order = the sub-nav order.
@@ -50,6 +52,10 @@ const DEFAULT_SECTION = 'playbook'
 
 export default function InsightsHub({ analytics }) {
   const [searchParams, setSearchParams] = useSearchParams()
+  // P5 Task A7: the Regime section is real when the `regime` feature flag is on
+  // (default ON); off → the existing designed "coming soon" placeholder. The
+  // instant per-browser kill-switch is window.__uctJ2Feature('regime', false).
+  const regimeOn = useFeatureFlag('regime')
 
   const raw = searchParams.get('ins')
   const active = SECTION_KEYS.includes(raw) ? raw : DEFAULT_SECTION
@@ -100,13 +106,16 @@ export default function InsightsHub({ analytics }) {
             text="Coming with the psychology release — emotion outcomes, tilt patterns, and discipline trends over time."
           />
         )}
-        {active === 'regime' && (
-          <ComingSoon
-            icon="compass"
-            title="Regime"
-            text="Coming with the regime release — how your edge holds up across bull, chop, and bear market conditions."
-          />
-        )}
+        {active === 'regime' &&
+          (regimeOn ? (
+            <RegimeSection analytics={analytics} />
+          ) : (
+            <ComingSoon
+              icon="compass"
+              title="Regime"
+              text="Coming with the regime release — how your edge holds up across bull, chop, and bear market conditions."
+            />
+          ))}
       </div>
     </div>
   )
