@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 
 // ── controllable paid state ──────────────────────────────────────────────────
 let mockIsPaid = true
@@ -52,10 +52,18 @@ import CompassSurface from './surfaces/CompassSurface'
 import CommunitySurface from './surfaces/CommunitySurface'
 import AccountsSurface from './surfaces/AccountsSurface'
 
+// Probe that surfaces the live location so redirect assertions can read the
+// post-Navigate URL (path + search).
+function LocationProbe() {
+  const loc = useLocation()
+  return <div data-testid="loc">{`${loc.pathname}${loc.search}`}</div>
+}
+
 function renderAt(route, { paid = true } = {}) {
   mockIsPaid = paid
   return render(
     <MemoryRouter initialEntries={[route]}>
+      <LocationProbe />
       <Routes>
         <Route path="/journal" element={<JournalLayout />}>
           <Route index element={<TodaySurface />} />
@@ -144,5 +152,44 @@ describe('JournalLayout — Compass paid gating', () => {
     renderAt('/journal/compass', { paid: false })
     expect(screen.getByText('Compass — your AI trading coach')).toBeInTheDocument()
     expect(screen.queryByTestId('compass')).not.toBeInTheDocument()
+  })
+})
+
+describe('JournalLayout — permanent ?j2tab= redirect shim (A3)', () => {
+  it('/journal?j2tab=analytics&ins=edge redirects to /journal/insights?ins=edge', () => {
+    renderAt('/journal?j2tab=analytics&ins=edge')
+    // Landed on the Insights surface (Analytics tab), NOT the Today placeholder.
+    expect(screen.getByTestId('analytics')).toBeInTheDocument()
+    expect(screen.queryByText('Today — coming in this release')).not.toBeInTheDocument()
+    // URL rewritten + ins= preserved + j2tab stripped (no loop).
+    expect(screen.getByTestId('loc')).toHaveTextContent('/journal/insights?ins=edge')
+  })
+
+  it('/journal?j2tab=positions redirects to the Trades / Open segment', () => {
+    renderAt('/journal?j2tab=positions')
+    expect(screen.getByTestId('open-positions')).toBeInTheDocument()
+    expect(screen.getByTestId('loc')).toHaveTextContent('/journal/trades?seg=open')
+  })
+
+  it('/journal?j2tab=notebook&note=abc redirects to Journal / Notebook, preserving note', () => {
+    renderAt('/journal?j2tab=notebook&note=abc')
+    expect(screen.getByTestId('notebook')).toBeInTheDocument()
+    const loc = screen.getByTestId('loc').textContent
+    expect(loc).toContain('/journal/journal')
+    expect(loc).toContain('note=abc')
+    expect(loc).toContain('seg=notebook')
+    expect(loc).not.toContain('j2tab')
+  })
+
+  it('/journal?j2tab=community redirects to the Community route', () => {
+    renderAt('/journal?j2tab=community')
+    expect(screen.getByTestId('community')).toBeInTheDocument()
+    expect(screen.getByTestId('loc')).toHaveTextContent('/journal/community')
+  })
+
+  it('plain /journal (no j2tab) does NOT redirect — Today renders', () => {
+    renderAt('/journal')
+    expect(screen.getByText('Today — coming in this release')).toBeInTheDocument()
+    expect(screen.getByTestId('loc')).toHaveTextContent('/journal')
   })
 })

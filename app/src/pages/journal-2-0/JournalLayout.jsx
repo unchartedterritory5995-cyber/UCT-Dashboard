@@ -21,12 +21,13 @@
  */
 
 import { Suspense, useCallback, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Navigate, Outlet, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
 import useBrokerSync from './hooks/useBrokerSync'
+import { mapJ2TabToRoute } from './j2tabRedirect'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
 import AccountSelector from './components/accounts/AccountSelector'
 import NewAccountModal from './components/accounts/NewAccountModal'
@@ -52,6 +53,7 @@ export default function JournalLayout() {
   // (server-side cooldown keeps it cheap; no-op if broker sync unconfigured).
   useBrokerSync()
   const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
+  const [searchParams] = useSearchParams()
 
   const [showSettings, setShowSettings] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -64,6 +66,19 @@ export default function JournalLayout() {
   // The `?` header button + Shift+? both open the cheat sheet (kept from
   // JournalTwoRoot). The g> navigation chords are Task A4.
   useHotkeys('shift+/', () => setShowShortcuts((x) => !x), { preventDefault: true })
+
+  // Permanent `?j2tab=` redirect shim (Task A3). Under the v5 shell ONLY (v8's
+  // JournalTwoRoot handles ?j2tab= natively), intercept any legacy deep-link and
+  // Navigate to the mapped nested route, preserving the FULL querystring
+  // (sc_* scope params, ins= sub-nav, note=, …). This runs BEFORE the Outlet
+  // (Today) renders, so `/journal?j2tab=analytics` lands on /journal/insights
+  // instead of flashing Today. No loop: the redirect target has no j2tab, so the
+  // next render falls through to the normal shell. All hooks above are called
+  // unconditionally — this is a conditional RETURN, not a conditional hook.
+  if (searchParams.has('j2tab')) {
+    const target = mapJ2TabToRoute(searchParams)
+    if (target) return <Navigate to={`${target.path}${target.search}`} replace />
+  }
 
   return (
     <div className={styles.root}>
