@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useSearchParams } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
 // ── mocks (mock-prefixed so vi.mock hoisting can reference them) ──────────────
@@ -267,5 +267,98 @@ describe('TradeJournalTab — closed-option scope match (A4 parity: symbol + dat
     renderTab({ route: '/journal?sc_from=2026-07-01&sc_v=1' })
     expect(await screen.findByText(/No trades match this scope/i)).toBeInTheDocument()
     expect(screen.queryByTestId('trades-table')).not.toBeInTheDocument()
+  })
+})
+
+// ── B5: server-side pagination ──────────────────────────────────────────────
+// A full page of server (share) trades with `total` > page size (50). The mock
+// returns the SAME envelope for every URL, so the "Showing X–Y" indicator is
+// driven by the tab's local page state (not the envelope's echoed offset), and
+// the fetch URL's `offset=` proves the page advanced/reset.
+const PAGE = 50
+const makePage = (n) =>
+  Array.from({ length: n }, (_, i) => ({
+    id: `t${i}`, symbol: 'AAA', side: 'Long', entryDate: '2026-06-01',
+  }))
+
+// A sibling that mutates the URL scope so we can prove offset resets on a filter
+// change (ScopeBar is stubbed, so the tab can't change its own scope in-test).
+function FilterButton() {
+  const [, setSearchParams] = useSearchParams()
+  return (
+    <button type="button" onClick={() => setSearchParams({ sc_sym: 'ZZZ', sc_v: '1' })}>
+      apply-filter
+    </button>
+  )
+}
+
+describe('TradeJournalTab — page controls', () => {
+  it('renders "Showing X–Y of M" + Prev/Next when total exceeds the page size', async () => {
+    mockEnvelope = { trades: makePage(PAGE), total: 120, limit: PAGE, offset: 0 }
+    renderTab()
+    expect(await screen.findByText(/of 120/)).toBeInTheDocument()
+    // page 1: showing 1–50, Prev disabled, Next enabled
+    expect(screen.getByText(/Showing 1/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Prev' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
+  })
+
+  it('hides the pager when the whole result set fits on one page', async () => {
+    mockEnvelope = { trades: makePage(3), total: 3, limit: PAGE, offset: 0 }
+    renderTab()
+    await screen.findByTestId('trades-table')
+    expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument()
+  })
+
+  it('clicking Next advances the offset and refetches', async () => {
+    mockEnvelope = { trades: makePage(PAGE), total: 120, limit: PAGE, offset: 0 }
+    const user = userEvent.setup()
+    renderTab()
+    await screen.findByText(/of 120/)
+    expect(capturedUrl).toContain('offset=0')
+
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    // page 2: refetch carried offset=50 and the indicator advanced to 51–100
+    expect(await screen.findByText(/Showing 51/)).toBeInTheDocument()
+    expect(capturedUrl).toContain('offset=50')
+    expect(screen.getByRole('button', { name: 'Prev' })).toBeEnabled()
+  })
+
+  it('disables Next on the last page', async () => {
+    // total 60 → page 1 is rows 1–50, page 2 is rows 51–60 (last).
+    mockEnvelope = { trades: makePage(PAGE), total: 60, limit: PAGE, offset: 0 }
+    const user = userEvent.setup()
+    renderTab()
+    await screen.findByText(/of 60/)
+    // Page 2 returns the tail (10 rows) → Next disabled (50 + 10 >= 60).
+    mockEnvelope = { trades: makePage(10), total: 60, limit: PAGE, offset: 50 }
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText(/Showing 51/)
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
+  })
+
+  it('a scope/filter change resets paging back to page 0', async () => {
+    mockEnvelope = { trades: makePage(PAGE), total: 120, limit: PAGE, offset: 0 }
+    const user = userEvent.setup()
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MemoryRouter initialEntries={['/journal']}>
+          <FilterButton />
+          <TradeJournalTab settings={SETTINGS} />
+        </MemoryRouter>
+      </SWRConfig>,
+    )
+    await screen.findByText(/of 120/)
+    // advance to page 2
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText(/Showing 51/)
+    // change a filter → offset snaps back to page 0 (never strand on page 2). The
+    // reset effect fires the render after apiParams changes, so wait for BOTH the
+    // new facet AND the reset offset to settle on the final fetch URL.
+    await user.click(screen.getByRole('button', { name: 'apply-filter' }))
+    await waitFor(() => {
+      expect(capturedUrl).toContain('symbol=ZZZ')
+      expect(capturedUrl).toContain('offset=0')
+    })
   })
 })

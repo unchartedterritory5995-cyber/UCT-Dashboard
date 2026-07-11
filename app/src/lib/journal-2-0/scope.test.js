@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   EMPTY_SCOPE,
   SCOPE_VERSION,
+  DEFAULT_PAGE_SIZE,
   scopeToSearchParams,
   scopeFromSearchParams,
   scopeToApiParams,
@@ -151,7 +152,7 @@ describe('literal comma in a facet member', () => {
 })
 
 describe('scopeToApiParams — snake_case for parse_filter_query', () => {
-  it('maps camelCase UI keys → backend snake_case names', () => {
+  it('maps camelCase UI keys → backend snake_case names (+ paging defaults)', () => {
     const api = scopeToApiParams(mk({
       acct: '9', from: '2026-01-01', to: '2026-02-01', symbol: 'AAPL',
       sides: ['Long', 'Short'], setups: ['VCP'], tags: ['fomo', 'revenge'],
@@ -164,24 +165,54 @@ describe('scopeToApiParams — snake_case for parse_filter_query', () => {
       sides: 'Long,Short',
       setups: 'VCP',
       tags: 'fomo,revenge',
+      limit: DEFAULT_PAGE_SIZE,
+      offset: 0,
     })
   })
 
-  it('omits keys whose facet is empty/null', () => {
+  it('omits FACET keys whose value is empty/null (but always emits paging)', () => {
     const api = scopeToApiParams(mk({ symbol: 'TSLA' }))
-    expect(api).toEqual({ symbol: 'TSLA' })
+    expect(api).toEqual({ symbol: 'TSLA', limit: DEFAULT_PAGE_SIZE, offset: 0 })
     expect('account_id' in api).toBe(false)
     expect('date_from' in api).toBe(false)
     expect('sides' in api).toBe(false)
   })
 
-  it('empty scope → empty object', () => {
-    expect(scopeToApiParams(EMPTY_SCOPE)).toEqual({})
+  it('empty scope → paging defaults ONLY (no facet keys)', () => {
+    expect(scopeToApiParams(EMPTY_SCOPE)).toEqual({ limit: DEFAULT_PAGE_SIZE, offset: 0 })
   })
 
   it('account_id present iff acct is set', () => {
     expect('account_id' in scopeToApiParams(mk({ acct: '1' }))).toBe(true)
     expect('account_id' in scopeToApiParams(mk())).toBe(false)
+  })
+})
+
+describe('scopeToApiParams — pagination (limit + offset)', () => {
+  it('DEFAULT_PAGE_SIZE is 50', () => expect(DEFAULT_PAGE_SIZE).toBe(50))
+
+  it('emits DEFAULT_PAGE_SIZE limit + 0 offset when the scope carries neither', () => {
+    const api = scopeToApiParams(mk({ symbol: 'AAPL' }))
+    expect(api.limit).toBe(DEFAULT_PAGE_SIZE)
+    expect(api.offset).toBe(0)
+  })
+
+  it('emits an EXPLICIT limit + offset from the scope', () => {
+    const api = scopeToApiParams({ ...mk({ symbol: 'AAPL' }), limit: 25, offset: 100 })
+    expect(api.limit).toBe(25)
+    expect(api.offset).toBe(100)
+  })
+
+  it('an explicit offset of 0 is preserved (not treated as unset)', () => {
+    const api = scopeToApiParams({ ...mk(), limit: 100, offset: 0 })
+    expect(api.limit).toBe(100)
+    expect(api.offset).toBe(0)
+  })
+
+  it('paging keys do NOT count toward scopeActiveCount / scopeIsActive', () => {
+    const paged = { ...mk(), limit: 100, offset: 200 }
+    expect(scopeActiveCount(paged)).toBe(0)
+    expect(scopeIsActive(paged)).toBe(false)
   })
 })
 

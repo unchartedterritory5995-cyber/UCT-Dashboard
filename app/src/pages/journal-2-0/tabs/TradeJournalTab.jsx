@@ -9,7 +9,7 @@
  * were replaced by `<ScopeBar>` in A9.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import { useHotkeys } from 'react-hotkeys-hook'
@@ -31,6 +31,7 @@ import Toast from '../components/Toast'
 import BrokerImportingBanner from '../components/BrokerImportingBanner'
 import useBrokerWarming from '../hooks/useBrokerWarming'
 import { summaryStats } from '../../../lib/journal-2-0'
+import { DEFAULT_PAGE_SIZE } from '../../../lib/journal-2-0/scope'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './TradeJournalTab.module.css'
 
@@ -150,8 +151,24 @@ export default function TradeJournalTab({ settings }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { scope, apiParams, clearScope } = useScope()
+
+  // ── Server-side pagination (B5) ────────────────────────────────────────────
+  // `apiParams` (from the codec) already carries limit=DEFAULT_PAGE_SIZE + offset=0;
+  // this tab owns the PAGE via local `page` state and overrides `offset`. Paging is
+  // deliberately NOT scope/URL-backed in v1 (ephemeral local state). Any scope/
+  // filter/account change re-keys `filterSig` → reset to page 0 so a narrower
+  // result set never strands the user on a now-empty page.
+  const [page, setPage] = useState(0)
+  const offset = page * DEFAULT_PAGE_SIZE
+  const filterSig = JSON.stringify(apiParams)  // stable — offset/limit are constant here
+  useEffect(() => { setPage(0) }, [filterSig])
+  const pagedParams = useMemo(
+    () => ({ ...apiParams, offset }),
+    [apiParams, offset],
+  )
+
   const { trades, total, isLoading, error, refresh, mutate: mutateTrades } =
-    useJ2Trades(apiParams)
+    useJ2Trades(pagedParams)
   const {
     strategies: closedStrategies,
     isLoading: stratLoading,
@@ -279,6 +296,15 @@ export default function TradeJournalTab({ settings }) {
 
   const loadingTrades = (isLoading || stratLoading) && allClosed.length === 0
 
+  // Pager describes the SERVER (share) trades — the paginated set. Closed option
+  // strategies are a client-side union and are NOT server-paged, so the pager is
+  // shown only when the shares path spans more than one page.
+  const showPager = showShares && total > DEFAULT_PAGE_SIZE
+  const pageStart = total === 0 ? 0 : offset + 1
+  const pageEnd = offset + trades.length
+  const canPrev = page > 0
+  const canNext = pageEnd < total
+
   return (
     <div className={styles.wrap}>
       {warming && <BrokerImportingBanner broker={warmingBroker} />}
@@ -289,6 +315,32 @@ export default function TradeJournalTab({ settings }) {
         resultCount={trades.length}
         totalCount={total}
       />
+
+      {showPager && !loadingTrades && (
+        <div className={styles.pager} role="navigation" aria-label="Trades pages">
+          <span className={styles.pagerInfo}>
+            Showing {pageStart}–{pageEnd} of {total}
+          </span>
+          <div className={styles.pagerBtns}>
+            <button
+              type="button"
+              className={styles.ghostBtn}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={!canPrev}
+            >
+              Prev
+            </button>
+            <button
+              type="button"
+              className={styles.ghostBtn}
+              onClick={() => setPage((p) => p + 1)}
+              disabled={!canNext}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft} />

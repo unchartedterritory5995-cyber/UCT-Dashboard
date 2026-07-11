@@ -37,6 +37,14 @@
 export const SCOPE_VERSION = 1
 
 /**
+ * Default server page size for the paginated closed-trades list. `scopeToApiParams`
+ * emits this as `limit` when the scope carries no explicit `limit`. The trades LIST
+ * surface (TradeJournalTab) reuses it for the page-window math (offset = page ×
+ * DEFAULT_PAGE_SIZE) so the codec and the UI agree on one number.
+ */
+export const DEFAULT_PAGE_SIZE = 50
+
+/**
  * The zero scope. Deep-frozen: consumers must NOT mutate this shared const —
  * `scopeFromSearchParams` always hands back a fresh, mutable copy instead.
  * @type {Readonly<Scope>}
@@ -129,9 +137,17 @@ export function scopeFromSearchParams(params) {
  * Scope → the backend snake_case params `parse_filter_query` reads. camelCase
  * `acct`→`account_id`, `from`→`date_from`, `to`→`date_to`; arrays are
  * member-encoded + comma-joined (the backend splits on comma + unquotes each).
- * Keys whose facet is empty/null are omitted entirely.
+ * Facet keys whose value is empty/null are omitted entirely.
+ *
+ * `limit`/`offset` are ALWAYS emitted (paging is opt-in on the wire, but the
+ * codec supplies a bounded first page by default — `DEFAULT_PAGE_SIZE` / 0 —
+ * read from the scope when present). They are NOT scope facets: `scopeActiveCount`
+ * ignores them and they are NOT written to the `sc_*` URL (paging is ephemeral,
+ * not shareable in v1). The analytics + calendar endpoints share this apiParams
+ * but compile ONLY WHERE clauses via `trades_where`, so they IGNORE limit/offset —
+ * these two keys are inert everywhere except `GET /api/j2/trades`.
  * @param {Scope} scope
- * @returns {{account_id?: string, date_from?: string, date_to?: string, symbol?: string, sides?: string, setups?: string, tags?: string}}
+ * @returns {{account_id?: string, date_from?: string, date_to?: string, symbol?: string, sides?: string, setups?: string, tags?: string, limit: number, offset: number}}
  */
 export function scopeToApiParams(scope) {
   const s = scope || EMPTY_SCOPE
@@ -143,6 +159,11 @@ export function scopeToApiParams(scope) {
   if (arraySet(s.sides)) out.sides = joinMulti(s.sides)
   if (arraySet(s.setups)) out.setups = joinMulti(s.setups)
   if (arraySet(s.tags)) out.tags = joinMulti(s.tags)
+  // Pagination — read from the scope with defaults (page size / first page). The
+  // trades LIST surface overrides `offset` from its page state; the backend
+  // FilterSpec clamps both (limit 1..2000, offset ≥ 0).
+  out.limit = Number.isFinite(s.limit) ? s.limit : DEFAULT_PAGE_SIZE
+  out.offset = Number.isFinite(s.offset) ? s.offset : 0
   return out
 }
 

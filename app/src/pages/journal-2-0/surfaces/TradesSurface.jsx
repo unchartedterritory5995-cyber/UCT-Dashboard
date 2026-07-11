@@ -4,9 +4,14 @@
  * NOT merged — the segment toggle just picks which existing tab renders. The
  * unified single-table + server pagination is P5.
  *
- * Segment state lives in the URL (`?seg=open|closed`, default open) so it
+ * Segment state lives in the URL (`?seg=open|closed|all`, default open) so it
  * deep-links + survives back/forward nav. `settings` comes from the
  * JournalLayout Outlet context (loaded once at the shell).
+ *
+ * The `All` segment (B5) renders the SAME paginated closed-trades server list as
+ * `Closed Trades` — for v1 `All` ≈ the closed-trades view. The true one-table
+ * union of open positions + closed trades is DEFERRED (open positions and closed
+ * trades share few columns), so there is no combined table here yet.
  */
 
 import { useCallback } from 'react'
@@ -18,7 +23,8 @@ import styles from '../JournalLayout.module.css'
 export default function TradesSurface() {
   const { settings } = useOutletContext() || {}
   const [searchParams, setSearchParams] = useSearchParams()
-  const seg = searchParams.get('seg') === 'closed' ? 'closed' : 'open'
+  const rawSeg = searchParams.get('seg')
+  const seg = rawSeg === 'closed' ? 'closed' : rawSeg === 'all' ? 'all' : 'open'
 
   const setSeg = useCallback(
     (next) => {
@@ -56,11 +62,22 @@ export default function TradesSurface() {
         >
           Closed Trades
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={seg === 'all'}
+          className={`${styles.segBtn} ${seg === 'all' ? styles.segBtnActive : ''}`}
+          onClick={() => setSeg('all')}
+        >
+          All
+        </button>
       </div>
 
       {seg === 'open' ? (
         <OpenPositionsTab settings={settings} onTradeWritten={() => setSeg('closed')} />
       ) : (
+        // 'closed' AND 'all' both render the paginated closed-trades list. `All`
+        // == closed-trades server list for v1 (open+closed union deferred).
         <TradeJournalTab settings={settings} />
       )}
     </div>
