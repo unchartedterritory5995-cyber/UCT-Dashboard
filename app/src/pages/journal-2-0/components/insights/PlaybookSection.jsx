@@ -36,6 +36,27 @@ import styles from './PlaybookSection.module.css'
 
 const CONF_MIN = 10
 
+// ── Exit-efficiency confidence gate — MIRRORS the P2 Exit Quality tab ─────────
+// RiskExitsSection.jsx gates exit quality on `coverageReady && computed >=
+// MIN_COMPUTED`, where MIN_COMPUTED = 10 (the backend's
+// `_EXIT_QUALITY_MIN_COMPUTED`, replicated there as a module const) and
+// `coverageReady` means the excursion coverage ratio computed/eligible >= 0.9.
+// playbook_stats gives us `exitEffCoverage:{eligible, computed}` but no
+// per-setup `coverageReady` boolean, so we derive the same gate here. Without
+// this, the SAME setup+scope could show a confident "62%" on the Playbook card
+// while Exit Quality withholds it — the cross-surface contradiction this fixes.
+// (Neither constant is exported by RiskExitsSection, so they're replicated.)
+const EXIT_EFF_MIN_COMPUTED = 10
+const EXIT_EFF_MIN_COVERAGE = 0.9
+
+function exitEffConfident(coverage) {
+  const eligible = coverage?.eligible ?? 0
+  const computed = coverage?.computed ?? 0
+  if (computed < EXIT_EFF_MIN_COMPUTED) return false
+  if (eligible === 0) return false
+  return computed / eligible >= EXIT_EFF_MIN_COVERAGE
+}
+
 // ── stat formatters ──────────────────────────────────────────────────────────
 const fmtPct = (v) => `${(v * 100).toFixed(0)}%`
 const fmtPF = (v) => (v >= 5 ? '5.0+' : Number(v).toFixed(2))
@@ -125,6 +146,10 @@ export default function PlaybookSection() {
 function SetupCard({ s, onOpen }) {
   const n = s.tradeCount || 0
   const computed = s.exitEffCoverage?.computed ?? 0
+  // Only surface a confident exit-efficiency number when the excursion coverage
+  // clears the SAME gate the P2 Exit Quality tab uses. Below it, withhold the
+  // number (value=null) so ConfidenceStat renders the honest dim "—" state.
+  const exitEffOk = exitEffConfident(s.exitEffCoverage)
   const lastFive = Array.isArray(s.lastFive) ? s.lastFive : []
 
   return (
@@ -157,9 +182,12 @@ function SetupCard({ s, onOpen }) {
         <div className={styles.statCell}>
           {/* Exit efficiency confidence keys off computed excursion COVERAGE,
               not tradeCount — a well-traded setup with thin excursion data is
-              still a thin exit-efficiency estimate. */}
+              still a thin exit-efficiency estimate. The gate matches the P2 Exit
+              Quality tab (computed >= 10 AND coverage ratio >= 0.9); below it the
+              number is withheld (value=null → honest dim "—") so the two surfaces
+              can never disagree on the same setup+scope. */}
           <ConfidenceStat
-            value={s.exitEfficiency}
+            value={exitEffOk ? s.exitEfficiency : null}
             n={computed}
             min={CONF_MIN}
             format={fmtPct}

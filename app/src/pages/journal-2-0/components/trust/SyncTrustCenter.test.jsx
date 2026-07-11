@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 // SyncTrustCenter reads the active account (for the manual-account hide) via
-// useJ2SelectedAccount and self-fetches trust/sync-log/orphans via useSyncTrust.
-// Mock both; keep everything else real.
+// useJ2SelectedAccount, self-fetches trust/sync-log/orphans via useSyncTrust,
+// and pulls the closed-trade list for the reattach picker via useJ2Trades.
+// Mock all three; keep everything else real.
 
 let selected
 let trustState
@@ -15,6 +16,17 @@ vi.mock('../../hooks/useJ2SelectedAccount', () => ({
 }))
 vi.mock('../../hooks/useSyncTrust', () => ({
   default: () => trustState,
+}))
+vi.mock('../../hooks/useJ2Trades', () => ({
+  // A couple of closed trades — the picker's options carry the real j2_trades
+  // row UUIDs (option value = trade.id), which is what the backend reattach
+  // expects. Defined inside the factory (vi.mock is hoisted above imports).
+  default: () => ({
+    trades: [
+      { id: 'trade-123', symbol: 'AAPL', exitDate: '2026-06-10', pnlDollarNet: 250 },
+      { id: 'trade-456', symbol: 'NVDA', exitDate: '2026-06-12', pnlDollarNet: -80 },
+    ],
+  }),
 }))
 
 import SyncTrustCenter from './SyncTrustCenter'
@@ -108,16 +120,39 @@ describe('SyncTrustCenter', () => {
     expect(link).toHaveAttribute('href', '/settings')
   })
 
-  it('lists orphans + a Reattach button that calls the endpoint', async () => {
+  it('lists orphans + a trade picker whose Reattach calls the endpoint with the chosen trade id', async () => {
     trustState = { ...trustState, orphans: [orphan()] }
     render(<SyncTrustCenter />)
     expect(screen.getByText(/AAPL long · 3 screenshots/i)).toBeInTheDocument()
-    const input = screen.getByPlaceholderText(/trade id/i)
-    fireEvent.change(input, { target: { value: 'trade-123' } })
+    // The reattach control is now a <select> of the user's closed trades.
+    const select = screen.getByRole('combobox', { name: /reattach .* to a trade/i })
+    // Options are the real closed trades (option value = j2_trades UUID).
+    expect(within(select).getByRole('option', { name: /AAPL/ })).toBeInTheDocument()
+    // Reattach is disabled until a trade is chosen.
+    expect(screen.getByRole('button', { name: /^reattach$/i })).toBeDisabled()
+    fireEvent.change(select, { target: { value: 'trade-123' } })
     fireEvent.click(screen.getByRole('button', { name: /^reattach$/i }))
     await waitFor(() => {
       expect(reattach).toHaveBeenCalledWith('ext:abc', 'trade-123')
     })
+    // Clean move (no excursionConflict) → the plain "Reattached" confirmation.
+    expect(await screen.findByText(/^Reattached$/)).toBeInTheDocument()
+  })
+
+  it('shows an honest "left in place" message when the reattach hits an excursion conflict', async () => {
+    reattach.mockResolvedValue({ moved: 3, excursionConflict: true })
+    trustState = { ...trustState, orphans: [orphan()] }
+    render(<SyncTrustCenter />)
+    const select = screen.getByRole('combobox', { name: /reattach .* to a trade/i })
+    fireEvent.change(select, { target: { value: 'trade-456' } })
+    fireEvent.click(screen.getByRole('button', { name: /^reattach$/i }))
+    await waitFor(() => {
+      expect(
+        screen.getByText(/already has excursion data, so that was left in place/i),
+      ).toBeInTheDocument()
+    })
+    // NOT the plain "Reattached ✓" success — the orphan actually persisted.
+    expect(screen.queryByText(/^Reattached$/)).toBeNull()
   })
 
   it('renders no orphan section when there are 0 orphans', () => {

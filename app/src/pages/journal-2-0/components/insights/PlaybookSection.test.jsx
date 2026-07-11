@@ -100,6 +100,48 @@ describe('PlaybookSection', () => {
     expect(container.textContent).toContain('VCP')
   })
 
+  it('withholds exit-efficiency below the P2 coverage gate, shows it when coverage is sufficient', () => {
+    const SUFFICIENT = {
+      setup: 'HTF',
+      tradeCount: 30,
+      winRate: 0.6,
+      profitFactor: 2,
+      expectancy: 100,
+      avgR: 1,
+      exitEfficiency: 0.82,
+      // 29/30 ≥ 0.9 AND computed ≥ 10 → confident number (matches Exit Quality "ready").
+      exitEffCoverage: { eligible: 30, computed: 29 },
+      lastFive: [],
+    }
+    const LOW_COVERAGE = {
+      setup: 'ORB',
+      tradeCount: 30,
+      winRate: 0.6,
+      profitFactor: 2,
+      expectancy: 100,
+      avgR: 1,
+      exitEfficiency: 0.77,
+      // computed ≥ 10 but 15/30 = 0.5 < 0.9 → withheld (matches Exit Quality "check back").
+      exitEffCoverage: { eligible: 30, computed: 15 },
+      lastFive: [],
+    }
+    playbookState = { stats: [SUFFICIENT, LOW_COVERAGE], isLoading: false, error: null, allAccounts: false }
+    renderSection()
+
+    const sufficientCard = screen.getByText('HTF').closest('button')
+    const lowCard = screen.getByText('ORB').closest('button')
+
+    // Sufficient coverage → the exit-eff number renders and is NOT dimmed.
+    const sufValue = within(sufficientCard).getByText('82%')
+    expect(sufValue.className).not.toMatch(/dim/)
+
+    // Low coverage → the confident number is withheld; the exit-eff cell falls
+    // back to the honest dim "—" state (so it can't contradict Exit Quality).
+    expect(within(lowCard).queryByText('77%')).toBeNull()
+    const exitEffCell = within(lowCard).getByText('Exit Eff.').parentElement
+    expect(exitEffCell.querySelector('[class*="dim"]')).toBeTruthy()
+  })
+
   it('drill-through: clicking a card sets the setup scope + routes to the journal tab', () => {
     renderSection()
     fireEvent.click(screen.getByText('VCP').closest('button'))

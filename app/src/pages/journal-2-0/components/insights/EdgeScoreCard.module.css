@@ -200,7 +200,7 @@
 
 @media (max-width: 640px) {
   .score,
-  .scoreNull {
+  .scoreDim {
     font-size: 44px;
   }
 }

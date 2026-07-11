@@ -20,7 +20,9 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import { timeAgo, formatET } from '../../../../utils/timeAgo'
+import { moneySigned, dateShort } from '../../../../lib/journal-2-0'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
+import useJ2Trades from '../../hooks/useJ2Trades'
 import useSyncTrust from '../../hooks/useSyncTrust'
 import styles from './SyncTrustCenter.module.css'
 
@@ -49,6 +51,12 @@ export default function SyncTrustCenter() {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
+  // Closed trades that feed the orphan reattach picker. The backend keys the
+  // reattach on the target `j2_trades` row UUID, which is surfaced nowhere else
+  // — so a picker of the user's real closed trades is the only operable control.
+  // Fetched unconditionally (stable hook order) even though only the orphan
+  // queue below consumes it.
+  const { trades } = useJ2Trades()
   const [logOpen, setLogOpen] = useState(false)
 
   // Global Constraint: hidden entirely for manual accounts. Use the robust
@@ -170,7 +178,7 @@ export default function SyncTrustCenter() {
             re-slice or a deleted trade). Reattach each to a trade to keep it.
           </p>
           {orphans.map((o) => (
-            <OrphanRow key={o.tradeRef} orphan={o} onReattach={reattach} />
+            <OrphanRow key={o.tradeRef} orphan={o} onReattach={reattach} trades={trades} />
           ))}
         </div>
       )}
@@ -187,20 +195,22 @@ function Stat({ label, value }) {
   )
 }
 
-function OrphanRow({ orphan, onReattach }) {
+function OrphanRow({ orphan, onReattach, trades }) {
+  // `target` holds the selected j2_trades row UUID (the option value).
   const [target, setTarget] = useState('')
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
+  // null → not yet done · 'reattached' → clean move · 'conflict' → screenshots
+  // moved but the target already had excursion data (honest, NOT a plain "✓").
+  const [outcome, setOutcome] = useState(null)
   const [err, setErr] = useState(null)
 
   const submit = async () => {
-    const id = target.trim()
-    if (!id || busy) return
+    if (!target || busy) return
     setBusy(true)
     setErr(null)
     try {
-      await onReattach(orphan.tradeRef, id)
-      setDone(true)
+      const res = await onReattach(orphan.tradeRef, target)
+      setOutcome(res?.excursionConflict === true ? 'conflict' : 'reattached')
     } catch (e) {
       setErr(String(e?.message || e))
     } finally {
@@ -208,30 +218,44 @@ function OrphanRow({ orphan, onReattach }) {
     }
   }
 
+  const closedTrades = Array.isArray(trades) ? trades : []
+
   return (
     <div className={styles.orphanRow}>
       <div className={styles.orphanMain}>
         <span className={styles.orphanSummary}>{orphan.summary || orphan.tradeRef}</span>
         {orphan.kind && <span className={styles.orphanKind}>{orphan.kind}</span>}
       </div>
-      {done ? (
+      {outcome === 'conflict' ? (
+        <span className={styles.orphanDone}>
+          Screenshots moved. This trade already has excursion data, so that was left in place.
+        </span>
+      ) : outcome === 'reattached' ? (
         <span className={styles.orphanDone}>
           <span aria-hidden="true"><UIcon name="check" size={13} gold={false} /></span> Reattached
         </span>
       ) : (
         <div className={styles.orphanForm}>
-          <input
+          <select
             className={styles.orphanInput}
-            type="text"
-            placeholder="Target trade id"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            aria-label={`Reattach ${orphan.summary || orphan.tradeRef} to trade id`}
-          />
+            aria-label={`Reattach ${orphan.summary || orphan.tradeRef} to a trade`}
+          >
+            <option value="">Select a trade…</option>
+            {closedTrades.map((t) => {
+              const pnl = t.pnlDollarNet ?? t.pnlDollar
+              return (
+                <option key={t.id} value={t.id}>
+                  {`${t.symbol} · ${dateShort(t.exitDate)} · ${moneySigned(pnl)}`}
+                </option>
+              )
+            })}
+          </select>
           <button
             type="button"
             className={styles.orphanBtn}
-            disabled={!target.trim() || busy}
+            disabled={!target || busy}
             onClick={submit}
           >
             {busy ? 'Reattaching…' : 'Reattach'}
