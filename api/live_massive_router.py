@@ -2407,16 +2407,40 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         first_seen = _dates_sorted[0] if _dates_sorted else None
         day_hits = [{"date": d, "hits": g["dates"][d]} for d in _dates_sorted]
         is_multiday = days_active >= 2
-        # Accumulation SHAPE — the daily hit pattern matters more than the raw
-        # day count. Separates real builders from noise:
-        #   accelerating — latest day is the peak & above the first (ramping in)
-        #   steady       — sustained multi-day, not clearly accel/fade
-        #   fading       — big early, collapsed late (a one-day event, not a build)
-        #   incidental   — 1-2/day trickle, no real concentration (drop these)
-        #   single       — one day only
+
+        # Intraday density (BBS Rapid Fire / Swift / Steady model): how hard was
+        # the strike hammered in a short window on its busiest stretch? Uses the
+        # per-print timestamps + prices already collected. swift_hits = most
+        # qualifying prints inside any 5-min window; steady_hits = 60-min window;
+        # burst_rising = did the fill price climb across that burst (the BBS tell
+        # that it's aggressive accumulation, not churn). peak_intraday_hits = the
+        # busiest single day. An intraday burst is a signal even on ONE day.
+        _qual_prints = sorted(
+            [p for p in g["prints"] if (p.get("premium") or 0) >= floor and p.get("timestamp")],
+            key=lambda p: p["timestamp"],
+        )
+        peak_intraday_hits = max(g["dates"].values()) if g["dates"] else 0
+        swift_hits, steady_hits, burst_rising = 1, 1, False
+        if len(_qual_prints) >= 2:
+            _ts = [p["timestamp"] for p in _qual_prints]
+            _px = [p.get("price") or 0 for p in _qual_prints]
+            for i in range(len(_ts)):
+                j5 = j60 = i
+                while j5 + 1 < len(_ts) and _ts[j5 + 1] - _ts[i] <= 300:
+                    j5 += 1
+                while j60 + 1 < len(_ts) and _ts[j60 + 1] - _ts[i] <= 3600:
+                    j60 += 1
+                if (j5 - i + 1) > swift_hits:
+                    swift_hits = j5 - i + 1
+                    burst_rising = _px[j5] > _px[i]
+                steady_hits = max(steady_hits, j60 - i + 1)
+        is_intraday_burst = swift_hits >= 4  # >=4 qualifying prints within 5 min
+
+        # Accumulation SHAPE. Multi-day shape from the daily pattern; single-day
+        # contracts that were hammered intraday get their own "intraday_burst".
         _h = [x["hits"] for x in day_hits]
         if days_active < 2:
-            accumulation_shape = "single"
+            accumulation_shape = "intraday_burst" if is_intraday_burst else "single"
         else:
             _peak = max(_h); _first = _h[0]; _last = _h[-1]; _tot = sum(_h)
             if _peak <= 2 and _tot <= days_active * 2:
@@ -2427,10 +2451,13 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                 accumulation_shape = "accelerating"
             else:
                 accumulation_shape = "steady"
-        # Score factor by shape: reward accelerating multi-day builds, keep steady
-        # neutral-ish, and push fading/incidental DOWN so they don't crowd the top.
-        _shape_factor = {"accelerating": 1.6, "steady": 1.2, "single": 1.0,
-                         "fading": 0.6, "incidental": 0.4}.get(accumulation_shape, 1.0)
+        # Score factor by shape. Intraday burst ranks alongside accelerating —
+        # a strike being hammered today is a strong immediate signal.
+        _shape_factor = {"accelerating": 1.6, "intraday_burst": 1.5, "steady": 1.2,
+                         "single": 1.0, "fading": 0.6, "incidental": 0.4}.get(accumulation_shape, 1.0)
+        # Extra nudge if the intraday burst had price rising (BBS Swift tell).
+        if is_intraday_burst and burst_rising:
+            _shape_factor *= 1.15
         score = int(qual * g["total_premium"] * (0.5 + 0.5 * consistency)
                     * voi_factor * _shape_factor * (2.0 if dormant else 1.0))
         out.append({
@@ -2441,6 +2468,9 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             "days_active": days_active, "first_seen": first_seen,
             "day_hits": day_hits, "is_multiday": is_multiday,
             "accumulation_shape": accumulation_shape,
+            "peak_intraday_hits": peak_intraday_hits, "swift_hits": swift_hits,
+            "steady_hits": steady_hits, "burst_rising": burst_rising,
+            "is_intraday_burst": is_intraday_burst,
             "total_floor": total_floor,
             "total_premium": round(g["total_premium"]), "total_volume": g["total_volume"],
             "bull_premium": round(bull), "bear_premium": round(bear),
