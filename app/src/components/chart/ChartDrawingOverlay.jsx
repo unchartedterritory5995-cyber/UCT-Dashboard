@@ -649,6 +649,11 @@ export default function ChartDrawingOverlay({
   const longPressRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
   const [hoverDrawingId, setHoverDrawingId] = useState(null)
+  // Direct-manipulation: true when the mouse is over a drawing while NO tool is
+  // armed. Flips the transparent overlay to interactive JUST for that moment so a
+  // drawing can be grabbed / moved / reshaped / right-clicked without first
+  // arming the cursor tool. Empty space keeps the overlay transparent (chart pans).
+  const [hoverActive, setHoverActive] = useState(false)
 
   // ── Time → bar index lookup ──
   const timeToIndex = useMemo(() => {
@@ -1156,6 +1161,72 @@ export default function ChartDrawingOverlay({
     return null
   }, [selectedId, drawings, resolvePixels])
 
+  // ── Latest-value refs for the long-lived native listeners below ──
+  // (window/canvas listeners are attached once with []; read live state via refs
+  // so they never see a stale hit-test / tool / drag snapshot.)
+  const hitTestAllRef = useRef(hitTestAll); hitTestAllRef.current = hitTestAll
+  const hitTestHandleRef = useRef(hitTestHandle); hitTestHandleRef.current = hitTestHandle
+  const hoverGuardRef = useRef(null)
+  hoverGuardRef.current = { activeTool, isDragging, selectedId }
+
+  // ── Direct-manipulation hover (mouse only) ──
+  // With NO tool armed the overlay canvas is pointer-transparent so the chart owns
+  // pan/zoom. Here we watch the mouse (events bubble up through the transparent
+  // canvas to its wrapper) and, when it's over a drawing, set hoverActive → the
+  // overlay becomes interactive for that spot only. Touch has no hover, so those
+  // devices stay on the existing tool-armed path (deferred follow-up).
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const wrapper = canvas?.parentElement
+    if (!wrapper) return
+    const hasHover = window.matchMedia?.('(hover: hover)')?.matches
+    if (!hasHover) return
+    const onMove = (e) => {
+      const g = hoverGuardRef.current
+      // A tool is armed → overlay already interactive; mid-drag → don't re-hit-test
+      // (would fight the drag and could flip pointerEvents out from under it).
+      if (g.activeTool || g.isDragging) return
+      const rect = canvas.getBoundingClientRect()
+      const x = e.clientX - rect.left, y = e.clientY - rect.top
+      let id = null, onHandle = false
+      if (g.selectedId) {
+        const hh = hitTestHandleRef.current(x, y)
+        if (hh) { onHandle = true; id = hh.drawingId }
+      }
+      if (!id) id = hitTestAllRef.current(x, y)
+      setHoverActive(!!id)
+      setHoverDrawingId(id ? (onHandle ? '__handle__' : id) : null)
+    }
+    const onLeave = () => { setHoverActive(false); setHoverDrawingId(null) }
+    wrapper.addEventListener('mousemove', onMove)
+    wrapper.addEventListener('mouseleave', onLeave)
+    return () => {
+      wrapper.removeEventListener('mousemove', onMove)
+      wrapper.removeEventListener('mouseleave', onLeave)
+    }
+  }, [])
+
+  // ── Native right-click on a drawing ──
+  // Attached directly to the canvas so it fires DURING bubble BEFORE the chart
+  // container's own native `contextmenu` listener (which opens the big chart
+  // settings menu). stopPropagation there keeps that menu from also opening — but
+  // ONLY when the cursor is over a drawing; empty space falls through to the chart.
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const onCtx = (e) => {
+      const rect = canvas.getBoundingClientRect()
+      const hitId = hitTestAllRef.current(e.clientX - rect.left, e.clientY - rect.top)
+      if (!hitId) return   // not on a drawing → let the chart's menu handle it
+      e.preventDefault()
+      e.stopPropagation()
+      setSelectedId(hitId)
+      setCtxMenu({ x: e.clientX, y: e.clientY, drawingId: hitId })
+    }
+    canvas.addEventListener('contextmenu', onCtx)
+    return () => canvas.removeEventListener('contextmenu', onCtx)
+  }, [setSelectedId])
+
   // ── Mouse handlers ──
   const handlePointerDown = useCallback((e) => {
     // Right mouse button is the context-menu path, not draw/drag.
@@ -1193,7 +1264,10 @@ export default function ChartDrawingOverlay({
     const coords = snap(toChart(pos.x, pos.y))
 
     // ── CURSOR MODE: select + drag ──
-    if (activeTool === 'cursor') {
+    // Also the implicit no-tool case: the overlay only receives this pointerdown
+    // (pointerEvents flipped to 'auto') because the mouse is hovering a drawing,
+    // so treat it exactly like cursor mode — grab/reshape without arming a tool.
+    if (activeTool === 'cursor' || (!activeTool && hoverActive)) {
       // Check handle drag first (move individual control point)
       const handle = hitTestHandle(pos.x, pos.y)
       if (handle) {
@@ -1293,7 +1367,7 @@ export default function ChartDrawingOverlay({
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging])
+  }, [activeTool, hoverActive, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging])
 
   const handlePointerMove = useCallback((e) => {
     const pos = getCanvasPos(e)
@@ -1422,6 +1496,7 @@ export default function ChartDrawingOverlay({
     dragRef.current = null
     setIsDragging(false)
     setHoverDrawingId(null)
+    setHoverActive(false)
   }, [activeTool])
 
   // ── Text input submit ──
@@ -1441,7 +1516,9 @@ export default function ChartDrawingOverlay({
 
   // ── Determine cursor ──
   const isDrawingTool = activeTool && activeTool !== 'cursor'
-  const canvasPointerEvents = activeTool ? 'auto' : 'none'
+  // Interactive when a tool is armed OR the mouse is hovering a drawing (no-tool
+  // direct manipulation). Transparent otherwise so the chart keeps pan/zoom.
+  const canvasPointerEvents = (activeTool || hoverActive) ? 'auto' : 'none'
   // When a tool is armed the overlay owns touch input (so taps/drags aren't
   // hijacked by browser scroll/zoom). When no tool is armed the overlay is
   // transparent (pointerEvents:none) and the chart keeps its native pinch/pan.
@@ -1452,19 +1529,6 @@ export default function ChartDrawingOverlay({
   else if (hoverDrawingId === '__handle__') canvasCursor = 'grab'
   else if (hoverDrawingId) canvasCursor = 'move'
   else if (activeTool === 'cursor') canvasCursor = 'default'
-
-  // ── Right-click context menu ──
-  const handleContextMenu = useCallback((e) => {
-    const pos = getCanvasPos(e)
-    if (!pos) return
-    const hitId = hitTestAll(pos.x, pos.y)
-    if (hitId) {
-      e.preventDefault()
-      e.stopPropagation()
-      setSelectedId(hitId)
-      setCtxMenu({ x: e.clientX, y: e.clientY, drawingId: hitId })
-    }
-  }, [hitTestAll, setSelectedId])
 
   // Close context menu on any click/tap (pointerdown covers touch + mouse)
   useEffect(() => {
@@ -1490,7 +1554,6 @@ export default function ChartDrawingOverlay({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onContextMenu={handleContextMenu}
         onPointerLeave={() => {
           if (!isDragging) { setMouseCoords(null); setHoverDrawingId(null) }
           requestRedraw()
