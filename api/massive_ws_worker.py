@@ -38,6 +38,7 @@ import time
 import asyncio
 import threading
 import logging
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, date, timedelta
 from io import StringIO
@@ -154,6 +155,13 @@ _state = {
     "last_side_classified_nbbo": 0,  # Phase 2h: subset classified via NBBO
     "last_side_classified_tick": 0,  # Phase 2h: subset classified via tick test
     "last_side_no_signal": 0,        # Phase 2h: events with no NBBO+no tick history
+    # Subscribe-lag recovery (2026-07-11): fast-path subscribe + post-NBBO
+    # reclassification. Success = reclassified_total climbing during RTH while
+    # last_side_classified_tick / no_signal shrink on first-burst contracts.
+    "reclassify_buffer_size": 0,     # tick/empty prints currently buffered for retry
+    "reclassified_total": 0,         # cumulative rows whose Side was recovered via NBBO re-pass
+    "last_reclassify_count": 0,      # rows recovered in the most recent re-pass
+    "fast_path_subscribes": 0,       # cumulative new contracts fast-path-subscribed on first big print
     # Phase 2f: on-demand OI fetch via Schwab
     "oi_fetch_queue_size": 0,        # contracts pending on-demand fetch
     "oi_fetch_batches_sent": 0,      # cumulative Schwab batch calls
@@ -244,6 +252,137 @@ MAX_Q_SUBSCRIPTIONS = 950
 # fall through to tick-test (or stay unclassified). This is the right
 # tradeoff: lower classification rate, but the ones we classify are right.
 NBBO_STALENESS_NS = 5_000_000_000  # 5s -- tightened from 60s in Phase 1 audit
+
+
+# ── Subscribe-lag recovery (2026-07-11) ────────────────────────────
+# A brand-new contract subscribes to Q only AFTER it emits an event, and the
+# subscribe fires on the manager's 5s cadence -- so its FIRST burst (usually the
+# accumulation start, the prints that matter most) is classified with no NBBO.
+# Those prints fall to the tick test, which inverts in a fast tape (it only knows
+# "printed below the last trade", not "above the ask"), or stay empty. Two fixes:
+#
+#   1. Fast-path subscribe: when an unsubscribed contract's print clears a
+#      premium bar, wake the subscription manager immediately instead of waiting
+#      up to 5s, so NBBO starts flowing ASAP and the rest of the burst gets
+#      Tier-1 classified. Rides the SAME 950-cap eviction path, so it adds no
+#      pool pressure -- it only reduces latency.
+#   2. Post-NBBO reclassification: buffer each tick/empty print, and once its
+#      NBBO history has filled in, re-run _classify_side over it and overwrite
+#      the already-written flow.db row IN PLACE (the live tape polls flow.db, so
+#      a DB update propagates everywhere on the next poll -- no SSE correction).
+#      Idempotent + only overwrites tick/empty sides, never an NBBO one.
+RECLASSIFY_ENABLED = os.environ.get("MASSIVE_RECLASSIFY_ENABLED", "1") == "1"
+FAST_PATH_ENABLED = os.environ.get("MASSIVE_FAST_PATH_ENABLED", "1") == "1"
+# Premium bar a NEW contract's print must clear to fast-path its subscribe.
+# Well above MIN_PREMIUM ($10K) so only genuine institutional first-prints wake
+# the manager early -- a busy open shouldn't fast-path everything.
+FAST_PATH_PREMIUM = float(os.environ.get("MASSIVE_FAST_PATH_PREMIUM", "50000"))
+# How often the reclassification re-pass runs. Short enough to recover within
+# the NBBO lag window (a few seconds after fast-path subscribe fills NBBO).
+RECLASSIFY_INTERVAL_SEC = float(os.environ.get("MASSIVE_RECLASSIFY_INTERVAL", "3.0"))
+# Bounded, memory-only buffer of tick/empty prints awaiting NBBO. Each entry is
+# a dict(dedup_key, sym, ts_ns, avg_price, side, buffered_at). Near-real-time
+# recovery within the lag window -- NOT an EOD batch. Prints whose NBBO never
+# arrives expire silently (best-effort, expected). Bound + TTL keep it small.
+_RECLASSIFY_BUFFER: deque = deque()
+_RECLASSIFY_BUFFER_MAX = int(os.environ.get("MASSIVE_RECLASSIFY_BUFFER_MAX", "5000"))
+_RECLASSIFY_TTL_SEC = float(os.environ.get("MASSIVE_RECLASSIFY_TTL", "60"))
+# Set by _queue_q_subscriptions_for_events (on the loop) to wake the subscription
+# manager for a fast-path subscribe. Created in _run_session on the consumer loop.
+_fast_path_event = None
+
+
+def _event_dedup_key(evt, source: str) -> str:
+    """Rebuild the exact flow.db dedup_key that _write_events will store for this
+    event, so post-NBBO reclassification can UPDATE that row later.
+
+    Reuses the SAME two functions the write path uses -- event_to_bbs_row (which
+    formats every field as a string) + FlowDB._make_dedup_key -- so the key is
+    byte-identical by construction. The dedup key is built only from
+    evt-derived fields (date/time/symbol/type/volume/price/cp/strike/expiry/
+    premium) and EXCLUDES Side, so enrichment args don't affect it.
+    """
+    from api.massive_processor import event_to_bbs_row
+    from api.flow_db import FlowDB
+    row = event_to_bbs_row(evt, source=source)
+    return FlowDB._make_dedup_key(row, source)
+
+
+def _buffer_prints_for_reclassify(events: list) -> None:
+    """Queue tick/empty-classified prints for the post-NBBO re-pass.
+
+    Only events whose side was set by the tick test or left unclassified are
+    eligible -- an NBBO ("nbbo") side is ground truth and never re-touched.
+    Called at the end of _classify_events_side, on the consumer loop (pure
+    string work, no I/O).
+    """
+    if not RECLASSIFY_ENABLED:
+        return
+    from api.massive_processor import is_index_source
+    now = time.time()
+    for evt in events:
+        if getattr(evt, "side_method", "") not in ("tick", "none"):
+            continue
+        source = "indexes" if is_index_source(evt.root) else "stocks"
+        try:
+            key = _event_dedup_key(evt, source)
+        except Exception:
+            continue  # never let key-building break classification
+        _RECLASSIFY_BUFFER.append({
+            "dedup_key": key,
+            "sym": _reconstruct_occ_symbol(evt.root, evt.expiry, evt.cp, evt.strike),
+            "ts_ns": evt.first_ts_ns,
+            "avg_price": evt.avg_price,
+            "side": evt.side,          # the tick/empty value we wrote; the UPDATE guard
+            "buffered_at": now,
+        })
+    # Bound memory: drop oldest (least likely to still recover) beyond the cap.
+    over = len(_RECLASSIFY_BUFFER) - _RECLASSIFY_BUFFER_MAX
+    if over > 0:
+        for _ in range(over):
+            _RECLASSIFY_BUFFER.popleft()
+    _state["reclassify_buffer_size"] = len(_RECLASSIFY_BUFFER)
+
+
+def _collect_reclassifications(now: float) -> list:
+    """Walk the reclassify buffer once: recover the sides whose NBBO has filled
+    in, expire the ones past TTL, and re-queue the rest for a later pass.
+
+    Returns a list of (dedup_key, new_side, old_side) updates ready to apply.
+    Pure CPU + in-memory (reads _NBBO_HISTORY via _nbbo_at); no I/O, no awaits,
+    so callers can treat the buffer as consistent across the walk. Extracted
+    from reclassify_manager so the recovery logic is unit-testable.
+    """
+    updates = []
+    keep = deque()
+    while _RECLASSIFY_BUFFER:
+        e = _RECLASSIFY_BUFFER.popleft()
+        if now - e["buffered_at"] > _RECLASSIFY_TTL_SEC:
+            continue  # aged out -- NBBO never arrived; leave the row as-is
+        nbbo = _nbbo_at(e["sym"], e["ts_ns"])
+        if nbbo:
+            bid, ask, nbbo_ts_ns = nbbo
+            age = e["ts_ns"] - nbbo_ts_ns  # >= 0 (_nbbo_at filters)
+            if age <= NBBO_STALENESS_NS:
+                new_side = _classify_side(
+                    e["avg_price"], (bid, ask, nbbo_ts_ns // 1_000_000))
+                if new_side and new_side != e["side"]:
+                    updates.append((e["dedup_key"], new_side, e["side"]))
+                    continue  # recovered -- drop from buffer
+        keep.append(e)  # NBBO not ready yet -- retry next cycle (until TTL)
+    _RECLASSIFY_BUFFER.extend(keep)
+    _state["reclassify_buffer_size"] = len(_RECLASSIFY_BUFFER)
+    return updates
+
+
+def _apply_reclassifications(updates: list) -> int:
+    """Apply a batch of Side reclassifications to flow.db. Runs on the shared
+    single-worker _WRITE_EXECUTOR (never concurrent with the insert path).
+    Returns the number of rows actually updated."""
+    if not updates:
+        return 0
+    from api.flow_db import FlowDB
+    return FlowDB().update_sides_by_dedup(updates)
 
 
 def _classify_side(trade_price: float, nbbo: tuple) -> str:
@@ -627,6 +766,9 @@ def _classify_events_side(events: list) -> None:
     events = sorted(events, key=lambda e: e.first_ts_ns)
 
     for evt in events:
+        # Default classification method; overwritten to "nbbo"/"tick" on success.
+        # Left as "none" => no NBBO and no tick signal (eligible for the re-pass).
+        evt.side_method = "none"
         sym = _reconstruct_occ_symbol(evt.root, evt.expiry, evt.cp, evt.strike)
         if sym in _q_subscribed:
             in_pool += 1
@@ -651,6 +793,7 @@ def _classify_events_side(events: list) -> None:
                 side = _classify_side(evt.avg_price, (bid, ask, nbbo_ts_ns // 1_000_000))
                 if side:
                     evt.side = side
+                    evt.side_method = "nbbo"
                     classified += 1
                     classified_nbbo += 1
                     nbbo_classified = True
@@ -670,6 +813,9 @@ def _classify_events_side(events: list) -> None:
                     # Restored: mid-market stays as no-side (empty string).
                     # Cost: lower classification rate. Benefit: no manufactured
                     # direction from neutral trades.
+                    # NBBO said "no aggressor" -- a ground-truth empty. Tag it
+                    # "nbbo" so post-NBBO reclassification never overwrites it.
+                    evt.side_method = "nbbo"
                     nbbo_classified = True
 
         # ====== TIER 2: Tick test fallback ======
@@ -709,15 +855,15 @@ def _classify_events_side(events: list) -> None:
                     # Tick test now produces A/B only. NBBO path retains
                     # the full AA/A/B/BB vocabulary.
                     if diff_pct > 0.5:
-                        evt.side = "A"; classified += 1; classified_tick += 1
+                        evt.side = "A"; evt.side_method = "tick"; classified += 1; classified_tick += 1
                     elif diff_pct < -0.5:
-                        evt.side = "B"; classified += 1; classified_tick += 1
+                        evt.side = "B"; evt.side_method = "tick"; classified += 1; classified_tick += 1
                     elif prev_diff_price is not None and prev_diff_price > 0:
                         # zero-tick: use direction of last differing price
                         if last_price > prev_diff_price:
-                            evt.side = "A"; classified += 1; classified_tick += 1
+                            evt.side = "A"; evt.side_method = "tick"; classified += 1; classified_tick += 1
                         elif last_price < prev_diff_price:
-                            evt.side = "B"; classified += 1; classified_tick += 1
+                            evt.side = "B"; evt.side_method = "tick"; classified += 1; classified_tick += 1
                         else:
                             no_signal += 1
                     else:
@@ -748,6 +894,10 @@ def _classify_events_side(events: list) -> None:
     _state["last_side_no_signal"] = no_signal
     _state["last_side_sample_misses"] = sample_misses
 
+    # Subscribe-lag recovery: queue the tick/empty prints so the reclassify
+    # re-pass can upgrade their Side once NBBO fills in for the contract.
+    _buffer_prints_for_reclassify(events)
+
 
 def _queue_q_subscriptions_for_events(events: list) -> None:
     """Phase 2c: enqueue Q subscriptions for contracts that emitted events
@@ -767,22 +917,33 @@ def _queue_q_subscriptions_for_events(events: list) -> None:
     The actual subscribe/unsubscribe WS messages are sent by the
     q_subscription_manager task on its 5-second cadence -- we just queue
     here so we don't block the flusher on network I/O.
+
+    Fast-path (2026-07-11): when a NEW contract's print clears FAST_PATH_PREMIUM
+    we still queue it the same way (same 950-cap eviction, no pool pressure), but
+    signal the manager to drain NOW instead of on its 5s tick -- so NBBO starts
+    flowing within ~1 tick and the rest of that first burst gets Tier-1 classified.
     """
+    fast_path_wanted = False  # a big NEW contract was queued this flush
     for evt in events:
         sym = _reconstruct_occ_symbol(evt.root, evt.expiry, evt.cp, evt.strike)
+        try:
+            premium_i = int(evt.premium or 0)
+        except (TypeError, ValueError):
+            premium_i = 0
         # Track cumulative premium for every emitted event, whether the
         # contract is already subscribed or not. This keeps eviction priority
         # in sync with actual institutional-flow value across the session.
-        try:
-            _q_cumulative_premium[sym] = _q_cumulative_premium.get(sym, 0) + int(evt.premium or 0)
-        except (TypeError, ValueError):
-            pass
+        _q_cumulative_premium[sym] = _q_cumulative_premium.get(sym, 0) + premium_i
         # Already subscribed (or pending) -- nothing more to do
         if sym in _q_subscribed or sym in _q_pending_subscribe:
             continue
+        is_big = FAST_PATH_ENABLED and premium_i >= FAST_PATH_PREMIUM
         # Room in the pool -- queue subscribe directly
         if len(_q_subscribed) + len(_q_pending_subscribe) < MAX_Q_SUBSCRIPTIONS:
             _q_pending_subscribe.append(sym)
+            if is_big:
+                fast_path_wanted = True
+                _state["fast_path_subscribes"] += 1
             continue
         # Pool full -- evict lowest-premium contract (recency tiebreaker)
         # that isn't itself pending eviction. This preserves NBBO coverage
@@ -799,6 +960,16 @@ def _queue_q_subscriptions_for_events(events: list) -> None:
         evict_sym = candidates[0][0]
         _q_pending_unsubscribe.append(evict_sym)
         _q_pending_subscribe.append(sym)
+        if is_big:
+            fast_path_wanted = True
+            _state["fast_path_subscribes"] += 1
+
+    # Wake the subscription manager immediately for a big new contract so its
+    # NBBO starts flowing ASAP (else it waits up to the 5s cadence). Idempotent
+    # -- the manager clears the event when it drains. Loop-safe: this runs in the
+    # flusher on the consumer loop, same loop that owns the Event.
+    if fast_path_wanted and _fast_path_event is not None:
+        _fast_path_event.set()
 
 
 def _build_warm_start_contracts(limit: int = 950) -> list:
@@ -1491,9 +1662,15 @@ async def _consume_forever():
 
 async def _run_session(ws):
     """Handle one connected session: parse trades, periodic flush, Q subscription pool."""
+    global _fast_path_event
     from api.massive_processor import TradeAggregator, RawTrade
 
     agg = TradeAggregator(min_premium=MIN_PREMIUM, min_volume=MIN_VOLUME)
+
+    # Fast-path subscribe signal -- created fresh on the consumer loop each
+    # session so _queue_q_subscriptions_for_events can wake q_subscription_manager
+    # the moment a big new contract needs NBBO. (Set-then-clear; loop-owned.)
+    _fast_path_event = asyncio.Event()
 
     # Phase 2c: clear NBBO/subscription state on each session. These don't
     # survive disconnects -- we rebuild over the first few minutes of trading
@@ -1544,6 +1721,13 @@ async def _run_session(ws):
     # the first events of the new session. Active contracts rebuild the
     # history within seconds as Q events stream in post-reconnect.
     _NBBO_HISTORY.clear()
+
+    # Subscribe-lag recovery: drop any prints still awaiting reclassification.
+    # Their NBBO history is gone (cleared above), so the re-pass could never
+    # recover them anyway -- clearing avoids carrying stale cross-session
+    # entries. Their flow.db rows persist with whatever Side they were written.
+    _RECLASSIFY_BUFFER.clear()
+    _state["reclassify_buffer_size"] = 0
 
     # Phase 2c.1: warm-start the Q subscription pool with historically-active
     # contracts BEFORE the message loop starts. Without this, the first
@@ -1680,17 +1864,30 @@ async def _run_session(ws):
         Batching avoids hammering Massive with one WS message per contract.
         Operations happen via the same WS connection that's serving T/Q --
         Massive's docs don't separate subscribe channels from data channels.
+
+        Fast-path (2026-07-11): also wakes early when _fast_path_event is set
+        (a big NEW contract needs NBBO now), so its first burst gets Tier-1
+        classified instead of waiting up to a full 5s cadence.
         """
         while not stop_event.is_set():
+            # Wake on the 5s cadence, OR immediately on stop / a fast-path signal.
+            stop_wait = asyncio.ensure_future(stop_event.wait())
+            fast_wait = asyncio.ensure_future(_fast_path_event.wait())
             try:
-                await asyncio.wait_for(stop_event.wait(), timeout=5.0)
-            except asyncio.TimeoutError:
-                pass
-            else:
+                done, pending = await asyncio.wait(
+                    {stop_wait, fast_wait}, timeout=5.0,
+                    return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                for t in (stop_wait, fast_wait):
+                    if not t.done():
+                        t.cancel()
+            if stop_event.is_set():
                 # Session tearing down: the socket is dying and Massive clears
                 # subscriptions on disconnect anyway. Skipping the final send
                 # keeps stop() teardown inside its 5s join budget.
                 break
+            # Consume the fast-path signal so it doesn't immediately re-fire.
+            _fast_path_event.clear()
             # Take a snapshot of pending lists, then clear them so the event
             # loop can continue queuing while we send.
             subs = _q_pending_subscribe[:]
@@ -2160,6 +2357,46 @@ async def _run_session(ws):
                 logger.warning("[massive-ws] q_pool_events flush failed "
                                "(%d events dropped): %s", len(batch), e)
 
+    async def reclassify_manager():
+        """Post-NBBO reclassification re-pass (2026-07-11).
+
+        Every RECLASSIFY_INTERVAL_SEC, walk the buffered tick/empty prints and,
+        for any whose NBBO history has since filled in, re-run _classify_side and
+        overwrite the flow.db row IN PLACE (via the shared single-writer executor,
+        so it never races the insert path). Only tick/empty sides are touched;
+        the UPDATE guards on the exact recorded side so it's idempotent and can
+        never clobber an NBBO one. Entries whose NBBO never arrives expire on TTL
+        (best-effort, expected). The live tape polls flow.db, so a corrected row
+        propagates to the tape + rollups + direction on the next poll -- no SSE
+        correction needed.
+        """
+        loop = asyncio.get_running_loop()
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(),
+                                       timeout=RECLASSIFY_INTERVAL_SEC)
+                break  # stop requested
+            except asyncio.TimeoutError:
+                pass
+            if not RECLASSIFY_ENABLED or not _RECLASSIFY_BUFFER:
+                _state["reclassify_buffer_size"] = len(_RECLASSIFY_BUFFER)
+                continue
+            # Drain-and-triage. No awaits inside _collect_reclassifications, so
+            # the flusher can't append mid-pass -- the buffer stays consistent.
+            updates = _collect_reclassifications(time.time())
+            if updates:
+                try:
+                    n = await loop.run_in_executor(
+                        _WRITE_EXECUTOR, _apply_reclassifications, updates)
+                    _state["reclassified_total"] += n
+                    _state["last_reclassify_count"] = n
+                    if n:
+                        logger.info("[massive-ws] reclassified %d side(s) "
+                                    "post-NBBO (of %d recovered this pass)",
+                                    n, len(updates))
+                except Exception as e:
+                    logger.warning("[massive-ws] reclassify apply failed: %s", e)
+
     flusher_task = asyncio.create_task(flusher())
     writer_task = asyncio.create_task(writer())
     q_mgr_task = asyncio.create_task(q_subscription_manager())
@@ -2167,6 +2404,7 @@ async def _run_session(ws):
     spot_mgr_task = asyncio.create_task(spot_fetch_manager())
     watchdog_task = asyncio.create_task(stale_connection_watchdog())
     q_log_flusher_task = asyncio.create_task(q_pool_log_flusher())
+    reclassify_task = asyncio.create_task(reclassify_manager())
 
     try:
         async for msg in ws:
@@ -2280,6 +2518,13 @@ async def _run_session(ws):
         try:
             q_log_flusher_task.cancel()
             await q_log_flusher_task
+        except (Exception, asyncio.CancelledError):
+            pass
+        try:
+            # Reclassify re-pass: wakes on stop_event within RECLASSIFY_INTERVAL_SEC;
+            # cancel to bound teardown (any un-applied recoveries are best-effort).
+            reclassify_task.cancel()
+            await reclassify_task
         except (Exception, asyncio.CancelledError):
             pass
         # Final flush so we don't lose the last few seconds on disconnect

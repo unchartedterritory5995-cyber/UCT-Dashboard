@@ -232,6 +232,36 @@ class FlowDB:
             "dates": sorted(dates_seen),
         }
 
+    def update_sides_by_dedup(self, updates: list) -> int:
+        """Reclassify Side in place for already-inserted rows (post-NBBO recovery).
+
+        `updates`: list of (dedup_key, new_side, only_if_side) tuples. Each row's
+        Side is overwritten ONLY when its stored value still equals
+        `only_if_side` — the tick/empty value the worker recorded at emit time.
+
+        This guard makes the update both idempotent (a second pass is a no-op)
+        and incapable of clobbering an NBBO-derived side: rows are write-once
+        (insert_csv skips duplicates), so a buffered tick/empty row's stored
+        Side is still exactly what we recorded, and an NBBO row's Side never
+        matches `only_if_side`. `dedup_key` is UNIQUE and excludes Side, so the
+        match targets exactly one row without disturbing the key.
+
+        Returns the number of rows actually updated.
+        """
+        if not updates:
+            return 0
+        n = 0
+        with self._conn() as conn:
+            for dedup_key, new_side, only_if_side in updates:
+                if not dedup_key or new_side == only_if_side:
+                    continue
+                cur = conn.execute(
+                    "UPDATE flow SET Side = ? WHERE dedup_key = ? AND Side = ?",
+                    (new_side, dedup_key, only_if_side),
+                )
+                n += cur.rowcount
+        return n
+
     # ── Streaming CSV (preferred for /api/flow/data) ────────────────────
 
     def stream_csv(self, source: str = "stocks", days: int | None = None):

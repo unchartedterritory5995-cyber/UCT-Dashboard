@@ -175,6 +175,14 @@ class AggEvent:
     n_prints: int
     type_: str         # SWEEP / BLOCK
     side: str          # A / B / AA / BB / "" (empty = MID or unknown)
+    # How `side` was assigned, set by _classify_events_side in massive_ws_worker:
+    #   "nbbo" = NBBO/Lee-Ready (ground truth, incl. a correct mid-market empty)
+    #   "tick" = tick-test fallback (A/B only — can invert in a fast tape)
+    #   "none" = no NBBO and no tick history (left empty)
+    #   ""     = not yet classified
+    # Drives post-NBBO reclassification: only "tick"/"none" rows are eligible to
+    # be overwritten once NBBO fills in; an "nbbo" side is never touched.
+    side_method: str = ""
 
 
 def parse_occ(ticker: str) -> Optional[dict]:
