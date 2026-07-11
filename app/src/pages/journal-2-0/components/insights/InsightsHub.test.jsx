@@ -32,9 +32,17 @@ vi.mock('../../hooks/useScope', () => ({
 vi.mock('./RegimeSection', () => ({
   default: () => <div>Regime mounted</div>,
 }))
+// P5 A9: Psychology is real when the `psychology` feature flag is on (default ON).
+// Same pattern as Regime — stub the section (covered by PsychologySection.test.jsx)
+// and let this shell test flip the flag to exercise real-vs-placeholder.
+vi.mock('./PsychologySection', () => ({
+  default: () => <div>Psychology mounted</div>,
+}))
 let regimeFlagOn = true
+let psychologyFlagOn = true
 vi.mock('../../featureFlags', () => ({
-  useFeatureFlag: (name) => (name === 'regime' ? regimeFlagOn : true),
+  useFeatureFlag: (name) =>
+    name === 'regime' ? regimeFlagOn : name === 'psychology' ? psychologyFlagOn : true,
 }))
 
 import InsightsHub from './InsightsHub'
@@ -69,6 +77,7 @@ const NAV_LABELS = ['Playbook', 'Exit Quality', 'Edge', 'Psychology', 'Regime']
 
 beforeEach(() => {
   regimeFlagOn = true
+  psychologyFlagOn = true
 })
 
 describe('InsightsHub — sub-nav shell', () => {
@@ -97,10 +106,20 @@ describe('InsightsHub — sub-nav shell', () => {
     expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
   })
 
-  it('Psychology shows a designed placeholder, not a chart', () => {
+  it('Psychology mounts the real PsychologySection when the flag is on (default)', () => {
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: 'Psychology' }))
+    expect(screen.getByText('Psychology mounted')).toBeInTheDocument()
+    // Not the coming-soon fallback when the flag is on.
+    expect(screen.queryByText(/Coming with the psychology release/i)).not.toBeInTheDocument()
+  })
+
+  it('Psychology falls back to the designed placeholder when the flag is off', () => {
+    psychologyFlagOn = false
     renderHub()
     fireEvent.click(screen.getByRole('button', { name: 'Psychology' }))
     expect(screen.getByText(/Coming with the psychology release/i)).toBeInTheDocument()
+    expect(screen.queryByText('Psychology mounted')).not.toBeInTheDocument()
     expect(screen.queryByTestId('echart')).not.toBeInTheDocument()
   })
 
