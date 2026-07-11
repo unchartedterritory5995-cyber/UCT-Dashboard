@@ -319,6 +319,21 @@ def get_post(post_id):
     return dict(row) if row else None
 
 
+def thread_space(thread_id):
+    """Cheap space lookup (for live-board broadcast keys) without loading posts."""
+    with closing(get_connection()) as conn:
+        row = conn.execute("SELECT space FROM threads WHERE id=?", (thread_id,)).fetchone()
+    return row["space"] if row else None
+
+
+def post_space(post_id):
+    with closing(get_connection()) as conn:
+        row = conn.execute(
+            "SELECT t.space FROM posts p JOIN threads t ON t.id=p.thread_id WHERE p.id=?",
+            (post_id,)).fetchone()
+    return row["space"] if row else None
+
+
 def create_post(thread_id, author_id, body, parent_post_id=None):
     now = _now()
     with _WRITE_LOCK, closing(get_connection()) as conn:

@@ -16,8 +16,23 @@ from api.middleware.auth_middleware import (
     require_admin,
 )
 from api.services import community_store as store
+from api import chat_stream as chat_hub
 
 router = APIRouter(prefix="/api/community", tags=["community"])
+
+
+def _broadcast_board(space, kind, thread_id=None):
+    """Push a lightweight 'something changed' ping to a Board's live room so open
+    clients revalidate instantly (the forum keeps its 20-30s SWR poll as fallback).
+    Best-effort — a broadcast failure never breaks a forum write."""
+    if not space:
+        return
+    try:
+        chat_hub.get_hub().broadcast(
+            f"board:{space}", "board_activity",
+            {"space": space, "kind": kind, "thread_id": thread_id})
+    except Exception:
+        pass
 
 MAX_BODY_BYTES = 50_000
 THREADS_PER_HOUR = int(os.environ.get("COMMUNITY_THREADS_PER_HOUR", "5"))
@@ -241,6 +256,7 @@ def create_thread(body: ThreadIn, user: dict = Depends(require_community)):
     tid = store.create_thread(
         body.space, user["id"], title, body=_validate_body(body.body),
         ticker_tags=[t.upper()[:8] for t in (body.ticker_tags or [])][:10])
+    _broadcast_board(body.space, "thread_created", tid)
     return {"id": tid}
 
 
@@ -256,6 +272,7 @@ def create_post(thread_id: int, body: PostIn, user: dict = Depends(require_commu
     except ValueError as e:
         code = {"no-thread": 404, "locked": 409, "bad-parent": 400}.get(str(e), 400)
         raise HTTPException(status_code=code, detail=str(e))
+    _broadcast_board(store.thread_space(thread_id), "post_created", thread_id)
     return {"id": pid}
 
 
@@ -268,6 +285,7 @@ def react(post_id: int, body: ReactionIn, user: dict = Depends(require_community
         on = store.toggle_reaction(post_id, user["id"], body.kind)
     except ValueError:
         raise HTTPException(status_code=400, detail="Unknown reaction")
+    _broadcast_board(store.post_space(post_id), "post_reaction")
     return {"on": on}
 
 
@@ -295,6 +313,7 @@ def delete_thread(thread_id: int, user: dict = Depends(require_community)):
     if t["author_id"] != user["id"] and not _is_mentor(user):
         raise HTTPException(status_code=403, detail="Not your thread")
     store.soft_delete_thread(thread_id)
+    _broadcast_board(t.get("space"), "thread_deleted", thread_id)
     return {"ok": True}
 
 
@@ -305,7 +324,9 @@ def delete_post(post_id: int, user: dict = Depends(require_community)):
         raise HTTPException(status_code=404, detail="Post not found")
     if p["author_id"] != user["id"] and not _is_mentor(user):
         raise HTTPException(status_code=403, detail="Not your post")
+    space = store.post_space(post_id)
     store.soft_delete_post(post_id)
+    _broadcast_board(space, "post_deleted", p.get("thread_id"))
     return {"ok": True}
 
 
@@ -319,6 +340,7 @@ def mod_thread(thread_id: int, body: ModIn, admin: dict = Depends(require_admin)
         value = getattr(body, field)
         if value is not None:
             store.set_thread_flag(thread_id, field, value)
+    _broadcast_board(store.thread_space(thread_id), "thread_mod", thread_id)
     return {"ok": True}
 
 
@@ -326,7 +348,9 @@ def mod_thread(thread_id: int, body: ModIn, admin: dict = Depends(require_admin)
 def highlight(post_id: int, body: HighlightIn, admin: dict = Depends(require_admin)):
     if not store.get_post(post_id):
         raise HTTPException(status_code=404, detail="Post not found")
+    space = store.post_space(post_id)
     store.set_highlight(post_id, body.value)
+    _broadcast_board(space, "post_highlight")
     return {"ok": True}
 
 

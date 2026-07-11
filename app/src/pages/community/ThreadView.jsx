@@ -5,6 +5,7 @@ import Composer from './Composer'
 import { useThread, useCommunityStatus, apiCall } from './hooks/useCommunity'
 import { renderBodyHTML } from './lib/renderBody'
 import { useAuth } from '../../context/AuthContext'
+import { subscribeBoardActivity } from '../../lib/chatStreamManager'
 import styles from './Community.module.css'
 
 // Icon names come from the UIcon registry (never emoji): `flame` added for
@@ -94,6 +95,14 @@ export default function ThreadView({ threadId }) {
   const { user } = useAuth()
   const meId = user?.id
   const [replyTo, setReplyTo] = useState(null)
+
+  // Live Boards: revalidate this thread the instant a reply/reaction/mod lands on it.
+  useEffect(() => {
+    const tid = Number(threadId)
+    return subscribeBoardActivity((p) => {
+      if (p.thread_id === tid || (thread?.space && p.space === thread.space)) mutate()
+    })
+  }, [threadId, thread?.space, mutate])
 
   // mark read once loaded
   useEffect(() => {

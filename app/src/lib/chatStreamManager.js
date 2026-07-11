@@ -28,6 +28,7 @@ const EMPTY = Object.freeze({ messages: [], presence: { count: 0, users: [] }, t
 const store = new Map() // slug -> { messages, presence, typing:{}, snap }
 const subs = new Map()  // slug -> Set(cb)
 const metaSubs = new Set()
+const boardListeners = new Set() // cb({space, kind, thread_id}) — live Boards
 const meta = { connected: false, reconnecting: false, capacity: false, _snap: null }
 
 let tmpSeq = 0
@@ -137,6 +138,8 @@ function onEvent(name, data) {
     const s = slot(slug)
     s.typing[payload.user_id] = { ts: Date.now(), name: payload.name || 'member' }
     bump(slug)
+  } else if (name === 'board_activity') {
+    boardListeners.forEach((cb) => { try { cb(payload) } catch (_) {} })
   }
 }
 
@@ -150,7 +153,7 @@ function open() {
   const url = `/api/community/chat/stream?channels=${encodeURIComponent(channels.join(','))}`
   try { es = new EventSource(url, { withCredentials: true }) } catch (_) { return }
   const names = ['connected', 'message', 'message_edited', 'message_deleted', 'reaction',
-    'presence', 'typing', 'message_pinned', 'heartbeat']
+    'presence', 'typing', 'message_pinned', 'board_activity', 'heartbeat']
   es.onopen = () => {
     retry = RETRY_MIN
     meta.connected = true; meta.reconnecting = false; meta.capacity = false
@@ -198,12 +201,25 @@ async function jsend(url, body, method = 'POST') {
 
 export function ensureStarted(chs) {
   const list = (chs || []).filter(Boolean)
-  if (started) return
-  started = true
-  channels = list
-  // initial history load happens on first onopen via gapFill (before_id=null path)
-  channels.forEach((slug) => { slot(slug); loadInitial(slug) })
-  open()
+  const added = list.filter((c) => !channels.includes(c))
+  if (!added.length && started) return
+  channels = [...new Set([...channels, ...list])]
+  // Pulse channels load history; board:* rooms are activity-only (no chat messages).
+  added.forEach((slug) => { slot(slug); if (!slug.startsWith('board:')) loadInitial(slug) })
+  if (!started) {
+    started = true
+    open()
+  } else {
+    // New rooms added (mount-time only — channel SWITCHING never adds rooms, so it
+    // stays 0-reconnect). Re-establish the one pooled connection with the full set.
+    try { es && es.close() } catch (_) {}
+    open()
+  }
+}
+
+export function subscribeBoardActivity(cb) {
+  boardListeners.add(cb)
+  return () => boardListeners.delete(cb)
 }
 
 async function loadInitial(slug) {

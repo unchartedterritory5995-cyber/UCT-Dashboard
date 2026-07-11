@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import ThreadView from './ThreadView'
 import ChatView from './ChatView'
 import Composer from './Composer'
 import AckGate from './AckGate'
+import * as chat from '../../lib/chatStreamManager'
 import {
   useCommunityStatus, useSpaces, useThreads, useChatChannels, apiCall,
 } from './hooks/useCommunity'
@@ -38,6 +39,21 @@ export default function CommunityPage() {
   const [composing, setComposing] = useState(false)
   const [title, setTitle] = useState('')
   const [posting, setPosting] = useState(false)
+
+  // Live Boards: subscribe the pooled connection to every board room + pulse channel,
+  // and revalidate the visible thread list the instant a board event lands.
+  const liveRooms = useMemo(() => {
+    const pulse = (chan?.channels || []).map((c) => c.slug)
+    const boards = (spaces || []).map((s) => `board:${s.key}`)
+    return [...pulse, ...boards]
+  }, [chan, spaces])
+  useEffect(() => {
+    if (!chatOn || !liveRooms.length) return
+    chat.ensureStarted(liveRooms)
+    return chat.subscribeBoardActivity((p) => {
+      if (sel?.type === 'board' && sel.key === p.space) refreshThreads()
+    })
+  }, [chatOn, liveRooms, sel, refreshThreads])
 
   // Default selection: last channel (persisted) → first pulse channel → mentor-desk.
   useEffect(() => {
