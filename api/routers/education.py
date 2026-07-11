@@ -22,7 +22,7 @@ import os
 import re
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -34,6 +34,48 @@ from api.middleware.auth_middleware import (
 from api.services import education_service as svc
 
 router = APIRouter(prefix="/api/education", tags=["education"])
+
+
+# ── Library-wide insights backfill (PUSH_SECRET; used by the local caption
+#    fetcher — YouTube blocks caption scraping from cloud IPs, so cues are
+#    fetched + generated off-box and pushed here for storage). ────────────────────
+
+def require_push_secret(authorization: str = Header(default="")) -> None:
+    secret = os.environ.get("PUSH_SECRET", "")
+    token = authorization[7:] if authorization.lower().startswith("bearer ") else ""
+    if not secret or token != secret:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+class InsightsStoreIn(BaseModel):
+    transcript: Optional[str] = None
+    chapters: Optional[list] = None
+    ticker_moments: Optional[list] = None
+    headline: Optional[str] = None
+    summary: Optional[list] = None
+
+
+@router.get("/insights-backfill/pending")
+def insights_backfill_pending(limit: int = 1000, _: None = Depends(require_push_secret)):
+    """Videos still lacking AI insights (chapters) — the backfill work list."""
+    return {"videos": svc.videos_without_chapters(limit)}
+
+
+@router.post("/videos/{video_id}/insights-store")
+def insights_store(video_id: int, body: InsightsStoreIn, _: None = Depends(require_push_secret)):
+    """Store insights generated off-box for a library video. poster stays as-is
+    (educational videos have no session-recap poster)."""
+    svc.set_video_insights(
+        int(video_id),
+        transcript=body.transcript,
+        chapters=body.chapters,
+        ticker_moments=body.ticker_moments,
+        headline=body.headline,
+        summary=body.summary,
+    )
+    return {"ok": True,
+            "chapters": len(body.chapters or []),
+            "tickers": len(body.ticker_moments or [])}
 
 
 # ── Access: paid (pro/premium/lifetime) + admin ────────────────────────────────

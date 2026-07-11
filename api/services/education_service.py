@@ -436,6 +436,20 @@ def get_transcript_cues(video_id: int) -> list[dict]:
     return _parse_timestamped_block(row["transcript"])
 
 
+def videos_without_chapters(limit: int = 1000) -> list[dict]:
+    """Videos lacking generated chapters — targets for the library-wide insights
+    backfill (educational videos were never run through the Zoom pipeline). Newest
+    first so a fresh add is enriched first."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id, youtube_id, title FROM edu_videos "
+            "WHERE chapters IS NULL OR chapters = '' OR chapters = '[]' "
+            "ORDER BY id DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+    return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"]} for r in rows]
+
+
 def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
                        chapters: Optional[list] = None,
                        ticker_moments: Optional[list] = None,
