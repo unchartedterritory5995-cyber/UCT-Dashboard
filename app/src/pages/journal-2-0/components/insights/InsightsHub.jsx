@@ -117,7 +117,7 @@ export default function InsightsHub({ analytics }) {
         {active === 'edge' && <EdgeScoreCard edge={analytics?.edgeScore} />}
         {active === 'psychology' &&
           (psychologyOn ? (
-            <PsychologySection analytics={analytics} />
+            <PsychologySection analytics={analytics} accountId={accountId} />
           ) : (
             <ComingSoon
               icon="chat"

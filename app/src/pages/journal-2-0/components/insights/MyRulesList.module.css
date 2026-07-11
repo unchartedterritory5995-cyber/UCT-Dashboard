@@ -1,0 +1,93 @@
+/* MyRulesList — the "My rules" list under the Psychology panels (P6-6).
+   Matches the J2 insights idiom (bg-surface, --border, --ut-gold). */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-hover, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-bright);
+  line-height: 1.35;
+}
+
+.evidence {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dismiss {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.dismiss:hover {
+  color: var(--loss, #e74c3c);
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+.dismiss:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+
+.empty {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  font-style: italic;
+}

@@ -38,6 +38,8 @@ import { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfidenceStat from '../analytics/ConfidenceStat'
 import RapidTagFlow from '../psychology/RapidTagFlow'
+import MakeRuleButton from './MakeRuleButton'
+import MyRulesList from './MyRulesList'
 import styles from './PsychologySection.module.css'
 
 const CONF_MIN = 10 // canonical confidence threshold — win rate grayed below it
@@ -73,7 +75,7 @@ function saveDismissed(arr) {
   }
 }
 
-export default function PsychologySection({ analytics, onStartRapidTag }) {
+export default function PsychologySection({ analytics, accountId, onStartRapidTag }) {
   const [dismissed, setDismissed] = useState(loadDismissed)
   const [rapidTagOpen, setRapidTagOpen] = useState(false)
   const { mutate } = useSWRConfig()
@@ -123,11 +125,14 @@ export default function PsychologySection({ analytics, onStartRapidTag }) {
       {taggedTradeCount === 0 ? (
         <PitchCard onStart={startRapidTag} />
       ) : (
-        <div className={styles.panels}>
-          <EmotionPanel emotions={emotionOutcomes} />
-          <CostPanel cost={cost} />
-          <RevengePanel revenge={revenge} dismissed={dismissed} onDismiss={dismiss} />
-        </div>
+        <>
+          <div className={styles.panels}>
+            <EmotionPanel emotions={emotionOutcomes} />
+            <CostPanel cost={cost} accountId={accountId} />
+            <RevengePanel revenge={revenge} dismissed={dismissed} onDismiss={dismiss} />
+          </div>
+          <MyRulesList accountId={accountId} />
+        </>
       )}
 
       {rapidTagOpen && (
@@ -233,7 +238,7 @@ function EmotionRow({ e, maxAbs }) {
 
 // ── Panel 2: Cost of Mistakes ────────────────────────────────────────────────
 
-function CostPanel({ cost }) {
+function CostPanel({ cost, accountId }) {
   const total = typeof cost.total === 'number' ? cost.total : 0
   const byMistake = Array.isArray(cost.byMistake) ? cost.byMistake : []
   const bled = total < 0
@@ -270,6 +275,12 @@ function CostPanel({ cost }) {
                 <span className={styles.mistakeCount}>
                   {m.count} trade{m.count === 1 ? '' : 's'}
                 </span>
+                <MakeRuleButton
+                  mistake={m.mistake}
+                  count={m.count}
+                  total={m.total || 0}
+                  accountId={accountId}
+                />
               </div>
             ))}
           </div>

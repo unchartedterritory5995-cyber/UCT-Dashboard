@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 // PsychologySection is presentational — it reads `analytics.psychology` and
 // persists revenge dismissals to localStorage. No router, no hooks to mock.
@@ -162,6 +162,24 @@ describe('PsychologySection', () => {
     render(<PsychologySection analytics={{}} />)
     // Empty book → taggedTradeCount defaults to 0 → the pitch card.
     expect(screen.getByText(/tag your last 20 trades/i)).toBeInTheDocument()
+  })
+
+  it('shows a "Make this a rule" action on each mistake row when an account is set (P6-6)', async () => {
+    // With an accountId + the makeRule flag on (default), each cost-of-mistakes
+    // row carries the affordance; the "My rules" area appears below the panels.
+    renderSection({}, { accountId: 'acc1' })
+    const actions = screen.getAllByText(/make this a rule/i)
+    expect(actions.length).toBe(2) // one per mistake row (fomo, chasing)
+    // The co-located rules list (empty → its muted invitation) renders below.
+    expect(screen.getByText(/turn a recurring mistake into a rule above/i)).toBeInTheDocument()
+    // Flush the co-located rules GETs so their state updates settle in act.
+    await act(async () => {})
+  })
+
+  it('omits the Make-rule affordance when no account is selected', () => {
+    renderSection() // no accountId
+    expect(screen.queryByText(/make this a rule/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/turn a recurring mistake into a rule above/i)).not.toBeInTheDocument()
   })
 
   it('renders no emoji (all iconography via UIcon)', () => {

@@ -428,6 +428,10 @@
     flex-wrap: wrap;
     gap: 8px;
   }
+  /* let the Make-this-a-rule pill drop to a second line rather than crowd */
+  .mistakeRow {
+    flex-wrap: wrap;
+  }
   .emoLabel {
     flex: 1 1 100%;
   }
