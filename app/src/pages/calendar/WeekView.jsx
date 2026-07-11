@@ -7,12 +7,13 @@
 import { useMemo } from 'react'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
+import EarningsTile from './EarningsTile'
 import { applyFilters, sortEntries } from './filterLogic'
 import { impEff } from './importance'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
 import styles from './Calendar.module.css'
 
-const MAX_ROWS_PER_SESSION = 8
+const MAX_ROWS_PER_SESSION = 12
 
 function fmtCap(v) {
   if (v == null || v <= 0) return null
@@ -43,19 +44,21 @@ function WeekRow({ e, isFeatured, onSelect }) {
   )
 }
 
-function WeekSessionGroup({ label, icon, hdClass, rows, tiers, onSelect, onMore, moreCount }) {
+function WeekSessionGroup({ label, icon, hdClass, rows, onSelect, onMore, moreCount }) {
   // An empty session renders NOTHING — no header, no dash.
   if (!rows.length) return null
-  const isFeat = e => tiers && (tiers.mainEvent === e.sym || tiers.featured?.has(e.sym))
   return (
     <div className={styles.wgroup}>
       <div className={`${styles.wgroupHd} ${hdClass}`}>
         <span aria-hidden="true"><UIcon name={icon} size={12} /></span> {label}
         <span className={styles.timedCount}>{rows.length + moreCount}</span>
       </div>
-      {rows.map(e => (
-        <WeekRow key={`${e.sym}-${e._timing}`} e={e} isFeatured={isFeat(e)} onSelect={onSelect} />
-      ))}
+      {/* Big logo tiles in a grid — the EarningsHub look, not a tiny-icon list. */}
+      <div className={styles.wtileGrid}>
+        {rows.map(e => (
+          <EarningsTile key={`${e.sym}-${e._timing}`} e={e} onSelect={onSelect} size={50} />
+        ))}
+      </div>
       {moreCount > 0 && (
         <button className={styles.wMore} onClick={onMore}>+{moreCount} more</button>
       )}

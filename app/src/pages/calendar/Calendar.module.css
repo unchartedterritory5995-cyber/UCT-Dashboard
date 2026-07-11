@@ -272,6 +272,14 @@
   gap: 14px 10px;
   justify-content: start;
 }
+/* Week-column tile grid — fills the day column with big logo tiles (3-ish per
+   row), the EarningsHub look, instead of a tiny-icon list. */
+.wtileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 14px 6px;
+  padding: 4px 0 6px;
+}
 .etile {
   position: relative;
   display: flex;

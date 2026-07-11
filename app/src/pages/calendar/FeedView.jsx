@@ -6,6 +6,7 @@ import EarningsCard from './EarningsCard'
 import MainEventCard from './MainEventCard'
 import CalendarDayTable from './CalendarDayTable'
 import EventCard from './EventCard'
+import EarningsTile from './EarningsTile'
 import MacroBand from './MacroBand'
 import { applyFilters, sortEntries } from './filterLogic'
 import { impEff } from './importance'
@@ -21,38 +22,6 @@ const TILE_SESSIONS = [
   ['amc', 'After Close', 'moon'],
   ['tbd', 'Time TBD',    'clock'],
 ]
-
-function fmtTileCap(v) {
-  if (v == null || v <= 0) return null
-  return v >= 1000 ? `$${(v / 1000).toFixed(1)}T` : v >= 1 ? `$${Math.round(v)}B` : `$${Math.round(v * 1000)}M`
-}
-
-// The hero: a big logo tile + ticker + ONE signal. Click → detail modal.
-function EarningsTile({ e, onSelect }) {
-  const reported = e.eps_act != null
-  const surp = (reported && e.eps_est != null && e.eps_est !== 0)
-    ? ((e.eps_act - e.eps_est) / Math.abs(e.eps_est)) * 100 : null
-  const em = e.expected_move?.pct
-  return (
-    <button className={styles.etile} onClick={() => onSelect?.(e, e._timing)}
-            title={e.name ? `${e.sym} · ${e.name}` : e.sym}>
-      <span className={`${styles.etileLogo} ${e.mine ? styles.etileMine : ''}`}>
-        <CompanyLogo sym={e.sym} size={54} tile />
-        {e.mine && <span className={styles.etileStar}><UIcon name="star-fill" size={11} /></span>}
-      </span>
-      <span className={styles.etileSym}>{e.sym}</span>
-      {/* One signal, only when it means something — a reported beat/miss or the
-          options-implied move. No filler stat (cap etc.): logo + ticker is the
-          clean default, like the competitors. */}
-      {reported && surp != null
-        ? <span className={surp >= 0 ? styles.etileBeat : styles.etileMiss}>{surp >= 0 ? 'BEAT' : 'MISS'}</span>
-        : em != null
-          ? <span className={styles.etileEm}>±{em}%</span>
-          : null}
-      {e.name && <span className={styles.etileName}>{e.name}</span>}
-    </button>
-  )
-}
 
 function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay, pulse, tiers }) {
   // Memoize the session lists so the entries useMemo dep-check isn't always
