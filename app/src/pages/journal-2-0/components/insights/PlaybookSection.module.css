@@ -103,6 +103,16 @@
   min-width: 0;
 }
 
+/* ── Adhered-vs-broke-rules expectancy split (P5-A5) ───────────────────────── */
+
+.adhSplit {
+  margin-top: -2px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Last-five W/L/B strip ─────────────────────────────────────────────────── */
 
 .lastFive {

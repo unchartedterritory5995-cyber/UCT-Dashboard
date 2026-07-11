@@ -25,6 +25,18 @@ Design choices (documented for review):
     computed. Per the B1 default the raw mean is ALWAYS returned (None only when
     there is nothing to average) alongside `exitEffCoverage` {eligible, computed}
     so the frontend (B4 ConfidenceStat) — not the backend — decides when to gray.
+  * adherence = mean `j2_trade_adherence.adherence_pct` (P5-A5) joined by the
+    SAME stable `trade_ref` as the excursion join, over the setup's closed trades
+    that HAVE an adherence record. Expressed as a FRACTION 0..1 (identical unit to
+    `winRate`, so the frontend formats it with the same percent formatter). None
+    when no trade in the setup has a record. `adherenceCoverage` {eligible,
+    computed} mirrors `exitEffCoverage` exactly — `eligible` = the setup's closed
+    trades (== tradeCount), `computed` = how many had a record — so the frontend
+    coverage-gates it identically. `adherenceVsExpectancy` buckets the recorded
+    trades into adhered (adherence_pct >= 0.8) vs notAdhered (< 0.8) and reports
+    each bucket's expectancy in the SAME dollars-per-trade unit as the record's
+    `expectancy` (mean pnl_dollar); trades without a record are in NEITHER bucket,
+    and an empty bucket is {expectancy: None, n: 0} (never a fabricated split).
   * Confidence (n<10) is NOT hard-suppressed here: every computed number is
     returned with `tradeCount`; the frontend owns the n<10 shading (Global
     Constraint "Confidence threshold = 10 everywhere").
@@ -42,7 +54,7 @@ import sqlite3
 from typing import Any
 
 from api.services.auth_db import get_connection
-from api.services.journal_two import excursions_store
+from api.services.journal_two import adherence_store, excursions_store
 from api.services.journal_two.filters import FilterSpec, trades_where
 from api.services.journal_two.trade_refs import trade_ref_for_row
 
@@ -55,6 +67,10 @@ _NON_COMPUTED_DQ = ("underlying", "insufficient")
 
 # Display cap for profit factor — parity with `_edge_score` / the Edge scorecard.
 _PF_DISPLAY_CAP = 5.0
+
+# Adherence bucketing (P5-A5): a trade "adhered" to its setup's rules when it
+# followed at least 80% of the checklist. Below that it "broke rules".
+_ADHERED_THRESHOLD = 0.8
 
 
 def _profit_factor(pnls: list[float]) -> float | None:
@@ -117,13 +133,17 @@ def get_playbook_stats(
         # per-setup exit-efficiency join reads from this map.
         excursions_map = excursions_store.list_excursions_for_user(user_id, conn=conn)
 
+        # trade_ref → adherence dict (P5-A5) — fetched ONCE here (like the
+        # excursion map) and threaded into every per-setup record's join.
+        adherence_map = adherence_store.list_adherence_for_user(user_id, conn=conn)
+
         # Group the (already chronological) rows by setup, preserving order.
         by_setup: dict[str, list[sqlite3.Row]] = {}
         for r in rows:
             by_setup.setdefault(r["setup"], []).append(r)
 
         out = [
-            _setup_record(setup, setup_rows, excursions_map)
+            _setup_record(setup, setup_rows, excursions_map, adherence_map)
             for setup, setup_rows in by_setup.items()
         ]
         # Rank most-profitable first (mirrors attribution.bySetup ordering).
@@ -138,6 +158,7 @@ def _setup_record(
     setup: str,
     rows: list[sqlite3.Row],
     excursions_map: dict[str, dict],
+    adherence_map: dict[str, dict],
 ) -> dict[str, Any]:
     """Compute one setup's aggregate from its (chronological) trade rows."""
     pnls = [float(r["pnl_dollar"] or 0) for r in rows]
@@ -172,6 +193,40 @@ def _setup_record(
             effs.append(float(eff))
     exit_efficiency = round(sum(effs) / len(effs), 4) if effs else None
 
+    # ── Rule adherence (P5-A5) ────────────────────────────────────────────────
+    # Same join as exit-efficiency (stable trade_ref → adherence record). The
+    # coverage denominator MATCHES exitEffCoverage.eligible (== trade_count).
+    # `adherence` is a fraction 0..1 (same unit as win_rate). The adhered-vs-not
+    # split's expectancy uses the SAME per-trade mean-pnl_dollar unit as the
+    # record's `expectancy`; trades WITHOUT a record are in NEITHER bucket.
+    adh_eligible = trade_count
+    adh_computed = 0
+    adh_pcts: list[float] = []
+    adhered_pnls: list[float] = []
+    not_adhered_pnls: list[float] = []
+    for r in rows:
+        rec = adherence_map.get(trade_ref_for_row(r))
+        if rec is None:
+            continue
+        adh_computed += 1
+        pct = rec.get("adherencePct")
+        pct = 0.0 if pct is None else float(pct)  # store guarantees non-null
+        adh_pcts.append(pct)
+        pnl = float(r["pnl_dollar"] or 0)
+        if pct >= _ADHERED_THRESHOLD:
+            adhered_pnls.append(pnl)
+        else:
+            not_adhered_pnls.append(pnl)
+    adherence = round(sum(adh_pcts) / len(adh_pcts), 4) if adh_pcts else None
+
+    def _adh_bucket(bucket_pnls: list[float]) -> dict[str, Any]:
+        return {
+            "expectancy": (
+                round(sum(bucket_pnls) / len(bucket_pnls), 2) if bucket_pnls else None
+            ),
+            "n": len(bucket_pnls),
+        }
+
     last_five = [_RESULT_LETTER.get(r["result"], "?") for r in rows[-5:]]
 
     return {
@@ -189,5 +244,13 @@ def _setup_record(
         "totalPnlDollar": round(total_pnl, 2),
         "exitEfficiency": exit_efficiency,
         "exitEffCoverage": {"eligible": eligible, "computed": computed},
+        # Rule adherence (P5-A5) — fraction 0..1 (mean adherence_pct); None when
+        # no trade in the setup has a record. Coverage-gated like exit-eff.
+        "adherence": adherence,
+        "adherenceCoverage": {"eligible": adh_eligible, "computed": adh_computed},
+        "adherenceVsExpectancy": {
+            "adhered": _adh_bucket(adhered_pnls),
+            "notAdhered": _adh_bucket(not_adhered_pnls),
+        },
         "lastFive": last_five,
     }

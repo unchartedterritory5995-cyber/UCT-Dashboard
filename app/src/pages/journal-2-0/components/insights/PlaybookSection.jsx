@@ -150,6 +150,25 @@ function SetupCard({ s, onOpen }) {
   // clears the SAME gate the P2 Exit Quality tab uses. Below it, withhold the
   // number (value=null) so ConfidenceStat renders the honest dim "—" state.
   const exitEffOk = exitEffConfident(s.exitEffCoverage)
+  // Adherence (P5-A5) is coverage-gated IDENTICALLY to exit-efficiency (reuses
+  // the same `exitEffConfident` helper: computed >= 10 AND computed/eligible >=
+  // 0.9). Below it, or when computed === 0, the number is withheld (value=null →
+  // honest dim "—", never a misleading "0%").
+  const adhComputed = s.adherenceCoverage?.computed ?? 0
+  const adhOk = exitEffConfident(s.adherenceCoverage)
+  // Adhered-vs-broke-rules expectancy split — shown only when BOTH buckets have
+  // trades AND a value (no fake split). Expectancy formatted like the card's own
+  // Expectancy stat (fmtDollar).
+  const ave = s.adherenceVsExpectancy
+  const adhered = ave?.adhered
+  const broke = ave?.notAdhered
+  const showSplit =
+    !!adhered &&
+    !!broke &&
+    adhered.n > 0 &&
+    broke.n > 0 &&
+    adhered.expectancy != null &&
+    broke.expectancy != null
   const lastFive = Array.isArray(s.lastFive) ? s.lastFive : []
 
   return (
@@ -194,7 +213,28 @@ function SetupCard({ s, onOpen }) {
             label="Exit Eff."
           />
         </div>
+        <div className={styles.statCell}>
+          {/* Rule adherence — mean % of the setup's rules followed, over trades
+              that have an adherence record. Confidence keys off adherence COVERAGE
+              (records / eligible), gated exactly like Exit Eff.; below the gate or
+              at computed 0 the number is withheld (value=null → honest dim "—",
+              never "0%"). */}
+          <ConfidenceStat
+            value={adhOk ? s.adherence : null}
+            n={adhComputed}
+            min={CONF_MIN}
+            format={fmtPct}
+            label="Adherence"
+          />
+        </div>
       </div>
+
+      {showSplit && (
+        <div className={styles.adhSplit}>
+          Adhered exp {fmtDollar(adhered.expectancy)} (n={adhered.n}) &middot; Broke
+          rules {fmtDollar(broke.expectancy)} (n={broke.n})
+        </div>
+      )}
 
       {lastFive.length > 0 && (
         <div className={styles.lastFive}>

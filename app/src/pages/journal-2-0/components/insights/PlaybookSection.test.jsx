@@ -39,6 +39,13 @@ const VCP = {
   totalPnlDollar: 2124,
   exitEfficiency: 0.71,
   exitEffCoverage: { eligible: 24, computed: 20 },
+  // Adherence (P5-A5): 22/24 coverage ≥ 0.9 AND computed ≥ 10 → confident "83%".
+  adherence: 0.83,
+  adherenceCoverage: { eligible: 24, computed: 22 },
+  adherenceVsExpectancy: {
+    adhered: { expectancy: 120.5, n: 16 },
+    notAdhered: { expectancy: -45.2, n: 6 },
+  },
   lastFive: ['W', 'W', 'L', 'W', 'B'],
 }
 const FLAG = {
@@ -56,6 +63,14 @@ const FLAG = {
   totalPnlDollar: 210,
   exitEfficiency: 0.55,
   exitEffCoverage: { eligible: 5, computed: 4 },
+  // Adherence coverage computed 4 < 10 → withheld ("—"); notAdhered bucket
+  // empty → split line hidden (no fake split).
+  adherence: 0.6,
+  adherenceCoverage: { eligible: 5, computed: 4 },
+  adherenceVsExpectancy: {
+    adhered: { expectancy: 42, n: 4 },
+    notAdhered: { expectancy: null, n: 0 },
+  },
   lastFive: ['W', 'L', 'W', 'L', 'W'],
 }
 
@@ -140,6 +155,68 @@ describe('PlaybookSection', () => {
     expect(within(lowCard).queryByText('77%')).toBeNull()
     const exitEffCell = within(lowCard).getByText('Exit Eff.').parentElement
     expect(exitEffCell.querySelector('[class*="dim"]')).toBeTruthy()
+  })
+
+  it('renders an Adherence cell per setup card', () => {
+    renderSection()
+    expect(screen.getAllByText('Adherence').length).toBe(2)
+  })
+
+  it('shows a confident adherence % when coverage is sufficient, withholds it below the gate', () => {
+    renderSection()
+    const vcpCard = screen.getByText('VCP').closest('button')
+    const flagCard = screen.getByText('Flag').closest('button')
+
+    // VCP: 22/24 coverage ≥ 0.9 AND computed ≥ 10 → the number renders, not dimmed.
+    const adhValue = within(vcpCard).getByText('83%')
+    expect(adhValue.className).not.toMatch(/dim/)
+
+    // Flag: adherence computed 4 < 10 → the number is withheld → the Adherence
+    // cell falls back to the honest dim "—" state (never a misleading "0%"/"60%").
+    const flagAdhCell = within(flagCard).getByText('Adherence').parentElement
+    expect(flagAdhCell.querySelector('[class*="dim"]')).toBeTruthy()
+    expect(flagAdhCell.textContent).toContain('—')
+  })
+
+  it('withholds adherence (dim "—") when coverage computed is 0', () => {
+    const ZERO = {
+      setup: 'ORB',
+      tradeCount: 20,
+      winRate: 0.6,
+      profitFactor: 2,
+      expectancy: 100,
+      avgR: 1,
+      adherence: null,
+      adherenceCoverage: { eligible: 20, computed: 0 },
+      adherenceVsExpectancy: {
+        adhered: { expectancy: null, n: 0 },
+        notAdhered: { expectancy: null, n: 0 },
+      },
+      lastFive: [],
+    }
+    playbookState = { stats: [ZERO], isLoading: false, error: null, allAccounts: false }
+    renderSection()
+    const card = screen.getByText('ORB').closest('button')
+    const adhCell = within(card).getByText('Adherence').parentElement
+    expect(adhCell.querySelector('[class*="dim"]')).toBeTruthy()
+    expect(adhCell.textContent).toContain('—')
+    // No fabricated split line.
+    expect(card.textContent).not.toMatch(/Adhered exp/)
+  })
+
+  it('renders the adhered-vs-broke-rules split when both buckets present, hides it otherwise', () => {
+    renderSection()
+    const vcpCard = screen.getByText('VCP').closest('button')
+    const flagCard = screen.getByText('Flag').closest('button')
+
+    // VCP: both buckets have trades → the split line renders with dollar expectancy.
+    expect(vcpCard.textContent).toMatch(/Adhered exp/)
+    expect(vcpCard.textContent).toMatch(/Broke\s+rules/)
+    expect(vcpCard.textContent).toMatch(/n=16/)
+    expect(vcpCard.textContent).toMatch(/n=6/)
+
+    // Flag: notAdhered bucket is empty (n=0) → the split line is hidden (honest).
+    expect(flagCard.textContent).not.toMatch(/Adhered exp/)
   })
 
   it('drill-through: clicking a card sets the setup scope + routes to the journal tab', () => {

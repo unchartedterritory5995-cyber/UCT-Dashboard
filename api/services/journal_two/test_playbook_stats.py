@@ -201,6 +201,81 @@ def test_insufficient_excursion_not_counted_as_computed(db_conn):
     assert vcp["exitEffCoverage"] == {"eligible": 1, "computed": 0}
 
 
+# ── Rule adherence (adherence join, coverage, adhered-vs-not split) — P5-A5 ──
+
+
+def test_adherence_null_without_records(db_conn):
+    """A setup with zero adherence records → adherence None + computed 0, and an
+    honest null-null split (no fabricated buckets)."""
+    from api.services.journal_two import playbook_stats
+    acc = _seed_account(db_conn)
+    _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Win", pnl=100, r=1.0)
+    _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Loss", pnl=-50, r=-1.0)
+    out = _by_setup(playbook_stats.get_playbook_stats("u_pb", acc["id"], conn=db_conn))
+    vcp = out["VCP"]
+    assert vcp["adherence"] is None
+    assert vcp["adherenceCoverage"] == {"eligible": 2, "computed": 0}
+    assert vcp["adherenceVsExpectancy"] == {
+        "adhered": {"expectancy": None, "n": 0},
+        "notAdhered": {"expectancy": None, "n": 0},
+    }
+
+
+def test_adherence_mean_and_coverage(db_conn):
+    """adherence = mean adherencePct over trades WITH a record; eligible ==
+    tradeCount (matches exitEffCoverage.eligible), computed == #records."""
+    from api.services.journal_two import playbook_stats
+    from api.services.journal_two.adherence_store import upsert_adherence
+    acc = _seed_account(db_conn)
+    t1 = _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Win", pnl=100, r=1.0)
+    t2 = _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Win", pnl=200, r=2.0)
+    # A third trade with NO adherence record → counts toward eligible, not computed.
+    _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Loss", pnl=-50, r=-1.0)
+    upsert_adherence("u_pb", f"id:{t1}", "VCP", ["a", "b", "c", "d"], 4, db_conn)  # 1.0
+    upsert_adherence("u_pb", f"id:{t2}", "VCP", ["a", "b"], 4, db_conn)            # 0.5
+    out = _by_setup(playbook_stats.get_playbook_stats("u_pb", acc["id"], conn=db_conn))
+    vcp = out["VCP"]
+    assert vcp["adherence"] == 0.75  # mean(1.0, 0.5) — fraction 0..1, matches winRate unit
+    assert vcp["adherenceCoverage"] == {"eligible": 3, "computed": 2}
+
+
+def test_adherence_vs_expectancy_split(db_conn):
+    """2 high-adherence winners vs 1 low-adherence loser → adhered expectancy >
+    notAdhered, correct n's; expectancy in the record's dollars unit."""
+    from api.services.journal_two import playbook_stats
+    from api.services.journal_two.adherence_store import upsert_adherence
+    acc = _seed_account(db_conn)
+    t1 = _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Win", pnl=300, r=2.0)
+    t2 = _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Win", pnl=100, r=1.0)
+    t3 = _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Loss", pnl=-200, r=-2.0)
+    upsert_adherence("u_pb", f"id:{t1}", "VCP", ["a", "b", "c", "d"], 4, db_conn)  # 1.0  → adhered
+    upsert_adherence("u_pb", f"id:{t2}", "VCP", ["a", "b", "c", "d"], 4, db_conn)  # 1.0  → adhered
+    upsert_adherence("u_pb", f"id:{t3}", "VCP", ["a"], 4, db_conn)                 # 0.25 → broke rules
+    out = _by_setup(playbook_stats.get_playbook_stats("u_pb", acc["id"], conn=db_conn))
+    vcp = out["VCP"]
+    ave = vcp["adherenceVsExpectancy"]
+    assert ave["adhered"] == {"expectancy": 200.0, "n": 2}       # mean(300, 100)
+    assert ave["notAdhered"] == {"expectancy": -200.0, "n": 1}   # mean(-200)
+    assert ave["adhered"]["expectancy"] > ave["notAdhered"]["expectancy"]
+    assert vcp["adherence"] == 0.75  # mean(1.0, 1.0, 0.25)
+    assert vcp["adherenceCoverage"] == {"eligible": 3, "computed": 3}
+
+
+def test_adherence_bucket_boundary_and_empty_bucket(db_conn):
+    """0.8 is the inclusive adhered boundary; a bucket with no trades →
+    {expectancy: None, n: 0}, never a fake split."""
+    from api.services.journal_two import playbook_stats
+    from api.services.journal_two.adherence_store import upsert_adherence
+    acc = _seed_account(db_conn)
+    t1 = _insert_trade(db_conn, user_id="u_pb", account_id=acc["id"], setup="VCP", result="Win", pnl=100, r=1.0)
+    upsert_adherence("u_pb", f"id:{t1}", "VCP", ["a", "b", "c", "d"], 5, db_conn)  # 0.8 exactly → adhered
+    out = _by_setup(playbook_stats.get_playbook_stats("u_pb", acc["id"], conn=db_conn))
+    vcp = out["VCP"]
+    ave = vcp["adherenceVsExpectancy"]
+    assert ave["adhered"] == {"expectancy": 100.0, "n": 1}
+    assert ave["notAdhered"] == {"expectancy": None, "n": 0}
+
+
 # ── Scope (FilterSpec) narrowing ─────────────────────────────────────────────
 
 
