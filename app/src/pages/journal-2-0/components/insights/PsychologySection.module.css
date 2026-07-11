@@ -1,0 +1,443 @@
+/* PsychologySection — emotion×outcome bars, cost-of-mistakes, revenge/tilt (P5 A9).
+   Matches the J2 insights idiom (bg-surface, --border, --ut-gold, mono nums),
+   mirroring RegimeSection.module.css. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.sub {
+  margin: 0;
+  max-width: 560px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* ── panels ────────────────────────────────────────────────────────────────── */
+
+.panels {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.panelSub {
+  margin: -6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ── Panel 1: Emotion × Outcome ────────────────────────────────────────────── */
+
+.emoRows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.emoRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.emoTop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.emoLabel {
+  flex: 0 0 108px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.emoName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Diverging bar around a center: pos grows right (green), neg grows left (red).
+   Track is split into two halves by a center rule. */
+.emoBarTrack {
+  flex: 1 1 auto;
+  min-width: 80px;
+  height: 12px;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.emoBarNegHalf,
+.emoBarPosHalf {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* negative half fills from the CENTER outward to the left */
+.emoBarNegHalf {
+  justify-content: flex-end;
+}
+
+.emoBarFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.emoBarPos {
+  background: var(--gain, #3cb868);
+}
+
+.emoBarNeg {
+  background: var(--loss, #e74c3c);
+}
+
+/* n < 3 → the bar is still drawn (an estimate, not hidden) but muted. */
+.emoBarDim {
+  opacity: 0.38;
+}
+
+.emoStat {
+  flex: 0 0 auto;
+  min-width: 66px;
+  display: flex;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.emoSecondary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-left: 122px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.emoAvg {
+  font-weight: 600;
+}
+
+.emoAvgPos {
+  color: var(--gain, #3cb868);
+}
+
+.emoAvgNeg {
+  color: var(--loss, #e74c3c);
+}
+
+.thinTag {
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 10px;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* ── Panel 2: Cost of Mistakes ─────────────────────────────────────────────── */
+
+.costHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.costBig {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.costBigNeg {
+  color: var(--loss, #e74c3c);
+}
+
+.costBigPos {
+  color: var(--gain, #3cb868);
+}
+
+.costCaption {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.mistakeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mistakeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-hover, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.mistakeName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-bright);
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mistakeTotal {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--loss, #e74c3c);
+}
+
+.mistakeTotalPos {
+  color: var(--gain, #3cb868);
+}
+
+.mistakeCount {
+  flex: 0 0 auto;
+  min-width: 58px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Panel 3: Revenge / Tilt ───────────────────────────────────────────────── */
+
+.revList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.revRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-hover, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.revMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.revSym {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.revDesc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dismissBtn {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.dismissBtn:hover {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold);
+}
+
+.dismissBtn:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+
+/* Honesty note: date-only account can't be scanned for revenge. */
+.revNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--bg-hover, var(--bg));
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.revNoteGlyph {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  opacity: 0.85;
+}
+
+.revClean {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* ── panel-level empty (honest, never a bare blank) ────────────────────────── */
+
+.panelEmpty {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* ── the empty-state pitch card (taggedTradeCount === 0) ───────────────────── */
+
+.pitch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 24px;
+  text-align: center;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border-accent, var(--border));
+  border-radius: 14px;
+}
+
+.pitchGlyph {
+  opacity: 0.85;
+}
+
+.pitchTitle {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-heading, var(--text-bright));
+}
+
+.pitchText {
+  margin: 0;
+  max-width: 420px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.pitchBtn {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min, 44px);
+  padding: 8px 20px;
+  background: var(--ut-gold-dim, rgba(201, 168, 76, 0.12));
+  border: 1px solid var(--ut-gold-glow, rgba(201, 168, 76, 0.5));
+  border-radius: 999px;
+  color: var(--ut-gold, #c9a84c);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.pitchBtn:hover {
+  background: var(--ut-gold-glow, rgba(201, 168, 76, 0.2));
+  border-color: var(--ut-gold, #c9a84c);
+}
+
+.pitchBtn:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+
+/* ── phone ─────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .emoTop {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .emoLabel {
+    flex: 1 1 100%;
+  }
+  .emoSecondary {
+    padding-left: 0;
+  }
+  .revRow {
+    flex-wrap: wrap;
+  }
+  .dismissBtn {
+    width: 100%;
+  }
+}

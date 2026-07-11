@@ -767,10 +767,13 @@ def _psychology_section(
 
       - ``emotionOutcomes``: per distinct emotion tag →
         ``{emotion, tradeCount, avgPnl, winRate}`` where ``avgPnl`` is the mean
-        NET P&L over that emotion's trades and ``winRate`` = wins / tradeCount.
-        EVERY emotion is returned (including <3-trade ones) WITH its tradeCount
-        so the FE can gray thin samples — the >=3 display gate lives in the FE,
-        NOT here (we never drop a sparse emotion).
+        NET P&L over that emotion's trades and ``winRate`` = wins / (wins +
+        losses) — breakevens excluded from the denominator, MATCHING the
+        setup/regime sections so the metric reads consistently across the app
+        (0 when the emotion has no decisive trade). EVERY emotion is returned
+        (including <3-trade ones) WITH its tradeCount so the FE can gray thin
+        samples — the >=3 display gate lives in the FE, NOT here (we never drop a
+        sparse emotion).
       - ``costOfMistakes``: ``{total, byMistake}`` — ``total`` = sum of NET pnl
         over trades whose ``mistakeTags`` is non-empty ($ actually bled;
         typically negative). ``byMistake`` = per distinct tag
@@ -809,7 +812,7 @@ def _psychology_section(
 
     # ── emotionOutcomes (ALL emotions returned; FE grays the <3-trade ones) ──
     emo: dict[str, dict[str, Any]] = defaultdict(
-        lambda: {"pnls": [], "wins": 0, "count": 0}
+        lambda: {"pnls": [], "wins": 0, "losses": 0, "count": 0}
     )
     for p in parsed:
         for e in p["emotionTags"]:
@@ -818,12 +821,20 @@ def _psychology_section(
             g["count"] += 1
             if p["result"] == "Win":
                 g["wins"] += 1
+            elif p["result"] == "Loss":
+                g["losses"] += 1
     emotion_outcomes = [
         {
             "emotion": e,
             "tradeCount": g["count"],
             "avgPnl": round(sum(g["pnls"]) / len(g["pnls"]), 2) if g["pnls"] else None,
-            "winRate": (g["wins"] / g["count"]) if g["count"] else None,
+            # winRate = wins / (wins + losses): breakevens are EXCLUDED from the
+            # denominator, matching the setup/regime sections (one consistent
+            # win-rate metric across the app). 0 when there are no decisive trades.
+            "winRate": (
+                g["wins"] / (g["wins"] + g["losses"])
+                if (g["wins"] + g["losses"]) else 0.0
+            ),
         }
         for e, g in emo.items()
     ]

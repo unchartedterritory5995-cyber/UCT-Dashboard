@@ -101,17 +101,21 @@ def test_emotion_outcomes_per_emotion_stats(db_conn):
     _add_user(db_conn, "u1", "u1@x.com")
     aid = _add_account(db_conn, "u1")
 
-    # calm × 3: +100 (W), +50 (W), -30 (L) → avg 40.0, winRate 2/3, count 3
+    # calm × 4: +100 (W), +50 (W), -30 (L), +0 (BE) → avg 30.0, count 4.
+    # winRate = wins / (wins + losses) = 2 / 3 — the breakeven is EXCLUDED from
+    # the denominator (matches the setup/regime sections). The old wins/tradeCount
+    # formula would have given 2/4 = 0.5, so this case pins the aligned metric.
     _add_trade(db_conn, "u1", account_id=aid, emotion_tags=["calm"], pnl=100, result="Win")
     _add_trade(db_conn, "u1", account_id=aid, emotion_tags=["calm"], pnl=50, result="Win")
     _add_trade(db_conn, "u1", account_id=aid, emotion_tags=["calm"], pnl=-30, result="Loss")
+    _add_trade(db_conn, "u1", account_id=aid, emotion_tags=["calm"], pnl=0, result="BE")
     # anxious × 1: -10 (L)
     _add_trade(db_conn, "u1", account_id=aid, emotion_tags=["anxious"], pnl=-10, result="Loss")
 
     psy = get_analytics("u1", account_id=aid, conn=db_conn)["psychology"]
     by = {e["emotion"]: e for e in psy["emotionOutcomes"]}
-    assert by["calm"]["tradeCount"] == 3
-    assert by["calm"]["avgPnl"] == 40.0
+    assert by["calm"]["tradeCount"] == 4
+    assert by["calm"]["avgPnl"] == 30.0
     assert abs(by["calm"]["winRate"] - 2 / 3) < 1e-9
     # thin (<3) emotions are RETURNED (with count) — the FE decides display
     assert by["anxious"]["tradeCount"] == 1

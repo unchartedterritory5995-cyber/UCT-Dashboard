@@ -35,6 +35,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import RiskExitsSection from '../analytics/RiskExitsSection'
 import PlaybookSection from './PlaybookSection'
 import EdgeScoreCard from './EdgeScoreCard'
+import PsychologySection from './PsychologySection'
 import RegimeSection from './RegimeSection'
 import { useFeatureFlag } from '../../featureFlags'
 import styles from './InsightsHub.module.css'
@@ -56,6 +57,9 @@ export default function InsightsHub({ analytics }) {
   // (default ON); off → the existing designed "coming soon" placeholder. The
   // instant per-browser kill-switch is window.__uctJ2Feature('regime', false).
   const regimeOn = useFeatureFlag('regime')
+  // P5 Task A9: same gating shape for the Psychology section (default ON); off →
+  // ComingSoon. Kill-switch: window.__uctJ2Feature('psychology', false).
+  const psychologyOn = useFeatureFlag('psychology')
 
   const raw = searchParams.get('ins')
   const active = SECTION_KEYS.includes(raw) ? raw : DEFAULT_SECTION
@@ -99,13 +103,16 @@ export default function InsightsHub({ analytics }) {
         {active === 'playbook' && <PlaybookSection />}
         {active === 'exit' && <RiskExitsSection data={analytics?.exitQuality} />}
         {active === 'edge' && <EdgeScoreCard edge={analytics?.edgeScore} />}
-        {active === 'psychology' && (
-          <ComingSoon
-            icon="chat"
-            title="Psychology"
-            text="Coming with the psychology release — emotion outcomes, tilt patterns, and discipline trends over time."
-          />
-        )}
+        {active === 'psychology' &&
+          (psychologyOn ? (
+            <PsychologySection analytics={analytics} />
+          ) : (
+            <ComingSoon
+              icon="chat"
+              title="Psychology"
+              text="Coming with the psychology release — emotion outcomes, tilt patterns, and discipline trends over time."
+            />
+          ))}
         {active === 'regime' &&
           (regimeOn ? (
             <RegimeSection analytics={analytics} />
