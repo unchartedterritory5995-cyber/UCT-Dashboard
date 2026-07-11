@@ -2245,6 +2245,22 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
     fading: { label: "▽ fading", color: P.dm },
   })[_shape] || null;
   const _sparkMax = _dayHits.length ? Math.max(..._dayHits.map(h => h.hits), 1) : 1;
+  // GRADE shows the accumulation grade (the pattern) — not the per-print grade.
+  // After a next-day OI check it becomes a CONFIRMED grade: holding/growing
+  // boosts (✓), trimming/closing downgrades (▽/✗). The OI proof modifies the
+  // conviction — an A+ build that CLOSED overnight was a head-fake, not accumulation.
+  const _GR = ["D", "C", "B", "A", "A+ 🚀"];
+  const _grBase = c.accumulation_grade || "—";
+  const _grRank = _GR.indexOf(_grBase);
+  let _grLabel = _grBase, _grMark = "", _grColor = null;
+  if (oiCheck && oiCheck.status && oiCheck.status !== "no-data" && _grRank >= 0) {
+    const adj = { confirmed: 1, held: 0, trimmed: -1, closed: -2 }[oiCheck.status] || 0;
+    _grLabel = _GR[Math.max(0, Math.min(_GR.length - 1, _grRank + adj))];
+    _grMark = oiCheck.status === "closed" ? " ✗" : oiCheck.status === "trimmed" ? " ▽" : " ✓";
+    _grColor = oiCheck.status === "closed" ? "#C26A6A"
+      : oiCheck.status === "confirmed" ? "#6BAA85"
+      : oiCheck.status === "held" ? "#5b9bd5" : null;
+  }
   const s = c.sides || {};
   const sideBits = [
     (s.AA ? `${s.AA}AA` : ""), (s.A ? `${s.A}A` : ""),
@@ -2294,9 +2310,13 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
         <span style={{ color: dirColor, fontWeight: 700, textAlign: "center" }}>{fmtPremium(c.total_premium)}</span>
         <span style={{ fontSize: 11, textAlign: "center", color: P.dm, whiteSpace: "nowrap" }}>{sideBits.join(" ") || "—"}</span>
         <span style={{
-          color: c.grade?.startsWith("A") ? P.ac : c.grade === "B" ? P.bl : c.grade === "C" ? P.dm : P.mt,
-          fontWeight: 700, textAlign: "center",
-        }}>{c.grade || "—"}</span>
+          color: _grColor || (_grLabel?.startsWith("A") ? P.ac : _grLabel === "B" ? P.bl : _grLabel === "C" ? P.dm : P.mt),
+          fontWeight: 700, textAlign: "center", whiteSpace: "nowrap",
+        }} title={
+          oiCheck && oiCheck.status && oiCheck.status !== "no-data"
+            ? `Accumulation grade ${_grBase} · next-day OI ${oiCheck.status} → ${_grLabel}`
+            : (c.accumulation_grade ? "Accumulation grade (the pattern). Click Check OI to confirm next-day." : undefined)
+        }>{_grLabel}{_grMark}</span>
         <span style={{ textAlign: "center", display: "flex", gap: 3, justifyContent: "center", flexWrap: "wrap" }}>
           {(c.types || []).map(t => {
             const tl = tradeTypeLabel(t);
