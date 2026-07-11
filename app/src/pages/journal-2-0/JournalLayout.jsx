@@ -21,7 +21,7 @@
  */
 
 import { Suspense, useCallback, useState } from 'react'
-import { NavLink, Navigate, Outlet, useSearchParams } from 'react-router-dom'
+import { NavLink, Navigate, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPaid } from '../../context/AuthContext'
@@ -47,6 +47,30 @@ const PRIMARY_NAV = [
   { to: '/journal/compass', label: 'Compass', icon: 'compass', paidOnly: true },
 ]
 
+// Legacy `g>` navigation chords (Task A4). The old 8-tab shell (JournalTwoRoot)
+// bound these to setNestedTab(); under the v5 shell they alias to the new nested
+// routes so muscle memory survives the 8→5 nav swap (spec §65). Each chord maps
+// to the surface that replaced its old tab, preserving the segment where the tab
+// became a segmented surface (`positions`→Trades/Open, `journal`→Trades/Closed,
+// `calendar`/`notebook`→Journal segments). `g>o` ("o" for the Today overview) is
+// a NEW primary alias for the Today landing that the old shell never had.
+// Exported as a pure map so the chord→route wiring is unit-testable in isolation.
+export const HOTKEY_ROUTES = {
+  'g>o': '/journal', // Today (overview) — NEW primary alias
+  'g>p': '/journal/trades?seg=open', // Open Positions (was `positions`)
+  'g>j': '/journal/trades?seg=closed', // Closed Trades (was `journal`)
+  'g>a': '/journal/journal?seg=calendar', // Calendar
+  'g>n': '/journal/journal?seg=notebook', // Notebook
+  'g>y': '/journal/insights', // Insights (was `analytics`)
+  'g>t': '/journal/accounts', // Accounts
+  'g>k': '/journal/compass', // Compass (paid-gated — see PAID_HOTKEY_CHORDS)
+  'g>c': '/journal/community', // Community
+}
+
+// Chords whose destination is paid-only. A free user firing one is a no-op
+// (mirrors the disabled Compass nav teaser — never routes to a blank surface).
+export const PAID_HOTKEY_CHORDS = new Set(['g>k'])
+
 export default function JournalLayout() {
   const isPaid = useIsPaid()
   // Best-effort refresh of broker-synced trades when the journal opens
@@ -54,6 +78,7 @@ export default function JournalLayout() {
   useBrokerSync()
   const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
 
   const [showSettings, setShowSettings] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -64,8 +89,32 @@ export default function JournalLayout() {
   const closeSettings = useCallback(() => setShowSettings(false), [])
 
   // The `?` header button + Shift+? both open the cheat sheet (kept from
-  // JournalTwoRoot). The g> navigation chords are Task A4.
+  // JournalTwoRoot).
   useHotkeys('shift+/', () => setShowShortcuts((x) => !x), { preventDefault: true })
+
+  // Legacy `g>` chords → navigation aliases (Task A4). Each routes to the new
+  // surface that replaced its old tab. useHotkeys must be called unconditionally
+  // and in a stable order, so the chords are enumerated explicitly (one hook per
+  // chord) rather than mapped over at render time. The handler resolves the route
+  // from the pure HOTKEY_ROUTES map and honors the paid gate for Compass.
+  const goToChord = useCallback(
+    (chord) => {
+      const to = HOTKEY_ROUTES[chord]
+      if (!to) return
+      if (PAID_HOTKEY_CHORDS.has(chord) && !isPaid) return // Compass stays locked
+      navigate(to)
+    },
+    [navigate, isPaid],
+  )
+  useHotkeys('g>o', () => goToChord('g>o'))
+  useHotkeys('g>p', () => goToChord('g>p'))
+  useHotkeys('g>j', () => goToChord('g>j'))
+  useHotkeys('g>a', () => goToChord('g>a'))
+  useHotkeys('g>n', () => goToChord('g>n'))
+  useHotkeys('g>y', () => goToChord('g>y'))
+  useHotkeys('g>t', () => goToChord('g>t'))
+  useHotkeys('g>k', () => goToChord('g>k'))
+  useHotkeys('g>c', () => goToChord('g>c'))
 
   // Permanent `?j2tab=` redirect shim (Task A3). Under the v5 shell ONLY (v8's
   // JournalTwoRoot handles ?j2tab= natively), intercept any legacy deep-link and

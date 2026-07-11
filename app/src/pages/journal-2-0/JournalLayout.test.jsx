@@ -43,7 +43,7 @@ vi.mock('./tabs/CompassTab', () => ({ default: () => <div data-testid="compass" 
 vi.mock('./tabs/CommunityTab', () => ({ default: () => <div data-testid="community" /> }))
 vi.mock('./tabs/AccountsTab', () => ({ default: () => <div data-testid="accounts" /> }))
 
-import JournalLayout from './JournalLayout'
+import JournalLayout, { HOTKEY_ROUTES } from './JournalLayout'
 import TodaySurface from './surfaces/TodaySurface'
 import TradesSurface from './surfaces/TradesSurface'
 import JournalSurface from './surfaces/JournalSurface'
@@ -191,5 +191,70 @@ describe('JournalLayout — permanent ?j2tab= redirect shim (A3)', () => {
     renderAt('/journal')
     expect(screen.getByText('Today — coming in this release')).toBeInTheDocument()
     expect(screen.getByTestId('loc')).toHaveTextContent('/journal')
+  })
+})
+
+// ── g> navigation hotkey aliases (Task A4) ───────────────────────────────────
+// react-hotkeys-hook v5 reads `event.code` for sequence chords (KeyG → 'g'), so
+// firing two keydowns (g then <key>) drives the chord. The second keydown fires
+// the callback synchronously; the internal 1s reset timer is irrelevant here.
+const loc = () => screen.getByTestId('loc').textContent
+function pressChord(secondCode) {
+  fireEvent.keyDown(document.body, { code: 'KeyG' })
+  fireEvent.keyDown(document.body, { code: secondCode })
+}
+
+describe('JournalLayout — g> navigation hotkeys (A4)', () => {
+  it('HOTKEY_ROUTES maps every legacy chord + the new Today alias', () => {
+    expect(HOTKEY_ROUTES['g>o']).toBe('/journal')
+    expect(HOTKEY_ROUTES['g>p']).toBe('/journal/trades?seg=open')
+    expect(HOTKEY_ROUTES['g>j']).toBe('/journal/trades?seg=closed')
+    expect(HOTKEY_ROUTES['g>a']).toBe('/journal/journal?seg=calendar')
+    expect(HOTKEY_ROUTES['g>n']).toBe('/journal/journal?seg=notebook')
+    expect(HOTKEY_ROUTES['g>y']).toBe('/journal/insights')
+    expect(HOTKEY_ROUTES['g>t']).toBe('/journal/accounts')
+    expect(HOTKEY_ROUTES['g>k']).toBe('/journal/compass')
+    expect(HOTKEY_ROUTES['g>c']).toBe('/journal/community')
+  })
+
+  it('g>y navigates to Insights', () => {
+    renderAt('/journal')
+    pressChord('KeyY')
+    expect(loc()).toBe('/journal/insights')
+    expect(screen.getByTestId('analytics')).toBeInTheDocument()
+  })
+
+  it('g>c navigates to Community', () => {
+    renderAt('/journal')
+    pressChord('KeyC')
+    expect(loc()).toBe('/journal/community')
+    expect(screen.getByTestId('community')).toBeInTheDocument()
+  })
+
+  it('g>o (Today) navigates back to /journal from another surface', () => {
+    renderAt('/journal/insights')
+    expect(screen.getByTestId('analytics')).toBeInTheDocument()
+    pressChord('KeyO')
+    expect(loc()).toBe('/journal')
+    expect(screen.getByText('Today — coming in this release')).toBeInTheDocument()
+  })
+
+  it('g>p navigates to Trades / Open segment', () => {
+    renderAt('/journal')
+    pressChord('KeyP')
+    expect(loc()).toBe('/journal/trades?seg=open')
+    expect(screen.getByTestId('open-positions')).toBeInTheDocument()
+  })
+
+  it('g>k routes to Compass when paid', () => {
+    renderAt('/journal', { paid: true })
+    pressChord('KeyK')
+    expect(loc()).toBe('/journal/compass')
+  })
+
+  it('g>k is a no-op for free users (Compass stays locked)', () => {
+    renderAt('/journal', { paid: false })
+    pressChord('KeyK')
+    expect(loc()).toBe('/journal')
   })
 })

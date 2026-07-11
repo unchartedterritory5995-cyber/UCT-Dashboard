@@ -4,11 +4,22 @@ import { useEffect, useId } from 'react'
 import shellStyles from './ModalShell.module.css'
 import styles from './ShortcutCheatSheet.module.css'
 
-const GLOBAL_SHORTCUTS = [
+// The `g>` chords navigate between the 5-surface shell (Task A4). Each aliases
+// the old 8-tab shortcut to the new nested route, so the label names the
+// destination surface, not the retired tab.
+const NAVIGATION_SHORTCUTS = [
+  { keys: ['g', 'o'], label: 'Go to Today' },
   { keys: ['g', 'p'], label: 'Go to Open Positions' },
-  { keys: ['g', 'j'], label: 'Go to Trade Journal' },
+  { keys: ['g', 'j'], label: 'Go to Closed Trades' },
+  { keys: ['g', 'a'], label: 'Go to Calendar' },
   { keys: ['g', 'n'], label: 'Go to Notebook' },
+  { keys: ['g', 'y'], label: 'Go to Insights' },
+  { keys: ['g', 't'], label: 'Go to Accounts' },
+  { keys: ['g', 'k'], label: 'Go to Compass' },
   { keys: ['g', 'c'], label: 'Go to Community' },
+]
+
+const GENERAL_SHORTCUTS = [
   { keys: ['?'], label: 'Show this cheat sheet' },
   { keys: ['Esc'], label: 'Close any open modal or panel' },
 ]
@@ -90,9 +101,10 @@ export default function ShortcutCheatSheet({ open, onClose }) {
           </button>
         </div>
         <div className={shellStyles.body}>
-          <Section title="Global" shortcuts={GLOBAL_SHORTCUTS} />
-          <Section title="Open Positions tab" shortcuts={POSITIONS_SHORTCUTS} />
-          <Section title="Trade Journal tab" shortcuts={JOURNAL_SHORTCUTS} />
+          <Section title="Navigation" shortcuts={NAVIGATION_SHORTCUTS} />
+          <Section title="General" shortcuts={GENERAL_SHORTCUTS} />
+          <Section title="Open Positions" shortcuts={POSITIONS_SHORTCUTS} />
+          <Section title="Trade Journal" shortcuts={JOURNAL_SHORTCUTS} />
           <p className={styles.footNote}>
             Shortcuts are disabled while typing in an input, textarea, or
             contenteditable element.

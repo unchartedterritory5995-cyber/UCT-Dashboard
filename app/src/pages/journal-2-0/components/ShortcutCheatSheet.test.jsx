@@ -9,18 +9,44 @@ describe('ShortcutCheatSheet', () => {
     expect(screen.queryByText('Keyboard Shortcuts')).not.toBeInTheDocument()
   })
 
-  it('renders title + three sections when open', () => {
+  it('renders title + the grouped sections when open', () => {
     render(<ShortcutCheatSheet open onClose={vi.fn()} />)
     expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument()
-    expect(screen.getByText('Global')).toBeInTheDocument()
-    expect(screen.getByText('Open Positions tab')).toBeInTheDocument()
-    expect(screen.getByText('Trade Journal tab')).toBeInTheDocument()
+    expect(screen.getByText('Navigation')).toBeInTheDocument()
+    expect(screen.getByText('General')).toBeInTheDocument()
+    expect(screen.getByText('Open Positions')).toBeInTheDocument()
+    expect(screen.getByText('Trade Journal')).toBeInTheDocument()
   })
 
-  it('shows tab navigation chords', () => {
+  it('documents every current g> navigation chord', () => {
     render(<ShortcutCheatSheet open onClose={vi.fn()} />)
-    expect(screen.getByText('Go to Open Positions')).toBeInTheDocument()
-    expect(screen.getByText('Go to Trade Journal')).toBeInTheDocument()
+    for (const label of [
+      'Go to Today',
+      'Go to Open Positions',
+      'Go to Closed Trades',
+      'Go to Calendar',
+      'Go to Notebook',
+      'Go to Insights',
+      'Go to Accounts',
+      'Go to Compass',
+      'Go to Community',
+    ]) {
+      expect(screen.getByText(label)).toBeInTheDocument()
+    }
+  })
+
+  it('lists the cheat-sheet toggle + the in-tab actions', () => {
+    render(<ShortcutCheatSheet open onClose={vi.fn()} />)
+    expect(screen.getByText('Show this cheat sheet')).toBeInTheDocument()
+    expect(screen.getByText('Add Position')).toBeInTheDocument()
+    expect(screen.getByText('Add Trade')).toBeInTheDocument()
+  })
+
+  it('renders g-then-<key> keycaps for each navigation chord', () => {
+    render(<ShortcutCheatSheet open onClose={vi.fn()} />)
+    // Nine two-key nav chords → at least nine leading "g" keycaps + "then" links.
+    expect(screen.getAllByText('g').length).toBeGreaterThanOrEqual(9)
+    expect(screen.getAllByText('then').length).toBeGreaterThanOrEqual(9)
   })
 
   it('Esc closes', () => {
