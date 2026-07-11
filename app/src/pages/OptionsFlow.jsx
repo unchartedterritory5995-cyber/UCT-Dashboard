@@ -8092,13 +8092,9 @@ export default function OptionsFlowDashboard() {
                 if (t.D === "BULL") ccBConf += t.P;
                 else if (t.D === "BEAR") ccRConf += t.P;
               });
-              // Which totals to display in the top-line — user-toggled.
-              const ccBDisplay = oiConfirmedOnly ? ccBConf : ccB;
-              const ccRDisplay = oiConfirmedOnly ? ccRConf : ccR;
-              const net = ccBDisplay - ccRDisplay;
-              const total = ccBDisplay + ccRDisplay;
-              const dir = total===0?"NEUTRAL":net>0?"BULL":"BEAR";
-              const dirC = dir==="BULL"?P.bu:dir==="BEAR"?P.be:P.dm;
+              // Top-line totals are computed AFTER the still-open block below,
+              // so the "Still open only" toggle can use the live-OI still-open
+              // premium instead of the fixed-window OI confirmation.
 
               // ─── STILL-OPEN computation ────────────────────────────────
               // Per-contract attribution of "how much of this period's
@@ -8159,6 +8155,20 @@ export default function OptionsFlowDashboard() {
               const netOpen = ccBOpen - ccROpen;
               const dirOpen = totalOpen===0?"NEUTRAL":netOpen>0?"BULL":"BEAR";
 
+              // Top-line totals. When "Still open only" is toggled AND live OI
+              // is available, use the still-open premium (ccBOpen/ccROpen) — the
+              // range-independent measure that matches the per-row Status column.
+              // Falls back to raw when live OI isn't fetched yet. This replaces
+              // the old fixed-window OI confirmation, which under-confirmed slow
+              // builders over long ranges and falsely flipped the direction.
+              const _useOpen = oiConfirmedOnly && stillOpenComputable;
+              const ccBDisplay = _useOpen ? Math.round(ccBOpen) : ccB;
+              const ccRDisplay = _useOpen ? Math.round(ccROpen) : ccR;
+              const net = ccBDisplay - ccRDisplay;
+              const total = ccBDisplay + ccRDisplay;
+              const dir = total===0?"NEUTRAL":net>0?"BULL":"BEAR";
+              const dirC = dir==="BULL"?P.bu:dir==="BEAR"?P.be:P.dm;
+
               // DTE counts for pills
               const stN = ccAll.filter(t=>t.DTE>=0&&t.DTE<60).length;
               const ltN = ccAll.filter(t=>t.DTE>=60&&t.DTE<180).length;
@@ -8192,24 +8202,18 @@ export default function OptionsFlowDashboard() {
                         toggle switches display. */}
                     <div style={{ marginLeft:12, display:"flex", gap:6, alignItems:"center", borderLeft:"1px solid "+P.bd, paddingLeft:12 }}>
                       <button
-                        onClick={()=>{
-                          if (oiConfirmMeta) {
-                            setOiConfirmedOnly(v=>!v);
-                          } else {
-                            // First-time load — fetch then toggle on
-                            fetchOIConfirmations(tk.s, ccAll).then(()=>setOiConfirmedOnly(true));
-                          }
-                        }}
-                        disabled={oiConfirmLoading}
+                        onClick={()=> setOiConfirmedOnly(v=>!v)}
+                        disabled={!stillOpenComputable}
                         style={{
                           padding:"4px 12px", borderRadius:16, border:"1.5px solid "+(oiConfirmedOnly?P.bu:P.bd),
-                          cursor:oiConfirmLoading?"wait":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                          cursor:!stillOpenComputable?"not-allowed":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
                           background:oiConfirmedOnly?P.bu+"22":"transparent",
-                          color:oiConfirmedOnly?P.bu:P.mt,
+                          color:oiConfirmedOnly?P.bu:(stillOpenComputable?P.mt:"#555"),
+                          opacity:stillOpenComputable?1:0.6,
                         }}
-                        title={oiConfirmMeta ? `${oiConfirmMeta.confirmed}/${oiConfirmMeta.total} contracts confirmed, ${oiConfirmMeta.no_snapshots} lack snapshot data` : "Click to fetch OI confirmation status for contracts in view"}
+                        title={stillOpenComputable ? "Filter bull/bear totals to still-open flow (Live OI \u2265 entry) — excludes closed/exited positions. Range-independent, matches the Status column." : "Fetch Live OI & Prices first (blue button), then this filters to still-open flow"}
                       >
-                        {oiConfirmLoading ? "Loading…" : oiConfirmedOnly ? "✓ Confirmed only" : oiConfirmMeta ? "Show confirmed only" : "⚡ Load confirmations"}
+                        {oiConfirmedOnly ? "\u2713 Still open only" : (stillOpenComputable ? "Still open only" : "Still open only \u00b7 fetch OI")}
                       </button>
                       {oiConfirmError && (
                         <span style={{ fontSize:9, color:P.be }} title={oiConfirmError}>err</span>
@@ -8236,7 +8240,7 @@ export default function OptionsFlowDashboard() {
                       )}
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
-                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow{oiConfirmedOnly?" (Confirmed)":""}</div>
+                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow{oiConfirmedOnly?" (Still Open)":""}</div>
                       <div style={{ fontSize:22, fontWeight:800, color:P.bu }}>{fmt(ccBDisplay)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
                         <div style={{ width:(total>0?(ccBDisplay/total*100):0)+"%", height:"100%", background:P.bu, borderRadius:2 }} />
@@ -8271,7 +8275,7 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
-                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bearish Flow{oiConfirmedOnly?" (Confirmed)":""}</div>
+                      <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bearish Flow{oiConfirmedOnly?" (Still Open)":""}</div>
                       <div style={{ fontSize:22, fontWeight:800, color:P.be }}>{fmt(ccRDisplay)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
                         <div style={{ width:(total>0?(ccRDisplay/total*100):0)+"%", height:"100%", background:P.be, borderRadius:2 }} />
