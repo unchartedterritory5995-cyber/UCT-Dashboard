@@ -871,3 +871,18 @@ def set_chat_report_status(report_id, status):
     with _WRITE_LOCK, closing(get_connection()) as conn:
         conn.execute("UPDATE chat_reports SET status=? WHERE id=?", (status, report_id))
         conn.commit()
+
+
+def hot_tickers(limit=6, since_seconds=7200, scan=400):
+    """Most-discussed tickers across recent live-chat messages — powers The Tape."""
+    import collections
+    cutoff = _now() - since_seconds
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            "SELECT ticker_tags FROM messages WHERE deleted=0 AND created_at > ? "
+            "ORDER BY id DESC LIMIT ?", (cutoff, scan)).fetchall()
+    counts = collections.Counter()
+    for r in rows:
+        for t in (json.loads(r["ticker_tags"] or "[]") or []):
+            counts[t] += 1
+    return [{"ticker": t, "count": n} for t, n in counts.most_common(limit)]

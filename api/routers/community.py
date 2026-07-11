@@ -667,6 +667,17 @@ def chat_mark_read(slug: str, body: ChatReadIn, user: dict = Depends(require_cha
     return {"ok": True}
 
 
+@router.get("/chat/tape")
+def chat_tape(user: dict = Depends(require_chat)):
+    """The Tape — a global 'what's alive right now' snapshot: who's on the floor +
+    the hottest tickers being discussed across the live channels."""
+    hub = chat_hub.get_hub()
+    online = set()
+    for slug in store.CHANNELS:
+        online.update(hub.presence_users(slug))
+    return {"online": len(online), "hot_tickers": store.hot_tickers()}
+
+
 @router.get("/chat/members")
 def chat_members(q: str = Query("", max_length=40), user: dict = Depends(require_chat)):
     """Search community members by display name for @-mention autocomplete."""

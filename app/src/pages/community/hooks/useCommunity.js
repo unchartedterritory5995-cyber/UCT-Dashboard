@@ -44,3 +44,7 @@ export const useThread = (threadId) =>
 // the live message stream itself is the pooled EventSource (chatStreamManager).
 export const useChatChannels = (enabled) =>
   useSWR(enabled ? '/api/community/chat/channels' : null, fetcher, { refreshInterval: 20_000 })
+
+// The Tape — global "what's alive now" (online + hot tickers).
+export const useTape = (enabled) =>
+  useSWR(enabled ? '/api/community/chat/tape' : null, fetcher, { refreshInterval: 15_000 })

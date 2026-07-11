@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
+import TickerPopup from '../../components/TickerPopup'
 import ThreadView from './ThreadView'
 import ChatView from './ChatView'
 import Composer from './Composer'
 import AckGate from './AckGate'
 import * as chat from '../../lib/chatStreamManager'
 import {
-  useCommunityStatus, useSpaces, useThreads, useChatChannels, apiCall,
+  useCommunityStatus, useSpaces, useThreads, useChatChannels, useTape, apiCall,
 } from './hooks/useCommunity'
 import styles from './Community.module.css'
 
@@ -32,6 +33,7 @@ export default function CommunityPage() {
   // Selection: a live pulse channel OR a forum board space. Pulse leads when live.
   const [sel, setSel] = useState(null) // { type:'pulse'|'board', key }
   const { data: chan } = useChatChannels(chatOn && !threadId)
+  const { data: tape } = useTape(chatOn)
   const { data: spaces } = useSpaces(enabled)
   const boardSpace = sel?.type === 'board' ? sel.key : null
   const { data: threadsData, mutate: refreshThreads } =
@@ -85,8 +87,24 @@ export default function CommunityPage() {
   const canPost = space && (!(spaces?.find((s) => s.key === space)?.mentor_only) || status?.is_mentor)
 
   return (
-    <div className={styles.page}>
-      <AckGate status={status} onAcked={() => refreshStatus()} />
+    <div className={styles.floorRoot}>
+      {chatOn && tape && (tape.online > 0 || (tape.hot_tickers || []).length > 0) && (
+        <div className={styles.tape}>
+          <span className={styles.tapePresence}><span className={styles.presenceDot} /> {tape.online} on the floor</span>
+          {(tape.hot_tickers || []).length > 0 && (
+            <span className={styles.tapeHot}>
+              <UIcon name="bolt" size={12} /> Hot now:
+              {tape.hot_tickers.map((h) => (
+                <TickerPopup key={h.ticker} sym={h.ticker} as="button" className={styles.tapeChip}>
+                  ${h.ticker}
+                </TickerPopup>
+              ))}
+            </span>
+          )}
+        </div>
+      )}
+      <div className={styles.page}>
+        <AckGate status={status} onAcked={() => refreshStatus()} />
       <aside className={styles.rail}>
         <div className={styles.railTitle}>
           <UIcon name="community" size={16} /> The Floor
@@ -175,7 +193,8 @@ export default function CommunityPage() {
             />
           </>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   )
 }
