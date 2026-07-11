@@ -497,6 +497,42 @@ def delete_trade_attachment_route(
     return {"ok": True}
 
 
+# ── Sync Trust Center: orphaned-annotation reattach queue (Task B7) ──────────
+# Static suffixes under /trust/orphans — no path params, so no route shadowing.
+
+@router.get("/trust/orphans")
+def list_orphaned_annotations(
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Annotation trade_refs (screenshots / excursions) that no longer resolve
+    to a live trade — the residue of a broker FIFO re-slice or a hard-deleted
+    trade. Parked, never deleted; the client offers a manual reattach."""
+    from api.services.journal_two import trade_refs
+    return {"orphans": trade_refs.scan_orphans(user["id"])}
+
+
+@router.post("/trust/orphans/reattach")
+def reattach_orphaned_annotation(
+    payload: dict,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Re-point one orphaned annotation set onto a live target trade's ref.
+    Body: {tradeRef, targetTradeId}. 404 if the target is missing/foreign, 409
+    if the source ref is still live. Returns the count of annotation rows moved
+    (excursionConflict=true when the target already held an excursion and we
+    left the orphan parked rather than overwrite it)."""
+    from api.services.journal_two import trade_refs
+    try:
+        result = trade_refs.reattach_orphan(
+            user["id"],
+            str(payload.get("tradeRef") or ""),
+            str(payload.get("targetTradeId") or ""),
+        )
+    except trade_refs.OrphanReattachError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    return result
+
+
 # ── Community feed — opt-in share ───────────────────────────────────────────
 
 @router.get("/community/traders")
