@@ -53,6 +53,8 @@ export default function VideoDockSlot() {
   const [draft, setDraft] = useState(null) // { t, text } while composing, else null
   const [savingNb, setSavingNb] = useState('')
   const [savingWl, setSavingWl] = useState('') // save-tickers-to-watchlist status
+  const [savingJournal, setSavingJournal] = useState('') // '', 'saving', 'saved', 'error'
+  const savedNoteRef = useRef(null) // id of the journal note just created
   // Collapsible ticker cloud — remember the user's choice across videos.
   const [tickersOpen, setTickersOpen] = useState(() => {
     try { return window.localStorage.getItem('uct.desk.tickersOpen') !== '0' } catch { return true }
@@ -135,6 +137,81 @@ export default function VideoDockSlot() {
     }
     setTimeout(() => setSavingWl(''), 3000)
   }, [tickerMoments, list, index])
+
+  // Save this session's AI recap into the J2 Notebook as a long-form note —
+  // headline, key takeaways, setups covered, tickers, and a watch link. Builds a
+  // TipTap doc (the Notebook's native format) and reuses the existing /api/j2/notes
+  // endpoint. On success, links straight to the new note.
+  const saveToJournal = useCallback(async () => {
+    if (savingJournal === 'saving') return
+    const vid = list[index]
+    if (!vid) return
+    setSavingJournal('saving')
+    try {
+      const content = []
+      if (headline) {
+        content.push({ type: 'paragraph', content: [{ type: 'text', text: headline }] })
+      }
+      if (summary.length) {
+        content.push({ type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Key takeaways' }] })
+        content.push({
+          type: 'bulletList',
+          content: summary.map((s) => ({
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: String(s) }] }],
+          })),
+        })
+      }
+      if (setups.length) {
+        content.push({ type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Setups covered' }] })
+        content.push({
+          type: 'bulletList',
+          content: setups.map((s) => ({
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: s.note ? `${s.setup} — ${s.note}` : s.setup }] }],
+          })),
+        })
+      }
+      const syms = [...new Set(tickerMoments.map((t) => t.ticker).filter(Boolean))]
+      if (syms.length) {
+        content.push({
+          type: 'paragraph',
+          content: [
+            { type: 'text', marks: [{ type: 'bold' }], text: 'Tickers: ' },
+            { type: 'text', text: syms.join(', ') },
+          ],
+        })
+      }
+      if (vid.youtube_id) {
+        const url = `https://www.youtube.com/watch?v=${vid.youtube_id}`
+        content.push({
+          type: 'paragraph',
+          content: [{ type: 'text', marks: [{ type: 'link', attrs: { href: url, target: '_blank' } }], text: 'Watch the session ↗' }],
+        })
+      }
+      if (!content.length) {
+        content.push({ type: 'paragraph', content: [{ type: 'text', text: 'Saved from The Desk.' }] })
+      }
+      const r = await fetch('/api/j2/notes', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: (vid.title || 'Desk session').slice(0, 200),
+          subtitle: 'Saved from The Desk',
+          bodyJson: { type: 'doc', content },
+          tags: ['desk-session'],
+          ticker: syms[0] || null,
+        }),
+      })
+      if (!r.ok) throw new Error('save')
+      const j = await r.json()
+      savedNoteRef.current = j?.note?.id || null
+      setSavingJournal('saved')
+    } catch {
+      setSavingJournal('error')
+    }
+    setTimeout(() => setSavingJournal(''), 5000)
+  }, [savingJournal, list, index, headline, summary, setups, tickerMoments])
 
   // Open (creating on first click) the community thread for this session.
   const openDiscussion = useCallback(async () => {
@@ -451,6 +528,35 @@ export default function VideoDockSlot() {
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+          {/* Archive the whole AI session recap (takeaways + setups + tickers +
+              watch link) into the Journal Notebook — distinct from "My notes"
+              below, which saves your own timestamped jottings. */}
+          {(headline || summary.length > 0 || setups.length > 0 || tickerMoments.length > 0) && (
+            <div className={styles.journalWrap}>
+              {savingJournal === 'saved' && savedNoteRef.current ? (
+                <button
+                  type="button"
+                  className={styles.journalBtn}
+                  onClick={() => navigate(`/journal?j2tab=notebook&note=${savedNoteRef.current}`)}
+                  title="Open it in your Journal Notebook"
+                >
+                  ✓ Saved — open in Notebook →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.journalBtn}
+                  onClick={saveToJournal}
+                  disabled={savingJournal === 'saving'}
+                  title="Save this session's recap, setups, and tickers to your Journal Notebook"
+                >
+                  {savingJournal === 'error' ? 'Couldn’t save — retry'
+                    : savingJournal === 'saving' ? 'Saving…'
+                    : '★ Save session to Journal'}
+                </button>
               )}
             </div>
           )}

@@ -661,3 +661,26 @@
 }
 .notebookBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.18); }
 .notebookBtn:disabled { opacity: 0.6; cursor: default; }
+/* Session-level "save the whole recap to Journal" — gold-filled to read as the
+   primary archive action, above the lighter "My notes" tools. */
+.journalWrap {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.journalBtn {
+  width: 100%;
+  border: 1px solid rgba(201, 168, 76, 0.55);
+  background: rgba(201, 168, 76, 0.16);
+  color: #e6cf86;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.journalBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.28); }
+.journalBtn:disabled { opacity: 0.6; cursor: default; }
+.journalBtn:focus-visible { outline: 2px solid #c9a84c; outline-offset: 2px; }
