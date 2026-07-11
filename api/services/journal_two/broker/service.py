@@ -233,6 +233,109 @@ def purge_on_account_deletion(user_id: str, conn) -> dict[str, Any]:
             "snaptradeUserId": snap_uid}
 
 
+def _row_to_sync_log(row) -> dict[str, Any]:
+    """camelCase a j2_broker_sync_log row for the Trust Center audit list."""
+    return {
+        "id": row["id"],
+        "brokerAccountId": row["broker_account_id"],
+        "startedAt": row["started_at"],
+        "finishedAt": row["finished_at"],
+        "tradesImported": row["trades_imported"],
+        "positionsUpserted": row["positions_upserted"],
+        "optionsImported": row["options_imported"],
+        "dupCandidates": row["dup_candidates"],
+        "status": row["status"],
+        "error": row["error"],
+    }
+
+
+def sync_log(
+    user_id: str, *, account_id: str | None = None, limit: int = 50
+) -> list[dict[str, Any]]:
+    """Recent sync-audit-log rows for THIS user (newest first), optionally
+    filtered to one broker account. Read-only; the log is written by
+    sync.py::_start_log/_finish_log. Parameterized + user-scoped."""
+    limit = max(1, min(int(limit or 50), 500))
+    conn = get_connection()
+    try:
+        sql = (
+            "SELECT id, broker_account_id, started_at, finished_at, "
+            "trades_imported, positions_upserted, options_imported, "
+            "dup_candidates, status, error FROM j2_broker_sync_log "
+            "WHERE user_id = ?"
+        )
+        params: list[Any] = [user_id]
+        if account_id:
+            sql += " AND broker_account_id = ?"
+            params.append(account_id)
+        sql += " ORDER BY started_at DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(sql, params).fetchall()
+        return [_row_to_sync_log(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def trust_summary(user_id: str) -> dict[str, Any]:
+    """Sync Trust Center summary: per broker account, the health fields +
+    imported-vs-broker counts + a coarse token state. Read-only (never
+    mutates broker data, never decrypts the secret, never calls SnapTrade).
+
+    Counts:
+      importedActivityCount = raw SnapTrade ledger rows (broker truth) for the
+                              broker account.
+      tradeCount            = broker-sourced closed trades on the linked
+                              j2 account.
+      positionCount         = broker-sourced OPEN positions on the linked
+                              j2 account.
+    tokenState ∈ 'ok'|'expiring'|'broken' (see connections.token_state — only
+    'ok'/'broken' are reachable today; SnapTrade doesn't expose the
+    authorization disabled flag on the current plan)."""
+    conn = get_connection()
+    try:
+        accounts = connections.list_broker_accounts(user_id, conn=conn)
+        out: list[dict[str, Any]] = []
+        for ba in accounts:
+            broker_account_id = ba["id"]
+            j2_account_id = ba["j2AccountId"]
+            imported_activity_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM j2_broker_activities "
+                "WHERE user_id = ? AND broker_account_id = ?",
+                (user_id, broker_account_id),
+            ).fetchone()["n"]
+            trade_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM j2_trades "
+                "WHERE user_id = ? AND account_id = ? AND source = 'broker'",
+                (user_id, j2_account_id),
+            ).fetchone()["n"]
+            position_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM j2_positions "
+                "WHERE user_id = ? AND account_id = ? AND source = 'broker' "
+                "AND closed_at IS NULL",
+                (user_id, j2_account_id),
+            ).fetchone()["n"]
+            out.append({
+                "brokerAccountId": broker_account_id,
+                "j2AccountId": j2_account_id,
+                "brokerageName": ba["brokerageName"],
+                "accountNumberMasked": ba["accountNumberMasked"],
+                "status": ba["status"],
+                "lastSyncAt": ba["lastSyncAt"],
+                "lastSyncStatus": ba["lastSyncStatus"],
+                "lastError": ba["lastError"],
+                "syncEnabled": ba["syncEnabled"],
+                "warming": ba.get("warming", False),
+                "importedActivityCount": imported_activity_count,
+                "tradeCount": trade_count,
+                "positionCount": position_count,
+                # DB-read path has no live authorization → ok/broken only.
+                "tokenState": connections.token_state(account_status=ba["status"]),
+            })
+        return {"anyBroker": len(out) > 0, "accounts": out}
+    finally:
+        conn.close()
+
+
 def status(user_id: str) -> dict[str, Any]:
     """Connection + per-account summary for the Settings panel. Never
     decrypts the secret (works even if the key is lost — surfaces 'broken')."""

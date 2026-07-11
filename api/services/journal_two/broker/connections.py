@@ -183,6 +183,54 @@ def summarize_account(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def authorization_disabled(raw_account: dict[str, Any]) -> bool | None:
+    """Best-effort read of the SnapTrade brokerage-authorization "disabled"
+    (token-expiry) flag from a raw account dict — the Sync Trust Center's
+    token-expiry hook (Task B6).
+
+    Returns True/False ONLY when the `brokerage_authorization` value is a
+    nested object that actually carries `disabled`/`disabled_date`; returns
+    None when the flag isn't exposed. On the current SnapTrade plan the
+    account's `brokerage_authorization` is just the authorization id STRING —
+    the `disabled`/`disabled_date` fields live on the separate Authorization
+    resource (`list_brokerage_authorizations`), which we neither fetch here
+    nor have a column to persist. So in practice this returns None and
+    `trust_summary` emits only 'ok'/'broken'.
+
+    # TODO: SnapTrade authorization.disabled is not available on the account
+    # object on the current plan. Promoting tokenState 'ok' → 'expiring' needs
+    # (a) an authorizations fetch and (b) a persisted column — both out of B6.
+    """
+    if not isinstance(raw_account, dict):
+        return None
+    auth = raw_account.get("brokerage_authorization")
+    if isinstance(auth, dict):
+        if auth.get("disabled") is not None:
+            return bool(auth.get("disabled"))
+        if auth.get("disabled_date"):
+            return True
+    return None
+
+
+def token_state(
+    *, account_status: str, authorization_disabled: bool | None = None
+) -> str:
+    """Coarse token health for the Trust Center: 'broken' | 'expiring' | 'ok'.
+
+    'broken'   → the connection needs a reconnect (account status='broken').
+    'expiring' → the brokerage authorization is flagged disabled/near-expiry,
+                 IF that data was capturable (see `authorization_disabled` —
+                 not exposed on the current plan, so never emitted from the
+                 DB-read path; the branch exists for when it becomes available).
+    'ok'       → default.
+    """
+    if account_status == "broken":
+        return "broken"
+    if authorization_disabled:
+        return "expiring"
+    return "ok"
+
+
 # ── Broker account mapping ───────────────────────────────────────────────────
 
 _BROKER_COLORS = [

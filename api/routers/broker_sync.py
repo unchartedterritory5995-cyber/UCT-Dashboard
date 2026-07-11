@@ -79,6 +79,26 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     return broker_service.status(user["id"])
 
 
+@router.get("/sync-log")
+def sync_log(
+    account_id: str | None = None, limit: int = 50,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Sync Trust Center: the caller's own sync-audit-log rows (newest first),
+    optionally filtered to one broker account. Read-only. Any logged-in user
+    (empty list if not broker-connected)."""
+    return {"rows": broker_service.sync_log(
+        user["id"], account_id=account_id, limit=limit)}
+
+
+@router.get("/trust")
+def trust(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Sync Trust Center summary: per broker account, health + imported-vs-
+    broker counts + token state. Read-only. Any logged-in user (anyBroker=
+    false + empty list if not broker-connected)."""
+    return broker_service.trust_summary(user["id"])
+
+
 @router.post("/connect")
 async def connect(body: ConnectBody, user: dict = Depends(_paid)) -> dict[str, Any]:
     """Register the SnapTrade identity (first time) + return the
