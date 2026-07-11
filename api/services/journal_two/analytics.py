@@ -11,6 +11,7 @@ Spec: docs/superpowers/specs/2026-04-18-analytics-design.md §6
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections import defaultdict
 from datetime import date as Date, datetime, timedelta, timezone
@@ -22,13 +23,14 @@ except ImportError:  # pragma: no cover
     from backports.zoneinfo import ZoneInfo  # type: ignore
 
 from api.services.auth_db import get_connection
-from api.services.journal_two import excursions_store
+from api.services.journal_two import excursions_store, revenge_detect
 from api.services.journal_two.calendar import (
     _row_et_day,
     _strategy_scope_where,
     to_et_date,
 )
 from api.services.journal_two.filters import FilterSpec, trades_where
+from api.services.journal_two.timeutil import _parse
 from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
@@ -133,6 +135,11 @@ def get_analytics(
             "exitQuality": _exit_quality_section(rows, excursions_map, strategies),
             "options": _options_section(rows, strategies),
             "regime": _regime_section(rows),
+            # Coverage-gated trading-psychology aggregates (Task A8). The
+            # `suppressed_pairs` (dismissed revenge pairs) default to empty here —
+            # the dismissal-persistence wiring is a later frontend task; the
+            # param exists on `_psychology_section` so it can be threaded then.
+            "psychology": _psychology_section(rows),
         }
     finally:
         if owned:
@@ -161,7 +168,8 @@ def _fetch_trades(
         "SELECT exit_date, entry_date, pnl_dollar, pnl_percent, "
         "       r_multiple, hold_days, result, side, setup, symbol, regime, "
         "       account_id, trading_day_et, hour_et, "
-        "       id, external_id, source "  # for trade_ref → excursion join (Task 7)
+        "       id, external_id, source, "  # for trade_ref → excursion join (Task 7)
+        "       mistake_tags, emotion_tags, fees "  # psychology section (Task A8)
         "  FROM j2_trades "
         " WHERE user_id = ?"
     )
@@ -671,6 +679,193 @@ def _edge_score(rows: list[sqlite3.Row]) -> dict[str, Any]:
             "tradeCount": len(rows),
         },
         "trend": trend,
+    }
+
+
+# ── Section: Psychology (Journal A+ P5, Task A8) ─────────────────────────────
+
+
+def _json_tags(raw: Any) -> list[str]:
+    """Parse a JSON-TEXT tag array into a list; null / malformed → []."""
+    if not raw:
+        return []
+    try:
+        v = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    return v if isinstance(v, list) else []
+
+
+def _tilt_day_key(p: dict[str, Any]) -> str | None:
+    """The ET trading day for a trade: the stamped spine day when present, else
+    the exit_date's calendar date (YYYY-MM-DD)."""
+    d = p.get("trading_day_et")
+    if d:
+        return d
+    ed = p.get("exit_date")
+    return ed[:10] if ed else None
+
+
+def _tilt_sort_key(p: dict[str, Any]) -> tuple:
+    """Chronological order within a day: exit instant → entry instant → ref.
+    The leading tier keeps a timeless fallback from comparing against floats."""
+    for field in ("exit_date", "entry_date"):
+        dt = _parse(p.get(field))
+        if dt is not None:
+            return (0, dt.timestamp(), p["tradeRef"])
+    return (1, 0.0, p["tradeRef"])
+
+
+def _tilt_by_day(
+    parsed: list[dict[str, Any]], revenge_flags: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Per-ET-day tilt signal → ``{byDay: {'YYYY-MM-DD': level}}``.
+
+    A day earns ``level`` 1 when it carries a revenge flag OR a run of >=3
+    consecutive losing trades (ordered by exit time — a rapid loss cluster).
+    Days keyed by ``trading_day_et`` when stamped, else ``exit_date[:10]``.
+    Feeds a later calendar-glyph task.
+    """
+    by_day: dict[str, int] = {}
+
+    # (1) Any day holding a revenge-flagged (current) trade.
+    ref_to_day = {
+        p["tradeRef"]: _tilt_day_key(p) for p in parsed if _tilt_day_key(p)
+    }
+    for f in revenge_flags:
+        d = ref_to_day.get(f["tradeRef"])
+        if d:
+            by_day[d] = 1
+
+    # (2) Any day with a run of >=3 consecutive losing trades.
+    days: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for p in parsed:
+        d = _tilt_day_key(p)
+        if d:
+            days[d].append(p)
+    for d, trades in days.items():
+        run = 0
+        for t in sorted(trades, key=_tilt_sort_key):
+            if t["result"] == "Loss":
+                run += 1
+                if run >= 3:
+                    by_day[d] = 1
+                    break
+            else:
+                run = 0
+
+    return {"byDay": by_day}
+
+
+def _psychology_section(
+    rows: list[sqlite3.Row],
+    suppressed_pairs: frozenset[str] | set[str] = frozenset(),
+) -> dict[str, Any]:
+    """Coverage-gated trading-psychology aggregates over the closed equity
+    trades (Journal A+ P5, Task A8). Four honest views, all null-safe on an
+    untagged book (mirrors the P2 exit-quality honesty pattern):
+
+      - ``emotionOutcomes``: per distinct emotion tag →
+        ``{emotion, tradeCount, avgPnl, winRate}`` where ``avgPnl`` is the mean
+        NET P&L over that emotion's trades and ``winRate`` = wins / tradeCount.
+        EVERY emotion is returned (including <3-trade ones) WITH its tradeCount
+        so the FE can gray thin samples — the >=3 display gate lives in the FE,
+        NOT here (we never drop a sparse emotion).
+      - ``costOfMistakes``: ``{total, byMistake}`` — ``total`` = sum of NET pnl
+        over trades whose ``mistakeTags`` is non-empty ($ actually bled;
+        typically negative). ``byMistake`` = per distinct tag
+        ``{mistake, total, count}`` (a multi-tag trade contributes its net to
+        EACH of its tags), sorted biggest-bleed-first.
+      - ``revenge``: ``revenge_detect.detect`` over the rows (loss + same-symbol
+        re-entry within the window; date-only rows skipped).
+      - ``tilt``: ``{byDay: {'YYYY-MM-DD': level}}`` — an ET day earns level 1
+        when it holds a revenge flag OR a >=3 consecutive-loss cluster.
+      - ``taggedTradeCount``: trades carrying >=1 emotion OR mistake tag — the
+        coverage hint (0 → the FE shows the "tag your trades" empty state).
+
+    Units: NET P&L ($ actually kept/lost) throughout — a mistake's cost is the
+    money you truly gave up, not the gross. ``suppressed_pairs`` threads the
+    user's dismissed revenge pairs (default empty — dismissal persistence is a
+    later FE task; the param exists so it can be threaded then).
+    """
+    parsed: list[dict[str, Any]] = []
+    for r in rows:
+        keys = r.keys()
+        gross = float(r["pnl_dollar"] or 0)
+        fees = float(r["fees"]) if "fees" in keys and r["fees"] is not None else 0.0
+        parsed.append({
+            "id": r["id"],
+            "tradeRef": trade_ref_for_row(r),
+            "symbol": r["symbol"],
+            "entry_date": r["entry_date"] if "entry_date" in keys else None,
+            "exit_date": r["exit_date"] if "exit_date" in keys else None,
+            "trading_day_et": r["trading_day_et"] if "trading_day_et" in keys else None,
+            "result": r["result"],
+            "pnlDollar": gross,
+            "pnlDollarNet": round(gross - fees, 2),
+            "emotionTags": _json_tags(r["emotion_tags"]) if "emotion_tags" in keys else [],
+            "mistakeTags": _json_tags(r["mistake_tags"]) if "mistake_tags" in keys else [],
+        })
+
+    # ── emotionOutcomes (ALL emotions returned; FE grays the <3-trade ones) ──
+    emo: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"pnls": [], "wins": 0, "count": 0}
+    )
+    for p in parsed:
+        for e in p["emotionTags"]:
+            g = emo[e]
+            g["pnls"].append(p["pnlDollarNet"])
+            g["count"] += 1
+            if p["result"] == "Win":
+                g["wins"] += 1
+    emotion_outcomes = [
+        {
+            "emotion": e,
+            "tradeCount": g["count"],
+            "avgPnl": round(sum(g["pnls"]) / len(g["pnls"]), 2) if g["pnls"] else None,
+            "winRate": (g["wins"] / g["count"]) if g["count"] else None,
+        }
+        for e, g in emo.items()
+    ]
+    emotion_outcomes.sort(key=lambda x: (-x["tradeCount"], x["emotion"]))
+
+    # ── costOfMistakes (NET $ bled on mistake-tagged trades) ─────────────────
+    mistake_total = 0.0
+    by_mistake: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"total": 0.0, "count": 0}
+    )
+    for p in parsed:
+        if not p["mistakeTags"]:
+            continue
+        mistake_total += p["pnlDollarNet"]
+        for m in p["mistakeTags"]:
+            by_mistake[m]["total"] += p["pnlDollarNet"]
+            by_mistake[m]["count"] += 1
+    cost_of_mistakes = {
+        "total": round(mistake_total, 2),
+        "byMistake": sorted(
+            (
+                {"mistake": m, "total": round(g["total"], 2), "count": g["count"]}
+                for m, g in by_mistake.items()
+            ),
+            key=lambda x: (x["total"], x["mistake"]),  # most-negative (biggest bleed) first
+        ),
+    }
+
+    # ── revenge + tilt ───────────────────────────────────────────────────────
+    revenge = revenge_detect.detect(parsed, suppressed_pairs=suppressed_pairs)
+    tilt = _tilt_by_day(parsed, revenge["flags"])
+
+    tagged_trade_count = sum(
+        1 for p in parsed if p["emotionTags"] or p["mistakeTags"]
+    )
+
+    return {
+        "emotionOutcomes": emotion_outcomes,
+        "costOfMistakes": cost_of_mistakes,
+        "revenge": revenge,
+        "tilt": tilt,
+        "taggedTradeCount": tagged_trade_count,
     }
 
 
