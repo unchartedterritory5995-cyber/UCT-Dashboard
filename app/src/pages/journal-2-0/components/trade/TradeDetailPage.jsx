@@ -30,6 +30,7 @@ import { useIsPaid } from '../../../../context/AuthContext'
 import UIcon from '../../../../components/ui/UIcon'
 import { outcomeModel, buildTradeMarkers, neighborIds } from './tradePageModel'
 import TradeScreenshots from './TradeScreenshots'
+import AdherenceChecklist from './AdherenceChecklist'
 import styles from './TradeDetailPage.module.css'
 
 // Exit-efficiency honest-state copy. EFFICIENCY_TITLE = the pending default
@@ -474,6 +475,10 @@ export default function TradeDetailPage() {
             ))}
           </select>
         </div>
+
+        {/* Adherence — this setup's rule checklist, graded per-trade (P5-A4).
+            Feature-flag-gated (renders null when 'adherence' is off). */}
+        <AdherenceChecklist trade={trade} settings={settings} />
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Mistakes</span>
