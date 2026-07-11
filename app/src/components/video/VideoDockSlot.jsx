@@ -10,9 +10,12 @@
 // Desk), it shows a slim "restore to theater" strip instead of fighting the
 // user by yanking the video back into the theater.
 import { useEffect, useRef, useState, useSyncExternalStore, useCallback } from 'react'
-import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, playIndex, expand, seekTo, getCurrentTime } from './videoStore'
+import { useNavigate } from 'react-router-dom'
+import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, play, playIndex, expand, seekTo, getCurrentTime } from './videoStore'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { useVideoNotes } from '../../hooks/useVideoNotes'
+import { useVideoRelated } from '../../hooks/useVideoRelated'
+import { useVideoThread } from '../../hooks/useVideoThread'
 import TickerPopup from '../TickerPopup'
 import TranscriptPanel from './TranscriptPanel'
 import CompassAssistButton from '../voice/CompassAssistButton'
@@ -42,6 +45,10 @@ export default function VideoDockSlot() {
   // Timestamped notes for the now-playing video (keyed by youtube_id).
   const currentYt = active ? list[index]?.youtube_id : null
   const { notes, add: addNote, remove: removeNote } = useVideoNotes(currentYt)
+  // Related sessions (shared tickers) + community discussion thread.
+  const { related } = useVideoRelated(active ? list[index]?.id : null)
+  const { enabled: communityEnabled, threadId } = useVideoThread(active ? list[index]?.id : null)
+  const navigate = useNavigate()
   const [draft, setDraft] = useState(null) // { t, text } while composing, else null
   const [savingNb, setSavingNb] = useState('')
   const [savingWl, setSavingWl] = useState('') // save-tickers-to-watchlist status
@@ -126,6 +133,20 @@ export default function VideoDockSlot() {
     }
     setTimeout(() => setSavingWl(''), 3000)
   }, [tickerMoments, list, index])
+
+  // Open (creating on first click) the community thread for this session.
+  const openDiscussion = useCallback(async () => {
+    let tid = threadId
+    if (!tid) {
+      try {
+        const r = await fetch(`/api/education/videos/${list[index]?.id}/community-thread`, {
+          method: 'POST', credentials: 'include',
+        })
+        if (r.ok) tid = (await r.json())?.thread_id
+      } catch { /* ignore */ }
+    }
+    if (tid) navigate(`/community/${tid}`)
+  }, [threadId, list, index, navigate])
 
   const report = useCallback(() => {
     const el = boxRef.current
@@ -212,18 +233,34 @@ export default function VideoDockSlot() {
             {headline && <p className={styles.headline}>{headline}</p>}
             {!headline && current.description && <p className={styles.desc}>{current.description}</p>}
           </div>
-          {/* Actions under the video: talk it through with Compass + transcript. */}
-          {(summary.length > 0 || chapters.length > 0) && (
+          {/* Actions under the video: talk it through with Compass + discuss. */}
+          {((summary.length > 0 || chapters.length > 0) || communityEnabled) && (
             <div className={styles.compassRow}>
-              <CompassAssistButton
-                label="Ask Compass about this session"
-                pageHint={
-                  `The user is watching the Desk trading session "${current.title}". ` +
-                  (headline ? `One-liner: ${headline} ` : '') +
-                  (summary.length ? `Key takeaways: ${summary.join(' | ')} ` : '') +
-                  (chapters.length ? `Chapters: ${chapters.map((c) => c.title).join(', ')}.` : '')
-                }
-              />
+              {(summary.length > 0 || chapters.length > 0) && (
+                <CompassAssistButton
+                  label="Ask Compass about this session"
+                  pageHint={
+                    `The user is watching the Desk trading session "${current.title}". ` +
+                    (headline ? `One-liner: ${headline} ` : '') +
+                    (summary.length ? `Key takeaways: ${summary.join(' | ')} ` : '') +
+                    (chapters.length ? `Chapters: ${chapters.map((c) => c.title).join(', ')}.` : '')
+                  }
+                />
+              )}
+              {communityEnabled && (
+                <button
+                  type="button"
+                  className={styles.discussBtn}
+                  onClick={openDiscussion}
+                  title="Discuss this session with the community"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                    <path d="M2 3.2h10v5.4H6.4L3.6 11V8.6H2z" fill="none"
+                      stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+                  </svg>
+                  Discuss
+                </button>
+              )}
             </div>
           )}
           {/* Search-and-seek transcript — collapsed by default, lazy-loaded. */}
@@ -425,6 +462,22 @@ export default function VideoDockSlot() {
                     <img className={styles.upNextThumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
                   </span>
                   <span className={styles.upNextTitle}>{v.title}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {related.length > 0 && (
+          <div className={styles.upNext}>
+            <div className={styles.upNextHead}>More sessions on these tickers</div>
+            <div className={styles.upNextRail}>
+              {related.map((v) => (
+                <button key={v.id} className={styles.upNextItem} onClick={() => play([v], 0)}>
+                  <span className={styles.upNextThumbWrap}>
+                    <img className={styles.upNextThumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
+                  </span>
+                  <span className={styles.upNextTitle}>{v.title}</span>
+                  <span className={styles.relatedShared}>{v.shared.slice(0, 4).join(' · ')}</span>
                 </button>
               ))}
             </div>

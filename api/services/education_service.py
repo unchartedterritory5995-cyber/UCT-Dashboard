@@ -450,6 +450,41 @@ def videos_without_chapters(limit: int = 1000) -> list[dict]:
     return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"]} for r in rows]
 
 
+def related_videos_by_ticker(video_id: int, limit: int = 10) -> list[dict]:
+    """Other videos that covered any of THIS video's tickers, ranked by overlap
+    count. Small library (~300 rows) → compute in Python rather than JSON-query
+    SQLite. Returns [{id, youtube_id, title, shared: [T,...], overlap}]."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id, youtube_id, title, ticker_moments FROM edu_videos "
+            "WHERE ticker_moments IS NOT NULL AND ticker_moments != '' AND ticker_moments != '[]'"
+        ).fetchall()
+
+    def _tickers(raw) -> set:
+        try:
+            arr = _json.loads(raw) if raw else []
+            return {str(m["ticker"]).upper() for m in arr
+                    if isinstance(m, dict) and m.get("ticker")}
+        except Exception:
+            return set()
+
+    vid = int(video_id)
+    cur = next((r for r in rows if r["id"] == vid), None)
+    mine = _tickers(cur["ticker_moments"]) if cur else set()
+    if not mine:
+        return []
+    out = []
+    for r in rows:
+        if r["id"] == vid:
+            continue
+        shared = mine & _tickers(r["ticker_moments"])
+        if shared:
+            out.append({"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"],
+                        "shared": sorted(shared), "overlap": len(shared)})
+    out.sort(key=lambda x: (-x["overlap"], x["title"]))
+    return out[:limit]
+
+
 def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
                        chapters: Optional[list] = None,
                        ticker_moments: Optional[list] = None,

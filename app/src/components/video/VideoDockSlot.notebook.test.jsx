@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import VideoDockSlot from './VideoDockSlot'
+import { MemoryRouter } from 'react-router-dom'
 import * as store from './videoStore'
 
 vi.mock('../../hooks/useVideoNotes', () => ({
@@ -21,7 +22,7 @@ describe('saveToNotebook emits videoTimestamp chips', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
     vi.stubGlobal('fetch', fetchMock)
     act(() => store.play(LIST, 0))
-    render(<VideoDockSlot />)
+    render(<MemoryRouter><VideoDockSlot /></MemoryRouter>)
     const btn = await screen.findByRole('button', { name: /notebook/i })
     await act(async () => { fireEvent.click(btn) })
     const post = fetchMock.mock.calls.find(([url]) => String(url).includes('/api/j2/notes'))

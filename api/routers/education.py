@@ -178,6 +178,42 @@ def get_video_insights(video_id: int, _user: dict = Depends(require_paid)):
     return out
 
 
+@router.get("/videos/{video_id}/related")
+def get_related_videos(video_id: int, _user: dict = Depends(require_paid)):
+    """Other library videos that covered any of this video's tickers."""
+    return {"videos": svc.related_videos_by_ticker(video_id)}
+
+
+def _community_enabled() -> bool:
+    return os.environ.get("COMMUNITY_ENABLED", "0") == "1"
+
+
+@router.get("/videos/{video_id}/community-thread")
+def get_video_thread(video_id: int, _user: dict = Depends(require_paid)):
+    """Whether Community is on + the existing discussion thread id (no create)."""
+    tid = None
+    if _community_enabled():
+        try:
+            from api.services import community_store
+            t = community_store.get_thread_by_desk_id(int(video_id))
+            tid = t["id"] if t else None
+        except Exception:
+            tid = None
+    return {"enabled": _community_enabled(), "thread_id": tid}
+
+
+@router.post("/videos/{video_id}/community-thread")
+def create_video_thread(video_id: int, _user: dict = Depends(require_paid)):
+    """Create-if-missing the discussion thread for a video (on 'Discuss' click)."""
+    if not _community_enabled():
+        raise HTTPException(status_code=403, detail="Community is not enabled")
+    from api.services import community_seed
+    tid = community_seed.upsert_desk_thread(int(video_id))
+    if not tid:
+        raise HTTPException(status_code=500, detail="Could not open a thread for this video")
+    return {"thread_id": tid}
+
+
 @router.get("/videos/{video_id}/transcript")
 def get_video_transcript(video_id: int, _user: dict = Depends(require_paid)):
     """Timed transcript cues [{t, text}] for search-and-seek. Empty list when a

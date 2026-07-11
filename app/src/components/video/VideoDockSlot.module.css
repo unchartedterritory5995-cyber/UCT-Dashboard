@@ -188,6 +188,34 @@
 }
 .compassRow {
   margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.discussBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  background: rgba(201, 168, 76, 0.08);
+  color: #c9a84c;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.discussBtn:hover { background: rgba(201, 168, 76, 0.16); }
+.discussBtn:focus-visible { outline: 2px solid #c9a84c; outline-offset: 2px; }
+.relatedShared {
+  display: block;
+  margin-top: 3px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: #c9a84c;
 }
 .title {
   font-size: 16px;
