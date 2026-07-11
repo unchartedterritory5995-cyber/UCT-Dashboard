@@ -2631,14 +2631,35 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         total_vol = alert.get("total_volume") or 0
         sided_pct = alert.get("sided_pct")
         voi = alert.get("cum_voi")
-        badges.append(f"🔁 **{hits} HITS — ACCUMULATION**")
+        # Lead badge reflects the accumulation SHAPE (matches the radar).
+        shape = alert.get("accumulation_shape") or "single"
+        days_active = alert.get("days_active") or 1
+        day_hits = alert.get("day_hits") or []
+        swift = alert.get("swift_hits") or 0
+        rising = alert.get("burst_rising")
+        if shape == "accelerating":
+            badges.append(f"🔥 **{days_active}-DAY ACCELERATING** · {hits} hits")
+        elif shape == "intraday_burst":
+            badges.append(f"⚡ **SWIFT {swift}×**{' ↑' if rising else ''} · {hits} hits")
+        elif shape == "steady":
+            badges.append(f"🔁 **{days_active}-DAY STEADY** · {hits} hits")
+        else:
+            badges.append(f"🔁 **{hits} HITS — ACCUMULATION**")
         if voi and voi > 1.0:
             badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
+        # Show the daily build inline (7/9:37 → 7/10:45 → 7/11:108).
+        ramp = None
+        if len(day_hits) > 1:
+            ramp = " → ".join(str(h.get("hits", 0)) for h in day_hits)
         fields += [
             {"name": "Total Premium", "value": _fmt_money_m(total_prem), "inline": True},
             {"name": "Hits", "value": f"{hits}", "inline": True},
             {"name": "DTE", "value": dte_str, "inline": True},
         ]
+        if ramp:
+            fields.append({"name": f"Daily Build ({days_active}d)", "value": ramp, "inline": True})
+        if swift and swift >= 4:
+            fields.append({"name": "Swift (5min)", "value": f"{swift}×{' ↑' if rising else ''}", "inline": True})
         if total_vol:
             fields.append({"name": "Volume", "value": f"{int(total_vol):,}", "inline": True})
         if voi is not None:
@@ -2727,6 +2748,7 @@ def force_push_discord(
     exp: str = Query(None),
     target_date: str = Query(None),
     mode: str = Query("single", description="'single' or 'accumulation'"),
+    lookback_days: int = Query(3, ge=1, le=5, description="Accumulation lookback window for finding the contract (matches the radar)."),
 ):
     """Manual override: push a Massive alert to Discord, bypassing all auto-fire
     gates (like LiveFlow's force-push). Two modes:
@@ -2738,7 +2760,11 @@ def force_push_discord(
             if not all([ticker, cp, strike, exp, target_date]):
                 raise HTTPException(400, "accumulation mode needs ticker, cp, strike, exp, target_date")
             se = "all"
-            payload = _build_by_contract(target_date, se, 1, False)
+            # Use a lookback window (default 3d) so multi-day accumulators are
+            # found the same way the radar surfaces them — a contract flagged for
+            # its 3-day build won't necessarily clear min_hits on the target day
+            # alone (that was the "contract not found" 404).
+            payload = _build_by_contract(target_date, se, 1, False, int(lookback_days))
             cpU = cp.strip().upper()[:1]
             match = next(
                 (c for c in payload.get("contracts", [])
