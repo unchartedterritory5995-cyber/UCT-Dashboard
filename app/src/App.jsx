@@ -187,9 +187,6 @@ export default function App() {
 
             {/* Protected routes — require authentication */}
             <Route element={<AuthGuard />}>
-              {/* LiveFlow has its own full-page layout — no sidebar/nav wrapper */}
-              <Route path="/live-flow" element={<LiveFlow />} />
-              <Route path="/live-massive" element={<LiveFlowMassive />} />
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/morning-wire" element={<MorningWire />} />
@@ -204,6 +201,10 @@ export default function App() {
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
                 <Route path="/options-flow" element={<OptionsFlow />} />
+                {/* Live Flow pages render inside the app shell (left nav) so users
+                    can navigate back out — same as every other section. */}
+                <Route path="/live-flow" element={<LiveFlow />} />
+                <Route path="/live-massive" element={<LiveFlowMassive />} />
                 {/* Flow Scoreboard is now a section INSIDE Options Flow (not its own
                     nav section). Redirect old links/bookmarks to that section. */}
                 <Route path="/flow-scoreboard" element={<Navigate to="/options-flow?view=scoreboard" replace />} />
