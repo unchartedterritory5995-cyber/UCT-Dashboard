@@ -110,11 +110,11 @@ test('Setups opens the Setup Library; a card opens the detail scaffold', () => {
   const bullFlagCard = screen.getByRole('button', { name: /bull flag/i })
   expect(bullFlagCard).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /gap support/i })).toBeInTheDocument()
-  // Click a card → the stage scaffold opens: setup heading, playbook hover
-  // hint, and the charted-examples pane.
+  // Click a card → the stage scaffold opens: setup heading, a "Learn more"
+  // affordance (opens the playbook modal), and the charted-examples pane.
   fireEvent.click(bullFlagCard)
   expect(screen.getByRole('heading', { name: /bull flag/i })).toBeInTheDocument()
-  expect(screen.getByText(/hover a setup for its playbook/i)).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: /learn more/i }).length).toBeGreaterThan(0)
   expect(screen.getByText(/loading examples|no charted examples yet/i)).toBeInTheDocument()
   // The library rail stays alongside the stage — other setups remain reachable.
   expect(screen.getByRole('button', { name: /gap support/i })).toBeInTheDocument()
