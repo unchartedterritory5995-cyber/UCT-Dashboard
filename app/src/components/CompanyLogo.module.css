@@ -15,9 +15,11 @@
    (it letterboxes on the dark tile instead). Every consumer is a dark surface. */
 .tile {
   border-radius: 24%;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.35);
 }
-.tile.wrap { background: #0e131c; }
+/* Charcoal (not near-black) so dark/navy brand marks keep contrast instead of
+   vanishing into the tile — matches EarningsHub's raised-tile shade. */
+.tile.wrap { background: #232a38; }
 .tile .img {
   object-fit: contain;
   padding: 13%;
