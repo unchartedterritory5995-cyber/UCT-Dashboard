@@ -2225,7 +2225,7 @@ function ContractColumnHeaders({ isAdmin }) {
   );
 }
 
-function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState }) {
+function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) {
   const [open, setOpen] = useState(false);
   const DIR_BULL = "#6BAA85", DIR_BEAR = "#C26A6A";
   const isBull = c.direction === "Bull";
@@ -2330,6 +2330,22 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState }) {
           <span style={{ color: P.dm, fontSize: 11, whiteSpace: "nowrap" }}>
             {consPct}% {isBull ? "bull" : isBear ? "bear" : "mixed"}
           </span>
+          {oiCheck && oiCheck.status && oiCheck.status !== "no-data" && (() => {
+            const meta = {
+              confirmed: { label: "✓ CONFIRMED", color: "#6BAA85" },
+              held: { label: "= HELD", color: "#5b9bd5" },
+              trimmed: { label: "▽ TRIMMED", color: "#c9a84c" },
+              closed: { label: "✗ CLOSED", color: "#C26A6A" },
+            }[oiCheck.status];
+            if (!meta) return null;
+            const dsign = oiCheck.delta > 0 ? "+" : "";
+            return (
+              <span title={`Next-day OI ${oiCheck.oi?.toLocaleString?.() ?? oiCheck.oi} (${dsign}${oiCheck.delta?.toLocaleString?.() ?? oiCheck.delta} vs entry)`}
+                    style={{ color: meta.color, fontSize: 10, fontWeight: 800, whiteSpace: "nowrap", letterSpacing: 0.3 }}>
+                {meta.label}
+              </span>
+            );
+          })()}
         </span>
 
         {isAdmin && (
@@ -2503,6 +2519,48 @@ export default function LiveFlowMassive() {
         if (!d || !d.ok) console.error("[massive push contract] failed:", d);
       })
       .catch(e => { setContractPushStates(s => ({ ...s, [key]: "error" })); console.error("[massive push contract]", e); });
+  };
+  // Check OI — next-day confirmation for accumulation contracts. Fetches the
+  // latest settled OI per contract (enrich-oi) and compares to the entry OI
+  // (max_oi seen during the trades). OI grew overnight = positions held/added
+  // (CONFIRMED); OI fell = closed (the UW "OI drops next morning" exit tell).
+  const _ckey = (t, cp, k, e) => `${String(t).toUpperCase()}|${String(cp).toUpperCase()[0]}|${parseFloat(k)}|${String(e).trim()}`;
+  const [oiCheck, setOiCheck] = useState({});   // ckey -> { oi, delta, status }
+  const [oiChecking, setOiChecking] = useState(false);
+  const handleCheckOI = async () => {
+    const contracts = (byContract?.contracts || []);
+    if (!contracts.length) return;
+    setOiChecking(true);
+    try {
+      const body = contracts.map(c => ({ ticker: c.ticker, cp: c.cp, strike: c.strike, exp: c.exp }));
+      const r = await fetch(`/api/live/massive/enrich-oi`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      const settledMap = {};
+      (d.results || []).forEach(res => { settledMap[_ckey(res.ticker, res.cp, res.strike, res.exp)] = res.oi; });
+      const out = {};
+      contracts.forEach(c => {
+        const k = _ckey(c.ticker, c.cp, c.strike, c.exp);
+        const settled = settledMap[k];
+        const entry = c.max_oi || 0;
+        if (settled == null) { out[k] = { status: "no-data" }; return; }
+        let status = "held", delta = settled - entry;
+        if (entry > 0) {
+          const ratio = settled / entry;
+          if (ratio >= 1.10) status = "confirmed";
+          else if (ratio >= 0.90) status = "held";
+          else if (ratio >= 0.15) status = "trimmed";
+          else status = "closed";
+        } else {
+          status = settled > 0 ? "confirmed" : "no-data";
+        }
+        out[k] = { oi: settled, delta, status };
+      });
+      setOiCheck(out);
+    } catch (e) { console.error("[check OI]", e); }
+    finally { setOiChecking(false); }
   };
   // Thresholds loaded from /api/live/massive/thresholds. Local edits in the
   // tuning panel mutate this state for preview; "Save" POSTs back to backend.
@@ -3319,6 +3377,17 @@ export default function LiveFlowMassive() {
             <span style={{ color: P.dm, fontStyle: "italic", marginLeft: 4 }}>
               🔥 accelerating multi-day builds surface first
             </span>
+            <button
+              onClick={handleCheckOI}
+              disabled={oiChecking}
+              title="Fetch latest settled OI per contract and confirm whether positions held overnight (OI grew) or closed (OI fell)"
+              style={{
+                marginLeft: "auto", padding: "3px 12px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+                border: `1px solid ${P.ac}`, background: "transparent", color: P.ac,
+                cursor: oiChecking ? "wait" : "pointer", fontFamily: "inherit", opacity: oiChecking ? 0.6 : 1,
+              }}>
+              {oiChecking ? "checking…" : "↻ Check OI"}
+            </button>
           </div>
         )}
 
@@ -3422,6 +3491,7 @@ export default function LiveFlowMassive() {
             isAdmin={isTuneMode}
             onPush={handlePushContract}
             pushState={contractPushStates[`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`]}
+            oiCheck={oiCheck[_ckey(c.ticker, c.cp, c.strike, c.exp)]}
           />
         ))}
         {visibleContracts.length === 0 && !error && (
