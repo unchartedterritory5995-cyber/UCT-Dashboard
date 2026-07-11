@@ -2445,6 +2445,229 @@ def get_thresholds():
     }
 
 
+# ─── Massive Discord push (manual force-push + shared embed builder) ─────────
+# Webhook resolution mirrors LiveFlow: prefer a dedicated Massive webhook, fall
+# back to the LiveFlow channel so "same channel for now" works with no config.
+# Never hardcode the URL — it's a secret; set DISCORD_MASSIVE_WEBHOOK_URL in the
+# environment (Railway) and rotate there without a code change.
+_MASSIVE_WEBHOOK = (
+    os.getenv("DISCORD_MASSIVE_WEBHOOK_URL")
+    or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
+    or os.getenv("DISCORD_WEBHOOK_URL", "")
+).strip()
+_UCT_LOGO_URL = os.getenv(
+    "UCT_LOGO_URL",
+    "https://raw.githubusercontent.com/unchartedterritory5995-cyber/"
+    "UCT-Dashboard/master/app/public/UCT_logo_512.png",
+).strip()
+
+
+def _fmt_money_m(n) -> str:
+    try:
+        n = float(n or 0)
+    except (TypeError, ValueError):
+        return "?"
+    if n >= 1_000_000:
+        return f"${n/1_000_000:.2f}M"
+    if n >= 1_000:
+        return f"${n/1_000:.0f}K"
+    return f"${n:.0f}"
+
+
+def _exp_us(exp: str) -> str:
+    """flow.db exp is 'M/D/YYYY'; render 'MM-DD-YYYY' to match LiveFlow embeds."""
+    if not exp:
+        return "?"
+    s = str(exp).strip()
+    if "/" in s:
+        p = s.split("/")
+        if len(p) == 3:
+            try:
+                return f"{int(p[0]):02d}-{int(p[1]):02d}-{int(p[2])}"
+            except (ValueError, IndexError):
+                return s
+    if "-" in s:  # ISO fallback
+        p = s.split("-")
+        if len(p) == 3:
+            try:
+                return f"{int(p[1]):02d}-{int(p[2]):02d}-{int(p[0])}"
+            except (ValueError, IndexError):
+                return s
+    return s
+
+
+def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
+    """Discord embed for a Massive alert — visually identical to LiveFlow's
+    (UCT logo author, green/red color bar, badges, 3-per-row fields).
+    mode='single' = one tape print; mode='accumulation' = By-Contract rollup."""
+    cp = (alert.get("cp") or "?").upper()
+    ticker = alert.get("ticker") or "?"
+    strike = alert.get("strike")
+    exp = alert.get("exp")
+    dte = alert.get("dte")
+    direction = alert.get("_direction") or alert.get("direction")
+    color = 0x3CB868 if cp == "C" else (0xE74C3C if cp == "P" else 0xC9A84C)
+    strike_str = f"${strike:g}" if isinstance(strike, (int, float)) else "?"
+    cp_label = "CALL" if cp == "C" else ("PUT" if cp == "P" else cp)
+    dte_str = f"{dte}d" if dte is not None else "?"
+
+    # Title with moneyness suffix (magnitude only; label conveys direction).
+    m_pct = alert.get("moneynessPct")
+    m_lbl = alert.get("moneynessLabel")
+    title = f"{ticker} {strike_str} {cp_label} EXP: {_exp_us(exp)}"
+    if m_lbl == "ATM":
+        title += " (ATM)"
+    elif m_lbl in ("ITM", "OTM") and m_pct is not None:
+        title += f" ({abs(m_pct):.0f}% {m_lbl})"
+
+    dir_label = "Bullish" if direction == "Bull" else ("Bearish" if direction == "Bear" else None)
+    badges, fields = [], []
+
+    if mode == "accumulation":
+        hits = alert.get("qualifying_hits") or alert.get("hit_count") or 0
+        total_prem = alert.get("total_premium") or 0
+        total_vol = alert.get("total_volume") or 0
+        sided_pct = alert.get("sided_pct")
+        voi = alert.get("cum_voi")
+        badges.append(f"🔁 **{hits} HITS — ACCUMULATION**")
+        if voi and voi > 1.0:
+            badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
+        fields += [
+            {"name": "Total Premium", "value": _fmt_money_m(total_prem), "inline": True},
+            {"name": "Hits", "value": f"{hits}", "inline": True},
+            {"name": "DTE", "value": dte_str, "inline": True},
+        ]
+        if total_vol:
+            fields.append({"name": "Volume", "value": f"{int(total_vol):,}", "inline": True})
+        if voi is not None:
+            fields.append({"name": "Vol/OI", "value": f"{voi:.2f}x", "inline": True})
+        if sided_pct is not None:
+            fields.append({"name": "Sided", "value": f"{int(round(sided_pct*100))}%", "inline": True})
+        default_name = "UCT Accumulation"
+    else:
+        prem = alert.get("alertPremium") or 0
+        size = alert.get("tradeSize") or 0
+        oi = alert.get("priorOI")
+        fill = alert.get("averageFillPrice")
+        voi = round(size / oi, 2) if (oi and oi > 0 and size) else None
+        if voi and voi > 1.0:
+            badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
+        fields += [
+            {"name": "Premium", "value": _fmt_money_m(prem), "inline": True},
+            {"name": "Avg Fill", "value": (f"${fill:.2f}" if fill else "?"), "inline": True},
+            {"name": "DTE", "value": dte_str, "inline": True},
+        ]
+        if size:
+            fields.append({"name": "Volume", "value": f"{int(size):,}", "inline": True})
+        if oi is not None:
+            fields.append({"name": "OI", "value": f"{int(oi):,}", "inline": True})
+        if voi is not None:
+            fields.append({"name": "Vol/OI", "value": f"{voi:.2f}x", "inline": True})
+        default_name = alert.get("alertName") or "UCT Massive"
+
+    spot = alert.get("spot")
+    if spot:
+        fields.append({"name": "Spot", "value": f"${float(spot):,.2f}", "inline": True})
+    if dir_label:
+        fields.append({"name": "Direction", "value": dir_label, "inline": True})
+    grade = alert.get("grade")
+    if grade and grade != "D":
+        fields.append({"name": "Conviction", "value": grade, "inline": True})
+
+    embed = {"title": title, "color": color, "fields": fields}
+    if badges:
+        embed["description"] = "  ·  ".join(badges)
+    if _UCT_LOGO_URL:
+        embed["author"] = {"name": alert.get("alertName") or default_name, "icon_url": _UCT_LOGO_URL}
+    else:
+        embed["footer"] = {"text": f"{default_name} · UCT Massive"}
+    return embed
+
+
+def _post_massive_discord(embed: dict) -> tuple:
+    """POST an embed to the Massive webhook. Returns (ok, detail)."""
+    if not _MASSIVE_WEBHOOK:
+        return (False, "no webhook configured (set DISCORD_MASSIVE_WEBHOOK_URL)")
+    import urllib.request
+    import urllib.error
+    data = json.dumps({"embeds": [embed]}).encode("utf-8")
+    req = urllib.request.Request(
+        _MASSIVE_WEBHOOK, data=data,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            code = resp.getcode()
+            return (200 <= code < 300, f"discord {code}")
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read()[:200].decode("utf-8", "ignore")
+        except Exception:
+            pass
+        return (False, f"discord HTTP {e.code}: {body}")
+    except Exception as e:
+        return (False, str(e))
+
+
+@router.post("/force-push-discord")
+def force_push_discord(
+    id: int = Query(None, description="flow.db row id for a single-print push"),
+    ticker: str = Query(None),
+    cp: str = Query(None),
+    strike: str = Query(None),
+    exp: str = Query(None),
+    target_date: str = Query(None),
+    mode: str = Query("single", description="'single' or 'accumulation'"),
+):
+    """Manual override: push a Massive alert to Discord, bypassing all auto-fire
+    gates (like LiveFlow's force-push). Two modes:
+      • single       — ?id=<row>          push one tape print
+      • accumulation — ?ticker&cp&strike&exp&target_date  push the contract rollup
+    """
+    try:
+        if mode == "accumulation":
+            if not all([ticker, cp, strike, exp, target_date]):
+                raise HTTPException(400, "accumulation mode needs ticker, cp, strike, exp, target_date")
+            se = "all"
+            payload = _build_by_contract(target_date, se, 1, False)
+            cpU = cp.strip().upper()[:1]
+            match = next(
+                (c for c in payload.get("contracts", [])
+                 if c.get("ticker") == ticker.strip().upper()
+                 and (c.get("cp") or "").upper() == cpU
+                 and str(c.get("strike")) == str(strike).strip().lstrip("$")
+                 and _exp_us(c.get("exp")) == _exp_us(exp)),
+                None,
+            )
+            if not match:
+                raise HTTPException(404, f"contract not found in rollup for {target_date}")
+            embed = _build_massive_embed(match, mode="accumulation")
+        else:
+            if id is None:
+                raise HTTPException(400, "single mode needs id")
+            conn = sqlite3.connect(DB_PATH, timeout=10)
+            conn.row_factory = sqlite3.Row
+            try:
+                row = conn.execute("SELECT * FROM flow WHERE id = ?", (id,)).fetchone()
+            finally:
+                conn.close()
+            if not row:
+                raise HTTPException(404, f"row id {id} not found")
+            alert = _row_to_alert(dict(row), require_direction=False)
+            if alert is None:
+                raise HTTPException(422, "row could not be built into an alert (filtered as noise)")
+            embed = _build_massive_embed(alert, mode="single")
+
+        ok, detail = _post_massive_discord(embed)
+        return {"ok": ok, "detail": detail, "mode": mode}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e), "traceback": traceback.format_exc().splitlines()[-3:]}
+
+
 @router.post("/thresholds")
 async def save_thresholds(request: Request):
     """Admin: persist new Curated-mode thresholds. Validates shape lightly
