@@ -411,6 +411,38 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
     }
 
 
+_LEVELS_SYS = (
+    "You are analyzing a timestamped transcript of a stock-trading session. Extract "
+    "the specific PRICE levels the speakers flagged as important — support, resistance, "
+    "targets, a 'line in the sand', key moving-average values by number. Output STRICT "
+    "JSON only (no prose, no code fences):\n"
+    '{ "key_levels": [ {"level": "7110", "note": "<=60 chars why it matters", '
+    '"t": <int seconds when first discussed>} ] }\n'
+    "Rules: level = the number as spoken (7110, 26.3, 90, 540); 0-10 items; ONLY real "
+    "levels a trader would mark on a chart; skip vague/round throwaway numbers and pure "
+    "index chatter. Use integer seconds from the [h:mm:ss] markers. Output ONLY the JSON."
+)
+
+
+def generate_key_levels(title: str, cues: list[dict]) -> list[dict]:
+    """Focused LLM call for key price levels ONLY. Kept separate from the big
+    generate_insights call so its small output can't be clobbered when json_repair
+    salvages a malformed mega-response (key_levels is the trailing field there)."""
+    from api.services.engine import _get_anthropic_client
+    block = _timestamped_block(cues)
+    if not block:
+        return []
+    client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
+    msg = client.messages.create(
+        model=os.environ.get("DESK_LEVELS_MODEL", _MODEL),
+        max_tokens=1200,
+        system=_LEVELS_SYS,
+        messages=[{"role": "user", "content": f"VIDEO TITLE: {title}\n\nTRANSCRIPT:\n{block}"}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content)
+    return _clean_levels(_loads_json(raw).get("key_levels"))
+
+
 # ── Recap polish — small LLM rewrite of Zoom's generic summary prose ────────────
 
 def _recap_polish_enabled() -> bool:

@@ -452,6 +452,22 @@ def videos_without_chapters(limit: int = 1000) -> list[dict]:
     return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"]} for r in rows]
 
 
+def videos_needing_key_levels(limit: int = 500) -> list[dict]:
+    """Trading videos (have tickers) with a transcript but no key_levels yet —
+    targets for the dedicated key-levels pass. Runs off the STORED transcript, so
+    no YouTube caption re-fetch (no proxy) is needed."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id, youtube_id, title FROM edu_videos "
+            "WHERE transcript IS NOT NULL AND transcript != '' "
+            "AND ticker_moments IS NOT NULL AND ticker_moments != '' AND ticker_moments != '[]' "
+            "AND (key_levels IS NULL OR key_levels = '' OR key_levels = '[]') "
+            "ORDER BY id DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+    return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"]} for r in rows]
+
+
 def related_videos_by_ticker(video_id: int, limit: int = 10) -> list[dict]:
     """Other videos that covered any of THIS video's tickers, ranked by overlap
     count. Small library (~300 rows) → compute in Python rather than JSON-query
