@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import usePreferences from '../hooks/usePreferences'
 import TileCard from '../components/TileCard'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
 import useTagColors from '../hooks/useTagColors'
-import useTickerTags from '../hooks/useTickerTags'
 import { ALERT_SOUNDS, previewSound } from '../utils/alertSound'
 import VoiceMemoryPanel from '../components/voice/VoiceMemoryPanel'
 import VoiceTelemetryPanel from '../components/voice/VoiceTelemetryPanel'
@@ -796,9 +795,44 @@ function ReferralSection() {
   )
 }
 
+// ── Section registry — the Settings navigation rail ──
+const SECTIONS = [
+  { id: 'account',     label: 'Account',         icon: 'user',    desc: 'Profile, security & session' },
+  { id: 'billing',     label: 'Plan & Billing',  icon: 'dollar',  desc: 'Subscription, invoices & referrals' },
+  { id: 'preferences', label: 'Preferences',     icon: 'gear',    desc: 'Theme, alerts, digests & tags' },
+  { id: 'charts',      label: 'Charts',          icon: 'chart',   desc: 'Chart appearance & defaults' },
+  { id: 'compass',     label: 'Compass & Voice', icon: 'compass', desc: 'AI coach, voice & insights' },
+  { id: 'connections', label: 'Connections',     icon: 'link',    desc: 'Brokerage auto-import' },
+  { id: 'legal',       label: 'Data & Legal',    icon: 'shield',  desc: 'Your data, privacy & disclaimers' },
+]
+
+// Static index behind the settings search box. `keywords` are matched as a
+// substring so word prefixes ("pass" → password) hit too.
+const SEARCH_INDEX = [
+  { card: 'profile',        section: 'account',     title: 'Profile',                    keywords: 'avatar photo email display name full name member since verified' },
+  { card: 'security',       section: 'account',     title: 'Security',                   keywords: 'password change security' },
+  { card: 'session',        section: 'account',     title: 'Log Out',                    keywords: 'log out logout sign out session' },
+  { card: 'subscription',   section: 'billing',     title: 'Subscription & Billing',     keywords: 'plan pro upgrade cancel invoice payment card stripe renewal price free' },
+  { card: 'referral',       section: 'billing',     title: 'Referral Program',           keywords: 'referral invite share friends rewards link' },
+  { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled dim system default chart timeframe appearance' },
+  { card: 'notifications',  section: 'preferences', title: 'Notifications',              keywords: 'alert sound tone browser desktop notification' },
+  { card: 'digest',         section: 'preferences', title: 'Watchlist Digest',           keywords: 'email digest daily weekly summary watchlist' },
+  { card: 'tags',           section: 'preferences', title: 'Color Tags',                 keywords: 'tag color label ticker right click rename' },
+  { card: 'chartSettings',  section: 'charts',      title: 'Chart Settings',             keywords: 'candles hollow bars line area colors indicators sma ema volume hvc crosshair watermark drawing preset background grid reset' },
+  { card: 'compassPanel',   section: 'compass',     title: 'Compass',                    keywords: 'voice speed wake word jarvis read aloud proactive dictate talk orb ai coach' },
+  { card: 'voiceMemory',    section: 'compass',     title: 'Voice Memory',               keywords: 'memory facts compass remembers' },
+  { card: 'voiceTelemetry', section: 'compass',     title: 'Voice Telemetry',            keywords: 'usage minutes latency telemetry stats' },
+  { card: 'voiceSessions',  section: 'compass',     title: 'Voice Session History',      keywords: 'transcripts past conversations session history' },
+  { card: 'voiceDocs',      section: 'compass',     title: 'Voice Documents',            keywords: 'upload pdf files knowledge documents' },
+  { card: 'voiceInsights',  section: 'compass',     title: 'Voice Insights Inbox',       keywords: 'proactive insights inbox compass noticed' },
+  { card: 'broker',         section: 'connections', title: 'Brokerage Connections',      keywords: 'broker brokerage connect snaptrade robinhood schwab import trades positions sync auto-import' },
+  { card: 'privacy',        section: 'legal',       title: 'Data & Privacy',             keywords: 'export download my data json terms privacy policy' },
+  { card: 'disclaimers',    section: 'legal',       title: 'Disclaimers & Attributions', keywords: 'legal advice disclaimer market data tradingview attribution' },
+]
+
 // ── Main Settings Page ──
 export default function Settings() {
-  const { user, plan, subscription, logout, startCheckout, openPortal } = useAuth()
+  const { user, plan, subscription, logout, startCheckout, openPortal, refetch } = useAuth()
   const { prefs, setPref } = usePreferences()
   const { tagColors, setTagLabel } = useTagColors()
   const navigate = useNavigate()
@@ -812,6 +846,47 @@ export default function Settings() {
   const [editingFullName, setEditingFullName] = useState(false)
   const [newFullName, setNewFullName] = useState('')
   const [nameMsg, setNameMsg] = useState('')
+
+  // ── Section navigation (?section= deep-linkable, back/forward friendly) ──
+  const [searchParams, setSearchParams] = useSearchParams()
+  const rawSection = searchParams.get('section')
+  const section = SECTIONS.some(s => s.id === rawSection) ? rawSection : 'account'
+  const activeSection = SECTIONS.find(s => s.id === section)
+  const [query, setQuery] = useState('')
+  const [flashCard, setFlashCard] = useState(null)
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (q.length < 2) return null
+    return SEARCH_INDEX.filter(e =>
+      e.title.toLowerCase().includes(q) || e.keywords.includes(q)
+    )
+  }, [query])
+
+  function goSection(id) {
+    if (id !== section) setSearchParams({ section: id })
+  }
+
+  function goResult(r) {
+    setQuery('')
+    if (r.section !== section) setSearchParams({ section: r.section })
+    setFlashCard(r.card)
+    // Wait for the target section to render before scrolling to the card
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.getElementById(`set-card-${r.card}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }))
+    setTimeout(() => setFlashCard(null), 1800)
+  }
+
+  const card = (id, node) => (
+    <div
+      key={id}
+      id={`set-card-${id}`}
+      className={`${styles.cardAnchor} ${flashCard === id ? styles.cardFlash : ''}`}
+    >
+      {node}
+    </div>
+  )
 
   const renewalDays = daysUntil(subscription?.current_period_end)
   const isComped = subscription?.status === 'comped'
@@ -876,20 +951,13 @@ export default function Settings() {
       if (res.ok) {
         setNameMsg('Updated')
         setEditing(false)
-        window.location.reload()
+        refetch()
       }
     } catch { /* ignore */ }
   }
 
-  return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <h1 className={styles.heading}>Settings</h1>
-      </div>
-
-      <div className={styles.grid}>
-
-        {/* ── Profile ── */}
+  // ── Card blocks (grouped into the section map below) ──
+  const profileCard = (
         <TileCard icon="user" title="Profile">
           <div className={styles.section}>
             <AvatarUpload user={user} />
@@ -978,8 +1046,9 @@ export default function Settings() {
             </div>
           </div>
         </TileCard>
+  )
 
-        {/* ── Subscription & Billing ── */}
+  const subscriptionCard = (
         <TileCard icon="dollar" title="Subscription & Billing">
           <div className={styles.section}>
             {plan === 'pro' || isComped ? (
@@ -1061,11 +1130,9 @@ export default function Settings() {
             )}
           </div>
         </TileCard>
+  )
 
-        {/* ── Brokerage Connections (auto-import trades into Journal 2.0) ── */}
-        <BrokerConnectionsCard />
-
-        {/* ── Security ── */}
+  const securityCard = (
         <TileCard icon="lock" title="Security">
           <div className={styles.section}>
             {!changingPw ? (
@@ -1109,8 +1176,9 @@ export default function Settings() {
             )}
           </div>
         </TileCard>
+  )
 
-        {/* ── Preferences ── */}
+  const preferencesCard = (
         <TileCard icon="gear" title="Preferences">
           <div className={styles.section}>
             <div className={styles.prefRow}>
@@ -1155,11 +1223,9 @@ export default function Settings() {
             </div>
           </div>
         </TileCard>
+  )
 
-        {/* ── Chart Settings ── */}
-        <ChartSettingsSection prefs={prefs} setPref={setPref} />
-
-        {/* ── Notifications ── */}
+  const notificationsCard = (
         <TileCard icon="bell" title="Notifications">
           <div className={styles.section}>
             <div className={styles.prefRow}>
@@ -1219,36 +1285,9 @@ export default function Settings() {
             </div>
           </div>
         </TileCard>
+  )
 
-        {/* ── Voice ── */}
-        <VoicePanel />
-
-        {/* ── Voice Memory ── */}
-        <TileCard icon="mic" title="Voice Memory">
-          <VoiceMemoryPanel />
-        </TileCard>
-
-        {/* ── Voice Telemetry ── */}
-        <TileCard icon="chart" title="Voice Telemetry">
-          <VoiceTelemetryPanel />
-        </TileCard>
-
-        {/* ── Voice Session History ── */}
-        <TileCard icon="clock" title="Voice Session History">
-          <VoiceSessionsPanel />
-        </TileCard>
-
-        {/* ── Voice Documents ── */}
-        <TileCard icon="document" title="Voice Documents">
-          <VoiceDocumentsPanel />
-        </TileCard>
-
-        {/* ── Voice Proactive Insights ── */}
-        <TileCard icon="sparkle" title="Voice Insights Inbox">
-          <VoiceInsightsPanel />
-        </TileCard>
-
-        {/* ── Watchlist Digest ── */}
+  const digestCard = (
         <TileCard icon="document" title="Watchlist Digest">
           <div className={styles.section}>
             <div className={styles.prefRow}>
@@ -1276,8 +1315,9 @@ export default function Settings() {
             </div>
           </div>
         </TileCard>
+  )
 
-        {/* ── Color Tags ── */}
+  const tagsCard = (
         <TileCard icon="tag" title="Color Tags">
           <div className={styles.section}>
             <span className={styles.prefDesc} style={{ marginBottom: 12, display: 'block' }}>
@@ -1302,8 +1342,9 @@ export default function Settings() {
             ))}
           </div>
         </TileCard>
+  )
 
-        {/* ── Data & Privacy ── */}
+  const privacyCard = (
         <TileCard icon="shield" title="Data & Privacy">
           <div className={styles.section}>
             <div className={styles.prefRow}>
@@ -1334,9 +1375,11 @@ export default function Settings() {
             </div>
           </div>
         </TileCard>
+  )
 
-        {/* ── Disclaimers & Attributions ── */}
-        {/* Seed of the future full per-user disclaimer page. Add new <div className={styles.legalBlock}> sections here as legal content grows. */}
+  // Seed of the future full per-user disclaimer page. Add new
+  // <div className={styles.legalBlock}> sections here as legal content grows.
+  const disclaimersCard = (
         <TileCard icon="document" title="Disclaimers & Attributions">
           <div className={styles.section}>
             <p className={styles.legalIntro}>
@@ -1392,21 +1435,9 @@ export default function Settings() {
             </div>
           </div>
         </TileCard>
+  )
 
-        {/* ── Referral Program ── */}
-        <ReferralSection />
-
-        {/* ── Support ── */}
-        <TileCard icon="chat" title="Help & Support">
-          <div className={styles.section}>
-            <button className={styles.btn} onClick={() => navigate('/support')}>
-              Open Support
-            </button>
-            <p className={styles.hint}>Submit a ticket, report a bug, or request a feature</p>
-          </div>
-        </TileCard>
-
-        {/* ── Session ── */}
+  const sessionCard = (
         <TileCard icon="unlock" title="Session">
           <div className={styles.section}>
             <button className={styles.btnDanger} onClick={handleLogout}>
@@ -1414,6 +1445,106 @@ export default function Settings() {
             </button>
           </div>
         </TileCard>
+  )
+
+  // ── Section map — which cards render under each rail entry ──
+  const sectionCards = {
+    account: [
+      card('profile', profileCard),
+      card('security', securityCard),
+      card('session', sessionCard),
+    ],
+    billing: [
+      card('subscription', subscriptionCard),
+      card('referral', <ReferralSection />),
+    ],
+    preferences: [
+      card('prefs', preferencesCard),
+      card('notifications', notificationsCard),
+      card('digest', digestCard),
+      card('tags', tagsCard),
+    ],
+    charts: [
+      card('chartSettings', <ChartSettingsSection prefs={prefs} setPref={setPref} />),
+    ],
+    compass: [
+      card('compassPanel', <VoicePanel />),
+      card('voiceMemory', <TileCard icon="mic" title="Voice Memory"><VoiceMemoryPanel /></TileCard>),
+      card('voiceTelemetry', <TileCard icon="chart" title="Voice Telemetry"><VoiceTelemetryPanel /></TileCard>),
+      card('voiceSessions', <TileCard icon="clock" title="Voice Session History"><VoiceSessionsPanel /></TileCard>),
+      card('voiceDocs', <TileCard icon="document" title="Voice Documents"><VoiceDocumentsPanel /></TileCard>),
+      card('voiceInsights', <TileCard icon="sparkle" title="Voice Insights Inbox"><VoiceInsightsPanel /></TileCard>),
+    ],
+    connections: [
+      card('broker', <BrokerConnectionsCard />),
+    ],
+    legal: [
+      card('privacy', privacyCard),
+      card('disclaimers', disclaimersCard),
+    ],
+  }
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.header}>
+        <h1 className={styles.heading}>Settings</h1>
+        <button className={styles.supportLink} onClick={() => navigate('/support')}>
+          <UIcon name="chat" size={13} />
+          Need help? Open Support
+        </button>
+      </div>
+
+      <div className={styles.layout}>
+        <nav className={styles.rail} aria-label="Settings sections">
+          <div className={styles.railSearchWrap}>
+            <input
+              className={styles.railSearch}
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search settings..."
+              aria-label="Search settings"
+            />
+            {results !== null && (
+              <div className={styles.searchResults}>
+                {results.length === 0 ? (
+                  <div className={styles.searchEmpty}>No settings match "{query.trim()}"</div>
+                ) : results.map(r => (
+                  <button key={r.card} className={styles.searchResult} onClick={() => goResult(r)}>
+                    <span className={styles.searchResultTitle}>{r.title}</span>
+                    <span className={styles.searchResultSection}>
+                      {SECTIONS.find(s => s.id === r.section)?.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className={styles.railItems}>
+            {SECTIONS.map(s => (
+              <button
+                key={s.id}
+                className={`${styles.railItem} ${s.id === section ? styles.railItemActive : ''}`}
+                onClick={() => goSection(s.id)}
+                aria-current={s.id === section ? 'page' : undefined}
+              >
+                <UIcon name={s.icon} size={14} />
+                <span>{s.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <div className={styles.content}>
+          <div className={styles.sectionHead}>
+            <span className={styles.sectionTitle}>
+              <UIcon name={activeSection.icon} size={15} />
+              {activeSection.label}
+            </span>
+            <span className={styles.sectionDesc}>{activeSection.desc}</span>
+          </div>
+          {sectionCards[section]}
+        </div>
       </div>
     </div>
   )

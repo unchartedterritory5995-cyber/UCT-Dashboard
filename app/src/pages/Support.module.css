@@ -117,6 +117,102 @@
   color: var(--text-muted);
   font-size: 14px;
 }
+.emptyIcon { margin-bottom: 10px; opacity: 0.55; }
+
+/* ── Meta strip (response time + email) ── */
+.metaStrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -8px 0 16px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.metaItem { display: inline-flex; align-items: center; gap: 6px; }
+.metaDivider { color: #444; }
+.metaMail { color: var(--text-muted); text-decoration: none; }
+.metaMail:hover { color: #c9a84c; text-decoration: underline; }
+
+/* ── Status filter chips ── */
+.filterChips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  font-size: 11.5px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:hover { background: rgba(255,255,255,0.07); color: var(--text-bright); }
+.chipActive {
+  background: rgba(201,168,76,0.14);
+  border-color: rgba(201,168,76,0.4);
+  color: #c9a84c;
+}
+.chipCount {
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  color: inherit;
+}
+
+/* ── Quick answers (FAQ) ── */
+.faqWrap {
+  margin-top: 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.faqTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #c9a84c;
+  margin-bottom: 6px;
+}
+.faqItem { border-bottom: 1px solid rgba(255,255,255,0.05); }
+.faqItem:last-child { border-bottom: none; }
+.faqQ {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 2px;
+  font-size: 13px;
+  color: var(--text-bright);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.faqQ:hover { color: #c9a84c; }
+.faqA {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  padding: 0 2px 12px 21px;
+}
+.faqA a { color: #c9a84c; text-decoration: none; }
+.faqA a:hover { text-decoration: underline; }
 
 /* ── New Ticket Form ── */
 .formWrap {
@@ -336,6 +432,8 @@
   .newBtn,
   .submitBtn,
   .replyBtn,
+  .chip,
+  .faqQ,
   .reopenBtn { min-height: var(--tap-min); }
   .backLink { min-height: var(--tap-min); font-size: 13px; }
   /* Reply composer stacks so the Send button gets a full-width tap target. */

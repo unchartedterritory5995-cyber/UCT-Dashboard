@@ -117,7 +117,7 @@ describe('SyncTrustCenter', () => {
     render(<SyncTrustCenter />)
     expect(screen.getByRole('alert')).toHaveTextContent(/reconnect/i)
     const link = screen.getByRole('link', { name: /settings/i })
-    expect(link).toHaveAttribute('href', '/settings')
+    expect(link).toHaveAttribute('href', '/settings?section=connections')
   })
 
   it('lists orphans + a trade picker whose Reattach calls the endpoint with the chosen trade id', async () => {

@@ -865,7 +865,7 @@ export default function Landing() {
           <div className={styles.footLinks}>
             <Link to="/terms">Terms</Link>
             <Link to="/privacy">Privacy</Link>
-            <Link to="/settings">Disclaimers</Link>
+            <Link to="/settings?section=legal">Disclaimers</Link>
             <a href="mailto:contact@uctintelligence.com">Contact</a>
           </div>
         </div>

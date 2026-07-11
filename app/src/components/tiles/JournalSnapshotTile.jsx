@@ -517,7 +517,7 @@ function ConnectCta() {
           </li>
         ))}
       </ul>
-      <Link to="/settings" className={styles.ctaButton}>
+      <Link to="/settings?section=connections" className={styles.ctaButton}>
         <span className={styles.ctaButtonIcon}><IconLink /></span>
         Connect your brokerage
       </Link>

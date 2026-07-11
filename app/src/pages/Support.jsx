@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import UIcon from '../components/ui/UIcon'
 import styles from './Support.module.css'
 
 const CATEGORIES = [
@@ -54,14 +56,89 @@ function CategoryBadge({ category }) {
   return <span className={`${styles.categoryBadge} ${styles[cls]}`}>{categoryLabel(category)}</span>
 }
 
+const STATUS_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'open', label: 'Open' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'resolved', label: 'Resolved' },
+]
+
+// Self-serve answers for the questions that would otherwise become tickets.
+// Each links straight into the matching Settings section.
+const FAQS = [
+  {
+    q: 'How do I connect my brokerage to the Journal?',
+    a: <>Go to <Link to="/settings?section=connections">Settings → Connections</Link> and
+      click Connect. Your trades, open positions, and balances auto-import
+      (read-only) — 30+ US brokers supported.</>,
+  },
+  {
+    q: 'How do I upgrade, manage billing, or cancel?',
+    a: <>Everything lives in <Link to="/settings?section=billing">Settings → Plan &amp; Billing</Link>.
+      "Manage Billing" opens the secure billing portal to update your card, view
+      invoices, or cancel anytime.</>,
+  },
+  {
+    q: 'How do I change my password or profile details?',
+    a: <>Head to <Link to="/settings?section=account">Settings → Account</Link> to edit
+      your name, upload an avatar, or change your password.</>,
+  },
+  {
+    q: 'How do I customize how charts look?',
+    a: <>Use <Link to="/settings?section=charts">Settings → Charts</Link> for presets,
+      candle colors, indicators, and volume — or click the gear icon on any
+      chart's toolbar for the same controls in place.</>,
+  },
+  {
+    q: 'How do price alerts and notification sounds work?',
+    a: <>Right-click any ticker anywhere in the app to set a price alert. Delivery
+      and alert tones are in <Link to="/settings?section=preferences">Settings → Preferences</Link>.</>,
+  },
+  {
+    q: 'Can I export my data?',
+    a: <>Yes — <Link to="/settings?section=legal">Settings → Data &amp; Legal</Link> lets
+      you download your watchlists, journal, trades, and settings as JSON anytime.</>,
+  },
+]
+
+function QuickAnswers() {
+  const [open, setOpen] = useState(null)
+  return (
+    <div className={styles.faqWrap}>
+      <div className={styles.faqTitle}>
+        <UIcon name="sparkle" size={13} />
+        Quick answers
+      </div>
+      {FAQS.map((f, i) => (
+        <div key={i} className={styles.faqItem}>
+          <button
+            className={styles.faqQ}
+            onClick={() => setOpen(open === i ? null : i)}
+            aria-expanded={open === i}
+          >
+            <UIcon name={open === i ? 'chevronDown' : 'chevronRight'} size={11} />
+            {f.q}
+          </button>
+          {open === i && <div className={styles.faqA}>{f.a}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function Support() {
-  const [view, setView] = useState('list') // list | new | thread
+  // View + open ticket live in the URL (?view=new, ?t=<id>) so browser
+  // back/forward and refresh keep your place.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tParam = searchParams.get('t')
+  const activeTicketId = tParam && /^\d+$/.test(tParam) ? Number(tParam) : null
+  const view = activeTicketId ? 'thread' : searchParams.get('view') === 'new' ? 'new' : 'list'
+
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTicketId, setActiveTicketId] = useState(null)
   const [thread, setThread] = useState(null)
   const [threadLoading, setThreadLoading] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('all')
 
   // New ticket form
   const [category, setCategory] = useState('bug')
@@ -96,6 +173,17 @@ export default function Support() {
       .finally(() => setThreadLoading(false))
   }, [])
 
+  // Load (or clear) the thread whenever the ?t= param changes — covers clicks,
+  // browser back/forward, and opening a ticket link directly.
+  useEffect(() => {
+    if (activeTicketId) {
+      fetchThread(activeTicketId)
+    } else {
+      setThread(null)
+      setReply('')
+    }
+  }, [activeTicketId, fetchThread])
+
   // Auto-scroll messages
   useEffect(() => {
     if (thread && messagesEndRef.current) {
@@ -120,16 +208,11 @@ export default function Support() {
   }, [view, activeTicketId])
 
   function openThread(ticketId) {
-    setActiveTicketId(ticketId)
-    setView('thread')
-    fetchThread(ticketId)
+    setSearchParams({ t: String(ticketId) })
   }
 
   function goBack() {
-    setView('list')
-    setThread(null)
-    setActiveTicketId(null)
-    setReply('')
+    setSearchParams({})
     fetchTickets()
   }
 
@@ -148,7 +231,7 @@ export default function Support() {
         setSubject('')
         setMessage('')
         setCategory('bug')
-        setView('list')
+        setSearchParams({})
         fetchTickets()
       }
     } catch { /* silent */ }
@@ -196,44 +279,83 @@ export default function Support() {
 
   // ── Ticket List View ──
   if (view === 'list') {
+    const visibleTickets = statusFilter === 'all'
+      ? tickets
+      : tickets.filter(t => t.status === statusFilter)
+
     return (
       <div className={styles.page}>
         <div className={styles.header}>
           <h1 className={styles.heading}>Support</h1>
-          <button className={styles.newBtn} onClick={() => setView('new')}>New Ticket</button>
+          <button className={styles.newBtn} onClick={() => setSearchParams({ view: 'new' })}>New Ticket</button>
+        </div>
+
+        <div className={styles.metaStrip}>
+          <span className={styles.metaItem}>
+            <UIcon name="clock" size={11} />
+            Typical response: within 1 business day
+          </span>
+          <span className={styles.metaDivider}>·</span>
+          <a className={styles.metaMail} href="mailto:contact@uctintelligence.com">
+            contact@uctintelligence.com
+          </a>
         </div>
 
         {loading ? (
           <div className={styles.loading}>Loading tickets...</div>
         ) : tickets.length === 0 ? (
           <div className={styles.emptyState}>
-            <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.4 }}>&#x1F3AB;</div>
+            <div className={styles.emptyIcon}><UIcon name="chat" size={30} /></div>
             <div>No support tickets yet</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>Click "New Ticket" to get help</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Click "New Ticket" to get help — or check the quick answers below</div>
           </div>
         ) : (
-          <div className={styles.ticketList}>
-            {tickets.map(t => (
-              <div key={t.id} className={styles.ticketCard} onClick={() => openThread(t.id)}>
-                <div className={styles.ticketCardTop}>
-                  <span className={styles.ticketSubject}>{t.subject}</span>
-                  <CategoryBadge category={t.category} />
-                  <StatusBadge status={t.status} />
+          <>
+            <div className={styles.filterChips}>
+              {STATUS_FILTERS.map(f => {
+                const count = f.key === 'all'
+                  ? tickets.length
+                  : tickets.filter(t => t.status === f.key).length
+                if (f.key !== 'all' && count === 0) return null
+                return (
+                  <button
+                    key={f.key}
+                    className={`${styles.chip} ${statusFilter === f.key ? styles.chipActive : ''}`}
+                    onClick={() => setStatusFilter(f.key)}
+                  >
+                    {f.label}
+                    <span className={styles.chipCount}>{count}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <div className={styles.ticketList}>
+              {visibleTickets.length === 0 ? (
+                <div className={styles.loading}>No {statusFilter.replace('_', ' ')} tickets</div>
+              ) : visibleTickets.map(t => (
+                <div key={t.id} className={styles.ticketCard} onClick={() => openThread(t.id)}>
+                  <div className={styles.ticketCardTop}>
+                    <span className={styles.ticketSubject}>{t.subject}</span>
+                    <CategoryBadge category={t.category} />
+                    <StatusBadge status={t.status} />
+                  </div>
+                  <div className={styles.ticketPreview}>
+                    {t.last_message ? t.last_message.slice(0, 100) : ''}
+                  </div>
+                  <div className={styles.ticketMeta}>
+                    {t.last_sender === 'admin' && (
+                      <span><span className={styles.adminDot} /> Admin replied</span>
+                    )}
+                    <span>{t.message_count} message{t.message_count !== 1 ? 's' : ''}</span>
+                    <span>{timeAgo(t.updated_at)}</span>
+                  </div>
                 </div>
-                <div className={styles.ticketPreview}>
-                  {t.last_message ? t.last_message.slice(0, 100) : ''}
-                </div>
-                <div className={styles.ticketMeta}>
-                  {t.last_sender === 'admin' && (
-                    <span><span className={styles.adminDot} /> Admin replied</span>
-                  )}
-                  <span>{t.message_count} message{t.message_count !== 1 ? 's' : ''}</span>
-                  <span>{timeAgo(t.updated_at)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
+
+        {!loading && <QuickAnswers />}
       </div>
     )
   }

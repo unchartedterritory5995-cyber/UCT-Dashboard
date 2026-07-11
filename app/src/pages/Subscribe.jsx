@@ -66,7 +66,7 @@ export default function Subscribe() {
           </button>
 
           <button
-            onClick={() => navigate('/settings')}
+            onClick={() => navigate('/settings?section=billing')}
             style={{
               background: 'rgba(255,255,255,0.08)', color: '#ccc', border: '1px solid rgba(255,255,255,0.12)',
               padding: '10px 20px', borderRadius: 6, fontSize: 13, cursor: 'pointer',

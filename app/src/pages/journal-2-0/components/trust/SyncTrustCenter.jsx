@@ -106,7 +106,7 @@ export default function SyncTrustCenter() {
                   {needsReconnect
                     ? 'Reconnect needed — your brokerage authorization is broken. '
                     : 'Reconnect soon — your brokerage authorization is expiring. '}
-                  <a className={styles.reconnectLink} href="/settings">go to Settings</a>
+                  <a className={styles.reconnectLink} href="/settings?section=connections">go to Settings</a>
                 </span>
               </div>
             )}
@@ -125,7 +125,7 @@ export default function SyncTrustCenter() {
         <p className={styles.dupNote}>
           <span className={styles.dupIcon} aria-hidden="true"><UIcon name="copy" size={13} /></span>
           {dupPending} possible duplicate{dupPending === 1 ? '' : 's'} to review in{' '}
-          <a className={styles.reconnectLink} href="/settings">Settings</a>.
+          <a className={styles.reconnectLink} href="/settings?section=connections">Settings</a>.
         </p>
       )}
 

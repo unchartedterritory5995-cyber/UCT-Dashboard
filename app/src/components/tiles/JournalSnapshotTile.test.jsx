@@ -62,7 +62,7 @@ test('empty state (no broker) is a connect call-to-action (no fake data)', () =>
   expect(screen.getByText(/navigate the market, effectively/i)).toBeInTheDocument()
   // Connect CTA → Settings; secondary "log trades manually" → journal.
   const connect = screen.getByRole('link', { name: /connect your brokerage/i })
-  expect(connect).toHaveAttribute('href', '/settings')
+  expect(connect).toHaveAttribute('href', '/settings?section=connections')
   const manual = screen.getByRole('link', { name: /log trades manually/i })
   expect(manual).toHaveAttribute('href', '/journal?j2tab=positions')
   // No fake portfolio numbers in the CTA.

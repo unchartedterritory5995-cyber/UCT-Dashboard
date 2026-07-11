@@ -256,7 +256,7 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
           Close a position or use <strong>+ Add Trade</strong> to record one.
         </p>
         <p className={styles.emptyHint}>
-          Or <a href="/settings">connect your brokerage</a> to auto-import every trade.
+          Or <a href="/settings?section=connections">connect your brokerage</a> to auto-import every trade.
         </p>
       </div>
     )
