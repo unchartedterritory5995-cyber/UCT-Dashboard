@@ -1,0 +1,131 @@
+/* Journal 2.0 — consolidated CoachStrip (P4 B2).
+   ONE calm, severity-ordered strip of consistent rows — replaces the five
+   per-component banners (nudges / interventions / broker-review / EOD /
+   discipline). One row style, tinted by severity via a left rail. */
+
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── one consistent row ─────────────────────────────────────────────────────── */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px 9px 13px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  font-size: 13px;
+  color: var(--text-bright);
+}
+
+.icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 1px;
+}
+
+.msg {
+  color: var(--text-bright);
+}
+
+/* deep-link + action buttons — shared shape, calm treatment */
+
+.openBtn,
+.actionBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.openBtn {
+  padding: 5px 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-bright);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.openBtn:hover {
+  border-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+
+.actionBtn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.actionBtn:hover {
+  color: var(--text-bright);
+  border-color: var(--border-accent);
+}
+
+/* ── severity tints (left rail + faint wash) ────────────────────────────────── */
+
+.danger {
+  border-left-color: rgba(239, 68, 68, 0.85);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.warning {
+  border-left-color: rgba(201, 168, 76, 0.85);
+  background: rgba(201, 168, 76, 0.06);
+}
+
+.success {
+  border-left-color: rgba(34, 197, 94, 0.85);
+  background: rgba(34, 197, 94, 0.06);
+}
+
+.info {
+  border-left-color: rgba(59, 130, 246, 0.85);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+/* ── phone: stack the buttons under the message, no overflow ─────────────────── */
+
+@media (max-width: 640px) {
+  .row {
+    flex-wrap: wrap;
+  }
+  .body {
+    flex: 1 1 100%;
+  }
+  .openBtn,
+  .actionBtn {
+    flex: 1 1 auto;
+  }
+}

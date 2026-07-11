@@ -73,6 +73,11 @@ vi.mock('../components/EODRecap', () => ({
 vi.mock('../components/HoldingsList', () => ({
   default: () => <div data-testid="holdings-list" />,
 }))
+// B2 CoachStrip is its own tested unit — stub it here so these routing tests
+// stay about the lead-module state machine, not the coach-strip union sources.
+vi.mock('../components/CoachStrip', () => ({
+  default: () => <div data-testid="coach-strip-stub" />,
+}))
 
 import TodaySurface from './TodaySurface'
 

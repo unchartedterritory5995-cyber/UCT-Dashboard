@@ -35,6 +35,7 @@ import TodayAllAccountsLead from './today/TodayAllAccountsLead'
 import TodayPremarketLead from './today/TodayPremarketLead'
 import TodayMarketLead from './today/TodayMarketLead'
 import TodayPostCloseLead from './today/TodayPostCloseLead'
+import CoachStrip from '../components/CoachStrip'
 import styles from './TodaySurface.module.css'
 
 async function jsonFetch(url, method, body) {
@@ -108,9 +109,10 @@ export default function TodaySurface() {
 
       {lead}
 
-      {/* B2 builds the consolidated CoachStrip (folds nudges / interventions /
-          broker-review / EOD / discipline into one calm strip). B1 slot only. */}
-      {/* <CoachStrip /> */}
+      {/* B2 — the consolidated CoachStrip: folds nudges / interventions /
+          broker-review / unviewed-EOD / discipline-lock into ONE calm,
+          severity-ordered strip. Renders null when there's nothing to show. */}
+      <CoachStrip accountId={accountId} />
 
       {/* B3 fills the secondary modules below the lead:
           - TodayWeekStrip (compact WeekView, deep-links to the day page)
