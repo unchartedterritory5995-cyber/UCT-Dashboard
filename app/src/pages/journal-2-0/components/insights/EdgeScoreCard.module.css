@@ -83,6 +83,15 @@
   color: var(--text-bright, #f2f3f6);
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .copyBtn {
   display: inline-flex;
   align-items: center;
@@ -109,6 +118,11 @@
 
 .copyBtn:active {
   transform: translateY(0.5px);
+}
+
+.copyBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 /* ── Hero score + formula ───────────────────────────────────────────────────── */

@@ -32,6 +32,9 @@ import UIcon from '../../../../components/ui/UIcon'
 import ConfidenceStat from '../analytics/ConfidenceStat'
 import useScope from '../../hooks/useScope'
 import { scopeToSearchParams } from '../../../../lib/journal-2-0/scope'
+import { useFeatureFlag } from '../../featureFlags'
+import { renderEdgeCardPng } from '../../lib/edgeCardPng'
+import { downloadBlob, copyBlobToClipboard } from '../../../../components/chart/chartScreenshot'
 import styles from './EdgeScoreCard.module.css'
 
 const CONF_MIN = 10
@@ -63,17 +66,30 @@ function buildShareUrl(scope) {
 
 export default function EdgeScoreCard({ edge }) {
   const { scope } = useScope()
+  // The `tradePng` flag is the shared "shareable images" gate (trade-card +
+  // edge-card PNG). Copy-link is ALWAYS available; only the image actions gate.
+  const pngEnabled = useFeatureFlag('tradePng')
   // null = idle · 'ok' = copied · 'fail' = clipboard unavailable/blocked
   const [copied, setCopied] = useState(null)
   const timerRef = useRef(null)
+  // Image-action status: null = idle · 'saving'/'copying' = in-flight ·
+  // 'saved'/'copied' = transient success · 'error' = render/clipboard failed.
+  const [imgStatus, setImgStatus] = useState(null)
+  const imgTimerRef = useRef(null)
 
-  useEffect(() => () => clearTimeout(timerRef.current), [])
+  useEffect(() => () => {
+    clearTimeout(timerRef.current)
+    clearTimeout(imgTimerRef.current)
+  }, [])
 
   const score = edge?.score
   const c = edge?.components || {}
   const hasScore = score != null
   const n = typeof c.tradeCount === 'number' ? c.tradeCount : 0
   const hasComponents = c.winRate != null || c.tradeCount != null
+  // Only offer the image actions once there's a real score to share — the honest
+  // null state hides them (cleaner than exporting a "not enough data" card).
+  const showImageActions = pngEnabled && hasScore
 
   const onCopy = useCallback(async () => {
     const url = buildShareUrl(scope)
@@ -95,6 +111,34 @@ export default function EdgeScoreCard({ edge }) {
     timerRef.current = setTimeout(() => setCopied(null), COPY_RESET_MS)
   }, [scope])
 
+  const flashImg = useCallback((status) => {
+    setImgStatus(status)
+    clearTimeout(imgTimerRef.current)
+    imgTimerRef.current = setTimeout(() => setImgStatus(null), COPY_RESET_MS)
+  }, [])
+
+  const onSaveImage = useCallback(async () => {
+    setImgStatus('saving')
+    try {
+      const blob = await renderEdgeCardPng(edge)
+      downloadBlob(blob, 'edge-score.png')
+      flashImg('saved')
+    } catch {
+      flashImg('error')
+    }
+  }, [edge, flashImg])
+
+  const onCopyImage = useCallback(async () => {
+    setImgStatus('copying')
+    try {
+      const blob = await renderEdgeCardPng(edge)
+      const ok = await copyBlobToClipboard(blob)
+      flashImg(ok ? 'copied' : 'error')
+    } catch {
+      flashImg('error')
+    }
+  }, [edge, flashImg])
+
   return (
     <section className={styles.card} aria-label="Edge Score">
       <header className={styles.header}>
@@ -105,15 +149,41 @@ export default function EdgeScoreCard({ edge }) {
           <span className={styles.eyebrow}>UCT Intelligence</span>
           <h3 className={styles.title}>Edge Score</h3>
         </div>
-        <button
-          type="button"
-          className={styles.copyBtn}
-          onClick={onCopy}
-          aria-label="Copy link to this Edge view"
-        >
-          <UIcon name={copied === 'ok' ? 'check' : 'link'} size={14} gold={false} />
-          <span>{copied === 'ok' ? 'Copied!' : 'Copy link'}</span>
-        </button>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.copyBtn}
+            onClick={onCopy}
+            aria-label="Copy link to this Edge view"
+          >
+            <UIcon name={copied === 'ok' ? 'check' : 'link'} size={14} gold={false} />
+            <span>{copied === 'ok' ? 'Copied!' : 'Copy link'}</span>
+          </button>
+          {showImageActions && (
+            <>
+              <button
+                type="button"
+                className={styles.copyBtn}
+                onClick={onSaveImage}
+                disabled={imgStatus === 'saving' || imgStatus === 'copying'}
+                aria-label="Save the Edge Score card as an image"
+              >
+                <UIcon name={imgStatus === 'saved' ? 'check' : 'download'} size={14} gold={false} />
+                <span>{imgStatus === 'saved' ? 'Saved!' : 'Save as image'}</span>
+              </button>
+              <button
+                type="button"
+                className={styles.copyBtn}
+                onClick={onCopyImage}
+                disabled={imgStatus === 'saving' || imgStatus === 'copying'}
+                aria-label="Copy the Edge Score card image"
+              >
+                <UIcon name={imgStatus === 'copied' ? 'check' : 'copy'} size={14} gold={false} />
+                <span>{imgStatus === 'copied' ? 'Copied!' : 'Copy image'}</span>
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
       <div className={styles.hero}>
@@ -190,7 +260,11 @@ export default function EdgeScoreCard({ edge }) {
       )}
 
       <footer className={styles.footer}>
-        {copied === 'fail' ? (
+        {imgStatus === 'error' ? (
+          <span className={styles.copyFail}>
+            Couldn&apos;t create the image — please try again.
+          </span>
+        ) : copied === 'fail' ? (
           <span className={styles.copyFail}>
             Couldn&apos;t copy — select and copy the link manually.
           </span>

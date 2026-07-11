@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 // EdgeScoreCard reads the live Scope via useScope (for the shareable link only —
@@ -11,7 +11,31 @@ vi.mock('../../hooks/useScope', () => ({
   default: () => ({ scope }),
 }))
 
+// The `tradePng` feature flag gates ONLY the image actions (Copy link is always
+// available). `vi.hoisted` gives a mutable holder the mock reads at call time.
+const flag = vi.hoisted(() => ({ png: true }))
+vi.mock('../../featureFlags', () => ({
+  useFeatureFlag: () => flag.png,
+}))
+
+// The canvas PNG render + the download/clipboard helpers are mocked so the
+// image actions can be asserted without a real canvas backend.
+const mocks = vi.hoisted(() => ({
+  renderEdgeCardPng: vi.fn(),
+  downloadBlob: vi.fn(),
+  copyBlobToClipboard: vi.fn(),
+}))
+vi.mock('../../lib/edgeCardPng', () => ({
+  renderEdgeCardPng: mocks.renderEdgeCardPng,
+}))
+vi.mock('../../../../components/chart/chartScreenshot', () => ({
+  downloadBlob: mocks.downloadBlob,
+  copyBlobToClipboard: mocks.copyBlobToClipboard,
+}))
+
 import EdgeScoreCard from './EdgeScoreCard'
+
+const FAKE_BLOB = new Blob(['png'], { type: 'image/png' })
 
 const EDGE = {
   score: 1.234,
@@ -31,6 +55,10 @@ function setClipboard(value) {
 
 beforeEach(() => {
   scope = { acct: null, from: null, to: null, symbol: null, sides: [], setups: ['VCP'], tags: [] }
+  flag.png = true
+  mocks.renderEdgeCardPng.mockReset().mockResolvedValue(FAKE_BLOB)
+  mocks.downloadBlob.mockReset()
+  mocks.copyBlobToClipboard.mockReset().mockResolvedValue(true)
 })
 
 afterEach(() => {
@@ -110,5 +138,56 @@ describe('EdgeScoreCard', () => {
   it('renders no emoji (all iconography via UIcon)', () => {
     const { container } = render(<EdgeScoreCard edge={EDGE} />)
     expect(container.textContent).not.toMatch(/\p{Extended_Pictographic}/u)
+  })
+
+  // ── Image actions (tradePng flag) ──────────────────────────────────────────
+
+  it('flag ON + score present → "Save as image" downloads the rendered PNG', async () => {
+    flag.png = true
+    render(<EdgeScoreCard edge={EDGE} />)
+
+    const saveBtn = screen.getByRole('button', { name: /save the edge score card as an image/i })
+    expect(saveBtn).toBeInTheDocument()
+    fireEvent.click(saveBtn)
+
+    await waitFor(() => expect(mocks.renderEdgeCardPng).toHaveBeenCalledWith(EDGE))
+    await waitFor(() => expect(mocks.downloadBlob).toHaveBeenCalledWith(FAKE_BLOB, 'edge-score.png'))
+  })
+
+  it('flag ON → "Copy image" copies the rendered PNG blob to the clipboard', async () => {
+    flag.png = true
+    render(<EdgeScoreCard edge={EDGE} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /copy the edge score card image/i }))
+
+    await waitFor(() => expect(mocks.renderEdgeCardPng).toHaveBeenCalledWith(EDGE))
+    await waitFor(() => expect(mocks.copyBlobToClipboard).toHaveBeenCalledWith(FAKE_BLOB))
+  })
+
+  it('image render failure surfaces an inline error, does not crash', async () => {
+    flag.png = true
+    mocks.renderEdgeCardPng.mockRejectedValue(new Error('boom'))
+    render(<EdgeScoreCard edge={EDGE} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /save the edge score card as an image/i }))
+    expect(await screen.findByText(/couldn't create the image/i)).toBeInTheDocument()
+    expect(mocks.downloadBlob).not.toHaveBeenCalled()
+  })
+
+  it('flag OFF → no image actions, but Copy link stays available', () => {
+    flag.png = false
+    render(<EdgeScoreCard edge={EDGE} />)
+
+    expect(screen.getByRole('button', { name: /copy link/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /save the edge score card as an image/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /copy the edge score card image/i })).toBeNull()
+  })
+
+  it('null score → image actions hidden even with the flag ON (nothing to share)', () => {
+    flag.png = true
+    render(<EdgeScoreCard edge={NULL_EDGE} />)
+
+    expect(screen.getByRole('button', { name: /copy link/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /save the edge score card as an image/i })).toBeNull()
   })
 })
