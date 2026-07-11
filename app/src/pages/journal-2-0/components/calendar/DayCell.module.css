@@ -41,6 +41,14 @@
   line-height: 1;
 }
 
+.tiltBadge {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  /* Shape-distinct flame glyph (colorblind-safe: read the SHAPE, not the color)
+     sits beside the day number; the gold matches the other corner badges. */
+}
+
 .notesBadge {
   font-size: 11px;
   margin-left: auto;

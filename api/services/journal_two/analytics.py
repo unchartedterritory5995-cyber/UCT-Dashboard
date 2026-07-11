@@ -30,7 +30,6 @@ from api.services.journal_two.calendar import (
     to_et_date,
 )
 from api.services.journal_two.filters import FilterSpec, trades_where
-from api.services.journal_two.timeutil import _parse
 from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
@@ -696,67 +695,6 @@ def _json_tags(raw: Any) -> list[str]:
     return v if isinstance(v, list) else []
 
 
-def _tilt_day_key(p: dict[str, Any]) -> str | None:
-    """The ET trading day for a trade: the stamped spine day when present, else
-    the exit_date's calendar date (YYYY-MM-DD)."""
-    d = p.get("trading_day_et")
-    if d:
-        return d
-    ed = p.get("exit_date")
-    return ed[:10] if ed else None
-
-
-def _tilt_sort_key(p: dict[str, Any]) -> tuple:
-    """Chronological order within a day: exit instant → entry instant → ref.
-    The leading tier keeps a timeless fallback from comparing against floats."""
-    for field in ("exit_date", "entry_date"):
-        dt = _parse(p.get(field))
-        if dt is not None:
-            return (0, dt.timestamp(), p["tradeRef"])
-    return (1, 0.0, p["tradeRef"])
-
-
-def _tilt_by_day(
-    parsed: list[dict[str, Any]], revenge_flags: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Per-ET-day tilt signal → ``{byDay: {'YYYY-MM-DD': level}}``.
-
-    A day earns ``level`` 1 when it carries a revenge flag OR a run of >=3
-    consecutive losing trades (ordered by exit time — a rapid loss cluster).
-    Days keyed by ``trading_day_et`` when stamped, else ``exit_date[:10]``.
-    Feeds a later calendar-glyph task.
-    """
-    by_day: dict[str, int] = {}
-
-    # (1) Any day holding a revenge-flagged (current) trade.
-    ref_to_day = {
-        p["tradeRef"]: _tilt_day_key(p) for p in parsed if _tilt_day_key(p)
-    }
-    for f in revenge_flags:
-        d = ref_to_day.get(f["tradeRef"])
-        if d:
-            by_day[d] = 1
-
-    # (2) Any day with a run of >=3 consecutive losing trades.
-    days: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for p in parsed:
-        d = _tilt_day_key(p)
-        if d:
-            days[d].append(p)
-    for d, trades in days.items():
-        run = 0
-        for t in sorted(trades, key=_tilt_sort_key):
-            if t["result"] == "Loss":
-                run += 1
-                if run >= 3:
-                    by_day[d] = 1
-                    break
-            else:
-                run = 0
-
-    return {"byDay": by_day}
-
-
 def _psychology_section(
     rows: list[sqlite3.Row],
     suppressed_pairs: frozenset[str] | set[str] = frozenset(),
@@ -864,8 +802,11 @@ def _psychology_section(
     }
 
     # ── revenge + tilt ───────────────────────────────────────────────────────
+    # Tilt reuses the SHARED rule in revenge_detect (also called by the calendar
+    # day-cell glyph) so the two surfaces never disagree; pass the already-
+    # suppressed flags so a dismissed revenge pair doesn't re-tilt a day here.
     revenge = revenge_detect.detect(parsed, suppressed_pairs=suppressed_pairs)
-    tilt = _tilt_by_day(parsed, revenge["flags"])
+    tilt = {"byDay": revenge_detect.tilt_days_for_rows(parsed, revenge["flags"])}
 
     tagged_trade_count = sum(
         1 for p in parsed if p["emotionTags"] or p["mistakeTags"]

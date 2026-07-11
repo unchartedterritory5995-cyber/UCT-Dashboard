@@ -8,6 +8,7 @@
 
 import { useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
+import { useFeatureFlag } from '../../featureFlags'
 import {
   cellBackground,
   fmtSignedDollar,
@@ -26,6 +27,9 @@ import styles from './DayCell.module.css'
  */
 export default function DayCell({ cell, summary, mode = 'pct', isToday = false, basis = 'closed' }) {
   const navigate = useNavigate()
+  // Tilt is a psychology signal — gate its glyph on the same kill-switch as the
+  // Analytics psychology section so the two revert together.
+  const psychologyOn = useFeatureFlag('psychology')
   if (!cell) return <div className={styles.blank} />
 
   const value =
@@ -54,6 +58,15 @@ export default function DayCell({ cell, summary, mode = 'pct', isToday = false, 
     >
       <div className={styles.head}>
         <span className={styles.day}>{cell.day}</span>
+        {psychologyOn && summary?.tilt && (
+          <span
+            className={styles.tiltBadge}
+            title="Tilt day — rapid losses or revenge pattern"
+            aria-label="Tilt day — rapid losses or revenge pattern"
+          >
+            <UIcon name="flame" size={13} />
+          </span>
+        )}
         {summary?.hasNotes && (
           <span className={styles.notesBadge} title="Has reflection notes"><UIcon name="edit" size={13} /></span>
         )}

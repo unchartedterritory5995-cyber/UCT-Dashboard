@@ -25,7 +25,9 @@ except ImportError:  # pragma: no cover — Python 3.8
     from backports.zoneinfo import ZoneInfo  # type: ignore
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import revenge_detect
 from api.services.journal_two.filters import FilterSpec, trades_where
+from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
 ET = ZoneInfo("America/New_York")
@@ -223,6 +225,30 @@ def _aggregate_trades(
         "rSum": total_r,
     }
     return days, totals
+
+
+def _rows_for_tilt(rows: list[sqlite3.Row]) -> list[dict[str, Any]]:
+    """Normalize equity-trade rows into the minimal dict shape the shared tilt
+    helper (``revenge_detect.tilt_days_for_rows``) consumes — tradeRef, symbol,
+    entry/exit ISO, the ET spine day, result, and NET P&L. Mirrors the
+    Analytics psychology-section parse so the calendar glyph and the psychology
+    section flag the SAME tilt days (Task A10)."""
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        keys = r.keys()
+        gross = float(r["pnl_dollar"] or 0)
+        fees = float(r["fees"]) if "fees" in keys and r["fees"] is not None else 0.0
+        out.append({
+            "tradeRef": trade_ref_for_row(r),
+            "symbol": r["symbol"] if "symbol" in keys else None,
+            "entry_date": r["entry_date"] if "entry_date" in keys else None,
+            "exit_date": r["exit_date"] if "exit_date" in keys else None,
+            "trading_day_et": r["trading_day_et"] if "trading_day_et" in keys else None,
+            "result": r["result"],
+            "pnlDollar": gross,
+            "pnlDollarNet": round(gross - fees, 2),
+        })
+    return out
 
 
 def _account_is_broker(
@@ -591,8 +617,13 @@ def get_calendar(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # id/symbol/entry_date/fees are pulled ALONGSIDE the aggregation columns
+        # so the per-day tilt signal (Task A10) can reuse the SAME window's trades
+        # (revenge detection needs symbol + entry/exit instants; net P&L needs fees)
+        # without a second query.
         sql = (
-            "SELECT exit_date, pnl_dollar, r_multiple, result, trading_day_et "
+            "SELECT id, symbol, entry_date, exit_date, pnl_dollar, r_multiple, "
+            "       result, fees, trading_day_et "
             "  FROM j2_trades "
             " WHERE user_id = ? "
             "   AND (COALESCE(trading_day_et, '') >= ?"
@@ -619,6 +650,12 @@ def get_calendar(
             et_d = _row_et_day(r, "exit_date")
             if start_iso <= et_d <= end_iso:
                 in_window.append(r)
+
+        # Tilt glyph (Task A10): per-ET-day tilt signal over the window's equity
+        # trades, using the SAME rule as the Analytics psychology section
+        # (revenge flag OR >=3 consecutive-loss cluster) via the shared
+        # revenge_detect.tilt_days_for_rows helper — overlaid onto each day below.
+        tilt_by_day = revenge_detect.tilt_days_for_rows(_rows_for_tilt(in_window))
 
         # Fold closed option strategies into the same day buckets.
         strategies = _fetch_strategies_in_window(
@@ -672,6 +709,13 @@ def get_calendar(
                     series, start.isoformat(), end.isoformat(), days,
                 )
                 effective_basis = "account"
+
+        # Stamp the tilt flag on EVERY final day (closed, expiring-only, or
+        # account-basis) keyed by ET date — a stable `False` when the day carried
+        # no tilt, so the FE never has to null-guard. Additive; other fields
+        # untouched.
+        for d in days:
+            d["tilt"] = bool(tilt_by_day.get(d["date"], 0) >= 1)
 
         payload: dict[str, Any] = {
             "view": view,

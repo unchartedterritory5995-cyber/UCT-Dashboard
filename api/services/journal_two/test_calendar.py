@@ -670,6 +670,63 @@ def test_calendar_spec_setup_does_not_filter_strategies(db_conn):
     assert bucket["tradeCount"] == 1
 
 
+# ─── Tilt glyph (Task A10 — per-day tilt signal on the calendar) ──────────────
+
+
+def test_calendar_marks_tilt_on_revenge_day(db_conn):
+    """A day with a loss + fast same-symbol re-entry (a revenge flag) gets
+    tilt=True; a calm winning day gets tilt=False. Reuses A8's tilt rule."""
+    from api.services.journal_two.calendar import get_calendar
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T14:30:00Z",
+               pnl=-50, result="Loss", symbol="NVDA", trading_day_et="2026-04-19")
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T15:00:00Z",
+               pnl=20, result="Win", symbol="NVDA", trading_day_et="2026-04-19")
+    # A calm winner on another day → no tilt.
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-21T18:00:00Z",
+               pnl=100, result="Win", symbol="AMD", trading_day_et="2026-04-21")
+
+    got = get_calendar("u1", view="month", year=2026, month=4, conn=db_conn)
+    by_date = {d["date"]: d for d in got["days"]}
+    assert by_date["2026-04-19"]["tilt"] is True
+    assert by_date["2026-04-21"]["tilt"] is False
+
+
+def test_calendar_marks_tilt_on_loss_cluster_day(db_conn):
+    """A day with >=3 consecutive losing trades (different symbols → no revenge)
+    still earns tilt=True from the loss cluster."""
+    from api.services.journal_two.calendar import get_calendar
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    for i, sym in enumerate(["AMD", "TSLA", "MSFT"]):
+        hh = 14 + i
+        _add_trade(db_conn, "u1", exit_date_iso=f"2026-04-20T{hh:02d}:00:00Z",
+                   pnl=-15, result="Loss", symbol=sym, trading_day_et="2026-04-20")
+
+    got = get_calendar("u1", view="month", year=2026, month=4, conn=db_conn)
+    by_date = {d["date"]: d for d in got["days"]}
+    assert by_date["2026-04-20"]["tilt"] is True
+
+
+def test_calendar_no_tilt_on_calm_day(db_conn):
+    """Two winners (no loss, no re-entry) → tilt=False, present as a stable bool."""
+    from api.services.journal_two.calendar import get_calendar
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T18:00:00Z",
+               pnl=100, result="Win", symbol="NVDA", trading_day_et="2026-04-19")
+    _add_trade(db_conn, "u1", exit_date_iso="2026-04-19T19:00:00Z",
+               pnl=50, result="Win", symbol="AMD", trading_day_et="2026-04-19")
+
+    got = get_calendar("u1", view="month", year=2026, month=4, conn=db_conn)
+    by_date = {d["date"]: d for d in got["days"]}
+    assert by_date["2026-04-19"]["tilt"] is False
+
+
 # ─── Account-balance basis ────────────────────────────────────────────────────
 
 

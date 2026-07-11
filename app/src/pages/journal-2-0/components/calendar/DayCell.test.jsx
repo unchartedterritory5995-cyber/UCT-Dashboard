@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import DayCell from './DayCell'
 
@@ -51,5 +51,32 @@ describe('DayCell P&L display', () => {
     })
     expect(screen.getByText(/\$500/)).toBeInTheDocument()
     expect(screen.getByText(/2 trades/)).toBeInTheDocument()
+  })
+})
+
+describe('DayCell tilt glyph', () => {
+  // Set the psychology override directly on localStorage BEFORE render (the flag
+  // hook reads it on the first paint) — no event dispatch, so no act() churn.
+  afterEach(() => localStorage.removeItem('uct.j2.feature.psychology'))
+
+  const tiltSummary = { pnlDollar: -150, pnlPercent: -0.01, rSum: -2, tradeCount: 3, tilt: true }
+
+  it('renders the tilt glyph when tilt=true and the psychology flag is on (default)', () => {
+    renderCell({ summary: tiltSummary, mode: 'pct' })
+    expect(screen.getByTitle(/Tilt day/)).toBeInTheDocument()
+  })
+
+  it('renders no tilt glyph when tilt is false', () => {
+    renderCell({
+      summary: { pnlDollar: 200, pnlPercent: 0.01, rSum: 1, tradeCount: 2, tilt: false },
+      mode: 'pct',
+    })
+    expect(screen.queryByTitle(/Tilt day/)).toBeNull()
+  })
+
+  it('renders no tilt glyph when the psychology flag is off', () => {
+    localStorage.setItem('uct.j2.feature.psychology', '0')
+    renderCell({ summary: tiltSummary, mode: 'pct' })
+    expect(screen.queryByTitle(/Tilt day/)).toBeNull()
   })
 })
