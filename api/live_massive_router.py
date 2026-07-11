@@ -2593,7 +2593,13 @@ def _post_massive_discord(embed: dict) -> tuple:
     data = json.dumps({"embeds": [embed]}).encode("utf-8")
     req = urllib.request.Request(
         _MASSIVE_WEBHOOK, data=data,
-        headers={"Content-Type": "application/json"}, method="POST",
+        headers={
+            "Content-Type": "application/json",
+            # Discord's Cloudflare edge blocks urllib's default UA with error
+            # 1010. A normal UA is required for the webhook POST to go through.
+            "User-Agent": "UCT-Massive/1.0 (+https://uctintelligence.com)",
+        },
+        method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
