@@ -93,6 +93,14 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
   const [beValue, setBeValue] = useState(settings?.breakevenRange?.value ?? 0)
   const [setups, setSetups] = useState(settings?.setups ?? [])
   const [newSetup, setNewSetup] = useState('')
+  // P5-A2: per-setup rule LABELS — the checklist template each trade of that
+  // setup is graded against later. Shape: { [setupName]: [{id, label}] }.
+  const [setupRules, setSetupRules] = useState(() => {
+    const seed = settings?.setupRules
+    return seed && typeof seed === 'object' && !Array.isArray(seed) ? { ...seed } : {}
+  })
+  const [expandedSetup, setExpandedSetup] = useState(null)
+  const [newRuleLabel, setNewRuleLabel] = useState('')
   const [shareJournalData, setShareJournalData] = useState(
     !!settings?.shareJournalData,
   )
@@ -174,6 +182,47 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
 
   const removeSetup = useCallback((s) => {
     setSetups((prev) => prev.filter((x) => x !== s))
+    // Drop the removed setup's rules so they don't orphan (server drops them
+    // too, but keep local state consistent for the save payload + preview).
+    setSetupRules((prev) => {
+      if (!(s in prev)) return prev
+      const next = { ...prev }
+      delete next[s]
+      return next
+    })
+    setExpandedSetup((cur) => (cur === s ? null : cur))
+  }, [])
+
+  const MAX_SETUP_RULES = 25
+
+  const toggleSetupExpand = useCallback((s) => {
+    setExpandedSetup((cur) => (cur === s ? null : s))
+    setNewRuleLabel('')
+  }, [])
+
+  const addRule = useCallback((setupName) => {
+    const label = newRuleLabel.trim()
+    if (!label) return
+    setSetupRules((prev) => {
+      const existing = prev[setupName] || []
+      if (existing.length >= MAX_SETUP_RULES) return prev
+      return {
+        ...prev,
+        [setupName]: [...existing, { id: crypto.randomUUID(), label }],
+      }
+    })
+    setNewRuleLabel('')
+  }, [newRuleLabel])
+
+  const removeRule = useCallback((setupName, id) => {
+    setSetupRules((prev) => {
+      const existing = prev[setupName] || []
+      const next = existing.filter((r) => r.id !== id)
+      const updated = { ...prev }
+      if (next.length) updated[setupName] = next
+      else delete updated[setupName]
+      return updated
+    })
   }, [])
 
   const addMistake = useCallback(() => {
@@ -236,6 +285,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
         value: Number(beValue),
       },
       setups,
+      setupRules,
       shareJournalData,
       tradingMode,
       defaultSizePct: defaultSizePct === '' ? null : Number(defaultSizePct),
@@ -282,6 +332,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
     beUnit,
     beValue,
     setups,
+    setupRules,
     shareJournalData,
     tradingMode,
     defaultSizePct,
@@ -897,6 +948,8 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
             <h3 className={styles.sectionHeader}>TRADE SETUPS</h3>
             <p className={styles.helper}>
               Define setup types for your trades (e.g. Breakout, Pullback, Gap-up).
+              Expand a setup to add the checklist rules each trade of that setup
+              is graded against.
             </p>
             <div className={styles.addRow}>
               <input
@@ -923,20 +976,95 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
               </button>
             </div>
             {setups.length > 0 && (
-              <div className={styles.chips} role="list" aria-label="Trade setups">
-                {setups.map((s) => (
-                  <span key={s} className={styles.chip} role="listitem">
-                    {s}
-                    <button
-                      type="button"
-                      className={styles.chipClose}
-                      onClick={() => removeSetup(s)}
-                      aria-label={`Remove ${s}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
+              <div className={styles.setupList} role="list" aria-label="Trade setups">
+                {setups.map((s) => {
+                  const rules = setupRules[s] || []
+                  const isOpen = expandedSetup === s
+                  const atCap = rules.length >= MAX_SETUP_RULES
+                  return (
+                    <div key={s} className={styles.setupItem} role="listitem">
+                      <div className={styles.setupRow}>
+                        <button
+                          type="button"
+                          className={styles.setupExpandBtn}
+                          onClick={() => toggleSetupExpand(s)}
+                          aria-expanded={isOpen}
+                          aria-label={`${isOpen ? 'Collapse' : 'Expand'} rules for ${s}`}
+                        >
+                          <UIcon
+                            name={isOpen ? 'chevronDown' : 'chevronRight'}
+                            size={14}
+                            gold={false}
+                          />
+                          <span className={styles.setupName}>{s}</span>
+                          {rules.length > 0 && (
+                            <span className={styles.setupRuleCount}>{rules.length}</span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.chipClose}
+                          onClick={() => removeSetup(s)}
+                          aria-label={`Remove ${s}`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      {isOpen && (
+                        <div className={styles.rulesPanel}>
+                          {rules.length === 0 ? (
+                            <p className={styles.helper}>
+                              No rules yet. Add the checklist this setup is graded against.
+                            </p>
+                          ) : (
+                            <ul className={styles.rulesList}>
+                              {rules.map((r) => (
+                                <li key={r.id} className={styles.ruleItem}>
+                                  <span className={styles.ruleLabel}>{r.label}</span>
+                                  <button
+                                    type="button"
+                                    className={styles.chipClose}
+                                    onClick={() => removeRule(s, r.id)}
+                                    aria-label={`Remove rule ${r.label}`}
+                                  >
+                                    ×
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <div className={styles.addRow}>
+                            <input
+                              type="text"
+                              value={newRuleLabel}
+                              onChange={(e) => setNewRuleLabel(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') { e.preventDefault(); addRule(s) }
+                              }}
+                              className={styles.textInput}
+                              placeholder="New rule (e.g. Above prior day high)"
+                              aria-label={`New rule for ${s}`}
+                              disabled={atCap}
+                            />
+                            <button
+                              type="button"
+                              className={styles.addBtn}
+                              onClick={() => addRule(s)}
+                              disabled={!newRuleLabel.trim() || atCap}
+                            >
+                              Add rule
+                            </button>
+                          </div>
+                          {atCap && (
+                            <p className={styles.helper}>
+                              Max {MAX_SETUP_RULES} rules per setup.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </section>

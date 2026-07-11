@@ -69,6 +69,8 @@ def _default_settings_block() -> dict[str, Any]:
         "positionClosing": "FIFO",
         "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
         "setups": [],
+        # P5-A2: per-setup rule labels {setupName: [{id, label}]}
+        "setupRules": {},
         "shareJournalData": False,
         "tradingMode": "both",
         "defaultSizePct": None,
@@ -321,6 +323,8 @@ def create_account(
                 "position_closing": src["position_closing"],
                 "breakeven_range": src["breakeven_range"],
                 "setups": src["setups"],
+                # P5-A2: carry per-setup rules alongside setups (consistent clone)
+                "setup_rules": _src(src, "setup_rules", "{}"),
                 "trading_mode": _src(src, "trading_mode", "both"),
                 # Phase A
                 "default_size_pct": _src(src, "default_size_pct", None),
@@ -352,6 +356,7 @@ def create_account(
                 "position_closing": block["positionClosing"],
                 "breakeven_range": json.dumps(block["breakevenRange"]),
                 "setups": json.dumps(block["setups"]),
+                "setup_rules": json.dumps(block["setupRules"]),
                 "trading_mode": block.get("tradingMode", "both"),
                 # All Phase A–F defaults are None/empty in _default_settings_block
                 "default_size_pct": None,
@@ -377,7 +382,7 @@ def create_account(
             INSERT INTO j2_accounts (
                 id, user_id, name, color, broker, starting_balance,
                 account_size, default_stop, position_closing,
-                breakeven_range, setups, share_journal_data,
+                breakeven_range, setups, setup_rules, share_journal_data,
                 trading_mode,
                 default_size_pct, default_r_multiple_target, max_risk_per_trade_pct,
                 daily_loss_limit_pct, cooling_off_minutes_after_loss, no_trade_windows_et,
@@ -386,7 +391,7 @@ def create_account(
                 mistake_tags, emotion_tags,
                 loss_streak_threshold, win_streak_threshold, stale_hold_days_threshold,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
                       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                       ?, ?)
             """,
@@ -395,7 +400,7 @@ def create_account(
                 validated["broker"], validated["starting_balance"],
                 settings["account_size"], settings["default_stop"],
                 settings["position_closing"], settings["breakeven_range"],
-                settings["setups"],
+                settings["setups"], settings["setup_rules"],
                 settings["trading_mode"],
                 settings["default_size_pct"], settings["default_r_multiple_target"], settings["max_risk_per_trade_pct"],
                 settings["daily_loss_limit_pct"], settings["cooling_off_minutes_after_loss"], settings["no_trade_windows_et"],
@@ -964,7 +969,8 @@ def upsert_account_settings(
             """
             UPDATE j2_accounts
                SET account_size = ?, default_stop = ?, position_closing = ?,
-                   breakeven_range = ?, setups = ?, share_journal_data = ?,
+                   breakeven_range = ?, setups = ?, setup_rules = ?,
+                   share_journal_data = ?,
                    trading_mode = ?,
                    default_size_pct = ?,
                    default_r_multiple_target = ?,
@@ -990,6 +996,7 @@ def upsert_account_settings(
                 full_validated["positionClosing"],
                 json.dumps(full_validated["breakevenRange"]),
                 json.dumps(full_validated["setups"]),
+                json.dumps(full_validated.get("setupRules", {})),
                 1 if full_validated.get("shareJournalData") else 0,
                 full_validated.get("tradingMode", "both"),
                 full_validated.get("defaultSizePct"),
@@ -1130,6 +1137,7 @@ def _account_to_settings(acc: dict[str, Any], *, conn: sqlite3.Connection | None
             "positionClosing": row["position_closing"],
             "breakevenRange": json.loads(row["breakeven_range"]),
             "setups": json.loads(row["setups"]),
+            "setupRules": json.loads(row["setup_rules"]) if "setup_rules" in keys else {},
             "shareJournalData": bool(row["share_journal_data"]),
             "tradingMode": row["trading_mode"] if "trading_mode" in keys else "both",
             "defaultSizePct": row["default_size_pct"] if "default_size_pct" in keys else None,

@@ -408,3 +408,133 @@ def test_validate_phase_f_thresholds_default_to_none():
     assert out["lossStreakThreshold"] is None
     assert out["winStreakThreshold"] is None
     assert out["staleHoldDaysThreshold"] is None
+
+
+# ── Phase 5 (P5-A2) — per-setup rule labels (setupRules) ─────────────────────
+#
+# setupRules is a parallel structure to `setups`:
+#   { [setupName]: [{id: str, label: str}] }
+# The checklist template each trade of that setup is graded against later.
+# Rules are {id, label} only — NO `checked` (that's per-trade, a later task).
+
+
+def test_setup_rules_round_trips_through_save_load(db_conn):
+    from api.services.journal_two import settings as svc
+    p = _make_payload(setups=["Breakout"]) | {
+        "setupRules": {
+            "Breakout": [
+                {"id": "r-1", "label": "Above prior day high"},
+                {"id": "r-2", "label": "Volume expansion"},
+            ],
+        },
+    }
+    svc.upsert_settings("u", p, conn=db_conn)
+    got = svc.get_settings("u", conn=db_conn)
+    assert got["setupRules"] == {
+        "Breakout": [
+            {"id": "r-1", "label": "Above prior day high"},
+            {"id": "r-2", "label": "Volume expansion"},
+        ],
+    }
+
+
+def test_setup_rules_default_empty_when_unset(db_conn):
+    from api.services.journal_two import settings as svc
+    got = svc.get_settings("u", conn=db_conn)
+    assert got["setupRules"] == {}
+    # And validate_settings_payload defaults it too.
+    out = svc.validate_settings_payload(_baseline_payload())
+    assert out["setupRules"] == {}
+
+
+def test_validate_setup_rules_drops_rules_for_unknown_setup():
+    from api.services.journal_two.settings import _validate_setup_rules
+    out = _validate_setup_rules(
+        {
+            "Breakout": [{"id": "a", "label": "Rule A"}],
+            "Ghost": [{"id": "b", "label": "Orphaned"}],
+        },
+        ["Breakout"],  # valid setups — "Ghost" is not present
+    )
+    assert out == {"Breakout": [{"id": "a", "label": "Rule A"}]}
+    assert "Ghost" not in out
+
+
+def test_validate_setup_rules_via_payload_drops_orphaned_setup():
+    """When a setup is deleted from `setups`, its rules are dropped on save."""
+    from api.services.journal_two import settings as svc
+    out = svc.validate_settings_payload(
+        _baseline_payload() | {
+            "setups": ["Breakout"],          # Pullback removed
+            "setupRules": {
+                "Breakout": [{"id": "a", "label": "Rule A"}],
+                "Pullback": [{"id": "b", "label": "Stale rule"}],
+            },
+        }
+    )
+    assert out["setupRules"] == {"Breakout": [{"id": "a", "label": "Rule A"}]}
+
+
+def test_validate_setup_rules_drops_blank_labels_and_trims():
+    from api.services.journal_two.settings import _validate_setup_rules
+    out = _validate_setup_rules(
+        {
+            "Breakout": [
+                {"id": "a", "label": "  Trim me  "},
+                {"id": "b", "label": "   "},   # blank after strip → dropped
+                {"id": "c", "label": ""},       # empty → dropped
+                {"id": "d", "label": 123},      # non-string → dropped
+            ],
+        },
+        ["Breakout"],
+    )
+    assert out == {"Breakout": [{"id": "a", "label": "Trim me"}]}
+
+
+def test_validate_setup_rules_drops_rules_without_id():
+    from api.services.journal_two.settings import _validate_setup_rules
+    out = _validate_setup_rules(
+        {
+            "Breakout": [
+                {"id": "keep", "label": "Kept"},
+                {"label": "No id"},              # missing id → dropped
+                {"id": "", "label": "Blank id"}, # blank id → dropped
+                {"id": "   ", "label": "WS id"}, # whitespace id → dropped
+                {"id": 7, "label": "Int id"},    # non-string id → dropped
+            ],
+        },
+        ["Breakout"],
+    )
+    assert out == {"Breakout": [{"id": "keep", "label": "Kept"}]}
+
+
+def test_validate_setup_rules_caps_at_25_per_setup():
+    from api.services.journal_two.settings import _validate_setup_rules
+    many = [{"id": f"r{i}", "label": f"Rule {i}"} for i in range(30)]
+    out = _validate_setup_rules({"Breakout": many}, ["Breakout"])
+    assert len(out["Breakout"]) == 25
+    # keeps the first 25 in order
+    assert out["Breakout"][0] == {"id": "r0", "label": "Rule 0"}
+    assert out["Breakout"][-1] == {"id": "r24", "label": "Rule 24"}
+
+
+def test_validate_setup_rules_empty_setup_key_dropped():
+    """A setup whose rules all get dropped yields no key at all."""
+    from api.services.journal_two.settings import _validate_setup_rules
+    out = _validate_setup_rules(
+        {"Breakout": [{"id": "", "label": ""}]}, ["Breakout"]
+    )
+    assert out == {}
+
+
+def test_validate_setup_rules_rejects_non_dict():
+    from api.services.journal_two.settings import _validate_setup_rules
+    from api.services.journal_two.settings import SettingsValidationError
+    with pytest.raises(SettingsValidationError):
+        _validate_setup_rules(["not", "a", "dict"], [])
+
+
+def test_validate_setup_rules_none_is_empty():
+    from api.services.journal_two.settings import _validate_setup_rules
+    assert _validate_setup_rules(None, ["Breakout"]) == {}
+    assert _validate_setup_rules("", ["Breakout"]) == {}

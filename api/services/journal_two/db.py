@@ -657,6 +657,10 @@ _PHASE_2_ALTERS = [
     "bar_resolution TEXT, data_quality TEXT, computed_at TEXT NOT NULL, "
     "PRIMARY KEY (user_id, trade_ref))",
     "CREATE INDEX IF NOT EXISTS idx_j2_excursions_user ON j2_trade_excursions(user_id)",
+    # Journal A+ P5-A2 — per-setup rule LABELS (the checklist template each
+    # trade of that setup is graded against later). JSON blob parallel to
+    # `setups`: {setupName: [{id, label}]}. Defaults to {} for legacy rows.
+    "ALTER TABLE j2_accounts ADD COLUMN setup_rules TEXT NOT NULL DEFAULT '{}'",
 ]
 
 

@@ -378,6 +378,101 @@
   color: var(--loss);
 }
 
+/* ── Trade setups + per-setup rules (P5-A2) ─────────────────────────── */
+.setupList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.setupItem {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.setupRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 4px;
+}
+
+.setupExpandBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  background: none;
+  border: none;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.setupExpandBtn:hover {
+  background: var(--bg-hover);
+}
+
+.setupName {
+  flex: 1;
+}
+
+.setupRuleCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-accent);
+  border-radius: 999px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.rulesPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.rulesList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ruleItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.ruleLabel {
+  flex: 1;
+  color: var(--text-bright);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
 .errorBanner {
   padding: 10px 12px;
   background: var(--loss-bg);

@@ -311,4 +311,79 @@ describe('PortfolioSettingsModal', () => {
     expect(payload.winStreakThreshold).toBe(7)
     expect(payload.staleHoldDaysThreshold).toBe(45)
   })
+
+  // ── P5-A2: per-setup rules (setupRules) ──────────────────────────────
+  it('adds a rule to a setup and includes setupRules in the save payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    render(
+      <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
+    )
+    // Expand the 'Breakout' setup row to reveal its rules editor.
+    await user.click(screen.getByRole('button', { name: /Expand rules for Breakout/i }))
+    const ruleInput = screen.getByLabelText(/New rule for Breakout/i)
+    await user.type(ruleInput, 'Above prior day high')
+    await user.click(screen.getByRole('button', { name: 'Add rule' }))
+    // The rule appears in the setup's rules list.
+    expect(screen.getByText('Above prior day high')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.setupRules.Breakout).toHaveLength(1)
+    expect(payload.setupRules.Breakout[0].label).toBe('Above prior day high')
+    expect(typeof payload.setupRules.Breakout[0].id).toBe('string')
+    expect(payload.setupRules.Breakout[0].id.length).toBeGreaterThan(0)
+  })
+
+  it('seeds existing setupRules and ships them unchanged on save', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    const withRules = {
+      ...baseSettings,
+      setupRules: { Breakout: [{ id: 'r1', label: 'Existing rule' }] },
+    }
+    render(
+      <PortfolioSettingsModal settings={withRules} onSave={onSave} onClose={vi.fn()} />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.setupRules).toEqual({ Breakout: [{ id: 'r1', label: 'Existing rule' }] })
+  })
+
+  it('removing a setup drops its setupRules entry from the save payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    const withRules = {
+      ...baseSettings,
+      setupRules: { Breakout: [{ id: 'r1', label: 'Existing rule' }] },
+    }
+    render(
+      <PortfolioSettingsModal settings={withRules} onSave={onSave} onClose={vi.fn()} />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Remove Breakout' }))
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.setups).toEqual([])
+    expect(payload.setupRules).toEqual({})
+  })
+
+  it('removes an individual rule via its × button', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({})
+    const withRules = {
+      ...baseSettings,
+      setupRules: { Breakout: [{ id: 'r1', label: 'Existing rule' }] },
+    }
+    render(
+      <PortfolioSettingsModal settings={withRules} onSave={onSave} onClose={vi.fn()} />,
+    )
+    await user.click(screen.getByRole('button', { name: /Expand rules for Breakout/i }))
+    expect(screen.getByText('Existing rule')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Remove rule Existing rule' }))
+    expect(screen.queryByText('Existing rule')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save Settings' }))
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.setupRules).toEqual({})
+  })
 })

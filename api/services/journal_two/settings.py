@@ -36,6 +36,10 @@ def default_settings_data() -> dict[str, Any]:
         "positionClosing": "FIFO",
         "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
         "setups": [],
+        # P5-A2: per-setup rule LABELS — the checklist template each trade of
+        # that setup is graded against later. Shape: {setupName: [{id, label}]}.
+        # Parallel to `setups`; rules whose setup isn't in `setups` are dropped.
+        "setupRules": {},
         # Community sharing — opt-in. When true, this user's CLOSED
         # trades (stripped of shares and pnlDollar) become visible in
         # the Journal 2.0 Community tab alongside every other user who
@@ -140,6 +144,74 @@ def _validate_setups(setups: Any) -> list[str]:
             continue
         seen.add(stripped)
         out.append(stripped)
+    return out
+
+
+# Per-setup rule cap. Mirrors calendar.py MAX_RULES (per-day rules checklist).
+MAX_SETUP_RULES = 25
+# Defensive cap on the number of setup keys carrying rules. Well above any
+# realistic setup count — purely a guard against a malformed/hostile payload.
+MAX_SETUP_RULE_KEYS = 200
+
+
+def _validate_setup_rules(
+    raw: Any, valid_setups: list[str]
+) -> dict[str, list[dict[str, str]]]:
+    """Per-setup rule LABELS: ``{setupName: [{id, label}]}``.
+
+    Pattern mirrors calendar.py::_validate_rules (the per-DAY rules checklist),
+    but setupRules rules are ``{id, label}`` only — NO ``checked`` (checked-state
+    is per-trade, a later task). Coerce/clean rather than hard-reject:
+
+      - Each rule needs a non-empty string ``label`` (trimmed; blanks dropped)
+        and a non-empty string ``id`` (missing/blank/non-string → dropped; the
+        FRONTEND supplies ids via ``crypto.randomUUID`` so no server default).
+      - Rules for any setup name NOT in ``valid_setups`` are dropped, so deleting
+        a setup doesn't orphan its rules.
+      - Capped at ``MAX_SETUP_RULES`` (25) rules per setup; the setup-key count is
+        capped defensively too. A setup whose rules all drop yields no key.
+
+    ``None``/``""`` → ``{}``. A non-dict payload raises.
+    """
+    if raw is None or raw == "":
+        return {}
+    if not isinstance(raw, dict):
+        raise SettingsValidationError("setupRules must be an object")
+    valid = set(valid_setups)
+    out: dict[str, list[dict[str, str]]] = {}
+    for setup_name, rules in raw.items():
+        if len(out) >= MAX_SETUP_RULE_KEYS:
+            break
+        if not isinstance(setup_name, str):
+            continue
+        # Drop rules for setups not present in the validated `setups` list.
+        if setup_name not in valid:
+            continue
+        if not isinstance(rules, list):
+            raise SettingsValidationError(
+                f"setupRules['{setup_name}'] must be a list"
+            )
+        cleaned: list[dict[str, str]] = []
+        for item in rules:
+            if len(cleaned) >= MAX_SETUP_RULES:
+                break
+            if not isinstance(item, dict):
+                continue
+            label = item.get("label", "")
+            if not isinstance(label, str):
+                continue
+            label = label.strip()
+            if not label:
+                continue
+            rid = item.get("id")
+            if not isinstance(rid, str):
+                continue
+            rid = rid.strip()
+            if not rid:
+                continue
+            cleaned.append({"id": rid, "label": label})
+        if cleaned:
+            out[setup_name] = cleaned
     return out
 
 
@@ -298,12 +370,19 @@ def validate_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
             f"tradingMode must be one of {sorted(_VALID_TRADING_MODES)}"
         )
 
+    # Hoist the validated setups so setupRules can drop rules for any setup
+    # name that isn't present (deleting a setup un-orphans its rules).
+    validated_setups = _validate_setups(payload.get("setups", []))
+
     return {
         "accountSize": float(account_size),
         "defaultStop": _validate_default_stop(payload.get("defaultStop")),
         "positionClosing": closing,
         "breakevenRange": _validate_breakeven_range(payload.get("breakevenRange")),
-        "setups": _validate_setups(payload.get("setups", [])),
+        "setups": validated_setups,
+        "setupRules": _validate_setup_rules(
+            payload.get("setupRules", {}), validated_setups
+        ),
         "shareJournalData": bool(payload.get("shareJournalData", False)),
         "tradingMode": trading_mode,
         # Phase A
@@ -349,6 +428,9 @@ def _now_iso() -> str:
 
 def _row_to_settings(row: sqlite3.Row) -> dict[str, Any]:
     data = json.loads(row["data"])
+    # Guarantee the setupRules key is always present, even for legacy blobs
+    # persisted before P5-A2 (default is {} when unset).
+    data.setdefault("setupRules", {})
     return {
         "id": row["id"],
         "userId": row["user_id"],

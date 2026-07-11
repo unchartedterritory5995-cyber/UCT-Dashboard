@@ -617,6 +617,38 @@ def test_upsert_account_settings_round_trip(db_conn):
     assert settings["shareJournalData"] is True
 
 
+def test_setup_rules_roundtrip_per_account(db_conn):
+    """P5-A2: per-setup rules persist through the multi-account save path and
+    orphaned rules (setup removed) are dropped."""
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, upsert_account_settings,
+        get_account_settings,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+    acc = get_or_migrate_default_account("u1", conn=db_conn)
+
+    # Default is {} before any save.
+    assert get_account_settings("u1", acc["id"], conn=db_conn)["setupRules"] == {}
+
+    upsert_account_settings("u1", acc["id"], {
+        "accountSize": 100_000,
+        "defaultStop": {"mode": "custom"},
+        "positionClosing": "FIFO",
+        "breakevenRange": {"enabled": False, "unit": "$", "value": 0},
+        "setups": ["Breakout"],   # "Pullback" intentionally absent
+        "setupRules": {
+            "Breakout": [{"id": "r1", "label": "Above prior day high"}],
+            "Pullback": [{"id": "r2", "label": "Orphaned"}],
+        },
+    }, conn=db_conn)
+
+    settings = get_account_settings("u1", acc["id"], conn=db_conn)
+    assert settings["setupRules"] == {
+        "Breakout": [{"id": "r1", "label": "Above prior day high"}],
+    }
+
+
 def test_phase_a_guards_roundtrip(db_conn):
     from api.services.journal_two.accounts import (
         get_or_migrate_default_account, upsert_account_settings,
