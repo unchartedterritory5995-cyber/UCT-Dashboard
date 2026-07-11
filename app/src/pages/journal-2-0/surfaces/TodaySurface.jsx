@@ -40,6 +40,7 @@ import TodayPostCloseLead from './today/TodayPostCloseLead'
 import TodayWeekStrip from './today/TodayWeekStrip'
 import TodayQuickActions from './today/TodayQuickActions'
 import CoachStrip from '../components/CoachStrip'
+import { SkeletonLine, SkeletonBlock } from '../../../components/Skeleton'
 import styles from './TodaySurface.module.css'
 
 async function jsonFetch(url, method, body) {
@@ -62,7 +63,7 @@ async function jsonFetch(url, method, body) {
 
 export default function TodaySurface() {
   const { settings } = useOutletContext() || {}
-  const { session, zeroData, allAccounts } = useTodayState()
+  const { session, zeroData, allAccounts, isLoading } = useTodayState()
   const { accountId, account, accounts } = useJ2SelectedAccount()
   const { overview } = useCompassOverview(accountId)
   const { isActive: scopeActive } = useScope()
@@ -97,6 +98,36 @@ export default function TodaySurface() {
       Scope filter isn&apos;t applied on Today — it stays your live snapshot.
     </div>
   ) : null
+
+  // ── loading gate ────────────────────────────────────────────────────────────
+  // Until the position / option / comparison fetches settle, route to NOTHING —
+  // a cold SWR cache defaults them empty, which would flash the fresh-account
+  // zeroData checklist (then manual fallback → broker hero) at an established
+  // broker user. A brief skeleton lets the surface land on the correct home once.
+  if (isLoading) {
+    return (
+      <div className={styles.today} data-testid="today-surface">
+        {scopeNote}
+        <section
+          className={styles.card}
+          data-testid="today-loading"
+          role="status"
+          aria-busy="true"
+          aria-label="Loading your day"
+        >
+          <div className={styles.cardEyebrow}>Loading your day…</div>
+          <SkeletonLine width="55%" height={22} />
+          <div
+            style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}
+            aria-hidden="true"
+          >
+            <SkeletonBlock width="100%" height={60} />
+            <SkeletonBlock width="100%" height={36} />
+          </div>
+        </section>
+      </div>
+    )
+  }
 
   // ── the ONE lead module ────────────────────────────────────────────────────
   let lead

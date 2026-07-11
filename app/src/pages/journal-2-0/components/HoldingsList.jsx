@@ -84,7 +84,7 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
             Your open trades appear here. Log a position, or connect a broker to
             import your holdings automatically.
           </p>
-          <Link to="/settings" style={EMPTY_ACTION}>
+          <Link to="/journal/accounts" style={EMPTY_ACTION}>
             <UIcon name="link" size={13} /> Connect a broker
           </Link>
         </div>

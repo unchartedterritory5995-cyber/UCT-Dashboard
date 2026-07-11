@@ -39,19 +39,22 @@ let overview = {
 let recaps = []
 let disciplineState = null
 let scopeActive = false
+// Controls the isLoading flag of the three fetches behind useTodayState's
+// zeroData signal — flip true to exercise the cold-cache loading gate (I1).
+let loading = false
 
 vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => market }))
 vi.mock('../hooks/useJ2SelectedAccount', () => ({
   default: () => ({ accountId, account, accounts: [account], setAccount: vi.fn(), isLoading: false }),
 }))
 vi.mock('../hooks/useJ2Positions', () => ({
-  default: () => ({ positions, isLoading: false, error: null, refresh: vi.fn() }),
+  default: () => ({ positions, isLoading: loading, error: null, refresh: vi.fn() }),
 }))
 vi.mock('../hooks/useJ2OptionStrategies', () => ({
-  default: () => ({ strategies: optionStrategies, isLoading: false, error: null, refresh: vi.fn() }),
+  default: () => ({ strategies: optionStrategies, isLoading: loading, error: null, refresh: vi.fn() }),
 }))
 vi.mock('../hooks/useJ2AccountComparison', () => ({
-  default: () => ({ accounts: comparison, isLoading: false, error: null, refresh: vi.fn() }),
+  default: () => ({ accounts: comparison, isLoading: loading, error: null, refresh: vi.fn() }),
 }))
 vi.mock('../hooks/useCompassOverview', () => ({
   default: () => ({ overview, isLoading: false, error: null, refresh: vi.fn() }),
@@ -157,6 +160,7 @@ beforeEach(() => {
   recaps = []
   disciplineState = null
   scopeActive = false
+  loading = false
 })
 
 describe('TodaySurface — session leads (concrete account with data)', () => {
@@ -324,5 +328,68 @@ describe('TodaySurface — B1 first-trade revalidation fix', () => {
     const predicates = mutateSpy.mock.calls.map((c) => c[0]).filter((f) => typeof f === 'function')
     expect(predicates.some((f) => f('/api/j2/accounts/comparison'))).toBe(true)
     expect(predicates.some((f) => f('/api/j2/accounts/a1/coach/overview'))).toBe(true)
+  })
+})
+
+describe('TodaySurface — I1 cold-cache loading gate', () => {
+  it('shows a skeleton (NOT the zeroData checklist) while the fetches are loading', () => {
+    // Cold SWR cache: hooks report loading AND default to empty — the pre-fix
+    // bug would compute zeroData=true here and flash the fresh-account checklist
+    // to an established broker user. The loading gate must win.
+    loading = true
+    positions = []
+    optionStrategies = []
+    comparison = []
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    renderToday()
+    expect(screen.getByTestId('today-loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('today-zero-data')).not.toBeInTheDocument()
+    // and no lead / secondary modules leak through during the skeleton
+    expect(screen.queryByTestId('broker-hero')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('today-week-strip')).not.toBeInTheDocument()
+  })
+
+  it('once settled with data, renders the real lead (no skeleton)', () => {
+    loading = false
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    // default beforeEach data: concrete broker account with positions + trades
+    renderToday()
+    expect(screen.queryByTestId('today-loading')).not.toBeInTheDocument()
+    expect(screen.getByTestId('broker-hero')).toBeInTheDocument()
+  })
+
+  it('once settled with a genuinely empty account, DOES show the zeroData checklist', () => {
+    loading = false
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    positions = []
+    optionStrategies = []
+    comparison = [{ id: 'a1', tradeCount: 0 }]
+    renderToday()
+    expect(screen.queryByTestId('today-loading')).not.toBeInTheDocument()
+    expect(screen.getByTestId('today-zero-data')).toBeInTheDocument()
+  })
+})
+
+describe('TodaySurface — premarket lock is informational (no dead override)', () => {
+  it('renders a read-only lock summary with NO Override button when locked', () => {
+    market = { isOpen: false, isPremarket: true, isExtended: false }
+    disciplineState = {
+      locked: true,
+      reasons: [{ type: 'daily_loss', message: 'Daily loss cap hit', unlockAt: null }],
+    }
+    renderToday()
+    expect(screen.getByTestId('today-premarket')).toBeInTheDocument()
+    expect(screen.getByTestId('premarket-lock-note')).toBeInTheDocument()
+    expect(screen.getByText(/daily loss cap hit/i)).toBeInTheDocument()
+    // the dead override affordance must be gone from Today's informational card
+    expect(screen.queryByRole('button', { name: /override/i })).not.toBeInTheDocument()
+  })
+
+  it('renders no lock summary when discipline state is unlocked/absent', () => {
+    market = { isOpen: false, isPremarket: true, isExtended: false }
+    disciplineState = null
+    renderToday()
+    expect(screen.getByTestId('today-premarket')).toBeInTheDocument()
+    expect(screen.queryByTestId('premarket-lock-note')).not.toBeInTheDocument()
   })
 })

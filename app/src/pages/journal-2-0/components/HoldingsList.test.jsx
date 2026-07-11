@@ -89,7 +89,10 @@ describe('HoldingsList', () => {
     expect(screen.getByTestId('holdings-empty')).toBeInTheDocument()
     expect(screen.getByText('No open positions')).toBeInTheDocument()
     // primary action + guidance hint (log a position / connect a broker)
-    expect(screen.getByRole('link', { name: /connect a broker/i })).toBeInTheDocument()
+    const brokerLink = screen.getByRole('link', { name: /connect a broker/i })
+    expect(brokerLink).toBeInTheDocument()
+    // points at the canonical Accounts home (B6), not /settings
+    expect(brokerLink).toHaveAttribute('href', '/journal/accounts')
     expect(screen.queryByText('Stocks & ETFs')).toBeNull()
   })
 })

@@ -1,12 +1,12 @@
 /**
  * Journal 2.0 — `useTodayState` (P4 B1).
  *
- * Derives the four booleans/enum the Today surface routes on, from the same
- * hooks the rest of J2 already uses (no new fetches beyond the account
- * comparison, which is a single cached call). Today IGNORES the global Scope,
- * so this hook never reads useScope — the surface handles the muted note.
+ * Derives the booleans/enum the Today surface routes on, from the same hooks the
+ * rest of J2 already uses (no new fetches beyond the account comparison, which is
+ * a single cached call). Today IGNORES the global Scope, so this hook never reads
+ * useScope — the surface handles the muted note.
  *
- * Returns `{ session, zeroData, noSync, allAccounts }`:
+ * Returns `{ session, zeroData, allAccounts, isLoading }`:
  *   - session:  'premarket' | 'market' | 'postclose'
  *       premarket = isPremarket · market = isOpen · postclose = the rest
  *       (weeknights, weekends, and the after-hours/extended window all read as
@@ -17,9 +17,12 @@
  *       comparison row; for All-Accounts it SUMS every account's count (so an
  *       all-accounts view with closed-but-no-open trades isn't mis-flagged
  *       fresh). Documented deviation from the spec's single-account phrasing.
- *   - noSync:   a concrete account whose balance isn't broker-synced (manual) —
- *       the "log today's trades" quick-entry experience replaces the live hero.
+ *       **Guarded by `loaded`** — only true once the underlying fetches settle,
+ *       so a cold SWR cache (hard refresh / first in-SPA nav) can't flash the
+ *       fresh-account onboarding checklist to an established broker user.
  *   - allAccounts: the "_all_"/null aggregate selection.
+ *   - isLoading: any of the underlying position / option / comparison fetches is
+ *       still loading — the surface shows a skeleton until this settles.
  */
 
 import useMarketOpen from '../../../hooks/useMarketOpen'
@@ -37,10 +40,16 @@ export default function useTodayState() {
   // extended/after-hours window all lead with the recap.
   const session = isPremarket ? 'premarket' : isOpen ? 'market' : 'postclose'
 
-  const { accountId, account } = useJ2SelectedAccount()
-  const { positions } = useJ2Positions()
-  const { strategies: optionStrategies } = useJ2OptionStrategies({ status: 'open' })
-  const { accounts: comparison } = useJ2AccountComparison()
+  const { accountId } = useJ2SelectedAccount()
+  const { positions, isLoading: positionsLoading } = useJ2Positions()
+  const { strategies: optionStrategies, isLoading: optionsLoading } =
+    useJ2OptionStrategies({ status: 'open' })
+  const { accounts: comparison, isLoading: comparisonLoading } = useJ2AccountComparison()
+
+  // Not settled until every signal behind zeroData has resolved. On a cold SWR
+  // cache all three default to empty, which would otherwise read as zeroData.
+  const isLoading = positionsLoading || optionsLoading || comparisonLoading
+  const loaded = !isLoading
 
   const allAccounts = accountId == null || accountId === ALL_ACCOUNTS
 
@@ -52,9 +61,10 @@ export default function useTodayState() {
     : comparison.find((a) => a?.id === accountId)?.tradeCount ?? 0
 
   const zeroData =
-    positions.length === 0 && optionStrategies.length === 0 && tradeCount === 0
+    loaded &&
+    positions.length === 0 &&
+    optionStrategies.length === 0 &&
+    tradeCount === 0
 
-  const noSync = !!(account && account.balanceSource !== 'broker')
-
-  return { session, zeroData, noSync, allAccounts }
+  return { session, zeroData, allAccounts, isLoading }
 }

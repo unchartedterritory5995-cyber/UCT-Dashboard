@@ -15,9 +15,9 @@
 import { useMemo } from 'react'
 import useJ2DisciplineState from '../../hooks/useJ2DisciplineState'
 import useJ2Positions from '../../hooks/useJ2Positions'
-import DisciplineLockBanner from '../../components/DisciplineLockBanner'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from '../TodaySurface.module.css'
+import alertStyles from '../../components/AlertBanner.module.css'
 
 export default function TodayPremarketLead({ account, overview }) {
   const { state: disciplineState } = useJ2DisciplineState(account?.id)
@@ -33,13 +33,33 @@ export default function TodayPremarketLead({ account, overview }) {
   const owned = positions.length
   const focus = overview?.this_weeks_focus
 
+  // Read-only lock summary. Today's readiness card only INFORMS — the override
+  // affordance belongs to the trade-entry modal, not here, so we render a
+  // compact reasons list (no dead "Override" button) rather than the full
+  // DisciplineLockBanner (which always shows the override control).
+  const lockReasons = disciplineState?.locked && disciplineState.reasons?.length
+    ? disciplineState.reasons
+    : null
+
   return (
     <section className={styles.card} data-testid="today-premarket" aria-label="Pre-market readiness">
       <div className={styles.cardEyebrow}>{todayLabel}</div>
       <h2 className={styles.cardTitle}>Am I ready?</h2>
 
-      {/* Informational lock banner — the actual override lives in the add flow. */}
-      <DisciplineLockBanner state={disciplineState} overrideArmed={false} onArmOverride={() => {}} />
+      {/* Informational lock summary — the actual override lives in the add flow. */}
+      {lockReasons && (
+        <div className={alertStyles.alertSm} role="status" data-testid="premarket-lock-note">
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            <UIcon name="noEntry" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+            Trade entry is locked from yesterday’s rules
+          </div>
+          <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
+            {lockReasons.map((r, i) => (
+              <li key={`${r.type}-${i}`} style={{ marginBottom: 2 }}>{r.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <ul className={styles.readyList}>
         <li className={styles.readyRow}>
