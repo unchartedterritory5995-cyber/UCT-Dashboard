@@ -20,7 +20,7 @@
  * once").
  */
 
-import { Suspense, useCallback, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { NavLink, Navigate, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
@@ -28,6 +28,8 @@ import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
 import useBrokerSync from './hooks/useBrokerSync'
 import { mapJ2TabToRoute } from './j2tabRedirect'
+import J2PriceProvider from './J2PriceProvider'
+import { runJ2LocalStorageMigrations } from './lib/localStorageMigrate'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
 import AccountSelector from './components/accounts/AccountSelector'
 import NewAccountModal from './components/accounts/NewAccountModal'
@@ -91,6 +93,14 @@ export default function JournalLayout() {
 
   const openSettings = useCallback(() => setShowSettings(true), [])
   const closeSettings = useCallback(() => setShowSettings(false), [])
+
+  // One-shot, flag-gated localStorage migration (Task A6). No-op for P4 (surfaces
+  // regroup the SAME components, so every pref key still resolves) — the real
+  // column-merge migration lands in P5. Idempotent + non-destructive, so running
+  // on every JournalLayout mount is safe.
+  useEffect(() => {
+    runJ2LocalStorageMigrations()
+  }, [])
 
   // The `?` header button + Shift+? both open the cheat sheet (kept from
   // JournalTwoRoot).
@@ -261,11 +271,19 @@ export default function JournalLayout() {
         })}
       </nav>
 
-      <div className={styles.content}>
-        <Suspense fallback={<div className={styles.surfaceFallback}>Loading…</div>}>
-          <Outlet context={{ settings }} />
-        </Suspense>
-      </div>
+      {/* Shared J2 price provider (Task A6): a STABLE base subscription to the
+          browser-wide SSE pool for the current account's open positions, held
+          across intra-journal surface switches (the provider mounts here, not
+          per-surface, so navigating Today↔Trades↔Insights never rebuilds the
+          socket). Additive — the tabs' own useRealtimePrices callers still work
+          via the same pool; surfaces MAY read prices via useJ2Prices(). */}
+      <J2PriceProvider>
+        <div className={styles.content}>
+          <Suspense fallback={<div className={styles.surfaceFallback}>Loading…</div>}>
+            <Outlet context={{ settings }} />
+          </Suspense>
+        </div>
+      </J2PriceProvider>
 
       {showSettings && settings && (
         <PortfolioSettingsModal
