@@ -37,16 +37,20 @@ import PlaybookSection from './PlaybookSection'
 import EdgeScoreCard from './EdgeScoreCard'
 import PsychologySection from './PsychologySection'
 import RegimeSection from './RegimeSection'
+import VerdictScorecard from './VerdictScorecard'
+import useScope from '../../hooks/useScope'
+import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { useFeatureFlag } from '../../featureFlags'
 import styles from './InsightsHub.module.css'
 
-// The five hub sections. `key` is the `?ins=` value; order = the sub-nav order.
+// The six hub sections. `key` is the `?ins=` value; order = the sub-nav order.
 const SECTIONS = [
   { key: 'playbook', label: 'Playbook' },
   { key: 'exit', label: 'Exit Quality' },
   { key: 'edge', label: 'Edge' },
   { key: 'psychology', label: 'Psychology' },
   { key: 'regime', label: 'Regime' },
+  { key: 'coach', label: 'Coach' },
 ]
 const SECTION_KEYS = SECTIONS.map((s) => s.key)
 const DEFAULT_SECTION = 'playbook'
@@ -60,6 +64,14 @@ export default function InsightsHub({ analytics }) {
   // P5 Task A9: same gating shape for the Psychology section (default ON); off →
   // ComingSoon. Kill-switch: window.__uctJ2Feature('psychology', false).
   const psychologyOn = useFeatureFlag('psychology')
+  // P6-3: same gating shape for the Coach (Verdict Scorecard) section (default
+  // ON); off → ComingSoon. Kill-switch: window.__uctJ2Feature('verdictScore', false).
+  const verdictScoreOn = useFeatureFlag('verdictScore')
+  // The Coach section is Scope-aware + per-account like the Playbook — thread
+  // the live account + snake_case scope params to the section (its hook builds
+  // the `/accounts/{id}/verdict-scorecard?…` request from these).
+  const { apiParams } = useScope()
+  const { accountId } = useJ2SelectedAccount()
 
   const raw = searchParams.get('ins')
   const active = SECTION_KEYS.includes(raw) ? raw : DEFAULT_SECTION
@@ -121,6 +133,16 @@ export default function InsightsHub({ analytics }) {
               icon="compass"
               title="Regime"
               text="Coming with the regime release — how your edge holds up across bull, chop, and bear market conditions."
+            />
+          ))}
+        {active === 'coach' &&
+          (verdictScoreOn ? (
+            <VerdictScorecard accountId={accountId} apiParams={apiParams} />
+          ) : (
+            <ComingSoon
+              icon="scale"
+              title="Coach"
+              text="Coming with the coach release — how Compass's GO, HOLD, and SKIP verdicts actually played out in your trades."
             />
           ))}
       </div>

@@ -16,13 +16,20 @@ vi.mock('./PlaybookSection', () => ({
 }))
 
 // The Edge section now renders EdgeScoreCard, which reads the live Scope via
-// useScope (for its Copy-link only — no fetch). Stub it so this shell test
-// doesn't drag in account fetching; EdgeScoreCard's own behavior is covered by
-// EdgeScoreCard.test.jsx.
+// useScope (for its Copy-link only — no fetch). InsightsHub also reads
+// useScope().apiParams to thread Scope into the Coach section. Stub it so this
+// shell test doesn't drag in account fetching; EdgeScoreCard's own behavior is
+// covered by EdgeScoreCard.test.jsx.
 vi.mock('../../hooks/useScope', () => ({
   default: () => ({
     scope: { acct: null, from: null, to: null, symbol: null, sides: [], setups: [], tags: [] },
+    apiParams: {},
   }),
+}))
+// InsightsHub reads the live account (for the per-account Coach section). Stub it
+// so the shell test doesn't drag in the accounts SWR fetch.
+vi.mock('../../hooks/useJ2SelectedAccount', () => ({
+  default: () => ({ accountId: 'acc1' }),
 }))
 
 // P5 A7: Regime is real when the `regime` feature flag is on (default ON). Stub
@@ -38,11 +45,24 @@ vi.mock('./RegimeSection', () => ({
 vi.mock('./PsychologySection', () => ({
   default: () => <div>Psychology mounted</div>,
 }))
+// P6-3: Coach (Verdict Scorecard) is real when the `verdictScore` flag is on
+// (default ON). Same pattern as Regime/Psychology — stub the section (covered by
+// VerdictScorecard.test.jsx) and let this shell test flip the flag.
+vi.mock('./VerdictScorecard', () => ({
+  default: () => <div>Coach mounted</div>,
+}))
 let regimeFlagOn = true
 let psychologyFlagOn = true
+let verdictScoreFlagOn = true
 vi.mock('../../featureFlags', () => ({
   useFeatureFlag: (name) =>
-    name === 'regime' ? regimeFlagOn : name === 'psychology' ? psychologyFlagOn : true,
+    name === 'regime'
+      ? regimeFlagOn
+      : name === 'psychology'
+        ? psychologyFlagOn
+        : name === 'verdictScore'
+          ? verdictScoreFlagOn
+          : true,
 }))
 
 import InsightsHub from './InsightsHub'
@@ -73,15 +93,16 @@ function renderHub({ route = '/journal', data = analytics } = {}) {
   )
 }
 
-const NAV_LABELS = ['Playbook', 'Exit Quality', 'Edge', 'Psychology', 'Regime']
+const NAV_LABELS = ['Playbook', 'Exit Quality', 'Edge', 'Psychology', 'Regime', 'Coach']
 
 beforeEach(() => {
   regimeFlagOn = true
   psychologyFlagOn = true
+  verdictScoreFlagOn = true
 })
 
 describe('InsightsHub — sub-nav shell', () => {
-  it('renders the 5-item Insights sub-nav', () => {
+  it('renders the 6-item Insights sub-nav', () => {
     renderHub()
     for (const label of NAV_LABELS) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
@@ -137,6 +158,22 @@ describe('InsightsHub — sub-nav shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Regime' }))
     expect(screen.getByText(/Coming with the regime release/i)).toBeInTheDocument()
     expect(screen.queryByText('Regime mounted')).not.toBeInTheDocument()
+  })
+
+  it('Coach mounts the real VerdictScorecard when the verdictScore flag is on (default)', () => {
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: 'Coach' }))
+    expect(screen.getByText('Coach mounted')).toBeInTheDocument()
+    // Not the coming-soon fallback when the flag is on.
+    expect(screen.queryByText(/Coming with the coach release/i)).not.toBeInTheDocument()
+  })
+
+  it('Coach falls back to the designed placeholder when the flag is off', () => {
+    verdictScoreFlagOn = false
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: 'Coach' }))
+    expect(screen.getByText(/Coming with the coach release/i)).toBeInTheDocument()
+    expect(screen.queryByText('Coach mounted')).not.toBeInTheDocument()
   })
 
   it('Edge section renders the score + its 4 components', () => {
