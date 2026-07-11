@@ -37,6 +37,7 @@ from api.services.journal_two import (
     discipline as discipline_service,
     nudges as nudges_service,
     options as options_service,
+    playbook_stats as playbook_stats_service,
     positions as positions_service,
     regime as regime_service,
     settings as settings_service,
@@ -987,6 +988,22 @@ def get_setup_stats_route(
     narrowing the row universe."""
     return setup_stats_service.get_setup_stats(
         user["id"], account_id, setup, spec=spec,
+    )
+
+
+@router.get("/accounts/{account_id}/playbook")
+def get_playbook_stats_route(
+    account_id: str,
+    spec: FilterSpec = Depends(parse_filter_query),
+    user: dict = Depends(get_current_user),
+):
+    """All-setups Playbook aggregate (Insights → Playbook cards): per-setup
+    profit factor / expectancy / exit-efficiency + win-rate/avg-R, Scope-aware
+    via the FilterSpec. Confidence (n<10) shading is owned by the frontend (B4):
+    the backend returns every computed number with `tradeCount` + coverage counts
+    and does NOT hard-suppress low-n setups here."""
+    return playbook_stats_service.get_playbook_stats(
+        user["id"], account_id, spec=spec,
     )
 
 
