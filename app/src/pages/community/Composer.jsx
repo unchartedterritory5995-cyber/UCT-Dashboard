@@ -14,7 +14,7 @@ async function uploadImage(file) {
 
 export default function Composer({ onSubmit, placeholder = 'Share your thinkingâ€¦',
                                    submitLabel = 'Post', busy = false,
-                                   mode = 'default', onTyping }) {
+                                   mode = 'default', onTyping, onCommand }) {
   const [error, setError] = useState(null)
   const chat = mode === 'chat'
   // latest-callback ref: TipTap keymap closures capture stale props (memory:
@@ -67,6 +67,17 @@ export default function Composer({ onSubmit, placeholder = 'Share your thinkingâ
     if (!editor || busy) return
     if (editor.isEmpty) { if (!chat) setError('Write something first'); return }
     setError(null)
+    // Slash command: "/chart NVDA" drops a chart card without leaving the channel.
+    if (chat && onCommand) {
+      const m = editor.getText().trim().match(/^\/(chart|c)\s+([A-Za-z0-9.\-]{1,8})$/i)
+      if (m) {
+        try {
+          await onCommand({ type: 'chart', ticker: m[2].toUpperCase() })
+          editor.commands.clearContent(); editor.commands.focus()
+        } catch (e) { setError(e.message) }
+        return
+      }
+    }
     const doc = editor.getJSON()
     try {
       await onSubmit(JSON.stringify(doc), extractTickers(doc))

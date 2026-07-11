@@ -5,6 +5,8 @@ Spec: docs/superpowers/specs/2026-07-09-community-space-design.md
 """
 import json
 import os
+import threading
+import time as _time_mod
 from contextlib import closing as _closing
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -96,6 +98,14 @@ def _attach_authors(items):
 @router.get("/status")
 def status(user: dict = Depends(get_current_user)):
     enabled = _enabled_for(user)   # admins preview while dark
+    chat_on = enabled and (_chat_enabled() or _is_mentor(user))
+    chat_unread, mentions_unseen = 0, 0
+    if chat_on:
+        try:
+            chat_unread = sum(store.unread_by_channel(user["id"]).values())
+            mentions_unseen = store.count_unseen_mentions(user["id"])
+        except Exception:
+            pass
     return {
         "enabled": enabled,
         "acked": store.has_ack(user["id"]) if enabled else False,
@@ -103,8 +113,11 @@ def status(user: dict = Depends(get_current_user)):
         "muted": store.is_muted(user["id"]) if enabled else False,
         "public": _enabled(),      # false while dark — the nav can badge it "Preview"
         # live chat ships dark independently; admins preview it
-        "chat_enabled": enabled and (_chat_enabled() or _is_mentor(user)),
+        "chat_enabled": chat_on,
         "chat_public": _chat_enabled(),
+        # for the nav badge (ambient aliveness outside /community)
+        "chat_unread": chat_unread,
+        "mentions_unseen": mentions_unseen,
     }
 
 
@@ -487,6 +500,65 @@ def require_chat(user: dict = Depends(require_community)) -> dict:
     return user
 
 
+_mention_notify_lock = threading.Lock()
+_mention_last_notify = {}   # user_id -> epoch of last mention notification
+_MENTION_NOTIFY_WINDOW = int(os.environ.get("CHAT_MENTION_NOTIFY_WINDOW", "1800"))  # 30 min
+
+
+def _notify_offline_mentions(user_ids, sender, channel_slug):
+    """Email/AlertBell the mentioned users who are NOT currently on the floor, so a
+    mention pulls them back. Throttled per user; fired off the request path."""
+    hub = chat_hub.get_hub()
+    connected = set()
+    for ch in hub.active_channels():
+        connected.update(hub.presence_users(ch))
+    now = _time_mod.time()
+    targets = []
+    with _mention_notify_lock:
+        for uid in user_ids:
+            if uid in connected or uid == sender["id"]:
+                continue
+            if now - _mention_last_notify.get(uid, 0) < _MENTION_NOTIFY_WINDOW:
+                continue
+            _mention_last_notify[uid] = now
+            targets.append(uid)
+    if not targets:
+        return
+    sender_name = _author_map([sender["id"]]).get(sender["id"], {}).get("name", "Someone")
+    room = str(channel_slug).replace("board:", "")
+
+    def _send():
+        # Targeted EMAIL only — the AlertBell store is app-global, so it would show a
+        # personal mention to everyone. Email is the correctly-scoped channel.
+        from api.services import email_service
+        try:
+            from api.services.auth_db import get_connection as _auth_conn
+            with _closing(_auth_conn()) as conn:
+                q = ",".join("?" * len(targets))
+                rows = conn.execute(
+                    f"SELECT id, email, display_name FROM users WHERE id IN ({q})", targets).fetchall()
+        except Exception:
+            return
+        url = "https://uctintelligence.com/community"
+        for r in rows:
+            email = r["email"]
+            if not email:
+                continue
+            name = (r["display_name"] or "there").split(" ")[0]
+            html = (
+                f"<p>Hi {name},</p>"
+                f"<p><strong>{sender_name}</strong> mentioned you on The Floor "
+                f"(#{room}).</p>"
+                f'<p><a href="{url}" style="color:#c9a84c;font-weight:600;">'
+                f"Jump into the conversation →</a></p>"
+                f'<p style="color:#888;font-size:12px;">The Floor — UCT Intelligence</p>')
+            try:
+                email_service.send_email(email, f"{sender_name} mentioned you on The Floor", html)
+            except Exception:
+                pass
+    threading.Thread(target=_send, daemon=True).start()
+
+
 class ChatMessageIn(BaseModel):
     body: str = ""
     ticker_tags: list[str] | None = None
@@ -610,6 +682,12 @@ def chat_send(slug: str, payload: ChatMessageIn, user: dict = Depends(require_ch
     if payload.client_msg_id:
         msg["client_msg_id"] = payload.client_msg_id
     chat_hub.get_hub().broadcast(slug, "message", msg)
+    # Pull back mentioned members who aren't currently on the floor.
+    if valid_mentions:
+        try:
+            _notify_offline_mentions(valid_mentions, user, slug)
+        except Exception:
+            pass
     return msg
 
 

@@ -61,7 +61,10 @@ export default function NavBar() {
     fetcher,
     { refreshInterval: 30_000 },
   )
-  const floorUnread = communityUnread?.total || 0
+  // Nav badge = forum-board unread + unseen @-mentions (the high-signal pull-back).
+  // Pulse chat volume is deliberately NOT counted here (it would be permanent noise
+  // during market hours); its aliveness shows inside /community via The Tape.
+  const floorUnread = (communityUnread?.total || 0) + (communityStatus?.mentions_unseen || 0)
 
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>

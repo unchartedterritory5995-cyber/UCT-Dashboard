@@ -289,7 +289,9 @@ export async function sendMessage(slug, { body, tickers, replyTo, card } = {}) {
   s.messages = sortMsgs(s.messages.concat([{
     id: client_msg_id, client_msg_id, pending: true, channel_slug: slug,
     author_id: '__me__', author: { name: 'You', is_mentor: false },
-    body: body || '', ticker_tags: tickers || [], card: null,
+    body: body || '', ticker_tags: tickers || [],
+    // chart cards are client-derivable → show instantly; trade/flow need server data.
+    card: (card && card.kind === 'chart') ? card : null,
     reply_to_message_id: replyTo || null, created_at: Math.floor(Date.now() / 1000), reactions: {},
   }]))
   bump(slug)

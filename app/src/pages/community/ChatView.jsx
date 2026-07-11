@@ -145,6 +145,12 @@ export default function ChatView({ channel, onSelectChannel }) {
     setReply(null)
     setAtBottom(true)
   }
+  const runCommand = async (cmd) => {
+    if (cmd.type === 'chart') {
+      await chat.sendMessage(channel, { card: { kind: 'chart', ticker: cmd.ticker, tf: 'D' } })
+      setAtBottom(true)
+    }
+  }
 
   return (
     <div className={styles.chat}>
@@ -224,8 +230,9 @@ export default function ChatView({ channel, onSelectChannel }) {
       )}
       <Composer
         mode="chat"
-        placeholder={`Message #${channel}`}
+        placeholder={`Message #${channel}  ·  /chart NVDA to share a chart`}
         onSubmit={send}
+        onCommand={runCommand}
         onTyping={() => chat.sendTyping(channel)}
       />
     </div>
@@ -235,7 +242,7 @@ export default function ChatView({ channel, onSelectChannel }) {
 function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate, onOpenThread }) {
   const mine = msg.author_id === meId || msg.author_id === '__me__'
   const mentor = msg.author?.is_mentor
-  const html = useMemo(() => (msg.deleted ? null : renderBodyHTML(msg.body)), [msg.body, msg.deleted])
+  const html = useMemo(() => (msg.deleted || !msg.body ? null : renderBodyHTML(msg.body)), [msg.body, msg.deleted])
   const canGraduate = (mine || isMentor) && !msg.pending && !msg.deleted
 
   return (
@@ -264,7 +271,7 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate
         <div className={styles.msgDeleted}>removed by moderator</div>
       ) : (
         <>
-          <div className={styles.msgBody} dangerouslySetInnerHTML={{ __html: html }} />
+          {html && <div className={styles.msgBody} dangerouslySetInnerHTML={{ __html: html }} />}
           {msg.card && <CardRenderer card={msg.card} />}
           {msg.graduated_thread_id > 0 && (
             <button className={styles.gradLink} onClick={() => onOpenThread(msg.graduated_thread_id)}>
