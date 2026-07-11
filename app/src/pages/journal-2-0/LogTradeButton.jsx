@@ -23,7 +23,6 @@
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
-import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
 import useJ2Settings from './hooks/useJ2Settings'
 import useJ2SelectedAccount from './hooks/useJ2SelectedAccount'
@@ -66,13 +65,12 @@ export default function LogTradeButton() {
   const openTrade = useCallback(() => { setMenuOpen(false); setModal('trade') }, [])
   const closeModal = useCallback(() => setModal(null), [])
 
-  // Keyboard aliases carried over from the old in-tab shortcuts (`a` = add open
-  // position, `t` = add closed trade), now global to the whole journal shell.
-  // Functional update so a chord never yanks an already-open modal to the other
-  // kind, and react-hotkeys-hook ignores form fields / contenteditable by
-  // default so typing in an input never triggers them.
-  useHotkeys('a', () => setModal((m) => m || 'position'))
-  useHotkeys('t', () => setModal((m) => m || 'trade'))
+  // No global `a`/`t` keyboard aliases here: the Trades surface's own tabs
+  // (OpenPositionsTab binds `a`, TradeJournalTab binds `t`) already own those
+  // add-flow shortcuts, and react-hotkeys-hook fires ALL handlers for a combo —
+  // a global binding on this header (mounted on every surface) would double-fire
+  // and open two stacked add modals on the Trades surface (duplicate-write risk).
+  // The persistent "+ Log Trade" header button covers every surface via click.
 
   const resolveAccountId = useCallback(
     (payload) => payload.accountId || accountId || accounts?.[0]?.id || null,
@@ -84,7 +82,7 @@ export default function LogTradeButton() {
   const handleCreatePosition = useCallback(async (payload) => {
     const acctId = resolveAccountId(payload)
     await jsonPost('/api/j2/positions', { ...payload, accountId: acctId })
-    await mutate('/api/j2/positions')
+    await mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/positions'))
     setToast({ message: `Logged ${payload.symbol} ${payload.side.toLowerCase()} position`, tone: 'success' })
     navigate('/journal/trades?seg=open')
   }, [resolveAccountId, mutate, navigate])
@@ -107,7 +105,7 @@ export default function LogTradeButton() {
         onClick={() => setMenuOpen((x) => !x)}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
-        title="Log a trade (a = open position, t = closed trade)"
+        title="Log a trade"
       >
         <UIcon name="plus" size={15} aria-hidden="true" />
         <span>Log Trade</span>
