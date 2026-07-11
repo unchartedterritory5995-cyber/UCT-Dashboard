@@ -51,11 +51,19 @@ const PRESETS = ['Today', 'Week', 'Month', 'YTD', 'All']
  * exactly what's on screen. URLSearchParams encodes each value ONCE (the codec
  * already member-encoded multi-value facets; never hand-concatenate → no
  * double-encode).
+ *
+ * `limit`/`offset` are DELIBERATELY excluded: the codec always emits them
+ * (`DEFAULT_PAGE_SIZE`/0 — correct for the trades TABLE's page window), but the
+ * export is intentionally the FULL match set. Passing them through would apply
+ * `spec.limit` in `export_trades` and silently truncate the download to one
+ * page (the B5 pagination leak). Omitting them leaves `spec.limit` None on the
+ * server → unbounded.
  */
 function buildExportUrl(format, apiParams) {
   const params = new URLSearchParams()
   params.set('format', format)
   for (const [k, v] of Object.entries(apiParams || {})) {
+    if (k === 'limit' || k === 'offset') continue
     if (v == null || v === '') continue
     params.set(k, String(v))
   }

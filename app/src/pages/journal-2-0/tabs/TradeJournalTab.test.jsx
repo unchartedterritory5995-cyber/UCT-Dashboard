@@ -77,7 +77,15 @@ vi.mock('../components/scope/ScopeBar', () => ({
 import TradeJournalTab from './TradeJournalTab'
 
 // Capture the SWR fetch URL + drive the envelope response.
+// The tab now issues TWO reads: the PAGED table fetch (carries limit/offset) and
+// a separate UNPAGED summary fetch (no limit/offset — feeds the full-book
+// StatsGrid, the B5 pagination-leak fix). `capturedUrls` holds every URL;
+// `lastPagedUrl` is the most recent paginated fetch (the only one with offset=)
+// so paging assertions stay precise regardless of fetch ordering; `capturedUrl`
+// stays the last-overall URL for the facet assertions that both reads share.
 let capturedUrl = null
+let capturedUrls = []
+let lastPagedUrl = null
 let mockEnvelope = { trades: [], total: 0, limit: 500, offset: 0 }
 
 beforeEach(() => {
@@ -86,9 +94,14 @@ beforeEach(() => {
   mockAccounts = [{ id: 'acc1', name: 'Robinhood' }]
   mockStrategies = []
   capturedUrl = null
+  capturedUrls = []
+  lastPagedUrl = null
   mockEnvelope = { trades: [], total: 0, limit: 500, offset: 0 }
   global.fetch = vi.fn((url) => {
-    capturedUrl = String(url)
+    const u = String(url)
+    capturedUrl = u
+    capturedUrls.push(u)
+    if (u.includes('offset=')) lastPagedUrl = u
     return Promise.resolve({
       ok: true,
       json: () => Promise.resolve(mockEnvelope),
@@ -310,17 +323,40 @@ describe('TradeJournalTab — page controls', () => {
     expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument()
   })
 
+  it('reads an UNPAGED summary set (full book) for the StatsGrid, distinct from the paged table fetch', async () => {
+    // B5 pagination leak: the codec always emits limit=50&offset=0, correct for
+    // the TABLE but wrong for the KPI summary. The tab issues a SEPARATE read
+    // with paging stripped so the StatsGrid summarizes ALL 120 closed trades
+    // (not just the 50-row page). Prove BOTH reads happen: one paged, one not.
+    mockEnvelope = { trades: makePage(PAGE), total: 120, limit: PAGE, offset: 0 }
+    renderTab()
+    await screen.findByText(/of 120/)
+    // the paged TABLE fetch carries limit + offset…
+    expect(
+      capturedUrls.some((u) => u.includes('limit=50') && u.includes('offset=')),
+    ).toBe(true)
+    // …and a distinct SUMMARY fetch carries neither (full match set → StatsGrid).
+    expect(
+      capturedUrls.some(
+        (u) =>
+          u.includes('/api/j2/trades') &&
+          !u.includes('limit=') &&
+          !u.includes('offset='),
+      ),
+    ).toBe(true)
+  })
+
   it('clicking Next advances the offset and refetches', async () => {
     mockEnvelope = { trades: makePage(PAGE), total: 120, limit: PAGE, offset: 0 }
     const user = userEvent.setup()
     renderTab()
     await screen.findByText(/of 120/)
-    expect(capturedUrl).toContain('offset=0')
+    expect(lastPagedUrl).toContain('offset=0')
 
     await user.click(screen.getByRole('button', { name: 'Next' }))
     // page 2: refetch carried offset=50 and the indicator advanced to 51–100
     expect(await screen.findByText(/Showing 51/)).toBeInTheDocument()
-    expect(capturedUrl).toContain('offset=50')
+    expect(lastPagedUrl).toContain('offset=50')
     expect(screen.getByRole('button', { name: 'Prev' })).toBeEnabled()
   })
 
@@ -357,8 +393,8 @@ describe('TradeJournalTab — page controls', () => {
     // new facet AND the reset offset to settle on the final fetch URL.
     await user.click(screen.getByRole('button', { name: 'apply-filter' }))
     await waitFor(() => {
-      expect(capturedUrl).toContain('symbol=ZZZ')
-      expect(capturedUrl).toContain('offset=0')
+      expect(lastPagedUrl).toContain('symbol=ZZZ')
+      expect(lastPagedUrl).toContain('offset=0')
     })
   })
 })

@@ -169,6 +169,27 @@ export default function TradeJournalTab({ settings }) {
 
   const { trades, total, isLoading, error, refresh, mutate: mutateTrades } =
     useJ2Trades(pagedParams)
+
+  // ── Full-book KPI summary (B5 pagination-leak fix) ──────────────────────────
+  // The StatsGrid must summarize the ENTIRE filtered closed-trade book — NOT the
+  // current 50-row page. `pagedParams` carries limit/offset (correct for the
+  // TABLE), but the summary reads the SAME scope with paging STRIPPED, so the
+  // backend returns the full filtered match set (spec.limit None → unbounded).
+  // Computed CLIENT-side (not a server summary) because the KPI set unions closed
+  // OPTION strategies — which live only client-side — and `summaryStats`'
+  // max-consecutive scan needs an ORDERED pass over the COMBINED shares+options
+  // set, which the server can't reproduce without dropping options (a new
+  // cross-surface divergence). Separate SWR key ⇒ a second fetch (the pre-B5 book
+  // read, restored for the summary only); the table keeps its paged fetch.
+  const summaryParams = useMemo(() => {
+    const rest = { ...apiParams }
+    delete rest.limit
+    delete rest.offset
+    return rest
+  }, [apiParams])
+  const { trades: summaryShares, refresh: refreshSummary } =
+    useJ2Trades(summaryParams)
+
   const {
     strategies: closedStrategies,
     isLoading: stratLoading,
@@ -213,7 +234,23 @@ export default function TradeJournalTab({ settings }) {
     [showShares, showOptions, trades, closedStrategies, scope],
   )
 
-  const summary = useMemo(() => summaryStats(allClosed), [allClosed])
+  // KPI summary set: the FULL (unpaged) filtered share book unioned with the
+  // SAME client-scoped closed options as the table. Distinct from `allClosed`
+  // (which is the PAGED shares + options that render in the table) so the
+  // StatsGrid reflects the whole book while the table still pages.
+  const allClosedForSummary = useMemo(
+    () => [
+      ...(showShares ? summaryShares : []),
+      ...(showOptions
+        ? closedStrategies
+            .map(optionClosedToRow)
+            .filter((r) => optionRowMatchesScope(r, scope))
+        : []),
+    ],
+    [showShares, showOptions, summaryShares, closedStrategies, scope],
+  )
+
+  const summary = useMemo(() => summaryStats(allClosedForSummary), [allClosedForSummary])
 
   // Trade detail drawer
   const [drawerTrade, setDrawerTrade] = useState(null)
@@ -241,12 +278,13 @@ export default function TradeJournalTab({ settings }) {
       || null
     const res = await jsonFetch('/api/j2/trades', 'POST', { ...payload, accountId: acctId })
     await refresh()
+    refreshSummary()  // KPI summary reads a separate (unpaged) key — revalidate it too
     const acctName = accounts.find((a) => a.id === acctId)?.name
     showToast(
       `Added ${res.symbol} ${res.side.toLowerCase()} — ${res.result}${acctName ? ` (${acctName})` : ''}`,
       'success',
     )
-  }, [refresh, showToast, selectedAccountId, accounts])
+  }, [refresh, refreshSummary, showToast, selectedAccountId, accounts])
 
   // Inline setup tagging from the table (equity trades only — option rows are
   // backed by a strategy id, not a j2_trades row). Optimistic + reconciled.
@@ -280,11 +318,12 @@ export default function TradeJournalTab({ settings }) {
   const handleDeleteAll = useCallback(async () => {
     const res = await jsonFetch('/api/j2/trades', 'DELETE', { confirm: 'DELETE' })
     await refresh()
+    refreshSummary()  // KPI summary reads a separate (unpaged) key — revalidate it too
     // Also invalidate any positions cache just in case future filter logic
     // relies on shared data.
     await mutate('/api/j2/positions')
     showToast(`Deleted ${res.deleted} trade${res.deleted === 1 ? '' : 's'}.`, 'success')
-  }, [refresh, mutate, showToast])
+  }, [refresh, refreshSummary, mutate, showToast])
 
   if (error) {
     return (
@@ -473,6 +512,7 @@ export default function TradeJournalTab({ settings }) {
         <ImportCsvModal
           onConfirmed={(imported, skipped) => {
             refresh()
+            refreshSummary()  // KPI summary reads a separate (unpaged) key
             showToast(
               skipped > 0
                 ? `Imported ${imported} trade${imported === 1 ? '' : 's'} (${skipped} skipped)`

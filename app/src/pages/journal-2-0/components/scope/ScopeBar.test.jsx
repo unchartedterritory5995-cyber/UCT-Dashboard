@@ -198,6 +198,29 @@ describe('ScopeBar — filtered export (A11)', () => {
     clickSpy.mockRestore()
   })
 
+  it('desktop: export URL EXCLUDES pagination (limit/offset) — full match set, not one page', async () => {
+    const user = userEvent.setup()
+    let href = null
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function () {
+        href = this.href
+      })
+    renderBar({}, { route: '/journal?sc_setup=VCP&sc_v=1' })
+
+    await user.click(screen.getByRole('button', { name: /Export CSV/i }))
+
+    // The codec ALWAYS emits limit=50&offset=0 (correct for the trades TABLE),
+    // but the export is the FULL filtered set — those must NOT ride the download
+    // URL or the backend truncates it to one page (B5 pagination leak).
+    expect(href).not.toContain('limit')
+    expect(href).not.toContain('offset')
+    // …the real facets + format still do.
+    expect(href).toContain('format=csv')
+    expect(href).toContain('setups=VCP')
+    clickSpy.mockRestore()
+  })
+
   it('desktop: Export JSON downloads with format=json + the scope', async () => {
     const user = userEvent.setup()
     let href = null
