@@ -1,0 +1,61 @@
+/* SyncFreshnessChip — compact broker freshness pill.
+   Sits in a surface header; calm, muted, gold-accented Sync-now action. */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 100%;
+}
+
+.chipBroken {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sep {
+  color: var(--border-accent, #444);
+}
+
+.btn {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border: 1px solid var(--border-accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

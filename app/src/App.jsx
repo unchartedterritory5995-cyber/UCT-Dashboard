@@ -77,6 +77,7 @@ const PatternReview = lazy(() => import('./pages/admin/PatternReview'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Compare = lazy(() => import('./pages/Compare'))
+const BrokersPage = lazy(() => import('./pages/BrokersPage'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
@@ -184,6 +185,10 @@ export default function App() {
                 Tradervue). Not in FREE_PAGES — that gates logged-in nav; this is
                 a fully public page reachable while logged out or in. */}
             <Route path="/compare" element={<Compare />} />
+            {/* Public "Verified Sync" marketing page — the broker-trust surface.
+                Static content only (no user data), so it is safe to serve
+                logged-out, outside AuthGuard. */}
+            <Route path="/brokers" element={<BrokersPage />} />
 
             {/* Protected routes — require authentication */}
             <Route element={<AuthGuard />}>

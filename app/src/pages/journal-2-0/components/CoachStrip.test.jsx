@@ -20,6 +20,7 @@ let interventions = []
 let unviewed = null
 let disciplineState = null
 let brokerData = { total: 0 }
+let trustData = { anyBroker: false, accounts: [] }
 let overview = null
 
 const dismissIntervention = vi.fn()
@@ -37,7 +38,14 @@ vi.mock('../hooks/useJ2UnviewedEOD', () => ({ default: () => ({ unviewed }) }))
 vi.mock('../hooks/useJ2EODRecaps', () => ({ default: () => ({ markViewed }) }))
 vi.mock('../hooks/useJ2DisciplineState', () => ({ default: () => ({ state: disciplineState }) }))
 vi.mock('../hooks/useCompassOverview', () => ({ default: () => ({ overview }) }))
-vi.mock('swr', () => ({ default: () => ({ data: brokerData }) }))
+// URL-aware: the trust fetch (broken-token nudge) is a SEPARATE key from the
+// broker-review (unreviewed) fetch — resolve each to its own controllable state.
+vi.mock('swr', () => ({
+  default: (key) => {
+    if (typeof key === 'string' && key.includes('/broker/trust')) return { data: trustData }
+    return { data: brokerData }
+  },
+}))
 vi.mock('react-router-dom', () => ({ useNavigate: () => navSpy }))
 
 import CoachStrip from './CoachStrip'
@@ -49,6 +57,7 @@ beforeEach(() => {
   unviewed = null
   disciplineState = null
   brokerData = { total: 0 }
+  trustData = { anyBroker: false, accounts: [] }
   overview = null
   dismissIntervention.mockClear()
   markViewed.mockClear()
@@ -170,6 +179,43 @@ describe('CoachStrip — celebrations (P6-7)', () => {
     const kinds = screen.getAllByTestId('coach-row').map((r) => r.getAttribute('data-kind'))
     expect(kinds).toContain('review')
     expect(kinds).toContain('celebration')
+  })
+})
+
+describe('CoachStrip — broken broker connection re-auth nudge', () => {
+  it('pushes a warn row when the trust data reports a broken token', () => {
+    trustData = {
+      anyBroker: true,
+      accounts: [{ brokerAccountId: 'b1', brokerageName: 'Robinhood', tokenState: 'broken', status: 'broken' }],
+    }
+    render(<CoachStrip />)
+    const rows = screen.getAllByTestId('coach-row')
+    const reauth = rows.find((r) => r.getAttribute('data-kind') === 'reauth')
+    expect(reauth).toBeTruthy()
+    expect(reauth).toHaveAttribute('role', 'status')
+    expect(reauth).toHaveTextContent(/Robinhood connection needs re-auth/i)
+    // Deep-links to the accounts surface (where broker connections are managed).
+    fireEvent.click(screen.getByRole('button', { name: /reconnect/i }))
+    expect(navSpy).toHaveBeenCalledWith('/journal/accounts')
+  })
+
+  it('also fires for an expiring token', () => {
+    trustData = {
+      anyBroker: true,
+      accounts: [{ brokerAccountId: 'b1', brokerageName: 'Schwab', tokenState: 'expiring', status: 'active' }],
+    }
+    render(<CoachStrip />)
+    expect(screen.getByText(/Schwab connection needs re-auth/i)).toBeInTheDocument()
+  })
+
+  it('absent when the connection is healthy', () => {
+    trustData = {
+      anyBroker: true,
+      accounts: [{ brokerAccountId: 'b1', brokerageName: 'Robinhood', tokenState: 'ok', status: 'active' }],
+    }
+    render(<CoachStrip />)
+    expect(screen.queryByText(/needs re-auth/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('coach-strip')).not.toBeInTheDocument()
   })
 })
 

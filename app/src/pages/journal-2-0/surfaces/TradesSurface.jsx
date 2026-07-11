@@ -18,6 +18,7 @@ import { useCallback } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import OpenPositionsTab from '../tabs/OpenPositionsTab'
 import TradeJournalTab from '../tabs/TradeJournalTab'
+import SyncFreshnessChip from '../components/SyncFreshnessChip'
 import styles from '../JournalLayout.module.css'
 
 export default function TradesSurface() {
@@ -72,6 +73,16 @@ export default function TradesSurface() {
           All
         </button>
       </div>
+
+      {/* Closed-trades trust chip: how fresh the broker data behind this list is,
+          + a one-tap re-sync. Self-hides for manual/non-broker accounts. The Open
+          Positions segment already leads with its own BrokerSyncStatus bar, so the
+          chip only shows on the closed/all view (no duplicate freshness readout). */}
+      {seg !== 'open' && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '2px 0 10px' }}>
+          <SyncFreshnessChip />
+        </div>
+      )}
 
       {seg === 'open' ? (
         <OpenPositionsTab settings={settings} onTradeWritten={() => setSeg('closed')} />

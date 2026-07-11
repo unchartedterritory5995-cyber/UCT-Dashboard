@@ -46,12 +46,16 @@ const NUDGE_SNOOZE_PREFIX = 'uct.j2.nudges.dismissed.'
 const TRADES_CLOSED = '/journal/trades?seg=closed'
 const TRADES_OPEN = '/journal/trades?seg=open'
 const COMPASS = '/journal/compass'
+const ACCOUNTS = '/journal/accounts'
 
 const INTERVENTION_ICON = { danger: 'noEntry', warning: 'warning', info: 'sparkle' }
 const SEV_RANK = { danger: 0, warning: 1, info: 2 }
 
 const brokerFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { total: 0 }))
+
+const brokerTrustFetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { accounts: [] }))
 
 function readSnoozed(accountId) {
   if (!accountId) return {}
@@ -102,6 +106,15 @@ export default function CoachStrip({ accountId: accountIdProp }) {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
+  // Broker connection health (tokenState). A broken/expiring authorization means
+  // the live numbers may be stale — surface a re-auth nudge. Trust is NOT already
+  // polled on Today, so fetch it ONCE on mount (NO refreshInterval — this must
+  // never become a recurring poller). Same read the Sync Trust Center uses; SWR
+  // dedups the key across the tab.
+  const { data: trustData } = useSWR('/api/j2/broker/trust', brokerTrustFetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  })
 
   // Celebration moments (P6-7) — positive success rows from the overview payload.
   // TodaySurface already mounts useCompassOverview with the same accountId, so SWR
@@ -132,6 +145,16 @@ export default function CoachStrip({ accountId: accountIdProp }) {
     if (onOpen) { try { onOpen() } catch { /* swallow */ } }
     navigate(to)
   }, [navigate])
+
+  // First broker account whose authorization is broken/expiring → re-auth nudge.
+  const brokenBroker = useMemo(() => {
+    const accts = trustData?.accounts
+    if (!Array.isArray(accts)) return null
+    const bad = accts.find(
+      (a) => a?.tokenState === 'broken' || a?.tokenState === 'expiring' || a?.status === 'broken',
+    )
+    return bad ? (bad.brokerageName || 'Brokerage') : null
+  }, [trustData])
 
   // ── build the severity-ordered row list ─────────────────────────────────────
   const items = useMemo(() => {
@@ -177,6 +200,21 @@ export default function CoachStrip({ accountId: accountIdProp }) {
             onClick: () => { dismissIntervention(iv.id) },
           },
         })
+      })
+    }
+
+    // 2b. broker connection re-auth (trust). A broken/expiring authorization
+    // undermines the live numbers, so it sits high — just under interventions.
+    if (brokenBroker) {
+      out.push({
+        key: 'broker-reauth',
+        kind: 'reauth',
+        sev: 'warning',
+        icon: 'warning',
+        label: 'Broker connection',
+        message: `Your ${brokenBroker} connection needs re-auth — trades may be stale.`,
+        to: ACCOUNTS,
+        openLabel: 'Reconnect',
       })
     }
 
@@ -282,7 +320,7 @@ export default function CoachStrip({ accountId: accountIdProp }) {
 
     return out
   }, [
-    disciplineState, interventions, brokerData, reviewDismissed, nudgesState,
+    disciplineState, interventions, brokenBroker, brokerData, reviewDismissed, nudgesState,
     snoozed, unviewed, eodDismissed, dismissIntervention, snoozeNudge, markViewed,
     celebrateOn, overview,
   ])

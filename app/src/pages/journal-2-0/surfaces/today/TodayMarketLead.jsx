@@ -20,6 +20,7 @@ import useJ2OptionStrategies from '../../hooks/useJ2OptionStrategies'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import useRealtimePrices from '../../../../hooks/useRealtimePrices'
 import BrokerAccountHero from '../../components/BrokerAccountHero'
+import SyncFreshnessChip from '../../components/SyncFreshnessChip'
 import {
   portfolioAggregates,
   brokerLiveSummary,
@@ -75,16 +76,23 @@ export default function TodayMarketLead({
   )
 
   if (isBroker) {
+    // Broker lead: same freshness chip the Trades surface uses (Today had no
+    // freshness readout before — this unifies it, no duplicate line).
     return (
-      <BrokerAccountHero
-        account={account}
-        aggregates={aggregates}
-        liveSummary={liveSummary}
-        isLive={isStreaming && liveSummary?.netLiq != null}
-        positions={positions}
-        prices={prices}
-        optionMarketValue={optionMarketValue}
-      />
+      <>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <SyncFreshnessChip />
+        </div>
+        <BrokerAccountHero
+          account={account}
+          aggregates={aggregates}
+          liveSummary={liveSummary}
+          isLive={isStreaming && liveSummary?.netLiq != null}
+          positions={positions}
+          prices={prices}
+          optionMarketValue={optionMarketValue}
+        />
+      </>
     )
   }
 
