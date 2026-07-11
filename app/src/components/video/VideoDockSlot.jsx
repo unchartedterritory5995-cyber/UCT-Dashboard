@@ -43,6 +43,7 @@ export default function VideoDockSlot() {
   const { notes, add: addNote, remove: removeNote } = useVideoNotes(currentYt)
   const [draft, setDraft] = useState(null) // { t, text } while composing, else null
   const [savingNb, setSavingNb] = useState('')
+  const [savingWl, setSavingWl] = useState('') // save-tickers-to-watchlist status
   // Collapsible ticker cloud — remember the user's choice across videos.
   const [tickersOpen, setTickersOpen] = useState(() => {
     try { return window.localStorage.getItem('uct.desk.tickersOpen') !== '0' } catch { return true }
@@ -95,6 +96,35 @@ export default function VideoDockSlot() {
     }
     setTimeout(() => setSavingNb(''), 2500)
   }, [notes, list, index])
+
+  // Turn the session's covered tickers into a fresh watchlist in one click.
+  const saveToWatchlist = useCallback(async () => {
+    const syms = [...new Set(tickerMoments.map((t) => t.ticker).filter(Boolean))]
+    if (!syms.length) return
+    setSavingWl('saving')
+    try {
+      const raw = (list[index]?.title || 'Session').replace(
+        /^(live trading session|daily session|post market recap|thoughts on the market|fireside chat)\s*[—-]?\s*/i, '')
+      const name = `Desk — ${(raw || list[index]?.title || 'Session').trim()}`.slice(0, 60)
+      const r = await fetch('/api/watchlists', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+      if (!r.ok) throw new Error('create')
+      const wl = await r.json()
+      if (!wl?.id) throw new Error('no id')
+      const br = await fetch(`/api/watchlists/${wl.id}/items/bulk`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbols: syms }),
+      })
+      setSavingWl(br.ok ? 'saved' : 'error')
+    } catch {
+      setSavingWl('error')
+    }
+    setTimeout(() => setSavingWl(''), 3000)
+  }, [tickerMoments, list, index])
 
   const report = useCallback(() => {
     const el = boxRef.current
@@ -253,23 +283,38 @@ export default function VideoDockSlot() {
           {tickerMoments.length > 0 && (
             <div className={styles.tickersWrap}>
               {/* Collapsible so a long stream's ticker cloud doesn't dominate
-                  the rail; scroll-capped when open. */}
-              <button
-                type="button"
-                className={styles.tickersToggle}
-                onClick={toggleTickers}
-                aria-expanded={tickersOpen}
-              >
-                <svg
-                  className={`${styles.tickersChevron} ${tickersOpen ? styles.tickersChevronOpen : ''}`}
-                  width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"
+                  the rail; scroll-capped when open. Save turns the covered
+                  symbols into a fresh watchlist. */}
+              <div className={styles.tickersHead}>
+                <button
+                  type="button"
+                  className={styles.tickersToggle}
+                  onClick={toggleTickers}
+                  aria-expanded={tickersOpen}
                 >
-                  <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor"
-                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className={styles.insHead}>Tickers covered</span>
-                <span className={styles.tickersCount}>{tickerMoments.length}</span>
-              </button>
+                  <svg
+                    className={`${styles.tickersChevron} ${tickersOpen ? styles.tickersChevronOpen : ''}`}
+                    width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"
+                  >
+                    <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor"
+                      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className={styles.insHead}>Tickers covered</span>
+                  <span className={styles.tickersCount}>{tickerMoments.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.saveWatchlistBtn}
+                  onClick={saveToWatchlist}
+                  disabled={savingWl === 'saving'}
+                  title="Save these tickers to a new watchlist"
+                >
+                  {savingWl === 'saved' ? '✓ Saved'
+                    : savingWl === 'error' ? 'Retry'
+                    : savingWl === 'saving' ? 'Saving…'
+                    : '+ Watchlist'}
+                </button>
+              </div>
               {tickersOpen && (
                 <div className={styles.tickerScroll}>
                   <div className={styles.tickerRow}>

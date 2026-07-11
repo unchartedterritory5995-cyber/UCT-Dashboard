@@ -207,12 +207,34 @@
 .tickersWrap {
   margin-top: 14px;
 }
+/* Header row: collapsible toggle + save-to-watchlist. */
+.tickersHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.saveWatchlistBtn {
+  flex: none;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(201, 168, 76, 0.08);
+  color: #c9a84c;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.saveWatchlistBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.18); }
+.saveWatchlistBtn:disabled { opacity: 0.6; cursor: default; }
+.saveWatchlistBtn:focus-visible { outline: 2px solid #c9a84c; outline-offset: 2px; }
 /* Collapsible header (chevron + label + count). */
 .tickersToggle {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 0;
   border: none;
   background: none;
