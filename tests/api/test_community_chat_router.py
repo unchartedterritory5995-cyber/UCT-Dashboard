@@ -150,6 +150,34 @@ async def test_react_and_moderation(client_for):
 
 
 @pytest.mark.asyncio
+async def test_poll_create_and_vote(client_for):
+    async with client_for(MEMBER) as ac:
+        await _ack(ac)
+        mid = (await ac.post("/api/community/chat/channels/trading-floor/messages",
+                             json={"body": "", "card": {"kind": "poll",
+                                   "question": "Bull or Bear on $NVDA?",
+                                   "options": ["Bull", "Bear", "Chop"]}})).json()["id"]
+        r = await ac.post(f"/api/community/chat/messages/{mid}/vote", json={"option_key": "o0"})
+        assert r.status_code == 200 and r.json()["my_vote"] == "o0"
+        r = await ac.post(f"/api/community/chat/messages/{mid}/vote", json={"option_key": "o1"})
+        assert r.json()["my_vote"] == "o1" and r.json()["total"] == 1     # re-vote moves
+        assert (await ac.post(f"/api/community/chat/messages/{mid}/vote",
+                              json={"option_key": "o9"})).status_code == 400
+        msgs = (await ac.get("/api/community/chat/channels/trading-floor/messages")).json()["messages"]
+        poll = next(m for m in msgs if m["id"] == mid)
+        assert poll["card"]["results"]["counts"] == {"o1": 1}
+
+
+@pytest.mark.asyncio
+async def test_ask_gate_disabled(client_for):
+    async with client_for(MEMBER) as ac:
+        await _ack(ac)
+        r = await ac.post("/api/community/chat/channels/trading-floor/ask",
+                          json={"question": "playbook for a high tight flag?"})
+        assert r.status_code == 503   # COMMUNITY_ASK_ENABLED not set
+
+
+@pytest.mark.asyncio
 async def test_graduate_message_to_board(client_for):
     from api.services import community_store
     async with client_for(MEMBER) as ac:

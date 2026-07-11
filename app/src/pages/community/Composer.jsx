@@ -67,14 +67,41 @@ export default function Composer({ onSubmit, placeholder = 'Share your thinkingâ
     if (!editor || busy) return
     if (editor.isEmpty) { if (!chat) setError('Write something first'); return }
     setError(null)
-    // Slash command: "/chart NVDA" drops a chart card without leaving the channel.
+    // Slash commands (chat only): /chart, /bull|/bear, /poll.
     if (chat && onCommand) {
-      const m = editor.getText().trim().match(/^\/(chart|c)\s+([A-Za-z0-9.\-]{1,8})$/i)
-      if (m) {
+      const raw = editor.getText().trim()
+      const done = () => { editor.commands.clearContent(); editor.commands.focus() }
+      const chartM = raw.match(/^\/(chart|c)\s+([A-Za-z0-9.\-]{1,8})$/i)
+      if (chartM) {
+        try { await onCommand({ type: 'chart', ticker: chartM[2].toUpperCase() }); done() }
+        catch (e) { setError(e.message) }
+        return
+      }
+      const sentM = raw.match(/^\/(bull|bear|sentiment)\s+([A-Za-z0-9.\-]{1,8})$/i)
+      if (sentM) {
         try {
-          await onCommand({ type: 'chart', ticker: m[2].toUpperCase() })
-          editor.commands.clearContent(); editor.commands.focus()
+          await onCommand({ type: 'poll', question: `Bull or Bear on $${sentM[2].toUpperCase()}?`,
+                            options: ['Bull', 'Bear', 'Chop'] })
+          done()
         } catch (e) { setError(e.message) }
+        return
+      }
+      const askM = raw.match(/^\/ask\s+([\s\S]+)$/i)
+      if (askM) {
+        try { await onCommand({ type: 'ask', question: askM[1].trim() }); done() }
+        catch (e) { setError(e.message) }
+        return
+      }
+      const pollM = raw.match(/^\/poll\s+([\s\S]+)$/i)
+      if (pollM) {
+        const parts = pollM[1].split('|').map((s) => s.trim()).filter(Boolean)
+        const question = parts.shift()
+        if (question && parts.length >= 2) {
+          try { await onCommand({ type: 'poll', question, options: parts.slice(0, 5) }); done() }
+          catch (e) { setError(e.message) }
+        } else {
+          setError('Poll format:  /poll Question?  |  option A  |  option B')
+        }
         return
       }
     }

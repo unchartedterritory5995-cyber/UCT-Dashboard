@@ -85,10 +85,38 @@ function FlowCard({ card }) {
   )
 }
 
-export default function CardRenderer({ card }) {
+function PollCard({ card, onVote }) {
+  const results = card.results || { counts: {}, total: 0, my_vote: null }
+  const total = results.total || 0
+  const voted = !!results.my_vote
+  return (
+    <div className={styles.card} data-kind="poll">
+      <div className={styles.pollQ}><UIcon name="ruler" size={13} /> {card.question}</div>
+      <div className={styles.pollOpts}>
+        {(card.options || []).map((o) => {
+          const n = results.counts?.[o.key] || 0
+          const pct = total ? Math.round((n / total) * 100) : 0
+          const mine = results.my_vote === o.key
+          return (
+            <button key={o.key} className={`${styles.pollOpt} ${mine ? styles.pollOptMine : ''}`}
+              onClick={() => onVote?.(o.key)}>
+              <span className={styles.pollBar} style={{ width: voted ? `${pct}%` : '0%' }} />
+              <span className={styles.pollLabel}>{o.label}{mine ? ' ✓' : ''}</span>
+              {voted && <span className={styles.pollPct}>{pct}%</span>}
+            </button>
+          )
+        })}
+      </div>
+      <div className={styles.pollTotal}>{total} vote{total === 1 ? '' : 's'}{voted ? '' : ' · tap to vote'}</div>
+    </div>
+  )
+}
+
+export default function CardRenderer({ card, onVote }) {
   if (!card || !card.kind) return null
   if (card.kind === 'chart') return <ChartCard card={card} />
   if (card.kind === 'trade') return <TradeCard card={card} />
   if (card.kind === 'flow') return <FlowCard card={card} />
+  if (card.kind === 'poll') return <PollCard card={card} onVote={onVote} />
   return null
 }

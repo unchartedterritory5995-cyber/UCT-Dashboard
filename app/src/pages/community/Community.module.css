@@ -336,6 +336,21 @@
 .cardGrade { margin-left: auto; color: var(--ut-gold); font-weight: 700; font-size: 12px; }
 .cardSetup { padding: 0 10px 10px; color: var(--text); font-size: 11.5px; opacity: 0.8; }
 
+/* Poll card */
+.pollQ { display: flex; align-items: center; gap: 6px; padding: 10px 12px 6px; color: var(--text-heading); font-size: 13px; font-weight: 600; }
+.pollOpts { display: flex; flex-direction: column; gap: 5px; padding: 0 10px 6px; }
+.pollOpt {
+  position: relative; display: flex; align-items: center; overflow: hidden;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 12.5px; padding: 7px 10px; cursor: pointer; text-align: left;
+}
+.pollOpt:hover { border-color: var(--ut-gold-glow); }
+.pollOptMine { border-color: var(--ut-gold); }
+.pollBar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ut-gold-dim); transition: width 0.4s ease; z-index: 0; }
+.pollLabel { position: relative; z-index: 1; flex: 1; color: var(--text-heading); }
+.pollPct { position: relative; z-index: 1; color: var(--ut-gold); font-weight: 700; font-size: 11.5px; }
+.pollTotal { padding: 0 12px 10px; color: var(--text); opacity: 0.6; font-size: 11px; }
+
 /* Graduate (chat → Board thread) */
 .gradLink {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 5px;

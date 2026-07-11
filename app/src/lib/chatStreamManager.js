@@ -97,6 +97,26 @@ function upsertMany(slug, msgs) {
   s.messages = sortMsgs([...byId.values(), ...pending])
   bump(slug)
 }
+function updateCard(slug, messageId, patch) {
+  const s = slot(slug)
+  const idx = s.messages.findIndex((m) => m.id === messageId)
+  if (idx < 0 || !s.messages[idx].card) return
+  const next = s.messages.slice()
+  next[idx] = { ...s.messages[idx], card: { ...s.messages[idx].card, ...patch } }
+  s.messages = next
+  bump(slug)
+}
+
+export function askCompass(slug, question) {
+  return jsend(`/api/community/chat/channels/${slug}/ask`, { question })
+}
+
+export function votePoll(slug, messageId, optionKey) {
+  return jsend(`/api/community/chat/messages/${messageId}/vote`, { option_key: optionKey })
+    .then((r) => updateCard(slug, messageId, { results: r }))
+    .catch(() => {})
+}
+
 function applyReaction(slug, { message_id, kind, on }) {
   const s = slot(slug)
   const idx = s.messages.findIndex((m) => m.id === message_id)
@@ -147,6 +167,16 @@ function onEvent(name, data) {
     const s = slot(slug)
     s.typing[payload.user_id] = { ts: Date.now(), name: payload.name || 'member' }
     bump(slug)
+  } else if (name === 'poll_vote') {
+    // live-update the counts for everyone; preserve the viewer's own my_vote.
+    const s = slot(slug)
+    const idx = s.messages.findIndex((m) => m.id === payload.message_id)
+    if (idx >= 0 && s.messages[idx].card) {
+      const prev = s.messages[idx].card.results || {}
+      updateCard(slug, payload.message_id, {
+        results: { ...prev, counts: payload.counts, total: payload.total },
+      })
+    }
   } else if (name === 'board_activity') {
     boardListeners.forEach((cb) => { try { cb(payload) } catch (_) {} })
   }
@@ -162,7 +192,7 @@ function open() {
   const url = `/api/community/chat/stream?channels=${encodeURIComponent(channels.join(','))}`
   try { es = new EventSource(url, { withCredentials: true }) } catch (_) { return }
   const names = ['connected', 'message', 'message_edited', 'message_deleted', 'reaction',
-    'presence', 'typing', 'message_pinned', 'board_activity', 'heartbeat']
+    'presence', 'typing', 'message_pinned', 'poll_vote', 'board_activity', 'heartbeat']
   es.onopen = () => {
     retry = RETRY_MIN
     meta.connected = true; meta.reconnecting = false; meta.capacity = false

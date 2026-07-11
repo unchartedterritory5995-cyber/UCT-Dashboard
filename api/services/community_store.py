@@ -176,6 +176,14 @@ CREATE TABLE IF NOT EXISTS chat_reports (
     status      TEXT NOT NULL DEFAULT 'open',   -- open | hidden | dismissed
     created_at  INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS poll_votes (
+    message_id  INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    user_id     TEXT NOT NULL,
+    option_key  TEXT NOT NULL,
+    created_at  INTEGER NOT NULL,
+    PRIMARY KEY (message_id, user_id)   -- one vote per user per poll (re-vote updates)
+);
 """
 
 
@@ -888,6 +896,32 @@ def set_chat_report_status(report_id, status):
     with _WRITE_LOCK, closing(get_connection()) as conn:
         conn.execute("UPDATE chat_reports SET status=? WHERE id=?", (status, report_id))
         conn.commit()
+
+
+def set_poll_vote(message_id, user_id, option_key):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute(
+            """INSERT INTO poll_votes (message_id, user_id, option_key, created_at)
+               VALUES (?,?,?,?)
+               ON CONFLICT(message_id, user_id) DO UPDATE SET
+                 option_key = excluded.option_key, created_at = excluded.created_at""",
+            (message_id, user_id, option_key, _now()))
+        conn.commit()
+
+
+def poll_results(message_id, viewer_id=None):
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            "SELECT option_key, COUNT(*) AS n FROM poll_votes WHERE message_id=? GROUP BY option_key",
+            (message_id,)).fetchall()
+        counts = {r["option_key"]: r["n"] for r in rows}
+        my = None
+        if viewer_id is not None:
+            r = conn.execute(
+                "SELECT option_key FROM poll_votes WHERE message_id=? AND user_id=?",
+                (message_id, viewer_id)).fetchone()
+            my = r["option_key"] if r else None
+    return {"counts": counts, "total": sum(counts.values()), "my_vote": my}
 
 
 def hot_tickers(limit=6, since_seconds=7200, scan=400):

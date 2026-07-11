@@ -148,8 +148,12 @@ export default function ChatView({ channel, onSelectChannel }) {
   const runCommand = async (cmd) => {
     if (cmd.type === 'chart') {
       await chat.sendMessage(channel, { card: { kind: 'chart', ticker: cmd.ticker, tf: 'D' } })
-      setAtBottom(true)
+    } else if (cmd.type === 'poll') {
+      await chat.sendMessage(channel, { card: { kind: 'poll', question: cmd.question, options: cmd.options } })
+    } else if (cmd.type === 'ask') {
+      await chat.askCompass(channel, cmd.question)
     }
+    setAtBottom(true)
   }
 
   return (
@@ -230,7 +234,7 @@ export default function ChatView({ channel, onSelectChannel }) {
       )}
       <Composer
         mode="chat"
-        placeholder={`Message #${channel}  ·  /chart NVDA to share a chart`}
+        placeholder={`Message #${channel}   ·   try /chart NVDA · /bull NVDA · /poll Q | A | B`}
         onSubmit={send}
         onCommand={runCommand}
         onTyping={() => chat.sendTyping(channel)}
@@ -272,7 +276,7 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate
       ) : (
         <>
           {html && <div className={styles.msgBody} dangerouslySetInnerHTML={{ __html: html }} />}
-          {msg.card && <CardRenderer card={msg.card} />}
+          {msg.card && <CardRenderer card={msg.card} onVote={(key) => chat.votePoll(channel, msg.id, key)} />}
           {msg.graduated_thread_id > 0 && (
             <button className={styles.gradLink} onClick={() => onOpenThread(msg.graduated_thread_id)}>
               <UIcon name="library" size={12} /> Saved to the Boards →

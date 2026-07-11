@@ -2097,6 +2097,18 @@ async def lifespan(app: FastAPI):
         except Exception as _e_hb:
             print(f"[startup] floor heartbeat job skip: {_e_hb}")
 
+        # UCT Signal auto-posts (flow sweeps + regime flips) → #trading-floor every
+        # 30 min during market hours. Self-gates on COMMUNITY_CHAT_ENABLED +
+        # COMMUNITY_SIGNALS_ENABLED (owner opt-in), so it's a no-op unless both are set.
+        try:
+            from api.services import community_signals
+            _scheduler.add_job(
+                community_signals.run_signal_cycle,
+                CronTrigger(day_of_week="mon-fri", hour="9-16", minute="0,30"),
+                id="floor_signal_cycle", replace_existing=True, max_instances=1)
+        except Exception as _e_sig:
+            print(f"[startup] floor signal job skip: {_e_sig}")
+
         _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)

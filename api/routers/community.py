@@ -585,6 +585,14 @@ class ChatReportIn(BaseModel):
     reason: str = ""
 
 
+class PollVoteIn(BaseModel):
+    option_key: str
+
+
+class AskIn(BaseModel):
+    question: str
+
+
 class ChatPinIn(BaseModel):
     pinned: bool
 
@@ -632,6 +640,8 @@ def chat_messages(slug: str, before_id: int | None = Query(None),
                                limit=limit, viewer_id=user["id"])
     for m in msgs:
         _serialize_message(m)
+        if m.get("card") and m["card"].get("kind") == "poll":
+            m["card"]["results"] = store.poll_results(m["id"], user["id"])
     return {"messages": msgs}
 
 
@@ -689,6 +699,33 @@ def chat_send(slug: str, payload: ChatMessageIn, user: dict = Depends(require_ch
         except Exception:
             pass
     return msg
+
+
+@router.post("/chat/channels/{slug}/ask")
+def chat_ask(slug: str, body: AskIn, user: dict = Depends(require_chat)):
+    """/ask Compass — post the member's question, then generate + post the brain's answer."""
+    _writer(user)
+    if not store.is_valid_channel(slug):
+        raise HTTPException(status_code=404, detail="Unknown channel")
+    from api.services import community_ask
+    if not community_ask.enabled():
+        raise HTTPException(status_code=503, detail="Ask Compass isn't enabled yet")
+    if not community_ask.allow(user["id"]):
+        raise HTTPException(status_code=429, detail="One question at a time — give it a sec")
+    q = (body.question or "").strip()[:300]
+    if not q:
+        raise HTTPException(status_code=400, detail="Ask a question")
+    qdoc = json.dumps({"type": "doc", "content": [{"type": "paragraph", "content": [
+        {"type": "text", "marks": [{"type": "bold"}], "text": "Compass, "},
+        {"type": "text", "text": q}]}]})
+    try:
+        mid = store.create_message(slug, user["id"], qdoc, bypass_rate_limit=_is_mentor(user))
+    except store.ChatRateLimited:
+        raise HTTPException(status_code=429, detail="Slow down — message rate limit")
+    msg = _serialize_message(store.get_message(mid))
+    chat_hub.get_hub().broadcast(slug, "message", msg)
+    community_ask.answer_async(slug, q)
+    return {"ok": True}
 
 
 @router.post("/chat/channels/{slug}/typing")
@@ -840,6 +877,27 @@ def chat_graduate(message_id: int, body: GraduateIn, user: dict = Depends(requir
     grad = _serialize_message(store.get_message(message_id))
     chat_hub.get_hub().broadcast(m["channel_slug"], "message_edited", grad)
     return {"thread_id": tid, "space": body.space}
+
+
+@router.post("/chat/messages/{message_id}/vote")
+def chat_vote(message_id: int, body: PollVoteIn, user: dict = Depends(require_chat)):
+    _writer(user)
+    m = store.get_message(message_id)
+    if not m or m.get("deleted"):
+        raise HTTPException(status_code=404, detail="Message not found")
+    try:
+        card = json.loads(m["card_json"]) if m.get("card_json") else None
+    except (TypeError, ValueError):
+        card = None
+    if not card or card.get("kind") != "poll":
+        raise HTTPException(status_code=400, detail="Not a poll")
+    if body.option_key not in {o["key"] for o in card.get("options", [])}:
+        raise HTTPException(status_code=400, detail="Unknown option")
+    store.set_poll_vote(message_id, user["id"], body.option_key)
+    agg = store.poll_results(message_id)
+    chat_hub.get_hub().broadcast(m["channel_slug"], "poll_vote", {
+        "message_id": message_id, "counts": agg["counts"], "total": agg["total"]})
+    return store.poll_results(message_id, user["id"])
 
 
 @router.patch("/chat/messages/{message_id}/pin")

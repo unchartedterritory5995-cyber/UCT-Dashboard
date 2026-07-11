@@ -116,4 +116,18 @@ def build_card(kind: str, ref: dict, *, user_id: str, load_trade) -> dict:
             "postPrice": _num(ref.get("postPrice")),
         }
 
+    if kind == "poll":
+        question = _str(ref.get("question"), 200)
+        if not question:
+            raise ValueError("poll needs a question")
+        opts = ref.get("options") or []
+        if not isinstance(opts, list) or not (2 <= len(opts) <= 5):
+            raise ValueError("poll needs 2-5 options")
+        return {
+            "kind": "poll",
+            "question": question,
+            "options": [{"key": f"o{i}", "label": _str(o, 60) or f"Option {i + 1}"}
+                        for i, o in enumerate(opts[:5])],
+        }
+
     raise ValueError("unknown card kind")
