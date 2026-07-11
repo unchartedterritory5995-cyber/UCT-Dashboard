@@ -44,6 +44,8 @@ const ICONS = {
   clear:      I(<><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></>),
   undo:       I(<><polyline points="6,4 2.5,7.5 6,11" /><path d="M2.5 7.5 H10 a3.5 3.5 0 0 1 0 7 H6.5" /></>),
   redo:       I(<><polyline points="10,4 13.5,7.5 10,11" /><path d="M13.5 7.5 H6 a3.5 3.5 0 0 0 0 7 H9.5" /></>),
+  eye:        I(<><path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z" /><circle cx="8" cy="8" r="1.8" /></>),
+  eyeOff:     I(<><path d="M1 8s2.6-4.5 7-4.5c1 0 1.9.2 2.7.6M15 8s-2.6 4.5-7 4.5c-1 0-1.9-.2-2.7-.6" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>),
   camera:     I(<><path d="M2 5.5h12v8H2z" /><circle cx="8" cy="9.5" r="2" /><path d="M5.5 5.5l1-2h3l1 2" /></>),
   replay:     I(<><circle cx="8" cy="8" r="6" /><polyline points="8,5 8,8 10,10" /><path d="M3 8 A5 5 0 0 1 8 3" strokeDasharray="2 1" /></>),
 }
@@ -1138,6 +1140,17 @@ function ChartToolbar({
             )}
           </div>
         )}
+
+        {/* Hide / show all drawings (doesn't delete them) */}
+        <button
+          className={`${styles.btn} ${chartSettings?.hideDrawings ? styles.active : ''}`}
+          onClick={() => onUpdateSettings?.({ ...chartSettings, hideDrawings: !chartSettings?.hideDrawings })}
+          disabled={!drawingCount}
+          title={chartSettings?.hideDrawings ? 'Show drawings' : 'Hide all drawings'}
+          aria-pressed={!!chartSettings?.hideDrawings}
+        >
+          {chartSettings?.hideDrawings ? ICONS.eyeOff : ICONS.eye}
+        </button>
 
         {/* Undo / Redo */}
         {onUndo && (
