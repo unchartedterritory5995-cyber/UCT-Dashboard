@@ -133,6 +133,7 @@ def main():
             "ticker_moments": ins["ticker_moments"],
             "headline": ins.get("headline", ""),
             "summary": ins.get("summary", []),
+            "key_levels": ins.get("key_levels", []),
         }
         try:
             pr = requests.post(f"{BASE}/api/education/videos/{vid}/insights-store",

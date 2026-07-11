@@ -235,6 +235,30 @@
   color: var(--text-secondary, #a8a290);
   margin-bottom: 8px;
 }
+/* Key price levels the speakers flagged — click to jump to when discussed. */
+.levelsWrap {
+  margin-top: 14px;
+}
+.levelRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.levelChip {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #e6cf86;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(201, 168, 76, 0.1);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.levelChip:hover { background: rgba(201, 168, 76, 0.2); }
+.levelChip:focus-visible { outline: 2px solid #c9a84c; outline-offset: 2px; }
 .tickersWrap {
   margin-top: 14px;
 }

@@ -40,7 +40,7 @@ export default function VideoDockSlot() {
   const boxRef = useRef(null)
   // Chapters + ticker-moments + recap for the now-playing video (empty for
   // non-session videos or before generation). Hook runs unconditionally.
-  const { chapters, tickerMoments, headline, summary, posterUrl, loading, hasTranscript } =
+  const { chapters, tickerMoments, headline, summary, posterUrl, loading, hasTranscript, keyLevels } =
     useVideoInsights(active ? list[index]?.id : null)
   // Timestamped notes for the now-playing video (keyed by youtube_id).
   const currentYt = active ? list[index]?.youtube_id : null
@@ -349,6 +349,24 @@ export default function VideoDockSlot() {
               <ul className={styles.summaryList}>
                 {summary.map((s, i) => <li key={i}>{s}</li>)}
               </ul>
+            </div>
+          )}
+          {keyLevels.length > 0 && (
+            <div className={styles.levelsWrap}>
+              <div className={styles.insHead}>Key levels</div>
+              <div className={styles.levelRow}>
+                {keyLevels.map((lv, i) => (
+                  <button
+                    key={`${lv.level}-${i}`}
+                    type="button"
+                    className={styles.levelChip}
+                    title={lv.note || (lv.t != null ? `Discussed at ${fmtT(lv.t)}` : String(lv.level))}
+                    onClick={() => { if (lv.t != null) seekTo(lv.t) }}
+                  >
+                    {lv.level}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {tickerMoments.length > 0 && (

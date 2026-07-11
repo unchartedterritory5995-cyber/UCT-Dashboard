@@ -7,7 +7,7 @@ const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
 const EMPTY = { chapters: [], ticker_moments: [], has_transcript: false,
-  headline: '', summary: [], has_poster: false, poster_url: null }
+  headline: '', summary: [], key_levels: [], has_poster: false, poster_url: null }
 
 export function useVideoInsights(videoId) {
   const key = videoId != null ? `/api/education/videos/${videoId}/insights` : null
@@ -25,6 +25,7 @@ export function useVideoInsights(videoId) {
     hasTranscript: !!d.has_transcript,
     headline: d.headline || '',
     summary: Array.isArray(d.summary) ? d.summary : [],
+    keyLevels: Array.isArray(d.key_levels) ? d.key_levels : [],
     posterUrl: d.poster_url || null,
   }
 }

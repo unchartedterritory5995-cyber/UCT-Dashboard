@@ -84,6 +84,7 @@ _EXTRA_COLUMNS = (
     ("zoom_cleaned", "INTEGER"),   # 1 once the Zoom cloud recording has been trashed
     ("headline", "TEXT"),          # one-line AI recap headline
     ("summary", "TEXT"),           # JSON: [str] key-takeaway bullets
+    ("key_levels", "TEXT"),        # JSON: [{level, note, t}] flagged price levels
     ("poster", "INTEGER"),         # 1 once the branded recap poster PNG has been rendered
 )
 
@@ -397,13 +398,13 @@ def get_insights(video_id: int) -> dict:
     render-or-skip without null juggling."""
     with contextlib.closing(_connect()) as c:
         row = c.execute(
-            "SELECT chapters, ticker_moments, transcript, headline, summary, poster "
+            "SELECT chapters, ticker_moments, transcript, headline, summary, key_levels, poster "
             "FROM edu_videos WHERE id = ?",
             (int(video_id),),
         ).fetchone()
     if not row:
         return {"chapters": [], "ticker_moments": [], "has_transcript": False,
-                "headline": "", "summary": [], "has_poster": False}
+                "headline": "", "summary": [], "key_levels": [], "has_poster": False}
 
     def _parse(s):
         try:
@@ -417,6 +418,7 @@ def get_insights(video_id: int) -> dict:
         "has_transcript": bool(row["transcript"]),
         "headline": row["headline"] or "",
         "summary": _parse(row["summary"]),
+        "key_levels": _parse(row["key_levels"]),
         "has_poster": bool(row["poster"]),
     }
 
@@ -490,9 +492,10 @@ def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
                        ticker_moments: Optional[list] = None,
                        headline: Optional[str] = None,
                        summary: Optional[list] = None,
+                       key_levels: Optional[list] = None,
                        poster: Optional[bool] = None) -> None:
     """Store generated insights (chapters / ticker-moments / transcript / recap
-    headline + summary / poster flag) + stamp insights_at."""
+    headline + summary / key levels / poster flag) + stamp insights_at."""
     sets = {"insights_at": int(time.time()), "updated_at": int(time.time())}
     if transcript is not None:
         sets["transcript"] = transcript
@@ -504,6 +507,8 @@ def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
         sets["headline"] = headline
     if summary is not None:
         sets["summary"] = _json.dumps(summary)
+    if key_levels is not None:
+        sets["key_levels"] = _json.dumps(key_levels)
     if poster is not None:
         sets["poster"] = 1 if poster else 0
     clause = ", ".join(f"{k} = :{k}" for k in sets)

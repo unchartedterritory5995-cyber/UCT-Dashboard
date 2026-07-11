@@ -53,6 +53,7 @@ class InsightsStoreIn(BaseModel):
     ticker_moments: Optional[list] = None
     headline: Optional[str] = None
     summary: Optional[list] = None
+    key_levels: Optional[list] = None
 
 
 @router.get("/insights-backfill/pending")
@@ -72,6 +73,7 @@ def insights_store(video_id: int, body: InsightsStoreIn, _: None = Depends(requi
         ticker_moments=body.ticker_moments,
         headline=body.headline,
         summary=body.summary,
+        key_levels=body.key_levels,
     )
     return {"ok": True,
             "chapters": len(body.chapters or []),
