@@ -7,17 +7,20 @@
 /* Circular variant (Model Book gallery) — coin look with a subtle ring. */
 .round { border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1); }
 
-/* Tile variant (calendar week/month) — every logo becomes a uniform rounded
-   white square so circular + square + monogram marks all share one outer shape.
-   `contain` shows the full logo (no crop) inside a little padding. */
+/* Tile variant (calendar week/month + dashboard logo tiles) — the brand's own
+   icon rendered on a DARK tile (the iOS-app-icon look), NOT forced onto a white
+   square. Colored/dark brand marks (JNJ, Netflix, UNH, BlackRock) sit clean on
+   the dark board; only genuinely white-background brands read as light chips —
+   so the old "wall of white tiles" is gone. `contain` never crops a wide logo
+   (it letterboxes on the dark tile instead). Every consumer is a dark surface. */
 .tile {
   border-radius: 24%;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.35);
 }
-.tile.wrap { background: #fff; }
+.tile.wrap { background: #0e131c; }
 .tile .img {
   object-fit: contain;
-  padding: 11%;
+  padding: 13%;
   box-sizing: border-box;
-  background: #fff;
+  background: transparent;
 }

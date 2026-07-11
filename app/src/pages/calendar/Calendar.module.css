@@ -276,8 +276,8 @@
    row), the EarningsHub look, instead of a tiny-icon list. */
 .wtileGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-  gap: 14px 6px;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 16px 6px;
   padding: 4px 0 6px;
 }
 .etile {
@@ -321,9 +321,10 @@
   display: block;
   width: 54px;
   height: 54px;
-  border-radius: 15px;
+  border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--cal-line2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   transition: transform 0.12s, box-shadow 0.12s;
 }
 .etile:hover .etileLogo {

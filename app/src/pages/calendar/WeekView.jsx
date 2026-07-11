@@ -56,7 +56,7 @@ function WeekSessionGroup({ label, icon, hdClass, rows, onSelect, onMore, moreCo
       {/* Big logo tiles in a grid — the EarningsHub look, not a tiny-icon list. */}
       <div className={styles.wtileGrid}>
         {rows.map(e => (
-          <EarningsTile key={`${e.sym}-${e._timing}`} e={e} onSelect={onSelect} size={50} />
+          <EarningsTile key={`${e.sym}-${e._timing}`} e={e} onSelect={onSelect} size={54} />
         ))}
       </div>
       {moreCount > 0 && (
