@@ -11,6 +11,7 @@ import ComparisonGrid from '../components/accounts/ComparisonGrid'
 import DeleteAccountModal from '../components/accounts/DeleteAccountModal'
 import GoalProgress from '../components/accounts/GoalProgress'
 import Milestones from '../components/accounts/Milestones'
+import BrokerConnectionsCard from '../components/BrokerConnectionsCard'
 import { colorHex } from '../lib/accountColors'
 import { money } from '../../../lib/journal-2-0'
 import UIcon from '../../../components/ui/UIcon'
@@ -81,7 +82,7 @@ export default function AccountsTab({ onNewAccount }) {
       )}
 
       <section className={styles.section}>
-        <h3 className={styles.sectionHeader}>Your Accounts</h3>
+        <h3 className={styles.sectionHeader}><UIcon name="user" size={13} /> Your Accounts</h3>
         {isLoading && accounts.length === 0 ? (
           <p className={styles.hint}>Loading…</p>
         ) : (
@@ -127,6 +128,13 @@ export default function AccountsTab({ onNewAccount }) {
         )}
       </section>
 
+      {/* Brokerage Connection — the canonical broker connect/disconnect + dup
+          review home (B6). Self-titled via its own TileCard (UIcon "link" +
+          "Brokerage Connections"), so it stands as its own section without a
+          redundant stacked header. Self-contained SWR; also rendered in global
+          Settings (safe to appear in both). */}
+      <BrokerConnectionsCard />
+
       {(accountId != null && account) && (
         <>
           <GoalProgress account={account} />
@@ -137,12 +145,12 @@ export default function AccountsTab({ onNewAccount }) {
       )}
 
       <section className={styles.section}>
-        <h3 className={styles.sectionHeader}>Account Comparison</h3>
+        <h3 className={styles.sectionHeader}><UIcon name="chart" size={13} /> Account Comparison</h3>
         <ComparisonGrid accounts={comparison} isLoading={cmpLoading} />
       </section>
 
       <section className={`${styles.section} ${styles.helpSection}`}>
-        <h3 className={styles.sectionHeader}>How Accounts Work</h3>
+        <h3 className={styles.sectionHeader}><UIcon name="book" size={13} /> How Accounts Work</h3>
         <ol className={styles.helpList}>
           <li>
             <strong>Create accounts</strong> for each broker, strategy, or
