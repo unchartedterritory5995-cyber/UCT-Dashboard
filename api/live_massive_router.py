@@ -2235,32 +2235,32 @@ def _accumulation_grade(*, total_premium, qualifying_hits, swift_hits,
     price, shape, direction, cumulative Vol/OI. Returns (score, grade)."""
     s = 0.0
     tp = total_premium or 0
-    if tp >= 20_000_000: s += 3.0
-    elif tp >= 10_000_000: s += 2.5
-    elif tp >= 5_000_000: s += 2.0
-    elif tp >= 2_000_000: s += 1.2
-    elif tp >= 1_000_000: s += 0.6
+    if tp >= 10_000_000: s += 4.0
+    elif tp >= 5_000_000: s += 3.2
+    elif tp >= 2_500_000: s += 2.4
+    elif tp >= 1_000_000: s += 1.6
+    elif tp >= 500_000: s += 0.8
     qh = qualifying_hits or 0
-    if qh >= 20: s += 2.0
-    elif qh >= 12: s += 1.5
-    elif qh >= 6: s += 1.0
+    if qh >= 30: s += 2.0
+    elif qh >= 15: s += 1.5
+    elif qh >= 8: s += 1.0
     elif qh >= 3: s += 0.5
     sw = swift_hits or 0
     if sw >= 10: s += 1.5
     elif sw >= 6: s += 1.0
     elif sw >= 4: s += 0.6
-    if burst_rising: s += 1.0
-    s += {"accelerating": 1.5, "intraday_burst": 1.2, "steady": 0.8,
+    if burst_rising: s += 0.8
+    s += {"accelerating": 1.8, "intraday_burst": 1.4, "steady": 0.9,
           "single": 0.0, "fading": -0.5, "incidental": -1.0}.get(shape, 0.0)
     if sided_pct is not None:
-        if sided_pct >= 0.8: s += 1.0
-        elif sided_pct >= 0.65: s += 0.6
+        if sided_pct >= 0.8: s += 1.2
+        elif sided_pct >= 0.65: s += 0.7
         elif sided_pct >= 0.55: s += 0.3
     if cum_voi is not None:
         if cum_voi >= 5: s += 1.0
         elif cum_voi >= 2: s += 0.6
         elif cum_voi >= 1: s += 0.3
-    if s >= 8.0: g = "A+ 🚀"
+    if s >= 8.5: g = "A+ 🚀"
     elif s >= 6.5: g = "A"
     elif s >= 4.5: g = "B"
     elif s >= 2.5: g = "C"
