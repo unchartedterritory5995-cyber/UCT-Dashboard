@@ -555,6 +555,85 @@ def put_trade_adherence_route(
         user["id"], detail["tradeRef"], setup, checked, total_rules)
 
 
+# ── Deterministic AI-suggested mistake/emotion tags (P6-4) ───────────────────
+# Pure heuristics (NO LLM): a no-stop trade → suggest `no_stop`; a same-symbol
+# revenge re-entry → suggest `revenge` + `revenge-driven`. Filtered against the
+# account taxonomy and the trade's already-applied tags. The revenge flag is
+# computed HERE by running `revenge_detect.detect` over the account's recent
+# CLOSED trades (same parsed shape the psychology/analytics path consumes) and
+# checking whether THIS trade's stable ref is flagged.
+
+def _revenge_flag_for_trade(
+    user_id: str, account_id: str | None, trade_ref: str,
+) -> bool:
+    """True when `trade_ref` is a revenge re-entry among the account's recent
+    closed trades. Bounded fetch (newest 300) — cheap, single query."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import revenge_detect
+    from api.services.journal_two.trade_refs import trade_ref_for_row
+
+    conn = get_connection()
+    try:
+        sql = (
+            "SELECT id, external_id, source, symbol, entry_date, exit_date, "
+            "       pnl_dollar, fees "
+            "  FROM j2_trades WHERE user_id = ?"
+        )
+        params: list[Any] = [user_id]
+        if account_id:
+            sql += " AND account_id = ?"
+            params.append(account_id)
+        sql += " ORDER BY exit_date DESC LIMIT 300"
+        rows = conn.execute(sql, params).fetchall()
+    finally:
+        conn.close()
+
+    parsed: list[dict[str, Any]] = []
+    for r in rows:
+        keys = r.keys()
+        gross = float(r["pnl_dollar"] or 0)
+        fees = float(r["fees"]) if "fees" in keys and r["fees"] is not None else 0.0
+        parsed.append({
+            "tradeRef": trade_ref_for_row(r),
+            "symbol": r["symbol"],
+            "entry_date": r["entry_date"],
+            "exit_date": r["exit_date"],
+            "pnlDollar": gross,
+            "pnlDollarNet": round(gross - fees, 2),
+        })
+    flags = revenge_detect.detect(parsed)["flags"]
+    return any(f["tradeRef"] == trade_ref for f in flags)
+
+
+@router.get("/trades/{trade_id}/tag-suggestions")
+def get_trade_tag_suggestions_route(
+    trade_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Deterministic AI-suggested mistake/emotion tags for a closed trade.
+
+    Resolves the trade (404 if gone / not the caller's), computes the revenge
+    flag for it, reads the account taxonomy (empty list → STANDARD fallback),
+    and returns ``{mistakes, emotions, reasons}``."""
+    from api.services.journal_two import tag_suggest
+
+    detail = trades_service.get_trade_detail(user["id"], trade_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    trade = detail["trade"]
+    account_id = trade.get("accountId")
+
+    revenge_flag = _revenge_flag_for_trade(user["id"], account_id, detail["tradeRef"])
+
+    settings = accounts_service.get_account_settings(user["id"], account_id) or {}
+    available_mistakes = settings.get("mistakeTags") or tag_suggest.STANDARD_MISTAKES
+    available_emotions = settings.get("emotionTags") or tag_suggest.STANDARD_EMOTIONS
+
+    return tag_suggest.suggest_for_trade(
+        trade, revenge_flag, available_mistakes, available_emotions,
+    )
+
+
 # ── Sync Trust Center: orphaned-annotation reattach queue (Task B7) ──────────
 # Static suffixes under /trust/orphans — no path params, so no route shadowing.
 

@@ -35,6 +35,8 @@ import { downloadBlob, copyBlobToClipboard } from '../../../../components/chart/
 import { outcomeModel, buildTradeMarkers, neighborIds } from './tradePageModel'
 import TradeScreenshots from './TradeScreenshots'
 import AdherenceChecklist from './AdherenceChecklist'
+import TagSuggestions from './TagSuggestions'
+import useTagSuggestions from '../../hooks/useTagSuggestions'
 import styles from './TradeDetailPage.module.css'
 
 // Exit-efficiency honest-state copy. EFFICIENCY_TITLE = the pending default
@@ -182,6 +184,10 @@ export default function TradeDetailPage() {
   const { accountId } = useJ2SelectedAccount()
   const { settings } = useJ2Settings()
   const isPaid = useIsPaid()
+
+  // Deterministic AI-suggested tags (P6-4). Skip the fetch when the flag is off.
+  const tagSuggestOn = useFeatureFlag('tagSuggest')
+  const { suggestions: tagSuggestions } = useTagSuggestions(tagSuggestOn ? id : null)
 
   // Compass post-mortem (ported from TradeDrawer.jsx:160-204).
   const {
@@ -555,6 +561,26 @@ export default function TradeDetailPage() {
         {/* Adherence — this setup's rule checklist, graded per-trade (P5-A4).
             Feature-flag-gated (renders null when 'adherence' is off). */}
         <AdherenceChecklist trade={trade} settings={settings} />
+
+        {/* Deterministic AI-suggested mistake/emotion tags (P6-4). Accepting a
+            chip flows through the SAME optimistic tag write as the pickers. */}
+        <TagSuggestions
+          suggestions={tagSuggestions}
+          currentMistakes={trade.mistakeTags || []}
+          currentEmotions={trade.emotionTags || []}
+          onAcceptMistake={(tag) => {
+            const cur = trade.mistakeTags || []
+            if (cur.includes(tag)) return
+            const next = [...cur, tag]
+            patchTrade({ mistakeTags: next }, { mistakeTags: next })
+          }}
+          onAcceptEmotion={(tag) => {
+            const cur = trade.emotionTags || []
+            if (cur.includes(tag)) return
+            const next = [...cur, tag]
+            patchTrade({ emotionTags: next }, { emotionTags: next })
+          }}
+        />
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Mistakes</span>

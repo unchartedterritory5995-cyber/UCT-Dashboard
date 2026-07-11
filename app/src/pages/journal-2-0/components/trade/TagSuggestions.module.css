@@ -1,0 +1,71 @@
+/* Suggested-tags chip row — sits above the Mistakes/Emotions pickers. Compact,
+   gold-accented, one-tap accept. Shares the Trade page's token vocabulary. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background: color-mix(in srgb, var(--accent, #c9a84c) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #c9a84c) 40%, transparent);
+  border-radius: 8px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+  white-space: nowrap;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text, #e8e6e1);
+  background: var(--surface-2, #17171a);
+  border: 1px solid var(--accent, #c9a84c);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  background: var(--accent, #c9a84c);
+  color: var(--bg, #000);
+}
+
+.dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  color: var(--text-muted, #8a8a8a);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dismiss:hover {
+  color: var(--text, #e8e6e1);
+}
+
+/* Phone: 44px tap targets. */
+@media (max-width: 640px) {
+  .chip { min-height: var(--tap-min, 44px); }
+  .dismiss { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); }
+}

@@ -25,7 +25,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import TagChipPicker from '../TagChipPicker'
+import TagSuggestions from '../trade/TagSuggestions'
 import useJ2Settings from '../../hooks/useJ2Settings'
+import useTagSuggestions from '../../hooks/useTagSuggestions'
+import { useFeatureFlag } from '../../featureFlags'
 import { moneySigned, dateShort } from '../../../../lib/journal-2-0'
 import styles from './RapidTagFlow.module.css'
 
@@ -112,6 +115,13 @@ export default function RapidTagFlow({ open, onClose, onComplete }) {
 
   const mistakeVocab = settings?.mistakeTags?.length ? settings.mistakeTags : STANDARD_MISTAKES
   const emotionVocab = settings?.emotionTags?.length ? settings.emotionTags : STANDARD_EMOTIONS
+
+  // Deterministic AI-suggested tags for the trade in view (P6-4). Skip the
+  // fetch when the flag is off; accepting a chip folds into the local selection.
+  const tagSuggestOn = useFeatureFlag('tagSuggest')
+  const { suggestions: tagSuggestions } = useTagSuggestions(
+    tagSuggestOn ? (current?.id || null) : null,
+  )
 
   const finish = useCallback(() => {
     if (onComplete) onComplete()
@@ -202,6 +212,16 @@ export default function RapidTagFlow({ open, onClose, onComplete }) {
             <span className={styles.exitDate}>exit {dateShort(current.exitDate)}</span>
           )}
         </div>
+
+        <TagSuggestions
+          suggestions={tagSuggestions}
+          currentMistakes={mistakeSel}
+          currentEmotions={emotionSel}
+          onAcceptMistake={(tag) =>
+            setMistakeSel((cur) => (cur.includes(tag) ? cur : [...cur, tag]))}
+          onAcceptEmotion={(tag) =>
+            setEmotionSel((cur) => (cur.includes(tag) ? cur : [...cur, tag]))}
+        />
 
         <div className={styles.pickerGroup}>
           <span className={styles.pickerLabel}>Mistakes</span>
