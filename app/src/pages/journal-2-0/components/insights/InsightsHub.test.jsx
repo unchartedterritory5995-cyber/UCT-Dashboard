@@ -7,6 +7,14 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 // chart, but the module-level import still needs to resolve.
 vi.mock('echarts-for-react', () => ({ default: () => <div data-testid="echart" /> }))
 
+// PlaybookSection self-fetches (useJ2Playbook + useScope). This shell test only
+// cares that the Playbook slot mounts/unmounts with the sub-nav — stub it so we
+// don't drag in SWR/account fetching. Its own behavior is covered by
+// PlaybookSection.test.jsx.
+vi.mock('./PlaybookSection', () => ({
+  default: () => <div>Playbook mounted</div>,
+}))
+
 import InsightsHub from './InsightsHub'
 
 // Surfaces the live querystring so we can assert ?ins= persistence + coexistence.
@@ -47,7 +55,7 @@ describe('InsightsHub — sub-nav shell', () => {
 
   it('defaults to the Playbook section and mounts only that section', () => {
     renderHub()
-    expect(screen.getByText('Setup performance')).toBeInTheDocument()
+    expect(screen.getByText('Playbook mounted')).toBeInTheDocument()
     // No other section mounted.
     expect(screen.queryByText('No closed equity trades yet.')).not.toBeInTheDocument()
     expect(screen.queryByText(/Coming with the psychology release/i)).not.toBeInTheDocument()
@@ -60,7 +68,7 @@ describe('InsightsHub — sub-nav shell', () => {
     // RiskExitsSection's honest check-back state (eligible=0).
     expect(screen.getByText('No closed equity trades yet.')).toBeInTheDocument()
     // Playbook unmounted — only one section at a time.
-    expect(screen.queryByText('Setup performance')).not.toBeInTheDocument()
+    expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
   })
 
   it('Psychology shows a designed placeholder, not a chart', () => {
@@ -90,7 +98,7 @@ describe('InsightsHub — sub-nav shell', () => {
     renderHub({ route: '/journal?ins=regime' })
     expect(screen.getByText(/Coming with the regime release/i)).toBeInTheDocument()
     // Default Playbook not shown.
-    expect(screen.queryByText('Setup performance')).not.toBeInTheDocument()
+    expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
   })
 
   it('persists the selection in ?ins= while preserving ?j2tab=', () => {
@@ -114,7 +122,7 @@ describe('InsightsHub — sub-nav shell', () => {
   it('mounts exactly one section at a time (Edge → nothing else)', () => {
     renderHub({ route: '/journal?ins=edge' })
     expect(screen.getByText('Win Rate')).toBeInTheDocument()
-    expect(screen.queryByText('Setup performance')).not.toBeInTheDocument()
+    expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
     expect(screen.queryByText('No closed equity trades yet.')).not.toBeInTheDocument()
     expect(screen.queryByText(/Coming with the/i)).not.toBeInTheDocument()
   })

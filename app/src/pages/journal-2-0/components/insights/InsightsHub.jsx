@@ -19,19 +19,20 @@
  *     headerless + coverage-gated).
  *   - Edge → a lightweight score + 4-component summary read from
  *     `analytics.edgeScore` (the shareable Edge card is Task B5).
- *   - Playbook → a minimal placeholder + per-setup list (the real cards with
- *     PF/expectancy/exit-efficiency + scope drill-through are Task B4).
+ *   - Playbook → `PlaybookSection` — the real per-setup cards with
+ *     PF/expectancy/exit-efficiency + scope drill-through (Task B4). It
+ *     self-fetches the dedicated `/playbook` aggregate via `useJ2Playbook`.
  *   - Psychology / Regime → designed "coming soon" cards, NEVER a broken/empty
  *     chart.
  *
  * NO emoji — every glyph is a `<UIcon>`.
  */
 
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
 import RiskExitsSection from '../analytics/RiskExitsSection'
-import { fmtSignedDollar } from '../../lib/calendar'
+import PlaybookSection from './PlaybookSection'
 import styles from './InsightsHub.module.css'
 
 // The five hub sections. `key` is the `?ins=` value; order = the sub-nav order.
@@ -87,7 +88,7 @@ export default function InsightsHub({ analytics }) {
       </nav>
 
       <div className={styles.body}>
-        {active === 'playbook' && <PlaybookPlaceholder analytics={analytics} />}
+        {active === 'playbook' && <PlaybookSection />}
         {active === 'exit' && <RiskExitsSection data={analytics?.exitQuality} />}
         {active === 'edge' && <EdgeSection edge={analytics?.edgeScore} />}
         {active === 'psychology' && (
@@ -157,48 +158,6 @@ function EdgeComp({ label, value }) {
     <div className={styles.edgeComp}>
       <span className={styles.edgeCompLabel}>{label}</span>
       <span className={styles.edgeCompValue}>{value}</span>
-    </div>
-  )
-}
-
-// ── Playbook placeholder (real cards + drill-through arrive in Task B4) ───────
-
-function PlaybookPlaceholder({ analytics }) {
-  const bySetup = useMemo(
-    () => analytics?.attribution?.bySetup ?? [],
-    [analytics],
-  )
-
-  return (
-    <div className={styles.playbook}>
-      <div className={styles.placeholderHead}>
-        <h4 className={styles.placeholderTitle}>Setup performance</h4>
-        <p className={styles.placeholderSub}>
-          Full Playbook cards — profit factor, expectancy, exit efficiency, and
-          click-to-scope drill-through — arrive with the next release.
-        </p>
-      </div>
-      {bySetup.length > 0 ? (
-        <ul className={styles.setupList}>
-          {bySetup.map((s) => (
-            <li key={s.setup} className={styles.setupRow}>
-              <span className={styles.setupName}>{s.setup}</span>
-              <span className={styles.setupMeta}>
-                {s.tradeCount} trade{s.tradeCount === 1 ? '' : 's'}
-              </span>
-              <span
-                className={`${styles.setupPnl} ${s.totalPnl >= 0 ? styles.pos : styles.neg}`}
-              >
-                {fmtSignedDollar(s.totalPnl)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className={styles.hint}>
-          Tag your trades with a setup to see per-setup performance here.
-        </p>
-      )}
     </div>
   )
 }
