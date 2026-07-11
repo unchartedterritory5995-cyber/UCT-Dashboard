@@ -981,6 +981,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception(f"community store init failed: {e}")
 
+    # Live-chat presence: coalesced snapshot broadcast every ~8s (ephemeral frames).
+    # Single web process → the in-memory chat hub needs no external pub/sub.
+    try:
+        import asyncio as _asyncio_chat
+        from api import chat_stream as _chat_hub
+
+        async def _chat_presence_loop():
+            while True:
+                await _asyncio_chat.sleep(8)
+                try:
+                    _chat_hub.get_hub().broadcast_presence_all()
+                except Exception:
+                    pass
+
+        _asyncio_chat.create_task(_chat_presence_loop())
+        logging.getLogger(__name__).info("chat presence broadcaster started")
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"chat presence broadcaster skip: {e}")
+
     # Load ticker baselines (per-ticker premium percentiles) into in-memory
     # cache for fast lookup by the LiveFlow worker's gate-check logic. Data
     # lives in /data/flow.db (the OptionsFlow store) -- populated by the

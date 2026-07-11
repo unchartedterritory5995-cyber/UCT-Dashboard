@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import ThreadView from './ThreadView'
+import ChatView from './ChatView'
 import Composer from './Composer'
 import AckGate from './AckGate'
-import { useCommunityStatus, useSpaces, useThreads, apiCall } from './hooks/useCommunity'
+import {
+  useCommunityStatus, useSpaces, useThreads, useChatChannels, apiCall,
+} from './hooks/useCommunity'
 import styles from './Community.module.css'
+
+const LAST_CH_KEY = 'uct.floor.lastChannel'
 
 function timeAgo(epoch) {
   if (!epoch) return ''
@@ -21,13 +26,30 @@ export default function CommunityPage() {
   const { threadId } = useParams()
   const { data: status, mutate: refreshStatus } = useCommunityStatus()
   const enabled = !!status?.enabled
-  const [space, setSpace] = useState('mentor-desk')
+  const chatOn = !!status?.chat_enabled
+
+  // Selection: a live pulse channel OR a forum board space. Pulse leads when live.
+  const [sel, setSel] = useState(null) // { type:'pulse'|'board', key }
+  const { data: chan } = useChatChannels(chatOn && !threadId)
   const { data: spaces } = useSpaces(enabled)
-  const { data: threadsData, mutate: refreshThreads } = useThreads(space, enabled && !threadId)
+  const boardSpace = sel?.type === 'board' ? sel.key : null
+  const { data: threadsData, mutate: refreshThreads } =
+    useThreads(boardSpace, enabled && !threadId && !!boardSpace)
   const [composing, setComposing] = useState(false)
   const [title, setTitle] = useState('')
   const [posting, setPosting] = useState(false)
-  const canPost = spaces && !(spaces.find((s) => s.key === space)?.mentor_only) || status?.is_mentor
+
+  // Default selection: last channel (persisted) → first pulse channel → mentor-desk.
+  useEffect(() => {
+    if (sel || threadId) return
+    if (chatOn && chan?.channels?.length) {
+      const saved = localStorage.getItem(LAST_CH_KEY)
+      const pick = chan.channels.find((c) => c.slug === saved) || chan.channels[0]
+      setSel({ type: 'pulse', key: pick.slug })
+    } else if (spaces?.length) {
+      setSel({ type: 'board', key: 'mentor-desk' })
+    }
+  }, [chatOn, chan, spaces, sel, threadId])
 
   if (status && !enabled) {
     return (
@@ -38,6 +60,13 @@ export default function CommunityPage() {
       </div>
     )
   }
+
+  const chooseBoard = (key) => { setSel({ type: 'board', key }); navigate('/community') }
+  const choosePulse = (key) => {
+    setSel({ type: 'pulse', key }); localStorage.setItem(LAST_CH_KEY, key); navigate('/community')
+  }
+  const space = boardSpace
+  const canPost = space && (!(spaces?.find((s) => s.key === space)?.mentor_only) || status?.is_mentor)
 
   return (
     <div className={styles.page}>
@@ -51,20 +80,45 @@ export default function CommunityPage() {
             </span>
           )}
         </div>
-        {(spaces || []).map((s) => (
-          <button
-            key={s.key}
-            className={`${styles.railItem} ${space === s.key && !threadId ? styles.railItemActive : ''}`}
-            onClick={() => { setSpace(s.key); navigate('/community') }}
-          >
-            <span>{s.label}</span>
-            {s.unread > 0 && <span className={styles.railBadge}>{s.unread > 9 ? '9+' : s.unread}</span>}
-          </button>
-        ))}
+
+        {chatOn && (chan?.channels?.length > 0) && (
+          <>
+            <div className={styles.railSection}><UIcon name="bolt" size={13} /> Live Pulse</div>
+            {chan.channels.map((c) => {
+              const active = sel?.type === 'pulse' && sel.key === c.slug && !threadId
+              return (
+                <button key={c.slug}
+                  className={`${styles.railItem} ${active ? styles.railItemActive : ''}`}
+                  onClick={() => choosePulse(c.slug)}>
+                  <span className={styles.railPresence}>
+                    <span className={styles.presenceDot} />#{c.slug}
+                  </span>
+                  {c.unread > 0 && <span className={styles.activityDot} title="new messages" />}
+                </button>
+              )
+            })}
+          </>
+        )}
+
+        <div className={styles.railSection}><UIcon name="document" size={13} /> The Boards</div>
+        {(spaces || []).map((s) => {
+          const active = sel?.type === 'board' && sel.key === s.key && !threadId
+          return (
+            <button key={s.key}
+              className={`${styles.railItem} ${active ? styles.railItemActive : ''}`}
+              onClick={() => chooseBoard(s.key)}>
+              <span>{s.label}</span>
+              {s.unread > 0 && <span className={styles.railBadge}>{s.unread > 9 ? '9+' : s.unread}</span>}
+            </button>
+          )
+        })}
       </aside>
+
       <main className={styles.main}>
         {threadId ? (
           <ThreadView threadId={threadId} />
+        ) : sel?.type === 'pulse' ? (
+          <ChatView channel={sel.key} />
         ) : (
           <>
             {canPost && (

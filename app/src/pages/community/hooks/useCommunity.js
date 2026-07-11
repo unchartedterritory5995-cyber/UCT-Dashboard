@@ -39,3 +39,8 @@ export const useThreads = (space, enabled) =>
 export const useThread = (threadId) =>
   useSWR(threadId ? `/api/community/threads/${threadId}` : null, fetcher,
          { refreshInterval: 20_000 })
+
+// Pulse channels (live chat). Light poll keeps the rail's presence + unread fresh;
+// the live message stream itself is the pooled EventSource (chatStreamManager).
+export const useChatChannels = (enabled) =>
+  useSWR(enabled ? '/api/community/chat/channels' : null, fetcher, { refreshInterval: 20_000 })

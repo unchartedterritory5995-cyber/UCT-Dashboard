@@ -87,6 +87,9 @@ def status(user: dict = Depends(get_current_user)):
         "is_mentor": _is_mentor(user),
         "muted": store.is_muted(user["id"]) if enabled else False,
         "public": _enabled(),      # false while dark — the nav can badge it "Preview"
+        # live chat ships dark independently; admins preview it
+        "chat_enabled": enabled and (_chat_enabled() or _is_mentor(user)),
+        "chat_public": _chat_enabled(),
     }
 
 
@@ -426,3 +429,311 @@ def serve_image(owner_id: str, name: str, user: dict = Depends(require_community
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path, media_type="image/webp",
                         headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Live chat — Pulse channels (v2). Ships dark behind COMMUNITY_CHAT_ENABLED;
+#  admins preview while dark. SSE (server→client) + POST (client→send), hub in
+#  api/chat_stream.py. Rich cards are SERVER-built (api/services/community_cards).
+# ═══════════════════════════════════════════════════════════════════════════
+
+import asyncio as _asyncio
+import time as _time
+
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from api import chat_stream as chat_hub
+from api.services import community_cards
+
+_SSE_HEADERS = {
+    "Cache-Control": "no-cache, no-transform",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+}
+
+
+def _chat_enabled() -> bool:
+    return os.environ.get("COMMUNITY_CHAT_ENABLED", "0") == "1"
+
+
+def require_chat(user: dict = Depends(require_community)) -> dict:
+    # require_community already enforced paid + (community flag OR admin preview).
+    if not (_chat_enabled() or user.get("role") == "admin"):
+        raise HTTPException(status_code=503, detail="Live chat is not enabled")
+    return user
+
+
+class ChatMessageIn(BaseModel):
+    body: str = ""
+    ticker_tags: list[str] | None = None
+    reply_to_message_id: int | None = None
+    client_msg_id: str | None = None
+    card: dict | None = None            # reference only ({kind, tradeId} | {kind, ...})
+
+
+class ChatEditIn(BaseModel):
+    body: str
+    ticker_tags: list[str] | None = None
+
+
+class ChatReactionIn(BaseModel):
+    kind: str
+
+
+class ChatReadIn(BaseModel):
+    last_seen_message_id: int
+
+
+class ChatReportIn(BaseModel):
+    message_id: int
+    reason: str = ""
+
+
+class ChatPinIn(BaseModel):
+    pinned: bool
+
+
+def _serialize_message(m: dict) -> dict:
+    """Attach author + decode card_json for the wire."""
+    _attach_authors([m])
+    if m.get("card_json"):
+        try:
+            m["card"] = json.loads(m["card_json"])
+        except (TypeError, ValueError):
+            m["card"] = None
+    else:
+        m["card"] = None
+    m.pop("card_json", None)
+    return m
+
+
+@router.get("/chat/channels")
+def chat_channels(user: dict = Depends(require_chat)):
+    unread = store.unread_by_channel(user["id"])
+    hub = chat_hub.get_hub()
+    return {
+        "channels": [
+            {**c, "unread": unread.get(c["slug"], 0),
+             "presence": hub.presence_count(c["slug"])}
+            for c in store.list_channels()
+        ],
+        "mentions_unseen": store.count_unseen_mentions(user["id"]),
+    }
+
+
+@router.get("/chat/channels/{slug}/messages")
+def chat_messages(slug: str, before_id: int | None = Query(None),
+                  after_id: int | None = Query(None), limit: int = Query(50, ge=1, le=200),
+                  user: dict = Depends(require_chat)):
+    if not store.is_valid_channel(slug):
+        raise HTTPException(status_code=404, detail="Unknown channel")
+    msgs = store.list_messages(slug, before_id=before_id, after_id=after_id, limit=limit)
+    for m in msgs:
+        _serialize_message(m)
+    return {"messages": msgs}
+
+
+@router.post("/chat/channels/{slug}/messages")
+def chat_send(slug: str, payload: ChatMessageIn, user: dict = Depends(require_chat)):
+    _writer(user)
+    if not store.is_valid_channel(slug):
+        raise HTTPException(status_code=404, detail="Unknown channel")
+
+    # Server-built card (client never supplies card body — redaction P0).
+    card_json = None
+    if payload.card:
+        from api.services.journal_two.trades import get_trade_detail
+        try:
+            card = community_cards.build_card(
+                str(payload.card.get("kind")), payload.card,
+                user_id=user["id"], load_trade=get_trade_detail)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"card: {e}")
+        card_json = json.dumps(card)
+
+    body = _validate_body(payload.body, require_content=(card_json is None))
+
+    # Mentions parsed FROM the body (never a client array), validated against auth.db.
+    parsed = store.parse_mentions_from_doc(body)
+    valid_mentions = list(_author_map(parsed).keys()) if parsed else []
+
+    try:
+        mid = store.create_message(
+            slug, user["id"], body,
+            ticker_tags=[t.upper()[:8] for t in (payload.ticker_tags or [])][:10],
+            card_json=card_json, reply_to_message_id=payload.reply_to_message_id,
+            mention_user_ids=valid_mentions,
+            bypass_rate_limit=_is_mentor(user))
+    except store.ChatRateLimited:
+        raise HTTPException(status_code=429, detail="Slow down — message rate limit")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    msg = _serialize_message(store.get_message(mid))
+    if payload.client_msg_id:
+        msg["client_msg_id"] = payload.client_msg_id
+    chat_hub.get_hub().broadcast(slug, "message", msg)
+    return msg
+
+
+@router.post("/chat/channels/{slug}/typing")
+def chat_typing(slug: str, user: dict = Depends(require_chat)):
+    if not store.is_valid_channel(slug):
+        raise HTTPException(status_code=404, detail="Unknown channel")
+    name = _author_map([user["id"]]).get(user["id"], {}).get("name", "member")
+    chat_hub.get_hub().broadcast(
+        slug, "typing", {"user_id": user["id"], "name": name}, ephemeral=True)
+    return {"ok": True}
+
+
+@router.post("/chat/messages/{message_id}/reactions")
+def chat_react(message_id: int, body: ChatReactionIn, user: dict = Depends(require_chat)):
+    _writer(user)
+    m = store.get_message(message_id)
+    if not m or m.get("deleted"):
+        raise HTTPException(status_code=404, detail="Message not found")
+    try:
+        on = store.toggle_message_reaction(message_id, user["id"], body.kind)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Unknown reaction")
+    chat_hub.get_hub().broadcast(m["channel_slug"], "reaction", {
+        "message_id": message_id, "kind": body.kind, "on": on, "user_id": user["id"]})
+    return {"on": on}
+
+
+@router.patch("/chat/messages/{message_id}")
+def chat_edit(message_id: int, body: ChatEditIn, user: dict = Depends(require_chat)):
+    _writer(user)
+    new_body = _validate_body(body.body, require_content=True)
+    try:
+        store.edit_message(message_id, user["id"], new_body,
+                           ticker_tags=[t.upper()[:8] for t in (body.ticker_tags or [])][:10]
+                           if body.ticker_tags is not None else None)
+    except ValueError as e:
+        code = {"no-message": 404, "not-author": 403}.get(str(e), 400)
+        raise HTTPException(status_code=code, detail=str(e))
+    msg = _serialize_message(store.get_message(message_id))
+    chat_hub.get_hub().broadcast(msg["channel_slug"], "message_edited", msg)
+    return msg
+
+
+@router.delete("/chat/messages/{message_id}")
+def chat_delete(message_id: int, user: dict = Depends(require_chat)):
+    m = store.get_message(message_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Message not found")
+    if m["author_id"] != user["id"] and not _is_mentor(user):
+        raise HTTPException(status_code=403, detail="Not your message")
+    store.soft_delete_message(message_id)
+    chat_hub.get_hub().broadcast(
+        m["channel_slug"], "message_deleted", {"message_id": message_id})
+    return {"ok": True}
+
+
+@router.post("/chat/channels/{slug}/read")
+def chat_mark_read(slug: str, body: ChatReadIn, user: dict = Depends(require_chat)):
+    if not store.is_valid_channel(slug):
+        raise HTTPException(status_code=404, detail="Unknown channel")
+    store.mark_channel_read(user["id"], slug, body.last_seen_message_id)
+    return {"ok": True}
+
+
+@router.get("/chat/mentions")
+def chat_mentions(user: dict = Depends(require_chat)):
+    items = store.list_mentions(user["id"])
+    _attach_authors(items)   # author of the mentioning message
+    return {"mentions": items, "unseen": store.count_unseen_mentions(user["id"])}
+
+
+@router.post("/chat/mentions/read")
+def chat_mentions_read(user: dict = Depends(require_chat)):
+    store.mark_mentions_seen(user["id"])
+    return {"ok": True}
+
+
+@router.post("/chat/reports")
+def chat_report(body: ChatReportIn, user: dict = Depends(require_chat)):
+    try:
+        rid = store.create_chat_report(user["id"], body.message_id, body.reason)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Message not found")
+    return {"id": rid}
+
+
+@router.patch("/chat/messages/{message_id}/pin")
+def chat_pin(message_id: int, body: ChatPinIn, admin: dict = Depends(require_admin)):
+    m = store.get_message(message_id)
+    if not m or m.get("deleted"):
+        raise HTTPException(status_code=404, detail="Message not found")
+    store.set_message_pinned(message_id, body.pinned)
+    chat_hub.get_hub().broadcast(m["channel_slug"], "message_pinned",
+                                 {"message_id": message_id, "pinned": bool(body.pinned)})
+    return {"ok": True}
+
+
+@router.get("/chat/admin/reports")
+def chat_admin_reports(status: str = Query("open"), admin: dict = Depends(require_admin)):
+    return {"reports": store.list_chat_reports(status)}
+
+
+@router.patch("/chat/admin/reports/{report_id}")
+def chat_admin_report_action(report_id: int, body: ReportActionIn,
+                             admin: dict = Depends(require_admin)):
+    r = next((x for x in store.list_chat_reports("open") if x["id"] == report_id), None)
+    if not r:
+        raise HTTPException(status_code=404, detail="Open report not found")
+    if body.action == "hide":
+        store.soft_delete_message(r["message_id"])
+        store.set_chat_report_status(report_id, "hidden")
+        if r.get("channel_slug"):
+            chat_hub.get_hub().broadcast(
+                r["channel_slug"], "message_deleted", {"message_id": r["message_id"]})
+    elif body.action == "dismiss":
+        store.set_chat_report_status(report_id, "dismissed")
+    else:
+        raise HTTPException(status_code=400, detail="action must be hide|dismiss")
+    return {"ok": True}
+
+
+@router.get("/chat/admin/stats")
+def chat_admin_stats(admin: dict = Depends(require_admin)):
+    return chat_hub.get_hub().stats()
+
+
+@router.get("/chat/stream")
+async def chat_stream_sse(request: Request, channels: str = Query(""),
+                          user: dict = Depends(require_chat)):
+    slugs = [s for s in (channels.split(",") if channels else []) if store.is_valid_channel(s)]
+    if not slugs:
+        slugs = list(store.CHANNELS.keys())
+    hub = chat_hub.get_hub()
+    conn = hub.subscribe(user["id"], slugs)
+    if conn is None:
+        # At capacity — client falls back to polling list_messages(after_id).
+        return JSONResponse({"reason": "at_capacity"}, status_code=503)
+    # Seed "joined = caught up" so the rail doesn't show all-history as unread.
+    for s in slugs:
+        try:
+            store.ensure_caught_up(user["id"], s)
+        except Exception:
+            pass
+
+    async def gen():
+        try:
+            yield "event: connected\ndata: {}\n\n"
+            last_hb = _time.time()
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    msg = await _asyncio.wait_for(conn.queue.get(), timeout=5.0)
+                    yield f"event: {msg['event']}\ndata: {json.dumps(msg, default=str)}\n\n"
+                except _asyncio.TimeoutError:
+                    pass
+                if _time.time() - last_hb > 10:
+                    yield "event: heartbeat\ndata: {}\n\n"
+                    last_hb = _time.time()
+        finally:
+            hub.unsubscribe(conn)
+
+    return StreamingResponse(gen(), media_type="text/event-stream", headers=_SSE_HEADERS)

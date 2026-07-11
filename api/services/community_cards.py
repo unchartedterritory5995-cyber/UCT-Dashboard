@@ -1,0 +1,119 @@
+# api/services/community_cards.py
+"""Server-authoritative builder for chat rich-card payloads (`messages.card_json`).
+
+SECURITY (a P0 from the hardening review): the client POSTs a REFERENCE only — never
+the card body. The server constructs every field here so that:
+  • a trade card is rebuilt from the sharer's OWN j2_trades row through the redaction
+    omit-list — `shares`/`pnlDollar`/`pnlDollarNet` can NEVER reach the permanent
+    broadcast, even from a crafted request;
+  • chart/flow cards are whitelisted to known scalar keys;
+  • every URL is forced same-origin-relative (no external/`javascript:` deep links).
+
+Returns a JSON-serializable dict, or raises ValueError (→ 400 in the router).
+"""
+import re
+
+_SNAPSHOT_RE = re.compile(r"^/api/community/images/[^/]+/[a-f0-9]{32}\.webp$")
+_TF_OK = {"1", "5", "15", "30", "60", "D", "W", "M"}
+
+
+def _ticker(v):
+    t = str(v or "").upper().strip()[:8]
+    if not re.match(r"^[A-Z0-9.\-]{1,8}$", t):
+        raise ValueError("bad-ticker")
+    return t
+
+
+def _rel_url(v):
+    """Accept only a same-origin, absolute-path URL (a single leading '/'). Rejects
+    protocol-relative ('//host'), backslashes, control chars, and javascript: schemes."""
+    s = str(v or "")
+    if not s.startswith("/") or s.startswith("//"):
+        raise ValueError("off-origin-url")
+    if "\\" in s or "javascript:" in s.lower() or any(ord(c) < 0x20 for c in s):
+        raise ValueError("off-origin-url")
+    return s[:2000]
+
+
+def _num(v):
+    try:
+        return round(float(v), 4)
+    except (TypeError, ValueError):
+        return None
+
+
+def _str(v, n=64):
+    return (str(v)[:n]) if v is not None else None
+
+
+def build_card(kind: str, ref: dict, *, user_id: str, load_trade) -> dict:
+    """Build a card_json dict from a client reference.
+
+    `load_trade(user_id, trade_id)` is injected (journal_two.trades.get_trade_detail)
+    so this module stays free of a hard j2 import.
+    """
+    ref = ref or {}
+    if kind == "trade":
+        trade_id = ref.get("tradeId")
+        if not trade_id:
+            raise ValueError("tradeId required")
+        t = load_trade(user_id, str(trade_id))
+        if not t:
+            raise ValueError("trade not found")
+        # WHITELIST — scale-independent fields only. Absolute-size / dollar fields
+        # (shares, pnlDollar, pnlDollarNet, originalShares) are NEVER copied.
+        return {
+            "kind": "trade",
+            "tradeRef": _str(t.get("tradeRef") or t.get("id"), 64),
+            "symbol": _ticker(t.get("symbol")),
+            "side": _str(t.get("side"), 8),
+            "result": _str(t.get("result"), 8),
+            "setup": _str(t.get("setup"), 48),
+            "rMultiple": _num(t.get("rMultiple")),
+            "pnlPercent": _num(t.get("pnlPercent")),
+            "entryPrice": _num(t.get("entryPrice")),
+            "exitPrice": _num(t.get("exitPrice")),
+            "entryDate": _str(t.get("entryDate"), 32),
+            "exitDate": _str(t.get("exitDate"), 32),
+            "holdDays": _num(t.get("holdDays")),
+        }
+
+    if kind == "chart":
+        tf = str(ref.get("tf") or "D")
+        if tf not in _TF_OK:
+            tf = "D"
+        card = {
+            "kind": "chart",
+            "ticker": _ticker(ref.get("ticker")),
+            "tf": tf,
+            "postPrice": _num(ref.get("postPrice")),
+        }
+        if ref.get("stateUrl"):
+            card["stateUrl"] = _rel_url(ref["stateUrl"])
+        if ref.get("snapshotUrl"):
+            s = str(ref["snapshotUrl"])
+            if not _SNAPSHOT_RE.match(s):
+                raise ValueError("bad-snapshot-url")
+            card["snapshotUrl"] = s
+        w, h = _num(ref.get("w")), _num(ref.get("h"))
+        if w and h:
+            card["w"], card["h"] = int(w), int(h)
+        return card
+
+    if kind == "flow":
+        cp = str(ref.get("cp") or "").upper()[:1]
+        if cp not in ("C", "P"):
+            cp = ""
+        return {
+            "kind": "flow",
+            "ticker": _ticker(ref.get("ticker")),
+            "cp": cp,
+            "strike": _num(ref.get("strike")),
+            "exp": _str(ref.get("exp"), 16),
+            "premium": _num(ref.get("premium")),
+            "grade": _str(ref.get("grade"), 4),
+            "dir": _str(ref.get("dir"), 8),
+            "postPrice": _num(ref.get("postPrice")),
+        }
+
+    raise ValueError("unknown card kind")
