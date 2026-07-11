@@ -1045,7 +1045,7 @@ function computePL(alert, currentSpot) {
 }
 
 // ─── Single row ───────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onClickTier }) {
+function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onClickTier, isAdmin, onPush, pushState }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
@@ -1089,8 +1089,8 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   return (
     <div style={{
       display: "grid",
-      // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
-      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
+      // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT | (admin: POSTED | PUSH)
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr" + (isAdmin ? " 68px 94px" : ""),
       gap: 8, padding: isAlpha ? "10px 12px" : "8px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
@@ -1273,6 +1273,39 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
           {alert.alertName}
         </span>
       </span>
+
+      {/* Admin-only POSTED + PUSH — the manual-push feedback loop. POSTED shows
+          AUTO (auto-fired by the worker), ✓ (manually pushed this session), or
+          blank. PUSH sends this print to Discord via /force-push-discord,
+          bypassing gates. The AUTO-vs-manual record is the tuning signal. */}
+      {isAdmin && (
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>
+          {alert.forwardedToDiscord
+            ? <span style={{ color: DIR_BULL, letterSpacing: 0.5 }}>AUTO</span>
+            : (pushState === "done"
+                ? <span style={{ color: P.ac, letterSpacing: 0.5 }}>✓ MANUAL</span>
+                : <span style={{ color: P.dm }}>—</span>)}
+        </span>
+      )}
+      {isAdmin && (
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {alert.forwardedToDiscord || pushState === "done" ? (
+            <span style={{ color: P.dm, fontSize: 10 }}>{pushState === "done" ? "✓ posted" : "posted"}</span>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPush && onPush(alert); }}
+              disabled={pushState === "pushing"}
+              style={{
+                background: "transparent", color: P.ac, border: `1px solid ${P.ac}`,
+                borderRadius: 4, padding: "3px 8px", fontSize: 10, fontWeight: 700,
+                cursor: pushState === "pushing" ? "wait" : "pointer", fontFamily: "inherit",
+                whiteSpace: "nowrap", opacity: pushState === "pushing" ? 0.6 : 1,
+              }}>
+              {pushState === "pushing" ? "…" : "→ push"}
+            </button>
+          )}
+        </span>
+      )}
     </div>
   );
 }
@@ -1564,12 +1597,12 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
 // Click any header to sort the table by that column. 1st click applies the
 // column's default direction, 2nd click flips it, 3rd click resets to the
 // natural TIME-descending tape order. The active column shows ▲/▼ in gold.
-function ColumnHeaders({ sortCol, sortDir, onSort }) {
+function ColumnHeaders({ sortCol, sortDir, onSort, isAdmin }) {
   return (
     <div style={{
       display: "grid",
-      // TIME | TICKER | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT
-      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr",
+      // TIME | TICKER | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT | (admin: POSTED | PUSH)
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr" + (isAdmin ? " 68px 94px" : ""),
       gap: 8, padding: "6px 12px",
       fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
@@ -1594,6 +1627,8 @@ function ColumnHeaders({ sortCol, sortDir, onSort }) {
           </span>
         );
       })}
+      {isAdmin && <span style={{ textAlign: "center", color: P.mt, whiteSpace: "nowrap" }}>POSTED</span>}
+      {isAdmin && <span style={{ textAlign: "center", color: P.mt, whiteSpace: "nowrap" }}>PUSH</span>}
     </div>
   );
 }
@@ -2354,6 +2389,21 @@ export default function LiveFlowMassive() {
   // Surfaces threshold controls + live-preview math against current alerts.
   const isTuneMode = typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("tune") === "1";
+  // Manual Discord push (admin). Per-alert state drives the button + POSTED
+  // column: "pushing" | "done" | "error". Sends the print to Discord via
+  // force-push (bypasses gates). The AUTO-vs-manual record is the tuning signal.
+  const [pushStates, setPushStates] = useState({});
+  const handlePush = (alert) => {
+    if (!alert || alert.id == null) return;
+    setPushStates(s => ({ ...s, [alert.id]: "pushing" }));
+    fetch(`/api/live/massive/force-push-discord?id=${alert.id}&mode=single`, { method: "POST" })
+      .then(r => r.json())
+      .then(d => {
+        setPushStates(s => ({ ...s, [alert.id]: (d && d.ok) ? "done" : "error" }));
+        if (!d || !d.ok) console.error("[massive push] failed:", d);
+      })
+      .catch(e => { setPushStates(s => ({ ...s, [alert.id]: "error" })); console.error("[massive push]", e); });
+  };
   // Thresholds loaded from /api/live/massive/thresholds. Local edits in the
   // tuning panel mutate this state for preview; "Save" POSTs back to backend.
   const [thresholds, setThresholds] = useState(null);
@@ -3155,7 +3205,7 @@ export default function LiveFlowMassive() {
                      viewMode={viewMode} onViewModeChange={setViewMode} />
 
         {viewMode === "print"
-          ? <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} />
+          ? <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} isAdmin={isTuneMode} />
           : <ContractColumnHeaders />}
       </div>
 
@@ -3214,6 +3264,9 @@ export default function LiveFlowMassive() {
             onClickTicker={handleClickTicker}
             onClickContract={handleClickContract}
             onClickTier={handleClickTier}
+            isAdmin={isTuneMode}
+            onPush={handlePush}
+            pushState={pushStates[a.id]}
           />
         );
       })}
