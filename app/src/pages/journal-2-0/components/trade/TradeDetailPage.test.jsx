@@ -1,14 +1,39 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import TradeDetailPage from './TradeDetailPage'
 
 const navigateSpy = vi.fn()
 
+// Mutable per-feature flag state for the tradePng action-group tests. `vi.hoisted`
+// so the factory below can close over it before the module is imported.
+const { mockFlags, renderTradeCardPngMock, downloadBlobMock, copyBlobMock } =
+  vi.hoisted(() => ({
+    mockFlags: { tradePng: true, adherence: true },
+    renderTradeCardPngMock: vi.fn(),
+    downloadBlobMock: vi.fn(),
+    copyBlobMock: vi.fn(),
+  }))
+
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, useNavigate: () => navigateSpy }
 })
+
+// tradePng feature flag — default ON, flipped per-test via mockFlags.
+vi.mock('../../featureFlags', () => ({
+  useFeatureFlag: (name) => mockFlags[name] !== false,
+}))
+// The card renderer + the reused chartScreenshot download/copy helpers.
+vi.mock('../../lib/tradeCardPng', () => ({
+  renderTradeCardPng: (...a) => renderTradeCardPngMock(...a),
+}))
+vi.mock('../../../../components/chart/chartScreenshot', () => ({
+  downloadBlob: (...a) => downloadBlobMock(...a),
+  copyBlobToClipboard: (...a) => copyBlobMock(...a),
+}))
+
+const FAKE_BLOB = new Blob(['png'], { type: 'image/png' })
 
 vi.mock('../../../../components/StockChart', () => ({
   default: ({ sym, tf }) => <div data-testid="chart">{sym}:{tf}</div>,
@@ -89,6 +114,11 @@ vi.mock('swr', () => ({
 beforeEach(() => {
   navigateSpy.mockClear()
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
+  mockFlags.tradePng = true
+  mockFlags.adherence = true
+  renderTradeCardPngMock.mockReset().mockResolvedValue(FAKE_BLOB)
+  downloadBlobMock.mockReset()
+  copyBlobMock.mockReset().mockResolvedValue(true)
 })
 
 function renderPage(id = 't1') {
@@ -165,5 +195,36 @@ describe('TradeDetailPage', () => {
   it('renders the missing state for an unknown / option id', () => {
     renderPage('missing')
     expect(screen.getByText(/isn’t available/)).toBeInTheDocument()
+  })
+})
+
+describe('TradeDetailPage — trade-card PNG actions', () => {
+  it('hides Save/Copy image when the tradePng flag is off', () => {
+    mockFlags.tradePng = false
+    renderPage()
+    expect(screen.queryByRole('button', { name: /save image/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /copy image/i })).not.toBeInTheDocument()
+  })
+
+  it('shows Save/Copy image buttons when the flag is on', () => {
+    renderPage()
+    expect(screen.getByRole('button', { name: /save image/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /copy image/i })).toBeInTheDocument()
+  })
+
+  it('clicking Save image renders the card then downloads it', async () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /save image/i }))
+    await waitFor(() => expect(downloadBlobMock).toHaveBeenCalled())
+    expect(renderTradeCardPngMock).toHaveBeenCalledWith(
+      expect.objectContaining({ symbol: 'NVDA' }),
+    )
+    expect(downloadBlobMock).toHaveBeenCalledWith(FAKE_BLOB, 'NVDA-trade.png')
+  })
+
+  it('clicking Copy image renders the card then copies it to the clipboard', async () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /copy image/i }))
+    await waitFor(() => expect(copyBlobMock).toHaveBeenCalledWith(FAKE_BLOB))
   })
 })

@@ -95,6 +95,42 @@
 .resLoss { background: rgba(239, 68, 68, 0.12); color: var(--loss, #ef4444); }
 .resBe { background: rgba(200, 200, 200, 0.1); color: var(--text-muted, #8a8a8a); }
 
+/* ── Share actions (trade-card PNG) ─────────────────────────────────────
+   Sits at the right end of the outcome header. tradePng-flag-gated. */
+.cardActionsWrap {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+}
+
+.cardActionBtn {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border, #2a2a2e);
+  background: var(--surface-1, #101013);
+  color: var(--text, #e8e6e1);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.cardActionBtn:hover:not(:disabled) { border-color: var(--accent, #c9a84c); }
+.cardActionBtn:disabled { opacity: 0.5; cursor: default; }
+
+.cardActionError {
+  font-size: 11.5px;
+  color: var(--loss, #ef4444);
+}
+
 .outcomeGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

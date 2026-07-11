@@ -28,6 +28,9 @@ import { filtersFromSearchParams } from '../../hooks/useJ2Filters'
 import { money, moneySigned, percent, dateShort } from '../../../../lib/journal-2-0'
 import { useIsPaid } from '../../../../context/AuthContext'
 import UIcon from '../../../../components/ui/UIcon'
+import { useFeatureFlag } from '../../featureFlags'
+import { renderTradeCardPng } from '../../lib/tradeCardPng'
+import { downloadBlob, copyBlobToClipboard } from '../../../../components/chart/chartScreenshot'
 import { outcomeModel, buildTradeMarkers, neighborIds } from './tradePageModel'
 import TradeScreenshots from './TradeScreenshots'
 import AdherenceChecklist from './AdherenceChecklist'
@@ -83,6 +86,74 @@ async function patchJson(url, body) {
 function signClass(n) {
   if (!Number.isFinite(n)) return ''
   return n > 0 ? styles.pos : n < 0 ? styles.neg : ''
+}
+
+/**
+ * "Save image" / "Copy image" — renders a branded dark/gold shareable PNG of
+ * THIS trade (dependency-free canvas draw in lib/tradeCardPng) then hands it to
+ * the reused chartScreenshot helpers (downloadBlob / copyBlobToClipboard).
+ * Gated on the `tradePng` feature flag → renders null when off (instant
+ * per-browser kill). Surfaces a tiny inline error instead of crashing the page.
+ */
+function TradeCardActions({ trade }) {
+  const flagOn = useFeatureFlag('tradePng')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  if (!flagOn) return null
+
+  const onSave = async () => {
+    setError(null)
+    setBusy(true)
+    try {
+      const blob = await renderTradeCardPng(trade)
+      downloadBlob(blob, `${trade?.symbol || 'trade'}-trade.png`)
+    } catch {
+      setError('Couldn’t build the image.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onCopy = async () => {
+    setError(null)
+    setBusy(true)
+    try {
+      const blob = await renderTradeCardPng(trade)
+      const ok = await copyBlobToClipboard(blob)
+      if (!ok) setError('Copy isn’t supported in this browser — use Save image.')
+    } catch {
+      setError('Couldn’t copy the image.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className={styles.cardActionsWrap}>
+      <div className={styles.cardActions}>
+        <button
+          type="button"
+          className={styles.cardActionBtn}
+          onClick={onSave}
+          disabled={busy}
+        >
+          <UIcon name="download" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+          Save image
+        </button>
+        <button
+          type="button"
+          className={styles.cardActionBtn}
+          onClick={onCopy}
+          disabled={busy}
+        >
+          <UIcon name="copy" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+          Copy image
+        </button>
+      </div>
+      {error && <div className={styles.cardActionError} role="alert">{error}</div>}
+    </div>
+  )
 }
 
 export default function TradeDetailPage() {
@@ -313,6 +384,7 @@ export default function TradeDetailPage() {
             {trade.result}
           </span>
         )}
+        <TradeCardActions trade={trade} />
       </header>
 
       <div className={styles.outcomeGrid}>
