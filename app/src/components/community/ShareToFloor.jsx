@@ -17,7 +17,7 @@ function noteDoc(text) {
   return JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
 }
 
-export default function ShareToFloor({ card, label = 'Share to Floor', compact = false }) {
+export default function ShareToFloor({ card, label = 'Share to Floor', compact = false, direct = false }) {
   const { data: status } = useSWR('/api/community/status', fetcher)
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
@@ -37,10 +37,22 @@ export default function ShareToFloor({ card, label = 'Share to Floor', compact =
       const data = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(data.detail || `Error ${r.status}`)
       setState('done')
-      setTimeout(() => { setOpen(false); setState('idle'); setNote('') }, 1200)
+      setTimeout(() => { setOpen(false); setState('idle'); setNote('') }, 1400)
     } catch (e) {
       setState('error'); setErr(e.message)
     }
+  }
+
+  // direct mode: no note popover — one click shares (for tight spaces like table rows).
+  if (direct) {
+    return (
+      <button className={compact ? styles.btnCompact : styles.btn}
+        onClick={share} disabled={state === 'sending' || state === 'done'}
+        title={err || 'Share to The Floor'}>
+        <UIcon name="community" size={compact ? 13 : 14} />
+        {!compact && <span>{state === 'done' ? 'Shared' : state === 'sending' ? 'Sharing…' : label}</span>}
+      </button>
+    )
   }
 
   return (

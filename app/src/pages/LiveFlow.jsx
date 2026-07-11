@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import UIcon from "../components/ui/UIcon";
+import ShareToFloor from "../components/community/ShareToFloor";
 
 /**
  * LiveFlow — subscriber-facing
@@ -808,6 +809,14 @@ function AlertRow({
             }}>{grade}</span>
           );
         })()}
+        <span style={{ display: "inline-flex", marginLeft: 6, verticalAlign: "middle" }}
+          onClick={(e) => e.stopPropagation()}>
+          <ShareToFloor compact direct card={{
+            kind: "flow", ticker: alert.ticker, cp: alert.cp, strike: alert.strike,
+            exp: alert.exp, premium: alert.alertPremium, grade: alert.grade,
+            dir: isCall ? "BULL" : (alert.cp === "P" ? "BEAR" : ""),
+          }} />
+        </span>
       </td>
       {/* Posted column — admin only. Shows at a glance whether each alert
           went out automatically (passed conviction gate) or was manually
