@@ -734,6 +734,11 @@ export default function ChartDrawingOverlay({
   // lets the chart pinch) + a long-press timer that opens the context menu.
   const activePointersRef = useRef(new Set())
   const longPressRef = useRef(null)
+  // True only while a touch that landed ON a drawing is being routed through
+  // handlePointerDown (from the wrapper touch listener). Lets the no-tool cursor
+  // branch fire on touch the way `hoverActive` does for the mouse. Never true for
+  // mouse input, so the shipped mouse path is unaffected.
+  const touchHitRef = useRef(false)
   const [isDragging, setIsDragging] = useState(false)
   const [hoverDrawingId, setHoverDrawingId] = useState(null)
   // Direct-manipulation: true when the mouse is over a drawing while NO tool is
@@ -1369,6 +1374,10 @@ export default function ChartDrawingOverlay({
   const hitTestHandleRef = useRef(hitTestHandle); hitTestHandleRef.current = hitTestHandle
   const hoverGuardRef = useRef(null)
   hoverGuardRef.current = { activeTool, isDragging, selectedId }
+  // Live ctx-menu flag for the touch listener (so an open bottom-sheet isn't
+  // fought by the drag path when a drawing sits behind it).
+  const ctxMenuOpenRef = useRef(false)
+  ctxMenuOpenRef.current = !!ctxMenu
 
   // ── Direct-manipulation hover (mouse only) ──
   // With NO tool armed the overlay canvas is pointer-transparent so the chart owns
@@ -1468,7 +1477,7 @@ export default function ChartDrawingOverlay({
     // Also the implicit no-tool case: the overlay only receives this pointerdown
     // (pointerEvents flipped to 'auto') because the mouse is hovering a drawing,
     // so treat it exactly like cursor mode — grab/reshape without arming a tool.
-    if (activeTool === 'cursor' || (!activeTool && hoverActive)) {
+    if (activeTool === 'cursor' || (!activeTool && (hoverActive || touchHitRef.current))) {
       // Check handle drag first (move individual control point)
       const handle = hitTestHandle(pos.x, pos.y)
       if (handle) {
@@ -1675,6 +1684,77 @@ export default function ChartDrawingOverlay({
       setIsDragging(false)
     }
   }, [isDragging])
+
+  // ── Touch / tablet direct manipulation ──
+  // Touch has no hover, so the mouse pre-flip trick (hoverActive) can't work: the
+  // first signal IS the touchstart, and the browser has already committed the touch
+  // to whatever element was hit-tested before any JS runs — we can't retarget it.
+  // So instead of flipping the overlay's pointerEvents (which would either swallow
+  // ALL touches or none), the overlay stays pointer-transparent and a CAPTURE-phase
+  // pointerdown listener on the wrapper (an ancestor of both the chart + overlay
+  // canvases) decides per-touch: if it lands ON a drawing, we stopPropagation so the
+  // chart never starts a pan, capture the pointer to the wrapper, and drive the SAME
+  // drag / long-press path as the mouse (handlePointerDown/Move/Up). If it lands on
+  // empty space — or a 2nd finger arrives — we do nothing, so the chart keeps its
+  // native one-finger pan and two-finger pinch-zoom completely intact.
+  const pointerDownRef = useRef(handlePointerDown); pointerDownRef.current = handlePointerDown
+  const pointerMoveRef = useRef(handlePointerMove); pointerMoveRef.current = handlePointerMove
+  const pointerUpRef = useRef(handlePointerUp); pointerUpRef.current = handlePointerUp
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const wrapper = canvas?.parentElement
+    if (!wrapper || !_COARSE_POINTER) return   // touch / coarse-pointer devices only
+    let dragging = false
+    const onDown = (e) => {
+      if (e.pointerType === 'mouse') return
+      if (ctxMenuOpenRef.current) return       // menu/sheet open → let taps reach it
+      const g = hoverGuardRef.current
+      if (g.activeTool) return                 // a tool is armed → the canvas React handlers own it
+      // A 2nd finger means the user wants to pinch/pan — bail out of any drag we
+      // started and let the gesture through (don't stopPropagation).
+      if (activePointersRef.current.size >= 1) {
+        if (dragging) { dragging = false; pointerUpRef.current(e) }
+        return
+      }
+      const rect = canvas.getBoundingClientRect()
+      const x = e.clientX - rect.left, y = e.clientY - rect.top
+      let hit = null
+      if (g.selectedId) { const hh = hitTestHandleRef.current(x, y); if (hh) hit = hh.drawingId }
+      if (!hit) hit = hitTestAllRef.current(x, y)
+      if (!hit) return                         // empty space → let the chart pan / pinch
+      // We own this touch. Stop it reaching the chart, then run the shared path.
+      e.stopPropagation()
+      dragging = true
+      touchHitRef.current = true
+      try { pointerDownRef.current(e) } finally { touchHitRef.current = false }
+    }
+    const onMove = (e) => {
+      if (e.pointerType === 'mouse' || !dragging) return
+      e.stopPropagation()
+      pointerMoveRef.current(e)
+    }
+    const onUp = (e) => {
+      if (e.pointerType === 'mouse' || !dragging) return
+      dragging = false
+      pointerUpRef.current(e)
+    }
+    // While WE are dragging a drawing, block the browser's default touch scrolling
+    // (non-passive so preventDefault sticks). Chart pans (dragging=false) are untouched.
+    const onTouchMove = (e) => { if (dragging) e.preventDefault() }
+    const capT = { capture: true }
+    wrapper.addEventListener('pointerdown', onDown, capT)
+    wrapper.addEventListener('pointermove', onMove, capT)
+    wrapper.addEventListener('pointerup', onUp, capT)
+    wrapper.addEventListener('pointercancel', onUp, capT)
+    wrapper.addEventListener('touchmove', onTouchMove, { capture: true, passive: false })
+    return () => {
+      wrapper.removeEventListener('pointerdown', onDown, capT)
+      wrapper.removeEventListener('pointermove', onMove, capT)
+      wrapper.removeEventListener('pointerup', onUp, capT)
+      wrapper.removeEventListener('pointercancel', onUp, capT)
+      wrapper.removeEventListener('touchmove', onTouchMove, { capture: true })
+    }
+  }, [])
 
   // ── Hit test all drawings ── (already defined above)
 
@@ -1914,6 +1994,7 @@ export default function ChartDrawingOverlay({
           <DrawingContextMenu
             x={ctxMenu.x}
             y={ctxMenu.y}
+            sheet={_COARSE_POINTER}
             drawing={d}
             onSetColor={(c) => updateDrawing(ctxMenu.drawingId, { color: c })}
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
@@ -2001,34 +2082,38 @@ const MENU_COLORS = ['#c9a84c', '#4ade80', '#ef4444', '#60a5fa', '#a78bfa', '#e2
 const MENU_WIDTHS = [1, 2, 3, 4]
 
 // A full-width action row (icon + label), used for Duplicate / Lock / Delete.
-function MenuAction({ icon, label, onClick, danger = false }) {
+function MenuAction({ icon, label, onClick, danger = false, big = false }) {
   const base = danger ? '#ef4444' : '#e2dfd6'
   const hover = danger ? 'rgba(239,68,68,0.12)' : 'rgba(201,168,76,0.12)'
+  const sz = big ? 16 : 13
   return (
     <button
       onClick={onClick}
       style={{
-        display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-        padding: '6px 12px', background: 'none', border: 'none', color: base,
-        cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', textAlign: 'left',
+        display: 'flex', alignItems: 'center', gap: big ? 12 : 8, width: '100%',
+        padding: big ? '12px 18px' : '6px 12px', minHeight: big ? 44 : undefined,
+        background: 'none', border: 'none', color: base,
+        cursor: 'pointer', fontFamily: 'inherit', fontSize: big ? 15 : 'inherit', textAlign: 'left',
       }}
       onMouseEnter={(e) => { e.currentTarget.style.background = hover }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
     >
-      <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+      <svg viewBox="0 0 16 16" width={sz} height={sz} fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
       {label}
     </button>
   )
 }
 
-function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onClose }) {
+function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onClose }) {
   const menuRef = useRef(null)
   // Clamp to the viewport so the menu always lands right next to the cursor —
   // flips to the cursor's left/up edge when it would overflow (drawings near the
   // right edge of a full-width chart otherwise pushed it off-screen). Measured
   // post-render and kept hidden for the first paint so it never flashes far off.
-  const [pos, setPos] = useState({ left: x, top: y, ready: false })
+  // (Anchored/desktop only — on touch we dock it to the bottom as a sheet.)
+  const [pos, setPos] = useState({ left: x, top: y, ready: sheet })
   useLayoutEffect(() => {
+    if (sheet) return
     const el = menuRef.current
     const w = el?.offsetWidth || 180
     const h = el?.offsetHeight || 180
@@ -2038,7 +2123,7 @@ function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle,
     left = Math.max(M, Math.min(left, window.innerWidth - w - M))
     top = Math.max(M, Math.min(top, window.innerHeight - h - M))
     setPos({ left, top, ready: true })
-  }, [x, y])
+  }, [x, y, sheet])
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
@@ -2051,30 +2136,42 @@ function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle,
   const curWidth = drawing?.lineWidth || 1
   const dashed = drawing?.lineStyle === 'dashed'
 
-  const rowStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }
-  const labelStyle = { fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase', color: '#8a8674', minWidth: 40 }
+  // Touch bottom-sheet gets roomier rows + bigger tap targets than the anchored menu.
+  const rowStyle = sheet
+    ? { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', minHeight: 44 }
+    : { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }
+  const labelStyle = { fontSize: sheet ? 11 : 9, letterSpacing: 0.4, textTransform: 'uppercase', color: '#8a8674', minWidth: sheet ? 52 : 40 }
+  const sw = sheet ? 26 : 15         // color swatch size
+  const wBtn = sheet ? 34 : 24       // width-button size
 
-  return (
+  const shell = sheet
+    ? {
+        position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 21,
+        background: '#1a1c17', borderTop: '1px solid #2e3127',
+        borderTopLeftRadius: 14, borderTopRightRadius: 14,
+        boxShadow: '0 -8px 28px rgba(0,0,0,0.55)',
+        padding: '6px 0 max(14px, env(safe-area-inset-bottom))',
+        fontFamily: "'Instrument Sans', sans-serif", fontSize: 13, userSelect: 'none',
+      }
+    : {
+        position: 'fixed', left: pos.left, top: pos.top,
+        visibility: pos.ready ? 'visible' : 'hidden', zIndex: 21,
+        minWidth: 176, background: '#1a1c17', border: '1px solid #2e3127',
+        borderRadius: 4, boxShadow: '0 4px 16px rgba(0,0,0,0.5)', padding: '4px 0',
+        fontFamily: "'Instrument Sans', sans-serif", fontSize: 11, userSelect: 'none',
+      }
+
+  const inner = (
     <div
       ref={menuRef}
       onPointerDown={(e) => e.stopPropagation()}
-      style={{
-        position: 'fixed',
-        left: pos.left,
-        top: pos.top,
-        visibility: pos.ready ? 'visible' : 'hidden',
-        zIndex: 20,
-        minWidth: 176,
-        background: '#1a1c17',
-        border: '1px solid #2e3127',
-        borderRadius: 4,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-        padding: '4px 0',
-        fontFamily: "'Instrument Sans', sans-serif",
-        fontSize: 11,
-        userSelect: 'none',
-      }}
+      style={shell}
     >
+      {sheet && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: '#3a3d31' }} />
+        </div>
+      )}
       {/* Color */}
       <div style={rowStyle}>
         <span style={labelStyle}>Color</span>
@@ -2082,7 +2179,7 @@ function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle,
           {MENU_COLORS.map(c => (
             <button key={c} onClick={() => onSetColor(c)} title={c}
               style={{
-                width: 15, height: 15, borderRadius: '50%', background: c, cursor: 'pointer', padding: 0,
+                width: sw, height: sw, borderRadius: '50%', background: c, cursor: 'pointer', padding: 0,
                 border: curColor === c.toLowerCase() ? '2px solid #fff' : '1px solid #3a3d31',
                 boxShadow: curColor === c.toLowerCase() ? '0 0 0 1px #1a1c17' : 'none',
               }} />
@@ -2096,11 +2193,11 @@ function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle,
           {MENU_WIDTHS.map(w => (
             <button key={w} onClick={() => onSetWidth(w)} title={`${w}px`}
               style={{
-                width: 24, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0,
+                width: wBtn, height: sheet ? 30 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0,
                 background: curWidth === w ? 'rgba(201,168,76,0.18)' : 'none',
                 border: curWidth === w ? '1px solid #c9a84c' : '1px solid #3a3d31', borderRadius: 3,
               }}>
-              <span style={{ display: 'block', width: 15, height: w, background: '#e2dfd6', borderRadius: 2 }} />
+              <span style={{ display: 'block', width: sheet ? 20 : 15, height: w, background: '#e2dfd6', borderRadius: 2 }} />
             </button>
           ))}
         </div>
@@ -2114,7 +2211,7 @@ function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle,
             return (
               <button key={v} onClick={() => onSetStyle(v)}
                 style={{
-                  padding: '3px 9px', fontSize: 10, cursor: 'pointer', color: '#e2dfd6', fontFamily: 'inherit',
+                  padding: sheet ? '7px 16px' : '3px 9px', fontSize: sheet ? 13 : 10, cursor: 'pointer', color: '#e2dfd6', fontFamily: 'inherit',
                   background: on ? 'rgba(201,168,76,0.18)' : 'none',
                   border: on ? '1px solid #c9a84c' : '1px solid #3a3d31', borderRadius: 3,
                 }}>
@@ -2130,12 +2227,14 @@ function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle,
       <MenuAction
         label="Duplicate"
         onClick={onDuplicate}
+        big={sheet}
         icon={<><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="5.5" y="5.5" width="8" height="8" rx="1" /></>}
       />
       {canReorder && (
         <MenuAction
           label="Bring to front"
           onClick={onBringFront}
+          big={sheet}
           icon={<><rect x="4.5" y="2.5" width="9" height="9" rx="1" fill="rgba(226,223,214,0.18)" /><rect x="2.5" y="4.5" width="9" height="9" rx="1" /></>}
         />
       )}
@@ -2143,12 +2242,14 @@ function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle,
         <MenuAction
           label="Send to back"
           onClick={onSendBack}
+          big={sheet}
           icon={<><rect x="2.5" y="4.5" width="9" height="9" rx="1" fill="rgba(226,223,214,0.18)" /><rect x="4.5" y="2.5" width="9" height="9" rx="1" /></>}
         />
       )}
       <MenuAction
         label={locked ? 'Unlock' : 'Lock'}
         onClick={onToggleLock}
+        big={sheet}
         icon={locked
           ? <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 5.7-1.2" /></>
           : <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 6 0v2.5" /></>}
@@ -2157,8 +2258,22 @@ function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle,
         label="Delete Drawing"
         onClick={onDelete}
         danger
+        big={sheet}
         icon={<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>}
       />
+    </div>
+  )
+
+  // Anchored menu on desktop; on touch, dock as a bottom-sheet behind a dimming
+  // backdrop (tap the backdrop to dismiss). The window-level pointerdown closer
+  // still fires, but the backdrop makes the touch dismiss target obvious + big.
+  if (!sheet) return inner
+  return (
+    <div
+      onPointerDown={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.35)' }}
+    >
+      {inner}
     </div>
   )
 }
