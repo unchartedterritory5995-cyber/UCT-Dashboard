@@ -2226,6 +2226,48 @@ def _best_grade(grades):
     return best
 
 
+def _accumulation_grade(*, total_premium, qualifying_hits, swift_hits,
+                        burst_rising, shape, sided_pct, cum_voi):
+    """Grade the ACCUMULATION PATTERN, not the best single print. A slow
+    institutional build is sliced into moderate clips on purpose, so per-print
+    grade (best single leg) understates it — this scores what actually makes
+    accumulation strong: aggregate premium, repetition, intraday density, rising
+    price, shape, direction, cumulative Vol/OI. Returns (score, grade)."""
+    s = 0.0
+    tp = total_premium or 0
+    if tp >= 20_000_000: s += 3.0
+    elif tp >= 10_000_000: s += 2.5
+    elif tp >= 5_000_000: s += 2.0
+    elif tp >= 2_000_000: s += 1.2
+    elif tp >= 1_000_000: s += 0.6
+    qh = qualifying_hits or 0
+    if qh >= 20: s += 2.0
+    elif qh >= 12: s += 1.5
+    elif qh >= 6: s += 1.0
+    elif qh >= 3: s += 0.5
+    sw = swift_hits or 0
+    if sw >= 10: s += 1.5
+    elif sw >= 6: s += 1.0
+    elif sw >= 4: s += 0.6
+    if burst_rising: s += 1.0
+    s += {"accelerating": 1.5, "intraday_burst": 1.2, "steady": 0.8,
+          "single": 0.0, "fading": -0.5, "incidental": -1.0}.get(shape, 0.0)
+    if sided_pct is not None:
+        if sided_pct >= 0.8: s += 1.0
+        elif sided_pct >= 0.65: s += 0.6
+        elif sided_pct >= 0.55: s += 0.3
+    if cum_voi is not None:
+        if cum_voi >= 5: s += 1.0
+        elif cum_voi >= 2: s += 0.6
+        elif cum_voi >= 1: s += 0.3
+    if s >= 8.0: g = "A+ 🚀"
+    elif s >= 6.5: g = "A"
+    elif s >= 4.5: g = "B"
+    elif s >= 2.5: g = "C"
+    else: g = "D"
+    return round(s, 1), g
+
+
 def _parse_mdy(s):
     """M/D/YYYY → sortable (Y,M,D) tuple. (0,0,0) on malformed."""
     try:
@@ -2478,6 +2520,16 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             "sided_pct": sided_pct, "sided_premium": round(sided),
             "sides": g["sides"], "types": sorted(g["types"]),
             "grade": _best_grade(g["grades"]), "cum_voi": voi, "max_oi": g["max_oi"],
+            "accumulation_grade": _accumulation_grade(
+                total_premium=g["total_premium"], qualifying_hits=qual,
+                swift_hits=swift_hits, burst_rising=burst_rising,
+                shape=accumulation_shape, sided_pct=sided_pct, cum_voi=voi,
+            )[1],
+            "accumulation_score": _accumulation_grade(
+                total_premium=g["total_premium"], qualifying_hits=qual,
+                swift_hits=swift_hits, burst_rising=burst_rising,
+                shape=accumulation_shape, sided_pct=sided_pct, cum_voi=voi,
+            )[0],
             "dormant": dormant, "score": score,
             "first_ts": g["first_ts"], "last_ts": g["last_ts"],
             "prints": sorted(g["prints"], key=lambda p: p["timestamp"] or 0, reverse=True),
@@ -2693,7 +2745,10 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         fields.append({"name": "Spot", "value": f"${float(spot):,.2f}", "inline": True})
     if dir_label:
         fields.append({"name": "Direction", "value": dir_label, "inline": True})
-    grade = alert.get("grade")
+    # Accumulation embeds grade the PATTERN (accumulation_grade), not the best
+    # single print — a sliced institutional build has moderate per-print grades
+    # but strong aggregate conviction.
+    grade = alert.get("accumulation_grade") if mode == "accumulation" else alert.get("grade")
     if grade and grade != "D":
         fields.append({"name": "Conviction", "value": grade, "inline": True})
 
