@@ -31,3 +31,4 @@ cryptography>=43.0.0  # Fernet — broker secret-at-rest encryption (api.service
 snaptrade-python-sdk>=11.0.0  # Brokerage aggregator (read-only); see api/services/journal_two/broker/
 tzlocal>=5.0
 orjson>=3.11.0  # fast + NaN-safe bars serialization (api/services/bars_fetch, api/routers/bars)
+json_repair

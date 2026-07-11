@@ -295,6 +295,18 @@ def _strip_json(s: str) -> str:
     return s[a:b + 1] if a != -1 and b != -1 and b > a else s
 
 
+def _loads_json(raw: str):
+    """Parse LLM JSON, repairing the common malformations (trailing commas,
+    unescaped quotes inside strings) that otherwise crash json.loads on long
+    marathon-session outputs — a recurring, non-random failure on big transcripts."""
+    s = _strip_json(raw)
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        from json_repair import repair_json
+        return json.loads(repair_json(s))
+
+
 # Shared LLM-output cleaners (module-level so both generate_insights and the
 # ticker-only generate_ticker_moments can reuse them).
 
@@ -388,7 +400,7 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
         messages=[{"role": "user", "content": user}],
     )
     raw = "".join(getattr(b, "text", "") for b in msg.content)
-    data = json.loads(_strip_json(raw))
+    data = _loads_json(raw)
 
     return {
         "headline": str(data.get("headline") or "").strip()[:200],
@@ -476,7 +488,7 @@ def polish_recap(title: str, headline: str, summary: list[str],
         messages=[{"role": "user", "content": user}],
     )
     raw = "".join(getattr(b, "text", "") for b in msg.content)
-    data = json.loads(_strip_json(raw))
+    data = _loads_json(raw)
     out = {
         "headline": _sentence_trim(str(data.get("headline") or ""), 160),
         "summary": _clean_summary(data.get("summary"), max_len=240),
@@ -612,7 +624,7 @@ def generate_ticker_moments(title: str, cues: list[dict]) -> list[dict]:
     )
     raw = "".join(getattr(b, "text", "") for b in msg.content)
     try:
-        data = json.loads(_strip_json(raw))
+        data = _loads_json(raw)
     except json.JSONDecodeError:
         # max_tokens truncation cuts the array mid-object — salvage the
         # complete leading moments rather than losing the whole video's chips.
