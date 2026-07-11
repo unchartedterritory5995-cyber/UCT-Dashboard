@@ -1,5 +1,6 @@
 // app/src/pages/community/ChatView.jsx
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useNavigate } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import { useAuth } from '../../context/AuthContext'
 import { renderBodyHTML } from './lib/renderBody'
@@ -27,10 +28,19 @@ function dayLabel(epoch) {
   } catch (_) { return '' }
 }
 
+const SPACES = [
+  { key: 'trade-ideas', label: 'Trade Ideas' },
+  { key: 'questions', label: 'Questions & Reviews' },
+  { key: 'wins-lessons', label: 'Wins & Lessons' },
+  { key: 'mentor-desk', label: 'Mentor Desk', mentorOnly: true },
+]
+
 export default function ChatView({ channel }) {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const meId = user?.id
   const isMentor = user?.role === 'admin'
+  const [graduating, setGraduating] = useState(null) // message being graduated
 
   useEffect(() => { chat.ensureStarted([channel]) }, [channel])
 
@@ -123,10 +133,21 @@ export default function ChatView({ channel }) {
               isMentor={isMentor}
               channel={channel}
               onReply={setReply}
+              onGraduate={setGraduating}
+              onOpenThread={(tid) => navigate(`/community/${tid}`)}
             />
           ),
         )}
       </div>
+
+      {graduating && (
+        <GraduateDialog
+          msg={graduating}
+          isMentor={isMentor}
+          onClose={() => setGraduating(null)}
+          onDone={(tid) => { setGraduating(null); navigate(`/community/${tid}`) }}
+        />
+      )}
 
       {!atBottom && newCount > 0 && (
         <button className={styles.jumpPill} onClick={jumpToLatest}>
@@ -150,10 +171,11 @@ export default function ChatView({ channel }) {
   )
 }
 
-function MessageRow({ msg, grouped, meId, isMentor, channel, onReply }) {
+function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate, onOpenThread }) {
   const mine = msg.author_id === meId || msg.author_id === '__me__'
   const mentor = msg.author?.is_mentor
   const html = useMemo(() => (msg.deleted ? null : renderBodyHTML(msg.body)), [msg.body, msg.deleted])
+  const canGraduate = (mine || isMentor) && !msg.pending && !msg.deleted
 
   return (
     <div className={`${styles.msg} ${grouped ? styles.msgGrouped : ''} ${mentor ? styles.msgMentor : ''} ${msg.pending ? styles.msgPending : ''}`}>
@@ -173,6 +195,11 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply }) {
         <>
           <div className={styles.msgBody} dangerouslySetInnerHTML={{ __html: html }} />
           {msg.card && <CardRenderer card={msg.card} />}
+          {msg.graduated_thread_id > 0 && (
+            <button className={styles.gradLink} onClick={() => onOpenThread(msg.graduated_thread_id)}>
+              <UIcon name="library" size={12} /> Saved to the Boards →
+            </button>
+          )}
         </>
       )}
       {!msg.deleted && !msg.pending && (
@@ -188,6 +215,12 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply }) {
             onClick={() => onReply({ id: msg.id, name: msg.author?.name || 'member', snippet: previewText(msg) })}>
             <UIcon name="chat" size={13} />
           </button>
+          {canGraduate && !(msg.graduated_thread_id > 0) && (
+            <button className={styles.reactBtn} title="Graduate to the Boards"
+              onClick={() => onGraduate(msg)}>
+              <UIcon name="library" size={13} />
+            </button>
+          )}
           {(mine || isMentor) && (
             <button className={styles.reactBtn} title="Delete"
               onClick={() => chat.deleteMessage(msg.id)}>
@@ -202,6 +235,50 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply }) {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function GraduateDialog({ msg, isMentor, onClose, onDone }) {
+  const spaces = SPACES.filter((s) => !s.mentorOnly || isMentor)
+  const [space, setSpace] = useState(spaces[0].key)
+  const [title, setTitle] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  const submit = async () => {
+    if (!title.trim()) { setErr('Give it a title'); return }
+    setBusy(true); setErr(null)
+    try {
+      const r = await fetch(`/api/community/chat/messages/${msg.id}/graduate`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ space, title: title.trim() }),
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(data.detail || `Error ${r.status}`)
+      onDone(data.thread_id)
+    } catch (e) { setErr(e.message); setBusy(false) }
+  }
+  return (
+    <div className={styles.gradBackdrop} onClick={onClose}>
+      <div className={styles.gradCard} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.gradTitle}><UIcon name="library" size={15} /> Save to the Boards</div>
+        <p className={styles.gradHint}>Turn this moment into a permanent thread the room can find later.</p>
+        <label className={styles.gradLabel}>Board</label>
+        <select className={styles.gradSelect} value={space} onChange={(e) => setSpace(e.target.value)}>
+          {spaces.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+        </select>
+        <label className={styles.gradLabel}>Thread title</label>
+        <input className={styles.gradInput} placeholder="e.g. NVDA breakout — why it worked"
+          maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+        {err && <div className={styles.composerError}>{err}</div>}
+        <div className={styles.gradFoot}>
+          <button className={styles.cancel} onClick={onClose}>Cancel</button>
+          <button className={styles.composerSubmit} onClick={submit} disabled={busy}>
+            {busy ? 'Saving…' : 'Graduate'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

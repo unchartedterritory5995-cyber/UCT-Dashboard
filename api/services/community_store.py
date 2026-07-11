@@ -712,6 +712,13 @@ def set_message_pinned(message_id, value):
         conn.commit()
 
 
+def set_message_graduated(message_id, thread_id):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute("UPDATE messages SET graduated_thread_id=? WHERE id=?",
+                     (thread_id, message_id))
+        conn.commit()
+
+
 def toggle_message_reaction(message_id, user_id, kind):
     if kind not in CHAT_REACTION_KINDS:
         raise ValueError("bad-kind")

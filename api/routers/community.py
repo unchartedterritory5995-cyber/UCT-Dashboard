@@ -493,6 +493,11 @@ class ChatPinIn(BaseModel):
     pinned: bool
 
 
+class GraduateIn(BaseModel):
+    space: str
+    title: str
+
+
 def _serialize_message(m: dict) -> dict:
     """Attach author + decode card_json for the wire."""
     _attach_authors([m])
@@ -683,6 +688,37 @@ def chat_report(body: ChatReportIn, user: dict = Depends(require_chat)):
     except ValueError:
         raise HTTPException(status_code=404, detail="Message not found")
     return {"id": rid}
+
+
+@router.post("/chat/messages/{message_id}/graduate")
+def chat_graduate(message_id: int, body: GraduateIn, user: dict = Depends(require_chat)):
+    """Promote a hot chat message into a permanent titled Board thread ('the floor
+    that remembers'). Author or mentor can graduate. Idempotent-ish: re-graduating
+    returns the existing thread."""
+    _writer(user)
+    m = store.get_message(message_id)
+    if not m or m.get("deleted"):
+        raise HTTPException(status_code=404, detail="Message not found")
+    if m["author_id"] not in (None, user["id"]) and not _is_mentor(user):
+        raise HTTPException(status_code=403, detail="Only the author or a mentor can graduate")
+    if m.get("graduated_thread_id"):
+        return {"thread_id": m["graduated_thread_id"], "already": True}
+    if body.space not in store.SPACES:
+        raise HTTPException(status_code=400, detail="Unknown space")
+    if store.SPACES[body.space]["mentor_only"] and not _is_mentor(user):
+        raise HTTPException(status_code=403, detail="Mentor Desk threads are mentor-only")
+    title = (body.title or "").strip()
+    if not title or len(title) > 200:
+        raise HTTPException(status_code=400, detail="Title required (max 200 chars)")
+    # Thread keeps the original author's attribution; body = the message body.
+    tid = store.create_thread(
+        body.space, m["author_id"], title,
+        body=_validate_body(m["body"]),
+        ticker_tags=[t.upper()[:8] for t in (m.get("ticker_tags") or [])][:10])
+    store.set_message_graduated(message_id, tid)
+    grad = _serialize_message(store.get_message(message_id))
+    chat_hub.get_hub().broadcast(m["channel_slug"], "message_edited", grad)
+    return {"thread_id": tid, "space": body.space}
 
 
 @router.patch("/chat/messages/{message_id}/pin")

@@ -150,6 +150,31 @@ async def test_react_and_moderation(client_for):
 
 
 @pytest.mark.asyncio
+async def test_graduate_message_to_board(client_for):
+    from api.services import community_store
+    async with client_for(MEMBER) as ac:
+        await _ack(ac)
+        mid = (await ac.post("/api/community/chat/channels/trading-floor/messages",
+                             json={"body": DOC % "NVDA reclaim", "ticker_tags": ["NVDA"]})).json()["id"]
+        r = await ac.post(f"/api/community/chat/messages/{mid}/graduate",
+                          json={"space": "trade-ideas", "title": "NVDA reclaim — why"})
+        assert r.status_code == 200
+        tid = r.json()["thread_id"]
+        # thread created + message linked
+        assert community_store.get_thread(tid)["title"] == "NVDA reclaim — why"
+        assert community_store.get_message(mid)["graduated_thread_id"] == tid
+        # idempotent
+        r2 = await ac.post(f"/api/community/chat/messages/{mid}/graduate",
+                           json={"space": "wins-lessons", "title": "dup"})
+        assert r2.json().get("already") and r2.json()["thread_id"] == tid
+        # member can't graduate into the mentor-only Board
+        m2 = (await ac.post("/api/community/chat/channels/trading-floor/messages",
+                            json={"body": DOC % "x"})).json()["id"]
+        assert (await ac.post(f"/api/community/chat/messages/{m2}/graduate",
+                              json={"space": "mentor-desk", "title": "no"})).status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_sse_stream_registers_subscriber_and_broadcasts(client_for):
     """The SSE endpoint opens (200) and registers a live subscriber on the hub; a
     concurrent POST fires a broadcast to it. (End-to-end queue→client delivery is
