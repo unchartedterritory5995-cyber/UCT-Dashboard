@@ -1,0 +1,30 @@
+.wrap { position: relative; display: inline-block; }
+.btn, .btnCompact {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 1px solid var(--ut-gold-glow, rgba(201,168,76,0.4));
+  color: var(--ut-gold, #c9a84c); border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-weight: 600; padding: 5px 10px; min-height: 30px;
+}
+.btnCompact { padding: 4px 6px; }
+.btn:hover, .btnCompact:hover { background: rgba(201,168,76,0.1); }
+.pop {
+  position: absolute; right: 0; top: 36px; z-index: 1200; width: 260px;
+  background: var(--bg-elevated, #1a1b16); border: 1px solid var(--border, #2a2b24);
+  border-radius: 10px; padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+.popHead { color: var(--text, #cfd0c4); font-size: 12px; margin-bottom: 8px; }
+.popHead b { color: var(--ut-gold, #c9a84c); }
+.note {
+  width: 100%; resize: vertical; background: var(--bg-surface, #14150f);
+  border: 1px solid var(--border, #2a2b24); border-radius: 6px; color: var(--text, #cfd0c4);
+  font-size: 12.5px; padding: 8px; outline: none; font-family: inherit;
+}
+.note:focus { border-color: var(--ut-gold-glow, rgba(201,168,76,0.4)); }
+.err { color: var(--ut-red, #e06666); font-size: 11px; margin-top: 6px; }
+.foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.cancel { background: none; border: none; color: var(--text, #cfd0c4); cursor: pointer; font-size: 12px; }
+.send {
+  background: var(--ut-gold, #c9a84c); color: #14150f; border: none; border-radius: 6px;
+  font-weight: 700; font-size: 12px; padding: 6px 14px; cursor: pointer;
+}
+.send:disabled { opacity: 0.6; cursor: default; }

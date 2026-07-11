@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import ShareToFloor from '../../../../components/community/ShareToFloor'
 import useSWR from 'swr'
 import StockChart from '../../../../components/StockChart'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -384,7 +385,10 @@ export default function TradeDetailPage() {
             {trade.result}
           </span>
         )}
-        <TradeCardActions trade={trade} />
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+          <TradeCardActions trade={trade} />
+          <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
+        </span>
       </header>
 
       <div className={styles.outcomeGrid}>
