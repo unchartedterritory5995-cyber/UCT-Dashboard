@@ -1,0 +1,38 @@
+/* ConfidenceStat — shared n<10 confidence-shading cell.
+   Matches EdgeScorecard's null-state treatment: bright mono value, muted tone
+   for the low-confidence / no-data estimate (var(--text-muted)). */
+
+.wrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-sans);
+  min-width: 0;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stat {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+  cursor: default;
+}
+
+/* n < min (or no value yet): the estimate stays READABLE — a muted tone that
+   reads as "low confidence", never hidden. Mirrors EdgeScorecard's
+   `.edgeValueDim` → var(--text-muted). The title/aria affordance carries the
+   "n=X, need Y" explanation. */
+.dim {
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: help;
+}
