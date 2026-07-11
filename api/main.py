@@ -2084,6 +2084,19 @@ async def lifespan(app: FastAPI):
                     f"(set COMPASS_AUTOMATION_ENABLED=1 to resume)"
                 )
 
+        # -- The Floor: UCT Mentor daily heartbeat (weekday ~9:20 AM ET) -------
+        # One 'UCT Mentor' system post into #trading-floor each morning so the
+        # live room is never a dead room. Self-gates on COMMUNITY_CHAT_ENABLED at
+        # run time (no-op while dark) — NOT a Compass LLM job, so registered directly.
+        try:
+            from api.services import community_heartbeat
+            _scheduler.add_job(
+                community_heartbeat.post_daily_heartbeat,
+                CronTrigger(day_of_week="mon-fri", hour=9, minute=20),
+                id="floor_daily_heartbeat", replace_existing=True, max_instances=1)
+        except Exception as _e_hb:
+            print(f"[startup] floor heartbeat job skip: {_e_hb}")
+
         _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)

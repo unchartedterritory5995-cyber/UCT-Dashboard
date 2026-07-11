@@ -34,6 +34,11 @@ const meta = { connected: false, reconnecting: false, capacity: false, _snap: nu
 let tmpSeq = 0
 const nextTmpId = () => `tmp-${Date.now()}-${tmpSeq++}`
 
+// The current user's id — set by the UI so we can ignore our OWN reaction echoes
+// (we already applied them optimistically; applying the broadcast again double-counts).
+let selfId = null
+export function setSelfId(id) { selfId = id }
+
 // ── store plumbing ──────────────────────────────────────────────────────────
 function slot(slug) {
   if (!store.has(slug)) store.set(slug, { messages: [], presence: { count: 0, users: [] }, typing: {}, snap: EMPTY })
@@ -120,7 +125,11 @@ function onEvent(name, data) {
       s.messages = next
       bump(slug)
     }
-  } else if (name === 'reaction') applyReaction(slug, payload)
+  } else if (name === 'reaction') {
+    // Ignore our OWN echo — toggleReaction already applied it optimistically; applying
+    // the broadcast again would double-count for the actor.
+    if (!(payload.user_id && payload.user_id === selfId)) applyReaction(slug, payload)
+  }
   else if (name === 'message_pinned') {
     const s = slot(slug)
     const idx = s.messages.findIndex((m) => m.id === payload.message_id)

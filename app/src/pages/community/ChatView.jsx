@@ -42,6 +42,7 @@ export default function ChatView({ channel }) {
   const isMentor = user?.role === 'admin'
   const [graduating, setGraduating] = useState(null) // message being graduated
 
+  useEffect(() => { chat.setSelfId(meId) }, [meId])
   useEffect(() => { chat.ensureStarted([channel]) }, [channel])
 
   const subscribe = useCallback((cb) => chat.subscribeChannel(channel, cb), [channel])

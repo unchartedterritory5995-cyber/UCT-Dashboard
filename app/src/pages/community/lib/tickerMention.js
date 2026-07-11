@@ -74,7 +74,13 @@ export const TickerMention = Node.create({
         const row = document.createElement('button')
         row.type = 'button'
         row.className = `community-ticker-row${i === selected ? ' is-active' : ''}`
-        row.innerHTML = `<strong>$${it.ticker}</strong><span>${it.name || ''}</span>`
+        // textContent (never innerHTML) — company name is external data; avoid stored XSS.
+        const strong = document.createElement('strong')
+        strong.textContent = `$${it.ticker}`
+        const span = document.createElement('span')
+        span.textContent = it.name || ''
+        row.appendChild(strong)
+        row.appendChild(span)
         row.onmousedown = (e) => { e.preventDefault(); pick(i) }
         dropdown.appendChild(row)
       })

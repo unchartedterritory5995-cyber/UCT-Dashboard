@@ -783,6 +783,16 @@ def ensure_caught_up(user_id, channel_slug):
         conn.commit()
 
 
+def ensure_caught_up_many(user_id, slugs):
+    """Seed read-state for several channels — called off the event loop (each
+    ensure_caught_up takes the write lock + touches SQLite)."""
+    for s in slugs or []:
+        try:
+            ensure_caught_up(user_id, s)
+        except Exception:
+            pass
+
+
 def unread_by_channel(user_id):
     """Per-Pulse-channel unread count. Excludes deleted + the user's own messages,
     capped at 100. A never-opened channel reads 0 (caught-up default)."""

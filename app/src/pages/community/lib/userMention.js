@@ -67,7 +67,14 @@ export const UserMention = Node.create({
         const row = document.createElement('button')
         row.type = 'button'
         row.className = `community-ticker-row${i === selected ? ' is-active' : ''}`
-        row.innerHTML = `<strong>@${it.name}</strong><span>${it.is_mentor ? 'Mentor' : ''}</span>`
+        // textContent (never innerHTML) — display_name is arbitrary signup input; an
+        // innerHTML interpolation here would be stored XSS run in every viewer's browser.
+        const strong = document.createElement('strong')
+        strong.textContent = `@${it.name}`
+        const span = document.createElement('span')
+        span.textContent = it.is_mentor ? 'Mentor' : ''
+        row.appendChild(strong)
+        row.appendChild(span)
         row.onmousedown = (e) => { e.preventDefault(); pick(i) }
         dropdown.appendChild(row)
       })

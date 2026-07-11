@@ -796,6 +796,13 @@ def chat_admin_stats(admin: dict = Depends(require_admin)):
     return chat_hub.get_hub().stats()
 
 
+@router.post("/chat/admin/heartbeat")
+def chat_admin_heartbeat(admin: dict = Depends(require_admin)):
+    """Fire the UCT Mentor morning heartbeat on demand (bypasses the daily dedup)."""
+    from api.services import community_heartbeat
+    return community_heartbeat.post_daily_heartbeat(force=True)
+
+
 @router.get("/chat/stream")
 async def chat_stream_sse(request: Request, channels: str = Query(""),
                           user: dict = Depends(require_chat)):
@@ -808,11 +815,13 @@ async def chat_stream_sse(request: Request, channels: str = Query(""),
         # At capacity — client falls back to polling list_messages(after_id).
         return JSONResponse({"reason": "at_capacity"}, status_code=503)
     # Seed "joined = caught up" so the rail doesn't show all-history as unread.
-    for s in slugs:
-        try:
-            store.ensure_caught_up(user["id"], s)
-        except Exception:
-            pass
+    # OFF the event loop — each seed takes the write lock + touches SQLite, and this
+    # is an async endpoint; doing it inline would stall the single shared loop.
+    from starlette.concurrency import run_in_threadpool
+    try:
+        await run_in_threadpool(store.ensure_caught_up_many, user["id"], slugs)
+    except Exception:
+        pass
 
     async def gen():
         try:
