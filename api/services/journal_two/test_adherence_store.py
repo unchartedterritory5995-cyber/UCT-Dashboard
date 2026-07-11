@@ -64,6 +64,17 @@ def test_total_rules_zero_no_divide_error():
     assert out["checkedRuleIds"] == []
 
 
+def test_adherence_pct_clamped_when_checked_longer_than_total():
+    """A client posting MORE checkedRuleIds than totalRules must store
+    adherence_pct == 1.0 (clamped), never > 100%."""
+    conn = _conn()
+    rec = upsert_adherence("u1", "id:over", "VCP", ["a", "b", "c", "d", "e"], 3, conn)
+    assert rec["adherencePct"] == 1.0  # 5/3 clamped to 1.0
+    out = get_adherence("u1", "id:over", conn)
+    assert out["adherencePct"] == 1.0
+    assert out["totalRules"] == 3
+
+
 def test_get_missing_returns_none():
     conn = _conn()
     assert get_adherence("u1", "id:nope", conn) is None

@@ -708,7 +708,8 @@ def _psychology_section(
         NET P&L over that emotion's trades and ``winRate`` = wins / (wins +
         losses) — breakevens excluded from the denominator, MATCHING the
         setup/regime sections so the metric reads consistently across the app
-        (0 when the emotion has no decisive trade). EVERY emotion is returned
+        (None, like those sections, when the emotion has no decisive trade — an
+        all-breakeven emotion reads "—", not a misleading "0%"). EVERY emotion is returned
         (including <3-trade ones) WITH its tradeCount so the FE can gray thin
         samples — the >=3 display gate lives in the FE, NOT here (we never drop a
         sparse emotion).
@@ -768,10 +769,12 @@ def _psychology_section(
             "avgPnl": round(sum(g["pnls"]) / len(g["pnls"]), 2) if g["pnls"] else None,
             # winRate = wins / (wins + losses): breakevens are EXCLUDED from the
             # denominator, matching the setup/regime sections (one consistent
-            # win-rate metric across the app). 0 when there are no decisive trades.
+            # win-rate metric across the app). None (not 0.0) when there are no
+            # decisive trades — an all-breakeven emotion reads "—", not a
+            # misleading confident "0%" (bySetup + _regime_section do the same).
             "winRate": (
                 g["wins"] / (g["wins"] + g["losses"])
-                if (g["wins"] + g["losses"]) else 0.0
+                if (g["wins"] + g["losses"]) else None
             ),
         }
         for e, g in emo.items()

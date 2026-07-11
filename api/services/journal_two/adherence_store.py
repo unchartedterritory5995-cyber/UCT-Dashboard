@@ -16,9 +16,10 @@ playbook-stats join, the router, tests) pass a live connection — we open/close
 only when `conn is None`. Composite PK (user_id, trade_ref) makes INSERT OR
 REPLACE naturally idempotent.
 
-`adherence_pct` convention: len(checked_rule_ids) / total_rules when
+`adherence_pct` convention: min(len(checked_rule_ids) / total_rules, 1.0) when
 total_rules > 0, else 0.0 (never None, so downstream aggregation never has to
-special-case a divide-by-zero record).
+special-case a divide-by-zero record; clamped to <= 1.0 so an over-long checked
+list can never store > 100%).
 """
 from __future__ import annotations
 
@@ -61,12 +62,15 @@ def upsert_adherence(
 ) -> dict:
     """INSERT OR REPLACE one adherence row and return the camelCase record.
 
-    `adherence_pct` = len(checked_rule_ids) / total_rules when total_rules > 0,
-    else 0.0 (no divide error). `checked_rule_ids` is stored as a JSON array.
+    `adherence_pct` = min(len(checked_rule_ids) / total_rules, 1.0) when
+    total_rules > 0, else 0.0 (no divide error; clamped so an over-long checked
+    list can't store > 1.0). `checked_rule_ids` is stored as a JSON array.
     Stamps updated_at."""
     checked = list(checked_rule_ids or [])
     total = int(total_rules or 0)
-    pct = (len(checked) / total) if total > 0 else 0.0
+    # Clamp to <= 1.0: a client posting more checkedRuleIds than totalRules must
+    # never store adherence_pct > 1.0 (would corrupt the mean in playbook_stats).
+    pct = min(len(checked) / total, 1.0) if total > 0 else 0.0
     updated_at = _now_iso()
 
     own = conn is None

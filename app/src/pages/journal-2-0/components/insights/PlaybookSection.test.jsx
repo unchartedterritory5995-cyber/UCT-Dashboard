@@ -21,6 +21,13 @@ vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, useNavigate: () => navigate }
 })
+// The A5 adherence read surface (card cell + split) is gated on the `adherence`
+// feature flag. Mock it (as sibling insights tests do) so the card tests default
+// it ON and the gating test can flip it OFF. Unknown flags default true.
+let adherenceFlagOn = true
+vi.mock('../../featureFlags', () => ({
+  useFeatureFlag: (name) => (name === 'adherence' ? adherenceFlagOn : true),
+}))
 
 import PlaybookSection from './PlaybookSection'
 
@@ -85,6 +92,7 @@ function renderSection(route = '/journal?j2tab=analytics') {
 beforeEach(() => {
   setFacet.mockClear()
   navigate.mockClear()
+  adherenceFlagOn = true
   playbookState = { stats: [VCP, FLAG], isLoading: false, error: null, allAccounts: false }
 })
 
@@ -217,6 +225,51 @@ describe('PlaybookSection', () => {
 
     // Flag: notAdhered bucket is empty (n=0) → the split line is hidden (honest).
     expect(flagCard.textContent).not.toMatch(/Adhered exp/)
+  })
+
+  it('shows the Adherence cell + split when the adherence feature flag is ON (default)', () => {
+    renderSection()
+    // Default ON → the cell renders on every card and the split renders on VCP.
+    expect(screen.getAllByText('Adherence').length).toBe(2)
+    expect(screen.getByText('VCP').closest('button').textContent).toMatch(/Adhered exp/)
+  })
+
+  it('hides the Adherence cell + split entirely when the adherence flag is OFF', () => {
+    adherenceFlagOn = false
+    renderSection()
+    // Flag off → no Adherence cell anywhere and no adhered-vs-broke split.
+    expect(screen.queryByText('Adherence')).toBeNull()
+    expect(screen.queryByText(/Adhered exp/)).toBeNull()
+    // The OTHER stat cells are untouched (adherence is the only gated one).
+    expect(screen.getAllByText('Win Rate').length).toBe(2)
+    expect(screen.getAllByText('Exit Eff.').length).toBe(2)
+  })
+
+  it('adherence uses a SAMPLE-SIZE gate only — shows at computed>=10 even when the coverage ratio is low', () => {
+    // computed=12 (>= 10) but eligible=52 → ratio 0.23 (< 0.9). Exit-eff would
+    // withhold this, but adherence records are opt-in so the sample-size gate
+    // shows the number.
+    const LOW_RATIO = {
+      setup: 'HTF',
+      tradeCount: 52,
+      winRate: 0.6,
+      profitFactor: 2,
+      expectancy: 100,
+      avgR: 1,
+      adherence: 0.77,
+      adherenceCoverage: { eligible: 52, computed: 12 },
+      adherenceVsExpectancy: {
+        adhered: { expectancy: null, n: 0 },
+        notAdhered: { expectancy: null, n: 0 },
+      },
+      lastFive: [],
+    }
+    playbookState = { stats: [LOW_RATIO], isLoading: false, error: null, allAccounts: false }
+    renderSection()
+    const card = screen.getByText('HTF').closest('button')
+    // The confident number renders and is NOT dimmed (not withheld by a ratio gate).
+    const adhValue = within(card).getByText('77%')
+    expect(adhValue.className).not.toMatch(/dim/)
   })
 
   it('drill-through: clicking a card sets the setup scope + routes to the journal tab', () => {

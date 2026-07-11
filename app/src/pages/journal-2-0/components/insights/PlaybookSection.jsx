@@ -31,6 +31,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import ConfidenceStat from '../analytics/ConfidenceStat'
 import useScope from '../../hooks/useScope'
 import useJ2Playbook from '../../hooks/useJ2Playbook'
+import { useFeatureFlag } from '../../featureFlags'
 import { SCOPE_VERSION } from '../../../../lib/journal-2-0/scope'
 import styles from './PlaybookSection.module.css'
 
@@ -57,6 +58,20 @@ function exitEffConfident(coverage) {
   return computed / eligible >= EXIT_EFF_MIN_COVERAGE
 }
 
+// ── Adherence confidence gate — SAMPLE-SIZE ONLY (no coverage ratio) ──────────
+// Adherence records are OPT-IN: the trader manually ticks the per-trade rule
+// checklist, so a coverage-RATIO gate like exit-eff's (computed/eligible >= 0.9)
+// would withhold the Adherence % for basically EVERY real user — almost nobody
+// records the checklist on 90% of a setup's trades. Exit-eff keeps its ratio
+// gate because excursions are AUTO-computed (a low ratio there means thin data);
+// adherence instead trusts the mean once enough trades have a record, so it gates
+// on sample size alone (computed >= CONF_MIN). computed === 0 still falls through
+// to the honest empty "—" state (ConfidenceStat's own n<10 shading still applies
+// via the n={computed} it's passed).
+function adherenceConfident(coverage) {
+  return (coverage?.computed ?? 0) >= CONF_MIN
+}
+
 // ── stat formatters ──────────────────────────────────────────────────────────
 const fmtPct = (v) => `${(v * 100).toFixed(0)}%`
 const fmtPF = (v) => (v >= 5 ? '5.0+' : Number(v).toFixed(2))
@@ -78,6 +93,10 @@ export default function PlaybookSection() {
   const { stats, isLoading, error, allAccounts } = useJ2Playbook(apiParams)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  // A5 adherence read surface (the card cell + the adhered-vs-broke split) is
+  // gated on the SAME `adherence` feature flag as the Trade-page checklist, so
+  // window.__uctJ2Feature('adherence', false) fully reverts adherence everywhere.
+  const adherenceOn = useFeatureFlag('adherence')
 
   const openSetup = useCallback(
     (name) => {
@@ -136,26 +155,26 @@ export default function PlaybookSection() {
 
       <div className={styles.grid}>
         {stats.map((s) => (
-          <SetupCard key={s.setup} s={s} onOpen={openSetup} />
+          <SetupCard key={s.setup} s={s} onOpen={openSetup} adherenceOn={adherenceOn} />
         ))}
       </div>
     </div>
   )
 }
 
-function SetupCard({ s, onOpen }) {
+function SetupCard({ s, onOpen, adherenceOn }) {
   const n = s.tradeCount || 0
   const computed = s.exitEffCoverage?.computed ?? 0
   // Only surface a confident exit-efficiency number when the excursion coverage
   // clears the SAME gate the P2 Exit Quality tab uses. Below it, withhold the
   // number (value=null) so ConfidenceStat renders the honest dim "—" state.
   const exitEffOk = exitEffConfident(s.exitEffCoverage)
-  // Adherence (P5-A5) is coverage-gated IDENTICALLY to exit-efficiency (reuses
-  // the same `exitEffConfident` helper: computed >= 10 AND computed/eligible >=
-  // 0.9). Below it, or when computed === 0, the number is withheld (value=null →
-  // honest dim "—", never a misleading "0%").
+  // Adherence (P5-A5) uses a SAMPLE-SIZE-only gate (computed >= 10, NO coverage
+  // ratio) — records are opt-in, so exit-eff's 0.9 ratio would withhold the % for
+  // nearly everyone. Below the gate, or when computed === 0, the number is
+  // withheld (value=null → honest dim "—", never a misleading "0%").
   const adhComputed = s.adherenceCoverage?.computed ?? 0
-  const adhOk = exitEffConfident(s.adherenceCoverage)
+  const adhOk = adherenceConfident(s.adherenceCoverage)
   // Adhered-vs-broke-rules expectancy split — shown only when BOTH buckets have
   // trades AND a value (no fake split). Expectancy formatted like the card's own
   // Expectancy stat (fmtDollar).
@@ -213,23 +232,26 @@ function SetupCard({ s, onOpen }) {
             label="Exit Eff."
           />
         </div>
-        <div className={styles.statCell}>
-          {/* Rule adherence — mean % of the setup's rules followed, over trades
-              that have an adherence record. Confidence keys off adherence COVERAGE
-              (records / eligible), gated exactly like Exit Eff.; below the gate or
-              at computed 0 the number is withheld (value=null → honest dim "—",
-              never "0%"). */}
-          <ConfidenceStat
-            value={adhOk ? s.adherence : null}
-            n={adhComputed}
-            min={CONF_MIN}
-            format={fmtPct}
-            label="Adherence"
-          />
-        </div>
+        {adherenceOn && (
+          <div className={styles.statCell}>
+            {/* Rule adherence — mean % of the setup's rules followed, over trades
+                that have an adherence record. Confidence keys off adherence
+                sample size (records >= 10, NO coverage ratio — records are opt-in);
+                below the gate or at computed 0 the number is withheld (value=null →
+                honest dim "—", never "0%"). Gated on the `adherence` feature flag
+                so the read surface reverts with the Trade-page checklist. */}
+            <ConfidenceStat
+              value={adhOk ? s.adherence : null}
+              n={adhComputed}
+              min={CONF_MIN}
+              format={fmtPct}
+              label="Adherence"
+            />
+          </div>
+        )}
       </div>
 
-      {showSplit && (
+      {adherenceOn && showSplit && (
         <div className={styles.adhSplit}>
           Adhered exp {fmtDollar(adhered.expectancy)} (n={adhered.n}) &middot; Broke
           rules {fmtDollar(broke.expectancy)} (n={broke.n})

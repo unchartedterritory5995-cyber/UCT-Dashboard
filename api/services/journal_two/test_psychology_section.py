@@ -123,6 +123,29 @@ def test_emotion_outcomes_per_emotion_stats(db_conn):
     assert by["anxious"]["winRate"] == 0.0
 
 
+def test_emotion_outcomes_winrate_none_on_all_breakeven(db_conn):
+    """An emotion whose only trades are breakevens has NO decisive trade →
+    winRate is None (reads "—"), matching bySetup/_regime_section — not a
+    misleading confident 0.0."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    # zen × 2, both breakeven → wins + losses == 0.
+    _add_trade(db_conn, "u1", account_id=aid, emotion_tags=["zen"], pnl=0, result="BE")
+    _add_trade(db_conn, "u1", account_id=aid, emotion_tags=["zen"], pnl=0, result="BE")
+    # calm × 2, one win one loss → the normal wins/(wins+losses) path still holds.
+    _add_trade(db_conn, "u1", account_id=aid, emotion_tags=["calm"], pnl=40, result="Win")
+    _add_trade(db_conn, "u1", account_id=aid, emotion_tags=["calm"], pnl=-20, result="Loss")
+
+    psy = get_analytics("u1", account_id=aid, conn=db_conn)["psychology"]
+    by = {e["emotion"]: e for e in psy["emotionOutcomes"]}
+    assert by["zen"]["tradeCount"] == 2
+    assert by["zen"]["winRate"] is None            # all-breakeven → None, not 0.0
+    assert by["calm"]["tradeCount"] == 2
+    assert by["calm"]["winRate"] == 0.5            # 1 / (1 + 1) still computes
+
+
 def test_emotion_outcomes_use_net_pnl(db_conn):
     """avgPnl is NET of fees ($ actually kept)."""
     from api.services.journal_two.analytics import get_analytics
