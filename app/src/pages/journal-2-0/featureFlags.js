@@ -20,10 +20,15 @@ import { useSyncExternalStore } from 'react'
 // window.__uctJ2Feature('psychology', null) to clear the override (back to default).
 
 export const FEATURE_DEFAULTS = {
-  adherence: true,   // rules-per-setup + per-trade adherence checklist + card stat
-  psychology: true,  // emotion×outcome + cost-of-mistakes + revenge/tilt + tilt glyph
-  regime: true,      // win-rate-by-regime section
-  tradePng: true,    // trade-card + edge-card PNG export
+  adherence: true,    // rules-per-setup + per-trade adherence checklist + card stat
+  psychology: true,   // emotion×outcome + cost-of-mistakes + revenge/tilt + tilt glyph
+  regime: true,       // win-rate-by-regime section
+  tradePng: true,     // trade-card + edge-card PNG export
+  // P6 — coach amplification
+  verdictScore: true, // verdict-vs-outcome scorecard (Insights → Coach)
+  tagSuggest: true,   // deterministic AI-suggested mistake/emotion tags
+  makeRule: true,     // "make this a rule" (evidence-linked, suggestion-only)
+  celebrate: true,    // celebration moments (CoachStrip success rows)
 }
 
 const KEY_PREFIX = 'uct.j2.feature.'          // per-feature override: '1' | '0'

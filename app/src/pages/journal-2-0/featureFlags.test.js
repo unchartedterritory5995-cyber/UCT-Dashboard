@@ -19,6 +19,14 @@ describe('featureFlags', () => {
     }
   })
 
+  it('the P6 coach-amplification flags are registered + individually revertible', () => {
+    for (const name of ['verdictScore', 'tagSuggest', 'makeRule', 'celebrate']) {
+      expect(resolveFeatureFlag(name)).toBe(true)
+      setFeatureFlag(name, false)
+      expect(resolveFeatureFlag(name)).toBe(false)
+    }
+  })
+
   it('an unknown feature name defaults OFF (a typo cannot silently enable a surface)', () => {
     expect(resolveFeatureFlag('does-not-exist')).toBe(false)
   })
