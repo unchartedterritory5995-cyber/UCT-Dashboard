@@ -2144,6 +2144,7 @@ _status = {
     "total_alerts_dropped": 0,     # failed table filter
     "total_alerts_forwarded": 0,   # passed Discord threshold
     "total_alerts_grade_gated": 0, # below MIN_DISCORD_GRADE — silently aggregated
+    "total_alerts_vol_oi_gated": 0, # suppressed: volume not over OI (new-positioning gate)
     "total_alerts_gate_blocked": 0, # blocked by per-alert conviction gates
     "last_error": None,
     "last_discord_error": None,
@@ -2709,6 +2710,34 @@ async def _post_to_discord(client, alert):
     # with a min_grade key, use that instead of the global MIN_DISCORD_GRADE.
     # This lets "UCT Unusual Weeklies" accept D-grade trades (where premium+
     # DTE+cap are the signal) without lowering the global floor for everyone.
+    # Vol > OI gate — the channel should only get NEW positioning. Suppress an
+    # auto-push when we can CONFIRM volume was under existing OI (priorOI>0 and
+    # ratio<=1.0 = trading into an existing position). Unknown/zero OI is NOT
+    # suppressed by default -- we don't silently drop an alert we couldn't
+    # measure, and a zero-OI contract is itself new positioning. Only gates the
+    # first post; force-push (admin override) uses a separate path and bypasses
+    # this. Env: DISCORD_REQUIRE_VOL_OVER_OI=0 disables; DISCORD_VOL_OVER_OI_STRICT=1
+    # requires a CONFIRMED vol>OI (also suppresses unknown/zero OI).
+    if not message_id and os.environ.get("DISCORD_REQUIRE_VOL_OVER_OI", "1") == "1":
+        _prior_oi = alert.get("priorOI")
+        _ratio = alert.get("volumeOIRatio")
+        _strict = os.environ.get("DISCORD_VOL_OVER_OI_STRICT", "0") == "1"
+        _confirmed_over = _ratio is not None and _ratio > 1.0
+        _confirmed_under = (_prior_oi is not None and _prior_oi > 0
+                            and _ratio is not None and _ratio <= 1.0)
+        _vol_blocks = (not _confirmed_over) if _strict else _confirmed_under
+        if _vol_blocks:
+            _status["total_alerts_vol_oi_gated"] = _status.get("total_alerts_vol_oi_gated", 0) + 1
+            log.info("[liveflow] gate_blocked vol_under_oi %s oi=%s ratio=%s strict=%s",
+                     alert.get("alertName"), _prior_oi, _ratio, _strict)
+            alert["gatePassed"] = False
+            try:
+                live_alerts_db.update_alert_state(alert.get("id"), gate_passed=0)
+            except Exception as e:
+                log.debug("[liveflow] gate_passed persist failed for id=%s: %s",
+                          alert.get("id"), e)
+            return
+
     alert_min_grade_level = _get_alert_min_grade_level(alert.get("alertName") or "")
     if not message_id and _grade_level(grade) < alert_min_grade_level:
         _status["total_alerts_grade_gated"] = _status.get("total_alerts_grade_gated", 0) + 1
