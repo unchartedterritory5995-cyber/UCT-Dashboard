@@ -113,7 +113,9 @@ export default function InsightsHub({ analytics }) {
 
       <div className={styles.body}>
         {active === 'playbook' && <PlaybookSection />}
-        {active === 'exit' && <RiskExitsSection data={analytics?.exitQuality} />}
+        {active === 'exit' && (
+          <RiskExitsSection data={analytics?.exitQuality} risk={analytics?.risk} />
+        )}
         {active === 'edge' && <EdgeScoreCard edge={analytics?.edgeScore} />}
         {active === 'psychology' &&
           (psychologyOn ? (

@@ -1,0 +1,263 @@
+/* RiskBlock — R distribution + drawdown + streaks + loss-streak odds (Task B1).
+   Matches the J2 insights idiom (bg-surface, --border, --ut-gold, mono nums).
+   Mounts below the exit-quality content inside Risk & Exits — a top rule sets
+   it apart from the section above. */
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 18px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-sans);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.sub {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Reassurance sentence (sentence → number → math) ───────────────────────── */
+
+.reassure {
+  margin: 0;
+  max-width: 62ch;
+  padding: 12px 14px;
+  background: rgba(60, 184, 104, 0.07);
+  border: 1px solid rgba(60, 184, 104, 0.22);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-bright);
+}
+
+.pop {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--ut-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── R histogram card (plain CSS bars — no ECharts) ────────────────────────── */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.hist {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 132px;
+}
+
+.histCol {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+  height: 100%;
+}
+
+.histCount {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.histBarWrap {
+  width: 100%;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 0;
+}
+
+.histBar {
+  width: 68%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  transition: height 0.3s ease;
+}
+
+.barGain {
+  background: #3cb868;
+}
+
+.barLoss {
+  background: #e74c3c;
+}
+
+.histLabel {
+  font-size: 9px;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.expectancy {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.expNum {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--ut-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Drawdown pair (red-toned money) ───────────────────────────────────────── */
+
+.ddRow {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.ddBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ddValue {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.05;
+  color: #e74c3c;
+  font-variant-numeric: tabular-nums;
+}
+
+.ddValueSecondary {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #e88f86;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Streak stat tiles ─────────────────────────────────────────────────────── */
+
+.streakRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+}
+
+.streakStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.statLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Footnote (honest null-R disclosure) ───────────────────────────────────── */
+
+.footnote {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* ── Gated empty state (honest, never a bare/empty chart) ──────────────────── */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 34px 24px;
+  text-align: center;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+.emptyGlyph {
+  opacity: 0.8;
+}
+
+.emptyText {
+  margin: 0;
+  max-width: 440px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .ddRow {
+    gap: 18px;
+  }
+  .ddValue {
+    font-size: 22px;
+  }
+  .histLabel {
+    font-size: 8px;
+  }
+}

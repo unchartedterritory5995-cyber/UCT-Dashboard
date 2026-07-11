@@ -22,6 +22,7 @@ import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { CHART_FONT_FAMILY } from '../../../../utils/chartFont'
 import { percent, rMultiple } from '../../../../lib/journal-2-0'
+import RiskBlock from '../insights/RiskBlock'
 import styles from './RiskExitsSection.module.css'
 
 // Mirrors the backend gate (_EXIT_QUALITY_MIN_COMPUTED). coverageReady alone
@@ -68,7 +69,7 @@ const countAxis = {
 
 // ── RiskExitsSection ─────────────────────────────────────────────────────────
 
-export default function RiskExitsSection({ data }) {
+export default function RiskExitsSection({ data, risk }) {
   const coverage = data?.coverage || { eligible: 0, computed: 0, optionsExcluded: 0 }
   const eligible = coverage.eligible ?? 0
   const computed = coverage.computed ?? 0
@@ -156,6 +157,9 @@ export default function RiskExitsSection({ data }) {
           computed={computed}
           coverageReady={Boolean(data?.coverageReady)}
         />
+        {/* Risk Block has its OWN decisive-trade gate — it can be ready even
+            while exit-quality excursions are still being computed. */}
+        <RiskBlock risk={risk} />
       </div>
     )
   }
@@ -237,6 +241,9 @@ export default function RiskExitsSection({ data }) {
         {optionsExcluded > 0 &&
           ` ${optionsExcluded} option trade${optionsExcluded === 1 ? '' : 's'} excluded from these figures.`}
       </p>
+
+      {/* The classical Risk Block, below the exit-quality content (Task B1). */}
+      <RiskBlock risk={risk} />
     </div>
   )
 }

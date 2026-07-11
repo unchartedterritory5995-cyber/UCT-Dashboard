@@ -131,6 +131,10 @@ def get_analytics(
             "distribution": _distribution_section(rows),
             "attribution": _attribution_section(rows),
             "edgeScore": _edge_score(rows),
+            # Task B1 — the classical Risk Block (R distribution, drawdown,
+            # streaks, loss-streak odds). Its own decisive-trade coverage gate,
+            # independent of exit-quality's excursion coverage.
+            "risk": _risk_section(rows),
             "exitQuality": _exit_quality_section(rows, excursions_map, strategies),
             "options": _options_section(rows, strategies),
             "regime": _regime_section(rows),
@@ -590,6 +594,227 @@ def _regime_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
         })
 
     return {"byRegime": by_regime_out, "unknownCount": unknown_count}
+
+
+# ── Section: Risk Block (Journal P0, Task B1) ────────────────────────────────
+#
+# The classical risk analytics a pro expects: an R-multiple distribution, a
+# peak-to-trough drawdown, win/loss streaks, and a losing-streak-probability
+# strip. Coverage-gated on DECISIVE trades (its own gate, independent of the
+# exit-quality excursion coverage) so the honest shape mirrors _exit_quality_
+# section: fewer than 10 decisive trades → aggregates None, counts populated.
+
+
+# R-multiple histogram bins (spec: [<-3, -3..-2, -2..-1, -1..0, 0..1, 1..2,
+# 2..3, >3]). Each label is the FE-facing `bin`; boundaries are half-open
+# [lo, hi) so every real R lands in exactly one bin.
+_R_HIST_BUCKETS = [
+    ("< -3",   lambda r: r < -3),
+    ("-3..-2", lambda r: -3 <= r < -2),
+    ("-2..-1", lambda r: -2 <= r < -1),
+    ("-1..0",  lambda r: -1 <= r < 0),
+    ("0..1",   lambda r: 0 <= r < 1),
+    ("1..2",   lambda r: 1 <= r < 2),
+    ("2..3",   lambda r: 2 <= r < 3),
+    ("> 3",    lambda r: r >= 3),
+]
+
+_RISK_MIN_DECISIVE = 10          # coverage gate: decisive trades needed
+_LOSS_STREAK_K = 5               # honest default streak length for the odds strip
+_DEFAULT_TRADES_PER_YEAR = 250   # pace fallback when < 30 days of history
+_MIN_HISTORY_DAYS = 30           # below this span → use the default pace
+
+
+def _r_histogram(rs: list[float]) -> tuple[list[dict[str, Any]], float | None]:
+    """Bucket a list of R-multiples into the fixed bins + return mean R.
+
+    `rs` is ALREADY filtered to non-null R (null-R is counted as noRCount by the
+    caller and never reaches here). Returns (bins, expectancyR); expectancyR is
+    None on an empty list.
+    """
+    counts = {label: 0 for label, _ in _R_HIST_BUCKETS}
+    for r in rs:
+        for label, fn in _R_HIST_BUCKETS:
+            if fn(r):
+                counts[label] += 1
+                break
+    bins = [{"bin": label, "count": counts[label]} for label, _ in _R_HIST_BUCKETS]
+    expectancy = round(sum(rs) / len(rs), 3) if rs else None
+    return bins, expectancy
+
+
+def _drawdown_from_series(points: list[tuple[Any, float]]) -> dict[str, Any]:
+    """Peak-to-trough drawdown over a cumulative net-P&L equity curve (baseline 0).
+
+    `points` = an exit-date-ordered list of (date, pnl). Returns POSITIVE-magnitude
+    dollar drops: `maxDrawdownDollar` (deepest peak→trough), `currentDrawdownDollar`
+    (running peak→final), plus the peak/trough dates of the max drawdown (None when
+    the peak is the baseline). Empty series → all zeros.
+
+    Worked example (matches the Task B1 spec):
+      +100, -50, -100, +30 → cum 100, 50, -50, -20; peak 100 →
+      maxDrawdownDollar = 150 (100 → -50), currentDrawdownDollar = 120 (100 → -20).
+    """
+    if not points:
+        return {
+            "maxDrawdownDollar": 0.0,
+            "currentDrawdownDollar": 0.0,
+            "peakDate": None,
+            "troughDate": None,
+        }
+    cum = 0.0
+    peak = 0.0
+    peak_date = None            # date of the running-peak equity (None = baseline 0)
+    max_dd = 0.0
+    dd_peak_date = None
+    dd_trough_date = None
+    for date, pnl in points:
+        cum += pnl
+        if cum > peak:
+            peak = cum
+            peak_date = date
+        dd = peak - cum         # positive magnitude of the current drawdown
+        if dd > max_dd:
+            max_dd = dd
+            dd_peak_date = peak_date
+            dd_trough_date = date
+    current_dd = peak - cum
+    return {
+        "maxDrawdownDollar": round(max_dd, 2),
+        "currentDrawdownDollar": round(current_dd, 2),
+        "peakDate": dd_peak_date,
+        "troughDate": dd_trough_date,
+    }
+
+
+def _streaks_from_results(results: list[str]) -> dict[str, Any]:
+    """Longest win / longest loss / current streak over a decisive result run.
+
+    `results` is an exit-date-ordered sequence of "Win"/"Loss" with breakevens
+    ALREADY REMOVED (documented decision: BEs are dropped from the sequence — they
+    neither break a streak nor count toward one, the simplest honest convention).
+    `current` = the trailing run: {type: 'win'|'loss'|None, length}.
+    """
+    longest_win = 0
+    longest_loss = 0
+    cur_type: str | None = None
+    cur_len = 0
+    for res in results:
+        t = "win" if res == "Win" else "loss"
+        if t == cur_type:
+            cur_len += 1
+        else:
+            cur_type = t
+            cur_len = 1
+        if t == "win":
+            longest_win = max(longest_win, cur_len)
+        else:
+            longest_loss = max(longest_loss, cur_len)
+    current = (
+        {"type": cur_type, "length": cur_len}
+        if cur_type is not None else {"type": None, "length": 0}
+    )
+    return {"longestWin": longest_win, "longestLoss": longest_loss, "current": current}
+
+
+def _loss_streak_odds(win_rate: float, trades_per_year: float, k: int) -> dict[str, Any]:
+    """Expected number of >=k-loss streaks per year — deterministic, no random.
+
+    Closed-form "expected streak starts": a >=k-loss run starts when a win is
+    followed by k losses, so per N trades ≈ N · p · (1-p)^k where p = win rate.
+    Returns {winRate, k, perYear} so the FE can render "At your 52% win rate, a
+    5-loss streak is expected ~9x/year."
+    """
+    q = 1.0 - win_rate
+    per_year = trades_per_year * win_rate * (q ** k)
+    return {"winRate": round(win_rate, 4), "k": k, "perYear": round(per_year, 1)}
+
+
+def _trades_per_year(decisive: list[Any]) -> float:
+    """Trades-per-year pace from the decisive trades' exit-date span.
+
+    < 2 dated trades or < 30 days of history → the honest _DEFAULT_TRADES_PER_YEAR
+    (250) rather than an unstable extrapolation from a tiny window. `decisive` is
+    already exit-date ordered.
+    """
+    days = [d for d in (_row_et_day(r, "exit_date") for r in decisive) if d]
+    if len(days) < 2:
+        return float(_DEFAULT_TRADES_PER_YEAR)
+    try:
+        first = Date.fromisoformat(days[0])
+        last = Date.fromisoformat(days[-1])
+    except (ValueError, TypeError):
+        return float(_DEFAULT_TRADES_PER_YEAR)
+    span_days = (last - first).days
+    if span_days < _MIN_HISTORY_DAYS:
+        return float(_DEFAULT_TRADES_PER_YEAR)
+    years = span_days / 365.25
+    return len(decisive) / years if years > 0 else float(_DEFAULT_TRADES_PER_YEAR)
+
+
+def _risk_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
+    """The Risk Block payload — R distribution, drawdown, streaks, streak odds.
+
+    Coverage-gated on decisive (Win/Loss) trades, mirroring _exit_quality_section's
+    None-with-counts shape: fewer than 10 decisive trades → every aggregate is None
+    while the counts (tradeCount / decisiveCount / noRCount) stay populated so the
+    FE can say "N of 10". Ordering matches the equity section (exit-date ascending,
+    stable ET-day sort → same-day ties keep the SQL exit_date ASC input order).
+    """
+    total = len(rows)
+    # Exit-date ordering (stable → same-day ties keep the fetch's exit_date ASC).
+    ordered = sorted(rows, key=lambda r: (_row_et_day(r, "exit_date") or ""))
+    # Decisive = Win/Loss only. Breakevens are removed from every risk view.
+    decisive = [r for r in ordered if r["result"] in ("Win", "Loss")]
+    wins = sum(1 for r in decisive if r["result"] == "Win")
+    losses = sum(1 for r in decisive if r["result"] == "Loss")
+    decisive_n = wins + losses
+    # null-R trades are excluded from the histogram but honestly surfaced.
+    no_r_count = sum(1 for r in rows if r["r_multiple"] is None)
+
+    if decisive_n < _RISK_MIN_DECISIVE:
+        return {
+            "coverageReady": False,
+            "tradeCount": total,
+            "decisiveCount": decisive_n,
+            "noRCount": no_r_count,
+            "rHistogram": None,
+            "expectancyR": None,
+            "drawdown": None,
+            "streaks": None,
+            "lossStreakOdds": None,
+        }
+
+    # rHistogram over trades that HAVE an R (null-R excluded → noRCount).
+    rs = [float(r["r_multiple"]) for r in ordered if r["r_multiple"] is not None]
+    r_hist, expectancy_r = _r_histogram(rs)
+
+    # Drawdown over the cumulative net-P&L equity curve (exit-date order, baseline 0).
+    points = [
+        (_row_et_day(r, "exit_date"), float(r["pnl_dollar"] or 0)) for r in ordered
+    ]
+    drawdown = _drawdown_from_series(points)
+
+    # Streaks over the decisive win/loss sequence (BEs removed).
+    streaks = _streaks_from_results([r["result"] for r in decisive])
+
+    # Loss-streak odds at the account's win rate + its trades-per-year pace.
+    win_rate = wins / decisive_n
+    loss_streak_odds = _loss_streak_odds(
+        win_rate, _trades_per_year(decisive), _LOSS_STREAK_K
+    )
+
+    return {
+        "coverageReady": True,
+        "tradeCount": total,
+        "decisiveCount": decisive_n,
+        "noRCount": no_r_count,
+        "rHistogram": r_hist,
+        "expectancyR": expectancy_r,
+        "drawdown": drawdown,
+        "streaks": streaks,
+        "lossStreakOdds": loss_streak_odds,
+    }
 
 
 def _edge_score(rows: list[sqlite3.Row]) -> dict[str, Any]:
