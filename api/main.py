@@ -2990,6 +2990,7 @@ class _GZipSkipSSE(_GZipBase):
         if scope.get("type") == "http" and (
             path.startswith("/api/stream")
             or path.startswith("/api/live/massive/stream")  # flow SSE — never gzip
+            or path == "/api/community/chat/stream"          # Floor chat SSE — never gzip
             or path.startswith("/assets/")
         ):
             await self.app(scope, receive, send)
