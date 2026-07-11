@@ -320,6 +320,11 @@
   background: rgba(201, 168, 76, 0.18);
   border-color: rgba(201, 168, 76, 0.8);
 }
+/* Ticker chip whose moment is playing now (follow-along). */
+.tickerChipActive {
+  background: rgba(201, 168, 76, 0.28);
+  border-color: rgba(201, 168, 76, 0.95);
+}
 /* Two click targets inside the chip: symbol → chart, time → seek video. */
 .tickerSym {
   border: none;

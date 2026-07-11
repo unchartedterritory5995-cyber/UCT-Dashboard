@@ -66,6 +66,7 @@ export default function VideoDockSlot() {
   // Which chapter is playing now — for the left-rail highlight + auto-scroll.
   const [activeChapter, setActiveChapter] = useState(-1)
   const chapterListRef = useRef(null)
+  const [activeTicker, setActiveTicker] = useState(-1) // ticker chip playing now
 
   const startNote = useCallback(() => setDraft({ t: getCurrentTime(), text: '' }), [])
   const saveDraft = useCallback(async () => {
@@ -195,6 +196,24 @@ export default function VideoDockSlot() {
     const el = chapterListRef.current?.querySelector('[data-active="true"]')
     if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' })
   }, [activeChapter])
+
+  // Highlight the ticker chip whose moment is playing now (most recent moment
+  // at/before the playhead) — the tickers half of the follow-along.
+  useEffect(() => {
+    if (!docked || tickerMoments.length === 0) { setActiveTicker(-1); return }
+    const tick = () => {
+      const now = getCurrentTime()
+      let idx = -1, best = -1
+      for (let i = 0; i < tickerMoments.length; i++) {
+        const tt = tickerMoments[i].t || 0
+        if (now >= tt - 0.5 && tt >= best) { best = tt; idx = i }
+      }
+      setActiveTicker((prev) => (prev === idx ? prev : idx))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [docked, tickerMoments])
 
   if (!active) return null
 
@@ -373,7 +392,7 @@ export default function VideoDockSlot() {
                     {tickerMoments.map((tm, i) => (
                       <span
                         key={`${tm.ticker}-${tm.t}-${i}`}
-                        className={styles.tickerChip}
+                        className={`${styles.tickerChip} ${i === activeTicker ? styles.tickerChipActive : ''}`}
                         title={tm.note || tm.ticker}
                       >
                         {/* Click the symbol → open the chart; click the time → seek the video. */}
