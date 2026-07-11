@@ -2,8 +2,9 @@
 // under the video (collapsed by default so it never clogs the theater); when
 // opened it lazily loads the timed cues and lets you search + click a line to
 // jump the player to that moment.
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVideoTranscript } from '../../hooks/useVideoTranscript'
+import { getCurrentTime } from './videoStore'
 import styles from './TranscriptPanel.module.css'
 
 const fmt = (sec) => {
@@ -40,6 +41,30 @@ export default function TranscriptPanel({ videoId, hasTranscript, onSeek }) {
     () => (query ? cues.filter((c) => c.text.toLowerCase().includes(query)) : cues),
     [cues, query],
   )
+
+  // Follow-along: highlight + auto-scroll the line playing now (only while the
+  // panel is open and the user isn't searching, so it never fights a search).
+  const listRef = useRef(null)
+  const [activeCue, setActiveCue] = useState(-1)
+  useEffect(() => {
+    if (!open || query || cues.length === 0) { setActiveCue(-1); return }
+    const tick = () => {
+      const now = getCurrentTime()
+      let idx = -1
+      for (let i = 0; i < cues.length; i++) {
+        if (now >= (cues[i].t || 0) - 0.25) idx = i
+        else break
+      }
+      setActiveCue((prev) => (prev === idx ? prev : idx))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [open, query, cues])
+  useEffect(() => {
+    const el = listRef.current?.querySelector('[data-active="true"]')
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' })
+  }, [activeCue])
 
   if (!hasTranscript) return null
 
@@ -86,12 +111,13 @@ export default function TranscriptPanel({ videoId, hasTranscript, onSeek }) {
                   {filtered.length} {filtered.length === 1 ? 'match' : 'matches'}
                 </div>
               )}
-              <div className={styles.list}>
+              <div className={styles.list} ref={listRef}>
                 {filtered.map((c, i) => (
                   <button
                     key={`${c.t}-${i}`}
                     type="button"
-                    className={styles.cue}
+                    className={`${styles.cue} ${!query && i === activeCue ? styles.cueActive : ''}`}
+                    data-active={!query && i === activeCue}
                     onClick={() => onSeek(c.t)}
                     title={`Jump to ${fmt(c.t)}`}
                   >

@@ -84,6 +84,10 @@
 .cue:hover {
   background: rgba(255, 255, 255, 0.05);
 }
+.cueActive {
+  background: rgba(201, 168, 76, 0.12);
+  box-shadow: inset 2px 0 0 #c9a84c;
+}
 .cue:focus-visible {
   outline: 2px solid #c9a84c;
   outline-offset: -1px;
