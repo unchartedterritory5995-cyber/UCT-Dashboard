@@ -1,0 +1,256 @@
+.hub {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Horizontal sub-nav (scrolls on narrow viewports) ──────────────────────── */
+
+.subnav {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.subnav::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 9px 16px;
+  margin-bottom: -1px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--text-bright);
+}
+
+.tabActive {
+  color: var(--ut-gold);
+  border-bottom-color: var(--ut-gold);
+}
+
+.tabActive:hover {
+  color: var(--ut-gold);
+}
+
+.body {
+  min-height: 140px;
+}
+
+/* ── Edge summary card ─────────────────────────────────────────────────────── */
+
+.edgeCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.edgeMain {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.edgeScore {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ut-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.edgeScoreDim {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.edgeFormula {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.edgeNeed {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.edgeComps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.edgeComp {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.edgeCompLabel {
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.edgeCompValue {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Playbook placeholder ──────────────────────────────────────────────────── */
+
+.playbook {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.placeholderHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.placeholderTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.placeholderSub {
+  margin: 0;
+  max-width: 520px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.setupList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.setupRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+}
+
+.setupRow:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.setupName {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.setupMeta {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.setupPnl {
+  flex: 0 0 auto;
+  min-width: 84px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pos {
+  color: #3cb868;
+}
+
+.neg {
+  color: #e74c3c;
+}
+
+.hint {
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* ── Designed "coming soon" placeholder ────────────────────────────────────── */
+
+.comingSoon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+.comingSoonGlyph {
+  opacity: 0.8;
+}
+
+.comingSoonTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.comingSoonText {
+  margin: 0;
+  max-width: 380px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}

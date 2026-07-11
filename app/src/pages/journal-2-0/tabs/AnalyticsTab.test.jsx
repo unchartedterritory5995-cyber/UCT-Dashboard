@@ -114,3 +114,29 @@ describe('AnalyticsTab — Scope-driven fetch', () => {
     expect(capturedUrl).toContain('setups=A%252CB')
   })
 })
+
+describe('AnalyticsTab — Insights hub above the classic accordion', () => {
+  it('mounts <InsightsHub> and keeps the accordion below under "More analytics"', async () => {
+    mockData = {
+      tradeCount: 5,
+      strategyCount: 0,
+      equity: {
+        kpis: {
+          peakPnl: 100,
+          maxDrawdown: -50,
+          maxDrawdownPct: -0.1,
+          currentDrawdown: 0,
+          longestUnderwaterDays: 2,
+        },
+        curve: [],
+      },
+    }
+    renderTab()
+    // Hub is present (its sub-nav) once the analytics data loads.
+    expect(await screen.findByRole('button', { name: 'Exit Quality' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Regime' })).toBeInTheDocument()
+    // The classic accordion is kept below the hub under a "More analytics" divider.
+    expect(screen.getByText('More analytics')).toBeInTheDocument()
+    expect(screen.getByText('Closed-Trade Equity')).toBeInTheDocument()
+  })
+})

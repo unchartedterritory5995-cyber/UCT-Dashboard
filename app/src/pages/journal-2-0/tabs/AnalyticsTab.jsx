@@ -21,6 +21,7 @@ import PerformancePanel from '../components/PerformancePanel'
 import CollapsibleSection from '../components/CollapsibleSection'
 import ScopeBar from '../components/scope/ScopeBar'
 import RiskExitsSection from '../components/analytics/RiskExitsSection'
+import InsightsHub from '../components/insights/InsightsHub'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
   fmtSignedDollar,
@@ -131,6 +132,15 @@ export default function AnalyticsTab() {
 
       {data && data.tradeCount > 0 && (
         <>
+          {/* Insights hub — the organized entry (Playbook · Exit Quality · Edge
+              · Psychology · Regime). The classic accordion stays below under
+              "More analytics" so nothing is lost. */}
+          <InsightsHub analytics={data} />
+
+          <div className={styles.moreDivider}>
+            <h3 className={styles.moreHeading}>More analytics</h3>
+          </div>
+
           {data.edgeScore && (
             <CollapsibleSection id="edge" title="Edge Score" defaultOpen>
               <EdgeScorecard edge={data.edgeScore} />
