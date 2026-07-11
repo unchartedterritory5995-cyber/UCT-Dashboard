@@ -91,6 +91,21 @@ describe('useChartDrawings', () => {
     expect(result.current.canUndo).toBe(false)
   })
 
+  it('reorderDrawing front/back moves the drawing in the z-stack and is undoable', () => {
+    const { result } = renderHook(() => useChartDrawings('SPY'))
+    let a, b, c
+    act(() => { a = result.current.addDrawing(hz(1)) })
+    act(() => { b = result.current.addDrawing(hz(2)) })
+    act(() => { c = result.current.addDrawing(hz(3)) })
+    expect(result.current.drawings.map(d => d.id)).toEqual([a, b, c])
+    act(() => result.current.reorderDrawing(a, 'front'))   // a → end (top)
+    expect(result.current.drawings.map(d => d.id)).toEqual([b, c, a])
+    act(() => result.current.reorderDrawing(a, 'back'))    // a → start (bottom)
+    expect(result.current.drawings.map(d => d.id)).toEqual([a, b, c])
+    act(() => result.current.undo())                       // undo the send-to-back
+    expect(result.current.drawings.map(d => d.id)).toEqual([b, c, a])
+  })
+
   it('loads existing drawings for a symbol from localStorage on mount', () => {
     localStorage.setItem(STORE, JSON.stringify({ SPY: [{ id: 'x', ...hz(123) }] }))
     const { result } = renderHook(() => useChartDrawings('SPY'))

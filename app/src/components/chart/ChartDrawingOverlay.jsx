@@ -686,7 +686,7 @@ export default function ChartDrawingOverlay({
   color, lineWidth,
   lineStyle = 'solid',
   magnet = false,
-  drawings, addDrawing, updateDrawing, removeDrawing,
+  drawings, addDrawing, updateDrawing, removeDrawing, reorderDrawing = null,
   onMigrate = null,          // (drawings[]) => void — re-anchor legacy volume-pane points to paneRelY (called once when the view settles)
   selectedId, setSelectedId,
   repeatMode = true,
@@ -1861,6 +1861,9 @@ export default function ChartDrawingOverlay({
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
+            canReorder={!!reorderDrawing && drawings.length > 1}
+            onBringFront={() => { reorderDrawing?.(ctxMenu.drawingId, 'front'); setCtxMenu(null) }}
+            onSendBack={() => { reorderDrawing?.(ctxMenu.drawingId, 'back'); setCtxMenu(null) }}
             onDuplicate={() => {
               const { id: _id, ...rest } = d
               const nid = addDrawing({ ...rest, points: offsetPoints(d.points), locked: false })
@@ -1960,7 +1963,7 @@ function MenuAction({ icon, label, onClick, danger = false }) {
   )
 }
 
-function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, onDelete, onClose }) {
+function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onClose }) {
   const menuRef = useRef(null)
   // Clamp to the viewport so the menu always lands right next to the cursor —
   // flips to the cursor's left/up edge when it would overflow (drawings near the
@@ -2071,6 +2074,20 @@ function DrawingContextMenu({ x, y, drawing, onSetColor, onSetWidth, onSetStyle,
         onClick={onDuplicate}
         icon={<><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="5.5" y="5.5" width="8" height="8" rx="1" /></>}
       />
+      {canReorder && (
+        <MenuAction
+          label="Bring to front"
+          onClick={onBringFront}
+          icon={<><rect x="4.5" y="2.5" width="9" height="9" rx="1" fill="rgba(226,223,214,0.18)" /><rect x="2.5" y="4.5" width="9" height="9" rx="1" /></>}
+        />
+      )}
+      {canReorder && (
+        <MenuAction
+          label="Send to back"
+          onClick={onSendBack}
+          icon={<><rect x="2.5" y="4.5" width="9" height="9" rx="1" fill="rgba(226,223,214,0.18)" /><rect x="4.5" y="2.5" width="9" height="9" rx="1" /></>}
+        />
+      )}
       <MenuAction
         label={locked ? 'Unlock' : 'Lock'}
         onClick={onToggleLock}

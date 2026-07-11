@@ -81,6 +81,16 @@ export default function useChartDrawings(sym) {
 
   const clearAll = useCallback(() => commit([]), [commit])
 
+  // Reorder a drawing in the z-stack. 'front' → end of the array (rendered last =
+  // on top, and hit-tested first); 'back' → start. Recorded as one undo step.
+  const reorderDrawing = useCallback((id, dir) => {
+    const cur = drawingsRef.current
+    const d = cur.find(x => x.id === id)
+    if (!d) return
+    const rest = cur.filter(x => x.id !== id)
+    commit(dir === 'back' ? [d, ...rest] : [...rest, d])
+  }, [commit])
+
   // Push the CURRENT state onto the undo stack without changing it — called once
   // at the start of a drag so the coalesced record:false writes are undoable as one.
   const snapshotHistory = useCallback(() => {
@@ -112,7 +122,7 @@ export default function useChartDrawings(sym) {
   }, [writeLS])
 
   return {
-    drawings, addDrawing, removeDrawing, updateDrawing, clearAll,
+    drawings, addDrawing, removeDrawing, updateDrawing, clearAll, reorderDrawing,
     undo, redo, snapshotHistory,
     canUndo: pastRef.current.length > 0,
     canRedo: futureRef.current.length > 0,
