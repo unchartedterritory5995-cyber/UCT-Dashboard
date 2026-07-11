@@ -40,10 +40,21 @@ const ModelBook = lazy(() => import('./pages/ModelBook'))
 const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
 const Desk = lazy(() => import('./pages/desk/Desk'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
-// A2 adds the new nested-route shell:
-//   const JournalLayout = lazy(() => import('./pages/journal-2-0/JournalLayout'))
-// It does NOT exist yet, so A1 does not reference it at runtime (would break the
-// build). The JournalShellSelector below is the seam A2 swaps into.
+// A2: the new nested-route shell (v5). Renders a header + 5-item primary nav +
+// <Outlet/>; the child routes below render into that Outlet. The legacy
+// JournalTwoRoot (v8) has NO Outlet, so under v8 the deep /journal/* routes
+// aren't reached (v8 users navigate via ?j2tab=) — the escape hatch.
+const JournalLayout = lazy(() => import('./pages/journal-2-0/JournalLayout'))
+// Surface wrappers (lazy so each surface + the heavy tab components it hosts
+// stay out of the entry bundle; JournalLayout wraps <Outlet/> in its own
+// Suspense so a surface chunk load never blanks the whole shell).
+const TodaySurface = lazy(() => import('./pages/journal-2-0/surfaces/TodaySurface'))
+const TradesSurface = lazy(() => import('./pages/journal-2-0/surfaces/TradesSurface'))
+const JournalSurface = lazy(() => import('./pages/journal-2-0/surfaces/JournalSurface'))
+const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/InsightsSurface'))
+const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
+const CommunitySurface = lazy(() => import('./pages/journal-2-0/surfaces/CommunitySurface'))
+const AccountsSurface = lazy(() => import('./pages/journal-2-0/surfaces/AccountsSurface'))
 const Community = lazy(() => import('./pages/community/CommunityPage'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
@@ -116,14 +127,21 @@ const SWR_CONFIG = {
 
 /** Journal 2.0 P4 shell selector — the Task A1 seam (runtime kill-switch).
  *  Reads `uct.j2.shell` via useJ2Shell(): 'v8' → the legacy 8-tab JournalTwoRoot,
- *  'v5' → the new nested-route shell. A1 renders JournalTwoRoot for BOTH branches
- *  (the flag machinery + this seam are the A1 deliverable); A2 swaps in
- *  <JournalLayout/> for the 'v5' branch. Reversible at runtime without a deploy:
- *  window.__uctJ2Shell('v8') restores the old shell, 'v5' the new. */
+ *  'v5' → the new nested-route shell (JournalLayout, with <Outlet/>). Reversible
+ *  at runtime without a deploy: window.__uctJ2Shell('v8') restores the old shell,
+ *  'v5' the new.
+ *
+ *  ROUTING NUANCE: this selector is the element of the PARENT `/journal` route.
+ *  For 'v5' it returns <JournalLayout/>, which renders <Outlet/> — so the child
+ *  routes (index=Today, trades, journal, insights, compass, community, accounts)
+ *  render inside it. For 'v8' it returns <JournalTwoRoot/>, which has NO Outlet,
+ *  so those child routes are simply never reached under the legacy shell — v8 is
+ *  the escape hatch and uses ?j2tab= for its tabs. Deep new-routes only work
+ *  under v5, by design. */
 function JournalShellSelector() {
   const shell = useJ2Shell()
-  if (shell === 'v8') return <Journal />   // legacy 8-tab shell (unchanged)
-  return <Journal />                        // A2 will render <JournalLayout/> for 'v5'
+  if (shell === 'v8') return <Journal />   // legacy 8-tab shell (no Outlet — children unreached)
+  return <JournalLayout />                  // new nested-route shell (renders <Outlet/>)
 }
 
 export default function App() {
@@ -195,7 +213,19 @@ export default function App() {
                 <Route path="/setup-library" element={<SetupLibrary />} />
                 <Route path="/desk" element={<Desk />} />
                 <Route path="/educational-videos" element={<Navigate to="/desk?section=videos" replace />} />
-                <Route path="/journal" element={<JournalShellSelector />} />
+                {/* /journal is a nested-route parent under the v5 shell. The
+                    selector renders JournalLayout (with <Outlet/>) for v5, or
+                    the legacy JournalTwoRoot (no Outlet) for v8. The 4
+                    /journal-2-0/* detail routes below stay siblings, UNCHANGED. */}
+                <Route path="/journal" element={<JournalShellSelector />}>
+                  <Route index element={<TodaySurface />} />
+                  <Route path="trades" element={<TradesSurface />} />
+                  <Route path="journal" element={<JournalSurface />} />
+                  <Route path="insights" element={<InsightsSurface />} />
+                  <Route path="compass" element={<CompassSurface />} />
+                  <Route path="community" element={<CommunitySurface />} />
+                  <Route path="accounts" element={<AccountsSurface />} />
+                </Route>
                 <Route path="/community" element={<Community />} />
                 <Route path="/community/:threadId" element={<Community />} />
                 <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />

@@ -1,0 +1,243 @@
+/* Journal 2.0 — P4 nested-route shell (JournalLayout).
+   The 8-tab ?j2tab= state machine (JournalTwoRoot) is replaced by a 5-item
+   primary nav + <Outlet/>. Header pieces (AccountSelector / Generate Report /
+   Settings gear / ? shortcuts) carry over from JournalTwoRoot. */
+
+.root {
+  padding: 20px 24px 40px;
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--text-heading);
+}
+
+.shortcutsBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.shortcutsBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+
+.headerKbd {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  color: inherit;
+}
+
+.settingsPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-accent);
+  border-radius: 999px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.settingsPill:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--ut-gold);
+}
+
+.settingsPill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.gearIcon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.errorBanner {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  border-radius: 8px;
+  color: var(--loss);
+  font-size: 12px;
+}
+
+/* ── Primary nav (5 surfaces) ─────────────────────────────────────────────── */
+
+.nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.navItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms;
+  position: relative;
+  top: 1px;
+}
+
+.navItem:hover {
+  color: var(--text-bright);
+}
+
+.navItemActive {
+  color: var(--ut-gold);
+  border-bottom-color: var(--ut-gold);
+}
+
+/* Compass while unpaid — shown (never hidden) as a muted, non-navigating
+   teaser with a lock glyph. Clicking it should not route anywhere. */
+.navItemLocked {
+  color: var(--text-muted);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.lockBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+}
+
+.content {
+  min-height: 240px;
+}
+
+/* Touch: 5 items still fit most phones, but let the bar scroll rather than
+   clip on the narrowest devices (CSS @media, not JS — first-paint-stale trap). */
+@media (max-width: 640px) {
+  .nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .navItem {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: var(--tap-min);
+  }
+}
+
+/* ── Placeholder surface (Today, until B1) ────────────────────────────────── */
+
+.placeholder {
+  padding: 48px;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 14px;
+}
+
+.placeholder p {
+  margin: 0 0 8px;
+}
+
+.placeholderTitle {
+  color: var(--text-heading);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.placeholderHint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Segmented control (Trades / Journal surfaces) ────────────────────────── */
+
+.segBar {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 16px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-accent);
+  border-radius: 999px;
+}
+
+.segBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+
+.segBtn:hover {
+  color: var(--text-bright);
+}
+
+.segBtnActive {
+  background: var(--bg-surface);
+  color: var(--ut-gold);
+}
+
+.surfaceFallback {
+  min-height: 240px;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
