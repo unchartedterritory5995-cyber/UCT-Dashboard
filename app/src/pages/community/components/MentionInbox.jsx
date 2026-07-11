@@ -14,7 +14,7 @@ function ago(epoch) {
   return `${Math.floor(s / 86400)}d`
 }
 
-export default function MentionInbox({ onOpenChannel }) {
+export default function MentionInbox({ onOpenChannel, onOpenMessage }) {
   const [open, setOpen] = useState(false)
   const { data, mutate } = useSWR('/api/community/chat/mentions', fetcher, { refreshInterval: 25_000 })
   const unseen = data?.unseen || 0
@@ -43,7 +43,11 @@ export default function MentionInbox({ onOpenChannel }) {
           ) : (
             mentions.map((m) => (
               <button key={m.id} className={styles.inboxItem}
-                onClick={() => { onOpenChannel?.(m.channel_slug); setOpen(false) }}>
+                onClick={() => {
+                  onOpenChannel?.(m.channel_slug)
+                  if (m.message_id) setTimeout(() => onOpenMessage?.(m.message_id), 120)
+                  setOpen(false)
+                }}>
                 <div className={styles.inboxTop}>
                   <span className={m.author?.is_mentor ? styles.mentorBadge : styles.msgAuthor}>
                     {m.author?.name || 'member'}

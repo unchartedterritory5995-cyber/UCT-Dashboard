@@ -11,10 +11,18 @@ import * as chat from '../../lib/chatStreamManager'
 import styles from './Community.module.css'
 
 const REACTIONS = [
-  { kind: 'fire', icon: 'flame' },
-  { kind: 'bullish', icon: 'equity' },
-  { kind: 'salute', icon: 'star' },
+  { kind: 'fire', icon: 'flame', label: 'Fire' },
+  { kind: 'bullish', icon: 'equity', label: 'Bullish' },
+  { kind: 'salute', icon: 'star', label: 'Respect' },
 ]
+
+function pinMessage(id, pinned) {
+  fetch(`/api/community/chat/messages/${id}/pin`, {
+    method: 'PATCH', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pinned }),
+  }).catch(() => {})
+}
 const GROUP_WINDOW = 5 * 60 // seconds
 
 function timeLabel(epoch) {
@@ -35,7 +43,7 @@ const SPACES = [
   { key: 'mentor-desk', label: 'Mentor Desk', mentorOnly: true },
 ]
 
-export default function ChatView({ channel }) {
+export default function ChatView({ channel, onSelectChannel }) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const meId = user?.id
@@ -54,26 +62,28 @@ export default function ChatView({ channel }) {
   const [atBottom, setAtBottom] = useState(true)
   const [newCount, setNewCount] = useState(0)
   const scrollRef = useRef(null)
-  const lastLenRef = useRef(0)
+  const lastMaxRef = useRef(0)
 
   const maxId = useMemo(
     () => messages.reduce((mx, m) => (m.pending ? mx : Math.max(mx, m.id || 0)), 0),
     [messages],
   )
 
-  // auto-scroll to bottom on new messages when the user is already there
+  // auto-scroll to bottom when a NEWER message arrives and the user is already there.
+  // Keys on the newest id (not length) so loading earlier history never yanks the view
+  // or bumps the "N new" pill.
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const grew = messages.length > lastLenRef.current
-    lastLenRef.current = messages.length
+    const newer = maxId > lastMaxRef.current
+    lastMaxRef.current = maxId
     if (atBottom) {
       el.scrollTop = el.scrollHeight
       setNewCount(0)
-    } else if (grew) {
+    } else if (newer) {
       setNewCount((n) => n + 1)
     }
-  }, [messages, atBottom])
+  }, [maxId, atBottom])
 
   const onScroll = () => {
     const el = scrollRef.current
@@ -96,7 +106,39 @@ export default function ChatView({ channel }) {
     }
   }, [atBottom, maxId, channel])
 
+  // re-mark-read when the tab regains focus (otherwise unread lingers until next msg)
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible' && atBottom && maxId) chat.markRead(channel, maxId)
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [atBottom, maxId, channel])
+
   const grouped = useMemo(() => groupMessages(messages), [messages])
+  const pinned = useMemo(() => messages.filter((m) => m.pinned && !m.deleted), [messages])
+  const newestPin = pinned.length ? pinned[pinned.length - 1] : null
+  const typingNames = (snap.typing || []).filter((t) => t.user_id !== meId).map((t) => t.name)
+
+  // clear stale typing labels in a quiet room (bump is event-driven only)
+  useEffect(() => {
+    if (!typingNames.length) return
+    const t = setTimeout(() => chat.pokeTyping(channel), 4600)
+    return () => clearTimeout(t)
+  }, [snap.typing, channel]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadEarlier = async () => {
+    const el = scrollRef.current
+    const prevH = el ? el.scrollHeight : 0
+    const n = await chat.loadEarlier(channel)
+    // preserve the reading position: keep the same content under the viewport.
+    if (el && n) requestAnimationFrame(() => { el.scrollTop += el.scrollHeight - prevH })
+  }
+
+  const scrollToMessage = (id) => {
+    const el = scrollRef.current?.querySelector(`[data-mid="${id}"]`)
+    if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add(styles.flash) ; setTimeout(() => el.classList.remove(styles.flash), 1600) }
+  }
 
   const send = async (body, tickers) => {
     await chat.sendMessage(channel, { body, tickers, replyTo: reply?.id || null })
@@ -111,9 +153,18 @@ export default function ChatView({ channel }) {
         <b>{snap.presence.count}</b>&nbsp;on the floor
         {meta.reconnecting && <span className={styles.reconnPill}>reconnecting…</span>}
         <div className={styles.chatHeadRight}>
-          <MentionInbox />
+          <MentionInbox onOpenChannel={onSelectChannel} onOpenMessage={scrollToMessage} />
         </div>
       </div>
+
+      {newestPin && (
+        <button className={styles.pinnedBanner} onClick={() => scrollToMessage(newestPin.id)}>
+          <UIcon name="pin" size={12} />
+          <span className={styles.pinnedAuthor}>{newestPin.author?.name || 'member'}:</span>
+          <span className={styles.pinnedSnippet}>{previewText(newestPin)}</span>
+          {pinned.length > 1 && <span className={styles.pinnedCount}>+{pinned.length - 1}</span>}
+        </button>
+      )}
 
       <div className={styles.chatScroll} ref={scrollRef} onScroll={onScroll}>
         {messages.length === 0 && (
@@ -121,6 +172,9 @@ export default function ChatView({ channel }) {
             <UIcon name="community" size={28} />
             <p>The floor is quiet. Start the conversation.</p>
           </div>
+        )}
+        {messages.filter((m) => !m.pending).length >= 50 && (
+          <button className={styles.loadEarlier} onClick={loadEarlier}>Load earlier</button>
         )}
         {grouped.map((item) =>
           item.type === 'day' ? (
@@ -156,6 +210,12 @@ export default function ChatView({ channel }) {
         </button>
       )}
 
+      <div className={styles.typingRow}>
+        {typingNames.length === 1 && `${typingNames[0]} is typing…`}
+        {typingNames.length === 2 && `${typingNames[0]} and ${typingNames[1]} are typing…`}
+        {typingNames.length > 2 && `${typingNames.length} people are typing…`}
+      </div>
+
       {reply && (
         <div className={styles.replyBar}>
           <span className={styles.replyingTo}>Replying to <b>{reply.name}</b>: {reply.snippet}</span>
@@ -179,12 +239,22 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate
   const canGraduate = (mine || isMentor) && !msg.pending && !msg.deleted
 
   return (
-    <div className={`${styles.msg} ${grouped ? styles.msgGrouped : ''} ${mentor ? styles.msgMentor : ''} ${msg.pending ? styles.msgPending : ''}`}>
+    <div data-mid={msg.id}
+      className={`${styles.msg} ${grouped ? styles.msgGrouped : ''} ${mentor ? styles.msgMentor : ''} ${msg.pending ? styles.msgPending : ''} ${msg.pinned ? styles.msgPinned : ''}`}>
       {!grouped && (
         <div className={styles.msgHead}>
+          {!!msg.pinned && <UIcon name="pin" size={11} />}
           <span className={mentor ? styles.mentorBadge : styles.msgAuthor}>{msg.author?.name || 'member'}</span>
           <span className={styles.msgTime}>{timeLabel(msg.created_at)}</span>
-          {msg.failed && <span className={styles.msgFailed}>failed — tap to retry</span>}
+        </div>
+      )}
+      {msg.failed && (
+        <div className={styles.msgFailedRow}>
+          <button className={styles.retryBtn} onClick={() => chat.retryMessage(channel, msg.client_msg_id)}>
+            failed — tap to retry
+          </button>
+          <button className={styles.discardBtn} title="Discard"
+            onClick={() => chat.discardPending(channel, msg.client_msg_id)}><UIcon name="x" size={12} /></button>
         </div>
       )}
       {msg.reply_preview && (
@@ -205,17 +275,27 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate
       )}
       {!msg.deleted && !msg.pending && (
         <div className={styles.msgActions}>
-          {REACTIONS.map((r) => (
-            <button key={r.kind} className={styles.reactBtn}
-              onClick={() => chat.toggleReaction(channel, msg.id, r.kind)}>
-              <UIcon name={r.icon} size={13} />
-              {msg.reactions?.[r.kind] ? <span>{msg.reactions[r.kind]}</span> : null}
-            </button>
-          ))}
+          {REACTIONS.map((r) => {
+            const active = (msg.my_reactions || []).includes(r.kind)
+            return (
+              <button key={r.kind} title={r.label}
+                className={`${styles.reactBtn} ${active ? styles.reactActive : ''}`}
+                onClick={() => chat.toggleReaction(channel, msg.id, r.kind)}>
+                <UIcon name={r.icon} size={13} />
+                {msg.reactions?.[r.kind] ? <span>{msg.reactions[r.kind]}</span> : null}
+              </button>
+            )
+          })}
           <button className={styles.reactBtn} title="Reply"
             onClick={() => onReply({ id: msg.id, name: msg.author?.name || 'member', snippet: previewText(msg) })}>
             <UIcon name="chat" size={13} />
           </button>
+          {isMentor && (
+            <button className={styles.reactBtn} title={msg.pinned ? 'Unpin' : 'Pin'}
+              onClick={() => pinMessage(msg.id, !msg.pinned)}>
+              <UIcon name="pin" size={13} />
+            </button>
+          )}
           {canGraduate && !(msg.graduated_thread_id > 0) && (
             <button className={styles.reactBtn} title="Graduate to the Boards"
               onClick={() => onGraduate(msg)}>

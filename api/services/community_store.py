@@ -646,7 +646,7 @@ def get_message(message_id):
     return _message_row_to_dict(row) if row else None
 
 
-def _attach_reactions_and_replies(conn, msgs):
+def _attach_reactions_and_replies(conn, msgs, viewer_id=None):
     ids = [m["id"] for m in msgs]
     if not ids:
         return
@@ -657,6 +657,12 @@ def _attach_reactions_and_replies(conn, msgs):
     by_msg = {}
     for r in rx:
         by_msg.setdefault(r["message_id"], {})[r["kind"]] = r["n"]
+    mine = {}
+    if viewer_id is not None:
+        for r in conn.execute(
+                f"""SELECT message_id, kind FROM message_reactions
+                     WHERE message_id IN ({q}) AND user_id=?""", ids + [viewer_id]).fetchall():
+            mine.setdefault(r["message_id"], []).append(r["kind"])
     reply_ids = [m["reply_to_message_id"] for m in msgs if m.get("reply_to_message_id")]
     replies = {}
     if reply_ids:
@@ -669,11 +675,12 @@ def _attach_reactions_and_replies(conn, msgs):
                 "snippet": "" if r["deleted"] else message_plaintext(r["body"], 80)}
     for m in msgs:
         m["reactions"] = by_msg.get(m["id"], {})
+        m["my_reactions"] = mine.get(m["id"], [])
         rt = m.get("reply_to_message_id")
         m["reply_preview"] = replies.get(rt) if rt else None
 
 
-def list_messages(channel_slug, *, before_id=None, after_id=None, limit=50):
+def list_messages(channel_slug, *, before_id=None, after_id=None, limit=50, viewer_id=None):
     """Return messages ascending by id (deleted rows kept as blanked tombstones so
     reconnecting clients converge). `before_id` paginates history; `after_id` gap-fills."""
     limit = max(1, min(int(limit), 200))
@@ -690,7 +697,7 @@ def list_messages(channel_slug, *, before_id=None, after_id=None, limit=50):
         msgs = [_message_row_to_dict(r) for r in rows]
         if order == "DESC":
             msgs.reverse()
-        _attach_reactions_and_replies(conn, msgs)
+        _attach_reactions_and_replies(conn, msgs, viewer_id=viewer_id)
     return msgs
 
 

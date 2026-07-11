@@ -197,7 +197,47 @@
 .activityDot { width: 7px; height: 7px; border-radius: 50%; background: var(--ut-gold); }
 
 /* Chat surface: only the message list scrolls; composer is pinned. */
-.chat { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.chat { display: flex; flex-direction: column; height: 100%; min-height: 0; position: relative; }
+
+/* Pinned banner (mentor pin) */
+.pinnedBanner {
+  display: flex; align-items: center; gap: 7px; width: 100%; text-align: left; cursor: pointer;
+  background: rgba(201,168,76,0.09); border: none; border-bottom: 1px solid var(--ut-gold-glow);
+  color: var(--text); font-size: 12px; padding: 6px 12px;
+}
+.pinnedBanner:hover { background: rgba(201,168,76,0.14); }
+.pinnedAuthor { color: var(--ut-gold); font-weight: 600; flex-shrink: 0; }
+.pinnedSnippet { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pinnedCount { margin-left: auto; color: var(--ut-gold); opacity: 0.8; flex-shrink: 0; }
+.msgPinned { background: rgba(201,168,76,0.05); }
+
+/* Load-earlier history button */
+.loadEarlier {
+  align-self: center; margin: 6px auto 10px; background: none; border: 1px solid var(--border);
+  border-radius: 12px; color: var(--text); font-size: 11.5px; padding: 3px 14px; cursor: pointer;
+}
+.loadEarlier:hover { border-color: var(--ut-gold-glow); color: var(--ut-gold); }
+
+/* Typing indicator (fixed height so it never jumps the layout) */
+.typingRow { height: 18px; padding: 0 12px; color: var(--text); opacity: 0.7; font-size: 11.5px; font-style: italic; }
+
+/* Message scroll-to flash */
+.flash { animation: floorFlash 1.5s ease-out; }
+@keyframes floorFlash {
+  0% { background: rgba(201,168,76,0.28); }
+  100% { background: transparent; }
+}
+
+/* Failed send retry/discard */
+.msgFailedRow { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.retryBtn { background: none; border: none; color: var(--ut-red); font-size: 11px; cursor: pointer; padding: 0; text-decoration: underline; }
+.discardBtn { background: none; border: none; color: var(--text); opacity: 0.6; cursor: pointer; padding: 0; }
+
+/* Reacted (active) chip */
+.reactActive { background: var(--ut-gold-dim); border-color: var(--ut-gold-glow); color: var(--ut-gold); }
+
+/* Compact chart-card open link when there's no snapshot */
+.cardOpenInline { margin-left: auto; background: none; border: none; color: var(--ut-gold); font-size: 11.5px; cursor: pointer; }
 .chatHead {
   display: flex; align-items: center; gap: 4px; padding: 2px 2px 10px;
   color: var(--text); font-size: 12.5px; border-bottom: 1px solid var(--border);
@@ -351,4 +391,8 @@
   .composerChat { padding-bottom: env(safe-area-inset-bottom); }
   .reactBtn { min-height: 36px; }
   .card { max-width: 100%; }
+  /* No hover on touch — render actions as a static inline row so react/reply/
+     graduate/report/delete are reachable on phones. */
+  .msgActions { position: static; display: flex; flex-wrap: wrap; margin-top: 5px; padding: 0; background: none; border: none; }
+  .msg { padding-right: 8px; }
 }

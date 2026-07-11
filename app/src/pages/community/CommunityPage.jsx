@@ -155,7 +155,11 @@ export default function CommunityPage() {
         {threadId ? (
           <ThreadView threadId={threadId} />
         ) : sel?.type === 'pulse' ? (
-          <ChatView channel={sel.key} />
+          <ChatView channel={sel.key}
+            onSelectChannel={(slug) => {
+              if (String(slug).startsWith('board:')) chooseBoard(slug.slice(6))
+              else choosePulse(slug)
+            }} />
         ) : (
           <>
             {canPost && (

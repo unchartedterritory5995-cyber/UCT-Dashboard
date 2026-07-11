@@ -26,16 +26,15 @@ function ChartCard({ card }) {
         <UIcon name="chart" size={14} />
         <TickerBadge ticker={card.ticker} />
         <span className={styles.cardMuted}>{card.tf}</span>
-      </div>
-      {card.snapshotUrl ? (
-        <div className={styles.cardShot} style={dims}>
-          <img src={card.snapshotUrl} alt={`${card.ticker} chart`} loading="lazy" />
-        </div>
-      ) : (
-        <div className={styles.cardShot} style={dims}>
-          <TickerPopup sym={card.ticker} as="button" className={styles.cardOpenChart}>
+        {!card.snapshotUrl && (
+          <TickerPopup sym={card.ticker} as="button" className={styles.cardOpenInline}>
             Open live chart →
           </TickerPopup>
+        )}
+      </div>
+      {card.snapshotUrl && (
+        <div className={styles.cardShot} style={dims}>
+          <img src={card.snapshotUrl} alt={`${card.ticker} chart`} loading="lazy" />
         </div>
       )}
     </div>

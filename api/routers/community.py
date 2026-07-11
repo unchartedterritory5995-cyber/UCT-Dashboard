@@ -556,7 +556,8 @@ def chat_messages(slug: str, before_id: int | None = Query(None),
                   user: dict = Depends(require_chat)):
     if not store.is_valid_channel(slug):
         raise HTTPException(status_code=404, detail="Unknown channel")
-    msgs = store.list_messages(slug, before_id=before_id, after_id=after_id, limit=limit)
+    msgs = store.list_messages(slug, before_id=before_id, after_id=after_id,
+                               limit=limit, viewer_id=user["id"])
     for m in msgs:
         _serialize_message(m)
     return {"messages": msgs}
@@ -570,6 +571,7 @@ def chat_send(slug: str, payload: ChatMessageIn, user: dict = Depends(require_ch
 
     # Server-built card (client never supplies card body — redaction P0).
     card_json = None
+    card_ticker = None
     if payload.card:
         from api.services.journal_two.trades import get_trade_detail
         try:
@@ -579,6 +581,7 @@ def chat_send(slug: str, payload: ChatMessageIn, user: dict = Depends(require_ch
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"card: {e}")
         card_json = json.dumps(card)
+        card_ticker = card.get("ticker") or card.get("symbol")
 
     body = _validate_body(payload.body, require_content=(card_json is None))
 
@@ -586,10 +589,15 @@ def chat_send(slug: str, payload: ChatMessageIn, user: dict = Depends(require_ch
     parsed = store.parse_mentions_from_doc(body)
     valid_mentions = list(_author_map(parsed).keys()) if parsed else []
 
+    # A shared card's ticker should count toward The Tape's hot tickers too.
+    tags = [t.upper()[:8] for t in (payload.ticker_tags or [])]
+    if card_ticker and card_ticker.upper() not in tags:
+        tags.append(card_ticker.upper())
+
     try:
         mid = store.create_message(
             slug, user["id"], body,
-            ticker_tags=[t.upper()[:8] for t in (payload.ticker_tags or [])][:10],
+            ticker_tags=tags[:10],
             card_json=card_json, reply_to_message_id=payload.reply_to_message_id,
             mention_user_ids=valid_mentions,
             bypass_rate_limit=_is_mentor(user))

@@ -243,9 +243,31 @@ export async function gapFill(slug) {
   const last = s.messages.filter((m) => !m.pending).reduce((mx, m) => Math.max(mx, m.id || 0), 0)
   try {
     if (!last) { await loadInitial(slug); return }
+    // (1) messages CREATED during the gap.
     const { messages } = await jget(`/api/community/chat/channels/${slug}/messages?after_id=${last}&limit=200`)
     if (messages && messages.length) upsertMany(slug, messages)
+    // (2) refetch the visible tail so edits / deletes (moderation) / pins / reaction
+    // changes on ALREADY-loaded messages converge — list_messages returns tombstones
+    // and the id-keyed merge heals them. Without this, a hidden message stays visible.
+    await loadInitial(slug)
   } catch (_) {}
+}
+
+// Re-evaluate a channel's snapshot (used to clear stale typing labels in a quiet room,
+// since bump is otherwise only event-driven).
+export function pokeTyping(slug) { if (store.has(slug)) bump(slug) }
+
+// Upward history pagination. Returns how many older messages were loaded.
+export async function loadEarlier(slug) {
+  const s = slot(slug)
+  const realIds = s.messages.filter((m) => !m.pending).map((m) => m.id)
+  if (!realIds.length) return 0
+  const minId = Math.min(...realIds)
+  try {
+    const { messages } = await jget(`/api/community/chat/channels/${slug}/messages?before_id=${minId}&limit=100`)
+    if (messages && messages.length) { upsertMany(slug, messages); return messages.length }
+  } catch (_) {}
+  return 0
 }
 
 export function subscribeChannel(slug, cb) {
@@ -287,12 +309,65 @@ export async function sendMessage(slug, { body, tickers, replyTo, card } = {}) {
   }
 }
 
+function setMine(slug, messageId, kind, on) {
+  const s = slot(slug)
+  const idx = s.messages.findIndex((m) => m.id === messageId)
+  if (idx < 0) return
+  const m = s.messages[idx]
+  const mine = new Set(m.my_reactions || [])
+  if (on) mine.add(kind); else mine.delete(kind)
+  const next = s.messages.slice()
+  next[idx] = { ...m, my_reactions: [...mine] }
+  s.messages = next
+  bump(slug)
+}
+
 export function toggleReaction(slug, messageId, kind) {
-  // optimistic
-  applyReaction(slug, { message_id: messageId, kind, on: true })
+  const s = slot(slug)
+  const m = s.messages.find((x) => x.id === messageId)
+  const had = !!(m && (m.my_reactions || []).includes(kind))
+  const on = !had
+  // optimistic: flip count + my_reactions
+  applyReaction(slug, { message_id: messageId, kind, on })
+  setMine(slug, messageId, kind, on)
   return jsend(`/api/community/chat/messages/${messageId}/reactions`, { kind })
-    .then((r) => { if (!r.on) applyReaction(slug, { message_id: messageId, kind, on: false }) })
-    .catch(() => applyReaction(slug, { message_id: messageId, kind, on: false }))
+    .then((r) => {
+      if (typeof r.on === 'boolean' && r.on !== on) {
+        applyReaction(slug, { message_id: messageId, kind, on: r.on })
+        setMine(slug, messageId, kind, r.on)
+      }
+    })
+    .catch(() => {
+      applyReaction(slug, { message_id: messageId, kind, on: had })
+      setMine(slug, messageId, kind, had)
+    })
+}
+
+// Retry / discard a failed optimistic send.
+export function retryMessage(slug, clientMsgId) {
+  const s = slot(slug)
+  const m = s.messages.find((x) => x.pending && x.client_msg_id === clientMsgId)
+  if (!m) return
+  // clear the failed flag + re-POST with the SAME client_msg_id so it reconciles.
+  const arr = s.messages.slice()
+  const idx = arr.findIndex((x) => x === m)
+  arr[idx] = { ...m, failed: false }
+  s.messages = arr
+  bump(slug)
+  jsend(`/api/community/chat/channels/${slug}/messages`, {
+    body: m.body || '', ticker_tags: m.ticker_tags || [],
+    reply_to_message_id: m.reply_to_message_id || null, client_msg_id: clientMsgId,
+  }).then((msg) => upsert(slug, { ...msg, client_msg_id: clientMsgId }))
+    .catch(() => {
+      const a2 = s.messages.slice()
+      const i2 = a2.findIndex((x) => x.pending && x.client_msg_id === clientMsgId)
+      if (i2 >= 0) { a2[i2] = { ...a2[i2], failed: true }; s.messages = a2; bump(slug) }
+    })
+}
+export function discardPending(slug, clientMsgId) {
+  const s = slot(slug)
+  s.messages = s.messages.filter((x) => !(x.pending && x.client_msg_id === clientMsgId))
+  bump(slug)
 }
 export function editMessage(messageId, body, tickers) {
   return jsend(`/api/community/chat/messages/${messageId}`, { body, ticker_tags: tickers }, 'PATCH')
