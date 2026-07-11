@@ -84,7 +84,7 @@ _EXTRA_COLUMNS = (
     ("zoom_cleaned", "INTEGER"),   # 1 once the Zoom cloud recording has been trashed
     ("headline", "TEXT"),          # one-line AI recap headline
     ("summary", "TEXT"),           # JSON: [str] key-takeaway bullets
-    ("key_levels", "TEXT"),        # JSON: [{level, note, t}] flagged price levels
+    ("key_levels", "TEXT"),        # DEPRECATED (removed 2026-07-11): dormant, no longer written/read
     ("setups", "TEXT"),            # JSON: [{setup, note, t}] firm-taxonomy setups taught
     ("poster", "INTEGER"),         # 1 once the branded recap poster PNG has been rendered
 )
@@ -399,13 +399,13 @@ def get_insights(video_id: int) -> dict:
     render-or-skip without null juggling."""
     with contextlib.closing(_connect()) as c:
         row = c.execute(
-            "SELECT chapters, ticker_moments, transcript, headline, summary, key_levels, setups, poster "
+            "SELECT chapters, ticker_moments, transcript, headline, summary, setups, poster "
             "FROM edu_videos WHERE id = ?",
             (int(video_id),),
         ).fetchone()
     if not row:
         return {"chapters": [], "ticker_moments": [], "has_transcript": False,
-                "headline": "", "summary": [], "key_levels": [], "setups": [], "has_poster": False}
+                "headline": "", "summary": [], "setups": [], "has_poster": False}
 
     def _parse(s):
         try:
@@ -419,7 +419,6 @@ def get_insights(video_id: int) -> dict:
         "has_transcript": bool(row["transcript"]),
         "headline": row["headline"] or "",
         "summary": _parse(row["summary"]),
-        "key_levels": _parse(row["key_levels"]),
         "setups": _parse(row["setups"]),
         "has_poster": bool(row["poster"]),
     }
@@ -448,22 +447,6 @@ def videos_without_chapters(limit: int = 1000) -> list[dict]:
         rows = c.execute(
             "SELECT id, youtube_id, title FROM edu_videos "
             "WHERE chapters IS NULL OR chapters = '' OR chapters = '[]' "
-            "ORDER BY id DESC LIMIT ?",
-            (int(limit),),
-        ).fetchall()
-    return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"]} for r in rows]
-
-
-def videos_needing_key_levels(limit: int = 500) -> list[dict]:
-    """Trading videos (have tickers) with a transcript but no key_levels yet —
-    targets for the dedicated key-levels pass. Runs off the STORED transcript, so
-    no YouTube caption re-fetch (no proxy) is needed."""
-    with contextlib.closing(_connect()) as c:
-        rows = c.execute(
-            "SELECT id, youtube_id, title FROM edu_videos "
-            "WHERE transcript IS NOT NULL AND transcript != '' "
-            "AND ticker_moments IS NOT NULL AND ticker_moments != '' AND ticker_moments != '[]' "
-            "AND (key_levels IS NULL OR key_levels = '' OR key_levels = '[]') "
             "ORDER BY id DESC LIMIT ?",
             (int(limit),),
         ).fetchall()
@@ -540,11 +523,10 @@ def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
                        ticker_moments: Optional[list] = None,
                        headline: Optional[str] = None,
                        summary: Optional[list] = None,
-                       key_levels: Optional[list] = None,
                        setups: Optional[list] = None,
                        poster: Optional[bool] = None) -> None:
     """Store generated insights (chapters / ticker-moments / transcript / recap
-    headline + summary / key levels / poster flag) + stamp insights_at."""
+    headline + summary / setups / poster flag) + stamp insights_at."""
     sets = {"insights_at": int(time.time()), "updated_at": int(time.time())}
     if transcript is not None:
         sets["transcript"] = transcript
@@ -556,8 +538,6 @@ def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
         sets["headline"] = headline
     if summary is not None:
         sets["summary"] = _json.dumps(summary)
-    if key_levels is not None:
-        sets["key_levels"] = _json.dumps(key_levels)
     if setups is not None:
         sets["setups"] = _json.dumps(setups)
     if poster is not None:

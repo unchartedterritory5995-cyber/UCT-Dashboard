@@ -263,8 +263,7 @@ _SYS = (
     "Produce navigation aids + a recap as STRICT JSON only (no prose, no code fences):\n"
     '{ "headline": "<=90 chars", "summary": ["<=140 chars", ...], '
     '"chapters": [ {"t": <int seconds>, "title": "<=60 chars} ], '
-    '"tickers": [ {"ticker": "AAPL", "t": <int seconds>, "note": "<=80 chars} ], '
-    '"key_levels": [ {"level": "7110", "note": "<=60 chars", "t": <int seconds>} ] }\n'
+    '"tickers": [ {"ticker": "AAPL", "t": <int seconds>, "note": "<=80 chars} ] }\n'
     "Rules:\n"
     "- headline: one punchy sentence capturing the session's main thrust (the day's "
     "thesis / what mattered). No date, no 'In this session'.\n"
@@ -277,10 +276,6 @@ _SYS = (
     "STARTS; map spoken company names to the correct US ticker (Nvidia->NVDA). "
     "note = a few words on what was said. Skip vague index talk. De-dup obvious "
     "repeats but keep distinct revisits.\n"
-    "- key_levels: 0-8 specific PRICE levels the speakers flagged as important "
-    "(support, resistance, targets, a 'line in the sand') — the number as spoken "
-    "(e.g. 7110, 26.3, 90). note = why it matters; t = when first discussed. Only "
-    "real levels a trader would mark on a chart; skip vague/round throwaway numbers.\n"
     "- Use integer seconds from the [h:mm:ss] markers. Output ONLY the JSON object."
 )
 
@@ -343,31 +338,6 @@ def _clean_tickers(items):
     return out
 
 
-def _clean_levels(items):
-    """Key price levels the speakers flagged. Must contain a digit; de-duped;
-    optional timestamp (when discussed)."""
-    out, seen = [], set()
-    for it in items or []:
-        try:
-            lvl = str(it.get("level") or "").strip()[:16]
-        except (AttributeError, TypeError, ValueError):
-            continue
-        if not lvl or not re.search(r"\d", lvl):
-            continue
-        key = lvl.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        try:
-            t = int(it["t"])
-            if t < 0:
-                t = None
-        except (KeyError, TypeError, ValueError):
-            t = None
-        out.append({"level": lvl, "note": str(it.get("note") or "").strip()[:80], "t": t})
-    return out[:8]
-
-
 def _clean_summary(items, max_len: int = 200):
     out = []
     for s in items or []:
@@ -385,7 +355,7 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
     from api.services.engine import _get_anthropic_client
     block = _timestamped_block(cues)
     if not block:
-        return {"chapters": [], "ticker_moments": [], "headline": "", "summary": [], "key_levels": []}
+        return {"chapters": [], "ticker_moments": [], "headline": "", "summary": []}
     user = f"VIDEO TITLE: {title}\n\nTRANSCRIPT:\n{block}"
     # The shared client is hard-capped at 60s to protect the request path
     # (2026-07-01 thread-exhaustion hardening), but a marathon-session
@@ -407,40 +377,7 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
         "summary": _clean_summary(data.get("summary")),
         "chapters": _clean_chapters(data.get("chapters")),
         "ticker_moments": _clean_tickers(data.get("tickers")),
-        "key_levels": _clean_levels(data.get("key_levels")),
     }
-
-
-_LEVELS_SYS = (
-    "You are analyzing a timestamped transcript of a stock-trading session. Extract "
-    "the specific PRICE levels the speakers flagged as important — support, resistance, "
-    "targets, a 'line in the sand', key moving-average values by number. Output STRICT "
-    "JSON only (no prose, no code fences):\n"
-    '{ "key_levels": [ {"level": "7110", "note": "<=60 chars why it matters", '
-    '"t": <int seconds when first discussed>} ] }\n'
-    "Rules: level = the number as spoken (7110, 26.3, 90, 540); 0-10 items; ONLY real "
-    "levels a trader would mark on a chart; skip vague/round throwaway numbers and pure "
-    "index chatter. Use integer seconds from the [h:mm:ss] markers. Output ONLY the JSON."
-)
-
-
-def generate_key_levels(title: str, cues: list[dict]) -> list[dict]:
-    """Focused LLM call for key price levels ONLY. Kept separate from the big
-    generate_insights call so its small output can't be clobbered when json_repair
-    salvages a malformed mega-response (key_levels is the trailing field there)."""
-    from api.services.engine import _get_anthropic_client
-    block = _timestamped_block(cues)
-    if not block:
-        return []
-    client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
-    msg = client.messages.create(
-        model=os.environ.get("DESK_LEVELS_MODEL", _MODEL),
-        max_tokens=1200,
-        system=_LEVELS_SYS,
-        messages=[{"role": "user", "content": f"VIDEO TITLE: {title}\n\nTRANSCRIPT:\n{block}"}],
-    )
-    raw = "".join(getattr(b, "text", "") for b in msg.content)
-    return _clean_levels(_loads_json(raw).get("key_levels"))
 
 
 # The firm's fixed setup playbook — MUST match the names in
@@ -916,7 +853,6 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
                 ticker_moments=ins["ticker_moments"],
                 headline=ins.get("headline", ""),
                 summary=ins.get("summary", []),
-                key_levels=ins.get("key_levels", []),
                 setups=setups,
                 poster=poster_ok,
             )

@@ -53,7 +53,6 @@ class InsightsStoreIn(BaseModel):
     ticker_moments: Optional[list] = None
     headline: Optional[str] = None
     summary: Optional[list] = None
-    key_levels: Optional[list] = None
     setups: Optional[list] = None
 
 
@@ -61,12 +60,6 @@ class InsightsStoreIn(BaseModel):
 def insights_backfill_pending(limit: int = 1000, _: None = Depends(require_push_secret)):
     """Videos still lacking AI insights (chapters) — the backfill work list."""
     return {"videos": svc.videos_without_chapters(limit)}
-
-
-@router.get("/insights-backfill/needs-levels")
-def insights_backfill_needs_levels(limit: int = 1000, _: None = Depends(require_push_secret)):
-    """Trading videos with a transcript but no key_levels — the levels-pass work list."""
-    return {"videos": svc.videos_needing_key_levels(limit)}
 
 
 @router.get("/videos/{video_id}/transcript-cues")
@@ -125,7 +118,6 @@ def insights_store(video_id: int, body: InsightsStoreIn, _: None = Depends(requi
         ticker_moments=body.ticker_moments,
         headline=body.headline,
         summary=body.summary,
-        key_levels=body.key_levels,
         setups=body.setups,
     )
     return {"ok": True,
