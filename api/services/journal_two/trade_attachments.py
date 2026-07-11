@@ -159,6 +159,58 @@ def delete_trade_attachment(user_id: str, attachment_id: str) -> bool:
     return True
 
 
+def relocate_ref_dir(user_id: str, old_ref: str, new_ref: str) -> int:
+    """Move a trade's screenshot FILES from the old ref's on-disk directory to
+    the new ref's directory. Best-effort companion to
+    `trade_refs.reattach_orphan`.
+
+    The attachment DB rows carry `trade_ref`, but the files live under a
+    directory NAMED from the ref (`_ref_dir`), and BOTH `list_trade_attachments`
+    and `serve_trade_attachment_path` reconstruct that directory purely from the
+    CURRENT ref (there is no stored path column). When reattach re-points the DB
+    rows from `old_ref` → `new_ref`, the files stay physically under the old
+    ref's dir → the reattached screenshot 404s. This moves them.
+
+    Never raises (mirrors `delete_trade_attachment`'s error handling): a failed
+    move must not roll back or 500 the DB reattach — the DB is the source of
+    truth and the files are recoverable. Call it AFTER the DB commit. Returns the
+    count of files moved (0 if the old dir doesn't exist / nothing to move).
+
+    Path-traversal safety is inherited from `_ref_dir` (':' → '_', rejects any
+    separator/traversal chars), so a ref can never escape the user dir.
+    """
+    moved = 0
+    try:
+        old_dir = _ATTACHMENT_ROOT / user_id / "trades" / _ref_dir(old_ref)
+        if not old_dir.exists():
+            return 0
+        new_dir = _ATTACHMENT_ROOT / user_id / "trades" / _ref_dir(new_ref)
+        if new_dir.resolve() == old_dir.resolve():
+            return 0  # same physical dir (ref unchanged) — nothing to move
+        new_dir.mkdir(parents=True, exist_ok=True)
+        for src in old_dir.iterdir():
+            if not src.is_file():
+                continue
+            dst = new_dir / src.name
+            if dst.exists():
+                # Collision — never overwrite (no data loss). Filenames are
+                # uuid-based so this is unlikely, but rename defensively.
+                dst = new_dir / f"{uuid.uuid4().hex[:8]}_{src.name}"
+            try:
+                src.replace(dst)
+                moved += 1
+            except OSError:
+                pass  # skip a single stuck file, keep moving the rest
+        # Best-effort: drop the now-empty old dir.
+        try:
+            old_dir.rmdir()
+        except OSError:
+            pass
+    except (OSError, TradeAttachmentError):
+        pass
+    return moved
+
+
 def serve_trade_attachment_path(
     user_id: str, ref_dir: str, filename: str,
 ) -> Path | None:

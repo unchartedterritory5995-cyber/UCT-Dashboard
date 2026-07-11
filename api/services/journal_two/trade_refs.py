@@ -197,6 +197,18 @@ def reattach_orphan(
                 excursion_conflict = True  # leave the orphan parked, don't overwrite
 
         conn.commit()
+
+        if attachments_moved > 0:
+            # The DB rows now point at new_ref, but the screenshot FILES live
+            # under a directory named from the ref — move them so the reattached
+            # screenshots actually serve (they'd 404 otherwise). Best-effort,
+            # never raises, runs AFTER commit: a failed move must not undo the
+            # reattach (DB is source of truth, files are recoverable). Deferred
+            # import — trade_attachments pulls in the heavy calendar module, and
+            # trade_refs is imported widely, so we don't want it at module load.
+            from api.services.journal_two import trade_attachments
+            trade_attachments.relocate_ref_dir(user_id, trade_ref, new_ref)
+
         return {
             "moved": attachments_moved + excursions_moved,
             "attachmentsMoved": attachments_moved,

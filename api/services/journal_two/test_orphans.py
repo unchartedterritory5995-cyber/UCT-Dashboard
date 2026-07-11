@@ -7,7 +7,10 @@ auth.db. Annotations key on the STABLE trade_ref (`ext:<external_id>` broker /
 (j2_trade_attachments / j2_trade_excursions) that no longer resolves to a live
 trade. Orphans are PARKED (surfaced, never deleted); reattach re-points them.
 """
+import importlib
+import io
 import sqlite3
+from types import SimpleNamespace
 
 import pytest
 
@@ -225,3 +228,101 @@ def test_reattach_missing_args_raises_400():
     with pytest.raises(OrphanReattachError) as exc2:
         reattach_orphan("u1", "id:old", "", conn)
     assert exc2.value.status == 400
+
+
+# ── reattach relocates screenshot FILES on disk (Task B7 fix) ────────────────
+#
+# The above `:memory:` tests prove the DB rows re-point. But the screenshot
+# FILES live under a directory NAMED from the ref (`_ref_dir`), and both
+# `list_trade_attachments` + the serve path reconstruct that dir purely from the
+# CURRENT ref. Without moving the files, a reattached screenshot 404s. This test
+# uses the real-auth.db + on-disk-attachment-root harness (mirrors
+# test_trade_attachments.py) so the whole move is exercised end to end.
+
+
+class _FakeUpload:
+    def __init__(self, data: bytes, filename: str, content_type: str):
+        self._buf = io.BytesIO(data)
+        self.filename = filename
+        self.content_type = content_type
+
+    async def read(self) -> bytes:
+        return self._buf.read()
+
+
+_PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+
+
+@pytest.fixture()
+def filestore(tmp_path, monkeypatch):
+    """Point the attachment root + auth DB at tmp, reload the modules that read
+    them at import time, and init the schema (mirrors test_trade_attachments.py)."""
+    monkeypatch.setenv("J2_ATTACHMENT_ROOT", str(tmp_path / "att"))
+    monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    # calendar defines _ATTACHMENT_ROOT at import — reload so it reads our env.
+    from api.services.journal_two import calendar as cal
+    importlib.reload(cal)
+    # trade_attachments binds calendar._ATTACHMENT_ROOT at import — reload after.
+    from api.services.journal_two import trade_attachments as ta
+    importlib.reload(ta)
+    from api.services.journal_two import db as _db
+    importlib.reload(_db)
+    from api.services.journal_two import trade_refs as tr
+    importlib.reload(tr)
+    conn = auth_db.get_connection()
+    _db.ensure_schema(conn)
+    conn.commit()
+    conn.close()
+    return SimpleNamespace(ta=ta, tr=tr, cal=cal, auth_db=auth_db)
+
+
+async def test_reattach_relocates_screenshot_files(filestore):
+    ta = filestore.ta
+    tr = filestore.tr
+
+    # Seed the orphan-to-be trade + a live reattach target in the real DB.
+    conn = filestore.auth_db.get_connection()
+    try:
+        _add_trade(conn, "old1")   # will be hard-deleted → id:old1 orphans
+        _add_trade(conn, "new1")   # live reattach target
+    finally:
+        conn.close()
+
+    # Write a REAL screenshot file under the orphan's ref via the service.
+    out = await ta.save_trade_attachment(
+        "u1", "id:old1", _FakeUpload(_PNG, "chart.png", "image/png"),
+    )
+    root = filestore.cal._ATTACHMENT_ROOT
+    old_file = root / "u1" / "trades" / ta._ref_dir("id:old1") / f"{out['id']}.png"
+    assert old_file.exists()
+
+    # Underlying trade hard-deleted → id:old1 no longer resolves (orphaned).
+    conn = filestore.auth_db.get_connection()
+    try:
+        conn.execute("DELETE FROM j2_trades WHERE id='old1'")
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Reattach onto the live target (conn=None → uses the real DB).
+    result = tr.reattach_orphan("u1", "id:old1", "new1")
+    assert result["newRef"] == "id:new1"
+    assert result["attachmentsMoved"] == 1
+
+    # File physically MOVED to the new ref's dir, GONE from the old ref's dir.
+    new_file = root / "u1" / "trades" / ta._ref_dir("id:new1") / f"{out['id']}.png"
+    assert new_file.exists()
+    assert not old_file.exists()
+
+    # The reattached screenshot is VIEWABLE (the exact B7 regression guard):
+    # list returns it under the new ref, and its URL's serve path RESOLVES to
+    # the moved file.
+    listed = ta.list_trade_attachments("u1", "id:new1")
+    assert len(listed) == 1 and listed[0]["id"] == out["id"]
+    assert ta.list_trade_attachments("u1", "id:old1") == []
+    parts = listed[0]["url"].split("/")
+    served = ta.serve_trade_attachment_path("u1", parts[-2], parts[-1])
+    assert served is not None
+    assert served.resolve() == new_file.resolve()
