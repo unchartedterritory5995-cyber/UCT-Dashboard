@@ -1295,13 +1295,16 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
             <button
               onClick={(e) => { e.stopPropagation(); onPush && onPush(alert); }}
               disabled={pushState === "pushing"}
+              title={pushState === "error" ? "Push failed — click to retry" : "Push this alert to Discord"}
               style={{
-                background: "transparent", color: P.ac, border: `1px solid ${P.ac}`,
+                background: "transparent",
+                color: pushState === "error" ? P.be : P.ac,
+                border: `1px solid ${pushState === "error" ? P.be : P.ac}`,
                 borderRadius: 4, padding: "3px 8px", fontSize: 10, fontWeight: 700,
                 cursor: pushState === "pushing" ? "wait" : "pointer", fontFamily: "inherit",
                 whiteSpace: "nowrap", opacity: pushState === "pushing" ? 0.6 : 1,
               }}>
-              {pushState === "pushing" ? "…" : "→ push"}
+              {pushState === "pushing" ? "…" : pushState === "error" ? "✗ retry" : "→ push"}
             </button>
           )}
         </span>
@@ -2205,23 +2208,24 @@ function fmtClock(ts) {
   } catch { return "—"; }
 }
 
-function ContractColumnHeaders() {
+function ContractColumnHeaders({ isAdmin }) {
   const cols = ["SPAN", "TICKER", "SPOT", "STRIKE", "C/P", "EXP", "%ITM/OTM",
                 "V/OI", "PREMIUM", "SIDES", "GRADE", "TYPE", "SIGNAL"];
   return (
     <div style={{
-      display: "grid", gridTemplateColumns: CONTRACT_GRID, gap: 8, padding: "6px 12px",
+      display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : ""), gap: 8, padding: "6px 12px",
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
     }}>
       {cols.map((c, i) => (
         <span key={c} style={{ textAlign: i === cols.length - 1 ? "left" : "center", paddingLeft: i === cols.length - 1 ? 4 : 0 }}>{c}</span>
       ))}
+      {isAdmin && <span style={{ textAlign: "center" }}>PUSH</span>}
     </div>
   );
 }
 
-function ContractRow({ c, onClickTicker }) {
+function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState }) {
   const [open, setOpen] = useState(false);
   const DIR_BULL = "#6BAA85", DIR_BEAR = "#C26A6A";
   const isBull = c.direction === "Bull";
@@ -2229,6 +2233,17 @@ function ContractRow({ c, onClickTicker }) {
   const dirColor = isBull ? DIR_BULL : isBear ? DIR_BEAR : P.wh;
   const dirTint = isBull ? `${DIR_BULL}0E` : isBear ? `${DIR_BEAR}0E` : P.cd;
   const consPct = Math.round((c.consistency || 0) * 100);
+  // Accumulation shape → badge + sparkline. Accelerating builds get a bright
+  // badge; steady muted; fading/incidental demoted. day_hits drives the sparkline.
+  const _shape = c.accumulation_shape || "single";
+  const _daysN = c.days_active || 1;
+  const _dayHits = c.day_hits || [];
+  const _shapeMeta = ({
+    accelerating: { label: `🔥 ACCEL ${_daysN}D`, color: "#FF8C42" },
+    steady: { label: `🔁 STEADY ${_daysN}D`, color: P.ac },
+    fading: { label: "▽ fading", color: P.dm },
+  })[_shape] || null;
+  const _sparkMax = _dayHits.length ? Math.max(..._dayHits.map(h => h.hits), 1) : 1;
   const s = c.sides || {};
   const sideBits = [
     (s.AA ? `${s.AA}AA` : ""), (s.A ? `${s.A}A` : ""),
@@ -2242,7 +2257,7 @@ function ContractRow({ c, onClickTicker }) {
         onClick={() => setOpen(o => !o)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(o => !o); } }}
         style={{
-          display: "grid", gridTemplateColumns: CONTRACT_GRID, gap: 8,
+          display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : ""), gap: 8,
           padding: "9px 12px", alignItems: "center", fontSize: 13, cursor: "pointer",
           background: c.dormant ? `${P.bl}10` : dirTint,
           borderLeft: `4px solid ${c.dormant ? P.bl : dirColor}`,
@@ -2290,13 +2305,54 @@ function ContractRow({ c, onClickTicker }) {
           })}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", paddingLeft: 4 }}>
-          <span style={{ color: dirColor, fontSize: 12, whiteSpace: "nowrap", fontWeight: 500 }}>
-            Repeat accumulation
-          </span>
+          {_shapeMeta ? (
+            <span style={{ color: _shapeMeta.color, fontSize: 10, fontWeight: 800, whiteSpace: "nowrap", letterSpacing: 0.3 }}>
+              {_shapeMeta.label}
+            </span>
+          ) : (
+            <span style={{ color: dirColor, fontSize: 12, whiteSpace: "nowrap", fontWeight: 500 }}>
+              Repeat accumulation
+            </span>
+          )}
+          {_dayHits.length > 1 && (
+            <span style={{ display: "inline-flex", alignItems: "flex-end", gap: 2, height: 16 }}
+                  title={_dayHits.map(h => `${h.date}: ${h.hits}`).join("  ·  ")}>
+              {_dayHits.map((h, i) => (
+                <span key={i} style={{
+                  width: 4, borderRadius: 1,
+                  height: Math.max(3, Math.round((h.hits / _sparkMax) * 16)),
+                  background: i === _dayHits.length - 1 ? (_shapeMeta ? _shapeMeta.color : dirColor) : P.dm,
+                }} />
+              ))}
+            </span>
+          )}
           <span style={{ color: P.dm, fontSize: 11, whiteSpace: "nowrap" }}>
             {consPct}% {isBull ? "bull" : isBear ? "bear" : "mixed"}
           </span>
         </span>
+
+        {isAdmin && (
+          <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {pushState === "done" ? (
+              <span style={{ color: P.dm, fontSize: 10 }}>✓ posted</span>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); onPush && onPush(c); }}
+                disabled={pushState === "pushing"}
+                title={pushState === "error" ? "Push failed — click to retry" : "Push accumulation to Discord"}
+                style={{
+                  background: "transparent",
+                  color: pushState === "error" ? P.be : P.ac,
+                  border: `1px solid ${pushState === "error" ? P.be : P.ac}`,
+                  borderRadius: 4, padding: "3px 8px", fontSize: 10, fontWeight: 700,
+                  cursor: pushState === "pushing" ? "wait" : "pointer", fontFamily: "inherit",
+                  whiteSpace: "nowrap", opacity: pushState === "pushing" ? 0.6 : 1,
+                }}>
+                {pushState === "pushing" ? "…" : pushState === "error" ? "✗ retry" : "→ push"}
+              </button>
+            )}
+          </span>
+        )}
       </div>
 
       {open && (c.prints || []).map((p, i) => {
@@ -2356,6 +2412,13 @@ export default function LiveFlowMassive() {
   // By Print (live tape) vs By Contract (accumulation rollup). Persisted.
   const [viewMode, setViewMode] = useState(() => localStorage.getItem(LS_KEY_VIEWMODE) || "print");
   const [byContract, setByContract] = useState(null);
+  // Accumulation lookback window (multi-day). Default 3 so multi-day builds show
+  // by default; tunable 1/3/5 from the By-Contract view. Persisted.
+  const [lookbackDays, setLookbackDays] = useState(() => {
+    const v = parseInt(localStorage.getItem("uct_massive_lookback_days") || "3", 10);
+    return [1, 3, 5].includes(v) ? v : 3;
+  });
+  const setLookback = (n) => { setLookbackDays(n); try { localStorage.setItem("uct_massive_lookback_days", String(n)); } catch {} };
   // Per-column table sort. Defaults to time/desc, which is identical to the
   // page's prior always-time-descending behavior. `sortBy` above still selects
   // WHICH alerts the backend returns (recent/conviction/premium top-N); this
@@ -2416,6 +2479,29 @@ export default function LiveFlowMassive() {
         if (!d || !d.ok) console.error("[massive push] failed:", d);
       })
       .catch(e => { setPushStates(s => ({ ...s, [alert.id]: "error" })); console.error("[massive push]", e); });
+  };
+  // By-Contract accumulation push — sends mode=accumulation (the repeat-hit
+  // embed). Keyed by contract identity since contracts have no single row id.
+  const [contractPushStates, setContractPushStates] = useState({});
+  const handlePushContract = (c) => {
+    if (!c || !c.ticker) return;
+    const key = `${c.ticker}|${c.cp}|${c.strike}|${c.exp}`;
+    setContractPushStates(s => ({ ...s, [key]: "pushing" }));
+    const td = targetDate || (() => {
+      const n = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      return `${n.getMonth() + 1}/${n.getDate()}/${n.getFullYear()}`;
+    })();
+    const params = new URLSearchParams({
+      ticker: c.ticker, cp: c.cp, strike: String(c.strike), exp: c.exp,
+      target_date: td, mode: "accumulation",
+    });
+    fetch(`/api/live/massive/force-push-discord?${params.toString()}`, { method: "POST" })
+      .then(r => r.json())
+      .then(d => {
+        setContractPushStates(s => ({ ...s, [key]: (d && d.ok) ? "done" : "error" }));
+        if (!d || !d.ok) console.error("[massive push contract] failed:", d);
+      })
+      .catch(e => { setContractPushStates(s => ({ ...s, [key]: "error" })); console.error("[massive push contract]", e); });
   };
   // Thresholds loaded from /api/live/massive/thresholds. Local edits in the
   // tuning panel mutate this state for preview; "Save" POSTs back to backend.
@@ -2826,7 +2912,7 @@ export default function LiveFlowMassive() {
     let cancelled = false, timer;
     async function pull() {
       try {
-        const params = new URLSearchParams({ stock_etf: stockEtfFilter, min_hits: "3" });
+        const params = new URLSearchParams({ stock_etf: stockEtfFilter, min_hits: "3", lookback_days: String(lookbackDays) });
         if (targetDate) params.set("target_date", targetDate);
         const r = await fetch(`/api/live/massive/by-contract?${params.toString()}`);
         if (r.ok) { const d = await r.json(); if (!cancelled) setByContract(d); }
@@ -2835,7 +2921,7 @@ export default function LiveFlowMassive() {
     }
     pull();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [viewMode, targetDate, stockEtfFilter]);
+  }, [viewMode, targetDate, stockEtfFilter, lookbackDays]);
 
   // Apply client-side filters: tier chips, ticker, contract, hideAlgo, search.
   // Tier filtering now happens here (was previously per-section); the
@@ -3217,9 +3303,27 @@ export default function LiveFlowMassive() {
                      search={search} onSearchChange={setSearch}
                      viewMode={viewMode} onViewModeChange={setViewMode} />
 
+        {viewMode === "contract" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", fontSize: 11, color: P.mt }}>
+            <span style={{ fontWeight: 600 }}>Accumulation lookback:</span>
+            {[1, 3, 5].map(n => (
+              <button key={n} onClick={() => setLookback(n)} style={{
+                padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+                border: `1px solid ${lookbackDays === n ? P.ac : P.bd}`,
+                background: lookbackDays === n ? P.ac + "22" : "transparent",
+                color: lookbackDays === n ? P.ac : P.mt,
+              }}>{n}d</button>
+            ))}
+            <span style={{ color: P.dm, fontStyle: "italic", marginLeft: 4 }}>
+              🔥 accelerating multi-day builds surface first
+            </span>
+          </div>
+        )}
+
         {viewMode === "print"
           ? <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} isAdmin={isTuneMode} />
-          : <ContractColumnHeaders />}
+          : <ContractColumnHeaders isAdmin={isTuneMode} />}
       </div>
 
       {/* TuningPanel — admin-only, shown when ?tune=1 in URL. Sits below the
@@ -3314,6 +3418,9 @@ export default function LiveFlowMassive() {
             key={`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`}
             c={c}
             onClickTicker={handleClickTicker}
+            isAdmin={isTuneMode}
+            onPush={handlePushContract}
+            pushState={contractPushStates[`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`]}
           />
         ))}
         {visibleContracts.length === 0 && !error && (
