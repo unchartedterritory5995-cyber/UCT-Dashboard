@@ -17,6 +17,7 @@ import { useVideoNotes } from '../../hooks/useVideoNotes'
 import { useVideoRelated } from '../../hooks/useVideoRelated'
 import { useVideoThread } from '../../hooks/useVideoThread'
 import TickerPopup from '../TickerPopup'
+import RsBadge from '../RsBadge'
 import TranscriptPanel from './TranscriptPanel'
 import CompassAssistButton from '../voice/CompassAssistButton'
 import styles from './VideoDockSlot.module.css'
@@ -413,10 +414,11 @@ export default function VideoDockSlot() {
                         className={`${styles.tickerChip} ${i === activeTicker ? styles.tickerChipActive : ''}`}
                         title={tm.note || tm.ticker}
                       >
-                        {/* Click the symbol → open the chart; click the time → seek the video. */}
+                        {/* Symbol → chart · live UCT RS-rank badge · time → seek. */}
                         <TickerPopup sym={tm.ticker} as="button" className={styles.tickerSym}>
                           {tm.ticker}
                         </TickerPopup>
+                        <RsBadge sym={tm.ticker} size="sm" />
                         <button
                           className={styles.tickerTime}
                           onClick={() => seekTo(tm.t)}
