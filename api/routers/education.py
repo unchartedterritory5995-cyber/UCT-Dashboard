@@ -75,6 +75,38 @@ def get_video_transcript_cues(video_id: int, _: None = Depends(require_push_secr
     return {"cues": svc.get_transcript_cues(video_id)}
 
 
+@router.get("/insights-backfill/needs-posters")
+def insights_backfill_needs_posters(limit: int = 1000, _: None = Depends(require_push_secret)):
+    """Enriched videos lacking a recap poster — the poster-pass work list."""
+    return {"videos": svc.videos_needing_posters(limit)}
+
+
+@router.post("/videos/{video_id}/generate-poster")
+def generate_video_poster(video_id: int, _: None = Depends(require_push_secret)):
+    """Render the branded recap poster from a video's stored insights (same as the
+    Zoom pipeline) so backfilled videos match the session standard. Server-side."""
+    from api.services import desk_recap_poster, desk_session_insights
+    v = svc.get_video(int(video_id))
+    if not v:
+        raise HTTPException(status_code=404, detail="Video not found")
+    ins = svc.get_insights(int(video_id))
+    tickers = list(dict.fromkeys(
+        t["ticker"] for t in ins.get("ticker_moments", []) if t.get("ticker")))
+    try:
+        desk_recap_poster.save_recap_poster(
+            int(video_id),
+            title=v.get("title") or "Session Recap",
+            date_text=desk_session_insights._recap_date(v.get("title") or ""),
+            headline=ins.get("headline", ""),
+            summary=ins.get("summary", []),
+            tickers=tickers,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"poster render failed: {e}")
+    svc.set_video_insights(int(video_id), poster=True)
+    return {"poster": True}
+
+
 @router.post("/videos/{video_id}/insights-store")
 def insights_store(video_id: int, body: InsightsStoreIn, _: None = Depends(require_push_secret)):
     """Store insights generated off-box for a library video. poster stays as-is

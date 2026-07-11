@@ -468,6 +468,21 @@ def videos_needing_key_levels(limit: int = 500) -> list[dict]:
     return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"]} for r in rows]
 
 
+def videos_needing_posters(limit: int = 500) -> list[dict]:
+    """Enriched videos (have chapters) lacking a recap poster — the poster backfill
+    work list. Poster renders server-side from stored insights (no re-fetch), so
+    backfilled videos match the Zoom-session standard's left-rail recap poster."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id, youtube_id, title FROM edu_videos "
+            "WHERE chapters IS NOT NULL AND chapters != '' AND chapters != '[]' "
+            "AND (poster IS NULL OR poster = 0) "
+            "ORDER BY id DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+    return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"]} for r in rows]
+
+
 def related_videos_by_ticker(video_id: int, limit: int = 10) -> list[dict]:
     """Other videos that covered any of THIS video's tickers, ranked by overlap
     count. Small library (~300 rows) → compute in Python rather than JSON-query
