@@ -21,6 +21,7 @@
  */
 import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { useSWRConfig } from 'swr'
 import useTodayState from '../hooks/useTodayState'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2Positions from '../hooks/useJ2Positions'
@@ -30,11 +31,14 @@ import UIcon from '../../../components/ui/UIcon'
 import ImportCsvModal from '../components/ImportCsvModal'
 import AddTradeModal from '../components/AddTradeModal'
 import AddPositionModal from '../components/AddPositionModal'
+import GoalProgress from '../components/accounts/GoalProgress'
 import TodayZeroData from './today/TodayZeroData'
 import TodayAllAccountsLead from './today/TodayAllAccountsLead'
 import TodayPremarketLead from './today/TodayPremarketLead'
 import TodayMarketLead from './today/TodayMarketLead'
 import TodayPostCloseLead from './today/TodayPostCloseLead'
+import TodayWeekStrip from './today/TodayWeekStrip'
+import TodayQuickActions from './today/TodayQuickActions'
 import CoachStrip from '../components/CoachStrip'
 import styles from './TodaySurface.module.css'
 
@@ -63,6 +67,19 @@ export default function TodaySurface() {
   const { overview } = useCompassOverview(accountId)
   const { isActive: scopeActive } = useScope()
   const { refresh: refreshPositions } = useJ2Positions()
+  const { mutate } = useSWRConfig()
+
+  // B1 fix: after the FIRST logged trade/position, the zero-data signal must
+  // re-evaluate so Today "comes alive" without a remount. `useJ2AccountComparison`
+  // (the closed-trade count behind `zeroData`) has no auto-revalidate, and the
+  // coach `overview` (the lead + coach strip source) is a separate fetch — so
+  // mutate BOTH keys here. Predicate form matches the exact keys:
+  //   comparison → '/api/j2/accounts/comparison'
+  //   overview   → '/api/j2/accounts/<scope>/coach/overview'
+  const refreshTodaySignals = () => {
+    mutate((k) => typeof k === 'string' && k.startsWith('/api/j2/accounts/comparison'))
+    mutate((k) => typeof k === 'string' && k.startsWith('/api/j2/accounts/') && k.endsWith('/coach/overview'))
+  }
 
   // Zero-data / quick-entry modals live here so every lead can trigger them.
   const [modal, setModal] = useState(null) // 'import' | 'trade' | 'position' | null
@@ -114,10 +131,19 @@ export default function TodaySurface() {
           severity-ordered strip. Renders null when there's nothing to show. */}
       <CoachStrip accountId={accountId} />
 
-      {/* B3 fills the secondary modules below the lead:
-          - TodayWeekStrip (compact WeekView, deep-links to the day page)
-          - GoalProgress (concrete account only)
-          - TodayQuickActions (Log Trade / Open Journal / Review a trade) */}
+      {/* B3 — secondary modules below the lead. Suppressed on the zero-data
+          experience (the guided checklist IS the surface; hero/goals/strip all
+          stay hidden until there's something to show). */}
+      {!zeroData && (
+        <>
+          <TodayWeekStrip />
+          {/* GoalProgress needs a CONCRETE account — hidden on All-Accounts
+              (the all-accounts lead already carries the "pick an account"
+              affordance, so goals aren't a blank here). */}
+          {account && <GoalProgress account={account} />}
+          <TodayQuickActions onLogTrade={openTrade} />
+        </>
+      )}
 
       {modal === 'import' && (
         <ImportCsvModal
@@ -135,6 +161,7 @@ export default function TodaySurface() {
               ...payload,
               accountId: payload.accountId || targetAccountId,
             })
+            refreshTodaySignals()
             closeModal()
           }}
           onClose={closeModal}
@@ -150,6 +177,7 @@ export default function TodaySurface() {
               accountId: payload.accountId || targetAccountId,
             })
             await refreshPositions()
+            refreshTodaySignals()
             closeModal()
           }}
           onClose={closeModal}

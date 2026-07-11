@@ -1,0 +1,37 @@
+/* Today — quick actions row (P4 B3). Shortcut buttons to existing flows.
+   Phone stacks to a single column via @media 640. */
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--tap-min);
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-bright);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms, background 120ms;
+}
+
+.action:hover {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+
+@media (max-width: 640px) {
+  .actions {
+    flex-direction: column;
+  }
+}

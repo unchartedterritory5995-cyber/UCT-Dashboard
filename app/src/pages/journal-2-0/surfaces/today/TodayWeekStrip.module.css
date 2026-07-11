@@ -1,0 +1,108 @@
+/* Today — compact week strip (P4 B3).
+   A thin 7-cell Sun–Sat row (compact skin of the Calendar week view). Phone
+   stays a compact 7-cell row via @media 640 — never a JS breakpoint read. */
+
+.strip {
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dot {
+  display: inline-flex;
+}
+
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-heading);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 74px;
+  padding: 8px 4px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text-bright);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+
+.cell:hover {
+  border-color: var(--border-accent);
+}
+
+.cell:hover .dayNum {
+  color: var(--ut-gold);
+}
+
+.cellToday {
+  border-color: var(--ut-gold);
+}
+
+.dow {
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.dayNum {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-heading);
+}
+
+.pnl {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.count {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.empty {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pos { color: var(--gain, #3cb868); }
+.neg { color: var(--loss, #e74c3c); }
+
+@media (max-width: 640px) {
+  .strip { padding: 12px; }
+  .row { gap: 4px; }
+  .cell { min-height: 64px; padding: 6px 2px; }
+  .dayNum { font-size: 14px; }
+  .pnl { font-size: 10px; }
+}

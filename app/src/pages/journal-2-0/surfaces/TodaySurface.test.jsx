@@ -14,8 +14,14 @@
  * the right module deterministically.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+
+// Spies shared with the hoisted module mocks below.
+const { mutateSpy, navigateSpy } = vi.hoisted(() => ({
+  mutateSpy: vi.fn(),
+  navigateSpy: vi.fn(),
+}))
 
 // ── controllable hook state ──────────────────────────────────────────────────
 let market = { isOpen: false, isPremarket: false, isExtended: false }
@@ -79,6 +85,45 @@ vi.mock('../components/CoachStrip', () => ({
   default: () => <div data-testid="coach-strip-stub" />,
 }))
 
+// B3 secondary modules: the week strip + goals are their own units (WeekStrip
+// has its own file; GoalProgress is pre-existing) — stub them so these tests
+// assert TodaySurface's MOUNTING/GATING, not their internals. Quick actions are
+// exercised for real (navigation + the log-trade shortcut).
+vi.mock('./today/TodayWeekStrip', () => ({
+  default: () => <div data-testid="today-week-strip" />,
+}))
+vi.mock('../components/accounts/GoalProgress', () => ({
+  default: ({ account }) => <div data-testid="goal-progress">{account?.name}</div>,
+}))
+
+// Add-flow modals → stubs that expose a save button invoking `onSave`, so the
+// B1 first-trade revalidation path is testable without the heavy real modals.
+vi.mock('../components/AddTradeModal', () => ({
+  default: ({ onSave }) => (
+    <button type="button" data-testid="stub-save-trade" onClick={() => onSave({ symbol: 'NVDA', side: 'long' })}>
+      save trade
+    </button>
+  ),
+}))
+vi.mock('../components/AddPositionModal', () => ({
+  default: ({ onSave }) => (
+    <button type="button" data-testid="stub-save-position" onClick={() => onSave({ symbol: 'NVDA', side: 'long' })}>
+      save position
+    </button>
+  ),
+}))
+
+// Spy on the SWR global mutate (the B1 revalidation) + on router navigation
+// (the quick-action shortcuts). Both keep the rest of each module real.
+vi.mock('swr', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, useSWRConfig: () => ({ mutate: mutateSpy }) }
+})
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, useNavigate: () => navigateSpy }
+})
+
 import TodaySurface from './TodaySurface'
 
 function renderToday() {
@@ -90,6 +135,13 @@ function renderToday() {
 }
 
 beforeEach(() => {
+  mutateSpy.mockClear()
+  navigateSpy.mockClear()
+  // Benign fetch stub — the B1 onSave posts a trade; the surface's other reads
+  // are all mocked at the hook level.
+  global.fetch = vi.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ id: 't1', symbol: 'NVDA' }) }),
+  )
   market = { isOpen: false, isPremarket: false, isExtended: false }
   account = { id: 'a1', name: 'Default', balanceSource: 'broker' }
   accountId = 'a1'
@@ -180,5 +232,97 @@ describe('TodaySurface — scope note', () => {
     scopeActive = false
     renderToday()
     expect(screen.queryByText(/scope filter isn't applied on today/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('TodaySurface — B3 secondary modules (week strip / goals / quick actions)', () => {
+  it('mounts the week strip + goals + quick actions for a concrete account', () => {
+    // default beforeEach: concrete broker account, has data → not zero-data
+    renderToday()
+    expect(screen.getByTestId('today-week-strip')).toBeInTheDocument()
+    expect(screen.getByTestId('goal-progress')).toBeInTheDocument()
+    expect(screen.getByTestId('goal-progress')).toHaveTextContent('Default')
+    expect(screen.getByTestId('qa-log-trade')).toBeInTheDocument()
+    expect(screen.getByTestId('qa-open-journal')).toBeInTheDocument()
+    expect(screen.getByTestId('qa-review-trade')).toBeInTheDocument()
+  })
+
+  it('hides GoalProgress on All-Accounts (needs a concrete account) but keeps the strip', () => {
+    accountId = null
+    account = null
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    renderToday()
+    expect(screen.queryByTestId('goal-progress')).not.toBeInTheDocument()
+    // the all-accounts lead already carries the "pick an account" affordance
+    expect(screen.getByText(/select a single account/i)).toBeInTheDocument()
+    // the week strip + quick actions still render (aggregate view)
+    expect(screen.getByTestId('today-week-strip')).toBeInTheDocument()
+    expect(screen.getByTestId('qa-log-trade')).toBeInTheDocument()
+  })
+
+  it('suppresses ALL secondary modules on the zero-data experience', () => {
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    positions = []
+    optionStrategies = []
+    comparison = [{ id: 'a1', tradeCount: 0 }]
+    renderToday()
+    expect(screen.getByTestId('today-zero-data')).toBeInTheDocument()
+    expect(screen.queryByTestId('today-week-strip')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('goal-progress')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('qa-log-trade')).not.toBeInTheDocument()
+  })
+
+  it('quick action "Open Journal" navigates to /journal/journal', () => {
+    renderToday()
+    fireEvent.click(screen.getByTestId('qa-open-journal'))
+    expect(navigateSpy).toHaveBeenCalledWith('/journal/journal')
+  })
+
+  it('quick action "Review a trade" navigates to the closed-trades segment', () => {
+    renderToday()
+    fireEvent.click(screen.getByTestId('qa-review-trade'))
+    expect(navigateSpy).toHaveBeenCalledWith('/journal/trades?seg=closed')
+  })
+
+  it('quick action "Log trade" opens the add flow', () => {
+    renderToday()
+    expect(screen.queryByTestId('stub-save-trade')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('qa-log-trade'))
+    expect(screen.getByTestId('stub-save-trade')).toBeInTheDocument()
+  })
+})
+
+describe('TodaySurface — B1 first-trade revalidation fix', () => {
+  it('mutates the comparison + overview SWR keys after AddTradeModal onSave', async () => {
+    renderToday()
+    // open the add flow, then invoke the modal's onSave via the stub
+    fireEvent.click(screen.getByTestId('qa-log-trade'))
+    fireEvent.click(screen.getByTestId('stub-save-trade'))
+
+    await waitFor(() => expect(mutateSpy).toHaveBeenCalled())
+    const predicates = mutateSpy.mock.calls.map((c) => c[0]).filter((f) => typeof f === 'function')
+    // the comparison key (zero-data signal) is revalidated
+    expect(predicates.some((f) => f('/api/j2/accounts/comparison'))).toBe(true)
+    // the coach overview key (lead + coach strip source) is revalidated
+    expect(predicates.some((f) => f('/api/j2/accounts/a1/coach/overview'))).toBe(true)
+    // and the predicates are specific — comparison predicate must NOT also match
+    // the overview key (and vice-versa)
+    const comparisonPred = predicates.find((f) => f('/api/j2/accounts/comparison'))
+    expect(comparisonPred('/api/j2/accounts/a1/coach/overview')).toBe(false)
+  })
+
+  it('mutates the comparison + overview SWR keys after AddPositionModal onSave', async () => {
+    // A manual account in the market session lands on the no-sync lead, which
+    // exposes a "Log a position" quick-entry → the AddPositionModal path.
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    account = { id: 'a1', name: 'Manual', balanceSource: 'manual' }
+    renderToday()
+    fireEvent.click(screen.getByRole('button', { name: /log a position/i }))
+    fireEvent.click(screen.getByTestId('stub-save-position'))
+
+    await waitFor(() => expect(mutateSpy).toHaveBeenCalled())
+    const predicates = mutateSpy.mock.calls.map((c) => c[0]).filter((f) => typeof f === 'function')
+    expect(predicates.some((f) => f('/api/j2/accounts/comparison'))).toBe(true)
+    expect(predicates.some((f) => f('/api/j2/accounts/a1/coach/overview'))).toBe(true)
   })
 })
