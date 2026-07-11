@@ -45,6 +45,7 @@ from api.services.journal_two import (
     setup_stats as setup_stats_service,
     trades as trades_service,
     trading_day_backfill,
+    verdict_scorecard as verdict_scorecard_service,
 )
 from api.services.journal_two.filters import FilterSpec, parse_filter_query
 from api.services.journal_two.timeutil import ET, UTC
@@ -1111,6 +1112,22 @@ def get_playbook_stats_route(
     the backend returns every computed number with `tradeCount` + coverage counts
     and does NOT hard-suppress low-n setups here."""
     return playbook_stats_service.get_playbook_stats(
+        user["id"], account_id, spec=spec,
+    )
+
+
+@router.get("/accounts/{account_id}/verdict-scorecard")
+def get_verdict_scorecard_route(
+    account_id: str,
+    spec: FilterSpec = Depends(parse_filter_query),
+    user: dict = Depends(get_current_user),
+):
+    """P6-2 verdict-vs-outcome scorecard: scores Compass's GO/HOLD/SKIP pre-trade
+    verdicts against actual closed-trade outcomes, Scope-aware via the FilterSpec.
+    GO/HOLD → `taken` buckets; a SKIP taken anyway → the `overridden` bucket + a
+    hero loss-rate headline; SKIPs the user obeyed (no trade) via an anti-join
+    over j2_verdicts. Coverage counts trades-with-verdict vs total."""
+    return verdict_scorecard_service.get_verdict_scorecard(
         user["id"], account_id, spec=spec,
     )
 
