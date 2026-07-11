@@ -1,7 +1,7 @@
 import { generateHTML } from '@tiptap/core'
 import { buildCommunityExtensions } from './tiptapExtensions'
 
-const EXTENSIONS = buildCommunityExtensions()
+const EXTENSIONS = buildCommunityExtensions(undefined, { mentions: true })
 
 // Defense-in-depth vs stored XSS: bodies are user-supplied JSON POSTed to the
 // API, so a crafted doc could carry javascript: hrefs or foreign image srcs.

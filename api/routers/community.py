@@ -638,6 +638,31 @@ def chat_mark_read(slug: str, body: ChatReadIn, user: dict = Depends(require_cha
     return {"ok": True}
 
 
+@router.get("/chat/members")
+def chat_members(q: str = Query("", max_length=40), user: dict = Depends(require_chat)):
+    """Search community members by display name for @-mention autocomplete."""
+    q = (q or "").strip()
+    if len(q) < 1:
+        return {"members": []}
+    try:
+        from api.services.auth_db import get_connection as _auth_conn
+        like = f"%{q}%"
+        with _closing(_auth_conn()) as conn:
+            rows = conn.execute(
+                """SELECT id, display_name, email, role FROM users
+                    WHERE (display_name LIKE ? OR email LIKE ?) AND id != ?
+                    ORDER BY (role='admin') DESC, display_name
+                    LIMIT 8""",
+                (like, like, user["id"])).fetchall()
+        return {"members": [
+            {"id": r["id"],
+             "name": r["display_name"] or (r["email"] or "member").split("@")[0],
+             "is_mentor": r["role"] == "admin"}
+            for r in rows]}
+    except Exception:
+        return {"members": []}
+
+
 @router.get("/chat/mentions")
 def chat_mentions(user: dict = Depends(require_chat)):
     items = store.list_mentions(user["id"])

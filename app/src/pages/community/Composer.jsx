@@ -22,7 +22,7 @@ export default function Composer({ onSubmit, placeholder = 'Share your thinkingâ
   const submitRef = useRef(() => {})
 
   const editor = useEditor({
-    extensions: buildCommunityExtensions(placeholder),
+    extensions: buildCommunityExtensions(placeholder, { mentions: chat }),
     editorProps: {
       handleKeyDown(view, event) {
         if (chat && event.key === 'Enter' && !event.shiftKey) {

@@ -282,6 +282,30 @@
 .cardGrade { margin-left: auto; color: var(--ut-gold); font-weight: 700; font-size: 12px; }
 .cardSetup { padding: 0 10px 10px; color: var(--text); font-size: 11.5px; opacity: 0.8; }
 
+/* Mention inbox bell */
+.chatHeadRight { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.inboxWrap { position: relative; }
+.bellBtn {
+  position: relative; background: none; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 4px 8px; cursor: pointer; min-height: 30px; display: inline-flex;
+}
+.bellBtn:hover { border-color: var(--ut-gold-glow); }
+.bellBadge {
+  position: absolute; top: -5px; right: -5px; background: var(--ut-gold); color: #14150f;
+  border-radius: 9px; font-size: 9px; font-weight: 700; padding: 0 5px;
+}
+.inbox {
+  position: absolute; right: 0; top: 36px; width: 300px; max-height: 360px; overflow-y: auto;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 10px;
+  z-index: var(--z-popover, 1000); box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.inboxHead { padding: 10px 12px; color: var(--ut-gold); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; border-bottom: 1px solid var(--border); }
+.inboxEmpty { padding: 20px; text-align: center; color: var(--text); opacity: 0.6; font-size: 12px; }
+.inboxItem { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border); padding: 9px 12px; cursor: pointer; }
+.inboxItem:hover { background: var(--bg-hover); }
+.inboxTop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.inboxSnippet { color: var(--text); font-size: 12px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Mobile chat: full-height column, safe-area composer, larger tap targets */
 @media (max-width: 1024px) {
   .chat { height: calc(100dvh - 120px); }

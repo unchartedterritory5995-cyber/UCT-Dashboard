@@ -4,6 +4,7 @@ import UIcon from '../../components/ui/UIcon'
 import { useAuth } from '../../context/AuthContext'
 import { renderBodyHTML } from './lib/renderBody'
 import CardRenderer from './components/CardRenderer'
+import MentionInbox from './components/MentionInbox'
 import Composer from './Composer'
 import * as chat from '../../lib/chatStreamManager'
 import styles from './Community.module.css'
@@ -98,6 +99,9 @@ export default function ChatView({ channel }) {
         <span className={styles.presenceDot} />
         <b>{snap.presence.count}</b>&nbsp;on the floor
         {meta.reconnecting && <span className={styles.reconnPill}>reconnecting…</span>}
+        <div className={styles.chatHeadRight}>
+          <MentionInbox />
+        </div>
       </div>
 
       <div className={styles.chatScroll} ref={scrollRef} onScroll={onScroll}>
