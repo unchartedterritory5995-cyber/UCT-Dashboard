@@ -33,6 +33,37 @@
   margin-left: auto;
 }
 
+/* First-run nudge — subtle, dashed, clickable (opens the daily target editor). */
+.nudge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nudge:hover {
+  border-color: var(--ut-gold);
+  color: var(--text-bright);
+}
+
+.nudgeText {
+  flex: 1;
+}
+
+.nudgeCta {
+  font-weight: 700;
+  color: var(--ut-gold);
+  white-space: nowrap;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

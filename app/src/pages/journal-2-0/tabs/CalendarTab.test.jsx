@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
@@ -110,5 +110,33 @@ describe('CalendarTab — non-date Scope facets drive the calendar fetch', () =>
     await screen.findByTestId('scope-bar')
     expect(capturedUrl).toContain('view=month')
     expect(capturedUrl).toContain('year=')
+  })
+})
+
+describe('CalendarTab — first-run zero-trades prompt', () => {
+  it('shows a subtle first-run prompt when the account has zero closed trades', async () => {
+    // beforeEach resolves totals:null (a fresh, never-traded account).
+    renderTab()
+    expect(await screen.findByTestId('calendar-first-run')).toBeInTheDocument()
+    // The grid is NOT replaced — the month view still renders beneath the note.
+    expect(screen.getByTestId('month-view')).toBeInTheDocument()
+  })
+
+  it('does NOT show the first-run prompt when closed trades exist (no false prompt)', async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            days: [{ date: '2026-06-02', tradeCount: 2, pnlDollar: 120 }],
+            totals: { tradeCount: 2, netPnlDollar: 120, winners: 1, losers: 1 },
+            basis: 'closed',
+          }),
+      }),
+    )
+    renderTab()
+    // Wait for the initial load to finish (the "Loading calendar…" hint clears).
+    await waitFor(() => expect(screen.queryByText(/Loading calendar/i)).toBeNull())
+    expect(screen.queryByTestId('calendar-first-run')).toBeNull()
   })
 })

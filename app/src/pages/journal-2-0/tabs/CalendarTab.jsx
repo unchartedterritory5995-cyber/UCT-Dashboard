@@ -12,6 +12,7 @@ import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useScope from '../hooks/useScope'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import ScopeBar from '../components/scope/ScopeBar'
+import UIcon from '../../../components/ui/UIcon'
 import CalendarHeader from '../components/calendar/CalendarHeader'
 import MonthView from '../components/calendar/MonthView'
 import YearView from '../components/calendar/YearView'
@@ -92,6 +93,13 @@ export default function CalendarTab() {
     localStorage.setItem(MODE_STORAGE_KEY, m)
   }
 
+  // First-run guidance: a fresh account with no closed trades renders an
+  // all-zero grid with no context. Once the fetch settles with zero trades in
+  // the period, prepend a subtle, non-intrusive note (the grid still renders
+  // beneath it — we never replace it).
+  const hasTrades = !!(totals && totals.tradeCount > 0)
+  const showFirstRun = !isLoading && !error && !hasTrades
+
   return (
     <div className={styles.wrap}>
       <ScopeBar surface="calendar" dateApplies={false} />
@@ -113,6 +121,13 @@ export default function CalendarTab() {
       {error && (
         <div className={styles.errorBanner} role="alert">
           Couldn't load calendar: {String(error.message || error)}
+        </div>
+      )}
+
+      {showFirstRun && (
+        <div className={styles.firstRun} role="status" data-testid="calendar-first-run">
+          <UIcon name="calendar" size={14} />
+          <span>Your trading days will appear here — log or import trades to get started.</span>
         </div>
       )}
 

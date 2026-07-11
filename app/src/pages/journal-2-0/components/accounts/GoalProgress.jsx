@@ -36,6 +36,8 @@ export default function GoalProgress({ account }) {
 
   const periods = data?.periods || {}
   const goals = account?.goals || {}
+  // First-run nudge: no goal set on any period (all null / 0).
+  const hasGoal = PERIODS.some((p) => Number(goals[p.key]) > 0)
 
   const beginEdit = (key) => {
     setEditing(key)
@@ -72,6 +74,21 @@ export default function GoalProgress({ account }) {
         <h3 className={styles.title}>Goal Progress</h3>
         <span className={styles.acct}>{account?.name}</span>
       </div>
+
+      {!hasGoal && (
+        <button
+          type="button"
+          className={styles.nudge}
+          onClick={() => beginEdit('daily')}
+          data-testid="goal-nudge"
+        >
+          <UIcon name="patterns" size={13} />
+          <span className={styles.nudgeText}>
+            Set a daily or weekly goal to track progress.
+          </span>
+          <span className={styles.nudgeCta}>Set a goal</span>
+        </button>
+      )}
 
       <div className={styles.grid}>
         {PERIODS.map((p) => {

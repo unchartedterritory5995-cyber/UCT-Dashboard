@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CompanyLogo from '../../../components/CompanyLogo'
 import Sparkline from '../../../components/Sparkline'
+import UIcon from '../../../components/ui/UIcon'
 import useHoldingsSparklines from '../hooks/useHoldingsSparklines'
 import OptionsBoard from './OptionsBoard'
 import { buildEquityRows, sortRows, SORT_OPTIONS } from '../lib/holdingsRows'
@@ -17,6 +18,36 @@ import styles from './HoldingsList.module.css'
 
 const SORT_STORAGE_KEY = 'uct.j2.holdings.sort'
 const DEFAULT_SORT = { key: 'marketValue', dir: 'desc' }
+
+// Compact designed empty state — matches the J2 "No trades yet" pattern
+// (TradeJournalTab) but tuned smaller since it renders inside the positions area.
+const EMPTY_WRAP = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 8,
+  padding: '32px 20px',
+  textAlign: 'center',
+  background: 'var(--bg-surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 10,
+}
+const EMPTY_TITLE = { margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-bright)' }
+const EMPTY_HINT = { margin: 0, maxWidth: 320, fontSize: 12.5, lineHeight: 1.5, color: 'var(--text-muted)' }
+const EMPTY_ACTION = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  marginTop: 4,
+  padding: '7px 14px',
+  borderRadius: 999,
+  border: '1px solid var(--border)',
+  background: 'var(--surface-2, #17171a)',
+  color: 'var(--accent, #c9a84c)',
+  fontSize: 12.5,
+  fontWeight: 600,
+  textDecoration: 'none',
+}
 
 function loadSort() {
   try {
@@ -43,7 +74,23 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
   const { closes } = useHoldingsSparklines(symbols)
 
   const hasOptions = (optionStrategies || []).length > 0
-  if (!equityRows.length && !hasOptions) return null
+  if (!equityRows.length && !hasOptions) {
+    return (
+      <div className={styles.wrap}>
+        <div style={EMPTY_WRAP} role="status" data-testid="holdings-empty">
+          <UIcon name="equity" size={22} />
+          <p style={EMPTY_TITLE}>No open positions</p>
+          <p style={EMPTY_HINT}>
+            Your open trades appear here. Log a position, or connect a broker to
+            import your holdings automatically.
+          </p>
+          <Link to="/settings" style={EMPTY_ACTION}>
+            <UIcon name="link" size={13} /> Connect a broker
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   const saveSort = (next) => {
     setSort(next)

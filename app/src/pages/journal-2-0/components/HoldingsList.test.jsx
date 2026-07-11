@@ -84,8 +84,12 @@ describe('HoldingsList', () => {
     expect(screen.getByText('$111.00').className).toMatch(/flashUp/)
   })
 
-  it('renders nothing when the book is empty', () => {
-    const { container } = renderList(<HoldingsList positions={[]} optionStrategies={[]} prices={{}} />)
-    expect(container.textContent).toBe('')
+  it('renders a designed empty state (not blank) when the book is empty', () => {
+    renderList(<HoldingsList positions={[]} optionStrategies={[]} prices={{}} />)
+    expect(screen.getByTestId('holdings-empty')).toBeInTheDocument()
+    expect(screen.getByText('No open positions')).toBeInTheDocument()
+    // primary action + guidance hint (log a position / connect a broker)
+    expect(screen.getByRole('link', { name: /connect a broker/i })).toBeInTheDocument()
+    expect(screen.queryByText('Stocks & ETFs')).toBeNull()
   })
 })

@@ -31,3 +31,18 @@
   font-style: italic;
   text-align: center;
 }
+
+/* Subtle first-run guidance for a fresh (never-traded) account. Non-intrusive:
+   sits above the grid, does not replace it. */
+.firstRun {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
