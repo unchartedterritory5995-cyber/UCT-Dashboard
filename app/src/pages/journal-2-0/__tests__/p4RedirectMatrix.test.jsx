@@ -349,12 +349,17 @@ function renderSelector() {
 }
 
 describe('P4 gate · 4. kill-switch drill — flag resolution', () => {
-  it('ships DARK: rollout constant is 0 (default users on legacy v8)', () => {
-    expect(J2_SHELL_ROLLOUT_PCT).toBe(0)
+  it('ships DEFAULT-ON: rollout constant is 100 (new 5-surface shell for everyone)', () => {
+    expect(J2_SHELL_ROLLOUT_PCT).toBe(100)
   })
 
-  it("resolveJ2Shell() is 'v8' when unset at rollout 0 (dark)", () => {
+  it("resolveJ2Shell() is 'v5' when unset at rollout 100 (new shell default)", () => {
     expect(localStorage.getItem('uct.j2.shell')).toBeNull()
+    expect(resolveJ2Shell()).toBe('v5')
+  })
+
+  it("the kill-switch still forces legacy: setJ2Shell('v8') → 'v8' even at rollout 100", () => {
+    setJ2Shell('v8')
     expect(resolveJ2Shell()).toBe('v8')
   })
 
@@ -374,7 +379,9 @@ describe('P4 gate · 4. kill-switch drill — flag resolution', () => {
 
 describe('P4 gate · 4. kill-switch drill — selector swaps the shell at runtime', () => {
   it('renders the LEGACY shell for v8 and the NEW JournalLayout shell for v5, live', () => {
-    // Dark default (unset, rollout 0) → v8 → legacy shell; the new shell is absent.
+    // Force the legacy shell explicitly (the kill-switch escape hatch) → v8 → legacy
+    // shell; the new shell is absent. (Independent of the rollout default, which is 100.)
+    setJ2Shell('v8')
     renderSelector()
     expect(screen.getByTestId('legacy-shell')).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Journal sections' })).not.toBeInTheDocument()
