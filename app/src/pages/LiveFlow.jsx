@@ -48,6 +48,7 @@ const MAX_ROWS = 200;
 // (bullish/bearish/algo) to 6 (alpha/bullish/bearish/leaps/unusual/algo).
 // Old v2 filter state references non-existent tier keys.
 const LS_KEY = "uct_liveflow_filters_v3";
+const LS_OI_KEY = "uct_liveflow_oi_exceeded_v1";  // Vol>OI (new-positioning) toggle
 
 // ─── Backtest helpers ─────────────────────────────────────────────────────────
 // Backtest mode = ?backtest=YYYY-MM-DD in the URL. When active:
@@ -298,7 +299,7 @@ function StatusPill({ status }) {
 }
 
 // ─── Filter chip row ──────────────────────────────────────────────────────────
-function FilterChips({ filters, setFilters, counts }) {
+function FilterChips({ filters, setFilters, counts, oiExceededOnly, onOiToggle, oiExceededCount, oiLoaded }) {
   const toggle = (tier) => {
     const next = { ...filters, [tier]: !filters[tier] };
     setFilters(next);
@@ -340,6 +341,33 @@ function FilterChips({ filters, setFilters, counts }) {
           </button>
         );
       })}
+      {/* Vol > OI — new-positioning filter. Keys off a.oiExceeded (needs OI
+          enrichment). Separated from the tier chips by a divider; shows the
+          qualifying count, and hints to load OI when none is present yet. */}
+      {onOiToggle && (
+        <>
+          <span style={{ width: 1, height: 18, background: P.bd, margin: "0 2px" }} />
+          <button
+            onClick={() => onOiToggle(!oiExceededOnly)}
+            title={oiLoaded
+              ? "Show only trades where volume exceeded open interest (new positioning, V/OI > 1)"
+              : "Show only Vol > OI trades — load OI first via the Fetch OI button, then this filters to new positioning"}
+            style={{
+              padding: "4px 10px", borderRadius: 12, fontSize: 10, fontWeight: 700,
+              border: "1px solid " + (oiExceededOnly ? "#4F8266cc" : P.bd),
+              background: oiExceededOnly ? "#4F826625" : "transparent",
+              color: oiExceededOnly ? "#8Fc7a8" : (oiLoaded ? P.dm : P.mt),
+              cursor: "pointer", letterSpacing: 0.3, transition: "all 0.15s ease",
+              fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 5,
+            }}>
+            <span style={{ fontSize: 11, lineHeight: 1 }}>{oiExceededOnly ? "☑" : "☐"}</span>
+            Vol &gt; OI
+            <span style={{ marginLeft: 2, opacity: 0.7, fontWeight: 500 }}>
+              {oiLoaded ? (oiExceededCount || 0) : "—"}
+            </span>
+          </button>
+        </>
+      )}
       <button onClick={reset} disabled={allOn} style={{
         marginLeft: "auto", padding: "4px 10px", fontSize: 9,
         color: allOn ? P.mt : P.dm,
@@ -1198,6 +1226,15 @@ export default function LiveFlow() {
   const [error, setError] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [filters, setFilters] = useState(loadFilters);
+  // Vol>OI filter: show only trades where volume exceeded open interest
+  // (new positioning). Keys off a.oiExceeded, which is populated by the OI
+  // enrichment (Fetch OI). Persisted across sessions.
+  const [oiExceededOnly, setOiExceededOnly] = useState(() => {
+    try { return localStorage.getItem(LS_OI_KEY) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(LS_OI_KEY, oiExceededOnly ? "1" : "0"); } catch {}
+  }, [oiExceededOnly]);
   const [collapsedTiers, setCollapsedTiers] = useState({});
   const [backtestLoading, setBacktestLoading] = useState(false);
   // Bump this to force the data-fetch effect to re-run (e.g. after the user
@@ -1451,6 +1488,7 @@ export default function LiveFlow() {
 
   // Filter pipeline: tier visibility (chip row) → ticker → contract → alert name
   const filteredAlerts = dedupedAlerts.filter(a => {
+    if (oiExceededOnly && !a.oiExceeded) return false;
     if (!filters[deriveTier(a)]) return false;
     if (tickerFilter.size > 0 && !tickerFilter.has(a.ticker)) return false;
     if (contractFilter.size > 0) {
@@ -1460,6 +1498,12 @@ export default function LiveFlow() {
     if (alertNameFilter.size > 0 && !alertNameFilter.has(a.alertName)) return false;
     return true;
   });
+
+  // Counts for the Vol>OI toggle. oiExceededCount = how many qualify;
+  // oiLoaded = whether OI enrichment has run at all (so the toggle can hint
+  // "Fetch OI first" when nothing's loaded yet rather than looking broken).
+  const oiExceededCount = dedupedAlerts.filter(a => a.oiExceeded).length;
+  const oiLoaded = dedupedAlerts.some(a => a.priorOI != null);
 
   // Sort. Default = newest first (time desc). Sort headers in the table
   // header row toggle this via setSortBy.
@@ -1811,7 +1855,9 @@ export default function LiveFlow() {
           cron missed the ticker. */}
       <div style={{ display: "flex", alignItems: "center" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <FilterChips filters={filters} setFilters={setFilters} counts={counts} />
+          <FilterChips filters={filters} setFilters={setFilters} counts={counts}
+            oiExceededOnly={oiExceededOnly} onOiToggle={setOiExceededOnly}
+            oiExceededCount={oiExceededCount} oiLoaded={oiLoaded} />
         </div>
         {nullOICount > 0 && (
           <div style={{
