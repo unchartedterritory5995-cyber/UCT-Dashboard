@@ -337,6 +337,26 @@ CREATE TABLE IF NOT EXISTS j2_profile_suggestions (
 CREATE INDEX IF NOT EXISTS idx_j2_profile_suggestions_pending
     ON j2_profile_suggestions(user_id, account_id, status, created_at);
 
+-- Journal A+ P6-5: "Make this a rule" — a persisted, evidence-linked personal
+-- rule store. A rule is a PERSISTENT reminder (no per-day `checked` column),
+-- surfaced for DISPLAY only. It MUST NOT auto-arm any intervention or mutate a
+-- discipline guardrail — there are deliberately NO auto-arm columns here. Shape
+-- mirrors j2_profile_suggestions' provenance precedent (source_type/source_id).
+CREATE TABLE IF NOT EXISTS j2_journal_rules (
+    id            TEXT PRIMARY KEY,
+    user_id       TEXT NOT NULL,
+    account_id    TEXT,
+    label         TEXT NOT NULL,
+    evidence      TEXT,
+    source_type   TEXT,
+    source_id     TEXT,
+    status        TEXT NOT NULL DEFAULT 'active',
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_journal_rules_user_account_status
+    ON j2_journal_rules(user_id, account_id, status);
+
 -- Unified Coach State: holds user-level coach identity + profile for
 -- "All Accounts" mode. Each user has at most one row. Separate from
 -- per-account fields in j2_accounts to allow account-agnostic coaching.

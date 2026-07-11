@@ -555,6 +555,73 @@ def put_trade_adherence_route(
         user["id"], detail["tradeRef"], setup, checked, total_rules)
 
 
+# ── "Make this a rule" — persisted personal-rule store (P6-5) ────────────────
+# A display-only, evidence-linked reminder store. CRITICAL: these routes only
+# store/list/dismiss rules — they MUST NOT auto-arm any intervention or mutate a
+# discipline guardrail. A rule is shown to the trader, never fired. Every route
+# is user-scoped via get_current_user; account_id is a tag (isolation is on
+# user_id in the store, so a rule can never leak across users).
+
+@router.post("/accounts/{account_id}/rules")
+def create_journal_rule_route(
+    account_id: str,
+    payload: dict,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Create a personal journal rule (a persisted reminder).
+
+    Body: {label, evidence?, sourceType?, sourceId?}. 400 if label is missing
+    or blank. Returns the stored record."""
+    from api.services.journal_two import journal_rules
+
+    label = payload.get("label")
+    if not isinstance(label, str) or not label.strip():
+        raise HTTPException(status_code=400, detail="label is required")
+    evidence = payload.get("evidence")
+    if evidence is not None and not isinstance(evidence, str):
+        raise HTTPException(status_code=400, detail="evidence must be a string")
+    source_id = payload.get("sourceId")
+    if source_id is not None and not isinstance(source_id, str):
+        raise HTTPException(status_code=400, detail="sourceId must be a string")
+    source_type = payload.get("sourceType") or "manual"
+    if not isinstance(source_type, str):
+        raise HTTPException(status_code=400, detail="sourceType must be a string")
+
+    try:
+        return journal_rules.create_rule(
+            user["id"], account_id, label,
+            evidence=evidence, source_type=source_type, source_id=source_id,
+        )
+    except journal_rules.JournalRuleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/accounts/{account_id}/rules")
+def list_journal_rules_route(
+    account_id: str,
+    status: str = Query("active"),
+    user: dict = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """The account's journal rules for the given status (default 'active'),
+    newest first."""
+    from api.services.journal_two import journal_rules
+    return journal_rules.list_rules(user["id"], account_id, status)
+
+
+@router.post("/rules/{rule_id}/dismiss")
+def dismiss_journal_rule_route(
+    rule_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Dismiss a journal rule (status → 'dismissed'). 404 if the rule doesn't
+    exist or isn't owned by the caller."""
+    from api.services.journal_two import journal_rules
+    rec = journal_rules.dismiss_rule(user["id"], rule_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return rec
+
+
 # ── Deterministic AI-suggested mistake/emotion tags (P6-4) ───────────────────
 # Pure heuristics (NO LLM): a no-stop trade → suggest `no_stop`; a same-symbol
 # revenge re-entry → suggest `revenge` + `revenge-driven`. Filtered against the
