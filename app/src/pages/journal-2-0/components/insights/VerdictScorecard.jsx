@@ -108,7 +108,7 @@ export default function VerdictScorecard({ accountId, apiParams }) {
           <UIcon name="warning" size={16} className={styles.headlineGlyph} />
           <span className={styles.headlineText}>
             You overrode Compass's SKIP {headline.n} time{headline.n === 1 ? '' : 's'} — and
-            lost {Math.round((headline.lossRate || 0) * 100)}% of them ({fmtDollar(headline.netPnl || 0)}).
+            lost {headline.losses || 0} of the {headline.decisive || 0} you took to a decision ({fmtDollar(headline.netPnl || 0)}).
           </span>
         </div>
       )}

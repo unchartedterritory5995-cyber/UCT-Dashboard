@@ -37,8 +37,16 @@ def get_nudges_state(
     *,
     conn: sqlite3.Connection | None = None,
     now: datetime | None = None,
+    limit: int | None = None,
 ) -> dict[str, Any]:
-    """Return streak counts + stale-position count + resolved thresholds."""
+    """Return streak counts + stale-position count + resolved thresholds.
+
+    `limit` caps the newest-first closed-trade scan (ORDER BY exit_date DESC).
+    Default None = unbounded (the header nudge / router behavior). A bounded read
+    (e.g. 60) is used by the celebration hot-path in `overview.get_overview`,
+    where only the newest rows until a streak breaks are needed — a win/loss
+    streak longer than the cap is implausible, so it simply caps there.
+    """
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -51,14 +59,16 @@ def get_nudges_state(
         now_et = now_utc.astimezone(ET)
         today_et_date = now_et.date()
 
-        rows = conn.execute(
-            """
-            SELECT result, exit_date FROM j2_trades
-             WHERE user_id = ? AND account_id = ?
-             ORDER BY exit_date DESC
-            """,
-            (user_id, account_id),
-        ).fetchall()
+        streak_sql = (
+            "SELECT result, exit_date FROM j2_trades "
+            " WHERE user_id = ? AND account_id = ? "
+            " ORDER BY exit_date DESC"
+        )
+        streak_params: list[Any] = [user_id, account_id]
+        if limit is not None:
+            streak_sql += " LIMIT ?"
+            streak_params.append(int(limit))
+        rows = conn.execute(streak_sql, streak_params).fetchall()
 
         loss_streak = 0
         win_streak = 0

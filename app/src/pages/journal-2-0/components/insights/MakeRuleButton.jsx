@@ -58,7 +58,11 @@ const money = (v) => {
 
 export default function MakeRuleButton({ mistake, count, total, accountId, onCreated }) {
   const on = useFeatureFlag('makeRule')
-  const { create } = useJournalRules(accountId)
+  // Read the flag FIRST and only pass an accountId when the surface is on, so a
+  // flag-off render fires NO `GET /accounts/{id}/rules` (matches tagSuggest /
+  // verdictScore). The `if (!on || !accountId) return null` guard below still
+  // renders nothing.
+  const { create } = useJournalRules(on && accountId ? accountId : null)
 
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState(() => defaultLabelFor(mistake))

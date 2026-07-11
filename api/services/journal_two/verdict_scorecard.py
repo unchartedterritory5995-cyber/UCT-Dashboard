@@ -22,7 +22,7 @@ Output shape::
         {label:'HOLD', taken:{n, winRate, avgR, netPnl}},
         {label:'SKIP', overridden:{n, winRate, avgR, netPnl}, obeyed:<int>} ],
       coverage: {tradesWithVerdict, tradesTotal},
-      skipOverrideHeadline: {n, lossRate, netPnl} | null }
+      skipOverrideHeadline: {n, lossRate, losses, decisive, netPnl} | null }
 
 Bucketing (per closed trade, defensively parsed):
   * `context_at_entry` is `json.loads`'d in a try/except; a malformed body, a
@@ -46,9 +46,14 @@ referenced across the user's `j2_trades.context_at_entry` — i.e. SKIP calls th
 user actually respected (no trade taken). When the Scope carries date_from /
 date_to, the verdict `created_at` is bounded to it (date-only compare).
 
-`skipOverrideHeadline` is the hero stat ("you took a SKIP anyway → lost X%"):
-the overridden bucket's `n` + `netPnl` plus `lossRate = losses/(wins+losses)`.
-It is null when nothing was overridden (`overridden.n == 0`).
+`skipOverrideHeadline` is the hero stat ("you took a SKIP anyway → lost X"):
+the overridden bucket's `n` (TOTAL overridden, breakevens included) + `netPnl`,
+plus the DECISIVE-only `losses` and `decisive` (= wins+losses, breakevens
+excluded) and `lossRate = losses/decisive`. Carrying `losses`/`decisive` lets the
+FE render an honest integer count ("lost {losses} of {decisive}") instead of an
+ambiguous "{round(lossRate)}% of {n}" where the % applies to a different (decisive)
+denominator than the count. It is null when nothing was overridden
+(`overridden.n == 0`).
 
 Pure read against j2_trades + j2_verdicts (SELECT only). Parameterized SQL; Scope
 applied via `filters.trades_where(spec)` spliced after the base account predicate,
@@ -99,14 +104,6 @@ def _bucket_stats(rows: list[sqlite3.Row]) -> dict[str, Any]:
         sum(float(r["pnl_dollar"] or 0) - float(r["fees"] or 0) for r in rows), 2
     )
     return {"n": n, "winRate": win_rate, "avgR": avg_r, "netPnl": net}
-
-
-def _loss_rate(rows: list[sqlite3.Row]) -> float | None:
-    """losses/(wins+losses) over a bucket, None when 0 decisive (BE excluded)."""
-    wins = sum(1 for r in rows if r["result"] == "Win")
-    losses = sum(1 for r in rows if r["result"] == "Loss")
-    decisive = wins + losses
-    return (losses / decisive) if decisive > 0 else None
 
 
 def _count_skip_obeyed(
@@ -201,10 +198,15 @@ def get_verdict_scorecard(
             # else: has a verdict id but an unrecognized label → coverage only.
 
         skip_stats = _bucket_stats(skip_rows)
+        skip_wins = sum(1 for r in skip_rows if r["result"] == "Win")
+        skip_losses = sum(1 for r in skip_rows if r["result"] == "Loss")
+        skip_decisive = skip_wins + skip_losses
         headline = (
             {
                 "n": skip_stats["n"],
-                "lossRate": _loss_rate(skip_rows),
+                "lossRate": (skip_losses / skip_decisive) if skip_decisive else None,
+                "losses": skip_losses,
+                "decisive": skip_decisive,
                 "netPnl": skip_stats["netPnl"],
             }
             if skip_rows

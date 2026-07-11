@@ -18,7 +18,11 @@ import styles from './MyRulesList.module.css'
 
 export default function MyRulesList({ accountId }) {
   const on = useFeatureFlag('makeRule')
-  const { rules, dismiss } = useJournalRules(accountId)
+  // Read the flag FIRST and only pass an accountId when the surface is on, so a
+  // flag-off render fires NO `GET /accounts/{id}/rules` (matches tagSuggest /
+  // verdictScore). The `if (!on || !accountId) return null` guard still renders
+  // nothing.
+  const { rules, dismiss } = useJournalRules(on && accountId ? accountId : null)
 
   if (!on || !accountId) return null
 

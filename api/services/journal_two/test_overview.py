@@ -120,3 +120,47 @@ def test_overview_includes_today_block(db_conn):
     assert "trade_count" in result["today"]
     assert "has_eod_recap" in result["today"]
     assert "eod_recap_eta_utc" in result["today"]
+
+
+def test_overview_celebrations_env_kill_switch_skips_detect(db_conn, monkeypatch):
+    """J2_CELEBRATIONS_ENABLED=0 → celebrations:[] AND the detection block
+    (goal/nudges/discipline/interventions + detect) never runs — the server-side
+    kill for the ~60s-polled 524 hot path, independent of the FE `celebrate` flag."""
+    from api.services.journal_two import overview as ov
+    from api.services.journal_two import celebrations as celebrations_service
+    acc = _seed_account(db_conn)
+
+    called = {"n": 0}
+
+    def _tracked_detect(*a, **k):
+        called["n"] += 1
+        return []
+
+    monkeypatch.setattr(celebrations_service, "detect", _tracked_detect)
+    monkeypatch.setenv("J2_CELEBRATIONS_ENABLED", "0")
+
+    result = ov.get_overview(user_id="u_ov", account_id=acc["id"], conn=db_conn)
+    assert result["celebrations"] == []
+    assert called["n"] == 0   # detection block entirely bypassed
+
+
+def test_overview_celebrations_run_when_env_default_on(db_conn, monkeypatch):
+    """Default (flag unset) → the detection block runs and passes a BOUNDED nudges
+    read (limit) so celebration detection can't trigger the unbounded scan."""
+    from api.services.journal_two import overview as ov
+    from api.services.journal_two import nudges as nudges_service
+    acc = _seed_account(db_conn)
+
+    seen_limits = []
+    real_get_nudges = nudges_service.get_nudges_state
+
+    def _spy(user_id, account_id, **kwargs):
+        seen_limits.append(kwargs.get("limit"))
+        return real_get_nudges(user_id, account_id, **kwargs)
+
+    monkeypatch.setattr(nudges_service, "get_nudges_state", _spy)
+    monkeypatch.delenv("J2_CELEBRATIONS_ENABLED", raising=False)
+
+    result = ov.get_overview(user_id="u_ov", account_id=acc["id"], conn=db_conn)
+    assert result["celebrations"] == []          # fresh account → nothing earned
+    assert seen_limits == [60]                    # bounded, not the unbounded scan

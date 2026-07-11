@@ -153,6 +153,31 @@ def test_clean_day_requires_a_trade(seen_db):
     assert all(c["kind"] != "discipline" for c in out)
 
 
+def test_clean_day_suppressed_when_intervention_fired_today(seen_db):
+    from api.services.journal_two import celebrations
+    # Currently UNLOCKED (a cooling-off / no-trade-window lock has since expired),
+    # but an intervention DID fire earlier today → the day was not clean → no emit.
+    disc = {"locked": False, "reasons": []}
+    out = celebrations.detect(
+        "u1", "a1", discipline=disc, traded_today=True, day_complete=True,
+        intervention_fired_today=True, today_date="2026-07-11",
+    )
+    assert all(c["kind"] != "discipline" for c in out)
+
+
+def test_clean_day_fires_when_no_intervention_fired_today(seen_db):
+    from api.services.journal_two import celebrations
+    # A genuinely clean traded day (no intervention, unlocked, complete) fires once.
+    disc = {"locked": False, "reasons": []}
+    out = celebrations.detect(
+        "u1", "a1", discipline=disc, traded_today=True, day_complete=True,
+        intervention_fired_today=False, today_date="2026-07-11",
+    )
+    clean = [c for c in out if c["kind"] == "discipline"]
+    assert len(clean) == 1
+    assert clean[0]["key"] == "cleanday_2026-07-11"
+
+
 def test_clean_day_derives_traded_from_overview(seen_db):
     from api.services.journal_two import celebrations
     disc = {"locked": False, "reasons": []}

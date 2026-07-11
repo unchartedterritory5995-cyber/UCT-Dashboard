@@ -120,6 +120,19 @@ def test_win_streak_counts_consecutive_across_days(db_conn):
     assert out["winStreakCount"] == 5
 
 
+def test_bounded_limit_returns_same_streak_for_short_history(db_conn):
+    from api.services.journal_two import nudges
+    acc = _seed_account(db_conn)
+    # A short win streak — the bounded celebration read (limit=60) must return
+    # the identical streak the unbounded header read does.
+    for i in range(4):
+        when = (datetime.now(timezone.utc) - timedelta(days=3 - i)).isoformat()
+        _insert_trade(db_conn, user_id="u_nudge", account_id=acc["id"], result="Win", exit_iso=when)
+    unbounded = nudges.get_nudges_state("u_nudge", acc["id"], conn=db_conn)
+    bounded = nudges.get_nudges_state("u_nudge", acc["id"], conn=db_conn, limit=60)
+    assert bounded["winStreakCount"] == unbounded["winStreakCount"] == 4
+
+
 def test_stale_position_with_no_notes_counts(db_conn):
     from api.services.journal_two import nudges
     acc = _seed_account(db_conn)

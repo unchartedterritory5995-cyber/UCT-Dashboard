@@ -157,29 +157,57 @@ def get_overview(*, user_id: str, account_id: str, conn=None) -> dict:
         # Celebration moments (P6-7) — positive CoachStrip rows, once-per via
         # calendar_seen. Cheap: reuses the shared connection; each achievement
         # fires at most once ever. Defensive — never breaks the overview payload.
+        #
+        # get_overview is polled ~every 60s per user (the documented 524-outage
+        # hot path), so ALL of the backend celebration-detection cost is gated by
+        # a cheap env flag (default ON) — a server operator can zero it out with
+        # no deploy dependency on the per-browser `celebrate` FE flag — and the
+        # streak read is BOUNDED (newest 60 closed trades) so detection can never
+        # trigger the unbounded full-account history scan.
         celebrations: list[dict] = []
-        try:
-            from api.services.journal_two import celebrations as celebrations_service
-            from api.services.journal_two import nudges as nudges_service
-            from api.services.journal_two import discipline as discipline_service
-            goal = accounts_service.goal_progress(user_id, account_id, conn=_conn)
-            nudges_state = nudges_service.get_nudges_state(
-                user_id, account_id, conn=_conn,
-            )
-            discipline_state = discipline_service.compute_discipline_state(
-                user_id, account_id, conn=_conn,
-            )
-            celebrations = celebrations_service.detect(
-                user_id, account_id,
-                goal=goal,
-                nudges=nudges_state,
-                discipline=discipline_state,
-                today_date=today_iso,
-                traded_today=(today_agg.get("trade_count", 0) or 0) > 0,
-                day_complete=has_eod_recap_today,
-            )
-        except Exception:
-            celebrations = []
+        if os.getenv("J2_CELEBRATIONS_ENABLED", "1") != "0":
+            try:
+                from api.services.journal_two import celebrations as celebrations_service
+                from api.services.journal_two import nudges as nudges_service
+                from api.services.journal_two import discipline as discipline_service
+                goal = accounts_service.goal_progress(user_id, account_id, conn=_conn)
+                nudges_state = nudges_service.get_nudges_state(
+                    user_id, account_id, conn=_conn, limit=60,
+                )
+                discipline_state = discipline_service.compute_discipline_state(
+                    user_id, account_id, conn=_conn,
+                )
+                # Clean-day celebration must reflect whether ANY discipline
+                # intervention fired TODAY — cooling-off / no-trade-window locks
+                # EXPIRE by EOD, so the instantaneous `discipline.locked` misses a
+                # transient breach earlier in the session. Bounded one-row COUNT
+                # over today's ET window (today_start is ET-midnight in UTC; fired_at
+                # is UTC ISO). A failed read → treat as "fired" so a clean day is
+                # never falsely awarded.
+                intervention_fired_today = True
+                try:
+                    iv_row = _conn.execute(
+                        """SELECT COUNT(*) AS n FROM j2_interventions
+                           WHERE user_id = ? AND account_id = ? AND fired_at >= ?""",
+                        (user_id, account_id, today_start.isoformat()),
+                    ).fetchone()
+                    intervention_fired_today = int(
+                        (iv_row["n"] if iv_row else 0) or 0
+                    ) > 0
+                except Exception:
+                    intervention_fired_today = True
+                celebrations = celebrations_service.detect(
+                    user_id, account_id,
+                    goal=goal,
+                    nudges=nudges_state,
+                    discipline=discipline_state,
+                    today_date=today_iso,
+                    traded_today=(today_agg.get("trade_count", 0) or 0) > 0,
+                    day_complete=has_eod_recap_today,
+                    intervention_fired_today=intervention_fired_today,
+                )
+            except Exception:
+                celebrations = []
 
         return {
             "profile_excerpt": profile_excerpt,

@@ -7,7 +7,8 @@ are recognised:
 
   - goal:       any goal_progress period whose progress >= 1.0 (goal hit)
   - streak:     winStreakCount >= the win threshold
-  - discipline: a clean session — traded, no discipline breach, day effectively done
+  - discipline: a clean session — traded, NO intervention fired today, not
+                currently locked, day effectively done
   - adherence:  a closed trade whose adherencePct == 1.0 (every rule followed)
 
 Each achievement fires EXACTLY ONCE ever — durable + cross-device — via the shared
@@ -83,6 +84,7 @@ def detect(
     today_date: str | None = None,
     traded_today: bool | None = None,
     day_complete: bool = False,
+    intervention_fired_today: bool = False,
 ) -> list[dict]:
     """Return the celebrations newly earned on this call (each at most once ever).
 
@@ -124,16 +126,24 @@ def detect(
         pass
 
     # ── clean discipline day ─────────────────────────────────────────────────
-    # Only when: traded today, no active breach, AND the caller signals the market
-    # day is effectively done (day_complete). Derives tradedToday from overview.today
-    # when the caller doesn't pass it explicitly.
+    # Only when: traded today, NO intervention fired today, not currently locked,
+    # AND the caller signals the market day is effectively done (day_complete).
+    # `intervention_fired_today` (caller-supplied, today-bounded) is the load-bearing
+    # honesty check: cooling-off / no-trade-window locks EXPIRE by EOD, so a day
+    # that breached one earlier — now unlocked — must NOT read as clean. Derives
+    # tradedToday from overview.today when the caller doesn't pass it explicitly.
     try:
         if discipline is not None:
             traded = traded_today
             if traded is None and overview:
                 tc = (overview.get("today") or {}).get("trade_count")
                 traded = bool(tc and int(tc) > 0)
-            if traded and day_complete and not bool(discipline.get("locked")):
+            if (
+                traded
+                and day_complete
+                and not intervention_fired_today
+                and not bool(discipline.get("locked"))
+            ):
                 candidates.append({
                     "key": f"cleanday_{today.isoformat()}",
                     "kind": "discipline",

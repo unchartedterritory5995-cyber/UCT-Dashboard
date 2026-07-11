@@ -20,7 +20,7 @@ const fullData = {
     { label: 'SKIP', overridden: { n: 8, winRate: 0.25, avgR: -0.6, netPnl: -820 }, obeyed: 15 },
   ],
   coverage: { tradesWithVerdict: 44, tradesTotal: 60 },
-  skipOverrideHeadline: { n: 8, lossRate: 0.75, netPnl: -820 },
+  skipOverrideHeadline: { n: 8, lossRate: 0.75, losses: 6, decisive: 8, netPnl: -820 },
 }
 
 function renderCard(data) {
@@ -43,9 +43,10 @@ describe('VerdictScorecard', () => {
     // Win-rate values render.
     expect(screen.getByText('62%')).toBeInTheDocument()
     expect(screen.getByText('25%')).toBeInTheDocument()
-    // The red-toned override headline (n + rounded loss rate + money in one node).
+    // The red-toned override headline: total overrides (n=8, breakevens incl.)
+    // but the honest decisive count — "lost {losses} of {decisive}" — plus money.
     expect(
-      screen.getByText(/overrode Compass.s SKIP 8 times .* lost 75% of them \(-\$820\.00\)/i),
+      screen.getByText(/overrode Compass.s SKIP 8 times .* lost 6 of the 8 you took to a decision \(-\$820\.00\)/i),
     ).toBeInTheDocument()
     // The obeyed-SKIP aside.
     expect(screen.getByText(/obeyed 15/i)).toBeInTheDocument()

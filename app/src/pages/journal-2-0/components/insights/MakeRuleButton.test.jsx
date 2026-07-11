@@ -95,16 +95,18 @@ describe('MakeRuleButton', () => {
     await flush()
   })
 
-  it('renders nothing when the makeRule flag is off', async () => {
+  it('renders nothing AND fires no rules GET when the makeRule flag is off', () => {
     setFeatureFlag('makeRule', false) // beforeEach's localStorage.clear() resets it
     renderButton()
     expect(screen.queryByText(/make this a rule/i)).not.toBeInTheDocument()
-    await flush()
+    // Flag read FIRST → useJournalRules gets null → no GET /rules ever fires.
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 
-  it('renders nothing when there is no single account (accountId null)', () => {
+  it('renders nothing AND fires no rules GET when there is no single account (accountId null)', () => {
     renderButton({ accountId: null })
     expect(screen.queryByText(/make this a rule/i)).not.toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 
   it('renders no emoji (all iconography via UIcon)', async () => {

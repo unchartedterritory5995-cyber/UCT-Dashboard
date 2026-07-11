@@ -147,7 +147,29 @@ def test_skip_taken_anyway_overridden_and_headline(db_conn):
     assert hl is not None
     assert hl["n"] == 1
     assert hl["lossRate"] == 1.0                    # took SKIP → lost 100%
+    assert hl["losses"] == 1                        # honest integer count …
+    assert hl["decisive"] == 1                      # … over the decisive denominator
     assert hl["netPnl"] == -150.0
+
+
+# ── Headline: n counts BE, but losses/decisive are decisive-only ─────────────
+
+
+def test_skip_override_headline_n_includes_be_but_decisive_excludes_it(db_conn):
+    from api.services.journal_two import verdict_scorecard
+    acc = _seed_account(db_conn)
+    # Two SKIPs taken anyway: one Loss + one breakeven. The headline `n` counts
+    # both (2), but losses/decisive/lossRate are over the DECISIVE set only (1).
+    _insert_trade(db_conn, user_id=U, account_id=acc["id"], result="Loss", pnl=-150, r=-1.5,
+                  context={"compass_verdict_id": "s1", "compass_verdict_label": "SKIP"})
+    _insert_trade(db_conn, user_id=U, account_id=acc["id"], result="BE", pnl=0, r=0.0,
+                  context={"compass_verdict_id": "s2", "compass_verdict_label": "SKIP"})
+    out = verdict_scorecard.get_verdict_scorecard(U, acc["id"], conn=db_conn)
+    hl = out["skipOverrideHeadline"]
+    assert hl["n"] == 2                # total overridden, breakeven included
+    assert hl["decisive"] == 1         # only the Loss reached a decision
+    assert hl["losses"] == 1
+    assert hl["lossRate"] == 1.0       # 1 loss / 1 decisive (BE not in denominator)
 
 
 # ── SKIP obeyed: verdict with no matching trade ──────────────────────────────

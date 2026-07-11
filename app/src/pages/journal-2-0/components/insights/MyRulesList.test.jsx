@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-
-// Flush the on-mount rules GET inside act so a null-render test doesn't warn.
-const flush = () => act(async () => {})
 
 // MyRulesList uses the REAL useJournalRules hook. Mock global.fetch: the GET
 // returns the active rules; the dismiss POST returns the dismissed record.
@@ -87,16 +84,18 @@ describe('MyRulesList', () => {
     expect(screen.queryByRole('button', { name: /dismiss rule/i })).not.toBeInTheDocument()
   })
 
-  it('renders nothing when the makeRule flag is off', async () => {
+  it('renders nothing AND fires no rules GET when the makeRule flag is off', () => {
     setFeatureFlag('makeRule', false) // beforeEach's localStorage.clear() resets it
     const { container } = renderList()
     expect(container.textContent).toBe('')
-    await flush()
+    // Flag read FIRST → useJournalRules gets null → no GET /rules ever fires.
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 
-  it('renders nothing when there is no single account (accountId null)', () => {
+  it('renders nothing AND fires no rules GET when there is no single account (accountId null)', () => {
     const { container } = renderList({ accountId: null })
     expect(container.textContent).toBe('')
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 
   it('renders no emoji (all iconography via UIcon)', async () => {
