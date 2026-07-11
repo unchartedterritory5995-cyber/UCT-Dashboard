@@ -1696,6 +1696,16 @@ function qualifiesCurated(alert, thresholds) {
 // the current alert window. Hidden from non-admin users; gated by URL param
 // rather than auth because this is internal-only.
 function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
+  // Collapse toggle — the panel is tall; let admins fold it to just the header
+  // bar (Save/Reset stay accessible) so it doesn't eat the whole page. Persisted.
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem("uct_massive_tune_collapsed") === "1"; } catch { return false; }
+  });
+  const toggleCollapsed = () => setCollapsed(c => {
+    const nv = !c;
+    try { localStorage.setItem("uct_massive_tune_collapsed", nv ? "1" : "0"); } catch {}
+    return nv;
+  });
   if (!thresholds) {
     return (
       <div style={{
@@ -1754,10 +1764,11 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         marginBottom: 10,
       }}>
-        <div style={{
+        <div onClick={toggleCollapsed} style={{
           color: P.ac, fontSize: 12, fontWeight: 800, letterSpacing: 1,
-        }}>
-          🔧 ADMIN: CURATED TUNING PANEL
+          cursor: "pointer", userSelect: "none",
+        }} title={collapsed ? "Expand tuning panel" : "Collapse tuning panel"}>
+          {collapsed ? "▶" : "▼"}  🔧 ADMIN: CURATED TUNING PANEL
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={{
@@ -1790,6 +1801,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
         </div>
       </div>
 
+      {!collapsed && (<>
       {/* Preview ribbon */}
       <div style={{
         padding: "6px 10px", background: P.bg, borderRadius: 3,
@@ -2041,6 +2053,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
         dormant set above when needed. If no dormant data yet, classifier
         falls back to legacy V/OI-only Unusual rule.
       </div>
+      </>)}
     </div>
   );
 }
