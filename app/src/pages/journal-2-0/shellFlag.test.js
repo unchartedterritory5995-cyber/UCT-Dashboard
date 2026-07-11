@@ -15,8 +15,8 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('shellFlag', () => {
-  it('exposes a rollout constant defaulting to 0 (dark — default users on legacy v8)', () => {
-    expect(J2_SHELL_ROLLOUT_PCT).toBe(0)
+  it('exposes a rollout constant at 100 (new shell default — Today is real)', () => {
+    expect(J2_SHELL_ROLLOUT_PCT).toBe(100)
   })
 
   describe('resolveJ2Shell', () => {
@@ -30,11 +30,11 @@ describe('shellFlag', () => {
       expect(resolveJ2Shell()).toBe('v5')
     })
 
-    it("unset → falls through to the rollout bucket, which is 'v8' at 0% (dark)", () => {
-      // No 'uct.j2.shell' key set. With J2_SHELL_ROLLOUT_PCT=0 no bucket
-      // [0,100) is < 0, so the default is always the legacy shell (dark ship).
+    it("unset → falls through to the rollout bucket, which is 'v5' at 100% (default)", () => {
+      // No 'uct.j2.shell' key set. With J2_SHELL_ROLLOUT_PCT=100 every bucket
+      // [0,100) is < 100, so the default is the new shell for all browsers.
       expect(localStorage.getItem('uct.j2.shell')).toBeNull()
-      expect(resolveJ2Shell()).toBe('v8')
+      expect(resolveJ2Shell()).toBe('v5')
     })
 
     it('assigns a stable per-browser bucket persisted in localStorage', () => {

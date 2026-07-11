@@ -12,12 +12,12 @@ import { useSyncExternalStore } from 'react'
 // same-day deploy-rollback impossible, so the flip MUST be reversible at
 // runtime — flip back to the 8-tab shell with `window.__uctJ2Shell('v8')`.
 //
-// ROLLOUT DIAL — % of browsers on the NEW shell BY DEFAULT (no explicit
-// opt-in/out). 0 = dark (default users on legacy v8); flip to 100 in Milestone B
-// when Today is real. Only browsers that set `uct.j2.shell`='v5' (e.g.
-// `window.__uctJ2Shell('v5')`) get the new shell for testing. Widen the cohort =
-// raise this + deploy (~10min); instant per-browser revert = `window.__uctJ2Shell('v8')`.
-export const J2_SHELL_ROLLOUT_PCT = 0
+// ROLLOUT DIAL — % of browsers on the NEW 5-surface shell BY DEFAULT (no explicit
+// opt-in/out). 100 = new shell for everyone (Milestone B shipped the real Today).
+// Narrow the cohort back = lower this + deploy (~10min). INSTANT per-browser revert
+// to the legacy 8-tab shell = `window.__uctJ2Shell('v8')` (no deploy — the whole
+// point of this kill-switch during the market-hours deploy freeze).
+export const J2_SHELL_ROLLOUT_PCT = 100
 
 const SHELL_KEY = 'uct.j2.shell'          // explicit override: 'v5' | 'v8'
 const BUCKET_KEY = 'uct.j2.shell.bucket'  // stable per-browser rollout bucket
