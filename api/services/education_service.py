@@ -85,6 +85,7 @@ _EXTRA_COLUMNS = (
     ("headline", "TEXT"),          # one-line AI recap headline
     ("summary", "TEXT"),           # JSON: [str] key-takeaway bullets
     ("key_levels", "TEXT"),        # JSON: [{level, note, t}] flagged price levels
+    ("setups", "TEXT"),            # JSON: [{setup, note, t}] firm-taxonomy setups taught
     ("poster", "INTEGER"),         # 1 once the branded recap poster PNG has been rendered
 )
 
@@ -398,13 +399,13 @@ def get_insights(video_id: int) -> dict:
     render-or-skip without null juggling."""
     with contextlib.closing(_connect()) as c:
         row = c.execute(
-            "SELECT chapters, ticker_moments, transcript, headline, summary, key_levels, poster "
+            "SELECT chapters, ticker_moments, transcript, headline, summary, key_levels, setups, poster "
             "FROM edu_videos WHERE id = ?",
             (int(video_id),),
         ).fetchone()
     if not row:
         return {"chapters": [], "ticker_moments": [], "has_transcript": False,
-                "headline": "", "summary": [], "key_levels": [], "has_poster": False}
+                "headline": "", "summary": [], "key_levels": [], "setups": [], "has_poster": False}
 
     def _parse(s):
         try:
@@ -419,6 +420,7 @@ def get_insights(video_id: int) -> dict:
         "headline": row["headline"] or "",
         "summary": _parse(row["summary"]),
         "key_levels": _parse(row["key_levels"]),
+        "setups": _parse(row["setups"]),
         "has_poster": bool(row["poster"]),
     }
 
@@ -483,6 +485,21 @@ def videos_needing_posters(limit: int = 500) -> list[dict]:
     return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"]} for r in rows]
 
 
+def videos_needing_setups(limit: int = 500) -> list[dict]:
+    """Enriched videos (have chapters) with no setup tags yet — the setup-pass work
+    list. Runs off the STORED transcript (no proxy)."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id, youtube_id, title FROM edu_videos "
+            "WHERE chapters IS NOT NULL AND chapters != '' AND chapters != '[]' "
+            "AND transcript IS NOT NULL AND transcript != '' "
+            "AND (setups IS NULL OR setups = '' OR setups = '[]') "
+            "ORDER BY id DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+    return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"]} for r in rows]
+
+
 def related_videos_by_ticker(video_id: int, limit: int = 10) -> list[dict]:
     """Other videos that covered any of THIS video's tickers, ranked by overlap
     count. Small library (~300 rows) → compute in Python rather than JSON-query
@@ -524,6 +541,7 @@ def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
                        headline: Optional[str] = None,
                        summary: Optional[list] = None,
                        key_levels: Optional[list] = None,
+                       setups: Optional[list] = None,
                        poster: Optional[bool] = None) -> None:
     """Store generated insights (chapters / ticker-moments / transcript / recap
     headline + summary / key levels / poster flag) + stamp insights_at."""
@@ -540,6 +558,8 @@ def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
         sets["summary"] = _json.dumps(summary)
     if key_levels is not None:
         sets["key_levels"] = _json.dumps(key_levels)
+    if setups is not None:
+        sets["setups"] = _json.dumps(setups)
     if poster is not None:
         sets["poster"] = 1 if poster else 0
     clause = ", ".join(f"{k} = :{k}" for k in sets)

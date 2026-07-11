@@ -41,7 +41,7 @@ export default function VideoDockSlot() {
   const boxRef = useRef(null)
   // Chapters + ticker-moments + recap for the now-playing video (empty for
   // non-session videos or before generation). Hook runs unconditionally.
-  const { chapters, tickerMoments, headline, summary, posterUrl, loading, hasTranscript, keyLevels } =
+  const { chapters, tickerMoments, headline, summary, posterUrl, loading, hasTranscript, keyLevels, setups } =
     useVideoInsights(active ? list[index]?.id : null)
   // Timestamped notes for the now-playing video (keyed by youtube_id).
   const currentYt = active ? list[index]?.youtube_id : null
@@ -239,7 +239,7 @@ export default function VideoDockSlot() {
   const upcoming = list.slice(index + 1)
   // Left rail only earns its column when it has content (or is still loading);
   // plain library videos with no insights collapse to video + right rail.
-  const hasLeft = loading || chapters.length > 0 || !!posterUrl
+  const hasLeft = loading || chapters.length > 0 || !!posterUrl || setups.length > 0
 
   return (
     <div className={styles.theater}>
@@ -317,6 +317,27 @@ export default function VideoDockSlot() {
                 </ol>
               </div>
             ) : null}
+            {setups.length > 0 && (
+              <div className={styles.setupsWrap}>
+                <div className={styles.insHead}>Setups covered</div>
+                <div className={styles.setupRow}>
+                  {setups.map((s, i) => (
+                    <a
+                      key={`${s.setup}-${i}`}
+                      className={styles.setupChip}
+                      href={`/model-book?view=setups&setup=${encodeURIComponent(s.setup)}`}
+                      title={s.note ? `${s.setup} — ${s.note}` : `Study "${s.setup}" in the Setup Library`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        navigate(`/model-book?view=setups&setup=${encodeURIComponent(s.setup)}`)
+                      }}
+                    >
+                      {s.setup}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             {posterUrl && (
               <div className={styles.posterWrap}>
                 <div className={styles.insHead}>Session recap</div>

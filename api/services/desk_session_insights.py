@@ -443,6 +443,70 @@ def generate_key_levels(title: str, cues: list[dict]) -> list[dict]:
     return _clean_levels(_loads_json(raw).get("key_levels"))
 
 
+# The firm's fixed setup playbook — MUST match the names in
+# app/src/pages/modelbook/setupCatalog.js so the Setup-Library deep-link resolves.
+_SETUP_TAXONOMY = [
+    "Flat Base Breakout", "Bull Flag", "IPO Base", "Launchpad", "Cup & Handle",
+    "20 EMA Pullback", "EMA Crossback", "Wedge Pop", "Wedge Drop", "Episodic Pivot",
+    "Power Earnings Gap", "News/Earnings Gapper", "High Volume Edge", "Gap Support",
+    "Kicker Candle", "2B Reversal", "U&R (Undercut & Rally)", "Slingshot",
+    "Oops Reversal", "Remount", "Failed H&S / Rounded Top", "Parabolic Long",
+    "Parabolic Short", "ORB (Opening Range Break)", "30-Minute Pivot", "Go Signal",
+]
+_SETUP_CANON = {s.lower(): s for s in _SETUP_TAXONOMY}
+
+_SETUPS_SYS = (
+    "You are analyzing a timestamped transcript of a stock-trading session/lesson from a "
+    "firm with a FIXED setup playbook. Identify which of the firm's setups are genuinely "
+    "TAUGHT or applied in this video. Map ONLY to these exact names (verbatim):\n"
+    + "; ".join(_SETUP_TAXONOMY) + "\n"
+    "Output STRICT JSON only (no prose, no code fences):\n"
+    '{ "setups": [ {"setup": "<exact name from the list>", "note": "<=60 chars how it was '
+    'used", "t": <int seconds first discussed>} ] }\n'
+    "Rules: 0-6 setups, only ones genuinely covered (not passing name-drops); the setup MUST "
+    "be one of the exact names above — drop anything else. Output ONLY the JSON object."
+)
+
+
+def _clean_setups(items):
+    """Keep only setups that map to a canonical taxonomy name; de-duped."""
+    out, seen = [], set()
+    for it in items or []:
+        try:
+            canon = _SETUP_CANON.get(str(it.get("setup") or "").strip().lower())
+        except (AttributeError, TypeError, ValueError):
+            continue
+        if not canon or canon in seen:
+            continue
+        seen.add(canon)
+        try:
+            t = int(it["t"])
+            if t < 0:
+                t = None
+        except (KeyError, TypeError, ValueError):
+            t = None
+        out.append({"setup": canon, "note": str(it.get("note") or "").strip()[:80], "t": t})
+    return out[:6]
+
+
+def generate_setups(title: str, cues: list[dict]) -> list[dict]:
+    """Focused LLM call: which of the firm's playbook setups this video teaches,
+    mapped precisely to the canonical taxonomy (validated, so no mislabeling)."""
+    from api.services.engine import _get_anthropic_client
+    block = _timestamped_block(cues)
+    if not block:
+        return []
+    client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
+    msg = client.messages.create(
+        model=os.environ.get("DESK_SETUPS_MODEL", _MODEL),
+        max_tokens=1000,
+        system=_SETUPS_SYS,
+        messages=[{"role": "user", "content": f"VIDEO TITLE: {title}\n\nTRANSCRIPT:\n{block}"}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content)
+    return _clean_setups(_loads_json(raw).get("setups"))
+
+
 # ── Recap polish — small LLM rewrite of Zoom's generic summary prose ────────────
 
 def _recap_polish_enabled() -> bool:
@@ -838,6 +902,11 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
 
         if ins and ins.get("chapters"):
             poster_ok = _generate_poster(vid, v, ins)
+            try:  # firm-playbook setup tags (best-effort, never blocks the store)
+                setups = generate_setups(v.get("title") or "", cues) if cues else []
+            except Exception as se:
+                print(f"[session-insights] setup tagging failed (non-fatal): {se}")
+                setups = []
             education_service.set_video_insights(
                 vid,
                 # Timestamped (not flattened) so the ticker-backfill loop
@@ -848,6 +917,7 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
                 headline=ins.get("headline", ""),
                 summary=ins.get("summary", []),
                 key_levels=ins.get("key_levels", []),
+                setups=setups,
                 poster=poster_ok,
             )
             try:  # refresh the community thread body with the polished recap (non-fatal)

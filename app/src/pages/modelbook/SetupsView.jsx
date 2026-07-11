@@ -913,12 +913,24 @@ function DetailStage({ setup, scrollReq, onLearn }) {
 // (grouped, searchable, each with its pattern glyph), and a main stage that
 // loads the selected setup's playbook + charted examples — content is on
 // screen the moment you open it, no marketing landing page.
-export default function SetupsView({ onExit }) {
+export default function SetupsView({ onExit, initialSetup = null }) {
+  // Resolve a deep-linked setup name (from a Desk video "Setups covered" chip) to
+  // a real catalog entry: exact match first, then case-insensitive.
+  const resolveSetup = (name) => {
+    if (!name) return null
+    const hit = SETUP_CATALOG.find(s => s.name === name)
+      || SETUP_CATALOG.find(s => s.name.toLowerCase() === name.toLowerCase())
+    return hit?.name || null
+  }
   const [filter, setFilter] = useState('All')
   const [query, setQuery] = useState('')
-  const [selectedName, setSelectedName] = useState(SETUP_CATALOG[0]?.name || null)
+  const [selectedName, setSelectedName] = useState(
+    () => resolveSetup(initialSetup) || SETUP_CATALOG[0]?.name || null,
+  )
   const isPhone = useIsPhone()
-  const [mobileView, setMobileView] = useState('list')   // phone: list ⇄ detail
+  const [mobileView, setMobileView] = useState(
+    () => (resolveSetup(initialSetup) ? 'detail' : 'list'),
+  )   // phone: list ⇄ detail
 
   // Playbook write-up: opened on demand via the "Learn more" button on each rail
   // row (and the stage header), shown centered over a dimmed backdrop. Null = no
@@ -942,6 +954,15 @@ export default function SetupsView({ onExit }) {
     setScrollReq(prev => ({ exampleId: ex.id, smooth, seq: (prev?.seq || 0) + 1 }))
     if (isPhone) setMobileView('detail')
   }
+  // A fresh deep-link (new ?setup= while already mounted) re-selects that setup.
+  useEffect(() => {
+    const resolved = resolveSetup(initialSetup)
+    if (resolved) {
+      setSelectedName(resolved)
+      if (isPhone) setMobileView('detail')
+    }
+  }, [initialSetup])  // eslint-disable-line react-hooks/exhaustive-deps
+
   // Switching setups always starts fresh at the first example — drop any pending
   // example-scroll request so a stale one (e.g. the last ticker clicked in a
   // setup you're returning to) can't re-fire and jump the pane down.

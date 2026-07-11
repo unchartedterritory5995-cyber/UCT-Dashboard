@@ -1704,12 +1704,23 @@ export default function ModelBook() {
 
   // In-page view. Clicking Model Book in the sidebar lands on the 'hub' intro
   // screen; its option cards switch the view in-page (setView). A deep link can
-  // still preselect a view via location.state ({ mbView }). Navigating to the
-  // bare nav link clears state → back to the hub. Resets on every navigation.
+  // preselect a view via location.state ({ mbView }) OR query params
+  // (?view=setups&setup=<Name> — how the Desk video "Setups covered" chips land
+  // here). Navigating to the bare nav link clears both → back to the hub.
   const location = useLocation()
-  const [view, setView] = useState(() => location.state?.mbView || 'hub')
+  const viewFromLoc = (loc) => {
+    if (loc.state?.mbView) return loc.state.mbView
+    const qp = new URLSearchParams(loc.search).get('view')
+    return MB_VIEW_LABELS[qp] ? qp : 'hub'
+  }
+  const setupFromLoc = (loc) => new URLSearchParams(loc.search).get('setup') || null
+  const [view, setView] = useState(() => viewFromLoc(location))
+  // Setup to preselect in SetupsView when arriving via ?setup=; cleared once the
+  // user navigates within the Model Book so it doesn't stick.
+  const [deepSetup, setDeepSetup] = useState(() => setupFromLoc(location))
   useEffect(() => {
-    setView(location.state?.mbView || 'hub')
+    setView(viewFromLoc(location))
+    setDeepSetup(setupFromLoc(location))
   }, [location.key])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: yearsData, mutate: mutateYears } = useSWR('/api/modelbook/years', fetcher, { revalidateOnFocus: false })
@@ -2093,7 +2104,7 @@ export default function ModelBook() {
 
   // The Setup Library — the playbook's pattern field guide.
   if (view === 'setups') {
-    return <SetupsView onExit={() => setView('hub')} />
+    return <SetupsView initialSetup={deepSetup} onExit={() => setView('hub')} />
   }
 
   // Bottoms — the field manual for how major markets bottom.

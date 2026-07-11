@@ -54,6 +54,7 @@ class InsightsStoreIn(BaseModel):
     headline: Optional[str] = None
     summary: Optional[list] = None
     key_levels: Optional[list] = None
+    setups: Optional[list] = None
 
 
 @router.get("/insights-backfill/pending")
@@ -79,6 +80,12 @@ def get_video_transcript_cues(video_id: int, _: None = Depends(require_push_secr
 def insights_backfill_needs_posters(limit: int = 1000, _: None = Depends(require_push_secret)):
     """Enriched videos lacking a recap poster — the poster-pass work list."""
     return {"videos": svc.videos_needing_posters(limit)}
+
+
+@router.get("/insights-backfill/needs-setups")
+def insights_backfill_needs_setups(limit: int = 1000, _: None = Depends(require_push_secret)):
+    """Enriched videos with no setup tags yet — the setup-pass work list."""
+    return {"videos": svc.videos_needing_setups(limit)}
 
 
 @router.post("/videos/{video_id}/generate-poster")
@@ -119,6 +126,7 @@ def insights_store(video_id: int, body: InsightsStoreIn, _: None = Depends(requi
         headline=body.headline,
         summary=body.summary,
         key_levels=body.key_levels,
+        setups=body.setups,
     )
     return {"ok": True,
             "chapters": len(body.chapters or []),

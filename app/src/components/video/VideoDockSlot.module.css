@@ -259,6 +259,30 @@
 }
 .levelChip:hover { background: rgba(201, 168, 76, 0.2); }
 .levelChip:focus-visible { outline: 2px solid #c9a84c; outline-offset: 2px; }
+/* Firm-playbook setups taught in this session — deep-link into the Setup Library. */
+.setupsWrap {
+  margin-top: 14px;
+}
+.setupRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.setupChip {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #cfe6d8;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 178, 140, 0.42);
+  background: rgba(96, 178, 140, 0.12);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.12s ease;
+}
+.setupChip:hover { background: rgba(96, 178, 140, 0.24); }
+.setupChip:focus-visible { outline: 2px solid #60b28c; outline-offset: 2px; }
 .tickersWrap {
   margin-top: 14px;
 }
