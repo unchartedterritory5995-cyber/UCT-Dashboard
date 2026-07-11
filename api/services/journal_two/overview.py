@@ -154,6 +154,33 @@ def get_overview(*, user_id: str, account_id: str, conn=None) -> dict:
         except Exception:
             pass
 
+        # Celebration moments (P6-7) — positive CoachStrip rows, once-per via
+        # calendar_seen. Cheap: reuses the shared connection; each achievement
+        # fires at most once ever. Defensive — never breaks the overview payload.
+        celebrations: list[dict] = []
+        try:
+            from api.services.journal_two import celebrations as celebrations_service
+            from api.services.journal_two import nudges as nudges_service
+            from api.services.journal_two import discipline as discipline_service
+            goal = accounts_service.goal_progress(user_id, account_id, conn=_conn)
+            nudges_state = nudges_service.get_nudges_state(
+                user_id, account_id, conn=_conn,
+            )
+            discipline_state = discipline_service.compute_discipline_state(
+                user_id, account_id, conn=_conn,
+            )
+            celebrations = celebrations_service.detect(
+                user_id, account_id,
+                goal=goal,
+                nudges=nudges_state,
+                discipline=discipline_state,
+                today_date=today_iso,
+                traded_today=(today_agg.get("trade_count", 0) or 0) > 0,
+                day_complete=has_eod_recap_today,
+            )
+        except Exception:
+            celebrations = []
+
         return {
             "profile_excerpt": profile_excerpt,
             "onboarded": onboarded,
@@ -178,6 +205,7 @@ def get_overview(*, user_id: str, account_id: str, conn=None) -> dict:
             "active_interventions_count": active_interventions_count,
             "pending_profile_suggestions_count": pending_suggestions_count,
             "recent_trade_reviews": recent_reviews,
+            "celebrations": celebrations,
         }
     finally:
         if _close:

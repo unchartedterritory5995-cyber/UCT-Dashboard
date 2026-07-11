@@ -33,6 +33,8 @@ import useInterventions from '../hooks/useInterventions'
 import useJ2UnviewedEOD from '../hooks/useJ2UnviewedEOD'
 import useJ2EODRecaps from '../hooks/useJ2EODRecaps'
 import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
+import useCompassOverview from '../hooks/useCompassOverview'
+import { useFeatureFlag } from '../featureFlags'
 import styles from './CoachStrip.module.css'
 
 // Nudge snooze — SHARE the exact localStorage key family NudgesBanner uses so a
@@ -100,6 +102,12 @@ export default function CoachStrip({ accountId: accountIdProp }) {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
+
+  // Celebration moments (P6-7) — positive success rows from the overview payload.
+  // TodaySurface already mounts useCompassOverview with the same accountId, so SWR
+  // dedups this to zero extra network requests. Flag-gated for instant per-browser kill.
+  const celebrateOn = useFeatureFlag('celebrate')
+  const { overview } = useCompassOverview(accountId)
 
   // ── local dismiss state ─────────────────────────────────────────────────────
   const [snoozed, setSnoozed] = useState(() => readSnoozed(accountId))
@@ -253,10 +261,30 @@ export default function CoachStrip({ accountId: accountIdProp }) {
       })
     }
 
+    // 6. celebrations (P6-7) — positive success rows, appended last (least
+    // urgent, purely affirmative). Each is a once-per achievement from the
+    // overview payload: goal hit, win streak, clean discipline day, 100%-
+    // adherence trade. Flag-gated. The existing win-streak caution row (euphoria
+    // warning) is complementary, not contradictory, so both may coexist.
+    if (celebrateOn && Array.isArray(overview?.celebrations)) {
+      overview.celebrations.forEach((c) => {
+        if (!c || !c.key || !c.message) return
+        out.push({
+          key: `celebration-${c.key}`,
+          kind: 'celebration',
+          sev: 'success',
+          icon: 'star-fill',
+          label: 'Milestone',
+          message: c.message,
+        })
+      })
+    }
+
     return out
   }, [
     disciplineState, interventions, brokerData, reviewDismissed, nudgesState,
     snoozed, unviewed, eodDismissed, dismissIntervention, snoozeNudge, markViewed,
+    celebrateOn, overview,
   ])
 
   // Calm surface: nothing to show → render nothing.

@@ -20,6 +20,7 @@ let interventions = []
 let unviewed = null
 let disciplineState = null
 let brokerData = { total: 0 }
+let overview = null
 
 const dismissIntervention = vi.fn()
 const markViewed = vi.fn(() => Promise.resolve())
@@ -35,6 +36,7 @@ vi.mock('../hooks/useInterventions', () => ({
 vi.mock('../hooks/useJ2UnviewedEOD', () => ({ default: () => ({ unviewed }) }))
 vi.mock('../hooks/useJ2EODRecaps', () => ({ default: () => ({ markViewed }) }))
 vi.mock('../hooks/useJ2DisciplineState', () => ({ default: () => ({ state: disciplineState }) }))
+vi.mock('../hooks/useCompassOverview', () => ({ default: () => ({ overview }) }))
 vi.mock('swr', () => ({ default: () => ({ data: brokerData }) }))
 vi.mock('react-router-dom', () => ({ useNavigate: () => navSpy }))
 
@@ -47,6 +49,7 @@ beforeEach(() => {
   unviewed = null
   disciplineState = null
   brokerData = { total: 0 }
+  overview = null
   dismissIntervention.mockClear()
   markViewed.mockClear()
   navSpy.mockClear()
@@ -126,6 +129,47 @@ describe('CoachStrip — deep-links', () => {
     fireEvent.click(screen.getByRole('button', { name: /read recap/i }))
     expect(markViewed).toHaveBeenCalledWith('r9')
     expect(navSpy).toHaveBeenCalledWith('/journal/compass')
+  })
+})
+
+describe('CoachStrip — celebrations (P6-7)', () => {
+  it('renders a celebration from the overview as a success row', () => {
+    overview = {
+      celebrations: [
+        { key: 'goal_daily_2026-07-11', kind: 'goal', message: 'Daily goal hit — $540. Bank it.' },
+      ],
+    }
+    render(<CoachStrip />)
+    const rows = screen.getAllByTestId('coach-row')
+    const cel = rows.find((r) => r.getAttribute('data-kind') === 'celebration')
+    expect(cel).toBeTruthy()
+    expect(cel).toHaveAttribute('role', 'status')
+    expect(cel).toHaveTextContent('Daily goal hit — $540. Bank it.')
+  })
+
+  it('flag off → celebration rows are not rendered', () => {
+    localStorage.setItem('uct.j2.feature.celebrate', '0')
+    overview = {
+      celebrations: [
+        { key: 'winstreak_6', kind: 'streak', message: '6 wins in a row — the process is working.' },
+      ],
+    }
+    render(<CoachStrip />)
+    expect(screen.queryByText(/6 wins in a row/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('coach-strip')).not.toBeInTheDocument()
+  })
+
+  it('a celebration is purely additive — other rows still render', () => {
+    brokerData = { total: 1 }
+    overview = {
+      celebrations: [
+        { key: 'cleanday_2026-07-11', kind: 'discipline', message: "Full session, no discipline breaches. That's the edge." },
+      ],
+    }
+    render(<CoachStrip />)
+    const kinds = screen.getAllByTestId('coach-row').map((r) => r.getAttribute('data-kind'))
+    expect(kinds).toContain('review')
+    expect(kinds).toContain('celebration')
   })
 })
 

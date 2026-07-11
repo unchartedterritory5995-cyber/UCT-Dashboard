@@ -13,6 +13,11 @@ def db_conn(monkeypatch):
     from api.services import auth_db
     importlib.reload(auth_db)
     auth_db.init_db()
+    # Isolate the celebrations once-per gate (calendar_seen) to the same temp DB
+    # so get_overview's celebration fold never touches a real /data volume.
+    from api.services import calendar_seen
+    monkeypatch.setattr(calendar_seen, "_DB_PATH", tmp.name)
+    monkeypatch.setattr(calendar_seen, "_INIT_DONE", False)
     conn = sqlite3.connect(tmp.name)
     conn.row_factory = sqlite3.Row
     yield conn
@@ -33,6 +38,7 @@ def test_overview_returns_expected_shape_for_fresh_account(db_conn):
         "profile_excerpt", "onboarded", "this_weeks_focus", "week_to_date",
         "today", "regime", "active_interventions_count",
         "pending_profile_suggestions_count", "recent_trade_reviews",
+        "celebrations",
     }
     assert expected_keys.issubset(set(result.keys()))
     assert result["onboarded"] is False
@@ -40,6 +46,8 @@ def test_overview_returns_expected_shape_for_fresh_account(db_conn):
     assert result["this_weeks_focus"] is None
     assert result["recent_trade_reviews"] == []
     assert result["active_interventions_count"] == 0
+    # Fresh account has no goals / streaks / trades → no celebrations.
+    assert result["celebrations"] == []
 
 
 def test_overview_extracts_this_weeks_focus_from_weekly_review(db_conn):
