@@ -5,6 +5,14 @@ import UIcon from '../components/ui/UIcon'
 import { track } from '../utils/landingTrack'
 import styles from './Landing.module.css'
 
+// Real product captures — actual surfaces from the live desk (July 2026).
+import shotChart from '../assets/landing/chart.webp'
+import shotTape from '../assets/landing/tape.webp'
+import shotLiveflow from '../assets/landing/liveflow.webp'
+import shotBreadth from '../assets/landing/breadth.webp'
+import shotBreadthSm from '../assets/landing/breadth_sm.webp'
+import shotWire from '../assets/landing/wire.webp'
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Time helpers — everything on this page that claims to be "live" is computed
 // from the visitor's real clock projected into America/New_York. No fake data.
@@ -95,130 +103,22 @@ function FadeIn({ children, delay = 0, className = '' }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Illustrative product surfaces — small, faithful, clearly-labeled sketches of
-// what each area of the platform looks like. Representative data only.
+// Product surfaces. `Shot` renders a REAL capture from the live desk;
+// `Vignette` renders a crafted, clearly-labeled illustration (used only where
+// a real capture would expose personal account data).
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Hand-authored uptrend with a mid-base — [open, high, low, close] in 0–100.
-const CANDLES = [
-  [30, 33, 28, 32], [32, 35, 31, 34], [34, 36, 32, 33], [33, 34, 30, 31],
-  [31, 33, 29, 32], [32, 37, 32, 36], [36, 40, 35, 39], [39, 42, 38, 41],
-  [41, 43, 39, 40], [40, 41, 37, 38], [38, 40, 36, 39], [39, 44, 39, 43],
-  [43, 47, 42, 46], [46, 50, 45, 49], [49, 51, 46, 47], [47, 49, 45, 48],
-  [48, 53, 47, 52], [52, 57, 51, 56], [56, 60, 55, 59], [59, 61, 56, 57],
-  [57, 60, 55, 59], [59, 64, 58, 63], [63, 68, 62, 67], [67, 71, 65, 70],
-]
-
-function MiniChart({ height = 150 }) {
-  const W = 340
-  const H = 110
-  const n = CANDLES.length
-  const bw = W / n
-  const y = (v) => H - (v / 100) * H
-
-  // Simple 5-bar MA of closes for the overlay line.
-  const ma = CANDLES.map((_, i) => {
-    const from = Math.max(0, i - 4)
-    const slice = CANDLES.slice(from, i + 1)
-    return slice.reduce((s, c) => s + c[3], 0) / slice.length
-  })
-  const maPath = ma.map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i + 0.5) * bw} ${y(v)}`).join(' ')
-
+function Shot({ src, title, time, alt, live = false }) {
   return (
-    <svg
-      className={styles.miniChart}
-      viewBox={`0 0 ${W} ${H}`}
-      style={{ height }}
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      {[25, 50, 75].map((g) => (
-        <line key={g} x1="0" y1={y(g)} x2={W} y2={y(g)} className={styles.chartGrid} />
-      ))}
-      {/* trendline along the base lows — a nod to the drawing tools */}
-      <line
-        x1={3.5 * bw} y1={y(29)} x2={16.5 * bw} y2={y(45.5)}
-        className={styles.chartTrendline}
-      />
-      {CANDLES.map(([o, h, l, c], i) => {
-        const up = c >= o
-        const cx = (i + 0.5) * bw
-        return (
-          <g key={i} className={up ? styles.candleUp : styles.candleDown}>
-            <line x1={cx} y1={y(h)} x2={cx} y2={y(l)} />
-            <rect
-              x={cx - bw * 0.3}
-              y={y(Math.max(o, c))}
-              width={bw * 0.6}
-              height={Math.max(1.5, Math.abs(y(o) - y(c)))}
-            />
-          </g>
-        )
-      })}
-      <path d={maPath} className={styles.chartMa} />
-    </svg>
-  )
-}
-
-const TAPE_ROWS = [
-  { sym: 'NVDA', det: '190C 07/25', prem: '$2.4M', kind: 'SWEEP', up: true },
-  { sym: 'SPY',  det: '628P 07/14', prem: '$1.1M', kind: 'BLOCK', up: false },
-  { sym: 'AVGO', det: '300C 08/15', prem: '$3.8M', kind: 'SWEEP', up: true },
-  { sym: 'TSLA', det: 'DARK POOL',  prem: '$6.2M', kind: 'PRINT', up: true },
-  { sym: 'PLTR', det: '160C 07/18', prem: '$890K', kind: 'SWEEP', up: true },
-  { sym: 'QQQ',  det: '560P 07/21', prem: '$1.7M', kind: 'BLOCK', up: false },
-]
-
-function TapeCard({ compact = false }) {
-  const rows = compact ? TAPE_ROWS.slice(0, 4) : TAPE_ROWS
-  return (
-    <div className={styles.vig} aria-hidden="true">
+    <figure className={styles.shot}>
       <div className={styles.vigHead}>
-        <span className={`${styles.vigDot} ${styles.vigDotLive}`} />
-        <span className={styles.vigTitle}>LiveFlow</span>
-        <span className={styles.vigTime}>STREAMING</span>
+        <span className={`${styles.vigDot} ${live ? styles.vigDotLive : ''}`} />
+        <span className={styles.vigTitle}>{title}</span>
+        <span className={styles.vigTime}>{time}</span>
       </div>
-      <div className={styles.tapeWindow}>
-        <div className={styles.tapeScroll}>
-          {[...rows, ...rows].map((r, i) => (
-            <div key={i} className={styles.tapeRow}>
-              <b>{r.sym}</b>
-              <span>{r.det}</span>
-              <em className={r.up ? styles.vigGreen : styles.vigRed}>{r.prem}</em>
-              <i>{r.kind}</i>
-            </div>
-          ))}
-        </div>
-      </div>
-      {!compact && <div className={styles.vigCaption}>Illustrative example</div>}
-    </div>
-  )
-}
-
-// Eight-tier breadth tints, sampled from the app's real heat palette.
-const HEAT = [
-  'rgba(10,50,22,0.97)', 'rgba(22,100,48,0.8)', 'rgba(74,222,128,0.16)',
-  'rgba(180,130,20,0.32)', 'rgba(248,113,113,0.16)', 'rgba(22,100,48,0.8)',
-]
-const HEAT_CELLS = [0, 1, 1, 2, 1, 0, 2, 3, 1, 1, 5, 2, 0, 1, 4, 1, 2, 1]
-
-function BreadthCard({ compact = false }) {
-  return (
-    <div className={styles.vig} aria-hidden="true">
-      <div className={styles.vigHead}>
-        <span className={styles.vigDot} />
-        <span className={styles.vigTitle}>Breadth</span>
-        <span className={styles.vigTime}>TIER 6 · RISK-ON</span>
-      </div>
-      <div className={styles.heatGrid}>
-        {HEAT_CELLS.slice(0, compact ? 12 : 18).map((t, i) => (
-          <span key={i} style={{ background: HEAT[t] }} />
-        ))}
-      </div>
-      {!compact && (
-        <div className={styles.vigMore}>20+ internals · 500-day analogue: 2020-06 rally</div>
-      )}
-    </div>
+      <img src={src} alt={alt} loading="lazy" />
+      <figcaption className={styles.vigCaption}>Captured from the live desk</figcaption>
+    </figure>
   )
 }
 
@@ -337,7 +237,7 @@ const LOOP = [
   { verb: 'Reads',    detail: '8 sources, every night, cover to cover' },
   { verb: 'Briefs',   detail: 'the Morning Wire, 7:35 AM sharp' },
   { verb: 'Flags',    detail: 'catalysts as they form, pre-market' },
-  { verb: 'Verdicts', detail: 'GO / HOLD / SKIP — before you click buy' },
+  { verb: 'Calls it', detail: 'GO / HOLD / SKIP — before you click buy' },
   { verb: 'Learns',   detail: 'from every trade in your journal' },
   { verb: 'Coaches',  detail: 'your week, every Sunday evening' },
 ]
@@ -352,7 +252,7 @@ const INVENTORY = [
       'Stock Catalysts — 20 vetted picks synthesized from 8 sources, every refresh',
       'Compass AI coach — pre-trade GO / HOLD / SKIP verdicts with reasons',
       'Post-mortems, tilt detection & Sunday weekly reviews',
-      'Voice Assistant — 88 tools, full conversations, read-aloud',
+      'Voice Assistant — ask anything by voice, hear the Wire read back',
       'Pattern Engine — 85 setup detectors running across the market',
       'The UCT Brain — 7,800+ curated knowledge entries, 48 setup templates',
       'UCT-Mentor — the AI trader in residence on The Floor',
@@ -436,8 +336,16 @@ const FAQS = [
     a: 'No — UCT Intelligence is research and analytics software. Every brief, pick, verdict, and chart is information to investigate, not a recommendation to trade. You make your own decisions; we provide the work product of a research desk.',
   },
   {
+    q: 'Who is this for — and who is it not for?',
+    a: 'Built for active US stock and options traders — swing, momentum, day. If you buy index funds once a month, this is more desk than you need. If you trade setups, manage risk by regime, and take your process seriously, this was built for you.',
+  },
+  {
     q: 'What exactly is in the 14-day trial?',
     a: 'Everything. The trial is the full platform — LiveFlow, the charts workspace, breadth, the Morning Wire, Compass, Catalysts, the Journal, The Floor, all of it, unmetered. No credit card to start, and nothing is charged unless you subscribe.',
+  },
+  {
+    q: 'Is the AI coach actually useful, or a chatbot with a finance skin?',
+    a: 'Judge it in the trial. Compass reads your own journal — your setups, your stops, your rules — and cites that data back to you when it says GO, HOLD, or SKIP. It refuses trades that break your rules and tells you why. It gives information, not advice; every decision stays yours.',
   },
   {
     q: 'What happens after 14 days?',
@@ -446,6 +354,10 @@ const FAQS = [
   {
     q: 'Do I need to connect a broker?',
     a: 'No. Everything works without one. If you do link a brokerage, the Journal syncs your trades automatically — fills mirrored exactly — but it’s always optional.',
+  },
+  {
+    q: 'Can I bring my trade history with me?',
+    a: 'Yes. The Journal imports your full history via CSV presets built for TradeZella, Tradervue, and TraderSync — or link a brokerage and it backfills automatically. Ten minutes, not a weekend.',
   },
   {
     q: 'How is this different from a screener, a Discord, or a journal app?',
@@ -461,7 +373,7 @@ const FAQS = [
 const PILLAR_CHIPS = {
   market: ['LiveFlow tape', 'Dark-pool prints', 'GEX', 'Breadth Monitor', 'COT', '99 themes', 'Stock Catalysts', 'UCT 20', 'Calendar', 'News + tweet tape', '3,685 tickers streaming'],
   charts: ['Drag-resize tiles', '4 link groups', '8 timeframes', 'Streaming bars', 'Drawing tools', 'Pattern callouts', 'Deep history', 'Fundamentals widget', 'Mobile workspace'],
-  ai: ['Morning Wire', 'Compass verdicts', 'Post-mortems', 'Tilt detection', 'Weekly reviews', 'Voice — 88 tools', 'Pattern Engine — 85 detectors', 'UCT Brain', 'UCT-Mentor'],
+  ai: ['Morning Wire', 'Compass verdicts', 'Post-mortems', 'Tilt detection', 'Weekly reviews', 'Voice — full conversations', 'Pattern Engine — 85 detectors', 'UCT Brain', 'UCT-Mentor'],
   journal: ['Broker auto-sync', 'MFE / MAE excursions', 'Exit quality', 'Regime analytics', 'Risk block', 'Equity curve', 'Notebook', 'CSV presets', 'Share cards'],
   floor: ['Live floor chat', 'Trade & chart cards', 'The Tape', 'Boards', 'Verified badges', 'Daily session recordings', 'Chapters & recaps', 'Education library', 'Workshop'],
 }
@@ -506,10 +418,12 @@ export default function Landing() {
 
   const [footerRef, footerInView] = useInView({ threshold: 0.05 })
 
-  const priceMain = billing === 'annual' ? '$2,000' : '$200'
-  const priceUnit = billing === 'annual' ? '/year' : '/month'
+  // Annual leads with the effective monthly rate — never let $2,000 be the
+  // headline figure (the billed total lives in the note line).
+  const priceMain = billing === 'annual' ? '$167' : '$200'
+  const priceUnit = '/month'
   const priceNote = billing === 'annual'
-    ? 'Two months free vs monthly.'
+    ? 'Billed $2,000/year — two months free.'
     : 'Billed monthly. Cancel anytime.'
 
   return (
@@ -525,7 +439,7 @@ export default function Landing() {
         <div className={styles.navLinks}>
           <a href="#platform" onClick={scrollTo('platform')}>Platform</a>
           <a href="#intelligence" onClick={scrollTo('intelligence')}>Intelligence</a>
-          <a href="#everything" onClick={scrollTo('everything')}>Everything</a>
+          <a href="#everything" onClick={scrollTo('everything')}>What&rsquo;s inside</a>
           <a href="#pricing" onClick={scrollTo('pricing')}>Pricing</a>
           <a href="#faq" onClick={scrollTo('faq')}>FAQ</a>
         </div>
@@ -555,10 +469,11 @@ export default function Landing() {
                 Your entire trading operation. <em>One desk.</em>
               </h1>
               <p className={`${styles.heroSub} ${styles.enter} ${styles.enter3}`}>
-                Live charts. The options tape. Market breadth, 99 rotation themes,
-                vetted catalysts. A journal that syncs itself from your broker, and a
-                floor of real traders — with one AI woven through all of it, reading
-                the market while you sleep and coaching every trade you take.
+                The charts workspace. The live options tape. Breadth, 99 rotation
+                themes, twenty vetted catalysts every morning. A journal that syncs
+                itself from your broker, a floor of real traders — and one AI through
+                all of it, reading the market while you sleep and coaching every
+                trade you take.
               </p>
               <div className={`${styles.ctas} ${styles.enter} ${styles.enter4}`}>
                 <Link
@@ -573,29 +488,44 @@ export default function Landing() {
                 </a>
               </div>
               <div className={`${styles.ctaSubnote} ${styles.enter} ${styles.enter5}`}>
-                No credit card · Full access from minute one · Cancel in one click
+                No credit card · Full access from minute one · $200/mo after the trial
               </div>
             </div>
 
-            {/* The operation, at a glance — live-feeling product surfaces */}
-            <div className={`${styles.heroMosaic} ${styles.enter} ${styles.enter4}`} aria-hidden="true">
-              <div className={styles.mosaicChart}>
-                <div className={styles.vigHead}>
-                  <span className={styles.vigDot} />
-                  <span className={styles.vigTitle}>NVDA · 1D</span>
-                  <span className={styles.vigTime}>WORKSPACE</span>
-                </div>
-                <MiniChart height={130} />
+            {/* The operation, at a glance — real product captures */}
+            <div className={`${styles.heroMosaic} ${styles.enter} ${styles.enter4}`}>
+              <div className={styles.mosaicWide}>
+                <Shot
+                  src={shotChart}
+                  title="Charts · SPY 1D"
+                  time="WORKSPACE"
+                  alt="The UCT charts workspace — SPY daily with moving averages, volume, and signal markers"
+                />
               </div>
-              <div className={styles.mosaicCell}><TapeCard compact /></div>
-              <div className={styles.mosaicCell}><BreadthCard compact /></div>
+              <div className={styles.mosaicCell}>
+                <Shot
+                  src={shotTape}
+                  title="LiveFlow"
+                  time="THE TAPE"
+                  live
+                  alt="The LiveFlow options tape — graded sweeps and blocks with premium"
+                />
+              </div>
+              <div className={styles.mosaicCell}>
+                <Shot
+                  src={shotBreadthSm}
+                  title="Breadth"
+                  time="8-TIER HEAT"
+                  alt="The breadth monitor heatmap — moving-average breadth tiers"
+                />
+              </div>
               <div className={styles.mosaicWide}>
                 <div className={styles.mosaicChatLine}>
                   <span className={styles.vigBadgeGo}>COMPASS</span>
                   <span>Two stops today — your rule says A+ setups only. This one’s a SKIP.</span>
                 </div>
               </div>
-              <div className={styles.mosaicCaption}>Illustrative data</div>
+              <div className={styles.mosaicCaption}>Real product · captured July 2026</div>
             </div>
           </div>
         </section>
@@ -609,76 +539,49 @@ export default function Landing() {
               A news feed. <em>This is all of them — on one screen.</em>
             </h2>
             <p className={styles.shiftP}>
-              Serious traders end up paying five or six services that don&rsquo;t talk to
-              each other. UCT Intelligence is the whole stack, built as one desk —
+              Serious traders end up paying for five or six subscriptions that never
+              talk to each other — a journal here, a flow tool there, a Discord
+              somewhere else. UCT Intelligence is the whole stack, built as one desk,
               where the tape, the charts, your journal, and the room all share the
               same brain.
+            </p>
+            <p className={styles.shiftQualifier}>
+              Built for committed swing and momentum traders, on the methodologies of
+              O&rsquo;Neil, Minervini, and Qullamaggie — the setups, the regime discipline,
+              the exposure model.
             </p>
           </FadeIn>
         </section>
 
-        {/* ── Pillar · Live market intelligence ── */}
-        <section id="platform" className={`${styles.pillar} ${styles.pillarBand}`}>
-          <div className={styles.pillarInner}>
-            <div className={styles.pillarCopy}>
-              <div className={styles.sectionEyebrow}>Live market intelligence</div>
-              <h2 className={styles.sectionH2}>See the whole market moving. <em>Live.</em></h2>
-              <p className={styles.sectionP}>
-                The options tape streaming sweeps, blocks, and dark-pool prints.
-                Breadth on an eight-tier heatmap with 500 days of analogues. 99 themes
-                across 1,928 stocks so you see rotation the moment it starts — and
-                twenty vetted catalysts every morning, ranked with the reason attached.
+        {/* ── Founder note ── */}
+        <section className={styles.founder}>
+          <FadeIn>
+            <div className={styles.founderCard}>
+              <div className={styles.sectionEyebrow}>Why this exists</div>
+              <p className={styles.founderP}>
+                I built this because I was the customer. I trade every morning, and I
+                was paying for six tools that didn&rsquo;t talk to each other — a journal
+                here, a flow tool there, a chat room somewhere else, charts in a
+                fourth tab. So I built the desk I wanted to sit at: one screen, one
+                brain, everything talking.
               </p>
-              <ChipRow chips={PILLAR_CHIPS.market} />
+              <p className={styles.founderP}>
+                Every feature on this page exists because I use it live, at the open,
+                every session — the same Wire, the same verdicts, the same desk you
+                get. No investors, no growth team. One trader.
+              </p>
+              <div className={styles.founderSig}>Hand-built by a trader, for traders.</div>
             </div>
-            <div className={styles.pillarSide}>
-              <TapeCard />
-              <BreadthCard />
-            </div>
-          </div>
+          </FadeIn>
         </section>
 
-        {/* ── Pillar · Charts ── */}
-        <section className={styles.pillar}>
-          <div className={`${styles.pillarInner} ${styles.pillarFlip}`}>
-            <div className={styles.pillarCopy}>
-              <div className={styles.sectionEyebrow}>The charts</div>
-              <h2 className={styles.sectionH2}>A workspace you compose <em>like a physical desk.</em></h2>
-              <p className={styles.sectionP}>
-                Drag-resize chart tiles, link them in four color groups, run eight
-                timeframes on streaming bars. Drawings you grab and move like objects,
-                patterns called out on the chart, fundamentals one glance away. Your
-                layouts persist — this is a desk you arrange like your own.
-              </p>
-              <ChipRow chips={PILLAR_CHIPS.charts} />
-            </div>
-            <div className={styles.pillarSide}>
-              <div className={styles.vig} aria-hidden="true">
-                <div className={styles.vigHead}>
-                  <span className={styles.vigDot} />
-                  <span className={styles.vigTitle}>Charts Workspace</span>
-                  <span className={styles.vigTime}>8 TF · LINKED</span>
-                </div>
-                <MiniChart height={170} />
-                <div className={styles.vigCaption}>Illustrative example</div>
-              </div>
-              <div className={styles.arrangeTiles} aria-hidden="true">
-                <span className={styles.arrangeTileA} />
-                <span className={styles.arrangeTileB} />
-                <span className={styles.arrangeTileC} />
-                <span className={styles.arrangeTileD} />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Pillar · The intelligence layer ── */}
+        {/* ── Pillar · The intelligence layer (the moat leads) ── */}
         <section id="intelligence" className={`${styles.pillar} ${styles.pillarBand}`}>
           <div className={styles.pillarInner}>
             <div className={styles.pillarCopy}>
               <div className={styles.sectionEyebrow}>The intelligence layer</div>
               <h2 className={styles.sectionH2}>
-                And one intelligence, <em>woven through all of it.</em>
+                One intelligence, <em>woven through all of it.</em>
               </h2>
               <p className={styles.sectionP}>
                 Every surface feeds the same brain. It reads 8 sources overnight and
@@ -687,6 +590,11 @@ export default function Landing() {
                 setups and your tilt from the journal, and writes your weekly review
                 on Sunday. The more you trade with it, the more precisely it knows
                 <em> you</em>.
+              </p>
+              <p className={styles.intelLineage}>
+                The brain is trained on the playbooks of Minervini, O&rsquo;Neil,
+                Qullamaggie, Kell, and Bonde — 7,800+ curated knowledge entries,
+                48 setup templates.
               </p>
               <p className={styles.intelVoice}>
                 <span aria-hidden="true"><UIcon name="mic" size={14} /></span>
@@ -700,6 +608,12 @@ export default function Landing() {
               <ChipRow chips={PILLAR_CHIPS.ai} />
             </div>
             <div className={styles.pillarSide}>
+              <Shot
+                src={shotWire}
+                title="The Morning Wire"
+                time="FRI JUL 10 · 7:41 AM ET"
+                alt="A real Morning Wire brief — today's focus, the tape, and what's driving it"
+              />
               <ol className={styles.loop}>
                 {LOOP.map((step) => (
                   <li key={step.verb} className={styles.loopStep}>
@@ -708,7 +622,63 @@ export default function Landing() {
                   </li>
                 ))}
               </ol>
-              <Vignette kind="compass" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pillar · Live market intelligence ── */}
+        <section id="platform" className={styles.pillar}>
+          <div className={`${styles.pillarInner} ${styles.pillarFlip}`}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>Live market intelligence</div>
+              <h2 className={styles.sectionH2}>See the whole market moving. <em>Live.</em></h2>
+              <p className={styles.sectionP}>
+                The options tape streaming sweeps, blocks, and dark-pool prints.
+                Breadth on an eight-tier heatmap with 500 days of analogues. 99 themes
+                across 1,928 stocks so you see rotation the moment it starts — and
+                twenty vetted catalysts every morning, ranked with the reason attached.
+              </p>
+              <ChipRow chips={PILLAR_CHIPS.market} />
+            </div>
+            <div className={styles.pillarSide}>
+              <Shot
+                src={shotLiveflow}
+                title="LiveFlow · market read"
+                time="JUN 26 SESSION"
+                live
+                alt="LiveFlow — bullish market read with bull/bear premium flow and the graded options tape"
+              />
+              <Shot
+                src={shotBreadth}
+                title="Breadth Monitor"
+                time="90 TRADING DAYS"
+                alt="The breadth monitor — primary breadth, MA breadth, and highs/lows heatmap across 90 days"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pillar · Charts ── */}
+        <section className={`${styles.pillar} ${styles.pillarBand}`}>
+          <div className={styles.pillarInner}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>The charts</div>
+              <h2 className={styles.sectionH2}>Charts you arrange <em>like a physical desk.</em></h2>
+              <p className={styles.sectionP}>
+                Drag-resize chart tiles, link them in four color groups, run eight
+                timeframes on streaming bars. Drawings you grab and move like objects,
+                patterns called out on the chart, fundamentals one glance away. Your
+                layouts persist — set the desk once, and it&rsquo;s there every morning.
+              </p>
+              <ChipRow chips={PILLAR_CHIPS.charts} />
+            </div>
+            <div className={styles.pillarSide}>
+              <Shot
+                src={shotChart}
+                title="Charts Workspace · SPY 1D"
+                time="8 TF · LINKED"
+                alt="A chart tile from the workspace — SPY daily with four moving averages, volume, and signal markers"
+              />
             </div>
           </div>
         </section>
@@ -799,12 +769,47 @@ export default function Landing() {
           </section>
         )}
 
+        {/* ── Your first 14 days ── */}
+        <section className={styles.trial}>
+          <div className={styles.sectionHead}>
+            <div className={styles.sectionEyebrow}>Your first 14 days</div>
+            <h2 className={styles.sectionH2}>What the trial actually looks like.</h2>
+            <p className={styles.sectionP}>
+              Full access from minute one — and the desk starts working before you do.
+            </p>
+          </div>
+          <ol className={styles.trialSteps}>
+            <li className={styles.trialStep}>
+              <span className={styles.trialWhen}>Tonight</span>
+              <span className={styles.trialWhat}>The desk reads 8 sources while you sleep.</span>
+            </li>
+            <li className={styles.trialStep}>
+              <span className={styles.trialWhen}>7:35 AM</span>
+              <span className={styles.trialWhat}>Your first Morning Wire lands — regime, exposure, five setups.</span>
+            </li>
+            <li className={styles.trialStep}>
+              <span className={styles.trialWhen}>Day 2</span>
+              <span className={styles.trialWhat}>Link your broker — the journal fills itself, history included.</span>
+            </li>
+            <li className={styles.trialStep}>
+              <span className={styles.trialWhen}>Sunday</span>
+              <span className={styles.trialWhat}>Compass writes your first weekly review from your own trades.</span>
+            </li>
+            <li className={styles.trialStep}>
+              <span className={styles.trialWhen}>Day 14</span>
+              <span className={styles.trialWhat}>You decide. No card on file, nothing to cancel.</span>
+            </li>
+          </ol>
+        </section>
+
         {/* ── Pricing ── */}
         <section id="pricing" className={styles.price}>
           <div className={styles.sectionHead}>
             <div className={styles.sectionEyebrow}>One plan</div>
             <h2 className={styles.sectionH2}>The whole operation. One price.</h2>
-            <p className={styles.sectionP}>Less than the stack it replaces.</p>
+            <p className={styles.sectionP}>
+              About $8 a trading day on annual — less than the stack it replaces.
+            </p>
           </div>
 
           <div className={styles.priceCard}>
@@ -847,11 +852,16 @@ export default function Landing() {
               className={styles.priceCta}
               onClick={() => track('pricing_cta_pro_click', { billing })}
             >
-              Start your 14-day free trial
+              Start the 14-day trial — no card
             </Link>
+            <div className={styles.priceCtaSub}>
+              Nothing is charged unless you subscribe. Cancel in one click.
+            </div>
             <div className={styles.priceCompare}>
-              A journal alone sells for $399/yr elsewhere. This is the journal —
-              <strong> and the desk around it.</strong>
+              Run the math on a typical stack — journal, flow tool, charting
+              platform, screener, paid community. Traders commonly pay $250–$500 a
+              month across five or six subscriptions that never talk to each other.
+              <strong> This is all of them, sharing one brain.</strong>
             </div>
           </div>
 
@@ -867,7 +877,7 @@ export default function Landing() {
         <section id="faq" className={styles.faq}>
           <div className={styles.sectionHead}>
             <div className={styles.sectionEyebrow}>Questions</div>
-            <h2 className={styles.sectionH2}>Asked before signing up.</h2>
+            <h2 className={styles.sectionH2}>What traders ask before signing up.</h2>
           </div>
           <div className={styles.faqList}>
             {FAQS.map((f) => (
@@ -885,7 +895,8 @@ export default function Landing() {
             <div className={styles.closeTime}>14 days · full access · no card</div>
             <h2 className={styles.closeH2}>Take your seat <em>at the desk.</em></h2>
             <p className={styles.closeP}>
-              Everything above unlocks in the next two minutes. The research starts tonight.
+              Everything above unlocks in the next two minutes. Your first brief
+              lands at 7:35 tomorrow morning.
             </p>
             <div className={styles.ctas}>
               <Link
@@ -893,7 +904,7 @@ export default function Landing() {
                 className={styles.ctaGold}
                 onClick={() => track('close_cta_pro_click')}
               >
-                Start your 14-day free trial
+                Take your seat — start the trial
               </Link>
             </div>
             <div className={styles.ctaSubnote}>
