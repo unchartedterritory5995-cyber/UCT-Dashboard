@@ -5282,6 +5282,25 @@ if os.path.exists(DIST):
     def _serve_vite_svg():
         return FileResponse(os.path.join(DIST, "vite.svg"), media_type="image/svg+xml")
 
+    # Root-level public/ files are NOT covered by the /assets mount, so each
+    # needs an explicit route or the SPA catch-all serves index.html instead —
+    # the OG card silently never renders and crawlers get HTML for robots/sitemap.
+    @app.get("/og-image.png", include_in_schema=False)
+    def _serve_og_image():
+        return FileResponse(
+            os.path.join(DIST, "og-image.png"),
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+    @app.get("/robots.txt", include_in_schema=False)
+    def _serve_robots():
+        return FileResponse(os.path.join(DIST, "robots.txt"), media_type="text/plain; charset=utf-8")
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    def _serve_sitemap():
+        return FileResponse(os.path.join(DIST, "sitemap.xml"), media_type="application/xml")
+
     @app.get("/pip-embed", include_in_schema=False)
     def _serve_pip_embed(v: str = "", t: int = 0):
         # Same-origin shim for the Desk video pop-out (Document Picture-in-Picture).
