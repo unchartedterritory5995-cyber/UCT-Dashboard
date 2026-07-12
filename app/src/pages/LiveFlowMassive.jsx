@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 
 /**
- * LiveFlowMassive — TEST PAGE
+ * LiveFlowMassive — the PRODUCTION Live Flow page (nav "Live Flow").
  *
  * Sister page to LiveFlow.jsx. Same visual tier system, but polls a
  * different backend that sources data from Massive WS writes to FlowDB
@@ -11,10 +11,9 @@ import { useSearchParams } from "react-router-dom";
  *   Bullflow SSE  →  liveflow_worker  →  in-memory buffer  →  /api/live/alerts/recent  →  LiveFlow.jsx
  *   Massive WS    →  massive_ws_worker →  FlowDB           →  /api/live/massive/recent →  LiveFlowMassive.jsx
  *
- * Stripped-down vs LiveFlow.jsx — no history, no backtest, no Discord
- * force-push, no blocklist, no OI fetch. We'll add features back if/when
- * we promote this to the production live page. For now, the goal is:
- * verify the Massive data shape renders correctly in the same tier UI.
+ * Started as a test sister to LiveFlow.jsx; promoted to the nav'd
+ * member-facing page (FREE_PAGES, "Live Flow"). LiveFlow.jsx remains at
+ * /live-flow as the Bullflow-sourced admin/reference view.
  *
  * Route: /live-massive (mount in app router)
  */
@@ -1627,7 +1626,7 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
         <span style={{
           color: P.ac, fontWeight: 700, fontSize: 14, letterSpacing: 1,
         }}>
-          LIVE FLOW — MASSIVE (TEST)
+          LIVE FLOW
         </span>
         <span style={{
           padding: "2px 8px", borderRadius: 3, fontSize: 11,
@@ -3804,8 +3803,7 @@ export default function LiveFlowMassive() {
         marginTop: 30, padding: 12, color: P.mt, fontSize: 10,
         textAlign: "center", borderTop: `1px solid ${P.bd}`,
       }}>
-        Source: Massive WS via FlowDB ・ {STREAM_ENABLED && !curated ? "Live stream (SSE)" : `Polling every ${POLL_INTERVAL_MS/1000}s`} ・
-        TEST PAGE — sister to <a href="/live-flow" style={{ color: P.ac }}>/live-flow</a> (Bullflow)
+        Live Flow ・ Real-time options tape ・ {STREAM_ENABLED && !curated ? "Live stream (SSE)" : `Refreshing every ${POLL_INTERVAL_MS/1000}s`}
       </div>
     </div>
       );
