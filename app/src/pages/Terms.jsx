@@ -42,13 +42,15 @@ export default function Terms() {
 
         <h2>4. Payment and Refunds</h2>
         <p>
-          Paid subscriptions are billed monthly through Stripe. By subscribing, you authorize
-          recurring charges to your payment method. You may cancel at any time through your
-          account settings; cancellation takes effect at the end of the current billing period.
+          Paid subscriptions are billed monthly or annually through Stripe. By subscribing, you
+          authorize recurring charges to your payment method. You may cancel at any time through
+          your account settings; cancellation takes effect at the end of the current billing period.
         </p>
         <p>
-          Refunds may be issued at our discretion within 7 days of the initial subscription
-          charge. No refunds are provided for partial months or after the 7-day window.
+          We honor our published refund policy: if you request a refund within 7 days of any
+          charge, we will refund that charge in full, no questions asked. No refunds are provided
+          after the 7-day window. Free trials are not charged, so no refund is needed to end one —
+          simply cancel before the trial converts or let it expire.
         </p>
 
         <h2>5. Intellectual Property</h2>

@@ -3,12 +3,15 @@ import { useState } from 'react'
 import { apiCall } from './hooks/useCommunity'
 import styles from './Community.module.css'
 
-// ⚠️ OWNER OPEN ITEM: this wording needs a pass from whoever reviewed the
-// existing Terms/disclaimer page before the flag flips on.
-const DISCLAIMER = `The Floor is a member community. Posts are the opinions of
-individual members — nothing here is financial advice, a recommendation, or a
-solicitation to buy or sell any security. Performance claims are unverified.
-Do your own research and manage your own risk.`
+// Plain-language community disclaimer. Reviewed in the 2026-07 pre-launch legal
+// hardening pass; still pending a final read by counsel before broad rollout.
+const DISCLAIMER = `The Floor is a member community. Posts and comments are the
+personal opinions of individual members and do not represent UCT Intelligence or
+Uncharted Territory. Nothing shared here is investment advice, a recommendation, or a
+solicitation to buy or sell any security, and no member is acting as your broker or
+adviser. Performance claims are self-reported and unverified. Do your own research,
+manage your own risk, and never send money or share account credentials with other
+members.`
 
 export default function AckGate({ status, onAcked }) {
   const [busy, setBusy] = useState(false)
@@ -28,8 +31,9 @@ export default function AckGate({ status, onAcked }) {
         <h3 className="t-section-title">Welcome to The Floor</h3>
         <p className={styles.ackText}>{DISCLAIMER}</p>
         <p className={styles.ackText}>
-          Be constructive. No spam, no promotion, no sharing other members&apos; info.
-          Moderators may remove content that breaks the rules.
+          Be constructive. No spam, promotion, paid signals, or soliciting other members,
+          and no sharing of other members&apos; information. UCT Intelligence may moderate,
+          edit, or remove any content and may suspend accounts that break these rules.
         </p>
         <button className={styles.composerSubmit} disabled={busy} onClick={agree}>
           I understand — this is not financial advice

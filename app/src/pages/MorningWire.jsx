@@ -289,6 +289,17 @@ export default function MorningWire() {
       {/* ── On The Tape (live tweet feed) ────────────────────────── */}
       {TWITTER_UI_ENABLED && <OnTheTape />}
 
+      {/* ── Legal disclaimer ─────────────────────────────────────── */}
+      <p style={{
+        margin: '18px 4px 4px', fontSize: 11, lineHeight: 1.5,
+        color: 'var(--color-text-muted, #8a8a8a)', textAlign: 'center',
+      }}>
+        For educational and informational purposes only — not investment advice or a
+        recommendation to buy or sell any security. Levels, picks, and commentary reflect the
+        firm&apos;s method, not personalized advice. Trading involves substantial risk of loss;
+        you are solely responsible for your own decisions.
+      </p>
+
     </div>
     </PullToRefresh>
   )

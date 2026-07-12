@@ -145,6 +145,13 @@ export default function PreTradeVerdictCard({ verdict, isLoading, error }) {
           )}
         </>
       )}
+      <div style={{
+        marginTop: 8, paddingTop: 6, borderTop: '1px solid var(--border)',
+        fontSize: 10, lineHeight: 1.4, color: 'var(--text-muted)',
+      }}>
+        Educational only — not investment advice. Compass grades setups against the
+        firm&apos;s method; you are solely responsible for your own trading decisions.
+      </div>
     </div>
   )
 }

@@ -151,7 +151,10 @@ export default function BrokersPage() {
           <div className={styles.sectionHead}>
             <h2 id="how-heading" className={styles.sectionH2}>How our sync works.</h2>
             <p className={styles.sectionP}>
-              The design principles behind the trust — so you know what the numbers mean.
+              The design principles behind the trust — so you know what the numbers mean. Every
+              connection is <strong>read-only and revocable</strong>: we can never place, modify, or
+              cancel trades, access tokens are encrypted at rest, and you can disconnect a broker
+              from Settings at any time.
             </p>
           </div>
           <div className={styles.trustGrid}>
