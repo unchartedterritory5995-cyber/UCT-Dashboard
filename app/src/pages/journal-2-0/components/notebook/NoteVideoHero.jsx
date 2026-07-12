@@ -2,6 +2,19 @@ import { useEffect, useRef } from 'react'
 import { useYouTubeApi } from '../../../desk/useYouTubeApi'
 import styles from './NoteEditorPage.module.css'
 
+// The mounted hero player's clock, for follow-along highlights in the note's
+// watch rails (chapters / transcript). One note is open at a time, so a
+// module-level getter is safe; returns 0 when no player is live.
+let currentTimeGetter = null
+export function getNoteVideoTime() {
+  try {
+    const t = currentTimeGetter ? currentTimeGetter() : 0
+    return Number.isFinite(t) ? t : 0
+  } catch {
+    return 0
+  }
+}
+
 // Seekable replacement for the Notebook's bare hero iframe. Mounts a YouTube
 // IFrame-API player so clickable [MM:SS] chips (videoTimestamp nodes) can jump
 // the video via the `uct:video-seek` event. Falls back to a plain iframe until
@@ -20,7 +33,10 @@ export default function NoteVideoHero({ youtubeId, watchUrl }) {
       playerVars: { rel: 0, modestbranding: 1, playsinline: 1, enablejsapi: 1 },
     })
     playerRef.current = player
+    currentTimeGetter = () =>
+      (typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0)
     return () => {
+      if (playerRef.current === player) currentTimeGetter = null
       try { player.destroy() } catch { /* ignore */ }
       playerRef.current = null
     }

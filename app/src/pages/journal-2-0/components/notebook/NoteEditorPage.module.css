@@ -228,3 +228,71 @@
 .videoHeroLink:hover {
   text-decoration: underline;
 }
+
+/* Transcript search pill sits between the hero link and the title. */
+.noteTranscript {
+  margin: -2px 0 16px;
+}
+
+/* ── Watch-layout grid — the Desk theater's rails around the note column.
+   Engages only when the note's video resolved to a Desk session with insights
+   (.hasLeft/.hasRight); plain notes keep the single centered column. ── */
+.watchWrap {
+  display: flex;
+  flex-direction: column;
+}
+/* Stacked (≤1024): note column first, then takeaways/tickers, then chapters —
+   mirrors the Desk theater's mobile order. Rails align with the note column. */
+.watchWrap > .column { order: 1; }
+.railRight { order: 2; }
+.railLeft { order: 3; }
+.railLeft,
+.railRight {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto 36px;
+  padding: 0 24px;
+}
+@media (min-width: 1025px) {
+  .watchWrap.hasLeft,
+  .watchWrap.hasRight {
+    display: grid;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+    gap: 22px;
+    align-items: start;
+  }
+  .watchWrap.hasLeft.hasRight {
+    grid-template-columns: 250px minmax(0, 1fr) 330px;
+    grid-template-areas: 'left center right';
+  }
+  .watchWrap.hasLeft:not(.hasRight) {
+    grid-template-columns: 250px minmax(0, 1fr);
+    grid-template-areas: 'left center';
+  }
+  .watchWrap.hasRight:not(.hasLeft) {
+    grid-template-columns: minmax(0, 1fr) 330px;
+    grid-template-areas: 'center right';
+  }
+  .railLeft { grid-area: left; }
+  .railRight { grid-area: right; }
+  .watchWrap > .column { grid-area: center; }
+  /* Rails ride along while a long note scrolls; internal scroll when taller
+     than the viewport. 64px clears the sticky page header. */
+  .railLeft,
+  .railRight {
+    position: sticky;
+    top: 64px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    max-width: none;
+    margin: 24px 0 0;
+    padding: 0;
+  }
+}
+@media (max-width: 640px) {
+  .railLeft,
+  .railRight { padding: 0 16px; }
+}

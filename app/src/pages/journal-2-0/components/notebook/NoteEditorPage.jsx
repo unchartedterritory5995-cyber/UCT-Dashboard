@@ -4,7 +4,11 @@ import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
 import { useJ2Note } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import HeroImagePicker from './HeroImagePicker'
-import NoteVideoHero from './NoteVideoHero'
+import NoteVideoHero, { getNoteVideoTime } from './NoteVideoHero'
+import { NoteRailLeft, NoteRailRight, seekNoteVideo } from './NoteVideoRails'
+import TranscriptPanel from '../../../../components/video/TranscriptPanel'
+import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
+import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './NoteEditorPage.module.css'
@@ -83,6 +87,16 @@ export default function NoteEditorPage({ noteId, onBack }) {
   }
 
   const ytId = parseYouTubeId(note?.heroImageUrl)
+  // Video notes whose video is a Desk library session get the Desk theater's
+  // watch rails on the edges — chapters + setups + recap poster (left), key
+  // takeaways + tickers covered (right), and search-the-transcript under the
+  // player. Plain/external videos resolve to null and keep the simple column.
+  const { video: deskVideo } = useDeskVideoByYoutube(ytId)
+  const insights = useVideoInsights(deskVideo?.id ?? null)
+  const hasLeftRail = !!deskVideo && (insights.loading ||
+    insights.chapters.length > 0 || insights.setups.length > 0 || !!insights.posterUrl)
+  const hasRightRail = !!deskVideo && (insights.loading ||
+    insights.summary.length > 0 || insights.tickerMoments.length > 0)
   // When the note carries a YouTube hero, upgrade any legacy bold "[MM:SS]"
   // text prefixes into clickable videoTimestamp chips before the editor sees them.
   const bodyForEditor = useMemo(
@@ -304,9 +318,29 @@ export default function NoteEditorPage({ noteId, onBack }) {
         </div>
       </header>
 
-      <div className={styles.column}>
+      <div
+        className={
+          `${styles.watchWrap} ${hasLeftRail ? styles.hasLeft : ''} ${hasRightRail ? styles.hasRight : ''}`
+        }
+      >
+        {hasLeftRail && (
+          <div className={styles.railLeft}><NoteRailLeft insights={insights} /></div>
+        )}
+        <div className={styles.column}>
         {ytId ? (
-          <NoteVideoHero youtubeId={ytId} watchUrl={note.heroImageUrl} />
+          <>
+            <NoteVideoHero youtubeId={ytId} watchUrl={note.heroImageUrl} />
+            {deskVideo && (
+              <div className={styles.noteTranscript}>
+                <TranscriptPanel
+                  videoId={deskVideo.id}
+                  hasTranscript={insights.hasTranscript}
+                  onSeek={seekNoteVideo}
+                  getTime={getNoteVideoTime}
+                />
+              </div>
+            )}
+          </>
         ) : (
           <HeroImagePicker
             noteId={noteId}
@@ -401,6 +435,10 @@ export default function NoteEditorPage({ noteId, onBack }) {
             e.target.value = ''
           }}
         />
+        </div>
+        {hasRightRail && (
+          <div className={styles.railRight}><NoteRailRight insights={insights} /></div>
+        )}
       </div>
     </div>
   )

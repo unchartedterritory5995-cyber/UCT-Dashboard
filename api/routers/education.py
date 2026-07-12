@@ -213,6 +213,19 @@ def get_categories(_user: dict = Depends(require_paid)):
     return {"categories": svc.list_categories()}
 
 
+@router.get("/by-youtube/{youtube_id}")
+def get_video_by_youtube(youtube_id: str, _user: dict = Depends(require_paid)):
+    """Resolve a library video from its 11-char YouTube id — lets surfaces that
+    only hold a YouTube URL (e.g. a Notebook video-note's hero) find the Desk
+    video and reuse its insights/transcript endpoints. `video` is null when the
+    id isn't in the library (a plain external video)."""
+    v = svc.get_video_by_youtube_id(youtube_id)
+    if not v:
+        return {"video": None}
+    return {"video": {"id": v["id"], "title": v.get("title"),
+                      "youtube_id": v.get("youtube_id")}}
+
+
 @router.get("/videos/{video_id}/insights")
 def get_video_insights(video_id: int, _user: dict = Depends(require_paid)):
     """AI chapters + ticker-moments + recap (headline/summary/poster) for a

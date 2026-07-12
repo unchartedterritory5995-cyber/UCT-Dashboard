@@ -32,7 +32,10 @@ function highlight(text, q) {
   return parts
 }
 
-export default function TranscriptPanel({ videoId, hasTranscript, onSeek }) {
+// `getTime` supplies the playhead clock for the follow-along highlight — the
+// Desk theater uses the global videoStore (default); the Notebook's video-note
+// passes its own hero-player getter.
+export default function TranscriptPanel({ videoId, hasTranscript, onSeek, getTime = getCurrentTime }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const { cues, loading } = useVideoTranscript(videoId, open)
@@ -49,7 +52,7 @@ export default function TranscriptPanel({ videoId, hasTranscript, onSeek }) {
   useEffect(() => {
     if (!open || query || cues.length === 0) { setActiveCue(-1); return }
     const tick = () => {
-      const now = getCurrentTime()
+      const now = getTime()
       let idx = -1
       for (let i = 0; i < cues.length; i++) {
         if (now >= (cues[i].t || 0) - 0.25) idx = i
@@ -60,7 +63,7 @@ export default function TranscriptPanel({ videoId, hasTranscript, onSeek }) {
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [open, query, cues])
+  }, [open, query, cues, getTime])
   useEffect(() => {
     const el = listRef.current?.querySelector('[data-active="true"]')
     if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' })

@@ -1,0 +1,257 @@
+/* Watch rails for a Notebook video-note — visual language mirrors the Desk
+   theater's rails (VideoDockSlot.module.css) so a session reads the same in
+   both places. */
+.rail {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.insHead {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #a8a290);
+  margin-bottom: 8px;
+}
+
+/* ── Chapters ── */
+.chapterList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.chapterRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.chapterRow:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.chapterRowActive {
+  background: rgba(201, 168, 76, 0.14);
+  box-shadow: inset 2px 0 0 #c9a84c;
+}
+.chapterRowActive .chapterTitle {
+  color: #f3efe2;
+  font-weight: 600;
+}
+.chapterRowActive .chapterTime {
+  color: #e6cf86;
+}
+.chapterTime {
+  flex: none;
+  min-width: 52px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: #c9a84c;
+  font-variant-numeric: tabular-nums;
+}
+.chapterTitle {
+  font-size: 13px;
+  color: var(--text-primary, #f3efe2);
+  line-height: 1.35;
+}
+
+/* ── Setups covered — deep-link into the Setup Library ── */
+.setupRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.setupChip {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #cfe6d8;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 178, 140, 0.42);
+  background: rgba(96, 178, 140, 0.12);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.12s ease;
+}
+.setupChip:hover { background: rgba(96, 178, 140, 0.24); }
+.setupChip:focus-visible { outline: 2px solid #60b28c; outline-offset: 2px; }
+
+/* ── Recap poster ── */
+.posterLink {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  line-height: 0;
+}
+.poster {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── Key takeaways ── */
+.summaryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.summaryList li {
+  position: relative;
+  padding-left: 16px;
+  margin-bottom: 7px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary, #f3efe2);
+}
+.summaryList li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c9a84c;
+}
+
+/* ── Tickers covered ── */
+.tickersToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.tickersToggle .insHead {
+  margin-bottom: 0;
+}
+.tickersChevron {
+  flex: none;
+  color: var(--text-secondary, #a8a290);
+  transform: rotate(-90deg); /* collapsed → points right */
+  transition: transform 0.15s ease;
+}
+.tickersChevronOpen {
+  transform: rotate(0deg);
+}
+.tickersCount {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c9a84c;
+  background: rgba(201, 168, 76, 0.12);
+  border: 1px solid rgba(201, 168, 76, 0.28);
+  border-radius: 999px;
+  padding: 0 7px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.tickerScroll {
+  margin-top: 8px;
+  max-height: 168px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.tickerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tickerChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(201, 168, 76, 0.08);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.tickerChip:hover {
+  background: rgba(201, 168, 76, 0.18);
+  border-color: rgba(201, 168, 76, 0.8);
+}
+.tickerChipActive {
+  background: rgba(201, 168, 76, 0.28);
+  border-color: rgba(201, 168, 76, 0.95);
+}
+.tickerSym {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #c9a84c;
+}
+.tickerSym:hover {
+  text-decoration: underline;
+}
+.tickerTime {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-secondary, #a8a290);
+  font-variant-numeric: tabular-nums;
+}
+.tickerTime:hover {
+  color: #c9a84c;
+}
+
+/* ── Loading skeletons ── */
+.skelList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skelRow { height: 30px; border-radius: 8px; }
+.skelLine { height: 13px; border-radius: 6px; }
+.skelLine:nth-child(3n) { width: 72%; }
+.skelRow,
+.skelLine {
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 37%,
+    rgba(255, 255, 255, 0.04) 63%);
+  background-size: 400% 100%;
+  animation: skelShimmer 1.4s ease infinite;
+}
+@keyframes skelShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skelRow,
+  .skelLine { animation: none; }
+}
+
+/* Visible keyboard focus. */
+.chapterRow:focus-visible,
+.tickersToggle:focus-visible,
+.tickerSym:focus-visible,
+.tickerTime:focus-visible,
+.posterLink:focus-visible {
+  outline: 2px solid #c9a84c;
+  outline-offset: 2px;
+  border-radius: 6px;
+}

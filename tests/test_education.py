@@ -249,3 +249,24 @@ def test_progress_is_per_user(s):
     s.upsert_progress("u2", "vidA", 50, duration=100)
     assert s.get_user_progress("u1")[0]["position"] == 10
     assert s.get_user_progress("u2")[0]["position"] == 50
+
+
+# ── By-YouTube-id lookup (Notebook video-note rails) ────────────────────────────
+
+def test_get_video_by_youtube_id(s):
+    created = s.create_video(_video(youtube_id="abcdefghijk"))
+    got = s.get_video_by_youtube_id("abcdefghijk")
+    assert got["id"] == created["id"]
+    assert s.get_video_by_youtube_id("nope1234567") is None
+    assert s.get_video_by_youtube_id("") is None
+    assert s.get_video_by_youtube_id("  abcdefghijk  ")["id"] == created["id"]
+
+
+def test_by_youtube_endpoint_shape(s):
+    from api.routers.education import get_video_by_youtube
+    created = s.create_video(_video(youtube_id="abcdefghijk", title="Workshop"))
+    out = get_video_by_youtube("abcdefghijk", _user={"id": "u1"})
+    assert out["video"] == {
+        "id": created["id"], "title": "Workshop", "youtube_id": "abcdefghijk",
+    }
+    assert get_video_by_youtube("zzzzzzzzzzz", _user={"id": "u1"})["video"] is None
