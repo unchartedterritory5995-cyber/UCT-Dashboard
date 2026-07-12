@@ -861,11 +861,14 @@ function DetailStage({ setup, scrollReq, onLearn, onOpenBuilder }) {
   const [adding, setAdding] = useState(false)
   // "Add to my playbook" (all logged-in users): clones this setup into the
   // user's My Playbook (POST /api/upb/clone-setup) — idle | saving | done | error.
+  // The created {sectionId, entryId} ride along so the confirmation deep-opens
+  // the cloned entry instead of dropping the user on the builder mini-hub.
   const [cloneState, setCloneState] = useState('idle')
+  const [cloneTarget, setCloneTarget] = useState(null)
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   // The DetailStage instance persists across setup changes (only the inner DOM
   // is keyed), so reset the add form when switching setups.
-  useEffect(() => { setAdding(false); setCloneState('idle') }, [setup.name])
+  useEffect(() => { setAdding(false); setCloneState('idle'); setCloneTarget(null) }, [setup.name])
   async function addToMyPlaybook() {
     if (cloneState === 'saving' || cloneState === 'done') return
     setCloneState('saving')
@@ -877,6 +880,8 @@ function DetailStage({ setup, scrollReq, onLearn, onOpenBuilder }) {
         body: JSON.stringify({ setup_name: setup.name }),
       })
       if (!r.ok) throw new Error(String(r.status))
+      const j = await r.json().catch(() => null)
+      setCloneTarget({ sectionId: j?.section?.id || null, entryId: j?.entry?.id || null })
       setCloneState('done')
     } catch {
       setCloneState('error')
@@ -900,7 +905,7 @@ function DetailStage({ setup, scrollReq, onLearn, onOpenBuilder }) {
         </div>
         <div className={styles.stageHeadRight}>
           {cloneState === 'done' ? (
-            <button className={styles.stageCloneDone} onClick={() => onOpenBuilder?.()}>
+            <button className={styles.stageCloneDone} onClick={() => onOpenBuilder?.(cloneTarget || undefined)}>
               Added — open My Playbook →
             </button>
           ) : (

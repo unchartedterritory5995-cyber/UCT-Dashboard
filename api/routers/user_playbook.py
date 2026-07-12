@@ -22,6 +22,7 @@ Routes:
     DELETE /api/upb/charts/{chart_id}              → delete chart
     PUT    /api/upb/entries/{entry_id}/note-links  → replace Notebook link set
     POST   /api/upb/clone-setup                    → "Add to my playbook"
+    GET    /api/upb/admin/stats                    → global row/byte totals (admin)
 
 Spec: docs/superpowers/specs/2026-07-12-my-playbook-builder-design.md
 """
@@ -32,7 +33,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services.user_playbook import service as upb
 from api.services.user_playbook.service import UpbValidationError
 
@@ -303,3 +304,12 @@ def clone_setup_endpoint(
     except UpbValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return result
+
+
+# ── Admin visibility ─────────────────────────────────────────────────────────
+
+@router.get("/admin/stats")
+def admin_stats_endpoint(user: dict = Depends(require_admin)) -> dict[str, Any]:
+    """Global row/byte totals across all users' playbooks — growth visibility
+    for the one feature that makes auth.db grow user-driven at blob size."""
+    return upb.admin_stats()

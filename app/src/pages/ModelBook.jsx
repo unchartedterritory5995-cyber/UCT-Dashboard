@@ -1731,10 +1731,19 @@ export default function ModelBook() {
   // Setup to preselect in SetupsView when arriving via ?setup=; cleared once the
   // user navigates within the Model Book so it doesn't stick.
   const [deepSetup, setDeepSetup] = useState(() => setupFromLoc(location))
+  // Section/entry to deep-open in the builder — set by the Setup Library's
+  // "Added — open My Playbook →" confirmation; cleared on exit/hub pick so a
+  // later plain visit doesn't re-open an old entry.
+  const [builderTarget, setBuilderTarget] = useState(null)
   useEffect(() => {
     setView(viewFromLoc(location))
     setDeepSetup(setupFromLoc(location))
+    setBuilderTarget(null)
   }, [location.key])  // eslint-disable-line react-hooks/exhaustive-deps
+  // The global ↑/↓/←/→ handler below is years-library navigation only; it reads
+  // the live view through this ref (bound once with [] deps).
+  const viewRef = useRef(view)
+  useEffect(() => { viewRef.current = view }, [view])
 
   const { data: yearsData, mutate: mutateYears } = useSWR('/api/modelbook/years', fetcher, { revalidateOnFocus: false })
   // Show the fixed baseline year tabs plus any data-driven years, newest first.
@@ -2035,6 +2044,10 @@ export default function ModelBook() {
       const t = e.target
       const tag = (t?.tagName || '').toLowerCase()
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || t?.isContentEditable) return
+      // Years-library navigation only. In every other view (hub, setups,
+      // bottoms, builder) the arrows must scroll/behave normally instead of
+      // preventDefault-ing and mutating the hidden years-view selection.
+      if (viewRef.current !== 'years') return
 
       // ←/→ : switch year (years are newest→oldest, so Left = newer, Right = older)
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -2112,12 +2125,20 @@ export default function ModelBook() {
   // hold.
   // The animated intro/menu screen.
   if (view === 'hub') {
-    return <ModelBookHub onPick={setView} />
+    return <ModelBookHub onPick={v => { setBuilderTarget(null); setView(v) }} />
   }
 
   // The Setup Library — the playbook's pattern field guide.
   if (view === 'setups') {
-    return <SetupsView initialSetup={deepSetup} onExit={() => setView('hub')} onOpenBuilder={() => setView('builder')} />
+    return (
+      <SetupsView
+        initialSetup={deepSetup}
+        onExit={() => setView('hub')}
+        // "Added — open My Playbook →" passes the cloned {sectionId, entryId}
+        // so the builder lands directly on the new entry.
+        onOpenBuilder={target => { setBuilderTarget(target || null); setView('builder') }}
+      />
+    )
   }
 
   // Bottoms — the field manual for how major markets bottom.
@@ -2127,7 +2148,13 @@ export default function ModelBook() {
 
   // My Playbook — the user's own builder (7th hub section).
   if (view === 'builder') {
-    return <BuilderView onExit={() => setView('hub')} />
+    return (
+      <BuilderView
+        onExit={() => { setBuilderTarget(null); setView('hub') }}
+        initialSectionId={builderTarget?.sectionId || null}
+        initialEntryId={builderTarget?.entryId || null}
+      />
+    )
   }
 
   // Placeholder sections (everything except the 'years' library).

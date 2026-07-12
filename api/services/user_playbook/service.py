@@ -954,3 +954,33 @@ def clone_setup(
     finally:
         if owned:
             conn.close()
+
+
+# ── Admin visibility ─────────────────────────────────────────────────────────
+
+def admin_stats(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """Global growth metrics (all users) — this feature is the first place
+    auth.db grows user-driven at blob size, so row/byte totals need to be
+    checkable before they become a problem. Admin-only surface."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT
+              (SELECT COUNT(DISTINCT user_id) FROM upb_sections)            AS builders,
+              (SELECT COUNT(*) FROM upb_sections)                           AS sections,
+              (SELECT COUNT(*) FROM upb_entries)                            AS entries,
+              (SELECT COUNT(*) FROM upb_charts)                             AS charts,
+              (SELECT COUNT(*) FROM upb_note_links)                         AS note_links,
+              (SELECT COALESCE(SUM(LENGTH(body_json)), 0) FROM upb_entries) AS body_bytes,
+              (SELECT COALESCE(SUM(
+                 LENGTH(COALESCE(drawings_json, '')) +
+                 LENGTH(COALESCE(result_drawings_json, ''))
+               ), 0) FROM upb_charts)                                       AS drawings_bytes
+            """
+        ).fetchone()
+        return {k: row[k] for k in row.keys()}
+    finally:
+        if owned:
+            conn.close()

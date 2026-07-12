@@ -362,13 +362,16 @@ function SectionScreen({ section, sectionId, onBack, onOpenEntry, mutateOverview
 }
 
 // ── Shell — screen switch ─────────────────────────────────────────────────────
-export default function BuilderView({ onExit }) {
+// initialSectionId/initialEntryId deep-open a screen on mount — used by the
+// Setup Library's "Added — open My Playbook →" confirmation to land the user
+// directly on the freshly cloned entry.
+export default function BuilderView({ onExit, initialSectionId = null, initialEntryId = null }) {
   // Hub badge + mini-hub cards in one call; kept mounted at the shell so every
   // screen can nudge the counts (mutateOverview) after a mutation.
   const { data: overview, mutate: mutateOverview } = useSWR('/api/upb/overview', fetcher, { revalidateOnFocus: false })
 
-  const [sectionId, setSectionId] = useState(null)
-  const [entryId, setEntryId] = useState(null)
+  const [sectionId, setSectionId] = useState(initialSectionId)
+  const [entryId, setEntryId] = useState(initialEntryId)
 
   // If the open section vanishes from the overview (deleted in another tab),
   // fall back to the mini-hub rather than a ghost screen.

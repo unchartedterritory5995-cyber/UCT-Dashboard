@@ -463,3 +463,25 @@ def test_chart_put_partial_annotate_save(client):
     assert updated["entry_price"] == 120.0
     assert updated["label_date"] == "2024-03-14"
     assert updated["result_drawings_json"] is None
+
+
+# ── Admin stats ───────────────────────────────────────────────────────────────
+
+def test_admin_stats_gated_and_counts(client):
+    sec = _mk_section(client)
+    ent = _mk_entry(client, sec["id"])
+    _mk_chart(client, ent["id"])
+
+    # member role → 403 (require_admin chains through get_current_user)
+    r = client.get("/api/upb/admin/stats")
+    assert r.status_code == 403
+
+    client._app.dependency_overrides[authmw.get_current_user] = (
+        lambda: {"id": "adminuser", "role": "admin"}
+    )
+    r = client.get("/api/upb/admin/stats")
+    assert r.status_code == 200
+    j = r.json()
+    assert j["builders"] == 1
+    assert j["sections"] == 1 and j["entries"] == 1 and j["charts"] == 1
+    assert j["body_bytes"] > 0
