@@ -1305,6 +1305,96 @@ def get_ticket_stats() -> dict:
         conn.close()
 
 
+# ── FAQ helpfulness votes ────────────────────────────────────────────────────
+#
+# One row per (user_id, faq_id). The vote UI shows a running total to any
+# user viewing the article; owners use the same data to see which help topics
+# actually land and which need rewriting.
+
+def set_faq_vote(user_id: str, faq_id: str, helpful: bool) -> dict:
+    """Upsert a vote. `helpful` True = up, False = down."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO faq_votes (user_id, faq_id, helpful) VALUES (?, ?, ?) "
+            "ON CONFLICT(user_id, faq_id) DO UPDATE SET helpful = excluded.helpful, "
+            "created_at = CURRENT_TIMESTAMP",
+            (user_id, faq_id, 1 if helpful else 0),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return get_faq_vote_summary(faq_id, user_id=user_id)
+
+
+def clear_faq_vote(user_id: str, faq_id: str) -> dict:
+    """Remove the user's vote on an article."""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM faq_votes WHERE user_id = ? AND faq_id = ?", (user_id, faq_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return get_faq_vote_summary(faq_id, user_id=user_id)
+
+
+def get_faq_vote_summary(faq_id: str, user_id: str = None) -> dict:
+    """Aggregate helpfulness counts + the caller's own vote (if any)."""
+    conn = get_connection()
+    try:
+        up = conn.execute(
+            "SELECT COUNT(*) FROM faq_votes WHERE faq_id = ? AND helpful = 1",
+            (faq_id,),
+        ).fetchone()[0]
+        down = conn.execute(
+            "SELECT COUNT(*) FROM faq_votes WHERE faq_id = ? AND helpful = 0",
+            (faq_id,),
+        ).fetchone()[0]
+        own = None
+        if user_id:
+            r = conn.execute(
+                "SELECT helpful FROM faq_votes WHERE user_id = ? AND faq_id = ?",
+                (user_id, faq_id),
+            ).fetchone()
+            if r is not None:
+                own = "up" if r[0] else "down"
+        return {"faq_id": faq_id, "up": up, "down": down, "own": own}
+    finally:
+        conn.close()
+
+
+def get_all_faq_vote_summaries(user_id: str = None) -> list[dict]:
+    """List every article that has ever been voted on. Used by the Support
+    UI to show running totals + the caller's own vote in one round-trip.
+    """
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT faq_id, "
+            "  SUM(CASE WHEN helpful = 1 THEN 1 ELSE 0 END) as up, "
+            "  SUM(CASE WHEN helpful = 0 THEN 1 ELSE 0 END) as down "
+            "FROM faq_votes GROUP BY faq_id"
+        ).fetchall()
+        out = []
+        own_map = {}
+        if user_id:
+            own_rows = conn.execute(
+                "SELECT faq_id, helpful FROM faq_votes WHERE user_id = ?",
+                (user_id,),
+            ).fetchall()
+            own_map = {r["faq_id"]: ("up" if r["helpful"] else "down") for r in own_rows}
+        for r in rows:
+            out.append({
+                "faq_id": r["faq_id"],
+                "up": r["up"] or 0,
+                "down": r["down"] or 0,
+                "own": own_map.get(r["faq_id"]),
+            })
+        return out
+    finally:
+        conn.close()
+
+
 # ── User preferences ─────────────────────────────────────────────────────────
 
 def get_user_preferences(user_id: str) -> dict:

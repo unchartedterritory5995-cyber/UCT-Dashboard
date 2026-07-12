@@ -26,6 +26,66 @@
 }
 .newBtn:hover { background: rgba(201,168,76,0.25); }
 
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── System status pill ─────────────────────────────────────────────────
+   Green when everything's operational; amber/red pops the components list
+   inline. Placed next to the New Ticket button so users see it before they
+   decide whether to file a "is X down?" ticket. */
+.statusPill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  padding: 5px 10px 5px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.statusPill:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.14); }
+.statusPillBad { background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.3); color: #fbbf24; }
+.statusDot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.statusDotGreen { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.5); }
+.statusDotAmber { background: #fbbf24; box-shadow: 0 0 6px rgba(251,191,36,0.5); }
+.statusDotRed   { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+.statusLabel { white-space: nowrap; }
+.statusPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 260px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  padding: 8px;
+  z-index: 30;
+  cursor: default;
+}
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  font-size: 11.5px;
+  color: var(--text-bright);
+}
+.statusRowName { flex: 1; }
+.statusRowDetail { font-size: 10.5px; color: var(--text-muted); }
+
 /* ── Ticket List ── */
 .ticketList {
   display: flex;
@@ -134,13 +194,58 @@
 .metaMail { color: var(--text-muted); text-decoration: none; }
 .metaMail:hover { color: #c9a84c; text-decoration: underline; }
 
-/* ── Status filter chips ── */
+/* ── Status filter chips + ticket search ── */
+.filterRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.searchIcon {
+  position: absolute;
+  left: 9px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.searchInput {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-size: 12px;
+  padding: 6px 26px 6px 26px;
+  width: 220px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.searchInput:focus { border-color: rgba(201,168,76,0.4); }
+.searchInput::placeholder { color: #666; }
+.searchClear {
+  position: absolute;
+  right: 4px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+}
+.searchClear:hover { color: var(--text-bright); background: rgba(255,255,255,0.06); }
 .filterChips {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
 }
 .chip {
   display: inline-flex;
@@ -167,6 +272,199 @@
   border-radius: 8px;
   background: rgba(255,255,255,0.08);
   color: inherit;
+}
+
+/* ── Urgent pill (owner-visible priority) ── */
+.urgentBadge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  white-space: nowrap;
+  border: 1px solid rgba(239,68,68,0.3);
+}
+
+/* ── Was-this-helpful vote row (inline under a FAQ answer) ── */
+.voteRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.voteLabel { font-size: 11px; color: var(--text-muted); }
+.voteBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.voteBtn:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-bright);
+  border-color: rgba(255,255,255,0.15);
+}
+.voteBtnActive {
+  background: rgba(201,168,76,0.16);
+  color: #c9a84c;
+  border-color: rgba(201,168,76,0.4);
+}
+.voteCount { font-variant-numeric: tabular-nums; }
+
+/* ── Article suggestions (Intercom-style, quiet card) ── */
+.suggestWrap {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(201,168,76,0.06);
+  border: 1px dashed rgba(201,168,76,0.3);
+  border-radius: var(--radius-md);
+}
+.suggestTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #c9a84c;
+  margin-bottom: 6px;
+}
+.suggestDismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+}
+.suggestDismiss:hover { color: var(--text-bright); background: rgba(255,255,255,0.06); }
+.suggestItem {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.suggestItem:last-child { border-bottom: none; }
+.suggestQ {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 2px;
+  font-size: 12.5px;
+  color: var(--text-bright);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.suggestQ:hover { color: #c9a84c; }
+.suggestA {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  padding: 0 2px 10px 21px;
+}
+.suggestA a { color: #c9a84c; text-decoration: none; }
+.suggestA a:hover { text-decoration: underline; }
+
+/* ── Diagnostic block inside a message bubble ── */
+.diagBlock {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.diagToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 3px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.diagToggle:hover { color: var(--text-bright); background: rgba(255,255,255,0.05); }
+.diagCode {
+  margin: 6px 0 4px;
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: #d4cfc4;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.diagCopy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.diagCopy:hover { background: rgba(255,255,255,0.08); color: var(--text-bright); }
+
+/* ── New-ticket form options (checkboxes for urgent + include-diag) ── */
+.formOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin: 4px 0 14px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius-md);
+}
+.formCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.formCheck input[type="checkbox"] {
+  accent-color: var(--ut-gold);
+  width: 14px; height: 14px;
+  margin-top: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.formCheckLabel {
+  display: block;
+  font-size: 13px;
+  color: var(--text-bright);
+}
+.formCheckHint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.5;
 }
 
 /* ── Quick answers (FAQ) ── */
@@ -434,7 +732,16 @@
   .replyBtn,
   .chip,
   .faqQ,
+  .suggestQ,
+  .voteBtn,
+  .statusPill,
   .reopenBtn { min-height: var(--tap-min); }
+  /* Ticket search box mirrors the form-input font size to defeat iOS zoom */
+  .searchInput { font-size: 16px; width: 100%; padding: 12px 32px 12px 32px; }
+  .searchWrap { width: 100%; }
+  .filterRow { flex-direction: column; align-items: stretch; }
+  /* Full-width status popup so it doesn't tunnel off the edge */
+  .statusPop { left: 0; right: 0; min-width: unset; }
   .backLink { min-height: var(--tap-min); font-size: 13px; }
   /* Reply composer stacks so the Send button gets a full-width tap target. */
   .replyWrap { flex-direction: column; align-items: stretch; }

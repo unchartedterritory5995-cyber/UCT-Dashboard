@@ -416,6 +416,16 @@ CREATE TABLE IF NOT EXISTS landing_events (
 CREATE INDEX IF NOT EXISTS idx_landing_events_visitor ON landing_events(visitor_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_landing_events_event   ON landing_events(event, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_landing_events_day     ON landing_events(date(created_at));
+
+-- Was-this-helpful votes on Support FAQ items. One vote per (user, article).
+CREATE TABLE IF NOT EXISTS faq_votes (
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    faq_id      TEXT NOT NULL,
+    helpful     INTEGER NOT NULL,     -- 1 = up, 0 = down
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, faq_id)
+);
+CREATE INDEX IF NOT EXISTS idx_faq_votes_article ON faq_votes(faq_id);
 """
 
 

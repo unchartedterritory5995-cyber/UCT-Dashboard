@@ -854,6 +854,8 @@ export default function Settings() {
   const activeSection = SECTIONS.find(s => s.id === section)
   const [query, setQuery] = useState('')
   const [flashCard, setFlashCard] = useState(null)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const railSearchRef = useRef(null)
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -869,6 +871,7 @@ export default function Settings() {
 
   function goResult(r) {
     setQuery('')
+    setPaletteOpen(false)
     if (r.section !== section) setSearchParams({ section: r.section })
     setFlashCard(r.card)
     // Wait for the target section to render before scrolling to the card
@@ -877,6 +880,40 @@ export default function Settings() {
     }))
     setTimeout(() => setFlashCard(null), 1800)
   }
+
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────
+  //
+  //   ⌘K / Ctrl+K   → open the command palette (works from anywhere on the
+  //                    Settings page, not just the rail search)
+  //   /              → focus the rail search (GitHub convention; ignored when
+  //                    another input already has focus)
+  //   Esc            → close the palette
+  useEffect(() => {
+    const inTextControl = () => {
+      const el = document.activeElement
+      if (!el) return false
+      const tag = el.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
+    }
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen(true)
+        return
+      }
+      if (e.key === 'Escape' && paletteOpen) {
+        e.preventDefault()
+        setPaletteOpen(false)
+        return
+      }
+      if (e.key === '/' && !inTextControl() && !paletteOpen) {
+        e.preventDefault()
+        railSearchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [paletteOpen])
 
   const card = (id, node) => (
     <div
@@ -1488,21 +1525,34 @@ export default function Settings() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.heading}>Settings</h1>
-        <button className={styles.supportLink} onClick={() => navigate('/support')}>
-          <UIcon name="chat" size={13} />
-          Need help? Open Support
-        </button>
+        <div className={styles.headerRight}>
+          <button
+            className={styles.kbdBtn}
+            onClick={() => setPaletteOpen(true)}
+            title="Jump to any setting"
+            aria-label="Open command palette"
+          >
+            <UIcon name="search" size={12} />
+            <span>Jump to…</span>
+            <kbd className={styles.kbdKey}>⌘K</kbd>
+          </button>
+          <button className={styles.supportLink} onClick={() => navigate('/support', { state: { from: '/settings' } })}>
+            <UIcon name="chat" size={13} />
+            Need help? Open Support
+          </button>
+        </div>
       </div>
 
       <div className={styles.layout}>
         <nav className={styles.rail} aria-label="Settings sections">
           <div className={styles.railSearchWrap}>
             <input
+              ref={railSearchRef}
               className={styles.railSearch}
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search settings..."
+              placeholder="Search settings…  ( / )"
               aria-label="Search settings"
             />
             {results !== null && (
@@ -1544,6 +1594,91 @@ export default function Settings() {
             <span className={styles.sectionDesc}>{activeSection.desc}</span>
           </div>
           {sectionCards[section]}
+        </div>
+      </div>
+
+      {paletteOpen && (
+        <CommandPalette onClose={() => setPaletteOpen(false)} onPick={goResult} />
+      )}
+    </div>
+  )
+}
+
+// ── Command palette (⌘K / Ctrl+K) ──────────────────────────────────────────
+//
+// A floating overlay that opens above the whole Settings page. Same search
+// index as the rail — the difference is muscle memory: `⌘K` from anywhere
+// beats hunting for a search box. Arrow keys navigate results; Enter fires;
+// Esc closes.
+function CommandPalette({ onClose, onPick }) {
+  const [q, setQ] = useState('')
+  const [idx, setIdx] = useState(0)
+  const inputRef = useRef(null)
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  const results = useMemo(() => {
+    const s = q.trim().toLowerCase()
+    if (s.length === 0) return SEARCH_INDEX
+    return SEARCH_INDEX.filter(e =>
+      e.title.toLowerCase().includes(s) || e.keywords.includes(s)
+    )
+  }, [q])
+
+  useEffect(() => { setIdx(0) }, [q])
+
+  const onKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setIdx(i => Math.min(results.length - 1, i + 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setIdx(i => Math.max(0, i - 1))
+    } else if (e.key === 'Enter' && results[idx]) {
+      e.preventDefault()
+      onPick(results[idx])
+    }
+  }
+
+  return (
+    <div className={styles.paletteBackdrop} onClick={onClose}>
+      <div className={styles.paletteBox} onClick={e => e.stopPropagation()} role="dialog" aria-label="Jump to setting">
+        <div className={styles.paletteInputWrap}>
+          <UIcon name="search" size={14} />
+          <input
+            ref={inputRef}
+            className={styles.paletteInput}
+            type="text"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Jump to any setting…"
+            aria-label="Jump to any setting"
+          />
+          <kbd className={styles.paletteHint}>Esc</kbd>
+        </div>
+        <div className={styles.paletteResults}>
+          {results.length === 0 ? (
+            <div className={styles.paletteEmpty}>No settings match "{q.trim()}"</div>
+          ) : results.map((r, i) => {
+            const sec = SECTIONS.find(s => s.id === r.section)
+            return (
+              <button
+                key={r.card}
+                className={`${styles.paletteResult} ${i === idx ? styles.paletteResultActive : ''}`}
+                onMouseEnter={() => setIdx(i)}
+                onClick={() => onPick(r)}
+              >
+                {sec && <UIcon name={sec.icon} size={13} />}
+                <span className={styles.paletteResultTitle}>{r.title}</span>
+                <span className={styles.paletteResultSection}>{sec?.label}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className={styles.paletteFooter}>
+          <span><kbd className={styles.paletteHint}>↑</kbd><kbd className={styles.paletteHint}>↓</kbd> navigate</span>
+          <span><kbd className={styles.paletteHint}>↵</kbd> jump</span>
+          <span><kbd className={styles.paletteHint}>Esc</kbd> close</span>
         </div>
       </div>
     </div>

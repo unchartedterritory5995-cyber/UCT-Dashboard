@@ -59,6 +59,10 @@ from api.services.auth_service import (
     update_ticket_status,
     get_all_tickets,
     get_ticket_stats,
+    set_faq_vote,
+    clear_faq_vote,
+    get_faq_vote_summary,
+    get_all_faq_vote_summaries,
     get_user_preferences,
     set_user_preference,
     delete_user_preference,
@@ -1064,6 +1068,38 @@ def post_ticket_message(ticket_id: str, req: TicketMessageRequest, user: dict = 
         pass
 
     return result
+
+
+# ── FAQ helpfulness votes ──────────────────────────────────────────────────
+
+class FaqVoteRequest(BaseModel):
+    helpful: bool  # true = up, false = down
+
+
+@router.post("/faq-vote/{faq_id}")
+def post_faq_vote(faq_id: str, req: FaqVoteRequest, user: dict = Depends(get_current_user)):
+    """Record a helpful/not-helpful vote on a Support FAQ article."""
+    if not faq_id or len(faq_id) > 64:
+        raise HTTPException(400, "Invalid article id")
+    return set_faq_vote(user["id"], faq_id, req.helpful)
+
+
+@router.delete("/faq-vote/{faq_id}")
+def delete_faq_vote(faq_id: str, user: dict = Depends(get_current_user)):
+    """Withdraw a previous vote."""
+    return clear_faq_vote(user["id"], faq_id)
+
+
+@router.get("/faq-vote/{faq_id}")
+def get_faq_vote(faq_id: str, user: dict = Depends(get_current_user)):
+    """Aggregate helpfulness counts + the caller's own vote for one article."""
+    return get_faq_vote_summary(faq_id, user_id=user["id"])
+
+
+@router.get("/faq-votes")
+def get_faq_votes(user: dict = Depends(get_current_user)):
+    """Every FAQ article's vote summary + the caller's own votes in one call."""
+    return {"votes": get_all_faq_vote_summaries(user_id=user["id"])}
 
 
 # ── Support ticket endpoints (admin) ───────────────────────────────────────
