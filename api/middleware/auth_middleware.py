@@ -44,7 +44,7 @@ def require_plan(allowed_plans: list[str]):
         plan = user.get("plan")
         if plan in allowed_plans or plan == "comped":
             return user
-        # 14-day full-access trial grants paid-feature access (see trial.py).
+        # full-access trial grants paid-feature access (see trial.py).
         if is_account_in_trial(user):
             return user
         raise HTTPException(status_code=403, detail="Upgrade required")
@@ -69,7 +69,7 @@ PAID_VOICE_PLANS = PAID_PLANS
 
 
 def is_paid_user(user: dict) -> bool:
-    """True if the user is an admin, on a paid plan, OR within their 14-day trial.
+    """True if the user is an admin, on a paid plan, OR within their trial window.
 
     The trial grants paid-FEATURE access only (see api/services/trial.py); admin
     surfaces (role == 'admin') and billing state are decided separately and are

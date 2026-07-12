@@ -1,5 +1,5 @@
 /**
- * Trial banner chip — shown to users inside their 14-day full-access trial.
+ * Trial banner chip — shown to users inside their 7-day full-access trial.
  *
  * A single slim, honest notice (NOT a stacked control band): "Trial — N days
  * left · Keep everything for $200/mo" linking to /pricing. It reuses the same

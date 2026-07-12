@@ -340,16 +340,16 @@ const FAQS = [
     a: 'Built for active US stock and options traders — swing, momentum, day. If you buy index funds once a month, this is more desk than you need. If you trade setups, manage risk by regime, and take your process seriously, this was built for you.',
   },
   {
-    q: 'What exactly is in the 14-day trial?',
-    a: 'Everything. The trial is the full platform — LiveFlow, the charts workspace, breadth, the Morning Wire, Compass, Catalysts, the Journal, The Floor, all of it, unmetered. No credit card to start, and nothing is charged unless you subscribe.',
+    q: 'What exactly is in the 7-day trial?',
+    a: 'Everything. The trial is the full platform — LiveFlow, the charts workspace, breadth, the Morning Wire, Compass, Catalysts, the Journal, The Floor, all of it, unmetered. A card is required to start, but nothing is charged until the trial ends — cancel before day 7 and you pay nothing.',
   },
   {
     q: 'Is the AI coach actually useful, or a chatbot with a finance skin?',
     a: 'Judge it in the trial. Compass reads your own journal — your setups, your stops, your rules — and cites that data back to you when it says GO, HOLD, or SKIP. It refuses trades that break your rules and tells you why. It gives information, not advice; every decision stays yours.',
   },
   {
-    q: 'What happens after 14 days?',
-    a: 'Nothing sneaky — there’s no card on file to charge. The desk simply asks whether you want to subscribe. If you do, it’s $200/month or $2,000/year. If not, your data exports completely and leaves with you.',
+    q: 'What happens after 7 days?',
+    a: 'Your subscription starts on the card you provided — $200/month or $2,000/year, whichever you picked. Not for you? Cancel in one click any time before the trial ends and you pay nothing; your data exports completely and leaves with you.',
   },
   {
     q: 'Do I need to connect a broker?',
@@ -365,7 +365,7 @@ const FAQS = [
   },
   {
     q: 'Can I cancel? What about refunds?',
-    a: 'Cancel in one click from Settings — no contracts, no retention calls. Any charge is refundable within 7 days, no questions asked.',
+    a: 'Cancel in one click from Settings — no contracts, no retention calls. Charges aren’t refundable, which is exactly what the trial is for: seven days with the whole desk to make the call before any charge happens.',
   },
 ]
 
@@ -481,14 +481,14 @@ export default function Landing() {
                   className={styles.ctaGold}
                   onClick={() => track('hero_cta_pro_click')}
                 >
-                  Start your 14-day free trial
+                  Start your 7-day free trial
                 </Link>
                 <a href="#platform" className={styles.ctaGhost} onClick={scrollTo('platform')}>
                   See the platform
                 </a>
               </div>
               <div className={`${styles.ctaSubnote} ${styles.enter} ${styles.enter5}`}>
-                No credit card · Full access from minute one · $200/mo after the trial
+                $0 today · Full access from minute one · $200/mo after the trial
               </div>
             </div>
 
@@ -769,10 +769,10 @@ export default function Landing() {
           </section>
         )}
 
-        {/* ── Your first 14 days ── */}
+        {/* ── Your first 7 days ── */}
         <section className={styles.trial}>
           <div className={styles.sectionHead}>
-            <div className={styles.sectionEyebrow}>Your first 14 days</div>
+            <div className={styles.sectionEyebrow}>Your first 7 days</div>
             <h2 className={styles.sectionH2}>What the trial actually looks like.</h2>
             <p className={styles.sectionP}>
               Full access from minute one — and the desk starts working before you do.
@@ -796,8 +796,8 @@ export default function Landing() {
               <span className={styles.trialWhat}>Compass writes your first weekly review from your own trades.</span>
             </li>
             <li className={styles.trialStep}>
-              <span className={styles.trialWhen}>Day 14</span>
-              <span className={styles.trialWhat}>You decide. No card on file, nothing to cancel.</span>
+              <span className={styles.trialWhen}>Day 7</span>
+              <span className={styles.trialWhat}>You decide. Cancel in one click before the trial ends and you pay nothing.</span>
             </li>
           </ol>
         </section>
@@ -852,10 +852,10 @@ export default function Landing() {
               className={styles.priceCta}
               onClick={() => track('pricing_cta_pro_click', { billing })}
             >
-              Start the 14-day trial — no card
+              Start the 7-day free trial
             </Link>
             <div className={styles.priceCtaSub}>
-              Nothing is charged unless you subscribe. Cancel in one click.
+              Card required · $0 today — nothing is charged until the trial ends. Cancel in one click.
             </div>
             <div className={styles.priceCompare}>
               Run the math on a typical stack — journal, flow tool, charting
@@ -866,9 +866,9 @@ export default function Landing() {
           </div>
 
           <ul className={styles.promises}>
-            <li><span aria-hidden="true"><UIcon name="clock" size={15} /></span>14-day full-access trial — no credit card</li>
+            <li><span aria-hidden="true"><UIcon name="clock" size={15} /></span>7-day full-access trial — $0 today</li>
             <li><span aria-hidden="true"><UIcon name="check" size={15} /></span>Cancel in one click</li>
-            <li><span aria-hidden="true"><UIcon name="shield" size={15} /></span>Refunds within 7 days of any charge</li>
+            <li><span aria-hidden="true"><UIcon name="shield" size={15} /></span>No charge until the trial ends</li>
             <li><span aria-hidden="true"><UIcon name="download" size={15} /></span>Your data exports completely, always</li>
           </ul>
         </section>
@@ -892,7 +892,7 @@ export default function Landing() {
         {/* ── Final close ── */}
         <section className={styles.close}>
           <div className={styles.closeInner}>
-            <div className={styles.closeTime}>14 days · full access · no card</div>
+            <div className={styles.closeTime}>7 days · full access · $0 today</div>
             <h2 className={styles.closeH2}>Take your seat <em>at the desk.</em></h2>
             <p className={styles.closeP}>
               Everything above unlocks in the next two minutes. Your first brief
@@ -962,7 +962,7 @@ export default function Landing() {
         onClick={() => track('sticky_cta_click')}
       >
         <span className={styles.stickyCtaText}>Start free trial</span>
-        <span className={styles.stickyCtaSub}>14 days · no card</span>
+        <span className={styles.stickyCtaSub}>7 days free · $0 today</span>
         <span className={styles.stickyCtaArrow} aria-hidden="true">→</span>
       </Link>
     </div>

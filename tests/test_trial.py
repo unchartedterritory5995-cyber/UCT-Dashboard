@@ -1,11 +1,11 @@
 """
-Tests for the 14-day full-access trial (api/services/trial.py) and its wiring
+Tests for the full-access trial (api/services/trial.py) and its wiring
 into the paid-gate chokepoint (api/middleware/auth_middleware.py).
 
 Covered:
-  * new user (<14d) → paid-equivalent when J2_TRIAL_ENABLED=1
+  * new user (inside window) → paid-equivalent when J2_TRIAL_ENABLED=1
   * disabled (J2_TRIAL_ENABLED=0) → NOT paid-equivalent
-  * >14d unpaid → NOT paid-equivalent
+  * past-window unpaid → NOT paid-equivalent
   * real paid plan → always paid-equivalent (even with trial disabled)
   * admin gates are UNAFFECTED by trial (trial never grants admin)
   * defensive defaults (bad/missing input → not-trial, never accidentally-paid)
@@ -41,7 +41,7 @@ def test_new_user_in_trial_when_enabled(monkeypatch):
     assert trial_mod.is_account_in_trial(u) is True
     st = trial_mod.trial_status(u)
     assert st["active"] is True
-    assert 1 <= st["days_left"] <= 14
+    assert 1 <= st["days_left"] <= trial_mod.TRIAL_DAYS
 
 
 def test_new_user_is_paid_equiv_when_enabled(monkeypatch):
@@ -70,8 +70,8 @@ def test_old_unpaid_user_not_in_trial(monkeypatch):
 
 def test_boundary_just_inside_and_outside(monkeypatch):
     monkeypatch.setenv("J2_TRIAL_ENABLED", "1")
-    assert trial_mod.is_account_in_trial(_user(13)) is True
-    assert trial_mod.is_account_in_trial(_user(15)) is False
+    assert trial_mod.is_account_in_trial(_user(trial_mod.TRIAL_DAYS - 1)) is True
+    assert trial_mod.is_account_in_trial(_user(trial_mod.TRIAL_DAYS + 1)) is False
 
 
 def test_real_paid_user_always_paid_even_trial_off(monkeypatch):

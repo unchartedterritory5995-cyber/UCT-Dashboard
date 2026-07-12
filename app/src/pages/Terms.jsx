@@ -47,10 +47,11 @@ export default function Terms() {
           your account settings; cancellation takes effect at the end of the current billing period.
         </p>
         <p>
-          We honor our published refund policy: if you request a refund within 7 days of any
-          charge, we will refund that charge in full, no questions asked. No refunds are provided
-          after the 7-day window. Free trials are not charged, so no refund is needed to end one —
-          simply cancel before the trial converts or let it expire.
+          New subscriptions include a 7-day free trial. A valid payment method is required to
+          start the trial; your card is not charged until the trial ends. Cancel at any time
+          before the trial ends and you will not be charged. All charges are final and
+          non-refundable — the trial period is provided so you can evaluate the full Service
+          before any charge occurs.
         </p>
 
         <h2>5. Intellectual Property</h2>

@@ -46,16 +46,16 @@ test('shows the annual $2,000 headline and reveals $200 monthly on toggle', () =
   expect(screen.getByText('$200')).toBeInTheDocument()
 })
 
-test('states the 14-day no-card trial plainly', () => {
+test('states the 7-day trial terms plainly', () => {
   renderPricing()
-  expect(screen.getAllByText(/14-day full-access trial/i).length).toBeGreaterThan(0)
-  expect(screen.getAllByText(/no credit card/i).length).toBeGreaterThan(0)
+  expect(screen.getAllByText(/7-day full-access trial/i).length).toBeGreaterThan(0)
+  expect(screen.getAllByText(/\$0 today/i).length).toBeGreaterThan(0)
 })
 
 test('states one-click cancel, published refunds, and data export', () => {
   renderPricing()
   expect(screen.getAllByText(/Cancel in one click/i).length).toBeGreaterThan(0)
-  expect(screen.getByText(/Refunds within 7 days of any charge/i)).toBeInTheDocument()
+  expect(screen.getByText(/Not charged until the trial ends/i)).toBeInTheDocument()
   expect(screen.getByText(/Your data exports completely, always/i)).toBeInTheDocument()
 })
 

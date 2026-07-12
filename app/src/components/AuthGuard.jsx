@@ -80,7 +80,7 @@ export default function AuthGuard() {
   }
 
   // Free tier: these pages are accessible without a paid plan. Matches the
-  // Landing page's "five tools, no card required" promise (Dashboard + Breadth
+  // Historical free-tier pages (Dashboard + Breadth
   // + Charts + Options Flow + Journal) plus the free Model Book library.
   // Keep in sync with FREE_PAGES in NavBar.jsx + MoreSheet.jsx.
   const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/live-massive', '/flow-scoreboard', '/journal', '/model-book']

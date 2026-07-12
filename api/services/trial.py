@@ -1,11 +1,14 @@
 """
-14-day full-access trial — the ONE server-side chokepoint.
+7-day full-access trial — the ONE server-side chokepoint.
 
-Strategy (owner-approved): a brand-new account gets full paid-FEATURE access for
-its first 14 days, no credit card. This module computes that window from
-`users.created_at` and is consulted by the existing paid gates in
-`api/middleware/auth_middleware.py`. Existing paid users are unaffected; a user
-older than 14 days who never paid simply has no trial (they predate it — honest).
+Strategy (owner-approved 2026-07-12: 7 days, card required at Stripe checkout,
+no refunds): a brand-new account gets full paid-FEATURE access for its first
+7 days. This module computes that window from `users.created_at` and is
+consulted by the existing paid gates in `api/middleware/auth_middleware.py`.
+Existing paid users are unaffected; a user older than the window who never
+paid simply has no trial. NOTE: the card-required half of the policy lives in
+the Stripe checkout flow (trial_period_days on the live subscription price) —
+this module only bounds the in-app feature window.
 
 SAFETY (do not regress):
   * Every function is defensively defaulted. On ANY error (missing field,
@@ -23,7 +26,7 @@ import os
 import math
 from datetime import datetime, timezone
 
-TRIAL_DAYS = 14
+TRIAL_DAYS = 7
 
 
 def _trial_enabled() -> bool:
@@ -92,7 +95,7 @@ def trial_status(user, now: datetime | None = None) -> dict:
 
 
 def is_account_in_trial(user, now: datetime | None = None) -> bool:
-    """True iff the account is within its 14-day trial window (feature access)."""
+    """True iff the account is within its trial window (feature access)."""
     try:
         return bool(trial_status(user, now=now)["active"])
     except Exception:

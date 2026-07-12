@@ -5,8 +5,9 @@
  * premium reposition):
  *   • ONE plan — UCT Intelligence — $200/mo or $2,000/yr (two months free).
  *     Everything unmetered. No free tier on the marketing pages.
- *   • 14-day full-access trial, no credit card. One-click cancel. Published
- *     refunds. Your data leaves with you — always.
+ *   • 7-day free trial, card required at checkout, not charged until it ends.
+ *     One-click cancel. No refunds — the trial IS the evaluation window.
+ *     Your data leaves with you — always.
  *
  * PUBLIC + brand-styled (dark/gold, no emoji — every mark is a <UIcon/>). It is
  * safe to serve logged-out; the CTA adapts to auth state:
@@ -35,9 +36,9 @@ const PAID_FEATURES = [
 ]
 
 const PROMISES = [
-  { icon: 'clock', text: '14-day full-access trial — no credit card.' },
+  { icon: 'clock', text: '7-day full-access trial — $0 today.' },
   { icon: 'check', text: 'Cancel in one click.' },
-  { icon: 'shield', text: 'Refunds within 7 days of any charge — no questions.' },
+  { icon: 'shield', text: 'Not charged until the trial ends — cancel before day 7, pay nothing.' },
   { icon: 'equity', text: 'Your data exports completely, always — it leaves with you.' },
 ]
 
@@ -97,7 +98,7 @@ export default function Pricing() {
             <p className={styles.heroSub}>
               One plan, nothing metered — the AI research desk, the coach, the journal,
               the community, the entire market platform. Start with a
-              <em> 14-day full-access trial — no credit card</em>.
+              <em> 7-day full-access trial — $0 today</em>.
             </p>
             <p className={styles.tagline}>Navigate the market, effectively.</p>
           </div>
@@ -167,7 +168,7 @@ export default function Pricing() {
 
             <div className={styles.cardCta}>
               {!user && (
-                <Link to="/signup" className={styles.ctaGold}>Start your 14-day free trial</Link>
+                <Link to="/signup" className={styles.ctaGold}>Start your 7-day free trial</Link>
               )}
               {user && trulyPaid && (
                 <div className={styles.paidState}>
@@ -182,7 +183,7 @@ export default function Pricing() {
                 <>
                   {onTrial && (
                     <p className={styles.trialLine}>
-                      You&apos;re on your 14-day trial — {trial.days_left}{' '}
+                      You&apos;re on your 7-day trial — {trial.days_left}{' '}
                       {trial.days_left === 1 ? 'day' : 'days'} left. Subscribe to keep everything.
                     </p>
                   )}
@@ -202,7 +203,7 @@ export default function Pricing() {
                 </>
               )}
               {!user && (
-                <p className={styles.ctaSub}>No credit card required.</p>
+                <p className={styles.ctaSub}>Card required — $0 today, nothing charged until the trial ends.</p>
               )}
               {annualFallback && (
                 <p className={styles.ctaSub}>
@@ -234,10 +235,10 @@ export default function Pricing() {
         {/* ── Close ── */}
         <section className={styles.close}>
           <div className={styles.closeInner}>
-            <h2 className={styles.closeH2}>Try everything for 14 days.</h2>
+            <h2 className={styles.closeH2}>Try everything for 7 days.</h2>
             <p className={styles.closeP}>
-              No credit card. Cancel in one click. If it&apos;s not for you, your data
-              exports completely and leaves with you.
+              Cancel in one click before the trial ends and you pay nothing. If it&apos;s
+              not for you, your data exports completely and leaves with you.
             </p>
             <div className={styles.ctas}>
               {user ? (

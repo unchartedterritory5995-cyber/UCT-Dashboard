@@ -7,7 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [plan, setPlan] = useState('free')
   const [subscription, setSubscription] = useState(null)
-  // 14-day full-access trial: { active, days_left } from the auth responses.
+  // full-access trial: { active, days_left } from the auth responses.
   // Drives the trial banner AND counts toward isPaid (full-access equivalence).
   const [trial, setTrial] = useState(null)
   // Whether an annual Stripe price is configured (pricing page honest copy).
@@ -114,7 +114,7 @@ export function AuthProvider({ children }) {
 
   // Single source of truth for "is this a paying user" — gates every
   // API-cost feature (Compass, voice, read-aloud). Mirrors the backend
-  // is_paid_or_trial() chokepoint: admin OR paid plan OR active 14-day trial.
+  // is_paid_or_trial() chokepoint: admin OR paid plan OR active trial.
   // Admins always pass; trial users get full feature access.
   const isPaid = user?.role === 'admin'
     || ['pro', 'premium', 'lifetime'].includes(plan)

@@ -190,7 +190,7 @@ export default function App() {
                 Static content only (no user data), so it is safe to serve
                 logged-out, outside AuthGuard. */}
             <Route path="/brokers" element={<BrokersPage />} />
-            {/* Public pricing page — free tier + the ONE paid tier, 14-day
+            {/* Public pricing page — the ONE plan, 7-day
                 no-card trial, honest scope. Adapts CTA to auth state. */}
             <Route path="/pricing" element={<Pricing />} />
 

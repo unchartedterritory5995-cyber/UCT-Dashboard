@@ -218,7 +218,7 @@ def _user_is_paid(user_id: str, cache: dict[str, bool]) -> bool:
                 if row and row["role"] == "admin":
                     allowed = True
                 elif row:
-                    # P0 whole-branch fix: the 14-day trial grants broker sync via
+                    # P0 whole-branch fix: the trial grants broker sync via
                     # require_plan, so the BACKGROUND auto-sync must agree — else a
                     # trial user connects a broker and new fills silently never
                     # auto-appear for their entire conversion window. The trial

@@ -235,7 +235,7 @@ export default function JournalLayout() {
         </div>
       )}
 
-      {/* 14-day trial notice — renders only for users inside their trial window
+      {/* trial notice — renders only for users inside their trial window
           (null for free/paid/admin). A single slim chip, not a new control band. */}
       <TrialBanner />
 
