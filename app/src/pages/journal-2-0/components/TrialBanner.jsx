@@ -2,7 +2,7 @@
  * Trial banner chip — shown to users inside their 14-day full-access trial.
  *
  * A single slim, honest notice (NOT a stacked control band): "Trial — N days
- * left · Keep everything for $19/mo" linking to /pricing. It reuses the same
+ * left · Keep everything for $200/mo" linking to /pricing. It reuses the same
  * upgrade-affordance surface free users already see in the journal shell; when
  * the user is paid/admin or the trial is over, `trial.active` is false and this
  * renders nothing.
@@ -25,7 +25,7 @@ export default function TrialBanner() {
       <span className={styles.text}>
         <strong>Trial</strong> — {n} {dayWord} left
       </span>
-      <span className={styles.cta}>Keep everything for $19/mo</span>
+      <span className={styles.cta}>Keep everything for $200/mo</span>
     </Link>
   )
 }

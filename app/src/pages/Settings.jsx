@@ -1588,7 +1588,7 @@ export default function Settings() {
                 <div className={styles.planHeader}>
                   <span className={styles.activeDot} />
                   <span className={styles.planTitle}>
-                    {isComped ? 'Pro (Complimentary)' : 'Pro — $20/mo'}
+                    {isComped ? 'Pro (Complimentary)' : 'Pro — $200/mo'}
                   </span>
                 </div>
 
@@ -1656,7 +1656,7 @@ export default function Settings() {
                   <li>Compass — AI coaching, voice &amp; pre-trade verdicts</li>
                 </ul>
                 <button className={styles.btnPro} onClick={() => startCheckout()}>
-                  Upgrade to Pro — $20/mo
+                  Upgrade to Pro — $200/mo
                 </button>
               </>
             )}

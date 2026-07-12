@@ -1,11 +1,10 @@
 /**
  * Public pricing page — /pricing.
  *
- * The owner-approved strategy, stated plainly and honestly:
- *   • Free forever core (manual + CSV journal, analytics, calendar, notebook,
- *     PNG share cards).
- *   • ONE paid tier — UCT Intelligence — $19/mo billed annually ($228/yr) or
- *     $29 monthly. Everything unmetered.
+ * The owner-approved strategy, stated plainly and honestly (2026-07-11
+ * premium reposition):
+ *   • ONE plan — UCT Intelligence — $200/mo or $2,000/yr (two months free).
+ *     Everything unmetered. No free tier on the marketing pages.
  *   • 14-day full-access trial, no credit card. One-click cancel. Published
  *     refunds. Your data leaves with you — always.
  *
@@ -23,24 +22,16 @@ import UIcon from '../components/ui/UIcon'
 import { useAuth } from '../context/AuthContext'
 import styles from './Pricing.module.css'
 
-const FREE_FEATURES = [
-  'Unlimited manual + CSV trade imports',
-  'TradeZella, Tradervue & TraderSync import presets built in',
-  'Core analytics — win rate, R, equity curve',
-  'Earnings & economic calendar',
-  'Notebook — long-form trade notes',
-  'PNG share cards',
-]
-
 const PAID_FEATURES = [
-  'Everything in Free, unmetered',
+  'The Morning Wire — the 7:35 AM brief, every trading day',
+  'Stock Catalysts — 20 vetted picks from 8 sources',
+  'Compass AI coaching — verdicts, post-mortems, weekly reviews. No credits. Ever.',
+  'Voice Assistant — 88 tools, full conversations',
   'Broker auto-sync — link a brokerage, trades import themselves',
-  'Full Compass AI coaching — No credits. Ever.',
-  'MFE / MAE excursions + Exit Quality',
-  'Regime analytics',
+  'Journal 2.0 — MFE / MAE excursions, exit quality, regime analytics',
+  'The Floor — the live members community',
+  'The whole platform — live charts, LiveFlow, breadth, themes, calendar, The Desk',
   'Full exports (CSV / JSON), always',
-  'The Floor — the members community',
-  'The whole platform — live charts, options flow, breadth, calendar, The Desk',
 ]
 
 const PROMISES = [
@@ -104,8 +95,8 @@ export default function Pricing() {
             </div>
             <h1 className={styles.heroH1}>One price. Everything unlocked.</h1>
             <p className={styles.heroSub}>
-              The core journal is <em>free forever</em>. One paid tier adds broker auto-sync,
-              unmetered Compass AI, and the entire market platform. Start with a
+              One plan, nothing metered — the AI research desk, the coach, the journal,
+              the community, the entire market platform. Start with a
               <em> 14-day full-access trial — no credit card</em>.
             </p>
             <p className={styles.tagline}>Navigate the market, effectively.</p>
@@ -116,36 +107,9 @@ export default function Pricing() {
         <section className={styles.plans} aria-labelledby="plans-heading">
           <h2 id="plans-heading" className={styles.srOnly}>Plans</h2>
 
-          {/* Free forever */}
-          <div className={styles.card}>
-            <div className={styles.cardHead}>
-              <h3 className={styles.cardName}>Free forever</h3>
-              <div className={styles.priceRow}>
-                <span className={styles.price}>$0</span>
-                <span className={styles.priceUnit}>always</span>
-              </div>
-              <p className={styles.cardLede}>The trading journal, in full. No trial clock, no card.</p>
-            </div>
-            <ul className={styles.featureList}>
-              {FREE_FEATURES.map((f) => (
-                <li key={f} className={styles.feature}>
-                  <span className={styles.featIcon} aria-hidden="true"><UIcon name="check" size={15} gold={false} /></span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <div className={styles.cardCta}>
-              {user ? (
-                <Link to="/journal" className={styles.ctaGhost}>Open your journal</Link>
-              ) : (
-                <Link to="/signup" className={styles.ctaGhost}>Start free</Link>
-              )}
-            </div>
-          </div>
-
-          {/* UCT Intelligence (paid) */}
+          {/* UCT Intelligence — the one plan */}
           <div className={`${styles.card} ${styles.cardFeatured}`}>
-            <div className={styles.featuredTag}>Most popular</div>
+            <div className={styles.featuredTag}>The complete desk</div>
             <div className={styles.cardHead}>
               <h3 className={styles.cardName}>UCT Intelligence</h3>
 
@@ -156,7 +120,7 @@ export default function Pricing() {
                   aria-pressed={billing === 'annual'}
                   onClick={() => setBilling('annual')}
                 >
-                  Annual <span className={styles.billSave}>save 34%</span>
+                  Annual <span className={styles.billSave}>2 months free</span>
                 </button>
                 <button
                   type="button"
@@ -169,15 +133,15 @@ export default function Pricing() {
               </div>
 
               <div className={styles.priceRow}>
-                <span className={styles.price}>{billing === 'annual' ? '$19' : '$29'}</span>
-                <span className={styles.priceUnit}>/ mo</span>
+                <span className={styles.price}>{billing === 'annual' ? '$2,000' : '$200'}</span>
+                <span className={styles.priceUnit}>{billing === 'annual' ? '/ yr' : '/ mo'}</span>
               </div>
               <p className={styles.priceNote}>
                 {billing === 'annual'
-                  ? 'billed annually — $228/yr'
+                  ? 'two months free vs monthly'
                   : 'billed monthly — cancel anytime'}
               </p>
-              <p className={styles.cardLede}>Everything, unmetered. The journal — and the market.</p>
+              <p className={styles.cardLede}>Everything, unmetered. The intelligence — and the market.</p>
             </div>
 
             <ul className={styles.featureList}>
@@ -233,7 +197,7 @@ export default function Pricing() {
                         actually charged at click time (P0 whole-branch fix). */}
                     {busy
                       ? 'Redirecting to Stripe…'
-                      : `Subscribe — ${billing === 'annual' && !annualFallback ? '$19/mo billed annually' : '$29/mo'}`}
+                      : `Subscribe — ${billing === 'annual' && !annualFallback ? '$2,000/yr billed annually' : '$200/mo'}`}
                   </button>
                 </>
               )}

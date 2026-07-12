@@ -217,7 +217,7 @@ function MRRPopover({ stats, visible, onClose }) {
     <div className={styles.mrrPopover} ref={ref}>
       <div className={styles.mrrPopoverRow}>
         <span>{stats.paying_subscribers ?? (stats.pro_subscribers - (stats.comped_count ?? 0))}</span>
-        <span className={styles.mrrPopoverLabel}>&times; $20/mo subscribers</span>
+        <span className={styles.mrrPopoverLabel}>&times; $200/mo subscribers</span>
       </div>
       <div className={styles.mrrPopoverRow}>
         <span>{stats.comped_count ?? 0}</span>

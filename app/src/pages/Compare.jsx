@@ -50,7 +50,7 @@ const ROWS = [
   {
     feature: 'Price',
     cells: [
-      { text: '$20/mo', lead: true, price: true },
+      { text: '$200/mo — the whole desk, not just a journal', lead: true, price: true },
       { text: '$348/yr' },
       { text: '$588/yr' },
       { text: '$399/yr' },
@@ -174,8 +174,10 @@ export default function Compare() {
           </div>
           <p className={styles.tableNote}>
             Competitor AI limits and pricing reflect public tiers and range roughly
-            $288–$835/yr across plans. UCT Intelligence is $20/mo. Figures are
-            approximate and change — check each vendor for current terms.
+            $288–$835/yr across plans. UCT Intelligence is $200/mo ($2,000/yr) — a
+            higher price for a different product: those are journals, this is the
+            complete desk. Figures are approximate and change — check each vendor
+            for current terms.
           </p>
         </section>
 

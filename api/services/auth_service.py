@@ -13,6 +13,12 @@ import bcrypt
 from api.services.auth_db import get_connection
 
 
+# Displayed Pro price used for the admin MRR estimate. Keep in sync with the
+# marketing pages ($200/mo since the 2026-07-11 premium reposition) and the
+# live Stripe monthly price.
+PRO_PRICE_MONTHLY_USD = 200
+
+
 # ── last_login_at write throttle ─────────────────────────────────────────────
 # validate_session() runs on EVERY authenticated request. Writing last_login_at
 # + commit on every call is a serialized SQLite write on the universal auth path;
@@ -339,7 +345,7 @@ def get_admin_stats() -> dict:
         ).fetchone()[0]
 
         paying_subscribers = pro_subscribers - comped_count
-        mrr = paying_subscribers * 20
+        mrr = paying_subscribers * PRO_PRICE_MONTHLY_USD
 
         now_iso = datetime.now(timezone.utc).isoformat()
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
@@ -688,7 +694,7 @@ def record_mrr_snapshot():
             "SELECT COUNT(*) FROM subscriptions WHERE status = 'comped'"
         ).fetchone()[0]
         paying = pro_subscribers - comped_count
-        mrr = paying * 20
+        mrr = paying * PRO_PRICE_MONTHLY_USD
         churn_count = conn.execute(
             "SELECT COUNT(*) FROM subscriptions WHERE status = 'canceled'"
         ).fetchone()[0]

@@ -62,7 +62,7 @@ export default function Subscribe() {
             disabled={loading}
             style={{ width: '100%', padding: '12px 24px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
           >
-            {loading ? 'Redirecting to Stripe...' : 'Subscribe — $20/mo'}
+            {loading ? 'Redirecting to Stripe...' : 'Subscribe — $200/mo'}
           </button>
 
           <button

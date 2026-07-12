@@ -28,7 +28,7 @@ test('shows N days left and links to /pricing for a trial user', () => {
   mockAuth = { trial: { active: true, days_left: 9 } }
   renderBanner()
   expect(screen.getByText(/9 days left/i)).toBeInTheDocument()
-  expect(screen.getByText(/Keep everything for \$19\/mo/i)).toBeInTheDocument()
+  expect(screen.getByText(/Keep everything for \$200\/mo/i)).toBeInTheDocument()
   expect(screen.getByRole('link')).toHaveAttribute('href', '/pricing')
 })
 

@@ -32,18 +32,18 @@ beforeEach(() => {
   }
 })
 
-test('renders both tiers — Free forever + UCT Intelligence', () => {
+test('renders the single UCT Intelligence plan — no free tier card', () => {
   renderPricing()
-  expect(screen.getByRole('heading', { name: /Free forever/i })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: /UCT Intelligence/i })).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: /Free forever/i })).toBeNull()
 })
 
-test('shows the annual $19/$228 headline and reveals $29 monthly on toggle', () => {
+test('shows the annual $2,000 headline and reveals $200 monthly on toggle', () => {
   renderPricing()
-  expect(screen.getByText('$19')).toBeInTheDocument()
-  expect(screen.getByText(/\$228\/yr/)).toBeInTheDocument()
+  expect(screen.getByText('$2,000')).toBeInTheDocument()
+  expect(screen.getByText(/two months free vs monthly/i)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /Monthly/i }))
-  expect(screen.getByText('$29')).toBeInTheDocument()
+  expect(screen.getByText('$200')).toBeInTheDocument()
 })
 
 test('states the 14-day no-card trial plainly', () => {
