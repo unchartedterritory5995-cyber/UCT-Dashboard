@@ -2268,6 +2268,14 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
       : oiCheck.status === "confirmed" ? "#6BAA85"
       : oiCheck.status === "held" ? "#5b9bd5" : null;
   }
+  // Grade-driven heatmap: base color by direction (green bull / red bear / grey
+  // mixed), brightness scaled by the EFFECTIVE grade (after any OI check) so the
+  // strongest accumulations pop and weak/closed ones recede into the background.
+  const _rcBase = isBull ? DIR_BULL : isBear ? DIR_BEAR : "#9aa0a6";
+  const _gsrc = _grLabel || c.accumulation_grade || "C";
+  const _gAlpha = _gsrc[0] === "A" ? (_gsrc.includes("+") ? "ff" : "e0")
+    : _gsrc[0] === "B" ? "b4" : _gsrc[0] === "C" ? "82" : "55";
+  const rowColor = _rcBase + _gAlpha;
   const s = c.sides || {};
   const sideBits = [
     (s.AA ? `${s.AA}AA` : ""), (s.A ? `${s.A}A` : ""),
@@ -2288,13 +2296,13 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
         }}
         title={`${c.hit_count} prints · ${fmtClock(c.first_ts)}–${fmtClock(c.last_ts)} · conviction score ${c.score?.toLocaleString?.() || c.score}`}
       >
-        <span style={{ color: P.dm, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
-          <i style={{ color: dirColor, fontSize: 11 }}>{open ? "▾" : "▸"}</i>
+        <span style={{ color: rowColor, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+          <i style={{ color: rowColor, fontSize: 11 }}>{open ? "▾" : "▸"}</i>
           {fmtClock(c.first_ts)}–{fmtClock(c.last_ts)}
         </span>
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
           <span onClick={(e) => { e.stopPropagation(); onClickTicker && onClickTicker(c.ticker); }}
-                style={{ color: dirColor, fontWeight: 600, cursor: "pointer" }} title={`Filter to ${c.ticker}`}>
+                style={{ color: rowColor, fontWeight: 600, cursor: "pointer" }} title={`Filter to ${c.ticker}`}>
             {c.ticker}
           </span>
           <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: P.ac + "30", color: P.ac, flexShrink: 0 }} title={`${c.hit_count} prints on this contract`}>
@@ -2306,16 +2314,16 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
             </span>
           )}
         </span>
-        <span style={{ color: P.dm, fontSize: 12, textAlign: "center" }}>{fmtSpot(c.spot)}</span>
-        <span style={{ color: dirColor, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap" }}>{fmtStrike(c.strike)}</span>
-        <span style={{ color: dirColor, fontWeight: 700, textAlign: "center" }}>{c.cp || "—"}</span>
-        <span style={{ color: P.dm, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{c.exp || "—"}</span>
-        <span style={{ color: P.dm, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{fmtMoneyness(c.moneynessPct, c.moneynessLabel)}</span>
-        <span style={{ color: c.cum_voi && c.cum_voi >= 3 ? P.ac : P.dm, fontWeight: c.cum_voi && c.cum_voi >= 3 ? 600 : 400, textAlign: "center" }}>
+        <span style={{ color: rowColor, fontSize: 12, textAlign: "center" }}>{fmtSpot(c.spot)}</span>
+        <span style={{ color: rowColor, fontWeight: 600, textAlign: "center", whiteSpace: "nowrap" }}>{fmtStrike(c.strike)}</span>
+        <span style={{ color: rowColor, fontWeight: 700, textAlign: "center" }}>{c.cp || "—"}</span>
+        <span style={{ color: rowColor, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{c.exp || "—"}</span>
+        <span style={{ color: rowColor, fontSize: 12, textAlign: "center", whiteSpace: "nowrap" }}>{fmtMoneyness(c.moneynessPct, c.moneynessLabel)}</span>
+        <span style={{ color: rowColor, fontWeight: c.cum_voi && c.cum_voi >= 3 ? 600 : 400, textAlign: "center" }}>
           {c.cum_voi != null ? `${c.cum_voi}x` : "—"}
         </span>
-        <span style={{ color: dirColor, fontWeight: 700, textAlign: "center" }}>{fmtPremium(c.total_premium)}</span>
-        <span style={{ fontSize: 11, textAlign: "center", color: P.dm, whiteSpace: "nowrap" }}>{sideBits.join(" ") || "—"}</span>
+        <span style={{ color: rowColor, fontWeight: 700, textAlign: "center" }}>{fmtPremium(c.total_premium)}</span>
+        <span style={{ fontSize: 11, textAlign: "center", color: rowColor, whiteSpace: "nowrap" }}>{sideBits.join(" ") || "—"}</span>
         <span style={{
           color: _grColor || (_grLabel?.startsWith("A") ? P.ac : _grLabel === "B" ? P.bl : _grLabel === "C" ? P.dm : P.mt),
           fontWeight: 700, textAlign: "center", whiteSpace: "nowrap",
