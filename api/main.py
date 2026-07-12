@@ -553,6 +553,13 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.routers.calendar import get_calendar
             get_calendar()
 
+        def _earnings_previews():
+            # Warm the AI preview for the week's biggest reporters so their modal
+            # is instant on click. Generate-once + disk-persisted → cheap after
+            # the first run (already-warm names skipped, zero re-burn on redeploy).
+            from api.services.earnings_preview_warm import warm_week_previews
+            warm_week_previews()
+
         def _flow_tape_critical():
             # The surfaces users hit FIRST — default ALL FLOW tape + market-read
             # hero. Fills the /recent snapshot cache + warms the flow.db OS page
@@ -582,6 +589,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
         _warm("news", _news)
         _warm("breadth", _breadth)
         _warm("calendar", _calendar)
+        _warm("earnings-previews", _earnings_previews)  # after calendar (it reads the week)
         _warm("flow-curated", _flow_tape_curated)  # LAST — heavy 100K scan, non-critical
 
     threading.Thread(target=_delayed, daemon=True, name="dashboard-warmer").start()
@@ -2330,6 +2338,19 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_ratings_pct_nightly,
                 trigger=CronTrigger(hour=2, minute=30),
                 id="ratings_percentile_nightly", max_instances=1, replace_existing=True)
+
+        # -- Earnings preview warm ------------------------------------------------
+        # Pre-generate the AI preview for the week's biggest reporters (top-N by
+        # market cap, current + next week) so the modal is instant on click.
+        # Generate-ONCE (disk-persisted, survives redeploys) + BOUNDED → cheap:
+        # a run after the first skips every already-warm name with zero token
+        # spend. Weekday cadence catches new names + report-date shifts. The boot
+        # warm (_start_dashboard_warm_background) covers the post-deploy first run.
+        if os.environ.get("EARNINGS_WARM_ENABLED", "1").lower() in ("1", "true", "yes"):
+            from api.services.earnings_preview_warm import warm_week_previews as _earn_warm
+            _scheduler.add_job(_earn_warm,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="6,10,14,18", minute=20),
+                id="earnings_preview_warm", max_instances=1, replace_existing=True)
 
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
             from api.services.catalyst.engine import run_refresh as _cat_refresh

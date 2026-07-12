@@ -81,7 +81,7 @@ _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
 _AV_TIMEOUT_SECS            = 8        # Alpha Vantage request timeout
 _FH_TIMEOUT_SECS            = 6        # Finnhub request timeout
 _AV_RATE_INTERVAL_SECS      = 13.0     # ≥13s between AV calls → ≤4.6/min (free tier: 5/min)
-_EARNINGS_AI_MODEL          = "claude-sonnet-4-6"  # upgraded Haiku→Sonnet 2026-05-27 (richer earnings analysis)
+_EARNINGS_AI_MODEL          = os.environ.get("EARNINGS_AI_MODEL", "claude-sonnet-5")  # Haiku→Sonnet 4.6 (2026-05-27)→Sonnet 5 (2026-07-12, richer previews; now generate-once + disk-persisted so the better model is affordable). Env-overridable.
 
 # Alpha Vantage free tier: 5 calls/min. Serialize all AV calls with ≥13s spacing.
 _av_lock = _threading.Lock()
@@ -808,6 +808,12 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
     cached = cache.get(cache_key)
     if cached:
         return cached
+    # Disk-persisted hit (survives redeploys) → generate-once, zero re-burn.
+    from api.services import earnings_ai_store as _ai_store
+    _disk = _ai_store.get("analysis", sym)
+    if _disk:
+        cache.set(cache_key, _disk, ttl=_EARNINGS_CACHE_TTL_HIT)
+        return _disk
 
     import datetime as _dt
     import requests as _req
@@ -1113,6 +1119,8 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
     # Only cache for full 12h if analysis succeeded; short TTL lets it retry on failure
     ttl = _EARNINGS_CACHE_TTL_HIT if analysis is not None else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
+    if analysis is not None:
+        _ai_store.put("analysis", sym, result)   # persist only real output
     return result
 
 
@@ -1132,6 +1140,13 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
     cached = cache.get(cache_key)
     if cached:
         return cached
+    # Disk-persisted hit (survives Railway redeploys) → warm the hot cache and
+    # return without spending tokens. This is what makes generate-once possible.
+    from api.services import earnings_ai_store as _ai_store
+    _disk = _ai_store.get("preview", sym)
+    if _disk:
+        cache.set(cache_key, _disk, ttl=_EARNINGS_CACHE_TTL_HIT)
+        return _disk
 
     import datetime as _dt
     import requests as _req
@@ -1445,6 +1460,9 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
     }
     ttl = _EARNINGS_CACHE_TTL_HIT if preview_text else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
+    # Persist only real output — a miss stays lazy so it retries.
+    if preview_text:
+        _ai_store.put("preview", sym, result)
     return result
 
 
