@@ -485,3 +485,57 @@
   .msgActions { position: static; display: flex; flex-wrap: wrap; margin-top: 5px; padding: 0; background: none; border: none; }
   .msg { padding-right: 8px; }
 }
+
+/* ═══ Floor polish — reaction pills · profile card · NEW divider · nudge ═══ */
+
+/* Persistent reaction pills (Discord-style, always visible under the message) */
+.reactPillRow { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.reactPill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text); font-size: 11.5px; font-weight: 600; padding: 2px 8px; cursor: pointer;
+}
+.reactPill:hover { border-color: var(--ut-gold-glow); }
+.reactPillActive { background: var(--ut-gold-dim); border-color: var(--ut-gold); color: var(--ut-gold); }
+.reactPill:disabled { opacity: 0.5; cursor: default; }
+
+/* Avatar/name click targets */
+.avatarBtn { background: none; border: none; padding: 0; cursor: pointer; display: inline-flex; border-radius: 50%; }
+.msgAuthor[role='button'], .msgHead .mentorBadge[role='button'],
+.authorName[role='button'], .authorWrap .mentorBadge[role='button'] { cursor: pointer; }
+
+/* Mini profile card */
+.profileCard {
+  position: fixed; width: 260px; z-index: var(--z-popover, 1000);
+  background: var(--bg-elevated); border: 1px solid var(--ut-gold-glow); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.profileHead { display: flex; align-items: center; gap: 12px; }
+.profileId { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.profileName { color: var(--text-heading); font-size: 15px; font-weight: 700; }
+.profileId .mentorBadge { font-size: 15px; font-weight: 700; }
+.profileBadges { display: flex; gap: 5px; }
+.profileStats { border-top: 1px solid var(--border); padding-top: 9px; display: flex; flex-direction: column; gap: 4px; }
+.profileStat { color: var(--text); font-size: 12px; line-height: 1.5; }
+.profileStat b { color: var(--text-heading); }
+
+/* NEW unread divider (Discord's red rule) */
+.newDivider { position: relative; margin: 10px 0 4px; height: 1px; background: var(--ut-red); }
+.newDivider span {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: var(--ut-red); color: #fff; border-radius: 4px;
+  font-size: 9px; font-weight: 800; letter-spacing: 1px; padding: 1px 6px;
+}
+
+/* Add-a-profile-pic nudge (one-time, dismissible) */
+.avatarNudge {
+  display: flex; align-items: center; gap: 8px;
+  border-top: 1px solid var(--border); padding: 6px 12px;
+  color: var(--text); font-size: 11.5px;
+}
+.avatarNudge a { color: var(--ut-gold); }
+.avatarNudge button {
+  margin-left: auto; background: none; border: none; color: var(--text);
+  opacity: 0.6; cursor: pointer; display: inline-flex; padding: 2px;
+}
+.avatarNudge button:hover { opacity: 1; }

@@ -662,6 +662,38 @@ def chat_messages(slug: str, before_id: int | None = Query(None),
     return {"messages": msgs}
 
 
+@router.get("/chat/channels/{slug}/read-state")
+def chat_read_state(slug: str, user: dict = Depends(require_chat)):
+    """Last-seen message id at channel open — powers the client's NEW divider."""
+    if not store.is_valid_channel(slug):
+        raise HTTPException(status_code=404, detail="Unknown channel")
+    return {"last_seen_message_id": store.get_channel_read_state(user["id"], slug)}
+
+
+@router.get("/members/{member_id}")
+def member_profile(member_id: str, user: dict = Depends(require_community)):
+    """Mini profile card: name, badges, member-since, floor activity."""
+    amap = _author_map([member_id])
+    if member_id not in amap:
+        raise HTTPException(status_code=404, detail="Member not found")
+    info = amap[member_id]
+    joined = None
+    try:
+        from api.services.auth_db import get_connection as _auth_conn
+        with _closing(_auth_conn()) as conn:
+            r = conn.execute("SELECT created_at FROM users WHERE id=?", (member_id,)).fetchone()
+            joined = r["created_at"] if r else None
+    except Exception:
+        pass
+    try:
+        from api.services import community_badges
+        badges = community_badges.badges_for([member_id]).get(member_id, [])
+    except Exception:
+        badges = []
+    return {"id": member_id, "name": info["name"], "is_mentor": info["is_mentor"],
+            "badges": badges, "joined_at": joined, **store.member_activity(member_id)}
+
+
 @router.get("/chat/search")
 def chat_search(q: str = Query("", max_length=80), user: dict = Depends(require_chat)):
     """Search live-chat messages + forum threads (v1 LIKE search)."""

@@ -825,6 +825,28 @@ def ensure_caught_up_many(user_id, slugs):
             pass
 
 
+def get_channel_read_state(user_id, channel_slug):
+    """Last-seen message id for a channel, or None if the channel was never opened."""
+    with closing(get_connection()) as conn:
+        row = conn.execute(
+            "SELECT last_seen_message_id FROM chat_read_state WHERE user_id=? AND channel_slug=?",
+            (user_id, channel_slug)).fetchone()
+        return row["last_seen_message_id"] if row else None
+
+
+def member_activity(user_id):
+    """Floor activity counts for the member profile card."""
+    with closing(get_connection()) as conn:
+        msgs = conn.execute(
+            "SELECT COUNT(*) FROM messages WHERE author_id=? AND deleted=0",
+            (user_id,)).fetchone()[0]
+        posts = conn.execute(
+            "SELECT COUNT(*) FROM posts WHERE author_id=?", (user_id,)).fetchone()[0]
+        threads = conn.execute(
+            "SELECT COUNT(*) FROM threads WHERE author_id=?", (user_id,)).fetchone()[0]
+    return {"messages": msgs, "board_posts": posts + threads}
+
+
 def unread_by_channel(user_id):
     """Per-Pulse-channel unread count. Excludes deleted + the user's own messages,
     capped at 100. A never-opened channel reads 0 (caught-up default)."""

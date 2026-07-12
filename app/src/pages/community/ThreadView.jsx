@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import TickerPopup from '../../components/TickerPopup'
 import UIcon from '../../components/ui/UIcon'
 import Composer from './Composer'
+import FloorAvatar from './components/FloorAvatar'
+import ProfileCard from './components/ProfileCard'
 import { useThread, useCommunityStatus, apiCall } from './hooks/useCommunity'
 import { renderBodyHTML } from './lib/renderBody'
 import { useAuth } from '../../context/AuthContext'
@@ -17,19 +19,21 @@ const REACTIONS = [
   { kind: 'salute', icon: 'star', label: 'Respect' },
 ]
 
-function Author({ author, authorId }) {
+function Author({ author, authorId, onOpenProfile }) {
+  const open = (e) => {
+    if (!onOpenProfile) return
+    e.stopPropagation()
+    const r = e.currentTarget.getBoundingClientRect()
+    onOpenProfile({ userId: authorId || null, name: author?.name, isMentor: author?.is_mentor, x: r.right + 10, y: r.top })
+  }
   return (
     <span className={styles.authorWrap}>
-      {authorId && (
-        <img
-          className={styles.avatar}
-          src={`/api/auth/avatar/${authorId}`}
-          alt=""
-          width={20}
-          height={20}
-        />
-      )}
-      <span className={author?.is_mentor ? styles.mentorBadge : styles.authorName}>
+      <button className={styles.avatarBtn} onClick={open} aria-label={`${author?.name || 'member'} profile`}>
+        <FloorAvatar authorId={authorId} name={author?.name} isMentor={author?.is_mentor} size={26} />
+      </button>
+      <span className={author?.is_mentor ? styles.mentorBadge : styles.authorName}
+        role="button" tabIndex={0} onClick={open}
+        onKeyDown={(e) => { if (e.key === 'Enter') open(e) }}>
         {author?.name || 'member'}
         {author?.is_mentor && <span className={styles.mentorChip}>UCT MENTOR</span>}
       </span>
@@ -37,11 +41,11 @@ function Author({ author, authorId }) {
   )
 }
 
-function Post({ post, replies, onReact, onReply, isMentor, onHighlight, onReport, onDelete, meId }) {
+function Post({ post, replies, onReact, onReply, isMentor, onHighlight, onReport, onDelete, meId, onOpenProfile }) {
   return (
     <div className={`${styles.post} ${post.author?.is_mentor ? styles.postMentor : ''} ${post.mentor_highlight ? styles.postHighlight : ''}`}>
       <div className={styles.postHead}>
-        <Author author={post.author} authorId={post.author_id} />
+        <Author author={post.author} authorId={post.author_id} onOpenProfile={onOpenProfile} />
         {!!post.mentor_highlight && <span className={styles.highlightTag}>Mentor take</span>}
       </div>
       {post.deleted ? (
@@ -81,7 +85,7 @@ function Post({ post, replies, onReact, onReply, isMentor, onHighlight, onReport
           {replies.map((r) => (
             <Post key={r.id} post={r} replies={[]} onReact={onReact} onReply={onReply}
                   isMentor={isMentor} onHighlight={onHighlight} onReport={onReport}
-                  onDelete={onDelete} meId={meId} />
+                  onDelete={onDelete} meId={meId} onOpenProfile={onOpenProfile} />
           ))}
         </div>
       )}
@@ -96,6 +100,7 @@ export default function ThreadView({ threadId }) {
   const { user } = useAuth()
   const meId = user?.id
   const [replyTo, setReplyTo] = useState(null)
+  const [profile, setProfile] = useState(null)
   // Clickable $TICKER chips (sanitized static HTML → delegated handler + controlled popup)
   const [chipSym, setChipSym] = useState(null)
   const onChipClick = (e) => {
@@ -166,6 +171,7 @@ export default function ThreadView({ threadId }) {
   return (
     <div className={styles.threadView} onClick={onChipClick}>
       {chipSym && <TickerPopup sym={chipSym} open onClose={() => setChipSym(null)} />}
+      {profile && <ProfileCard profile={profile} onClose={() => setProfile(null)} />}
       <Link to="/community" className={styles.backLink}>&larr; The Floor</Link>
       <div className={styles.opCard}>
         <h2 className={styles.opTitle}>
@@ -174,7 +180,7 @@ export default function ThreadView({ threadId }) {
           {!!thread.answered && <span className={styles.answeredTick}>Answered</span>}
         </h2>
         <div className={styles.postHead}>
-          <Author author={thread.author} authorId={thread.author_id} />
+          <Author author={thread.author} authorId={thread.author_id} onOpenProfile={setProfile} />
           {(thread.ticker_tags || []).map((tk) => (
             <span key={tk} className={styles.tickerChip}>${tk}</span>
           ))}
@@ -207,7 +213,8 @@ export default function ThreadView({ threadId }) {
           <Post key={p.id} post={p} replies={byParent[p.id] || []}
                 onReact={onReact} onReply={onReply}
                 isMentor={isMentor} onHighlight={onHighlight}
-                onReport={reportItem} onDelete={onDelete} meId={meId} />
+                onReport={reportItem} onDelete={onDelete} meId={meId}
+                onOpenProfile={setProfile} />
         ))}
       </div>
       {!thread.locked && (

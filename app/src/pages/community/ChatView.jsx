@@ -1,6 +1,6 @@
 // app/src/pages/community/ChatView.jsx
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import TickerPopup from '../../components/TickerPopup'
 import UIcon from '../../components/ui/UIcon'
@@ -10,6 +10,7 @@ import CardRenderer from './components/CardRenderer'
 import FloorAvatar from './components/FloorAvatar'
 import FloorSearch from './components/FloorSearch'
 import MentionInbox from './components/MentionInbox'
+import ProfileCard from './components/ProfileCard'
 import Composer from './Composer'
 import * as chat from '../../lib/chatStreamManager'
 import styles from './Community.module.css'
@@ -53,9 +54,28 @@ export default function ChatView({ channel, onSelectChannel }) {
   const meId = user?.id
   const isMentor = user?.role === 'admin'
   const [graduating, setGraduating] = useState(null) // message being graduated
+  const [profile, setProfile] = useState(null)       // mini profile card {userId, name, isMentor, x, y}
 
   useEffect(() => { chat.setSelfId(meId) }, [meId])
   useEffect(() => { chat.ensureStarted([channel]) }, [channel])
+
+  // NEW divider: freeze the last-seen boundary at channel open (Discord's red
+  // "NEW" rule). markRead advances the server state, but the divider stays put
+  // for this visit; switching channels re-fetches.
+  const [newBoundary, setNewBoundary] = useState(null)
+  const boundaryChanRef = useRef(null)
+  useEffect(() => {
+    boundaryChanRef.current = channel
+    setNewBoundary(null)
+    fetch(`/api/community/chat/channels/${channel}/read-state`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d.last_seen_message_id === 'number' && boundaryChanRef.current === channel) {
+          setNewBoundary(d.last_seen_message_id)
+        }
+      })
+      .catch(() => {})
+  }, [channel])
 
   const subscribe = useCallback((cb) => chat.subscribeChannel(channel, cb), [channel])
   const snap = useSyncExternalStore(subscribe, () => chat.getChannelSnapshot(channel))
@@ -139,7 +159,12 @@ export default function ChatView({ channel, onSelectChannel }) {
     { refreshInterval: 30_000 },
   )
 
-  const grouped = useMemo(() => groupMessages(messages), [messages])
+  const firstUnreadId = useMemo(() => {
+    if (newBoundary == null) return null
+    const m = messages.find((x) => !x.pending && x.id > newBoundary && x.author_id !== meId)
+    return m ? m.id : null
+  }, [messages, newBoundary, meId])
+  const grouped = useMemo(() => groupMessages(messages, firstUnreadId), [messages, firstUnreadId])
   const pinned = useMemo(() => messages.filter((m) => m.pinned && !m.deleted), [messages])
   const newestPin = pinned.length ? pinned[pinned.length - 1] : null
   const typingNames = (snap.typing || []).filter((t) => t.user_id !== meId).map((t) => t.name)
@@ -216,6 +241,8 @@ export default function ChatView({ channel, onSelectChannel }) {
         {grouped.map((item) =>
           item.type === 'day' ? (
             <div key={`d${item.key}`} className={styles.dayDivider}><span>{item.label}</span></div>
+          ) : item.type === 'new' ? (
+            <div key="new-divider" className={styles.newDivider}><span>NEW</span></div>
           ) : (
             <MessageRow
               key={item.msg.id}
@@ -228,10 +255,13 @@ export default function ChatView({ channel, onSelectChannel }) {
               onReply={setReply}
               onGraduate={setGraduating}
               onOpenThread={(tid) => navigate(`/community/${tid}`)}
+              onOpenProfile={setProfile}
             />
           ),
         )}
       </div>
+
+      {profile && <ProfileCard profile={profile} onClose={() => setProfile(null)} />}
 
       {chipSym && (
         <TickerPopup sym={chipSym} open onClose={() => setChipSym(null)} />
@@ -257,6 +287,8 @@ export default function ChatView({ channel, onSelectChannel }) {
         {typingNames.length === 2 && `${typingNames[0]} and ${typingNames[1]} are typing…`}
         {typingNames.length > 2 && `${typingNames.length} people are typing…`}
       </div>
+
+      <AvatarNudge meId={meId} />
 
       {reply && (
         <div className={styles.replyBar}>
@@ -298,20 +330,27 @@ function TickerMarks({ marks, livePrices }) {
   )
 }
 
-function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply, onGraduate, onOpenThread }) {
+function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply, onGraduate, onOpenThread, onOpenProfile }) {
   const mine = msg.author_id === meId || msg.author_id === '__me__'
   const mentor = msg.author?.is_mentor
   const html = useMemo(() => (msg.deleted || !msg.body ? null : renderBodyHTML(msg.body)), [msg.body, msg.deleted])
   const canGraduate = (mine || isMentor) && !msg.pending && !msg.deleted
   // pending optimistic messages carry the '__me__' placeholder — resolve to the real id
   const avatarId = msg.author_id === '__me__' ? meId : msg.author_id
+  const openProfile = (e) => {
+    e.stopPropagation()
+    const r = e.currentTarget.getBoundingClientRect()
+    onOpenProfile({ userId: avatarId || null, name: msg.author?.name, isMentor: mentor, x: r.right + 10, y: r.top })
+  }
 
   return (
     <div data-mid={msg.id}
       className={`${styles.msg} ${grouped ? styles.msgGrouped : ''} ${mentor ? styles.msgMentor : ''} ${msg.pending ? styles.msgPending : ''} ${msg.pinned ? styles.msgPinned : ''}`}>
       <div className={styles.msgGutter}>
         {!grouped ? (
-          <FloorAvatar authorId={avatarId} name={msg.author?.name} isMentor={mentor} />
+          <button className={styles.avatarBtn} onClick={openProfile} aria-label={`${msg.author?.name || 'member'} profile`}>
+            <FloorAvatar authorId={avatarId} name={msg.author?.name} isMentor={mentor} />
+          </button>
         ) : (
           <span className={styles.gutterTime}>{timeLabel(msg.created_at)}</span>
         )}
@@ -320,7 +359,9 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply
       {!grouped && (
         <div className={styles.msgHead}>
           {!!msg.pinned && <UIcon name="pin" size={11} />}
-          <span className={mentor ? styles.mentorBadge : styles.msgAuthor}>{msg.author?.name || 'member'}</span>
+          <span className={mentor ? styles.mentorBadge : styles.msgAuthor}
+            role="button" tabIndex={0} onClick={openProfile}
+            onKeyDown={(e) => { if (e.key === 'Enter') openProfile(e) }}>{msg.author?.name || 'member'}</span>
           {mentor && <span className={styles.mentorTag}>MENTOR</span>}
           {(msg.author?.badges || []).includes('green_week') && (
             <span className={styles.badgeGreen} title="Net positive R this week (verified from journal)">green wk</span>
@@ -362,6 +403,23 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply
             <button className={styles.gradLink} onClick={() => onOpenThread(msg.graduated_thread_id)}>
               <UIcon name="library" size={12} /> Saved to the Boards →
             </button>
+          )}
+          {/* Discord-style persistent reaction pills — always visible, not hover-only */}
+          {REACTIONS.some((r) => msg.reactions?.[r.kind] > 0) && (
+            <div className={styles.reactPillRow}>
+              {REACTIONS.filter((r) => msg.reactions?.[r.kind] > 0).map((r) => {
+                const active = (msg.my_reactions || []).includes(r.kind)
+                return (
+                  <button key={r.kind} title={r.label}
+                    className={`${styles.reactPill} ${active ? styles.reactPillActive : ''}`}
+                    disabled={!!msg.pending}
+                    onClick={() => chat.toggleReaction(channel, msg.id, r.kind)}>
+                    <UIcon name={r.icon} size={12} />
+                    <span>{msg.reactions[r.kind]}</span>
+                  </button>
+                )
+              })}
+            </div>
           )}
         </>
       )}
@@ -473,7 +531,7 @@ function previewText(msg) {
   return (el.textContent || '').trim().slice(0, 60)
 }
 
-function groupMessages(messages) {
+function groupMessages(messages, firstUnreadId = null) {
   const out = []
   let prev = null
   let prevDay = null
@@ -483,6 +541,10 @@ function groupMessages(messages) {
       out.push({ type: 'day', key: day, label: dayLabel(msg.created_at) })
       prevDay = day
       prev = null
+    }
+    if (firstUnreadId != null && msg.id === firstUnreadId) {
+      out.push({ type: 'new' })
+      prev = null // the divider breaks author grouping, like Discord
     }
     const grouped =
       prev &&
@@ -494,4 +556,28 @@ function groupMessages(messages) {
     prev = msg
   }
   return out
+}
+
+// One-time dismissible chip: members with no uploaded avatar get a nudge to add
+// one (the room reads better with real faces than monograms).
+function AvatarNudge({ meId }) {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    if (!meId || localStorage.getItem('uct.floor.avatarNudge.dismissed')) return
+    const img = new Image()
+    img.onload = () => { if (img.naturalWidth <= 2) setShow(true) }
+    img.src = `/api/auth/avatar/${meId}`
+  }, [meId])
+  if (!show) return null
+  const dismiss = () => {
+    try { localStorage.setItem('uct.floor.avatarNudge.dismissed', '1') } catch (_) { /* noop */ }
+    setShow(false)
+  }
+  return (
+    <div className={styles.avatarNudge}>
+      <UIcon name="community" size={13} />
+      <span>Put a face on the floor — <Link to="/settings" onClick={dismiss}>add a profile pic</Link></span>
+      <button onClick={dismiss} aria-label="Dismiss"><UIcon name="x" size={12} /></button>
+    </div>
+  )
 }
