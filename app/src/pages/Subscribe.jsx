@@ -4,10 +4,12 @@ import { useAuth } from '../context/AuthContext'
 import styles from './AuthForm.module.css'
 
 export default function Subscribe() {
-  const { user, startCheckout, logout } = useAuth()
+  const { user, subscription, startCheckout, logout } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Never completed a checkout → backend grants the 7-day card-required trial.
+  const trialEligible = !subscription
 
   async function handleSubscribe() {
     setLoading(true)
@@ -62,8 +64,19 @@ export default function Subscribe() {
             disabled={loading}
             style={{ width: '100%', padding: '12px 24px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
           >
-            {loading ? 'Redirecting to Stripe...' : 'Subscribe — $200/mo'}
+            {loading
+              ? 'Redirecting to Stripe...'
+              : trialEligible
+                ? 'Start your 7-day free trial'
+                : 'Subscribe — $200/mo'}
           </button>
+
+          {trialEligible && (
+            <p style={{ margin: 0, fontSize: 12, color: '#999', lineHeight: 1.5 }}>
+              Card required — $0 today. $200/mo after the trial; cancel in one
+              click before day 7 and you pay nothing.
+            </p>
+          )}
 
           <button
             onClick={() => navigate('/settings?section=billing')}

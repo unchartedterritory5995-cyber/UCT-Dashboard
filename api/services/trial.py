@@ -2,13 +2,14 @@
 7-day full-access trial — the ONE server-side chokepoint.
 
 Strategy (owner-approved 2026-07-12: 7 days, card required at Stripe checkout,
-no refunds): a brand-new account gets full paid-FEATURE access for its first
-7 days. This module computes that window from `users.created_at` and is
-consulted by the existing paid gates in `api/middleware/auth_middleware.py`.
-Existing paid users are unaffected; a user older than the window who never
-paid simply has no trial. NOTE: the card-required half of the policy lives in
-the Stripe checkout flow (trial_period_days on the live subscription price) —
-this module only bounds the in-app feature window.
+no refunds): the 7-day trial is granted through Stripe checkout
+(subscription_data.trial_period_days=7 in stripe_service — card collected,
+$0 today, status "trialing" ⇒ plan "pro"). This module now only HONORS the
+legacy card-free windows of accounts created before the no-card cutover
+(see _nocard_cutoff below); it computes that window from `users.created_at`
+and is consulted by the existing paid gates in
+`api/middleware/auth_middleware.py`. Existing paid users are unaffected; a
+post-cutoff account gets nothing here until it completes checkout.
 
 SAFETY (do not regress):
   * Every function is defensively defaulted. On ANY error (missing field,
@@ -27,6 +28,30 @@ import math
 from datetime import datetime, timezone
 
 TRIAL_DAYS = 7
+
+# ── No-card cutover (2026-07-12) ──────────────────────────────────────────────
+# The card-required half of the policy went live with Stripe checkout trials
+# (trial_period_days=7). Accounts created AT/AFTER this instant get NO
+# card-free window from this module — their 7 days come from Stripe checkout
+# (card collected, $0 today). Accounts created BEFORE it keep the card-free
+# window they signed up under (every such window lapses by 2026-07-20, after
+# which this module only ever returns inactive). Env-overridable for tests /
+# emergency re-open; an unparseable override falls back to the hardcoded
+# default, never to "no cutoff".
+_NOCARD_CUTOFF_DEFAULT = "2026-07-13T00:00:00+00:00"
+
+
+def _nocard_cutoff() -> datetime:
+    raw = os.environ.get("J2_TRIAL_NOCARD_CUTOFF", _NOCARD_CUTOFF_DEFAULT)
+    for candidate in (raw, _NOCARD_CUTOFF_DEFAULT):
+        try:
+            dt = datetime.fromisoformat(str(candidate).strip().replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except (ValueError, TypeError):
+            continue
+    return datetime(2026, 7, 13, tzinfo=timezone.utc)  # unreachable belt+braces
 
 
 def _trial_enabled() -> bool:
@@ -80,6 +105,10 @@ def trial_status(user, now: datetime | None = None) -> dict:
             return inactive
         created = _parse_created_at(user.get("created_at"))
         if created is None:
+            return inactive
+        # No-card cutover: post-cutoff accounts trial through Stripe checkout
+        # (card required) — this module grants them nothing.
+        if created >= _nocard_cutoff():
             return inactive
         now = now or datetime.now(timezone.utc)
         age_days = (now - created).total_seconds() / 86400.0

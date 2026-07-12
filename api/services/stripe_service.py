@@ -30,15 +30,35 @@ def annual_available() -> bool:
     return bool(STRIPE_PRICE_ID_ANNUAL)
 
 
+TRIAL_PERIOD_DAYS = 7
+
+
+def is_trial_eligible(user_id: str) -> bool:
+    """True when checkout should include the 7-day free trial: the user has
+    NEVER held a Stripe subscription (one trial per customer, ever — a
+    canceled ex-subscriber re-subscribing pays from day one). Defensive:
+    any error → not eligible (never accidentally grant a trial)."""
+    try:
+        sub = get_subscription(user_id)
+        return not (sub and sub.get("stripe_subscription_id"))
+    except Exception:
+        return False
+
+
 def create_checkout_session(
-    user_id: str, user_email: str, success_url: str, cancel_url: str, billing: str = "monthly"
+    user_id: str, user_email: str, success_url: str, cancel_url: str,
+    billing: str = "monthly", trial_days: int | None = None,
 ) -> str:
     """Create a Stripe Checkout session and return the URL.
 
     `billing` selects the price: "annual" uses STRIPE_PRICE_ID_ANNUAL when it is
     configured, otherwise it falls back to the monthly STRIPE_PRICE_ID_PRO (both
-    grant the same "pro" plan). This function only creates checkout sessions — it
-    never touches webhook handling or subscription state.
+    grant the same "pro" plan). `trial_days` (the owner-approved 7-day
+    card-required trial) sets subscription_data.trial_period_days in code so it
+    holds regardless of how the live Stripe prices were configured;
+    payment_method_collection="always" keeps the card requirement explicit on
+    the $0-today trial invoice. This function only creates checkout sessions —
+    it never touches webhook handling or subscription state.
     """
     # Check if user already has a Stripe customer
     sub = get_subscription(user_id)
@@ -55,6 +75,9 @@ def create_checkout_session(
         "cancel_url": cancel_url,
         "metadata": {"user_id": user_id},
     }
+    if trial_days:
+        params["subscription_data"] = {"trial_period_days": int(trial_days)}
+        params["payment_method_collection"] = "always"
 
     if customer_id:
         params["customer"] = customer_id

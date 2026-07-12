@@ -21,7 +21,30 @@ function renderBanner() {
 }
 
 beforeEach(() => {
-  mockAuth = { trial: null }
+  mockAuth = { trial: null, subscription: null }
+})
+
+test('Stripe trialing subscription shows the convert date and links to Settings', () => {
+  mockAuth = {
+    trial: { active: false, days_left: 0 },
+    subscription: { status: 'trialing', current_period_end: '2026-07-19T21:00:00+00:00' },
+  }
+  renderBanner()
+  expect(screen.getByText(/converts Jul 19/i)).toBeInTheDocument()
+  expect(screen.getByText(/Nothing charged until then/i)).toBeInTheDocument()
+  expect(screen.getByRole('link')).toHaveAttribute('href', '/settings?section=billing')
+})
+
+test('Stripe trialing without a period end still shows the card-on-file chip', () => {
+  mockAuth = { trial: null, subscription: { status: 'trialing', current_period_end: null } }
+  renderBanner()
+  expect(screen.getByText(/card on file/i)).toBeInTheDocument()
+})
+
+test('an active (converted) subscription shows nothing', () => {
+  mockAuth = { trial: { active: false, days_left: 0 }, subscription: { status: 'active' } }
+  const { container } = renderBanner()
+  expect(container.textContent).toBe('')
 })
 
 test('shows N days left and links to /pricing for a trial user', () => {

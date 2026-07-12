@@ -27,6 +27,7 @@ beforeEach(() => {
     user: null,
     plan: 'free',
     trial: null,
+    subscription: null,
     annualAvailable: false,
     startCheckout: vi.fn(),
   }
@@ -87,19 +88,27 @@ test('paid user sees the "You\'re in" state, not a checkout button', () => {
   expect(screen.queryByRole('button', { name: /Subscribe/i })).toBeNull()
 })
 
-test('trial user sees days-left + a Subscribe CTA', () => {
-  mockAuth = { user: { role: 'member' }, plan: 'free', trial: { active: true, days_left: 7 }, annualAvailable: true, startCheckout: vi.fn() }
+test('trial user sees days-left + a trial-first CTA', () => {
+  mockAuth = { user: { role: 'member' }, plan: 'free', trial: { active: true, days_left: 7 }, subscription: null, annualAvailable: true, startCheckout: vi.fn() }
   renderPricing()
   expect(screen.getByText(/7 days left/i)).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /Subscribe/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /Start free trial/i })).toBeInTheDocument()
 })
 
-test('free logged-in user Subscribe button starts checkout for the selected billing', () => {
+test('never-subscribed logged-in user gets the trial-first CTA and it starts checkout', () => {
   const startCheckout = vi.fn()
-  mockAuth = { user: { role: 'member' }, plan: 'free', trial: null, annualAvailable: true, startCheckout }
+  mockAuth = { user: { role: 'member' }, plan: 'free', trial: null, subscription: null, annualAvailable: true, startCheckout }
   renderPricing()
-  fireEvent.click(screen.getByRole('button', { name: /Subscribe/i }))
+  const btn = screen.getByRole('button', { name: /Start free trial — then \$2,000\/yr/i })
+  fireEvent.click(btn)
   expect(startCheckout).toHaveBeenCalledWith('annual')
+})
+
+test('ex-subscriber sees a plain Subscribe CTA — no second trial implied', () => {
+  mockAuth = { user: { role: 'member' }, plan: 'free', trial: null, subscription: { status: 'canceled', current_period_end: null }, annualAvailable: true, startCheckout: vi.fn() }
+  renderPricing()
+  expect(screen.getByRole('button', { name: /^Subscribe — /i })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Start free trial/i })).toBeNull()
 })
 
 test('contains no emoji', () => {

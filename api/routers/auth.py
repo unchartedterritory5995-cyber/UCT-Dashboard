@@ -1452,8 +1452,14 @@ class CheckoutRequest(BaseModel):
 
 @router.post("/checkout")
 def checkout(user: dict = Depends(get_current_user), body: Optional[CheckoutRequest] = None):
-    """Redirect user to Stripe Checkout to subscribe. Optional body {plan}."""
+    """Redirect user to Stripe Checkout to subscribe. Optional body {plan}.
+
+    First-ever subscribers get the 7-day card-required free trial
+    (subscription_data.trial_period_days — the landing/Terms promise); anyone
+    who has held a subscription before pays from day one."""
+    from api.services.stripe_service import TRIAL_PERIOD_DAYS, is_trial_eligible
     billing = body.plan if (body and body.plan in ("monthly", "annual")) else "monthly"
+    trial_days = TRIAL_PERIOD_DAYS if is_trial_eligible(user["id"]) else None
     try:
         url = create_checkout_session(
             user_id=user["id"],
@@ -1461,8 +1467,9 @@ def checkout(user: dict = Depends(get_current_user), body: Optional[CheckoutRequ
             success_url=f"{DASHBOARD_URL}/dashboard?checkout=success",
             cancel_url=f"{DASHBOARD_URL}/pricing?checkout=canceled",
             billing=billing,
+            trial_days=trial_days,
         )
-        return {"checkout_url": url}
+        return {"checkout_url": url, "trial_days": trial_days or 0}
     except Exception as e:
         print(f"[checkout] Stripe error for user {user['id']}: {e}")
         raise HTTPException(status_code=400, detail=f"Failed to create checkout session: {str(e)}")

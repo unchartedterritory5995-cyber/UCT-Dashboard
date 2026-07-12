@@ -43,7 +43,7 @@ const PROMISES = [
 ]
 
 export default function Pricing() {
-  const { user, plan, trial, annualAvailable, startCheckout } = useAuth()
+  const { user, plan, trial, subscription, annualAvailable, startCheckout } = useAuth()
   const [billing, setBilling] = useState('annual') // 'annual' (headline) | 'monthly'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -53,6 +53,10 @@ export default function Pricing() {
     [user, plan],
   )
   const onTrial = !!(trial && trial.active)
+  // Never completed a checkout → the backend grants the 7-day card-required
+  // trial (trial_period_days), so the CTA leads with it. An ex-subscriber
+  // (subscription row exists) pays from day one — plain Subscribe.
+  const trialEligible = !subscription
   const annualFallback = billing === 'annual' && !annualAvailable
 
   async function handleCheckout() {
@@ -195,14 +199,16 @@ export default function Pricing() {
                   >
                     {/* Honest CTA: when the annual price isn't configured yet the
                         checkout charges monthly — the button must say what is
-                        actually charged at click time (P0 whole-branch fix). */}
+                        actually charged at click time (P0 whole-branch fix).
+                        First-ever subscribers lead with the trial ($0 today);
+                        returning ex-subscribers see the plain charge. */}
                     {busy
                       ? 'Redirecting to Stripe…'
-                      : `Subscribe — ${billing === 'annual' && !annualFallback ? '$2,000/yr billed annually' : '$200/mo'}`}
+                      : `${trialEligible ? 'Start free trial — then' : 'Subscribe —'} ${billing === 'annual' && !annualFallback ? '$2,000/yr billed annually' : '$200/mo'}`}
                   </button>
                 </>
               )}
-              {!user && (
+              {(!user || (!trulyPaid && trialEligible)) && (
                 <p className={styles.ctaSub}>Card required — $0 today, nothing charged until the trial ends.</p>
               )}
               {annualFallback && (
