@@ -37,6 +37,31 @@
   color: var(--text-bright, #e8eaed);
 }
 
+/* Sync-now controls absorbed from the retired BrokerSyncStatus bar. */
+.headAuto {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-muted, #8a909a);
+}
+
+.headSyncBtn {
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ut-gold, #c9a84c);
+  background: transparent;
+  border: 1px solid var(--border, #2a2e36);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.headSyncBtn:hover:not(:disabled) {
+  border-color: var(--ut-gold, #c9a84c);
+}
+.headSyncBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* ── Per-account block ─────────────────────────────────────────────────────── */
 
 .acct {

@@ -21,7 +21,7 @@
  * @param {string} [accountId] optional broker-account filter for the audit log.
  * @returns {{trust: object|null, syncLog: Array, orphans: Array,
  *   reattach: (tradeRef:string, targetTradeId:string)=>Promise<object>,
- *   isLoading: boolean}}
+ *   syncNow: ()=>Promise<void>, isLoading: boolean}}
  */
 
 import { useCallback, useMemo } from 'react'
@@ -47,11 +47,23 @@ export default function useSyncTrust(accountId) {
     data: trustData, isLoading: trustLoading, mutate: mutateTrust,
   } = useSWR('/api/j2/broker/trust', fetcher, SWR_OPTS)
   const {
-    data: logData, isLoading: logLoading,
+    data: logData, isLoading: logLoading, mutate: mutateLog,
   } = useSWR(logKey, fetcher, SWR_OPTS)
   const {
     data: orphanData, isLoading: orphanLoading, mutate: mutateOrphans,
   } = useSWR('/api/j2/trust/orphans', fetcher, SWR_OPTS)
+
+  // One-tap full re-sync (absorbed from the retired BrokerSyncStatus bar —
+  // the Trust Center is now the single broker-sync surface). Blocking on
+  // purpose: the button surfaces the result, so the panel revalidates only
+  // after the sync actually ran.
+  const syncNow = useCallback(async () => {
+    await fetch('/api/j2/broker/sync?full=1&force=1', {
+      method: 'POST',
+      credentials: 'include',
+    })
+    await Promise.all([mutateTrust(), mutateLog(), mutateOrphans()])
+  }, [mutateTrust, mutateLog, mutateOrphans])
 
   const reattach = useCallback(async (tradeRef, targetTradeId) => {
     const res = await fetch('/api/j2/trust/orphans/reattach', {
@@ -82,6 +94,7 @@ export default function useSyncTrust(accountId) {
     syncLog: logData?.rows || [],
     orphans: orphanData?.orphans || [],
     reattach,
+    syncNow,
     isLoading: trustLoading || logLoading || orphanLoading,
   }
 }

@@ -20,9 +20,6 @@ vi.mock('../../../hooks/useRealtimePrices', () => ({
   default: () => ({ prices: {}, isStreaming: false }),
 }))
 vi.mock('../components/BrokerAccountHero', () => ({ default: () => null }))
-vi.mock('../components/BrokerSyncStatus', () => ({
-  default: () => <div data-testid="broker-sync-status" />,
-}))
 vi.mock('../components/BrokerReviewNudge', () => ({ default: () => null }))
 vi.mock('../components/NudgesBanner', () => ({ default: () => null }))
 vi.mock('../components/HoldingsList', () => ({ default: () => <div data-testid="holdings-list" /> }))
@@ -38,9 +35,11 @@ vi.mock('../components/trust/SyncTrustCenter', () => ({
 beforeEach(() => localStorage.clear())
 
 describe('OpenPositionsTab — Sync Trust Center wiring', () => {
-  it('mounts the SyncTrustCenter alongside the broker sync status', () => {
+  it('mounts the SyncTrustCenter as the ONE broker-sync surface (slim bar retired)', () => {
     render(<OpenPositionsTab settings={{}} />)
     expect(screen.getByTestId('sync-trust-center')).toBeInTheDocument()
-    expect(screen.getByTestId('broker-sync-status')).toBeInTheDocument()
+    // The old stacked BrokerSyncStatus bar must NOT come back (its Sync-now
+    // lives in the Trust Center header now).
+    expect(screen.queryByTestId('broker-sync-status')).toBeNull()
   })
 })

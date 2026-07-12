@@ -66,20 +66,34 @@ const orphan = () => ({
   summary: 'AAPL long · 3 screenshots',
 })
 
+const syncNow = vi.fn()
+
 beforeEach(() => {
   reattach.mockReset()
   reattach.mockResolvedValue({ moved: 1 })
+  syncNow.mockReset()
+  syncNow.mockResolvedValue(undefined)
   selected = { accountId: 'a1', account: { id: 'a1', name: 'RH', balanceSource: 'broker' }, accounts: [] }
   trustState = {
     trust: { anyBroker: true, accounts: [okAccount()] },
     syncLog: [syncRow()],
     orphans: [],
     reattach,
+    syncNow,
     isLoading: false,
   }
 })
 
 describe('SyncTrustCenter', () => {
+  it('header owns the one-tap re-sync (absorbed BrokerSyncStatus bar)', async () => {
+    const onSynced = vi.fn()
+    render(<SyncTrustCenter onSynced={onSynced} />)
+    expect(screen.getByText(/auto every 20m/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Sync now/i }))
+    await waitFor(() => expect(syncNow).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(onSynced).toHaveBeenCalledTimes(1))
+  })
+
   it('hides entirely for a manual account (renders one muted line, no health panel)', () => {
     selected = { accountId: 'm1', account: { id: 'm1', name: 'Manual', balanceSource: 'manual' }, accounts: [] }
     render(<SyncTrustCenter />)

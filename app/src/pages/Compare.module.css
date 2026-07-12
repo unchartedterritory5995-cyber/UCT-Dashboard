@@ -1,36 +1,46 @@
 /* ============================================================
    UCT INTELLIGENCE — /compare marketing page
-   Dark/gold brand, matches Landing.module.css visual language.
+   Light editorial theme (paper + ink + restrained gold), matching
+   Landing v6. The dark panel returns ONLY for the product-artifact
+   frame, the close band and the footer.
    No emoji anywhere — UIcon (check / x / compass) supplies all marks.
    ============================================================ */
 
 .page {
-  --bg: #0a0a0c;
-  --bg2: #0f0f12;
+  /* paper + ink (mirrors Landing.module.css) */
+  --paper: #faf8f3;
+  --paper-2: #f3efe6;
+  --card: #ffffff;
+  --line: #e6dfcf;
+  --line-soft: #eee8da;
+  --ink: #1c160c;
+  --body-t: #4c4535;
+  --muted-t: #8a8069;
+  /* brand accents */
   --gold: #c9a84c;
-  --gold-dim: #8a7a4a;
-  --gold-deep: #9c7d2a;
-  --cream: #f5f0e0;
-  --green: #4ade80;
-  --red: #f87171;
-  --ink: #1a1208;
-  --text: #e4e6ea;
-  --text-dim: #a8acb4;
-  --text-mute: #6b7280;
-  --line: rgba(255, 255, 255, 0.08);
-  --line2: rgba(255, 255, 255, 0.04);
+  --gold-deep: #8f7120;
+  --gold-bright: #e8cc7a;
+  --live: #157f3d;
+  --red: #b93232;
+  /* the dark product surface (artifacts) + close/footer band */
+  --panel: #14100a;
+  --panel-2: #1c1710;
+  --panel-line: rgba(201, 168, 76, 0.2);
+  --panel-cream: #f2e9d8;
+  --panel-body: #b7ab94;
+  --panel-muted: #7d735f;
 
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--paper);
+  color: var(--body-t);
   font-family: var(--font-sans, 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .page :focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--gold-deep);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -40,8 +50,9 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(10, 10, 12, 0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(250, 248, 243, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
   padding: 16px 40px;
   display: flex;
@@ -53,8 +64,8 @@
   align-items: center;
   gap: 10px;
   font-size: 14px;
-  font-weight: 600;
-  color: var(--cream);
+  font-weight: 700;
+  color: var(--ink);
   letter-spacing: 0.2px;
   text-decoration: none;
 }
@@ -73,16 +84,16 @@
   align-items: center;
 }
 .navLogin {
-  color: var(--text-dim);
+  color: var(--body-t);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
   transition: color 0.15s;
 }
-.navLogin:hover { color: var(--cream); }
+.navLogin:hover { color: var(--ink); }
 .navSignup {
   background: var(--gold);
-  color: var(--ink);
+  color: #241b07;
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 13px;
@@ -104,16 +115,16 @@
   margin-bottom: 18px;
   padding: 5px 12px 5px 10px;
   border-radius: 999px;
-  color: var(--gold);
-  border: 1px solid rgba(201, 168, 76, 0.3);
-  background: rgba(201, 168, 76, 0.06);
+  color: var(--gold-deep);
+  border: 1px solid rgba(143, 113, 32, 0.3);
+  background: rgba(201, 168, 76, 0.1);
 }
 .eyebrowDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--gold);
-  box-shadow: 0 0 6px var(--gold);
+  background: var(--gold-deep);
+  box-shadow: 0 0 6px rgba(143, 113, 32, 0.5);
 }
 
 /* ── Hero ── */
@@ -126,7 +137,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 70% 60% at 30% 40%, rgba(201, 168, 76, 0.08), transparent 60%);
+  background: radial-gradient(ellipse 70% 60% at 30% 40%, rgba(201, 168, 76, 0.12), transparent 60%);
   pointer-events: none;
 }
 .heroInner {
@@ -137,20 +148,20 @@
 }
 .heroH1 {
   font-size: 56px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.06;
   margin: 0 0 20px;
-  color: var(--cream);
+  color: var(--ink);
   letter-spacing: -1.6px;
 }
 .heroSub {
   font-size: 17px;
-  color: var(--text-dim);
+  color: var(--body-t);
   line-height: 1.62;
   margin: 0 0 32px;
   max-width: 640px;
 }
-.heroSub em { color: var(--gold); font-style: italic; }
+.heroSub em { color: var(--gold-deep); font-style: italic; }
 
 .ctas {
   display: flex;
@@ -159,21 +170,22 @@
   flex-wrap: wrap;
 }
 .ctaGold {
-  background: var(--gold);
-  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #241b07;
   padding: 14px 24px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
-  transition: background 0.15s, transform 0.15s;
+  box-shadow: 0 10px 26px -14px rgba(143, 113, 32, 0.55);
+  transition: filter 0.15s, transform 0.15s;
 }
-.ctaGold:hover { background: #d4b557; transform: translateY(-1px); }
+.ctaGold:hover { filter: brightness(1.04); transform: translateY(-1px); }
 .ctaGhost {
-  color: var(--cream);
+  color: var(--ink);
   padding: 14px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  background: var(--card);
   border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
@@ -181,8 +193,8 @@
   transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
 .ctaGhost:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: var(--gold-deep);
+  color: var(--gold-deep);
   transform: translateY(-1px);
 }
 
@@ -194,14 +206,14 @@
 }
 .sectionH2 {
   font-size: 34px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.15;
-  color: var(--cream);
+  color: var(--ink);
   margin: 0 0 12px;
   letter-spacing: -0.8px;
 }
 .sectionP {
-  color: var(--text-dim);
+  color: var(--body-t);
   font-size: 16px;
   line-height: 1.6;
   margin: 0;
@@ -210,7 +222,7 @@
 /* ── Comparison table ── */
 .tableSec {
   padding: 80px 40px;
-  background: var(--bg2);
+  background: var(--paper-2);
   border-top: 1px solid var(--line);
 }
 .tableWrap {
@@ -236,39 +248,39 @@
   font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--text-mute);
+  color: var(--muted-t);
   font-weight: 600;
 }
 .th {
   width: 20.75%;
   font-size: 14px;
   font-weight: 600;
-  color: var(--cream);
+  color: var(--ink);
 }
 .thLead {
-  color: var(--gold);
-  background: rgba(201, 168, 76, 0.06);
+  color: var(--gold-deep);
+  background: rgba(201, 168, 76, 0.12);
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
 }
 .rowLabel {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-dim);
+  color: var(--body-t);
 }
 .cell {
   font-size: 13px;
-  color: var(--text-dim);
+  color: var(--body-t);
   line-height: 1.5;
 }
 .cellLead {
-  color: var(--text);
-  background: rgba(201, 168, 76, 0.06);
+  color: var(--ink);
+  background: rgba(201, 168, 76, 0.12);
 }
 .cellPrice {
   font-size: 20px;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--gold-deep);
   letter-spacing: -0.5px;
 }
 .cellInner {
@@ -283,14 +295,14 @@
   justify-content: center;
   margin-top: 1px;
 }
-.markYes { color: var(--green); }
+.markYes { color: var(--live); }
 .markNo { color: var(--red); opacity: 0.85; }
 
 .tableNote {
   max-width: 1080px;
   margin: 18px auto 0;
   font-size: 12px;
-  color: var(--text-mute);
+  color: var(--muted-t);
   line-height: 1.55;
   text-align: center;
 }
@@ -298,7 +310,7 @@
 /* ── Why no tick replay ── */
 .replay {
   padding: 90px 40px;
-  background: var(--bg);
+  background: var(--paper);
   border-top: 1px solid var(--line);
 }
 .replayGrid {
@@ -311,22 +323,23 @@
 }
 .replayCopy .sectionH2 { text-align: left; margin-top: 4px; }
 .replayP {
-  color: var(--text-dim);
+  color: var(--body-t);
   font-size: 15px;
   line-height: 1.65;
   margin: 0 0 16px;
   max-width: 520px;
 }
-.replayP em { color: var(--gold); font-style: italic; }
+.replayP em { color: var(--gold-deep); font-style: italic; }
 
-/* Verdict screenshot placeholder — styled empty frame, no real asset */
+/* Verdict mockup — a DARK product artifact framed on the light page
+   (the landing convention: the product is dark; the site is paper). */
 .shot { margin: 0; }
 .shotFrame {
-  background: var(--bg2);
-  border: 1px solid rgba(201, 168, 76, 0.22);
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
   border-radius: 12px;
   padding: 22px;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 30px 60px -24px rgba(28, 22, 12, 0.35);
   position: relative;
 }
 .shotFrame::before {
@@ -343,7 +356,7 @@
   align-items: center;
   gap: 10px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   margin-bottom: 14px;
 }
 .shotMark {
@@ -367,7 +380,7 @@
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--text-mute);
+  color: var(--panel-muted);
 }
 .shotVerdict {
   display: flex;
@@ -381,7 +394,7 @@
 }
 .shotBadge {
   flex: 0 0 auto;
-  background: var(--red);
+  background: #f87171;
   color: #2a0a0a;
   padding: 6px 12px;
   border-radius: 4px;
@@ -391,7 +404,7 @@
 }
 .shotVerdictText {
   font-size: 12px;
-  color: var(--text);
+  color: var(--panel-cream);
   line-height: 1.5;
 }
 .shotSkeleton {
@@ -403,22 +416,22 @@
   display: block;
   height: 8px;
   border-radius: 4px;
-  background: linear-gradient(90deg, rgba(201, 168, 76, 0.14), rgba(201, 168, 76, 0.04));
+  background: linear-gradient(90deg, rgba(201, 168, 76, 0.22), rgba(201, 168, 76, 0.06));
 }
 .shotCaption {
   margin: 14px 2px 0;
   font-size: 12px;
-  color: var(--text-mute);
+  color: var(--muted-t);
   line-height: 1.5;
   text-align: center;
   font-style: italic;
 }
 
-/* ── Final close ── */
+/* ── Final close — the dark band returns (mirrors Landing) ── */
 .close {
   padding: 90px 40px 104px;
-  background: var(--bg2);
-  border-top: 1px solid var(--line);
+  background: var(--panel);
+  border-top: none;
   text-align: center;
   position: relative;
 }
@@ -426,7 +439,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(201, 168, 76, 0.06), transparent 70%);
+  background: radial-gradient(ellipse 60% 50% at 50% 100%, rgba(201, 168, 76, 0.08), transparent 70%);
   pointer-events: none;
 }
 .closeInner {
@@ -437,37 +450,43 @@
 }
 .closeH2 {
   font-size: 34px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.15;
-  color: var(--cream);
+  color: var(--panel-cream);
   margin: 0 0 12px;
   letter-spacing: -0.8px;
 }
 .closeP {
-  color: var(--text-dim);
+  color: var(--panel-body);
   font-size: 16px;
   line-height: 1.6;
   margin: 0 0 28px;
 }
 .close .ctas { justify-content: center; }
+.close .ctaGhost {
+  color: var(--panel-cream);
+  border-color: var(--panel-line);
+  background: transparent;
+}
+.close .ctaGhost:hover { border-color: var(--gold); color: var(--gold-bright); }
 .switchLine {
   display: inline-block;
   margin-top: 18px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--gold);
+  color: var(--gold-bright);
   text-decoration: none;
   border-bottom: 1px solid rgba(201, 168, 76, 0.35);
   padding-bottom: 2px;
   transition: color 0.15s, border-color 0.15s;
 }
-.switchLine:hover { color: #d4b557; border-color: rgba(201, 168, 76, 0.7); }
+.switchLine:hover { color: var(--gold); border-color: rgba(201, 168, 76, 0.7); }
 
-/* ── Footer ── */
+/* ── Footer (stays dark, continuous with the close) ── */
 .foot {
   padding: 32px 40px;
-  background: var(--bg);
-  border-top: 1px solid var(--line);
+  background: var(--panel);
+  border-top: 1px solid rgba(201, 168, 76, 0.12);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -478,7 +497,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--cream);
+  color: var(--panel-cream);
   font-size: 14px;
   font-weight: 600;
 }
@@ -488,11 +507,11 @@
   font-size: 13px;
 }
 .footLinks a {
-  color: var(--text-dim);
+  color: var(--panel-muted);
   text-decoration: none;
   transition: color 0.15s;
 }
-.footLinks a:hover { color: var(--cream); }
+.footLinks a:hover { color: var(--gold-bright); }
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {

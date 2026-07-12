@@ -44,9 +44,10 @@ function syncedLabel(a) {
   return 'not yet synced'
 }
 
-export default function SyncTrustCenter() {
+export default function SyncTrustCenter({ onSynced }) {
   const { account } = useJ2SelectedAccount()
-  const { trust, syncLog, orphans, reattach, isLoading } = useSyncTrust()
+  const { trust, syncLog, orphans, reattach, syncNow, isLoading } = useSyncTrust()
+  const [syncBusy, setSyncBusy] = useState(false)
   const { data: statusData } = useSWR('/api/j2/broker/status', statusFetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
@@ -71,11 +72,35 @@ export default function SyncTrustCenter() {
   const accounts = trust.accounts || []
   const dupPending = statusData?.dupFlagsPending || 0
 
+  const handleSyncNow = async () => {
+    if (syncBusy) return
+    setSyncBusy(true)
+    try {
+      await syncNow()
+      onSynced?.()
+    } catch {
+      /* best-effort — the panel's health rows tell the real story */
+    } finally {
+      setSyncBusy(false)
+    }
+  }
+
   return (
     <section className={styles.panel} aria-label="Sync Trust">
       <header className={styles.header}>
         <span className={styles.headIcon} aria-hidden="true"><UIcon name="shield" size={15} /></span>
         <h3 className={styles.title}>Sync Trust</h3>
+        {/* One-tap full re-sync — absorbed from the retired BrokerSyncStatus
+            bar so ONE surface owns broker sync (no stacked chrome bands). */}
+        <span className={styles.headAuto}>auto every 20m</span>
+        <button
+          type="button"
+          className={styles.headSyncBtn}
+          onClick={handleSyncNow}
+          disabled={syncBusy}
+        >
+          {syncBusy ? 'Syncing…' : 'Sync now'}
+        </button>
       </header>
 
       {accounts.map((a) => {

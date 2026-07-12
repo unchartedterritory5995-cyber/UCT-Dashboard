@@ -1,34 +1,44 @@
 /* ============================================================
    UCT INTELLIGENCE — /pricing public page
-   Dark/gold brand, matches BrokersPage / Compare / Landing.
-   No emoji anywhere — UIcon supplies all marks.
+   Light editorial theme (paper + ink + restrained gold), matching
+   Landing v6; the dark panel returns ONLY for the close band +
+   footer. No emoji anywhere — UIcon supplies all marks.
    ============================================================ */
 
 .page {
-  --bg: #0a0a0c;
-  --bg2: #0f0f12;
+  /* paper + ink (mirrors Landing.module.css) */
+  --paper: #faf8f3;
+  --paper-2: #f3efe6;
+  --card: #ffffff;
+  --line: #e6dfcf;
+  --line-soft: #eee8da;
+  --ink: #1c160c;
+  --body-t: #4c4535;
+  --muted-t: #8a8069;
+  /* brand accents */
   --gold: #c9a84c;
-  --gold-dim: #8a7a4a;
-  --cream: #f5f0e0;
-  --green: #4ade80;
-  --ink: #1a1208;
-  --text: #e4e6ea;
-  --text-dim: #a8acb4;
-  --text-mute: #6b7280;
-  --line: rgba(255, 255, 255, 0.08);
-  --line2: rgba(255, 255, 255, 0.04);
+  --gold-deep: #8f7120;
+  --gold-bright: #e8cc7a;
+  --live: #157f3d;
+  --red: #b93232;
+  /* the dark band (close + footer only) */
+  --panel: #14100a;
+  --panel-line: rgba(201, 168, 76, 0.2);
+  --panel-cream: #f2e9d8;
+  --panel-body: #b7ab94;
+  --panel-muted: #7d735f;
 
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--paper);
+  color: var(--body-t);
   font-family: var(--font-sans, 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .page :focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--gold-deep);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -50,8 +60,9 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(10, 10, 12, 0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(250, 248, 243, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
   padding: 16px 40px;
   display: flex;
@@ -63,8 +74,8 @@
   align-items: center;
   gap: 10px;
   font-size: 14px;
-  font-weight: 600;
-  color: var(--cream);
+  font-weight: 700;
+  color: var(--ink);
   letter-spacing: 0.2px;
   text-decoration: none;
 }
@@ -79,16 +90,16 @@
 }
 .navCta { display: flex; gap: 16px; align-items: center; }
 .navLogin {
-  color: var(--text-dim);
+  color: var(--body-t);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
   transition: color 0.15s;
 }
-.navLogin:hover { color: var(--cream); }
+.navLogin:hover { color: var(--ink); }
 .navSignup {
   background: var(--gold);
-  color: var(--ink);
+  color: #241b07;
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 13px;
@@ -110,19 +121,19 @@
   margin-bottom: 18px;
   padding: 5px 12px 5px 10px;
   border-radius: 999px;
-  color: var(--gold);
-  border: 1px solid rgba(201, 168, 76, 0.3);
-  background: rgba(201, 168, 76, 0.06);
+  color: var(--gold-deep);
+  border: 1px solid rgba(143, 113, 32, 0.3);
+  background: rgba(201, 168, 76, 0.1);
 }
 .eyebrowIcon { display: inline-flex; align-items: center; }
 
 /* ── Hero ── */
 .hero {
   padding: 72px 40px 40px;
-  border-bottom: 1px solid var(--line2);
+  border-bottom: 1px solid var(--line-soft);
   background:
-    radial-gradient(1100px 420px at 50% -10%, rgba(201, 168, 76, 0.08), transparent 70%),
-    var(--bg);
+    radial-gradient(1100px 420px at 50% -10%, rgba(201, 168, 76, 0.12), transparent 70%),
+    var(--paper);
 }
 .heroInner { max-width: 780px; margin: 0 auto; text-align: center; }
 .heroH1 {
@@ -131,22 +142,22 @@
   line-height: 1.08;
   font-weight: 700;
   letter-spacing: -0.5px;
-  color: var(--cream);
+  color: var(--ink);
 }
 .heroSub {
   margin: 0 auto;
   max-width: 640px;
   font-size: clamp(15px, 2vw, 18px);
   line-height: 1.6;
-  color: var(--text-dim);
+  color: var(--body-t);
 }
-.heroSub em { color: var(--cream); font-style: italic; }
+.heroSub em { color: var(--ink); font-style: italic; }
 .tagline {
   margin: 22px 0 0;
   font-size: 13px;
   font-style: italic;
   letter-spacing: 0.3px;
-  color: var(--gold-dim);
+  color: var(--gold-deep);
 }
 
 /* ── Plans ── */
@@ -164,17 +175,17 @@
   position: relative;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: var(--bg2);
+  background: var(--card);
   padding: 30px 26px;
   display: flex;
   flex-direction: column;
 }
 .cardFeatured {
-  border-color: rgba(201, 168, 76, 0.45);
+  border-color: rgba(143, 113, 32, 0.4);
   background:
-    radial-gradient(600px 240px at 50% -20%, rgba(201, 168, 76, 0.10), transparent 70%),
-    var(--bg2);
-  box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.12), 0 20px 60px -30px rgba(201, 168, 76, 0.4);
+    radial-gradient(600px 240px at 50% -20%, rgba(201, 168, 76, 0.08), transparent 70%),
+    var(--card);
+  box-shadow: 0 1px 0 rgba(28, 22, 12, 0.03), 0 24px 60px -30px rgba(143, 113, 32, 0.35);
 }
 .featuredTag {
   position: absolute;
@@ -183,32 +194,32 @@
   padding: 4px 12px;
   border-radius: 999px;
   background: var(--gold);
-  color: var(--ink);
+  color: #241b07;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-.cardHead { border-bottom: 1px solid var(--line2); padding-bottom: 18px; margin-bottom: 18px; }
+.cardHead { border-bottom: 1px solid var(--line-soft); padding-bottom: 18px; margin-bottom: 18px; }
 .cardName {
   margin: 0 0 12px;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--gold-deep);
 }
 .priceRow { display: flex; align-items: baseline; gap: 8px; }
 .price {
   font-size: clamp(34px, 5vw, 46px);
   font-weight: 800;
   letter-spacing: -1px;
-  color: var(--cream);
+  color: var(--ink);
   line-height: 1;
 }
-.priceUnit { font-size: 14px; color: var(--text-mute); }
-.priceNote { margin: 8px 0 0; font-size: 13px; color: var(--gold-dim); }
-.cardLede { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--text-dim); }
+.priceUnit { font-size: 14px; color: var(--muted-t); }
+.priceNote { margin: 8px 0 0; font-size: 13px; color: var(--gold-deep); }
+.cardLede { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--body-t); }
 
 /* ── Billing toggle ── */
 .billingToggle {
@@ -217,7 +228,7 @@
   padding: 4px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--paper-2);
   margin-bottom: 16px;
 }
 .billBtn {
@@ -228,19 +239,19 @@
   border: none;
   border-radius: 7px;
   background: transparent;
-  color: var(--text-dim);
+  color: var(--body-t);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
   transition: background 0.15s, color 0.15s;
 }
-.billBtnActive { background: rgba(201, 168, 76, 0.15); color: var(--cream); }
+.billBtnActive { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(28, 22, 12, 0.1); }
 .billSave {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.3px;
-  color: var(--green);
+  color: var(--live);
   text-transform: uppercase;
 }
 
@@ -260,7 +271,7 @@
   gap: 10px;
   font-size: 14px;
   line-height: 1.45;
-  color: var(--text);
+  color: var(--body-t);
 }
 .featIcon,
 .featIconGold {
@@ -273,30 +284,30 @@
   flex: 0 0 auto;
   margin-top: 1px;
 }
-.featIcon { color: var(--green); background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.3); }
-.featIconGold { color: var(--gold); background: rgba(201, 168, 76, 0.12); border: 1px solid rgba(201, 168, 76, 0.3); }
-.inlineLink { color: var(--gold); text-decoration: none; border-bottom: 1px solid rgba(201, 168, 76, 0.4); }
-.inlineLink:hover { color: #d4b557; }
+.featIcon { color: var(--live); background: rgba(21, 127, 61, 0.1); border: 1px solid rgba(21, 127, 61, 0.28); }
+.featIconGold { color: var(--gold-deep); background: rgba(201, 168, 76, 0.14); border: 1px solid rgba(143, 113, 32, 0.32); }
+.inlineLink { color: var(--gold-deep); text-decoration: none; border-bottom: 1px solid rgba(143, 113, 32, 0.4); }
+.inlineLink:hover { color: var(--ink); }
 
 .compareLine {
   margin: 20px 0 0;
   padding: 14px 16px;
   border-radius: 10px;
-  background: rgba(201, 168, 76, 0.06);
-  border: 1px solid rgba(201, 168, 76, 0.2);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
   font-size: 13.5px;
   line-height: 1.55;
-  color: var(--text-dim);
+  color: var(--body-t);
 }
-.compareLine strong { color: var(--cream); }
+.compareLine strong { color: var(--ink); }
 
 /* ── CTAs ── */
 .cardCta { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
 .ctaGold {
   display: inline-block;
   text-align: center;
-  background: var(--gold);
-  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #241b07;
   padding: 13px 22px;
   border: none;
   border-radius: 9px;
@@ -305,9 +316,10 @@
   text-decoration: none;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s, transform 0.15s;
+  box-shadow: 0 10px 26px -14px rgba(143, 113, 32, 0.55);
+  transition: filter 0.15s, transform 0.15s;
 }
-.ctaGold:hover { background: #d4b557; transform: translateY(-1px); }
+.ctaGold:hover { filter: brightness(1.04); transform: translateY(-1px); }
 .ctaGold:disabled { opacity: 0.6; cursor: default; transform: none; }
 .ctaGhost {
   display: inline-block;
@@ -315,28 +327,28 @@
   padding: 13px 22px;
   border-radius: 9px;
   border: 1px solid var(--line);
-  color: var(--text);
+  color: var(--ink);
   font-size: 15px;
   font-weight: 600;
   text-decoration: none;
   transition: border-color 0.15s, color 0.15s;
 }
-.ctaGhost:hover { border-color: var(--gold); color: var(--gold); }
-.ctaSub { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-mute); text-align: center; }
+.ctaGhost:hover { border-color: var(--gold-deep); color: var(--gold-deep); }
+.ctaSub { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--muted-t); text-align: center; }
 .trialLine {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--gold);
+  color: var(--gold-deep);
   text-align: center;
 }
 .error {
   margin: 0 0 10px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.3);
-  color: #fca5a5;
+  background: rgba(185, 50, 50, 0.07);
+  border: 1px solid rgba(185, 50, 50, 0.3);
+  color: #8f2626;
   font-size: 13px;
 }
 .paidState {
@@ -345,8 +357,8 @@
   gap: 12px;
   padding: 14px 16px;
   border-radius: 10px;
-  border: 1px solid rgba(74, 222, 128, 0.3);
-  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(21, 127, 61, 0.3);
+  background: rgba(21, 127, 61, 0.06);
 }
 .paidCheck {
   display: inline-flex;
@@ -355,11 +367,11 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  color: var(--green);
-  background: rgba(74, 222, 128, 0.14);
+  color: var(--live);
+  background: rgba(21, 127, 61, 0.12);
   flex: 0 0 auto;
 }
-.paidTitle { font-size: 15px; font-weight: 700; color: var(--cream); }
+.paidTitle { font-size: 15px; font-weight: 700; color: var(--ink); }
 
 /* ── Generic section head ── */
 .sectionHead { max-width: 640px; margin: 0 auto 30px; text-align: center; }
@@ -368,16 +380,16 @@
   font-size: clamp(22px, 3vw, 30px);
   font-weight: 700;
   letter-spacing: -0.3px;
-  color: var(--cream);
+  color: var(--ink);
 }
-.sectionP { margin: 0; font-size: 15px; line-height: 1.6; color: var(--text-dim); }
+.sectionP { margin: 0; font-size: 15px; line-height: 1.6; color: var(--body-t); }
 
 /* ── Promises ── */
 .promiseSec {
   padding: 48px 40px;
   max-width: 1000px;
   margin: 0 auto;
-  border-top: 1px solid var(--line2);
+  border-top: 1px solid var(--line-soft);
 }
 .promiseGrid {
   list-style: none;
@@ -394,10 +406,10 @@
   padding: 18px 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--bg2);
+  background: var(--card);
   font-size: 14px;
   line-height: 1.45;
-  color: var(--text);
+  color: var(--body-t);
 }
 .promiseIcon {
   display: inline-flex;
@@ -407,8 +419,9 @@
   height: 36px;
   flex: 0 0 auto;
   border-radius: 10px;
-  border: 1px solid rgba(201, 168, 76, 0.3);
-  background: rgba(201, 168, 76, 0.06);
+  border: 1px solid rgba(143, 113, 32, 0.3);
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--gold-deep);
 }
 .promiseText { flex: 1; }
 .scopeLine {
@@ -416,14 +429,17 @@
   text-align: center;
   font-size: 13px;
   letter-spacing: 0.3px;
-  color: var(--text-mute);
+  color: var(--muted-t);
 }
 
-/* ── Close ── */
+/* ── Close — the dark band returns (mirrors Landing) ── */
 .close {
   padding: 56px 40px 72px;
   text-align: center;
-  border-top: 1px solid var(--line2);
+  border-top: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(201, 168, 76, 0.08), transparent 70%),
+    var(--panel);
 }
 .closeInner { max-width: 620px; margin: 0 auto; }
 .closeH2 {
@@ -431,25 +447,31 @@
   font-size: clamp(24px, 3.5vw, 34px);
   font-weight: 700;
   letter-spacing: -0.3px;
-  color: var(--cream);
+  color: var(--panel-cream);
 }
-.closeP { margin: 0 0 26px; font-size: 16px; line-height: 1.6; color: var(--text-dim); }
+.closeP { margin: 0 0 26px; font-size: 16px; line-height: 1.6; color: var(--panel-body); }
 .ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.close .ctaGhost {
+  border-color: var(--panel-line);
+  color: var(--panel-cream);
+}
+.close .ctaGhost:hover { border-color: var(--gold); color: var(--gold-bright); }
 
-/* ── Footer ── */
+/* ── Footer (stays dark, continuous with the close) ── */
 .foot {
   padding: 28px 40px;
-  border-top: 1px solid var(--line);
+  background: var(--panel);
+  border-top: 1px solid rgba(201, 168, 76, 0.12);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
 }
-.footBrand { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--cream); }
+.footBrand { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--panel-cream); }
 .footLinks { display: flex; gap: 20px; flex-wrap: wrap; }
-.footLinks a { color: var(--text-mute); font-size: 13px; text-decoration: none; transition: color 0.15s; }
-.footLinks a:hover { color: var(--gold); }
+.footLinks a { color: var(--panel-muted); font-size: 13px; text-decoration: none; transition: color 0.15s; }
+.footLinks a:hover { color: var(--gold-bright); }
 
 /* ── Phone ── */
 @media (max-width: 640px) {

@@ -28,7 +28,6 @@ import HoldingsList from '../components/HoldingsList'
 import HoldingsListSkeleton from '../components/HoldingsListSkeleton'
 import BrokerAccountHero from '../components/BrokerAccountHero'
 import BrokerReviewNudge from '../components/BrokerReviewNudge'
-import BrokerSyncStatus from '../components/BrokerSyncStatus'
 import SyncTrustCenter from '../components/trust/SyncTrustCenter'
 import BrokerImportingBanner from '../components/BrokerImportingBanner'
 import useBrokerWarming from '../hooks/useBrokerWarming'
@@ -319,8 +318,9 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
     <div className={styles.wrap}>
       {warming && <BrokerImportingBanner broker={warmingBroker} />}
       <NudgesBanner accountId={selectedAccountId} state={nudgesState} />
-      <BrokerSyncStatus onSynced={() => { refreshPositions(); refreshOptions() }} />
-      <SyncTrustCenter />
+      {/* ONE broker-sync surface — SyncTrustCenter absorbed the slim
+          BrokerSyncStatus bar's Sync-now (no stacked chrome bands). */}
+      <SyncTrustCenter onSynced={() => { refreshPositions(); refreshOptions() }} />
       <BrokerAccountHero
         account={selectedAccount}
         aggregates={aggregates}
