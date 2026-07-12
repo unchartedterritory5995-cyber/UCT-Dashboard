@@ -247,7 +247,7 @@ function Card({ children, title, sub }) {
 
 function TT({ rows, priceFn, onRowClick, panelFn }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE"].filter(Boolean);
+  const cols = ["Ticker","Day","Exp","Strike","C/P","Dir","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,"DTE"].filter(Boolean);
   const colCount = cols.length;
   return (
     <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
@@ -262,6 +262,11 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
         {rows.map((r, i) => {
           const px = priceFn ? priceFn(r.S, r.CP, r.K, r.E) : null;
           const entry = r.price || (r.V > 0 ? r.P / r.V / 100 : 0);
+          // Premium shown is the row's DIRECTIONAL premium (bull dollars on a
+          // BULL row, bear on a BEAR row); "—" rows and any row lacking the
+          // split fall back to the contract total. Entry price stays computed
+          // from the full contract (r.P/r.V) — an average price, not dollars.
+          const dispP = (r.dirPrem != null) ? r.dirPrem : r.P;
           const now = px ? (px.mark || px.last || px.mid || 0) : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
@@ -279,7 +284,14 @@ function TT({ rows, priceFn, onRowClick, panelFn }) {
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
-              <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
+              {/* Dir — direction of the contract's dominant (largest) trade.
+                  Makes explicit which rows feed the header's directional
+                  Bull/Bear totals: a "—" row is non-directional and is NOT
+                  counted in those totals, even though its premium shows here. */}
+              <td style={{ padding:"5px 4px" }} title={r.D==="BULL"?"Bull-directional — counted in Bullish Flow":r.D==="BEAR"?"Bear-directional — counted in Bearish Flow":"No clean direction (ambiguous side) — not counted in the Bull/Bear totals"}>
+                {r.D==="BULL" ? <Tag c={P.bu}>BULL</Tag> : r.D==="BEAR" ? <Tag c={P.be}>BEAR</Tag> : <span style={{ color:P.mt, fontWeight:700 }}>—</span>}
+              </td>
+              <td style={{ padding:"5px 4px", fontWeight:700, color:premC(dispP) }}>{fmt(dispP)}</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
@@ -1271,10 +1283,16 @@ function processFlowData(rows) {
             const k = c.CP + "|" + c.K + "|" + c.E;
             const rep = repByContract[k];
             if (!rep) return null; // contract whose biggest single trade fell below per-ticker top-10 cutoff
-            return { ...rep, P: c.P, V: c.V };
+            // Directional premium: dollars attributable to this contract's
+            // dominant direction (rep.D). A BULL row shows its BULL
+            // contribution, not the contract total mixing in opposing /
+            // undirected trades — so directional rows reconcile toward the
+            // header's Bullish/Bearish Flow. "—" rows keep the full total.
+            const dirPrem = rep.D === "BULL" ? c.bullPrem : rep.D === "BEAR" ? c.bearPrem : c.P;
+            return { ...rep, P: c.P, V: c.V, bullPrem: c.bullPrem, bearPrem: c.bearPrem, dirPrem };
           })
           .filter(x => x !== null)
-          .sort((a, b) => b.P - a.P)
+          .sort((a, b) => b.dirPrem - a.dirPrem)
           .slice(0, 10);
       })(),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
@@ -4052,12 +4070,6 @@ export default function OptionsFlowDashboard() {
   const wlPopulate = () => {
     if (!FD || !FD.CONV) return;
     const dateMap = _buildDateMap();
-    // 7/9: Respect CAP FILTER when auto-populating. Previously wlPopulate
-    // picked top 20 conviction picks across ALL caps and just LABELED each
-    // with its cap band — so clicking Mid-Small then Auto-Fill still filled
-    // with AAPL/META/etc. Uses wlCapCheck which falls back to capLookup
-    // for tickers with mktcap=0 (gap-fill rows).
-    const capFilterOk = c => capFilter === "All" || wlCapCheck(c) === capFilter;
     const dedup = (list) => {
       const seen = new Set();
       return list.map(c => {
@@ -4084,7 +4096,7 @@ export default function OptionsFlowDashboard() {
         return { ...c, _isExit, _rankScore: _isExit ? _autoS * 0.4 : _autoS };
       }).sort((a,b)=>b._rankScore-a._rankScore).filter(c => { if (seen.has(c.sym)) return false; seen.add(c.sym); return true; });
     };
-    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL" && capFilterOk(c))).slice(0,20).map(c=>{
+    const bulls = dedup(FD.CONV.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
@@ -4098,7 +4110,7 @@ export default function OptionsFlowDashboard() {
         convScore: c.score||0, rankScore: c._rankScore||c.score||0, isExit: !!c._isExit
       };
     });
-    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR" && capFilterOk(c))).slice(0,20).map(c=>{
+    const bears = dedup(FD.CONV.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>{
       const ds = _extractDateSpot(c, dateMap);
       return {
         sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
@@ -4263,23 +4275,13 @@ export default function OptionsFlowDashboard() {
       const bearSyms = new Set(bears.map(b => b.sym));
       const fallbackBulls = [];
       const fallbackBears = [];
-      // 7/9: Cap filter check for fallback pass. Without this, cross-direction
-      // and dirty-dominant fallbacks add Mega/Large tickers back into a
-      // Mid-Small watchlist after the primary pass filtered them out.
-      const _fallbackCapFilter = (sym) => {
-        if (capFilter === "All") return true;
-        const mc = flowBy[sym]?.mktcap || 0;
-        return wlCapCheck({ sym, mktcap: mc }) === capFilter;
-      };
       bears.forEach(b => {
         if (bullSyms.has(b.sym)) return;
-        if (!_fallbackCapFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BULL", true);  // log per ticker
         if (fb) fallbackBulls.push(fb);
       });
       bulls.forEach(b => {
         if (bearSyms.has(b.sym)) return;
-        if (!_fallbackCapFilter(b.sym)) return;
         const fb = buildFallback(b.sym, "BEAR", true);
         if (fb) fallbackBears.push(fb);
       });
@@ -4374,7 +4376,6 @@ export default function OptionsFlowDashboard() {
         // Skip if already on either watchlist OR already picked up via cross-direction fallback
         if (bullSyms.has(sym) || bearSyms.has(sym)) return;
         if (crossFallbackBullSyms.has(sym) || crossFallbackBearSyms.has(sym)) return;
-        if (!_fallbackCapFilter(sym)) return;
         const bullTotal = flowBy[sym].BULL?.totalPrem || 0;
         const bearTotal = flowBy[sym].BEAR?.totalPrem || 0;
         // Try the dominant direction (whichever has more flow)
@@ -4425,9 +4426,6 @@ export default function OptionsFlowDashboard() {
 
   const wlPopulateUnusual = () => {
     if (!FD || !FD.CONV) return;
-    // 7/9: Same capFilter fix as wlPopulate — Fill from Unusual now respects
-    // the CAP FILTER selection.
-    const capFilterOk = c => capFilter === "All" || wlCapCheck(c) === capFilter;
     const unusual = [];
     (FD.CONV||[]).forEach(c => { (c.patterns||[]).forEach(p => { unusual.push({ ...c, anomaly:p.type, source:"pattern" }); }); });
     (FD.CONV||[]).forEach(c => { if (c.volOI >= 10 && c.maxOI > 0 && c.maxOI < 500) unusual.push({ ...c, anomaly:"VOL_OI_EXTREME", source:"voloi" }); });
@@ -4441,7 +4439,7 @@ export default function OptionsFlowDashboard() {
     const sorted = deduped.sort((a,b) => b.prem - a.prem);
     const tickerSeen = new Set();
     const uniqueTicker = (list) => list.filter(c => { if (tickerSeen.has(c.sym+"|"+c.dir)) return false; tickerSeen.add(c.sym+"|"+c.dir); return true; });
-    const bulls = uniqueTicker(sorted.filter(c=>c.dir==="BULL" && capFilterOk(c))).slice(0,20).map(c=>({
+    const bulls = uniqueTicker(sorted.filter(c=>c.dir==="BULL")).slice(0,20).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:"BULL", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
@@ -4449,7 +4447,7 @@ export default function OptionsFlowDashboard() {
       // Raw clustering score (unusual path doesn't apply EXIT penalty — sorted by premium)
       convScore: c.score||0, rankScore: c.score||0, isExit: false
     }));
-    const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR" && capFilterOk(c))).slice(0,20).map(c=>({
+    const bears = uniqueTicker(sorted.filter(c=>c.dir==="BEAR")).slice(0,20).map(c=>({
       sym:c.sym, score:autoScore(c), autoScore:autoScore(c), tier:"WATCH",
       strike:c.K||c.strike||"", exp:c.exp||"", cp:c.cp||"", grade:c.grade||"",
       dir:"BEAR", hits:c.hits||0, prem:c.prem||0, side:c.side||"", er:c.er||false, notes:"[UOA]",
@@ -6239,9 +6237,16 @@ export default function OptionsFlowDashboard() {
             Large: "$10B–$500B · institutional conviction plays",
             "Mid-Small": "Under $10B · directional bets, high-conviction small name flow",
           };
+          // Classify through wlCapCheck (per-ticker resolver) rather than a raw
+          // per-trade capBand. Gap-fill rows carry mktcap=0 → "Unknown", so a
+          // strict per-trade check dropped a mega/large ticker's gap-fill prints
+          // out of every sub-bucket (premium orphaned in Unknown → Mega+Large+
+          // Mid-Small didn't sum to All). wlCapCheck falls back to capLookup to
+          // recover the ticker's true band so the buckets reconcile.
           const capThresh = {
-            Mega: t=>capBand(t.mktcap)==="Mega", Large: t=>capBand(t.mktcap)==="Large",
-            "Mid-Small": t=>capBand(t.mktcap)==="Mid-Small"
+            Mega: t=>wlCapCheck({sym:t.S||t.sym, mktcap:t.mktcap})==="Mega",
+            Large: t=>wlCapCheck({sym:t.S||t.sym, mktcap:t.mktcap})==="Large",
+            "Mid-Small": t=>wlCapCheck({sym:t.S||t.sym, mktcap:t.mktcap})==="Mid-Small"
           };
           return (
             <div style={{ marginBottom:10 }}>
@@ -6294,11 +6299,6 @@ export default function OptionsFlowDashboard() {
               cc.forEach(t => {
                 if (t.D==="BULL") rawTotalBull+=t.P; if (t.D==="BEAR") rawTotalBear+=t.P;
                 if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0 };
-                // 7/9: If ticker was first seen with mktcap=0 (gap-fill row),
-                // upgrade to the real mktcap when a later row provides it.
-                // Prevents AAPL/META etc. from getting stuck as Unknown when
-                // even one row is missing mktcap data.
-                else if (!tkMap[t.S].mktcap && t.mktcap) tkMap[t.S].mktcap = t.mktcap;
                 const tk = tkMap[t.S];
                 if (t.D==="BULL") tk.bull+=t.P; if (t.D==="BEAR") tk.bear+=t.P; tk.n++;
               });
@@ -6994,13 +6994,6 @@ export default function OptionsFlowDashboard() {
               ad.forEach(t => {
                 if (!tkMap[t.S]) tkMap[t.S]={sym:t.S,bull:0,bear:0,n:0,swp:0,blk:0,swpAsk:0,swpBid:0,confirmed:0,band:capBand(t.mktcap),
                   contracts:{},hasER:!!t.er,minDTE:999,mktcap:t.mktcap||0,sector:t.sector||"",lastDate:null,hasUOA:false};
-                // 7/9: Upgrade mktcap + band when a real value shows up. Prevents
-                // gap-fill rows (mktcap=0 → Unknown) from locking a ticker's cap
-                // band. See matching fix at line ~7474 for full explanation.
-                else if (!tkMap[t.S].mktcap && t.mktcap) {
-                  tkMap[t.S].mktcap = t.mktcap;
-                  tkMap[t.S].band = capBand(t.mktcap);
-                }
                 const tk=tkMap[t.S];
                 if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
                 tk.n++;
@@ -7483,7 +7476,33 @@ export default function OptionsFlowDashboard() {
 
         {/* Leaderboard */}
         {tab==="Leaderboard" && FD && (()=>{
-          const cc = capFilter==="All" ? (D.clean_confirmed||[]) : (D.clean_confirmed||[]).filter(t => capBand(t.mktcap)===capFilter);
+          // Resolve each ticker's cap band from the MAX non-zero mktcap across
+          // all_directional, not the per-trade value. A strict per-trade
+          // capBand dropped a mega's gap-fill prints (mktcap=0 → "Unknown") and
+          // also excluded true small-caps whose rows are all gap-fill from
+          // Mid-Small. This matches the pill-count fix and the main dashboard:
+          // resolve → fall back to capLookup → only genuinely-unknown tickers
+          // land in Mid-Small; real megas/larges are always resolved out.
+          const lbCapByTicker = {};
+          (D.all_directional || []).forEach(t => {
+            const s = (t.S || "").toUpperCase();
+            const mc = t.mktcap || 0;
+            if (s && mc > 0 && (!lbCapByTicker[s] || mc > lbCapByTicker[s])) lbCapByTicker[s] = mc;
+          });
+          const lbBandOf = (t) => {
+            const s = (t.S || "").toUpperCase();
+            const mc = lbCapByTicker[s] || t.mktcap || 0;
+            let cap = capBand(mc);
+            if (cap === "Unknown") { const lk = capLookup[s]; if (lk) cap = capBand(lk); }
+            return cap;
+          };
+          const matchesLBCap = (t) => {
+            if (capFilter === "All") return true;
+            const cap = lbBandOf(t);
+            if (cap === capFilter) return true;
+            return capFilter === "Mid-Small" && cap === "Unknown";
+          };
+          const cc = (D.clean_confirmed||[]).filter(matchesLBCap);
           const [convDte, setConvDte] = [convictionDte, setConvictionDte];
           const [cSort, setCSort] = [convictionSort, setConvictionSort];
           const [cPct, setCPct] = [convictionPct, setConvictionPct];
@@ -7504,11 +7523,6 @@ export default function OptionsFlowDashboard() {
           const tkMap = {};
           filtered.forEach(t => {
             if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
-            // 7/9: Upgrade mktcap when a real value shows up. Prevents gap-fill
-            // rows (mktcap=0 by design) from locking a ticker into "Unknown"
-            // band, which was leaking AAPL/META/BLK into the Mid-Small filter
-            // after 7/8 OPRA CSV gap-fill.
-            else if (!tkMap[t.S].mktcap && t.mktcap) tkMap[t.S].mktcap = t.mktcap;
             const tk = tkMap[t.S];
             if (t.D==="BULL") tk.bull += t.P;
             if (t.D==="BEAR") tk.bear += t.P;
@@ -7536,7 +7550,7 @@ export default function OptionsFlowDashboard() {
           // (used for sort/score) stay strict.
           const lbBroader = {};
           (D.all_trades || []).forEach(t => {
-            if (capFilter !== "All" && capBand(t.mktcap) !== capFilter) return;
+            if (!matchesLBCap(t)) return;
             if (!dteF(t)) return;
             const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
             if (!lbBroader[k]) lbBroader[k] = {prem:0, hits:0};
@@ -9003,12 +9017,20 @@ export default function OptionsFlowDashboard() {
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
                 const curOI = px ? (px.oi||0) : 0;
-                const liveDOI = curOI > 0 && r.firstOI > 0 ? curOI - r.firstOI : (curOI > 0 && r.OI > 0 ? curOI - r.OI : 0);
-                const bestDOI = liveDOI !== 0 ? liveDOI : (r.csvDOI || 0);
+                const liveFetched = curOI > 0;
+                const baseOI = r.firstOI > 0 ? r.firstOI : (r.OI || 0);
+                // Gate on whether live OI was FETCHED, not on the delta being
+                // non-zero. A genuinely flat position (curOI === baseOI) must
+                // report 0 — not silently revert to the CSV delta. Fall back to
+                // csvDOI only when live wasn't fetched or there's no baseline.
+                const liveDOI = (liveFetched && baseOI > 0) ? curOI - baseOI : 0;
+                const bestDOI = (liveFetched && baseOI > 0) ? liveDOI : (r.csvDOI || 0);
                 const bestLastOI = curOI > 0 ? curOI : r.lastOI || 0;
-                const baseOI = r.firstOI > 0 ? r.firstOI : r.OI;
                 const pctDOI = baseOI > 0 && bestDOI !== 0 ? Math.round(bestDOI / baseOI * 100) : 0;
-                return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI };
+                // NEW: OI grew 10x+ off the first-seen base — effectively a fresh
+                // position, so the raw %ΔOI is off a tiny base and unreadable.
+                const isNewOI = pctDOI >= 1000;
+                return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI, isNewOI };
               });
               const getVal = (r, key) => {
                 if (key==="sym") return r.S||"";
@@ -9018,7 +9040,6 @@ export default function OptionsFlowDashboard() {
                 if (key==="premium") return r.P||0;
                 if (key==="vol") return r.V||0;
                 if (key==="firstOI") return r.firstOI||0;
-                if (key==="lastOI") return r.lastOI||0;
                 if (key==="doi") return r.dOI||0;
                 if (key==="pctDOI") return r.pctDOI||0;
                 if (key==="lastOI") return r.displayLastOI||r.lastOI||0;
@@ -9094,7 +9115,12 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{(r.displayLastOI||r.lastOI)>0?(r.displayLastOI||r.lastOI).toLocaleString():"—"}{r.curOI>0&&<span style={{ fontSize:7, color:P.ac, marginLeft:2 }}>live</span>}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
-                        <td style={{ padding:"5px 4px", fontWeight:700, fontSize:10, color:r.pctDOI>=500?"#3cb868":r.pctDOI>=100?P.bu:r.pctDOI>=50?P.ye:r.pctDOI>0?P.dm:r.pctDOI<0?P.be:P.mt }}>{r.pctDOI!==0?(r.pctDOI>0?"+":"")+r.pctDOI.toLocaleString()+"%":"—"}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, fontSize:10, color:r.pctDOI>=500?"#3cb868":r.pctDOI>=100?P.bu:r.pctDOI>=50?P.ye:r.pctDOI>0?P.dm:r.pctDOI<0?P.be:P.mt }}
+                          title={r.isNewOI?"Near-zero OI when flow first appeared ("+(r.firstOI||0).toLocaleString()+" → "+(r.displayLastOI||r.lastOI||0).toLocaleString()+") — effectively a NEW position. Raw %ΔOI is "+r.pctDOI.toLocaleString()+"% off a tiny base; trust the raw ΔOI instead.":undefined}>
+                          {r.isNewOI
+                            ? <span style={{ padding:"1px 5px", borderRadius:3, background:"#3cb868"+"22", color:"#3cb868", fontSize:8, fontWeight:800, letterSpacing:0.3 }}>NEW</span>
+                            : (r.pctDOI!==0?(r.pctDOI>0?"+":"")+r.pctDOI.toLocaleString()+"%":"—")}
+                        </td>
                         <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.firstDate||"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
                       </tr>
