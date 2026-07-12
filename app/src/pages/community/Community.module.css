@@ -211,6 +211,15 @@
 .pinnedCount { margin-left: auto; color: var(--ut-gold); opacity: 0.8; flex-shrink: 0; }
 .msgPinned { background: rgba(201,168,76,0.05); }
 
+/* Performance badges (verified from journal, opt-in) */
+.badgeGreen, .badgeHot {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  border-radius: 4px; padding: 1px 5px;
+}
+.badgeGreen { color: var(--ut-green); border: 1px solid var(--ut-green); }
+.badgeHot { color: var(--ut-gold); border: 1px solid var(--ut-gold); }
+
 /* Load-earlier history button */
 .loadEarlier {
   align-self: center; margin: 6px auto 10px; background: none; border: 1px solid var(--border);

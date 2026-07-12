@@ -150,6 +150,8 @@ export default function ChatView({ channel, onSelectChannel }) {
       await chat.sendMessage(channel, { card: { kind: 'chart', ticker: cmd.ticker, tf: 'D' } })
     } else if (cmd.type === 'poll') {
       await chat.sendMessage(channel, { card: { kind: 'poll', question: cmd.question, options: cmd.options } })
+    } else if (cmd.type === 'idea') {
+      await chat.sendMessage(channel, { card: { kind: 'idea', ...cmd } })
     } else if (cmd.type === 'ask') {
       await chat.askCompass(channel, cmd.question)
     }
@@ -234,7 +236,7 @@ export default function ChatView({ channel, onSelectChannel }) {
       )}
       <Composer
         mode="chat"
-        placeholder={`Message #${channel}   ·   try /chart NVDA · /bull NVDA · /poll Q | A | B`}
+        placeholder={`Message #${channel}   ·   /chart · /bull · /idea · /poll · /ask`}
         onSubmit={send}
         onCommand={runCommand}
         onTyping={() => chat.sendTyping(channel)}
@@ -256,6 +258,14 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate
         <div className={styles.msgHead}>
           {!!msg.pinned && <UIcon name="pin" size={11} />}
           <span className={mentor ? styles.mentorBadge : styles.msgAuthor}>{msg.author?.name || 'member'}</span>
+          {(msg.author?.badges || []).includes('green_week') && (
+            <span className={styles.badgeGreen} title="Net positive R this week (verified from journal)">green wk</span>
+          )}
+          {(msg.author?.badges || []).includes('hot_hand') && (
+            <span className={styles.badgeHot} title="Last 3 closed trades were wins (verified from journal)">
+              <UIcon name="flame" size={10} /> hot hand
+            </span>
+          )}
           <span className={styles.msgTime}>{timeLabel(msg.created_at)}</span>
         </div>
       )}

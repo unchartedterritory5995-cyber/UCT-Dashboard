@@ -2106,6 +2106,10 @@ async def lifespan(app: FastAPI):
                 community_signals.run_signal_cycle,
                 CronTrigger(day_of_week="mon-fri", hour="9-16", minute="0,30"),
                 id="floor_signal_cycle", replace_existing=True, max_instances=1)
+            _scheduler.add_job(
+                community_signals.post_premarket_brief,
+                CronTrigger(day_of_week="mon-fri", hour=8, minute=45),
+                id="floor_premarket_brief", replace_existing=True, max_instances=1)
         except Exception as _e_sig:
             print(f"[startup] floor signal job skip: {_e_sig}")
 

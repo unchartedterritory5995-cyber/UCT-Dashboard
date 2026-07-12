@@ -85,6 +85,26 @@ function FlowCard({ card }) {
   )
 }
 
+function IdeaCard({ card }) {
+  const long = card.side === 'LONG'
+  return (
+    <div className={styles.card} data-kind="idea">
+      <div className={styles.cardHead}>
+        <UIcon name="compass" size={14} />
+        <TickerBadge ticker={card.ticker} />
+        <span className={`${styles.cardResult} ${long ? styles.cardWin : styles.cardLoss}`}>{card.side}</span>
+        {card.rr != null && <span className={styles.cardGrade}>{card.rr}R</span>}
+      </div>
+      <div className={styles.cardStats}>
+        <div><span className={styles.cardMuted}>Entry</span><b>{money(card.entry)}</b></div>
+        <div><span className={styles.cardMuted}>Stop</span><b className={styles.cardLoss}>{money(card.stop)}</b></div>
+        <div><span className={styles.cardMuted}>Target</span><b className={styles.cardWin}>{money(card.target)}</b></div>
+      </div>
+      {card.note && <div className={styles.cardSetup}>{card.note}</div>}
+    </div>
+  )
+}
+
 function PollCard({ card, onVote }) {
   const results = card.results || { counts: {}, total: 0, my_vote: null }
   const total = results.total || 0
@@ -118,5 +138,6 @@ export default function CardRenderer({ card, onVote }) {
   if (card.kind === 'trade') return <TradeCard card={card} />
   if (card.kind === 'flow') return <FlowCard card={card} />
   if (card.kind === 'poll') return <PollCard card={card} onVote={onVote} />
+  if (card.kind === 'idea') return <IdeaCard card={card} />
   return null
 }

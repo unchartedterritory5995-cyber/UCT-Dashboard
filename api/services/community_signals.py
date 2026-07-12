@@ -37,9 +37,9 @@ def _para(nodes):
     return {"type": "paragraph", "content": nodes}
 
 
-def _post_system(body_json, ticker_tags=None, card_json=None):
+def _post_system(body_json, ticker_tags=None, card_json=None, channel="trading-floor"):
     from api.services import community_store as store
-    mid = store.create_message("trading-floor", None, body_json,
+    mid = store.create_message(channel, None, body_json,
                                ticker_tags=ticker_tags or [], card_json=card_json,
                                bypass_rate_limit=True)
     try:
@@ -48,7 +48,7 @@ def _post_system(body_json, ticker_tags=None, card_json=None):
         msg["author"] = {"name": "UCT Mentor", "is_mentor": True}
         msg["card"] = json.loads(card_json) if card_json else None
         msg.pop("card_json", None)
-        chat_stream.get_hub().broadcast("trading-floor", "message", msg)
+        chat_stream.get_hub().broadcast(channel, "message", msg)
     except Exception:
         pass
     return mid
@@ -127,6 +127,63 @@ def post_regime_flip():
     ] + ([_para([{"type": "text", "text": narration[:280]}])] if narration else [])})
     _post_system(body)
     return {"posted": True, "from": prev, "to": label}
+
+
+def post_premarket_brief():
+    """Morning brief → #pre-market: top catalysts + notable earnings reporters.
+    Idempotent per day via a marker file."""
+    if not _enabled():
+        return {"posted": False, "reason": "disabled"}
+    marker = os.path.join(_data_dir(), ".floor_last_premarket")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        if os.path.isfile(marker) and open(marker, encoding="utf-8").read().strip() == today:
+            return {"posted": False, "reason": "already_posted"}
+    except Exception:
+        pass
+
+    paras = [_para([{"type": "text", "marks": [{"type": "bold"}],
+                     "text": "Pre-market brief — what's on the tape today."}])]
+    tickers = []
+    try:
+        from api.services.catalyst import store as cat_store
+        cats = (cat_store.get_for_date(today) or [])[:3]
+        for c in cats:
+            t = str(c.get("ticker") or "").upper()[:8]
+            if not t:
+                continue
+            tickers.append(t)
+            thesis = (c.get("thesis_text") or "").strip()
+            content = [{"type": "tickerChip", "attrs": {"ticker": t}},
+                       {"type": "text", "text": f" — {thesis[:180]}" if thesis else f" — {c.get('tag', 'catalyst')}"}]
+            paras.append(_para(content))
+    except Exception:
+        pass
+    try:
+        from api.services import engine
+        bmo = (engine.get_earnings() or {}).get("bmo") or []
+        syms = [str(e.get("sym") or e.get("symbol") or "").upper()[:8] for e in bmo[:5]]
+        syms = [s for s in syms if s]
+        if syms:
+            content = [{"type": "text", "text": "Reporting this morning: "}]
+            for s in syms:
+                content.append({"type": "tickerChip", "attrs": {"ticker": s}})
+                content.append({"type": "text", "text": " "})
+                if s not in tickers:
+                    tickers.append(s)
+            paras.append(_para(content))
+    except Exception:
+        pass
+    if len(paras) == 1:
+        return {"posted": False, "reason": "no-content"}
+    body = json.dumps({"type": "doc", "content": paras})
+    _post_system(body, ticker_tags=tickers[:10], channel="pre-market")
+    try:
+        with open(marker, "w", encoding="utf-8") as f:
+            f.write(today)
+    except Exception:
+        pass
+    return {"posted": True, "tickers": tickers}
 
 
 def run_signal_cycle():

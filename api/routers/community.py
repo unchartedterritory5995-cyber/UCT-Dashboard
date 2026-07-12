@@ -87,11 +87,20 @@ def _author_map(ids):
 
 
 def _attach_authors(items):
-    amap = _author_map([i.get("author_id") for i in items])
+    ids = [i.get("author_id") for i in items]
+    amap = _author_map(ids)
+    try:
+        from api.services import community_badges
+        bmap = community_badges.badges_for([a for a in ids if a])
+    except Exception:
+        bmap = {}
     for i in items:
         aid = i.get("author_id")
-        i["author"] = dict(_MENTOR_AUTHOR) if aid is None else \
-            amap.get(aid, {"name": "member", "is_mentor": False})
+        author = dict(_MENTOR_AUTHOR) if aid is None else \
+            dict(amap.get(aid, {"name": "member", "is_mentor": False}))
+        if aid and bmap.get(aid):
+            author["badges"] = bmap[aid]
+        i["author"] = author
     return items
 
 

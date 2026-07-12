@@ -86,6 +86,20 @@ export default function Composer({ onSubmit, placeholder = 'Share your thinkingâ
         } catch (e) { setError(e.message) }
         return
       }
+      const ideaM = raw.match(/^\/idea\s+([A-Za-z0-9.\-]{1,8})\s+(long|short)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s+(.+))?$/i)
+      if (ideaM) {
+        try {
+          await onCommand({ type: 'idea', ticker: ideaM[1].toUpperCase(), side: ideaM[2].toUpperCase(),
+                            entry: parseFloat(ideaM[3]), stop: parseFloat(ideaM[4]),
+                            target: parseFloat(ideaM[5]), note: (ideaM[6] || '').trim() })
+          done()
+        } catch (e) { setError(e.message) }
+        return
+      }
+      if (/^\/idea\b/i.test(raw)) {
+        setError('Idea format:  /idea NVDA long 128.5 124 140  your note')
+        return
+      }
       const askM = raw.match(/^\/ask\s+([\s\S]+)$/i)
       if (askM) {
         try { await onCommand({ type: 'ask', question: askM[1].trim() }); done() }

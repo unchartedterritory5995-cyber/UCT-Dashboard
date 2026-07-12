@@ -31,6 +31,15 @@ CHANNELS = {
     "trading-floor": {"label": "Trading Floor",
                       "topic": "Live market-hours chat — talk the tape in real time.",
                       "sort": 0},
+    "pre-market": {"label": "Pre-Market",
+                   "topic": "Catalysts, gappers, and the plan before the bell. UCT posts the morning brief here.",
+                   "sort": 1},
+    "after-hours": {"label": "After Hours",
+                    "topic": "Earnings reactions, EOD review, and tomorrow's watchlist.",
+                    "sort": 2},
+    "wins": {"label": "Wins & Green Days",
+             "topic": "Share the trades that worked — screenshots and trade cards welcome.",
+             "sort": 3},
 }
 
 # Chat reactions reuse the forum's kinds so the same UIcon glyphs render

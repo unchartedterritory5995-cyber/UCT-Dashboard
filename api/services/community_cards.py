@@ -116,6 +116,24 @@ def build_card(kind: str, ref: dict, *, user_id: str, load_trade) -> dict:
             "postPrice": _num(ref.get("postPrice")),
         }
 
+    if kind == "idea":
+        side = str(ref.get("side") or "").upper()
+        if side not in ("LONG", "SHORT"):
+            raise ValueError("idea side must be long|short")
+        entry, stop, target = _num(ref.get("entry")), _num(ref.get("stop")), _num(ref.get("target"))
+        if not all(v is not None and v > 0 for v in (entry, stop, target)):
+            raise ValueError("idea needs entry/stop/target prices")
+        risk = abs(entry - stop)
+        rr = round(abs(target - entry) / risk, 2) if risk > 0 else None
+        return {
+            "kind": "idea",
+            "ticker": _ticker(ref.get("ticker")),
+            "side": side,
+            "entry": entry, "stop": stop, "target": target,
+            "rr": rr,
+            "note": _str(ref.get("note"), 160),
+        }
+
     if kind == "poll":
         question = _str(ref.get("question"), 200)
         if not question:
