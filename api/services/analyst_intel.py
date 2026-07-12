@@ -35,24 +35,30 @@ def _fmp_consensus(ticker):
 
 
 def _fmp_price_target(ticker):
-    data = ee._fmp_get("/stable/price-target-summary", {"symbol": ticker})
+    # /stable/price-target-summary only has monthly AVERAGE aggregates (no
+    # low/high) — /stable/price-target-consensus is the range endpoint
+    # (targetLow/targetHigh/targetConsensus/targetMedian).
+    data = ee._fmp_get("/stable/price-target-consensus", {"symbol": ticker})
     row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else None)
     if not row:
         return None
-    return {"low": _round(row.get("lastMonthLow") or row.get("low"), 2),
-            "avg": _round(row.get("lastMonthAvgPriceTarget") or row.get("avg"), 2),
-            "high": _round(row.get("lastMonthHigh") or row.get("high"), 2),
-            "count": row.get("lastMonth") or row.get("count"),
-            "updated": str(row.get("date") or "")[:10] or None}
+    return {"low": _round(row.get("targetLow"), 2),
+            "avg": _round(row.get("targetConsensus") or row.get("targetMedian"), 2),
+            "high": _round(row.get("targetHigh"), 2),
+            "count": None,
+            "updated": None}
 
 
 def _fmp_recent_actions(ticker):
-    data = ee._fmp_get("/stable/grades-historical", {"symbol": ticker, "limit": 20})
+    # /stable/grades-historical is aggregate buy/hold/sell COUNTS per date
+    # (no firm) — /stable/grades-news carries the per-firm action fields
+    # (gradingCompany/action/previousGrade/newGrade) this function reads.
+    data = ee._fmp_get("/stable/grades-news", {"symbol": ticker, "limit": 20})
     if not isinstance(data, list):
         return []
     out = []
     for r in data[:15]:
-        out.append({"date": str(r.get("date") or "")[:10],
+        out.append({"date": str(r.get("publishedDate") or "")[:10],
                     "firm": r.get("gradingCompany") or r.get("analystCompany"),
                     "action": (r.get("action") or "").lower() or None,
                     "from_grade": r.get("previousGrade"),
