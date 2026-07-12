@@ -189,6 +189,50 @@ def _resolve_primary(rows):
     )[0]
 
 
+def get_theme_map(tickers):
+    """Batch primary-theme lookup for the Breadth "group by theme" view.
+
+    Returns {TICKER: theme_name|None} — one entry per requested ticker
+    (deduped, upper-cased), matching industry_map.get_groups()'s
+    always-present-key contract. No caching/self-heal: theme_memberships is
+    a small, fully-seeded, static local table (re-populated wholesale from
+    themes_taxonomy.json on deploy), not an externally-sourced cache."""
+    seen = set()
+    want = []
+    for raw in (tickers or []):
+        if not raw:
+            continue
+        t = str(raw).upper().strip()
+        if t and t not in seen:
+            seen.add(t)
+            want.append(t)
+    if not want:
+        return {}
+
+    by_sym = {}
+    conn = get_connection()
+    try:
+        for i in range(0, len(want), 400):
+            chunk = want[i:i + 400]
+            placeholders = ",".join("?" * len(chunk))
+            rows = conn.execute(f"""
+                SELECT tm.sym, tm.tier, tm.theme_id, t.name as theme_name
+                FROM theme_memberships tm
+                JOIN themes t ON tm.theme_id = t.id
+                WHERE tm.sym IN ({placeholders})
+            """, chunk).fetchall()
+            for r in rows:
+                by_sym.setdefault(r["sym"], []).append(dict(r))
+    finally:
+        conn.close()
+
+    out = {}
+    for t in want:
+        primary = _resolve_primary(by_sym.get(t))
+        out[t] = primary["theme_name"] if primary else None
+    return out
+
+
 def get_theme_holdings(theme_id, tier_filter=None):
     """Return holdings for a theme, optionally filtered by tier."""
     conn = get_connection()

@@ -45,3 +45,70 @@ def test_resolve_primary_unknown_tier_ranks_last():
     ]
     primary = theme_db._resolve_primary(rows)
     assert primary["theme_name"] == "Peripheral One"
+
+
+@pytest.fixture()
+def tdb(tmp_path, monkeypatch):
+    """Isolated theme DB: theme_db.get_connection() resolves through
+    auth_db._DB_PATH (same mechanism as test_support_tickets.py /
+    test_broker_sync.py use for auth_db-backed services)."""
+    db_path = str(tmp_path / "theme_test.db")
+    monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
+    theme_db.init_theme_tables()
+    conn = theme_db.get_connection()
+    try:
+        conn.execute("INSERT INTO theme_sectors (id, name, display_order) VALUES ('tech', 'Technology', 1)")
+        conn.executemany(
+            "INSERT INTO themes (id, name, sector_id, display_order) VALUES (?, ?, 'tech', ?)",
+            [
+                ("semis", "Semiconductors", 1),
+                ("ai", "Artificial Intelligence", 2),
+                ("quantum", "Quantum Computing", 3),
+            ],
+        )
+        conn.executemany(
+            "INSERT INTO theme_memberships (theme_id, sym, tier) VALUES (?, ?, ?)",
+            [
+                ("semis", "NVDA", "core"),
+                ("ai", "NVDA", "core"),       # ties with semis at 'core' -> 'ai' wins alphabetically
+                ("quantum", "NVDA", "relevant"),
+                ("semis", "AMD", "peripheral"),
+            ],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return db_path
+
+
+def test_get_theme_map_picks_highest_tier(tdb):
+    out = theme_db.get_theme_map(["AMD"])
+    assert out == {"AMD": "Semiconductors"}
+
+
+def test_get_theme_map_tie_breaks_by_theme_id(tdb):
+    out = theme_db.get_theme_map(["NVDA"])
+    assert out == {"NVDA": "Artificial Intelligence"}
+
+
+def test_get_theme_map_returns_none_for_unclassified(tdb):
+    out = theme_db.get_theme_map(["ZZZZ"])
+    assert out == {"ZZZZ": None}
+
+
+def test_get_theme_map_uppercases_and_dedupes(tdb):
+    out = theme_db.get_theme_map(["amd", "AMD", ""])
+    assert out == {"AMD": "Semiconductors"}
+
+
+def test_get_theme_map_multiple_tickers_one_call(tdb):
+    out = theme_db.get_theme_map(["AMD", "NVDA", "ZZZZ"])
+    assert out == {
+        "AMD": "Semiconductors",
+        "NVDA": "Artificial Intelligence",
+        "ZZZZ": None,
+    }
+
+
+def test_get_theme_map_empty_input(tdb):
+    assert theme_db.get_theme_map([]) == {}
