@@ -55,7 +55,7 @@ The video-note watch rails (2026-07-12) already prove the pattern.
 
 ## 3. The template lineup (proposed)
 
-Nine firm-authored templates in three families. Quality over TradeZella's
+Eight firm-authored templates in three families. Quality over TradeZella's
 25 — each encodes a UCT-methodology ritual, each ≤5-min to complete.
 (Existing 3 get upgraded in place; keys stay stable.)
 
@@ -95,14 +95,9 @@ Nine firm-authored templates in three families. Quality over TradeZella's
    Ask for ticker → pre-fill report date/session, expected move, last-4-qtr
    beat history. Prompts: play (hold through? enter after?), size given
    binary risk, invalidation. *Data: `/api/calendar/enrichment`, `/api/fundamentals`.*
-8. **Setup Study** *(new — Setup Library tie-in)*
-   Pick a setup from the 26-name taxonomy (chips) → pre-fill its Library
-   definition link + my win-rate/R on that setup if I've traded it. Prompts:
-   annotated examples (paste charts), trigger checklist, where it fails.
-   *Data: `setupCatalog.js`, `/api/j2/analytics` by-setup.*
 
 ### C. Psychology
-9. **Tilt Log** *(new)*
+8. **Tilt Log** *(new)*
    One-screen, 3 fields (friction thesis!): what happened · which mistake tag
    (chips from the taxonomy) · cost in R (pre-filled if launched from a
    trade). Tag prompts mirror the J1 mistake taxonomy so Compass can later
@@ -112,6 +107,15 @@ Nine firm-authored templates in three families. Quality over TradeZella's
 generic meeting/idea notes (blank note is fine), backtest log (needs the
 backtesting story), intraday check-in (Compass interventions already own
 in-session nudges).
+
+**Dropped after reconciliation (2026-07-12 refinement): Setup Study.**
+My Playbook (`826f1801`, shipped same day) is the home for setup
+documentation — own editor + templates (`upbTemplates.js`), ChartExampleKit
+annotated charts, clone-from-Setup-Library, and note-link chips INTO the
+Notebook. A notebook Setup Study template would create a second competing
+home for the same artifact. Instead the template picker shows one pointer
+card: "Documenting a setup? Build it in My Playbook →" (`/model-book?view=builder`).
+Lineup is therefore **8 templates**.
 
 ## 4. How data-awareness works (mechanics)
 
@@ -130,6 +134,20 @@ in-session nudges).
   test guards every template. Keep the guard green as the lineup grows.
 - Deep links: `?seg=notebook&new=<key>[&ticker=][&trade=]` so Today page, EOD
   recap, TradeDrawer, and the Desk can open a pre-seeded template directly.
+- **Trading-day semantics, not calendar dates**: "today's trades" for the
+  Post-Market Debrief and the Weekly Review's Mon–Fri window must use the ET
+  trading-day logic the A+ push backfilled (a 7 PM CT debrief still means
+  TODAY's session; Sunday's review means last week). Reuse the j2 trading-day
+  helpers — never `new Date()` bucketing.
+- **The grading link (closes the loop)**: Post-Market Debrief pre-fill looks
+  up today's `game-plan`-tagged note; if found, it quotes the plan's
+  scenario bullets under "The morning plan said:" with a link to the note.
+  This is the panel-trader ask verbatim — a 4 PM debrief that grades the day
+  against the morning plan. Without it the two rituals stay disconnected.
+- **Doc-builder sharing**: `notebookTemplates.js` and My Playbook's
+  `upbTemplates.js` both hand-roll h/p/bullets/hr node builders — extract a
+  shared `lib/tiptapDocBuilders.js` during v1 so the third consumer never
+  copies them again.
 
 ## 5. UX
 
@@ -148,9 +166,10 @@ in-session nudges).
 
 ## 6. Phasing
 
-- **V1 — lineup + picker (S/M, one session):** all 9 templates with
+- **V1 — lineup + picker (S/M, one session):** all 8 templates with
   light pre-fill (date, regime one-liner, positions list), picker UI +
-  empty-state, preset tags/tickers, template tests. No backend.
+  empty-state (+ the My Playbook pointer card), preset tags/tickers,
+  shared doc-builders extraction, template tests. No backend.
 - **V2 — deep data + loop links (M):** trade-ref/earnings/week-stats pulls,
   `?new=` deep links wired from Today/recap/TradeDrawer/email, "pre-trade
   note links to the trade once it syncs" (TradeZella's best notebook idea —
@@ -160,6 +179,14 @@ in-session nudges).
   templates on The Floor (creator angle — Notion-marketplace dynamics inside
   the community), recurring auto-create (Daily Game Plan waiting each
   morning), Compass "draft my game plan" filling a template via AI.
+  ⚠️ If `j2_note_templates` ships, add it to the (pending) account-deletion
+  executor's table list — same note already stands for the upb_ tables.
+
+### Free-tier note
+Templates themselves stay free (notebook is free-tier; templates are
+top-of-funnel). Prefill endpoints that are paid-gated simply come back as
+graceful blanks for free users — a free member gets the scaffold, a paid
+member gets it pre-filled. That asymmetry is the upsell, not a bug.
 
 ## 7. Success signals
 
