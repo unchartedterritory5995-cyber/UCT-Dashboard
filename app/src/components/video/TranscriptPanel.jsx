@@ -64,9 +64,17 @@ export default function TranscriptPanel({ videoId, hasTranscript, onSeek, getTim
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [open, query, cues, getTime])
+  // Keep the active cue visible by scrolling ONLY the cue list — scrollIntoView
+  // would also scroll the page's container back to the panel every time the cue
+  // advances (yanks the Notebook while writing / the Desk while browsing).
   useEffect(() => {
-    const el = listRef.current?.querySelector('[data-active="true"]')
-    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' })
+    const list = listRef.current
+    const el = list?.querySelector('[data-active="true"]')
+    if (!list || !el || typeof el.getBoundingClientRect !== 'function') return
+    const lr = list.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    if (er.top < lr.top) list.scrollTop += er.top - lr.top
+    else if (er.bottom > lr.bottom) list.scrollTop += er.bottom - lr.bottom
   }, [activeCue])
 
   const plain = () => cues.map((c) => `[${fmt(c.t)}] ${c.text}`).join('\n')

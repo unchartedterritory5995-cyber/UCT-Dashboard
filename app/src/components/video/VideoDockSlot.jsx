@@ -270,9 +270,17 @@ export default function VideoDockSlot() {
     return () => clearInterval(id)
   }, [docked, chapters])
 
+  // Scroll ONLY the chapter list to the active row — scrollIntoView also
+  // scrolls the page's container, which on the stacked mobile layout yanks the
+  // theater down to the rail whenever the playing chapter changes.
   useEffect(() => {
-    const el = chapterListRef.current?.querySelector('[data-active="true"]')
-    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' })
+    const list = chapterListRef.current
+    const el = list?.querySelector('[data-active="true"]')
+    if (!list || !el || typeof el.getBoundingClientRect !== 'function') return
+    const lr = list.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    if (er.top < lr.top) list.scrollTop += er.top - lr.top
+    else if (er.bottom > lr.bottom) list.scrollTop += er.bottom - lr.bottom
   }, [activeChapter])
 
   // Highlight the ticker chip whose moment is playing now (most recent moment
