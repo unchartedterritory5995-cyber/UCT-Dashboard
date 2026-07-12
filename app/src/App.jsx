@@ -78,6 +78,7 @@ const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Compare = lazy(() => import('./pages/Compare'))
 const BrokersPage = lazy(() => import('./pages/BrokersPage'))
+const Pricing = lazy(() => import('./pages/Pricing'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
@@ -189,6 +190,9 @@ export default function App() {
                 Static content only (no user data), so it is safe to serve
                 logged-out, outside AuthGuard. */}
             <Route path="/brokers" element={<BrokersPage />} />
+            {/* Public pricing page — free tier + the ONE paid tier, 14-day
+                no-card trial, honest scope. Adapts CTA to auth state. */}
+            <Route path="/pricing" element={<Pricing />} />
 
             {/* Protected routes — require authentication */}
             <Route element={<AuthGuard />}>

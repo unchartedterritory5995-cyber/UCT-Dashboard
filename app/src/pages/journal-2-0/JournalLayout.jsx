@@ -38,6 +38,7 @@ import ShortcutCheatSheet from './components/ShortcutCheatSheet'
 import LogTradeButton from './LogTradeButton'
 import JournalMobileNav from './JournalMobileNav'
 import JournalLogFab from './JournalLogFab'
+import TrialBanner from './components/TrialBanner'
 import styles from './JournalLayout.module.css'
 
 // The 5 primary surfaces. Compass is `paidOnly` — shown always (never hidden;
@@ -233,6 +234,10 @@ export default function JournalLayout() {
           Failed to load Journal 2.0 settings: {String(error.message || error)}
         </div>
       )}
+
+      {/* 14-day trial notice — renders only for users inside their trial window
+          (null for free/paid/admin). A single slim chip, not a new control band. */}
+      <TrialBanner />
 
       <nav className={`${styles.nav} ${styles.navDesktop}`} aria-label="Journal sections">
         {PRIMARY_NAV.map((item) => {

@@ -51,7 +51,9 @@ def create_user(email: str, password: str, display_name: str = None) -> dict:
             (user_id, email.lower().strip(), password_hash, display_name, created_at),
         )
         conn.commit()
-        return {"id": user_id, "email": email.lower().strip(), "display_name": display_name, "role": "member"}
+        # created_at is included so the 14-day trial window (api/services/trial.py)
+        # is computable from the very first request after signup.
+        return {"id": user_id, "email": email.lower().strip(), "display_name": display_name, "role": "member", "created_at": created_at}
     finally:
         conn.close()
 
@@ -70,6 +72,7 @@ def verify_password(email: str, password: str) -> dict | None:
             "display_name": row["display_name"],
             "role": row["role"],
             "email_verified": bool(row["email_verified"]) if "email_verified" in row.keys() else False,
+            "created_at": row["created_at"] if "created_at" in row.keys() else None,
         }
     finally:
         conn.close()
@@ -124,7 +127,7 @@ def validate_session(token: str) -> dict | None:
     conn = get_connection()
     try:
         row = conn.execute(
-            "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified "
+            "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified, u.created_at "
             "FROM sessions s JOIN users u ON s.user_id = u.id "
             "WHERE s.token = ?",
             (token,),
@@ -159,6 +162,8 @@ def validate_session(token: str) -> dict | None:
             "display_name": row["display_name"],
             "role": row["role"],
             "email_verified": bool(row["email_verified"]),
+            # Powers the 14-day trial window on every authed request (trial.py).
+            "created_at": row["created_at"] if "created_at" in row.keys() else None,
         }
     finally:
         conn.close()

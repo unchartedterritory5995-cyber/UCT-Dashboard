@@ -7,6 +7,11 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [plan, setPlan] = useState('free')
   const [subscription, setSubscription] = useState(null)
+  // 14-day full-access trial: { active, days_left } from the auth responses.
+  // Drives the trial banner AND counts toward isPaid (full-access equivalence).
+  const [trial, setTrial] = useState(null)
+  // Whether an annual Stripe price is configured (pricing page honest copy).
+  const [annualAvailable, setAnnualAvailable] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const fetchUser = useCallback(async () => {
@@ -17,17 +22,21 @@ export function AuthProvider({ children }) {
         setUser(data.user)
         setPlan(data.plan)
         setSubscription(data.subscription || null)
+        setTrial(data.trial || null)
+        setAnnualAvailable(!!(data.billing && data.billing.annual_available))
         return { plan: data.plan, role: data.user?.role }
       } else {
         setUser(null)
         setPlan('free')
         setSubscription(null)
+        setTrial(null)
         return { plan: 'free', role: null }
       }
     } catch {
       setUser(null)
       setPlan('free')
       setSubscription(null)
+      setTrial(null)
       return { plan: 'free', role: null }
     } finally {
       setLoading(false)
@@ -49,6 +58,8 @@ export function AuthProvider({ children }) {
     const data = await res.json()
     setUser(data.user)
     setPlan(data.plan)
+    setTrial(data.trial || null)
+    setAnnualAvailable(!!(data.billing && data.billing.annual_available))
     return data
   }
 
@@ -67,6 +78,8 @@ export function AuthProvider({ children }) {
     const data = await res.json()
     setUser(data.user)
     setPlan(data.plan)
+    setTrial(data.trial || null)
+    setAnnualAvailable(!!(data.billing && data.billing.annual_available))
     return data
   }
 
@@ -74,11 +87,16 @@ export function AuthProvider({ children }) {
     await fetch('/api/auth/logout', { method: 'POST' })
     setUser(null)
     setPlan('free')
+    setTrial(null)
     clearIntroSeen()
   }
 
-  const startCheckout = async () => {
-    const res = await fetch('/api/auth/checkout', { method: 'POST' })
+  const startCheckout = async (billing = 'monthly') => {
+    const res = await fetch('/api/auth/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: billing === 'annual' ? 'annual' : 'monthly' }),
+    })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.detail || 'Failed to create checkout session')
@@ -96,11 +114,14 @@ export function AuthProvider({ children }) {
 
   // Single source of truth for "is this a paying user" — gates every
   // API-cost feature (Compass, voice, read-aloud). Mirrors the backend
-  // PAID_PLANS set in api/middleware/auth_middleware.py. Admins always pass.
-  const isPaid = user?.role === 'admin' || ['pro', 'premium', 'lifetime'].includes(plan)
+  // is_paid_or_trial() chokepoint: admin OR paid plan OR active 14-day trial.
+  // Admins always pass; trial users get full feature access.
+  const isPaid = user?.role === 'admin'
+    || ['pro', 'premium', 'lifetime'].includes(plan)
+    || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, loading, login, signup, logout, startCheckout, openPortal, refetch: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, loading, login, signup, logout, startCheckout, openPortal, refetch: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

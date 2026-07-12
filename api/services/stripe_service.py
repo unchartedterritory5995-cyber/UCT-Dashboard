@@ -18,18 +18,39 @@ from api.services.auth_service import (
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
 STRIPE_PRICE_ID_PRO = os.environ.get("STRIPE_PRICE_ID_PRO", "")
+# Annual billing price for the same "pro" plan ($228/yr). Optional — when unset,
+# an "annual" checkout gracefully falls back to the monthly price (the pricing
+# page surfaces an honest "annual billing coming online" note in that case).
+STRIPE_PRICE_ID_ANNUAL = os.environ.get("STRIPE_PRICE_ID_ANNUAL", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 
 
-def create_checkout_session(user_id: str, user_email: str, success_url: str, cancel_url: str) -> str:
-    """Create a Stripe Checkout session and return the URL."""
+def annual_available() -> bool:
+    """True when an annual Stripe price is configured (env STRIPE_PRICE_ID_ANNUAL)."""
+    return bool(STRIPE_PRICE_ID_ANNUAL)
+
+
+def create_checkout_session(
+    user_id: str, user_email: str, success_url: str, cancel_url: str, billing: str = "monthly"
+) -> str:
+    """Create a Stripe Checkout session and return the URL.
+
+    `billing` selects the price: "annual" uses STRIPE_PRICE_ID_ANNUAL when it is
+    configured, otherwise it falls back to the monthly STRIPE_PRICE_ID_PRO (both
+    grant the same "pro" plan). This function only creates checkout sessions — it
+    never touches webhook handling or subscription state.
+    """
     # Check if user already has a Stripe customer
     sub = get_subscription(user_id)
     customer_id = sub["stripe_customer_id"] if sub and sub.get("stripe_customer_id") else None
 
+    price_id = STRIPE_PRICE_ID_PRO
+    if billing == "annual" and STRIPE_PRICE_ID_ANNUAL:
+        price_id = STRIPE_PRICE_ID_ANNUAL
+
     params = {
         "mode": "subscription",
-        "line_items": [{"price": STRIPE_PRICE_ID_PRO, "quantity": 1}],
+        "line_items": [{"price": price_id, "quantity": 1}],
         "success_url": success_url,
         "cancel_url": cancel_url,
         "metadata": {"user_id": user_id},

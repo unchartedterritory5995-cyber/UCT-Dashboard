@@ -107,7 +107,7 @@ export const TEMPLATES = [
     build: () =>
       doc([
         h(2, 'Overnight & premarket'),
-        p('Futures, notable gaps, news, and earnings that matter for today.'),
+        p('Index futures, notable gaps, news, and earnings that matter for today.'),
         h(2, 'Levels that matter'),
         bullets([
           'Index levels: support / resistance to watch',

@@ -7,6 +7,7 @@ from fastapi import Request, HTTPException, Depends, Cookie
 from typing import Optional
 
 from api.services.auth_service import validate_session, get_user_plan
+from api.services.trial import is_paid_or_trial, is_account_in_trial
 
 
 def get_session_token(uct_session: Optional[str] = Cookie(None)) -> Optional[str]:
@@ -43,6 +44,9 @@ def require_plan(allowed_plans: list[str]):
         plan = user.get("plan")
         if plan in allowed_plans or plan == "comped":
             return user
+        # 14-day full-access trial grants paid-feature access (see trial.py).
+        if is_account_in_trial(user):
+            return user
         raise HTTPException(status_code=403, detail="Upgrade required")
     return checker
 
@@ -65,14 +69,21 @@ PAID_VOICE_PLANS = PAID_PLANS
 
 
 def is_paid_user(user: dict) -> bool:
-    """True if the user is an admin or on a paid plan."""
-    return user.get("role") == "admin" or user.get("plan") in PAID_PLANS
+    """True if the user is an admin, on a paid plan, OR within their 14-day trial.
+
+    The trial grants paid-FEATURE access only (see api/services/trial.py); admin
+    surfaces (role == 'admin') and billing state are decided separately and are
+    unaffected. Defensively defaulted — any error resolves to not-paid."""
+    return is_paid_or_trial(user)
 
 
 def requires_voice_access(user: dict = Depends(get_current_user_with_plan)) -> dict:
-    """Dependency: gates voice endpoints to paid plans + admins."""
+    """Dependency: gates voice endpoints to paid plans + admins (+ trial users)."""
     if user.get("role") == "admin":
         return user
-    if user.get("plan") not in PAID_PLANS:
-        raise HTTPException(status_code=402, detail="Voice features require a paid plan")
-    return user
+    if user.get("plan") in PAID_PLANS:
+        return user
+    # Full-access trial covers Compass / voice (feature access only).
+    if is_account_in_trial(user):
+        return user
+    raise HTTPException(status_code=402, detail="Voice features require a paid plan")

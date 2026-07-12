@@ -1650,8 +1650,8 @@ export default function Settings() {
           <div className={styles.section}>
             <div className={styles.prefRow}>
               <div className={styles.prefLabelGroup}>
-                <span className={styles.prefLabel}>Export My Data</span>
-                <span className={styles.prefDesc}>Download your watchlists, journal, trades, and settings as JSON</span>
+                <span className={styles.prefLabel}>Export all my data</span>
+                <span className={styles.prefDesc}>Download your watchlists, journal, trades, and settings as JSON — your data leaves with you, always. (Screenshot attachments download individually from each trade.)</span>
               </div>
               <button className={styles.btn} onClick={async () => {
                 try {

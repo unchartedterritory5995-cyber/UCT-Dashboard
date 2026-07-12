@@ -7,6 +7,7 @@ import os
 import csv
 import io
 import sqlite3
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, EmailStr
@@ -72,8 +73,9 @@ from api.services.email_service import (
     send_password_reset_email,
     send_welcome_email,
 )
-from api.services.stripe_service import create_checkout_session, create_portal_session
-from api.middleware.auth_middleware import get_current_user, get_session_token
+from api.services.stripe_service import create_checkout_session, create_portal_session, annual_available
+from api.middleware.auth_middleware import get_current_user, get_session_token, PAID_PLANS
+from api.services.trial import trial_status
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -99,6 +101,30 @@ class LoginRequest(BaseModel):
 ADMIN_EMAILS = set(filter(None, os.environ.get("ADMIN_EMAILS", "").split(",")))
 ADMIN_EMAILS.add("unchartedterritory5995@gmail.com")  # Owner always admin
 ADMIN_EMAILS.add("blake.bracco67@gmail.com")  # Admin
+
+
+def _access_payload(user: dict, plan: str) -> dict:
+    """Shared access fields for every auth response (signup/login/me).
+
+    Feeds the frontend's single paid gate (AuthContext.isPaid): `trial` drives
+    the trial banner + full-access equivalence, `paid_equiv` is the server's own
+    "treat as paid" verdict (admin OR real paid plan OR active trial), and
+    `billing.annual_available` lets the pricing page show honest annual copy.
+
+    A genuinely-paid user (or admin) NEVER shows a trial chip — trial.active is
+    forced False for them so the banner is trial-only.
+    """
+    ts = trial_status(user)
+    is_paid_plan = user.get("role") == "admin" or plan in PAID_PLANS
+    trial_active = bool(ts["active"]) and not is_paid_plan
+    return {
+        "trial": {
+            "active": trial_active,
+            "days_left": ts["days_left"] if trial_active else 0,
+        },
+        "paid_equiv": bool(is_paid_plan or trial_active),
+        "billing": {"annual_available": annual_available()},
+    }
 
 
 @router.post("/signup")
@@ -149,7 +175,7 @@ def signup(request: Request, req: SignupRequest, response: Response):
     token = create_session(user["id"], user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     user["email_verified"] = False
-    return {"user": user, "plan": "free"}
+    return {"user": user, "plan": "free", **_access_payload(user, "free")}
 
 
 @router.post("/login")
@@ -176,7 +202,7 @@ def login(request: Request, req: LoginRequest, response: Response):
     token = create_session(user["id"], user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     plan = get_user_plan(user["id"])
-    return {"user": user, "plan": plan}
+    return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
 @router.post("/logout")
@@ -198,6 +224,7 @@ def me(user: dict = Depends(get_current_user)):
             "status": sub["status"] if sub else None,
             "current_period_end": sub["current_period_end"] if sub else None,
         } if sub else None,
+        **_access_payload(user, plan),
     }
 
 
@@ -1417,15 +1444,23 @@ def admin_ticket_status(ticket_id: str, req: TicketStatusRequest, user: dict = D
 
 # ── Stripe endpoints ────────────────────────────────────────────────────────
 
+class CheckoutRequest(BaseModel):
+    # "monthly" (STRIPE_PRICE_ID_PRO) | "annual" (STRIPE_PRICE_ID_ANNUAL, falls
+    # back to monthly when that price isn't configured yet).
+    plan: str = "monthly"
+
+
 @router.post("/checkout")
-def checkout(user: dict = Depends(get_current_user)):
-    """Redirect user to Stripe Checkout to subscribe."""
+def checkout(user: dict = Depends(get_current_user), body: Optional[CheckoutRequest] = None):
+    """Redirect user to Stripe Checkout to subscribe. Optional body {plan}."""
+    billing = body.plan if (body and body.plan in ("monthly", "annual")) else "monthly"
     try:
         url = create_checkout_session(
             user_id=user["id"],
             user_email=user["email"],
             success_url=f"{DASHBOARD_URL}/dashboard?checkout=success",
-            cancel_url=f"{DASHBOARD_URL}/signup?checkout=canceled",
+            cancel_url=f"{DASHBOARD_URL}/pricing?checkout=canceled",
+            billing=billing,
         )
         return {"checkout_url": url}
     except Exception as e:
