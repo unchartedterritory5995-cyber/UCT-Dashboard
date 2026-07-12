@@ -1,0 +1,74 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.family {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.famLabel {
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #98a0aa);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+  padding: 12px 14px;
+  min-height: var(--tap-min, 44px);
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.card:hover:not(:disabled) {
+  border-color: rgba(201, 168, 76, 0.65);
+  background: rgba(201, 168, 76, 0.06);
+}
+.card:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.card:focus-visible {
+  outline: 2px solid #c9a84c;
+  outline-offset: 2px;
+}
+.cardWhen {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c9a84c;
+}
+.cardLabel {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text-primary, #e8eaed);
+}
+.cardDesc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-muted, #98a0aa);
+}
+.blankCard {
+  border-style: dashed;
+}
+.pointerCard {
+  border-color: rgba(96, 178, 140, 0.42);
+  background: rgba(96, 178, 140, 0.07);
+}
+.pointerCard:hover:not(:disabled) {
+  border-color: rgba(96, 178, 140, 0.8);
+  background: rgba(96, 178, 140, 0.14);
+}

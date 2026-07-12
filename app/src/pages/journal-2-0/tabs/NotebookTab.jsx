@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import useJ2Notes from '../hooks/useJ2Notes'
 import NoteCard from '../components/notebook/NoteCard'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
-import { TEMPLATES } from '../lib/notebookTemplates'
+import TemplatePicker from '../components/notebook/TemplatePicker'
+import Sheet from '../../../components/mobile/Sheet'
+import { getTemplate } from '../lib/notebookTemplates'
+import { assembleTemplateContext } from '../lib/templateContext'
 import styles from './NotebookTab.module.css'
 
 export default function NotebookTab() {
@@ -16,7 +19,8 @@ export default function NotebookTab() {
   const [q, setQ] = useState('')
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const deepLinkRan = useRef(false)
 
   const { notes, isLoading, error, refresh } = useJ2Notes({
     folderId, tag, q: q || undefined, sort,
@@ -26,6 +30,11 @@ export default function NotebookTab() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       next.set('note', note.id)
+      // Deep-link params ride along in `prev` when a template create opened
+      // this note (setSearchParams' functional prev can be a render stale) —
+      // drop them here so the final URL is always clean.
+      next.delete('new')
+      next.delete('ticker')
       return next
     }, { replace: false })
   }
@@ -38,10 +47,11 @@ export default function NotebookTab() {
     refresh()
   }
 
-  // Create a note. Blank note passes no title/body; a template seeds both.
-  const createNote = async ({ title = '', bodyJson } = {}) => {
+  // Create a note. Blank note passes no title/body; a template seeds both
+  // (plus its preset tags and, when known, the ticker).
+  const createNote = async ({ title = '', bodyJson, tags, ticker } = {}) => {
     setCreating(true)
-    setMenuOpen(false)
+    setPickerOpen(false)
     try {
       const res = await fetch('/api/j2/notes', {
         method: 'POST',
@@ -50,6 +60,8 @@ export default function NotebookTab() {
         body: JSON.stringify({
           title,
           ...(bodyJson ? { bodyJson } : {}),
+          ...(tags && tags.length ? { tags } : {}),
+          ...(ticker ? { ticker } : {}),
           ...(folderId && folderId !== '__unfiled__' ? { folderId } : {}),
         }),
       })
@@ -63,8 +75,47 @@ export default function NotebookTab() {
     }
   }
 
-  const createFromTemplate = (tpl) =>
-    createNote({ title: tpl.defaultTitle, bodyJson: tpl.build() })
+  // Data-aware create: assemble the context a template declares it needs
+  // (regime / positions / today's game plan), then seed title + body from it.
+  // Every context source is best-effort — no data still yields the scaffold.
+  const createFromTemplate = async (tpl, { ticker } = {}) => {
+    setCreating(true)
+    setPickerOpen(false)
+    let ctx
+    try {
+      ctx = await assembleTemplateContext({ ticker, needs: tpl.needs })
+    } catch {
+      ctx = { ticker: ticker || null }
+    }
+    await createNote({
+      title: tpl.defaultTitle(ctx),
+      bodyJson: tpl.build(ctx),
+      tags: tpl.tags,
+      ticker: ctx.ticker,
+    })
+  }
+
+  const handlePick = (tplOrNull) =>
+    tplOrNull ? createFromTemplate(tplOrNull) : createNote()
+
+  // Deep link: ?seg=notebook&new=<templateKey>[&ticker=SYM] — Today page, the
+  // EOD recap, and TradeDrawer open a pre-seeded template directly (plan §4).
+  // Runs once; params are stripped either way so a stale key can't loop.
+  const newKey = searchParams.get('new')
+  useEffect(() => {
+    if (!newKey || noteId || creating || deepLinkRan.current) return
+    deepLinkRan.current = true
+    const tpl = getTemplate(newKey)
+    const ticker = searchParams.get('ticker')
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('new')
+      next.delete('ticker')
+      return next
+    }, { replace: true })
+    if (tpl) createFromTemplate(tpl, { ticker })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newKey])
 
   if (noteId) {
     return <NoteEditorPage noteId={noteId} onBack={closeNote} />
@@ -109,59 +160,33 @@ export default function NotebookTab() {
           <div className={styles.newWrap}>
             <button
               type="button"
+              className={styles.templatesBtn}
+              onClick={() => setPickerOpen(true)}
+              disabled={creating}
+              aria-haspopup="dialog"
+            >
+              Templates
+            </button>
+            <button
+              type="button"
               className={styles.newBtn}
               onClick={() => createNote()}
               disabled={creating}
             >
               + New note
             </button>
-            <button
-              type="button"
-              className={styles.newCaret}
-              onClick={() => setMenuOpen((o) => !o)}
-              disabled={creating}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label="New from template"
-              title="New from template"
-            >
-              ▾
-            </button>
-            {menuOpen && (
-              <>
-                <div
-                  className={styles.menuBackdrop}
-                  onClick={() => setMenuOpen(false)}
-                  aria-hidden="true"
-                />
-                <div className={styles.newMenu} role="menu">
-                  <div className={styles.newMenuLabel}>New from template</div>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={styles.newMenuItem}
-                    onClick={() => createNote()}
-                    disabled={creating}
-                  >
-                    Blank note
-                  </button>
-                  {TEMPLATES.map((tpl) => (
-                    <button
-                      key={tpl.key}
-                      type="button"
-                      role="menuitem"
-                      className={styles.newMenuItem}
-                      onClick={() => createFromTemplate(tpl)}
-                      disabled={creating}
-                    >
-                      {tpl.defaultTitle}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
         </div>
+
+        <Sheet
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          title="New note"
+          variant="auto"
+          maxWidth={720}
+        >
+          <TemplatePicker onPick={handlePick} busy={creating} />
+        </Sheet>
 
         {error && (
           <div className={styles.error}>
@@ -175,8 +200,11 @@ export default function NotebookTab() {
           <div className={styles.empty}>
             <p>Your notebook is empty.</p>
             <p className={styles.emptyHint}>
-              Click <strong>+ New note</strong> to start writing.
+              Start from a template — or a blank page.
             </p>
+            <div className={styles.emptyPicker}>
+              <TemplatePicker onPick={handlePick} busy={creating} />
+            </div>
           </div>
         ) : (
           <div className={styles.grid}>

@@ -13,22 +13,9 @@
  * paragraphs ONLY (the user writes under each heading).
  */
 
-// ── Node builders (each returns a plain ProseMirror JSON node) ────────────────
+// ── Node builders — shared with the Notebook's template catalog ───────────────
 
-/** Heading node (level 2 = section). */
-const h = (level, text) => ({
-  type: 'heading',
-  attrs: { level },
-  content: [{ type: 'text', text }],
-})
-
-/** A truly empty paragraph — a text node may never carry an empty string. */
-const p = () => ({ type: 'paragraph' })
-
-const doc = (content) => ({ type: 'doc', content })
-
-/** Section = heading + an empty paragraph to write into. */
-const sections = (titles) => doc(titles.flatMap((t) => [h(2, t), p()]))
+import { p, doc, sections } from '../../../lib/tiptapDocBuilders'
 
 // ── The three templates ───────────────────────────────────────────────────────
 
