@@ -15,6 +15,9 @@ import shotBreadthSm from '../assets/landing/breadth_sm.webp'
 import shotWire from '../assets/landing/wire.webp'
 import shotSetups from '../assets/landing/setups.webp'
 import shotPlaybook from '../assets/landing/playbook.webp'
+import shotAI from '../assets/landing/ai.webp'
+import shotFlow from '../assets/landing/flow.webp'
+import shotScan from '../assets/landing/scan.webp'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Time helpers — everything on this page that claims to be "live" is computed
@@ -163,6 +166,55 @@ function Lightbox({ item, onClose }) {
   )
 }
 
+// Interactive tabbed toolkit tour. Click a tab -> screenshot + feature list
+// swap. Keyboard-navigable (arrow keys via the tablist).
+function Showcase({ onZoom }) {
+  const [active, setActive] = useState('ai')
+  const panel = SHOWCASE.find((p) => p.key === active) || SHOWCASE[0]
+  return (
+    <div className={styles.showcase}>
+      <div className={styles.showTabs} role="tablist" aria-label="Explore the toolkit">
+        {SHOWCASE.map((p) => (
+          <button
+            key={p.key}
+            role="tab"
+            aria-selected={active === p.key}
+            className={`${styles.showTab} ${active === p.key ? styles.showTabActive : ''}`}
+            onClick={() => { setActive(p.key); track('showcase_tab', { tab: p.key }) }}
+          >
+            {p.tab}
+          </button>
+        ))}
+      </div>
+      <div className={styles.showPanel} role="tabpanel">
+        <div className={styles.showShot}>
+          <Shot
+            key={panel.key}
+            src={panel.img}
+            title={panel.barTitle}
+            time={panel.barTime}
+            live={panel.live}
+            onZoom={onZoom}
+            alt={`${panel.tab} — ${panel.headline}`}
+          />
+        </div>
+        <div className={styles.showCopy}>
+          <h3 className={styles.showH3}>{panel.headline}</h3>
+          <p className={styles.showLede}>{panel.lede}</p>
+          <ul className={styles.showList}>
+            {panel.features.map((f) => (
+              <li key={f.name}>
+                <strong>{f.name}</strong>
+                <span>{f.desc}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Vignette({ kind }) {
   return (
     <div className={styles.vig} aria-hidden="true">
@@ -272,6 +324,81 @@ function Vignette({ kind }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Content
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Interactive toolkit showcase — the second-tier tools that only appeared as
+// text before. Four tabs, each a real screenshot + its standout features.
+const SHOWCASE = [
+  {
+    key: 'ai',
+    tab: 'AI & Automation',
+    img: shotAI,
+    barTitle: 'Pattern Scanner · 85 detectors',
+    barTime: 'SCANNING UNIVERSE',
+    live: true,
+    headline: 'AI that does the work.',
+    lede: 'Agents that read, scan, coach, and talk — so you decide instead of dig.',
+    features: [
+      { name: 'Voice Assistant', desc: '88 tools, a wake word, full spoken conversations' },
+      { name: 'Pattern Engine', desc: '85 live detectors scanning the whole universe' },
+      { name: 'Compass coach', desc: 'GO / HOLD / SKIP verdicts, post-mortems, tilt alerts' },
+      { name: 'Read-aloud', desc: 'hear the Wire and your recaps spoken back' },
+      { name: 'UCT-Mentor', desc: 'the AI trader in residence on The Floor' },
+      { name: 'The UCT Brain', desc: '7,800+ curated knowledge entries, 48 templates' },
+    ],
+  },
+  {
+    key: 'flow',
+    tab: 'Options Flow',
+    img: shotFlow,
+    barTitle: 'Options Flow · Market Read',
+    barTime: '19,438 TRADES',
+    live: true,
+    headline: 'The whole options tape.',
+    lede: 'Every sweep, block, and dark-pool print — graded, ranked, and read for you.',
+    features: [
+      { name: 'Live Flow', desc: 'sweeps & blocks streaming through the session' },
+      { name: 'Dark Pool', desc: 'off-exchange prints as they cross' },
+      { name: 'GEX', desc: 'gamma exposure mapped by strike' },
+      { name: 'Flow scoreboard', desc: 'who’s winning the tape today' },
+      { name: 'Unusual & LEAPS', desc: 'one-click filters for the anomalies' },
+      { name: 'Sector & DTE read', desc: 'premium split by sector and expiration' },
+    ],
+  },
+  {
+    key: 'scan',
+    tab: 'Market Scanning',
+    img: shotScan,
+    barTitle: 'UCT 20 · Leadership',
+    barTime: 'RANKED BY RS',
+    headline: 'Find what’s moving.',
+    lede: 'Leadership, themes, breadth, and the firm’s own candidates — one search.',
+    features: [
+      { name: 'UCT 20', desc: 'the leadership portfolio, ranked with live signals' },
+      { name: 'Screener', desc: 'the firm’s daily vetted candidates' },
+      { name: 'Theme Tracker', desc: '99 themes, 12 sectors, 1,928 stocks' },
+      { name: 'Breadth Monitor', desc: '20+ internals + 500-day analogue matching' },
+      { name: 'COT positioning', desc: 'commitment-of-traders, refreshed weekly' },
+      { name: 'RS & relative strength', desc: 'leaders sorted the moment they lead' },
+    ],
+  },
+  {
+    key: 'workflow',
+    tab: 'Your Workflow',
+    img: shotCalendar,
+    barTitle: 'Calendar · The week ahead',
+    barTime: 'LOGO-FORWARD',
+    headline: 'Your daily driver.',
+    lede: 'The quiet conveniences that make the whole thing feel like one desk.',
+    features: [
+      { name: 'Watchlists', desc: 'color tags, price alerts, multi-channel delivery' },
+      { name: 'Calendar', desc: 'earnings audio, filings, AI call recaps' },
+      { name: 'Notebook', desc: 'long-form notes with video timestamps' },
+      { name: 'Command center', desc: 'the bento dashboard, your daily intel at a glance' },
+      { name: 'Share cards', desc: 'clean PNG exports of any trade or chart' },
+      { name: 'Model Book', desc: 'the annotated catalog of history’s best' },
+    ],
+  },
+]
 
 // The complete inventory — every shipped feature, grouped. This is the menu
 // at a place that's proud of its kitchen: everything named, nothing metered.
@@ -498,6 +625,7 @@ export default function Landing() {
         <div className={styles.navLinks}>
           <a href="#platform" onClick={scrollTo('platform')}>Platform</a>
           <a href="#intelligence" onClick={scrollTo('intelligence')}>Agentic AI</a>
+          <a href="#toolkit" onClick={scrollTo('toolkit')}>Toolkit</a>
           <a href="#everything" onClick={scrollTo('everything')}>What&rsquo;s inside</a>
           <a href="#pricing" onClick={scrollTo('pricing')}>Pricing</a>
           <a href="#faq" onClick={scrollTo('faq')}>FAQ</a>
@@ -830,6 +958,19 @@ export default function Landing() {
               <Vignette kind="desk" />
             </div>
           </div>
+        </section>
+
+        {/* ── Interactive toolkit showcase ── */}
+        <section id="toolkit" className={`${styles.pillar} ${styles.pillarBand}`}>
+          <div className={styles.sectionHead}>
+            <div className={styles.sectionEyebrow}>The full toolkit</div>
+            <h2 className={styles.sectionH2}>And a whole lot more <em>under the hood.</em></h2>
+            <p className={styles.sectionP}>
+              The pillars above are the marquee. Here&rsquo;s the rest of the desk —
+              flip through.
+            </p>
+          </div>
+          <Showcase onZoom={setZoomed} />
         </section>
 
         {/* ── Everything on the desk ── */}

@@ -959,6 +959,88 @@
 }
 .learnRowCopy .sectionP { margin-bottom: 4px; }
 
+/* ── Interactive toolkit showcase ────────────────────────────────────────── */
+
+.showcase {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.showTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+.showTab {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--body-t);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.showTab:hover { border-color: #d5cdb8; color: var(--ink); }
+.showTabActive,
+.showTabActive:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.showPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(32px, 4vw, 60px);
+  align-items: center;
+}
+.showShot { min-width: 0; }
+.showH3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(24px, 2.8vw, 32px);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 12px;
+}
+.showLede {
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--body-t);
+  margin: 0 0 24px;
+  max-width: 460px;
+}
+.showList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.showList li {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) 1fr;
+  gap: 14px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+.showList li:last-child { border-bottom: 1px solid var(--line); }
+.showList strong {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.showList span {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted-t);
+}
+
 /* ── Inventory wall ──────────────────────────────────────────────────────── */
 
 .inventory {
@@ -1558,6 +1640,8 @@
   .tenDesc { white-space: normal; }
   .sideRow { grid-template-columns: 1fr; }
   .learnRow { grid-template-columns: 1fr; }
+  .showPanel { grid-template-columns: 1fr; gap: 28px; }
+  .showList li { grid-template-columns: 1fr; gap: 2px; }
   .letterInner { flex-direction: column; align-items: flex-start; }
 
   .priceCard { padding: 30px 22px 28px; }
