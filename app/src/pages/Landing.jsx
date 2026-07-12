@@ -14,6 +14,8 @@ import shotTape from '../assets/landing/tape.webp'
 import shotLiveflow from '../assets/landing/liveflow.webp'
 import shotBreadthSm from '../assets/landing/breadth_sm.webp'
 import shotWire from '../assets/landing/wire.webp'
+import shotSetups from '../assets/landing/setups.webp'
+import shotPlaybook from '../assets/landing/playbook.webp'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Time helpers — everything on this page that claims to be "live" is computed
@@ -328,6 +330,20 @@ const INVENTORY = [
   },
 ]
 
+// The ten subscriptions this desk replaces — the hero claim, itemized.
+const THE_TEN = [
+  { name: 'Charting platform', desc: 'drag-resize workspace, 8 timeframes, streaming' },
+  { name: 'Options flow tool', desc: 'LiveFlow tape, dark pool, GEX' },
+  { name: 'Breadth service', desc: '20+ internals, 8-tier heatmap' },
+  { name: 'Pre-market scanner', desc: '20 vetted catalysts, every morning' },
+  { name: 'News & squawk', desc: 'real-time wire + curated tweet tape' },
+  { name: 'Trade journal', desc: 'broker-synced, excursion analytics' },
+  { name: 'Trading community', desc: 'The Floor, live all session' },
+  { name: 'Education library', desc: 'Model Book, 48 setup playbooks, daily sessions' },
+  { name: 'Research brief', desc: 'the Morning Wire, 7:35 AM sharp' },
+  { name: 'AI trading coach', desc: 'verdicts, post-mortems, weekly reviews' },
+]
+
 // Real quotes only. This section renders ONLY when quotes exist — never
 // invent testimonials. Shape: { quote, name, detail }
 const TESTIMONIALS = []
@@ -377,6 +393,7 @@ const PILLAR_CHIPS = {
   charts: ['Drag-resize tiles', '4 link groups', '8 timeframes', 'Streaming bars', 'Drawing tools', 'Pattern callouts', 'Deep history', 'Fundamentals widget', 'Mobile workspace'],
   ai: ['Morning Wire', 'Compass verdicts', 'Post-mortems', 'Tilt detection', 'Weekly reviews', 'Voice — full conversations', 'Pattern Engine — 85 detectors', 'UCT Brain', 'UCT-Mentor'],
   journal: ['Broker auto-sync', 'MFE / MAE excursions', 'Exit quality', 'Regime analytics', 'Risk block', 'Equity curve', 'Notebook', 'CSV presets', 'Share cards'],
+  learn: ['Model Book — annotated legends', '48 setup playbooks', 'Compass post-mortems', 'Weekly reviews', 'UCT Brain — 7,800+ entries', 'Education library & workshop'],
   floor: ['Live floor chat', 'Trade & chart cards', 'The Tape', 'Boards', 'Verified badges', 'Daily session recordings', 'Chapters & recaps', 'Education library', 'Workshop'],
 }
 
@@ -440,7 +457,7 @@ export default function Landing() {
         </div>
         <div className={styles.navLinks}>
           <a href="#platform" onClick={scrollTo('platform')}>Platform</a>
-          <a href="#intelligence" onClick={scrollTo('intelligence')}>Intelligence</a>
+          <a href="#intelligence" onClick={scrollTo('intelligence')}>Agentic AI</a>
           <a href="#everything" onClick={scrollTo('everything')}>What&rsquo;s inside</a>
           <a href="#pricing" onClick={scrollTo('pricing')}>Pricing</a>
           <a href="#faq" onClick={scrollTo('faq')}>FAQ</a>
@@ -468,14 +485,13 @@ export default function Landing() {
                 {marketStatus.label}
               </div>
               <h1 className={`${styles.heroH1} ${styles.enter} ${styles.enter2}`}>
-                Your entire trading operation. <em>One desk.</em>
+                10 subscriptions in 1. <em>Everything you need.</em>
               </h1>
               <p className={`${styles.heroSub} ${styles.enter} ${styles.enter3}`}>
-                The charts workspace. The live options tape. Breadth, 99 rotation
-                themes, twenty vetted catalysts every morning. A journal that syncs
-                itself from your broker, a floor of real traders — and one AI through
-                all of it, reading the market while you sleep and coaching every
-                trade you take.
+                Charts. The live options tape. Breadth, a pre-market scanner, the
+                news, a broker-synced journal, a floor of real traders, a full
+                education library — run by an agentic AI that reads the market while
+                you sleep, briefs you at 7:35, and coaches every trade you take.
               </p>
               <div className={`${styles.ctas} ${styles.enter} ${styles.enter4}`}>
                 <Link
@@ -537,16 +553,22 @@ export default function Landing() {
           <FadeIn>
             <div className={styles.shiftEyebrow}>One subscription</div>
             <h2 className={styles.shiftH2}>
-              A charting app. A flow tool. A screener. A journal. A chat room.
-              A news feed. <em>This is all of them — on one screen.</em>
+              The whole stack. <em>One login, one screen, one brain.</em>
             </h2>
             <p className={styles.shiftP}>
-              Serious traders end up paying for five or six subscriptions that never
-              talk to each other — a journal here, a flow tool there, a Discord
-              somewhere else. UCT Intelligence is the whole stack, built as one desk,
-              where the tape, the charts, your journal, and the room all share the
-              same brain.
+              Serious traders end up paying for a stack of subscriptions that never
+              talk to each other. Here is that stack — every piece of it on this
+              desk, sharing one intelligence.
             </p>
+            <ol className={styles.ten}>
+              {THE_TEN.map((t, i) => (
+                <li key={t.name} className={styles.tenItem}>
+                  <span className={styles.tenNum}>{String(i + 1).padStart(2, '0')}</span>
+                  <span className={styles.tenName}>{t.name}</span>
+                  <span className={styles.tenDesc}>{t.desc}</span>
+                </li>
+              ))}
+            </ol>
             <p className={styles.shiftQualifier}>
               Built for committed swing and momentum traders, on the methodologies of
               O&rsquo;Neil, Minervini, and Qullamaggie — the setups, the regime discipline,
@@ -581,9 +603,9 @@ export default function Landing() {
         <section id="intelligence" className={`${styles.pillar} ${styles.pillarBand}`}>
           <div className={styles.pillarInner}>
             <div className={styles.pillarCopy}>
-              <div className={styles.sectionEyebrow}>The intelligence layer</div>
+              <div className={styles.sectionEyebrow}>Agentic trading</div>
               <h2 className={styles.sectionH2}>
-                One intelligence, <em>woven through all of it.</em>
+                Agents on your desk, <em>working while you sleep.</em>
               </h2>
               <p className={styles.sectionP}>
                 Every surface feeds the same brain. It reads 8 sources overnight and
@@ -592,6 +614,11 @@ export default function Landing() {
                 setups and your tilt from the journal, and writes your weekly review
                 on Sunday. The more you trade with it, the more precisely it knows
                 <em> you</em>.
+              </p>
+              <p className={styles.intelP2}>
+                The point isn&rsquo;t more information — it&rsquo;s <em>less work</em>. The desk
+                does the reading, the screening, the journaling, and the reviewing;
+                you make the decisions.
               </p>
               <p className={styles.intelLineage}>
                 The brain is trained on the playbooks of Minervini, O&rsquo;Neil,
@@ -712,9 +739,41 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Pillar · The Floor & The Desk ── */}
+        {/* ── Pillar · It teaches you ── */}
         <section className={`${styles.pillar} ${styles.pillarBand}`}>
           <div className={styles.pillarInner}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>It teaches you</div>
+              <h2 className={styles.sectionH2}>A desk that makes you <em>a better trader.</em></h2>
+              <p className={styles.sectionP}>
+                Every legendary run in market history, annotated candle by candle in
+                the Model Book. A 48-setup library with the playbook for each —
+                entry, stop, invalidation, the mistakes that kill it. Daily session
+                recordings with chapters. And a coach that reviews your week from
+                your own numbers — so the lessons come from your trading, not a course.
+              </p>
+              <ChipRow chips={PILLAR_CHIPS.learn} />
+            </div>
+            <div className={styles.pillarSide}>
+              <Shot
+                src={shotSetups}
+                title="Setup Library · SMCI 2024"
+                time="+218% IN 20 DAYS"
+                alt="A Setup Library example — SMCI's flat-base breakout annotated with the kicker candle, shakeout, and volume signature"
+              />
+              <Shot
+                src={shotPlaybook}
+                title="The Playbook · Pocket Pivot"
+                time="ENTRY · STOP · MISTAKES"
+                alt="A setup playbook — ideal regime, entry rules, stop placement, invalidation, and common mistakes"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pillar · The Floor & The Desk ── */}
+        <section className={styles.pillar}>
+          <div className={`${styles.pillarInner} ${styles.pillarFlip}`}>
             <div className={styles.pillarCopy}>
               <div className={styles.sectionEyebrow}>The Floor &amp; The Desk</div>
               <h2 className={styles.sectionH2}>You&rsquo;re not trading <em>alone anymore.</em></h2>

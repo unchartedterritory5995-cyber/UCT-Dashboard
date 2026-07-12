@@ -20,8 +20,8 @@
   --red: #f87171;
   --hairline: rgba(201, 168, 76, 0.14);
   --hairline-soft: rgba(201, 168, 76, 0.08);
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-body: 'Inter', -apple-system, system-ui, sans-serif;
+  --font-display: 'Instrument Sans', -apple-system, system-ui, sans-serif;
+  --font-body: 'Instrument Sans', -apple-system, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'IBM Plex Mono', Consolas, monospace;
 
   background: var(--ink-0);
@@ -170,17 +170,17 @@
 
 .heroH1 {
   font-family: var(--font-display);
-  font-weight: 420;
-  font-size: clamp(40px, 5.2vw, 66px);
-  line-height: 1.07;
+  font-weight: 700;
+  font-size: clamp(38px, 4.8vw, 62px);
+  line-height: 1.08;
   letter-spacing: -0.015em;
   color: var(--cream);
   margin: 0 0 24px;
   text-wrap: balance;
 }
 .heroH1 em {
-  font-style: italic;
-  font-weight: 380;
+  font-style: normal;
+  font-weight: 700;
   color: var(--gold-bright);
 }
 
@@ -345,7 +345,7 @@
 
 .sectionH2 {
   font-family: var(--font-display);
-  font-weight: 420;
+  font-weight: 700;
   font-size: clamp(29px, 3.8vw, 44px);
   line-height: 1.12;
   letter-spacing: -0.01em;
@@ -355,8 +355,8 @@
   text-wrap: balance;
 }
 .sectionH2 em {
-  font-style: italic;
-  font-weight: 380;
+  font-style: normal;
+  font-weight: 700;
   color: var(--gold-bright);
 }
 
@@ -376,7 +376,7 @@
 
 .shiftH2 {
   font-family: var(--font-display);
-  font-weight: 420;
+  font-weight: 700;
   font-size: clamp(26px, 3.6vw, 40px);
   line-height: 1.22;
   color: var(--cream);
@@ -384,8 +384,8 @@
   text-wrap: balance;
 }
 .shiftH2 em {
-  font-style: italic;
-  font-weight: 380;
+  font-style: normal;
+  font-weight: 700;
   color: var(--gold-bright);
 }
 .shiftP {
@@ -407,6 +407,51 @@
   border-top: 1px solid var(--hairline-soft);
 }
 
+/* The ten — numbered grid of the subscriptions this desk replaces */
+.ten {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  max-width: 1080px;
+  margin: 44px auto 0;
+  padding: 0;
+  text-align: left;
+}
+.tenItem {
+  background: var(--ink-1);
+  border: 1px solid var(--hairline-soft);
+  border-radius: 12px;
+  padding: 16px 16px 14px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.tenItem:hover {
+  border-color: rgba(201, 168, 76, 0.35);
+  transform: translateY(-2px);
+}
+.tenNum {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.tenName {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--cream);
+  margin-bottom: 4px;
+}
+.tenDesc {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 /* ── Founder note ────────────────────────────────────────────────────────── */
 
 .founder {
@@ -422,10 +467,10 @@
   padding: 36px 40px;
 }
 .founderP {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: 17.5px;
-  line-height: 1.72;
+  font-family: var(--font-body);
+  font-weight: 450;
+  font-size: 16.5px;
+  line-height: 1.75;
   color: var(--cream);
   margin: 0 0 18px;
 }
@@ -567,9 +612,9 @@
 .loopVerb {
   display: inline;
   font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 420;
-  font-size: 19px;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 17px;
   color: var(--cream);
   line-height: 1.2;
   margin-right: 12px;
@@ -821,8 +866,8 @@
 }
 .invH3 {
   font-family: var(--font-display);
-  font-weight: 460;
-  font-size: 19px;
+  font-weight: 700;
+  font-size: 17px;
   color: var(--gold-bright);
   margin: 0 0 14px;
 }
@@ -863,9 +908,9 @@
 }
 .quoteCard blockquote {
   margin: 0 0 18px;
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 17px;
+  font-family: var(--font-body);
+  font-style: normal;
+  font-size: 16px;
   line-height: 1.55;
   color: var(--cream);
 }
@@ -979,9 +1024,9 @@
 }
 
 .priceAmt {
-  font-family: var(--font-display);
-  font-weight: 420;
-  font-size: 64px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 54px;
   line-height: 1;
   color: var(--cream);
   letter-spacing: -0.02em;
@@ -1146,7 +1191,7 @@
 }
 .closeH2 {
   font-family: var(--font-display);
-  font-weight: 420;
+  font-weight: 700;
   font-size: clamp(36px, 5.4vw, 60px);
   line-height: 1.08;
   color: var(--cream);
@@ -1154,8 +1199,8 @@
   text-wrap: balance;
 }
 .closeH2 em {
-  font-style: italic;
-  font-weight: 380;
+  font-style: normal;
+  font-weight: 700;
   color: var(--gold-bright);
 }
 .closeP {
@@ -1252,6 +1297,7 @@
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .trialSteps { grid-template-columns: repeat(2, 1fr); }
+  .ten { grid-template-columns: repeat(3, 1fr); }
   .heroInner {
     grid-template-columns: 1fr;
     gap: 56px;
@@ -1296,6 +1342,7 @@
 
   .founderCard { padding: 26px 22px; }
   .trialSteps { grid-template-columns: 1fr; }
+  .ten { grid-template-columns: repeat(2, 1fr); }
 
   .priceCard { padding: 30px 22px 28px; }
   .priceAmt { font-size: 52px; }
