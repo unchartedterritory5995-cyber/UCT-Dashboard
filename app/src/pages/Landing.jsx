@@ -6,10 +6,12 @@ import { track } from '../utils/landingTrack'
 import styles from './Landing.module.css'
 
 // Real product captures — actual surfaces from the live desk (July 2026).
-import shotChart from '../assets/landing/chart.webp'
+import shotModelbook from '../assets/landing/modelbook.webp'
+import shotWorkspace from '../assets/landing/workspace.webp'
+import shotCatalysts from '../assets/landing/catalysts.webp'
+import shotCalendar from '../assets/landing/calendar.webp'
 import shotTape from '../assets/landing/tape.webp'
 import shotLiveflow from '../assets/landing/liveflow.webp'
-import shotBreadth from '../assets/landing/breadth.webp'
 import shotBreadthSm from '../assets/landing/breadth_sm.webp'
 import shotWire from '../assets/landing/wire.webp'
 
@@ -496,10 +498,10 @@ export default function Landing() {
             <div className={`${styles.heroMosaic} ${styles.enter} ${styles.enter4}`}>
               <div className={styles.mosaicWide}>
                 <Shot
-                  src={shotChart}
-                  title="Charts · SPY 1D"
-                  time="WORKSPACE"
-                  alt="The UCT charts workspace — SPY daily with moving averages, volume, and signal markers"
+                  src={shotModelbook}
+                  title="Model Book · NVDA 2023"
+                  time="+234% · ANNOTATED"
+                  alt="The Model Book — NVDA's 2023 run with every catalyst labeled on the chart: earnings blowouts, AI guidance, the trillion-dollar milestone"
                 />
               </div>
               <div className={styles.mosaicCell}>
@@ -649,10 +651,16 @@ export default function Landing() {
                 alt="LiveFlow — bullish market read with bull/bear premium flow and the graded options tape"
               />
               <Shot
-                src={shotBreadth}
-                title="Breadth Monitor"
-                time="90 TRADING DAYS"
-                alt="The breadth monitor — primary breadth, MA breadth, and highs/lows heatmap across 90 days"
+                src={shotCatalysts}
+                title="Stock Catalysts"
+                time="FRI JUL 10 · RANKED"
+                alt="Friday's Stock Catalysts — ranked tickers with the AI-written catalyst behind each move"
+              />
+              <Shot
+                src={shotCalendar}
+                title="Earnings Calendar"
+                time="THE WEEK AHEAD"
+                alt="The earnings calendar — a logo-forward week of reporting companies, morning and after-close"
               />
             </div>
           </div>
@@ -674,10 +682,10 @@ export default function Landing() {
             </div>
             <div className={styles.pillarSide}>
               <Shot
-                src={shotChart}
-                title="Charts Workspace · SPY 1D"
+                src={shotWorkspace}
+                title="Charts Workspace · DDOG 1D"
                 time="8 TF · LINKED"
-                alt="A chart tile from the workspace — SPY daily with four moving averages, volume, and signal markers"
+                alt="A chart tile from the workspace — DDOG daily with four moving averages and volume, streaming"
               />
             </div>
           </div>
