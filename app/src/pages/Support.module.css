@@ -854,6 +854,28 @@
   box-sizing: border-box;
 }
 .replyInput:focus { border-color: rgba(201,168,76,0.4); }
+
+/* Keyboard hint under the reply composer. Small, muted, <kbd>-chipped so
+   it reads as a shortcut cue rather than instructional prose. */
+.replyKeys {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.replyKeys kbd {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  padding: 1px 5px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 3px;
+  color: var(--text);
+}
+
 .replyBtn {
   background: rgba(201,168,76,0.15);
   color: #c9a84c;

@@ -1158,6 +1158,9 @@ export default function Support() {
                   }
                 }}
               />
+              <div className={styles.replyKeys}>
+                <kbd>Enter</kbd> to send · <kbd>Shift</kbd> + <kbd>Enter</kbd> for newline
+              </div>
               <AttachmentPicker files={replyFiles} setFiles={setReplyFiles} id="reply" />
             </div>
             <button

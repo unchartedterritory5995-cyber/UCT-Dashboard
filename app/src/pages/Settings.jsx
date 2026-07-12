@@ -1051,6 +1051,227 @@ function SaveToast({ msg }) {
 }
 
 
+// ── Preferences backup (client-side JSON export/import) ────────────────
+//
+// Exports the caller's preference dict wrapped in a versioned envelope so
+// they can back up their theme + chart settings + tag labels + digest prefs
+// between accounts (or after re-signup). Import re-POSTs each pref one-by-
+// one via the existing single-write endpoint — same server-side validation
+// path a manual UI change would take.
+
+const BACKUP_ENVELOPE_TYPE = 'uct-intelligence-preferences'
+const BACKUP_ENVELOPE_VERSION = 1
+
+function PreferencesBackupCard() {
+  const [exportBusy, setExportBusy] = useState(false)
+  const [importBusy, setImportBusy] = useState(false)
+  const [confirmData, setConfirmData] = useState(null)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const inputRef = useRef(null)
+
+  const flash = (setter, text, ms = 2500) => {
+    setter(text)
+    setTimeout(() => setter(''), ms)
+  }
+
+  const doExport = async () => {
+    setExportBusy(true); setErr('')
+    try {
+      const r = await fetch('/api/auth/preferences')
+      if (!r.ok) { flash(setErr, 'Could not read preferences'); return }
+      const prefs = await r.json()
+      const envelope = {
+        type: BACKUP_ENVELOPE_TYPE,
+        version: BACKUP_ENVELOPE_VERSION,
+        exported_at: new Date().toISOString(),
+        count: Object.keys(prefs || {}).length,
+        preferences: prefs || {},
+      }
+      const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `uct-preferences-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      flash(setMsg, `Exported ${envelope.count} preference${envelope.count === 1 ? '' : 's'}`)
+    } catch { flash(setErr, 'Export failed') }
+    finally { setExportBusy(false) }
+  }
+
+  const onFilePick = async (e) => {
+    setErr(''); setMsg('')
+    const file = e.target.files?.[0]
+    if (inputRef.current) inputRef.current.value = ''
+    if (!file) return
+    try {
+      const text = await file.text()
+      const parsed = JSON.parse(text)
+      if (parsed?.type !== BACKUP_ENVELOPE_TYPE) {
+        flash(setErr, "That doesn't look like a UCT preferences backup")
+        return
+      }
+      const prefs = parsed.preferences || {}
+      const count = Object.keys(prefs).length
+      if (count === 0) { flash(setErr, 'The backup is empty'); return }
+      setConfirmData({ prefs, count, exported_at: parsed.exported_at })
+    } catch { flash(setErr, 'Could not read the JSON file') }
+  }
+
+  const doImport = async () => {
+    if (!confirmData) return
+    setImportBusy(true); setErr('')
+    try {
+      // Sequential to keep it easy to reason about — each set_user_preference
+      // is a fast write and the total volume is tiny (~20-30 keys). If a key
+      // fails the rest still apply.
+      let ok = 0, fail = 0
+      for (const [key, value] of Object.entries(confirmData.prefs)) {
+        try {
+          const r = await fetch('/api/auth/preferences', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, value: String(value ?? '') }),
+          })
+          if (r.ok) ok++
+          else fail++
+        } catch { fail++ }
+      }
+      setConfirmData(null)
+      flash(setMsg, `Imported ${ok} preference${ok === 1 ? '' : 's'}${fail ? ` · ${fail} failed` : ''}`)
+      // Nudge the app to re-read prefs by reloading. This is the same pattern
+      // the profile-name save uses.
+      setTimeout(() => window.location.reload(), 900)
+    } catch { flash(setErr, 'Import failed') }
+    finally { setImportBusy(false) }
+  }
+
+  return (
+    <TileCard icon="download" title="Preferences Backup">
+      <div className={styles.section}>
+        <p className={styles.hint} style={{ marginTop: 0, marginBottom: 12 }}>
+          Take your theme, chart settings, alert tones, digest schedule, and
+          tag labels with you. Import restores them on any account.
+        </p>
+        <div className={styles.prefRow}>
+          <div className={styles.prefLabelGroup}>
+            <span className={styles.prefLabel}>Export preferences</span>
+            <span className={styles.prefDesc}>Downloads a JSON backup of every preference stored on your account.</span>
+          </div>
+          <button className={styles.btn} onClick={doExport} disabled={exportBusy}>
+            {exportBusy ? 'Exporting...' : 'Download JSON'}
+          </button>
+        </div>
+        <div className={styles.prefRow}>
+          <div className={styles.prefLabelGroup}>
+            <span className={styles.prefLabel}>Import preferences</span>
+            <span className={styles.prefDesc}>Restore a previously downloaded backup. This overwrites the matching preferences.</span>
+          </div>
+          <button className={styles.btn} onClick={() => inputRef.current?.click()} disabled={importBusy}>
+            Choose JSON…
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={onFilePick}
+            style={{ display: 'none' }}
+            aria-label="Choose a preferences backup file"
+          />
+        </div>
+        {msg && <div className={styles.success}>{msg}</div>}
+        {err && <div className={styles.error}>{err}</div>}
+      </div>
+      {confirmData && (
+        <div
+          className={styles.paletteBackdrop}
+          onClick={() => setConfirmData(null)}
+          role="dialog"
+          aria-label="Confirm preferences import"
+        >
+          <div className={styles.paletteBox} onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div className={styles.paletteInputWrap} style={{ padding: '18px 18px 10px', borderBottom: 'none' }}>
+              <UIcon name="warning" size={16} />
+              <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>Overwrite {confirmData.count} preference{confirmData.count === 1 ? '' : 's'}?</span>
+            </div>
+            <div style={{ padding: '0 18px 6px', fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              This will replace your current values for every preference in
+              the backup. Preferences NOT in the backup are left untouched.
+              {confirmData.exported_at && (
+                <div style={{ marginTop: 8, fontSize: 11 }}>
+                  Backup was exported on {new Date(confirmData.exported_at).toLocaleString()}.
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, padding: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <button className={styles.btnMuted} onClick={() => setConfirmData(null)} disabled={importBusy}>
+                Cancel
+              </button>
+              <button className={styles.btn} onClick={doImport} disabled={importBusy} style={{ marginLeft: 'auto' }}>
+                {importBusy ? 'Importing...' : `Import ${confirmData.count}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </TileCard>
+  )
+}
+
+
+// ── Keyboard shortcut cheat-sheet (`?`) ─────────────────────────────────
+//
+// Opens a compact modal listing every shortcut this page supports. Fires
+// on `?` (i.e. Shift+/) when the user isn't in another input, matching
+// GitHub / Slack / Notion convention.
+
+const SHORTCUT_ROWS = [
+  { keys: ['⌘', 'K'], macAlt: ['Ctrl', 'K'], desc: 'Open the command palette' },
+  { keys: ['/'], desc: 'Focus the section search' },
+  { keys: ['↑', '↓'], desc: 'Move between palette results' },
+  { keys: ['Enter'], desc: 'Jump to the selected result' },
+  { keys: ['Esc'], desc: 'Close the palette or an overlay' },
+  { keys: ['?'], desc: 'Open this shortcut list' },
+]
+
+function ShortcutHelpModal({ onClose }) {
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')
+  return (
+    <div className={styles.paletteBackdrop} onClick={onClose} role="dialog" aria-label="Keyboard shortcuts">
+      <div className={styles.paletteBox} onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+        <div className={styles.paletteInputWrap} style={{ padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <UIcon name="gear" size={14} />
+          <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>Keyboard shortcuts</span>
+          <kbd className={styles.paletteHint}>Esc</kbd>
+        </div>
+        <div style={{ padding: '4px 10px' }}>
+          {SHORTCUT_ROWS.map((row, i) => {
+            const keys = !isMac && row.macAlt ? row.macAlt : row.keys
+            return (
+              <div key={i} className={styles.shortcutRow}>
+                <span className={styles.shortcutKeys}>
+                  {keys.map((k, j) => (
+                    <span key={j} className={styles.shortcutKeyGroup}>
+                      <kbd>{k}</kbd>
+                      {j < keys.length - 1 && <span className={styles.shortcutPlus}>+</span>}
+                    </span>
+                  ))}
+                </span>
+                <span className={styles.shortcutDesc}>{row.desc}</span>
+              </div>
+            )
+          })}
+        </div>
+        <div className={styles.paletteFooter}>
+          <span>Press <kbd className={styles.paletteHint}>?</kbd> anywhere on Settings to open this list.</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 // ── Section registry — the Settings navigation rail ──
 const SECTIONS = [
   { id: 'account',     label: 'Account',         icon: 'user',    desc: 'Profile, security & session' },
@@ -1085,6 +1306,7 @@ const SEARCH_INDEX = [
   { card: 'voiceInsights',  section: 'compass',     title: 'Voice Insights Inbox',       keywords: 'proactive insights inbox compass noticed' },
   { card: 'broker',         section: 'connections', title: 'Brokerage Connections',      keywords: 'broker brokerage connect snaptrade robinhood schwab import trades positions sync auto-import' },
   { card: 'privacy',        section: 'legal',       title: 'Data & Privacy',             keywords: 'export download my data json terms privacy policy' },
+  { card: 'prefsBackup',    section: 'legal',       title: 'Preferences Backup',         keywords: 'backup restore prefs preferences export import json theme chart tag' },
   { card: 'disclaimers',    section: 'legal',       title: 'Disclaimers & Attributions', keywords: 'legal advice disclaimer market data tradingview attribution' },
 ]
 
@@ -1119,6 +1341,7 @@ export default function Settings() {
   const [query, setQuery] = useState('')
   const [flashCard, setFlashCard] = useState(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const railSearchRef = useRef(null)
 
   const results = useMemo(() => {
@@ -1151,7 +1374,9 @@ export default function Settings() {
   //                    Settings page, not just the rail search)
   //   /              → focus the rail search (GitHub convention; ignored when
   //                    another input already has focus)
-  //   Esc            → close the palette
+  //   ?              → open a cheat-sheet listing every shortcut on this page
+  //                    (Slack / Notion / GitHub convention)
+  //   Esc            → close whichever overlay is open
   useEffect(() => {
     const inTextControl = () => {
       const el = document.activeElement
@@ -1162,22 +1387,28 @@ export default function Settings() {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
+        setHelpOpen(false)
         setPaletteOpen(true)
         return
       }
-      if (e.key === 'Escape' && paletteOpen) {
-        e.preventDefault()
-        setPaletteOpen(false)
-        return
+      if (e.key === 'Escape') {
+        if (paletteOpen) { e.preventDefault(); setPaletteOpen(false); return }
+        if (helpOpen)    { e.preventDefault(); setHelpOpen(false);    return }
       }
-      if (e.key === '/' && !inTextControl() && !paletteOpen) {
+      if (e.key === '/' && !inTextControl() && !paletteOpen && !helpOpen) {
         e.preventDefault()
         railSearchRef.current?.focus()
+        return
+      }
+      // `?` is Shift+/ on US layouts. Same guard as `/`.
+      if (e.key === '?' && !inTextControl() && !paletteOpen) {
+        e.preventDefault()
+        setHelpOpen(o => !o)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [paletteOpen])
+  }, [paletteOpen, helpOpen])
 
   const card = (id, node) => (
     <div
@@ -1795,6 +2026,7 @@ export default function Settings() {
     ],
     legal: [
       card('privacy', privacyCard),
+      card('prefsBackup', <PreferencesBackupCard />),
       card('disclaimers', disclaimersCard),
     ],
   }
@@ -1813,6 +2045,14 @@ export default function Settings() {
             <UIcon name="search" size={12} />
             <span>Jump to…</span>
             <kbd className={styles.kbdKey}>⌘K</kbd>
+          </button>
+          <button
+            className={styles.kbdIconBtn}
+            onClick={() => setHelpOpen(true)}
+            title="Keyboard shortcuts (?)"
+            aria-label="Show keyboard shortcuts"
+          >
+            <kbd className={styles.kbdKey}>?</kbd>
           </button>
           <button className={styles.supportLink} onClick={() => navigate('/support', { state: { from: '/settings' } })}>
             <UIcon name="chat" size={13} />
@@ -1878,6 +2118,7 @@ export default function Settings() {
       {paletteOpen && (
         <CommandPalette onClose={() => setPaletteOpen(false)} onPick={goResult} />
       )}
+      {helpOpen && <ShortcutHelpModal onClose={() => setHelpOpen(false)} />}
       <SaveToast msg={toast.msg} />
     </div>
   )
