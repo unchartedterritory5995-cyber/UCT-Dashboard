@@ -708,9 +708,11 @@ def get_trade_tag_suggestions_route(
 def list_orphaned_annotations(
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Annotation trade_refs (screenshots / excursions) that no longer resolve
-    to a live trade — the residue of a broker FIFO re-slice or a hard-deleted
-    trade. Parked, never deleted; the client offers a manual reattach."""
+    """Annotation trade_refs holding user content (screenshots) that no longer
+    resolve to a live trade or option strategy — the residue of a broker FIFO
+    re-slice or a hard-deleted trade. Parked, never deleted; the client offers
+    a manual reattach. Machine-generated excursion-only refs are never listed
+    (recomputed nightly; dead ones are pruned by the backfill)."""
     from api.services.journal_two import trade_refs
     return {"orphans": trade_refs.scan_orphans(user["id"])}
 

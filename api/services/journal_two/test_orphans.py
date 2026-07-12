@@ -3,9 +3,12 @@
 Uses the `:memory:` + `ensure_schema(conn)` fixture pattern (mirrors
 test_trade_refs.py / test_excursions_store.py) so every test stays off the real
 auth.db. Annotations key on the STABLE trade_ref (`ext:<external_id>` broker /
-`id:<row id>` manual); an orphan is a ref present in an annotation table
-(j2_trade_attachments / j2_trade_excursions) that no longer resolves to a live
-trade. Orphans are PARKED (surfaced, never deleted); reattach re-points them.
+`id:<row id>` manual + option strategies); an orphan is a ref present in an
+annotation table (j2_trade_attachments / j2_trade_excursions) that no longer
+resolves to a live trade or strategy. Orphans holding USER content are PARKED
+(surfaced, never deleted) and reattach re-points them; machine-generated
+excursion-only residue is never surfaced and is collected by
+prune_dead_excursions.
 """
 import importlib
 import io
@@ -18,6 +21,7 @@ from api.services.journal_two import db as j2db
 from api.services.journal_two.excursions_store import get_excursion, upsert_excursion
 from api.services.journal_two.trade_refs import (
     OrphanReattachError,
+    prune_dead_excursions,
     reattach_orphan,
     scan_orphans,
 )
@@ -41,6 +45,17 @@ def _add_trade(conn, tid, user="u1", source=None, ext=None, symbol="NVDA"):
             tid, user, "p_" + tid, symbol, "Long", 10, 100, "2026-01-02", 110,
             "2026-01-03", 95, 100, 10, 1, "Win", "{}", "2026-01-01", source, ext,
         ),
+    )
+    conn.commit()
+
+
+def _add_option_strategy(conn, sid, user="u1", status="closed"):
+    conn.execute(
+        "INSERT INTO j2_option_strategies (id, user_id, underlying, strategy_type,"
+        " direction, net_entry, entry_date, context_at_entry, status, closed_at,"
+        " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        (sid, user, "SPY", "long_call", "bullish", 500.0, "2026-01-02", "{}",
+         status, "2026-01-03", "2026-01-01", "2026-01-01"),
     )
     conn.commit()
 
@@ -98,13 +113,24 @@ def test_live_ref_not_surfaced():
 def test_scan_kinds_and_summary_counts():
     conn = _conn()
     _add_attachment(conn, "u1", "id:gone_a", n=1)          # attachment-only orphan
-    upsert_excursion("u1", "id:gone_e", _EXC, conn)         # excursion-only orphan
+    upsert_excursion("u1", "id:gone_e", _EXC, conn)         # excursion-only residue
     by_ref = {o["tradeRef"]: o for o in scan_orphans("u1", conn)}
 
     assert by_ref["id:gone_a"]["kind"] == "attachment"
     assert by_ref["id:gone_a"]["summary"] == "1 screenshot"
-    assert by_ref["id:gone_e"]["kind"] == "excursion"
-    assert by_ref["id:gone_e"]["summary"] == "excursion data"
+    # Machine-generated excursion-only refs are NEVER queued for manual
+    # reattach — they're recomputable (prune_dead_excursions collects them).
+    assert "id:gone_e" not in by_ref
+
+
+def test_live_option_strategy_excursion_not_orphaned():
+    conn = _conn()
+    _add_option_strategy(conn, "s1")
+    upsert_excursion("u1", "id:s1", _EXC, conn)  # options key id:<strategy id>
+    _add_attachment(conn, "u1", "id:s1", n=1)
+    # The strategy is alive in j2_option_strategies → NOT an orphan (the
+    # 2026-07-12 bug: every closed option strategy surfaced here as one).
+    assert scan_orphans("u1", conn) == []
 
 
 def test_scan_broker_ext_ref_orphan():
@@ -198,6 +224,18 @@ def test_reattach_live_ref_rejected():
     ).fetchone()[0] == 1
 
 
+def test_reattach_live_option_strategy_ref_rejected():
+    conn = _conn()
+    _add_option_strategy(conn, "s1")  # live strategy → id:s1 is a LIVE ref
+    upsert_excursion("u1", "id:s1", _EXC, conn)
+    _add_trade(conn, "t2")
+    with pytest.raises(OrphanReattachError) as exc:
+        reattach_orphan("u1", "id:s1", "t2", conn)
+    assert exc.value.status == 409
+    # No mutation — the strategy keeps its excursion.
+    assert get_excursion("u1", "id:s1", conn) is not None
+
+
 def test_reattach_excursion_collision_parks_excursion():
     conn = _conn()
     upsert_excursion("u1", "id:old", dict(_EXC, symbol="OLD"), conn)
@@ -228,6 +266,43 @@ def test_reattach_missing_args_raises_400():
     with pytest.raises(OrphanReattachError) as exc2:
         reattach_orphan("u1", "id:old", "", conn)
     assert exc2.value.status == 400
+
+
+# ── prune_dead_excursions ────────────────────────────────────────────────────
+
+def test_prune_deletes_dead_excursion_only_rows():
+    conn = _conn()
+    upsert_excursion("u1", "id:gone", _EXC, conn)   # dead ref, no attachments
+    _add_trade(conn, "m1")
+    upsert_excursion("u1", "id:m1", _EXC, conn)     # live equity trade
+    _add_option_strategy(conn, "s1")
+    upsert_excursion("u1", "id:s1", _EXC, conn)     # live option strategy
+
+    assert prune_dead_excursions(conn=conn) == 1
+    assert get_excursion("u1", "id:gone", conn) is None
+    assert get_excursion("u1", "id:m1", conn) is not None
+    assert get_excursion("u1", "id:s1", conn) is not None
+
+
+def test_prune_keeps_dead_ref_with_attachments():
+    conn = _conn()
+    upsert_excursion("u1", "id:gone", _EXC, conn)
+    _add_attachment(conn, "u1", "id:gone", n=1)  # user content → stays parked
+    assert prune_dead_excursions(conn=conn) == 0
+    assert get_excursion("u1", "id:gone", conn) is not None
+    # …and the ref still surfaces in the queue with both kinds attached.
+    orphans = scan_orphans("u1", conn)
+    assert len(orphans) == 1
+    assert orphans[0]["kind"] == "attachment+excursion"
+
+
+def test_prune_user_scoped():
+    conn = _conn()
+    upsert_excursion("u1", "id:gone1", _EXC, conn)
+    upsert_excursion("u2", "id:gone2", _EXC, conn)
+    assert prune_dead_excursions(user_id="u1", conn=conn) == 1
+    assert get_excursion("u1", "id:gone1", conn) is None
+    assert get_excursion("u2", "id:gone2", conn) is not None
 
 
 # ── reattach relocates screenshot FILES on disk (Task B7 fix) ────────────────

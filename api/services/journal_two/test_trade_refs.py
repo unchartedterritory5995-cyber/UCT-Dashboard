@@ -1,7 +1,7 @@
 import sqlite3
 from api.services.journal_two import db as j2db
 from api.services.journal_two.trade_refs import (
-    trade_ref_for_row, resolve_trade_by_ref, orphaned_refs,
+    trade_ref_for_row, resolve_trade_by_ref, orphaned_refs, ref_is_live,
 )
 
 
@@ -18,6 +18,17 @@ def _conn():
         " 100,10,1,'Win','{}','2026-01-01',NULL,NULL),"
         " ('b1','u1','p2','TSLA','Long',5,200,'2026-01-02',210,'2026-01-03',195,"
         " 50,5,1,'Win','{}','2026-01-01','broker','bk:abc')"
+    )
+    # Option strategies are NOT in j2_trades — their annotations key on
+    # `id:<strategy id>` (see excursion_engine.compute_for_option_strategy).
+    conn.execute(
+        "INSERT INTO j2_option_strategies (id, user_id, underlying, strategy_type,"
+        " direction, net_entry, entry_date, context_at_entry, status, closed_at,"
+        " created_at, updated_at) VALUES"
+        " ('s1','u1','SPY','long_call','bullish',500,'2026-01-02','{}','closed',"
+        " '2026-01-03','2026-01-01','2026-01-01'),"
+        " ('s2','u2','QQQ','long_put','bearish',300,'2026-01-02','{}','closed',"
+        " '2026-01-03','2026-01-01','2026-01-01')"
     )
     return conn
 
@@ -36,3 +47,20 @@ def test_resolve_and_orphans():
     assert resolve_trade_by_ref("u1", "ext:bk:abc", conn)["id"] == "b1"
     assert resolve_trade_by_ref("u1", "ext:bk:GONE", conn) is None
     assert orphaned_refs("u1", ["id:m1", "ext:bk:abc", "ext:bk:GONE"], conn) == ["ext:bk:GONE"]
+
+
+def test_ref_is_live_covers_option_strategies():
+    conn = _conn()
+    assert ref_is_live("u1", "id:m1", conn)        # equity trade
+    assert ref_is_live("u1", "ext:bk:abc", conn)   # broker fingerprint
+    # A live option strategy's ref is LIVE even though it's not in j2_trades
+    # (the 2026-07-12 false-orphan bug: every closed strategy read as orphaned).
+    assert ref_is_live("u1", "id:s1", conn)
+    assert not ref_is_live("u1", "id:s2", conn)    # other user's strategy
+    assert not ref_is_live("u1", "id:GONE", conn)
+    assert not ref_is_live("u1", "ext:bk:GONE", conn)
+
+
+def test_orphaned_refs_treats_live_strategy_as_live():
+    conn = _conn()
+    assert orphaned_refs("u1", ["id:s1", "id:GONE"], conn) == ["id:GONE"]

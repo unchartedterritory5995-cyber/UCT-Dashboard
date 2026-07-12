@@ -36,7 +36,7 @@ from api.services.journal_two.excursion_engine import (
     compute_for_trade,
 )
 from api.services.journal_two.excursions_store import existing_refs
-from api.services.journal_two.trade_refs import trade_ref_for_row
+from api.services.journal_two.trade_refs import prune_dead_excursions, trade_ref_for_row
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,7 @@ _state: dict = {
     "insufficient": 0,
     "errors": 0,
     "symbols": 0,
+    "pruned": 0,
     "error": None,
     # Concurrency guard: True while a backfill is in flight. Refuses an
     # overlapping run (double-click, or an admin click at 03:09 racing the
@@ -125,7 +126,7 @@ def _run_backfill_locked(*, user_id, force, bar_fetch, conn, limit) -> dict:
     if own:
         conn = get_connection()
 
-    trades_done = options_done = insufficient = errors = 0
+    trades_done = options_done = insufficient = errors = pruned = 0
     processed = 0  # rows we ATTEMPTED to compute — the `limit` cap counts these
     symbols: set[str] = set()
     fatal_error: str | None = None
@@ -208,6 +209,15 @@ def _run_backfill_locked(*, user_id, force, bar_fetch, conn, limit) -> dict:
             except Exception:  # noqa: BLE001
                 logger.exception("[j2-excursion] compute failed for an option strategy")
                 errors += 1
+
+        # ── prune dead excursion residue ──────────────────────────────────────
+        # A broker re-slice retires old refs; their excursion rows (machine
+        # output, recomputed above for the live refs) would otherwise accumulate
+        # forever. Rows with user attachments are kept (Trust Center queue).
+        try:
+            pruned = prune_dead_excursions(user_id=user_id, conn=conn)
+        except Exception:  # noqa: BLE001 — hygiene must never fail the backfill
+            logger.exception("[j2-excursion] orphan prune failed")
     except Exception as e:  # noqa: BLE001 — a fatal (e.g. SELECT) error is recorded, not raised
         logger.exception("[j2-excursion] backfill run failed")
         fatal_error = str(e)[:300]
@@ -221,6 +231,7 @@ def _run_backfill_locked(*, user_id, force, bar_fetch, conn, limit) -> dict:
         "insufficient": insufficient,
         "errors": errors,
         "symbols": len(symbols),
+        "pruned": pruned,
     }
     with _STATE_LOCK:
         _state.update({
@@ -231,11 +242,12 @@ def _run_backfill_locked(*, user_id, force, bar_fetch, conn, limit) -> dict:
             "insufficient": insufficient,
             "errors": errors,
             "symbols": len(symbols),
+            "pruned": pruned,
             "error": fatal_error,
         })
     logger.info(
-        "[j2-excursion] backfill done: trades=%d options=%d insufficient=%d errors=%d symbols=%d",
-        trades_done, options_done, insufficient, errors, len(symbols),
+        "[j2-excursion] backfill done: trades=%d options=%d insufficient=%d errors=%d symbols=%d pruned=%d",
+        trades_done, options_done, insufficient, errors, len(symbols), pruned,
     )
     return counts
 

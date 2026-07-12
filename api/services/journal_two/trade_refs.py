@@ -3,9 +3,11 @@
 Broker rows are purged+reinserted with fresh uuid4 ids on full resync
 (broker/service.py _purge_imported), but their external_id fingerprint is
 deterministic — so annotations key on 'ext:<external_id>' for broker rows
-and 'id:<row id>' for manual rows (manual ids never change).
-Orphaned refs (a re-sliced fingerprint) are PARKED, never deleted —
-surfaced later by the Trust Center reattach queue (spec §8).
+and 'id:<row id>' for manual rows and option strategies (those ids never
+change). Orphaned refs (a re-sliced fingerprint) holding USER content are
+PARKED, never deleted — surfaced by the Trust Center reattach queue
+(spec §8); machine-generated excursion-only orphans are pruned instead
+(`prune_dead_excursions` — the nightly backfill recomputes live refs).
 """
 from __future__ import annotations
 
@@ -40,8 +42,27 @@ def resolve_trade_by_ref(user_id: str, ref: str, conn: sqlite3.Connection):
     return None
 
 
+def ref_is_live(user_id: str, ref: str, conn: sqlite3.Connection) -> bool:
+    """True when `ref` still resolves to a live annotated entity.
+
+    Broader than `resolve_trade_by_ref` (equity j2_trades only): option
+    strategies are NOT in j2_trades — their annotations key on
+    `id:<strategy id>` (excursion_engine.compute_for_option_strategy) — so an
+    `id:` ref must also be checked against j2_option_strategies. Without that,
+    every closed option strategy's excursion row reads as a false orphan
+    (the 2026-07-12 "37 orphaned annotations" bug)."""
+    if resolve_trade_by_ref(user_id, ref, conn) is not None:
+        return True
+    if ref.startswith("id:"):
+        return conn.execute(
+            "SELECT 1 FROM j2_option_strategies WHERE user_id = ? AND id = ?",
+            (user_id, ref[3:]),
+        ).fetchone() is not None
+    return False
+
+
 def orphaned_refs(user_id: str, refs: list[str], conn: sqlite3.Connection) -> list[str]:
-    return [r for r in refs if resolve_trade_by_ref(user_id, r, conn) is None]
+    return [r for r in refs if not ref_is_live(user_id, r, conn)]
 
 
 # ── Trust Center: orphaned-annotation scan + reattach (spec §8, Task B7) ─────
@@ -49,8 +70,13 @@ def orphaned_refs(user_id: str, refs: list[str], conn: sqlite3.Connection) -> li
 # The two ref-keyed annotation stores are j2_trade_attachments (many rows per
 # trade_ref) and j2_trade_excursions (PK (user_id, trade_ref) — at most one).
 # Orphans are the residue when the broker FIFO fingerprint shifts (re-slice) or
-# a trade is hard-deleted: the stable ref no longer resolves. Orphans are
-# PARKED (surfaced here), never deleted; reattach re-points them to a live trade.
+# a trade is hard-deleted: the stable ref no longer resolves.
+#
+# The never-delete park applies to USER CONTENT (screenshots/notes): those are
+# surfaced in the reattach queue until re-pointed. Excursions are MACHINE
+# output — the nightly backfill recomputes them for whatever refs are live —
+# so an excursion-only dead ref is never surfaced (nothing user-authored to
+# save) and is garbage-collected by `prune_dead_excursions`.
 
 
 class OrphanReattachError(Exception):
@@ -65,12 +91,18 @@ class OrphanReattachError(Exception):
 def scan_orphans(
     user_id: str, conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, str]]:
-    """Every DISTINCT annotation trade_ref (across j2_trade_attachments +
-    j2_trade_excursions) for the user that no longer resolves to a live trade.
+    """Every annotation trade_ref holding USER CONTENT (j2_trade_attachments)
+    for the user that no longer resolves to a live trade or option strategy.
+
+    Excursion-ONLY dead refs are deliberately NOT surfaced: excursion metrics
+    are machine-computed (recomputed nightly for live refs), so a manual
+    reattach row for them is pure busywork — they're left to
+    `prune_dead_excursions`. A dead ref that has attachments still reports its
+    excursion in `kind`/`summary` (reattach carries both).
 
     Returns `[{tradeRef, kind, summary}]`, sorted by tradeRef for a stable UI:
-      - `kind` ∈ 'attachment' | 'excursion' | 'attachment+excursion' — which
-        table(s) hold the ref.
+      - `kind` ∈ 'attachment' | 'attachment+excursion' — which table(s) hold
+        the ref.
       - `summary` is a short human hint, e.g. "2 screenshots, excursion data".
     Never deletes — this is a read-only park.
     """
@@ -99,12 +131,11 @@ def scan_orphans(
 
         out: list[dict[str, str]] = []
         for ref in sorted(orphans):
-            kinds: list[str] = []
-            parts: list[str] = []
-            if ref in att_counts:
-                n = att_counts[ref]
-                kinds.append("attachment")
-                parts.append(f"{n} screenshot" + ("s" if n != 1 else ""))
+            if ref not in att_counts:
+                continue  # excursion-only residue — recomputable, never queued
+            n = att_counts[ref]
+            kinds = ["attachment"]
+            parts = [f"{n} screenshot" + ("s" if n != 1 else "")]
             if ref in exc_counts:
                 kinds.append("excursion")
                 parts.append("excursion data")
@@ -116,6 +147,64 @@ def scan_orphans(
                 }
             )
         return out
+    finally:
+        if own:
+            conn.close()
+
+
+def prune_dead_excursions(
+    user_id: str | None = None, conn: sqlite3.Connection | None = None,
+) -> int:
+    """Garbage-collect j2_trade_excursions rows whose ref is dead
+    (`ref_is_live` false) AND that have NO sibling attachments.
+
+    Excursions are machine-computed — the nightly backfill recomputes live
+    refs — so a dead ref's excursion is residue, not user data (spec §8's
+    never-delete park protects user content only). A dead ref WITH attachments
+    keeps its excursion row: it stays in the reattach queue and
+    `reattach_orphan` carries the excursion to the target. All users when
+    `user_id` is None (the nightly job). Returns rows deleted."""
+    own = conn is None
+    if own:
+        conn = get_connection()
+    try:
+        if user_id:
+            rows = conn.execute(
+                "SELECT user_id, trade_ref FROM j2_trade_excursions WHERE user_id = ?",
+                (user_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT user_id, trade_ref FROM j2_trade_excursions",
+            ).fetchall()
+
+        att_refs: dict[str, set[str]] = {}
+
+        def _atts(uid: str) -> set[str]:
+            if uid not in att_refs:
+                att_refs[uid] = {
+                    r["trade_ref"]
+                    for r in conn.execute(
+                        "SELECT DISTINCT trade_ref FROM j2_trade_attachments "
+                        "WHERE user_id = ?",
+                        (uid,),
+                    ).fetchall()
+                }
+            return att_refs[uid]
+
+        doomed = [
+            (r["user_id"], r["trade_ref"])
+            for r in rows
+            if r["trade_ref"] not in _atts(r["user_id"])
+            and not ref_is_live(r["user_id"], r["trade_ref"], conn)
+        ]
+        if doomed:
+            conn.executemany(
+                "DELETE FROM j2_trade_excursions WHERE user_id = ? AND trade_ref = ?",
+                doomed,
+            )
+            conn.commit()
+        return len(doomed)
     finally:
         if own:
             conn.close()
@@ -160,8 +249,9 @@ def reattach_orphan(
         if target is None:
             raise OrphanReattachError("Target trade not found", 404)
 
-        # Guard: refuse to move a ref that still resolves to a live trade.
-        if resolve_trade_by_ref(user_id, trade_ref, conn) is not None:
+        # Guard: refuse to move a ref that still resolves to a live trade or
+        # option strategy (option annotations key `id:<strategy id>`).
+        if ref_is_live(user_id, trade_ref, conn):
             raise OrphanReattachError(
                 "tradeRef resolves to a live trade; nothing to reattach", 409
             )

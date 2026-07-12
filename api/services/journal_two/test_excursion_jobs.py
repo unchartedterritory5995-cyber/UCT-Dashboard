@@ -13,7 +13,7 @@ import sqlite3
 
 from api.services.journal_two import db as j2db
 from api.services.journal_two import excursion_jobs
-from api.services.journal_two.excursions_store import get_excursion
+from api.services.journal_two.excursions_store import get_excursion, upsert_excursion
 
 
 def _conn():
@@ -108,6 +108,23 @@ def test_backfill_force_recomputes():
         user_id="u1", bar_fetch=_synthetic_fetch, conn=conn, force=True,
     )
     assert forced["trades_done"] == 1
+
+
+# ── dead excursion residue is pruned by the run ──────────────────────────
+def test_backfill_prunes_dead_excursion_rows():
+    conn = _conn()
+    _seed_trade(conn, "t1", symbol="NVDA")
+    # Residue from a retired ref (broker re-slice) — machine data, no
+    # attachments → the backfill's hygiene step collects it.
+    upsert_excursion("u1", "ext:bk:RETIRED", {"symbol": "OLD"}, conn)
+
+    counts = excursion_jobs.run_backfill(
+        user_id="u1", bar_fetch=_synthetic_fetch, conn=conn,
+    )
+    assert counts["pruned"] == 1
+    assert get_excursion("u1", "ext:bk:RETIRED", conn) is None
+    assert get_excursion("u1", "id:t1", conn) is not None
+    assert excursion_jobs.get_state()["pruned"] == 1
 
 
 # ── one bad trade (compute raises) is caught; run continues ──────────────
