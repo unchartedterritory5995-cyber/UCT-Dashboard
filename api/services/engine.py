@@ -95,6 +95,21 @@ from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
 _prewarm_executor = _ThreadPoolExecutor(max_workers=4, thread_name_prefix="prewarm")
 
 
+def _anthropic_text(msg) -> str:
+    """Concatenate the text blocks of an Anthropic message.
+
+    Claude 5-family models (e.g. Sonnet 5) emit a ThinkingBlock BEFORE the
+    TextBlock by default, so the old `msg.content[0].text` reads the thinking
+    block and throws `AttributeError`. Always pick out the text block(s)."""
+    parts = []
+    for block in (getattr(msg, "content", None) or []):
+        if getattr(block, "type", None) == "text":
+            t = getattr(block, "text", None)
+            if t:
+                parts.append(t)
+    return "".join(parts).strip()
+
+
 def _av_get(req_module, url: str, timeout: int = _AV_TIMEOUT_SECS) -> dict:
     """Rate-limited Alpha Vantage GET. Enforces ≥13s between calls (≤4.6/min)."""
     with _av_lock:
@@ -1075,10 +1090,15 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
             msg = client.messages.create(
                 model=_EARNINGS_AI_MODEL,
                 max_tokens=_EARNINGS_AI_MAX_TOKENS,
+                # Claude 5 models emit a thinking block by default, which eats
+                # into max_tokens and truncates our structured-JSON output. We
+                # don't need reasoning for a formatted note — disable it (faster,
+                # cheaper, deterministic single text block).
+                thinking={"type": "disabled"},
                 metadata={"user_id": "earnings_analysis:global"},
                 messages=[{"role": "user", "content": prompt}],
             )
-            raw = msg.content[0].text.strip()
+            raw = _anthropic_text(msg)
             # Strip markdown code fences if the model wraps in ```json
             if raw.startswith("```"):
                 raw = raw.split("```")[1]
@@ -1424,10 +1444,13 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
         msg = client.messages.create(
             model=_EARNINGS_AI_MODEL,
             max_tokens=_EARNINGS_PREVIEW_AI_MAX_TOKENS,
+            # Disable Claude-5 default thinking — it truncates the JSON (see the
+            # analysis call above). We only need the formatted preview.
+            thinking={"type": "disabled"},
             metadata={"user_id": "earnings_preview:global"},
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = msg.content[0].text.strip()
+        raw = _anthropic_text(msg)
         # Strip markdown code fences if the model wraps in ```json
         if raw.startswith("```"):
             raw = raw.split("```")[1]
