@@ -6480,10 +6480,35 @@ export default function OptionsFlowDashboard() {
           // their mktcap field is null. The fallback lookup at wlCapCheck
           // (line 1891) handles individual ticker resolution; this filter
           // handles bulk leaderboard inclusion.
+          // Resolve each ticker's TRUE cap band from the MAX non-zero mktcap
+          // seen across ALL its directional trades — NOT the per-trade value.
+          // Gap-fill rows carry mktcap=0 (→ capBand "Unknown"), so a per-trade
+          // check let a mega/large ticker's gap-fill prints slip through the
+          // Mid-Small filter (Unknown is admitted to Mid-Small). That put
+          // MU/NVDA/AAPL on the Mid-Small leaderboard with ONLY their gap-fill
+          // premium counted — wrong roster AND wrong totals. Build the resolver
+          // from the UNFILTERED all_directional so it isn't biased by the cap
+          // filter itself; fall back to capLookup (clean_confirmed) then the
+          // trade's own mktcap before conceding "Unknown".
+          const lbCapByTicker = {};
+          (D.all_directional || []).forEach(t => {
+            const s = (t.S || "").toUpperCase();
+            const mc = t.mktcap || 0;
+            if (s && mc > 0 && (!lbCapByTicker[s] || mc > lbCapByTicker[s])) lbCapByTicker[s] = mc;
+          });
+          const lbBandOf = (t) => {
+            const s = (t.S || "").toUpperCase();
+            const mc = lbCapByTicker[s] || t.mktcap || 0;
+            let cap = capBand(mc);
+            if (cap === "Unknown") { const lk = capLookup[s]; if (lk) cap = capBand(lk); }
+            return cap;
+          };
           const matchesLBCap = (t) => {
             if (capFilter === "All") return true;
-            const cap = capBand(t.mktcap);
+            const cap = lbBandOf(t);
             if (cap === capFilter) return true;
+            // Only genuinely-unknown tickers (no mktcap ANYWHERE) fall into
+            // Mid-Small — real megas/larges are always resolved above.
             return capFilter === "Mid-Small" && cap === "Unknown";
           };
           // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
@@ -8380,6 +8405,13 @@ export default function OptionsFlowDashboard() {
                       // (unfiltered by DTE; user might switch DTE later and
                       // we want priced data ready regardless)
                       ccAll.forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
+                      // Also price the trades actually SHOWN in the Top-Trades
+                      // table (tk.t). It's ranked by premium across ALL trades,
+                      // so it includes non-directional / rescue-derived prints
+                      // that ccAll (directional-only) excludes. Without this they
+                      // render Now / Live OI / ΔOI as "—" even though the status
+                      // reads "N priced of N" (N = the directional contract count).
+                      (tk.t||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
                       // Also include consolidated rows in case any aren't
                       // covered by trade-level data
                       (tk.c||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
