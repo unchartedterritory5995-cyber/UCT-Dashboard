@@ -229,7 +229,7 @@ function Card({ children, title, sub }) {
 
 function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const cols = ["Ticker","Day","Exp","Strike","C/P","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,priceFn?"Status":null,"DTE"].filter(Boolean);
+  const cols = ["Ticker","Day","Exp","Strike","C/P","Dir","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,priceFn?"Status":null,"DTE"].filter(Boolean);
   const colCount = cols.length;
   // Today's market date (ET). OI settles overnight, so a trade whose entry is
   // TODAY has no settled OI to compare against yet — its exit status only firms
@@ -286,6 +286,13 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
+              {/* Dir — direction of the contract's dominant (largest) trade.
+                  Makes explicit which rows feed the header's directional
+                  Bull/Bear totals: a "—" row is non-directional and is NOT
+                  counted in those totals, even though its premium shows here. */}
+              <td style={{ padding:"5px 4px" }} title={r.D==="BULL"?"Bull-directional — counted in Bullish Flow":r.D==="BEAR"?"Bear-directional — counted in Bearish Flow":"No clean direction (ambiguous side) — not counted in the Bull/Bear totals"}>
+                {r.D==="BULL" ? <Tag c={P.bu}>BULL</Tag> : r.D==="BEAR" ? <Tag c={P.be}>BEAR</Tag> : <span style={{ color:P.mt, fontWeight:700 }}>—</span>}
+              </td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
@@ -5197,9 +5204,18 @@ export default function OptionsFlowDashboard() {
             Large: "$10B–$500B · institutional conviction plays",
             "Mid-Small": "Under $10B · directional bets, high-conviction small name flow",
           };
+          // Classify through wlCapCheck (the same per-ticker resolver the
+          // Leaderboard uses) rather than a raw per-trade capBand. Gap-fill
+          // rows carry mktcap=0 → capBand "Unknown", so a strict per-trade
+          // check dropped a mega/large ticker's gap-fill prints out of EVERY
+          // sub-bucket — that's why Mega+Large+Mid-Small didn't sum to All
+          // (premium orphaned in Unknown). wlCapCheck falls back to capLookup
+          // to recover the ticker's true band, so the buckets reconcile and
+          // the classification matches the Leaderboard's.
           const capThresh = {
-            Mega: t=>capBand(t.mktcap)==="Mega", Large: t=>capBand(t.mktcap)==="Large",
-            "Mid-Small": t=>capBand(t.mktcap)==="Mid-Small"
+            Mega: t=>wlCapCheck({sym:t.S||t.sym, mktcap:t.mktcap})==="Mega",
+            Large: t=>wlCapCheck({sym:t.S||t.sym, mktcap:t.mktcap})==="Large",
+            "Mid-Small": t=>wlCapCheck({sym:t.S||t.sym, mktcap:t.mktcap})==="Mid-Small"
           };
           return (
             <div style={{ marginBottom:10 }}>
