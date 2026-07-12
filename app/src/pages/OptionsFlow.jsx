@@ -8518,12 +8518,21 @@ export default function OptionsFlowDashboard() {
               const enriched = watchAll.map(r => {
                 const px = getPrice(r.S, r.CP, r.K, r.E);
                 const curOI = px ? (px.oi||0) : 0;
-                const liveDOI = curOI > 0 && r.firstOI > 0 ? curOI - r.firstOI : (curOI > 0 && r.OI > 0 ? curOI - r.OI : 0);
-                const bestDOI = liveDOI !== 0 ? liveDOI : (r.csvDOI || 0);
+                const liveFetched = curOI > 0;
+                const baseOI = r.firstOI > 0 ? r.firstOI : (r.OI || 0);
+                // Gate on whether live OI was FETCHED, not on the delta being
+                // non-zero. A genuinely flat position (curOI === baseOI) must
+                // report 0 — not silently revert to the CSV delta. Fall back to
+                // csvDOI only when live wasn't fetched or there's no baseline.
+                const liveDOI = (liveFetched && baseOI > 0) ? curOI - baseOI : 0;
+                const bestDOI = (liveFetched && baseOI > 0) ? liveDOI : (r.csvDOI || 0);
                 const bestLastOI = curOI > 0 ? curOI : r.lastOI || 0;
-                const baseOI = r.firstOI > 0 ? r.firstOI : r.OI;
                 const pctDOI = baseOI > 0 && bestDOI !== 0 ? Math.round(bestDOI / baseOI * 100) : 0;
-                return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI };
+                // NEW: OI grew 10x+ off the first-seen base — the contract was
+                // essentially fresh when flow appeared, so the raw %ΔOI is off a
+                // tiny base and unreadable. Tag it instead of showing +9,772%.
+                const isNewOI = pctDOI >= 1000;
+                return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI, isNewOI };
               });
               // Sort
               const getVal = (r, key) => {
@@ -8534,7 +8543,6 @@ export default function OptionsFlowDashboard() {
                 if (key==="premium") return r.P||0;
                 if (key==="vol") return r.V||0;
                 if (key==="firstOI") return r.firstOI||0;
-                if (key==="lastOI") return r.lastOI||0;
                 if (key==="doi") return r.dOI||0;
                 if (key==="pctDOI") return r.pctDOI||0;
                 if (key==="lastOI") return r.displayLastOI||r.lastOI||0;
@@ -8610,7 +8618,12 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{(r.displayLastOI||r.lastOI)>0?(r.displayLastOI||r.lastOI).toLocaleString():"—"}{r.curOI>0&&<span style={{ fontSize:7, color:P.ac, marginLeft:2 }}>live</span>}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
-                        <td style={{ padding:"5px 4px", fontWeight:700, fontSize:10, color:r.pctDOI>=500?"#3cb868":r.pctDOI>=100?P.bu:r.pctDOI>=50?P.ye:r.pctDOI>0?P.dm:r.pctDOI<0?P.be:P.mt }}>{r.pctDOI!==0?(r.pctDOI>0?"+":"")+r.pctDOI.toLocaleString()+"%":"—"}</td>
+                        <td style={{ padding:"5px 4px", fontWeight:700, fontSize:10, color:r.pctDOI>=500?"#3cb868":r.pctDOI>=100?P.bu:r.pctDOI>=50?P.ye:r.pctDOI>0?P.dm:r.pctDOI<0?P.be:P.mt }}
+                          title={r.isNewOI?"Near-zero OI when flow first appeared ("+(r.firstOI||0).toLocaleString()+" → "+(r.displayLastOI||r.lastOI||0).toLocaleString()+") — effectively a NEW position. Raw %ΔOI is "+r.pctDOI.toLocaleString()+"% off a tiny base; trust the raw ΔOI instead.":undefined}>
+                          {r.isNewOI
+                            ? <span style={{ padding:"1px 5px", borderRadius:3, background:"#3cb868"+"22", color:"#3cb868", fontSize:8, fontWeight:800, letterSpacing:0.3 }}>NEW</span>
+                            : (r.pctDOI!==0?(r.pctDOI>0?"+":"")+r.pctDOI.toLocaleString()+"%":"—")}
+                        </td>
                         <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.firstDate||"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
                       </tr>
