@@ -68,6 +68,10 @@ export default function GlobalVideoLayer() {
   const [volume, setVolume] = useState(100)   // 0-100, YouTube scale
   const [cc, setCc] = useState(false)
   const [isFs, setIsFs] = useState(false)
+  // iPhone fallback: WebKit has no element-fullscreen API on iPhone, so we
+  // "fake" it — pin the host over the whole viewport and let the OS rotation
+  // fill landscape, like YouTube's mobile web player does there.
+  const [fsFake, setFsFake] = useState(false)
   const [dragPos, setDragPos] = useState(null)
   const [pipOn, setPipOn] = useState(false)
   const canPip = pipSupported()
@@ -203,12 +207,44 @@ export default function GlobalVideoLayer() {
     } catch { /* ignore */ }
   }, [snap.seekReq, active, saveNow])
 
-  // Track real fullscreen state (Esc, F11, etc).
+  // Track real fullscreen state (Esc, F11, etc). Safari fires the webkit-
+  // prefixed event/element. On phones/tablets, entering fullscreen also locks
+  // to landscape (like YouTube) — 'landscape' still allows the 180° flip —
+  // and exiting releases the lock. Desktop lock attempts reject; ignored.
   useEffect(() => {
-    const onFs = () => setIsFs(document.fullscreenElement === hostElRef.current)
+    const onFs = () => {
+      const fsEl = document.fullscreenElement ?? document.webkitFullscreenElement
+      const on = fsEl === hostElRef.current
+      setIsFs(on)
+      try {
+        if (on && window.matchMedia?.('(pointer: coarse)')?.matches) {
+          window.screen?.orientation?.lock?.('landscape')?.catch?.(() => {})
+        } else if (!fsEl) {
+          window.screen?.orientation?.unlock?.()
+        }
+      } catch { /* ignore */ }
+    }
     document.addEventListener('fullscreenchange', onFs)
-    return () => document.removeEventListener('fullscreenchange', onFs)
+    document.addEventListener('webkitfullscreenchange', onFs)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs)
+      document.removeEventListener('webkitfullscreenchange', onFs)
+    }
   }, [])
+
+  // While fake-fullscreen: lock the page behind so it can't scroll/rubber-band.
+  useEffect(() => {
+    if (!fsFake) return
+    const el = document.documentElement
+    const prev = el.style.overflow
+    el.style.overflow = 'hidden'
+    return () => { el.style.overflow = prev }
+  }, [fsFake])
+
+  // Leave fake-fullscreen whenever the player leaves the docked theater.
+  useEffect(() => {
+    if (mode !== 'docked') setFsFake(false)
+  }, [mode])
 
   // Auto-advance countdown when a video ends and another follows.
   useEffect(() => {
@@ -270,7 +306,11 @@ export default function GlobalVideoLayer() {
 
   if (!active) return null
 
-  const base = computeHostStyle(mode, dockRect, vw, vh, pos)
+  // Fake-fullscreen pins the host to the live viewport (vw/vh track resize +
+  // rotation, so flipping the phone sideways fills the landscape screen).
+  const base = fsFake
+    ? { top: 0, left: 0, width: vw, height: vh }
+    : computeHostStyle(mode, dockRect, vw, vh, pos)
   const hostStyle = mode === 'mini' && dragPos ? { ...base, top: dragPos.y, left: dragPos.x } : base
 
   const player = () => playerRef.current
@@ -349,10 +389,23 @@ export default function GlobalVideoLayer() {
   }
   const toggleFs = () => {
     const el = hostElRef.current; if (!el) return
-    try {
-      if (document.fullscreenElement === el) document.exitFullscreen?.()
-      else el.requestFullscreen?.()
-    } catch { /* ignore */ }
+    const fsEl = document.fullscreenElement ?? document.webkitFullscreenElement
+    if (fsEl === el) {
+      try { (document.exitFullscreen || document.webkitExitFullscreen)?.call(document) } catch { /* ignore */ }
+      return
+    }
+    if (fsFake) { setFsFake(false); return }
+    const req = el.requestFullscreen || el.webkitRequestFullscreen
+    if (req) {
+      try {
+        const r = req.call(el)
+        // Chrome/Firefox return a promise that rejects when fullscreen is
+        // denied — fall back to the fake mode so the button always works.
+        r?.catch?.(() => setFsFake(true))
+      } catch { setFsFake(true) }
+    } else {
+      setFsFake(true) // iPhone: no element-fullscreen API at all
+    }
   }
   // Pop the video into a separate OS window (draggable to another monitor).
   // The in-page player pauses while popped out; we resume it where PiP left off.
@@ -383,11 +436,19 @@ export default function GlobalVideoLayer() {
     seekBy,
     toggleFs,
     toggleMute,
-    escape: () => (mode === 'docked' ? minimize() : storeClose()),
+    escape: () => {
+      if (fsFake) { setFsFake(false); return }
+      if (mode === 'docked') minimize()
+      else storeClose()
+    },
   }
 
-  const cls = [styles.host, mode === 'mini' ? styles.mini : styles.docked, dragPos ? styles.dragging : '']
-    .filter(Boolean).join(' ')
+  const cls = [
+    styles.host,
+    mode === 'mini' ? styles.mini : styles.docked,
+    dragPos ? styles.dragging : '',
+    fsFake ? styles.fsFake : '',
+  ].filter(Boolean).join(' ')
 
   return (
     <div ref={hostElRef} className={cls} style={hostStyle} data-mode={mode}>
@@ -484,7 +545,7 @@ export default function GlobalVideoLayer() {
             </button>
           )}
           {docked && (
-            <button className={styles.cbtn} onClick={toggleFs} aria-label={isFs ? 'Exit fullscreen' : 'Fullscreen'}>
+            <button className={styles.cbtn} onClick={toggleFs} aria-label={isFs || fsFake ? 'Exit fullscreen' : 'Fullscreen'}>
               <FullscreenIcon />
             </button>
           )}

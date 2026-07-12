@@ -14,6 +14,16 @@
 .dragging {
   transition: none;
 }
+/* Native fullscreen: square off the corners edge-to-edge. */
+.host:fullscreen {
+  border-radius: 0;
+}
+/* Fake fullscreen (iPhone — no element-fullscreen API): pin over everything.
+   Inline top/left/width/height come from the live viewport in JS. */
+.fsFake {
+  z-index: 100000;
+  border-radius: 0;
+}
 .docked {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
 }

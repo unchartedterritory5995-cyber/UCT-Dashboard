@@ -162,4 +162,45 @@ describe('GlobalVideoLayer', () => {
     fireEvent.click(screen.getByLabelText('Back 15 seconds'))
     expect(lastPlayer.seekTo).toHaveBeenCalledWith(5, true)
   })
+
+  // jsdom (like iPhone WebKit) has NO element-fullscreen API — the button must
+  // fall back to fake fullscreen instead of silently doing nothing.
+  it('fullscreen button falls back to viewport-pinned mode without a fullscreen API', () => {
+    const { container } = renderLayer()
+    act(() => store.play(LIST, 0))
+    fireEvent.click(screen.getByLabelText('Fullscreen'))
+    const host = container.firstChild
+    expect(host.style.top).toBe('0px')
+    expect(host.style.left).toBe('0px')
+    expect(document.documentElement.style.overflow).toBe('hidden')
+    // Toggles back off
+    fireEvent.click(screen.getByLabelText('Exit fullscreen'))
+    expect(screen.getByLabelText('Fullscreen')).toBeInTheDocument()
+    expect(document.documentElement.style.overflow).not.toBe('hidden')
+  })
+
+  it('fullscreen button uses the native API when available', () => {
+    const req = vi.fn(() => Promise.resolve())
+    HTMLElement.prototype.requestFullscreen = req
+    try {
+      renderLayer()
+      act(() => store.play(LIST, 0))
+      fireEvent.click(screen.getByLabelText('Fullscreen'))
+      expect(req).toHaveBeenCalled()
+      // Native path engaged — no fake-fullscreen scroll lock
+      expect(document.documentElement.style.overflow).not.toBe('hidden')
+    } finally {
+      delete HTMLElement.prototype.requestFullscreen
+    }
+  })
+
+  it('leaving the docked theater exits fake fullscreen', () => {
+    const { container } = renderLayer()
+    act(() => store.play(LIST, 0))
+    fireEvent.click(screen.getByLabelText('Fullscreen'))
+    expect(container.firstChild.style.top).toBe('0px')
+    act(() => store.minimize())
+    expect(document.documentElement.style.overflow).not.toBe('hidden')
+    expect(container.firstChild.style.top).not.toBe('0px')
+  })
 })
