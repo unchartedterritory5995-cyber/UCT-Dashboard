@@ -992,14 +992,13 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
         );
       })}
 
-      {/* Ticker search — lives at the end of the tier-chip row (after Algo) for
-          visibility. Client-side substring match on the fetched feed; at the
-          default "Show: All" limit that's the full trading day. Pushed right
-          with marginLeft:auto so it anchors to the far end of the row. */}
+      {/* Ticker search — moved to the LEFT of the filter row (flex order:-1).
+          Client-side substring match on the fetched feed; at the default
+          "Show: All" limit that's the full trading day. */}
       {onSearchChange && (
         <div style={{
           position: "relative", display: "inline-flex", alignItems: "center",
-          marginLeft: "auto",
+          order: -1, marginRight: 10,
         }}>
           <span style={{
             position: "absolute", left: 9, color: P.mt, fontSize: 12,
