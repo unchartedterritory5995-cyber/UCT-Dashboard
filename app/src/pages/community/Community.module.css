@@ -211,6 +211,34 @@
 .pinnedCount { margin-left: auto; color: var(--ut-gold); opacity: 0.8; flex-shrink: 0; }
 .msgPinned { background: rgba(201,168,76,0.05); }
 
+/* Floor search */
+.searchBox { padding: 8px; border-bottom: 1px solid var(--border); }
+.searchInput {
+  width: 100%; background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-heading); font-size: 12.5px; padding: 7px 10px; outline: none;
+}
+.searchInput:focus { border-color: var(--ut-gold-glow); }
+
+/* Trade-idea tracking */
+.ideaOutcome {
+  display: flex; align-items: center; gap: 5px; padding: 5px 10px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.8px;
+  border-bottom: 1px solid var(--border);
+}
+.ideaFoot { display: flex; align-items: center; gap: 10px; padding: 0 10px 10px; }
+.imInBtn {
+  background: none; border: 1px solid var(--border); border-radius: 12px;
+  color: var(--text); font-size: 11.5px; font-weight: 600; padding: 3px 12px; cursor: pointer;
+}
+.imInBtn:hover { border-color: var(--ut-gold-glow); }
+.imInActive { border-color: var(--ut-gold); color: var(--ut-gold); background: var(--ut-gold-dim); }
+.ideaMark { margin-left: auto; display: inline-flex; gap: 8px; }
+.ideaMark button {
+  background: none; border: none; font-size: 10.5px; cursor: pointer;
+  text-decoration: underline; opacity: 0.75; padding: 0;
+}
+.ideaMark button:hover { opacity: 1; }
+
 /* Performance badges (verified from journal, opt-in) */
 .badgeGreen, .badgeHot {
   display: inline-flex; align-items: center; gap: 3px;

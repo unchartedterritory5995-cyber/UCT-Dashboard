@@ -111,6 +111,20 @@ export function askCompass(slug, question) {
   return jsend(`/api/community/chat/channels/${slug}/ask`, { question })
 }
 
+export function imIn(slug, messageId) {
+  return jsend(`/api/community/chat/messages/${messageId}/im-in`, {})
+    .then((r) => updateCard(slug, messageId, { tracking: r }))
+    .catch(() => {})
+}
+
+export function setIdeaOutcome(slug, messageId, outcome) {
+  return jsend(`/api/community/chat/messages/${messageId}/idea`, { outcome }, 'PATCH')
+}
+
+export function searchFloor(q) {
+  return jget(`/api/community/chat/search?q=${encodeURIComponent(q)}`)
+}
+
 export function votePoll(slug, messageId, optionKey) {
   return jsend(`/api/community/chat/messages/${messageId}/vote`, { option_key: optionKey })
     .then((r) => updateCard(slug, messageId, { results: r }))
@@ -167,6 +181,15 @@ function onEvent(name, data) {
     const s = slot(slug)
     s.typing[payload.user_id] = { ts: Date.now(), name: payload.name || 'member' }
     bump(slug)
+  } else if (name === 'idea_in') {
+    const s = slot(slug)
+    const idx = s.messages.findIndex((m) => m.id === payload.message_id)
+    if (idx >= 0 && s.messages[idx].card) {
+      const prev = s.messages[idx].card.tracking || {}
+      updateCard(slug, payload.message_id, {
+        tracking: { ...prev, in_count: payload.in_count },
+      })
+    }
   } else if (name === 'poll_vote') {
     // live-update the counts for everyone; preserve the viewer's own my_vote.
     const s = slot(slug)
@@ -192,7 +215,7 @@ function open() {
   const url = `/api/community/chat/stream?channels=${encodeURIComponent(channels.join(','))}`
   try { es = new EventSource(url, { withCredentials: true }) } catch (_) { return }
   const names = ['connected', 'message', 'message_edited', 'message_deleted', 'reaction',
-    'presence', 'typing', 'message_pinned', 'poll_vote', 'board_activity', 'heartbeat']
+    'presence', 'typing', 'message_pinned', 'poll_vote', 'idea_in', 'board_activity', 'heartbeat']
   es.onopen = () => {
     retry = RETRY_MIN
     meta.connected = true; meta.reconnecting = false; meta.capacity = false

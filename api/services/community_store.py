@@ -933,6 +933,81 @@ def poll_results(message_id, viewer_id=None):
     return {"counts": counts, "total": sum(counts.values()), "my_vote": my}
 
 
+def toggle_im_in(message_id, user_id):
+    """'I'm in' toggle on a trade-idea card (reuses poll_votes with key 'in')."""
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        existing = conn.execute(
+            "SELECT option_key FROM poll_votes WHERE message_id=? AND user_id=?",
+            (message_id, user_id)).fetchone()
+        if existing:
+            conn.execute("DELETE FROM poll_votes WHERE message_id=? AND user_id=?",
+                         (message_id, user_id))
+        else:
+            conn.execute(
+                "INSERT INTO poll_votes (message_id, user_id, option_key, created_at) VALUES (?,?,?,?)",
+                (message_id, user_id, "in", _now()))
+        conn.commit()
+        n = conn.execute(
+            "SELECT COUNT(*) FROM poll_votes WHERE message_id=? AND option_key='in'",
+            (message_id,)).fetchone()[0]
+        return {"in_count": n, "me_in": not existing}
+
+
+def idea_tracking(message_id, viewer_id=None):
+    with closing(get_connection()) as conn:
+        n = conn.execute(
+            "SELECT COUNT(*) FROM poll_votes WHERE message_id=? AND option_key='in'",
+            (message_id,)).fetchone()[0]
+        me = False
+        if viewer_id is not None:
+            me = conn.execute(
+                "SELECT 1 FROM poll_votes WHERE message_id=? AND user_id=? AND option_key='in'",
+                (message_id, viewer_id)).fetchone() is not None
+    return {"in_count": n, "me_in": me}
+
+
+def update_card_json(message_id, card_json):
+    """Server-side card mutation (e.g. idea outcome). Never called with client data."""
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute("UPDATE messages SET card_json=? WHERE id=?", (card_json, message_id))
+        conn.commit()
+
+
+def search_chat(q, limit=20):
+    """Simple LIKE search over live-chat messages (v1 — FTS later if needed)."""
+    q = (q or "").strip()
+    if len(q) < 2:
+        return []
+    like = "%" + q.replace("%", "\\%").replace("_", "\\_") + "%"
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            """SELECT id, channel_slug, author_id, body, created_at FROM messages
+                WHERE deleted=0 AND body LIKE ? ESCAPE '\\'
+                ORDER BY id DESC LIMIT ?""", (like, limit)).fetchall()
+    out = []
+    for r in rows:
+        snippet = message_plaintext(r["body"], 110)
+        if not snippet:
+            continue
+        out.append({"id": r["id"], "channel_slug": r["channel_slug"],
+                    "author_id": r["author_id"], "snippet": snippet,
+                    "created_at": r["created_at"]})
+    return out
+
+
+def search_threads(q, limit=10):
+    q = (q or "").strip()
+    if len(q) < 2:
+        return []
+    like = "%" + q.replace("%", "\\%").replace("_", "\\_") + "%"
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            """SELECT id, space, title, last_activity_at FROM threads
+                WHERE deleted=0 AND (title LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\')
+                ORDER BY last_activity_at DESC LIMIT ?""", (like, like, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def hot_tickers(limit=6, since_seconds=7200, scan=400):
     """Most-discussed tickers across recent live-chat messages — powers The Tape."""
     import collections

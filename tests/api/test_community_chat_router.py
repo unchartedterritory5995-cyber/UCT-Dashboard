@@ -169,6 +169,49 @@ async def test_poll_create_and_vote(client_for):
 
 
 @pytest.mark.asyncio
+async def test_idea_card_tracking_and_outcome(client_for):
+    async with client_for(MEMBER) as ac:
+        await _ack(ac)
+        r = await ac.post("/api/community/chat/channels/trading-floor/messages",
+                          json={"body": "", "card": {"kind": "idea", "ticker": "NVDA",
+                                "side": "long", "entry": 128.5, "stop": 124, "target": 140,
+                                "note": "flag break"}})
+        assert r.status_code == 200
+        card = r.json()["card"]
+        assert card["rr"] == 2.56 and card["side"] == "LONG"
+        mid = r.json()["id"]
+        # I'm in toggle
+        r = await ac.post(f"/api/community/chat/messages/{mid}/im-in")
+        assert r.json() == {"in_count": 1, "me_in": True}
+        r = await ac.post(f"/api/community/chat/messages/{mid}/im-in")
+        assert r.json() == {"in_count": 0, "me_in": False}
+        # outcome: author marks hit
+        r = await ac.patch(f"/api/community/chat/messages/{mid}/idea", json={"outcome": "hit"})
+        assert r.status_code == 200 and r.json()["outcome"] == "hit"
+        msgs = (await ac.get("/api/community/chat/channels/trading-floor/messages")).json()["messages"]
+        idea = next(m for m in msgs if m["id"] == mid)
+        assert idea["card"]["outcome"] == "hit" and "tracking" in idea["card"]
+    # non-author can't mark
+    async with client_for(MEMBER2) as ac2:
+        await _ack(ac2)
+        assert (await ac2.patch(f"/api/community/chat/messages/{mid}/idea",
+                                json={"outcome": "stopped"})).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_chat_search(client_for):
+    async with client_for(MEMBER) as ac:
+        await _ack(ac)
+        await ac.post("/api/community/chat/channels/trading-floor/messages",
+                      json={"body": DOC % "watching PLTR into the close"})
+        r = await ac.get("/api/community/chat/search?q=PLTR")
+        assert r.status_code == 200
+        hits = r.json()["messages"]
+        assert any("PLTR" in m["snippet"] for m in hits)
+        assert (await ac.get("/api/community/chat/search?q=x")).json()["messages"] == []
+
+
+@pytest.mark.asyncio
 async def test_ask_gate_disabled(client_for):
     async with client_for(MEMBER) as ac:
         await _ack(ac)

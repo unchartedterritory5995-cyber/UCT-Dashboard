@@ -602,6 +602,10 @@ class AskIn(BaseModel):
     question: str
 
 
+class IdeaOutcomeIn(BaseModel):
+    outcome: str   # hit | stopped | open
+
+
 class ChatPinIn(BaseModel):
     pinned: bool
 
@@ -651,7 +655,64 @@ def chat_messages(slug: str, before_id: int | None = Query(None),
         _serialize_message(m)
         if m.get("card") and m["card"].get("kind") == "poll":
             m["card"]["results"] = store.poll_results(m["id"], user["id"])
+        elif m.get("card") and m["card"].get("kind") == "idea":
+            m["card"]["tracking"] = store.idea_tracking(m["id"], user["id"])
     return {"messages": msgs}
+
+
+@router.get("/chat/search")
+def chat_search(q: str = Query("", max_length=80), user: dict = Depends(require_chat)):
+    """Search live-chat messages + forum threads (v1 LIKE search)."""
+    msgs = store.search_chat(q)
+    _attach_authors(msgs)
+    return {"messages": msgs, "threads": store.search_threads(q)}
+
+
+@router.post("/chat/messages/{message_id}/im-in")
+def chat_im_in(message_id: int, user: dict = Depends(require_chat)):
+    """'I'm in' toggle on a trade-idea card."""
+    _writer(user)
+    m = store.get_message(message_id)
+    if not m or m.get("deleted"):
+        raise HTTPException(status_code=404, detail="Message not found")
+    try:
+        card = json.loads(m["card_json"]) if m.get("card_json") else None
+    except (TypeError, ValueError):
+        card = None
+    if not card or card.get("kind") != "idea":
+        raise HTTPException(status_code=400, detail="Not a trade idea")
+    r = store.toggle_im_in(message_id, user["id"])
+    chat_hub.get_hub().broadcast(m["channel_slug"], "idea_in", {
+        "message_id": message_id, "in_count": r["in_count"]})
+    return r
+
+
+@router.patch("/chat/messages/{message_id}/idea")
+def chat_idea_outcome(message_id: int, body: IdeaOutcomeIn,
+                      user: dict = Depends(require_chat)):
+    """Author or mentor marks a trade idea's outcome — accountability on the floor."""
+    if body.outcome not in ("hit", "stopped", "open"):
+        raise HTTPException(status_code=400, detail="outcome must be hit|stopped|open")
+    m = store.get_message(message_id)
+    if not m or m.get("deleted"):
+        raise HTTPException(status_code=404, detail="Message not found")
+    if m["author_id"] != user["id"] and not _is_mentor(user):
+        raise HTTPException(status_code=403, detail="Only the author or a mentor can mark it")
+    try:
+        card = json.loads(m["card_json"]) if m.get("card_json") else None
+    except (TypeError, ValueError):
+        card = None
+    if not card or card.get("kind") != "idea":
+        raise HTTPException(status_code=400, detail="Not a trade idea")
+    if body.outcome == "open":
+        card.pop("outcome", None)
+    else:
+        card["outcome"] = body.outcome
+    store.update_card_json(message_id, json.dumps(card))
+    msg = _serialize_message(store.get_message(message_id))
+    msg["card"]["tracking"] = store.idea_tracking(message_id)
+    chat_hub.get_hub().broadcast(m["channel_slug"], "message_edited", msg)
+    return {"ok": True, "outcome": card.get("outcome")}
 
 
 @router.post("/chat/channels/{slug}/messages")

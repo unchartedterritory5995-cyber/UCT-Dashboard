@@ -5,6 +5,7 @@ import UIcon from '../../components/ui/UIcon'
 import { useAuth } from '../../context/AuthContext'
 import { renderBodyHTML } from './lib/renderBody'
 import CardRenderer from './components/CardRenderer'
+import FloorSearch from './components/FloorSearch'
 import MentionInbox from './components/MentionInbox'
 import Composer from './Composer'
 import * as chat from '../../lib/chatStreamManager'
@@ -165,6 +166,7 @@ export default function ChatView({ channel, onSelectChannel }) {
         <b>{snap.presence.count}</b>&nbsp;on the floor
         {meta.reconnecting && <span className={styles.reconnPill}>reconnecting…</span>}
         <div className={styles.chatHeadRight}>
+          <FloorSearch onOpenChannel={onSelectChannel} onOpenThread={(tid) => navigate(`/community/${tid}`)} />
           <MentionInbox onOpenChannel={onSelectChannel} onOpenMessage={scrollToMessage} />
         </div>
       </div>
@@ -286,7 +288,13 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate
       ) : (
         <>
           {html && <div className={styles.msgBody} dangerouslySetInnerHTML={{ __html: html }} />}
-          {msg.card && <CardRenderer card={msg.card} onVote={(key) => chat.votePoll(channel, msg.id, key)} />}
+          {msg.card && (
+            <CardRenderer card={msg.card}
+              onVote={(key) => chat.votePoll(channel, msg.id, key)}
+              onImIn={() => chat.imIn(channel, msg.id)}
+              onOutcome={(o) => chat.setIdeaOutcome(channel, msg.id, o)}
+              canMark={mine || isMentor} />
+          )}
           {msg.graduated_thread_id > 0 && (
             <button className={styles.gradLink} onClick={() => onOpenThread(msg.graduated_thread_id)}>
               <UIcon name="library" size={12} /> Saved to the Boards →
