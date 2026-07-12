@@ -229,7 +229,7 @@ function Card({ children, title, sub }) {
 
 function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
   const [expandedKey, setExpandedKey] = useState(null);
-  const cols = ["Ticker","Day","Exp","Strike","C/P","Dir","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"ΔOI":null,priceFn?"Status":null,"DTE"].filter(Boolean);
+  const cols = ["Ticker","Day","Exp","Strike","C/P","Dir","Premium","Entry",priceFn?"Now":null,priceFn?"P&L":null,"Vol","OI",priceFn?"Live OI":null,priceFn?"Status":null,"DTE"].filter(Boolean);
   const colCount = cols.length;
   // Today's market date (ET). OI settles overnight, so a trade whose entry is
   // TODAY has no settled OI to compare against yet — its exit status only firms
@@ -256,6 +256,9 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
           // from the full contract (r.P/r.V) — it's an average price, not a
           // directional dollar figure.
           const dispP = (r.dirPrem != null) ? r.dirPrem : r.P;
+          // Net direction (from the bull/bear premium split — see tk.t build)
+          // for the Dir tag; falls back to the rep trade's side if absent.
+          const dispD = (r.dispD !== undefined) ? r.dispD : r.D;
           const now = px ? (px.mark || px.last || px.mid || 0) : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
@@ -269,20 +272,33 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
           // snapshot OI — net closing activity since the trade printed. Used
           // by the Search tab to visually de-emphasize stale conviction.
           const isStale = fadeOnStale && dOI < 0;
-          // Position status from Live OI vs entry OI — answers "did they add,
-          // hold, take partial, or exit?" Only meaningful once Live OI is fetched.
-          const oiRatio = (priceFn && curOI > 0 && csvOI > 0) ? curOI / csvOI : null;
+          // Peak-aware position status. Peak = max OI observed for this contract
+          // (entry snapshots + live), so a build-then-cut reads TRIMMED/REDUCED
+          // instead of "HELD/BUILDING" off the entry baseline alone — the latter
+          // is blind to a position that ballooned then got distributed. PENDING
+          // still guards today's entries (OI settles overnight). Bands match the
+          // OI Check tab.
+          const _baseOI = Math.max(csvOI||0, r.maxOI||0);
+          const _peakOI = Math.max(_baseOI, curOI||0);
+          const _nowOI = curOI > 0 ? curOI : (csvOI||0);
+          // Require a HISTORICAL baseline (entry snapshot or a flow-day peak),
+          // not just the live value. A contract with no entry OI (Massive-sourced
+          // rows carry no OI field) would otherwise have peak==live==now and
+          // falsely read BUILDING — no baseline means we can't judge, so "—".
+          const _retention = (priceFn && curOI > 0 && _baseOI > 0) ? _nowOI / _peakOI : null;
           let posLabel = null, posColor = P.dm, posTitle = "";
           const _entryIsToday = (r.Dt || "").trim() === _todayStr;
-          if (_entryIsToday && oiRatio != null) {
-            // Entry is today — OI hasn't settled overnight, so don't call the exit yet.
+          if (_entryIsToday && _retention != null) {
             posLabel = "PENDING"; posColor = P.mt;
-            posTitle = "Entry is today — OI settles overnight; exit status confirms after tomorrow's OI print.";
-          } else if (oiRatio != null) {
-            if (oiRatio >= 1.10) { posLabel = "BUILDING"; posColor = P.bu; posTitle = "OI grew "+Math.round((oiRatio-1)*100)+"% since entry — still adding"; }
-            else if (oiRatio >= 0.90) { posLabel = "HELD"; posColor = "#5b9bd5"; posTitle = "OI ~flat vs entry — position held, not exited"; }
-            else if (oiRatio > 0.15) { posLabel = "TRIMMED"; posColor = "#c9a84c"; posTitle = "OI down "+Math.round((1-oiRatio)*100)+"% — partial exit / profit-taking"; }
-            else { posLabel = "CLOSED"; posColor = P.be; posTitle = "OI down to ~"+Math.round(oiRatio*100)+"% of entry — position closed"; }
+            posTitle = "Entry is today — OI settles overnight; status confirms after tomorrow's OI print.";
+          } else if (_retention != null) {
+            const _carried = Math.round(_retention * 100);
+            const _pk = _peakOI.toLocaleString();
+            if (_retention >= 0.90 && _nowOI >= _peakOI) { posLabel = "BUILDING"; posColor = P.bu; posTitle = "At/near peak OI ("+_pk+") — still on"; }
+            else if (_retention >= 0.90) { posLabel = "HELD"; posColor = "#5b9bd5"; posTitle = _carried+"% of peak OI ("+_pk+") still open — held"; }
+            else if (_retention >= 0.50) { posLabel = "TRIMMED"; posColor = "#c9a84c"; posTitle = _carried+"% of peak OI ("+_pk+") carried over — partial exit"; }
+            else if (_retention >= 0.15) { posLabel = "REDUCED"; posColor = "#e06c3c"; posTitle = _carried+"% of peak OI ("+_pk+") carried over — mostly closed"; }
+            else { posLabel = "CLOSED"; posColor = P.be; posTitle = "Down to ~"+_carried+"% of peak OI ("+_pk+") — closed"; }
           }
           return (
             <Fragment key={i}>
@@ -296,8 +312,8 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
                   Makes explicit which rows feed the header's directional
                   Bull/Bear totals: a "—" row is non-directional and is NOT
                   counted in those totals, even though its premium shows here. */}
-              <td style={{ padding:"5px 4px" }} title={r.D==="BULL"?"Bull-directional — counted in Bullish Flow":r.D==="BEAR"?"Bear-directional — counted in Bearish Flow":"No clean direction (ambiguous side) — not counted in the Bull/Bear totals"}>
-                {r.D==="BULL" ? <Tag c={P.bu}>BULL</Tag> : r.D==="BEAR" ? <Tag c={P.be}>BEAR</Tag> : <span style={{ color:P.mt, fontWeight:700 }}>—</span>}
+              <td style={{ padding:"5px 4px" }} title={dispD==="BULL"?"Net bullish — bull premium exceeds bear on this contract; its bull dollars are in Bullish Flow":dispD==="BEAR"?"Net bearish — bear premium exceeds bull; its bear dollars are in Bearish Flow":"Balanced / undirected — bull and bear premium roughly equal on this contract"}>
+                {dispD==="BULL" ? <Tag c={P.bu}>BULL</Tag> : dispD==="BEAR" ? <Tag c={P.be}>BEAR</Tag> : <span style={{ color:P.mt, fontWeight:700 }}>—</span>}
               </td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:premC(dispP) }}>{fmt(dispP)}</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
@@ -306,7 +322,6 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
               <td style={{ padding:"5px 4px", color:P.dm }}>{fK(r.V)}</td>
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }} title={curOI>0?undefined:csvOI>0?"BBS snapshot (live unavailable)":undefined}>{curOI>0?curOI.toLocaleString():csvOI>0?csvOI.toLocaleString():"—"}</td>}
-              {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px" }} title={posTitle}>
                 {posLabel
                   ? <span style={{ fontSize:8, fontWeight:800, padding:"2px 6px", borderRadius:4, background:posColor+"22", color:posColor, letterSpacing:0.3, whiteSpace:"nowrap" }}>{posLabel}</span>
@@ -1839,8 +1854,9 @@ function processFlowData(rows) {
     }
     const ck = t.CP+"|"+t.K+"|"+t.E;
     if (!tk.consMap[ck]) tk.consMap[ck] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
-      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, bullPrem:0, bearPrem:0 };
+      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, bullPrem:0, bearPrem:0, maxOI:0 };
     tk.consMap[ck].H++; tk.consMap[ck].P+=t.P; tk.consMap[ck].V+=t.V;
+    if ((t.OI||0) > tk.consMap[ck].maxOI) tk.consMap[ck].maxOI = t.OI||0;
     if (t.D === "BULL") tk.consMap[ck].bullPrem += t.P;
     if (t.D === "BEAR") tk.consMap[ck].bearPrem += t.P;
     if (t.Ty==="SWP") tk.consMap[ck].hasSweep = true;
@@ -1944,14 +1960,14 @@ function processFlowData(rows) {
             const k = c.CP + "|" + c.K + "|" + c.E;
             const rep = repByContract[k];
             if (!rep) return null; // contract whose biggest single trade fell below per-ticker top-10 cutoff
-            // Directional premium: the dollars attributable to this contract's
-            // dominant direction (rep.D). A BULL row then shows its BULL
-            // contribution, not the contract total that mixes in opposing /
-            // undirected trades — so the directional rows reconcile toward the
-            // header's Bullish/Bearish Flow. Non-directional ("—") rows keep
-            // the full contract total (they don't claim a side).
-            const dirPrem = rep.D === "BULL" ? c.bullPrem : rep.D === "BEAR" ? c.bearPrem : c.P;
-            return { ...rep, P: c.P, V: c.V, bullPrem: c.bullPrem, bearPrem: c.bearPrem, dirPrem };
+            // Direction from NET premium (bull vs bear dollars on the contract),
+            // not the single largest trade's side — so a contract whose biggest
+            // print was side-ambiguous still reads BULL/BEAR when its net flow is
+            // directional. Only genuinely balanced contracts stay "—". dirPrem
+            // (shown in the Premium column) tracks the same net side.
+            const netD = c.bullPrem > c.bearPrem ? "BULL" : c.bearPrem > c.bullPrem ? "BEAR" : null;
+            const dirPrem = netD === "BULL" ? c.bullPrem : netD === "BEAR" ? c.bearPrem : c.P;
+            return { ...rep, P: c.P, V: c.V, bullPrem: c.bullPrem, bearPrem: c.bearPrem, dirPrem, dispD: netD, maxOI: c.maxOI };
           })
           .filter(x => x !== null)
           .sort((a, b) => b.dirPrem - a.dirPrem)
@@ -8458,7 +8474,7 @@ export default function OptionsFlowDashboard() {
                       handles the expanded view. Passing panelFn made TT also
                       render an inline copy, creating a double-layer panel
                       that required two clicks to close. */}
-                  <Card title={tk.s+" — Top 10 Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
+                  <Card title={tk.s+" — Top Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
                   {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
                 </>
               );
