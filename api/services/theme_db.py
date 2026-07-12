@@ -170,6 +170,25 @@ def get_themes_for_ticker(sym):
         conn.close()
 
 
+# Tier priority: a ticker's "core" theme membership beats "relevant" beats
+# "peripheral". Shared by ticker_meta._primary_theme (single-ticker, powers
+# chart watermarks) and get_theme_map (batch, powers Breadth "group by
+# theme") so a ticker's primary theme agrees everywhere it's shown.
+_TIER_RANK = {"core": 0, "relevant": 1, "peripheral": 2}
+
+
+def _resolve_primary(rows):
+    """Pick the single most-relevant theme membership row from `rows` (as
+    returned by get_themes_for_ticker): lowest (tier_rank, theme_id) wins.
+    Returns None if `rows` is empty or None."""
+    if not rows:
+        return None
+    return sorted(
+        rows,
+        key=lambda m: (_TIER_RANK.get(m.get("tier"), 99), m.get("theme_id") or ""),
+    )[0]
+
+
 def get_theme_holdings(theme_id, tier_filter=None):
     """Return holdings for a theme, optionally filtered by tier."""
     conn = get_connection()
