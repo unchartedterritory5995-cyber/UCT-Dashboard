@@ -1,6 +1,8 @@
 // app/src/pages/community/ChatView.jsx
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
+import useSWR from 'swr'
+import TickerPopup from '../../components/TickerPopup'
 import UIcon from '../../components/ui/UIcon'
 import { useAuth } from '../../context/AuthContext'
 import { renderBodyHTML } from './lib/renderBody'
@@ -116,6 +118,26 @@ export default function ChatView({ channel, onSelectChannel }) {
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [atBottom, maxId, channel])
 
+  // Clickable $TICKER chips: chips are sanitized static HTML, so one delegated
+  // handler on the scroll container opens a controlled TickerPopup (live chart).
+  const [chipSym, setChipSym] = useState(null)
+  const onChipClick = (e) => {
+    const chip = e.target.closest?.('.community-ticker-chip')
+    if (chip?.dataset?.ticker) setChipSym(chip.dataset.ticker)
+  }
+
+  // Live prices for every marked ticker in view — powers "@price → +X% since".
+  const markedTickers = useMemo(() => {
+    const s = new Set()
+    for (const m of messages) for (const t of Object.keys(m.ticker_marks || {})) s.add(t)
+    return [...s].slice(0, 25).sort()
+  }, [messages])
+  const { data: livePrices } = useSWR(
+    markedTickers.length ? `/api/live-prices?tickers=${markedTickers.join(',')}` : null,
+    (u) => fetch(u, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)),
+    { refreshInterval: 30_000 },
+  )
+
   const grouped = useMemo(() => groupMessages(messages), [messages])
   const pinned = useMemo(() => messages.filter((m) => m.pinned && !m.deleted), [messages])
   const newestPin = pinned.length ? pinned[pinned.length - 1] : null
@@ -180,7 +202,7 @@ export default function ChatView({ channel, onSelectChannel }) {
         </button>
       )}
 
-      <div className={styles.chatScroll} ref={scrollRef} onScroll={onScroll}>
+      <div className={styles.chatScroll} ref={scrollRef} onScroll={onScroll} onClick={onChipClick}>
         {messages.length === 0 && (
           <div className={styles.chatEmpty}>
             <UIcon name="community" size={28} />
@@ -201,6 +223,7 @@ export default function ChatView({ channel, onSelectChannel }) {
               meId={meId}
               isMentor={isMentor}
               channel={channel}
+              livePrices={livePrices}
               onReply={setReply}
               onGraduate={setGraduating}
               onOpenThread={(tid) => navigate(`/community/${tid}`)}
@@ -208,6 +231,10 @@ export default function ChatView({ channel, onSelectChannel }) {
           ),
         )}
       </div>
+
+      {chipSym && (
+        <TickerPopup sym={chipSym} open onClose={() => setChipSym(null)} />
+      )}
 
       {graduating && (
         <GraduateDialog
@@ -247,7 +274,30 @@ export default function ChatView({ channel, onSelectChannel }) {
   )
 }
 
-function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate, onOpenThread }) {
+function TickerMarks({ marks, livePrices }) {
+  const entries = Object.entries(marks || {})
+  if (!entries.length) return null
+  return (
+    <div className={styles.marksRow}>
+      {entries.map(([tk, at]) => {
+        const now = livePrices?.[tk]?.price
+        const pct = now && at ? ((now - at) / at) * 100 : null
+        return (
+          <span key={tk} className={`${styles.markChip} community-ticker-chip`} data-ticker={tk}>
+            ${tk} @ {Number(at).toFixed(2)}
+            {pct != null && (
+              <b className={pct >= 0 ? styles.cardWin : styles.cardLoss}>
+                {' '}→ {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+              </b>
+            )}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply, onGraduate, onOpenThread }) {
   const mine = msg.author_id === meId || msg.author_id === '__me__'
   const mentor = msg.author?.is_mentor
   const html = useMemo(() => (msg.deleted || !msg.body ? null : renderBodyHTML(msg.body)), [msg.body, msg.deleted])
@@ -288,6 +338,7 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, onReply, onGraduate
       ) : (
         <>
           {html && <div className={styles.msgBody} dangerouslySetInnerHTML={{ __html: html }} />}
+          <TickerMarks marks={msg.ticker_marks} livePrices={livePrices} />
           {msg.card && (
             <CardRenderer card={msg.card}
               onVote={(key) => chat.votePoll(channel, msg.id, key)}

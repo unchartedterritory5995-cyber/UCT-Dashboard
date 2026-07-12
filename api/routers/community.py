@@ -651,8 +651,10 @@ def chat_messages(slug: str, before_id: int | None = Query(None),
         raise HTTPException(status_code=404, detail="Unknown channel")
     msgs = store.list_messages(slug, before_id=before_id, after_id=after_id,
                                limit=limit, viewer_id=user["id"])
+    mmap = store.marks_for_messages([m["id"] for m in msgs])
     for m in msgs:
         _serialize_message(m)
+        m["ticker_marks"] = mmap.get(m["id"], {})
         if m.get("card") and m["card"].get("kind") == "poll":
             m["card"]["results"] = store.poll_results(m["id"], user["id"])
         elif m.get("card") and m["card"].get("kind") == "idea":
@@ -758,7 +760,14 @@ def chat_send(slug: str, payload: ChatMessageIn, user: dict = Depends(require_ch
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Price-at-mention: snapshot each tagged ticker so the room can score the call.
+    marks = {}
+    if tags:
+        from api.services import community_marks
+        marks = community_marks.capture(mid, tags[:10])
+
     msg = _serialize_message(store.get_message(mid))
+    msg["ticker_marks"] = marks
     if payload.client_msg_id:
         msg["client_msg_id"] = payload.client_msg_id
     chat_hub.get_hub().broadcast(slug, "message", msg)

@@ -193,6 +193,14 @@ CREATE TABLE IF NOT EXISTS poll_votes (
     created_at  INTEGER NOT NULL,
     PRIMARY KEY (message_id, user_id)   -- one vote per user per poll (re-vote updates)
 );
+
+CREATE TABLE IF NOT EXISTS ticker_marks (
+    message_id  INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    ticker      TEXT NOT NULL,
+    price       REAL NOT NULL,          -- price when the ticker was mentioned
+    created_at  INTEGER NOT NULL,
+    PRIMARY KEY (message_id, ticker)
+);
 """
 
 
@@ -931,6 +939,37 @@ def poll_results(message_id, viewer_id=None):
                 (message_id, viewer_id)).fetchone()
             my = r["option_key"] if r else None
     return {"counts": counts, "total": sum(counts.values()), "my_vote": my}
+
+
+def record_ticker_marks(message_id, prices):
+    """Persist price-at-mention for each tagged ticker ({TK: price})."""
+    if not prices:
+        return
+    now = _now()
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        for tk, px in prices.items():
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO ticker_marks (message_id, ticker, price, created_at) "
+                    "VALUES (?,?,?,?)", (message_id, tk, float(px), now))
+            except (TypeError, ValueError):
+                continue
+        conn.commit()
+
+
+def marks_for_messages(message_ids):
+    """{message_id: {TK: price}} for a batch of messages."""
+    ids = [int(i) for i in message_ids if i]
+    if not ids:
+        return {}
+    q = ",".join("?" * len(ids))
+    out = {}
+    with closing(get_connection()) as conn:
+        for r in conn.execute(
+                f"SELECT message_id, ticker, price FROM ticker_marks WHERE message_id IN ({q})",
+                ids).fetchall():
+            out.setdefault(r["message_id"], {})[r["ticker"]] = r["price"]
+    return out
 
 
 def toggle_im_in(message_id, user_id):

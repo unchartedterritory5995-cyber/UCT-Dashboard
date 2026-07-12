@@ -87,6 +87,12 @@ def post_daily_heartbeat(force: bool = False):
         body, tickers = build_heartbeat_doc()
         mid = store.create_message("trading-floor", None, body,
                                    ticker_tags=tickers, bypass_rate_limit=True)
+        marks = {}
+        try:
+            from api.services import community_marks
+            marks = community_marks.capture(mid, tickers)
+        except Exception:
+            pass
         # Broadcast live so anyone already on the floor sees it appear.
         try:
             from api import chat_stream
@@ -94,6 +100,7 @@ def post_daily_heartbeat(force: bool = False):
             msg["author"] = {"name": "UCT Mentor", "is_mentor": True}
             msg.pop("card_json", None)
             msg["card"] = None
+            msg["ticker_marks"] = marks
             chat_stream.get_hub().broadcast("trading-floor", "message", msg)
         except Exception:
             pass

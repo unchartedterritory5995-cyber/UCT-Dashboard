@@ -1,13 +1,19 @@
 @import './styles/tokens.css';
 @import './styles/breakpoints.css';
 
-/* Community $TICKER chips (global — TipTap renders outside CSS modules) */
+/* Community $TICKER chips (global — TipTap renders outside CSS modules).
+   Clickable: a delegated handler opens the live chart (TickerPopup). */
 .community-ticker-chip {
   color: var(--ut-gold);
   background: var(--ut-gold-dim);
   border-radius: 4px;
   padding: 0 4px;
   font-weight: 600;
+  cursor: pointer;
+}
+.community-ticker-chip:hover {
+  text-decoration: underline;
+  background: rgba(201, 168, 76, 0.22);
 }
 .community-ticker-dropdown {
   position: fixed;

@@ -219,6 +219,14 @@
 }
 .searchInput:focus { border-color: var(--ut-gold-glow); }
 
+/* Price-at-mention marks ("$NVDA @ 128.50 → +2.1%") */
+.marksRow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.markChip {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 11px; padding: 1px 7px !important; border-radius: 10px !important;
+}
+.markChip b { font-weight: 700; }
+
 /* Trade-idea tracking */
 .ideaOutcome {
   display: flex; align-items: center; gap: 5px; padding: 5px 10px;

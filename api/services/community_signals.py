@@ -42,11 +42,18 @@ def _post_system(body_json, ticker_tags=None, card_json=None, channel="trading-f
     mid = store.create_message(channel, None, body_json,
                                ticker_tags=ticker_tags or [], card_json=card_json,
                                bypass_rate_limit=True)
+    marks = {}
+    try:
+        from api.services import community_marks
+        marks = community_marks.capture(mid, ticker_tags or [])
+    except Exception:
+        pass
     try:
         from api import chat_stream
         msg = store.get_message(mid)
         msg["author"] = {"name": "UCT Mentor", "is_mentor": True}
         msg["card"] = json.loads(card_json) if card_json else None
+        msg["ticker_marks"] = marks
         msg.pop("card_json", None)
         chat_stream.get_hub().broadcast(channel, "message", msg)
     except Exception:

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import TickerPopup from '../../components/TickerPopup'
 import UIcon from '../../components/ui/UIcon'
 import Composer from './Composer'
 import { useThread, useCommunityStatus, apiCall } from './hooks/useCommunity'
@@ -95,6 +96,12 @@ export default function ThreadView({ threadId }) {
   const { user } = useAuth()
   const meId = user?.id
   const [replyTo, setReplyTo] = useState(null)
+  // Clickable $TICKER chips (sanitized static HTML → delegated handler + controlled popup)
+  const [chipSym, setChipSym] = useState(null)
+  const onChipClick = (e) => {
+    const chip = e.target.closest?.('.community-ticker-chip')
+    if (chip?.dataset?.ticker) setChipSym(chip.dataset.ticker)
+  }
 
   // Live Boards: revalidate this thread the instant a reply/reaction/mod lands on it.
   useEffect(() => {
@@ -157,7 +164,8 @@ export default function ThreadView({ threadId }) {
   }
 
   return (
-    <div className={styles.threadView}>
+    <div className={styles.threadView} onClick={onChipClick}>
+      {chipSym && <TickerPopup sym={chipSym} open onClose={() => setChipSym(null)} />}
       <Link to="/community" className={styles.backLink}>&larr; The Floor</Link>
       <div className={styles.opCard}>
         <h2 className={styles.opTitle}>

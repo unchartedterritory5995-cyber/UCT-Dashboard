@@ -21,8 +21,15 @@ const TABS = ['1min', '5min', '15min', '30min', '1hr', 'Daily', 'Weekly', 'Month
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
 const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [v, k]))
 
-export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null }) {
-  const [modalOpen, setModalOpen] = useState(false)
+export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, open: openProp, onClose }) {
+  // Controlled mode (open/onClose provided): no trigger element renders and the
+  // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
+  // where chips are sanitized static HTML, not React children. Uncontrolled mode
+  // (every existing call site) is byte-identical in behavior.
+  const [modalOpenState, setModalOpen] = useState(false)
+  const controlled = openProp !== undefined
+  const modalOpen = controlled ? openProp : modalOpenState
+  const closeModal = () => { if (controlled) onClose?.(); else setModalOpen(false) }
   const [tab, setTab] = useState('Daily')
   const [view, setView] = useState('chart') // 'chart' | 'fundamentals'
   const [flagToast, setFlagToast] = useState(null)
@@ -49,7 +56,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   useEffect(() => {
     if (!modalOpen) return
     const handleKey = (e) => {
-      if (e.key === 'Escape') { setModalOpen(false); return }
+      if (e.key === 'Escape') { closeModal(); return }
       if (e.shiftKey && e.key === 'F') {
         const willFlag = !isFlagged(sym)
         toggleFlag(sym)
@@ -72,6 +79,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
 
   return (
     <>
+      {!controlled && (
       <Tag
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
         onClick={() => {
@@ -89,12 +97,13 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
         {tagColor && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 3, verticalAlign: 'middle' }} />}
         {children ?? sym}
       </Tag>
+      )}
       {tickerActions.menu && <TickerActionsMenu menu={tickerActions.menu} onClose={tickerActions.closeMenu} />}
 
       {modalOpen && (
         <div
           className={styles.overlay}
-          onClick={() => setModalOpen(false)}
+          onClick={closeModal}
           data-testid="chart-modal"
         >
           <div
@@ -130,7 +139,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
               </button>
               <button
                 className={styles.closeBtn}
-                onClick={() => setModalOpen(false)}
+                onClick={closeModal}
                 aria-label="Close chart"
               >
                 {'×'} close
