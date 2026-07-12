@@ -8532,7 +8532,30 @@ export default function OptionsFlowDashboard() {
                 // essentially fresh when flow appeared, so the raw %ΔOI is off a
                 // tiny base and unreadable. Tag it instead of showing +9,772%.
                 const isNewOI = pctDOI >= 1000;
-                return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI, isNewOI };
+                // ── Peak-aware retention (NOW vs the position's PEAK OI) ──
+                // A two-point First→Last ΔOI is blind to build-then-cut: RIOT
+                // went 51 → ~20,849 → 7,546 (built big, then shed ~64%), yet
+                // First→Last still reads +7,495 "NEW". Comparing NOW vs PEAK
+                // surfaces the unwind. Peak = max OI across flow-day snapshots +
+                // live; it's approximate when flow didn't coincide with the true
+                // peak, but strictly better than a blind two-point delta.
+                const dailyVals = r.dailyOI ? Object.values(r.dailyOI).filter(v => v > 0) : [];
+                const peakOI = Math.max(baseOI || 0, bestLastOI || 0, curOI || 0, ...(dailyVals.length ? dailyVals : [0]));
+                const nowOI = curOI > 0 ? curOI : (bestLastOI || 0);
+                const retention = peakOI > 0 ? nowOI / peakOI : 1;
+                const carriedPct = Math.round(retention * 100);
+                // State band from % of peak still open. NEW only fires when the
+                // position is still ~intact at its peak — a build that's been cut
+                // (RIOT, 36%) reads REDUCED, not NEW.
+                let oiState, oiStateColor;
+                if (peakOI <= 0) { oiState = "—"; oiStateColor = P.mt; }
+                else if (retention < 0.15) { oiState = "CLOSED"; oiStateColor = P.be; }
+                else if (retention < 0.50) { oiState = "REDUCED"; oiStateColor = "#e06c3c"; }
+                else if (retention < 0.90) { oiState = "TRIMMED"; oiStateColor = "#c9a84c"; }
+                else if (isNewOI) { oiState = "NEW"; oiStateColor = "#3cb868"; }
+                else if (nowOI >= peakOI) { oiState = "BUILDING"; oiStateColor = P.bu; }
+                else { oiState = "HELD"; oiStateColor = "#5b9bd5"; }
+                return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI, isNewOI, peakOI, nowOI, carriedPct, retention, oiState, oiStateColor };
               });
               // Sort
               const getVal = (r, key) => {
@@ -8545,6 +8568,7 @@ export default function OptionsFlowDashboard() {
                 if (key==="firstOI") return r.firstOI||0;
                 if (key==="doi") return r.dOI||0;
                 if (key==="pctDOI") return r.pctDOI||0;
+                if (key==="retention") return r.retention||0;
                 if (key==="lastOI") return r.displayLastOI||r.lastOI||0;
                 if (key==="volOI") return r.volOI||0;
                 if (key==="flowDate") {
@@ -8579,7 +8603,7 @@ export default function OptionsFlowDashboard() {
               const cols = [
                 {key:"sym",label:"Ticker"},{key:"exp",label:"Exp"},{key:"strike",label:"Strike"},{key:"cp",label:"C/P"},
                 {key:"entry",label:"Entry"},{key:"premium",label:"Premium"},{key:"flow",label:"Flow"},{key:"hits",label:"Hits"},
-                {key:"vol",label:"Vol"},{key:"firstOI",label:"First OI"},{key:"lastOI",label:"Last OI"},{key:"doi",label:"ΔOI"},{key:"pctDOI",label:"%ΔOI"},{key:"flowDate",label:"Date"},{key:"dte",label:"DTE"}
+                {key:"vol",label:"Vol"},{key:"firstOI",label:"First OI"},{key:"lastOI",label:"Last OI"},{key:"doi",label:"ΔOI"},{key:"retention",label:"State"},{key:"flowDate",label:"Date"},{key:"dte",label:"DTE"}
               ];
               return (
             <Card title="OI Check" sub={Math.min(40,sorted.length)+" of "+sorted.length+" contracts · "+oiSort.col+(oiSort.col2?" → "+oiSort.col2:"")}>
@@ -8618,11 +8642,14 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{(r.displayLastOI||r.lastOI)>0?(r.displayLastOI||r.lastOI).toLocaleString():"—"}{r.curOI>0&&<span style={{ fontSize:7, color:P.ac, marginLeft:2 }}>live</span>}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
-                        <td style={{ padding:"5px 4px", fontWeight:700, fontSize:10, color:r.pctDOI>=500?"#3cb868":r.pctDOI>=100?P.bu:r.pctDOI>=50?P.ye:r.pctDOI>0?P.dm:r.pctDOI<0?P.be:P.mt }}
-                          title={r.isNewOI?"Near-zero OI when flow first appeared ("+(r.firstOI||0).toLocaleString()+" → "+(r.displayLastOI||r.lastOI||0).toLocaleString()+") — effectively a NEW position. Raw %ΔOI is "+r.pctDOI.toLocaleString()+"% off a tiny base; trust the raw ΔOI instead.":undefined}>
-                          {r.isNewOI
-                            ? <span style={{ padding:"1px 5px", borderRadius:3, background:"#3cb868"+"22", color:"#3cb868", fontSize:8, fontWeight:800, letterSpacing:0.3 }}>NEW</span>
-                            : (r.pctDOI!==0?(r.pctDOI>0?"+":"")+r.pctDOI.toLocaleString()+"%":"—")}
+                        <td style={{ padding:"5px 4px" }}
+                          title={r.peakOI>0?"First seen "+(r.firstOI||0).toLocaleString()+" · peak "+r.peakOI.toLocaleString()+" · now "+(r.nowOI||0).toLocaleString()+" = "+r.carriedPct+"% carried over ("+(100-r.carriedPct)+"% closed from peak). Peak = max OI on flow days + live, so it can understate if flow missed the true peak day.":undefined}>
+                          {r.oiState && r.oiState!=="—" ? (
+                            <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
+                              <span style={{ fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:3, background:r.oiStateColor+"22", color:r.oiStateColor, letterSpacing:0.3, whiteSpace:"nowrap" }}>{r.oiState}</span>
+                              {(r.oiState==="TRIMMED"||r.oiState==="REDUCED"||r.oiState==="CLOSED") && <span style={{ fontSize:9, color:r.oiStateColor, fontWeight:700 }}>{r.carriedPct}%</span>}
+                            </span>
+                          ) : <span style={{ color:P.mt }}>—</span>}
                         </td>
                         <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.firstDate||"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
