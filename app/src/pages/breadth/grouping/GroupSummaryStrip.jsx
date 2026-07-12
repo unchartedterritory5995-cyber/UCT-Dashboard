@@ -1,5 +1,7 @@
 import styles from './GroupSummaryStrip.module.css'
 
+const DIMENSION_LABELS = { sector: 'sectors', industry: 'industries', theme: 'themes' }
+
 // One-line leaderboard above a grouped list: which groups dominate today.
 //   summary — [{ key, count, avgPct }] | null (from useBreadthGrouping)
 //   onPick  — optional (key) => void  (e.g. collapse/expand that group)
@@ -9,7 +11,7 @@ export default function GroupSummaryStrip({ summary, dimension, onPick }) {
   if (!real.length) return null
   return (
     <div className={styles.strip}>
-      <span className={styles.lead}>Top {dimension === 'sector' ? 'sectors' : 'industries'}</span>
+      <span className={styles.lead}>Top {DIMENSION_LABELS[dimension] || 'groups'}</span>
       {real.map(s => (
         <button
           key={s.key}

@@ -31,4 +31,10 @@ describe('GroupSummaryStrip', () => {
     fireEvent.click(screen.getByText('Energy'))
     expect(onPick).toHaveBeenCalledWith('Energy')
   })
+
+  it('shows "Top themes" for the theme dimension', () => {
+    const summary = [{ key: 'Artificial Intelligence', count: 9, avgPct: 5.2 }]
+    render(<GroupSummaryStrip summary={summary} dimension="theme" />)
+    expect(screen.getByText('Top themes')).toBeInTheDocument()
+  })
 })
