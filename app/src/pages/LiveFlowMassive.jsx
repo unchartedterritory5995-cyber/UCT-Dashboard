@@ -1083,7 +1083,11 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   // Applied to every descriptive cell below (ticker, spot, strike, exp, %OTM,
   // price, vol, OI, premium, alert name). Grade + P/L keep their own meaning.
   const DIM_WHITE = "#9aa0a6";
-  const rowColor = isAlpha ? P.ac : (alert._color === "WHITE" ? DIM_WHITE : dirColor);
+  // White-out when volume did NOT exceed OI — keyed off the actual V/OI ratio
+  // (what the V/OI column shows), not the _color field which isn't reliable here.
+  // volumeOIRatio <= 1 (or missing) → not new positioning → dim white, any direction.
+  const _underOI = !(alert.volumeOIRatio > 1);
+  const rowColor = isAlpha ? P.ac : (_underOI ? DIM_WHITE : dirColor);
   const tickerColor = rowColor;
   const tickerWeight = isAlpha ? 700 : 600;
   const strikeColor = rowColor;
