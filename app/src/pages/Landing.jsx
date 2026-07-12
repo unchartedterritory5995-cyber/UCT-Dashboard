@@ -10,7 +10,6 @@ import shotModelbook from '../assets/landing/modelbook.webp'
 import shotWorkspace from '../assets/landing/workspace.webp'
 import shotCatalysts from '../assets/landing/catalysts.webp'
 import shotCalendar from '../assets/landing/calendar.webp'
-import shotTape from '../assets/landing/tape.webp'
 import shotLiveflow from '../assets/landing/liveflow.webp'
 import shotBreadthSm from '../assets/landing/breadth_sm.webp'
 import shotWire from '../assets/landing/wire.webp'
@@ -112,7 +111,7 @@ function FadeIn({ children, delay = 0, className = '' }) {
 // a real capture would expose personal account data).
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Shot({ src, title, time, alt, live = false }) {
+function Shot({ src, title, time, alt, live = false, eager = false, onZoom }) {
   return (
     <figure className={styles.shot}>
       <div className={styles.vigHead}>
@@ -120,9 +119,42 @@ function Shot({ src, title, time, alt, live = false }) {
         <span className={styles.vigTitle}>{title}</span>
         <span className={styles.vigTime}>{time}</span>
       </div>
-      <img src={src} alt={alt} loading="lazy" />
-      <figcaption className={styles.vigCaption}>Captured from the live desk</figcaption>
+      <button
+        type="button"
+        className={styles.shotZoom}
+        onClick={() => onZoom && onZoom({ src, alt, title })}
+        aria-label={`Enlarge: ${title}`}
+      >
+        <img
+          src={src}
+          alt={alt}
+          loading={eager ? 'eager' : 'lazy'}
+          fetchPriority={eager ? 'high' : 'auto'}
+        />
+      </button>
+      <figcaption className={styles.vigCaption}>Captured from the live desk · click to enlarge</figcaption>
     </figure>
+  )
+}
+
+// Fullscreen lightbox for product captures — ESC or click anywhere to close.
+function Lightbox({ item, onClose }) {
+  useEffect(() => {
+    if (!item) return
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [item, onClose])
+  if (!item) return null
+  return (
+    <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label={item.title} onClick={onClose}>
+      <img src={item.src} alt={item.alt} />
+      <div className={styles.lightboxCaption}>{item.title} — captured from the live desk. Click anywhere to close.</div>
+    </div>
   )
 }
 
@@ -235,16 +267,6 @@ function Vignette({ kind }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Content
 // ─────────────────────────────────────────────────────────────────────────────
-
-// The agentic loop — what the intelligence layer does, in order.
-const LOOP = [
-  { verb: 'Reads',    detail: '8 sources, every night, cover to cover' },
-  { verb: 'Briefs',   detail: 'the Morning Wire, 7:35 AM sharp' },
-  { verb: 'Flags',    detail: 'catalysts as they form, pre-market' },
-  { verb: 'Calls it', detail: 'GO / HOLD / SKIP — before you click buy' },
-  { verb: 'Learns',   detail: 'from every trade in your journal' },
-  { verb: 'Coaches',  detail: 'your week, every Sunday evening' },
-]
 
 // The complete inventory — every shipped feature, grouped. This is the menu
 // at a place that's proud of its kitchen: everything named, nothing metered.
@@ -382,6 +404,10 @@ const FAQS = [
     a: 'It replaces the stack. A screener hands you 200 tickers; the desk hands you twenty vetted reasons. A flow tool shows you the tape; this one shows the tape next to breadth, themes, and your own positions. A Discord gives you noise; The Floor gives you a room with the tape running. A journal app records your trades; this one reads them and coaches you back. One subscription, one desk.',
   },
   {
+    q: 'Can I see it before signing up?',
+    a: 'You already are — every screenshot on this page is captured from the live product, not a mockup. Beyond that, we publish SUNDAY SCANS free every week, the daily live sessions are recorded on The Desk, and the 7-day trial is the full tour with nothing held back.',
+  },
+  {
     q: 'Can I cancel? What about refunds?',
     a: 'Cancel in one click from Settings — no contracts, no retention calls. Charges aren’t refundable, which is exactly what the trial is for: seven days with the whole desk to make the call before any charge happens.',
   },
@@ -411,6 +437,15 @@ function ChipRow({ chips }) {
 
 export default function Landing() {
   const [billing, setBilling] = useState('annual') // 'annual' | 'monthly'
+  const [zoomed, setZoomed] = useState(null)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
   const [marketStatus, setMarketStatus] = useState(() => getMarketStatus())
   const [briefMins, setBriefMins] = useState(() => minutesToNextBrief())
 
@@ -450,7 +485,7 @@ export default function Landing() {
       <a href="#main" className={styles.skipLink}>Skip to main content</a>
 
       {/* ── Nav ── */}
-      <nav className={styles.nav}>
+      <nav className={`${styles.nav} ${scrolled ? styles.navScrolled : ''}`}>
         <div className={styles.navBrand}>
           <span className={styles.navMark} aria-hidden="true"><UIcon name="compass" size={18} /></span>
           UCT Intelligence
@@ -510,38 +545,19 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* The operation, at a glance — real product captures */}
+            {/* The hero artifact — one big, readable, real capture */}
             <div className={`${styles.heroMosaic} ${styles.enter} ${styles.enter4}`}>
-              <div className={styles.mosaicWide}>
-                <Shot
-                  src={shotModelbook}
-                  title="Model Book · NVDA 2023"
-                  time="+234% · ANNOTATED"
-                  alt="The Model Book — NVDA's 2023 run with every catalyst labeled on the chart: earnings blowouts, AI guidance, the trillion-dollar milestone"
-                />
-              </div>
-              <div className={styles.mosaicCell}>
-                <Shot
-                  src={shotTape}
-                  title="LiveFlow"
-                  time="THE TAPE"
-                  live
-                  alt="The LiveFlow options tape — graded sweeps and blocks with premium"
-                />
-              </div>
-              <div className={styles.mosaicCell}>
-                <Shot
-                  src={shotBreadthSm}
-                  title="Breadth"
-                  time="8-TIER HEAT"
-                  alt="The breadth monitor heatmap — moving-average breadth tiers"
-                />
-              </div>
-              <div className={styles.mosaicWide}>
-                <div className={styles.mosaicChatLine}>
-                  <span className={styles.vigBadgeGo}>COMPASS</span>
-                  <span>Two stops today — your rule says A+ setups only. This one’s a SKIP.</span>
-                </div>
+              <Shot
+                src={shotModelbook}
+                title="Model Book · NVDA 2023"
+                time="+234% · ANNOTATED"
+                eager
+                onZoom={setZoomed}
+                alt="The Model Book — NVDA's 2023 run with every catalyst labeled on the chart: earnings blowouts, AI guidance, the trillion-dollar milestone"
+              />
+              <div className={styles.mosaicChatLine}>
+                <span className={styles.vigBadgeGo}>COMPASS</span>
+                <span>Two stops today — your rule says A+ setups only. This one’s a SKIP.</span>
               </div>
               <div className={styles.mosaicCaption}>Real product · captured July 2026</div>
             </div>
@@ -569,6 +585,10 @@ export default function Landing() {
                 </li>
               ))}
             </ol>
+            <div className={styles.tenTotal}>
+              <span>Bought separately, traders commonly pay <strong>$250–$500 a month</strong> for this stack.</span>
+              <span className={styles.tenTotalRight}>Here: <strong>$200/mo — sharing one brain.</strong></span>
+            </div>
             <p className={styles.shiftQualifier}>
               Built for committed swing and momentum traders, on the methodologies of
               O&rsquo;Neil, Minervini, and Qullamaggie — the setups, the regime discipline,
@@ -641,16 +661,16 @@ export default function Landing() {
                 src={shotWire}
                 title="The Morning Wire"
                 time="FRI JUL 10 · 7:41 AM ET"
+                onZoom={setZoomed}
                 alt="A real Morning Wire brief — today's focus, the tape, and what's driving it"
               />
-              <ol className={styles.loop}>
-                {LOOP.map((step) => (
-                  <li key={step.verb} className={styles.loopStep}>
-                    <span className={styles.loopVerb}>{step.verb}</span>
-                    <span className={styles.loopDetail}>{step.detail}</span>
-                  </li>
-                ))}
-              </ol>
+              <Shot
+                src={shotCatalysts}
+                title="Stock Catalysts"
+                time="FRI JUL 10 · RANKED"
+                onZoom={setZoomed}
+                alt="Friday's Stock Catalysts — ranked tickers with the AI-written catalyst behind each move"
+              />
             </div>
           </div>
         </section>
@@ -675,20 +695,25 @@ export default function Landing() {
                 title="LiveFlow · market read"
                 time="JUN 26 SESSION"
                 live
+                onZoom={setZoomed}
                 alt="LiveFlow — bullish market read with bull/bear premium flow and the graded options tape"
               />
-              <Shot
-                src={shotCatalysts}
-                title="Stock Catalysts"
-                time="FRI JUL 10 · RANKED"
-                alt="Friday's Stock Catalysts — ranked tickers with the AI-written catalyst behind each move"
-              />
-              <Shot
-                src={shotCalendar}
-                title="Earnings Calendar"
-                time="THE WEEK AHEAD"
-                alt="The earnings calendar — a logo-forward week of reporting companies, morning and after-close"
-              />
+              <div className={styles.sideRow}>
+                <Shot
+                  src={shotBreadthSm}
+                  title="Breadth"
+                  time="8-TIER HEAT"
+                  onZoom={setZoomed}
+                  alt="The breadth monitor heatmap — moving-average breadth tiers"
+                />
+                <Shot
+                  src={shotCalendar}
+                  title="Calendar"
+                  time="WEEK AHEAD"
+                  onZoom={setZoomed}
+                  alt="The earnings calendar — a logo-forward week of reporting companies"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -712,6 +737,7 @@ export default function Landing() {
                 src={shotWorkspace}
                 title="Charts Workspace · DDOG 1D"
                 time="8 TF · LINKED"
+                onZoom={setZoomed}
                 alt="A chart tile from the workspace — DDOG daily with four moving averages and volume, streaming"
               />
             </div>
@@ -739,34 +765,43 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Pillar · It teaches you ── */}
+        {/* ── Pillar · It teaches you — full-width showcase ── */}
         <section className={`${styles.pillar} ${styles.pillarBand}`}>
-          <div className={styles.pillarInner}>
-            <div className={styles.pillarCopy}>
+          <div className={styles.learnWide}>
+            <div className={`${styles.sectionHead} ${styles.learnHead}`}>
               <div className={styles.sectionEyebrow}>It teaches you</div>
               <h2 className={styles.sectionH2}>A desk that makes you <em>a better trader.</em></h2>
               <p className={styles.sectionP}>
                 Every legendary run in market history, annotated candle by candle in
-                the Model Book. A 48-setup library with the playbook for each —
-                entry, stop, invalidation, the mistakes that kill it. Daily session
-                recordings with chapters. And a coach that reviews your week from
-                your own numbers — so the lessons come from your trading, not a course.
+                the Model Book. A 48-setup library with the playbook for each. Daily
+                session recordings with chapters — and a coach that reviews your week
+                from your own numbers, so the lessons come from your trading, not a course.
               </p>
-              <ChipRow chips={PILLAR_CHIPS.learn} />
             </div>
-            <div className={styles.pillarSide}>
-              <Shot
-                src={shotSetups}
-                title="Setup Library · SMCI 2024"
-                time="+218% IN 20 DAYS"
-                alt="A Setup Library example — SMCI's flat-base breakout annotated with the kicker candle, shakeout, and volume signature"
-              />
+            <Shot
+              src={shotSetups}
+              title="Setup Library · SMCI 2024 Flat Base Breakout"
+              time="+218% IN 20 DAYS · EVERY SIGNAL LABELED"
+              onZoom={setZoomed}
+              alt="A Setup Library example — SMCI's flat-base breakout annotated with the kicker candle, shakeout, and volume signature"
+            />
+            <div className={styles.learnRow}>
               <Shot
                 src={shotPlaybook}
                 title="The Playbook · Pocket Pivot"
                 time="ENTRY · STOP · MISTAKES"
+                onZoom={setZoomed}
                 alt="A setup playbook — ideal regime, entry rules, stop placement, invalidation, and common mistakes"
               />
+              <div className={styles.learnRowCopy}>
+                <p className={styles.sectionP}>
+                  Forty-eight setups, each with its dossier: the ideal regime, the
+                  exact entry, where the stop lives, what invalidates it — and the
+                  common mistakes that kill it, written out so you don&rsquo;t pay for
+                  them twice.
+                </p>
+                <ChipRow chips={PILLAR_CHIPS.learn} />
+              </div>
             </div>
           </div>
         </section>
@@ -956,6 +991,30 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ── Not ready yet? The Sunday letter ── */}
+        <section className={styles.letter}>
+          <div className={styles.letterInner}>
+            <div>
+              <div className={styles.sectionEyebrow}>Not ready yet?</div>
+              <h2 className={styles.letterH2}>Read the free Sunday letter first.</h2>
+              <p className={styles.letterP}>
+                SUNDAY SCANS — the setups, charts, and market read we publish every
+                Sunday. Free, no account needed. See how the desk thinks before you
+                sit at it.
+              </p>
+            </div>
+            <a
+              className={styles.letterCta}
+              href="https://unchartedterritoryy.substack.com/subscribe"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track('substack_cta_click')}
+            >
+              Get SUNDAY SCANS free →
+            </a>
+          </div>
+        </section>
+
         {/* ── Final close ── */}
         <section className={styles.close}>
           <div className={styles.closeInner}>
@@ -976,6 +1035,11 @@ export default function Landing() {
             </div>
             <div className={styles.ctaSubnote}>
               $200/month or $2,000/year after the trial · Cancel in one click
+            </div>
+            <div className={styles.closeCountdown}>
+              <span className={styles.briefCountdownDot} aria-hidden="true" />
+              The desk reads tonight — your first brief lands in{' '}
+              <strong>{formatCountdown(briefMins)}</strong>
             </div>
           </div>
         </section>
@@ -1020,6 +1084,8 @@ export default function Landing() {
           &copy; {new Date().getFullYear()} Uncharted Territory
         </div>
       </footer>
+
+      <Lightbox item={zoomed} onClose={() => setZoomed(null)} />
 
       {/* ── Sticky mobile CTA ── */}
       <Link

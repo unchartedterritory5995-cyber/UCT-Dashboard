@@ -80,6 +80,10 @@
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
+  transition: box-shadow 0.25s ease;
+}
+.navScrolled {
+  box-shadow: 0 4px 20px rgba(28, 22, 12, 0.07);
 }
 
 .navBrand {
@@ -254,17 +258,13 @@
   letter-spacing: 0.01em;
 }
 
-/* Hero mosaic — real product artifacts on paper */
+/* Hero — one large, readable, real artifact */
 .heroMosaic {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
 }
-
-.mosaicCell { min-width: 0; }
-.mosaicCell .shot { height: 100%; }
-.mosaicWide { grid-column: 1 / -1; }
 
 .mosaicChatLine {
   display: flex;
@@ -410,52 +410,62 @@
   border-top: 1px solid var(--line);
 }
 
-/* The ten — numbered grid of the subscriptions this desk replaces */
+/* The ten — a ledger of the subscriptions this desk replaces */
 .ten {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 14px;
-  max-width: 1120px;
-  margin: 44px auto 0;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 56px;
+  max-width: 980px;
+  margin: 40px auto 0;
   padding: 0;
   text-align: left;
+  border-top: 2px solid var(--ink);
 }
 .tenItem {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 16px 16px 14px;
-  box-shadow: 0 1px 2px rgba(28, 22, 12, 0.04);
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
-.tenItem:hover {
-  border-color: #d8cfb8;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(28, 22, 12, 0.07);
+  display: grid;
+  grid-template-columns: 34px minmax(0, auto) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--line);
 }
 .tenNum {
-  display: block;
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   color: var(--gold-deep);
-  margin-bottom: 8px;
 }
 .tenName {
-  display: block;
   font-weight: 650;
-  font-size: 14px;
+  font-size: 14.5px;
   color: var(--ink);
-  margin-bottom: 4px;
+  white-space: nowrap;
 }
 .tenDesc {
-  display: block;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--muted-t);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+.tenTotal {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 2px 0;
+  font-size: 14px;
+  color: var(--body-t);
+  text-align: left;
+}
+.tenTotal strong { color: var(--ink); font-weight: 700; }
+.tenTotalRight { color: var(--gold-deep); }
+.tenTotalRight strong { color: var(--gold-deep); }
 
 /* ── Founder note ────────────────────────────────────────────────────────── */
 
@@ -597,47 +607,6 @@
 }
 .intelVoice span { display: inline-flex; color: var(--gold-deep); }
 
-/* The agentic loop list */
-.loop {
-  list-style: none;
-  margin: 0 0 4px;
-  padding: 0;
-}
-.loopStep {
-  position: relative;
-  padding: 13px 0 13px 28px;
-  border-left: 1px solid var(--line);
-}
-.loopStep:first-child { padding-top: 2px; }
-.loopStep:last-child { padding-bottom: 2px; }
-.loopStep::before {
-  content: '';
-  position: absolute;
-  left: -4.5px;
-  top: 21px;
-  width: 8px;
-  height: 8px;
-  transform: rotate(45deg);
-  background: var(--gold);
-}
-.loopStep:first-child::before { top: 10px; }
-.loopVerb {
-  display: inline;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 17px;
-  color: var(--ink);
-  line-height: 1.2;
-  margin-right: 12px;
-}
-.loopDetail {
-  display: inline;
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--muted-t);
-  letter-spacing: 0.02em;
-}
-
 /* ── Real product captures — dark artifacts in light frames ─────────────── */
 
 .shot {
@@ -663,6 +632,56 @@
 .shot .vigTime { color: var(--muted-t); }
 .shot .vigCaption { color: var(--muted-t); }
 .heroMosaic .shot .vigCaption { display: none; }
+
+.shotZoom {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+  border-radius: 7px;
+}
+.shotZoom:hover img { filter: brightness(1.06); }
+.shotZoom img { transition: filter 0.2s ease; }
+
+/* two-up row inside a pillar side */
+.sideRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: stretch;
+}
+.sideRow .shot { height: 100%; }
+
+/* Fullscreen lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(20, 16, 10, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 4vh 4vw;
+  cursor: zoom-out;
+}
+.lightbox img {
+  max-width: 100%;
+  max-height: 86vh;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+}
+.lightboxCaption {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: rgba(242, 233, 216, 0.75);
+  text-align: center;
+}
 
 /* ── Crafted vignettes — kept as dark product surfaces ───────────────────── */
 
@@ -851,6 +870,27 @@
   text-transform: uppercase;
   color: var(--panel-muted);
 }
+
+/* ── Learn showcase (full-width pillar variant) ──────────────────────────── */
+
+.learnWide {
+  max-width: 1160px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.learnHead { text-align: center; margin-bottom: 8px; }
+.learnHead .sectionH2,
+.learnHead .sectionP { margin-left: auto; margin-right: auto; }
+
+.learnRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: center;
+}
+.learnRowCopy .sectionP { margin-bottom: 4px; }
 
 /* ── Inventory wall ──────────────────────────────────────────────────────── */
 
@@ -1179,6 +1219,54 @@
   color: var(--body-t);
 }
 
+/* ── The Sunday letter (second conversion path) ──────────────────────────── */
+
+.letter {
+  padding: 0 clamp(20px, 4vw, 48px) clamp(72px, 10vh, 120px);
+}
+.letterInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(24px, 4vw, 56px);
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: clamp(28px, 4vw, 44px) clamp(24px, 4vw, 48px);
+  box-shadow: 0 1px 2px rgba(28, 22, 12, 0.04), 0 16px 40px rgba(28, 22, 12, 0.06);
+}
+.letterH2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(22px, 2.6vw, 30px);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+.letterP {
+  font-size: 15px;
+  max-width: 520px;
+  margin: 0;
+}
+.letterCta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 14px 24px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.letterCta:hover { border-color: #d5cdb8; background: #fffdf8; }
+
 /* ── Final close — the dark band returns ─────────────────────────────────── */
 
 .close {
@@ -1220,6 +1308,16 @@
 }
 .close .ctas { justify-content: center; }
 .close .ctaSubnote { margin-top: 22px; color: var(--panel-muted); }
+.closeCountdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--panel-body);
+}
+.closeCountdown strong { color: var(--gold-bright); font-weight: 700; }
 .close .ctaGold {
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
   color: #241b07;
@@ -1310,7 +1408,8 @@
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .trialSteps { grid-template-columns: repeat(2, 1fr); }
-  .ten { grid-template-columns: repeat(3, 1fr); }
+  .ten { grid-template-columns: 1fr; }
+  .learnRow { grid-template-columns: 1fr; }
   .heroInner {
     grid-template-columns: 1fr;
     gap: 56px;
@@ -1354,7 +1453,12 @@
 
   .founderCard { padding: 26px 22px; }
   .trialSteps { grid-template-columns: 1fr; }
-  .ten { grid-template-columns: repeat(2, 1fr); }
+  .ten { grid-template-columns: 1fr; }
+  .tenName { white-space: normal; }
+  .tenDesc { white-space: normal; }
+  .sideRow { grid-template-columns: 1fr; }
+  .learnRow { grid-template-columns: 1fr; }
+  .letterInner { flex-direction: column; align-items: flex-start; }
 
   .priceCard { padding: 30px 22px 28px; }
   .priceAmt { font-size: 46px; }

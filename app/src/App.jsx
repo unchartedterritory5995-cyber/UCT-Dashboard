@@ -152,9 +152,12 @@ export default function App() {
       <SWRConfig value={SWR_CONFIG}>
       <AuthProvider>
         <VoiceProvider>
-        {/* Cinematic intro overlay — plays once per session on first dashboard
-            visit. Self-unmounts on completion or skip. */}
-        <IntroAnimation />
+        {/* Cinematic intro overlay — plays on page load for the APP, but never
+            on public marketing routes: a cold visitor clicking through to the
+            landing page must see it immediately, not a 9-second brand film. */}
+        {!['/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy'].includes(window.location.pathname) && (
+          <IntroAnimation />
+        )}
         {/* Global right-click → "+ Add to Portfolio" on every StockChart.
             Skips silently when logged out; only mounts once at app root. */}
         <Suspense fallback={null}>
