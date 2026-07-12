@@ -1323,6 +1323,290 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   );
 }
 
+// ─── DateRail — LIVE pill · prev/next trading day · recent-day chips ·
+//     calendar popover limited to days that actually have flow data.
+//     Replaces the old bare <input type="date"> (which let users pick
+//     weekends/holidays/pre-history days and land on empty tapes).
+//     Data source: GET /api/flow/dates?source=stocks — the DISTINCT
+//     CreatedDate list from flow.db, i.e. exactly the browsable days. ────────
+const MONTH_NAMES = ["January","February","March","April","May","June",
+  "July","August","September","October","November","December"];
+const DOW_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+
+function _etTodayMDY() {
+  const n = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  return `${n.getMonth() + 1}/${n.getDate()}/${n.getFullYear()}`;
+}
+function _mdyToDate(s) {
+  if (!s) return null;
+  const p = String(s).split("/").map(Number);
+  if (p.length !== 3 || p.some(isNaN)) return null;
+  return new Date(p[2], p[0] - 1, p[1]);
+}
+function _dateToMDY(d) {
+  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
+function DateRail({ targetDate, onDateChange }) {
+  const [dates, setDates] = useState(null);      // ascending M/D/YYYY, null = loading/failed
+  const [calOpen, setCalOpen] = useState(false);
+  const [calMonth, setCalMonth] = useState(null); // {y, m} shown in the popover
+  const railRef = useRef(null);
+
+  useEffect(() => {
+    let dead = false;
+    fetch("/api/flow/dates?source=stocks")
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!dead && d && Array.isArray(d.dates)) setDates(d.dates); })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, []);
+
+  // Close the calendar on outside click / Escape.
+  useEffect(() => {
+    if (!calOpen) return;
+    const onDown = (e) => {
+      if (railRef.current && !railRef.current.contains(e.target)) setCalOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setCalOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [calOpen]);
+
+  const today = _etTodayMDY();
+  // Historical = every data day except today (today == LIVE view).
+  const hist = (dates || []).filter(d => d !== today);
+  const histSet = new Set(hist);
+  const isLive = !targetDate;
+
+  // Recent chips: the 5 most recent historical days. If the selected date is
+  // older than the window, it appears as an extra chip so it's always visible.
+  const recent = hist.slice(-5);
+  const chips = (!isLive && !recent.includes(targetDate) && histSet.has(targetDate))
+    ? [targetDate, ...recent] : recent;
+
+  // Step arrows walk the historical list; stepping forward past the newest
+  // historical day returns to LIVE.
+  const idx = isLive ? hist.length : hist.indexOf(targetDate);
+  const stepBack = () => {
+    if (!hist.length) return;
+    if (isLive) { onDateChange(hist[hist.length - 1]); return; }
+    if (idx > 0) onDateChange(hist[idx - 1]);
+  };
+  const stepFwd = () => {
+    if (isLive || idx < 0) return;
+    if (idx >= hist.length - 1) onDateChange(null);
+    else onDateChange(hist[idx + 1]);
+  };
+  const canBack = hist.length > 0 && (isLive || idx > 0);
+  const canFwd = !isLive;
+
+  const openCal = () => {
+    const base = _mdyToDate(targetDate) || _mdyToDate(hist[hist.length - 1]) || new Date();
+    setCalMonth({ y: base.getFullYear(), m: base.getMonth() });
+    setCalOpen(o => !o);
+  };
+
+  const selDate = _mdyToDate(targetDate);
+  const chipBtn = (active) => ({
+    background: active ? P.ac : "transparent",
+    color: active ? P.bg : P.wh,
+    border: `1px solid ${active ? P.ac : P.bd}`,
+    borderRadius: 3, padding: "3px 9px", cursor: "pointer",
+    fontSize: 11, fontFamily: "inherit", lineHeight: 1.5,
+    fontWeight: active ? 700 : 400, whiteSpace: "nowrap",
+    transition: "background .15s, color .15s, border-color .15s",
+  });
+  const arrowBtn = (enabled) => ({
+    background: "transparent", color: enabled ? P.wh : P.mt,
+    border: `1px solid ${P.bd}`, borderRadius: 3,
+    padding: "3px 8px", cursor: enabled ? "pointer" : "default",
+    fontSize: 11, fontFamily: "inherit", lineHeight: 1.5,
+    opacity: enabled ? 1 : 0.45,
+  });
+
+  // Fallback: dates endpoint unavailable → keep the old native input so the
+  // page never loses history access.
+  if (dates === null) {
+    const iso = (() => {
+      const d = _mdyToDate(targetDate);
+      if (!d) return "";
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    })();
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <label style={{ color: P.dm, fontSize: 12 }}>Date:</label>
+        <input
+          type="date" value={iso}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) { onDateChange(null); return; }
+            const [y, m, d] = v.split("-");
+            onDateChange(`${parseInt(m)}/${parseInt(d)}/${y}`);
+          }}
+          style={{
+            background: P.bg, color: P.wh, border: `1px solid ${P.bd}`,
+            borderRadius: 3, padding: "3px 8px", fontSize: 11,
+            fontFamily: "inherit", colorScheme: "dark",
+          }}
+        />
+        {targetDate && (
+          <button onClick={() => onDateChange(null)} style={chipBtn(false)} title="Return to live view (today)">
+            ← LIVE
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  // Calendar month grid (only rendered while open).
+  let calBody = null;
+  if (calOpen && calMonth) {
+    const { y, m } = calMonth;
+    const first = new Date(y, m, 1);
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const lead = first.getDay();
+    const cells = [];
+    for (let i = 0; i < lead; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    const earliest = _mdyToDate(hist[0]);
+    const latest = new Date();
+    const canPrevMonth = earliest && (y > earliest.getFullYear() || (y === earliest.getFullYear() && m > earliest.getMonth()));
+    const canNextMonth = y < latest.getFullYear() || (y === latest.getFullYear() && m < latest.getMonth());
+    const navBtn = (enabled) => ({
+      background: "transparent", color: enabled ? P.wh : P.mt, border: "none",
+      cursor: enabled ? "pointer" : "default", fontSize: 13, padding: "2px 8px",
+      fontFamily: "inherit", opacity: enabled ? 1 : 0.4,
+    });
+    calBody = (
+      <div style={{
+        position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 120,
+        background: P.bg, border: `1px solid ${P.bd}`, borderRadius: 6,
+        padding: "10px 12px 12px", boxShadow: "0 10px 30px rgba(0,0,0,0.55)",
+        width: 246, userSelect: "none",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <button style={navBtn(canPrevMonth)} disabled={!canPrevMonth} title="Previous month"
+            onClick={() => canPrevMonth && setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>‹</button>
+          <span style={{ color: P.ac, fontSize: 12, fontWeight: 700, letterSpacing: 1 }}>
+            {MONTH_NAMES[m].toUpperCase()} {y}
+          </span>
+          <button style={navBtn(canNextMonth)} disabled={!canNextMonth} title="Next month"
+            onClick={() => canNextMonth && setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>›</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+          {["S","M","T","W","T","F","S"].map((c, i) => (
+            <span key={i} style={{ color: P.mt, fontSize: 9, textAlign: "center", letterSpacing: 1 }}>{c}</span>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          {cells.map((d, i) => {
+            if (d === null) return <span key={i} />;
+            const mdy = `${m + 1}/${d}/${y}`;
+            const isToday = mdy === today;
+            const hasData = histSet.has(mdy);
+            const isSel = !isLive && targetDate === mdy;
+            const clickable = hasData || isToday;
+            return (
+              <button
+                key={i}
+                disabled={!clickable}
+                onClick={() => {
+                  if (isToday) onDateChange(null);
+                  else if (hasData) onDateChange(mdy);
+                  setCalOpen(false);
+                }}
+                title={isToday ? "Today — live view" : hasData ? `View flow for ${mdy}` : "No flow data"}
+                style={{
+                  background: isSel ? P.ac : "transparent",
+                  color: isSel ? P.bg : isToday ? P.ac : clickable ? P.wh : P.mt,
+                  border: isToday && !isSel ? `1px solid ${P.ac}` : "1px solid transparent",
+                  borderRadius: 3, padding: "4px 0", fontSize: 11,
+                  fontFamily: "inherit", cursor: clickable ? "pointer" : "default",
+                  fontWeight: isSel || isToday ? 700 : 400,
+                  opacity: clickable ? 1 : 0.35,
+                  position: "relative", lineHeight: 1.4,
+                }}
+              >
+                {d}
+                {hasData && !isSel && (
+                  <span style={{
+                    position: "absolute", bottom: 1, left: "50%", transform: "translateX(-50%)",
+                    width: 3, height: 3, borderRadius: "50%", background: P.ac, display: "block",
+                  }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ color: P.mt, fontSize: 9, marginTop: 8, letterSpacing: 0.5 }}>
+          <span style={{ color: P.ac }}>●</span> = flow data available · {hist.length} days archived
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <span ref={railRef} style={{ display: "inline-flex", alignItems: "center", gap: 6, position: "relative", flexWrap: "wrap" }}>
+      <button
+        onClick={() => onDateChange(null)}
+        title="Live view — today's tape, streaming"
+        style={{
+          ...chipBtn(isLive),
+          fontWeight: 700, letterSpacing: 0.5,
+          color: isLive ? P.bg : P.ac,
+          borderColor: isLive ? P.ac : P.bd,
+        }}
+      >
+        ● LIVE
+      </button>
+
+      <span style={{ display: "inline-flex", gap: 3 }}>
+        <button onClick={stepBack} disabled={!canBack} style={arrowBtn(canBack)}
+          title="Previous trading day">‹</button>
+        <button onClick={stepFwd} disabled={!canFwd} style={arrowBtn(canFwd)}
+          title={idx >= hist.length - 1 ? "Forward to live" : "Next trading day"}>›</button>
+      </span>
+
+      {chips.map(mdy => {
+        const d = _mdyToDate(mdy);
+        const label = d ? `${DOW_SHORT[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}` : mdy;
+        const active = targetDate === mdy;
+        return (
+          <button key={mdy} onClick={() => onDateChange(active ? null : mdy)}
+            style={chipBtn(active)}
+            title={active ? "Click to return to live" : `View flow for ${mdy}`}>
+            {label}
+          </button>
+        );
+      })}
+
+      <button onClick={openCal} style={{ ...chipBtn(calOpen), color: calOpen ? P.bg : P.dm }}
+        title="Pick any archived day">
+        {selDate && !chips.includes(targetDate)
+          ? `${DOW_SHORT[selDate.getDay()]} ${selDate.getMonth() + 1}/${selDate.getDate()} ▾`
+          : "MORE ▾"}
+      </button>
+
+      {!isLive && (
+        <span style={{
+          color: P.ac, fontSize: 10, fontWeight: 700, letterSpacing: 1,
+          border: `1px solid ${P.ac}44`, borderRadius: 3, padding: "2px 7px",
+          background: `${P.ac}14`,
+        }}>
+          HISTORICAL
+        </span>
+      )}
+
+      {calBody}
+    </span>
+  );
+}
+
 // ─── Header ───────────────────────────────────────────────────────────────
 function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
                   rowLimit, onRowLimitChange,
@@ -1334,21 +1618,6 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
   const connected = status?.connected;
   const lastEvent = status?.last_event_at;
   const returned = status?.returned;
-  // Convert M/D/YYYY ↔ YYYY-MM-DD for the native <input type="date"> field.
-  // Native input requires ISO format; our backend uses M/D/YYYY.
-  const dateInputValue = (() => {
-    if (!targetDate) return "";
-    const parts = targetDate.split("/");
-    if (parts.length !== 3) return "";
-    const [m, d, y] = parts;
-    return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
-  })();
-  const handleDateInput = (e) => {
-    const v = e.target.value;  // YYYY-MM-DD
-    if (!v) { onDateChange(null); return; }
-    const [y, m, d] = v.split("-");
-    onDateChange(`${parseInt(m)}/${parseInt(d)}/${y}`);  // M/D/YYYY
-  };
   return (
     <div style={{
       padding: "12px 16px", background: P.cd, marginBottom: 16,
@@ -1380,31 +1649,7 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         marginTop: 10, paddingTop: 10, borderTop: `1px solid ${P.bd}`,
       }}>
-        <label style={{ color: P.dm, fontSize: 12 }}>Date:</label>
-        <input
-          type="date"
-          value={dateInputValue}
-          onChange={handleDateInput}
-          style={{
-            background: P.bg, color: P.wh,
-            border: `1px solid ${P.bd}`, borderRadius: 3,
-            padding: "3px 8px", fontSize: 11,
-            fontFamily: "inherit", colorScheme: "dark",
-          }}
-        />
-        {targetDate && (
-          <button
-            onClick={() => onDateChange(null)}
-            style={{
-              background: "transparent", color: P.ac,
-              border: `1px solid ${P.ac}`, borderRadius: 3,
-              padding: "3px 8px", cursor: "pointer", fontSize: 11,
-            }}
-            title="Return to live view (today)"
-          >
-            ← LIVE
-          </button>
-        )}
+        <DateRail targetDate={targetDate} onDateChange={onDateChange} />
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
