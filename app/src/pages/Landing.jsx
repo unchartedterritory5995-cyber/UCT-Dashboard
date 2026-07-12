@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import useInView from '../hooks/useIntersectionObserver'
 import UIcon from '../components/ui/UIcon'
 import { track } from '../utils/landingTrack'
@@ -55,8 +55,8 @@ function getMarketStatus(now = new Date()) {
   return { label: 'Post-market · Closed at 4:00 PM ET', tone: 'post' }
 }
 
-// Minutes until the next weekday 7:35 AM ET brief. Honest countdown — the
-// Morning Wire really does land at 7:35 every trading morning.
+// Minutes until the next weekday 7:35 AM ET brief — surfaced inside the
+// Intelligence pillar (the Wire really does land at 7:35 every trading day).
 function minutesToNextBrief(now = new Date()) {
   const parts = etParts(now)
   const dayIdx = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(parts.weekday)
@@ -64,9 +64,9 @@ function minutesToNextBrief(now = new Date()) {
   const BRIEF = 7 * 60 + 35
 
   let addDays = 0
-  if (dayIdx === 0) addDays = 1                       // Sun → Mon
-  else if (dayIdx === 6) addDays = 2                  // Sat → Mon
-  else if (mins >= BRIEF) addDays = dayIdx === 5 ? 3 : 1 // Fri → Mon, else tomorrow
+  if (dayIdx === 0) addDays = 1
+  else if (dayIdx === 6) addDays = 2
+  else if (mins >= BRIEF) addDays = dayIdx === 5 ? 3 : 1
 
   return addDays * 24 * 60 + BRIEF - mins
 }
@@ -95,61 +95,242 @@ function FadeIn({ children, delay = 0, className = '' }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Content
+// Illustrative product surfaces — small, faithful, clearly-labeled sketches of
+// what each area of the platform looks like. Representative data only.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// The trading-day spine. Times are the structure — each is a real moment in
-// the product's actual daily rhythm.
-const MOMENTS = [
-  {
-    time: '7:35 AM',
-    day: 'Every trading morning',
-    title: 'The brief lands.',
-    body: 'Regime, exposure, and five setups worth your attention — entries, stops, invalidation levels. Ten minutes with your coffee and you have a plan for the day.',
-    agent: 'Written overnight by the desk — 8 sources, cover to cover.',
-    vignette: 'wire',
-  },
-  {
-    time: '9:00 AM',
-    day: 'Before the bell',
-    title: 'Catalysts, already vetted.',
-    body: 'Twenty names that actually matter this morning, each with the catalyst behind it and the level that proves it. Not two hundred tickers to sort — twenty reasons, ranked.',
-    agent: 'Scored and re-scored all pre-market.',
-    vignette: 'catalysts',
-  },
-  {
-    time: '10:12 AM',
-    day: 'Mid-session',
-    title: 'A second opinion before the money moves.',
-    body: 'Compass knows your setups, your sizing rules, your tilt. Ask about the trade you’re eyeing and get a straight verdict — GO, HOLD, or SKIP — with the reason.',
-    agent: 'It remembers your last three trades. And your rules.',
-    vignette: 'compass',
-  },
-  {
-    time: '12:40 PM',
-    day: 'All day',
-    title: 'The Floor is live.',
-    body: 'Real traders, real positions, all day. Share a chart, post the trade, ask the room. The tape keeps running — so does the conversation.',
-    agent: 'UCT-Mentor sits in the room too.',
-    vignette: 'floor',
-  },
-  {
-    time: '4:05 PM',
-    day: 'After the close',
-    title: 'Your journal wrote itself.',
-    body: 'Today’s trades synced straight from your broker — excursions, exit quality, R. The homework is done before dinner.',
-    agent: 'Every fill, mirrored exactly.',
-    vignette: 'journal',
-  },
-  {
-    time: 'SUN 5:00 PM',
-    day: 'Every week',
-    title: 'Your week, reviewed.',
-    body: 'What worked, what leaked, and the one thing to change on Monday. A coach’s letter, written from your own numbers.',
-    agent: 'It read every trade you took this week.',
-    vignette: 'review',
-  },
+// Hand-authored uptrend with a mid-base — [open, high, low, close] in 0–100.
+const CANDLES = [
+  [30, 33, 28, 32], [32, 35, 31, 34], [34, 36, 32, 33], [33, 34, 30, 31],
+  [31, 33, 29, 32], [32, 37, 32, 36], [36, 40, 35, 39], [39, 42, 38, 41],
+  [41, 43, 39, 40], [40, 41, 37, 38], [38, 40, 36, 39], [39, 44, 39, 43],
+  [43, 47, 42, 46], [46, 50, 45, 49], [49, 51, 46, 47], [47, 49, 45, 48],
+  [48, 53, 47, 52], [52, 57, 51, 56], [56, 60, 55, 59], [59, 61, 56, 57],
+  [57, 60, 55, 59], [59, 64, 58, 63], [63, 68, 62, 67], [67, 71, 65, 70],
 ]
+
+function MiniChart({ height = 150 }) {
+  const W = 340
+  const H = 110
+  const n = CANDLES.length
+  const bw = W / n
+  const y = (v) => H - (v / 100) * H
+
+  // Simple 5-bar MA of closes for the overlay line.
+  const ma = CANDLES.map((_, i) => {
+    const from = Math.max(0, i - 4)
+    const slice = CANDLES.slice(from, i + 1)
+    return slice.reduce((s, c) => s + c[3], 0) / slice.length
+  })
+  const maPath = ma.map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i + 0.5) * bw} ${y(v)}`).join(' ')
+
+  return (
+    <svg
+      className={styles.miniChart}
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ height }}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      {[25, 50, 75].map((g) => (
+        <line key={g} x1="0" y1={y(g)} x2={W} y2={y(g)} className={styles.chartGrid} />
+      ))}
+      {/* trendline along the base lows — a nod to the drawing tools */}
+      <line
+        x1={3.5 * bw} y1={y(29)} x2={16.5 * bw} y2={y(45.5)}
+        className={styles.chartTrendline}
+      />
+      {CANDLES.map(([o, h, l, c], i) => {
+        const up = c >= o
+        const cx = (i + 0.5) * bw
+        return (
+          <g key={i} className={up ? styles.candleUp : styles.candleDown}>
+            <line x1={cx} y1={y(h)} x2={cx} y2={y(l)} />
+            <rect
+              x={cx - bw * 0.3}
+              y={y(Math.max(o, c))}
+              width={bw * 0.6}
+              height={Math.max(1.5, Math.abs(y(o) - y(c)))}
+            />
+          </g>
+        )
+      })}
+      <path d={maPath} className={styles.chartMa} />
+    </svg>
+  )
+}
+
+const TAPE_ROWS = [
+  { sym: 'NVDA', det: '190C 07/25', prem: '$2.4M', kind: 'SWEEP', up: true },
+  { sym: 'SPY',  det: '628P 07/14', prem: '$1.1M', kind: 'BLOCK', up: false },
+  { sym: 'AVGO', det: '300C 08/15', prem: '$3.8M', kind: 'SWEEP', up: true },
+  { sym: 'TSLA', det: 'DARK POOL',  prem: '$6.2M', kind: 'PRINT', up: true },
+  { sym: 'PLTR', det: '160C 07/18', prem: '$890K', kind: 'SWEEP', up: true },
+  { sym: 'QQQ',  det: '560P 07/21', prem: '$1.7M', kind: 'BLOCK', up: false },
+]
+
+function TapeCard({ compact = false }) {
+  const rows = compact ? TAPE_ROWS.slice(0, 4) : TAPE_ROWS
+  return (
+    <div className={styles.vig} aria-hidden="true">
+      <div className={styles.vigHead}>
+        <span className={`${styles.vigDot} ${styles.vigDotLive}`} />
+        <span className={styles.vigTitle}>LiveFlow</span>
+        <span className={styles.vigTime}>STREAMING</span>
+      </div>
+      <div className={styles.tapeWindow}>
+        <div className={styles.tapeScroll}>
+          {[...rows, ...rows].map((r, i) => (
+            <div key={i} className={styles.tapeRow}>
+              <b>{r.sym}</b>
+              <span>{r.det}</span>
+              <em className={r.up ? styles.vigGreen : styles.vigRed}>{r.prem}</em>
+              <i>{r.kind}</i>
+            </div>
+          ))}
+        </div>
+      </div>
+      {!compact && <div className={styles.vigCaption}>Illustrative example</div>}
+    </div>
+  )
+}
+
+// Eight-tier breadth tints, sampled from the app's real heat palette.
+const HEAT = [
+  'rgba(10,50,22,0.97)', 'rgba(22,100,48,0.8)', 'rgba(74,222,128,0.16)',
+  'rgba(180,130,20,0.32)', 'rgba(248,113,113,0.16)', 'rgba(22,100,48,0.8)',
+]
+const HEAT_CELLS = [0, 1, 1, 2, 1, 0, 2, 3, 1, 1, 5, 2, 0, 1, 4, 1, 2, 1]
+
+function BreadthCard({ compact = false }) {
+  return (
+    <div className={styles.vig} aria-hidden="true">
+      <div className={styles.vigHead}>
+        <span className={styles.vigDot} />
+        <span className={styles.vigTitle}>Breadth</span>
+        <span className={styles.vigTime}>TIER 6 · RISK-ON</span>
+      </div>
+      <div className={styles.heatGrid}>
+        {HEAT_CELLS.slice(0, compact ? 12 : 18).map((t, i) => (
+          <span key={i} style={{ background: HEAT[t] }} />
+        ))}
+      </div>
+      {!compact && (
+        <div className={styles.vigMore}>20+ internals · 500-day analogue: 2020-06 rally</div>
+      )}
+    </div>
+  )
+}
+
+function Vignette({ kind }) {
+  return (
+    <div className={styles.vig} aria-hidden="true">
+      {kind === 'wire' && (
+        <>
+          <div className={styles.vigHead}>
+            <span className={styles.vigDot} />
+            <span className={styles.vigTitle}>Morning Wire</span>
+            <span className={styles.vigTime}>07:35 ET</span>
+          </div>
+          <div className={styles.vigRegime}>
+            <span>Regime</span>
+            <strong className={styles.vigGreen}>GREEN · Uptrend confirmed</strong>
+          </div>
+          <div className={styles.vigRow}><b>NVDA</b><span>Base breakout</span><em>above 184.20 · stop 178.40</em></div>
+          <div className={styles.vigRow}><b>PLTR</b><span>Pullback MA</span><em>21EMA tag 152.60 · stop 148.10</em></div>
+          <div className={styles.vigMore}>+ 3 more setups · exposure 115 · 2 distribution days</div>
+        </>
+      )}
+      {kind === 'catalysts' && (
+        <>
+          <div className={styles.vigHead}>
+            <span className={styles.vigDot} />
+            <span className={styles.vigTitle}>Stock Catalysts</span>
+            <span className={styles.vigTime}>PRE-MKT</span>
+          </div>
+          <div className={styles.vigRow}><b>AVGO</b><span>Raised guide + AI backlog</span><em>score 94</em></div>
+          <div className={styles.vigRow}><b>CRWD</b><span>Upgrade, PT street-high</span><em>score 88</em></div>
+          <div className={styles.vigRow}><b>VRT</b><span>Data-center capex read-through</span><em>score 85</em></div>
+          <div className={styles.vigMore}>17 more, ranked · synthesized from 8 sources</div>
+        </>
+      )}
+      {kind === 'compass' && (
+        <>
+          <div className={styles.vigHead}>
+            <span className={styles.vigDot} />
+            <span className={styles.vigTitle}>Compass</span>
+            <span className={styles.vigTime}>LIVE</span>
+          </div>
+          <div className={styles.vigMsgUser}>Adding to NVDA above 184.20 — 200 shares, stop 178.40?</div>
+          <div className={styles.vigMsg}>
+            Two stops already this morning. Your rule after two stops: A+ setups only. This add is B+ — extended from the pivot, no fresh base.
+          </div>
+          <div className={styles.vigVerdict}>
+            <span className={styles.vigBadge}>SKIP</span>
+            <span>Risk 1.4R against your daily limit. I’ll flag the next clean entry.</span>
+          </div>
+        </>
+      )}
+      {kind === 'floor' && (
+        <>
+          <div className={styles.vigHead}>
+            <span className={`${styles.vigDot} ${styles.vigDotLive}`} />
+            <span className={styles.vigTitle}>The Floor · #trading-floor</span>
+            <span className={styles.vigTime}>142 here</span>
+          </div>
+          <div className={styles.vigChat}><b>mk_swing</b> that AVGO print on LiveFlow was a monster</div>
+          <div className={styles.vigChat}><b>tape_reader</b> posted a trade card — <span className={styles.vigGold}>LONG VRT 96.40</span></div>
+          <div className={styles.vigChat}><b>UCT-Mentor</b> Breadth just crossed tier 6 — leaders extending, keep stops honest.</div>
+        </>
+      )}
+      {kind === 'journal' && (
+        <>
+          <div className={styles.vigHead}>
+            <span className={styles.vigDot} />
+            <span className={styles.vigTitle}>Journal · auto-synced</span>
+            <span className={styles.vigTime}>16:05 ET</span>
+          </div>
+          <div className={styles.vigRow}><b>VRT</b><span>Long · 96.40 → 99.85</span><em className={styles.vigGreen}>+2.1R</em></div>
+          <div className={styles.vigMeter}>
+            <span>Exit quality</span>
+            <span className={styles.vigMeterBar}><span style={{ width: '78%' }} /></span>
+            <em>captured 78% of MFE</em>
+          </div>
+          <div className={styles.vigMore}>3 trades today · all synced from your broker</div>
+        </>
+      )}
+      {kind === 'review' && (
+        <>
+          <div className={styles.vigHead}>
+            <span className={styles.vigDot} />
+            <span className={styles.vigTitle}>Weekly Review · from Compass</span>
+            <span className={styles.vigTime}>SUN</span>
+          </div>
+          <div className={styles.vigLine}>Your breakout entries printed +4.2R this week — best in six weeks.</div>
+          <div className={styles.vigLine}>The leak: two midday counter-trend trades, both against regime. −1.8R.</div>
+          <div className={styles.vigLine}><span className={styles.vigGold}>Monday:</span> take the A+ list only until Wednesday.</div>
+        </>
+      )}
+      {kind === 'desk' && (
+        <>
+          <div className={styles.vigHead}>
+            <span className={styles.vigDot} />
+            <span className={styles.vigTitle}>The Desk · Sessions</span>
+            <span className={styles.vigTime}>DAILY</span>
+          </div>
+          <div className={styles.vigRow}><b aria-hidden="true"><UIcon name="play" size={12} /></b><span>Live Trading Session — Fri</span><em>1:24:06 · 9 chapters</em></div>
+          <div className={styles.vigRow}><b aria-hidden="true"><UIcon name="play" size={12} /></b><span>Live Trading Session — Thu</span><em>1:31:40 · recap ready</em></div>
+          <div className={styles.vigMore}>every session recorded · education library · workshop</div>
+        </>
+      )}
+      <div className={styles.vigCaption}>Illustrative example</div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Content
+// ─────────────────────────────────────────────────────────────────────────────
 
 // The agentic loop — what the intelligence layer does, in order.
 const LOOP = [
@@ -159,40 +340,6 @@ const LOOP = [
   { verb: 'Verdicts', detail: 'GO / HOLD / SKIP — before you click buy' },
   { verb: 'Learns',   detail: 'from every trade in your journal' },
   { verb: 'Coaches',  detail: 'your week, every Sunday evening' },
-]
-
-// The manual desk — the classical toolkit you drive yourself.
-const MANUAL_TOOLS = [
-  {
-    icon: 'chart',
-    name: 'Charts Workspace',
-    desc: 'Drag-resize tiles, four link groups, eight timeframes, streaming bars. Drawings you grab and move like objects.',
-  },
-  {
-    icon: 'breadth',
-    name: 'Breadth Monitor',
-    desc: '20+ market internals on an eight-tier heatmap. Industry groups, ATR extension, 500-day analogue matching.',
-  },
-  {
-    icon: 'flow',
-    name: 'LiveFlow',
-    desc: 'The live options tape — sweeps, blocks, dark-pool prints, gamma exposure — streaming through the session.',
-  },
-  {
-    icon: 'flame',
-    name: 'Theme Tracker',
-    desc: '99 themes across 12 sectors, 1,928 stocks. Watch rotation happen live across six timeframes.',
-  },
-  {
-    icon: 'calendar',
-    name: 'Calendar',
-    desc: 'Earnings and economic events with analyst-rating percentiles — what’s reporting, what matters, what moved.',
-  },
-  {
-    icon: 'desk',
-    name: 'The Desk',
-    desc: 'Daily live-session recordings with chapters and recaps, plus the education library and workshop.',
-  },
 ]
 
 // The complete inventory — every shipped feature, grouped. This is the menu
@@ -290,7 +437,7 @@ const FAQS = [
   },
   {
     q: 'What exactly is in the 14-day trial?',
-    a: 'Everything. The trial is the full desk — the Morning Wire, Compass, Catalysts, LiveFlow, the Journal, The Floor, all of it, unmetered. No credit card to start, and nothing is charged unless you subscribe.',
+    a: 'Everything. The trial is the full platform — LiveFlow, the charts workspace, breadth, the Morning Wire, Compass, Catalysts, the Journal, The Floor, all of it, unmetered. No credit card to start, and nothing is charged unless you subscribe.',
   },
   {
     q: 'What happens after 14 days?',
@@ -302,7 +449,7 @@ const FAQS = [
   },
   {
     q: 'How is this different from a screener, a Discord, or a journal app?',
-    a: 'It replaces the stack. A screener hands you 200 tickers; the desk hands you twenty vetted reasons. A Discord gives you noise; The Floor gives you a room with the tape running. A journal app records your trades; this one reads them and coaches you back. One subscription, one desk.',
+    a: 'It replaces the stack. A screener hands you 200 tickers; the desk hands you twenty vetted reasons. A flow tool shows you the tape; this one shows the tape next to breadth, themes, and your own positions. A Discord gives you noise; The Floor gives you a room with the tape running. A journal app records your trades; this one reads them and coaches you back. One subscription, one desk.',
   },
   {
     q: 'Can I cancel? What about refunds?',
@@ -310,125 +457,19 @@ const FAQS = [
   },
 ]
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Product vignettes — small, faithful, clearly-labeled illustrations of what
-// each surface looks like. Data is representative, marked "Illustrative".
-// ─────────────────────────────────────────────────────────────────────────────
-
-function Vignette({ kind }) {
-  return (
-    <div className={styles.vig} aria-hidden="true">
-      {kind === 'wire' && (
-        <>
-          <div className={styles.vigHead}>
-            <span className={styles.vigDot} />
-            <span className={styles.vigTitle}>Morning Wire</span>
-            <span className={styles.vigTime}>07:35 ET</span>
-          </div>
-          <div className={styles.vigRegime}>
-            <span>Regime</span>
-            <strong className={styles.vigGreen}>GREEN · Uptrend confirmed</strong>
-          </div>
-          <div className={styles.vigRow}><b>NVDA</b><span>Base breakout</span><em>above 184.20 · stop 178.40</em></div>
-          <div className={styles.vigRow}><b>PLTR</b><span>Pullback MA</span><em>21EMA tag 152.60 · stop 148.10</em></div>
-          <div className={styles.vigRow}><b>HOOD</b><span>Prev high break</span><em>above 118.35 · stop 113.90</em></div>
-          <div className={styles.vigMore}>+ 2 more setups · exposure 115 · 2 distribution days</div>
-        </>
-      )}
-      {kind === 'catalysts' && (
-        <>
-          <div className={styles.vigHead}>
-            <span className={styles.vigDot} />
-            <span className={styles.vigTitle}>Stock Catalysts</span>
-            <span className={styles.vigTime}>PRE-MKT</span>
-          </div>
-          <div className={styles.vigRow}><b>AVGO</b><span>Raised guide + AI backlog</span><em>score 94</em></div>
-          <div className={styles.vigRow}><b>CRWD</b><span>Upgrade, PT street-high</span><em>score 88</em></div>
-          <div className={styles.vigRow}><b>VRT</b><span>Data-center capex read-through</span><em>score 85</em></div>
-          <div className={styles.vigMore}>17 more, ranked · re-scored 6:52 AM</div>
-        </>
-      )}
-      {kind === 'compass' && (
-        <>
-          <div className={styles.vigHead}>
-            <span className={styles.vigDot} />
-            <span className={styles.vigTitle}>Compass</span>
-            <span className={styles.vigTime}>LIVE</span>
-          </div>
-          <div className={styles.vigMsgUser}>Adding to NVDA above 184.20 — 200 shares, stop 178.40?</div>
-          <div className={styles.vigMsg}>
-            Two stops already this morning. Your rule after two stops: A+ setups only. This add is B+ — extended from the pivot, no fresh base.
-          </div>
-          <div className={styles.vigVerdict}>
-            <span className={styles.vigBadge}>SKIP</span>
-            <span>Risk 1.4R against your daily limit. I’ll flag the next clean entry.</span>
-          </div>
-        </>
-      )}
-      {kind === 'floor' && (
-        <>
-          <div className={styles.vigHead}>
-            <span className={styles.vigDot} />
-            <span className={styles.vigTitle}>The Floor · #trading-floor</span>
-            <span className={styles.vigTime}>142 here</span>
-          </div>
-          <div className={styles.vigChat}><b>mk_swing</b> that AVGO print on LiveFlow was a monster</div>
-          <div className={styles.vigChat}><b>tape_reader</b> posted a trade card — <span className={styles.vigGold}>LONG VRT 96.40</span></div>
-          <div className={styles.vigChat}><b>UCT-Mentor</b> Breadth just crossed tier 6 — leaders extending, keep stops honest.</div>
-        </>
-      )}
-      {kind === 'journal' && (
-        <>
-          <div className={styles.vigHead}>
-            <span className={styles.vigDot} />
-            <span className={styles.vigTitle}>Journal · auto-synced</span>
-            <span className={styles.vigTime}>16:05 ET</span>
-          </div>
-          <div className={styles.vigRow}><b>VRT</b><span>Long · 96.40 → 99.85</span><em className={styles.vigGreen}>+2.1R</em></div>
-          <div className={styles.vigMeter}>
-            <span>Exit quality</span>
-            <span className={styles.vigMeterBar}><span style={{ width: '78%' }} /></span>
-            <em>captured 78% of MFE</em>
-          </div>
-          <div className={styles.vigMore}>3 trades today · all synced from your broker</div>
-        </>
-      )}
-      {kind === 'review' && (
-        <>
-          <div className={styles.vigHead}>
-            <span className={styles.vigDot} />
-            <span className={styles.vigTitle}>Weekly Review · from Compass</span>
-            <span className={styles.vigTime}>SUN</span>
-          </div>
-          <div className={styles.vigLine}>Your breakout entries printed +4.2R this week — best in six weeks.</div>
-          <div className={styles.vigLine}>The leak: two midday counter-trend trades, both against regime. −1.8R.</div>
-          <div className={styles.vigLine}><span className={styles.vigGold}>Monday:</span> take the A+ list only until Wednesday.</div>
-        </>
-      )}
-      <div className={styles.vigCaption}>Illustrative example</div>
-    </div>
-  )
+// Chip strips under each pillar — compact feature naming.
+const PILLAR_CHIPS = {
+  market: ['LiveFlow tape', 'Dark-pool prints', 'GEX', 'Breadth Monitor', 'COT', '99 themes', 'Stock Catalysts', 'UCT 20', 'Calendar', 'News + tweet tape', '3,685 tickers streaming'],
+  charts: ['Drag-resize tiles', '4 link groups', '8 timeframes', 'Streaming bars', 'Drawing tools', 'Pattern callouts', 'Deep history', 'Fundamentals widget', 'Mobile workspace'],
+  ai: ['Morning Wire', 'Compass verdicts', 'Post-mortems', 'Tilt detection', 'Weekly reviews', 'Voice — 88 tools', 'Pattern Engine — 85 detectors', 'UCT Brain', 'UCT-Mentor'],
+  journal: ['Broker auto-sync', 'MFE / MAE excursions', 'Exit quality', 'Regime analytics', 'Risk block', 'Equity curve', 'Notebook', 'CSV presets', 'Share cards'],
+  floor: ['Live floor chat', 'Trade & chart cards', 'The Tape', 'Boards', 'Verified badges', 'Daily session recordings', 'Chapters & recaps', 'Education library', 'Workshop'],
 }
 
-// One moment on the trading-day spine.
-function Moment({ moment }) {
-  const [ref, isInView] = useInView({ threshold: 0.35 })
+function ChipRow({ chips }) {
   return (
-    <div ref={ref} className={`${styles.moment} ${isInView ? styles.momentLit : ''}`}>
-      <div className={styles.momentRail}>
-        <span className={styles.momentMarker} aria-hidden="true" />
-        <span className={styles.momentTime}>{moment.time}</span>
-        <span className={styles.momentDay}>{moment.day}</span>
-      </div>
-      <div className={styles.momentBody}>
-        <h3 className={styles.momentH3}>{moment.title}</h3>
-        <p className={styles.momentP}>{moment.body}</p>
-        <div className={styles.momentAgent}>
-          <span className={styles.momentAgentMark} aria-hidden="true"><UIcon name="compass" size={12} /></span>
-          {moment.agent}
-        </div>
-        <Vignette kind={moment.vignette} />
-      </div>
+    <div className={styles.chips}>
+      {chips.map((c) => <span key={c} className={styles.chip}>{c}</span>)}
     </div>
   )
 }
@@ -458,40 +499,6 @@ export default function Landing() {
     if (q) track('faq_open', { question: q })
   }
 
-  // The signature: a gold thread that draws down the day-timeline as the
-  // visitor scrolls through it. Scroll-linked, rAF-throttled, and fully
-  // drawn from the start under prefers-reduced-motion.
-  const daySectionRef = useRef(null)
-  const threadFillRef = useRef(null)
-  useEffect(() => {
-    const section = daySectionRef.current
-    const fill = threadFillRef.current
-    if (!section || !fill) return
-
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      fill.style.height = '100%'
-      return
-    }
-
-    let raf = null
-    const update = () => {
-      raf = null
-      const rect = section.getBoundingClientRect()
-      const viewAnchor = window.innerHeight * 0.62
-      const progress = Math.min(1, Math.max(0, (viewAnchor - rect.top) / rect.height))
-      fill.style.height = `${(progress * 100).toFixed(2)}%`
-    }
-    const onScroll = () => { if (raf === null) raf = requestAnimationFrame(update) }
-    update()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll, { passive: true })
-    return () => {
-      if (raf !== null) cancelAnimationFrame(raf)
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-    }
-  }, [])
-
   const scrollTo = (id) => (e) => {
     e.preventDefault()
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -516,9 +523,9 @@ export default function Landing() {
           UCT Intelligence
         </div>
         <div className={styles.navLinks}>
-          <a href="#day" onClick={scrollTo('day')}>Your day</a>
+          <a href="#platform" onClick={scrollTo('platform')}>Platform</a>
           <a href="#intelligence" onClick={scrollTo('intelligence')}>Intelligence</a>
-          <a href="#desk" onClick={scrollTo('desk')}>The desk</a>
+          <a href="#everything" onClick={scrollTo('everything')}>Everything</a>
           <a href="#pricing" onClick={scrollTo('pricing')}>Pricing</a>
           <a href="#faq" onClick={scrollTo('faq')}>FAQ</a>
         </div>
@@ -536,168 +543,124 @@ export default function Landing() {
 
       <main id="main">
 
-        {/* ── Hero ── */}
+        {/* ── Hero — the whole operation ── */}
         <section className={styles.hero}>
-          <div className={styles.heroRose} aria-hidden="true">
-            <svg viewBox="0 0 600 600">
-              <g className={styles.roseSpin}>
-                <circle cx="300" cy="300" r="280" fill="none" stroke="currentColor" strokeWidth="1" />
-                <circle cx="300" cy="300" r="210" fill="none" stroke="currentColor" strokeWidth="0.75" strokeDasharray="2 7" />
-                <circle cx="300" cy="300" r="120" fill="none" stroke="currentColor" strokeWidth="0.75" />
-                {Array.from({ length: 72 }, (_, i) => {
-                  const a = (i * 5 * Math.PI) / 180
-                  const major = i % 18 === 0
-                  const r1 = major ? 252 : 268
-                  return (
-                    <line
-                      key={i}
-                      x1={300 + r1 * Math.sin(a)} y1={300 - r1 * Math.cos(a)}
-                      x2={300 + 280 * Math.sin(a)} y2={300 - 280 * Math.cos(a)}
-                      stroke="currentColor" strokeWidth={major ? 1.5 : 0.75}
-                    />
-                  )
-                })}
-                <path d="M 300 68 L 316 300 L 300 340 L 284 300 Z" fill="currentColor" opacity="0.55" />
-                <path d="M 300 532 L 284 300 L 300 260 L 316 300 Z" fill="currentColor" opacity="0.2" />
-              </g>
-            </svg>
-          </div>
-
           <div className={styles.heroInner}>
-            <div className={`${styles.heroEyebrow} ${styles[`heroEyebrow_${marketStatus.tone}`]} ${styles.enter} ${styles.enter1}`}>
-              <span className={styles.eyebrowDot} />
-              {marketStatus.label}
+            <div className={styles.heroBody}>
+              <div className={`${styles.heroEyebrow} ${styles[`heroEyebrow_${marketStatus.tone}`]} ${styles.enter} ${styles.enter1}`}>
+                <span className={styles.eyebrowDot} />
+                {marketStatus.label}
+              </div>
+              <h1 className={`${styles.heroH1} ${styles.enter} ${styles.enter2}`}>
+                Your entire trading operation. <em>One desk.</em>
+              </h1>
+              <p className={`${styles.heroSub} ${styles.enter} ${styles.enter3}`}>
+                Live charts. The options tape. Market breadth, 99 rotation themes,
+                vetted catalysts. A journal that syncs itself from your broker, and a
+                floor of real traders — with one AI woven through all of it, reading
+                the market while you sleep and coaching every trade you take.
+              </p>
+              <div className={`${styles.ctas} ${styles.enter} ${styles.enter4}`}>
+                <Link
+                  to="/signup"
+                  className={styles.ctaGold}
+                  onClick={() => track('hero_cta_pro_click')}
+                >
+                  Start your 14-day free trial
+                </Link>
+                <a href="#platform" className={styles.ctaGhost} onClick={scrollTo('platform')}>
+                  See the platform
+                </a>
+              </div>
+              <div className={`${styles.ctaSubnote} ${styles.enter} ${styles.enter5}`}>
+                No credit card · Full access from minute one · Cancel in one click
+              </div>
             </div>
-            <h1 className={`${styles.heroH1} ${styles.enter} ${styles.enter2}`}>
-              Wake up to a desk that <em>already did the work.</em>
-            </h1>
-            <p className={`${styles.heroSub} ${styles.enter} ${styles.enter3}`}>
-              UCT Intelligence is a complete trading desk run by an AI research team.
-              It reads the market overnight — news, filings, flow, breadth — and hands
-              you a plan at 7:35 AM. Then it stands beside every trade you take.
-            </p>
-            <div className={`${styles.ctas} ${styles.enter} ${styles.enter4}`}>
-              <Link
-                to="/signup"
-                className={styles.ctaGold}
-                onClick={() => track('hero_cta_pro_click')}
-              >
-                Start your 14-day free trial
-              </Link>
-              <a href="#day" className={styles.ctaGhost} onClick={scrollTo('day')}>
-                See what lands tomorrow
-              </a>
-            </div>
-            <div className={`${styles.ctaSubnote} ${styles.enter} ${styles.enter5}`}>
-              No credit card · Full access from minute one · Cancel in one click
-            </div>
-            <div className={`${styles.heroCountdown} ${styles.enter} ${styles.enter6}`}>
-              <span className={styles.heroCountdownDot} aria-hidden="true" />
-              The desk reads tonight — the next brief lands in{' '}
-              <strong>{formatCountdown(briefMins)}</strong>
+
+            {/* The operation, at a glance — live-feeling product surfaces */}
+            <div className={`${styles.heroMosaic} ${styles.enter} ${styles.enter4}`} aria-hidden="true">
+              <div className={styles.mosaicChart}>
+                <div className={styles.vigHead}>
+                  <span className={styles.vigDot} />
+                  <span className={styles.vigTitle}>NVDA · 1D</span>
+                  <span className={styles.vigTime}>WORKSPACE</span>
+                </div>
+                <MiniChart height={130} />
+              </div>
+              <div className={styles.mosaicCell}><TapeCard compact /></div>
+              <div className={styles.mosaicCell}><BreadthCard compact /></div>
+              <div className={styles.mosaicWide}>
+                <div className={styles.mosaicChatLine}>
+                  <span className={styles.vigBadgeGo}>COMPASS</span>
+                  <span>Two stops today — your rule says A+ setups only. This one’s a SKIP.</span>
+                </div>
+              </div>
+              <div className={styles.mosaicCaption}>Illustrative data</div>
             </div>
           </div>
         </section>
 
-        {/* ── The shift ── */}
+        {/* ── The stack it replaces ── */}
         <section className={styles.shift}>
           <FadeIn>
-            <div className={styles.shiftEyebrow}>The problem isn&rsquo;t information</div>
+            <div className={styles.shiftEyebrow}>One subscription</div>
             <h2 className={styles.shiftH2}>
-              More information won&rsquo;t save you. <em>Better decisions will.</em>
+              A charting app. A flow tool. A screener. A journal. A chat room.
+              A news feed. <em>This is all of them — on one screen.</em>
             </h2>
             <p className={styles.shiftP}>
-              You already have the firehose — screeners, feeds, Discords, twelve tabs
-              of charts. What you don&rsquo;t have is a desk that reads all of it, filters it
-              against a proven methodology, and stands next to you when it&rsquo;s time to
-              decide. That&rsquo;s the difference between an app and a desk.
+              Serious traders end up paying five or six services that don&rsquo;t talk to
+              each other. UCT Intelligence is the whole stack, built as one desk —
+              where the tape, the charts, your journal, and the room all share the
+              same brain.
             </p>
           </FadeIn>
         </section>
 
-        {/* ── A day at your desk ── */}
-        <section id="day" ref={daySectionRef} className={styles.day}>
-          <div className={styles.sectionHead}>
-            <div className={styles.sectionEyebrow}>A day at your desk</div>
-            <h2 className={styles.sectionH2}>Six moments the desk gives back to you.</h2>
-            <p className={styles.sectionP}>
-              This is the rhythm of trading with a research team that never sleeps.
-            </p>
-          </div>
-          <div className={styles.dayTimeline}>
-            <div className={styles.thread} aria-hidden="true">
-              <div ref={threadFillRef} className={styles.threadFill} />
-            </div>
-            {MOMENTS.map((m) => (
-              <Moment key={m.time} moment={m} />
-            ))}
-          </div>
-        </section>
-
-        {/* ── The intelligence layer ── */}
-        <section id="intelligence" className={styles.intel}>
-          <div className={styles.intelInner}>
-            <div className={styles.intelCopy}>
-              <div className={styles.sectionEyebrow}>The intelligence layer</div>
-              <h2 className={styles.sectionH2}>
-                This isn&rsquo;t a stack of tools. <em>It&rsquo;s one intelligence.</em>
-              </h2>
+        {/* ── Pillar · Live market intelligence ── */}
+        <section id="platform" className={`${styles.pillar} ${styles.pillarBand}`}>
+          <div className={styles.pillarInner}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>Live market intelligence</div>
+              <h2 className={styles.sectionH2}>See the whole market moving. <em>Live.</em></h2>
               <p className={styles.sectionP}>
-                Every surface on the desk feeds the same brain. The wire it writes at
-                dawn, the catalysts it flags before the bell, the verdict it gives your
-                next trade, the review it writes on Sunday — one intelligence, carrying
-                what it learns from each into all the others.
+                The options tape streaming sweeps, blocks, and dark-pool prints.
+                Breadth on an eight-tier heatmap with 500 days of analogues. 99 themes
+                across 1,928 stocks so you see rotation the moment it starts — and
+                twenty vetted catalysts every morning, ranked with the reason attached.
               </p>
-              <p className={styles.intelP2}>
-                The more you trade with it, the more precisely it knows <em>you</em> —
-                your setups, your sizing, your tilt. Nobody else&rsquo;s desk looks like yours.
-              </p>
-              <p className={styles.intelVoice}>
-                <span aria-hidden="true"><UIcon name="mic" size={14} /></span>
-                And you can talk to it — literally. Ask by voice, hear the wire read back.
-              </p>
+              <ChipRow chips={PILLAR_CHIPS.market} />
             </div>
-            <ol className={styles.loop}>
-              {LOOP.map((step) => (
-                <li key={step.verb} className={styles.loopStep}>
-                  <span className={styles.loopVerb}>{step.verb}</span>
-                  <span className={styles.loopDetail}>{step.detail}</span>
-                </li>
-              ))}
-            </ol>
+            <div className={styles.pillarSide}>
+              <TapeCard />
+              <BreadthCard />
+            </div>
           </div>
         </section>
 
-        {/* ── The manual desk ── */}
-        <section id="desk" className={styles.manual}>
-          <div className={styles.sectionHead}>
-            <div className={styles.sectionEyebrow}>The manual desk</div>
-            <h2 className={styles.sectionH2}>And when you want your hands on the wheel.</h2>
-            <p className={styles.sectionP}>
-              The intelligence hands you decisions. Everything underneath is yours to
-              drive — professional-grade, and fast.
-            </p>
-          </div>
-          <div className={styles.manualGrid}>
-            {MANUAL_TOOLS.map((t, i) => (
-              <FadeIn key={t.name} delay={(i % 3) * 90}>
-                <div className={styles.tool}>
-                  <span className={styles.toolIcon} aria-hidden="true"><UIcon name={t.icon} size={20} /></span>
-                  <h3 className={styles.toolH3}>{t.name}</h3>
-                  <p className={styles.toolP}>{t.desc}</p>
+        {/* ── Pillar · Charts ── */}
+        <section className={styles.pillar}>
+          <div className={`${styles.pillarInner} ${styles.pillarFlip}`}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>The charts</div>
+              <h2 className={styles.sectionH2}>A workspace you compose <em>like a physical desk.</em></h2>
+              <p className={styles.sectionP}>
+                Drag-resize chart tiles, link them in four color groups, run eight
+                timeframes on streaming bars. Drawings you grab and move like objects,
+                patterns called out on the chart, fundamentals one glance away. Your
+                layouts persist — this is a desk you arrange like your own.
+              </p>
+              <ChipRow chips={PILLAR_CHIPS.charts} />
+            </div>
+            <div className={styles.pillarSide}>
+              <div className={styles.vig} aria-hidden="true">
+                <div className={styles.vigHead}>
+                  <span className={styles.vigDot} />
+                  <span className={styles.vigTitle}>Charts Workspace</span>
+                  <span className={styles.vigTime}>8 TF · LINKED</span>
                 </div>
-              </FadeIn>
-            ))}
-          </div>
-          <FadeIn>
-            <div className={styles.arrange}>
-              <div className={styles.arrangeText}>
-                <h3 className={styles.arrangeH3}>Arrange it your way.</h3>
-                <p className={styles.arrangeP}>
-                  Drag, resize, link, save. Workspaces compose like a physical desk —
-                  your layouts persist, your views are yours. This isn&rsquo;t a dashboard
-                  someone else designed; it&rsquo;s a desk you set up like your own.
-                </p>
+                <MiniChart height={170} />
+                <div className={styles.vigCaption}>Illustrative example</div>
               </div>
               <div className={styles.arrangeTiles} aria-hidden="true">
                 <span className={styles.arrangeTileA} />
@@ -706,11 +669,94 @@ export default function Landing() {
                 <span className={styles.arrangeTileD} />
               </div>
             </div>
-          </FadeIn>
+          </div>
+        </section>
+
+        {/* ── Pillar · The intelligence layer ── */}
+        <section id="intelligence" className={`${styles.pillar} ${styles.pillarBand}`}>
+          <div className={styles.pillarInner}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>The intelligence layer</div>
+              <h2 className={styles.sectionH2}>
+                And one intelligence, <em>woven through all of it.</em>
+              </h2>
+              <p className={styles.sectionP}>
+                Every surface feeds the same brain. It reads 8 sources overnight and
+                writes your brief for 7:35 AM. It flags catalysts before the bell,
+                gives your next trade a straight GO / HOLD / SKIP verdict, learns your
+                setups and your tilt from the journal, and writes your weekly review
+                on Sunday. The more you trade with it, the more precisely it knows
+                <em> you</em>.
+              </p>
+              <p className={styles.intelVoice}>
+                <span aria-hidden="true"><UIcon name="mic" size={14} /></span>
+                Talk to it — literally. Ask by voice, hear the wire read back.
+              </p>
+              <div className={styles.briefCountdown}>
+                <span className={styles.briefCountdownDot} aria-hidden="true" />
+                The desk reads tonight — the next brief lands in{' '}
+                <strong>{formatCountdown(briefMins)}</strong>
+              </div>
+              <ChipRow chips={PILLAR_CHIPS.ai} />
+            </div>
+            <div className={styles.pillarSide}>
+              <ol className={styles.loop}>
+                {LOOP.map((step) => (
+                  <li key={step.verb} className={styles.loopStep}>
+                    <span className={styles.loopVerb}>{step.verb}</span>
+                    <span className={styles.loopDetail}>{step.detail}</span>
+                  </li>
+                ))}
+              </ol>
+              <Vignette kind="compass" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pillar · Journal 2.0 ── */}
+        <section className={styles.pillar}>
+          <div className={`${styles.pillarInner} ${styles.pillarFlip}`}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>Journal 2.0</div>
+              <h2 className={styles.sectionH2}>A journal that <em>does its own homework.</em></h2>
+              <p className={styles.sectionP}>
+                Link a brokerage and your trades import themselves — fills mirrored
+                exactly. Every trade gets excursions, exit quality, and R. Your stats
+                split by market regime, so you know what actually works in each tape.
+                Then the coach reads it all and tells you what to change.
+              </p>
+              <ChipRow chips={PILLAR_CHIPS.journal} />
+            </div>
+            <div className={styles.pillarSide}>
+              <Vignette kind="journal" />
+              <Vignette kind="review" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pillar · The Floor & The Desk ── */}
+        <section className={`${styles.pillar} ${styles.pillarBand}`}>
+          <div className={styles.pillarInner}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>The Floor &amp; The Desk</div>
+              <h2 className={styles.sectionH2}>You&rsquo;re not trading <em>alone anymore.</em></h2>
+              <p className={styles.sectionP}>
+                The Floor is live all session — real traders, real positions, trade
+                cards and charts flying, the tape running in the room. And every day
+                on The Desk, the live trading session is recorded, chaptered, and
+                recapped, next to a full education library.
+              </p>
+              <ChipRow chips={PILLAR_CHIPS.floor} />
+            </div>
+            <div className={styles.pillarSide}>
+              <Vignette kind="floor" />
+              <Vignette kind="desk" />
+            </div>
+          </div>
         </section>
 
         {/* ── Everything on the desk ── */}
-        <section className={styles.inventory}>
+        <section id="everything" className={styles.inventory}>
           <div className={styles.sectionHead}>
             <div className={styles.sectionEyebrow}>Everything on the desk</div>
             <h2 className={styles.sectionH2}>The complete inventory.</h2>
@@ -757,8 +803,8 @@ export default function Landing() {
         <section id="pricing" className={styles.price}>
           <div className={styles.sectionHead}>
             <div className={styles.sectionEyebrow}>One plan</div>
-            <h2 className={styles.sectionH2}>Everything above. One price.</h2>
-            <p className={styles.sectionP}>One good decision a month covers it.</p>
+            <h2 className={styles.sectionH2}>The whole operation. One price.</h2>
+            <p className={styles.sectionP}>Less than the stack it replaces.</p>
           </div>
 
           <div className={styles.priceCard}>
@@ -788,9 +834,10 @@ export default function Landing() {
             <div className={styles.priceValueLine}>{priceNote}</div>
 
             <ul className={styles.priceUl}>
-              <li>The full intelligence layer — Wire, Catalysts, Compass, Voice</li>
-              <li>All market intelligence — UCT 20, Breadth, LiveFlow, Themes</li>
-              <li>Charts Workspace, Journal 2.0 with broker auto-sync</li>
+              <li>Live market intelligence — LiveFlow, Breadth, Themes, Catalysts</li>
+              <li>The full charts workspace, streaming</li>
+              <li>The intelligence layer — Wire, Compass, Voice, Pattern Engine</li>
+              <li>Journal 2.0 with broker auto-sync</li>
               <li>The Floor community &amp; The Desk sessions</li>
               <li>Everything in the inventory above. Unmetered.</li>
             </ul>
@@ -835,10 +882,10 @@ export default function Landing() {
         {/* ── Final close ── */}
         <section className={styles.close}>
           <div className={styles.closeInner}>
-            <div className={styles.closeTime}>Tomorrow · 7:35 AM ET</div>
-            <h2 className={styles.closeH2}>The first brief can be <em>yours.</em></h2>
+            <div className={styles.closeTime}>14 days · full access · no card</div>
+            <h2 className={styles.closeH2}>Take your seat <em>at the desk.</em></h2>
             <p className={styles.closeP}>
-              Fourteen days, the whole desk, no card. The research starts tonight.
+              Everything above unlocks in the next two minutes. The research starts tonight.
             </p>
             <div className={styles.ctas}>
               <Link
