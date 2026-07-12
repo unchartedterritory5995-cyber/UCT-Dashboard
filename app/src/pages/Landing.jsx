@@ -306,18 +306,6 @@ function Vignette({ kind }) {
           <div className={styles.vigLine}><span className={styles.vigGold}>Monday:</span> take the A+ list only until Wednesday.</div>
         </>
       )}
-      {kind === 'desk' && (
-        <>
-          <div className={styles.vigHead}>
-            <span className={styles.vigDot} />
-            <span className={styles.vigTitle}>The Desk · Sessions</span>
-            <span className={styles.vigTime}>DAILY</span>
-          </div>
-          <div className={styles.vigRow}><b aria-hidden="true"><UIcon name="play" size={12} /></b><span>Live Trading Session — Fri</span><em>1:24:06 · 9 chapters</em></div>
-          <div className={styles.vigRow}><b aria-hidden="true"><UIcon name="play" size={12} /></b><span>Live Trading Session — Thu</span><em>1:31:40 · recap ready</em></div>
-          <div className={styles.vigMore}>every session recorded · education library · workshop</div>
-        </>
-      )}
       <div className={styles.vigCaption}>Illustrative example</div>
     </div>
   )
@@ -590,7 +578,7 @@ const PILLAR_CHIPS = {
   ai: ['Morning Wire', 'Compass verdicts', 'Post-mortems', 'Tilt detection', 'Weekly reviews', 'Voice — full conversations', 'Pattern Engine — 85 detectors', 'UCT Brain', 'UCT-Mentor'],
   journal: ['Broker auto-sync', 'MFE / MAE excursions', 'Exit quality', 'Regime analytics', 'Risk block', 'Equity curve', 'Notebook', 'CSV presets', 'Share cards'],
   learn: ['Model Book — annotated legends', '48 setup playbooks', 'Compass post-mortems', 'Weekly reviews', 'UCT Brain — 7,800+ entries', 'Education library & workshop'],
-  floor: ['Live floor chat', 'Trade & chart cards', 'The Tape', 'Boards', 'Verified badges', 'Daily session recordings', 'Chapters & recaps', 'Education library', 'Workshop'],
+  floor: ['Live floor chat', 'Trade & chart cards', 'Polls & ideas', 'The Tape', 'Boards', 'Mentions & inbox', 'Verified badges', 'UCT-Mentor in chat'],
 }
 
 function ChipRow({ chips }) {
@@ -719,6 +707,7 @@ export default function Landing() {
                 href="#reviews"
                 onClick={scrollTo('reviews')}
                 className={`${styles.trustBar} ${styles.enter} ${styles.enter6}`}
+                aria-label={`Rated ${REVIEW_STATS.rating} out of 5 · ${REVIEW_STATS.count} reviews · ${REVIEW_STATS.members} members on Whop`}
               >
                 <span className={styles.trustStars} aria-hidden="true">★★★★★</span>
                 <strong>{REVIEW_STATS.rating}</strong>
