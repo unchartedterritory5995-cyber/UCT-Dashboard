@@ -500,9 +500,42 @@ const THE_TEN = [
   { name: 'AI trading coach', desc: 'verdicts, post-mortems, weekly reviews' },
 ]
 
-// Real quotes only. This section renders ONLY when quotes exist — never
-// invent testimonials. Shape: { quote, name, detail }
-const TESTIMONIALS = []
+// Real reviews only — verbatim from the community's public Whop reviews
+// (whop.com/uncharted, 4.9★ / 170 reviews). Trimmed with ellipses where noted;
+// never reworded. Do NOT invent testimonials.
+const REVIEW_STATS = { rating: '4.9', count: '170', members: '1,064' }
+const TESTIMONIALS = [
+  {
+    quote: 'UCT is by far the most underrated and most valuable group out there… Between Bracco, TSDR, Zen, Ciro and many others I have greatly outperformed. Check it out, you won’t regret it if you are coming for the right reasons.',
+    name: 'William Godsey',
+    detail: '★★★★★ · 8 months in',
+  },
+  {
+    quote: 'You get step by steps into the thought process of brilliant traders — what they’re thinking, what they’re looking for, why they would take a trade, or not take a trade.',
+    name: 'Justin Brannan',
+    detail: '★★★★★ · 5 months in',
+  },
+  {
+    quote: 'What a great room to be a part of… I wanted to give Patrick a shout-out. He’s a really down-to-earth, genuine guy, plus an awesome trader. He’s exactly the type of person I want to learn from.',
+    name: 'Josh',
+    detail: '★★★★★ · verified member',
+  },
+  {
+    quote: 'One of the best decisions I’ve made on my journey. UCT stood out for its transparency, professionalism, and the genuine willingness of experienced traders to share their knowledge.',
+    name: 'Simo',
+    detail: '★★★★★ · 7 months in',
+  },
+  {
+    quote: 'Full of so many professional experts. I can clearly feel the professionalism and genuine enthusiasm from Patrick and the other traders.',
+    name: 'Latte',
+    detail: '★★★★★ · 3 months in',
+  },
+  {
+    quote: 'Unbelievably great value for money for what you get.',
+    name: 'Matt W',
+    detail: '★★★★★ · verified member',
+  },
+]
 
 const FAQS = [
   {
@@ -631,6 +664,7 @@ export default function Landing() {
           <a href="#platform" onClick={scrollTo('platform')}>Platform</a>
           <a href="#intelligence" onClick={scrollTo('intelligence')}>Agentic AI</a>
           <a href="#toolkit" onClick={scrollTo('toolkit')}>Toolkit</a>
+          <a href="#reviews" onClick={scrollTo('reviews')}>Reviews</a>
           <a href="#everything" onClick={scrollTo('everything')}>What&rsquo;s inside</a>
           <a href="#pricing" onClick={scrollTo('pricing')}>Pricing</a>
           <a href="#faq" onClick={scrollTo('faq')}>FAQ</a>
@@ -681,6 +715,19 @@ export default function Landing() {
               <div className={`${styles.ctaSubnote} ${styles.enter} ${styles.enter5}`}>
                 $0 today · Full access from minute one · $200/mo after the trial
               </div>
+              <a
+                href="#reviews"
+                onClick={scrollTo('reviews')}
+                className={`${styles.trustBar} ${styles.enter} ${styles.enter6}`}
+              >
+                <span className={styles.trustStars} aria-hidden="true">★★★★★</span>
+                <strong>{REVIEW_STATS.rating}</strong>
+                <span className={styles.trustSep}>·</span>
+                {REVIEW_STATS.count} reviews
+                <span className={styles.trustSep}>·</span>
+                {REVIEW_STATS.members} members
+                <span className={styles.trustWhop}>on Whop</span>
+              </a>
             </div>
 
             {/* The hero artifact — one big, readable, real capture */}
@@ -1080,23 +1127,38 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Testimonials — renders only with real quotes ── */}
+        {/* ── Social proof — real Whop reviews ── */}
         {TESTIMONIALS.length > 0 && (
-          <section className={styles.quotes}>
+          <section id="reviews" className={`${styles.quotes} ${styles.pillarBand}`}>
             <div className={styles.sectionHead}>
-              <div className={styles.sectionEyebrow}>From the floor</div>
-              <h2 className={styles.sectionH2}>Traders on the desk.</h2>
+              <div className={styles.sectionEyebrow}>What members say</div>
+              <h2 className={styles.sectionH2}>
+                Rated <em>{REVIEW_STATS.rating} / 5</em> by {REVIEW_STATS.count} traders.
+              </h2>
+              <div className={styles.reviewStat}>
+                <span className={styles.reviewStars} aria-hidden="true">★★★★★</span>
+                <span>
+                  <strong>{REVIEW_STATS.rating}</strong> average · {REVIEW_STATS.count} reviews ·{' '}
+                  {REVIEW_STATS.members} members · verified on Whop
+                </span>
+              </div>
             </div>
             <div className={styles.quoteGrid}>
               {TESTIMONIALS.map((t) => (
                 <figure key={t.name} className={styles.quoteCard}>
-                  <blockquote>{t.quote}</blockquote>
+                  <blockquote>“{t.quote}”</blockquote>
                   <figcaption>
                     <strong>{t.name}</strong>
                     <span>{t.detail}</span>
                   </figcaption>
                 </figure>
               ))}
+            </div>
+            <div className={styles.reviewFoot}>
+              Real reviews from{' '}
+              <a href="https://whop.com/uncharted" target="_blank" rel="noopener noreferrer" onClick={() => track('whop_reviews_click')}>
+                whop.com/uncharted
+              </a>
             </div>
           </section>
         )}
