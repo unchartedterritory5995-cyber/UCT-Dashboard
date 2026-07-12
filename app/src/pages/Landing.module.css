@@ -959,6 +959,19 @@
 }
 .learnRowCopy .sectionP { margin-bottom: 4px; }
 
+.deskWide {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.deskHead { text-align: center; margin-bottom: 0; }
+.deskHead .sectionH2,
+.deskHead .sectionP { margin-left: auto; margin-right: auto; }
+.deskWide .chips { justify-content: center; }
+.deskShot { position: relative; }
+
 /* ── Interactive toolkit showcase ────────────────────────────────────────── */
 
 .showcase {

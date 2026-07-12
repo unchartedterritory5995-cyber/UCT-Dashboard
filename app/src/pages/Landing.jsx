@@ -18,6 +18,8 @@ import shotPlaybook from '../assets/landing/playbook.webp'
 import shotAI from '../assets/landing/ai.webp'
 import shotFlow from '../assets/landing/flow.webp'
 import shotScan from '../assets/landing/scan.webp'
+import shotDesk from '../assets/landing/desk.webp'
+import shotResearch from '../assets/landing/research.webp'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Time helpers — everything on this page that claims to be "live" is computed
@@ -548,7 +550,10 @@ const FAQS = [
 // Chip strips under each pillar — compact feature naming.
 const PILLAR_CHIPS = {
   market: ['LiveFlow tape', 'Dark-pool prints', 'GEX', 'Breadth Monitor', 'COT', '99 themes', 'Stock Catalysts', 'UCT 20', 'Calendar', 'News + tweet tape', '3,685 tickers streaming'],
-  charts: ['Drag-resize tiles', '4 link groups', '8 timeframes', 'Streaming bars', 'Drawing tools', 'Pattern callouts', 'Deep history', 'Fundamentals widget', 'Mobile workspace'],
+  charts: ['Drag-resize tiles', '4 link groups', '8 timeframes', 'Streaming bars', 'Drawing tools', 'Pattern callouts', 'Deep history', 'Mobile workspace'],
+  research: ['Fundamentals widget', 'Analyst ratings & targets', 'Ownership', 'SEC filings', 'AI earnings-call recaps', 'Listen-live audio', 'Full transcripts', 'Forward estimates'],
+  uct20: ['20 leadership names', 'Live RS ranking', 'Setup tags — leader / pullback / extended', 'Entry, stop & target', 'Live P&L', 'Rotates as leadership shifts'],
+  desk: ['Start Here — new-trader foundations', 'Risk & Discipline', 'Reading the Market', 'The Setups Playbook', 'Options & Flow', 'The Mental Game', 'Daily live sessions', 'Post-market recaps', 'Workshops & fireside chats'],
   ai: ['Morning Wire', 'Compass verdicts', 'Post-mortems', 'Tilt detection', 'Weekly reviews', 'Voice — full conversations', 'Pattern Engine — 85 detectors', 'UCT Brain', 'UCT-Mentor'],
   journal: ['Broker auto-sync', 'MFE / MAE excursions', 'Exit quality', 'Regime analytics', 'Risk block', 'Equity curve', 'Notebook', 'CSV presets', 'Share cards'],
   learn: ['Model Book — annotated legends', '48 setup playbooks', 'Compass post-mortems', 'Weekly reviews', 'UCT Brain — 7,800+ entries', 'Education library & workshop'],
@@ -856,12 +861,13 @@ export default function Landing() {
           <div className={styles.pillarInner}>
             <div className={styles.pillarCopy}>
               <div className={styles.sectionEyebrow}>The charts</div>
-              <h2 className={styles.sectionH2}>Charts you arrange <em>like a physical desk.</em></h2>
+              <h2 className={styles.sectionH2}>A charting workspace you arrange <em>like a physical desk.</em></h2>
               <p className={styles.sectionP}>
                 Drag-resize chart tiles, link them in four color groups, run eight
-                timeframes on streaming bars. Drawings you grab and move like objects,
-                patterns called out on the chart, fundamentals one glance away. Your
-                layouts persist — set the desk once, and it&rsquo;s there every morning.
+                timeframes on streaming bars with years of history. Drawings you grab
+                and move like objects, 85 patterns called out on the chart, fundamentals
+                one glance away. Your layouts persist — set the desk once, and it&rsquo;s
+                there every morning, on desktop and mobile.
               </p>
               <ChipRow chips={PILLAR_CHIPS.charts} />
             </div>
@@ -872,6 +878,60 @@ export default function Landing() {
                 time="8 TF · LINKED"
                 onZoom={setZoomed}
                 alt="A chart tile from the workspace — DDOG daily with four moving averages and volume, streaming"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pillar · Fundamentals & research ── */}
+        <section className={styles.pillar}>
+          <div className={`${styles.pillarInner} ${styles.pillarFlip}`}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>Fundamentals &amp; research</div>
+              <h2 className={styles.sectionH2}>A research desk on <em>every ticker.</em></h2>
+              <p className={styles.sectionP}>
+                Click any name and the whole file opens: forward estimates, analyst
+                ratings and price targets, ownership, fundamentals, and every SEC
+                filing. Earnings season, the desk writes the call recap for you — with
+                listen-live audio and a searchable full transcript. The homework is
+                already done.
+              </p>
+              <ChipRow chips={PILLAR_CHIPS.research} />
+            </div>
+            <div className={styles.pillarSide}>
+              <Shot
+                src={shotResearch}
+                title="Ticker Research · JPM"
+                time="EARNINGS · FILINGS · RECAP"
+                onZoom={setZoomed}
+                alt="The per-ticker research modal — earnings estimates, analyst/ownership/fundamentals, AI call recap with audio, SEC filings"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pillar · UCT 20 ── */}
+        <section className={`${styles.pillar} ${styles.pillarBand}`}>
+          <div className={styles.pillarInner}>
+            <div className={styles.pillarCopy}>
+              <div className={styles.sectionEyebrow}>UCT 20</div>
+              <h2 className={styles.sectionH2}>The twenty names <em>that actually matter.</em></h2>
+              <p className={styles.sectionP}>
+                The whole market narrows to a single ranked list — the twenty
+                highest-conviction leadership stocks, sorted by relative strength,
+                each tagged leader, pullback, or extended with an entry, a stop, a
+                target, and live P&amp;L. It rotates as leadership rotates, so the list
+                is always the names in charge right now.
+              </p>
+              <ChipRow chips={PILLAR_CHIPS.uct20} />
+            </div>
+            <div className={styles.pillarSide}>
+              <Shot
+                src={shotScan}
+                title="UCT 20 · Leadership"
+                time="RANKED BY RS"
+                onZoom={setZoomed}
+                alt="The UCT 20 leadership board — twenty ranked stocks with RS scores, setup tags, and ratings"
               />
             </div>
           </div>
@@ -939,29 +999,53 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Pillar · The Floor & The Desk ── */}
+        {/* ── Pillar · The Floor ── */}
         <section className={styles.pillar}>
           <div className={`${styles.pillarInner} ${styles.pillarFlip}`}>
             <div className={styles.pillarCopy}>
-              <div className={styles.sectionEyebrow}>The Floor &amp; The Desk</div>
+              <div className={styles.sectionEyebrow}>The Floor</div>
               <h2 className={styles.sectionH2}>You&rsquo;re not trading <em>alone anymore.</em></h2>
               <p className={styles.sectionP}>
                 The Floor is live all session — real traders, real positions, trade
-                cards and charts flying, the tape running in the room. And every day
-                on The Desk, the live trading session is recorded, chaptered, and
-                recapped, next to a full education library.
+                cards and charts flying, the tape running in the room. Boards, polls,
+                verified badges, and UCT-Mentor sitting in the room with you.
               </p>
               <ChipRow chips={PILLAR_CHIPS.floor} />
             </div>
             <div className={styles.pillarSide}>
               <Vignette kind="floor" />
-              <Vignette kind="desk" />
             </div>
           </div>
         </section>
 
+        {/* ── The Desk — video-forward ── */}
+        <section className={`${styles.pillar} ${styles.pillarBand}`}>
+          <div className={styles.deskWide}>
+            <div className={`${styles.sectionHead} ${styles.deskHead}`}>
+              <div className={styles.sectionEyebrow}>The Desk</div>
+              <h2 className={styles.sectionH2}>A trading school, <em>built in.</em></h2>
+              <p className={styles.sectionP}>
+                282 lessons across 17 tracks — and a new live trading session recorded,
+                chaptered, and recapped every single day. Follow a learning path from
+                new-trader foundations to the setups playbook, or drop into today&rsquo;s
+                session. It&rsquo;s the education service you&rsquo;d pay for on its own.
+              </p>
+            </div>
+            <div className={styles.deskShot}>
+              <Shot
+                src={shotDesk}
+                title="The Desk · 282 lessons · 17 tracks"
+                time="NEW SESSION DAILY"
+                onZoom={setZoomed}
+                alt="The Desk education library — learning paths and daily recorded trading sessions with chapters"
+              />
+            </div>
+            <ChipRow chips={PILLAR_CHIPS.desk} />
+          </div>
+        </section>
+
         {/* ── Interactive toolkit showcase ── */}
-        <section id="toolkit" className={`${styles.pillar} ${styles.pillarBand}`}>
+        <section id="toolkit" className={styles.pillar}>
           <div className={styles.sectionHead}>
             <div className={styles.sectionEyebrow}>The full toolkit</div>
             <h2 className={styles.sectionH2}>And a whole lot more <em>under the hood.</em></h2>
