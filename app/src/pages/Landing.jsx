@@ -114,25 +114,30 @@ function FadeIn({ children, delay = 0, className = '' }) {
 function Shot({ src, title, time, alt, live = false, eager = false, onZoom }) {
   return (
     <figure className={styles.shot}>
-      <div className={styles.vigHead}>
-        <span className={`${styles.vigDot} ${live ? styles.vigDotLive : ''}`} />
-        <span className={styles.vigTitle}>{title}</span>
-        <span className={styles.vigTime}>{time}</span>
-      </div>
       <button
         type="button"
         className={styles.shotZoom}
         onClick={() => onZoom && onZoom({ src, alt, title })}
         aria-label={`Enlarge: ${title}`}
       >
+        {/* App-window chrome — this is the real application, framed as such */}
+        <span className={styles.shotBar}>
+          <span className={styles.shotDots} aria-hidden="true"><i /><i /><i /></span>
+          <span className={styles.shotTitle}>
+            {live && <span className={styles.shotLive} />}
+            {title}
+          </span>
+          <span className={styles.shotTime}>{time}</span>
+        </span>
         <img
           src={src}
           alt={alt}
           loading={eager ? 'eager' : 'lazy'}
           fetchPriority={eager ? 'high' : 'auto'}
         />
+        <span className={styles.shotHint} aria-hidden="true">Click to enlarge</span>
       </button>
-      <figcaption className={styles.vigCaption}>Captured from the live desk · click to enlarge</figcaption>
+      <figcaption className={styles.shotCap}>Captured from the live desk · July 2026</figcaption>
     </figure>
   )
 }
