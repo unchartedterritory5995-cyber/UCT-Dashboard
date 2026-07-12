@@ -99,27 +99,61 @@ def _classify_change(cur, prior):
     return "flat"
 
 
+_Q_END_MONTH_DAY = {1: (3, 31), 2: (6, 30), 3: (9, 30), 4: (12, 31)}
+
+
+def _recent_13f_quarters(now=None, tries=3, filing_buffer_days=50):
+    """(year, quarter) pairs to try, most-likely-COMPLETE quarter first.
+
+    13F filings are due 45 calendar days after quarter-end, and filers
+    trickle in right up to that deadline — a quarter whose deadline hasn't
+    passed yet has data from early filers only (small/foreign funds), NOT
+    the real top-holders list (BlackRock/Vanguard-scale filers file late).
+    Skip any quarter whose deadline + buffer hasn't passed."""
+    from datetime import UTC, datetime, timedelta
+    now = now or datetime.now(UTC)
+    q = (now.month - 1) // 3 + 1
+    y = now.year
+    candidates = []
+    for _ in range(tries + 3):
+        m, d = _Q_END_MONTH_DAY[q]
+        candidates.append((y, q, datetime(y, m, d, tzinfo=UTC)))
+        q -= 1
+        if q == 0:
+            q, y = 4, y - 1
+    filed = [(yy, qq) for yy, qq, end in candidates if now >= end + timedelta(days=filing_buffer_days)]
+    return filed[:tries] if filed else [(candidates[-1][0], candidates[-1][1])]
+
+
 def _fmp_ownership(ticker):
-    """FMP Ultimate institutional ownership rows (current + prior-quarter shares).
-    Exact path/fields verified live; returns [] on any failure."""
+    """FMP Ultimate per-holder 13F ownership + deltas.
+    /stable/institutional-ownership/symbol-ownership 404s (not a real FMP
+    path) — the real per-holder endpoint is
+    /stable/institutional-ownership/extract-analytics/holder, which requires
+    year+quarter (see _recent_13f_quarters). Field is `ownership`, NOT
+    `ownershipPercent`. Returns [] on any failure."""
     from api.services import earnings_estimates as ee
-    try:
-        data = ee._fmp_get("/stable/institutional-ownership/symbol-ownership",
-                           {"symbol": ticker, "limit": 20})
-    except Exception:
-        return []
-    rows = data if isinstance(data, list) else []
-    out = []
-    for r in rows:
-        out.append({
-            "holder": r.get("investorName") or r.get("holder"),
-            "shares": r.get("sharesNumber") or r.get("shares"),
-            "prior_shares": r.get("lastSharesNumber") or r.get("prior_shares"),
-            "pct_out": r.get("ownershipPercent") or r.get("pct_out"),
-            "value": r.get("marketValue") or r.get("value"),
-            "date": str(r.get("date") or "")[:10] or None,
-        })
-    return [r for r in out if r.get("holder")]
+    for year, quarter in _recent_13f_quarters():
+        try:
+            data = ee._fmp_get("/stable/institutional-ownership/extract-analytics/holder",
+                               {"symbol": ticker, "year": year, "quarter": quarter, "limit": 20})
+        except Exception:
+            continue
+        rows = data if isinstance(data, list) else []
+        out = []
+        for r in rows:
+            out.append({
+                "holder": r.get("investorName") or r.get("holder"),
+                "shares": r.get("sharesNumber") or r.get("shares"),
+                "prior_shares": r.get("lastSharesNumber") or r.get("prior_shares"),
+                "pct_out": r.get("ownership") if r.get("ownership") is not None else r.get("pct_out"),
+                "value": r.get("marketValue") or r.get("value"),
+                "date": str(r.get("date") or "")[:10] or None,
+            })
+        out = [r for r in out if r.get("holder")]
+        if out:
+            return out
+    return []
 
 
 def get_ownership(ticker, debug=False):
