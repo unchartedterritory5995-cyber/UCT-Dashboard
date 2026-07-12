@@ -28,6 +28,11 @@ export default function GroupControls({ viewMode, setViewMode, dimension, setDim
             onClick={() => setDimension('industry')}
             title="Group by industry — granular clusters"
           >Industry</button>
+          <button
+            className={`${styles.btn} ${dimension === 'theme' ? styles.active : ''}`}
+            onClick={() => setDimension('theme')}
+            title="Group by UCT theme — story-driven clusters"
+          >Theme</button>
         </div>
       )}
     </div>

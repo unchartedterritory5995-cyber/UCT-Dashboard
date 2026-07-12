@@ -24,7 +24,7 @@ export default function useBreadthGrouping(items, opts = {}) {
   const pctOf = opts.pctOf || (r => r?.pct)
 
   const [viewMode, setViewModeState] = useState(() => readLS(LS_VIEW, ['list', 'grouped'], 'list'))
-  const [dimension, setDimensionState] = useState(() => readLS(LS_DIM, ['industry', 'sector'], 'industry'))
+  const [dimension, setDimensionState] = useState(() => readLS(LS_DIM, ['industry', 'sector', 'theme'], 'industry'))
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set())
 
   const setViewMode = useCallback(m => {
@@ -48,7 +48,9 @@ export default function useBreadthGrouping(items, opts = {}) {
   const tickerKey = rows.map(tickerOf).join(',')
   const tickers = useMemo(() => rows.map(tickerOf).filter(Boolean), [tickerKey])  // eslint-disable-line react-hooks/exhaustive-deps
   const meta = useGroupMeta(tickers)
-  const labelByTicker = dimension === 'sector' ? meta.sectors : meta.industries
+  const labelByTicker = dimension === 'sector' ? meta.sectors
+    : dimension === 'theme' ? meta.themes
+      : meta.industries
 
   const grouped = useMemo(
     () => (viewMode === 'grouped' ? groupItems(rows, labelByTicker, { tickerOf, pctOf }) : null),
