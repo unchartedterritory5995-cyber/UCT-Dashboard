@@ -2270,8 +2270,11 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
   }
   // Grade-driven heatmap: base color by direction (green bull / red bear / grey
   // mixed), brightness scaled by the EFFECTIVE grade (after any OI check) so the
-  // strongest accumulations pop and weak/closed ones recede into the background.
-  const _rcBase = isBull ? DIR_BULL : isBear ? DIR_BEAR : "#9aa0a6";
+  // strongest accumulations pop and weak/closed ones recede. BUT if the contract
+  // did not net-exceed OI (cum_voi <= 1), the whole row goes WHITE regardless of
+  // direction — it's not new positioning, same rule as the By-Print tape.
+  const _notOverOI = !(c.cum_voi != null && c.cum_voi > 1);
+  const _rcBase = _notOverOI ? "#9aa0a6" : (isBull ? DIR_BULL : isBear ? DIR_BEAR : "#9aa0a6");
   const _gsrc = _grLabel || c.accumulation_grade || "C";
   const _gAlpha = _gsrc[0] === "A" ? (_gsrc.includes("+") ? "ff" : "e0")
     : _gsrc[0] === "B" ? "b4" : _gsrc[0] === "C" ? "82" : "55";
