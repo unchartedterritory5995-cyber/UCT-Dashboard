@@ -734,3 +734,58 @@
   opacity: 0.7;
   margin-top: 6px;
 }
+
+/* ── Two-factor authentication ── */
+.totpQrBox {
+  background: #fff;
+  padding: 12px;
+  border-radius: 10px;
+  width: 176px;
+  margin: 4px 0 10px;
+}
+.totpQrBox svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.totpSecret {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  letter-spacing: 1px;
+  user-select: all;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-border, #232932);
+  padding: 4px 9px;
+  border-radius: 6px;
+  display: inline-block;
+  word-break: break-all;
+}
+.totpCodesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+.totpCodeChip {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 6px;
+  padding: 6px 8px;
+  text-align: center;
+  user-select: all;
+}
+.totpStatusRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.totpOnBadge {
+  color: #4ade80;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}

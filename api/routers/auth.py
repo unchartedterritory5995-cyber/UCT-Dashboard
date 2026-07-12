@@ -13,10 +13,12 @@ from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, EmailStr
 
 from api.limiter import limiter
+from api.services import totp_service
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
     verify_password,
+    get_user_by_id,
     create_session,
     delete_session,
     get_user_plan,
@@ -196,12 +198,54 @@ def login(request: Request, req: LoginRequest, response: Response):
         finally:
             _conn.close()
 
+    # Two-factor: the password alone doesn't earn a session. Hand back a
+    # short-lived challenge token; /login/totp-verify trades it + a valid
+    # authenticator (or backup) code for the real session.
+    if totp_service.is_enabled(user["id"]):
+        log_activity(user["id"], "login_totp_challenge", ip_address=client_ip(request))
+        return {"requires_totp": True, "challenge_token": totp_service.mint_challenge(user["id"])}
+
     log_activity(user["id"], "login", ip_address=client_ip(request))
 
     ua = (request.headers.get("user-agent") or "")[:512]
     token = create_session(user["id"], user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     plan = get_user_plan(user["id"])
+    return {"user": user, "plan": plan, **_access_payload(user, plan)}
+
+
+class TotpLoginRequest(BaseModel):
+    challenge_token: str
+    code: str
+
+
+@router.post("/login/totp-verify")
+@limiter.limit("8/minute")
+def login_totp_verify(request: Request, req: TotpLoginRequest, response: Response):
+    """Second half of a 2FA login: challenge token (from /login) + a 6-digit
+    authenticator code or a backup code → session cookie. Mirrors /login's
+    response shape so the client finishes identically."""
+    uid = totp_service.read_challenge(req.challenge_token)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Sign-in expired — enter your password again")
+    if not totp_service.verify_login_code(uid, req.code):
+        log_activity(uid, "login_totp_failed", ip_address=client_ip(request))
+        raise HTTPException(status_code=401, detail="That code didn't work — try the next one from your app, or a backup code")
+    full = get_user_by_id(uid)
+    if not full:
+        raise HTTPException(status_code=401, detail="Account not found")
+    user = {
+        "id": full["id"],
+        "email": full["email"],
+        "display_name": full.get("display_name"),
+        "role": full.get("role"),
+        "email_verified": bool(full.get("email_verified")),
+    }
+    log_activity(uid, "login", ip_address=client_ip(request))
+    ua = (request.headers.get("user-agent") or "")[:512]
+    token = create_session(uid, user_agent=ua, ip_address=client_ip(request))
+    _set_session_cookie(response, token)
+    plan = get_user_plan(uid)
     return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
@@ -328,6 +372,74 @@ def change_pw(req: ChangePasswordRequest, user: dict = Depends(get_current_user)
     if not change_password(user["id"], req.current_password, req.new_password):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
     return {"ok": True}
+
+
+# ── Two-factor authentication (TOTP + backup codes) ──────────────────────────
+
+class TotpCodeRequest(BaseModel):
+    code: str
+
+class TotpDisableRequest(BaseModel):
+    password: str
+    code: str
+
+
+@router.get("/totp/status")
+def totp_status(user: dict = Depends(get_current_user)):
+    return totp_service.status(user["id"])
+
+
+@router.post("/totp/setup")
+@limiter.limit("10/minute")
+def totp_setup(request: Request, user: dict = Depends(get_current_user)):
+    """Start (or restart) enrollment: fresh secret + QR. Nothing is enforced
+    until /totp/verify-setup confirms a working authenticator."""
+    if not totp_service.is_available():
+        raise HTTPException(status_code=503, detail="Two-factor setup is temporarily unavailable")
+    try:
+        out = totp_service.begin_setup(user["id"], user["email"])
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    log_activity(user["id"], "totp_setup_started", ip_address=client_ip(request))
+    return out
+
+
+@router.post("/totp/verify-setup")
+@limiter.limit("10/minute")
+def totp_verify_setup(request: Request, req: TotpCodeRequest, user: dict = Depends(get_current_user)):
+    try:
+        codes = totp_service.confirm_setup(user["id"], req.code)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    log_activity(user["id"], "totp_enabled", ip_address=client_ip(request))
+    return {"ok": True, "backup_codes": codes}
+
+
+@router.post("/totp/disable")
+@limiter.limit("5/minute")
+def totp_disable(request: Request, req: TotpDisableRequest, user: dict = Depends(get_current_user)):
+    """Turning 2FA off requires the password AND a valid current code (or a
+    backup code) — a stolen session alone must not be able to strip 2FA."""
+    if not verify_password(user["email"], req.password):
+        raise HTTPException(status_code=401, detail="Password is incorrect")
+    if not totp_service.verify_login_code(user["id"], req.code):
+        raise HTTPException(status_code=401, detail="That code didn't work")
+    totp_service.disable(user["id"])
+    log_activity(user["id"], "totp_disabled", ip_address=client_ip(request))
+    return {"ok": True}
+
+
+@router.post("/totp/backup-codes/regenerate")
+@limiter.limit("5/minute")
+def totp_regen_backup(request: Request, req: TotpCodeRequest, user: dict = Depends(get_current_user)):
+    """Mint a fresh set of 10 backup codes (invalidates the old set). Requires
+    a valid current code so a hijacked session can't burn the real owner's
+    recovery path unnoticed."""
+    if not totp_service.verify_login_code(user["id"], req.code):
+        raise HTTPException(status_code=401, detail="That code didn't work")
+    codes = totp_service.regenerate_backup_codes(user["id"])
+    log_activity(user["id"], "totp_backup_codes_regenerated", ip_address=client_ip(request))
+    return {"ok": True, "backup_codes": codes}
 
 
 # ── Email verification & password reset ──────────────────────────────────────

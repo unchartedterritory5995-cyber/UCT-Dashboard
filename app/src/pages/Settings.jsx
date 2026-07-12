@@ -907,6 +907,248 @@ function ActiveSessionsPanel() {
 }
 
 
+// ── Two-Factor Authentication (TOTP) ─────────────────────────────────────
+//
+// Enrollment wizard: QR (or manual key) → confirm a live code → save the 10
+// single-use backup codes. Turning it off requires the password AND a valid
+// code so a stolen session can't quietly strip the account's second factor.
+
+function TwoFactorPanel() {
+  const [st, setSt] = useState(null)            // /totp/status payload
+  const [stage, setStage] = useState('idle')    // idle | qr | codes
+  const [setup, setSetup] = useState(null)      // {qr_svg, secret, otpauth_url}
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [backupCodes, setBackupCodes] = useState(null)
+  const [showDisable, setShowDisable] = useState(false)
+  const [disableForm, setDisableForm] = useState({ password: '', code: '' })
+  const [showRegen, setShowRegen] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const refresh = () =>
+    fetch('/api/auth/totp/status')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setSt(d) })
+      .catch(() => {})
+  useEffect(() => { refresh() }, [])
+
+  const post = async (url, body) => {
+    setBusy(true); setError('')
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) { setError(data.detail || 'Something went wrong'); return null }
+      return data
+    } catch { setError('Network error'); return null }
+    finally { setBusy(false) }
+  }
+
+  const begin = async () => {
+    const data = await post('/api/auth/totp/setup')
+    if (data) { setSetup(data); setCode(''); setStage('qr') }
+  }
+  const confirm = async (e) => {
+    e.preventDefault()
+    const data = await post('/api/auth/totp/verify-setup', { code })
+    if (data) { setBackupCodes(data.backup_codes); setStage('codes'); setCode(''); refresh() }
+  }
+  const finishCodes = () => { setStage('idle'); setBackupCodes(null); setSetup(null); setCopied(false) }
+  const doDisable = async (e) => {
+    e.preventDefault()
+    const data = await post('/api/auth/totp/disable', disableForm)
+    if (data) { setShowDisable(false); setDisableForm({ password: '', code: '' }); refresh() }
+  }
+  const doRegen = async (e) => {
+    e.preventDefault()
+    const data = await post('/api/auth/totp/backup-codes/regenerate', { code })
+    if (data) { setBackupCodes(data.backup_codes); setStage('codes'); setShowRegen(false); setCode(''); refresh() }
+  }
+
+  const copyCodes = async () => {
+    try {
+      await navigator.clipboard.writeText((backupCodes || []).join('\n'))
+      setCopied(true); setTimeout(() => setCopied(false), 2000)
+    } catch { /* ignore */ }
+  }
+  const downloadCodes = () => {
+    const blob = new Blob([
+      `UCT Intelligence — two-factor backup codes\nEach code works once. Keep them somewhere safe.\n\n${(backupCodes || []).join('\n')}\n`,
+    ], { type: 'text/plain' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'uct-backup-codes.txt'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  if (!st) return <div className={styles.section}><p className={styles.hint} style={{ marginTop: 0 }}>Loading…</p></div>
+
+  // Fresh backup codes on screen — the one time they're visible in plaintext.
+  if (stage === 'codes' && backupCodes) {
+    return (
+      <div className={styles.section}>
+        <p className={styles.hint} style={{ marginTop: 0 }}>
+          Two-factor is on. These backup codes are your way in if you lose the
+          authenticator — <strong>each works once, and this is the only time
+          they'll be shown.</strong>
+        </p>
+        <div className={styles.totpCodesGrid}>
+          {backupCodes.map(c => <span key={c} className={styles.totpCodeChip}>{c}</span>)}
+        </div>
+        <div className={styles.pwActions}>
+          <button className={styles.btn} onClick={copyCodes}>{copied ? 'Copied ✓' : 'Copy all'}</button>
+          <button className={styles.btnMuted} onClick={downloadCodes}>Download .txt</button>
+          <button className={styles.btn} onClick={finishCodes}>I saved them</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (stage === 'qr' && setup) {
+    return (
+      <div className={styles.section}>
+        <p className={styles.hint} style={{ marginTop: 0 }}>
+          Scan this with your authenticator app (Google Authenticator, 1Password,
+          Authy…), then enter the 6-digit code it shows to finish.
+        </p>
+        <div className={styles.totpQrBox} dangerouslySetInnerHTML={{ __html: setup.qr_svg }} />
+        <p className={styles.hint}>
+          Can't scan? Enter this key manually:{' '}
+          <span className={styles.totpSecret}>{setup.secret}</span>
+        </p>
+        <form onSubmit={confirm} className={styles.pwForm}>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="6-digit code"
+            maxLength={10}
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            className={styles.input}
+            required
+            autoFocus
+          />
+          {error && <div className={styles.error}>{error}</div>}
+          <div className={styles.pwActions}>
+            <button type="submit" className={styles.btn} disabled={busy}>
+              {busy ? 'Checking…' : 'Turn on 2FA'}
+            </button>
+            <button type="button" className={styles.btnMuted} onClick={() => { setStage('idle'); setSetup(null); setError('') }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
+  if (st.enabled) {
+    return (
+      <div className={styles.section}>
+        <div className={styles.totpStatusRow}>
+          <span className={styles.totpOnBadge}>● ON</span>
+          <span className={styles.hint} style={{ margin: 0 }}>
+            Logins ask for an authenticator code · {st.backup_codes_remaining} backup
+            code{st.backup_codes_remaining === 1 ? '' : 's'} left
+          </span>
+        </div>
+        {!showDisable && !showRegen && (
+          <div className={styles.pwActions} style={{ marginTop: 12 }}>
+            <button className={styles.btnMuted} onClick={() => { setShowRegen(true); setCode(''); setError('') }}>
+              New backup codes
+            </button>
+            <button className={styles.btnDanger} onClick={() => { setShowDisable(true); setError('') }}>
+              Turn off 2FA
+            </button>
+          </div>
+        )}
+        {showRegen && (
+          <form onSubmit={doRegen} className={styles.pwForm} style={{ marginTop: 12 }}>
+            <p className={styles.hint} style={{ margin: 0 }}>
+              This replaces every unused backup code. Enter a current
+              authenticator code to confirm.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="6-digit code"
+              maxLength={12}
+              value={code}
+              onChange={e => setCode(e.target.value)}
+              className={styles.input}
+              required
+              autoFocus
+            />
+            {error && <div className={styles.error}>{error}</div>}
+            <div className={styles.pwActions}>
+              <button type="submit" className={styles.btn} disabled={busy}>{busy ? 'Working…' : 'Regenerate'}</button>
+              <button type="button" className={styles.btnMuted} onClick={() => { setShowRegen(false); setError('') }}>Cancel</button>
+            </div>
+          </form>
+        )}
+        {showDisable && (
+          <form onSubmit={doDisable} className={styles.pwForm} style={{ marginTop: 12 }}>
+            <p className={styles.hint} style={{ margin: 0 }}>
+              Turning this off needs your password and a current code (or a
+              backup code).
+            </p>
+            <input
+              type="password"
+              placeholder="Password"
+              value={disableForm.password}
+              onChange={e => setDisableForm(f => ({ ...f, password: e.target.value }))}
+              className={styles.input}
+              required
+              autoComplete="current-password"
+            />
+            <input
+              type="text"
+              placeholder="Authenticator or backup code"
+              maxLength={12}
+              value={disableForm.code}
+              onChange={e => setDisableForm(f => ({ ...f, code: e.target.value }))}
+              className={styles.input}
+              required
+              autoComplete="one-time-code"
+            />
+            {error && <div className={styles.error}>{error}</div>}
+            <div className={styles.pwActions}>
+              <button type="submit" className={styles.btnDanger} disabled={busy}>{busy ? 'Working…' : 'Turn off'}</button>
+              <button type="button" className={styles.btnMuted} onClick={() => { setShowDisable(false); setError('') }}>Cancel</button>
+            </div>
+          </form>
+        )}
+        {!showDisable && !showRegen && error && <div className={styles.error} style={{ marginTop: 10 }}>{error}</div>}
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.section}>
+      <p className={styles.hint} style={{ marginTop: 0, marginBottom: 12 }}>
+        Add a second lock on your account: after your password, logins also ask
+        for a 6-digit code from your phone's authenticator app. Even a stolen
+        password can't get in alone.
+      </p>
+      {!st.available && (
+        <p className={styles.error}>Two-factor setup is temporarily unavailable.</p>
+      )}
+      {error && <div className={styles.error} style={{ marginBottom: 10 }}>{error}</div>}
+      <button className={styles.btn} onClick={begin} disabled={busy || !st.available}>
+        {busy ? 'Preparing…' : 'Enable two-factor authentication'}
+      </button>
+    </div>
+  )
+}
+
+
 // ── Danger Zone ──────────────────────────────────────────────────────────
 //
 // Two-step confirmation with a typed sentinel + password re-entry. On submit
@@ -1288,6 +1530,7 @@ const SECTIONS = [
 const SEARCH_INDEX = [
   { card: 'profile',        section: 'account',     title: 'Profile',                    keywords: 'avatar photo email display name full name member since verified' },
   { card: 'security',       section: 'account',     title: 'Security',                   keywords: 'password change security' },
+  { card: 'twoFactor',      section: 'account',     title: 'Two-Factor Authentication',  keywords: '2fa totp two factor authenticator google authy code backup codes qr security lock' },
   { card: 'session',        section: 'account',     title: 'Log Out',                    keywords: 'log out logout sign out session' },
   { card: 'activeSessions', section: 'account',     title: 'Active Sessions',            keywords: 'sessions devices browsers logins revoke sign out everywhere lost stolen' },
   { card: 'dangerZone',     section: 'account',     title: 'Delete Account',             keywords: 'delete account danger zone close remove wipe permanent goodbye' },
@@ -1979,6 +2222,12 @@ export default function Settings() {
         </TileCard>
   )
 
+  const twoFactorCard = (
+    <TileCard icon="shield" title="Two-Factor Authentication">
+      <TwoFactorPanel />
+    </TileCard>
+  )
+
   const activeSessionsCard = (
     <TileCard icon="clock" title="Active Sessions">
       <ActiveSessionsPanel />
@@ -1996,6 +2245,7 @@ export default function Settings() {
     account: [
       card('profile', profileCard),
       card('security', securityCard),
+      card('twoFactor', twoFactorCard),
       card('activeSessions', activeSessionsCard),
       card('session', sessionCard),
       card('dangerZone', dangerZoneCard),

@@ -56,6 +56,31 @@ export function AuthProvider({ children }) {
       throw new Error(err.detail || 'Login failed')
     }
     const data = await res.json()
+    // 2FA accounts don't get a session from the password alone — the caller
+    // shows the code step and finishes via verifyTotp.
+    if (data.requires_totp) return data
+    setUser(data.user)
+    setPlan(data.plan)
+    setTrial(data.trial || null)
+    setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+    return data
+  }
+
+  // Second half of a 2FA login: the challenge token from login() plus a
+  // 6-digit authenticator code (or a backup code) → real session.
+  const verifyTotp = async (challengeToken, code) => {
+    const res = await fetch('/api/auth/login/totp-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challenge_token: challengeToken, code }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      const e = new Error(err.detail || 'Verification failed')
+      e.status = res.status
+      throw e
+    }
+    const data = await res.json()
     setUser(data.user)
     setPlan(data.plan)
     setTrial(data.trial || null)
@@ -121,7 +146,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, loading, login, signup, logout, startCheckout, openPortal, refetch: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, loading, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
