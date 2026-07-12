@@ -308,15 +308,44 @@
 }
 .dayDivider span { position: relative; z-index: 1; }
 
-/* Message */
-.msg { position: relative; padding: 5px 44px 5px 8px; border-radius: 6px; }
+/* Message — Discord anatomy: avatar gutter + content column */
+.msg {
+  position: relative; display: grid; grid-template-columns: 40px 1fr;
+  column-gap: 12px; padding: 2px 44px 2px 12px; border-radius: 6px;
+}
+.msg:not(.msgGrouped) { margin-top: 12px; }
 .msg:hover { background: var(--bg-hover); }
-.msgGrouped { padding-top: 1px; }
-.msgMentor { border-left: 2px solid var(--ut-gold); background: rgba(201,168,76,0.05); }
+.msgGutter { display: flex; justify-content: center; align-items: flex-start; padding-top: 2px; min-width: 0; }
+.msgContent { min-width: 0; }
+.gutterTime {
+  visibility: hidden; color: var(--text); opacity: 0.45; font-size: 9.5px;
+  line-height: 1.55; padding-top: 3px; white-space: nowrap;
+}
+.msg:hover .gutterTime { visibility: visible; }
+.msgGrouped { padding-top: 0; }
+.msgMentor { background: rgba(201,168,76,0.05); }
 .msgPending { opacity: 0.6; }
-.msgHead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
-.msgAuthor { color: var(--text-heading); font-size: 12.5px; font-weight: 600; }
+.msgHead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; flex-wrap: wrap; }
+.msgAuthor { color: var(--text-heading); font-size: 13.5px; font-weight: 600; }
+.msgAuthor:hover { text-decoration: underline; cursor: default; }
+.mentorTag {
+  align-self: center; background: var(--ut-gold); color: #14150f; border-radius: 4px;
+  font-size: 8.5px; font-weight: 800; letter-spacing: 0.6px; padding: 1px 5px;
+}
 .msgTime { color: var(--text); opacity: 0.5; font-size: 10.5px; }
+.msgHead .mentorBadge { font-size: 13.5px; }
+
+/* Avatars (FloorAvatar) */
+.floorAvatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; overflow: hidden; flex-shrink: 0; user-select: none;
+}
+.floorAvatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.floorAvatarInitial { color: #fff; font-weight: 700; line-height: 1; }
+.floorAvatarMentor {
+  background: linear-gradient(135deg, #8a6d2a, #c9a84c);
+  color: #14150f;
+}
 .msgFailed { color: var(--ut-red); font-size: 10.5px; }
 .msgBody { color: var(--text); font-size: 13.5px; line-height: 1.55; word-break: break-word; }
 .msgBody :global(.ProseMirror), .msgBody p { margin: 0; }

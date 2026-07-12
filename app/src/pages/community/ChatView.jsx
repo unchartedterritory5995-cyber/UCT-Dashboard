@@ -7,6 +7,7 @@ import UIcon from '../../components/ui/UIcon'
 import { useAuth } from '../../context/AuthContext'
 import { renderBodyHTML } from './lib/renderBody'
 import CardRenderer from './components/CardRenderer'
+import FloorAvatar from './components/FloorAvatar'
 import FloorSearch from './components/FloorSearch'
 import MentionInbox from './components/MentionInbox'
 import Composer from './Composer'
@@ -302,14 +303,25 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply
   const mentor = msg.author?.is_mentor
   const html = useMemo(() => (msg.deleted || !msg.body ? null : renderBodyHTML(msg.body)), [msg.body, msg.deleted])
   const canGraduate = (mine || isMentor) && !msg.pending && !msg.deleted
+  // pending optimistic messages carry the '__me__' placeholder — resolve to the real id
+  const avatarId = msg.author_id === '__me__' ? meId : msg.author_id
 
   return (
     <div data-mid={msg.id}
       className={`${styles.msg} ${grouped ? styles.msgGrouped : ''} ${mentor ? styles.msgMentor : ''} ${msg.pending ? styles.msgPending : ''} ${msg.pinned ? styles.msgPinned : ''}`}>
+      <div className={styles.msgGutter}>
+        {!grouped ? (
+          <FloorAvatar authorId={avatarId} name={msg.author?.name} isMentor={mentor} />
+        ) : (
+          <span className={styles.gutterTime}>{timeLabel(msg.created_at)}</span>
+        )}
+      </div>
+      <div className={styles.msgContent}>
       {!grouped && (
         <div className={styles.msgHead}>
           {!!msg.pinned && <UIcon name="pin" size={11} />}
           <span className={mentor ? styles.mentorBadge : styles.msgAuthor}>{msg.author?.name || 'member'}</span>
+          {mentor && <span className={styles.mentorTag}>MENTOR</span>}
           {(msg.author?.badges || []).includes('green_week') && (
             <span className={styles.badgeGreen} title="Net positive R this week (verified from journal)">green wk</span>
           )}
@@ -396,6 +408,7 @@ function MessageRow({ msg, grouped, meId, isMentor, channel, livePrices, onReply
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }
