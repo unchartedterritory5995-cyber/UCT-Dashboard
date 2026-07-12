@@ -136,20 +136,52 @@ def bump_data_version() -> int:
 
 def _build_gzipped_csv(source: str, days) -> bytes:
     """Stream the CSV generator through the gzip compressor, returning the
-    full gzipped bytes. Memory stays at compressed-size peak instead of
-    holding the full uncompressed CSV in RAM.
+    full gzipped bytes.
+
+    For LONG ranges (all_data, or days >= FLOW_CSV_CAP_DAYS), the payload is
+    capped to the top FLOW_CSV_CAP_ROWS trades by premium. A 60-day full pull is
+    ~100MB / 770k rows, which OOM-crashes the browser tab on parse. Premium is
+    heavily skewed, so the top rows capture the vast majority of the dollars and
+    every meaningful trade — only the tiny-premium tail (which the premium-ranked
+    page barely renders) is trimmed. Short ranges (<cap) stream in full so the
+    delta-merge's days=1 refresh and small-range views stay complete.
 
     days=None means "all data" — passed to db.stream_csv without a days arg."""
     gen = db.stream_csv(source=source, days=days) if days else db.stream_csv(source=source)
+
+    cap_days = int(os.environ.get("FLOW_CSV_CAP_DAYS", "20"))
+    cap_rows = int(os.environ.get("FLOW_CSV_CAP_ROWS", "50000"))
+    should_cap = (days is None) or (days >= cap_days)
+
     buf = io.BytesIO()
     # compresslevel=1: ~60% faster than default level 6, ~10% larger output.
-    # mtime=0: deterministic gzip header — same data → byte-identical output,
-    # which lets HTTP intermediaries (CF) compare-and-skip on revalidation.
+    # mtime=0: deterministic gzip header — same data → byte-identical output.
     with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=1, mtime=0) as gz:
-        for chunk in gen:
-            if isinstance(chunk, str):
-                chunk = chunk.encode("utf-8")
-            gz.write(chunk)
+        if not should_cap:
+            for chunk in gen:
+                if isinstance(chunk, str):
+                    chunk = chunk.encode("utf-8")
+                gz.write(chunk)
+        else:
+            # Collect the full CSV (server has the RAM; the browser doesn't),
+            # then keep the top-N rows by premium to bound the client payload.
+            text = "".join(c if isinstance(c, str) else c.decode("utf-8") for c in gen)
+            nl = text.find("\n")
+            header = text[:nl] if nl >= 0 else text
+            body = [ln for ln in text[nl + 1:].split("\n") if ln] if nl >= 0 else []
+            if len(body) > cap_rows:
+                cols = [c.strip().lower() for c in header.split(",")]
+                pidx = cols.index("premium") if "premium" in cols else None
+                if pidx is not None:
+                    def _prem(ln):
+                        try:
+                            return float(ln.split(",")[pidx] or 0)
+                        except (ValueError, IndexError):
+                            return 0.0
+                    body.sort(key=_prem, reverse=True)
+                    body = body[:cap_rows]
+            out = header + "\n" + "\n".join(body) + ("\n" if body else "")
+            gz.write(out.encode("utf-8"))
     return buf.getvalue()
 
 
