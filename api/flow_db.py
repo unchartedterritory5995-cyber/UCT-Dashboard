@@ -264,7 +264,8 @@ class FlowDB:
 
     # ── Streaming CSV (preferred for /api/flow/data) ────────────────────
 
-    def stream_csv(self, source: str = "stocks", days: int | None = None):
+    def stream_csv(self, source: str = "stocks", days: int | None = None,
+                   cap_rows: int | None = None):
         """
         Generator that yields CSV chunks from the database.
 
@@ -273,6 +274,16 @@ class FlowDB:
         of rows is read — no 50-second server-side wait.
 
         ``days=None`` means all data.
+
+        ``cap_rows`` (optional): when set to a positive int, the query keeps
+        only the top-``cap_rows`` rows by Premium (descending) and drops the
+        rest. This pushes the premium-ranked cap into SQLite so the router no
+        longer has to collect + sort 770K Python rows for the "All" range —
+        SQLite does the top-N selection in C. Leave as ``None`` (default) for
+        an uncapped stream: small ranges and the delta-merge ``days=1``
+        refetch MUST stay uncapped so a heavy day's low-premium tail is never
+        truncated. NOTE: the capped stream is Premium-DESC ordered, not
+        chronological/rowid order like the uncapped path.
         """
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -285,11 +296,26 @@ class FlowDB:
                 return
 
             placeholders = ",".join(["?"] * len(selected_dates))
-            cursor = conn.execute(
+            sql = (
                 f"SELECT {_SELECT_COLS} FROM flow "
-                f"WHERE source = ? AND CreatedDate IN ({placeholders})",
-                [source] + selected_dates,
+                f"WHERE source = ? AND CreatedDate IN ({placeholders})"
             )
+            params = [source] + selected_dates
+
+            # Premium-ranked cap for large ranges. Premium is stored as TEXT,
+            # so the ORDER BY MUST cast to a number — a lexical sort would rank
+            # "9" above "1000000". CAST(... AS REAL) tolerates decimals and
+            # treats blank/NULL as 0/NULL, both of which sort to the bottom
+            # under DESC, so empty-premium rows are correctly the first to be
+            # dropped. SQLite selects the top-N in C over the scanned rows;
+            # the router no longer collects + sorts 770K Python rows (the
+            # 14.7s "All" build). Uncapped path is unchanged: no ORDER BY, so
+            # rows still come out in rowid order for small ranges / days=1.
+            if cap_rows and cap_rows > 0:
+                sql += " ORDER BY CAST(Premium AS REAL) DESC LIMIT ?"
+                params.append(cap_rows)
+
+            cursor = conn.execute(sql, params)
 
             # Yield header
             yield _HEADER_LINE

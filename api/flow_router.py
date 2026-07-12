@@ -147,41 +147,31 @@ def _build_gzipped_csv(source: str, days) -> bytes:
     delta-merge's days=1 refresh and small-range views stay complete.
 
     days=None means "all data" — passed to db.stream_csv without a days arg."""
-    gen = db.stream_csv(source=source, days=days) if days else db.stream_csv(source=source)
-
     cap_days = int(os.environ.get("FLOW_CSV_CAP_DAYS", "20"))
     cap_rows = int(os.environ.get("FLOW_CSV_CAP_ROWS", "50000"))
     should_cap = (days is None) or (days >= cap_days)
+
+    # For LONG ranges push the premium-ranked cap DOWN into SQLite
+    # (ORDER BY CAST(Premium AS REAL) DESC LIMIT cap_rows) rather than
+    # collecting + sorting all ~770K Python rows here (the old 14.7s "All"
+    # first-build). SQLite selects the top-N in C; we just stream-gzip the
+    # already-capped, already-premium-ordered result. Short ranges pass
+    # cap_rows=None so the delta-merge's days=1 refresh and small-range views
+    # stream in FULL — a heavy day's low-premium tail must never be trimmed
+    # off the live view. Premium is stored TEXT, so the CAST in stream_csv is
+    # load-bearing (a lexical sort would rank "9" above "1000000").
+    row_cap = cap_rows if should_cap else None
+
+    gen = db.stream_csv(source=source, days=days, cap_rows=row_cap)
 
     buf = io.BytesIO()
     # compresslevel=1: ~60% faster than default level 6, ~10% larger output.
     # mtime=0: deterministic gzip header — same data → byte-identical output.
     with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=1, mtime=0) as gz:
-        if not should_cap:
-            for chunk in gen:
-                if isinstance(chunk, str):
-                    chunk = chunk.encode("utf-8")
-                gz.write(chunk)
-        else:
-            # Collect the full CSV (server has the RAM; the browser doesn't),
-            # then keep the top-N rows by premium to bound the client payload.
-            text = "".join(c if isinstance(c, str) else c.decode("utf-8") for c in gen)
-            nl = text.find("\n")
-            header = text[:nl] if nl >= 0 else text
-            body = [ln for ln in text[nl + 1:].split("\n") if ln] if nl >= 0 else []
-            if len(body) > cap_rows:
-                cols = [c.strip().lower() for c in header.split(",")]
-                pidx = cols.index("premium") if "premium" in cols else None
-                if pidx is not None:
-                    def _prem(ln):
-                        try:
-                            return float(ln.split(",")[pidx] or 0)
-                        except (ValueError, IndexError):
-                            return 0.0
-                    body.sort(key=_prem, reverse=True)
-                    body = body[:cap_rows]
-            out = header + "\n" + "\n".join(body) + ("\n" if body else "")
-            gz.write(out.encode("utf-8"))
+        for chunk in gen:
+            if isinstance(chunk, str):
+                chunk = chunk.encode("utf-8")
+            gz.write(chunk)
     return buf.getvalue()
 
 
