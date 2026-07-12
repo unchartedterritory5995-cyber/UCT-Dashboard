@@ -250,6 +250,12 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
         {rows.map((r, i) => {
           const px = priceFn ? priceFn(r.S, r.CP, r.K, r.E) : null;
           const entry = r.price || (r.V > 0 ? r.P / r.V / 100 : 0);
+          // Premium shown is the row's DIRECTIONAL premium (bull dollars on a
+          // BULL row, bear on a BEAR row); "—" rows and any row lacking the
+          // split fall back to the contract total. Entry price stays computed
+          // from the full contract (r.P/r.V) — it's an average price, not a
+          // directional dollar figure.
+          const dispP = (r.dirPrem != null) ? r.dirPrem : r.P;
           const now = px ? (px.mark || px.last || px.mid || 0) : 0;
           const pnl = now > 0 && entry > 0 ? (now - entry) / entry * 100 : 0;
           const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
@@ -293,7 +299,7 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
               <td style={{ padding:"5px 4px" }} title={r.D==="BULL"?"Bull-directional — counted in Bullish Flow":r.D==="BEAR"?"Bear-directional — counted in Bearish Flow":"No clean direction (ambiguous side) — not counted in the Bull/Bear totals"}>
                 {r.D==="BULL" ? <Tag c={P.bu}>BULL</Tag> : r.D==="BEAR" ? <Tag c={P.be}>BEAR</Tag> : <span style={{ color:P.mt, fontWeight:700 }}>—</span>}
               </td>
-              <td style={{ padding:"5px 4px", fontWeight:700, color:premC(r.P) }}>{fmt(r.P)}</td>
+              <td style={{ padding:"5px 4px", fontWeight:700, color:premC(dispP) }}>{fmt(dispP)}</td>
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
@@ -1938,10 +1944,17 @@ function processFlowData(rows) {
             const k = c.CP + "|" + c.K + "|" + c.E;
             const rep = repByContract[k];
             if (!rep) return null; // contract whose biggest single trade fell below per-ticker top-10 cutoff
-            return { ...rep, P: c.P, V: c.V };
+            // Directional premium: the dollars attributable to this contract's
+            // dominant direction (rep.D). A BULL row then shows its BULL
+            // contribution, not the contract total that mixes in opposing /
+            // undirected trades — so the directional rows reconcile toward the
+            // header's Bullish/Bearish Flow. Non-directional ("—") rows keep
+            // the full contract total (they don't claim a side).
+            const dirPrem = rep.D === "BULL" ? c.bullPrem : rep.D === "BEAR" ? c.bearPrem : c.P;
+            return { ...rep, P: c.P, V: c.V, bullPrem: c.bullPrem, bearPrem: c.bearPrem, dirPrem };
           })
           .filter(x => x !== null)
-          .sort((a, b) => b.P - a.P)
+          .sort((a, b) => b.dirPrem - a.dirPrem)
           .slice(0, 10);
       })(),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
