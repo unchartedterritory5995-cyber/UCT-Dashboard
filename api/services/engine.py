@@ -110,6 +110,64 @@ def _anthropic_text(msg) -> str:
     return "".join(parts).strip()
 
 
+def _earnings_signals_hash(row: dict) -> str:
+    """Stable SHA1 of the meaningful inputs that determine the AI output
+    (mirrors the catalyst signals_hash). Skip-if-stable: a name is only re-sent
+    to Claude when these change — so a stable name costs ~$0 to keep warm, and a
+    preview refreshes the moment its inputs move (consensus populating N/A → real,
+    a revised estimate, or the name reporting pending → actual).
+
+    Hashes ONLY the ROW (which is passed in, not re-fetched) so it is fully
+    deterministic. Fetch-derived signals (enrichment revisions/implied move, the
+    churning 3-day news set) are EXCLUDED — they varied per fetch, so the hash
+    never matched and it re-billed Claude every cycle."""
+    import hashlib
+    row = row or {}
+
+    def _num(v):
+        try:
+            return round(float(v), 4)
+        except (TypeError, ValueError):
+            return None
+
+    try:
+        payload = {
+            "eps_est":  _num(row.get("eps_estimate")),
+            "rev_est":  _num(row.get("rev_estimate")),
+            "eps_act":  _num(row.get("reported_eps") if row.get("reported_eps") is not None else row.get("eps_act")),
+            "rev_act":  _num(row.get("rev_actual") if row.get("rev_actual") is not None else row.get("rev_act")),
+            "surprise": _num(row.get("surprise_pct")),
+            "date":     row.get("date") or row.get("earnings_date"),
+            "timing":   (row.get("session") or row.get("when") or "").upper(),
+        }
+        raw = json.dumps(payload, sort_keys=True, default=str)
+        return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+    except Exception:
+        return ""
+
+
+def _parse_json_block(raw: str) -> dict:
+    """Parse a JSON object from a model reply, tolerating code fences AND stray
+    prose around it — Sonnet 5 occasionally adds a lead-in sentence despite the
+    'JSON only' instruction, which made a strict json.loads throw (→ empty
+    preview). Falls back to the outermost {...} span."""
+    raw = (raw or "").strip()
+    if raw.startswith("```"):
+        parts = raw.split("```")
+        if len(parts) >= 2:
+            raw = parts[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+    try:
+        return json.loads(raw)
+    except Exception:
+        i, j = raw.find("{"), raw.rfind("}")
+        if i != -1 and j != -1 and j > i:
+            return json.loads(raw[i:j + 1])
+        raise
+
+
 def _av_get(req_module, url: str, timeout: int = _AV_TIMEOUT_SECS) -> dict:
     """Rate-limited Alpha Vantage GET. Enforces ≥13s between calls (≤4.6/min)."""
     with _av_lock:
@@ -812,23 +870,37 @@ def _normalize_earnings(raw, amc_tonight_raw=None) -> dict:
     return {"bmo": bmo[:15], "amc": amc[:15], "amc_tonight": amc_tonight[:15]}
 
 
-def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
+def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: bool = False) -> dict:
     """Generate Claude Haiku earnings analysis + fetch AV history + Finnhub news. Cached 12h.
+
+    force_fresh_check (background warm): skip the fast mem/disk return and
+    re-check the inputs' signals_hash, regenerating only if they changed.
 
     Cache key is versioned (v2) — bumped when the strategist-note prompt
     redesign shipped so users get fresh richer output instead of short
     bullets cached under v1.
     """
     cache_key = f"earnings_analysis_v2_{sym}"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
-    # Disk-persisted hit (survives redeploys) → generate-once, zero re-burn.
     from api.services import earnings_ai_store as _ai_store
-    _disk = _ai_store.get("analysis", sym)
-    if _disk:
-        cache.set(cache_key, _disk, ttl=_EARNINGS_CACHE_TTL_HIT)
-        return _disk
+    if not force_fresh_check:
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+        # Disk-persisted hit (survives redeploys) → generate-once, zero re-burn.
+        _disk = _ai_store.get("analysis", sym)
+        if _disk:
+            cache.set(cache_key, _disk, ttl=_EARNINGS_CACHE_TTL_HIT)
+            return _disk
+
+    # ── Skip-if-stable (from the row, before any fetch): reuse the persisted
+    #    analysis when the reported figures / surprise are unchanged. ──
+    _sig = _earnings_signals_hash(row)
+    _prior = _ai_store.read("analysis", sym)
+    if (_prior and _prior.get("analysis") is not None
+            and _prior.get("signals_hash") and _prior.get("signals_hash") == _sig):
+        cache.set(cache_key, _prior, ttl=_EARNINGS_CACHE_TTL_HIT)
+        _ai_store.touch("analysis", sym)
+        return _prior
 
     import datetime as _dt
     import requests as _req
@@ -1098,14 +1170,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
                 metadata={"user_id": "earnings_analysis:global"},
                 messages=[{"role": "user", "content": prompt}],
             )
-            raw = _anthropic_text(msg)
-            # Strip markdown code fences if the model wraps in ```json
-            if raw.startswith("```"):
-                raw = raw.split("```")[1]
-                if raw.startswith("json"):
-                    raw = raw[4:]
-                raw = raw.strip()
-            parsed = json.loads(raw)
+            parsed = _parse_json_block(_anthropic_text(msg))
             analysis_headline = str(parsed.get("headline", "")).strip()
             analysis_summary  = str(parsed.get("summary",  "")).strip()
             analysis_bullets  = [str(b).strip() for b in parsed.get("bullets", [])[:5]]
@@ -1135,6 +1200,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
         "beat_surprises":    enrichment.get("beat_surprises"),
         "implied_move":      enrichment.get("implied_move"),
         "key_quotes":        enrichment.get("key_quotes"),
+        "signals_hash":      _sig,   # inputs fingerprint for skip-if-stable
     }
     # Only cache for full 12h if analysis succeeded; short TTL lets it retry on failure
     ttl = _EARNINGS_CACHE_TTL_HIT if analysis is not None else _EARNINGS_CACHE_TTL_MISS
@@ -1144,11 +1210,16 @@ def _generate_earnings_analysis(sym: str, row: dict | None) -> dict:
     return result
 
 
-def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
+def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bool = False) -> dict:
     """Generate forward-looking AI preview for Pending earnings entries. Cached 12h.
 
     row may be None or {} (e.g., when called for a future calendar entry not in
     today's bmo/amc); the function falls back to N/A for missing context.
+
+    force_fresh_check (background warm path): skip the fast mem/disk return and
+    re-fetch inputs to compare their signals_hash — regenerating via Claude ONLY
+    if the inputs changed (skip-if-stable). The user-facing click path leaves it
+    False so a cached preview is served instantly.
 
     Cache key is versioned (v2) — bumped when the strategist-note prompt
     redesign shipped so users get fresh richer output instead of short
@@ -1157,16 +1228,28 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
     if row is None:
         row = {"sym": sym}
     cache_key = f"earnings_preview_v2_{sym}"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
-    # Disk-persisted hit (survives Railway redeploys) → warm the hot cache and
-    # return without spending tokens. This is what makes generate-once possible.
     from api.services import earnings_ai_store as _ai_store
-    _disk = _ai_store.get("preview", sym)
-    if _disk:
-        cache.set(cache_key, _disk, ttl=_EARNINGS_CACHE_TTL_HIT)
-        return _disk
+    if not force_fresh_check:
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+        # Disk-persisted hit (survives Railway redeploys) → warm the hot cache
+        # and return without spending tokens. Generate-once for the click path.
+        _disk = _ai_store.get("preview", sym)
+        if _disk:
+            cache.set(cache_key, _disk, ttl=_EARNINGS_CACHE_TTL_HIT)
+            return _disk
+
+    # ── Skip-if-stable (computed from the row BEFORE any fetch): if the persisted
+    #    preview was built from the same inputs, reuse it — skip the input fetches
+    #    AND Claude entirely. Regenerates only when the inputs move. ──
+    _sig = _earnings_signals_hash(row)
+    _prior = _ai_store.read("preview", sym)
+    if (_prior and _prior.get("preview_text")
+            and _prior.get("signals_hash") and _prior.get("signals_hash") == _sig):
+        cache.set(cache_key, _prior, ttl=_EARNINGS_CACHE_TTL_HIT)
+        _ai_store.touch("preview", sym)
+        return _prior
 
     import datetime as _dt
     import requests as _req
@@ -1450,14 +1533,7 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
             metadata={"user_id": "earnings_preview:global"},
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = _anthropic_text(msg)
-        # Strip markdown code fences if the model wraps in ```json
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
-        parsed = json.loads(raw)
+        parsed = _parse_json_block(_anthropic_text(msg))
         preview_text    = str(parsed.get("preview", "")).strip()
         preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:5]]
     except Exception as _e:
@@ -1480,6 +1556,7 @@ def _generate_earnings_preview(sym: str, row: dict | None) -> dict:
         "beat_surprises":  enrichment.get("beat_surprises"),
         "implied_move":    enrichment.get("implied_move"),
         "key_quotes":      enrichment.get("key_quotes"),
+        "signals_hash":    _sig,   # inputs fingerprint for skip-if-stable
     }
     ttl = _EARNINGS_CACHE_TTL_HIT if preview_text else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)

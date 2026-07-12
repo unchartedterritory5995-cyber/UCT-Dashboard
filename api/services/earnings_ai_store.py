@@ -77,3 +77,39 @@ def is_fresh(kind: str, sym: str) -> bool:
         return (time.time() - os.path.getmtime(p)) <= _MAX_AGE_SECS.get(kind, _DEFAULT_MAX_AGE)
     except Exception:
         return False
+
+
+def read(kind: str, sym: str):
+    """Return the persisted dict REGARDLESS of age (None if missing). Used for
+    skip-if-stable: compare the stored signals_hash to the current inputs even
+    when the file is past its display max-age."""
+    try:
+        p = _path(kind, sym)
+        if not os.path.exists(p):
+            return None
+        with open(p, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return None
+
+
+def age(kind: str, sym: str):
+    """Seconds since last write, or None if the file doesn't exist."""
+    try:
+        p = _path(kind, sym)
+        if not os.path.exists(p):
+            return None
+        return time.time() - os.path.getmtime(p)
+    except Exception:
+        return None
+
+
+def touch(kind: str, sym: str) -> None:
+    """Refresh the file mtime (skip-if-stable reuse keeps a still-valid preview
+    'fresh' without a rewrite)."""
+    try:
+        p = _path(kind, sym)
+        if os.path.exists(p):
+            os.utime(p, None)
+    except Exception:
+        pass

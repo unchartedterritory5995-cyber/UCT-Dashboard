@@ -554,11 +554,15 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             get_calendar()
 
         def _earnings_previews():
-            # Warm the AI preview for the week's biggest reporters so their modal
-            # is instant on click. Generate-once + disk-persisted → cheap after
-            # the first run (already-warm names skipped, zero re-burn on redeploy).
-            from api.services.earnings_preview_warm import warm_week_previews
+            # Warm the AI preview for the week's reporters (ranked by who users
+            # actually track, then market cap) + the analysis for names that just
+            # reported, so the modal is instant on click. Skip-if-stable +
+            # disk-persisted → cheap after the first run (zero re-burn on redeploy).
+            from api.services.earnings_preview_warm import (
+                warm_week_previews, warm_reported_analyses,
+            )
             warm_week_previews()
+            warm_reported_analyses()
 
         def _flow_tape_critical():
             # The surfaces users hit FIRST — default ALL FLOW tape + market-read
@@ -2347,10 +2351,20 @@ async def lifespan(app: FastAPI):
         # spend. Weekday cadence catches new names + report-date shifts. The boot
         # warm (_start_dashboard_warm_background) covers the post-deploy first run.
         if os.environ.get("EARNINGS_WARM_ENABLED", "1").lower() in ("1", "true", "yes"):
-            from api.services.earnings_preview_warm import warm_week_previews as _earn_warm
+            from api.services.earnings_preview_warm import (
+                warm_week_previews as _earn_warm,
+                warm_reported_analyses as _earn_analysis_warm,
+            )
+            # Pending previews: pre-market + through the day (new names + report-
+            # date shifts). Skip-if-stable makes repeat runs near-free.
             _scheduler.add_job(_earn_warm,
                 trigger=CronTrigger(day_of_week="mon-fri", hour="6,10,14,18", minute=20),
                 id="earnings_preview_warm", max_instances=1, replace_existing=True)
+            # Reported analyses: after the close, when AMC names print — so the
+            # post-earnings read is instant, not a cold 24s wait for the first viewer.
+            _scheduler.add_job(_earn_analysis_warm,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=35),
+                id="earnings_analysis_warm", max_instances=1, replace_existing=True)
 
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
             from api.services.catalyst.engine import run_refresh as _cat_refresh
