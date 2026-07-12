@@ -63,6 +63,11 @@ vi.mock('swr', () => ({
         mutate: vi.fn(),
       }
     }
+    // My Playbook (/api/upb/*) — null data; the hub badge and BuilderView must
+    // both be null-safe (no badge, empty builder state).
+    if (typeof key === 'string' && key.startsWith('/api/upb/')) {
+      return { data: null, mutate: vi.fn() }
+    }
     return { data: null, mutate: vi.fn() }
   },
   preload: vi.fn(),
@@ -98,6 +103,21 @@ test('lands on the hub with section options; Throughout the Years opens the libr
   // Click Throughout the Years → the yearly library renders.
   fireEvent.click(screen.getByRole('button', { name: /throughout the years/i }))
   expect(screen.getByRole('button', { name: '2025' })).toBeInTheDocument()
+})
+
+test('hub renders the My Playbook card; the three dim cards remain', () => {
+  mockMbView = null  // open on the intro/hub screen
+  render(<ModelBook />)
+  // The 7th option — the user's own playbook — renders as a live card (no
+  // count badge with a null overview).
+  const card = screen.getByRole('button', { name: /my playbook/i })
+  expect(card).toBeInTheDocument()
+  // The three unbuilt firm sections stay dimmed "Coming soon".
+  expect(screen.getAllByText(/coming soon/i).length).toBe(3)
+  // Clicking it opens the builder mini-hub (empty state with null data).
+  fireEvent.click(card)
+  expect(screen.getByRole('heading', { name: /my playbook/i })).toBeInTheDocument()
+  expect(screen.getByText(/reference manual of setups/i)).toBeInTheDocument()
 })
 
 test('Setups opens the Setup Library; a card opens the detail scaffold', () => {

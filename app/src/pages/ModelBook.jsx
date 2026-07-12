@@ -13,6 +13,7 @@ import Sheet from '../components/mobile/Sheet'
 import { SETUP_GROUPS, SETUPS, GRADES } from '../constants/setupGroups'
 import SetupsView from './modelbook/SetupsView'
 import BottomsView from './modelbook/BottomsView'
+import BuilderView from './modelbook/builder/BuilderView'
 import UIcon from '../components/ui/UIcon'
 import styles from './ModelBook.module.css'
 
@@ -35,12 +36,19 @@ const MB_HUB_OPTIONS = [
   { view: 'corrections',  label: 'Corrections',          blurb: 'How the leaders behaved through past market corrections.',                       available: false },
   { view: 'bottoms',      label: 'Bottoms',              blurb: 'What major market bottoms actually looked like in real time.',                   available: true },
   { view: 'events',       label: 'Events',               blurb: 'Crashes, shocks, and the trades that played out around them.',                   available: false },
+  // The user's own bench beneath the firm's gallery — renders as a full-width
+  // band (grid-column: 1 / -1 via .hubCardYours).
+  { view: 'builder',      label: 'My Playbook',          blurb: 'Your own setups — charted, annotated, written in your words. Build your book the way the firm built theirs.', available: true },
 ]
 const MB_VIEW_LABELS = Object.fromEntries(MB_HUB_OPTIONS.map(o => [o.view, o.label]))
 
 // The intro/menu screen. Cards cascade in (staggered via --i); the live one is
 // gold-accented, the rest are dimmed "Coming soon". onPick switches the view.
+// The "My Playbook" card shows a live count badge once the user has content
+// (null-safe: renders nothing while the overview hasn't loaded).
 function ModelBookHub({ onPick }) {
+  const { data: upbData } = useSWR('/api/upb/overview', fetcher, { revalidateOnFocus: false })
+  const upbTotals = upbData?.totals || null
   return (
     <div className={styles.hub}>
       {/* Cartographer's backdrop: coordinate grid, compass rose, a dotted
@@ -132,13 +140,18 @@ function ModelBookHub({ onPick }) {
             <button
               key={o.view}
               type="button"
-              className={`${styles.hubCard} ${o.available ? styles.hubCardLive : styles.hubCardSoon}`}
+              className={`${styles.hubCard} ${o.available ? styles.hubCardLive : styles.hubCardSoon} ${o.view === 'builder' ? styles.hubCardYours : ''}`}
               style={{ '--i': i }}
               onClick={() => onPick(o.view)}
             >
               <span className={styles.hubCardLabel}>{o.label}</span>
               <span className={styles.hubCardBlurb}>{o.blurb}</span>
-              <span className={styles.hubCardCta}>{o.available ? 'Explore →' : 'Coming soon'}</span>
+              {o.view === 'builder' && upbTotals != null && upbTotals.entries > 0 && (
+                <span className={styles.hubCardCount}>
+                  {upbTotals.entries} {upbTotals.entries === 1 ? 'entry' : 'entries'} · {upbTotals.charts} {upbTotals.charts === 1 ? 'chart' : 'charts'}
+                </span>
+              )}
+              <span className={styles.hubCardCta}>{o.available ? (o.view === 'builder' ? 'Build →' : 'Explore →') : 'Coming soon'}</span>
             </button>
           ))}
         </div>
@@ -2104,12 +2117,17 @@ export default function ModelBook() {
 
   // The Setup Library — the playbook's pattern field guide.
   if (view === 'setups') {
-    return <SetupsView initialSetup={deepSetup} onExit={() => setView('hub')} />
+    return <SetupsView initialSetup={deepSetup} onExit={() => setView('hub')} onOpenBuilder={() => setView('builder')} />
   }
 
   // Bottoms — the field manual for how major markets bottom.
   if (view === 'bottoms') {
     return <BottomsView onExit={() => setView('hub')} />
+  }
+
+  // My Playbook — the user's own builder (7th hub section).
+  if (view === 'builder') {
+    return <BuilderView onExit={() => setView('hub')} />
   }
 
   // Placeholder sections (everything except the 'years' library).

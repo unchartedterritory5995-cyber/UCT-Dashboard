@@ -866,4 +866,9 @@ def _migrate_journal_v2(conn):
     from api.services.journal_two.db import ensure_schema as _ensure_j2_schema
     _ensure_j2_schema(conn)
 
+    # My Playbook tables (upb_* — the member-built Model Book section).
+    # See api/services/user_playbook/db.py and the 2026-07-12 design spec.
+    from api.services.user_playbook.db import ensure_schema as _ensure_upb_schema
+    _ensure_upb_schema(conn)
+
     conn.commit()

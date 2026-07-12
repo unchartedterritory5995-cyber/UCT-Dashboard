@@ -80,6 +80,7 @@ from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
 from api.routers import modelbook as modelbook_router
+from api.routers import user_playbook as user_playbook_router
 from api.routers import education as education_router
 from api.routers import fundamentals as fundamentals_router
 from api.routers import analyst as analyst_router
@@ -3280,6 +3281,7 @@ app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
 app.include_router(modelbook_router.router)
+app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
 app.include_router(fundamentals_router.router)
 app.include_router(analyst_router.router)

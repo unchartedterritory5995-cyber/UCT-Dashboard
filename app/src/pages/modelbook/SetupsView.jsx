@@ -855,14 +855,33 @@ function ExamplesPane({ setup, scrollReq, isAdmin, adding, setAdding }) {
 // row) pops up the full playbook in a floating panel instead of spending a
 // permanent column on it. The `key` forces a fresh mount per setup so the
 // cascade + chart reset cleanly.
-function DetailStage({ setup, scrollReq, onLearn }) {
+function DetailStage({ setup, scrollReq, onLearn, onOpenBuilder }) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const [adding, setAdding] = useState(false)
+  // "Add to my playbook" (all logged-in users): clones this setup into the
+  // user's My Playbook (POST /api/upb/clone-setup) — idle | saving | done | error.
+  const [cloneState, setCloneState] = useState('idle')
   const dir = DIRECTION_META[setup.direction] || DIRECTION_META.long
   // The DetailStage instance persists across setup changes (only the inner DOM
   // is keyed), so reset the add form when switching setups.
-  useEffect(() => { setAdding(false) }, [setup.name])
+  useEffect(() => { setAdding(false); setCloneState('idle') }, [setup.name])
+  async function addToMyPlaybook() {
+    if (cloneState === 'saving' || cloneState === 'done') return
+    setCloneState('saving')
+    try {
+      const r = await fetch('/api/upb/clone-setup', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setup_name: setup.name }),
+      })
+      if (!r.ok) throw new Error(String(r.status))
+      setCloneState('done')
+    } catch {
+      setCloneState('error')
+    }
+  }
   return (
     <div className={styles.stage} key={setup.name}>
       {/* Slim identity header — hover the rail row (left) for the playbook.
@@ -880,6 +899,19 @@ function DetailStage({ setup, scrollReq, onLearn }) {
           </div>
         </div>
         <div className={styles.stageHeadRight}>
+          {cloneState === 'done' ? (
+            <button className={styles.stageCloneDone} onClick={() => onOpenBuilder?.()}>
+              Added — open My Playbook →
+            </button>
+          ) : (
+            <button
+              className={styles.stageCloneBtn}
+              onClick={addToMyPlaybook}
+              disabled={cloneState === 'saving'}
+            >
+              {cloneState === 'saving' ? 'Adding…' : (cloneState === 'error' ? 'Retry add to my playbook' : 'Add to my playbook')}
+            </button>
+          )}
           <button className={styles.stageLearnBtn} onClick={() => onLearn?.()}>Learn more</button>
           {isAdmin && (
             <button className={styles.stageAddBtn} onClick={() => setAdding(a => !a)}>
@@ -913,7 +945,7 @@ function DetailStage({ setup, scrollReq, onLearn }) {
 // (grouped, searchable, each with its pattern glyph), and a main stage that
 // loads the selected setup's playbook + charted examples — content is on
 // screen the moment you open it, no marketing landing page.
-export default function SetupsView({ onExit, initialSetup = null }) {
+export default function SetupsView({ onExit, initialSetup = null, onOpenBuilder = null }) {
   // Resolve a deep-linked setup name (from a Desk video "Setups covered" chip) to
   // a real catalog entry: exact match first, then case-insensitive.
   const resolveSetup = (name) => {
@@ -1212,7 +1244,7 @@ export default function SetupsView({ onExit, initialSetup = null }) {
               <button className={styles.mobileBack} onClick={() => setMobileView('list')}>‹ All setups</button>
             )}
             {selected
-              ? <DetailStage setup={selected} scrollReq={scrollReq} onLearn={() => setLearnSetup(selected)} />
+              ? <DetailStage setup={selected} scrollReq={scrollReq} onLearn={() => setLearnSetup(selected)} onOpenBuilder={onOpenBuilder} />
               : <div className={styles.stageEmpty}>Select a setup to study its playbook.</div>}
           </main>
         )}

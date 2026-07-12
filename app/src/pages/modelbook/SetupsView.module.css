@@ -607,6 +607,47 @@
   border-color: rgba(201, 168, 76, 0.6);
 }
 
+/* "Add to my playbook" — clones the setup into the user's builder. Same
+   pill language as Learn more; the done state flips to a confirmation link. */
+.stageCloneBtn {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.8);
+  background: rgba(201, 168, 76, 0.07);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 999px;
+  padding: 5px 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.stageCloneBtn:hover {
+  color: #f7e296;
+  background: rgba(201, 168, 76, 0.14);
+  border-color: rgba(201, 168, 76, 0.55);
+}
+.stageCloneBtn:disabled { opacity: 0.6; cursor: default; }
+.stageCloneDone {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: 999px;
+  padding: 5px 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.stageCloneDone:hover { background: rgba(74, 222, 128, 0.14); border-color: rgba(74, 222, 128, 0.6); }
+
 /* "Learn more" in the stage header (replaces the old hover hint). */
 .stageLearnBtn {
   flex: none;
