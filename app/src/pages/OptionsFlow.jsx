@@ -8338,7 +8338,7 @@ export default function OptionsFlowDashboard() {
                         }}
                         title={stillOpenComputable ? "Filter bull/bear totals to still-open flow (Live OI \u2265 entry) — excludes closed/exited positions. Range-independent, matches the Status column." : "Fetch Live OI & Prices first (blue button), then this filters to still-open flow"}
                       >
-                        {oiConfirmedOnly ? "\u2713 Still open only" : (stillOpenComputable ? "Still open only" : "Still open only \u00b7 fetch OI")}
+                        {oiConfirmedOnly ? "\u2713 Still-open flow" : (stillOpenComputable ? "Still-open flow" : "Still-open flow \u00b7 fetch OI")}
                       </button>
                       {oiConfirmError && (
                         <span style={{ fontSize:9, color:P.be }} title={oiConfirmError}>err</span>
