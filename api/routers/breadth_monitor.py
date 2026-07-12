@@ -182,6 +182,35 @@ def breadth_industries_refresh(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/api/breadth/themes")
+async def breadth_themes(request: Request):
+    """Map a list of tickers → primary UCT theme for the drill-down "group by"
+    view. A ticker can belong to multiple themes; this returns its single
+    highest-tier membership (core > relevant > peripheral, tie-broken by
+    theme_id) — the same resolution ticker_meta._primary_theme uses for
+    chart watermarks, so a stock's theme group always matches what's shown
+    elsewhere.
+
+    Body: {"tickers": ["NVDA", ...]}  →  {"themes": {"NVDA": "Artificial Intelligence", ...}}
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    tickers = body.get("tickers") or []
+    if not isinstance(tickers, list):
+        raise HTTPException(status_code=400, detail="tickers must be a list")
+    tickers = [str(t).upper() for t in tickers if t][:500]
+    try:
+        from api.services import theme_db
+        themes = theme_db.get_theme_map(tickers)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("[breadth] themes lookup failed: %s", e)
+        themes = {t: None for t in tickers}
+    return {"themes": themes}
+
+
 @router.patch("/api/breadth-monitor/{date_str}/field")
 async def patch_breadth_field(date_str: str, request: Request):
     _check_auth(request)

@@ -112,3 +112,44 @@ def test_get_theme_map_multiple_tickers_one_call(tdb):
 
 def test_get_theme_map_empty_input(tdb):
     assert theme_db.get_theme_map([]) == {}
+
+
+# ── Endpoint ────────────────────────────────────────────────────────────────
+
+@pytest.fixture()
+def client(tdb):
+    from api.routers import breadth_monitor
+    app = FastAPI()
+    app.include_router(breadth_monitor.router)
+    return TestClient(app)
+
+
+def test_endpoint_shape(client):
+    r = client.post("/api/breadth/themes", json={"tickers": ["AMD", "NOPE"]})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["themes"]["AMD"] == "Semiconductors"
+    assert body["themes"]["NOPE"] is None
+
+
+def test_endpoint_caps_at_500(client):
+    r = client.post("/api/breadth/themes", json={"tickers": [f"T{i}" for i in range(900)]})
+    assert r.status_code == 200
+    assert len(r.json()["themes"]) == 500
+
+
+def test_endpoint_bad_body(client):
+    r = client.post("/api/breadth/themes", json={"tickers": "notalist"})
+    assert r.status_code == 400
+
+
+def test_endpoint_degrades_on_lookup_error(client, monkeypatch):
+    from api.services import theme_db as tdb_module
+
+    def _boom(tickers):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(tdb_module, "get_theme_map", _boom)
+    r = client.post("/api/breadth/themes", json={"tickers": ["AMD"]})
+    assert r.status_code == 200
+    assert r.json()["themes"]["AMD"] is None
