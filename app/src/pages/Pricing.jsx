@@ -228,7 +228,12 @@ export default function Pricing() {
                     onClick={handleCheckout}
                     disabled={busy}
                   >
-                    {busy ? 'Redirecting to Stripe…' : `Subscribe — ${billing === 'annual' ? '$19/mo billed annually' : '$29/mo'}`}
+                    {/* Honest CTA: when the annual price isn't configured yet the
+                        checkout charges monthly — the button must say what is
+                        actually charged at click time (P0 whole-branch fix). */}
+                    {busy
+                      ? 'Redirecting to Stripe…'
+                      : `Subscribe — ${billing === 'annual' && !annualFallback ? '$19/mo billed annually' : '$29/mo'}`}
                   </button>
                 </>
               )}

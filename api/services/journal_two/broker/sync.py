@@ -212,8 +212,20 @@ def _user_is_paid(user_id: str, cache: dict[str, bool]) -> bool:
             from api.services.auth_db import get_connection as _gc
             conn = _gc()
             try:
-                row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
-                allowed = bool(row and row["role"] == "admin")
+                row = conn.execute(
+                    "SELECT role, created_at FROM users WHERE id = ?", (user_id,)
+                ).fetchone()
+                if row and row["role"] == "admin":
+                    allowed = True
+                elif row:
+                    # P0 whole-branch fix: the 14-day trial grants broker sync via
+                    # require_plan, so the BACKGROUND auto-sync must agree — else a
+                    # trial user connects a broker and new fills silently never
+                    # auto-appear for their entire conversion window. The trial
+                    # helper fails closed (any error -> False, trial only ever
+                    # restricts to <14d accounts).
+                    from api.services.trial import is_account_in_trial
+                    allowed = is_account_in_trial({"created_at": row["created_at"]})
             finally:
                 conn.close()
     except Exception:

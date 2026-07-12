@@ -160,7 +160,10 @@ export default function AnalyticsTab() {
           </CollapsibleSection>
           {data.exitQuality && (
             <CollapsibleSection id="riskExits" title="Risk & Exits">
-              <RiskExitsSection data={data.exitQuality} />
+              {/* B1 whole-branch fix: thread `risk` here too — omitting it made this
+                  mount show a false "0 decisive trades" while the InsightsHub mount
+                  of the SAME section showed real data (coverage-honesty violation). */}
+              <RiskExitsSection data={data.exitQuality} risk={data.risk} />
             </CollapsibleSection>
           )}
         </>
