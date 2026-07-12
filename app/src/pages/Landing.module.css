@@ -3,7 +3,7 @@
    The marketing site is light paper + ink + restrained gold; the PRODUCT is
    dark — real captures sit in crisp white frames so they pop as artifacts.
    Dark returns only for the closing CTA band + footer. Brand faces throughout:
-   Instrument Sans + JetBrains Mono.
+   Instrument Sans — the single brand face throughout (numbers included).
    ───────────────────────────────────────────────────────────────────────────── */
 
 .page {
@@ -31,7 +31,10 @@
   --panel-muted: #7d735f;
   --font-display: 'Instrument Sans', -apple-system, system-ui, sans-serif;
   --font-body: 'Instrument Sans', -apple-system, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', Consolas, monospace;
+  /* Brand is uniform Instrument Sans — numbers/tickers/prices included (locked
+     app preference; do NOT repoint to a mono stack). The data 'texture' comes
+     from letter-spacing + uppercase, not a typewriter face. */
+  --font-mono: 'Instrument Sans', -apple-system, system-ui, sans-serif;
 
   background: var(--paper);
   color: var(--body-t);
