@@ -115,15 +115,20 @@ def get_overview(*, user_id: str, account_id: str, conn=None) -> dict:
         except Exception:
             pass
 
-        # Active interventions count
-        active_interventions_count = 0
+        # Active interventions — the FULL list (CoachStrip renders one row per
+        # intervention + dismisses by id) plus the derived count. Read-only:
+        # list_active does NO rule evaluation, so surfacing it on Today via the
+        # overview poll keeps Today side-effect-free. Folded here so Today drops
+        # its separate 60s interventions poller (P0 poller collapse).
+        active_interventions: list[dict] = []
         try:
             from api.services.journal_two import interventions as iv
-            active_interventions_count = len(iv.list_active(
+            active_interventions = iv.list_active(
                 user_id=user_id, account_id=account_id, conn=_conn,
-            ))
+            )
         except Exception:
-            pass
+            active_interventions = []
+        active_interventions_count = len(active_interventions)
 
         # Recent 3 trade reviews
         recent_reviews_rows = _conn.execute(
@@ -154,6 +159,56 @@ def get_overview(*, user_id: str, account_id: str, conn=None) -> dict:
         except Exception:
             pass
 
+        # ── Folded coach-strip signals (P0 poller collapse) ──────────────────
+        # Today's CoachStrip used to run SEPARATE 60s pollers for nudges and
+        # broker-review (interventions folded above), and GoalProgress a 30s
+        # poller. get_overview already computes goal + nudges for the celebration
+        # fold below, so compute them ONCE here — ALWAYS, independent of the
+        # celebrations flag, since CoachStrip's advisory rows must render even
+        # when celebrations are killed — and carry them in the payload. The
+        # single 60s overview poll now feeds all of it, so Today collapses to ≤4
+        # recurring requests/user (positions · options · discipline · overview).
+        # Every sub-read is defensive: a failure degrades that one field only.
+        nudges_state = None
+        try:
+            from api.services.journal_two import nudges as nudges_service
+            nudges_state = nudges_service.get_nudges_state(
+                user_id, account_id, conn=_conn, limit=60,
+            )
+        except Exception:
+            nudges_state = None
+
+        goal_progress = None
+        try:
+            goal_progress = accounts_service.goal_progress(
+                user_id, account_id, conn=_conn,
+            )
+        except Exception:
+            goal_progress = None
+
+        # Broker-imported items still needing a setup tag (user-wide — mirrors
+        # /api/j2/broker/unreviewed exactly). Two cheap COUNTs on the shared
+        # connection; fully defensive (older schemas may lack `source`).
+        broker_unreviewed_count = 0
+        try:
+            t_row = _conn.execute(
+                "SELECT COUNT(*) AS n FROM j2_trades WHERE user_id = ? "
+                "AND source = 'broker' AND (setup IS NULL OR setup = '') "
+                "AND exit_date >= date('now', '-14 days')",
+                (user_id,),
+            ).fetchone()
+            p_row = _conn.execute(
+                "SELECT COUNT(*) AS n FROM j2_positions WHERE user_id = ? "
+                "AND source = 'broker' AND closed_at IS NULL AND (setup IS NULL OR setup = '')",
+                (user_id,),
+            ).fetchone()
+            broker_unreviewed_count = (
+                int((t_row["n"] if t_row else 0) or 0)
+                + int((p_row["n"] if p_row else 0) or 0)
+            )
+        except Exception:
+            broker_unreviewed_count = 0
+
         # Celebration moments (P6-7) — positive CoachStrip rows, once-per via
         # calendar_seen. Cheap: reuses the shared connection; each achievement
         # fires at most once ever. Defensive — never breaks the overview payload.
@@ -168,12 +223,11 @@ def get_overview(*, user_id: str, account_id: str, conn=None) -> dict:
         if os.getenv("J2_CELEBRATIONS_ENABLED", "1") != "0":
             try:
                 from api.services.journal_two import celebrations as celebrations_service
-                from api.services.journal_two import nudges as nudges_service
                 from api.services.journal_two import discipline as discipline_service
-                goal = accounts_service.goal_progress(user_id, account_id, conn=_conn)
-                nudges_state = nudges_service.get_nudges_state(
-                    user_id, account_id, conn=_conn, limit=60,
-                )
+                # goal + nudges are computed ONCE above (payload fold) and reused
+                # here — celebration detection must not re-run get_nudges_state
+                # (the report-card asserts a single bounded limit=60 read).
+                goal = goal_progress
                 discipline_state = discipline_service.compute_discipline_state(
                     user_id, account_id, conn=_conn,
                 )
@@ -234,6 +288,13 @@ def get_overview(*, user_id: str, account_id: str, conn=None) -> dict:
             "pending_profile_suggestions_count": pending_suggestions_count,
             "recent_trade_reviews": recent_reviews,
             "celebrations": celebrations,
+            # P0 poller collapse — folded so Today's CoachStrip + GoalProgress
+            # read these from the single 60s overview poll instead of 3-4
+            # separate pollers.
+            "nudges": nudges_state,
+            "interventions": active_interventions,
+            "broker_unreviewed_count": broker_unreviewed_count,
+            "goal_progress": goal_progress,
         }
     finally:
         if _close:

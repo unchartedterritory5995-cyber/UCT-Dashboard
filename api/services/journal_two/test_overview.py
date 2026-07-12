@@ -39,6 +39,8 @@ def test_overview_returns_expected_shape_for_fresh_account(db_conn):
         "today", "regime", "active_interventions_count",
         "pending_profile_suggestions_count", "recent_trade_reviews",
         "celebrations",
+        # P0 poller collapse — folded coach-strip signals.
+        "nudges", "interventions", "broker_unreviewed_count", "goal_progress",
     }
     assert expected_keys.issubset(set(result.keys()))
     assert result["onboarded"] is False
@@ -48,6 +50,18 @@ def test_overview_returns_expected_shape_for_fresh_account(db_conn):
     assert result["active_interventions_count"] == 0
     # Fresh account has no goals / streaks / trades → no celebrations.
     assert result["celebrations"] == []
+    # Folded fields: fresh account → empty/zero, but always PRESENT so the
+    # CoachStrip + GoalProgress can consume the single overview fetch.
+    assert result["interventions"] == []
+    assert result["broker_unreviewed_count"] == 0
+    # nudges: streak counts all zero for a fresh account.
+    assert result["nudges"]["lossStreakCount"] == 0
+    assert result["nudges"]["winStreakCount"] == 0
+    assert result["nudges"]["staleCount"] == 0
+    # goal_progress: the daily/weekly/monthly/yearly period block is present.
+    assert set(result["goal_progress"]["periods"].keys()) == {
+        "daily", "weekly", "monthly", "yearly",
+    }
 
 
 def test_overview_extracts_this_weeks_focus_from_weekly_review(db_conn):

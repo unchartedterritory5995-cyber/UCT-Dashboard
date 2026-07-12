@@ -1,6 +1,6 @@
 /** Journal 2.0 — option strategies fetch hook (SWR). Account-scoped. */
 
-import useSWR from 'swr'
+import useMobileSWR from '../../../hooks/useMobileSWR'
 import useJ2SelectedAccount from './useJ2SelectedAccount'
 
 const fetcher = (url) =>
@@ -26,8 +26,11 @@ export default function useJ2OptionStrategies(opts = {}) {
   const qs = params.toString()
   const url = qs ? `/api/j2/options?${qs}` : '/api/j2/options'
 
-  const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
+  // Live option-P&L cadence: 15s market hours; marketHoursOnly slows it 10x
+  // off-hours + pauses on a hidden tab. Mirrors useJ2Positions. (P0 hardening)
+  const { data, error, isLoading, mutate } = useMobileSWR(url, fetcher, {
     refreshInterval: 15_000,
+    marketHoursOnly: true,
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })

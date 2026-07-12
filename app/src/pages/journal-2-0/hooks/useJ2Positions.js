@@ -1,6 +1,6 @@
 /** Journal 2.0 — open positions fetch hook (SWR). Account-scoped. */
 
-import useSWR from 'swr'
+import useMobileSWR from '../../../hooks/useMobileSWR'
 import useJ2SelectedAccount from './useJ2SelectedAccount'
 
 const fetcher = (url) =>
@@ -14,8 +14,12 @@ export default function useJ2Positions() {
   const url = accountId
     ? `/api/j2/positions?account_id=${encodeURIComponent(accountId)}`
     : '/api/j2/positions'
-  const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
+  // Live P&L cadence: 15s during market hours; useMobileSWR's marketHoursOnly
+  // slows it 10x off-hours (positions don't move overnight/weekends) and pauses
+  // on a hidden tab — mirrors the live-price poller. (P0 launch-load hardening)
+  const { data, error, isLoading, mutate } = useMobileSWR(url, fetcher, {
     refreshInterval: 15_000,
+    marketHoursOnly: true,
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })

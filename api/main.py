@@ -2185,6 +2185,26 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0), id="cot_daily_catchup", max_instances=1, replace_existing=True)
         _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0), id="session_cleanup", max_instances=1, replace_existing=True)
 
+        # -- auth.db continuous backup to R2 (DARK, env-gated) ----------------
+        # auth.db is the crown-jewel DB and web-local (single web pod volume).
+        # Ships a gzipped SQLite-BACKUP-API snapshot to R2 on the shared
+        # data-sync rail. DARK: AUTHDB_BACKUP_ENABLED=1 to arm (owner flips it).
+        # BackgroundScheduler runs the job on a worker THREAD (off the event
+        # loop) and authdb_backup.run_backup is wholly exception-contained.
+        if os.getenv("AUTHDB_BACKUP_ENABLED") == "1":
+            from api.services import authdb_backup as _authdb_backup
+            _scheduler.add_job(
+                _authdb_backup.run_backup,
+                trigger=IntervalTrigger(hours=6),
+                id="authdb_backup_6h", max_instances=1, replace_existing=True,
+            )
+            _scheduler.add_job(
+                _authdb_backup.run_backup,
+                trigger=CronTrigger(hour=2, minute=55),
+                id="authdb_backup_nightly", max_instances=1, replace_existing=True,
+            )
+            print("[startup] auth.db R2 backup scheduler ON (every 6h + daily 2:55am ET)")
+
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)

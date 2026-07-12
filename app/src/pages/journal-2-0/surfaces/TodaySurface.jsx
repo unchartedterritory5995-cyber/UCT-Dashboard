@@ -190,8 +190,10 @@ export default function TodaySurface() {
           <TodayWeekStrip />
           {/* GoalProgress needs a CONCRETE account — hidden on All-Accounts
               (the all-accounts lead already carries the "pick an account"
-              affordance, so goals aren't a blank here). */}
-          {account && <GoalProgress account={account} />}
+              affordance, so goals aren't a blank here). P0 poller collapse:
+              feed it the goal-progress the overview poll already carries so it
+              drops its own 30s poller (Today lands at ≤4 recurring requests). */}
+          {account && <GoalProgress account={account} progress={overview?.goal_progress} />}
           <TodayQuickActions onLogTrade={openTrade} />
         </>
       )}

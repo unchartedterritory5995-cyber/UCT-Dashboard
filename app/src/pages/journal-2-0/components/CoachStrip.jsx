@@ -9,17 +9,22 @@
  *
  * Union of advisory signals (severity order, most urgent first):
  *   1. discipline lock          (useJ2DisciplineState)      — deep-link Compass
- *   2. active interventions     (useInterventions)          — dismiss + Compass
+ *   2. active interventions     (overview.interventions)    — dismiss + Compass
  *      (ordered danger → warning → info within the group)
- *   3. broker-review needed     (/api/j2/broker/unreviewed) — Trade Journal
- *   4. nudges (loss/win/stale)  (useJ2Nudges)               — snooze (localStorage)
+ *   3. broker-review needed     (overview.broker_unreviewed_count) — Trade Journal
+ *   4. nudges (loss/win/stale)  (overview.nudges)           — snooze (localStorage)
  *   5. unviewed EOD recap       (useJ2UnviewedEOD)          — read + markViewed
  *
+ * P0 poller collapse: signals 2–4 used to run THREE separate 60s pollers
+ * (useInterventions + useJ2Nudges + /api/j2/broker/unreviewed). They now ride
+ * the single Compass-overview payload (the ONE 60s poll TodaySurface already
+ * mounts) — get_overview carries `interventions` / `nudges` /
+ * `broker_unreviewed_count`, so Today drops to ≤4 recurring requests/user
+ * (positions · options · discipline · overview). Dismiss POSTs to the
+ * interventions endpoint then refreshes overview (list_active drops dismissed).
+ *
  * Calm surface: renders `null` when there is nothing to show — Today must never
- * show an empty coach strip. Fetches are kept lean: only the detail hooks each
- * row's content/action needs are fetched (the `overview` payload's pre-aggregated
- * counts don't carry the per-row message/id/action, so the detail hooks are
- * required regardless — CoachStrip does NOT re-fetch overview).
+ * show an empty coach strip.
  *
  * No emoji — every glyph is a gold <UIcon/>.
  */
@@ -28,12 +33,11 @@ import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
-import useJ2Nudges from '../hooks/useJ2Nudges'
-import useInterventions from '../hooks/useInterventions'
 import useJ2UnviewedEOD from '../hooks/useJ2UnviewedEOD'
 import useJ2EODRecaps from '../hooks/useJ2EODRecaps'
 import useJ2DisciplineState from '../hooks/useJ2DisciplineState'
 import useCompassOverview from '../hooks/useCompassOverview'
+import { compassScope } from '../hooks/compassScope'
 import { useFeatureFlag } from '../featureFlags'
 import styles from './CoachStrip.module.css'
 
@@ -50,9 +54,6 @@ const ACCOUNTS = '/journal/accounts'
 
 const INTERVENTION_ICON = { danger: 'noEntry', warning: 'warning', info: 'sparkle' }
 const SEV_RANK = { danger: 0, warning: 1, info: 2 }
-
-const brokerFetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { total: 0 }))
 
 const brokerTrustFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { accounts: [] }))
@@ -93,19 +94,21 @@ export default function CoachStrip({ accountId: accountIdProp }) {
   const navigate = useNavigate()
 
   // ── the union of advisory sources ──────────────────────────────────────────
-  // Read-only interventions on Today (evaluate=false): Today surfaces what's
-  // already been evaluated on the trade surfaces; it never triggers a rule-eval
-  // write itself. Keeps Today a calm, side-effect-free landing.
-  const { nudges: nudgesState } = useJ2Nudges(accountId)
-  const { interventions, dismiss: dismissIntervention } = useInterventions(accountId, { evaluate: false })
+  // P0 poller collapse: nudges, interventions, and the broker-review count are
+  // FOLDED into the single Compass-overview payload (the ONE 60s poll on Today),
+  // so CoachStrip no longer runs three separate 60s pollers for them. Read-only
+  // on Today: overview's interventions come from list_active (NO rule
+  // evaluation), so Today stays a calm, side-effect-free landing.
+  const celebrateOn = useFeatureFlag('celebrate')
+  const { overview, refresh: refreshOverview } = useCompassOverview(accountId)
+  const nudgesState = overview?.nudges ?? null
+  const interventions = useMemo(() => overview?.interventions ?? [], [overview])
+  const reviewTotal = overview?.broker_unreviewed_count ?? 0
+
   const { unviewed } = useJ2UnviewedEOD(accountId)
   const { markViewed } = useJ2EODRecaps(accountId)
   const { state: disciplineState } = useJ2DisciplineState(accountId)
-  const { data: brokerData } = useSWR('/api/j2/broker/unreviewed', brokerFetcher, {
-    refreshInterval: 60_000,
-    revalidateOnFocus: false,
-    shouldRetryOnError: false,
-  })
+
   // Broker connection health (tokenState). A broken/expiring authorization means
   // the live numbers may be stale — surface a re-auth nudge. Trust is NOT already
   // polled on Today, so fetch it ONCE on mount (NO refreshInterval — this must
@@ -116,11 +119,22 @@ export default function CoachStrip({ accountId: accountIdProp }) {
     shouldRetryOnError: false,
   })
 
-  // Celebration moments (P6-7) — positive success rows from the overview payload.
-  // TodaySurface already mounts useCompassOverview with the same accountId, so SWR
-  // dedups this to zero extra network requests. Flag-gated for instant per-browser kill.
-  const celebrateOn = useFeatureFlag('celebrate')
-  const { overview } = useCompassOverview(accountId)
+  // Dismiss an intervention: POST to the dismiss endpoint, then refresh the
+  // overview (list_active filters dismissed rows, so it drops on the next
+  // fetch). Optimistic local removal keeps the row from lingering until then.
+  const dismissIntervention = useCallback((id) => {
+    if (!id) return
+    const scope = compassScope(accountId)
+    refreshOverview(
+      (cur) => (cur
+        ? { ...cur, interventions: (cur.interventions || []).filter((x) => x.id !== id) }
+        : cur),
+      { revalidate: false },
+    )
+    fetch(`/api/j2/accounts/${scope}/coach/interventions/${id}/dismiss`, {
+      method: 'POST', credentials: 'include',
+    }).catch(() => { /* best-effort */ }).finally(() => { refreshOverview() })
+  }, [accountId, refreshOverview])
 
   // ── local dismiss state ─────────────────────────────────────────────────────
   const [snoozed, setSnoozed] = useState(() => readSnoozed(accountId))
@@ -218,8 +232,7 @@ export default function CoachStrip({ accountId: accountIdProp }) {
       })
     }
 
-    // 3. broker-review needed.
-    const reviewTotal = brokerData?.total ?? 0
+    // 3. broker-review needed (count folded into the overview payload).
     if (reviewTotal > 0 && !reviewDismissed) {
       out.push({
         key: 'broker-review',
@@ -320,7 +333,7 @@ export default function CoachStrip({ accountId: accountIdProp }) {
 
     return out
   }, [
-    disciplineState, interventions, brokenBroker, brokerData, reviewDismissed, nudgesState,
+    disciplineState, interventions, brokenBroker, reviewTotal, reviewDismissed, nudgesState,
     snoozed, unviewed, eodDismissed, dismissIntervention, snoozeNudge, markViewed,
     celebrateOn, overview,
   ])

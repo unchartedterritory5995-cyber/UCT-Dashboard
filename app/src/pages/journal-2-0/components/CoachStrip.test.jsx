@@ -14,6 +14,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 // ── controllable mock state ──────────────────────────────────────────────────
+// P0 poller collapse: nudges / interventions / broker-review are now folded into
+// the ONE Compass-overview payload, so the mock composes them into `overview`
+// (the celebrations tests still set `overview` directly and they merge).
 let accountId = 'a1'
 let nudges = null
 let interventions = []
@@ -23,27 +26,34 @@ let brokerData = { total: 0 }
 let trustData = { anyBroker: false, accounts: [] }
 let overview = null
 
-const dismissIntervention = vi.fn()
+const refreshOverview = vi.fn()
 const markViewed = vi.fn(() => Promise.resolve())
 const navSpy = vi.fn()
 
 vi.mock('../hooks/useJ2SelectedAccount', () => ({
   default: () => ({ accountId, account: null, accounts: [], setAccount: vi.fn(), isLoading: false }),
 }))
-vi.mock('../hooks/useJ2Nudges', () => ({ default: () => ({ nudges }) }))
-vi.mock('../hooks/useInterventions', () => ({
-  default: () => ({ interventions, dismiss: dismissIntervention, refresh: vi.fn() }),
-}))
 vi.mock('../hooks/useJ2UnviewedEOD', () => ({ default: () => ({ unviewed }) }))
 vi.mock('../hooks/useJ2EODRecaps', () => ({ default: () => ({ markViewed }) }))
 vi.mock('../hooks/useJ2DisciplineState', () => ({ default: () => ({ state: disciplineState }) }))
-vi.mock('../hooks/useCompassOverview', () => ({ default: () => ({ overview }) }))
-// URL-aware: the trust fetch (broken-token nudge) is a SEPARATE key from the
-// broker-review (unreviewed) fetch — resolve each to its own controllable state.
+// The single overview payload carries the folded advisory fields.
+vi.mock('../hooks/useCompassOverview', () => ({
+  default: () => ({
+    overview: {
+      ...(overview || {}),
+      nudges,
+      interventions,
+      broker_unreviewed_count: brokerData?.total ?? 0,
+    },
+    refresh: refreshOverview,
+  }),
+}))
+// Only the trust fetch (broken-token re-auth nudge) still goes through SWR; the
+// broker-review count is folded into overview, so no /broker/unreviewed key.
 vi.mock('swr', () => ({
   default: (key) => {
     if (typeof key === 'string' && key.includes('/broker/trust')) return { data: trustData }
-    return { data: brokerData }
+    return { data: undefined }
   },
 }))
 vi.mock('react-router-dom', () => ({ useNavigate: () => navSpy }))
@@ -59,7 +69,7 @@ beforeEach(() => {
   brokerData = { total: 0 }
   trustData = { anyBroker: false, accounts: [] }
   overview = null
-  dismissIntervention.mockClear()
+  refreshOverview.mockClear()
   markViewed.mockClear()
   navSpy.mockClear()
   localStorage.clear()
@@ -99,11 +109,18 @@ describe('CoachStrip — union + severity ordering', () => {
 })
 
 describe('CoachStrip — dismiss / snooze semantics', () => {
-  it('dismiss on an intervention calls its dismiss with the id', () => {
+  it('dismiss on an intervention POSTs to the dismiss endpoint (folded overview)', () => {
     interventions = [{ id: 'iv7', rule: 'rapid_fire', severity: 'danger', message: 'Slow down.' }]
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true })
     render(<CoachStrip />)
     fireEvent.click(screen.getByRole('button', { name: /dismiss intervention/i }))
-    expect(dismissIntervention).toHaveBeenCalledWith('iv7')
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/coach/interventions/iv7/dismiss'),
+      expect.objectContaining({ method: 'POST' }),
+    )
+    // Optimistically drops the row via the overview refresh (revalidate:false).
+    expect(refreshOverview).toHaveBeenCalled()
+    fetchSpy.mockRestore()
   })
 
   it('snooze on a nudge removes the row (localStorage-backed)', () => {

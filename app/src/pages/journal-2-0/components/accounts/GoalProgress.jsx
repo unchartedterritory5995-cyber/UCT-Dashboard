@@ -23,10 +23,15 @@ const fetcher = (url) =>
     return r.json()
   })
 
-export default function GoalProgress({ account }) {
+export default function GoalProgress({ account, progress: progressProp = null }) {
   const { mutate } = useSWRConfig()
-  const goalsKey = account ? `/api/j2/accounts/${account.id}/goal-progress` : null
-  const { data, isLoading } = useSWR(goalsKey, fetcher, {
+  // P0 poller collapse: when a caller (Today) passes the goal-progress payload
+  // it already has from the folded overview poll, DON'T mount the standalone
+  // 30s poller (key=null = no fetch). Other surfaces (Accounts) pass no prop and
+  // fetch as before. `account.goals` still supplies the editable target either
+  // way, so goal edits keep working on both paths.
+  const goalsKey = account && !progressProp ? `/api/j2/accounts/${account.id}/goal-progress` : null
+  const { data } = useSWR(goalsKey, fetcher, {
     refreshInterval: 30_000,
     revalidateOnFocus: false,
   })
@@ -34,7 +39,7 @@ export default function GoalProgress({ account }) {
   const [editVal, setEditVal] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const periods = data?.periods || {}
+  const periods = progressProp?.periods || data?.periods || {}
   const goals = account?.goals || {}
   // First-run nudge: no goal set on any period (all null / 0).
   const hasGoal = PERIODS.some((p) => Number(goals[p.key]) > 0)
