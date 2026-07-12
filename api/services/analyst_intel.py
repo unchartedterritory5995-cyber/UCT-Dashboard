@@ -63,7 +63,9 @@ def _fmp_recent_actions(ticker):
                     "action": (r.get("action") or "").lower() or None,
                     "from_grade": r.get("previousGrade"),
                     "to_grade": r.get("newGrade"),
-                    "price_target": _round(r.get("priceTarget"), 2)})
+                    "price_target": _round(r.get("priceTarget"), 2),
+                    "news_url": r.get("newsURL") or None,
+                    "news_publisher": r.get("newsPublisher") or r.get("newsBaseURL") or None})
     return out
 
 
@@ -128,6 +130,16 @@ def get_analyst_intel(ticker, current_price=None, debug=False):
             pt["upside_pct"] = _round((pt["avg"] - current_price) / current_price * 100)
         except Exception:
             pass
+
+    if pt is not None and actions:
+        # price-target-consensus has no count/date fields; approximate both
+        # from recent_actions (grades-news, newest-first) rather than leaving
+        # them permanently null.
+        firms = {a["firm"] for a in actions if a.get("firm")}
+        if firms:
+            pt["count"] = len(firms)
+        if actions[0].get("date"):
+            pt["updated"] = actions[0]["date"]
 
     result = {"ticker": ticker, "consensus": consensus, "price_target": pt, "recent_actions": actions or []}
     if debug:
