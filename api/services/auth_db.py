@@ -426,6 +426,36 @@ CREATE TABLE IF NOT EXISTS faq_votes (
     PRIMARY KEY (user_id, faq_id)
 );
 CREATE INDEX IF NOT EXISTS idx_faq_votes_article ON faq_votes(faq_id);
+
+-- Image attachments on support ticket messages. Rows are inserted after the
+-- message row exists; the file itself lives at
+-- /data/support_attachments/{user_id}_{ticket_id}_{message_id}_{uuid}.webp.
+CREATE TABLE IF NOT EXISTS ticket_attachments (
+    id           TEXT PRIMARY KEY,
+    ticket_id    TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+    message_id   TEXT NOT NULL REFERENCES ticket_messages(id) ON DELETE CASCADE,
+    user_id      TEXT NOT NULL REFERENCES users(id),
+    filename     TEXT NOT NULL,           -- stored basename (no path)
+    width        INTEGER,
+    height       INTEGER,
+    bytes        INTEGER,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ticket_attachments_msg ON ticket_attachments(message_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket ON ticket_attachments(ticket_id);
+
+-- Pending account-deletion requests. The user's Settings → Danger Zone flow
+-- inserts a row here + creates a paired support ticket; the owner processes
+-- deletion manually and marks the row processed.
+CREATE TABLE IF NOT EXISTS deletion_requests (
+    id                   TEXT PRIMARY KEY,
+    user_id              TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reason               TEXT,
+    ticket_id            TEXT REFERENCES support_tickets(id) ON DELETE SET NULL,
+    processed_at         TIMESTAMP,
+    created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_deletion_requests_user ON deletion_requests(user_id);
 """
 
 
@@ -473,6 +503,22 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
             conn.commit()
             print("[auth] Migrated: added full_name column to users")
+
+        # Migration: enrich sessions rows with device info so the /settings
+        # → Account → Active sessions list can label each entry meaningfully.
+        sess_cols = [row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()]
+        if "user_agent" not in sess_cols:
+            conn.execute("ALTER TABLE sessions ADD COLUMN user_agent TEXT")
+            conn.commit()
+            print("[auth] Migrated: added user_agent column to sessions")
+        if "ip_address" not in sess_cols:
+            conn.execute("ALTER TABLE sessions ADD COLUMN ip_address TEXT")
+            conn.commit()
+            print("[auth] Migrated: added ip_address column to sessions")
+        if "last_seen_at" not in sess_cols:
+            conn.execute("ALTER TABLE sessions ADD COLUMN last_seen_at TIMESTAMP")
+            conn.commit()
+            print("[auth] Migrated: added last_seen_at column to sessions")
 
         # Migration: add is_flagged_list column to watchlists if missing
         wl_cols = [row[1] for row in conn.execute("PRAGMA table_info(watchlists)").fetchall()]

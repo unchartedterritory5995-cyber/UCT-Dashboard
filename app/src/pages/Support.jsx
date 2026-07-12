@@ -68,9 +68,125 @@ function extractDiagnostics(text) {
   return { body: m[1].trim(), diag: m[2].trim() }
 }
 
-function MessageBubble({ m }) {
+// Picker + preview strip for images attached to a NEW-ticket form or a REPLY
+// that hasn't been submitted yet. Files live in local state until the parent
+// message is created, then get uploaded and removed from state.
+const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif'
+const MAX_ATTACHMENTS = 5
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
+
+function AttachmentPicker({ files, setFiles, id }) {
+  const inputRef = useRef(null)
+  const [dragActive, setDragActive] = useState(false)
+  const [error, setError] = useState('')
+
+  const addFiles = (list) => {
+    setError('')
+    const additions = []
+    for (const file of list) {
+      if (!file.type.startsWith('image/')) {
+        setError('Only image files can be attached')
+        continue
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        setError(`"${file.name}" is over 5 MB`)
+        continue
+      }
+      additions.push({
+        id: Math.random().toString(36).slice(2),
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })
+    }
+    setFiles(prev => {
+      const remaining = Math.max(0, MAX_ATTACHMENTS - prev.length)
+      if (remaining < additions.length) setError(`Maximum ${MAX_ATTACHMENTS} attachments`)
+      return [...prev, ...additions.slice(0, remaining)]
+    })
+  }
+
+  const onPick = (e) => addFiles(Array.from(e.target.files || []))
+  const onDrop = (e) => {
+    e.preventDefault(); setDragActive(false)
+    if (files.length >= MAX_ATTACHMENTS) return
+    const items = Array.from(e.dataTransfer?.files || [])
+    if (items.length) addFiles(items)
+  }
+  const onPaste = (e) => {
+    // Ctrl+V of a screenshot straight into the picker area lands here.
+    const items = Array.from(e.clipboardData?.items || [])
+      .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
+      .map(i => i.getAsFile())
+      .filter(Boolean)
+    if (items.length) { e.preventDefault(); addFiles(items) }
+  }
+
+  const remove = (id) => {
+    setFiles(prev => {
+      const removed = prev.find(p => p.id === id)
+      if (removed) { try { URL.revokeObjectURL(removed.previewUrl) } catch {} }
+      return prev.filter(p => p.id !== id)
+    })
+  }
+
+  return (
+    <div className={styles.attachWrap}>
+      <div
+        className={`${styles.attachDrop} ${dragActive ? styles.attachDropActive : ''}`}
+        onDragOver={e => { e.preventDefault(); setDragActive(true) }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={onDrop}
+        onPaste={onPaste}
+        tabIndex={0}
+        role="button"
+        aria-label="Add screenshots or drop image files here"
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click() } }}
+      >
+        <UIcon name="paperclip" size={13} />
+        <span>
+          <strong>Add screenshots</strong>
+          <span className={styles.attachHint}>
+            Drop images, paste from clipboard, or click. Up to {MAX_ATTACHMENTS} · 5 MB each
+          </span>
+        </span>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept={ACCEPTED_IMAGE_TYPES}
+          style={{ display: 'none' }}
+          onChange={onPick}
+          aria-label={`Add attachments to ${id}`}
+        />
+      </div>
+      {error && <div className={styles.attachErr}>{error}</div>}
+      {files.length > 0 && (
+        <div className={styles.attachThumbs}>
+          {files.map(p => (
+            <div key={p.id} className={styles.attachThumb}>
+              <img src={p.previewUrl} alt={p.file.name} />
+              <button
+                type="button"
+                className={styles.attachRemove}
+                onClick={() => remove(p.id)}
+                aria-label={`Remove ${p.file.name}`}
+              >
+                <UIcon name="x" size={10} />
+              </button>
+              <span className={styles.attachName}>{p.file.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MessageBubble({ m, attachments }) {
   const [showDiag, setShowDiag] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [lightbox, setLightbox] = useState(null)
   const { body, diag } = extractDiagnostics(m.message)
   const copyDiag = () => {
     if (!diag) return
@@ -111,6 +227,30 @@ function MessageBubble({ m }) {
               </button>
             </>
           )}
+        </div>
+      )}
+      {attachments && attachments.length > 0 && (
+        <div className={styles.msgAttachments}>
+          {attachments.map(a => (
+            <button
+              key={a.id}
+              type="button"
+              className={styles.msgAttachThumb}
+              onClick={() => setLightbox(a)}
+              aria-label={`Enlarge ${a.filename}`}
+              style={{ aspectRatio: a.width && a.height ? `${a.width} / ${a.height}` : undefined }}
+            >
+              <img src={a.url} alt="attachment" loading="lazy" />
+            </button>
+          ))}
+        </div>
+      )}
+      {lightbox && (
+        <div className={styles.lightbox} onClick={() => setLightbox(null)} role="dialog" aria-label="Attachment preview">
+          <img src={lightbox.url} alt="attachment" />
+          <button className={styles.lightboxClose} onClick={() => setLightbox(null)} aria-label="Close">
+            <UIcon name="x" size={16} />
+          </button>
         </div>
       )}
     </div>
@@ -492,10 +632,17 @@ export default function Support() {
   const [urgent, setUrgent] = useState(false)
   const [includeDiag, setIncludeDiag] = useState(true)
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
+  // Pending attachments the user picked before the ticket exists. Each entry
+  // is { id, file, previewUrl } — id is a temp local uuid, previewUrl comes
+  // from URL.createObjectURL. Cleared after the ticket is submitted (or
+  // released if the user removes an entry).
+  const [pendingFiles, setPendingFiles] = useState([])
 
   // Reply
   const [reply, setReply] = useState('')
   const [replying, setReplying] = useState(false)
+  const [replyFiles, setReplyFiles] = useState([])
+  const [attachmentsByMsg, setAttachmentsByMsg] = useState({})
   const messagesEndRef = useRef(null)
 
   // ── Contextual FAQ + votes ──
@@ -558,9 +705,21 @@ export default function Support() {
   // ── Fetch thread ──
   const fetchThread = useCallback((ticketId) => {
     setThreadLoading(true)
-    fetch(`/api/auth/tickets/${ticketId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setThread(d))
+    // Pair the thread fetch with the attachments list so a message and its
+    // screenshots always render in the same paint.
+    Promise.all([
+      fetch(`/api/auth/tickets/${ticketId}`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/auth/tickets/${ticketId}/attachments`).then(r => r.ok ? r.json() : { attachments: [] }),
+    ])
+      .then(([thread, atts]) => {
+        setThread(thread)
+        const map = {}
+        for (const a of atts?.attachments || []) {
+          if (!map[a.message_id]) map[a.message_id] = []
+          map[a.message_id].push(a)
+        }
+        setAttachmentsByMsg(map)
+      })
       .catch(() => setThread(null))
       .finally(() => setThreadLoading(false))
   }, [])
@@ -633,6 +792,25 @@ export default function Support() {
         }),
       })
       if (res.ok) {
+        // Upload any pending screenshots against the ticket's first message.
+        // Failed uploads are silent (owner will see the ticket regardless).
+        try {
+          const body = await res.json()
+          const ticketId = body.id
+          const msgId = body.message_id
+          if (ticketId && msgId && pendingFiles.length > 0) {
+            for (const p of pendingFiles) {
+              const fd = new FormData()
+              fd.append('file', p.file)
+              await fetch(`/api/auth/tickets/${ticketId}/messages/${msgId}/attachments`, {
+                method: 'POST', body: fd,
+              }).catch(() => {})
+            }
+          }
+        } catch { /* ignore body-parse errors */ }
+        // Release object URLs to prevent leaking blobs.
+        pendingFiles.forEach(p => { try { URL.revokeObjectURL(p.previewUrl) } catch {} })
+        setPendingFiles([])
         setSubject('')
         setMessage('')
         setCategory('bug')
@@ -647,15 +825,33 @@ export default function Support() {
 
   // ── Send reply ──
   async function handleReply() {
-    if (!reply.trim() || !activeTicketId) return
+    // Text is required unless the user is only sending images.
+    if (!activeTicketId) return
+    if (!reply.trim() && replyFiles.length === 0) return
     setReplying(true)
     try {
+      const textBody = reply.trim() || '(screenshot attached)'
       const res = await fetch(`/api/auth/tickets/${activeTicketId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: reply.trim() }),
+        body: JSON.stringify({ message: textBody }),
       })
       if (res.ok) {
+        try {
+          const body = await res.json()
+          const msgId = body.id
+          if (msgId && replyFiles.length > 0) {
+            for (const p of replyFiles) {
+              const fd = new FormData()
+              fd.append('file', p.file)
+              await fetch(`/api/auth/tickets/${activeTicketId}/messages/${msgId}/attachments`, {
+                method: 'POST', body: fd,
+              }).catch(() => {})
+            }
+          }
+        } catch { /* ignore */ }
+        replyFiles.forEach(p => { try { URL.revokeObjectURL(p.previewUrl) } catch {} })
+        setReplyFiles([])
         setReply('')
         fetchThread(activeTicketId)
       }
@@ -863,6 +1059,10 @@ export default function Support() {
                 placeholder="Describe your issue in detail..."
               />
             </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Screenshots (optional)</label>
+              <AttachmentPicker files={pendingFiles} setFiles={setPendingFiles} id="new-ticket" />
+            </div>
             <div className={styles.formOptions}>
               <label className={styles.formCheck}>
                 <input
@@ -939,28 +1139,31 @@ export default function Support() {
 
           <div className={styles.messageList}>
             {thread.messages.map(m => (
-              <MessageBubble key={m.id} m={m} />
+              <MessageBubble key={m.id} m={m} attachments={attachmentsByMsg[m.id]} />
             ))}
             <div ref={messagesEndRef} />
           </div>
 
           <div className={styles.replyWrap}>
-            <textarea
-              className={styles.replyInput}
-              value={reply}
-              onChange={e => setReply(e.target.value)}
-              placeholder="Type your reply..."
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleReply()
-                }
-              }}
-            />
+            <div className={styles.replyComposer}>
+              <textarea
+                className={styles.replyInput}
+                value={reply}
+                onChange={e => setReply(e.target.value)}
+                placeholder="Type your reply..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleReply()
+                  }
+                }}
+              />
+              <AttachmentPicker files={replyFiles} setFiles={setReplyFiles} id="reply" />
+            </div>
             <button
               className={styles.replyBtn}
               onClick={handleReply}
-              disabled={replying || !reply.trim()}
+              disabled={replying || (!reply.trim() && replyFiles.length === 0)}
             >
               {replying ? 'Sending...' : 'Send Reply'}
             </button>

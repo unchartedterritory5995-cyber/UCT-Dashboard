@@ -98,14 +98,19 @@ def get_user_by_email(email: str) -> dict | None:
 SESSION_TTL_DAYS = 30
 
 
-def create_session(user_id: str) -> str:
+def create_session(user_id: str, user_agent: str = None, ip_address: str = None) -> str:
+    """Create a new session. user_agent + ip_address are optional but
+    strongly recommended — they power Settings → Account → Active sessions
+    so a user can recognise "this is my phone" vs "this is my laptop"."""
     token = secrets.token_urlsafe(48)
     expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)
     conn = get_connection()
     try:
         conn.execute(
-            "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
-            (token, user_id, expires_at.isoformat()),
+            "INSERT INTO sessions (token, user_id, expires_at, user_agent, ip_address, last_seen_at) "
+            "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+            (token, user_id, expires_at.isoformat(),
+             (user_agent or None), (ip_address or None)),
         )
         conn.commit()
         return token
@@ -141,6 +146,9 @@ def validate_session(token: str) -> dict | None:
         if _should_write_last_login(user_id):
             try:
                 conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+                # Same-write bump of session's last_seen_at so the sessions list
+                # in Settings reflects "used just now" without a separate write.
+                conn.execute("UPDATE sessions SET last_seen_at = CURRENT_TIMESTAMP WHERE token = ?", (token,))
                 conn.commit()
             except:
                 pass
@@ -1182,7 +1190,10 @@ def create_ticket(user_id: str, subject: str, message: str, category: str = "gen
             (msg_id, ticket_id, user_id, message),
         )
         conn.commit()
-        return {"id": ticket_id, "subject": subject, "category": category, "status": "open"}
+        # Return the message_id too — the frontend uses it as the target for
+        # image attachment uploads on the new-ticket form.
+        return {"id": ticket_id, "subject": subject, "category": category,
+                "status": "open", "message_id": msg_id}
     finally:
         conn.close()
 

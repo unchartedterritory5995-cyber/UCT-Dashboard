@@ -673,14 +673,173 @@
   word-break: break-word;
 }
 
+/* ── Attachments ─────────────────────────────────────────────────────────
+   Drop zone + thumbnail strip used by both the new-ticket form and the
+   reply composer. The drop zone reads as an inviting dashed card at rest
+   and gets a gold border while a file is being dragged over. */
+.attachWrap { display: flex; flex-direction: column; gap: 8px; }
+.attachDrop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.02);
+  border: 1.5px dashed rgba(255,255,255,0.14);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  outline: none;
+}
+.attachDrop:hover, .attachDrop:focus-visible {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(201,168,76,0.4);
+  color: var(--text-bright);
+}
+.attachDropActive {
+  background: rgba(201,168,76,0.09);
+  border-color: rgba(201,168,76,0.6);
+  color: var(--ut-gold);
+}
+.attachDrop strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 2px;
+}
+.attachHint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.attachErr {
+  font-size: 11.5px;
+  color: var(--loss);
+  padding: 2px 4px;
+}
+.attachThumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.attachThumb {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.attachThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.attachRemove {
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 20px; height: 20px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #eee;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.attachRemove:hover { background: rgba(239,68,68,0.85); border-color: rgba(239,68,68,0.9); }
+.attachName {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 60%, transparent);
+  color: #fff;
+  font-size: 9.5px;
+  padding: 5px 5px 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Attachments inline under an existing message. Same shape as pre-submit
+   thumbs; clicking one enlarges via the lightbox overlay. */
+.msgAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.msgAttachThumb {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-md);
+  padding: 0;
+  cursor: zoom-in;
+  overflow: hidden;
+  max-width: 200px;
+  max-height: 160px;
+  transition: border-color 0.15s;
+}
+.msgAttachThumb:hover { border-color: rgba(201,168,76,0.4); }
+.msgAttachThumb img {
+  display: block;
+  max-width: 200px;
+  max-height: 160px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4vh 4vw;
+  cursor: zoom-out;
+  animation: lightboxFade 0.14s ease;
+}
+@keyframes lightboxFade { from { opacity: 0; } to { opacity: 1; } }
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.lightboxClose {
+  position: absolute;
+  top: 20px; right: 20px;
+  width: 36px; height: 36px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #eee;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.lightboxClose:hover { background: rgba(255,255,255,0.15); }
+
 /* ── Reply Input ── */
 .replyWrap {
   display: flex;
   gap: 8px;
   align-items: flex-end;
 }
-.replyInput {
+.replyComposer {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.replyInput {
+  width: 100%;
   background: rgba(255,255,255,0.04);
   border: 1px solid var(--border);
   border-radius: 6px;

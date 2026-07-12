@@ -795,6 +795,262 @@ function ReferralSection() {
   )
 }
 
+// ── Active sessions panel ────────────────────────────────────────────────
+//
+// Lists every valid login (device / browser) for the caller. Highlights the
+// current session and offers per-row revoke + a "sign out everywhere else"
+// button. This closes the biggest gap in most self-serve account panels:
+// "did I actually get logged out on that other laptop?"
+
+function deviceLabelFromUA(ua) {
+  const s = (ua || '').toLowerCase()
+  const os =
+    /windows nt/.test(s) ? 'Windows' :
+    /mac os x|macintosh/.test(s) ? 'macOS' :
+    /iphone|ipad/.test(s) ? 'iOS' :
+    /android/.test(s) ? 'Android' :
+    /linux/.test(s) ? 'Linux' : 'Unknown OS'
+  const browser =
+    /edg\//.test(s) ? 'Edge' :
+    /firefox/.test(s) ? 'Firefox' :
+    /chrome/.test(s) && !/edg/.test(s) ? 'Chrome' :
+    /safari/.test(s) && !/chrome/.test(s) ? 'Safari' : 'Browser'
+  return `${browser} on ${os}`
+}
+
+function ActiveSessionsPanel() {
+  const [sessions, setSessions] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const load = () => {
+    fetch('/api/auth/sessions')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setSessions(d?.sessions || []))
+      .catch(() => setSessions([]))
+  }
+  useEffect(() => { load() }, [])
+
+  const revokeOne = async (short_id) => {
+    if (busy) return
+    setBusy(true); setMsg('')
+    try {
+      const r = await fetch(`/api/auth/sessions/${short_id}`, { method: 'DELETE' })
+      if (r.ok) { setMsg('Session revoked'); load() }
+      else setMsg('Could not revoke session')
+    } catch { setMsg('Network error') }
+    finally { setBusy(false); setTimeout(() => setMsg(''), 2000) }
+  }
+
+  const revokeOthers = async () => {
+    if (busy) return
+    if (!window.confirm('Sign out of every other device? Your current session stays active.')) return
+    setBusy(true); setMsg('')
+    try {
+      const r = await fetch('/api/auth/sessions/revoke-others', { method: 'POST' })
+      if (r.ok) {
+        const d = await r.json()
+        setMsg(`Signed out ${d.revoked || 0} other session${d.revoked === 1 ? '' : 's'}`)
+        load()
+      } else setMsg('Could not sign out others')
+    } catch { setMsg('Network error') }
+    finally { setBusy(false); setTimeout(() => setMsg(''), 2500) }
+  }
+
+  if (sessions === null) {
+    return <div className={styles.section}><span className={styles.hint}>Loading sessions...</span></div>
+  }
+
+  return (
+    <div className={styles.section}>
+      <p className={styles.hint} style={{ marginTop: 0, marginBottom: 12 }}>
+        Every device currently signed in to your account. Revoke anything you don't recognize.
+      </p>
+      <div className={styles.sessionList}>
+        {sessions.map(s => {
+          const label = deviceLabelFromUA(s.user_agent)
+          return (
+            <div key={s.short_id} className={`${styles.sessionRow} ${s.is_current ? styles.sessionRowCurrent : ''}`}>
+              <span className={styles.sessionIcon}><UIcon name={s.is_current ? 'check' : 'clock'} size={13} /></span>
+              <div className={styles.sessionInfo}>
+                <div className={styles.sessionLabel}>
+                  {label}
+                  {s.is_current && <span className={styles.sessionCurrentPill}>This device</span>}
+                </div>
+                <div className={styles.sessionMeta}>
+                  {s.ip_address && <>IP {s.ip_address} · </>}
+                  Last seen {s.last_seen_at ? formatETDate(s.last_seen_at) : 'unknown'}
+                </div>
+              </div>
+              {!s.is_current && (
+                <button
+                  className={styles.btnMuted}
+                  onClick={() => revokeOne(s.short_id)}
+                  disabled={busy}
+                  aria-label={`Revoke ${label}`}
+                >
+                  Revoke
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {sessions.filter(s => !s.is_current).length > 0 && (
+        <button className={styles.btn} onClick={revokeOthers} disabled={busy} style={{ marginTop: 12 }}>
+          Sign out of all other devices
+        </button>
+      )}
+      {msg && <div className={styles.success} style={{ marginTop: 8 }}>{msg}</div>}
+    </div>
+  )
+}
+
+
+// ── Danger Zone ──────────────────────────────────────────────────────────
+//
+// Two-step confirmation with a typed sentinel + password re-entry. On submit
+// we create a paired support ticket + a deletion_requests row; the owner
+// processes the actual deletion. Automating the wipe would give any stolen
+// cookie the power to nuke an account — the two-step is cheap insurance.
+
+function DangerZonePanel() {
+  const [expanded, setExpanded] = useState(false)
+  const [password, setPassword] = useState('')
+  const [reason, setReason] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/auth/deletion-request')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setPending(d))
+      .catch(() => {})
+  }, [])
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true); setError('')
+    try {
+      const r = await fetch('/api/auth/request-deletion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, reason: reason.trim(), confirmation: confirmation.trim() }),
+      })
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        setError(err.detail || 'Could not submit request')
+      } else {
+        const body = await r.json()
+        setPending({ id: body.request_id, ticket_id: body.ticket_id })
+        setExpanded(false); setPassword(''); setReason(''); setConfirmation('')
+      }
+    } catch { setError('Network error') }
+    finally { setSubmitting(false) }
+  }
+
+  if (pending?.id) {
+    return (
+      <div className={styles.section}>
+        <p className={styles.hint} style={{ marginTop: 0 }}>
+          A deletion request is on file. We'll process it shortly and email
+          you when it's done. To cancel, reply to the linked support ticket.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.section}>
+      <p className={styles.hint} style={{ marginTop: 0, marginBottom: 12 }}>
+        Deleting your account removes your journal, watchlists, tickets, and
+        broker connections. Subscriptions are cancelled. This can't be undone.
+      </p>
+      {!expanded ? (
+        <button className={styles.btnDanger} onClick={() => setExpanded(true)}>
+          Delete my account
+        </button>
+      ) : (
+        <form onSubmit={submit} className={styles.pwForm}>
+          <label className={styles.formCheckLabel}>Reason (optional)</label>
+          <textarea
+            className={styles.input}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Anything we could have done differently?"
+            rows={3}
+            maxLength={2000}
+          />
+          <label className={styles.formCheckLabel}>Password</label>
+          <input
+            type="password"
+            className={styles.input}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+          <label className={styles.formCheckLabel}>
+            Type <code>delete my account</code> to confirm
+          </label>
+          <input
+            type="text"
+            className={styles.input}
+            value={confirmation}
+            onChange={e => setConfirmation(e.target.value)}
+            required
+            autoComplete="off"
+          />
+          {error && <div className={styles.error}>{error}</div>}
+          <div className={styles.pwActions}>
+            <button
+              type="submit"
+              className={styles.btnDanger}
+              disabled={submitting || confirmation.trim().toLowerCase() !== 'delete my account' || !password}
+            >
+              {submitting ? 'Submitting...' : 'Submit deletion request'}
+            </button>
+            <button type="button" className={styles.btnMuted} onClick={() => { setExpanded(false); setError('') }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
+
+// ── Save toast ───────────────────────────────────────────────────────────
+//
+// Small floating confirmation that fires when a preference write settles.
+// A single hook wraps setPref so every preference control benefits without
+// per-control state.
+
+function useSaveToast() {
+  const [msg, setMsg] = useState(null)
+  const timer = useRef(null)
+  const trigger = useCallback((text = 'Saved') => {
+    setMsg(text)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => setMsg(null), 1800)
+  }, [])
+  return { msg, trigger }
+}
+
+function SaveToast({ msg }) {
+  if (!msg) return null
+  return (
+    <div className={styles.saveToast} role="status" aria-live="polite">
+      <UIcon name="check" size={12} />
+      {msg}
+    </div>
+  )
+}
+
+
 // ── Section registry — the Settings navigation rail ──
 const SECTIONS = [
   { id: 'account',     label: 'Account',         icon: 'user',    desc: 'Profile, security & session' },
@@ -812,6 +1068,8 @@ const SEARCH_INDEX = [
   { card: 'profile',        section: 'account',     title: 'Profile',                    keywords: 'avatar photo email display name full name member since verified' },
   { card: 'security',       section: 'account',     title: 'Security',                   keywords: 'password change security' },
   { card: 'session',        section: 'account',     title: 'Log Out',                    keywords: 'log out logout sign out session' },
+  { card: 'activeSessions', section: 'account',     title: 'Active Sessions',            keywords: 'sessions devices browsers logins revoke sign out everywhere lost stolen' },
+  { card: 'dangerZone',     section: 'account',     title: 'Delete Account',             keywords: 'delete account danger zone close remove wipe permanent goodbye' },
   { card: 'subscription',   section: 'billing',     title: 'Subscription & Billing',     keywords: 'plan pro upgrade cancel invoice payment card stripe renewal price free' },
   { card: 'referral',       section: 'billing',     title: 'Referral Program',           keywords: 'referral invite share friends rewards link' },
   { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled dim system default chart timeframe appearance' },
@@ -833,7 +1091,13 @@ const SEARCH_INDEX = [
 // ── Main Settings Page ──
 export default function Settings() {
   const { user, plan, subscription, logout, startCheckout, openPortal, refetch } = useAuth()
-  const { prefs, setPref } = usePreferences()
+  const { prefs, setPref: setPrefRaw } = usePreferences()
+  const toast = useSaveToast()
+  // Wrap setPref so every preference write flashes a small "Saved" toast.
+  const setPref = useCallback((key, value) => {
+    setPrefRaw(key, value)
+    toast.trigger('Saved')
+  }, [setPrefRaw, toast])
   const { tagColors, setTagLabel } = useTagColors()
   const navigate = useNavigate()
   const [changingPw, setChangingPw] = useState(false)
@@ -1484,12 +1748,26 @@ export default function Settings() {
         </TileCard>
   )
 
+  const activeSessionsCard = (
+    <TileCard icon="clock" title="Active Sessions">
+      <ActiveSessionsPanel />
+    </TileCard>
+  )
+
+  const dangerZoneCard = (
+    <TileCard icon="warning" title="Danger Zone">
+      <DangerZonePanel />
+    </TileCard>
+  )
+
   // ── Section map — which cards render under each rail entry ──
   const sectionCards = {
     account: [
       card('profile', profileCard),
       card('security', securityCard),
+      card('activeSessions', activeSessionsCard),
       card('session', sessionCard),
+      card('dangerZone', dangerZoneCard),
     ],
     billing: [
       card('subscription', subscriptionCard),
@@ -1600,6 +1878,7 @@ export default function Settings() {
       {paletteOpen && (
         <CommandPalette onClose={() => setPaletteOpen(false)} onPick={goResult} />
       )}
+      <SaveToast msg={toast.msg} />
     </div>
   )
 }

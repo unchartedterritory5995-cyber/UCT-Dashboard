@@ -7,8 +7,8 @@ import os
 import csv
 import io
 import sqlite3
-from fastapi import APIRouter, HTTPException, Request, Response, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, EmailStr
 
 from api.limiter import limiter
@@ -145,7 +145,8 @@ def signup(request: Request, req: SignupRequest, response: Response):
     except Exception:
         pass
 
-    token = create_session(user["id"])
+    ua = (request.headers.get("user-agent") or "")[:512]
+    token = create_session(user["id"], user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     user["email_verified"] = False
     return {"user": user, "plan": "free"}
@@ -171,7 +172,8 @@ def login(request: Request, req: LoginRequest, response: Response):
 
     log_activity(user["id"], "login", ip_address=client_ip(request))
 
-    token = create_session(user["id"])
+    ua = (request.headers.get("user-agent") or "")[:512]
+    token = create_session(user["id"], user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     plan = get_user_plan(user["id"])
     return {"user": user, "plan": plan}
@@ -1100,6 +1102,256 @@ def get_faq_vote(faq_id: str, user: dict = Depends(get_current_user)):
 def get_faq_votes(user: dict = Depends(get_current_user)):
     """Every FAQ article's vote summary + the caller's own votes in one call."""
     return {"votes": get_all_faq_vote_summaries(user_id=user["id"])}
+
+
+# ── Ticket attachments (image screenshots) ─────────────────────────────────
+#
+# Attachments are keyed to a specific message on a ticket. Flow:
+#   1. Client creates the ticket + message (existing endpoints)
+#   2. Client uploads each image via POST /tickets/{ticket_id}/messages/{msg_id}/attachments
+#   3. Thread rendering reads GET /tickets/{ticket_id}/attachments and inlines
+#      matching rows below their parent message
+
+@router.post("/tickets/{ticket_id}/messages/{message_id}/attachments")
+async def upload_ticket_attachment(
+    ticket_id: str,
+    message_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """Attach an image to a ticket message. Owner-only."""
+    from api.services import support_attachments as att
+
+    # Ownership + membership check: the message must belong to the ticket AND
+    # the ticket must belong to the caller.
+    thread = get_ticket_thread(ticket_id, user_id=user["id"])
+    if not thread:
+        raise HTTPException(404, "Ticket not found")
+    if not any(m["id"] == message_id for m in thread["messages"]):
+        raise HTTPException(404, "Message not found on this ticket")
+
+    if file.content_type not in att.ALLOWED_TYPES:
+        raise HTTPException(400, "Only JPEG, PNG, WebP, and GIF images are allowed")
+
+    raw = await file.read()
+    try:
+        row = att.save_attachment(user["id"], ticket_id, message_id, raw)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    return {
+        "id": row["id"],
+        "filename": row["filename"],
+        "width": row["width"],
+        "height": row["height"],
+        "url": f"/api/auth/tickets/{ticket_id}/attachments/{row['filename']}",
+    }
+
+
+@router.get("/tickets/{ticket_id}/attachments")
+def list_ticket_attachments(ticket_id: str, user: dict = Depends(get_current_user)):
+    """List every attachment on a ticket. Owner-only (admins hit the admin path)."""
+    from api.services import support_attachments as att
+    # Admin bypasses ownership so they can review the full thread.
+    is_admin = user.get("role") == "admin"
+    rows = att.get_attachments_for_ticket(ticket_id, user_id=None if is_admin else user["id"])
+    for r in rows:
+        r["url"] = f"/api/auth/tickets/{ticket_id}/attachments/{r['filename']}"
+    return {"attachments": rows}
+
+
+@router.get("/tickets/{ticket_id}/attachments/{filename}")
+def serve_ticket_attachment(ticket_id: str, filename: str, user: dict = Depends(get_current_user)):
+    """Serve one attachment file. Owner-only (admins bypass)."""
+    from api.services import support_attachments as att
+    is_admin = user.get("role") == "admin"
+    path = att.get_attachment_path(ticket_id, filename, user_id=None if is_admin else user["id"])
+    if not path or not path.exists():
+        raise HTTPException(404, "Attachment not found")
+    return FileResponse(
+        str(path),
+        media_type="image/webp",
+        headers={"Cache-Control": "private, max-age=86400"},
+    )
+
+
+@router.delete("/attachments/{attachment_id}")
+def delete_ticket_attachment(attachment_id: str, user: dict = Depends(get_current_user)):
+    """Remove an attachment. Owner-only. Used by the ticket form's
+    remove-before-submit + the thread's user-side delete."""
+    from api.services import support_attachments as att
+    is_admin = user.get("role") == "admin"
+    ok = att.delete_attachment(attachment_id, user_id=None if is_admin else user["id"])
+    if not ok:
+        raise HTTPException(404, "Attachment not found")
+    return {"ok": True}
+
+
+# ── Danger zone: request account deletion ──────────────────────────────────
+#
+# Solo-owner op — we do NOT delete accounts automatically. The user files a
+# structured request via this endpoint, which creates a `deletion_requests`
+# row + a paired [DELETE ACCOUNT] support ticket. The owner processes it
+# manually. Requiring the current password blocks a stolen-cookie attacker
+# from tanking someone's account.
+
+class DeletionRequest(BaseModel):
+    password: str
+    reason: str = ""
+    confirmation: str  # user must type "delete my account" to enable the submit
+
+
+@router.post("/request-deletion")
+def request_account_deletion(req: DeletionRequest, user: dict = Depends(get_current_user)):
+    """Open a formal deletion request. See docstring above."""
+    if req.confirmation.strip().lower() != "delete my account":
+        raise HTTPException(400, 'Type "delete my account" exactly to confirm')
+
+    # Re-verify the password to defeat stolen-cookie attacks.
+    from api.services.auth_service import verify_password
+    if not verify_password(user["email"], req.password):
+        raise HTTPException(401, "Password is incorrect")
+
+    from api.services.auth_db import get_connection
+    import uuid as _uuid
+    request_id = str(_uuid.uuid4())
+    reason = (req.reason or "").strip()[:2000]
+
+    # Create a paired support ticket so the request lives in the same admin
+    # inbox the owner already checks daily.
+    ticket = create_ticket(
+        user_id=user["id"],
+        subject="[DELETE ACCOUNT] " + (user.get("email") or "(unknown email)"),
+        message=(
+            "Account deletion requested.\n\n"
+            f"User: {user.get('email')} ({user['id'][:8]})\n"
+            f"Reason: {reason or '(no reason given)'}\n\n"
+            "The user has re-verified their password. Please process the "
+            "deletion (subscription cancel + data purge) at your earliest "
+            "convenience."
+        ),
+        category="account",
+    )
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO deletion_requests (id, user_id, reason, ticket_id) VALUES (?, ?, ?, ?)",
+            (request_id, user["id"], reason, ticket["id"]),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Discord ping so the owner catches this out of hours.
+    try:
+        from api.services.discord_notify import _send_webhook
+        _send_webhook({
+            "title": "\U0001F6D1 Account Deletion Requested",
+            "description": f"**{user['email']}** requested account deletion.",
+            "fields": [{"name": "Reason", "value": reason[:1024] or "(none)", "inline": False}],
+            "color": 0xef4444,
+        })
+    except Exception:
+        pass
+
+    return {"ok": True, "request_id": request_id, "ticket_id": ticket["id"]}
+
+
+@router.get("/deletion-request")
+def get_my_deletion_request(user: dict = Depends(get_current_user)):
+    """Return the caller's pending deletion request, if any. Frontend uses
+    this to swap the Danger Zone button for a status message so the user
+    doesn't file duplicate requests."""
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, created_at, processed_at, ticket_id FROM deletion_requests "
+            "WHERE user_id = ? AND processed_at IS NULL ORDER BY created_at DESC LIMIT 1",
+            (user["id"],),
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+# ── Active sessions ─────────────────────────────────────────────────────────
+#
+# List every valid session (device / browser) the user has open, with a
+# revoke-individual and revoke-others button. Complements the existing single
+# /logout by making session hygiene visible.
+
+@router.get("/sessions")
+def list_my_sessions(request: Request, user: dict = Depends(get_current_user)):
+    """List every valid session for the caller. The caller's own session is
+    flagged so the UI can label it 'This device'."""
+    from api.services.auth_db import get_connection
+    current_token = request.cookies.get("uct_session")
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT token, user_agent, ip_address, created_at, last_seen_at "
+            "FROM sessions WHERE user_id = ? AND expires_at > datetime('now') "
+            "ORDER BY last_seen_at DESC",
+            (user["id"],),
+        ).fetchall()
+    finally:
+        conn.close()
+    out = []
+    for r in rows:
+        d = dict(r)
+        # Never leak the raw token; expose the last 6 chars so the UI can
+        # target a revoke, and a flag for "you are here".
+        tok = d.pop("token")
+        d["short_id"] = tok[-6:] if tok else ""
+        d["is_current"] = bool(current_token and tok == current_token)
+        out.append(d)
+    return {"sessions": out}
+
+
+@router.delete("/sessions/{short_id}")
+def revoke_session(short_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Revoke one specific session by its short id (last 6 chars of the
+    token). Refuses to revoke the caller's own session — use the standard
+    logout for that."""
+    if not short_id or len(short_id) < 4 or len(short_id) > 16:
+        raise HTTPException(400, "Invalid session id")
+    current_token = request.cookies.get("uct_session") or ""
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT token FROM sessions WHERE user_id = ? AND token LIKE ? LIMIT 1",
+            (user["id"], f"%{short_id}"),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "Session not found")
+        if row["token"] == current_token:
+            raise HTTPException(400, "Use the Log Out button for the current device")
+        conn.execute("DELETE FROM sessions WHERE token = ?", (row["token"],))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@router.post("/sessions/revoke-others")
+def revoke_other_sessions(request: Request, user: dict = Depends(get_current_user)):
+    """Kill every session except the caller's own. Use this after suspecting
+    a stolen cookie or when signing out of a lost device."""
+    current_token = request.cookies.get("uct_session") or ""
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "DELETE FROM sessions WHERE user_id = ? AND token != ?",
+            (user["id"], current_token),
+        )
+        conn.commit()
+        return {"ok": True, "revoked": cur.rowcount}
+    finally:
+        conn.close()
 
 
 # ── Support ticket endpoints (admin) ───────────────────────────────────────
