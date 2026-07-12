@@ -1076,21 +1076,22 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   const rowBorder = isAlpha ? `5px solid ${P.ac}` : `3px solid ${meta.color}`;
   const fontSize = isAlpha ? 14 : 13;
   const secondaryFontSize = 12;
-  // Field coloring: alpha → gold, otherwise direction-based.
-  // OI status: volume that did NOT exceed OI (_color === "WHITE") renders in a
-  // muted white so it's visually clear it bled through on other criteria and is
-  // NOT new positioning. Alpha Gold always stays gold to keep attention
-  // regardless of OI. MAGENTA/YELLOW (exceeded OI) keep their bright direction color.
-  const _oiDim = alert._color === "WHITE" && !isAlpha;
+  // ONE color for the whole row so the tape is scannable at a glance:
+  //   gold  → Alpha Gold (always, for attention)
+  //   white → volume did NOT exceed OI (_color WHITE) — bled through on other criteria
+  //   green → bullish + exceeded OI ·  red → bearish + exceeded OI
+  // Applied to every descriptive cell below (ticker, spot, strike, exp, %OTM,
+  // price, vol, OI, premium, alert name). Grade + P/L keep their own meaning.
   const DIM_WHITE = "#9aa0a6";
-  const tickerColor = isAlpha ? P.ac : (_oiDim ? DIM_WHITE : dirColor);
+  const rowColor = isAlpha ? P.ac : (alert._color === "WHITE" ? DIM_WHITE : dirColor);
+  const tickerColor = rowColor;
   const tickerWeight = isAlpha ? 700 : 600;
-  const strikeColor = isAlpha ? P.ac : (_oiDim ? DIM_WHITE : dirColor);
+  const strikeColor = rowColor;
   const strikeWeight = isAlpha ? 700 : (isSize ? 700 : 600);
-  const premColor = isAlpha ? P.ac : (_oiDim ? DIM_WHITE : dirColor);
+  const premColor = rowColor;
   const premWeight = isAlpha ? 700 : 600;
-  const alertNameColor = isAlpha ? P.wh : (dirColor === P.wh ? P.dm : dirColor);
-  const cpDisplayColor = dirIsBull ? DIR_BULL : dirIsBear ? DIR_BEAR : P.dm;
+  const alertNameColor = rowColor;
+  const cpDisplayColor = rowColor;
 
   return (
     <div style={{
@@ -1103,7 +1104,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       alignItems: "center",
       ...flashStyle,
     }}>
-      <span style={{ color: P.dm, whiteSpace: "nowrap", textAlign: "center" }}>
+      <span style={{ color: rowColor, whiteSpace: "nowrap", textAlign: "center" }}>
         {fmtTime(alert.timestamp)}
       </span>
       <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
@@ -1127,7 +1128,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       </span>
       {/* Spot column (added 6/29): underlying price at alert time, snapshot */}
       <span style={{
-        color: P.dm,
+        color: rowColor,
         fontSize: secondaryFontSize,
         textAlign: "center",
         whiteSpace: "nowrap",
@@ -1148,14 +1149,14 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       <span style={{ color: cpDisplayColor, fontWeight: 700, textAlign: "center" }}>
         {alert.cp || "—"}
       </span>
-      <span style={{ color: P.dm, fontSize: secondaryFontSize, whiteSpace: "nowrap", textAlign: "center" }}>
+      <span style={{ color: rowColor, fontSize: secondaryFontSize, whiteSpace: "nowrap", textAlign: "center" }}>
         {alert.exp || "—"}
       </span>
       {/* %ITM/OTM column (added 6/29): moneyness from backend _moneyness().
           Bold when ITM > 25% to flag deep-ITM trades that would NOT
           qualify for Alpha Gold tier under the new router filter. */}
       <span style={{
-        color: P.dm,
+        color: rowColor,
         fontSize: secondaryFontSize,
         textAlign: "center",
         whiteSpace: "nowrap",
@@ -1169,21 +1170,21 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       }>
         {fmtMoneyness(alert.moneynessPct, alert.moneynessLabel)}
       </span>
-      <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}>
+      <span style={{ color: rowColor, fontSize: secondaryFontSize, textAlign: "center" }}>
         {fmtPrice(alert.averageFillPrice)}
       </span>
       <span style={{
-        color: isAlpha ? P.wh : P.dm,
+        color: rowColor,
         fontSize: secondaryFontSize, textAlign: "center",
         fontWeight: isAlpha ? 600 : 400,
       }}>
         {fmtCount(alert.tradeSize)}
       </span>
-      <span style={{ color: P.dm, fontSize: secondaryFontSize, textAlign: "center" }}>
+      <span style={{ color: rowColor, fontSize: secondaryFontSize, textAlign: "center" }}>
         {fmtCount(alert.priorOI)}
       </span>
       <span style={{
-        color: alert.oiExceeded ? P.ac : P.dm,
+        color: rowColor,
         fontSize: secondaryFontSize, textAlign: "center",
         fontWeight: alert.oiExceeded ? 600 : 400,
       }}>
