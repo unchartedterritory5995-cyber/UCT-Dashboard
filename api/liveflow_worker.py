@@ -3063,7 +3063,11 @@ async def _ingest_alert(msg, discord_client):
     # Delayed forward: gives a brief window for a higher-priority alert to
     # arrive and supersede this one. The forward task re-checks the dedup
     # cache before posting, so superseded alerts never reach Discord.
-    asyncio.create_task(_delayed_discord_forward(discord_client, enriched))
+    # LiveFlow → Discord auto-forwarding is gated by LIVEFLOW_DISCORD_FORWARD.
+    # Default OFF (Massive is now the Discord source). Set the env var to "1"
+    # to re-enable LiveFlow forwarding. Alerts still persist/serve to the UI.
+    if os.environ.get("LIVEFLOW_DISCORD_FORWARD", "0") == "1":
+        asyncio.create_task(_delayed_discord_forward(discord_client, enriched))
 
 
 async def _delayed_discord_forward(discord_client, alert: dict):
