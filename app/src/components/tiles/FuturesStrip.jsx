@@ -120,8 +120,8 @@ function Sparkline({ sym, css }) {
   )
 }
 
-// TradingView symbol overrides
-const TV_SYMS = { BTC: 'BTCUSD' }
+// TradingView symbol overrides (BTC + index-futures continuous front-months)
+const TV_SYMS = { BTC: 'BTCUSD', ES: 'ES1!', NQ: 'NQ1!', YM: 'YM1!', RTY: 'RTY1!' }
 // Symbols with no Finviz equity chart — TradingView only
 const TV_ONLY = new Set(['BTC', 'VIX'])
 // Symbols that use our /api/chart endpoint instead of Finviz or TradingView

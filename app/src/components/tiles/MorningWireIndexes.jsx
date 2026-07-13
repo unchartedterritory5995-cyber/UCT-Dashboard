@@ -9,12 +9,13 @@ import styles from './MorningWireIndexes.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-const LEFT  = ['SPY', 'QQQ', 'DIA']
-const RIGHT = ['IWM', 'BTC', 'VIX']
+// Index futures (ES/NQ/YM/RTY) + BTC live in data.futures; VIX in data.etfs.
+// Futures keep moving nearly 24h, so these tiles stay live after the cash close.
+const LEFT  = ['ES', 'NQ', 'YM']
+const RIGHT = ['RTY', 'BTC', 'VIX']
 const ALL   = [...LEFT, ...RIGHT]
 
-// BTC lives in the futures bucket; everything else in etfs.
-const pick = (data, sym) => (sym === 'BTC' ? data.futures?.BTC : data.etfs?.[sym])
+const pick = (data, sym) => (sym === 'VIX' ? data.etfs?.VIX : data.futures?.[sym])
 
 function cell(data, sym) {
   const d = pick(data, sym)

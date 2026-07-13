@@ -56,15 +56,15 @@
 }
 .ext    { color: var(--ut-gold, #c9a84c); }
 .ext .dot { background: var(--ut-gold, #c9a84c); box-shadow: 0 0 8px rgba(201, 168, 76, 0.7); }
-.closed { color: var(--text-muted); }
+.closed { color: var(--text); }
 .closed .dot { background: var(--text-muted); }
 
 .hint {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.5px;
-  color: var(--text-muted);
-  opacity: 0.75;
+  color: var(--text);
+  opacity: 0.85;
 }
 
 @keyframes clockPulse {

@@ -610,10 +610,13 @@ def get_snapshot() -> dict:
 
     # QQQ/SPY/IWM/DIA → Massive equities API (real-time)
     etf_tickers = ["QQQ", "SPY", "IWM", "DIA"]
-    # BTC → yfinance (crypto not in Massive equities API)
-    futures_map = {"BTC": "BTC-USD"}
+    # Index FUTURES + BTC → yfinance. Futures trade nearly 24h, so these tiles keep
+    # moving after the cash close. ES/NQ/YM/RTY are Yahoo continuous front-months.
+    futures_map = {"ES": "ES=F", "NQ": "NQ=F", "YM": "YM=F", "RTY": "RTY=F", "BTC": "BTC-USD"}
     # VIX → yfinance (index, not a stock) but goes in the etfs dict for the frontend
     vix_yf_ticker = "^VIX"
+
+    _EMPTY = {"price": "—", "chg": "—", "css": ""}
 
     def _make_entry(snap: dict) -> dict[str, Any]:
         price   = snap.get("close") or snap.get("vwap") or 0.0
@@ -625,18 +628,22 @@ def get_snapshot() -> dict:
     for ticker in etf_tickers:
         try:
             snap = client.get_single_ticker_snapshot(ticker)
-            etfs[ticker] = _make_entry(snap) if snap else {"price": "—", "chg": "—", "css": ""}
+            etfs[ticker] = _make_entry(snap) if snap else dict(_EMPTY)
         except Exception:
-            etfs[ticker] = {"price": "—", "chg": "—", "css": ""}
+            etfs[ticker] = dict(_EMPTY)
 
-    # VIX via yfinance — placed in etfs dict (frontend reads data.etfs.VIX)
-    vix_snap = _yfinance_snapshot(vix_yf_ticker)
-    etfs["VIX"] = _make_entry(vix_snap) if vix_snap else {"price": "—", "chg": "—", "css": ""}
+    # yfinance snapshots (VIX + index futures + BTC) fetched in parallel so the
+    # extra network calls don't serialize into a slow endpoint.
+    yf_targets = {"VIX": vix_yf_ticker, **futures_map}
+    with _cf.ThreadPoolExecutor(max_workers=len(yf_targets), thread_name_prefix="snap-yf") as ex:
+        yf_snaps = dict(zip(yf_targets.keys(), ex.map(_yfinance_snapshot, yf_targets.values())))
 
-    futures = {}
-    for label, yf_ticker in futures_map.items():
-        snap = _yfinance_snapshot(yf_ticker)
-        futures[label] = _make_entry(snap) if snap else {"price": "—", "chg": "—", "css": ""}
+    # VIX rides in the etfs dict (frontend reads data.etfs.VIX)
+    etfs["VIX"] = _make_entry(yf_snaps["VIX"]) if yf_snaps.get("VIX") else dict(_EMPTY)
+    futures = {
+        label: (_make_entry(yf_snaps[label]) if yf_snaps.get(label) else dict(_EMPTY))
+        for label in futures_map
+    }
 
     data = {"futures": futures, "etfs": etfs}
     cache.set("snapshot", data, ttl=15)
