@@ -119,6 +119,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           boldCandles
           markVolumeExtremes
           volumeMa={50}
+          hidePriceLine
+          watermarkOpacity={0.82}
           dailyDefaultBars={126}
           volumeSeparatePane
           volumePaneHeightPct={16}
