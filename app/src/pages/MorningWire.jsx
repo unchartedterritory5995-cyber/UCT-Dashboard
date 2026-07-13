@@ -337,7 +337,7 @@ export default function MorningWire() {
 
       {/* ── Stock Catalysts — left rail on desktop ───────────────── */}
       <aside className={styles.lrail}>
-        <CatalystTable compact datePicker />
+        <CatalystTable compact datePicker title="PRE MARKET MOVERS" />
       </aside>
 
       {/* ── On The Tape (live tweet feed) — right rail on desktop ── */}

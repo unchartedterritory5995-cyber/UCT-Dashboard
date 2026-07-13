@@ -404,6 +404,27 @@
 .chipBtn:hover { border-color: rgba(255,255,255,0.2); }
 .chipDim { opacity: 0.35; }
 
+/* Sort-by-%-change toggle (compact rail only — the table headers that carry
+   sorting on desktop are hidden in card mode). */
+.sortPctBtn {
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.sortPctBtn:hover { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); }
+.sortPctActive {
+  color: var(--ut-gold, #c9a84c);
+  border-color: rgba(201, 168, 76, 0.5);
+  background: rgba(201, 168, 76, 0.1);
+  opacity: 1;
+}
+
 .rowMine {
   background: rgba(201, 168, 76, 0.05);
   box-shadow: inset 3px 0 0 var(--ut-gold, #c9a84c);
@@ -637,8 +658,9 @@
 .compact .table tr {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
+  /* center (not baseline): the 20px company logo skews the ticker's baseline,
+     which left price/%chg/vol sitting slightly low — centering lines them up. */
+  align-items: center;
   column-gap: 10px;
   row-gap: 2px;
   border: 1px solid var(--border);
@@ -650,20 +672,21 @@
 .compact .table tr:hover { background: var(--bg-surface); }
 .compact .table td { border: none; padding: 0; white-space: normal; }
 
-/* Headline reads as one evenly-spaced line across the full card width:
-   ticker (flush left) · price · %change · vol (flush right). */
-.compact .colSym  { font-size: 14px; font-weight: 700; }
-.compact .colPrice { font-size: 12px; color: var(--text-muted); }
-.compact .colGap  { font-size: 13px; font-weight: 600; }
-.compact .colVol  { font-size: 11px; color: var(--text-muted); }
+/* Headline, one aligned line: ticker · %change hug the left; price · vol are
+   pushed to the right (flex `order` reorders past the source td order, and
+   margin-left:auto on price opens the gap). */
+.compact .colSym  { order: 0; font-size: 14px; font-weight: 700; }
+.compact .colGap  { order: 1; font-size: 13px; font-weight: 600; }
+.compact .colPrice { order: 2; margin-left: auto; font-size: 12px; color: var(--text-muted); }
+.compact .colVol  { order: 3; font-size: 11px; color: var(--text-muted); }
 .compact .colVol::before { content: 'Vol '; opacity: 0.6; }
 
 .compact .sectorBanner { flex-direction: column; gap: 6px; }
-/* Thesis + timestamp each take a full-width line of their own. */
-.compact .colThesis { flex: 0 0 100%; margin-top: 6px; font-size: 12.5px; line-height: 1.5; }
+/* Thesis + timestamp each take a full-width line of their own, after the headline. */
+.compact .colThesis { order: 4; flex: 0 0 100%; margin-top: 6px; font-size: 12.5px; line-height: 1.5; }
 .compact .thesisClamp { -webkit-line-clamp: 3; }
 .compact .colUpdated {
-  flex: 0 0 100%; text-align: left;
+  order: 5; flex: 0 0 100%; text-align: left;
   margin-top: 6px; font-size: 10px;
 }
 .compact .colUpdated .whenStack { flex-direction: row; align-items: baseline; gap: 6px; }

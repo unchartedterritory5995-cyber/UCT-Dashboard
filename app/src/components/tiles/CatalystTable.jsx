@@ -316,7 +316,7 @@ function CitationsPopover({ sources }) {
   )
 }
 
-export default function CatalystTable({ compact = false, datePicker = false }) {
+export default function CatalystTable({ compact = false, datePicker = false, title = 'STOCK CATALYSTS' }) {
   // null = live "today" feed; a YYYY-MM-DD string loads that past snapshot.
   const [selectedDate, setSelectedDate] = useState(null)
   const { data, mutate, isValidating } = useCatalysts({ date: selectedDate })
@@ -482,7 +482,7 @@ export default function CatalystTable({ compact = false, datePicker = false }) {
   return (
     <div className={`${styles.tile} ${compact ? styles.compact : ''}`}>
       <div className={styles.header}>
-        <span className={styles.title}><UIcon name="patterns" size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />STOCK CATALYSTS</span>
+        <span className={styles.title}><UIcon name="patterns" size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />{title}</span>
         <span className={styles.meta}>
           <span
             className={`${styles.updated} ${isStale ? styles.stale : ''}`}
@@ -599,6 +599,16 @@ export default function CatalystTable({ compact = false, datePicker = false }) {
           >
             <UIcon name="star-fill" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />A only
           </button>
+          {compact && (
+            <button
+              type="button"
+              className={`${styles.chipBtn} ${styles.sortPctBtn} ${sortBy?.col === 'change' ? styles.sortPctActive : ''}`}
+              onClick={() => toggleSort('change')}
+              title="Sort by % change (high→low, then low→high)"
+            >
+              % {sortBy?.col === 'change' ? (sortBy.dir === 'desc' ? '▼' : '▲') : '↕'}
+            </button>
+          )}
           {!showingAll && (
             <button
               type="button"

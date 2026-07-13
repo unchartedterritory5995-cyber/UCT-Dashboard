@@ -196,9 +196,10 @@
   box-shadow: none !important;
 }
 
-/* Base reading column */
+/* Base reading column — fills the width of the brief card (no narrow measure
+   cap) so there's no dead space to the right of the prose. */
 .rundownWrap {
-  max-width: 78ch;
+  max-width: none;
   line-height: 1.75;
   font-size: 15px;
   font-family: var(--font-sans);
