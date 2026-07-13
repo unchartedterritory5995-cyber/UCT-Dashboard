@@ -14,6 +14,15 @@
   min-width: 0;
 }
 
+/* 3×2 grid variant — SPY QQQ DIA over IWM BTC VIX (Morning Wire top-right). */
+.gridStrip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
 /* ── Phone: collapse the two groups into one 3-col × 2-row grid ─────────────── */
 @media (max-width: 640px) {
   .strip {

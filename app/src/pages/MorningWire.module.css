@@ -19,6 +19,7 @@
   grid-template-areas:
     "top"
     "tlcorn"
+    "trcorn"
     "main"
     "lrail"
     "rrail";
@@ -53,8 +54,9 @@
 .lrail { grid-area: lrail; min-width: 0; }
 .rail  { grid-area: rrail; min-width: 0; }
 
-/* Top-left corner (ambient market clock) — above the left rail on desktop. */
+/* Corners: market clock (top-left) + index grid (top-right), above the rails. */
 .tlCorner { grid-area: tlcorn; min-width: 0; }
+.trCorner { grid-area: trcorn; min-width: 0; }
 
 /* ── Wide content area (≥1280px): true 3-pane — catalysts · brief · tape ──
    The center brief is capped at a comfortable reading width; the two side
@@ -66,11 +68,20 @@
   .page {
     grid-template-columns: minmax(320px, 1fr) minmax(0, 900px) minmax(320px, 1fr);
     grid-template-areas:
-      "tlcorn top   ."
+      "tlcorn top   trcorn"
       "lrail  main  rrail";
     column-gap: 28px;
     max-width: 2100px;
     align-items: start;
+  }
+  /* Vertically center the corner content against the taller centered intro so
+     the clock isn't shoved to the top and the index grid reads balanced. */
+  .tlCorner,
+  .trCorner {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 }
 
@@ -93,18 +104,18 @@
 
 .wireName {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 27px;
   font-weight: 700;
-  letter-spacing: 3px;
+  letter-spacing: 5px;
   text-transform: uppercase;
   color: var(--text-heading);
 }
 
 .wireDate {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
 }
 
 /* ── Quote of the Day banner (between title and rundown) ─────── */
@@ -118,32 +129,32 @@
 }
 .quoteLabel {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 3px;
+  letter-spacing: 3.5px;
   text-transform: uppercase;
   color: var(--ut-gold, #c9a84c);
   opacity: 0.7;
 }
 .quoteText {
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 19px;
   font-style: italic;
   color: var(--text-bright);
   line-height: 1.6;
   opacity: 0.92;
-  max-width: 70ch;
+  max-width: 60ch;
 }
 .quoteAuthor {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ut-gold, #c9a84c);
   letter-spacing: 0.5px;
   opacity: 0.7;
 }
 @media (max-width: 640px) {
   .quoteBanner { padding: 2px 8px 4px; }
-  .quoteText { font-size: 14px; }
+  .quoteText { font-size: 16px; }
 }
 
 /* ── Stats strip ─────────────────────────────────────────────── */

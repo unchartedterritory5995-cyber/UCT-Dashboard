@@ -278,9 +278,6 @@ export default function MorningWire() {
         {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
       </div>
 
-      {/* ── Index strip (SPY QQQ DIA · IWM BTC VIX) ──────────────── */}
-      <MorningWireIndexes />
-
       {/* ── Quote of the Day ─────────────────────────────────────── */}
       <QuoteOfTheDay />
 
@@ -289,6 +286,11 @@ export default function MorningWire() {
       {/* ── Top-left corner: ambient market clock ────────────────── */}
       <div className={styles.tlCorner}>
         <MarketClock />
+      </div>
+
+      {/* ── Top-right corner: SPY QQQ DIA · IWM BTC VIX (3×2 grid) ── */}
+      <div className={styles.trCorner}>
+        <MorningWireIndexes grid />
       </div>
 
       {/* ── Main reading column: the rundown + disclaimer ────────── */}
