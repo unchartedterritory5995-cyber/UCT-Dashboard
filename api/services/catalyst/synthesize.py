@@ -2,16 +2,20 @@
 malformed-JSON recovery, no-sources enforcement, and cost guarding."""
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import json
 import logging
 import os
 import time
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from api.services.catalyst import cost_guard, store
 
 logger = logging.getLogger(__name__)
+
+_ET = ZoneInfo("America/New_York")
 
 # Primary synthesis model = Sonnet 4.6 (2026-06-10). History: the 2026-05-27
 # cost pass pinned Haiku because Opus 4.7 was silently failing for this key and
@@ -24,6 +28,14 @@ logger = logging.getLogger(__name__)
 # Revert to the cheap profile: set CATALYST_OPUS_MODEL=claude-haiku-4-5.
 OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-sonnet-4-6")
 HAIKU_FALLBACK = os.environ.get("CATALYST_HAIKU_FALLBACK_MODEL", "claude-haiku-4-5")
+
+# Bump when the synthesis PROMPT/grading rubric changes materially — it is
+# folded into the skip-if-stable hash so every cached thesis re-synthesizes
+# ONCE under the new rubric on the next refresh (bounded: only the top-N rows
+# are ever synthesized, so this is ~20 calls, well under the daily cost cap).
+# v2-freshness (2026-07-13): grade STALE-only / MOVE-only rows as C so a stock
+# with no *fresh* explainable catalyst drops off the list (the ORCL fix).
+PROMPT_VERSION = "v2-freshness"
 
 SYSTEM_PROMPT = """You are a SKEPTICAL sell-side analyst writing catalyst summaries for a professional trader's morning dashboard. Your default stance is doubt: most "catalysts" surfaced by news feeds are noise. Your job is to tell the trader, honestly, how real the catalyst is.
 
@@ -41,17 +53,28 @@ THESIS (2-3 sentences, plain factual English, NO buy/sell recommendations):
     describe it as momentum/continuation and say "no fresh catalyst" rather than
     manufacturing one.
 
-GRADE — how strong/actionable is the catalyst:
-  - A = concrete, company-specific, market-moving (earnings beat/miss with
-        guidance, M&A/takeover, FDA approval/rejection/CRL, major analyst PT
-        change, big contract win, index inclusion). The kind of thing that
-        independently explains a real move.
-  - B = real but secondary (single analyst note, minor partnership, sympathy
-        move, OR a strong momentum/continuation move with no fresh news).
-  - C = weak/noise: sector-wide rules not specific to this company, single
+FRESHNESS RULE (decisive): this list is for stocks IN PLAY TODAY. A catalyst
+counts ONLY if it is FRESH — dated on/after the prior session close (tagged
+[FRESH] in the SIGNALS). A [STALE] or [undated] item is NOT a live catalyst,
+however important it sounds (an old rating change, a days-old credit
+downgrade, a prior-week article). A price move or volume spike is NOT itself a
+catalyst — there must be a fresh, company-specific REASON the stock is in play
+today.
+
+GRADE — how strong AND how FRESH is the catalyst:
+  - A = a concrete, company-specific, FRESH catalyst that independently
+        explains today's move: fresh earnings, M&A/takeover, FDA action, major
+        analyst PT/rating change, financing/offering/placement, big contract
+        win, guidance change, index inclusion.
+  - B = a real but secondary FRESH catalyst: a single fresh analyst note, a
+        minor fresh partnership, or a sympathy move tied to a fresh sector
+        catalyst.
+  - C = weak / noise / STALE / MOVE-ONLY: the only "catalyst" is stale or
+        undated; OR the stock is merely moving with no fresh company-specific
+        reason (momentum/continuation); OR sector-wide rules, single
         congressional/insider disclosures, vague strategy pieces, promotional
-        social chatter, contradictory or unverifiable signals, or a flat tape.
-  Be strict. When in doubt between B and C, choose C.
+        social chatter, contradictory/unverifiable signals, or a flat tape.
+  Be strict: a move with no FRESH why is C. When in doubt, choose C.
 
 CATALYST_TYPE — pick the single best label:
   Earnings, M&A, FDA, Analyst, Contract, Guidance, Product, Legal, Insider,
@@ -70,25 +93,73 @@ def compute_signals_hash(candidate: dict) -> str:
     signal_keys = ("tweets", "rss", "earnings_meta", "scanner_setup",
                    "gap_pct", "vol_x", "price", "hunter_headline")
     payload = {k: candidate.get(k) for k in signal_keys}
+    payload["__prompt_version__"] = PROMPT_VERSION
     blob = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()
 
 
-def _format_tweet_block(tweets: list[dict]) -> str:
+def _prior_session_close_unix(now: Optional[dt.datetime] = None) -> int:
+    """Unix seconds of the most recent PRIOR trading session's 4:00 PM ET close.
+
+    A catalyst dated on/after this is FRESH (current session + overnight — the
+    stuff that puts a stock 'in play today'); older is STALE. For a Monday
+    intraday this resolves to Friday 4 PM ET, so a weekend/overnight catalyst
+    still counts. Fails open to now-48h if the calendar math ever breaks — never
+    raises (this decorates a prompt, it must not break synthesis)."""
+    now = now or dt.datetime.now(_ET)
+    try:
+        d = now.date() - dt.timedelta(days=1)
+        for _ in range(10):  # walk back past weekends + NYSE holidays
+            weekend = d.weekday() >= 5
+            holiday = False
+            try:
+                from api.services.bars_fetch import _is_nyse_holiday
+                holiday = _is_nyse_holiday(int(d.strftime("%Y%m%d")))
+            except Exception:
+                pass
+            if not weekend and not holiday:
+                break
+            d -= dt.timedelta(days=1)
+        close = dt.datetime(d.year, d.month, d.day, 16, 0, tzinfo=_ET)
+        return int(close.timestamp())
+    except Exception:
+        return int(now.timestamp()) - 48 * 3600
+
+
+def _freshness_label(ts, cutoff: int, now_ts: int) -> str:
+    """FRESH if the signal timestamp is on/after the prior-close cutoff, else
+    STALE (with an approximate age), or 'undated' when no timestamp is known."""
+    if not isinstance(ts, (int, float)) or ts <= 0:
+        return "undated"
+    if ts >= cutoff:
+        return "FRESH"
+    days = max(1, int((now_ts - ts) / 86400))
+    return f"STALE ~{days}d old"
+
+
+def _format_tweet_block(tweets: list[dict], cutoff: Optional[int] = None,
+                        now_ts: Optional[int] = None) -> str:
     if not tweets:
         return "(none)"
     lines = []
     for t in tweets[:5]:
-        lines.append(f"  - @{t.get('author_handle', '?')}: \"{t.get('text', '')[:200]}\" - {t.get('url', '')}")
+        tag = (f" [{_freshness_label(t.get('created_at'), cutoff, now_ts)}]"
+               if cutoff is not None else "")
+        lines.append(f"  - @{t.get('author_handle', '?')}: "
+                     f"\"{t.get('text', '')[:200]}\"{tag} - {t.get('url', '')}")
     return "\n".join(lines)
 
 
-def _format_rss_block(rss: list[dict]) -> str:
+def _format_rss_block(rss: list[dict], cutoff: Optional[int] = None,
+                      now_ts: Optional[int] = None) -> str:
     if not rss:
         return "(none)"
     lines = []
     for h in rss[:5]:
-        lines.append(f"  - {h.get('source', '?')}: \"{h.get('title', '')[:200]}\" - {h.get('url', '')}")
+        tag = (f" [{_freshness_label(h.get('time_published'), cutoff, now_ts)}]"
+               if cutoff is not None else "")
+        lines.append(f"  - {h.get('source', '?')}: "
+                     f"\"{h.get('title', '')[:200]}\"{tag} - {h.get('url', '')}")
     return "\n".join(lines)
 
 
@@ -147,6 +218,9 @@ def _format_hunter_block(c: dict) -> str:
 
 
 def format_prompt(c: dict) -> str:
+    now_ts = int(time.time())
+    cutoff = _prior_session_close_unix()
+    cutoff_str = dt.datetime.fromtimestamp(cutoff, _ET).strftime("%a %b %d %I:%M %p")
     return f"""Synthesize a catalyst for {c['ticker']} ({c.get('company') or c['ticker']}).
 
 SIGNALS:
@@ -154,12 +228,13 @@ SIGNALS:
 - Market cap: ${_format_market_cap(c.get('market_cap', 0))}
 - Sector: {c.get('sector', '?')}
 - 52-week high: ${c.get('fifty_two_week_high') or '?'}{' — AT/NEAR NEW HIGHS (breakout)' if c.get('near_52w_high') else ''}
+- FRESHNESS: "today's session" = on/after the prior close ({cutoff_str} ET). Each signal below is tagged [FRESH] / [STALE] / [undated]; only [FRESH] items count as live catalysts.
 
 Tweets (last 24h, {len(c.get('tweets', []))} total):
-{_format_tweet_block(c.get('tweets', []))}
+{_format_tweet_block(c.get('tweets', []), cutoff, now_ts)}
 
 RSS headlines ({len(c.get('rss', []))} total):
-{_format_rss_block(c.get('rss', []))}
+{_format_rss_block(c.get('rss', []), cutoff, now_ts)}
 
 Earnings: {_format_earnings_block(c.get('earnings_meta'))}
 

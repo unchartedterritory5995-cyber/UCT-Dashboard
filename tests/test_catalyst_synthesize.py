@@ -1,11 +1,14 @@
+import datetime as dt
 import json
 import os
 import tempfile
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from api.services.catalyst import store, synthesize
+from api.services.catalyst.synthesize import _ET
 
 
 @pytest.fixture
@@ -181,6 +184,53 @@ def test_malformed_json_keeps_prior_thesis(s):
                return_value=(_mock_opus_response("not valid json {"), 1000, 100)):
         result = synthesize.synthesize_ticker(c, "2026-05-26")
     assert result["thesis_text"] == "Prior good thesis"
+
+
+# ── Freshness (v2-freshness): the ORCL "stale catalyst" fix ──
+def test_prior_session_close_monday_skips_weekend():
+    # Monday intraday → prior trading session close is the previous Friday 4 PM ET.
+    now = dt.datetime(2026, 7, 13, 11, 0, tzinfo=_ET)   # Mon 2026-07-13
+    got = synthesize._prior_session_close_unix(now)
+    expected = int(dt.datetime(2026, 7, 10, 16, 0, tzinfo=_ET).timestamp())  # Fri
+    assert got == expected
+
+
+def test_prior_session_close_midweek():
+    now = dt.datetime(2026, 7, 15, 10, 0, tzinfo=_ET)   # Wed
+    got = synthesize._prior_session_close_unix(now)
+    expected = int(dt.datetime(2026, 7, 14, 16, 0, tzinfo=_ET).timestamp())  # Tue
+    assert got == expected
+
+
+def test_freshness_label_fresh_stale_undated():
+    cutoff = 1_000_000
+    now_ts = cutoff + 100_000
+    assert synthesize._freshness_label(cutoff + 5, cutoff, now_ts) == "FRESH"
+    assert synthesize._freshness_label(cutoff, cutoff, now_ts) == "FRESH"
+    assert synthesize._freshness_label(cutoff - 5 * 86400, cutoff, now_ts).startswith("STALE")
+    assert synthesize._freshness_label(None, cutoff, now_ts) == "undated"
+    assert synthesize._freshness_label(0, cutoff, now_ts) == "undated"
+
+
+def test_prompt_tags_signals_with_freshness():
+    now = int(time.time())
+    c = _candidate(rss=[
+        {"source": "PR", "title": "fresh offering priced", "url": "u1",
+         "time_published": now},                       # fresh
+        {"source": "Reuters", "title": "old credit downgrade", "url": "u2",
+         "time_published": now - 30 * 86400},           # stale
+    ])
+    prompt = synthesize.format_prompt(c)
+    assert "FRESHNESS" in prompt
+    assert "[FRESH]" in prompt
+    assert "[STALE" in prompt
+
+
+def test_prompt_version_folds_into_hash(monkeypatch):
+    c = _candidate()
+    h1 = synthesize.compute_signals_hash(c)
+    monkeypatch.setattr(synthesize, "PROMPT_VERSION", "changed-rubric")
+    assert synthesize.compute_signals_hash(c) != h1
 
 
 def test_cost_cap_blocks_synthesis(s, monkeypatch):
