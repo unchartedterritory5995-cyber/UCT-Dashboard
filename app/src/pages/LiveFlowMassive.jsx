@@ -1957,7 +1957,7 @@ function qualifiesCurated(alert, thresholds) {
 // Renders all Curated-mode threshold controls + live-preview math against
 // the current alert window. Hidden from non-admin users; gated by URL param
 // rather than auth because this is internal-only.
-function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
+function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, autoPushCfg, onAutoPush }) {
   // Collapse toggle — the panel is tall; let admins fold it to just the header
   // bar (Save/Reset stay accessible) so it doesn't eat the whole page. Persisted.
   const [collapsed, setCollapsed] = useState(() => {
@@ -2064,6 +2064,45 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts }) {
       </div>
 
       {!collapsed && (<>
+      {/* ── Auto-push to Discord ── master switch + algo, saved to the backend. */}
+      {autoPushCfg && (
+        <div style={{
+          padding: "8px 10px", background: P.bg, borderRadius: 3, marginBottom: 12,
+          border: `1px solid ${autoPushCfg.enabled ? DIR_BULL : P.dm}`,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: P.mt, letterSpacing: 0.5 }}>
+              ⚡ AUTO-PUSH TO DISCORD
+            </span>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11,
+              fontWeight: 700, color: autoPushCfg.enabled ? DIR_BULL : P.dm }}>
+              <input type="checkbox" checked={!!autoPushCfg.enabled}
+                onChange={e => onAutoPush && onAutoPush({ enabled: e.target.checked })} />
+              {autoPushCfg.enabled ? "ON" : "OFF"}
+            </label>
+          </div>
+          <div style={{ fontSize: 10, color: P.dm, marginBottom: 6 }}>
+            {autoPushCfg.enabled
+              ? "Qualifying alerts auto-post to Discord as they appear."
+              : "Off — nothing auto-posts; use the → push buttons."}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 10, color: P.dm }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+              <input type="checkbox" checked={!!autoPushCfg.alpha_gold}
+                onChange={e => onAutoPush && onAutoPush({ alpha_gold: e.target.checked })} /> Alpha Gold
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+              <input type="checkbox" checked={!!autoPushCfg.grade_a}
+                onChange={e => onAutoPush && onAutoPush({ grade_a: e.target.checked })} /> Grade A / A+
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+              <input type="checkbox" checked={!!autoPushCfg.size_sweep_enabled}
+                onChange={e => onAutoPush && onAutoPush({ size_sweep_enabled: e.target.checked })} /> Size B sweeps &ge; $3M
+            </label>
+          </div>
+        </div>
+      )}
+
       {/* Preview ribbon */}
       <div style={{
         padding: "6px 10px", background: P.bg, borderRadius: 3,
@@ -2856,6 +2895,29 @@ export default function LiveFlowMassive() {
   // tuning panel mutate this state for preview; "Save" POSTs back to backend.
   const [thresholds, setThresholds] = useState(null);
   const [thresholdsDirty, setThresholdsDirty] = useState(false);
+  // ── Auto-push config (master switch + algo flags) ── loaded from the backend
+  // so the admin flips auto-push on/off (and tunes the algo) from the panel
+  // instead of curl. Admin-only; non-admin never fetches it.
+  const [autoPushCfg, setAutoPushCfg] = useState(null);
+  useEffect(() => {
+    if (!isTuneMode) return;
+    fetch("/api/live/massive/auto-push-config")
+      .then(r => r.json())
+      .then(d => { if (d && d.ok) setAutoPushCfg(d.config); })
+      .catch(() => {});
+  }, [isTuneMode]);
+  const saveAutoPushCfg = async (patch) => {
+    setAutoPushCfg(prev => ({ ...(prev || {}), ...patch }));  // optimistic
+    try {
+      const r = await fetch("/api/live/massive/auto-push-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const d = await r.json();
+      if (d && d.config) setAutoPushCfg(d.config);
+    } catch (e) { console.error("[auto-push cfg]", e); }
+  };
   const [tickerFilter, setTickerFilter] = useState(new Set());
   const [contractFilter, setContractFilter] = useState(new Set());
   // OI fetch state: { loading: bool, result: "filled X of Y" | error }
@@ -3696,6 +3758,8 @@ export default function LiveFlowMassive() {
           onReset={handleThresholdsReset}
           dirty={thresholdsDirty}
           alerts={visibleAlerts}
+          autoPushCfg={autoPushCfg}
+          onAutoPush={saveAutoPushCfg}
         />
       )}
 
