@@ -2674,18 +2674,21 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
     elif m_lbl in ("ITM", "OTM") and m_pct is not None:
         title += f" ({abs(m_pct):.0f}% {m_lbl})"
 
-    dir_label = "Bullish" if direction == "Bull" else ("Bearish" if direction == "Bear" else None)
+    # Direction isn't repeated as a line — the title (CALL/PUT), the color bar,
+    # and the alert name already convey it.
 
-    # All metrics go in the DESCRIPTION as compact text lines rather than inline
-    # fields. Inline fields pack 3-per-row on desktop but stack ONE-per-row on
-    # narrow mobile screens (the whole point of this rewrite) — description text
-    # wraps identically on both, so the layout is consistent everywhere.
+    # All metrics go in the DESCRIPTION as compact text lines (not inline fields):
+    # inline fields stack one-per-row on narrow mobile, whereas description text
+    # renders identically on desktop and mobile. Groups are separated by a BLANK
+    # line for readable row spacing.
     def _row(*parts):
         """Join the present parts of a line with a middot; None if all empty."""
         parts = [p for p in parts if p]
         return "  ·  ".join(parts) if parts else None
 
     badges, lines = [], []
+    spot = alert.get("spot")
+    spot_line = f"🧭 Spot ${float(spot):,.2f}" if spot else None
 
     if mode == "accumulation":
         hits = alert.get("qualifying_hits") or alert.get("hit_count") or 0
@@ -2709,18 +2712,22 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
             badges.append(f"🔁 **{hits} HITS — ACCUMULATION**")
         if voi and voi > 1.0:
             badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
-        # Daily build ramp (7/9:37 → 7/10:45 → 7/11:108) when multi-day.
+        # Daily build ramp (37 → 45 → 108) when multi-day.
         ramp = " → ".join(str(h.get("hits", 0)) for h in day_hits) if len(day_hits) > 1 else None
         lines.append(_row(
             f"💰 **{_fmt_money_m(total_prem)}**",
-            (dte_str if dte is not None else None),
+            (f"{dte} DTE" if dte is not None else None),
             (f"{int(round(sided_pct * 100))}% sided" if sided_pct is not None else None),
         ))
-        # Swift + OI-break already sit in the badge line; show remaining activity.
-        lines.append(_row(
-            (f"📊 Vol {int(total_vol):,}" if total_vol else None),
-            (f"Vol/OI {voi:.2f}x" if voi is not None else None),
-        ))
+        if spot_line:
+            lines.append(spot_line)
+        # 📊 volume group — Vol/OI drops to its own line under Volume.
+        vol_group = [x for x in (
+            (f"Volume: {int(total_vol):,}" if total_vol else None),
+            (f"Vol/OI: {voi:.2f}x" if voi is not None else None),
+        ) if x]
+        if vol_group:
+            lines.append("📊 " + "\n".join(vol_group))
         if ramp:
             lines.append(f"📈 Daily build:  {ramp}")
         default_name = "UCT Accumulation"
@@ -2735,39 +2742,36 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         lines.append(_row(
             f"💰 **{_fmt_money_m(prem)}**",
             (f"Fill ${fill:.2f}" if fill else None),
-            (dte_str if dte is not None else None),
+            (f"{dte} DTE" if dte is not None else None),
         ))
-        lines.append(_row(
-            (f"📊 Vol {int(size):,}" if size else None),
-            (f"OI {int(oi):,}" if oi is not None else None),
-            (f"Vol/OI {voi:.2f}x" if voi is not None else None),
-        ))
+        if spot_line:
+            lines.append(spot_line)
+        # 📊 volume group — Volume + OI on line 1, Vol/OI on its own line.
+        vol_l1 = _row(
+            (f"Volume: {int(size):,}" if size else None),
+            (f"OI: {int(oi):,}" if oi is not None else None),
+        )
+        vol_group = [x for x in (vol_l1, (f"Vol/OI: {voi:.2f}x" if voi is not None else None)) if x]
+        if vol_group:
+            lines.append("📊 " + "\n".join(vol_group))
         default_name = alert.get("alertName") or "UCT Massive"
 
-    # Context line: spot + direction (direction is also carried by the bar color).
-    spot = alert.get("spot")
-    ctx = _row(
-        (f"🧭 Spot ${float(spot):,.2f}" if spot else None),
-        dir_label,
-    )
-    if ctx:
-        lines.append(ctx)
     # Conviction grades the PATTERN for accumulation (accumulation_grade), the
     # single print otherwise — a sliced institutional build has moderate
     # per-print grades but strong aggregate conviction.
     grade = alert.get("accumulation_grade") if mode == "accumulation" else alert.get("grade")
     if grade and grade != "D":
         rocket = " 🚀" if grade in ("A+", "A") else ""
-        lines.append(f"🏆 Conv **{grade}**{rocket}")
+        lines.append(f"🏆 Conviction **{grade}**{rocket}")
 
-    # Compose: badge line(s), a blank line, then the metric lines — all in the
-    # description so it renders identically on desktop and mobile.
+    # Compose: badge line(s), then metric groups separated by a BLANK line for
+    # readable spacing. All in the description → identical on desktop and mobile.
     lines = [ln for ln in lines if ln]
     desc_parts = []
     if badges:
         desc_parts.append("  ·  ".join(badges))
     if lines:
-        desc_parts.append("\n".join(lines))
+        desc_parts.append("\n\n".join(lines))
 
     embed = {"title": title, "color": color}
     if desc_parts:
