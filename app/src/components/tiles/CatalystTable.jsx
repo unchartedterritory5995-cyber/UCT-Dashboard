@@ -399,8 +399,10 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
   const tickerSymbols = useMemo(() => isLive ? allRows.map(r => r.ticker) : [], [allRows, isLive])
   const { prices: livePrices } = useLivePrices(tickerSymbols)
 
-  // Sort state: null = engine-ranked order (default), or {col, dir} for column sort
-  const [sortBy, setSortBy] = useState(null)
+  // Sort state: null = engine-ranked order, or {col, dir} for column sort.
+  // The compact rail (Pre Market Movers) defaults to biggest gainer → biggest
+  // loser; the full Dashboard table keeps the engine-ranked default.
+  const [sortBy, setSortBy] = useState(compact ? { col: 'change', dir: 'desc' } : null)
 
   function toggleSort(col) {
     setSortBy(prev => {
@@ -556,7 +558,7 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
         </div>
       )}
 
-      {allRows.length > 0 && (
+      {allRows.length > 0 && !compact && (
         <div className={styles.summaryLine}>
           {summary.total} catalyst{summary.total === 1 ? '' : 's'} today
           {summary.aCount > 0 ? ` · ${summary.aCount} A-grade` : ''}
@@ -602,11 +604,11 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
           {compact && (
             <button
               type="button"
-              className={`${styles.chipBtn} ${styles.sortPctBtn} ${sortBy?.col === 'change' ? styles.sortPctActive : ''}`}
-              onClick={() => toggleSort('change')}
-              title="Sort by % change (high→low, then low→high)"
+              className={`${styles.chipBtn} ${styles.sortPctBtn} ${styles.sortPctActive}`}
+              onClick={() => setSortBy(prev => ({ col: 'change', dir: prev?.dir === 'asc' ? 'desc' : 'asc' }))}
+              title="Sort by % change — biggest gainer first / biggest loser first"
             >
-              % {sortBy?.col === 'change' ? (sortBy.dir === 'desc' ? '▼' : '▲') : '↕'}
+              {sortBy?.dir === 'asc' ? 'Losers ▲' : 'Gainers ▼'}
             </button>
           )}
           {!showingAll && (
