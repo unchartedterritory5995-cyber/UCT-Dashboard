@@ -2511,14 +2511,14 @@ function ContractColumnHeaders({ isAdmin }) {
                 "V/OI", "PREMIUM", "SIDES", "GRADE", "TYPE", "SIGNAL"];
   return (
     <div style={{
-      display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : ""), gap: 8, padding: "6px 12px",
+      display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : " 70px"), gap: 8, padding: "6px 12px",
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
     }}>
       {cols.map((c, i) => (
         <span key={c} style={{ textAlign: i === cols.length - 1 ? "left" : "center", paddingLeft: i === cols.length - 1 ? 4 : 0 }}>{c}</span>
       ))}
-      {isAdmin && <span style={{ textAlign: "center" }}>PUSH</span>}
+      {isAdmin ? <span style={{ textAlign: "center" }}>PUSH</span> : <span style={{ textAlign: "center" }}>POSTED</span>}
     </div>
   );
 }
@@ -2583,7 +2583,7 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
         onClick={() => setOpen(o => !o)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(o => !o); } }}
         style={{
-          display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : ""), gap: 8,
+          display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : " 70px"), gap: 8,
           padding: "9px 12px", alignItems: "center", fontSize: 13, cursor: "pointer",
           background: c.dormant ? `${P.bl}10` : dirTint,
           borderLeft: `4px solid ${c.dormant ? P.bl : dirColor}`,
@@ -2677,10 +2677,15 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
           })()}
         </span>
 
-        {isAdmin && (
-          <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {pushState === "done" ? (
-              <span style={{ color: P.dm, fontSize: 10 }}>✓ posted</span>
+        {/* POSTED/PUSH — admin gets the push button (and AUTO/✓ posted once sent);
+            non-admin sees a read-only ✓ posted, so the public By-Contract view shows
+            what's been pushed. */}
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {isAdmin ? (
+            (c.forwardedToDiscord || pushState === "done") ? (
+              <span style={{ color: c.forwardedToDiscord && pushState !== "done" ? DIR_BULL : P.dm, fontSize: 10, fontWeight: 700 }}>
+                {c.forwardedToDiscord && pushState !== "done" ? "AUTO" : "✓ posted"}
+              </span>
             ) : (
               <button
                 onClick={(e) => { e.stopPropagation(); onPush && onPush(c); }}
@@ -2696,9 +2701,13 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
                 }}>
                 {pushState === "pushing" ? "…" : pushState === "error" ? "✗ retry" : "→ push"}
               </button>
-            )}
-          </span>
-        )}
+            )
+          ) : (
+            c.forwardedToDiscord
+              ? <span style={{ color: P.dm, fontSize: 10 }}>✓ posted</span>
+              : <span style={{ color: P.dm, fontSize: 10 }}>—</span>
+          )}
+        </span>
       </div>
 
       {open && (c.prints || []).map((p, i) => {
