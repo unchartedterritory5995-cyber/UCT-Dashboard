@@ -2676,17 +2676,16 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
 
     dir_label = "Bullish" if direction == "Bull" else ("Bearish" if direction == "Bear" else None)
 
-    # Group metrics into THREE inline fields — Size / Flow / Signal — so the embed
-    # renders a compact 3-column grid on desktop and collapses to just three
-    # stacked blocks on mobile (instead of one stacked row per metric). Each
-    # field value stacks its rows with a blank line between for readable spacing;
-    # values are labeled (Vol: 120, OI: 9) so each line reads on its own.
-    def _block(*rows):
-        rows = [r for r in rows if r]
-        return "\n\n".join(rows) if rows else None
+    # All metrics go in the DESCRIPTION as compact text lines rather than inline
+    # fields. Inline fields pack 3-per-row on desktop but stack ONE-per-row on
+    # narrow mobile screens (the whole point of this rewrite) — description text
+    # wraps identically on both, so the layout is consistent everywhere.
+    def _row(*parts):
+        """Join the present parts of a line with a middot; None if all empty."""
+        parts = [p for p in parts if p]
+        return "  ·  ".join(parts) if parts else None
 
-    badges = []
-    size_rows, flow_rows = [], []
+    badges, lines = [], []
 
     if mode == "accumulation":
         hits = alert.get("qualifying_hits") or alert.get("hit_count") or 0
@@ -2710,18 +2709,20 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
             badges.append(f"🔁 **{hits} HITS — ACCUMULATION**")
         if voi and voi > 1.0:
             badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
-        # Daily build ramp (37 → 45 → 108) when multi-day.
+        # Daily build ramp (7/9:37 → 7/10:45 → 7/11:108) when multi-day.
         ramp = " → ".join(str(h.get("hits", 0)) for h in day_hits) if len(day_hits) > 1 else None
-        size_rows = [
-            f"**{_fmt_money_m(total_prem)}**",
-            (f"DTE: {dte}d" if dte is not None else None),
-            (f"Sided: {int(round(sided_pct * 100))}%" if sided_pct is not None else None),
-        ]
-        flow_rows = [
-            (f"Vol: {int(total_vol):,}" if total_vol else None),
-            (f"Vol/OI: {voi:.2f}x" if voi is not None else None),
-            (f"Build: {ramp}" if ramp else None),
-        ]
+        lines.append(_row(
+            f"💰 **{_fmt_money_m(total_prem)}**",
+            (dte_str if dte is not None else None),
+            (f"{int(round(sided_pct * 100))}% sided" if sided_pct is not None else None),
+        ))
+        # Swift + OI-break already sit in the badge line; show remaining activity.
+        lines.append(_row(
+            (f"📊 Vol {int(total_vol):,}" if total_vol else None),
+            (f"Vol/OI {voi:.2f}x" if voi is not None else None),
+        ))
+        if ramp:
+            lines.append(f"📈 Daily build:  {ramp}")
         default_name = "UCT Accumulation"
     else:
         prem = alert.get("alertPremium") or 0
@@ -2731,44 +2732,46 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         voi = round(size / oi, 2) if (oi and oi > 0 and size) else None
         if voi and voi > 1.0:
             badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
-        size_rows = [
-            f"**{_fmt_money_m(prem)}**",
-            (f"Fill: ${fill:.2f}" if fill else None),
-            (f"DTE: {dte}d" if dte is not None else None),
-        ]
-        flow_rows = [
-            (f"Vol: {int(size):,}" if size else None),
-            (f"OI: {int(oi):,}" if oi is not None else None),
-            (f"Vol/OI: {voi:.2f}x" if voi is not None else None),
-        ]
+        lines.append(_row(
+            f"💰 **{_fmt_money_m(prem)}**",
+            (f"Fill ${fill:.2f}" if fill else None),
+            (dte_str if dte is not None else None),
+        ))
+        lines.append(_row(
+            (f"📊 Vol {int(size):,}" if size else None),
+            (f"OI {int(oi):,}" if oi is not None else None),
+            (f"Vol/OI {voi:.2f}x" if voi is not None else None),
+        ))
         default_name = alert.get("alertName") or "UCT Massive"
 
-    # Signal group: spot, direction, conviction. Conviction grades the PATTERN
-    # for accumulation (accumulation_grade), the single print otherwise.
+    # Context line: spot + direction (direction is also carried by the bar color).
     spot = alert.get("spot")
+    ctx = _row(
+        (f"🧭 Spot ${float(spot):,.2f}" if spot else None),
+        dir_label,
+    )
+    if ctx:
+        lines.append(ctx)
+    # Conviction grades the PATTERN for accumulation (accumulation_grade), the
+    # single print otherwise — a sliced institutional build has moderate
+    # per-print grades but strong aggregate conviction.
     grade = alert.get("accumulation_grade") if mode == "accumulation" else alert.get("grade")
-    grade_row = None
     if grade and grade != "D":
         rocket = " 🚀" if grade in ("A+", "A") else ""
-        grade_row = f"Conv: **{grade}**{rocket}"
-    signal_rows = [
-        (f"Spot: ${float(spot):,.2f}" if spot else None),
-        dir_label,
-        grade_row,
-    ]
+        lines.append(f"🏆 Conv **{grade}**{rocket}")
 
-    fields = []
-    for name, block in (("Size", _block(*size_rows)),
-                        ("Flow", _block(*flow_rows)),
-                        ("Signal", _block(*signal_rows))):
-        if block:
-            fields.append({"name": name, "value": block, "inline": True})
+    # Compose: badge line(s), a blank line, then the metric lines — all in the
+    # description so it renders identically on desktop and mobile.
+    lines = [ln for ln in lines if ln]
+    desc_parts = []
+    if badges:
+        desc_parts.append("  ·  ".join(badges))
+    if lines:
+        desc_parts.append("\n".join(lines))
 
     embed = {"title": title, "color": color}
-    if fields:
-        embed["fields"] = fields
-    if badges:
-        embed["description"] = "  ·  ".join(badges)
+    if desc_parts:
+        embed["description"] = "\n\n".join(desc_parts)
     if _UCT_LOGO_URL:
         embed["author"] = {"name": alert.get("alertName") or default_name, "icon_url": _UCT_LOGO_URL}
     else:
