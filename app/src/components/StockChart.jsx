@@ -615,6 +615,7 @@ export default function StockChart({
   watermarkY = null,         // override watermark Y (0..1 pane fraction)
   watermarkPad = null,       // px inset used for BOTH the left/right gutter and the top when corner-pinned (Setup Library — even top-left gap). null = default (14px sides, flush top).
   watermarkCenterX = null,   // px from the pane's left edge — when set, pins the watermark's horizontal CENTER here on every chart (no edge clamp) so it stays tucked in the top-left corner and never drifts by name width or pane width (Setup Library)
+  watermarkPadTop = null,    // px top inset, independent of the side gutter (watermarkPad). Charts workspace uses this to drop the mark below the floating drawing toolbar. Falls back to watermarkPad when null.
   onWatermarkCommit = null,  // (pos:{x,y}) => void — when set, a watermark drag persists HERE (per-example) instead of writing the global chart_settings (Setup Library)
   watermarkName = null,      // Model Book: curated company name for the watermark. For a REUSED ticker (e.g. WTW = Weight Watchers in 2017, now Willis Towers Watson) the live ticker meta is the wrong company — this overrides the name (and drops the then-wrong sector/industry).
   watermarkSector = null,    // Model Book: curated historical sector — used when the live ticker meta is the wrong/absent company (renamed/delisted), so the watermark still shows sector below the name like every other stock.
@@ -3222,7 +3223,7 @@ export default function StockChart({
         sizeScale: cs.watermark.sizeScale,
         x: watermarkX ?? cs.watermark.x,
         y: watermarkY ?? cs.watermark.y,
-        ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPad } : {}),
+        ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
         hardCenterXPx: watermarkCenterX,
       })
     }

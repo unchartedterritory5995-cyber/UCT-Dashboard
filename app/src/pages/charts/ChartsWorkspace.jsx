@@ -308,6 +308,13 @@ export default function ChartsWorkspace() {
             compactType="vertical"
             margin={[6, MARGIN_Y]}
             resizeHandles={['nw', 'ne', 'sw', 'se']}
+            /* Position grid items with top/left, NOT transform: translate().
+               RGL's default CSS-transform positioning composites each widget's
+               chart <canvas> onto a GPU layer that, under fractional Windows
+               display scaling, gets resampled at a non-integer device-pixel
+               offset — blurring + desaturating the candles. top/left keeps the
+               canvas on the root layer so it paints crisp (matches Setup Library). */
+            useCSSTransforms={false}
           >
             {layout.widgets.map(w => (
               <div key={w.id}>
