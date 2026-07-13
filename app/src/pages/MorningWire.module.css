@@ -18,6 +18,7 @@
   grid-template-columns: 1fr;
   grid-template-areas:
     "top"
+    "tlcorn"
     "main"
     "lrail"
     "rrail";
@@ -52,6 +53,9 @@
 .lrail { grid-area: lrail; min-width: 0; }
 .rail  { grid-area: rrail; min-width: 0; }
 
+/* Top-left corner (ambient market clock) — above the left rail on desktop. */
+.tlCorner { grid-area: tlcorn; min-width: 0; }
+
 /* ── Wide content area (≥1280px): true 3-pane — catalysts · brief · tape ──
    The center brief is capped at a comfortable reading width; the two side
    rails flex (1fr) so they split all the leftover width equally and fill the
@@ -62,8 +66,8 @@
   .page {
     grid-template-columns: minmax(320px, 1fr) minmax(0, 900px) minmax(320px, 1fr);
     grid-template-areas:
-      ".     top   ."
-      "lrail main  rrail";
+      "tlcorn top   ."
+      "lrail  main  rrail";
     column-gap: 28px;
     max-width: 2100px;
     align-items: start;
@@ -74,7 +78,8 @@
 .pageHeader {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
@@ -194,6 +199,26 @@
   background: transparent !important;
   background-color: transparent !important;
   box-shadow: none !important;
+}
+
+/* Read-aloud sits in the top-right of the brief card, on the same line as the
+   engine's "UPDATED …" timestamp (which is the first line of the rundown HTML). */
+.rundownArea { position: relative; }
+.rundownReadAloud {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+}
+@media (max-width: 640px) {
+  /* On a phone the timestamp + button can't share a line — drop the button
+     to its own right-aligned row above the brief instead of overlapping. */
+  .rundownReadAloud {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
 }
 
 /* Base reading column — fills the width of the brief card (no narrow measure

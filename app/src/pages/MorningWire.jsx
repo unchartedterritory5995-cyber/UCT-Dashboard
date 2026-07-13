@@ -6,6 +6,7 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent } from '../components/Skeleton'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import MorningWireIndexes from '../components/tiles/MorningWireIndexes'
+import MarketClock from '../components/tiles/MarketClock'
 import CatalystTable from '../components/tiles/CatalystTable'
 import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useTweetFeed from '../hooks/useTweetFeed'
@@ -269,32 +270,12 @@ export default function MorningWire() {
       {/* ── Intro stack: header · index strip · quote ────────────── */}
       <div className={styles.topStack}>
 
-      {/* ── Page header ─────────────────────────────────────────── */}
+      {/* ── Page header — centered title, date beneath ───────────── */}
       <div className={styles.pageHeader}>
         <div className={styles.titleRow}>
           <span className={styles.wireName}>The Morning Wire</span>
-          {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
-          <ReadAloudButton
-            trackId={`morning-wire-${rundown?.date || 'today'}`}
-            label="Morning Wire"
-            textProvider={async () => {
-              // Prefer the server's canonical briefing text so it matches the
-              // pre-warmed audio exactly (instant cache hit). Fall back to
-              // client-side extraction if the endpoint is unavailable.
-              try {
-                const r = await fetch('/api/rundown/speech-text', { credentials: 'include' })
-                if (r.ok) {
-                  const d = await r.json()
-                  if (d && d.text) return d.text
-                }
-              } catch { /* fall through */ }
-              return rundownToSpeechText(rundown?.html)
-            }}
-            size="md"
-          >
-            Read aloud
-          </ReadAloudButton>
         </div>
+        {rundown?.date && <span className={styles.wireDate}>{rundown.date}</span>}
       </div>
 
       {/* ── Index strip (SPY QQQ DIA · IWM BTC VIX) ──────────────── */}
@@ -305,21 +286,50 @@ export default function MorningWire() {
 
       </div>{/* /topStack */}
 
+      {/* ── Top-left corner: ambient market clock ────────────────── */}
+      <div className={styles.tlCorner}>
+        <MarketClock />
+      </div>
+
       {/* ── Main reading column: the rundown + disclaimer ────────── */}
       <div className={styles.mainStack}>
 
-      {/* ── The Rundown ──────────────────────────────────────────── */}
+      {/* ── The Rundown (Read aloud sits by the "UPDATED …" line) ── */}
       <TileCard>
-        {rundown?.html
-          ? (
-            <div
-              ref={rundownRef}
-              className={styles.rundownWrap}
-              dangerouslySetInnerHTML={{ __html: rundown.html }}
-            />
-          )
-          : <SkeletonTileContent lines={12} />
-        }
+        <div className={styles.rundownArea}>
+          <div className={styles.rundownReadAloud}>
+            <ReadAloudButton
+              trackId={`morning-wire-${rundown?.date || 'today'}`}
+              label="Morning Wire"
+              textProvider={async () => {
+                // Prefer the server's canonical briefing text so it matches the
+                // pre-warmed audio exactly (instant cache hit). Fall back to
+                // client-side extraction if the endpoint is unavailable.
+                try {
+                  const r = await fetch('/api/rundown/speech-text', { credentials: 'include' })
+                  if (r.ok) {
+                    const d = await r.json()
+                    if (d && d.text) return d.text
+                  }
+                } catch { /* fall through */ }
+                return rundownToSpeechText(rundown?.html)
+              }}
+              size="sm"
+            >
+              Read aloud
+            </ReadAloudButton>
+          </div>
+          {rundown?.html
+            ? (
+              <div
+                ref={rundownRef}
+                className={styles.rundownWrap}
+                dangerouslySetInnerHTML={{ __html: rundown.html }}
+              />
+            )
+            : <SkeletonTileContent lines={12} />
+          }
+        </div>
       </TileCard>
 
       {/* ── Legal disclaimer ─────────────────────────────────────── */}
