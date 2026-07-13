@@ -645,6 +645,15 @@
    narrow (~320px) side rail on a wide desktop — e.g. the Morning Wire
    left rail. Does NOT affect the Dashboard's full-width instance. */
 .compact { padding: 14px 14px; }
+/* Morning Wire rail: lift the header + framing to the bright/bold look of the
+   page's top row so it matches ON THE TAPE and the rundown — scoped to the
+   compact rail, so the Dashboard's full-width instance keeps the quieter look. */
+.tile.compact::before { opacity: 0.6; }
+.compact .title {
+  color: #d4b45c;
+  text-shadow: 0 0 14px rgba(201, 168, 76, 0.32);
+}
+.compact .table tr { border-color: rgba(201, 168, 76, 0.18); }
 .compact .header { flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .compact .meta { gap: 8px; flex-wrap: wrap; }
 .compact .summaryLine { font-size: 11px; }
