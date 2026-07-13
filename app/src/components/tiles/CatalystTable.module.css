@@ -638,6 +638,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
+  justify-content: space-between;
   column-gap: 10px;
   row-gap: 2px;
   border: 1px solid var(--border);
@@ -649,10 +650,10 @@
 .compact .table tr:hover { background: var(--bg-surface); }
 .compact .table td { border: none; padding: 0; white-space: normal; }
 
-/* Headline: ticker on the left, price · %change · vol pushed to the right so
-   the row reads on ONE line and frees up the vertical space below. */
+/* Headline reads as one evenly-spaced line across the full card width:
+   ticker (flush left) · price · %change · vol (flush right). */
 .compact .colSym  { font-size: 14px; font-weight: 700; }
-.compact .colPrice { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+.compact .colPrice { font-size: 12px; color: var(--text-muted); }
 .compact .colGap  { font-size: 13px; font-weight: 600; }
 .compact .colVol  { font-size: 11px; color: var(--text-muted); }
 .compact .colVol::before { content: 'Vol '; opacity: 0.6; }
