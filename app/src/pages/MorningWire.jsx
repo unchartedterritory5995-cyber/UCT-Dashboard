@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent } from '../components/Skeleton'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
+import MorningWireIndexes from '../components/tiles/MorningWireIndexes'
 import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useTweetFeed from '../hooks/useTweetFeed'
 import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
+import { quoteOfTheDay } from '../constants/quotes'
 import UIcon from '../components/ui/UIcon'
 import styles from './MorningWire.module.css'
 
@@ -56,6 +58,24 @@ function EarningsRow({ row }) {
               : surprise)
           : '—'}
       </span>
+    </div>
+  )
+}
+
+// ── Quote of the Day ──────────────────────────────────────────────────────────
+// Reuses the Dashboard's shared, date-seeded quote library so both surfaces show
+// the same quote on a given day.
+
+function QuoteOfTheDay() {
+  const quote = useMemo(() => quoteOfTheDay(), [])
+
+  return (
+    <div className={styles.quoteBanner}>
+      <div className={styles.quoteLabel}>
+        <UIcon name="sparkle" size={11} style={{ verticalAlign: '-1px', marginRight: 5 }} />Quote of the Day
+      </div>
+      <div className={styles.quoteText}>&#8220;{quote.t}&#8221;</div>
+      <div className={styles.quoteAuthor}>— {quote.a}</div>
     </div>
   )
 }
@@ -271,6 +291,12 @@ export default function MorningWire() {
           </ReadAloudButton>
         </div>
       </div>
+
+      {/* ── Index strip (SPY QQQ DIA · IWM BTC VIX) ──────────────── */}
+      <MorningWireIndexes />
+
+      {/* ── Quote of the Day ─────────────────────────────────────── */}
+      <QuoteOfTheDay />
 
       {/* ── The Rundown ──────────────────────────────────────────── */}
       <TileCard>

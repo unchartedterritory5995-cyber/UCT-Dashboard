@@ -1,0 +1,26 @@
+/* Two groups of three index cards, split left / right across the page top. */
+.strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  flex: 1 1 300px;
+  min-width: 0;
+}
+
+/* ── Phone: collapse the two groups into one 3-col × 2-row grid ─────────────── */
+@media (max-width: 640px) {
+  .strip {
+    gap: 5px;
+  }
+  .group {
+    flex-basis: 100%;
+    gap: 5px;
+  }
+}

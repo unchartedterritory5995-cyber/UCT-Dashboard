@@ -41,6 +41,45 @@
   letter-spacing: 0.5px;
 }
 
+/* ── Quote of the Day banner (between title and rundown) ─────── */
+.quoteBanner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 2px 24px 4px;
+}
+.quoteLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--ut-gold, #c9a84c);
+  opacity: 0.7;
+}
+.quoteText {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-style: italic;
+  color: var(--text-bright);
+  line-height: 1.6;
+  opacity: 0.92;
+  max-width: 70ch;
+}
+.quoteAuthor {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ut-gold, #c9a84c);
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+@media (max-width: 640px) {
+  .quoteBanner { padding: 2px 8px 4px; }
+  .quoteText { font-size: 14px; }
+}
+
 /* ── Stats strip ─────────────────────────────────────────────── */
 .statsStrip {
   display: flex;

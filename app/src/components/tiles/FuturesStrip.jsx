@@ -128,7 +128,7 @@ const TV_ONLY = new Set(['BTC', 'VIX'])
 const CUSTOM_CHART = new Set(['VIX'])
 const TAB_TO_TF = { '5min': '5', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W' }
 
-function Cell({ sym, price, chg, css }) {
+export function Cell({ sym, price, chg, css }) {
   const tintClass = css === 'pos' ? styles.cellPos : css === 'neg' ? styles.cellNeg : ''
   const customChartFn = CUSTOM_CHART.has(sym)
     ? (tab) => `/api/chart/${sym}?tf=${TAB_TO_TF[tab]}`
