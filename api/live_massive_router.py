@@ -2579,10 +2579,20 @@ def by_contract(
             if c2 and (time.time() - c2[0]) < _BY_CONTRACT_TTL:
                 return c2[1]
             payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
+            # Accumulation auto-push: mark already-pushed contracts (POSTED persists in
+            # the non-admin view) and fire newly-qualifying ones. Hooked in the ROUTE
+            # on fresh builds only — NOT in _build_by_contract, which the manual
+            # force-push path also calls.
+            _apply_auto_push(payload.get("contracts", []), mode="accumulation")
             _by_contract_cache[key] = (time.time(), payload)
             return payload
     try:
         payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
+        # Accumulation auto-push: mark already-pushed contracts (POSTED persists in
+        # the non-admin view) and fire newly-qualifying ones. Hooked in the ROUTE
+        # on fresh builds only — NOT in _build_by_contract, which the manual
+        # force-push path also calls.
+        _apply_auto_push(payload.get("contracts", []), mode="accumulation")
         _by_contract_cache[key] = (time.time(), payload)
         return payload
     finally:
@@ -2936,10 +2946,11 @@ def should_auto_push(alert: dict, cfg: dict = None) -> bool:
         cfg = _AUTO_PUSH_CFG
     tier = (alert.get("_tierKey") or "").lower()
     grade = (alert.get("grade") or "").upper()
+    acc_grade = (alert.get("accumulation_grade") or "").upper()   # contracts grade the PATTERN
     name = (alert.get("alertName") or "").lower()
     if cfg.get("alpha_gold") and (tier == "alpha" or "alpha gold" in name):
         return True
-    if cfg.get("grade_a") and grade in ("A+", "A"):
+    if cfg.get("grade_a") and (grade in ("A+", "A") or acc_grade in ("A+", "A")):
         return True
     if cfg.get("size_sweep_enabled"):
         prem = alert.get("alertPremium") or alert.get("total_premium") or 0
@@ -2961,7 +2972,7 @@ def _unclaim_push(alert: dict):
         pass
 
 
-def _apply_auto_push(alerts: list):
+def _apply_auto_push(alerts: list, mode: str = "single"):
     """Per-scan auto-push pass, run on the FULL alert set in /recent:
       1) mark forwardedToDiscord on every alert already in the push log — so
          POSTED survives a refresh and shows in the non-admin view;
@@ -2984,14 +2995,14 @@ def _apply_auto_push(alerts: list):
             a["forwardedToDiscord"] = True
             continue
         if enabled and should_auto_push(a):
-            if _record_push(a, "single", "auto"):      # atomic claim
+            if _record_push(a, mode, "auto"):           # atomic claim
                 a["forwardedToDiscord"] = True
                 to_push.append(a)
     if to_push:
         def _fire(batch):
             for a in batch:
                 try:
-                    ok, _ = _post_massive_discord(_build_massive_embed(a, mode="single"))
+                    ok, _ = _post_massive_discord(_build_massive_embed(a, mode=mode))
                     if not ok:
                         _unclaim_push(a)
                 except Exception:
