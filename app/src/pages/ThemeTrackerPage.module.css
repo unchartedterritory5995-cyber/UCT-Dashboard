@@ -280,8 +280,10 @@
   white-space: nowrap;
 }
 
-.retPos   { color: var(--gain, #4ade80); }
-.retNeg   { color: var(--loss, #f87171); }
+/* Match the chart candle palette exactly (StockChart MB_UP / MB_DOWN) so the
+   theme %s read as the same green/red as the candles in the Charts workspace. */
+.retPos   { color: #1ae51a; }
+.retNeg   { color: #c41f2d; }
 .retFlat  { color: var(--text-muted); }
 
 /* ── Loading / empty states ─────────────────────────────────────────────── */
