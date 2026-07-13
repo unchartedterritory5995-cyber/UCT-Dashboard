@@ -672,14 +672,14 @@
 .compact .table tr:hover { background: var(--bg-surface); }
 .compact .table td { border: none; padding: 0; white-space: normal; }
 
-/* Headline, one aligned line: ticker · %change hug the left; price · vol are
-   pushed to the right (flex `order` reorders past the source td order, and
-   margin-left:auto on price opens the gap). */
+/* Headline, one aligned line: ticker · %change · (volume). Price is dropped in
+   the rail; volume rides in parentheses right after the %change. */
 .compact .colSym  { order: 0; font-size: 14px; font-weight: 700; }
 .compact .colGap  { order: 1; font-size: 13px; font-weight: 600; }
-.compact .colPrice { order: 2; margin-left: auto; font-size: 12px; color: var(--text-muted); }
-.compact .colVol  { order: 3; font-size: 11px; color: var(--text-muted); }
-.compact .colVol::before { content: 'Vol '; opacity: 0.6; }
+.compact .colPrice { display: none; }
+.compact .colVol  { order: 2; font-size: 11px; color: var(--text-muted); }
+.compact .colVol::before { content: '('; opacity: 0.6; }
+.compact .colVol::after  { content: ')'; opacity: 0.6; }
 
 .compact .sectorBanner { flex-direction: column; gap: 6px; }
 /* Thesis + timestamp each take a full-width line of their own, after the headline. */
