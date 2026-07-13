@@ -340,6 +340,41 @@ class FlowDB:
         finally:
             conn.close()
 
+    def stream_csv_symbol(self, symbol: str, source: str = "stocks"):
+        """Stream ALL flow rows for a single SYMBOL, uncapped, across every date.
+
+        The bulk stream_csv caps large ranges to the top-N rows by premium, which
+        silently drops most of a small-cap ticker\'s low-premium prints — so its
+        Search-tab totals can understate the real flow many-fold (ACI: 5 of 68
+        rows, $1.5M of $3.84M). The Search deep-dive uses THIS instead: one symbol
+        is a tiny, indexed result set (tens of rows via idx_flow_symbol), so it is
+        never capped and always reflects the ticker\'s complete flow.
+        """
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        try:
+            cursor = conn.execute(
+                f"SELECT {_SELECT_COLS} FROM flow WHERE source = ? AND Symbol = ?",
+                (source, symbol),
+            )
+            yield _HEADER_LINE
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            count = 0
+            for row in cursor:
+                writer.writerow(row)
+                count += 1
+                if count % _STREAM_BATCH == 0:
+                    yield buf.getvalue()
+                    buf.seek(0)
+                    buf.truncate(0)
+            remainder = buf.getvalue()
+            if remainder:
+                yield remainder
+        finally:
+            conn.close()
+
     # ── Legacy full-string methods (kept for backward compat / startup seed) ─
 
     def query_csv(self, source: str = "stocks", days: int = 20) -> str:
