@@ -5,6 +5,9 @@
   gap: 16px;
   padding: 20px 24px 40px;
   max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
 }
 
 /* ── Page header ─────────────────────────────────────────────── */
