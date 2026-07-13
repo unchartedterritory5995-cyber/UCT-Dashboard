@@ -17,6 +17,19 @@ const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
 const ALL_TAGS = ['Catalyst', 'Earnings', 'Gapper', 'News']
 
+// ET "today" as YYYY-MM-DD, and a UTC-safe day shifter for prev/next nav.
+function etTodayYmd() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+}
+function shiftYmd(ymd, delta) {
+  const [y, m, d] = ymd.split('-').map(Number)
+  const base = new Date(Date.UTC(y, m - 1, d))
+  base.setUTCDate(base.getUTCDate() + delta)
+  return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`
+}
+
 function TagChip({ tag, active, onClick, count }) {
   const cls = {
     Catalyst: styles.tagCatalyst,
@@ -303,8 +316,15 @@ function CitationsPopover({ sources }) {
   )
 }
 
-export default function CatalystTable({ compact = false }) {
-  const { data, mutate, isValidating } = useCatalysts()
+export default function CatalystTable({ compact = false, datePicker = false }) {
+  // null = live "today" feed; a YYYY-MM-DD string loads that past snapshot.
+  const [selectedDate, setSelectedDate] = useState(null)
+  const { data, mutate, isValidating } = useCatalysts({ date: selectedDate })
+  const isLive = !selectedDate
+  const todayYmd = etTodayYmd()
+  const viewYmd = selectedDate || todayYmd
+  // Selecting today (or a future date) snaps back to the live feed.
+  const goDate = (ymd) => setSelectedDate(ymd >= todayYmd ? null : ymd)
   const auth = useAuth() || {}
   const isAdmin = auth?.user?.role === 'admin'
   const { isOpen, isPremarket } = useMarketOpen()
@@ -352,7 +372,8 @@ export default function CatalystTable({ compact = false }) {
   // Stale warning: on a trading day a refresh older than ~2h means the
   // scheduled run likely isn't firing — pairs with the backend self-heal.
   const ageMin = refreshedAt ? (Date.now() / 1000 - refreshedAt) / 60 : null
-  const isStale = ageMin != null && ageMin > 120
+  // Only meaningful for the live feed — a historical snapshot is "old" by design.
+  const isStale = isLive && ageMin != null && ageMin > 120
 
   async function vote(ticker, md, verdict) {
     // Toggle off if clicking the same verdict again.
@@ -373,7 +394,9 @@ export default function CatalystTable({ compact = false }) {
   // Live prices for the displayed tickers — gives us tick-by-tick % change
   // (2s SWR poll). Backend stored gap_pct is the fallback while live data
   // is loading or for tickers not in the live-price endpoint's universe.
-  const tickerSymbols = useMemo(() => allRows.map(r => r.ticker), [allRows])
+  // Live prices only overlay the live "today" feed — a historical snapshot
+  // shows the stored price/gap from that day, not today's tick.
+  const tickerSymbols = useMemo(() => isLive ? allRows.map(r => r.ticker) : [], [allRows, isLive])
   const { prices: livePrices } = useLivePrices(tickerSymbols)
 
   // Sort state: null = engine-ranked order (default), or {col, dir} for column sort
@@ -451,7 +474,9 @@ export default function CatalystTable({ compact = false }) {
     }
   }
 
-  const updatedText = refreshedAt ? `updated ${timeAgo(refreshedAt)}` : 'no data yet'
+  const updatedText = !isLive
+    ? `showing ${viewYmd}`
+    : (refreshedAt ? `updated ${timeAgo(refreshedAt)}` : 'no data yet')
   const showingAll = activeTags.size === ALL_TAGS.length
 
   return (
@@ -482,10 +507,12 @@ export default function CatalystTable({ compact = false }) {
               <UIcon name="volume" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Listen
             </ReadAloudButton>
           )}
-          <a href="/catalysts/history" className={styles.historyLink} title="Browse past trading days">
-            history →
-          </a>
-          {isAdmin && (
+          {!datePicker && (
+            <a href="/catalysts/history" className={styles.historyLink} title="Browse past trading days">
+              history →
+            </a>
+          )}
+          {isAdmin && isLive && (
             <button
               type="button"
               className={styles.refreshBtn}
@@ -497,6 +524,37 @@ export default function CatalystTable({ compact = false }) {
           )}
         </span>
       </div>
+
+      {datePicker && (
+        <div className={styles.dateNav}>
+          <button
+            type="button"
+            className={styles.dateNavBtn}
+            onClick={() => goDate(shiftYmd(viewYmd, -1))}
+            title="Previous day"
+            aria-label="Previous day"
+          >‹</button>
+          <input
+            type="date"
+            className={styles.dateInput}
+            value={viewYmd}
+            max={todayYmd}
+            onChange={(e) => e.target.value && goDate(e.target.value)}
+            aria-label="Pick a catalyst date"
+          />
+          <button
+            type="button"
+            className={styles.dateNavBtn}
+            onClick={() => goDate(shiftYmd(viewYmd, 1))}
+            disabled={isLive}
+            title="Next day"
+            aria-label="Next day"
+          >›</button>
+          {isLive
+            ? <span className={styles.dateLiveTag} title="Showing today's live feed">● Live</span>
+            : <button type="button" className={styles.dateLiveBtn} onClick={() => setSelectedDate(null)} title="Back to today's live feed">Live</button>}
+        </div>
+      )}
 
       {allRows.length > 0 && (
         <div className={styles.summaryLine}>
@@ -556,13 +614,16 @@ export default function CatalystTable({ compact = false }) {
 
       {allRows.length === 0 ? (
         <div className={styles.empty}>
-          {isOpen
-            ? "Scanning today's tape — no catalysts have surfaced yet. They populate as the session develops."
-            : isPremarket
-              ? 'Pre-market scan in progress — catalysts fill in ahead of the 9:30 AM ET open.'
-              : 'Markets are closed. The next catalyst scan runs pre-market, before the open.'}
-          {' '}
-          <a href="/catalysts/history" className={styles.emptyLink}>Browse recent days →</a>
+          {!isLive
+            ? `No catalysts recorded for ${viewYmd}. Weekends, holidays, and dates before 2026-05-25 have no data.`
+            : isOpen
+              ? "Scanning today's tape — no catalysts have surfaced yet. They populate as the session develops."
+              : isPremarket
+                ? 'Pre-market scan in progress — catalysts fill in ahead of the 9:30 AM ET open.'
+                : 'Markets are closed. The next catalyst scan runs pre-market, before the open.'}
+          {isLive && !datePicker && (
+            <> <a href="/catalysts/history" className={styles.emptyLink}>Browse recent days →</a></>
+          )}
         </div>
       ) : filteredRows.length === 0 ? (
         <div className={styles.empty}>

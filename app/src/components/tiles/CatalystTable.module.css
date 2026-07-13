@@ -241,6 +241,58 @@
 .gain { color: var(--gain); }
 .loss { color: var(--loss); }
 
+/* Inline day picker (rail): browse past snapshots without leaving the page. */
+.dateNav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.dateNavBtn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 1px 9px 2px;
+  font-size: 15px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.dateNavBtn:hover:not(:disabled) { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+.dateNavBtn:disabled { opacity: 0.3; cursor: default; }
+.dateInput {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--ut-cream);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  color-scheme: dark;
+  cursor: pointer;
+}
+.dateInput:focus { outline: none; border-color: var(--ut-gold, #c9a84c); }
+.dateLiveTag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gain, #4ade80);
+  padding: 0 4px;
+}
+.dateLiveBtn {
+  background: rgba(201, 168, 76, 0.12);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  color: var(--ut-gold, #c9a84c);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dateLiveBtn:hover { background: rgba(201, 168, 76, 0.2); }
+
 .explainRow {
   margin-bottom: 12px;
 }

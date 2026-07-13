@@ -56,6 +56,15 @@
     max-width: 1440px;
     align-items: start;
   }
+  /* Rails stay put while the brief scrolls. Sticky is applied here (≥1025) so it
+     works in BOTH desktop tiers — the desktop sidebar eats ~220px, so a laptop
+     viewport often lands in this 2-col tier, not the 3-pane one below. */
+  .lrail,
+  .rail {
+    align-self: start;
+    position: sticky;
+    top: 16px;
+  }
   /* Let the feed use the available viewport height in the rail. */
   .rail .tapeBody {
     max-height: calc(100vh - 150px);
@@ -78,12 +87,7 @@
     /* Fill (almost) the whole viewport; cap only on ultra-wide monitors. */
     max-width: 2100px;
   }
-  .lrail,
-  .rail {
-    align-self: start;
-    position: sticky;
-    top: 16px;
-  }
+  /* (sticky rails inherited from the ≥1025 block) */
 }
 
 /* ── Page header ─────────────────────────────────────────────── */
