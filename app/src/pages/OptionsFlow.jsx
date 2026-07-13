@@ -2401,7 +2401,11 @@ export default function OptionsFlowDashboard() {
     }
   }, [availableDates]);
 
-  // Process data whenever parsedRows or dateFilter or date range changes
+  // Process data whenever parsedRows or dateFilter or date range changes.
+  // _lastMergedVer tracks the live delta-merge (see that effect, below);
+  // _processedOnce gates the one-time initial coalesce.
+  const _lastMergedVer = useRef(null);
+  const _processedOnce = useRef(false);
   useEffect(() => {
     if (!parsedRows || parsedRows.length === 0) return;
     // Skip processing if a fetch is in-flight that will replace parsedRows.
@@ -2410,37 +2414,60 @@ export default function OptionsFlowDashboard() {
     // When the fetch completes, loadedFetchDays catches up to fetchDays and
     // processing fires once with the fresh data.
     if (loadedFetchDays !== fetchDays) return;
-    const t2 = performance.now();
-    let filtered;
-    if (dateFrom && dateTo) {
-      // Date range mode
-      const from = isoToDate(dateFrom);
-      const to = isoToDate(dateTo);
-      to.setHours(23,59,59); // include end date fully
-      filtered = parsedRows.filter(r => {
-        if (!r.date) return false;
-        const d = mdyToDate(r.date.trim());
-        return d >= from && d <= to;
-      });
-    } else if (dateFilter === "All") {
-      filtered = parsedRows;
-    } else if (dateFilter.startsWith("Last")) {
-      const n = parseInt(dateFilter.replace("Last",""))||3;
-      const recentDates = new Set(availableDates.slice(-n));
-      filtered = parsedRows.filter(r => r.date && recentDates.has(r.date.trim()));
-    } else {
-      filtered = parsedRows.filter(r => r.date && r.date.trim() === dateFilter);
+
+    const run = () => {
+      const t2 = performance.now();
+      let filtered;
+      if (dateFrom && dateTo) {
+        // Date range mode
+        const from = isoToDate(dateFrom);
+        const to = isoToDate(dateTo);
+        to.setHours(23,59,59); // include end date fully
+        filtered = parsedRows.filter(r => {
+          if (!r.date) return false;
+          const d = mdyToDate(r.date.trim());
+          return d >= from && d <= to;
+        });
+      } else if (dateFilter === "All") {
+        filtered = parsedRows;
+      } else if (dateFilter.startsWith("Last")) {
+        const n = parseInt(dateFilter.replace("Last",""))||3;
+        const recentDates = new Set(availableDates.slice(-n));
+        filtered = parsedRows.filter(r => r.date && recentDates.has(r.date.trim()));
+      } else {
+        filtered = parsedRows.filter(r => r.date && r.date.trim() === dateFilter);
+      }
+      if (filtered.length === 0) { setD(null); return; }
+      try {
+        const data = processFlowData(filtered);
+        const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
+        console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${filtered.length} rows)`);
+        _processedOnce.current = true;
+        setD(data);
+      } catch(err) {
+        console.error("processFlowData error:", err);
+        setCsvError(err.message);
+      }
+    };
+
+    // Coalesce the INITIAL load into ONE pass. The live delta-merge splices
+    // today's rows into parsedRows just after the base range loads, which would
+    // otherwise re-trigger this effect and force a SECOND full processFlowData
+    // over all rows (base pass + delta pass — ~2× the work on 20d/All, i.e. the
+    // 837ms + 634ms we saw). On the very first process, if a delta for the
+    // current dataVersion hasn't merged yet, wait for it so we process ONCE with
+    // today's fresh rows already included. A fallback timeout guards against a
+    // delta that never lands (failed/empty) so the page can't hang. Every later
+    // change (range switch, live version bump) processes immediately.
+    const deltaPending = !_processedOnce.current
+      && dataVersion != null
+      && _lastMergedVer.current !== dataVersion
+      && dataMode !== "gex" && dataMode !== "darkpool";
+    if (deltaPending) {
+      const id = setTimeout(run, 600);
+      return () => clearTimeout(id);
     }
-    if (filtered.length === 0) { setD(null); return; }
-    try {
-      const data = processFlowData(filtered);
-      const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
-      console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${filtered.length} rows)`);
-      setD(data);
-    } catch(err) {
-      console.error("processFlowData error:", err);
-      setCsvError(err.message);
-    }
+    run();
   }, [parsedRows, dateFilter, dateFrom, dateTo, loadedFetchDays, fetchDays]);
 
   useEffect(() => {
@@ -2513,7 +2540,8 @@ export default function OptionsFlowDashboard() {
   // which reloaded 100k+ trades on each bump and OOM-crashed the tab (and made
   // a screenshot's focus-refetch fatal). The base range URL is version-stable
   // and Cloudflare-cached; today's freshness comes from this small delta.
-  const _lastMergedVer = useRef(null);
+  // (_lastMergedVer is declared up by the processing effect, which coalesces the
+  // first merge into a single pass.)
   useEffect(() => {
     if (dataVersion == null) return;
     if (_lastMergedVer.current === dataVersion) return;
