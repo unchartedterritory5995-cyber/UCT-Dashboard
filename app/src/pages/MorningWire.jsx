@@ -264,6 +264,9 @@ export default function MorningWire() {
     <PullToRefresh onRefresh={handleRefresh}>
     <div className={styles.page}>
 
+      {/* ── Intro stack: header · index strip · quote ────────────── */}
+      <div className={styles.topStack}>
+
       {/* ── Page header ─────────────────────────────────────────── */}
       <div className={styles.pageHeader}>
         <div className={styles.titleRow}>
@@ -298,6 +301,11 @@ export default function MorningWire() {
       {/* ── Quote of the Day ─────────────────────────────────────── */}
       <QuoteOfTheDay />
 
+      </div>{/* /topStack */}
+
+      {/* ── Main reading column: the rundown + disclaimer ────────── */}
+      <div className={styles.mainStack}>
+
       {/* ── The Rundown ──────────────────────────────────────────── */}
       <TileCard>
         {rundown?.html
@@ -312,9 +320,6 @@ export default function MorningWire() {
         }
       </TileCard>
 
-      {/* ── On The Tape (live tweet feed) ────────────────────────── */}
-      {TWITTER_UI_ENABLED && <OnTheTape />}
-
       {/* ── Legal disclaimer ─────────────────────────────────────── */}
       <p style={{
         margin: '18px 4px 4px', fontSize: 11, lineHeight: 1.5,
@@ -325,6 +330,15 @@ export default function MorningWire() {
         firm&apos;s method, not personalized advice. Trading involves substantial risk of loss;
         you are solely responsible for your own decisions.
       </p>
+
+      </div>{/* /mainStack */}
+
+      {/* ── On The Tape (live tweet feed) — right rail on desktop ── */}
+      {TWITTER_UI_ENABLED && (
+        <aside className={styles.rail}>
+          <OnTheTape />
+        </aside>
+      )}
 
     </div>
     </PullToRefresh>
