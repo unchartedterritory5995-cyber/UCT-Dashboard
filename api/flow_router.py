@@ -283,6 +283,39 @@ async def upload_flow(request: Request, _auth: dict = Depends(require_flow_admin
         )
 
 
+def _build_gzipped_symbol_csv(symbol: str, source: str) -> bytes:
+    """Gzip the UNCAPPED flow for a single ticker (Search deep-dive). One symbol
+    is a tiny result set, so no premium cap — unlike the bulk /data path."""
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=1, mtime=0) as gz:
+        for chunk in db.stream_csv_symbol(symbol, source=source):
+            if isinstance(chunk, str):
+                chunk = chunk.encode("utf-8")
+            gz.write(chunk)
+    return buf.getvalue()
+
+
+@flow_router.get("/ticker/{symbol}")
+def get_flow_ticker(symbol: str, source: str = "stocks"):
+    """Uncapped flow for ONE ticker. The bulk /data endpoint keeps only the
+    top-N rows by premium, which drops most of a small-cap's low-premium prints
+    (ACI: 5 of 68 rows reached the browser, $1.5M of $3.84M). The Search tab
+    calls this instead so a ticker's totals reflect its COMPLETE flow. Tiny
+    payload (tens of rows), so no cap and no CF cache."""
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return Response(content="", status_code=400, media_type="text/plain")
+    src = "indexes" if source == "indexes" else "stocks"
+    try:
+        gzipped = _build_gzipped_symbol_csv(sym, src)
+    except Exception as e:
+        return Response(content=f"Error: {e}", status_code=500, media_type="text/plain")
+    return Response(
+        content=gzipped, media_type="text/csv",
+        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store"},
+    )
+
+
 @flow_router.get("/data")
 # sync def (not async): the gzip+stream build is CPU/sync work; a `def`
 # handler runs in the threadpool instead of blocking the single event loop.
