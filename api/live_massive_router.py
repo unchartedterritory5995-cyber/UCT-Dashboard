@@ -1739,6 +1739,11 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
             deduped.sort(key=lambda a: a.get("timestamp") or 0, reverse=True)
         all_alerts = deduped
 
+    # Auto-push scan: mark already-pushed alerts (POSTED persists) and, when the
+    # master switch is on, claim + fire newly-qualifying ones. On the FULL set so
+    # no client's tier/limit filter hides a qualifier; dedup via the log.
+    _apply_auto_push(all_alerts)
+
     alerts = all_alerts[:limit]
 
     status = _get_worker_status()
@@ -2907,6 +2912,24 @@ _AUTO_PUSH_CFG = {
 }
 
 
+_AUTO_PUSH_CFG_FILE = os.path.join(os.path.dirname(DB_PATH), "auto_push_config.json")
+
+
+def _load_auto_push_cfg():
+    """Load persisted auto-push config (survives restarts); falls back to the
+    conservative in-code defaults if the file is missing/corrupt."""
+    try:
+        with open(_AUTO_PUSH_CFG_FILE) as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            _AUTO_PUSH_CFG.update({k: data[k] for k in _AUTO_PUSH_CFG if k in data})
+    except Exception:
+        pass
+
+
+_load_auto_push_cfg()
+
+
 def should_auto_push(alert: dict, cfg: dict = None) -> bool:
     """Decide whether an alert qualifies for auto-push under the current algo."""
     if cfg is None:
@@ -2924,6 +2947,57 @@ def should_auto_push(alert: dict, cfg: dict = None) -> bool:
         if tier == "size" and grade == "B" and prem >= cfg.get("size_min_premium", 3_000_000) and typ == "SWEEP":
             return True
     return False
+
+
+def _unclaim_push(alert: dict):
+    """Remove an AUTO claim so a failed push retries next scan. Never deletes a
+    manual record."""
+    try:
+        conn = _pushed_conn()
+        conn.execute("DELETE FROM pushed_alerts WHERE push_key=? AND source='auto'", (_push_key(alert),))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
+def _apply_auto_push(alerts: list):
+    """Per-scan auto-push pass, run on the FULL alert set in /recent:
+      1) mark forwardedToDiscord on every alert already in the push log — so
+         POSTED survives a refresh and shows in the non-admin view;
+      2) if the master switch is on, claim + fire any newly-qualifying alert.
+    The claim (atomic INSERT via _record_push) is the dedup gate, so concurrent
+    /recent polls can never double-send. Discord POSTs run in a daemon thread so
+    /recent never blocks; a failed POST un-claims so it retries next scan."""
+    try:
+        pushed = _pushed_keys()
+    except Exception:
+        pushed = set()
+    enabled = bool(_AUTO_PUSH_CFG.get("enabled"))
+    to_push = []
+    for a in alerts:
+        try:
+            key = _push_key(a)
+        except Exception:
+            continue
+        if key in pushed:
+            a["forwardedToDiscord"] = True
+            continue
+        if enabled and should_auto_push(a):
+            if _record_push(a, "single", "auto"):      # atomic claim
+                a["forwardedToDiscord"] = True
+                to_push.append(a)
+    if to_push:
+        def _fire(batch):
+            for a in batch:
+                try:
+                    ok, _ = _post_massive_discord(_build_massive_embed(a, mode="single"))
+                    if not ok:
+                        _unclaim_push(a)
+                except Exception:
+                    _unclaim_push(a)
+        threading.Thread(target=_fire, args=(list(to_push),), daemon=True).start()
+    return alerts
 
 
 @router.post("/force-push-discord")
@@ -3013,6 +3087,33 @@ def get_pushed(alert_date: str = Query(None, description="alert_date to filter (
         return {"ok": True, "count": len(rows), "pushed": [dict(r) for r in rows]}
     except Exception as e:
         return {"ok": False, "error": str(e), "pushed": []}
+
+
+@router.get("/auto-push-config")
+def get_auto_push_config():
+    """Current auto-push algo config (for the admin toggle UI)."""
+    return {"ok": True, "config": dict(_AUTO_PUSH_CFG)}
+
+
+@router.post("/auto-push-config")
+async def set_auto_push_config(request: Request):
+    """Admin: update + persist the auto-push config (master switch + thresholds).
+    Whitelisted keys only; persisted to disk so it survives restarts."""
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(400, f"Invalid JSON: {e}")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "expected a JSON object")
+    for k in ("enabled", "alpha_gold", "grade_a", "size_sweep_enabled", "size_min_premium"):
+        if k in body:
+            _AUTO_PUSH_CFG[k] = body[k]
+    try:
+        with open(_AUTO_PUSH_CFG_FILE, "w") as f:
+            json.dump(_AUTO_PUSH_CFG, f)
+    except Exception as e:
+        return {"ok": False, "error": str(e), "config": dict(_AUTO_PUSH_CFG)}
+    return {"ok": True, "config": dict(_AUTO_PUSH_CFG)}
 
 
 @router.post("/thresholds")
