@@ -628,6 +628,7 @@ export default function StockChart({
   exitDate = null,          // ISO date string — end of holding period zoom
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   dailyDefaultBars = null,  // override the Daily default-zoom bar count (Charts workspace: ~126 ≈ 6 months). Daily only; other TFs keep their own defaults.
+  ema9MatchCandle = false,  // Charts workspace: paint the 9-EMA overlay in the candle up-color (MB_UP) so the fast MA matches the candles. Reliable regardless of saved overlay colors; scoped so Model Book is unaffected.
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
   keepBarsAfterExit = false, // exactDateRange only: DON'T slice bars past exitDate — keep real price history rendering into the right-pad space instead of cutting off (Setup Library "Result" view: exitDate stays framed in place, the ensuing candles fill the screen)
@@ -3344,6 +3345,27 @@ export default function StockChart({
       if (Number.isFinite(last.c) && last.c > 0) lastServerCloseRef.current = last.c
     }
 
+    // For the Finnhub re-top below: prefer the frozen tick for THIS ticker; on a
+    // ticker switch (latestLiveRef was just reset to null) seed from the
+    // synchronously-available shared live cache (livePrices[sym]) so the developing
+    // candle paints at the TRUE current price on the FIRST frame instead of the
+    // stale server close that otherwise snapped ~1s later when the first tick
+    // arrived. Cold/uncached ticker → null → prior ~1s behaviour, no regression.
+    // Sane-price guard mirrors Writers A/B (baseline = the just-refreshed server close).
+    let _retopLive = (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price)
+      ? latestLiveRef.current
+      : null
+    if (!_retopLive && !barsPushActiveRef.current) {
+      const _cached = livePrices[sym]
+      if (_cached?.price && isSaneLivePrice(_cached.price, lastBarRef.current?.close, lastServerCloseRef.current)) {
+        _retopLive = {
+          sym, price: _cached.price, updated_at: _cached.updated_at,
+          day_open: _cached.day_open, day_high: _cached.day_high,
+          day_low: _cached.day_low, prev_close: _cached.prev_close,
+        }
+      }
+    }
+
     // Re-apply the live developing bar immediately after setData() to prevent snap-back —
     // setData() overwrites with API data (stale by seconds/minutes).
     if (barsPushActiveRef.current) {
@@ -3370,12 +3392,12 @@ export default function StockChart({
           }
         } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
       }
-    } else if (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price && lastBarRef.current) {
-      const lp = latestLiveRef.current.price
-      const tickSec = latestLiveRef.current.updated_at
+    } else if (_retopLive?.price && lastBarRef.current) {
+      const lp = _retopLive.price
+      const tickSec = _retopLive.updated_at
       const last = lastBarRef.current
       const isIntradayTf = !['D', 'W', 'M'].includes(resolvedTf)
-      const liveSnap = latestLiveRef.current
+      const liveSnap = _retopLive
       // Same shared classifier as the tick effect — start today's bar from the
       // snapshot even on the REST floor (no updated_at), never fuse onto a stale
       // prior-session candle. 'skip' = new D/W/M day, session unconfirmed.
@@ -3572,7 +3594,12 @@ export default function StockChart({
     // bars to compute SMA200), we must explicitly clear it. The previous
     // `if (!ovData.length) continue` left the OLD ticker's overlay line visible.
     for (let i = 0; i < overlayData.length; i++) {
-      const { data: ovData, color } = overlayData[i]
+      const { data: ovData } = overlayData[i]
+      let color = overlayData[i].color
+      // Charts workspace: repaint the 9-EMA in the candle up-color (MB_UP) so the
+      // fast MA matches the candles. Reliable regardless of saved overlay colors.
+      const _ov = resolvedOverlays?.[i]
+      if (ema9MatchCandle && _ov?.type === 'EMA' && Number(_ov?.period) === 9) color = MB_UP
       // Split into base (≤ setup day) + tail (≥ setup day) when fading; the shared
       // cutoff point joins them so the line is seamless at full opacity.
       const baseData = _fadeMA ? ovData.filter(p => String(p.time) <= _cut) : ovData
