@@ -391,6 +391,33 @@ def _yfinance_snapshot(ticker: str) -> dict:
         return {}
 
 
+def _yf_quote_info(ticker: str) -> dict:
+    """Accurate quote via Yahoo's regularMarket* fields.
+
+    For INDEX FUTURES the day-change must be measured against the prior
+    SETTLEMENT — which is `regularMarketPreviousClose`, NOT
+    `fast_info.previous_close` (that reads a different/earlier reference and
+    understates the move badly, e.g. -0.17% vs the true -0.53% on ES).
+    `regularMarketChangePercent` is already in percent units. Falls back to the
+    fast_info snapshot on any failure. (Do NOT use this for ^VIX — Yahoo's
+    regularMarketChangePercent for the index is unreliable.)"""
+    try:
+        import yfinance as yf
+
+        def _work():
+            info = yf.Ticker(ticker).get_info()
+            price = info.get("regularMarketPrice")
+            chg   = info.get("regularMarketChangePercent")
+            if price is None or chg is None:
+                return None
+            return {"close": float(price), "vwap": float(price), "change_pct": round(float(chg), 4)}
+
+        got = _bounded_yf(_work, None)
+        return got if got is not None else _yfinance_snapshot(ticker)
+    except Exception:
+        return _yfinance_snapshot(ticker)
+
+
 def _detect_session() -> str:
     """Detect current market session based on ET time.
 
@@ -610,11 +637,13 @@ def get_snapshot() -> dict:
 
     # QQQ/SPY/IWM/DIA → Massive equities API (real-time)
     etf_tickers = ["QQQ", "SPY", "IWM", "DIA"]
-    # Index FUTURES + BTC → yfinance. Futures trade nearly 24h, so these tiles keep
-    # moving after the cash close. ES/NQ/YM/RTY are Yahoo continuous front-months.
-    futures_map = {"ES": "ES=F", "NQ": "NQ=F", "YM": "YM=F", "RTY": "RTY=F", "BTC": "BTC-USD"}
-    # VIX → yfinance (index, not a stock) but goes in the etfs dict for the frontend
-    vix_yf_ticker = "^VIX"
+    # Index FUTURES → yfinance .info (regularMarket* fields, so the day-change is
+    # measured against the prior settlement). Futures trade nearly 24h, so these
+    # tiles keep moving after the cash close. ES/NQ/YM/RTY = continuous front-months.
+    index_futures = {"ES": "ES=F", "NQ": "NQ=F", "YM": "YM=F", "RTY": "RTY=F"}
+    # BTC + VIX → the lighter fast_info snapshot (accurate for these; Yahoo's
+    # regularMarketChangePercent is unreliable for ^VIX). VIX rides in the etfs dict.
+    fast_targets = {"BTC": "BTC-USD", "VIX": "^VIX"}
 
     _EMPTY = {"price": "—", "chg": "—", "css": ""}
 
@@ -632,17 +661,21 @@ def get_snapshot() -> dict:
         except Exception:
             etfs[ticker] = dict(_EMPTY)
 
-    # yfinance snapshots (VIX + index futures + BTC) fetched in parallel so the
-    # extra network calls don't serialize into a slow endpoint.
-    yf_targets = {"VIX": vix_yf_ticker, **futures_map}
-    with _cf.ThreadPoolExecutor(max_workers=len(yf_targets), thread_name_prefix="snap-yf") as ex:
-        yf_snaps = dict(zip(yf_targets.keys(), ex.map(_yfinance_snapshot, yf_targets.values())))
+    # Fetch all yfinance quotes in parallel so the extra calls don't serialize.
+    jobs = [(lbl, yft, True) for lbl, yft in index_futures.items()] \
+         + [(lbl, yft, False) for lbl, yft in fast_targets.items()]
 
-    # VIX rides in the etfs dict (frontend reads data.etfs.VIX)
+    def _fetch(job):
+        lbl, yft, use_info = job
+        return lbl, (_yf_quote_info(yft) if use_info else _yfinance_snapshot(yft))
+
+    with _cf.ThreadPoolExecutor(max_workers=len(jobs), thread_name_prefix="snap-yf") as ex:
+        yf_snaps = dict(ex.map(_fetch, jobs))
+
     etfs["VIX"] = _make_entry(yf_snaps["VIX"]) if yf_snaps.get("VIX") else dict(_EMPTY)
     futures = {
         label: (_make_entry(yf_snaps[label]) if yf_snaps.get(label) else dict(_EMPTY))
-        for label in futures_map
+        for label in (*index_futures, "BTC")
     }
 
     data = {"futures": futures, "etfs": etfs}

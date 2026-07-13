@@ -288,8 +288,9 @@ export default function MorningWire() {
         <MarketClock />
       </div>
 
-      {/* ── Top-right corner: SPY QQQ DIA · IWM BTC VIX (3×2 grid) ── */}
+      {/* ── Top-right corner: index futures (3×2 grid) ───────────── */}
       <div className={styles.trCorner}>
+        <div className={styles.railLabel}>Futures</div>
         <MorningWireIndexes grid />
       </div>
 
