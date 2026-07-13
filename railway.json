@@ -8,6 +8,7 @@
     "startCommand": "if [ \"${FLOW_WORKER_ENABLED:-0}\" = \"1\" ]; then exec python -m api.flow_worker_main; elif [ \"${WORKER_ENABLED:-0}\" = \"1\" ]; then exec python -m api.worker_main; else exec uvicorn api.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*' --timeout-graceful-shutdown 5; fi",
     "drainingSeconds": 30,
     "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 600
+    "healthcheckTimeout": 600,
+    "restartPolicyType": "ALWAYS"
   }
 }

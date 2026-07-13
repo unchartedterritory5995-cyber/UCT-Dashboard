@@ -134,7 +134,13 @@ def _start_flow_schedulers():
             from api import flow_backup
             if flow_backup.register_jobs(sched):
                 n += 1
-            flow_backup.startup_integrity_check()
+            # Integrity probe in a daemon thread (mirrors api/main.py): the
+            # PRAGMA scan runs ~9 min on the ~800MB flow.db — inline it sat
+            # between boot and uvicorn.run racing the 600s healthcheck, and a
+            # lost race strands this volume service (stop-then-start: the old
+            # deployment is already gone). Readiness must never wait on it.
+            threading.Thread(target=flow_backup.startup_integrity_check,
+                             name="flow-integrity-probe", daemon=True).start()
         except Exception as e:  # noqa: BLE001
             log.warning("backup scheduling failed: %s", e)
         if n:

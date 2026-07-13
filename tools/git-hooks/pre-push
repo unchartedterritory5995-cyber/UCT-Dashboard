@@ -1,0 +1,68 @@
+#!/bin/sh
+# UCT market-hours deploy freeze — pre-push guard.
+#
+# Every push to master auto-deploys the Railway WEB service (no watch paths —
+# it serves the SPA bundle). A mid-market container swap drops /api/* for
+# minutes and permanently gaps the Massive OPRA options tape (OPRA does not
+# replay; gaps heal only from the T+1 flat file overnight). House rule: ship
+# web deploys >=4:20 PM ET or <9:15 AM ET — see the liveflow deploy-survival
+# spec and CLAUDE.md "Shipping window".
+#
+# 2026-07-13: eleven market-hours pushes caused repeated member-facing 500s +
+# three tape gaps. This hook makes the rule mechanical.
+#
+# Install (shared across all worktrees):
+#   cp tools/git-hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+#
+# Emergency override:  UCT_PUSH_OVERRIDE=1 git push ...
+# Test override:       UCT_HOOK_TEST_NOW="<dow 0-6> <minutes-since-midnight>"
+
+if [ "$UCT_PUSH_OVERRIDE" = "1" ]; then
+  echo "[uct pre-push] override accepted (UCT_PUSH_OVERRIDE=1) — pushing during freeze window" >&2
+  # still consume stdin so git does not see a broken pipe
+  while read -r _l _ls _r _rs; do :; done
+  exit 0
+fi
+
+pushes_master=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/master) pushes_master=1 ;;
+  esac
+done
+[ "$pushes_master" = "1" ] || exit 0
+
+# ET clock from the Windows timezone db (DST-correct year-round).
+# Output format: "<dow 0=Sun..6=Sat> <minutes-since-midnight>"
+if [ -n "$UCT_HOOK_TEST_NOW" ]; then
+  set -- $UCT_HOOK_TEST_NOW
+else
+  now=$(powershell.exe -NoProfile -Command '$et=[System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTime]::UtcNow,"Eastern Standard Time"); Write-Output ("{0} {1}" -f [int]$et.DayOfWeek, ($et.Hour*60+$et.Minute))' 2>/dev/null | tr -d '\r')
+  set -- $now
+fi
+dow=$1
+mins=$2
+case "$dow" in ''|*[!0-9]*) dow=bad ;; esac
+case "$mins" in ''|*[!0-9]*) dow=bad ;; esac
+if [ "$dow" = "bad" ]; then
+  echo "[uct pre-push] WARN: could not read the ET clock — allowing push (fail-open)" >&2
+  exit 0
+fi
+
+# Freeze window: Mon(1)-Fri(5), 9:15 AM (555) through 4:19 PM (979) ET.
+if [ "$dow" -ge 1 ] && [ "$dow" -le 5 ] && [ "$mins" -ge 555 ] && [ "$mins" -lt 980 ]; then
+  cat >&2 <<'MSG'
+[uct pre-push] BLOCKED: push to master during market hours (Mon-Fri 9:15 AM - 4:20 PM ET).
+
+  Every master push swaps the Railway web container: /api/* drops for minutes
+  and the Massive OPRA options tape gaps PERMANENTLY (no replay until the T+1
+  flat file). The 2026-07-13 morning deploy storm caused member-facing 500s
+  and three tape gaps exactly this way.
+
+  -> Keep committing locally; batch the push until after 4:20 PM ET.
+  -> Genuine emergency (site down, worse than a swap):
+       UCT_PUSH_OVERRIDE=1 git push ...
+MSG
+  exit 1
+fi
+exit 0
