@@ -2212,6 +2212,7 @@ export default function OptionsFlowDashboard() {
   const [ideaGex, setIdeaGex] = useState(null); // { sym, data, loading } for Ideas popup
   const [ideaGexRange, setIdeaGexRange] = useState("3mo");
   const [selectedTicker, setSelectedTicker] = useState(null);
+  const [searchFull, setSearchFull] = useState(null); // {sym, data}: UNCAPPED per-ticker flow (from /api/flow/ticker) for the Search deep-dive; bulk /data caps by premium and drops small-caps' low-premium prints
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
   // Dark pool bars for the contract detail panel (renderDetailPanel below) —
@@ -2362,6 +2363,36 @@ export default function OptionsFlowDashboard() {
 
   // Set of available trading dates as ISO for calendar dot indicators
   const tradingDaysSet = useMemo(() => new Set(availableDates.map(d => mdyToIso(d))), [availableDates]);
+
+  // ── Uncapped per-ticker flow for the Search deep-dive ──
+  // The bulk /api/flow/data keeps only the top-N rows by premium, so a small-cap
+  // with many low-premium prints loses most of its flow (ACI: 5 of 68 rows,
+  // $1.5M of $3.84M reached the browser). When a ticker is selected in Search we
+  // fetch /api/flow/ticker/<sym> (uncapped, indexed, tiny payload), scope it to
+  // the currently loaded date range so the range selector still applies, then run
+  // it through the SAME processFlowData pipeline so the header totals and the
+  // Top-Trades table reconcile with the raw tape. Falls back to the capped data
+  // if the fetch is empty or fails.
+  useEffect(() => {
+    const sym = selectedTicker && selectedTicker.s;
+    if (!sym) { setSearchFull(null); return; }
+    let cancelled = false;
+    const src = dataMode === "index" ? "indexes" : "stocks";
+    fetch(`/api/flow/ticker/${encodeURIComponent(sym)}?source=${src}`, { cache: "no-store" })
+      .then(r => (r.ok ? r.text() : null))
+      .then(text => {
+        if (cancelled) return;
+        if (!text) { setSearchFull({ sym, data: null }); return; }
+        const rows = parseCSV(text);
+        const dateSet = new Set(availableDates);
+        const scoped = availableDates.length
+          ? rows.filter(r => r.date && dateSet.has(r.date.trim()))
+          : rows;
+        setSearchFull({ sym, data: scoped.length ? processFlowData(scoped) : null });
+      })
+      .catch(() => { if (!cancelled) setSearchFull({ sym, data: null }); });
+    return () => { cancelled = true; };
+  }, [selectedTicker, dataMode, availableDates]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
@@ -8169,7 +8200,14 @@ export default function OptionsFlowDashboard() {
               // dateFilter or cap changes after, D regenerates but selectedTicker
               // still holds the old TICKER_DB entry — which makes tk.n / tk.t /
               // tk.c reflect a different date window than ccAll / BULL / BEAR.
-              const tk = (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s) || selectedTicker;
+              // Prefer the UNCAPPED per-ticker flow (fetched into searchFull) so
+              // small-caps whose low-premium prints were cut from the bulk feed
+              // still show their full totals. Falls back to the capped TICKER_DB
+              // entry while the fetch is in flight or if it returned nothing.
+              const _uncapped = (searchFull && searchFull.sym === selectedTicker.s && searchFull.data) ? searchFull.data : null;
+              const tk = (_uncapped && _uncapped.TICKER_DB && _uncapped.TICKER_DB.find(t => t.s === selectedTicker.s))
+                || (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s)
+                || selectedTicker;
               // DTE filter for summary cards
               const dteF = t => searchDte==="All" ? true : searchDte==="ST" ? t.DTE>=0&&t.DTE<60 : searchDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
               // Source changed from D.clean_confirmed → D.all_directional so the
@@ -8189,7 +8227,7 @@ export default function OptionsFlowDashboard() {
               // they help; here they'd inflate the totals ~3x because Massive
               // lacks BID-side classification (so rescue attribution is
               // trivially one-directional per CP).
-              const ccAll = (D.all_directional||[]).filter(t => t.S===tk.s && !t._rescueDerived);
+              const ccAll = (_uncapped ? (_uncapped.all_directional||[]) : (D.all_directional||[])).filter(t => t.S===tk.s && !t._rescueDerived);
               const ccTrades = ccAll.filter(dteF);
               // Raw totals — clean-classified directional flow only.
               let ccB=0, ccR=0;
