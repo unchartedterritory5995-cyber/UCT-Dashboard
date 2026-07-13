@@ -626,6 +626,7 @@ export default function StockChart({
   entryDate = null,         // ISO date string — zoom centers on trade holding period
   exitDate = null,          // ISO date string — end of holding period zoom
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
+  dailyDefaultBars = null,  // override the Daily default-zoom bar count (Charts workspace: ~126 ≈ 6 months). Daily only; other TFs keep their own defaults.
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
   keepBarsAfterExit = false, // exactDateRange only: DON'T slice bars past exitDate — keep real price history rendering into the right-pad space instead of cutting off (Setup Library "Result" view: exitDate stays framed in place, the ensuing candles fill the screen)
@@ -4200,7 +4201,9 @@ export default function StockChart({
             'W': 52,    // ~1 year of weekly bars
             'M': 36,    // ~3 years of monthly bars
           }
-          const visibleBars = defaultVisible[resolvedTf] || 65
+          const visibleBars = (resolvedTf === 'D' && dailyDefaultBars)
+            ? dailyDefaultBars
+            : (defaultVisible[resolvedTf] || 65)
           if (filteredBars.length > visibleBars) {
             chart.timeScale().setVisibleLogicalRange({
               from: filteredBars.length - visibleBars - leftBarPad,
@@ -4286,7 +4289,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

@@ -108,6 +108,16 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           onTfChange={setTf}
           onCrosshairMove={reportCrosshair}
           externalCrosshair={externalCrosshair}
+          /* Charts-workspace default look (Model Book "Throughout the Years"
+             inspired): ~6-month daily window, volume in its own compact bottom
+             pane, and tight price-scale margins so the candles fill ~85% of the
+             pane instead of being squished into the middle band. Scoped here so
+             popups / Model Book / Journal charts are unaffected. */
+          dailyDefaultBars={126}
+          volumeSeparatePane
+          volumePaneHeightPct={16}
+          priceScaleTopMargin={0.08}
+          priceScaleBottomMargin={0.05}
         />
       </div>
     </div>
