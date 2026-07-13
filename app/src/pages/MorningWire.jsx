@@ -263,6 +263,7 @@ export default function MorningWire() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
+    <div className={styles.pageWrap}>
     <div className={styles.page}>
 
       {/* ── Intro stack: header · index strip · quote ────────────── */}
@@ -346,6 +347,7 @@ export default function MorningWire() {
         </aside>
       )}
 
+    </div>
     </div>
     </PullToRefresh>
   )

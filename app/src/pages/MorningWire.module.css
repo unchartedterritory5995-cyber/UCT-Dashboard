@@ -1,8 +1,18 @@
 /* ── Page layout ─────────────────────────────────────────────── */
-/* Mobile-first: single stacked column (top → main → catalysts → tape).
-   Desktop promotes the two side features into rails flanking the brief — see
-   the min-width:1025px (both rails right) and min-width:1360px (true 3-pane)
-   blocks below. */
+/* The whole page scrolls as ONE unit: the rails are NOT sticky and have no
+   inner scroll of their own, so the wheel always moves everything together
+   no matter which column the cursor is over.
+
+   Sizing is a CONTAINER query on the content area (`.pageWrap`), not the
+   viewport, so the desktop sidebar width can never throw the breakpoint off.
+     · narrow  → single stacked column (top → main → catalysts → tape)
+     · ≥1280px → true 3-pane (catalysts · brief · tape). */
+.pageWrap {
+  container-type: inline-size;
+  container-name: mw;
+  width: 100%;
+}
+
 .page {
   display: grid;
   grid-template-columns: 1fr;
@@ -38,56 +48,26 @@
 }
 
 /* Stock Catalysts (left) + On The Tape (right) — full width when stacked,
-   side rails on desktop. */
+   side rails when there's room. */
 .lrail { grid-area: lrail; min-width: 0; }
 .rail  { grid-area: rrail; min-width: 0; }
 
-/* ── Desktop (≥1025px): main brief + a right column holding both rails ─────
-   Not enough room for a rail on each side yet, so the tape and catalysts
-   stack in a single right column, top-aligned with the rundown card. */
-@media (min-width: 1025px) {
-  .page {
-    grid-template-columns: minmax(0, 1fr) 380px;
-    grid-template-areas:
-      "top  ."
-      "main rrail"
-      "main lrail";
-    column-gap: 24px;
-    max-width: 1440px;
-    align-items: start;
-  }
-  /* Rails stay put while the brief scrolls. Sticky is applied here (≥1025) so it
-     works in BOTH desktop tiers — the desktop sidebar eats ~220px, so a laptop
-     viewport often lands in this 2-col tier, not the 3-pane one below. */
-  .lrail,
-  .rail {
-    align-self: start;
-    position: sticky;
-    top: 16px;
-  }
-  /* Let the feed use the available viewport height in the rail. */
-  .rail .tapeBody {
-    max-height: calc(100vh - 150px);
-  }
-}
-
-/* ── Wide desktop (≥1360px): true 3-pane — catalysts · brief · tape ─────
+/* ── Wide content area (≥1280px): true 3-pane — catalysts · brief · tape ──
    The center brief is capped at a comfortable reading width; the two side
-   rails are flexible (1fr) so they split ALL the leftover width equally and
-   fill the page edge-to-edge instead of leaving dead space. Both rails are
-   sticky and top-aligned with the start of the brief, and the capped center
-   keeps the wire visually centered in the viewport. */
-@media (min-width: 1360px) {
+   rails flex (1fr) so they split all the leftover width equally and fill the
+   page. Everything shares one grid row and scrolls together — no sticky, no
+   inner scroll. The `top` intro sits above the center column only, so the
+   rails top-align with the start of the brief. */
+@container mw (min-width: 1280px) {
   .page {
-    grid-template-columns: minmax(340px, 1fr) minmax(0, 900px) minmax(340px, 1fr);
+    grid-template-columns: minmax(320px, 1fr) minmax(0, 900px) minmax(320px, 1fr);
     grid-template-areas:
       ".     top   ."
       "lrail main  rrail";
     column-gap: 28px;
-    /* Fill (almost) the whole viewport; cap only on ultra-wide monitors. */
     max-width: 2100px;
+    align-items: start;
   }
-  /* (sticky rails inherited from the ≥1025 block) */
 }
 
 /* ── Page header ─────────────────────────────────────────────── */
@@ -991,8 +971,8 @@
 
 .tapeBody {
   padding: 6px 14px 10px 18px;
-  max-height: 560px;
-  overflow-y: auto;
+  /* No inner scroll — the feed flows with the page so everything scrolls
+     together as one unit (see the page-layout note at the top of this file). */
 }
 
 /* Tweet row — mirrors .tweetRow / .tweetExpand in MoversSidebar */

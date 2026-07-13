@@ -630,10 +630,16 @@
 .compact .tableWrap { overflow: visible; }
 .compact .table,
 .compact .table tbody,
-.compact .table tr,
 .compact .table td { display: block; width: auto; }
 .compact .table thead { display: none; }
+/* Each row is a flex card: the headline (ticker + price/%chg/vol) flows on the
+   first line; the thesis and timestamp break onto their own full-width lines. */
 .compact .table tr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+  row-gap: 2px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 10px 12px;
@@ -641,30 +647,22 @@
   background: var(--bg-surface);
 }
 .compact .table tr:hover { background: var(--bg-surface); }
-.compact .table tr:last-child td { border-bottom: none; }
-.compact .table td { border: none; padding: 2px 0; white-space: normal; }
+.compact .table td { border: none; padding: 0; white-space: normal; }
 
-/* Headline cluster: sym · price · %change · vol× wrap onto one line */
-.compact .colSym,
-.compact .colPrice,
-.compact .colGap,
-.compact .colVol {
-  display: inline-flex;
-  align-items: baseline;
-  width: auto;
-  margin-right: 10px;
-}
+/* Headline: ticker on the left, price · %change · vol pushed to the right so
+   the row reads on ONE line and frees up the vertical space below. */
 .compact .colSym  { font-size: 14px; font-weight: 700; }
-.compact .colGap  { font-size: 13px; }
-.compact .colPrice { font-size: 12px; color: var(--text-muted); }
+.compact .colPrice { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+.compact .colGap  { font-size: 13px; font-weight: 600; }
 .compact .colVol  { font-size: 11px; color: var(--text-muted); }
 .compact .colVol::before { content: 'Vol '; opacity: 0.6; }
 
 .compact .sectorBanner { flex-direction: column; gap: 6px; }
-.compact .colThesis { display: block; width: auto; margin-top: 6px; font-size: 12.5px; line-height: 1.5; }
+/* Thesis + timestamp each take a full-width line of their own. */
+.compact .colThesis { flex: 0 0 100%; margin-top: 6px; font-size: 12.5px; line-height: 1.5; }
 .compact .thesisClamp { -webkit-line-clamp: 3; }
 .compact .colUpdated {
-  display: block; width: auto; text-align: left;
+  flex: 0 0 100%; text-align: left;
   margin-top: 6px; font-size: 10px;
 }
 .compact .colUpdated .whenStack { flex-direction: row; align-items: baseline; gap: 6px; }
