@@ -128,8 +128,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           dailyDefaultBars={126}
           volumeSeparatePane
           volumePaneHeightPct={16}
-          priceScaleTopMargin={0.08}
-          priceScaleBottomMargin={0.05}
+          priceScaleTopMargin={0.12}
+          priceScaleBottomMargin={0.10}
         />
       </div>
     </div>
