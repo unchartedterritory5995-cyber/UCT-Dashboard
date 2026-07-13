@@ -47,13 +47,13 @@
    stack in a single right column, top-aligned with the rundown card. */
 @media (min-width: 1025px) {
   .page {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) 380px;
     grid-template-areas:
       "top  ."
       "main rrail"
       "main lrail";
     column-gap: 24px;
-    max-width: 1240px;
+    max-width: 1440px;
     align-items: start;
   }
   /* Let the feed use the available viewport height in the rail. */
@@ -63,15 +63,20 @@
 }
 
 /* ── Wide desktop (≥1360px): true 3-pane — catalysts · brief · tape ─────
-   Both rails are sticky and top-aligned with the start of the brief; the
-   centered main column keeps the wire visually centered in the viewport. */
+   The center brief is capped at a comfortable reading width; the two side
+   rails are flexible (1fr) so they split ALL the leftover width equally and
+   fill the page edge-to-edge instead of leaving dead space. Both rails are
+   sticky and top-aligned with the start of the brief, and the capped center
+   keeps the wire visually centered in the viewport. */
 @media (min-width: 1360px) {
   .page {
-    grid-template-columns: 320px minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(340px, 1fr) minmax(0, 900px) minmax(340px, 1fr);
     grid-template-areas:
       ".     top   ."
       "lrail main  rrail";
-    max-width: 1480px;
+    column-gap: 28px;
+    /* Fill (almost) the whole viewport; cap only on ultra-wide monitors. */
+    max-width: 2100px;
   }
   .lrail,
   .rail {
