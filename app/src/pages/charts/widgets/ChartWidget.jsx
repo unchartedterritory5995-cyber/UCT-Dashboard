@@ -108,11 +108,17 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           onTfChange={setTf}
           onCrosshairMove={reportCrosshair}
           externalCrosshair={externalCrosshair}
-          /* Charts-workspace default look (Model Book "Throughout the Years"
-             inspired): ~6-month daily window, volume in its own compact bottom
-             pane, and tight price-scale margins so the candles fill ~85% of the
-             pane instead of being squished into the middle band. Scoped here so
-             popups / Model Book / Journal charts are unaffected. */
+          /* Charts-workspace default look = the Model Book "Throughout the
+             Years" main chart, 1:1. boldCandles brings the crisp bold vivid
+             palette (MB_UP/MB_DOWN solid bodies + deep #0e0f0d canvas), thin
+             0.5px curved MAs, and vivid volume bars; volumeMa + markVolumeExtremes
+             add the MB volume MA line + gold highest-volume bar. Plus a ~6-month
+             daily window, its own compact volume pane, and tight price-scale
+             margins so candles fill ~85% of the pane. Scoped here so popups /
+             Model Book / Journal charts are unaffected. */
+          boldCandles
+          markVolumeExtremes
+          volumeMa={50}
           dailyDefaultBars={126}
           volumeSeparatePane
           volumePaneHeightPct={16}
