@@ -303,7 +303,7 @@ function CitationsPopover({ sources }) {
   )
 }
 
-export default function CatalystTable() {
+export default function CatalystTable({ compact = false }) {
   const { data, mutate, isValidating } = useCatalysts()
   const auth = useAuth() || {}
   const isAdmin = auth?.user?.role === 'admin'
@@ -455,7 +455,7 @@ export default function CatalystTable() {
   const showingAll = activeTags.size === ALL_TAGS.length
 
   return (
-    <div className={styles.tile}>
+    <div className={`${styles.tile} ${compact ? styles.compact : ''}`}>
       <div className={styles.header}>
         <span className={styles.title}><UIcon name="patterns" size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />STOCK CATALYSTS</span>
         <span className={styles.meta}>

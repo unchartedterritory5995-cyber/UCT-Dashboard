@@ -1,14 +1,16 @@
 /* ── Page layout ─────────────────────────────────────────────── */
-/* Mobile-first: single stacked column (top → main → rail). On desktop this
-   becomes a two-column grid with On The Tape in a right rail (see the
-   min-width:1025px block below). */
+/* Mobile-first: single stacked column (top → main → catalysts → tape).
+   Desktop promotes the two side features into rails flanking the brief — see
+   the min-width:1025px (both rails right) and min-width:1360px (true 3-pane)
+   blocks below. */
 .page {
   display: grid;
   grid-template-columns: 1fr;
   grid-template-areas:
     "top"
     "main"
-    "rail";
+    "lrail"
+    "rrail";
   gap: 16px;
   padding: 20px 24px 40px;
   max-width: 900px;
@@ -35,33 +37,47 @@
   min-width: 0;
 }
 
-/* On The Tape lives here — full width when stacked, right rail on desktop. */
-.rail {
-  grid-area: rail;
-  min-width: 0;
-}
+/* Stock Catalysts (left) + On The Tape (right) — full width when stacked,
+   side rails on desktop. */
+.lrail { grid-area: lrail; min-width: 0; }
+.rail  { grid-area: rrail; min-width: 0; }
 
-/* ── Desktop: two columns, On The Tape as a sticky right rail ─────
-   The rail sits in column 2 aligned to the top of the rundown card
-   ("main" row), so it lines up with the start of the Morning Wire brief. */
+/* ── Desktop (≥1025px): main brief + a right column holding both rails ─────
+   Not enough room for a rail on each side yet, so the tape and catalysts
+   stack in a single right column, top-aligned with the rundown card. */
 @media (min-width: 1025px) {
   .page {
-    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(0, 1fr) 320px;
     grid-template-areas:
       "top  ."
-      "main rail";
+      "main rrail"
+      "main lrail";
     column-gap: 24px;
     max-width: 1240px;
     align-items: start;
   }
+  /* Let the feed use the available viewport height in the rail. */
+  .rail .tapeBody {
+    max-height: calc(100vh - 150px);
+  }
+}
+
+/* ── Wide desktop (≥1360px): true 3-pane — catalysts · brief · tape ─────
+   Both rails are sticky and top-aligned with the start of the brief; the
+   centered main column keeps the wire visually centered in the viewport. */
+@media (min-width: 1360px) {
+  .page {
+    grid-template-columns: 320px minmax(0, 1fr) 320px;
+    grid-template-areas:
+      ".     top   ."
+      "lrail main  rrail";
+    max-width: 1480px;
+  }
+  .lrail,
   .rail {
     align-self: start;
     position: sticky;
     top: 16px;
-  }
-  /* Let the feed use the available viewport height in the rail. */
-  .rail .tapeBody {
-    max-height: calc(100vh - 150px);
   }
 }
 

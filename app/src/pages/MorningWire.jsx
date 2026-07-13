@@ -6,6 +6,7 @@ import TickerPopup from '../components/TickerPopup'
 import { SkeletonTileContent } from '../components/Skeleton'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import MorningWireIndexes from '../components/tiles/MorningWireIndexes'
+import CatalystTable from '../components/tiles/CatalystTable'
 import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useTweetFeed from '../hooks/useTweetFeed'
 import { rundownToSpeechText } from '../utils/htmlToSpeech'
@@ -332,6 +333,11 @@ export default function MorningWire() {
       </p>
 
       </div>{/* /mainStack */}
+
+      {/* ── Stock Catalysts — left rail on desktop ───────────────── */}
+      <aside className={styles.lrail}>
+        <CatalystTable compact />
+      </aside>
 
       {/* ── On The Tape (live tweet feed) — right rail on desktop ── */}
       {TWITTER_UI_ENABLED && (

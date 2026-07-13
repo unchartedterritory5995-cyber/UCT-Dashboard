@@ -566,6 +566,57 @@
   color: var(--color-warning, #e0a82e);
 }
 
+/* ── Compact rail variant ────────────────────────────────────────
+   Same row→card transform as the phone layout, but triggered by the
+   `compact` prop (not viewport width) so the table reads cleanly inside a
+   narrow (~320px) side rail on a wide desktop — e.g. the Morning Wire
+   left rail. Does NOT affect the Dashboard's full-width instance. */
+.compact { padding: 14px 14px; }
+.compact .header { flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.compact .meta { gap: 8px; flex-wrap: wrap; }
+.compact .summaryLine { font-size: 11px; }
+.compact .tableWrap { overflow: visible; }
+.compact .table,
+.compact .table tbody,
+.compact .table tr,
+.compact .table td { display: block; width: auto; }
+.compact .table thead { display: none; }
+.compact .table tr {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--bg-surface);
+}
+.compact .table tr:hover { background: var(--bg-surface); }
+.compact .table tr:last-child td { border-bottom: none; }
+.compact .table td { border: none; padding: 2px 0; white-space: normal; }
+
+/* Headline cluster: sym · price · %change · vol× wrap onto one line */
+.compact .colSym,
+.compact .colPrice,
+.compact .colGap,
+.compact .colVol {
+  display: inline-flex;
+  align-items: baseline;
+  width: auto;
+  margin-right: 10px;
+}
+.compact .colSym  { font-size: 14px; font-weight: 700; }
+.compact .colGap  { font-size: 13px; }
+.compact .colPrice { font-size: 12px; color: var(--text-muted); }
+.compact .colVol  { font-size: 11px; color: var(--text-muted); }
+.compact .colVol::before { content: 'Vol '; opacity: 0.6; }
+
+.compact .sectorBanner { flex-direction: column; gap: 6px; }
+.compact .colThesis { display: block; width: auto; margin-top: 6px; font-size: 12.5px; line-height: 1.5; }
+.compact .thesisClamp { -webkit-line-clamp: 3; }
+.compact .colUpdated {
+  display: block; width: auto; text-align: left;
+  margin-top: 6px; font-size: 10px;
+}
+.compact .colUpdated .whenStack { flex-direction: row; align-items: baseline; gap: 6px; }
+
 /* Phone: each row becomes a card (thesis-forward) — keep every field, none hidden. */
 @media (max-width: 640px) {
   .tile { padding: 14px 14px; }
