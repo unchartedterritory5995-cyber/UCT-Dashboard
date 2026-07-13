@@ -2815,6 +2815,117 @@ def _post_massive_discord(embed: dict) -> tuple:
         return (False, str(e))
 
 
+# ─── Push log: persistent record of what was sent to Discord ─────────────────
+# Manual force-push (and, once enabled, auto-push) record here so: (1) POSTED
+# state survives a refresh and is visible in the non-admin view, and (2) auto-push
+# can dedup — a contract pushed once by EITHER path is never re-pushed. Kept in a
+# SEPARATE small DB (not flow.db) so push writes never contend with the Massive
+# worker's heavy writes to flow.db (the source of this morning's lock 500s).
+_PUSHED_DB = os.path.join(os.path.dirname(DB_PATH), "pushed.db")
+
+
+def _pushed_conn():
+    conn = sqlite3.connect(_PUSHED_DB, timeout=10)
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS pushed_alerts (
+            push_key   TEXT PRIMARY KEY,
+            ticker TEXT, cp TEXT, strike TEXT, exp TEXT, alert_date TEXT,
+            premium REAL, grade TEXT, side TEXT, type TEXT, tier TEXT, alert_name TEXT,
+            mode TEXT, source TEXT, pushed_at TEXT)"""
+    )
+    return conn
+
+
+def _push_key(alert: dict) -> str:
+    """Contract+day identity, so a contract pushed once (manual OR auto, single OR
+    accumulation) is recorded/pushed only once."""
+    return "|".join([
+        str(alert.get("ticker", "")).upper(),
+        str(alert.get("cp", "")).upper(),
+        str(alert.get("strike", "")),
+        _exp_us(alert.get("exp", "")),
+        str(alert.get("alertDate") or alert.get("_date") or date.today().isoformat()),
+    ])
+
+
+def _record_push(alert: dict, mode: str, source: str) -> bool:
+    """Record a push. Returns True if this was a NEW push (row inserted), False if
+    the contract was already recorded — making the INSERT the atomic dedup gate for
+    auto-push. Never raises: logging must not break a push."""
+    try:
+        conn = _pushed_conn()
+        cur = conn.execute(
+            """INSERT OR IGNORE INTO pushed_alerts
+               (push_key,ticker,cp,strike,exp,alert_date,premium,grade,side,type,tier,alert_name,mode,source,pushed_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (_push_key(alert), alert.get("ticker"), alert.get("cp"),
+             str(alert.get("strike", "")), _exp_us(alert.get("exp", "")),
+             str(alert.get("alertDate") or alert.get("_date") or date.today().isoformat()),
+             alert.get("alertPremium") or alert.get("total_premium"),
+             alert.get("grade") or alert.get("accumulation_grade"),
+             alert.get("_side") or alert.get("side"),
+             alert.get("_type") or alert.get("alertType"),
+             alert.get("_tierKey"), alert.get("alertName"),
+             mode, source, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        claimed = cur.rowcount > 0
+        conn.close()
+        return claimed
+    except Exception:
+        return False
+
+
+def _pushed_keys(alert_date: str = None) -> set:
+    """Set of push_keys already sent — for marking forwardedToDiscord / dedup."""
+    try:
+        conn = _pushed_conn()
+        if alert_date:
+            rows = conn.execute("SELECT push_key FROM pushed_alerts WHERE alert_date=?", (alert_date,)).fetchall()
+        else:
+            rows = conn.execute("SELECT push_key FROM pushed_alerts").fetchall()
+        conn.close()
+        return set(r[0] for r in rows)
+    except Exception:
+        return set()
+
+
+# Auto-push algo. DEFAULT is intentionally conservative — derived from 7/13's
+# manual pushes: the alerts you sent by hand were the top tier (Alpha Gold) and
+# grade A/A+. Everything else (B/C/D, light Bullish/Bearish/LEAPS tiers) stayed
+# manual. This fires ONLY that top set, so nothing you didn't reliably push by
+# hand goes out automatically. The optional Size-sweep rule is OFF by default.
+# NOTE: this only DECIDES; nothing calls it to actually fire yet (auto-firing is
+# a separate, opt-in step so we can't spam the channel before you sign off).
+_AUTO_PUSH_CFG = {
+    "enabled": False,            # master switch — auto-fire is OFF until turned on
+    "alpha_gold": True,          # push Alpha Gold tier
+    "grade_a": True,             # push grade A / A+
+    "size_sweep_enabled": False, # optional: high-premium Size B sweeps
+    "size_min_premium": 3_000_000,
+}
+
+
+def should_auto_push(alert: dict, cfg: dict = None) -> bool:
+    """Decide whether an alert qualifies for auto-push under the current algo."""
+    if cfg is None:
+        cfg = _AUTO_PUSH_CFG
+    tier = (alert.get("_tierKey") or "").lower()
+    grade = (alert.get("grade") or "").upper()
+    name = (alert.get("alertName") or "").lower()
+    if cfg.get("alpha_gold") and (tier == "alpha" or "alpha gold" in name):
+        return True
+    if cfg.get("grade_a") and grade in ("A+", "A"):
+        return True
+    if cfg.get("size_sweep_enabled"):
+        prem = alert.get("alertPremium") or alert.get("total_premium") or 0
+        typ = (alert.get("_type") or alert.get("alertType") or "").upper()
+        if tier == "size" and grade == "B" and prem >= cfg.get("size_min_premium", 3_000_000) and typ == "SWEEP":
+            return True
+    return False
+
+
 @router.post("/force-push-discord")
 def force_push_discord(
     id: int = Query(None, description="flow.db row id for a single-print push"),
@@ -2875,12 +2986,33 @@ def force_push_discord(
             embed = _build_massive_embed(alert, mode="single")
 
         ok, detail = _post_massive_discord(embed)
+        if ok:
+            # Persist the push so POSTED survives refresh + shows in the non-admin
+            # view, and so auto-push later won't duplicate a manually-pushed contract.
+            _record_push(match if mode == "accumulation" else alert, mode, "manual")
         return {"ok": ok, "detail": detail, "mode": mode}
     except HTTPException:
         raise
     except Exception as e:
         import traceback
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc().splitlines()[-3:]}
+
+
+@router.get("/pushed")
+def get_pushed(alert_date: str = Query(None, description="alert_date to filter (defaults to all recent)")):
+    """Read-only list of alerts pushed to Discord (manual + auto). Feeds the
+    non-admin 'what was pushed' view and replaces the old session-only state."""
+    try:
+        conn = _pushed_conn()
+        conn.row_factory = sqlite3.Row
+        if alert_date:
+            rows = conn.execute("SELECT * FROM pushed_alerts WHERE alert_date=? ORDER BY pushed_at DESC", (alert_date,)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM pushed_alerts ORDER BY pushed_at DESC LIMIT 500").fetchall()
+        conn.close()
+        return {"ok": True, "count": len(rows), "pushed": [dict(r) for r in rows]}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "pushed": []}
 
 
 @router.post("/thresholds")
