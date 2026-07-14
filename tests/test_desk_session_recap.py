@@ -38,6 +38,26 @@ def test_split_chunks_oversized_single_section_hard_splits():
     assert all(len(c) <= 500 for c in chunks)
 
 
+# ── length scaling ──────────────────────────────────────────────────────────────
+
+def test_session_minutes_from_last_marker():
+    block = "[0:05] hi\n[45:10] mid\n[3:12:40] closing remarks"
+    assert dr._session_minutes(block) == 192
+
+
+def test_session_minutes_empty():
+    assert dr._session_minutes("no markers here") == 0
+
+
+def test_length_target_scales_and_clamps():
+    lo_s, hi_s = dr._length_target(30)      # short session → floor
+    assert hi_s == 5_000 and lo_s == 3_500
+    lo_m, hi_m = dr._length_target(90)      # 1.5h → mid
+    assert hi_m == 7_200
+    lo_l, hi_l = dr._length_target(200)     # 3h+ → ceiling
+    assert hi_l == 16_000 and lo_l == 11_200
+
+
 # ── gating ──────────────────────────────────────────────────────────────────────
 
 def test_is_enabled_flag(monkeypatch):

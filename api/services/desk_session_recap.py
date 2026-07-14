@@ -54,13 +54,21 @@ def _llm_timeout_secs() -> float:
 _SYS = (
     "You write the daily session recap for a stock-trading team's private Discord. "
     "You are given the timestamped transcript of a live trading session (plus any "
-    "pre-computed chapters/summary) and must produce a DETAILED, readable recap the "
-    "team can act on without watching the video.\n"
+    "pre-computed chapters/summary) and must produce a COMPREHENSIVE, readable recap "
+    "the team can act on without watching the video. Nothing that mattered may be "
+    "missing: a teammate who reads only your recap must know every trade, every "
+    "ticker call, every level, and every lesson from the session.\n"
     "Output PLAIN Discord markdown only (no code fences, no JSON), structured exactly:\n"
     "A single opening line: **TL;DR:** <2-3 sentences — the session's thrust and verdict>\n"
-    "## Market Context & Game Plan\n"
-    "## Key Discussion Points  (chronological bullets, each starting with its [h:mm:ss] timestamp)\n"
-    "## Tickers & Levels  (every name genuinely discussed: ticker, what was said, any prices/levels)\n"
+    "## Market Context & Game Plan  (regime, indices, the plan going in)\n"
+    "## Session Timeline  (a chronological walkthrough of the ENTIRE session — one "
+    "**bold [h:mm:ss] segment heading** per chapter/phase with detailed bullets under "
+    "each; cover every chapter provided, no gaps, from open to close)\n"
+    "## Trades & Executions  (EVERY trade taken or managed live: ticker, direction, "
+    "entry/exit prices, stop, size context, result, and the stated reasoning; if no "
+    "live trades, say so in one line)\n"
+    "## Tickers & Levels  (every name genuinely discussed: ticker, what was said, "
+    "any prices/levels — complete, not a sampling)\n"
     "## Setups & Lessons  (setups taught/applied and any process/psychology lessons)\n"
     "## Takeaways\n"
     "## Action Items  (ONLY if concrete follow-ups/tasks were actually said; otherwise omit the section)\n"
@@ -70,8 +78,27 @@ _SYS = (
     "- Specific beats generic: prices, levels, names, reasons — no filler like "
     "'they discussed the market'.\n"
     "- Complete sentences; write for a teammate who missed the session.\n"
-    "- Total length 3000-6500 characters. Use '## ' headers exactly as listed."
+    "- Depth scales with length: a 3-hour session deserves a long recap. Meet the "
+    "length target given in the user message. Use '## ' headers exactly as listed."
 )
+
+_TS_RE = re.compile(r"\[(?:(\d+):)?(\d{1,2}):(\d{2})\]")
+
+
+def _session_minutes(transcript_block: str) -> int:
+    """Session length from the last [h:mm:ss] marker in the stored transcript."""
+    last = 0
+    for m in _TS_RE.finditer(transcript_block):
+        h, mm, ss = int(m.group(1) or 0), int(m.group(2)), int(m.group(3))
+        last = max(last, h * 3600 + mm * 60 + ss)
+    return last // 60
+
+
+def _length_target(minutes: int) -> tuple[int, int]:
+    """(lo, hi) recap character target scaled to session length — ~5k for a short
+    session up to ~16k for a multi-hour one (Discord posts it in ~3-9 chunks)."""
+    hi = max(5_000, min(16_000, minutes * 80))
+    return int(hi * 0.7), hi
 
 
 def generate_recap_markdown(title: str, transcript_block: str, ins: dict) -> str:
@@ -86,8 +113,14 @@ def generate_recap_markdown(title: str, transcript_block: str, ins: dict) -> str
         "chapters": ins.get("chapters") or [],
         "setups": ins.get("setups") or [],
     }
+    minutes = _session_minutes(transcript_block)
+    lo, hi = _length_target(minutes)
     user = (
-        f"SESSION TITLE: {title}\n\n"
+        f"SESSION TITLE: {title}\n"
+        f"SESSION LENGTH: ~{minutes} minutes\n"
+        f"LENGTH TARGET: {lo}-{hi} characters — this is the floor for thoroughness, "
+        f"not a nice-to-have. Your Session Timeline must cover every chapter listed "
+        f"in the insights below.\n\n"
         f"PRE-COMPUTED INSIGHTS (steer, don't just restate):\n"
         f"{json.dumps(context, ensure_ascii=False)}\n\n"
         f"TRANSCRIPT:\n{transcript_block[:_TRANSCRIPT_MAX_CHARS]}"
@@ -95,7 +128,8 @@ def generate_recap_markdown(title: str, transcript_block: str, ins: dict) -> str
     client = _get_anthropic_client().with_options(timeout=_llm_timeout_secs())
     msg = client.messages.create(
         model=_MODEL,
-        max_tokens=4000,
+        # generous headroom over the 16k-char ceiling (~4.5k tokens of text)
+        max_tokens=10_000,
         system=_SYS,
         messages=[{"role": "user", "content": user}],
     )
