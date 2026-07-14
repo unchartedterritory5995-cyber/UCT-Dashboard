@@ -1248,11 +1248,13 @@ export default function StockChart({
     if (lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) c = lp.price
     let vol = last.v
     if ((!vol || vol === 0) && lp?.volume) vol = lp.volume
-    // Daily/period change is close-vs-PREVIOUS-close (the real % move), NOT
-    // close-minus-open. For the live bar, `c` is the live price and the prior
-    // bar's close is yesterday's close, so this stays accurate to the second.
+    // Today's change is close-vs-PREVIOUS-close (the real % move), NOT
+    // close-minus-open. Prefer the live feed's OFFICIAL prev_close (the exact
+    // reference the theme tracker + brokers use) so the numbers never disagree;
+    // fall back to the prior bar's close, then the open. `c` is the live price.
+    const feedPrev = (lp && Number.isFinite(lp.prev_close) && lp.prev_close > 0) ? lp.prev_close : null
     const prevBar = bars.length >= 2 ? bars[bars.length - 2] : null
-    const prevClose = prevBar && prevBar.c != null ? prevBar.c : null
+    const prevClose = feedPrev ?? (prevBar && prevBar.c != null ? prevBar.c : null)
     const change = prevClose != null ? c - prevClose : c - o
     const changePct = (prevClose != null && prevClose) ? (change / prevClose) * 100 : (o ? (change / o) * 100 : 0)
     const ovData = overlayDataRef.current || []

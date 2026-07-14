@@ -57,12 +57,17 @@ function groupReturn(theme, periodKey) {
 // ref_prices. Falls back to the server-computed return when live data is absent.
 function liveReturn(h, periodKey, prices) {
   const px = prices?.[h.sym]
-  const ref = h.ref_prices?.[periodKey]
   const live = px?.price
+  // 1d ("today") uses the live feed's OFFICIAL prev_close — the exact reference
+  // brokers and the chart legend use — so the two never disagree. Other periods
+  // use the backend's per-period reference close.
+  const ref = periodKey === '1d'
+    ? (px?.prev_close ?? h.ref_prices?.['1d'])
+    : h.ref_prices?.[periodKey]
   if (live != null && Number.isFinite(live) && ref != null && ref !== 0) {
     return ((live - ref) / ref) * 100
   }
-  if (periodKey === '1d' && px?.change_pct != null) return px.change_pct  // 1d = today's %
+  if (periodKey === '1d' && px?.change_pct != null) return px.change_pct  // feed's today %
   return h.returns?.[periodKey] ?? null
 }
 
@@ -302,16 +307,10 @@ export default function ThemeTrackerPage({ embedded = false }) {
     return [...s]
   }, [filteredThemes, openThemes])
 
-  const { prices: rtPrices } = useRealtimePrices(expandedSyms)
-  // Sample the stream on a ~300ms cadence so a tick storm can't thrash the list
-  // (still sub-second, so numbers feel live and flash on every change).
-  const rtRef = useRef(rtPrices)
-  rtRef.current = rtPrices
-  const [tickPrices, setTickPrices] = useState(rtPrices)
-  useEffect(() => {
-    const id = setInterval(() => setTickPrices(rtRef.current), 300)
-    return () => clearInterval(id)
-  }, [])
+  // Update at the feed's own pace (the SSE loop pushes changed prices every
+  // ~250ms straight off the Finnhub trade WS) — no extra throttle, so the %s
+  // tick and flash as fast as real trades arrive.
+  const { prices: tickPrices } = useRealtimePrices(expandedSyms)
 
   const handleKeyDown = useCallback((e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
