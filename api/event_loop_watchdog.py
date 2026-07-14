@@ -135,6 +135,37 @@ def _fresh_state() -> dict:
 
 _state = _fresh_state()
 
+# Ring buffer of thread-stack snapshots captured DURING a stall (observe mode).
+# Populated by the measuring thread the first time a probe is late by more than
+# _STALL_CAPTURE_MS within a single stall, so the blocking frame is still live.
+_stall_stacks: list = []
+_STALL_CAPTURE_MS = 3000.0   # capture once a stall passes ~3s of unresponsiveness
+_STALL_CAPTURE_MAX = 12      # keep the newest N captures
+_captured_this_stall = False # reset when the loop recovers
+
+
+def _capture_stall_stacks(lag_ms: float) -> None:
+    """Snapshot every thread's stack (called from the watchdog thread while the
+    loop is mid-stall) and push it onto the ring buffer. Never raises."""
+    try:
+        import sys as _sys
+        import traceback as _tb
+        frames = _sys._current_frames()
+        dumped = []
+        for tid, frame in frames.items():
+            stack = "".join(_tb.format_stack(frame))
+            dumped.append({"thread_id": tid, "stack": stack[-4000:]})
+        entry = {
+            "at": time.time(),
+            "lag_ms": round(lag_ms, 1),
+            "threads": dumped,
+        }
+        with _lock:
+            _stall_stacks.insert(0, entry)
+            del _stall_stacks[_STALL_CAPTURE_MAX:]
+    except Exception:  # noqa: BLE001 - diagnostics must never break the watchdog
+        pass
+
 
 # ---------------------------------------------------------------------------
 # Status accessor + FastAPI router
@@ -166,6 +197,16 @@ try:  # keep the core importable even where FastAPI is absent (pure-logic tests)
     @router.get("/status")
     def watchdog_status():  # no auth — read-only telemetry
         return get_status()
+
+    @router.get("/stacks")
+    def watchdog_stacks():  # no auth — read-only diagnostic
+        """Thread stacks captured DURING recent event-loop stalls (observe mode).
+
+        Each entry is a snapshot taken by the watchdog thread while the loop was
+        mid-stall — so the blocking frame is live in the dump. Newest first.
+        """
+        with _lock:
+            return {"captures": list(_stall_stacks)}
 except Exception:  # pragma: no cover - fastapi always present in the app
     router = None
 
@@ -256,6 +297,7 @@ def _probe_ran(sched_monotonic: float, evt: threading.Event) -> None:
 
 def _run(check_sec: float, wedge_sec: float, enabled: bool, observe: bool,
          webhook: str | None) -> None:
+    global _captured_this_stall
     loop = _loop
     if loop is None:
         return
@@ -277,6 +319,7 @@ def _run(check_sec: float, wedge_sec: float, enabled: bool, observe: bool,
         # Wait up to one interval for the probe to be serviced.
         if evt is not None and evt.wait(timeout=check_sec):
             # Serviced — a healthy check. missed_streak already reset in probe.
+            _captured_this_stall = False   # loop recovered — arm capture for the next stall
             outstanding = False
             # Hold a steady cadence: sleep whatever's left of this interval.
             remaining = check_sec - (time.monotonic() - sched_monotonic)
@@ -295,6 +338,12 @@ def _run(check_sec: float, wedge_sec: float, enabled: bool, observe: bool,
             if current_lag_ms > _state["max_lag_ms"]:
                 _state["max_lag_ms"] = current_lag_ms
             _state["last_checked_at"] = time.time()
+
+        # Capture the live thread stacks ONCE per stall, while the loop is still
+        # blocked, so the blocking frame is caught in the act. Diagnostic only.
+        if not _captured_this_stall and current_lag_ms >= _STALL_CAPTURE_MS:
+            _capture_stall_stacks(current_lag_ms)
+            _captured_this_stall = True
 
         if should_kill(missed, current_lag_ms, wedge_sec, check_sec,
                        enabled, observe):
