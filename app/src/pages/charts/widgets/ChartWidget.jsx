@@ -36,14 +36,14 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const ratingColor = uctRating == null ? '#706b5e'
     : uctRating >= 80 ? '#22c45c' : uctRating >= 60 ? '#7fb26a' : uctRating >= 40 ? '#c9a84c' : '#c07a63'
 
-  // Relative volume — today's volume (live) vs the 30-day average. Elevated (≥1.5×)
-  // reads gold, quiet (<0.7×) dims; otherwise neutral.
+  // Relative volume — today's volume (live) vs the 30-day average. White value
+  // (same as the clock), regardless of level.
   const { prices: live } = useLivePrices([sym])
   const todayVol = live?.[sym]?.volume || null
   const avgVol = fund?.metrics?.avg_volume || null
   const rvol = (todayVol && avgVol) ? todayVol / avgVol : null
   const rvolStr = rvol != null ? `${rvol.toFixed(rvol >= 10 ? 0 : 1)}×` : null
-  const rvolColor = rvol == null ? '#706b5e' : rvol >= 1.5 ? '#c9a84c' : rvol < 0.7 ? '#6b6658' : '#cfcabb'
+  const rvolColor = '#d8d2c2'
   const [flagToast, setFlagToast] = useState(null)
   useEffect(() => {
     if (!flagToast) return

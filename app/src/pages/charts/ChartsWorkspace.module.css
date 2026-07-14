@@ -95,7 +95,7 @@
   border-radius: 3px;
   padding: 2px 8px;
   font-family: inherit;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.6px;
   cursor: pointer;
@@ -145,14 +145,14 @@
   white-space: nowrap;
 }
 .chartMetaLabel {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--text-muted, #706b5e);
+  color: #9b9684;
 }
 .chartMetaVal {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -186,18 +186,18 @@
   animation: clockPulse 2.4s ease-in-out infinite;
 }
 .clockTime {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
   color: #d8d2c2;
 }
 .clockEt {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #706b5e;
+  color: #9b9684;
 }
 .clockDivider { display: none; }
 .clockStatus {

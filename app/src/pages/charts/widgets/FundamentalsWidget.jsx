@@ -56,25 +56,29 @@ function QuarterBlock({ q }) {
   if (!q.reported) {
     return (
       <div className={`${styles.qBlock} ${styles.qNext}`}>
-        <div className={styles.qLabel}>{q.label || 'Next'}</div>
-        {/* Prefer the scheduled report date; fall back to the fiscal period end
-            so a forward card always shows a truthful date (the estimate source
-            only stamps a report date on the nearest quarter). */}
-        <div className={styles.qNextDate} title={q.report_date ? 'Expected report date' : q.period_end ? 'Fiscal period end' : undefined}>{q.report_date || q.period_end}</div>
-        <div className={styles.qRow}><span className={styles.muted}>EPS Est.</span> <span>{fmtEps(q.eps_estimate)}</span> <span className={pctClass(q.eps_est_chg_pct)}>{fmtPct(q.eps_est_chg_pct)}</span></div>
-        <div className={styles.qRow}><span className={styles.muted}>Sales Est.</span> <span>{fmtSales(q.rev_estimate)}</span> <span className={pctClass(q.rev_est_chg_pct)}>{fmtPct(q.rev_est_chg_pct)}</span></div>
+        <div className={styles.qHead}>
+          <span className={styles.qLabel}>{q.label || 'Next'}</span>
+          {/* Prefer the scheduled report date; fall back to the fiscal period end
+              so a forward card always shows a truthful date (the estimate source
+              only stamps a report date on the nearest quarter). */}
+          <span className={styles.qDate} title={q.report_date ? 'Expected report date' : q.period_end ? 'Fiscal period end' : undefined}>{q.report_date || q.period_end}</span>
+        </div>
+        <div className={styles.qRow}><span className={styles.muted}>EPS</span> <span>{fmtEps(q.eps_estimate)}</span> <span className={styles.est}>est</span> <span className={pctClass(q.eps_est_chg_pct)}>{fmtPct(q.eps_est_chg_pct)}</span></div>
+        <div className={styles.qRow}><span className={styles.muted}>Rev</span> <span>{fmtSales(q.rev_estimate)}</span> <span className={styles.est}>est</span> <span className={pctClass(q.rev_est_chg_pct)}>{fmtPct(q.rev_est_chg_pct)}</span></div>
       </div>
     )
   }
   return (
     <div className={styles.qBlock}>
-      <div className={styles.qLabel}>{q.label}</div>
+      <div className={styles.qHead}><span className={styles.qLabel}>{q.label}</span></div>
       <div className={styles.qRow}>
-        <span>{fmtEps(q.eps_actual)}</span> <span className={styles.muted}>vs</span> <span>{fmtEps(q.eps_estimate)}</span>
+        <span className={styles.muted}>EPS</span> <span>{fmtEps(q.eps_actual)}</span>
+        <span className={styles.slash}>/</span> <span>{fmtEps(q.eps_estimate)}</span>
         <span className={pctClass(q.eps_surprise_pct)}>{fmtPct(q.eps_surprise_pct)}</span>
       </div>
       <div className={styles.qRow}>
-        <span>{fmtSales(q.rev_actual)}</span> <span className={styles.muted}>vs</span> <span>{fmtSales(q.rev_estimate)}</span>
+        <span className={styles.muted}>Rev</span> <span>{fmtSales(q.rev_actual)}</span>
+        <span className={styles.slash}>/</span> <span>{fmtSales(q.rev_estimate)}</span>
         <span className={pctClass(q.rev_surprise_pct)}>{fmtPct(q.rev_surprise_pct)}</span>
       </div>
     </div>
@@ -165,17 +169,11 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
       ) : effectiveView === 'ownership' ? (
         <OwnershipPanel sym={sym} />
       ) : effectiveView === 'annual' ? (
-        <>
-          <div className={styles.sectionLabel}>Annual · EPS &amp; Sales</div>
-          <AnnualTable rows={data.annual} />
-        </>
+        <AnnualTable rows={data.annual} />
       ) : (
-        <>
-          <div className={styles.sectionLabel}>Quarterly · Actual vs Est.</div>
-          <div className={styles.qStrip}>
-            {data.quarterly.map((q, i) => <QuarterBlock key={q.label || i} q={q} />)}
-          </div>
-        </>
+        <div className={styles.qStrip}>
+          {data.quarterly.map((q, i) => <QuarterBlock key={q.label || i} q={q} />)}
+        </div>
       )}
     </div>
   )
