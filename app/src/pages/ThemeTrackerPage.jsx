@@ -189,7 +189,10 @@ export default function ThemeTrackerPage({ embedded = false }) {
   const [selectedNavKey, setSelectedNavKey] = useState(null)
   const [selectedName, setSelectedName] = useState('')
   const [sortDir, setSortDir] = useState('desc')
-  const [openThemes, setOpenThemes] = useState(new Set())
+  // Accordion: at most ONE theme open at a time (null = none). Defaults to the
+  // first theme; opening another closes the previous; arrow-nav into a new
+  // theme closes the old one.
+  const [openTheme, setOpenTheme] = useState(null)
   const [search, setSearch] = useState('')
   // chartPeriod is declared up here (not later in the file) because
   // toggleTheme + handleHoverSym below close over it; a `const` declared
@@ -210,22 +213,17 @@ export default function ThemeTrackerPage({ embedded = false }) {
   }
 
   function toggleTheme(ticker) {
-    setOpenThemes(prev => {
-      const next = new Set(prev)
-      if (next.has(ticker)) {
-        next.delete(ticker)
-      } else {
-        next.add(ticker)
-        // Bulk-warm bars + ticker-meta for every holding in the just-opened
-        // group so any click within it lands on a populated SWR cache. Server
-        // disk cache makes this cheap (~10ms each, parallelised by the
-        // browser), and prefetchBars dedups against in-flight requests.
-        const theme = data?.themes?.find(t => t.ticker === ticker)
-        if (theme?.holdings?.length) {
-          prefetchBars(theme.holdings.map(h => h.sym), chartPeriod)
-        }
+    setOpenTheme(prev => {
+      if (prev === ticker) return null   // clicking the open one collapses it
+      // Bulk-warm bars + ticker-meta for every holding in the just-opened
+      // group so any click within it lands on a populated SWR cache. Server
+      // disk cache makes this cheap (~10ms each, parallelised by the
+      // browser), and prefetchBars dedups against in-flight requests.
+      const theme = data?.themes?.find(t => t.ticker === ticker)
+      if (theme?.holdings?.length) {
+        prefetchBars(theme.holdings.map(h => h.sym), chartPeriod)
       }
-      return next
+      return ticker                      // opening a new one closes the previous
     })
   }
 
@@ -276,22 +274,32 @@ export default function ThemeTrackerPage({ embedded = false }) {
     )
   }, [sortedThemes, search])
 
-  // Auto-expand themes that contain a matching holding
+  // While searching, open the FIRST theme that has a matching holding (accordion
+  // stays single-open).
   useEffect(() => {
     if (!search.trim() || !sortedThemes.length) return
     const q = search.trim().toLowerCase()
-    setOpenThemes(prev => {
-      const next = new Set(prev)
-      let changed = false
-      sortedThemes.forEach(theme => {
-        if (!next.has(theme.ticker) && theme.holdings.some(h => h.sym.toLowerCase().includes(q))) {
-          next.add(theme.ticker)
-          changed = true
-        }
-      })
-      return changed ? next : prev
-    })
+    const match = sortedThemes.find(theme =>
+      theme.name.toLowerCase().includes(q) ||
+      theme.ticker.toLowerCase().includes(q) ||
+      theme.holdings.some(h => h.sym.toLowerCase().includes(q)))
+    if (match) setOpenTheme(match.ticker)
   }, [search, sortedThemes])
+
+  // First theme open BY DEFAULT — on initial load and whenever the period
+  // changes (each period sorts differently, so its "first" theme differs). Does
+  // NOT re-open if the user deliberately collapses it (only fires on period flip
+  // / first data arrival), so manual collapse still works.
+  const firstThemeTicker = filteredThemes[0]?.ticker
+  const lastOpenPeriodRef = useRef(null)
+  useEffect(() => {
+    if (!firstThemeTicker) return
+    if (lastOpenPeriodRef.current !== activeKey) {
+      setOpenTheme(firstThemeTicker)
+      lastOpenPeriodRef.current = activeKey
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstThemeTicker, activeKey])
 
   // Flat list for keyboard navigation — must match visual sort order
   const allStocks = useMemo(() =>
@@ -311,12 +319,12 @@ export default function ThemeTrackerPage({ embedded = false }) {
   const expandedSyms = useMemo(() => {
     const s = new Set()
     for (const theme of filteredThemes) {
-      if (openThemes.has(theme.ticker)) {
+      if (openTheme === theme.ticker) {
         for (const h of theme.holdings) if (h.sym) s.add(h.sym)
       }
     }
     return [...s]
-  }, [filteredThemes, openThemes])
+  }, [filteredThemes, openTheme])
 
   // Prices come from TWO feeds, merged:
   //   • useRealtimePrices → the official prev_close (REST) + a Finnhub fallback.
@@ -364,12 +372,9 @@ export default function ThemeTrackerPage({ embedded = false }) {
           : Math.max(idx - 1, 0))
     if (nextIdx === idx) return
     const stock = allStocks[nextIdx]
-    setOpenThemes(prev => {
-      if (prev.has(stock.themeTicker)) return prev
-      const next = new Set(prev)
-      next.add(stock.themeTicker)
-      return next
-    })
+    // Accordion: arrow-navving into a stock opens its theme and closes any other
+    // (so scrolling off the end of one theme into the next collapses the first).
+    setOpenTheme(stock.themeTicker)
     setSelectedSym(stock.sym)
     setSelectedNavKey(stock.key)
     setSelectedName(stock.name || stock.sym)
@@ -474,10 +479,10 @@ export default function ThemeTrackerPage({ embedded = false }) {
           )}
           {filteredThemes.map(theme => (
             <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} selectedNavKey={selectedNavKey} onSelectSym={handleSelect}
-              activeKey={activeKey} sortDir={sortDir} open={openThemes.has(theme.ticker)} onToggle={toggleTheme}
+              activeKey={activeKey} sortDir={sortDir} open={openTheme === theme.ticker} onToggle={toggleTheme}
               rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
               tickerActions={tickerActions} onHoverSym={handleHoverSym}
-              prices={openThemes.has(theme.ticker) ? tickPrices : null} />
+              prices={openTheme === theme.ticker ? tickPrices : null} />
           ))}
         </div>
       </div>
