@@ -9,20 +9,23 @@ const THRESHOLD = 4 // px before a press becomes a drag
 // getActiveTool / onCommit / mediaSize are read through refs so the listener
 // effect depends only on the (stable) container/controller refs and never
 // re-binds listeners when the parent (StockChart) re-renders mid-gesture.
-export default function useWatermarkDrag({ containerRef, controllerRef, getActiveTool, onCommit, mediaSize }) {
+export default function useWatermarkDrag({ containerRef, controllerRef, getActiveTool, onCommit, mediaSize, locked }) {
   const drag = useRef(null)
   const getActiveToolRef = useRef(getActiveTool)
   const onCommitRef = useRef(onCommit)
   const mediaSizeRef = useRef(mediaSize)
+  const lockedRef = useRef(locked)
   getActiveToolRef.current = getActiveTool
   onCommitRef.current = onCommit
   mediaSizeRef.current = mediaSize
+  lockedRef.current = locked
 
   useEffect(() => {
     const el = containerRef.current
     if (!el) return undefined
 
     const toolActive = () => {
+      if (lockedRef.current) return true   // locked → never arm/drag the watermark
       const fn = getActiveToolRef.current
       const t = fn && fn()
       return t && t !== 'cursor'

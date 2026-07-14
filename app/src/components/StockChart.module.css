@@ -160,15 +160,35 @@
   font-weight: 600;
 }
 
-/* Charts workspace: stack the OHLCV legend single-file down the left, dropped
-   below the toolbar so it doesn't crowd it. */
+/* Charts workspace: stack the OHLCV legend single-file down the left as a
+   two-column table (label left, value right-aligned), dropped below the toolbar.
+   Fixed width pushes every value to the same right edge (TC2000-style). */
 .legendVertical {
-  flex-direction: column;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-  gap: 1px;
-  top: 46px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
   row-gap: 1px;
+  align-content: start;
+  width: 150px;
+  top: 46px;
+}
+.vlFull {
+  grid-column: 1 / -1;
+  color: #a8a290;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.vlLabel {
+  color: #a8a290;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.vlVal {
+  text-align: right;
+  color: #d4cfc0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* ── Multi-symbol comparison legend (top-left overlay) ──

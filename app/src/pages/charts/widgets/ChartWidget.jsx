@@ -126,6 +126,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           carryDragPlacement={false}
           dragMeasure
           verticalLegend
+          lockWatermark
+          alwaysShowLegend
           rightPadBars={6}
           dailyDefaultBars={126}
           volumeSeparatePane

@@ -679,6 +679,8 @@ export default function StockChart({
   hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
   dragMeasure = false,        // Charts workspace: plain left-drag draws a transient measure line + % / bars / time readout (TC2000-style) instead of panning. Cursor mode only; mouse only.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
+  lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
+  alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
   leftBarPad = 0,             // bars of empty space before the first bar on the default zoom (intraday popup: matches the right padding)
   overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
@@ -1107,6 +1109,7 @@ export default function StockChart({
   useWatermarkDrag({
     containerRef,
     controllerRef: wmCtrlRef,
+    locked: lockWatermark,
     getActiveTool: () => activeToolRef.current,
     onCommit: ({ x, y }) => {
       // Setup Library: persist the new position on THIS example only, never the
@@ -1222,6 +1225,37 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
+  const legendHoveringRef = useRef(false)
+  // Build the legend payload for the LATEST bar (used when the cursor is off the
+  // chart and alwaysShowLegend is on). Reads live refs; safe to call from effects.
+  const computeLatestCrosshair = () => {
+    const bars = prevBarsRef.current
+    if (!bars || !bars.length) return null
+    const last = bars[bars.length - 1]
+    const o = last.o, h = last.h, l = last.l
+    let c = last.c
+    const lp = livePricesRef.current?.[symRef.current]
+    if (lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) c = lp.price
+    let vol = last.v
+    if ((!vol || vol === 0) && lp?.volume) vol = lp.volume
+    const change = c - o
+    const changePct = o ? (change / o) * 100 : 0
+    const ovData = overlayDataRef.current || []
+    const rovs = resolvedOverlaysRef.current || []
+    const overlays = rovs.map((ov, i) => {
+      const d = ovData[i]?.data
+      const pt = (d && d.length) ? d[d.length - 1] : null
+      if (!pt || !ov) return null
+      const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? MB_UP : ov.color
+      return { label: `${ov.type} ${ov.period}`, value: pt.value, color }
+    }).filter(Boolean)
+    return {
+      time: last.t, open: o, high: h, low: l, close: c, volume: vol,
+      change: change.toFixed(2), changePct: changePct.toFixed(2),
+      overlays, rsi: null, macd: null, macdSig: null, stochK: null, stochD: null,
+      atr: null, sar: null, ichimokuTenkan: null, ichimokuKijun: null, compare: null,
+    }
+  }
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
   const crosshairParamRef = useRef(null)
@@ -5218,7 +5252,7 @@ export default function StockChart({
       const onCrosshairMove = onCrosshairMoveRef.current
 
       const priceData = candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null
-      if (!priceData) { setCrosshairData(null); return }
+      if (!priceData) { legendHoveringRef.current = false; setCrosshairData(alwaysShowLegend ? computeLatestCrosshair() : null); return }
 
       const volSeriesData = volumeSeriesRef.current ? param.seriesData.get(volumeSeriesRef.current) : null
       // If volume is 0 or missing (developing bar), use session volume from live data
@@ -5236,7 +5270,10 @@ export default function StockChart({
           d = lastOv ? { value: lastOv.value } : null
         }
         const ov = resolvedOverlays?.[i]
-        return d && ov ? { label: `${ov.type} ${ov.period}`, value: d.value, color: ov.color } : null
+        if (!d || !ov) return null
+        // Match the DISPLAYED line color (ema9MatchCandle repaints the 9-EMA to MB_UP).
+        const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? MB_UP : ov.color
+        return { label: `${ov.type} ${ov.period}`, value: d.value, color }
       }).filter(Boolean)
 
       // For OHLC types (candles/bars/hollow)
@@ -5295,6 +5332,7 @@ export default function StockChart({
         compareValue = dc?.value ?? (comparisonData.at(-1)?.value ?? null)
       }
 
+      legendHoveringRef.current = true
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -5336,7 +5374,8 @@ export default function StockChart({
       if (!param.point || !param.time) {
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
         crosshairParamRef.current = null
-        setCrosshairData(null)
+        legendHoveringRef.current = false
+        setCrosshairData(alwaysShowLegend ? computeLatestCrosshair() : null)
         // Tell the sync bus the local user left the chart — but not when this
         // empty event was self-induced by applying an external crosshair.
         if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
@@ -5362,6 +5401,14 @@ export default function StockChart({
       crosshairParamRef.current = null
     }
   }, [chartReady])
+
+  // Keep the off-chart legend fresh with the latest bar when the cursor isn't hovering.
+  useEffect(() => {
+    if (!alwaysShowLegend || !chartReady) return
+    if (legendHoveringRef.current) return
+    setCrosshairData(computeLatestCrosshair())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alwaysShowLegend, chartReady, ohlcData, overlayData])
 
   // ── Multi-chart sync: report visible time-range changes to parent (Task 5 Step 3) ──
   // No-op when onTimeRangeChange is absent. Uses Lightweight Charts'
@@ -6373,6 +6420,36 @@ export default function StockChart({
           /* Drop below the index pane so the OHLCV legend never covers it. */
           style={overlayBounds ? { top: overlayBounds.top + 6 } : undefined}
         >
+          {verticalLegend ? (
+            <>
+              <span className={styles.vlFull} style={{ color: '#d4cfc0' }}>{formatLegendTime(crosshairData.time)}</span>
+              <span className={styles.vlLabel}>Open</span><span className={styles.vlVal}>{crosshairData.open?.toFixed(2)}</span>
+              <span className={styles.vlLabel}>High</span><span className={styles.vlVal}>{crosshairData.high?.toFixed(2)}</span>
+              <span className={styles.vlLabel}>Low</span><span className={styles.vlVal}>{crosshairData.low?.toFixed(2)}</span>
+              <span className={styles.vlLabel}>Close</span><span className={styles.vlVal}>{crosshairData.close?.toFixed(2)}</span>
+              {crosshairData.volume != null && (
+                <><span className={styles.vlLabel}>Vol</span><span className={styles.vlVal}>{formatVolume(crosshairData.volume)}</span></>
+              )}
+              <span className={`${styles.vlFull} ${parseFloat(crosshairData.change) >= 0 ? styles.legendUp : styles.legendDown}`}>
+                {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
+              </span>
+              {crosshairData.overlays.flatMap((ov, i) => [
+                <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
+                <span key={'v' + i} className={styles.vlVal} style={{ color: ov.color }}>{ov.value?.toFixed(2)}</span>,
+              ])}
+              {crosshairData.rsi != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.rsi?.color || '#7b68ee' }}>RSI({cs.indicators?.rsi?.period || 14}) {crosshairData.rsi.toFixed(1)}</span>)}
+              {crosshairData.macd != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.macd?.macdColor || '#2196F3' }}>MACD {crosshairData.macd.toFixed(4)}</span>)}
+              {crosshairData.macdSig != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.macd?.signalColor || '#FF9800' }}>SIG {crosshairData.macdSig.toFixed(4)}</span>)}
+              {crosshairData.stochK != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.stoch?.kColor || '#FF6B6B' }}>%K {crosshairData.stochK.toFixed(1)}</span>)}
+              {crosshairData.stochD != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.stoch?.dColor || '#4ECDC4' }}>%D {crosshairData.stochD.toFixed(1)}</span>)}
+              {crosshairData.atr != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.atr?.color || '#FFA726' }}>ATR({cs.indicators?.atr?.period || 14}) {crosshairData.atr.toFixed(4)}</span>)}
+              {crosshairData.sar != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.sar?.color || '#ffeb3b' }}>SAR {crosshairData.sar.toFixed(4)}</span>)}
+              {crosshairData.ichimokuTenkan != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.ichimoku?.tenkanColor || '#26C6DA' }}>TK {crosshairData.ichimokuTenkan.toFixed(2)}</span>)}
+              {crosshairData.ichimokuKijun != null && (<span className={styles.vlFull} style={{ color: cs.indicators?.ichimoku?.kijunColor || '#EF5350' }}>KJ {crosshairData.ichimokuKijun.toFixed(2)}</span>)}
+              {crosshairData.compare != null && compareSymbol && (<span className={styles.vlFull} style={{ color: '#fb923c' }}>{compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%</span>)}
+            </>
+          ) : (
+          <>
           <span className={styles.legendTime}>{formatLegendTime(crosshairData.time)}</span>
           <span className={styles.legendLabel}>O <span className={styles.legendVal}>{crosshairData.open?.toFixed(2)}</span></span>
           <span className={styles.legendLabel}>H <span className={styles.legendVal}>{crosshairData.high?.toFixed(2)}</span></span>
@@ -6436,6 +6513,8 @@ export default function StockChart({
             <span style={{ color: '#fb923c' }}>
               {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
             </span>
+          )}
+          </>
           )}
         </div>
       )}
