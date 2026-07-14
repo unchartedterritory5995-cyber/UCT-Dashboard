@@ -106,6 +106,11 @@ def _build_app() -> FastAPI:
     # Mount every flow.db / consumer-state router (reuses the reviewed mounter).
     from api.worker_main import _mount_flow_routers
     _mount_flow_routers(app)
+
+    # Thread stack-dump diagnostics (7/14 incident: "which line is the hot
+    # thread on" took an hour to infer from /proc; this answers it in one call).
+    from api import debug_dump_router
+    app.include_router(debug_dump_router.router)
     return app
 
 
@@ -119,6 +124,15 @@ def _start_consumer():
             log.info("consumer not started (MASSIVE_WS_ENABLED=0 or no key)")
     except Exception as e:  # noqa: BLE001
         log.exception("consumer failed to start (non-fatal): %s", e)
+    # Tape-freeze watchdog (7/14 incident): out-of-band thread, force-exits on
+    # a wedged consumer so restartPolicy=ALWAYS recovers the tape in ~60s.
+    # Self-gated on MASSIVE_WS_ENABLED=1.
+    try:
+        from api import flow_watchdog
+        if flow_watchdog.start("flow-worker"):
+            log.info("flow freeze-watchdog armed")
+    except Exception as e:  # noqa: BLE001
+        log.warning("flow freeze-watchdog failed to start (non-fatal): %s", e)
 
 
 def _start_flow_schedulers():

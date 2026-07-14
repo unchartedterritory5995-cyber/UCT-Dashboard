@@ -1,0 +1,152 @@
+"""
+Out-of-band tape-freeze watchdog (2026-07-14 incident follow-up).
+
+The consumer's own stale-connection watchdog lives ON the consumer's asyncio
+loop — when that loop starves (divergence spiral under extreme feed volume,
+7/14 incident), the watchdog starves with it and the tape stays frozen while
+the process keeps serving HTTP. This module is the guard that cannot die with
+its patient: a plain OS thread that watches flow.db insert progress from the
+outside and force-exits the process on a true freeze, so Railway's
+restartPolicy=ALWAYS brings up a fresh consumer within ~60s.
+
+Freeze vs lag — CRITICAL distinction (learned 7/14):
+  - FREEZE: MAX(id) in flow.db stops advancing during market hours. The
+    consumer is wedged; a restart is the only recovery. -> exit.
+  - LAG: rows keep inserting but their trade timestamps trail wall clock
+    (consumer behind an extreme-volume feed). A restart makes lag WORSE
+    (loses buffered backlog + reconnect gap). -> do nothing; the external
+    freshness monitor alerts humans instead.
+
+Guards against false exits:
+  - Only fires inside 9:45 AM - 3:55 PM ET, Mon-Fri.
+  - Only fires if the newest row is from TODAY (a holiday/closed session has
+    no rows today, so the watchdog stays quiet instead of restart-looping).
+  - Only fires after FLOW_FREEZE_WATCHDOG_MIN_UPTIME_SEC of process uptime.
+  - Any internal error disables that check cycle, never the service.
+
+Env:
+  FLOW_FREEZE_WATCHDOG_ENABLED         default "1"
+  FLOW_FREEZE_WATCHDOG_STALE_SEC       default "300"  (no inserts for this long -> exit)
+  FLOW_FREEZE_WATCHDOG_MIN_UPTIME_SEC  default "300"
+  DISCORD_ALERT_WEBHOOK                optional; best-effort alert before exit
+"""
+
+import logging
+import os
+import sqlite3
+import threading
+import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+logger = logging.getLogger(__name__)
+
+DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+ENABLED = os.environ.get("FLOW_FREEZE_WATCHDOG_ENABLED", "1") == "1"
+STALE_SEC = float(os.environ.get("FLOW_FREEZE_WATCHDOG_STALE_SEC", "300"))
+MIN_UPTIME_SEC = float(os.environ.get("FLOW_FREEZE_WATCHDOG_MIN_UPTIME_SEC", "300"))
+CHECK_INTERVAL_SEC = 30.0
+_ET = ZoneInfo("America/New_York")
+
+_started = False
+_start_lock = threading.Lock()
+
+
+def _in_watch_window(now_et: datetime) -> bool:
+    if now_et.weekday() >= 5:
+        return False
+    mins = now_et.hour * 60 + now_et.minute
+    return (9 * 60 + 45) <= mins <= (15 * 60 + 55)
+
+
+def _newest_row():
+    """(max_id, created_date_str) of the newest row, or (None, None)."""
+    conn = sqlite3.connect(DB_PATH, timeout=5)
+    try:
+        row = conn.execute(
+            "SELECT id, CreatedDate FROM flow ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        conn.close()
+    return (row[0], row[1]) if row else (None, None)
+
+
+def _today_mdyyyy(now_et: datetime) -> str:
+    # flow.db CreatedDate format is M/D/YYYY with no zero padding.
+    return f"{now_et.month}/{now_et.day}/{now_et.year}"
+
+
+def _alert_discord(msg: str) -> None:
+    url = (os.environ.get("DISCORD_ALERT_WEBHOOK") or "").strip()
+    if not url:
+        return
+    try:
+        import httpx
+        httpx.post(url, json={"content": msg}, timeout=5.0,
+                   headers={"User-Agent": "Mozilla/5.0 uct-flow-watchdog"})
+    except Exception:
+        pass  # alerting must never block the exit
+
+
+def _run(service_name: str) -> None:
+    boot_ts = time.time()
+    last_max_id = None
+    last_advance_ts = time.time()
+
+    logger.info("[flow-watchdog] started (service=%s stale=%.0fs interval=%.0fs)",
+                service_name, STALE_SEC, CHECK_INTERVAL_SEC)
+    while True:
+        time.sleep(CHECK_INTERVAL_SEC)
+        try:
+            now_et = datetime.now(_ET)
+            if not _in_watch_window(now_et):
+                last_max_id = None  # reset across sessions/overnight
+                continue
+            if time.time() - boot_ts < MIN_UPTIME_SEC:
+                continue
+
+            max_id, created_date = _newest_row()
+            if max_id is None:
+                continue
+            if created_date != _today_mdyyyy(now_et):
+                # No rows today at all — closed session/holiday or a feed that
+                # never started. Restarting can't help either; stay quiet.
+                continue
+
+            if last_max_id is None or max_id != last_max_id:
+                last_max_id = max_id
+                last_advance_ts = time.time()
+                continue
+
+            frozen_for = time.time() - last_advance_ts
+            if frozen_for >= STALE_SEC:
+                msg = (f":rotating_light: **[{service_name}] flow-watchdog: tape FROZEN** — "
+                       f"no flow.db inserts for {int(frozen_for)}s during market hours "
+                       f"(max_id stuck at {max_id}). Force-exiting so Railway restarts "
+                       f"the consumer.")
+                logger.critical("[flow-watchdog] %s", msg)
+                _alert_discord(msg)
+                # Give the log/webhook a beat to flush, then hard-exit. Railway
+                # restartPolicy=ALWAYS restarts the container.
+                time.sleep(2)
+                os._exit(43)
+        except Exception as e:
+            logger.warning("[flow-watchdog] check failed (non-fatal): %s", e)
+
+
+def start(service_name: str) -> bool:
+    """Start the watchdog thread. No-op unless this service owns the consumer
+    (MASSIVE_WS_ENABLED=1) and the watchdog is enabled. Idempotent."""
+    global _started
+    if not ENABLED:
+        logger.info("[flow-watchdog] disabled via FLOW_FREEZE_WATCHDOG_ENABLED")
+        return False
+    if os.environ.get("MASSIVE_WS_ENABLED", "0").lower() not in ("1", "true", "yes"):
+        return False
+    with _start_lock:
+        if _started:
+            return True
+        threading.Thread(target=_run, args=(service_name,),
+                         name="flow-freeze-watchdog", daemon=True).start()
+        _started = True
+    return True

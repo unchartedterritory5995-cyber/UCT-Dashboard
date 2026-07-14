@@ -2940,6 +2940,17 @@ async def lifespan(app: FastAPI):
             # whatever's already in FlowDB from prior BBS uploads.
             print(f"[startup] Massive WS consumer failed to start (non-fatal): {e}")
 
+        # -- Tape-freeze watchdog (7/14 incident): separate OS thread that
+        # force-exits the process if flow.db inserts stop during market hours
+        # (consumer loop wedged). Self-gated on MASSIVE_WS_ENABLED=1, so it's
+        # a no-op whenever this service doesn't own the consumer.
+        try:
+            from api import flow_watchdog
+            if flow_watchdog.start("web"):
+                print("[startup] flow freeze-watchdog armed")
+        except Exception as e:
+            print(f"[startup] flow freeze-watchdog failed to start (non-fatal): {e}")
+
         # -- Massive Flat Files daily ingester (T+1 batch fallback / archive) -
         # Runs alongside the WS consumer. WS provides intraday rows; Flat Files
         # backfills yesterday's full archive overnight. Both write to the same
@@ -3195,6 +3206,8 @@ def health_cache():
         "seconds_since_sync": state["seconds_since_sync"],
     }
 
+from api import debug_dump_router as _debug_dump_router
+app.include_router(_debug_dump_router.router)
 app.include_router(snapshot.router)
 app.include_router(movers.router)
 app.include_router(engine_data.router)
