@@ -160,6 +160,17 @@
   font-weight: 600;
 }
 
+/* Charts workspace: stack the OHLCV legend single-file down the left, dropped
+   below the toolbar so it doesn't crowd it. */
+.legendVertical {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 1px;
+  top: 46px;
+  row-gap: 1px;
+}
+
 /* ── Multi-symbol comparison legend (top-left overlay) ──
    Renders one row of color-coded sym+% chips when any comparison
    overlay is active. Positioned below the chart toolbar (which lives

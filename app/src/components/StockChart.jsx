@@ -678,6 +678,7 @@ export default function StockChart({
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
   hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
   dragMeasure = false,        // Charts workspace: plain left-drag draws a transient measure line + % / bars / time readout (TC2000-style) instead of panning. Cursor mode only; mouse only.
+  verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   leftBarPad = 0,             // bars of empty space before the first bar on the default zoom (intraday popup: matches the right padding)
   overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
@@ -5616,11 +5617,17 @@ export default function StockChart({
     if (!chart || !el) return
     const ts = chart.timeScale()
     const startRange = ts.getVisibleLogicalRange(); if (!startRange) return
-    const barSpacing = (ts.width() || 1) / Math.max(1e-6, startRange.to - startRange.from)
+    // bars-per-pixel from the chart's OWN coordinate mapping — robust. Deriving it
+    // from ts.width() read 0 in the event handler → barSpacing ~0.008 → a tiny drag
+    // jumped the view thousands of bars ("skips back 20 years"). This is exact 1:1.
+    const l0 = ts.coordinateToLogical(0), l100 = ts.coordinateToLogical(100)
+    const barsPerPx = (l0 != null && l100 != null && l100 !== l0)
+      ? (l100 - l0) / 100
+      : (startRange.to - startRange.from) / Math.max(1, el.getBoundingClientRect().width)
     const startX = e.clientX
     const GRIP_W = 34
     const move = (ev) => {
-      const dxBars = (ev.clientX - startX) / barSpacing
+      const dxBars = (ev.clientX - startX) * barsPerPx
       // Move the last candle the SAME direction as the grip: drag left → last
       // candle moves left (whitespace opens on the right). This repositions the
       // right edge, not a history-scroll.
@@ -6362,7 +6369,7 @@ export default function StockChart({
       )}
       {crosshairData && !hideLegend && (
         <div
-          className={styles.legend}
+          className={`${styles.legend}${verticalLegend ? ' ' + styles.legendVertical : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it. */
           style={overlayBounds ? { top: overlayBounds.top + 6 } : undefined}
         >
