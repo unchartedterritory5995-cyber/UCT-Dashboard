@@ -1290,7 +1290,10 @@ export default function StockChart({
   const [magnet, setMagnet] = useState(false)  // snap drawings to nearest O/H/L/C
   const [selectedId, setSelectedId] = useState(null)
   const [repeatMode, setRepeatMode] = useState(() => {
-    try { return localStorage.getItem('uct-draw-repeat') !== 'false' } catch { return true }
+    // Default OFF: after placing a drawing the tool reverts to no-tool, so you can
+    // immediately hover-and-drag annotations without clicking the cursor button.
+    // Users who explicitly enabled repeat (localStorage 'true') keep it.
+    try { return localStorage.getItem('uct-draw-repeat') === 'true' } catch { return false }
   })
   const handleSetRepeatMode = useCallback((val) => {
     setRepeatMode(val)
