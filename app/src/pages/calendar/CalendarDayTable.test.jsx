@@ -68,4 +68,17 @@ describe('CalendarDayTable — WSE row grammar', () => {
     const { container } = render(<CalendarDayTable entries={[]} onSelect={vi.fn()} />)
     expect(container.firstChild).toBeNull()
   })
+
+  it('shows loading marks in Move/Beats while enrichment is in flight', () => {
+    render(<CalendarDayTable entries={ENTRIES} enrichReady={false} onSelect={vi.fn()} />)
+    // ZZZ has no expected_move and no beat_history → both cells pulse
+    expect(screen.getAllByText('…').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('shows a muted dash once enrichment resolves genuinely empty', () => {
+    render(<CalendarDayTable entries={ENTRIES} enrichReady={true} onSelect={vi.fn()} />)
+    // ZZZ: no move + no beats → two dashes; JPM: has move but no beats → one
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3)
+    expect(screen.queryByText('…')).toBeNull()
+  })
 })

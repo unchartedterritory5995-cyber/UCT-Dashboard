@@ -1583,29 +1583,35 @@
     gap: 8px;
   }
 
-  /* Week Navigator: one horizontally-scrollable strip on phone */
-  .navRow {
+  /* Week Navigator on phone: ONLY the day tabs scroll — the chevrons, Today
+     pill and week picker stay pinned so the recovery controls can never
+     scroll off-screen. */
+  .navRow { flex-wrap: nowrap; }
+  .dayTabs {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    flex-wrap: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: inline-flex;
   }
-  .navRow::-webkit-scrollbar { display: none; }
+  .dayTabs::-webkit-scrollbar { display: none; }
 
-  /* Quick-filter bar: pills + input wrap onto two comfortable lines; the
-     summary hides (counts are visible in the day tabs already). */
-  .quickBar {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .capPill, .densityBtn {
+  /* Phone quick strip: pills + hidden-pill on line 1, search full-width on
+     line 2. 16px input font — anything smaller triggers iOS focus-zoom. */
+  .capPill {
     min-height: var(--tap-min, 44px);
     display: inline-flex;
     align-items: center;
   }
-  .quickSearchWrap { flex: 1 1 100%; }
-  .quickSearchInput { min-height: var(--tap-min, 44px); }
-  .quickSummary { display: none; }
+  .quickBar .searchWrap { flex: 1 1 100%; }
+  .quickBar .searchInput,
+  .searchInput {
+    font-size: 16px;
+    min-height: var(--tap-min, 44px);
+  }
+  .quickBar .searchInput { width: 100%; }
+  .quickBar .searchInput:focus { width: 100%; }
   .dayTab {
     min-height: var(--tap-min, 44px);
     flex: 0 0 auto;
@@ -1925,11 +1931,13 @@
   background: var(--bg);
 }
 
-/* ── Quick-filter bar (WSE-style always-visible narrowing) ── */
+/* ── Quick filters (2026-07-14: folded into the navigator row on desktop;
+      .quickBar survives as the PHONE-ONLY compact strip) ── */
 .quickBar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
   padding: 7px 18px;
   border-bottom: 1px solid var(--cal-line);
   background: var(--bg);
@@ -1962,28 +1970,7 @@
   color: var(--cal-gold);
 }
 
-.quickSearchWrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  flex: 0 1 240px;
-  min-width: 140px;
-}
-
-.quickSearchInput {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--cal-line);
-  border-radius: 8px;
-  color: var(--cal-txt);
-  font-size: 12px;
-  padding: 5px 26px 5px 27px;
-  outline: none;
-  transition: border-color 0.12s;
-}
-.quickSearchInput::placeholder { color: var(--cal-muted); }
-.quickSearchInput:focus { border-color: var(--cal-gold); }
-
+/* ✕ inside the merged search input (.searchWrap is position:relative) */
 .quickClearX {
   position: absolute;
   right: 6px;
@@ -1996,31 +1983,16 @@
 }
 .quickClearX:hover { color: var(--cal-txt); }
 
-.densitySeg {
-  display: inline-flex;
-  border: 1px solid var(--cal-line);
-  border-radius: 8px;
-  overflow: hidden;
+.quickSummary {
+  font-size: 11px;
+  color: var(--cal-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
   flex: 0 0 auto;
 }
-.densityBtn {
-  background: transparent;
-  border: none;
-  color: var(--cal-dim);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 5px 11px;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-.densityBtn + .densityBtn { border-left: 1px solid var(--cal-line); }
-.densityBtnOn {
-  background: rgba(201, 168, 76, 0.10);
-  color: var(--cal-gold);
-}
 
-.quickSummary {
-  margin-left: auto;
+/* Phone-only "filters are biting" pill — replaces the desktop summary */
+.quickSummaryPhone {
   font-size: 11px;
   color: var(--cal-muted);
   white-space: nowrap;
@@ -2247,7 +2219,7 @@
   border-radius: 8px;
   color: var(--cal-txt);
   font-size: 12px;
-  padding: 6px 10px 6px 28px;
+  padding: 6px 26px 6px 28px;   /* right pad clears the ✕ button */
   width: 200px;
   box-sizing: border-box;
   transition: border-color 0.1s, width 0.15s;
@@ -2845,6 +2817,21 @@
 
 .dtBeats { display: flex; justify-content: flex-end; }
 
+/* Enrichment lifecycle marks: '…' while the fetch is in flight (a blank
+   column reads as broken), muted '—' once it resolves genuinely empty. */
+.dtDash { color: var(--cal-muted); opacity: 0.5; }
+.dtLoading {
+  color: var(--cal-muted);
+  animation: dtPulse 1.2s ease-in-out infinite;
+}
+@keyframes dtPulse {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 0.7; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dtLoading { animation: none; opacity: 0.5; }
+}
+
 /* Week mosaic rows */
 
 .wSym {
@@ -2934,19 +2921,20 @@
 }
 
 /* Phone: the 6-column desktop table collapses to 3 ALIGNED columns —
-   Company · EPS · Move. Cap (col 2), Rev (col 4) and Beats (col 6) hide on
-   BOTH the header row and the data rows so cell counts stay matched (a
-   mismatch → wrap + misalignment). Cells carry explicit .dtCap/.dtRev classes
-   — positional :nth-of-type selectors miscounted past the .dtCompany span. */
+   Company · Cap · EPS. Cap is ALWAYS populated; Move is often blank until
+   enrichment lands, so it (plus Rev and Beats) hides on phone instead.
+   Header cells hide by position (Rev=4, Move=5, Beats=6); data cells by
+   their explicit classes — positional :nth-of-type selectors miscounted
+   past the .dtCompany span. */
 @media (max-width: 640px) {
   .dtHead, .dtRow {
-    grid-template-columns: minmax(110px, 2fr) 0.9fr 0.8fr;
+    grid-template-columns: minmax(110px, 2fr) 0.7fr 0.9fr;
   }
-  .dtHead .dtTh:nth-child(2),
   .dtHead .dtTh:nth-child(4),
+  .dtHead .dtTh:nth-child(5),
   .dtHead .dtTh:nth-child(6),
-  .dtRow .dtCap,
   .dtRow .dtRev,
+  .dtRow .dtMoveCell,
   .dtRow .dtBeats {
     display: none;
   }

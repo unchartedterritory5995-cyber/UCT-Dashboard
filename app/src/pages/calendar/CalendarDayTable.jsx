@@ -44,7 +44,7 @@ function sortVal(e, key) {
   }
 }
 
-function Row({ e, gap, onSelect }) {
+function Row({ e, gap, enrichReady, onSelect }) {
   const reported = e.eps_act != null
   const surp = (reported && e.eps_est != null && e.eps_est !== 0)
     ? ((e.eps_act - e.eps_est) / Math.abs(e.eps_est)) * 100
@@ -76,20 +76,29 @@ function Row({ e, gap, onSelect }) {
           : fmtRev(e.rev_est)}
       </span>
       {/* Pre-report: the options-implied move. Post-print: the REALIZED gap —
-          the implied number is stale the moment actuals land. */}
-      <span className={`${styles.dtNum} ${reported && gap != null ? '' : styles.dtMove}`}>
+          the implied number is stale the moment actuals land. While the
+          enrichment fetch is in flight the cell shows a loading mark; a blank
+          column reads as broken, not loading. */}
+      <span className={`${styles.dtNum} ${styles.dtMoveCell} ${reported && gap != null ? '' : styles.dtMove}`}>
         {reported && gap != null
           ? <span className={gap >= 0 ? styles.pos : styles.neg}>
               {gap >= 0 ? '▲ +' : '▼ '}{gap.toFixed(1)}%
             </span>
-          : e.expected_move?.pct != null ? `±${e.expected_move.pct}%` : ''}
+          : e.expected_move?.pct != null ? `±${e.expected_move.pct}%`
+          : enrichReady ? <span className={styles.dtDash}>—</span>
+          : <span className={styles.dtLoading}>…</span>}
       </span>
-      <span className={styles.dtBeats}><BeatDots history={e.beat_history} /></span>
+      <span className={styles.dtBeats}>
+        {e.beat_history?.length
+          ? <BeatDots history={e.beat_history} />
+          : enrichReady ? <span className={styles.dtDash}>—</span>
+          : <span className={styles.dtLoading}>…</span>}
+      </span>
     </div>
   )
 }
 
-export default function CalendarDayTable({ entries, reactions, onSelect }) {
+export default function CalendarDayTable({ entries, reactions, enrichReady = true, onSelect }) {
   const [sort, setSort] = useState(null)   // { key, dir: 1|-1 } | null = imp order
 
   const clickSort = (key) => {
@@ -155,7 +164,8 @@ export default function CalendarDayTable({ entries, reactions, onSelect }) {
               {repN > 0 && <span className={styles.dtRepN}>· {repN} reported</span>}
             </div>
             {rows.map(e => (
-              <Row key={`${key}-${e.sym}`} e={e} gap={reactions?.[e.sym]} onSelect={onSelect} />
+              <Row key={`${key}-${e.sym}`} e={e} gap={reactions?.[e.sym]}
+                   enrichReady={enrichReady} onSelect={onSelect} />
             ))}
           </div>
         )

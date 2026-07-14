@@ -31,14 +31,21 @@ const MONTH_NAMES = [
   'July','August','September','October','November','December',
 ]
 
-// ── Ticker search (header) ────────────────────────────────────────────────────
-// Typeahead over /api/ticker-search (prewarmed ticker_meta names). Selecting a
-// name resolves its report date: found in the loaded week → jump+pulse; outside
-// → ONE /api/calendar/next-report fetch (never per keystroke) → jump to that
-// week. '/' focuses the input from anywhere on the page.
+// ── The ONE search (merged 2026-07-14) ───────────────────────────────────────
+// Typing LIVE-FILTERS the loaded week (parent-owned quickQ → filterLogic `q`)
+// while the typeahead over /api/ticker-search offers the jump. Enter or
+// clicking a result resolves the ticker's report date (ONE
+// /api/calendar/next-report fetch — never per keystroke) and jumps to that
+// week, clearing the filter (the pulse highlight takes over). Escape clears
+// both. '/' focuses the input from anywhere on the page.
+// quickQ/setQuickQ are optional — absent, it falls back to internal state and
+// behaves as the old jump-only search.
 
-function CalendarSearch({ onJump, onDidJump }) {
-  const [q, setQ] = useState('')
+function CalendarSearch({ onJump, onDidJump, quickQ, setQuickQ }) {
+  const [localQ, setLocalQ] = useState('')
+  const controlled = typeof setQuickQ === 'function'
+  const q = controlled ? quickQ : localQ
+  const setQ = controlled ? setQuickQ : setLocalQ
   const [results, setResults] = useState([])
   const [open, setOpen] = useState(false)
   const [notice, setNotice] = useState(null)     // "no scheduled report" line
@@ -125,13 +132,13 @@ function CalendarSearch({ onJump, onDidJump }) {
   const onKeyDown = (e) => {
     if (!open || !results.length) {
       if (e.key === 'Enter' && q.trim()) select(q.trim())
-      if (e.key === 'Escape') { setOpen(false); setNotice(null); e.target.blur() }
+      if (e.key === 'Escape') { setQ(''); setOpen(false); setNotice(null); e.target.blur() }
       return
     }
     if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, results.length - 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
     else if (e.key === 'Enter') { e.preventDefault(); select(results[hi]?.ticker || q.trim()) }
-    else if (e.key === 'Escape') { setOpen(false); setNotice(null); e.target.blur() }
+    else if (e.key === 'Escape') { setQ(''); setOpen(false); setNotice(null); e.target.blur() }
   }
 
   return (
@@ -140,13 +147,19 @@ function CalendarSearch({ onJump, onDidJump }) {
       <input
         ref={inputRef}
         className={styles.searchInput}
-        placeholder="When does… (press /)"
+        placeholder="Filter or find a ticker…  ( / )"
         value={q}
-        aria-label="Search a ticker's report date"
+        aria-label="Filter this week or jump to a ticker's report date"
         onChange={e => { setQ(e.target.value); setNotice(null); runSearch(e.target.value) }}
         onFocus={() => { if (results.length) setOpen(true) }}
         onKeyDown={onKeyDown}
       />
+      {q && (
+        <button className={styles.quickClearX} onClick={() => { setQ(''); setResults([]); setOpen(false); setNotice(null) }}
+                aria-label="Clear search">
+          <UIcon name="x" size={11} />
+        </button>
+      )}
       {(open || notice) && (
         <div className={styles.searchPop}>
           {notice && <div className={styles.searchNotice}>{notice}</div>}
@@ -229,16 +242,24 @@ function WeekPicker({ currentMonday, activeMonday, onPick, onClose }) {
 // used to own — one source of truth, now always visible.
 const CAP_TIERS = [[0, 'All'], [1, '$1B+'], [10, '$10B+'], [100, '$100B+']]
 
+// ONE self-describing view segment (2026-07-14 UX pass): Board = the logo
+// mosaic, Table = the day-by-day data table, Month = the grid. Replaces the
+// muddy Feed/Week split + the Tiles|Rows density toggle.
+const VIEWS = [
+  ['board', 'Board', 'Five-day logo board — the week at a glance'],
+  ['table', 'Table', 'Day-by-day data table — EPS & revenue estimates, expected move, beat history'],
+  ['month', 'Month', 'Full month grid'],
+]
+
 export default function CalendarHeader({
   view, setView, weekLabel, filters, setFilters,
   mySources, setMySources,
   monthCursor, setMonthCursor,
   eventTypes, setEventTypes,
   availableSectors = [],
-  // Quick-filter bar (WSE competitor pass, 2026-07-13)
+  // Quick filters (WSE competitor pass, 2026-07-13/14)
   quickQ = '', setQuickQ,
   weekCounts = null,
-  density = 'tiles', setDensity,
   onClearQuick,
   // Week Navigator (flagship 1b)
   dayTabs = [],
@@ -513,14 +534,57 @@ export default function CalendarHeader({
 
   const activeSector = filters.sector || null
 
+  // ── Quick-filter fragments (live in the navigator row on desktop, in a
+  //    compact strip on phone — no third chrome band). ──
+  const capPillsEl = (
+    <span className={styles.capPills} role="group" aria-label="Market cap filter">
+      {CAP_TIERS.map(([v, lbl]) => (
+        <button
+          key={v}
+          className={`${styles.capPill} ${filters.minMcap === v ? styles.capPillOn : ''}`}
+          aria-pressed={filters.minMcap === v}
+          onClick={() => set('minMcap', v)}
+        >
+          {lbl}
+        </button>
+      ))}
+    </span>
+  )
+
+  const summaryEl = weekCounts && weekCounts.raw > 0 && (
+    <span className={styles.quickSummary}>
+      {weekCounts.total} reporting
+      {weekCounts.mine > 0 && (
+        <> · <UIcon name="star-fill" size={10} style={{ verticalAlign: '-1px' }} /> {weekCounts.mine} mine</>
+      )}
+      {weekCounts.hidden > 0 && (
+        <>
+          {' '}· {weekCounts.hidden} hidden
+          {onClearQuick && (quickQ.trim() || filters.minMcap > 0) && (
+            <button className={styles.quickClearAll} onClick={onClearQuick}>Clear</button>
+          )}
+        </>
+      )}
+    </span>
+  )
+
+  const searchEl = onSearchJump && (
+    <CalendarSearch
+      onJump={onSearchJump}
+      quickQ={quickQ}
+      setQuickQ={setQuickQ}
+    />
+  )
+
   return (
     <div className={styles.header}>
       <div className={styles.hrow}>
         <span className={styles.ttl}><UIcon name="calendar" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Calendar</span>
         <span className={styles.view}>
-          {['Feed','Week','Month'].map(v => (
-            <span key={v} className={view === v.toLowerCase() ? styles.viewOn : ''}
-                  onClick={() => setView(v.toLowerCase())}>{v}</span>
+          {VIEWS.map(([key, lbl, tip]) => (
+            <span key={key} className={view === key ? styles.viewOn : ''}
+                  title={tip}
+                  onClick={() => setView(key)}>{lbl}</span>
           ))}
         </span>
         {view === 'month' && (
@@ -533,16 +597,14 @@ export default function CalendarHeader({
           </span>
         )}
 
-        {/* Desktop: audience chips inline (primary filter) + search + ⚙ Filters popover */}
+        {/* Desktop: audience chips inline (primary filter) + ⚙ Filters popover.
+            The search lives in the navigator row now — one band fewer. */}
         {!isPhone && <span className={styles.sep} />}
         {!isPhone && audienceChips}
         {!isPhone && (
-          <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            {onSearchJump && <CalendarSearch onJump={onSearchJump} />}
-            <span className={styles.filterWrap}>
-              {filterBtn(() => setPanelOpen(o => !o))}
-              {panelOpen && <div className={styles.gearPop}>{panelSections}</div>}
-            </span>
+          <span className={styles.filterWrap} style={{ marginLeft: 'auto' }}>
+            {filterBtn(() => setPanelOpen(o => !o))}
+            {panelOpen && <div className={styles.gearPop}>{panelSections}</div>}
           </span>
         )}
 
@@ -558,10 +620,13 @@ export default function CalendarHeader({
         </Link>
       </div>
 
-      {/* ── Week Navigator: the page's time spine (Feed + Week views) ── */}
+      {/* ── Week Navigator: the page's time spine (Board + Table views).
+          Desktop also hosts the quick filters in its empty middle — cap
+          pills + the one search + summary — so the page stays two bands. ── */}
       {view !== 'month' && (
         <div className={styles.navRow}>
-          <button className={styles.monthNavBtn} onClick={onPrevWeek} aria-label="Previous week">‹</button>
+          <button className={styles.monthNavBtn} onClick={onPrevWeek}
+                  aria-label="Previous week" title="Previous week (←)">‹</button>
           <span className={styles.dayTabs}>
             {dayTabs.map(t => (
               <button
@@ -580,11 +645,18 @@ export default function CalendarHeader({
               </button>
             ))}
           </span>
-          <button className={styles.monthNavBtn} onClick={onNextWeek} aria-label="Next week">›</button>
+          <button className={styles.monthNavBtn} onClick={onNextWeek}
+                  aria-label="Next week" title="Next week (→)">›</button>
 
           {!isCurrentWeek && (
-            <button className={styles.todayPill} onClick={onGotoToday}>Today</button>
+            <button className={styles.todayPill} onClick={onGotoToday}
+                    title="Back to today (T)">Today</button>
           )}
+
+          {!isPhone && <span className={styles.sep} />}
+          {!isPhone && capPillsEl}
+          {!isPhone && searchEl}
+          {!isPhone && summaryEl}
 
           <span className={styles.wkBtnWrap} ref={pickerRef}>
             <button className={styles.wkBtn} onClick={() => setPickerOpen(o => !o)}
@@ -603,73 +675,18 @@ export default function CalendarHeader({
         </div>
       )}
 
-      {/* ── Quick-filter bar (the WSE magic): always-visible one-tap narrowing.
-          Cap pills + live text filter + density toggle + honest summary counts.
-          Everything here acts on the ALREADY-LOADED week — zero requests. ── */}
-      {view !== 'month' && (
+      {/* Phone: one compact quick strip — pills scroll, search grows, and a
+          "hidden" pill appears only when the quick filters actually bite
+          (the desktop summary is chrome the small screen can't afford). */}
+      {isPhone && view !== 'month' && (
         <div className={styles.quickBar}>
-          <span className={styles.capPills} role="group" aria-label="Market cap filter">
-            {CAP_TIERS.map(([v, lbl]) => (
-              <button
-                key={v}
-                className={`${styles.capPill} ${filters.minMcap === v ? styles.capPillOn : ''}`}
-                aria-pressed={filters.minMcap === v}
-                onClick={() => set('minMcap', v)}
-              >
-                {lbl}
-              </button>
-            ))}
-          </span>
-          {setQuickQ && (
-            <span className={styles.quickSearchWrap}>
-              <UIcon name="filter" size={12} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-              <input
-                className={styles.quickSearchInput}
-                placeholder="Filter ticker or name…"
-                value={quickQ}
-                aria-label="Filter visible reporters by ticker or company name"
-                onChange={e => setQuickQ(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Escape') { setQuickQ(''); e.target.blur() } }}
-              />
-              {quickQ && (
-                <button className={styles.quickClearX} onClick={() => setQuickQ('')}
-                        aria-label="Clear quick filter">
-                  <UIcon name="x" size={11} />
-                </button>
-              )}
-            </span>
-          )}
-          {view === 'feed' && setDensity && (
-            <span className={styles.densitySeg} role="group" aria-label="Feed density">
-              <button
-                className={`${styles.densityBtn} ${density === 'tiles' ? styles.densityBtnOn : ''}`}
-                aria-pressed={density === 'tiles'}
-                onClick={() => setDensity('tiles')}
-              >
-                Tiles
-              </button>
-              <button
-                className={`${styles.densityBtn} ${density === 'rows' ? styles.densityBtnOn : ''}`}
-                aria-pressed={density === 'rows'}
-                onClick={() => setDensity('rows')}
-              >
-                Rows
-              </button>
-            </span>
-          )}
-          {weekCounts && weekCounts.raw > 0 && (
-            <span className={styles.quickSummary}>
-              {weekCounts.total} reporting
-              {weekCounts.mine > 0 && (
-                <> · <UIcon name="star-fill" size={10} style={{ verticalAlign: '-1px' }} /> {weekCounts.mine} mine</>
-              )}
-              {weekCounts.hidden > 0 && (
-                <>
-                  {' '}· {weekCounts.hidden} hidden
-                  {onClearQuick && (quickQ.trim() || filters.minMcap > 0) && (
-                    <button className={styles.quickClearAll} onClick={onClearQuick}>Clear</button>
-                  )}
-                </>
+          {capPillsEl}
+          {searchEl}
+          {weekCounts && weekCounts.hidden > 0 && (
+            <span className={styles.quickSummaryPhone}>
+              {weekCounts.total} shown · {weekCounts.hidden} hidden
+              {onClearQuick && (
+                <button className={styles.quickClearAll} onClick={onClearQuick}>Clear</button>
               )}
             </span>
           )}
@@ -715,17 +732,8 @@ export default function CalendarHeader({
           activeCount={activeCount}
           applyLabel="Done"
         >
-          {/* Search leads the sheet — "when does NVDA report" is the #1 entry
-              intent and must exist on phones too, not only in the desktop bar. */}
-          {onSearchJump && (
-            <div className={styles.sheetSec}>
-              <div className={styles.sheetLbl}>Find a report</div>
-              <CalendarSearch
-                onJump={onSearchJump}
-                onDidJump={() => setMobileFiltersOpen(false)}
-              />
-            </div>
-          )}
+          {/* Search no longer lives in the sheet — the merged filter/jump
+              input sits directly in the phone quick strip, always visible. */}
           <div className={styles.sheetSec}>
             <div className={styles.sheetLbl}>Audience</div>
             <div className={styles.sheetChips}>{audienceChips}</div>

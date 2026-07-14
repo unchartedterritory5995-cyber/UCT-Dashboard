@@ -106,11 +106,20 @@ export default function Calendar() {
   // Month cursor — component state (not persisted; resets to current month on page mount)
   const [monthCursor, setMonthCursor] = useState(currentMonthCursor)
 
-  // Persisted view / filter preferences. VIEW key bumped to _v2: the Week grid
-  // is now the flagship competitor-style board (big logo tiles, the EarningsHub
-  // look), so it's the new default landing view. Bumping the key resets every
-  // legacy 'feed' pref to Week once; the choice persists under v2 thereafter.
-  const view = prefs.calendar_view_v2 || 'week'
+  // Persisted view / filter preferences. VIEW key bumped to _v3 (owner-approved
+  // UX pass 2026-07-14): ONE self-describing segment — Board (logo mosaic,
+  // default) | Table (day-by-day WSE data table) | Month. This retires the
+  // muddy Feed/Week split AND the Tiles|Rows density toggle: Feed-in-tiles was
+  // visually redundant with the Board, and the flagship table was hidden two
+  // non-obvious clicks deep. v2 prefs migrate once: feed+rows→table, else
+  // board; month stays month.
+  const _viewV2 = prefs.calendar_view_v2
+  const _savedViewV3 = prefs.calendar_view_v3
+  const view = _savedViewV3 || (
+    _viewV2 === 'month' ? 'month'
+    : (_viewV2 === 'feed' && prefs.calendar_density === 'rows') ? 'table'
+    : 'board'
+  )
   // FILTERS key bumped to _v2 (owner decision 2026-07-13): first paint now
   // defaults to the full market ranked big→small (audience 'all'). Legacy
   // metric filters carry over once; audience/sort reset to the new default,
@@ -125,13 +134,9 @@ export default function Calendar() {
         sort: DEFAULT_FILTERS.sort,
       }
   const mySources = parsePref(prefs.calendar_mystocks_sources, ALL_SOURCES)
-  const setView = v => setPref('calendar_view_v2', v)
+  const setView = v => setPref('calendar_view_v3', v)
   const setFilters = f => setPref('calendar_filters_v2', f)
   const setMySources = s => setPref('calendar_mystocks_sources', s)
-
-  // Density: EarningsHub logo tiles (default) vs the WSE-style data-row table.
-  const density = prefs.calendar_density || 'tiles'
-  const setDensity = v => setPref('calendar_density', v)
 
   // Quick search — EPHEMERAL component state, deliberately never persisted
   // (a stale saved search silently blanking next session reads as data loss).
@@ -346,17 +351,27 @@ export default function Calendar() {
   }, [weekDates, data?.week_start])
 
   // ── Week Navigator: per-day tab info (count + mine count) ─────────────────
+  // Counts are FILTERED (same lens as the views) — unfiltered tab counts next
+  // to filtered day cards read as a contradiction ("tab says 4, day says
+  // No earnings"). effFilters is a fresh object each render; keying the memo
+  // on its meaningful parts keeps the recompute honest without thrashing.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const dayTabs = useMemo(() => weekDates.map(ds => {
     const d = days[ds] || {}
-    const all = [...(d.bmo || []), ...(d.amc || []), ...(d.tbd || [])]
+    const all = [
+      ...(d.bmo || []).map(e => ({ ...e, _timing: 'bmo' })),
+      ...(d.amc || []).map(e => ({ ...e, _timing: 'amc' })),
+      ...(d.tbd || []).map(e => ({ ...e, _timing: 'tbd' })),
+    ]
+    const vis = applyFilters(all, effFilters)
     return {
       ds,
       label:    d.label || ds,
-      count:    all.length,
-      mineN:    all.filter(e => e.mine).length,
+      count:    vis.length,
+      mineN:    vis.filter(e => e.mine).length,
       is_today: !!d.is_today,
     }
-  }), [weekDates, days])
+  }), [weekDates, days, JSON.stringify(effFilters)])
 
   const isCurrentWeek = !weekParam
 
@@ -390,9 +405,9 @@ export default function Calendar() {
   }, [gotoWeek, isCurrentWeek, scrollToDay])
 
   const onDayTab = useCallback((ds) => {
-    // ONE verb in every view: "take me to that day". Feed scrolls; Week/Month
-    // switch to Feed and scroll — a primary control must never no-op.
-    if (view !== 'feed') setView('feed')
+    // ONE verb in every view: "take me to that day". Table scrolls; Board/Month
+    // switch to Table and scroll — a primary control must never no-op.
+    if (view !== 'table') setView('table')
     setSearchParams(prev => {
       const p = new URLSearchParams(prev)
       p.set('d', ds)
@@ -405,7 +420,7 @@ export default function Calendar() {
   const onSearchJump = useCallback((sym, dateIso) => {
     const S = (sym || '').toUpperCase()
     if (!dateIso) return
-    if (view !== 'feed') setView('feed')
+    if (view !== 'table') setView('table')
     setPulse({ sym: S, ds: dateIso })
     if (weekDates.includes(dateIso)) {
       requestAnimationFrame(() => scrollToDay(dateIso))
@@ -448,7 +463,7 @@ export default function Calendar() {
   // ── Land on today / on the deep-linked day (once per payload) ─────────────
   const landedRef = useRef(null)
   useEffect(() => {
-    if (!data || view !== 'feed') return
+    if (!data || view !== 'table') return
     // Never stamp the landing key on an error/empty payload — the scroll
     // can't succeed there, and stamping would suppress the landing after a
     // successful Retry of the same week.
@@ -500,8 +515,6 @@ export default function Calendar() {
       quickQ={quickQ}
       setQuickQ={setQuickQ}
       weekCounts={weekCounts}
-      density={density}
-      setDensity={setDensity}
       onClearQuick={onClearQuick}
       dayTabs={dayTabs}
       isCurrentWeek={isCurrentWeek}
@@ -549,7 +562,7 @@ export default function Calendar() {
       {headerEl}
 
       <div className={styles.body}>
-        {view === 'feed' && (
+        {view === 'table' && (
           <>
             {isCurrentWeek && (
               <TodaysBrief
@@ -569,12 +582,12 @@ export default function Calendar() {
               dividendsByDate={dividendsByDate}
               pulse={pulse}
               weekTiers={weekTiers}
-              density={density}
+              enrichReady={!!enrichmentByDate}
               onClearQuick={onClearQuick}
             />
           </>
         )}
-        {view === 'week' && (
+        {view === 'board' && (
           <WeekView
             weekDates={weekDates}
             days={days}
@@ -583,6 +596,7 @@ export default function Calendar() {
             onSelect={onSelect}
             weekTiers={weekTiers}
             onOpenDay={(ds) => setOpenDay({ ds, day: days[ds] })}
+            onClearQuick={onClearQuick}
           />
         )}
         {view === 'month' && (

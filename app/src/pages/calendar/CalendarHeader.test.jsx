@@ -16,7 +16,7 @@ const baseFilters = {
 
 function renderHeader(overrides = {}) {
   const props = {
-    view: 'feed', setView: vi.fn(),
+    view: 'table', setView: vi.fn(),
     weekLabel: 'Week of Jun 9–13',
     filters: baseFilters, setFilters: vi.fn(),
     mySources: ['watchlist', 'flagged', 'positions', 'uct20'], setMySources: vi.fn(),
@@ -28,10 +28,19 @@ function renderHeader(overrides = {}) {
 }
 
 describe('CalendarHeader (consolidated)', () => {
-  it('shows view toggle + audience chips inline', () => {
+  it('shows the Board | Table | Month view segment + audience chips inline', () => {
     renderHeader()
-    expect(screen.getByText('Feed')).toBeTruthy()
+    expect(screen.getByText('Board')).toBeTruthy()
+    expect(screen.getByText('Table')).toBeTruthy()
+    expect(screen.getByText('Month')).toBeTruthy()
     expect(screen.getByText('Watchlist')).toBeTruthy()       // audience chip
+  })
+
+  it('view segment fires setView with the v3 values', () => {
+    const setView = vi.fn()
+    renderHeader({ setView })
+    fireEvent.click(screen.getByText('Board'))
+    expect(setView).toHaveBeenCalledWith('board')
   })
 
   it('hides secondary controls until the Filters panel is opened', () => {
@@ -57,9 +66,9 @@ describe('CalendarHeader (consolidated)', () => {
   })
 })
 
-// ── WSE competitor pass: quick-filter bar ────────────────────────────────────
+// ── WSE competitor pass: quick filters in the navigator row ─────────────────
 
-describe('CalendarHeader — quick-filter bar', () => {
+describe('CalendarHeader — quick filters', () => {
   it('renders the four cap pills and writes minMcap on click', () => {
     const setFilters = vi.fn()
     renderHeader({ setFilters, setQuickQ: vi.fn() })
@@ -76,14 +85,20 @@ describe('CalendarHeader — quick-filter bar', () => {
     expect(screen.getByText('$1B+').getAttribute('aria-pressed')).toBe('false')
   })
 
-  it('quick filter input fires setQuickQ and clears on Escape', () => {
+  it('the ONE search input live-filters (setQuickQ) and Escape clears it', () => {
     const setQuickQ = vi.fn()
-    renderHeader({ setQuickQ, quickQ: '' })
-    const input = screen.getByLabelText('Filter visible reporters by ticker or company name')
+    renderHeader({ setQuickQ, quickQ: '', onSearchJump: vi.fn() })
+    const input = screen.getByLabelText("Filter this week or jump to a ticker's report date")
     fireEvent.change(input, { target: { value: 'nvd' } })
     expect(setQuickQ).toHaveBeenCalledWith('nvd')
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(setQuickQ).toHaveBeenCalledWith('')
+  })
+
+  it('there is exactly ONE search input (the old quick-filter box is gone)', () => {
+    renderHeader({ setQuickQ: vi.fn(), onSearchJump: vi.fn() })
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
+    expect(screen.queryByLabelText('Filter visible reporters by ticker or company name')).toBeNull()
   })
 
   it('shows summary counts with hidden + Clear when quick filters bite', () => {
@@ -100,16 +115,10 @@ describe('CalendarHeader — quick-filter bar', () => {
     expect(onClearQuick).toHaveBeenCalled()
   })
 
-  it('density segment appears in feed view and fires setDensity', () => {
-    const setDensity = vi.fn()
-    renderHeader({ view: 'feed', setDensity, setQuickQ: vi.fn() })
-    fireEvent.click(screen.getByText('Rows'))
-    expect(setDensity).toHaveBeenCalledWith('rows')
-  })
-
-  it('density segment is absent outside the feed view', () => {
-    renderHeader({ view: 'week', setDensity: vi.fn(), setQuickQ: vi.fn() })
+  it('the density toggle is fully retired', () => {
+    renderHeader({ setQuickQ: vi.fn() })
     expect(screen.queryByText('Rows')).toBeNull()
+    expect(screen.queryByText('Tiles')).toBeNull()
   })
 
   it('the ⚙ panel no longer carries the cap select (pills own minMcap)', () => {
@@ -119,9 +128,16 @@ describe('CalendarHeader — quick-filter bar', () => {
     expect(screen.getByText('Sort')).toBeTruthy()
   })
 
-  it('hides the quick bar entirely in month view', () => {
+  it('hides the quick filters entirely in month view', () => {
     renderHeader({ view: 'month', setQuickQ: vi.fn() })
     expect(screen.queryByRole('group', { name: 'Market cap filter' })).toBeNull()
+  })
+
+  it('week chevrons + Today pill carry keyboard-hint tooltips', () => {
+    renderHeader({ dayTabs: DAY_TABS, isCurrentWeek: false, onGotoToday: vi.fn(), onSearchJump: vi.fn() })
+    expect(screen.getByLabelText('Previous week').getAttribute('title')).toBe('Previous week (←)')
+    expect(screen.getByLabelText('Next week').getAttribute('title')).toBe('Next week (→)')
+    expect(screen.getByText('Today').getAttribute('title')).toBe('Back to today (T)')
   })
 })
 
@@ -199,7 +215,7 @@ describe('CalendarHeader — Week Navigator', () => {
       return { ok: false, json: async () => ({}) }
     })
     renderHeader({ dayTabs: DAY_TABS, onSearchJump: onJump })
-    const input = screen.getByLabelText("Search a ticker's report date")
+    const input = screen.getByLabelText("Filter this week or jump to a ticker's report date")
     fireEvent.change(input, { target: { value: 'PEP' } })
     await new Promise(r => setTimeout(r, 250))          // typeahead debounce
     fireEvent.click(await screen.findByText('PepsiCo'))

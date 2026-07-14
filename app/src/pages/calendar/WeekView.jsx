@@ -8,7 +8,7 @@ import { useMemo } from 'react'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import EarningsTile from './EarningsTile'
-import { applyFilters, sortEntries } from './filterLogic'
+import { applyFilters, sortEntries, hiddenByQuickFilters } from './filterLogic'
 import { impEff } from './importance'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
 import styles from './Calendar.module.css'
@@ -88,7 +88,7 @@ function WeekMacroChips({ econ = [], fed = [] }) {
   )
 }
 
-export default function WeekView({ weekDates, days, filters, eventTypes, onSelect, weekTiers, onOpenDay }) {
+export default function WeekView({ weekDates, days, filters, eventTypes, onSelect, weekTiers, onOpenDay, onClearQuick }) {
   // Macro chips in the column headers respect the same opt-in as the Feed.
   const showMacro = (eventTypes || DEFAULT_EVENT_TYPES).has('macro')
   // Equal-width day columns (a proper week calendar, like the competitors). The
@@ -118,6 +118,12 @@ export default function WeekView({ weekDates, days, filters, eventTypes, onSelec
         const amc = prep(day.amc, 'amc')
         const tbd = prep(day.tbd, 'tbd')
         const empty = !bmo.length && !amc.length && !tbd.length
+        // Honesty: a day whose reporters were all hidden by the quick filters
+        // must say so — "No earnings" next to a day tab whose count says
+        // otherwise reads as a contradiction (tabs count the filtered set,
+        // but audience scoping can still diverge from quick-filter scoping).
+        const rawCount = (day.bmo?.length || 0) + (day.amc?.length || 0) + (day.tbd?.length || 0)
+        const filteredOut = empty && hiddenByQuickFilters(rawCount, 0, filters)
         const openDrawer = () => onOpenDay?.(ds)
         return (
           <div key={ds} className={`${styles.wcol} ${day.is_today ? styles.wcolToday : ''}`}>
@@ -129,7 +135,14 @@ export default function WeekView({ weekDates, days, filters, eventTypes, onSelec
             {empty ? (
               <div className={styles.wempty}>
                 <span className={styles.wemptyDot} aria-hidden="true" />
-                No earnings
+                {filteredOut ? (
+                  <>
+                    {rawCount} hidden by filters
+                    {onClearQuick && (
+                      <button className={styles.quickClearAll} onClick={onClearQuick}>Clear</button>
+                    )}
+                  </>
+                ) : 'No earnings'}
               </div>
             ) : (
               <>
