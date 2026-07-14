@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ShareToFloor from '../../../components/community/ShareToFloor'
+import ChartMarketClock from './ChartMarketClock'
 import { useWorkspace } from '../WorkspaceContext'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
@@ -130,9 +131,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             <span className={styles.chartMetaVal} style={{ color: '#6ba3be' }}>{nextEarnStr || '—'}</span>
           </span>
         </div>
-        <span style={{ marginLeft: 'auto' }}>
+        <div className={styles.tfBarRight}>
+          <ChartMarketClock />
           <ShareToFloor card={{ kind: 'chart', ticker: sym, tf }} compact />
-        </span>
+        </div>
       </div>
       <div
         ref={focusableRef}
