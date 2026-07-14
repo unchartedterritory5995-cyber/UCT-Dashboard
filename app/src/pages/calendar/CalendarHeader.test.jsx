@@ -133,6 +133,11 @@ describe('CalendarHeader — quick filters', () => {
     expect(screen.queryByRole('group', { name: 'Market cap filter' })).toBeNull()
   })
 
+  it('month view still carries the search (review fix: "/" + jump must work everywhere)', () => {
+    renderHeader({ view: 'month', setQuickQ: vi.fn(), onSearchJump: vi.fn() })
+    expect(screen.getByLabelText("Filter this week or jump to a ticker's report date")).toBeTruthy()
+  })
+
   it('week chevrons + Today pill carry keyboard-hint tooltips', () => {
     renderHeader({ dayTabs: DAY_TABS, isCurrentWeek: false, onGotoToday: vi.fn(), onSearchJump: vi.fn() })
     expect(screen.getByLabelText('Previous week').getAttribute('title')).toBe('Previous week (←)')
@@ -182,7 +187,7 @@ describe('CalendarHeader — Week Navigator', () => {
     rerender(
       <MemoryRouter>
         <CalendarHeader
-          view="feed" setView={vi.fn()} weekLabel="Week of Jul 13–17"
+          view="table" setView={vi.fn()} weekLabel="Week of Jul 13–17"
           filters={baseFilters} setFilters={vi.fn()}
           mySources={[]} setMySources={vi.fn()}
           monthCursor={{ year: 2026, month: 7 }} setMonthCursor={vi.fn()}

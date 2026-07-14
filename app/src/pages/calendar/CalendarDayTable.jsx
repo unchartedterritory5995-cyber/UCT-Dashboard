@@ -62,7 +62,7 @@ function Row({ e, gap, enrichReady, onSelect }) {
         {e.name && <span className={styles.dtName}>{e.name}</span>}
         {e.date_moved ? <DateMovedChip moved={e.date_moved} /> : (e.date_est && <span className={styles.dateEst}>est.</span>)}
       </span>
-      <span className={`${styles.dtNum} ${styles.dtCap}`}>{fmtCap(e.mc_b)}</span>
+      <span className={styles.dtNum}>{fmtCap(e.mc_b)}</span>
       <span className={styles.dtNum}>
         {reported
           ? <>{fmtEps(e.eps_act)}{surp != null && (

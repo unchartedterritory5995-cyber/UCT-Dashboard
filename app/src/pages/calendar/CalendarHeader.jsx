@@ -129,16 +129,22 @@ function CalendarSearch({ onJump, onDidJump, quickQ, setQuickQ }) {
     }
   }, [onJump])
 
+  // Escape must also drop the RESULTS — clearing only the text left a stale
+  // dropdown that reopened on the next focus for a search that no longer exists.
+  const clearAll = (e) => {
+    setQ(''); setResults([]); setOpen(false); setNotice(null); e?.target?.blur?.()
+  }
+
   const onKeyDown = (e) => {
     if (!open || !results.length) {
       if (e.key === 'Enter' && q.trim()) select(q.trim())
-      if (e.key === 'Escape') { setQ(''); setOpen(false); setNotice(null); e.target.blur() }
+      if (e.key === 'Escape') clearAll(e)
       return
     }
     if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, results.length - 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
     else if (e.key === 'Enter') { e.preventDefault(); select(results[hi]?.ticker || q.trim()) }
-    else if (e.key === 'Escape') { setQ(''); setOpen(false); setNotice(null); e.target.blur() }
+    else if (e.key === 'Escape') clearAll(e)
   }
 
   return (
@@ -598,11 +604,17 @@ export default function CalendarHeader({
         )}
 
         {/* Desktop: audience chips inline (primary filter) + ⚙ Filters popover.
-            The search lives in the navigator row now — one band fewer. */}
+            The search lives in the navigator row now — one band fewer. Month
+            has no navigator, so the search mounts HERE for that view ("when
+            does NVDA report" must work everywhere; '/' rides the component). */}
         {!isPhone && <span className={styles.sep} />}
         {!isPhone && audienceChips}
+        {!isPhone && view === 'month' && (
+          <span style={{ marginLeft: 'auto' }}>{searchEl}</span>
+        )}
         {!isPhone && (
-          <span className={styles.filterWrap} style={{ marginLeft: 'auto' }}>
+          <span className={styles.filterWrap}
+                style={view === 'month' ? {} : { marginLeft: 'auto' }}>
             {filterBtn(() => setPanelOpen(o => !o))}
             {panelOpen && <div className={styles.gearPop}>{panelSections}</div>}
           </span>
@@ -676,16 +688,19 @@ export default function CalendarHeader({
       )}
 
       {/* Phone: one compact quick strip — pills scroll, search grows, and a
-          "hidden" pill appears only when the quick filters actually bite
-          (the desktop summary is chrome the small screen can't afford). */}
-      {isPhone && view !== 'month' && (
+          "hidden" pill appears only when filters bite. Month keeps just the
+          search (its grid doesn't consume the week filters), so "when does X
+          report" works on every view. Clear renders ONLY when the QUICK
+          filters (search/cap) are active — audience/sector hiding is honest
+          information but Clear can't undo it (it would be a dead button). */}
+      {isPhone && (
         <div className={styles.quickBar}>
-          {capPillsEl}
+          {view !== 'month' && capPillsEl}
           {searchEl}
-          {weekCounts && weekCounts.hidden > 0 && (
+          {view !== 'month' && weekCounts && weekCounts.hidden > 0 && (
             <span className={styles.quickSummaryPhone}>
               {weekCounts.total} shown · {weekCounts.hidden} hidden
-              {onClearQuick && (
+              {onClearQuick && (quickQ.trim() || filters.minMcap > 0) && (
                 <button className={styles.quickClearAll} onClick={onClearQuick}>Clear</button>
               )}
             </span>

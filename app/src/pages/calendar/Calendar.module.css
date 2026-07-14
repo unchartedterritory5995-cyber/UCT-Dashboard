@@ -1929,6 +1929,10 @@
   padding: 8px 18px;
   border-bottom: 1px solid var(--cal-line);
   background: var(--bg);
+  /* The folded-in quick filters make this row ~1300px at min-content — it
+     MUST wrap on tablets/narrow windows or the page scrolls horizontally
+     (the #1 objective mobile bug). Wide desktop stays one line. */
+  flex-wrap: wrap;
 }
 
 /* ── Quick filters (2026-07-14: folded into the navigator row on desktop;
