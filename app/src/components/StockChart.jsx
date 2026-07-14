@@ -668,6 +668,7 @@ export default function StockChart({
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
   boldCandles = false,      // bold solid green/red candles (Model Book look)
   colorByNetChange = false, // color candles by NET CHANGE (close vs previous close, TC2000/StockCharts style) instead of LWC's default close-vs-open
+  candlesOnTop = false,     // TradingView-style: draw candle bodies ABOVE the MA/BB/VWAP overlays so the lines pass behind the bodies instead of overlapping them
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
@@ -4469,6 +4470,18 @@ export default function StockChart({
   useEffect(() => {
     updateChart()
   }, [updateChart])
+
+  // TradingView-style layering: keep the candle bodies ABOVE the MA / Bollinger /
+  // VWAP overlays so those lines pass BEHIND the opaque bodies instead of drawing
+  // on top of them. LWC stacks series by their pane index; setSeriesOrder(big)
+  // clamps the candle series to the top of its pane. Runs after updateChart (its
+  // dep) so it re-asserts the order whenever overlays/series are (re)built.
+  useEffect(() => {
+    if (!candlesOnTop) return
+    const s = candleSeriesRef.current
+    if (!s || typeof s.setSeriesOrder !== 'function') return
+    try { s.setSeriesOrder(Number.MAX_SAFE_INTEGER) } catch { /* older LWC */ }
+  }, [updateChart, candlesOnTop])
 
   // Gold/white setup-day candle (Model Book). Runs AFTER updateChart so it
   // overrides the plain candle data. A candle-only setData (range preserved) →
