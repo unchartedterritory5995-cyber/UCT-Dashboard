@@ -2149,12 +2149,24 @@ this closes that gap.
   surfaced anomaly, not a false positive. Grace-window tightening in
   `earnings_table._UNREPORTED_GRACE_DAYS` (130d) is a possible follow-up.
 
-## Live Options Flow — Deploy Survival (2026-07-06 · LOCKED invariants)
+## Live Options Flow — Deploy Survival (2026-07-06 · LOCKED invariants; P5 CUTOVER DONE 2026-07-13)
 
-The Massive OPRA WS consumer (`api/massive_ws_worker.py`, partner-owned) runs on the **WEB service**
-(env: web `MASSIVE_WS_ENABLED=1`; worker `=0` + `DRY_RUN=1` staging). Massive OPRA does NOT replay —
-every feed gap is permanent until the T+1 flat file. Full design:
-`docs/superpowers/specs/2026-07-06-liveflow-worker-deploy-survival-design.md` · outage runbook:
+**P5 cutover complete (2026-07-13):** the Massive OPRA WS consumer (`api/massive_ws_worker.py`,
+partner-owned) + flow.db + ALL flow.db-owning jobs (T+1 flat-files ingest, gap-fill, R2 backup,
+nightly prune) run on the **FLOW-WORKER service**. Web serves every flow-family read/write via
+`api/flow_proxy.py` (registered in main.py BEFORE the local flow routers; active under
+`FLOW_READS_PROXY_ENABLED=1` + `WORKER_INTERNAL_URL`; HMAC-vouched auth, SSE passthrough).
+Env: flow-worker `MASSIVE_WS_ENABLED=1` + `MASSIVE_S3_*` + backup/gap-fill flags; web
+`MASSIVE_WS_ENABLED=0`, `FLOW_BACKUP_ENABLED=0`, `FLOW_GAP_AUTOFILL_ENABLED=0`,
+`MASSIVE_FLATFILES_ENABLED=0`. **Web deploys no longer touch the options tape.** flow-worker
+deploys still cost a ~15-60s single-slot WS handoff — they are RARE (manual `railway up
+--detach -s flow-worker` from a CURRENT worktree; NO GitHub trigger until deliberately
+reconnected with narrow watch paths) and ship after-hours. Rollback = flip the env sets back
+(web consumer on, proxy off; flow-worker consumer off) + redeploy flow-worker-then-web.
+Web's `/data/flow.db` is a FROZEN pre-cutover copy — retire after ~30d green. Massive OPRA
+does NOT replay — every feed gap is permanent until the T+1 flat file. Full design:
+`docs/superpowers/specs/2026-07-06-liveflow-worker-deploy-survival-design.md` · cutover plan:
+`docs/superpowers/plans/2026-07-13-flow-worker-cutover.md` · outage runbook:
 `docs/runbooks/liveflow-unstick.md`.
 
 - **`api/main.py` uses `FastAPI(lifespan=lifespan)` — `@app.on_event` handlers are SILENTLY IGNORED.**
@@ -2167,8 +2179,10 @@ every feed gap is permanent until the T+1 flat file. Full design:
 - **`watchPatterns` are set per-service in the Railway dashboard ONLY — NEVER in railway.json**
   (the file is shared by web + worker; an api-only list there would stop web frontend deploys).
   Worker patterns: `/api/**` + build files.
-- **Shipping window:** anything that deploys web ships **≥4:20 PM ET or <9:15 AM ET** (options tape
-  runs to 4:15). Batch market-hours work; a failed build is free, only a successful swap kills the feed.
+- **Shipping window (post-cutover):** web swaps no longer gap the tape, but the market-hours
+  push freeze (Mon-Fri 9:15a-4:20p ET, enforced by `.git/hooks/pre-push`) STAYS — web deploys
+  still blip /api/* ~1 min for members, and pushes also rebuild the bars worker. Anything that
+  deploys FLOW-WORKER (api flow-path changes via `railway up`) ships strictly after-hours.
 - **`MASSIVE_WS_DRY_RUN=1` does NOT protect the prod connection slot** — any local run with the prod
   key kicks production off the feed (Massive allows ~1 conn/key). Local tests use a localhost mock WS.
 - Consumer shutdown contract (P1): `massive_ws_worker.stop()` (no args). The main.py hook uses
