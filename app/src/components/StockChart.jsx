@@ -25,6 +25,7 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
@@ -3356,7 +3357,11 @@ export default function StockChart({
       ? latestLiveRef.current
       : null
     if (!_retopLive && !barsPushActiveRef.current) {
-      const _cached = livePrices[sym]
+      // livePrices (the hook) is filtered to THIS chart's subscription, which on a
+      // switch hasn't registered the new sym yet → empty on the switch frame. The
+      // livePriceStore GLOBAL snapshot holds every ticker any widget tracks
+      // (watchlist / movers / themes), synchronously → seed from it as a fallback.
+      const _cached = livePrices[sym] || getLivePriceStoreSnapshot()[sym]
       if (_cached?.price && isSaneLivePrice(_cached.price, lastBarRef.current?.close, lastServerCloseRef.current)) {
         _retopLive = {
           sym, price: _cached.price, updated_at: _cached.updated_at,
