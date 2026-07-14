@@ -13,6 +13,7 @@ import TickerActionsMenu, { useTickerActions } from '../components/TickerActions
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import useRealtimeBarPrices from '../hooks/useRealtimeBarPrices'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
@@ -307,10 +308,23 @@ export default function ThemeTrackerPage({ embedded = false }) {
     return [...s]
   }, [filteredThemes, openThemes])
 
-  // Update at the feed's own pace (the SSE loop pushes changed prices every
-  // ~250ms straight off the Finnhub trade WS) — no extra throttle, so the %s
-  // tick and flash as fast as real trades arrive.
-  const { prices: tickPrices } = useRealtimePrices(expandedSyms)
+  // Prices come from TWO feeds, merged:
+  //   • useRealtimePrices → the official prev_close (REST) + a Finnhub fallback.
+  //   • useRealtimeBarPrices → the Massive bars WS tick price (T/A/AM), the SAME
+  //     reliable tick-by-tick feed the chart uses. Finnhub drops/rotates symbols
+  //     (OKTA sat 400s+ stale), so the bars price is the authoritative live tick.
+  const { prices: rtPrices } = useRealtimePrices(expandedSyms)
+  const barPrices = useRealtimeBarPrices(expandedSyms)
+  const tickPrices = useMemo(() => {
+    const out = {}
+    for (const sym of expandedSyms) {
+      const rt = rtPrices[sym]
+      const bp = barPrices[sym]
+      if (bp?.price != null) out[sym] = { ...rt, price: bp.price }   // Massive tick wins
+      else if (rt) out[sym] = rt
+    }
+    return out
+  }, [rtPrices, barPrices, expandedSyms])
 
   const handleKeyDown = useCallback((e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
