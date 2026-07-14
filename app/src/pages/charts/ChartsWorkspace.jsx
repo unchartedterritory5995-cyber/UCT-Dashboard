@@ -20,9 +20,9 @@ const BODY_PAD = 6                // px padding around the grid (matches .worksp
 
 const DEFAULT_LAYOUT = {
   widgets: [
-    { id: 'w-watchlist', type: 'watchlist', color: 'A', x: 0, y: 0,  w: 3, h: 10, opts: {} },
-    { id: 'w-chart',     type: 'chart',     color: 'A', x: 3, y: 0,  w: 9, h: 20, opts: { tf: 'D' } },
-    { id: 'w-themes',    type: 'themes',    color: 'B', x: 0, y: 10, w: 3, h: 10, opts: {} },
+    { id: 'w-watchlist', type: 'watchlist', color: 'A', x: 0, y: 0, w: 2, h: 7,  opts: {} },
+    { id: 'w-chart',     type: 'chart',     color: 'A', x: 2, y: 0, w: 10, h: 20, opts: { tf: 'D' } },
+    { id: 'w-themes',    type: 'themes',    color: 'B', x: 0, y: 7, w: 2, h: 13, opts: {} },
   ],
   cols: 12,
 }

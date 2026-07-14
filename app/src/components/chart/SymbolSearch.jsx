@@ -100,6 +100,11 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, r
       setActiveIdx(0)
       return
     }
+    // Instant lock: show the typed ticker as the selected item IMMEDIATELY (no
+    // debounce/network wait) so "Go to {typed}" + Enter always reflect the current
+    // text. The debounced fetch below enriches it with autocomplete matches.
+    setResults([{ ticker: q.toUpperCase(), name: null, _typed: true }])
+    setActiveIdx(0)
     if (abortRef.current) abortRef.current.abort()
     const ctl = new AbortController()
     abortRef.current = ctl
@@ -149,9 +154,13 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, r
       e.preventDefault()
       setActiveIdx(i => Math.max(i - 1, 0))
     } else if (e.key === 'Enter') {
-      const pick = results[activeIdx]
-      if (pick?.ticker) submit(pick.ticker)
-      else if (query.trim()) submit(query)
+      // Instant: Enter goes straight to the typed ticker with no wait for the
+      // debounced autocomplete. Only defer to a suggestion the user explicitly
+      // arrow-navigated to (activeIdx > 0).
+      const typed = query.trim()
+      if (activeIdx > 0 && results[activeIdx]?.ticker) submit(results[activeIdx].ticker)
+      else if (typed) submit(typed)
+      else if (results[activeIdx]?.ticker) submit(results[activeIdx].ticker)
     }
   }, [results, activeIdx, submit, query])
 

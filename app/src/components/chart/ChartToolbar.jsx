@@ -52,8 +52,8 @@ const ICONS = {
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const TOOLS = [
-  { id: 'cursor',     label: 'Select (V)' },
-  'sep',
+  // Select/cursor button removed — you can hover-and-drag annotations with no tool
+  // armed (the default), so a dedicated Select mode is redundant.
   { id: 'trendline',  label: 'Trendline (T)' },
   { id: 'extended',   label: 'Extended Line' },
   { id: 'horizontal', label: 'Horizontal Line (H)' },
