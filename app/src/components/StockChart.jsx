@@ -340,6 +340,24 @@ function isSaneLivePrice(p, lastClose, serverClose) {
   return true
 }
 
+// Format the time span between two bar timestamps for the drag-measure readout.
+// Bar `.t` is 'YYYY-MM-DD' for D/W/M (→ days) or an epoch-seconds number for
+// intraday (→ h/m; any consistent offset cancels in the diff).
+function _formatMeasureSpan(t1, t2) {
+  if (typeof t1 === 'string' && typeof t2 === 'string') {
+    const d1 = Date.parse(t1 + 'T00:00:00Z'), d2 = Date.parse(t2 + 'T00:00:00Z')
+    if (!Number.isFinite(d1) || !Number.isFinite(d2)) return ''
+    const days = Math.abs(Math.round((d2 - d1) / 86400000))
+    return days === 1 ? '1 day' : `${days} days`
+  }
+  const secs = Math.abs(Number(t2) - Number(t1))
+  if (!Number.isFinite(secs)) return ''
+  const h = Math.floor(secs / 3600), m = Math.round((secs % 3600) / 60)
+  if (h >= 24) return `${Math.round(h / 24)}d`
+  if (h >= 1) return m > 0 ? `${h}h ${m}m` : `${h}h`
+  return `${m}m`
+}
+
 // ─── Volume Profile canvas draw ──────────────────────────────────────────────
 
 function drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg) {
@@ -653,6 +671,7 @@ export default function StockChart({
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
   hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
+  dragMeasure = false,        // Charts workspace: plain left-drag draws a transient measure line + % / bars / time readout (TC2000-style) instead of panning. Cursor mode only; mouse only.
   leftBarPad = 0,             // bars of empty space before the first bar on the default zoom (intraday popup: matches the right padding)
   overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
@@ -5451,6 +5470,99 @@ export default function StockChart({
     return () => { try { chart.unsubscribeCrosshairMove(sub) } catch {} }
   }, [chartReady])
 
+  // ── Drag-to-measure (Charts workspace, TC2000-style) ──────────────────────
+  const dragMeasureCanvasRef = useRef(null)
+  const dragMeasureStateRef = useRef(null)   // { startX, startY, startPrice, startLogical } while dragging
+  const [measureReadout, setMeasureReadout] = useState(null)  // { x, y, pct, bars, span, flip } | null
+
+  // Disable MOUSE drag-pan in cursor mode so a plain left-drag draws the measure
+  // line instead of panning. Wheel-zoom + touch-pan stay on; a drawing tool or
+  // `frozen` (Setup Library) is untouched.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !chartReady) return
+    const measureMode = dragMeasure && (!activeTool || activeTool === 'cursor')
+    try {
+      chart.applyOptions({
+        handleScroll: frozen ? false
+          : measureMode
+            ? { mouseWheel: true, pressedMouseMove: false, horzTouchDrag: true, vertTouchDrag: true }
+            : true,
+      })
+    } catch { /* chart not ready */ }
+  }, [dragMeasure, activeTool, frozen, chartReady])
+
+  // Press-drag A→B: dashed line on a transient canvas + a cursor-following
+  // % / bars / time readout. Free cursor price (coordinateToPrice, unsnapped).
+  // Everything clears on release. Move/up listen on window so a fast drag that
+  // leaves the chart still tracks + always releases; no pointer-capture, so
+  // LWC keeps updating its own crosshair underneath.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady || !dragMeasure) return
+    if (activeTool && activeTool !== 'cursor') return
+
+    const getPos = (e) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height } }
+    const clearLine = () => {
+      const c = dragMeasureCanvasRef.current; if (!c) return
+      const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height)
+    }
+    const drawLine = (x1, y1, x2, y2, w, h) => {
+      const c = dragMeasureCanvasRef.current; if (!c) return
+      const dpr = window.devicePixelRatio || 1
+      const W = Math.round(w * dpr), H = Math.round(h * dpr)
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; c.style.width = w + 'px'; c.style.height = h + 'px' }
+      const ctx = c.getContext('2d'); if (!ctx) return
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      ctx.strokeStyle = 'rgba(224,218,200,0.85)'; ctx.lineWidth = 1; ctx.setLineDash([5, 4])
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+      ctx.setLineDash([]); ctx.fillStyle = 'rgba(224,218,200,0.95)'
+      ctx.beginPath(); ctx.arc(x1, y1, 2.5, 0, 6.283); ctx.fill()
+      ctx.beginPath(); ctx.arc(x2, y2, 2.5, 0, 6.283); ctx.fill()
+    }
+    const onMove = (e) => {
+      const st = dragMeasureStateRef.current; if (!st) return
+      const series = candleSeriesRef.current, chart = chartRef.current
+      if (!series || !chart) return
+      const { x, y, w, h } = getPos(e)
+      if (Math.abs(x - st.startX) < 3 && Math.abs(y - st.startY) < 3) { clearLine(); setMeasureReadout(null); return }
+      const curPrice = series.coordinateToPrice(y)
+      const curLogical = chart.timeScale().coordinateToLogical(x)
+      if (curPrice == null || curLogical == null) return
+      drawLine(st.startX, st.startY, x, y, w, h)
+      const pct = st.startPrice ? (curPrice - st.startPrice) / st.startPrice * 100 : 0
+      const barsN = Math.abs(Math.round(curLogical - st.startLogical))
+      const arr = prevBarsRef.current || []
+      const clamp = (i) => Math.max(0, Math.min(arr.length - 1, Math.round(i)))
+      const b1 = arr[clamp(st.startLogical)], b2 = arr[clamp(curLogical)]
+      const span = (b1 && b2) ? _formatMeasureSpan(b1.t, b2.t) : ''
+      setMeasureReadout({ x, y, pct, bars: barsN, span, flip: x > w - 180 })
+    }
+    const end = () => {
+      dragMeasureStateRef.current = null
+      clearLine(); setMeasureReadout(null)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+    }
+    const onDown = (e) => {
+      if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
+      const series = candleSeriesRef.current, chart = chartRef.current
+      if (!series || !chart) return
+      const { x, y } = getPos(e)
+      const startPrice = series.coordinateToPrice(y)
+      const startLogical = chart.timeScale().coordinateToLogical(x)
+      if (startPrice == null || startLogical == null) return
+      dragMeasureStateRef.current = { startX: x, startY: y, startPrice, startLogical }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', end)
+      window.addEventListener('pointercancel', end)
+    }
+    el.addEventListener('pointerdown', onDown)
+    return () => { el.removeEventListener('pointerdown', onDown); end() }
+  }, [dragMeasure, chartReady, activeTool])
+
   useEffect(() => {
     const el = containerRef.current
     const chart = chartRef.current
@@ -6248,6 +6360,32 @@ export default function StockChart({
         ref={vpCanvasRef}
         style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 2 }}
       />
+      {/* Drag-to-measure: transient dashed line + cursor-following readout. */}
+      {dragMeasure && (
+        <canvas
+          ref={dragMeasureCanvasRef}
+          style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 5 }}
+        />
+      )}
+      {dragMeasure && measureReadout && (
+        <div style={{
+          position: 'absolute',
+          left: measureReadout.x, top: measureReadout.y,
+          transform: measureReadout.flip ? 'translate(calc(-100% - 14px), 14px)' : 'translate(14px, 14px)',
+          pointerEvents: 'none', zIndex: 6,
+          background: 'rgba(10,11,9,0.94)', border: '1px solid rgba(201,168,76,0.4)',
+          borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap',
+          fontFamily: "'Instrument Sans', system-ui, sans-serif", fontSize: 12,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+        }}>
+          <span style={{ color: measureReadout.pct >= 0 ? '#1ae51a' : '#c41f2d', fontWeight: 700 }}>
+            {measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%
+          </span>
+          <span style={{ color: '#a8a290', marginLeft: 8 }}>
+            {measureReadout.bars} {measureReadout.bars === 1 ? 'bar' : 'bars'}{measureReadout.span ? ` · ${measureReadout.span}` : ''}
+          </span>
+        </div>
+      )}
       {bars?.length > 0 && (
         <PatternOverlay
           chart={chartRef.current}
