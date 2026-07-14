@@ -118,6 +118,8 @@
 .symbolSlot {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 56px;
   margin-right: 4px;
 }
 
@@ -126,6 +128,51 @@
   align-self: stretch;
   background: var(--border, #1f2937);
   margin: 2px 4px;
+}
+
+/* Market Cap + Next Earnings labels, in the space right of the timeframes. */
+.chartMeta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 18px;
+  flex-wrap: wrap;
+}
+.chartMetaItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.chartMetaLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted, #706b5e);
+}
+.chartMetaVal {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shift+F flag confirmation toast, centered near the top of the chart. */
+.flagToast {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  background: rgba(10, 11, 9, 0.94);
+  border: 1px solid rgba(201, 168, 76, 0.5);
+  color: #e0dac8;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* ── Phone: comfortable tap targets in the widget header + TF bar ──

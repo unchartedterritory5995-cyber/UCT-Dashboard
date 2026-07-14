@@ -1756,6 +1756,22 @@ export default function ChartDrawingOverlay({
     }
   }, [])
 
+  // Deselect when clicking away. In no-tool mode the overlay canvas is
+  // pointer-transparent over empty space, so an empty-space click lands on the
+  // chart canvas (a sibling) and the overlay's own pointerdown never fires —
+  // leaving the selection handles stuck. This document-level capture listener
+  // clears the selection on any pointerdown that ISN'T on the overlay canvas
+  // (a drawing/handle click keeps the selection; the overlay handles it).
+  useEffect(() => {
+    if (!selectedId) return
+    const onDocDown = (e) => {
+      if (e.target === canvasRef.current) return
+      setSelectedId(null)
+    }
+    document.addEventListener('pointerdown', onDocDown, true)
+    return () => document.removeEventListener('pointerdown', onDocDown, true)
+  }, [selectedId, setSelectedId])
+
   // ── Hit test all drawings ── (already defined above)
 
   // ── Keyboard nudge of the selected drawing ──

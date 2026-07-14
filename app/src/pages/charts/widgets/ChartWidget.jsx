@@ -3,6 +3,8 @@ import StockChart from '../../../components/StockChart'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import { useWorkspace } from '../WorkspaceContext'
+import { useFlagged } from '../../../hooks/useFlagged'
+import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import styles from '../ChartsWorkspace.module.css'
 
 const TFS = [
@@ -16,6 +18,22 @@ const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
 export default function ChartWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, crosshairBus } = useWorkspace()
   const sym = groupSyms[color] || 'SPY'
+
+  const { isFlagged, toggle: toggleFlag } = useFlagged()
+  const { data: fund } = useFundamentalSnapshot(sym)
+  const mktCap = fund?.metrics?.market_cap || null
+  const nextEarnStr = (() => {
+    const iso = fund?.next_earnings
+    if (!iso) return null
+    const [y, mo, da] = String(iso).split('-').map(Number)
+    return (y && mo && da) ? `${mo}/${da}/${y}` : null
+  })()
+  const [flagToast, setFlagToast] = useState(null)
+  useEffect(() => {
+    if (!flagToast) return
+    const t = setTimeout(() => setFlagToast(null), 1400)
+    return () => clearTimeout(t)
+  }, [flagToast])
 
   // ── Crosshair sync within the color group ──
   // Stable per-widget id so we ignore our own broadcasts. Charts sharing a
@@ -69,6 +87,15 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     // Bail if the event is bubbling up from an input (search box, etc.).
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
+    // Shift+F flags the chart's current ticker — works even while interacting with
+    // the chart. stopPropagation so it doesn't also fire the theme widget's Shift+F.
+    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault(); e.stopPropagation()
+      const willFlag = !isFlagged(sym)
+      toggleFlag(sym)
+      setFlagToast(willFlag ? 'flagged' : 'unflagged')
+      return
+    }
     if (e.ctrlKey || e.altKey || e.metaKey) return
     if (!TICKER_KEY_RE.test(e.key)) return
     e.preventDefault()
@@ -76,13 +103,13 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     // (document) hotkey handlers — typing a ticker must never trigger a tool or TF.
     e.stopPropagation()
     searchRef.current?.openWith(e.key)
-  }, [])
+  }, [sym, isFlagged, toggleFlag])
 
   return (
     <div className={styles.chartWidget}>
       <div className={styles.tfBar}>
         <div className={styles.symbolSlot}>
-          <SymbolSearch ref={searchRef} sym={sym} onSymbolChange={handleSymbolChange} />
+          <SymbolSearch ref={searchRef} sym={sym} onSymbolChange={handleSymbolChange} hideIcon />
         </div>
         <span className={styles.tfBarDivider} aria-hidden="true" />
         {TFS.map(([code, label]) => (
@@ -93,6 +120,16 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             onClick={() => setTf(code)}
           >{label}</button>
         ))}
+        <div className={styles.chartMeta}>
+          <span className={styles.chartMetaItem}>
+            <span className={styles.chartMetaLabel}>Market Cap</span>
+            <span className={styles.chartMetaVal} style={{ color: '#c9a84c' }}>{mktCap || '—'}</span>
+          </span>
+          <span className={styles.chartMetaItem}>
+            <span className={styles.chartMetaLabel}>Next Earnings</span>
+            <span className={styles.chartMetaVal} style={{ color: '#6ba3be' }}>{nextEarnStr || '—'}</span>
+          </span>
+        </div>
         <span style={{ marginLeft: 'auto' }}>
           <ShareToFloor card={{ kind: 'chart', ticker: sym, tf }} compact />
         </span>
@@ -138,6 +175,11 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           priceScaleTopMargin={0.12}
           priceScaleBottomMargin={0.10}
         />
+        {flagToast && (
+          <div className={styles.flagToast}>
+            {flagToast === 'flagged' ? `⚑ ${sym} added to Flagged` : `${sym} removed from Flagged`}
+          </div>
+        )}
       </div>
     </div>
   )

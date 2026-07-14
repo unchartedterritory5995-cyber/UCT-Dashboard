@@ -37,7 +37,7 @@ const POPULAR_RESULTS = [
   { ticker: 'SOXX',  name: 'iShares Semiconductor ETF' },
 ]
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -173,14 +173,17 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, r
     <div ref={wrapRef} className={styles.wrap}>
       <button
         className={styles.badge}
+        style={hideIcon ? { justifyContent: 'center', width: '100%' } : undefined}
         onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setOpen(true) } }}
         title="Search ticker"
       >
         {sym}
-        <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <circle cx="5" cy="5" r="3.5" />
-          <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" />
-        </svg>
+        {!hideIcon && (
+          <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <circle cx="5" cy="5" r="3.5" />
+            <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" />
+          </svg>
+        )}
       </button>
 
       {open && (
