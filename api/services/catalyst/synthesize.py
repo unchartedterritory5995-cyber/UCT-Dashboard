@@ -34,6 +34,8 @@ THESIS (2-3 sentences, plain factual English, NO buy/sell recommendations):
   - Bold $AMOUNTS, percentages, and company names with **markdown**
   - Cite source category in parentheses: (Earnings - Tweet - News - Scanner)
   - Never invent facts. Only synthesize what's in the SIGNALS block.
+  - NEVER guess the company behind a ticker. If the SIGNALS block doesn't
+    name the company, refer to it by ticker alone.
   - Do NOT inflate. If the only "news" is a sector-wide rule, a single
     politician's disclosure, a vague "growth strategy" article, or generic
     social chatter, SAY SO plainly — do not dress it up as company-specific news.
@@ -51,7 +53,11 @@ GRADE — how strong/actionable is the catalyst:
   - C = weak/noise: sector-wide rules not specific to this company, single
         congressional/insider disclosures, vague strategy pieces, promotional
         social chatter, contradictory or unverifiable signals, or a flat tape.
-  Be strict. When in doubt between B and C, choose C.
+  A stock ACTUALLY MOVING hard today (roughly 5%+ either direction) is never
+  a C — participation in a real sector-wide selloff/rally IS a tradeable
+  sympathy/momentum move. Grade it B and type it Sector-wide or Momentum;
+  reserve C for names that aren't really moving. Otherwise be strict: when in
+  doubt between B and C on a quiet tape, choose C.
 
 CATALYST_TYPE — pick the single best label:
   Earnings, M&A, FDA, Analyst, Contract, Guidance, Product, Legal, Insider,

@@ -889,6 +889,36 @@ def _market_closed_today(now_et: Optional[dt.datetime] = None) -> tuple[bool, st
     return False, ""
 
 
+def _hide_c_min_move_pct() -> float:
+    """Display floor for grade-C hiding, env-tunable."""
+    raw = os.environ.get("CATALYST_HIDE_C_MIN_MOVE_PCT")
+    if raw in (None, ""):
+        return 5.0
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return 5.0
+
+
+def _should_hide_grade_c(hide_c: bool, grade, gap_pct, min_move_pct: float) -> bool:
+    """Pure decision: does a grade-C row get hidden from the ranked list?
+
+    A row that MOVED is market reality regardless of what the grader thought
+    of the news flow. 2026-07-13: a sector-wide semis selloff (MRVL -9.5%,
+    ALAB -13.9%) was graded C across the board ("sector-wide, no
+    company-specific catalyst") and the ranked board collapsed to 3 rows —
+    hiding exactly the movers a trader opens the tile for. The prompt says
+    momentum/sympathy = B, but the model drifts; this floor makes that intent
+    structural instead of prompt-hoped."""
+    if not hide_c or grade != "C":
+        return False
+    try:
+        gap_abs = abs(float(gap_pct))
+    except (TypeError, ValueError):
+        gap_abs = 0.0
+    return gap_abs < min_move_pct
+
+
 def run_refresh(hunt: Optional[bool] = None) -> dict:
     """Single full pass. Returns summary dict for logging.
     Never raises — all errors swallowed + logged.
@@ -1052,6 +1082,7 @@ def run_refresh(hunt: Optional[bool] = None) -> dict:
     # Big movers with no fresh news are graded B (momentum) by the prompt, so
     # they survive — only genuine noise lands at C.
     hide_c = os.environ.get("CATALYST_HIDE_GRADE_C", "1").lower() in ("1", "true", "yes")
+    hide_c_floor = _hide_c_min_move_pct()
     synthesized: list[tuple[dict, dict]] = []
     for c in top_12:
         try:
@@ -1078,7 +1109,7 @@ def run_refresh(hunt: Optional[bool] = None) -> dict:
         # pre_move: a confirmed catalyst whose stock hasn't reacted yet.
         c["pre_move"] = 1 if (c.get("hunter_confirmed") and abs(c.get("gap_pct") or 0)
                               < float(os.environ.get("CATALYST_PRE_MOVE_GAP", "2.0"))) else 0
-        if hide_c and grade == "C":
+        if _should_hide_grade_c(hide_c, grade, c.get("gap_pct"), hide_c_floor):
             row_rank = None
             hidden_c += 1
         else:

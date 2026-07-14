@@ -142,3 +142,36 @@ def test_run_refresh_hunt_gating(s, monkeypatch, tmp_path):
     engine.run_refresh(hunt=True)  # explicit hunt tick -> light sweep
     assert calls[-1]["run_hunter"] is True
     assert calls[-1]["hunter_mode"] == "light"
+
+
+# ---- grade-C hiding big-move floor (2026-07-13) ------------------------------
+
+def test_should_hide_grade_c_hides_flat_noise():
+    """A quiet-tape grade-C row stays hidden — the original intent."""
+    assert engine._should_hide_grade_c(True, "C", 1.2, 5.0) is True
+    assert engine._should_hide_grade_c(True, "C", 0.0, 5.0) is True
+    assert engine._should_hide_grade_c(True, "C", None, 5.0) is True
+
+
+def test_should_hide_grade_c_never_hides_big_movers():
+    """The 2026-07-13 semis-selloff regression: MRVL -9.5% / ALAB -13.9% were
+    graded C ("sector-wide") and vanished from the board. A real move must
+    survive the grader's mood."""
+    assert engine._should_hide_grade_c(True, "C", -9.5, 5.0) is False
+    assert engine._should_hide_grade_c(True, "C", -13.9, 5.0) is False
+    assert engine._should_hide_grade_c(True, "C", 8.0, 5.0) is False
+
+
+def test_should_hide_grade_c_respects_flag_and_grade():
+    assert engine._should_hide_grade_c(False, "C", 0.0, 5.0) is False
+    assert engine._should_hide_grade_c(True, "B", 0.0, 5.0) is False
+    assert engine._should_hide_grade_c(True, None, 0.0, 5.0) is False
+
+
+def test_hide_c_min_move_pct_env(monkeypatch):
+    monkeypatch.delenv("CATALYST_HIDE_C_MIN_MOVE_PCT", raising=False)
+    assert engine._hide_c_min_move_pct() == 5.0
+    monkeypatch.setenv("CATALYST_HIDE_C_MIN_MOVE_PCT", "3.5")
+    assert engine._hide_c_min_move_pct() == 3.5
+    monkeypatch.setenv("CATALYST_HIDE_C_MIN_MOVE_PCT", "junk")
+    assert engine._hide_c_min_move_pct() == 5.0
