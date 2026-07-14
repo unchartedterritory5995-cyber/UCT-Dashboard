@@ -128,7 +128,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           watermarkX={0.47}
           dailyDefaultBars={126}
           volumeSeparatePane
-          volumePaneHeightPct={16}
+          volumePaneHeightPct={12}
           priceScaleTopMargin={0.12}
           priceScaleBottomMargin={0.10}
         />
