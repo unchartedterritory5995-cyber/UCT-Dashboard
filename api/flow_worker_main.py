@@ -143,10 +143,40 @@ def _start_flow_schedulers():
                              name="flow-integrity-probe", daemon=True).start()
         except Exception as e:  # noqa: BLE001
             log.warning("backup scheduling failed: %s", e)
+        try:
+            # T+1 flat-files archive ingest (11:30/12:00/12:30 ET) writes to
+            # flow.db, so at cutover it must run HERE, not against web's frozen
+            # copy. Self-gated on MASSIVE_FLATFILES_ENABLED + MASSIVE_S3_* creds.
+            from api import massive_flatfiles_worker
+            if massive_flatfiles_worker.register_jobs(sched):
+                n += 1
+                log.info("[startup] flat-files T+1 cron registered on flow-worker")
+        except Exception as e:  # noqa: BLE001
+            log.warning("flat-files scheduling failed: %s", e)
+
+        def _nightly_flow_prune():
+            # Mirrors web's 20:00 ET job (api/main.py): expired contracts must
+            # be pruned from the LIVE flow.db, which lives here post-cutover.
+            try:
+                from api.flow_db import FlowDB
+                pruned = FlowDB().prune_expired(buffer_days=1)
+                if pruned:
+                    log.info("[scheduler] Flow DB pruned %d expired rows", pruned)
+            except Exception as e:  # noqa: BLE001
+                log.warning("[scheduler] Flow DB prune error: %s", e)
+
+        try:
+            from apscheduler.triggers.cron import CronTrigger
+            sched.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0),
+                          id="flow_nightly_prune", max_instances=1,
+                          replace_existing=True)
+            n += 1
+        except Exception as e:  # noqa: BLE001
+            log.warning("nightly prune scheduling failed: %s", e)
         if n:
             sched.start()
             log.info("[startup] flow-worker schedulers started (%d job group(s): "
-                     "backup + gap-fill own flow.db here now)", n)
+                     "backup + gap-fill + flat-files + prune own flow.db here now)", n)
         else:
             log.info("[startup] no flow schedulers enabled "
                      "(FLOW_BACKUP_ENABLED / FLOW_GAP_AUTOFILL_ENABLED off)")
