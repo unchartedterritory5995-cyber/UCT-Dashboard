@@ -6,8 +6,7 @@ import ChartMarketClock from './ChartMarketClock'
 import { useWorkspace } from '../WorkspaceContext'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
-import useRealtimePrices from '../../../hooks/useRealtimePrices'
-import useRealtimeBarPrices from '../../../hooks/useRealtimeBarPrices'
+import ChartDayGain from './ChartDayGain'
 import styles from '../ChartsWorkspace.module.css'
 
 const TFS = [
@@ -42,17 +41,6 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     const t = setTimeout(() => setFlagToast(null), 1400)
     return () => clearTimeout(t)
   }, [flagToast])
-
-  // ── Live day gain ($ + %) shown big beside the ticker ──
-  // Tick price from the Massive bars WS (same reliable feed as the candle);
-  // official prev_close from REST. Change = live − prev_close.
-  const { prices: rtHdr } = useRealtimePrices(sym ? [sym] : [])
-  const barHdr = useRealtimeBarPrices(sym ? [sym] : [])
-  const livePx = barHdr[sym]?.price ?? rtHdr[sym]?.price ?? null
-  const prevClose = rtHdr[sym]?.prev_close ?? null
-  const gainAbs = (livePx != null && prevClose != null && prevClose !== 0) ? (livePx - prevClose) : null
-  const gainPct = gainAbs != null ? (gainAbs / prevClose) * 100 : null
-  const gainUp = gainAbs != null && gainAbs >= 0
 
   // ── Crosshair sync within the color group ──
   // Stable per-widget id so we ignore our own broadcasts. Charts sharing a
@@ -130,14 +118,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         <div className={styles.symbolSlot}>
           <SymbolSearch ref={searchRef} sym={sym} onSymbolChange={handleSymbolChange} hideIcon />
         </div>
-        {gainAbs != null && (
-          <span
-            className={styles.chartDayGain}
-            style={{ color: gainUp ? '#1ae51a' : '#ff3b47' }}
-          >
-            {gainUp ? '+' : ''}{gainAbs.toFixed(2)} ({gainUp ? '+' : ''}{gainPct.toFixed(2)}%)
-          </span>
-        )}
+        <ChartDayGain sym={sym} />
         <span className={styles.tfBarDivider} aria-hidden="true" />
         {TFS.map(([code, label]) => (
           <button
