@@ -20,7 +20,7 @@ import {
   useIpos,
   useDividends,
 } from './calendar/useCalendarData'
-import { DEFAULT_FILTERS } from './calendar/filterLogic'
+import { DEFAULT_FILTERS, applyFilters } from './calendar/filterLogic'
 import { tierWeek, FEATURED_CAP } from './calendar/importance'
 import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
 import FeedView from './calendar/FeedView'
@@ -111,11 +111,34 @@ export default function Calendar() {
   // look), so it's the new default landing view. Bumping the key resets every
   // legacy 'feed' pref to Week once; the choice persists under v2 thereafter.
   const view = prefs.calendar_view_v2 || 'week'
-  const filters = { ...DEFAULT_FILTERS, ...parsePref(prefs.calendar_filters, {}) }
+  // FILTERS key bumped to _v2 (owner decision 2026-07-13): first paint now
+  // defaults to the full market ranked big→small (audience 'all'). Legacy
+  // metric filters carry over once; audience/sort reset to the new default,
+  // then every choice persists under v2.
+  const _savedFiltersV2 = parsePref(prefs.calendar_filters_v2, null)
+  const filters = _savedFiltersV2
+    ? { ...DEFAULT_FILTERS, ..._savedFiltersV2 }
+    : {
+        ...DEFAULT_FILTERS,
+        ...parsePref(prefs.calendar_filters, {}),
+        audience: DEFAULT_FILTERS.audience,
+        sort: DEFAULT_FILTERS.sort,
+      }
   const mySources = parsePref(prefs.calendar_mystocks_sources, ALL_SOURCES)
   const setView = v => setPref('calendar_view_v2', v)
-  const setFilters = f => setPref('calendar_filters', f)
+  const setFilters = f => setPref('calendar_filters_v2', f)
   const setMySources = s => setPref('calendar_mystocks_sources', s)
+
+  // Density: EarningsHub logo tiles (default) vs the WSE-style data-row table.
+  const density = prefs.calendar_density || 'tiles'
+  const setDensity = v => setPref('calendar_density', v)
+
+  // Quick search — EPHEMERAL component state, deliberately never persisted
+  // (a stale saved search silently blanking next session reads as data loss).
+  // Merged over the saved filters right before the views consume them; a
+  // fresh object per render matches how `filters` itself already behaves.
+  const [quickQ, setQuickQ] = useState('')
+  const effFilters = { ...filters, q: quickQ }
 
   // Event type filter — persisted as array (Set not JSON-serializable). KEY
   // BUMPED to _v2: macro used to be a locked always-on chip, so every legacy
@@ -224,6 +247,34 @@ export default function Calendar() {
     }
     return out
   }, [data, weekDates, mySets, mySources, enrichmentByDate, metricsByDate])
+
+  // Quick-bar summary: how much of the loaded week is visible under the
+  // current filters (raw vs filtered), plus the user's own count. Cheap loop
+  // over already-tagged entries — recomputes with the render, like filters.
+  const weekCounts = (() => {
+    let raw = 0, total = 0, mine = 0
+    for (const ds of weekDates) {
+      const d = days[ds]
+      if (!d) continue
+      const all = [
+        ...(d.bmo || []).map(e => ({ ...e, _timing: 'bmo' })),
+        ...(d.amc || []).map(e => ({ ...e, _timing: 'amc' })),
+        ...(d.tbd || []).map(e => ({ ...e, _timing: 'tbd' })),
+      ]
+      raw += all.length
+      const vis = applyFilters(all, effFilters)
+      total += vis.length
+      for (const e of vis) if (e.mine) mine += 1
+    }
+    return { raw, total, mine, hidden: raw - total }
+  })()
+
+  // One-tap reset for the QUICK filters only (search + cap pill) — the ⚙
+  // panel's audience/sort/metric choices are deliberate and stay put.
+  const onClearQuick = () => {
+    setQuickQ('')
+    if (filters.minMcap > 0) setFilters({ ...filters, minMcap: 0 })
+  }
 
   // Sectors actually present this week, most-reporters-first — drives the
   // sector-scoping chip row. Derived from loaded entries so counts are honest.
@@ -446,6 +497,12 @@ export default function Calendar() {
       eventTypes={eventTypes}
       setEventTypes={setEventTypes}
       availableSectors={availableSectors}
+      quickQ={quickQ}
+      setQuickQ={setQuickQ}
+      weekCounts={weekCounts}
+      density={density}
+      setDensity={setDensity}
+      onClearQuick={onClearQuick}
       dayTabs={dayTabs}
       isCurrentWeek={isCurrentWeek}
       onPrevWeek={() => shiftWeek(-7)}
@@ -505,13 +562,15 @@ export default function Calendar() {
             <FeedView
               weekDates={weekDates}
               days={days}
-              filters={filters}
+              filters={effFilters}
               onSelect={onSelect}
               eventTypes={eventTypes}
               iposByDate={iposByDate}
               dividendsByDate={dividendsByDate}
               pulse={pulse}
               weekTiers={weekTiers}
+              density={density}
+              onClearQuick={onClearQuick}
             />
           </>
         )}
@@ -519,7 +578,7 @@ export default function Calendar() {
           <WeekView
             weekDates={weekDates}
             days={days}
-            filters={filters}
+            filters={effFilters}
             eventTypes={eventTypes}
             onSelect={onSelect}
             weekTiers={weekTiers}

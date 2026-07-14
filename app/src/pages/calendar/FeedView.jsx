@@ -8,7 +8,7 @@ import CalendarDayTable from './CalendarDayTable'
 import EventCard from './EventCard'
 import EarningsTile from './EarningsTile'
 import MacroBand from './MacroBand'
-import { applyFilters, sortEntries } from './filterLogic'
+import { applyFilters, sortEntries, hiddenByQuickFilters } from './filterLogic'
 import { impEff } from './importance'
 import { useReactions } from './useCalendarData'
 import { DEFAULT_EVENT_TYPES } from './CalendarHeader'
@@ -23,7 +23,7 @@ const TILE_SESSIONS = [
   ['tbd', 'Time TBD',    'clock'],
 ]
 
-function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay, pulse, tiers }) {
+function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividendsForDay, pulse, tiers, density, onClearQuick }) {
   // Memoize the session lists so the entries useMemo dep-check isn't always
   // invalidated by freshly-mapped arrays on every parent render.
   const bmo = useMemo(
@@ -87,7 +87,26 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
   const hasMacro    = showMacro && !!(day.econ?.length || day.fed?.length)
   const hasEvents   = ipoEvents.length > 0 || divEvents.length > 0
 
-  if (!hasEarnings && !hasMacro && !hasEvents) return null
+  // A day whose reporters exist but were all hidden by the QUICK filters
+  // (search text / cap pill) gets an honest one-line explainer instead of
+  // silently vanishing — audience-scoped emptiness still returns null.
+  const rawCount = bmo.length + amc.length + tbd.length
+  if (!hasEarnings && !hasMacro && !hasEvents) {
+    if (hiddenByQuickFilters(rawCount, entries.length, filters)) {
+      return (
+        <div className={styles.dayFilteredOut} id={`day-${ds}`}>
+          <span className={styles.dayFilteredLbl}>{(day.label || ds).toUpperCase()}</span>
+          <span className={styles.dayFilteredMeta}>
+            {rawCount} hidden by filters
+            {onClearQuick && (
+              <button className={styles.quickClearAll} onClick={onClearQuick}>Clear</button>
+            )}
+          </span>
+        </div>
+      )
+    }
+    return null
+  }
 
   // Macro-only day → one dim collapsed line (only when macro is on).
   if (!hasEarnings && !hasEvents && hasMacro) {
@@ -110,23 +129,30 @@ function DayGroup({ ds, day, filters, onSelect, eventTypes, iposForDay, dividend
       </div>
       {hasMacro && <MacroBand econ={day.econ} fed={day.fed} />}
 
-      {/* Logo-tile gallery (EarningsHub-style): the company logo IS the content.
-          Session-grouped, importance-ordered, minimal text — click for detail. */}
-      {TILE_SESSIONS.map(([key, label, icon]) => {
-        const rows = orderedEntries.filter(e => (e._timing || 'tbd') === key)
-        if (!rows.length) return null
-        return (
-          <div key={key} className={styles.tileSession}>
-            <div className={styles.tileSessionHd}>
-              <UIcon name={icon} size={12} style={{ verticalAlign: '-1px', marginRight: 6 }} />
-              {label}<span className={styles.tileSessionN}>{rows.length}</span>
+      {/* Density switch (WSE competitor pass): Tiles = the EarningsHub logo
+          gallery (default, owner-locked 7/10); Rows = the data-dense day table
+          with EPS/Rev estimates — the WSE reading grammar, one toggle away. */}
+      {density === 'rows' ? (
+        <CalendarDayTable entries={orderedEntries} reactions={reactions} onSelect={onSelect} />
+      ) : (
+        TILE_SESSIONS.map(([key, label, icon]) => {
+          const rows = orderedEntries.filter(e => (e._timing || 'tbd') === key)
+          if (!rows.length) return null
+          const repN = rows.filter(e => e.eps_act != null).length
+          return (
+            <div key={key} className={styles.tileSession}>
+              <div className={styles.tileSessionHd}>
+                <UIcon name={icon} size={12} style={{ verticalAlign: '-1px', marginRight: 6 }} />
+                {label}<span className={styles.tileSessionN}>{rows.length}</span>
+                {repN > 0 && <span className={styles.tileSessionRep}>· {repN} reported</span>}
+              </div>
+              <div className={styles.etileGrid}>
+                {rows.map(e => <EarningsTile key={`${key}-${e.sym}`} e={e} onSelect={onSelect} />)}
+              </div>
             </div>
-            <div className={styles.etileGrid}>
-              {rows.map(e => <EarningsTile key={`${key}-${e.sym}`} e={e} onSelect={onSelect} />)}
-            </div>
-          </div>
-        )
-      })}
+          )
+        })
+      )}
 
       {/* B3: IPO + dividend/split event cards (no BMO/AMC timing) */}
       {hasEvents && (
@@ -241,7 +267,7 @@ function CompactCluster({ entries, onSelect }) {
   )
 }
 
-export default function FeedView({ weekDates, days, filters, onSelect, eventTypes, iposByDate, dividendsByDate, pulse, weekTiers }) {
+export default function FeedView({ weekDates, days, filters, onSelect, eventTypes, iposByDate, dividendsByDate, pulse, weekTiers, density = 'tiles', onClearQuick }) {
   // Empty-state check uses the FILTERED view of each day — checking the raw
   // payload rendered a blank feed with no message when the audience filter
   // hid everything (each DayGroup nulls itself on filtered emptiness). Metric
@@ -272,10 +298,21 @@ export default function FeedView({ weekDates, days, filters, onSelect, eventType
             dividendsForDay={dividendsByDate?.[ds] || null}
             pulse={pulse}
             tiers={weekTiers?.[ds]}
+            density={density}
+            onClearQuick={onClearQuick}
           /> : null)}
       {!anyContent && (
         <div className={styles.feedEmpty}>
-          No companies reporting this week{filters.audience !== 'all' ? ' in this view — try the All filter' : ''}.
+          {(filters.q || '').trim() || filters.minMcap > 0 ? (
+            <>
+              No reporters match your filters this week.
+              {onClearQuick && (
+                <button className={styles.quickClearAll} onClick={onClearQuick}>Clear filters</button>
+              )}
+            </>
+          ) : (
+            <>No companies reporting this week{filters.audience !== 'all' ? ' in this view — try the All filter' : ''}.</>
+          )}
         </div>
       )}
     </div>

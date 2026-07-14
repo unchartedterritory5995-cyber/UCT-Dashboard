@@ -266,6 +266,31 @@
   color: var(--cal-dim);
   font-variant-numeric: tabular-nums;
 }
+.tileSessionRep {
+  margin-left: 6px;
+  color: var(--cal-muted);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Day whose reporters were ALL hidden by the quick filters — an honest,
+   slim explainer line in place of a silently vanished day group. */
+.dayFilteredOut {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 18px;
+  color: var(--cal-muted);
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.dayFilteredLbl {
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--cal-dim);
+}
+.dayFilteredMeta { display: inline-flex; align-items: baseline; gap: 2px; }
 .etileGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 84px);
@@ -1566,6 +1591,21 @@
     flex-wrap: nowrap;
   }
   .navRow::-webkit-scrollbar { display: none; }
+
+  /* Quick-filter bar: pills + input wrap onto two comfortable lines; the
+     summary hides (counts are visible in the day tabs already). */
+  .quickBar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .capPill, .densityBtn {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+  }
+  .quickSearchWrap { flex: 1 1 100%; }
+  .quickSearchInput { min-height: var(--tap-min, 44px); }
+  .quickSummary { display: none; }
   .dayTab {
     min-height: var(--tap-min, 44px);
     flex: 0 0 auto;
@@ -1883,6 +1923,121 @@
   padding: 8px 18px;
   border-bottom: 1px solid var(--cal-line);
   background: var(--bg);
+}
+
+/* ── Quick-filter bar (WSE-style always-visible narrowing) ── */
+.quickBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 18px;
+  border-bottom: 1px solid var(--cal-line);
+  background: var(--bg);
+}
+
+.capPills {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+
+.capPill {
+  border: 1px solid var(--cal-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cal-dim);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 11px;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  white-space: nowrap;
+}
+.capPill:hover { border-color: var(--cal-gold); color: var(--cal-txt); }
+.capPillOn {
+  border-color: var(--cal-gold);
+  background: rgba(201, 168, 76, 0.10);
+  color: var(--cal-gold);
+}
+
+.quickSearchWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 240px;
+  min-width: 140px;
+}
+
+.quickSearchInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+  color: var(--cal-txt);
+  font-size: 12px;
+  padding: 5px 26px 5px 27px;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.quickSearchInput::placeholder { color: var(--cal-muted); }
+.quickSearchInput:focus { border-color: var(--cal-gold); }
+
+.quickClearX {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--cal-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+}
+.quickClearX:hover { color: var(--cal-txt); }
+
+.densitySeg {
+  display: inline-flex;
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.densityBtn {
+  background: transparent;
+  border: none;
+  color: var(--cal-dim);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.densityBtn + .densityBtn { border-left: 1px solid var(--cal-line); }
+.densityBtnOn {
+  background: rgba(201, 168, 76, 0.10);
+  color: var(--cal-gold);
+}
+
+.quickSummary {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--cal-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.quickClearAll {
+  background: none;
+  border: none;
+  color: var(--cal-gold);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 6px;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* ── Active-sector indicator (only shown WHEN a sector filter is on) ── */

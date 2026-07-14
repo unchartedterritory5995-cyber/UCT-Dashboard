@@ -57,6 +57,74 @@ describe('CalendarHeader (consolidated)', () => {
   })
 })
 
+// ── WSE competitor pass: quick-filter bar ────────────────────────────────────
+
+describe('CalendarHeader — quick-filter bar', () => {
+  it('renders the four cap pills and writes minMcap on click', () => {
+    const setFilters = vi.fn()
+    renderHeader({ setFilters, setQuickQ: vi.fn() })
+    const group = screen.getByRole('group', { name: 'Market cap filter' })
+    expect(group.textContent).toContain('$1B+')
+    expect(group.textContent).toContain('$100B+')
+    fireEvent.click(screen.getByText('$10B+'))
+    expect(setFilters).toHaveBeenCalledWith(expect.objectContaining({ minMcap: 10 }))
+  })
+
+  it('marks the active cap pill via aria-pressed', () => {
+    renderHeader({ filters: { ...baseFilters, minMcap: 10 }, setQuickQ: vi.fn() })
+    expect(screen.getByText('$10B+').getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByText('$1B+').getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('quick filter input fires setQuickQ and clears on Escape', () => {
+    const setQuickQ = vi.fn()
+    renderHeader({ setQuickQ, quickQ: '' })
+    const input = screen.getByLabelText('Filter visible reporters by ticker or company name')
+    fireEvent.change(input, { target: { value: 'nvd' } })
+    expect(setQuickQ).toHaveBeenCalledWith('nvd')
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(setQuickQ).toHaveBeenCalledWith('')
+  })
+
+  it('shows summary counts with hidden + Clear when quick filters bite', () => {
+    const onClearQuick = vi.fn()
+    renderHeader({
+      filters: { ...baseFilters, minMcap: 100 },
+      setQuickQ: vi.fn(),
+      onClearQuick,
+      weekCounts: { raw: 120, total: 18, mine: 3, hidden: 102 },
+    })
+    expect(screen.getByText(/18 reporting/)).toBeTruthy()
+    expect(screen.getByText(/102 hidden/)).toBeTruthy()
+    fireEvent.click(screen.getByText('Clear'))
+    expect(onClearQuick).toHaveBeenCalled()
+  })
+
+  it('density segment appears in feed view and fires setDensity', () => {
+    const setDensity = vi.fn()
+    renderHeader({ view: 'feed', setDensity, setQuickQ: vi.fn() })
+    fireEvent.click(screen.getByText('Rows'))
+    expect(setDensity).toHaveBeenCalledWith('rows')
+  })
+
+  it('density segment is absent outside the feed view', () => {
+    renderHeader({ view: 'week', setDensity: vi.fn(), setQuickQ: vi.fn() })
+    expect(screen.queryByText('Rows')).toBeNull()
+  })
+
+  it('the ⚙ panel no longer carries the cap select (pills own minMcap)', () => {
+    renderHeader({ setQuickQ: vi.fn() })
+    fireEvent.click(screen.getByLabelText('Open calendar filters'))
+    expect(screen.queryByText('Any cap')).toBeNull()
+    expect(screen.getByText('Sort')).toBeTruthy()
+  })
+
+  it('hides the quick bar entirely in month view', () => {
+    renderHeader({ view: 'month', setQuickQ: vi.fn() })
+    expect(screen.queryByRole('group', { name: 'Market cap filter' })).toBeNull()
+  })
+})
+
 // ── Flagship 1b: Week Navigator + ticker search ──────────────────────────────
 
 const DAY_TABS = [

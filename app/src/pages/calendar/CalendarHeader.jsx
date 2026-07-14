@@ -224,12 +224,22 @@ function WeekPicker({ currentMonday, activeMonday, onPick, onClose }) {
   )
 }
 
+// Quick-bar cap tiers (WSE-style): our universe floor is $300M, so $1B+ is
+// the first useful cut. Pills write the SAME persisted minMcap the ⚙ panel
+// used to own — one source of truth, now always visible.
+const CAP_TIERS = [[0, 'All'], [1, '$1B+'], [10, '$10B+'], [100, '$100B+']]
+
 export default function CalendarHeader({
   view, setView, weekLabel, filters, setFilters,
   mySources, setMySources,
   monthCursor, setMonthCursor,
   eventTypes, setEventTypes,
   availableSectors = [],
+  // Quick-filter bar (WSE competitor pass, 2026-07-13)
+  quickQ = '', setQuickQ,
+  weekCounts = null,
+  density = 'tiles', setDensity,
+  onClearQuick,
   // Week Navigator (flagship 1b)
   dayTabs = [],
   isCurrentWeek = true,
@@ -324,11 +334,13 @@ export default function CalendarHeader({
   }, [dayTabs])
 
   // ── Active-filter count for the ⚙ Filters badge ──
+  // minMcap is NOT counted here anymore: the cap pills sit in the always-
+  // visible quick bar, so an active tier is already self-evident.
   const evTypes = eventTypes || DEFAULT_EVENT_TYPES
   const eventTypesChanged = evTypes.has('ipos') || evTypes.has('dividends') || evTypes.has('macro')
   const activeCount =
     (filters.minAvgVol ? 1 : 0) + (filters.priceMin ? 1 : 0) +
-    (filters.priceMax ? 1 : 0) + (filters.minMcap > 0 ? 1 : 0) +
+    (filters.priceMax ? 1 : 0) +
     (eventTypesChanged ? 1 : 0) + (filters.sort !== 'mine' ? 1 : 0) +
     (filters.confirmedOnly ? 1 : 0) + (filters.sector ? 1 : 0)
 
@@ -367,13 +379,6 @@ export default function CalendarHeader({
     </span>
   ))
 
-  const capSelect = (
-    <select className={styles.sel} value={filters.minMcap}
-            onChange={e => set('minMcap', Number(e.target.value))}>
-      <option value={0}>Any cap</option><option value={2}>$2B+</option>
-      <option value={10}>$10B+</option><option value={50}>$50B+</option>
-    </select>
-  )
   const sortSelect = (
     <select className={styles.sel} value={filters.sort} onChange={e => set('sort', e.target.value)}>
       {SORTS.map(([k, lbl]) => <option key={k} value={k}>Sort: {lbl}</option>)}
@@ -439,8 +444,8 @@ export default function CalendarHeader({
         </div>
       )}
       <div className={styles.sheetSec}>
-        <div className={styles.sheetLbl}>Cap &amp; sort</div>
-        <div className={styles.sheetRow}>{capSelect}{sortSelect}</div>
+        <div className={styles.sheetLbl}>Sort</div>
+        <div className={styles.sheetRow}>{sortSelect}</div>
       </div>
       {view !== 'month' && availableSectors.length > 1 && (
         <div className={styles.sheetSec}>
@@ -595,6 +600,79 @@ export default function CalendarHeader({
               />
             )}
           </span>
+        </div>
+      )}
+
+      {/* ── Quick-filter bar (the WSE magic): always-visible one-tap narrowing.
+          Cap pills + live text filter + density toggle + honest summary counts.
+          Everything here acts on the ALREADY-LOADED week — zero requests. ── */}
+      {view !== 'month' && (
+        <div className={styles.quickBar}>
+          <span className={styles.capPills} role="group" aria-label="Market cap filter">
+            {CAP_TIERS.map(([v, lbl]) => (
+              <button
+                key={v}
+                className={`${styles.capPill} ${filters.minMcap === v ? styles.capPillOn : ''}`}
+                aria-pressed={filters.minMcap === v}
+                onClick={() => set('minMcap', v)}
+              >
+                {lbl}
+              </button>
+            ))}
+          </span>
+          {setQuickQ && (
+            <span className={styles.quickSearchWrap}>
+              <UIcon name="filter" size={12} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <input
+                className={styles.quickSearchInput}
+                placeholder="Filter ticker or name…"
+                value={quickQ}
+                aria-label="Filter visible reporters by ticker or company name"
+                onChange={e => setQuickQ(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Escape') { setQuickQ(''); e.target.blur() } }}
+              />
+              {quickQ && (
+                <button className={styles.quickClearX} onClick={() => setQuickQ('')}
+                        aria-label="Clear quick filter">
+                  <UIcon name="x" size={11} />
+                </button>
+              )}
+            </span>
+          )}
+          {view === 'feed' && setDensity && (
+            <span className={styles.densitySeg} role="group" aria-label="Feed density">
+              <button
+                className={`${styles.densityBtn} ${density === 'tiles' ? styles.densityBtnOn : ''}`}
+                aria-pressed={density === 'tiles'}
+                onClick={() => setDensity('tiles')}
+              >
+                Tiles
+              </button>
+              <button
+                className={`${styles.densityBtn} ${density === 'rows' ? styles.densityBtnOn : ''}`}
+                aria-pressed={density === 'rows'}
+                onClick={() => setDensity('rows')}
+              >
+                Rows
+              </button>
+            </span>
+          )}
+          {weekCounts && weekCounts.raw > 0 && (
+            <span className={styles.quickSummary}>
+              {weekCounts.total} reporting
+              {weekCounts.mine > 0 && (
+                <> · <UIcon name="star-fill" size={10} style={{ verticalAlign: '-1px' }} /> {weekCounts.mine} mine</>
+              )}
+              {weekCounts.hidden > 0 && (
+                <>
+                  {' '}· {weekCounts.hidden} hidden
+                  {onClearQuick && (quickQ.trim() || filters.minMcap > 0) && (
+                    <button className={styles.quickClearAll} onClick={onClearQuick}>Clear</button>
+                  )}
+                </>
+              )}
+            </span>
+          )}
         </div>
       )}
 
