@@ -5693,22 +5693,34 @@ export default function StockChart({
   // at the time axis) lets the user drag left/right to scroll the chart through
   // time. Shown only with dragMeasure. Position tracks the price-axis width +
   // time-axis height so it sits just left of the axis, at the date row.
-  const [scrollGripPos, setScrollGripPos] = useState({ right: 56, top: null })
-  const [gripDragLeft, setGripDragLeft] = useState(null)  // px while dragging → the grip travels with the cursor
+  const GRIP_W = 34   // grip button width — used to center it on the last candle
+  const [scrollGripPos, setScrollGripPos] = useState({ left: null, top: null })
   useEffect(() => {
     if (!dragMeasure || !chartReady) return
     const chart = chartRef.current; if (!chart) return
     const ts = chart.timeScale()
     const update = () => {
       try {
-        const pw = chart.priceScale('right').width() || 56
         let top = null
         try {
           const panes = chart.panes ? chart.panes() : null
           const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
           if (h0 > 0) top = Math.max(4, h0 - 22)   // sit just above the volume pane (bottom of the price pane)
         } catch { /* pane API missing → bottom fallback in JSX */ }
-        setScrollGripPos({ right: pw + 4, top })
+        // Center the grip horizontally on the LAST candle (not the price axis) so
+        // it always lines up vertically with the most recent bar. Recomputed on
+        // every visible-range change, so it tracks the candle during pan/zoom.
+        let left = null
+        try {
+          const t = lastBarRef.current?.time
+          const x = (t != null) ? ts.timeToCoordinate(t) : null
+          if (x != null && Number.isFinite(x)) {
+            const plotW = ts.width() || 0
+            const maxLeft = plotW > 0 ? plotW - GRIP_W - 2 : x
+            left = Math.max(2, Math.min(maxLeft, x - GRIP_W / 2))
+          }
+        } catch { /* range not ready */ }
+        setScrollGripPos({ left, top })
       } catch { /* not ready */ }
     }
     update()
@@ -5716,9 +5728,6 @@ export default function StockChart({
     window.addEventListener('resize', update)
     return () => { try { ts.unsubscribeVisibleLogicalRangeChange(update) } catch {}; window.removeEventListener('resize', update) }
   }, [dragMeasure, chartReady])
-
-  // New ticker re-frames to the default view, so return the grip to its home spot.
-  useEffect(() => { setGripDragLeft(null) }, [sym])
 
   const onScrollGripDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
@@ -5735,15 +5744,13 @@ export default function StockChart({
       ? (l100 - l0) / 100
       : (startRange.to - startRange.from) / Math.max(1, el.getBoundingClientRect().width)
     const startX = e.clientX
-    const GRIP_W = 34
     const move = (ev) => {
       const dxBars = (ev.clientX - startX) * barsPerPx
       // Move the last candle the SAME direction as the grip: drag left → last
       // candle moves left (whitespace opens on the right). This repositions the
-      // right edge, not a history-scroll.
+      // right edge, not a history-scroll. The grip itself re-centers on the last
+      // candle via the visibleLogicalRange subscription that this setter fires.
       try { ts.setVisibleLogicalRange({ from: startRange.from - dxBars, to: startRange.to - dxBars }) } catch {}
-      const r = el.getBoundingClientRect()   // grip travels with the cursor and stays where released
-      setGripDragLeft(Math.max(4, Math.min(r.width - GRIP_W - 4, ev.clientX - r.left - GRIP_W / 2)))
     }
     const up = () => {
       // Leave the grip where the user released it (don't snap back home).
@@ -6625,7 +6632,7 @@ export default function StockChart({
           title="Drag left / right to scroll the chart through time"
           style={{
             position: 'absolute',
-            ...(gripDragLeft != null ? { left: gripDragLeft } : { right: scrollGripPos.right }),
+            ...(scrollGripPos.left != null ? { left: scrollGripPos.left } : { right: 56 }),
             ...(scrollGripPos.top != null ? { top: scrollGripPos.top } : { bottom: 30 }),
             zIndex: 7, cursor: 'ew-resize', pointerEvents: 'auto', touchAction: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
