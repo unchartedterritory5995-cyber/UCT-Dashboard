@@ -5,7 +5,10 @@ const fetcher = url => fetch(url).then(r => r.ok ? r.json() : {})
 
 const DEFAULTS = {
   default_chart_tf: 'D',
-  theme: 'midnight',
+  // OLED Black is the app-wide default theme for anyone who hasn't picked one in
+  // Settings. setPref only ever persists an EXPLICIT choice, so users who chose a
+  // theme (incl. Midnight) keep theirs; everyone else now loads on OLED.
+  theme: 'oled',
 }
 
 // Preferences are stored server-side as TEXT. Reads can therefore come back as
