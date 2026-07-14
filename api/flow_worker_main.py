@@ -59,6 +59,16 @@ def _consumer_snapshot() -> dict:
 
 @asynccontextmanager
 async def _lifespan(app):
+    try:
+        # Instant-tape SSE tailer (self-gated on MASSIVE_STREAM_ENABLED):
+        # broadcasts newly-classified flow.db rows to /api/live/massive/stream.
+        # MUST start here — start() creates its task on the RUNNING loop
+        # (calling it pre-uvicorn logs "no running loop" and silently no-ops,
+        # leaving the stream connected-but-empty). Mirrors web's lifespan call.
+        from api import massive_stream
+        massive_stream.start()
+    except Exception as e:  # noqa: BLE001
+        log.exception("massive_stream tailer start failed (non-fatal): %s", e)
     yield
     # Clean OPRA slot release on SIGTERM (the P1 contract) so the next process's
     # consumer doesn't hit max_connections. Bounded, idempotent, defensive.
@@ -191,14 +201,6 @@ def main():
     os.environ.setdefault("WORKER_SERVES_FLOW", "1")
     log.info("[startup] flow-worker: consumer + flow routers only (no bars prewarm)")
     _start_consumer()
-    try:
-        # Instant-tape SSE tailer (self-gated on MASSIVE_STREAM_ENABLED):
-        # broadcasts newly-classified flow.db rows to /api/live/massive/stream
-        # subscribers. flow.db lives here post-cutover, so the tailer must too.
-        from api import massive_stream
-        massive_stream.start()
-    except Exception as e:  # noqa: BLE001
-        log.exception("massive_stream tailer start failed (non-fatal): %s", e)
     _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
     app = _build_app()
     port = int(os.environ.get("PORT", "8080"))

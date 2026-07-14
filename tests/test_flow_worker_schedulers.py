@@ -50,16 +50,19 @@ def test_worker_mounts_massive_stream_router():
     assert "/api/live/massive/stream" in paths
 
 
-def test_flow_worker_main_starts_stream_tailer(monkeypatch):
-    """flow_worker_main.main() must start the massive_stream tailer (self-
-    gated on MASSIVE_STREAM_ENABLED) — it broadcasts new flow.db rows to SSE."""
+def test_flow_worker_lifespan_starts_stream_tailer(monkeypatch):
+    """The massive_stream tailer must start inside the LIFESPAN (running
+    loop) — start() pre-uvicorn logs 'no running loop' and silently no-ops,
+    leaving /api/live/massive/stream connected-but-empty (2026-07-13 bug)."""
+    import asyncio
     import api.flow_worker_main as fwm
     calls = []
     monkeypatch.setattr("api.massive_stream.start",
                         lambda: calls.append("stream"), raising=True)
-    monkeypatch.setattr(fwm, "_start_consumer", lambda: None)
-    monkeypatch.setattr(fwm, "_start_flow_schedulers", lambda: None)
-    monkeypatch.setattr(fwm, "_build_app", lambda: None)
-    monkeypatch.setattr("uvicorn.run", lambda *a, **k: None)
-    fwm.main()
+
+    async def _run():
+        async with fwm._lifespan(None):
+            pass
+
+    asyncio.run(_run())
     assert "stream" in calls
