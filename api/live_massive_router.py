@@ -2774,10 +2774,39 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
     # Conviction grades the PATTERN for accumulation (accumulation_grade), the
     # single print otherwise — a sliced institutional build has moderate
     # per-print grades but strong aggregate conviction.
+    # Timestamp — single = the print's execution time; accumulation = the most
+    # recent qualifying hit. Rendered as a friendly ET label ("Today at 12:57 PM",
+    # "Yesterday at …", else "MM/DD/YYYY …") on the same line as Conviction. ET is
+    # fixed EDT (-4) here, matching the rest of this file (so it'll read an hour off
+    # once DST ends — a pre-existing property of this module's ET constant).
+    _ts_raw = alert.get("last_ts") if mode == "accumulation" else alert.get("timestamp")
+    if not _ts_raw:
+        _ts_raw = alert.get("timestamp") or alert.get("last_ts")
+    _ts_label = None
+    try:
+        if _ts_raw:
+            _dt = datetime.fromtimestamp(float(_ts_raw), tz=ET)
+            _today = datetime.now(ET).date()
+            _clock = _dt.strftime("%I:%M %p").lstrip("0")
+            if _dt.date() == _today:
+                _ts_label = f"Today at {_clock}"
+            elif _dt.date() == _today - timedelta(days=1):
+                _ts_label = f"Yesterday at {_clock}"
+            else:
+                _ts_label = f"{_dt.strftime('%m/%d/%Y')} {_clock}"
+    except (TypeError, ValueError, OSError):
+        _ts_label = None
+
     grade = alert.get("accumulation_grade") if mode == "accumulation" else alert.get("grade")
     if grade and grade != "D":
         rocket = " 🚀" if grade in ("A+", "A") else ""
-        lines.append(f"🏆 Conviction **{grade}**{rocket}")
+        conv = f"🏆 Conviction **{grade}**{rocket}"
+        if _ts_label:
+            conv += f"  ·  🕐 {_ts_label}"
+        lines.append(conv)
+    elif _ts_label:
+        # No conviction line (grade D/blank) — still surface the time on its own line.
+        lines.append(f"🕐 {_ts_label}")
 
     # Compose: badge line(s), then metric groups separated by a BLANK line for
     # readable spacing. All in the description → identical on desktop and mobile.
@@ -2961,6 +2990,12 @@ def should_auto_push(alert: dict, cfg: dict = None) -> bool:
     repeatability + size is the tell."""
     if cfg is None:
         cfg = _AUTO_PUSH_CFG
+    # Stocks-only for now: index products and (leveraged) ETFs are source="indexes"
+    # (SPX, NDX, QQQ, SOXL, VIX, GDX...). They need their own higher floors we
+    # haven't wired, so they're excluded from auto-push entirely — matching the
+    # single-name flow you curate by hand.
+    if (alert.get("source") or "stocks") == "indexes":
+        return False
     tier = (alert.get("_tierKey") or "").lower()
     grade = (alert.get("grade") or "").upper()
     name = (alert.get("alertName") or "").lower()
