@@ -73,7 +73,14 @@ _inflight_lock = _threading.Lock()
 # pod (and the catalyst morning runs) thrashed. This semaphore caps how many
 # bars-bg threads run at once; when full, the request just serves the stale
 # payload it already returns and the browser's SWR retries on its next poll.
-_BG_DELTA_MAX = max(4, int(_os.environ.get("BARS_BG_DELTA_MAX", "24")))
+# Lowered 24 -> 6 (2026-07-14): the watchdog stack-capture proved these bg
+# threads were the event-loop-stall culprit. Each ends in a put_bars
+# (executemany under _WRITE_LOCK) + a get_bars(...).fetchall() of thousands of
+# rows; SQLite's C calls hold the GIL, so ~24 running at once saturated the GIL
+# and starved the single async loop for seconds (all live streams froze at
+# once). 6 keeps background throughput reasonable while leaving the loop GIL
+# time. Tune via BARS_BG_DELTA_MAX.
+_BG_DELTA_MAX = max(2, int(_os.environ.get("BARS_BG_DELTA_MAX", "6")))
 _bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
 
 # ── Usage-driven intraday hot-set ─────────────────────────────────────────────
