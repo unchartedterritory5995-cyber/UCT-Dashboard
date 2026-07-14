@@ -1,6 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import * as barsStreamManager from '../lib/barsStreamManager'
 
+// How recent a Massive bar tick must be (ms) to be trusted over the Finnhub
+// price. The Massive bars feed periodically gaps ~15s (upstream/thin symbols);
+// beyond this window we fall back to Finnhub, which stays fresh through those
+// gaps. Small enough to hand off quickly, large enough to ride normal spacing.
+export const BAR_TICK_FRESH_MS = 6000
+
+/**
+ * Freshest-wins price merge across the two feeds. Prefer the Massive bar tick
+ * only while it's recent (BAR_TICK_FRESH_MS); otherwise use the Finnhub price so
+ * a gap in EITHER feed is covered by the other. `bp` = {price, ts} from
+ * useRealtimeBarPrices, `rt` = {price, ...} from useRealtimePrices.
+ */
+export function pickFreshPrice(bp, rt, now = Date.now()) {
+  const barFresh = bp && bp.price != null && bp.ts != null && (now - bp.ts) < BAR_TICK_FRESH_MS
+  if (barFresh) return bp.price
+  if (rt && rt.price != null) return rt.price
+  return (bp && bp.price != null) ? bp.price : null   // stale bar is better than nothing
+}
+
 /**
  * Live tick-by-tick prices for a list of symbols, sourced from the Massive
  * bars WebSocket (T/A/AM channels) — the SAME reliable feed the chart's

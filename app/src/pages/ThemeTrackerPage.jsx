@@ -13,7 +13,7 @@ import TickerActionsMenu, { useTickerActions } from '../components/TickerActions
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
-import useRealtimeBarPrices from '../hooks/useRealtimeBarPrices'
+import useRealtimeBarPrices, { pickFreshPrice } from '../hooks/useRealtimeBarPrices'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
@@ -326,11 +326,15 @@ export default function ThemeTrackerPage({ embedded = false }) {
   const { prices: rtPrices } = useRealtimePrices(expandedSyms)
   const barPrices = useRealtimeBarPrices(expandedSyms)
   const tickPrices = useMemo(() => {
+    const now = Date.now()
     const out = {}
     for (const sym of expandedSyms) {
       const rt = rtPrices[sym]
       const bp = barPrices[sym]
-      if (bp?.price != null) out[sym] = { ...rt, price: bp.price }   // Massive tick wins
+      // freshest-wins: recent Massive tick, else fresh Finnhub — so a gap in
+      // either feed never freezes the %. prev_close etc. still come from rt.
+      const price = pickFreshPrice(bp, rt, now)
+      if (price != null) out[sym] = { ...rt, price }
       else if (rt) out[sym] = rt
     }
     return out

@@ -1,5 +1,5 @@
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
-import useRealtimeBarPrices from '../../../hooks/useRealtimeBarPrices'
+import useRealtimeBarPrices, { pickFreshPrice } from '../../../hooks/useRealtimeBarPrices'
 import styles from '../ChartsWorkspace.module.css'
 
 /**
@@ -17,7 +17,8 @@ import styles from '../ChartsWorkspace.module.css'
 export default function ChartDayGain({ sym }) {
   const { prices: rtHdr } = useRealtimePrices(sym ? [sym] : [])
   const barHdr = useRealtimeBarPrices(sym ? [sym] : [])
-  const livePx = barHdr[sym]?.price ?? rtHdr[sym]?.price ?? null
+  // freshest-wins across the two feeds so a gap in either never freezes the gain
+  const livePx = pickFreshPrice(barHdr[sym], rtHdr[sym])
   const prevClose = rtHdr[sym]?.prev_close ?? null
   const gainAbs = (livePx != null && prevClose != null && prevClose !== 0) ? (livePx - prevClose) : null
   if (gainAbs == null) return null

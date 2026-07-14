@@ -29,6 +29,9 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
+// Beyond this, a Massive bar tick is considered stale and the legend falls back
+// to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
+const LIVE_TICK_FRESH_MS = 6000
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
@@ -1257,13 +1260,16 @@ export default function StockChart({
       o = lb.open; h = lb.high; l = lb.low; c = lb.close
     }
     const lp = livePricesRef.current?.[symRef.current]
-    // Fast Massive tick (ref, no re-render) wins for the close when sane — this
-    // is what makes the legend tick as fast as the theme tracker.
-    const fastTick = liveTickRef.current
-    if (fastTick != null && isSaneLivePrice(fastTick, c, lastServerCloseRef.current)) {
-      c = fastTick
-      if (Number.isFinite(h)) h = Math.max(h, fastTick)
-      if (Number.isFinite(l)) l = Math.min(l, fastTick)
+    // Fast Massive tick (ref, no re-render) wins for the close when RECENT +
+    // sane — this makes the legend tick as fast as the theme tracker. When the
+    // Massive feed gaps (periodic ~15s), fall back to the always-fresh Finnhub
+    // price so the legend never freezes.
+    const ft = liveTickRef.current
+    const fastFresh = ft && ft.price != null && (Date.now() - ft.ts) < LIVE_TICK_FRESH_MS
+    if (fastFresh && isSaneLivePrice(ft.price, c, lastServerCloseRef.current)) {
+      c = ft.price
+      if (Number.isFinite(h)) h = Math.max(h, ft.price)
+      if (Number.isFinite(l)) l = Math.min(l, ft.price)
     } else if (lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) {
       c = lp.price
     }
@@ -5545,7 +5551,7 @@ export default function StockChart({
     const unsub = barsStreamManager.subscribe(sym, '1', {
       onBar: (data) => {
         const c = data?.bar?.c ?? data?.trade?.p
-        if (Number.isFinite(c)) liveTickRef.current = c
+        if (Number.isFinite(c)) liveTickRef.current = { price: c, ts: Date.now() }
       },
     })
     return () => { try { unsub() } catch { /* already gone */ } liveTickRef.current = null }
