@@ -111,7 +111,7 @@ function ReturnCell({ value, baseClass }) {
   )
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices }) {
+function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices }) {
   const isPortfolio = theme.ticker === 'UCT20'
   const groupLive = liveGroupReturn(theme, activeKey, prices)
   const momentumDelta = rotationRanking?.momentum_delta
@@ -138,13 +138,16 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
 
       {open && sortedHoldings.map(h => {
         const retVal = liveReturn(h, activeKey, prices)
-        const isSelected = h.sym === selectedSym
+        const rowKey = `${theme.ticker}::${h.sym}`
+        // Highlight only the SELECTED instance (by key). Falls back to the bare
+        // symbol when no instance key is set (e.g. hub-driven selection).
+        const isSelected = selectedNavKey ? selectedNavKey === rowKey : h.sym === selectedSym
         return (
           <div
             key={h.sym}
-            ref={el => { if (rowRefs) rowRefs.current[h.sym] = el }}
+            ref={el => { if (rowRefs) rowRefs.current[rowKey] = el }}
             className={`${styles.stockRow} ${isSelected ? styles.selected : ''}`}
-            onClick={() => onSelectSym(h.sym, h.name)}
+            onClick={() => onSelectSym(h.sym, h.name, theme.ticker)}
             onMouseEnter={onHoverSym ? () => onHoverSym(h.sym) : undefined}
             onFocus={onHoverSym ? () => onHoverSym(h.sym) : undefined}
             {...(tickerActions ? tickerActions.longPressProps(h.sym) : {})}
@@ -180,6 +183,10 @@ export default function ThemeTrackerPage({ embedded = false }) {
 
   const { sym: hubSym, setSym: setHubSym } = useChartsSym()
   const [selectedSym, setSelectedSym] = useState(null)
+  // Which INSTANCE is selected — `${themeTicker}::${sym}`. A ticker can appear in
+  // several open themes, so arrow-nav + row highlight key off this, not the bare
+  // symbol (else navigating a duplicate jumps to the other theme's copy).
+  const [selectedNavKey, setSelectedNavKey] = useState(null)
   const [selectedName, setSelectedName] = useState('')
   const [sortDir, setSortDir] = useState('desc')
   const [openThemes, setOpenThemes] = useState(new Set())
@@ -231,11 +238,14 @@ export default function ThemeTrackerPage({ embedded = false }) {
   const chartRef = useRef(null)
 
   useEffect(() => {
-    if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
+    // External (hub-driven) selection isn't tied to a specific theme instance,
+    // so drop the instance key → highlight/nav fall back to the bare symbol.
+    if (hubSym && hubSym !== selectedSym) { setSelectedSym(hubSym); setSelectedNavKey(null) }
   }, [hubSym])  // intentionally do NOT depend on selectedSym (avoid feedback loop)
 
-  function handleSelect(sym, name) {
+  function handleSelect(sym, name, themeTicker) {
     setSelectedSym(sym)
+    setSelectedNavKey(themeTicker ? `${themeTicker}::${sym}` : null)
     setHubSym(sym)
     setSelectedName(name || sym)
     // On mobile (stacked layout), scroll chart into view after selection
@@ -291,7 +301,7 @@ export default function ThemeTrackerPage({ embedded = false }) {
         const bv = b.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
         return sortDir === 'desc' ? bv - av : av - bv
       })
-      return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker }))
+      return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker, key: `${theme.ticker}::${h.sym}` }))
     }), [filteredThemes, activeKey, sortDir])
 
   // ── Live percentages ── Stream real-time prices for the holdings of EXPANDED
@@ -333,7 +343,12 @@ export default function ThemeTrackerPage({ embedded = false }) {
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
     if (!allStocks.length) return
-    const idx = allStocks.findIndex(s => s.sym === selectedSym)
+    // Locate by the exact INSTANCE (theme::sym) so navigating a ticker that also
+    // lives in another open theme steps to its true neighbor instead of jumping
+    // to the other theme's copy. Fall back to the bare symbol (click without a
+    // theme, hub sync) — first match, same as before.
+    let idx = selectedNavKey ? allStocks.findIndex(s => s.key === selectedNavKey) : -1
+    if (idx < 0) idx = allStocks.findIndex(s => s.sym === selectedSym)
     // If selection is not in THIS widget's universe, don't fight another
     // widget's arrow handler (e.g., a Watchlist widget on the same page).
     if (idx < 0 && selectedSym) return
@@ -352,13 +367,14 @@ export default function ThemeTrackerPage({ embedded = false }) {
       return next
     })
     setSelectedSym(stock.sym)
+    setSelectedNavKey(stock.key)
     setSelectedName(stock.name || stock.sym)
     // Publish to hub so a paired Chart widget on the same color group follows.
     setHubSym(stock.sym)
     setTimeout(() => {
-      rowRefs.current[stock.sym]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      rowRefs.current[stock.key]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }, 30)
-  }, [allStocks, selectedSym, setHubSym])
+  }, [allStocks, selectedSym, selectedNavKey, setHubSym])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -453,7 +469,7 @@ export default function ThemeTrackerPage({ embedded = false }) {
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
           )}
           {filteredThemes.map(theme => (
-            <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} onSelectSym={handleSelect}
+            <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} selectedNavKey={selectedNavKey} onSelectSym={handleSelect}
               activeKey={activeKey} sortDir={sortDir} open={openThemes.has(theme.ticker)} onToggle={toggleTheme}
               rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
               tickerActions={tickerActions} onHoverSym={handleHoverSym}

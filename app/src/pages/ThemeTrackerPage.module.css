@@ -343,10 +343,12 @@
   white-space: nowrap;
 }
 
-/* Match the chart candle palette exactly (StockChart MB_UP / MB_DOWN) so the
-   theme %s read as the same green/red as the candles in the Charts workspace. */
+/* Green matches the candle up-color (MB_UP). Red is BRIGHTENED vs the candle
+   down-color (#c41f2d) because that deep red reads fine as a big filled candle
+   but too dark as thin small text — this keeps it legible + as punchy as the
+   green. */
 .retPos   { color: #1ae51a; }
-.retNeg   { color: #c41f2d; }
+.retNeg   { color: #ff3b47; }
 .retFlat  { color: var(--text-muted); }
 
 /* TC2000-style tick flash: the number goes bold for a beat and a colored tint
