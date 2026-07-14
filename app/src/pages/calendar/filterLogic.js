@@ -1,7 +1,10 @@
 // app/src/pages/calendar/filterLogic.js
 export const DEFAULT_FILTERS = {
-  audience: 'mine',   // 'mine' | 'watchlist' | 'positions' | 'uct20' | 'all'
-  minMcap: 0,         // billions
+  // First paint shows the whole market ranked big→small (mine still pinned
+  // first by the default sort) — a fresh visitor must never land on a sparse
+  // "My Stocks" week. Owner decision 2026-07-13.
+  audience: 'all',    // 'mine' | 'watchlist' | 'positions' | 'uct20' | 'all'
+  minMcap: 0,         // billions — quick-bar cap pills write 0 | 1 | 10 | 100
   sort: 'mine',       // 'mine' | 'time' | 'mcap' | 'move'
   // A3: additional metric filters (null = off)
   minAvgVol: null,    // minimum avg volume (shares), e.g. 500000
@@ -39,7 +42,26 @@ export function applyFilters(rows, f) {
   // offered under any chip (it still shows in the unscoped "All" view).
   if (f.sector) out = out.filter(r => r.sector === f.sector)
 
+  // Quick search — matches ticker or company-name substring, case-insensitive.
+  // f.q is EPHEMERAL (component state merged in by Calendar.jsx) — it must
+  // never be written into the persisted calendar_filters preference.
+  const needle = (f.q || '').trim().toUpperCase()
+  if (needle) {
+    out = out.filter(r =>
+      (r.sym || '').toUpperCase().includes(needle) ||
+      (r.name || '').toUpperCase().includes(needle))
+  }
+
   return out
+}
+
+// True when a day HAS reporters but the quick filters (search text / cap
+// pills) hid every one — drives the per-day "N hidden by filters" line.
+// Audience-only emptiness stays quiet: hiding days is what audience scoping
+// is FOR, while a quick filter that silently blanks a day reads as a bug.
+export function hiddenByQuickFilters(rawCount, visibleCount, f) {
+  return rawCount > 0 && visibleCount === 0 &&
+    (!!(f.q || '').trim() || f.minMcap > 0)
 }
 
 export function sortEntries(rows, sort) {

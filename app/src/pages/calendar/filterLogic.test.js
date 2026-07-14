@@ -1,6 +1,6 @@
 // app/src/pages/calendar/filterLogic.test.js
 import { describe, it, expect } from 'vitest'
-import { applyFilters, sortEntries, DEFAULT_FILTERS } from './filterLogic'
+import { applyFilters, sortEntries, hiddenByQuickFilters, DEFAULT_FILTERS } from './filterLogic'
 
 const rows = [
   { sym: 'AAA', mine: true,  mc_b: 5,  expected_move: { pct: 3 }, _avg_vol: 2_000_000, _price: 50 },
@@ -125,5 +125,58 @@ describe('filterLogic', () => {
     ]
     const out = applyFilters(sectored, { ...DEFAULT_FILTERS, audience: 'all', sector: null })
     expect(out).toHaveLength(2)
+  })
+
+  // Quick-bar defaults: first paint is the whole market (owner decision 7/13)
+  it('DEFAULT_FILTERS lands on audience=all', () => {
+    expect(DEFAULT_FILTERS.audience).toBe('all')
+  })
+
+  // Quick search — sym or name, case-insensitive, ephemeral q key
+  it('q matches ticker substring case-insensitively', () => {
+    const named = [
+      { sym: 'NVDA', mine: false, name: 'NVIDIA Corporation' },
+      { sym: 'JPM',  mine: false, name: 'JPMorgan Chase & Co' },
+    ]
+    const out = applyFilters(named, { ...DEFAULT_FILTERS, q: 'nvd' })
+    expect(out.map(r => r.sym)).toEqual(['NVDA'])
+  })
+
+  it('q matches company-name substring', () => {
+    const named = [
+      { sym: 'NVDA', mine: false, name: 'NVIDIA Corporation' },
+      { sym: 'JPM',  mine: false, name: 'JPMorgan Chase & Co' },
+    ]
+    const out = applyFilters(named, { ...DEFAULT_FILTERS, q: 'morgan' })
+    expect(out.map(r => r.sym)).toEqual(['JPM'])
+  })
+
+  it('q handles rows with no name and blank/whitespace q is a no-op', () => {
+    const named = [
+      { sym: 'AAA', mine: false },              // no name field
+      { sym: 'BBB', mine: false, name: null },  // null name
+    ]
+    expect(applyFilters(named, { ...DEFAULT_FILTERS, q: '  ' })).toHaveLength(2)
+    expect(applyFilters(named, { ...DEFAULT_FILTERS, q: 'aaa' }).map(r => r.sym)).toEqual(['AAA'])
+  })
+
+  it('q composes with minMcap (both must pass)', () => {
+    const named = [
+      { sym: 'NVDA', mine: false, name: 'NVIDIA', mc_b: 3000 },
+      { sym: 'NVCR', mine: false, name: 'NovoCure', mc_b: 2 },
+    ]
+    const out = applyFilters(named, { ...DEFAULT_FILTERS, q: 'nv', minMcap: 100 })
+    expect(out.map(r => r.sym)).toEqual(['NVDA'])
+  })
+
+  // hiddenByQuickFilters truth table
+  it('hiddenByQuickFilters fires only when quick filters hid existing rows', () => {
+    const f = (q, minMcap) => ({ ...DEFAULT_FILTERS, q, minMcap })
+    expect(hiddenByQuickFilters(5, 0, f('zzz', 0))).toBe(true)    // search hid all
+    expect(hiddenByQuickFilters(5, 0, f('', 100))).toBe(true)     // cap pill hid all
+    expect(hiddenByQuickFilters(5, 2, f('n', 0))).toBe(false)     // still visible rows
+    expect(hiddenByQuickFilters(0, 0, f('zzz', 0))).toBe(false)   // day truly empty
+    expect(hiddenByQuickFilters(5, 0, f('', 0))).toBe(false)      // audience-only emptiness stays quiet
+    expect(hiddenByQuickFilters(5, 0, f('  ', 0))).toBe(false)    // whitespace q ≠ active search
   })
 })
