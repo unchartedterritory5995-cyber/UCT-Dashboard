@@ -203,3 +203,16 @@ def build_flow_proxy_router() -> APIRouter:
         router.add_api_route(prefix, _proxy, methods=methods)              # exact
         router.add_api_route(prefix + "/{path:path}", _proxy, methods=methods)  # sub-paths
     return router
+
+
+def register_on(app) -> bool:
+    """Mount the read-proxy on web. MUST be called BEFORE the local flow
+    routers are included (FastAPI resolves first match), so when the flag is
+    on the proxy wins and web's frozen flow.db is never consulted. Off by
+    default -> zero change. Returns True iff registered."""
+    if not (PROXY_ENABLED and WORKER_INTERNAL_URL):
+        return False
+    app.include_router(build_flow_proxy_router())
+    logger.info("[flow-proxy] READ PROXY ACTIVE -> %s (prefixes: %s)",
+                WORKER_INTERNAL_URL, ", ".join(PROXY_PREFIXES))
+    return True

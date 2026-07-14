@@ -3214,6 +3214,17 @@ app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
 app.include_router(sector_strength_router.router)
+# Flow read-proxy (P5 cutover): registered BEFORE every local flow-family
+# router so, when FLOW_READS_PROXY_ENABLED=1, all flow.db-backed reads are
+# forwarded to the flow-worker (the single writer+reader of flow.db) and
+# web's local copy is never consulted. Dark by default.
+try:
+    from api import flow_proxy as _flow_proxy
+    if _flow_proxy.register_on(app):
+        print("[startup] flow read-proxy ACTIVE -> flow-worker")
+except Exception as _e:  # noqa: BLE001
+    print(f"[startup] flow read-proxy registration failed (non-fatal): {_e}")
+
 app.include_router(top_flow_router)
 app.include_router(flow_scoreboard_router)
 app.include_router(flow_explain_router)
