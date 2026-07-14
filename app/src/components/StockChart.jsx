@@ -6538,11 +6538,10 @@ export default function StockChart({
           transform: measureReadout.pct >= 0
             ? 'translate(calc(-100% - 12px), calc(-100% - 12px))'
             : 'translate(12px, 12px)',
-          pointerEvents: 'none', zIndex: 6,
-          background: 'rgba(10,11,9,0.94)', border: '1px solid rgba(201,168,76,0.4)',
-          borderRadius: 6, padding: '5px 9px', whiteSpace: 'nowrap',
+          pointerEvents: 'none', zIndex: 6, whiteSpace: 'nowrap',
           fontFamily: "'Instrument Sans', system-ui, sans-serif", fontSize: 12, lineHeight: 1.35,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          /* No box — float the data on the canvas; dark text-shadow keeps it legible over candles. */
+          textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)',
         }}>
           <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? '#1ae51a' : '#c41f2d' }}>
             {measureReadout.dollar >= 0 ? '+' : '-'}${Math.abs(measureReadout.dollar).toFixed(2)}

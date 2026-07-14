@@ -72,6 +72,9 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     if (e.ctrlKey || e.altKey || e.metaKey) return
     if (!TICKER_KEY_RE.test(e.key)) return
     e.preventDefault()
+    // Swallow the key so it never reaches the drawing-tool (window) or timeframe
+    // (document) hotkey handlers — typing a ticker must never trigger a tool or TF.
+    e.stopPropagation()
     searchRef.current?.openWith(e.key)
   }, [])
 

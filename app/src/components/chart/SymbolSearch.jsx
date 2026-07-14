@@ -49,10 +49,17 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange }, r
 
   // Imperative open-with-text — used by ChartWidget so typing a letter on the
   // chart opens the search with that letter already entered.
+  // Up-to-date open flag for the imperative handler (avoids a stale closure).
+  const openRef = useRef(false)
+  openRef.current = open
   useImperativeHandle(ref, () => ({
     openWith: (text = '') => {
-      setQuery((text || '').toUpperCase())
+      // Append when already open so fast chart type-to-search keystrokes during the
+      // async focus gap don't reset the query; fresh start when the box was closed.
+      const wasOpen = openRef.current
+      openRef.current = true
       setOpen(true)
+      setQuery(q => (wasOpen ? q + (text || '') : (text || '')).toUpperCase())
     },
   }), [])
 
