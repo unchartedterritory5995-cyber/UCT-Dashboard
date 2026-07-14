@@ -2573,9 +2573,9 @@
 
 .dtHead {
   display: grid;
-  /* 5 content columns clustered left + a flex spacer so the data reads as a
+  /* 6 content columns clustered left + a flex spacer so the data reads as a
      tight list, not a spreadsheet stretched thin across the whole width. */
-  grid-template-columns: minmax(200px, 2.2fr) 92px 128px 116px 128px 1.4fr;
+  grid-template-columns: minmax(200px, 2.2fr) 92px 128px 118px 112px 128px 1fr;
   gap: 8px;
   padding: 0 12px;
   background: rgba(255, 255, 255, 0.02);
@@ -2614,7 +2614,7 @@
 
 .dtRow {
   display: grid;
-  grid-template-columns: minmax(200px, 2.2fr) 92px 128px 116px 128px 1.4fr;
+  grid-template-columns: minmax(200px, 2.2fr) 92px 128px 118px 112px 128px 1fr;
   gap: 8px;
   align-items: center;
   min-height: 36px;
@@ -2627,7 +2627,31 @@
 .dtRow:hover { background: rgba(255, 255, 255, 0.04); }
 .dtRow:last-child { border-bottom: none; }
 
-.dtRowMine { box-shadow: inset 2px 0 0 var(--cal-gold); }
+/* Session color spine (WSE grammar): gold = pre-market, blue = after-close,
+   muted = TBD. A starred "mine" row upgrades its spine to the brighter gold. */
+.dtRowBmo { box-shadow: inset 3px 0 0 rgba(201, 168, 76, 0.55); }
+.dtRowAmc { box-shadow: inset 3px 0 0 rgba(96, 165, 250, 0.55); }
+.dtRowTbd { box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.12); }
+.dtRowMine { box-shadow: inset 3px 0 0 var(--cal-gold); }
+
+.dtDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.dtDotBmo { background: var(--cal-gold); }
+.dtDotAmc { background: var(--cal-blue); }
+.dtDotTbd { background: var(--cal-muted); }
+
+.dtRepN {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--cal-muted);
+}
+
+.dtRevEst { color: var(--cal-muted); }
 
 .dtCompany {
   display: flex;
@@ -2754,17 +2778,20 @@
   padding: 1px 6px;
 }
 
-/* Phone: the 5-column desktop table collapses to 3 ALIGNED columns —
-   Company · EPS · Move. Cap (col 2) and Beats (col 5) hide on BOTH the header
-   row and the data rows so cell counts stay matched (a mismatch → wrap +
-   misalignment). Cap = .dtNum:nth-of-type(1); EPS = 2; Move = 3. */
+/* Phone: the 6-column desktop table collapses to 3 ALIGNED columns —
+   Company · EPS · Move. Cap (col 2), Rev (col 4) and Beats (col 6) hide on
+   BOTH the header row and the data rows so cell counts stay matched (a
+   mismatch → wrap + misalignment). Cells carry explicit .dtCap/.dtRev classes
+   — positional :nth-of-type selectors miscounted past the .dtCompany span. */
 @media (max-width: 640px) {
   .dtHead, .dtRow {
     grid-template-columns: minmax(110px, 2fr) 0.9fr 0.8fr;
   }
   .dtHead .dtTh:nth-child(2),
-  .dtHead .dtTh:nth-child(5),
-  .dtRow .dtNum:nth-of-type(1),
+  .dtHead .dtTh:nth-child(4),
+  .dtHead .dtTh:nth-child(6),
+  .dtRow .dtCap,
+  .dtRow .dtRev,
   .dtRow .dtBeats {
     display: none;
   }

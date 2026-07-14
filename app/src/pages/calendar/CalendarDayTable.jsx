@@ -1,7 +1,10 @@
 // app/src/pages/calendar/CalendarDayTable.jsx
 // The density engine: every non-featured reporter WITH data as a 36px row.
-// Session-grouped (BMO → AMC → TBD), imp-ordered within groups, sortable
-// column headers (pro-grid table stakes), click → EarningsModal.
+// Session-grouped (BMO → AMC → TBD) with colored spines, imp-ordered within
+// groups, sortable column headers (pro-grid table stakes), right-aligned
+// EPS/Rev estimate columns (the WSE/EarningsHub row grammar), click →
+// EarningsModal. Reported rows flip EPS to actual + surprise and the Move
+// column to the realized post-print gap.
 import { useMemo, useState } from 'react'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
@@ -18,10 +21,14 @@ const SESSIONS = [
   ['tbd', 'Time TBD'],
 ]
 
+const SPINE_CLASS = { bmo: 'dtRowBmo', amc: 'dtRowAmc', tbd: 'dtRowTbd' }
+const DOT_CLASS   = { bmo: 'dtDotBmo', amc: 'dtDotAmc', tbd: 'dtDotTbd' }
+
 const COLUMNS = [
   { key: 'sym',  label: 'Company',  sortable: true,  numeric: false },
   { key: 'mc_b', label: 'Cap',      sortable: true,  numeric: true },
   { key: 'eps',  label: 'EPS est',  sortable: true,  numeric: true },
+  { key: 'rev',  label: 'Rev est',  sortable: true,  numeric: true },
   { key: 'move', label: 'Move ±%',  sortable: true,  numeric: true },
   { key: 'beat', label: 'Beats',    sortable: false, numeric: false },
 ]
@@ -37,13 +44,14 @@ function sortVal(e, key) {
   }
 }
 
-function Row({ e, onSelect }) {
+function Row({ e, gap, onSelect }) {
   const reported = e.eps_act != null
   const surp = (reported && e.eps_est != null && e.eps_est !== 0)
     ? ((e.eps_act - e.eps_est) / Math.abs(e.eps_est)) * 100
     : null
+  const spine = styles[SPINE_CLASS[e._timing] || 'dtRowTbd']
   return (
-    <div className={`${styles.dtRow} ${e.mine ? styles.dtRowMine : ''}`}
+    <div className={`${styles.dtRow} ${spine} ${e.mine ? styles.dtRowMine : ''}`}
          onClick={() => onSelect?.(e, e._timing)}>
       <span className={styles.dtCompany}>
         <CompanyLogo sym={e.sym} size={20} tile />
@@ -54,7 +62,7 @@ function Row({ e, onSelect }) {
         {e.name && <span className={styles.dtName}>{e.name}</span>}
         {e.date_moved ? <DateMovedChip moved={e.date_moved} /> : (e.date_est && <span className={styles.dateEst}>est.</span>)}
       </span>
-      <span className={styles.dtNum}>{fmtCap(e.mc_b)}</span>
+      <span className={`${styles.dtNum} ${styles.dtCap}`}>{fmtCap(e.mc_b)}</span>
       <span className={styles.dtNum}>
         {reported
           ? <>{fmtEps(e.eps_act)}{surp != null && (
@@ -62,15 +70,26 @@ function Row({ e, onSelect }) {
             )}</>
           : fmtEps(e.eps_est)}
       </span>
-      <span className={`${styles.dtNum} ${styles.dtMove}`}>
-        {e.expected_move?.pct != null ? `±${e.expected_move.pct}%` : ''}
+      <span className={`${styles.dtNum} ${styles.dtRev}`}>
+        {reported && e.rev_act != null
+          ? <>{fmtRev(e.rev_act)}{e.rev_est != null && <span className={styles.dtRevEst}> / {fmtRev(e.rev_est)}</span>}</>
+          : fmtRev(e.rev_est)}
+      </span>
+      {/* Pre-report: the options-implied move. Post-print: the REALIZED gap —
+          the implied number is stale the moment actuals land. */}
+      <span className={`${styles.dtNum} ${reported && gap != null ? '' : styles.dtMove}`}>
+        {reported && gap != null
+          ? <span className={gap >= 0 ? styles.pos : styles.neg}>
+              {gap >= 0 ? '▲ +' : '▼ '}{gap.toFixed(1)}%
+            </span>
+          : e.expected_move?.pct != null ? `±${e.expected_move.pct}%` : ''}
       </span>
       <span className={styles.dtBeats}><BeatDots history={e.beat_history} /></span>
     </div>
   )
 }
 
-export default function CalendarDayTable({ entries, onSelect }) {
+export default function CalendarDayTable({ entries, reactions, onSelect }) {
   const [sort, setSort] = useState(null)   // { key, dir: 1|-1 } | null = imp order
 
   const clickSort = (key) => {
@@ -122,16 +141,25 @@ export default function CalendarDayTable({ entries, onSelect }) {
           </button>
         ))}
       </div>
-      {SESSIONS.map(([key, label]) => groups[key].length > 0 && (
-        <div key={key}>
-          <div className={`${styles.dtSession} ${
-            key === 'bmo' ? styles.bmoHd : key === 'amc' ? styles.amcHd : styles.tbdHd}`}>
-            {label}
-            <span className={styles.timedCount}>{groups[key].length}</span>
+      {SESSIONS.map(([key, label]) => {
+        const rows = groups[key]
+        if (!rows.length) return null
+        const repN = rows.filter(e => e.eps_act != null).length
+        return (
+          <div key={key}>
+            <div className={`${styles.dtSession} ${
+              key === 'bmo' ? styles.bmoHd : key === 'amc' ? styles.amcHd : styles.tbdHd}`}>
+              <span className={`${styles.dtDot} ${styles[DOT_CLASS[key]]}`} aria-hidden="true" />
+              {label}
+              <span className={styles.timedCount}>{rows.length}</span>
+              {repN > 0 && <span className={styles.dtRepN}>· {repN} reported</span>}
+            </div>
+            {rows.map(e => (
+              <Row key={`${key}-${e.sym}`} e={e} gap={reactions?.[e.sym]} onSelect={onSelect} />
+            ))}
           </div>
-          {groups[key].map(e => <Row key={`${key}-${e.sym}`} e={e} onSelect={onSelect} />)}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
