@@ -1320,6 +1320,7 @@ export default function StockChart({
   const indicatorDataRef = useRef(null)
   const comparisonDataRef = useRef(null)
   const livePricesRef = useRef(null)
+  const resolvedTfRef = useRef(null)   // current tf, for the imperative daily-candle fast writer (writer E)
   const resolvedOverlaysRef = useRef(null)
   const symRef = useRef(null)
   const onCrosshairMoveRef = useRef(null)
@@ -2878,6 +2879,14 @@ export default function StockChart({
     // a stale value there would repaint an old developing bar over the fresh push bar = the
     // 30s seam the plan review flagged).
     if (barsPushActiveRef.current) return
+    // On D/W/M, writer E (the fast Massive 1-min tick, in the bars-WS onBar above)
+    // owns the developing candle. Defer to it while its tick is fresh so the two
+    // don't fight over the developing bar's close (Massive is fresher than
+    // Finnhub here); fall back to this Finnhub writer only if Massive goes stale.
+    if (!realtimeTfEligible) {
+      const _ft = liveTickRef.current
+      if (_ft && _ft.price != null && (Date.now() - _ft.ts) < LIVE_TICK_FRESH_MS) return
+    }
     // Defensive: drop ticks with bad price BEFORE they touch liveBarRef.
     // Mirror of onRealtimeBar's guard. A single NaN / 0 / extreme price baked
     // into liveBarRef.current.high or .low persists across setData() refreshes
@@ -5345,6 +5354,7 @@ export default function StockChart({
     livePricesRef.current = livePrices
     resolvedOverlaysRef.current = resolvedOverlays
     symRef.current = sym
+    resolvedTfRef.current = resolvedTf
     onCrosshairMoveRef.current = onCrosshairMove
   })
 
@@ -5551,11 +5561,38 @@ export default function StockChart({
     const unsub = barsStreamManager.subscribe(sym, '1', {
       onBar: (data) => {
         const c = data?.bar?.c ?? data?.trade?.p
-        if (Number.isFinite(c)) liveTickRef.current = { price: c, ts: Date.now() }
+        if (!Number.isFinite(c)) return
+        liveTickRef.current = { price: c, ts: Date.now() }
+        // ── Writer E: fast developing candle for D/W/M ──
+        // The Massive PUSH feed (writer B) streams intraday rollups only, so on
+        // D/W/M the developing candle otherwise crawls on the slow Finnhub feed.
+        // Paint it imperatively here from the fast 1-min tick so the candle + the
+        // right-edge price label tick as fast as the legend/theme tracker — NO
+        // React re-render (same series.update() path). Guards mirror the other
+        // writers: daily+ only, never fight writer B (intraday), skip HA.
+        const tf = resolvedTfRef.current
+        const isDailyPlus = tf === 'D' || tf === 'W' || tf === 'M'
+        if (!isDailyPlus || cs.heikinAshi || barsPushActiveRef.current) return
+        const series = candleSeriesRef.current
+        const last = lastBarRef.current
+        if (!series || !last) return
+        if (!isSaneLivePrice(c, last.close, lastServerCloseRef.current)) return
+        const updated = {
+          time: last.time,
+          open: last.open,
+          high: Math.max(last.high, c),
+          low: Math.min(last.low, c),
+          close: c,
+        }
+        try {
+          if (isOhlcType(cs.chartType)) series.update(updated)
+          else series.update({ time: last.time, value: c })
+        } catch { /* out of range mid-load */ }
+        lastBarRef.current = { ...updated, volume: last.volume }
       },
     })
     return () => { try { unsub() } catch { /* already gone */ } liveTickRef.current = null }
-  }, [liveUpdates, sym])
+  }, [liveUpdates, sym, cs.heikinAshi, cs.chartType])
 
   useEffect(() => {
     if (!alwaysShowLegend || !chartReady) return undefined
