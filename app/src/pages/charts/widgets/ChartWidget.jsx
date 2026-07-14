@@ -122,6 +122,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           volumeMa={50}
           hidePriceLine
           watermarkOpacity={0.82}
+          /* Nudge left of 0.5: the watermark centers on the full pane width, which
+             includes the right price-axis gutter, so a true 0.5 reads right-of-center
+             over the candles. 0.47 visually centers it on the plot area. */
+          watermarkX={0.47}
           dailyDefaultBars={126}
           volumeSeparatePane
           volumePaneHeightPct={16}
