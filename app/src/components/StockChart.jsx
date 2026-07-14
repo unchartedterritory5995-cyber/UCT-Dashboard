@@ -3178,7 +3178,14 @@ export default function StockChart({
       // Frozen (Setup Library examples): the chart is a static exhibit pinned to
       // its framed window — no pan/zoom/axis-drag, and the wheel is left alone so
       // it scrolls the PAGE instead of the chart.
-      handleScroll: !frozen,
+      // Measure mode (Charts workspace, cursor active) disables MOUSE drag-pan so a
+      // left-drag measures instead of moving the chart — wheel-zoom + touch stay on.
+      // Computed here (not just the dedicated effect) so a data-poll re-applyOptions
+      // can't clobber it back to a pannable chart.
+      handleScroll: frozen ? false
+        : (dragMeasure && (!activeTool || activeTool === 'cursor'))
+          ? { mouseWheel: true, pressedMouseMove: false, horzTouchDrag: true, vertTouchDrag: true }
+          : true,
       handleScale: !frozen,
       grid: {
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
@@ -5563,6 +5570,51 @@ export default function StockChart({
     return () => { el.removeEventListener('pointerdown', onDown); end() }
   }, [dragMeasure, chartReady, activeTool])
 
+  // ── Time-scroll grip ──────────────────────────────────────────────────────
+  // Because drag-pan is repurposed for measuring, this small grip (bottom-right,
+  // at the time axis) lets the user drag left/right to scroll the chart through
+  // time. Shown only with dragMeasure. Position tracks the price-axis width +
+  // time-axis height so it sits just left of the axis, at the date row.
+  const [scrollGripPos, setScrollGripPos] = useState({ right: 56, bottom: 4 })
+  useEffect(() => {
+    if (!dragMeasure || !chartReady) return
+    const chart = chartRef.current; if (!chart) return
+    const ts = chart.timeScale()
+    const update = () => {
+      try {
+        const pw = chart.priceScale('right').width() || 56
+        const th = ts.height() || 28
+        setScrollGripPos({ right: pw + 4, bottom: Math.max(3, (th - 16) / 2) })
+      } catch { /* not ready */ }
+    }
+    update()
+    try { ts.subscribeVisibleLogicalRangeChange(update) } catch {}
+    window.addEventListener('resize', update)
+    return () => { try { ts.unsubscribeVisibleLogicalRangeChange(update) } catch {}; window.removeEventListener('resize', update) }
+  }, [dragMeasure, chartReady])
+
+  const onScrollGripDown = (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.preventDefault(); e.stopPropagation()
+    const chart = chartRef.current; if (!chart) return
+    const ts = chart.timeScale()
+    const startRange = ts.getVisibleLogicalRange(); if (!startRange) return
+    const barSpacing = (ts.width() || 1) / Math.max(1e-6, startRange.to - startRange.from)
+    const startX = e.clientX
+    const move = (ev) => {
+      const dxBars = (ev.clientX - startX) / barSpacing   // drag right = forward in time
+      try { ts.setVisibleLogicalRange({ from: startRange.from + dxBars, to: startRange.to + dxBars }) } catch {}
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+  }
+
   useEffect(() => {
     const el = containerRef.current
     const chart = chartRef.current
@@ -6384,6 +6436,27 @@ export default function StockChart({
           <span style={{ color: '#a8a290', marginLeft: 8 }}>
             {measureReadout.bars} {measureReadout.bars === 1 ? 'bar' : 'bars'}{measureReadout.span ? ` · ${measureReadout.span}` : ''}
           </span>
+        </div>
+      )}
+      {/* Time-scroll grip — drag left/right to pan the chart through time (since
+          drag-pan is repurposed for measuring). */}
+      {dragMeasure && chartReady && (
+        <div
+          onPointerDown={onScrollGripDown}
+          title="Drag left / right to scroll the chart through time"
+          style={{
+            position: 'absolute', right: scrollGripPos.right, bottom: scrollGripPos.bottom,
+            zIndex: 7, cursor: 'ew-resize', pointerEvents: 'auto', touchAction: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 34, height: 16, borderRadius: 8,
+            background: 'rgba(201,168,76,0.18)', border: '1px solid rgba(201,168,76,0.5)',
+            color: '#c9a84c', userSelect: 'none',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+          }}
+        >
+          <svg width="22" height="10" viewBox="0 0 22 10" style={{ display: 'block' }}>
+            <path d="M6 1 L2 5 L6 9 M16 1 L20 5 L16 9" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
       )}
       {bars?.length > 0 && (
