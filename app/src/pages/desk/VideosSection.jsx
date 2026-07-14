@@ -2,8 +2,8 @@
 // The Educational Videos library — now the "Videos" section of The Desk hub.
 // Videos live unlisted on YouTube; we embed via youtube-nocookie.com. Admins
 // manage the catalog inline (add/edit/remove) — no code edits to add a video.
-import { useState, useMemo, useCallback, useEffect, useSyncExternalStore } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useMemo, useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
@@ -64,6 +64,23 @@ export default function VideosSection() {
     )
   }, [data])
   const total = data?.total ?? 0
+
+  // Deep link: /desk?section=videos&v=<youtube_id> auto-plays that video once
+  // the catalog loads (session-recap links in Discord/email point here). Fires
+  // at most once per mount so it can't re-hijack the player after the user
+  // closes it or picks something else.
+  const [searchParams] = useSearchParams()
+  const deepLinkDone = useRef(false)
+  useEffect(() => {
+    if (deepLinkDone.current || !categories.length) return
+    const ytid = searchParams.get('v')
+    if (!ytid) { deepLinkDone.current = true; return }
+    for (const cat of categories) {
+      const vi = (cat.videos || []).findIndex((v) => v.youtube_id === ytid)
+      if (vi !== -1) { playVideo(cat.videos, vi); break }
+    }
+    deepLinkDone.current = true
+  }, [categories, searchParams])
 
   // Community "Discussion" links: one batch lookup of desk-seeded threads for
   // every video on the page. Flag-off → endpoint 503s → fetcher returns null →

@@ -212,7 +212,17 @@ def post_recap_for_video(video_id: int) -> dict:
     ins = education_service.get_insights(int(video_id))
 
     md = generate_recap_markdown(v.get("title") or "", transcript, ins)
-    header = f"# 📋 {v.get('title') or 'Session Recap'}\n"
+    ytid = (v.get("youtube_id") or "").strip()
+    links = ""
+    if ytid:
+        # <> suppresses Discord's giant embed cards; the copy-paste share text
+        # stays clean for teasing members pre-launch.
+        links = (
+            f"🖥️ **Watch on UCT Intelligence:** "
+            f"<https://uctintelligence.com/desk?section=videos&v={ytid}>\n"
+            f"▶️ **YouTube:** <https://www.youtube.com/watch?v={ytid}>\n"
+        )
+    header = f"# 📋 {v.get('title') or 'Session Recap'}\n{links}\n"
     chunks = split_chunks(header + md)
     for chunk in chunks:
         _post_chunk(url, chunk)

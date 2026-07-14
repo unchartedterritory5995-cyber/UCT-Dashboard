@@ -123,6 +123,25 @@ def test_post_recap_posts_chunks(monkeypatch):
     assert "## Takeaways" in content
 
 
+def test_post_recap_header_includes_links(monkeypatch):
+    monkeypatch.setenv("DISCORD_RECAP_WEBHOOK_URL", "https://discord.test/hook")
+    from api.services import education_service as edu
+    monkeypatch.setattr(edu, "get_video", lambda vid: {
+        "id": vid, "title": "Live Trading Session — July 13, 2026",
+        "transcript": "[0:01] hi", "youtube_id": "abc123XYZ",
+    })
+    monkeypatch.setattr(edu, "get_insights", lambda vid: {})
+    monkeypatch.setattr(dr, "generate_recap_markdown", lambda t, b, i: "**TL;DR:** x")
+    posted = []
+    monkeypatch.setattr(dr, "_post_chunk", lambda url, c: posted.append(c))
+    monkeypatch.setattr(dr.time, "sleep", lambda s: None)
+
+    dr.post_recap_for_video(7)
+    head = posted[0]
+    assert "<https://uctintelligence.com/desk?section=videos&v=abc123XYZ>" in head
+    assert "<https://www.youtube.com/watch?v=abc123XYZ>" in head
+
+
 def test_post_recap_requires_transcript(monkeypatch):
     monkeypatch.setenv("DISCORD_RECAP_WEBHOOK_URL", "https://discord.test/hook")
     _stub_video(monkeypatch, transcript="")
