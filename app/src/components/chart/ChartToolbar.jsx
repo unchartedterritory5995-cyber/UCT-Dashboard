@@ -913,8 +913,8 @@ function ChartToolbar({
           {ICONS.repeat}
         </button>
 
-        {/* Patterns overlay toggle */}
-        {!hidePatterns && onTogglePatterns && (
+        {/* Patterns overlay toggle — temporarily removed (was overlapping the toolbar) */}
+        {false && !hidePatterns && onTogglePatterns && (
           <PatternToolbarButton active={!!showPatterns} onToggle={onTogglePatterns} />
         )}
 
