@@ -32,6 +32,12 @@ const P = {
   mt: "#706b5e",
 };
 
+// Direction colors at module scope so every component (incl. TuningPanel's
+// auto-push block) can reference them. Some components also declare these
+// locally; those locals harmlessly shadow these.
+const DIR_BULL = "#6BAA85";
+const DIR_BEAR = "#C26A6A";
+
 // Bridge 2026-07-01: bumped from 5000 -> 20000 while flow.db query perf
 // (diagnostic 43s for 11K rows) is being addressed. Restore to 5000 once
 // /api/live/massive/recent returns to sub-second on the DB side.
@@ -1099,7 +1105,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
     <div style={{
       display: "grid",
       // TIME | TICKER+×N | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT | (admin: POSTED | PUSH)
-      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr" + (isAdmin ? " 68px 94px" : " 70px"),
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr" + (isAdmin ? " 68px 94px" : ""),
       gap: 8, padding: isAlpha ? "10px 12px" : "8px 12px",
       borderLeft: rowBorder,
       background: rowBg, marginBottom: 2, fontSize: fontSize,
@@ -1287,20 +1293,17 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
           AUTO (auto-fired by the worker), ✓ (manually pushed this session), or
           blank. PUSH sends this print to Discord via /force-push-discord,
           bypassing gates. The AUTO-vs-manual record is the tuning signal. */}
-      {/* POSTED — shown to EVERYONE now (read-only for non-admin, so the public
-          view shows what's been pushed). Admin distinguishes AUTO vs this-session
-          MANUAL; non-admin just sees a read-only ✓ posted. */}
-      <span style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>
-        {isAdmin
-          ? (alert.forwardedToDiscord
-              ? <span style={{ color: DIR_BULL, letterSpacing: 0.5 }}>AUTO</span>
-              : (pushState === "done"
-                  ? <span style={{ color: P.ac, letterSpacing: 0.5 }}>✓ MANUAL</span>
-                  : <span style={{ color: P.dm }}>—</span>))
-          : (alert.forwardedToDiscord
-              ? <span style={{ color: P.dm }}>✓ posted</span>
-              : <span style={{ color: P.dm }}>—</span>)}
-      </span>
+      {/* POSTED — admin-only (AUTO vs this-session MANUAL vs blank). Hidden from
+          the public view; the manual-push feedback loop is an admin concern. */}
+      {isAdmin && (
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>
+          {alert.forwardedToDiscord
+            ? <span style={{ color: DIR_BULL, letterSpacing: 0.5 }}>AUTO</span>
+            : (pushState === "done"
+                ? <span style={{ color: P.ac, letterSpacing: 0.5 }}>✓ MANUAL</span>
+                : <span style={{ color: P.dm }}>—</span>)}
+        </span>
+      )}
       {isAdmin && (
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
           {alert.forwardedToDiscord || pushState === "done" ? (
@@ -1864,7 +1867,7 @@ function ColumnHeaders({ sortCol, sortDir, onSort, isAdmin }) {
     <div style={{
       display: "grid",
       // TIME | TICKER | SPOT | STRIKE | C/P | EXP | %ITM/OTM | PRICE | VOL | OI | V/OI | PREMIUM | GRADE | SIDE | TYPE | P/L | ALERT | (admin: POSTED | PUSH)
-      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr" + (isAdmin ? " 68px 94px" : " 70px"),
+      gridTemplateColumns: "98px 100px 75px 80px 42px 100px 75px 70px 70px 70px 60px 95px 60px 50px 55px 75px 1fr" + (isAdmin ? " 68px 94px" : ""),
       gap: 8, padding: "6px 12px",
       fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
@@ -1889,7 +1892,7 @@ function ColumnHeaders({ sortCol, sortDir, onSort, isAdmin }) {
           </span>
         );
       })}
-      <span style={{ textAlign: "center", color: P.mt, whiteSpace: "nowrap" }}>POSTED</span>
+      {isAdmin && <span style={{ textAlign: "center", color: P.mt, whiteSpace: "nowrap" }}>POSTED</span>}
       {isAdmin && <span style={{ textAlign: "center", color: P.mt, whiteSpace: "nowrap" }}>PUSH</span>}
     </div>
   );
@@ -2511,14 +2514,14 @@ function ContractColumnHeaders({ isAdmin }) {
                 "V/OI", "PREMIUM", "SIDES", "GRADE", "TYPE", "SIGNAL"];
   return (
     <div style={{
-      display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : " 70px"), gap: 8, padding: "6px 12px",
+      display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : ""), gap: 8, padding: "6px 12px",
       fontSize: 11, color: P.mt, fontWeight: 600, letterSpacing: 0.5,
       borderBottom: `1px solid ${P.bd}`, marginBottom: 4,
     }}>
       {cols.map((c, i) => (
         <span key={c} style={{ textAlign: i === cols.length - 1 ? "left" : "center", paddingLeft: i === cols.length - 1 ? 4 : 0 }}>{c}</span>
       ))}
-      {isAdmin ? <span style={{ textAlign: "center" }}>PUSH</span> : <span style={{ textAlign: "center" }}>POSTED</span>}
+      {isAdmin && <span style={{ textAlign: "center" }}>PUSH</span>}
     </div>
   );
 }
@@ -2583,7 +2586,7 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
         onClick={() => setOpen(o => !o)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(o => !o); } }}
         style={{
-          display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : " 70px"), gap: 8,
+          display: "grid", gridTemplateColumns: CONTRACT_GRID + (isAdmin ? " 94px" : ""), gap: 8,
           padding: "9px 12px", alignItems: "center", fontSize: 13, cursor: "pointer",
           background: c.dormant ? `${P.bl}10` : dirTint,
           borderLeft: `4px solid ${c.dormant ? P.bl : dirColor}`,
@@ -2677,12 +2680,11 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
           })()}
         </span>
 
-        {/* POSTED/PUSH — admin gets the push button (and AUTO/✓ posted once sent);
-            non-admin sees a read-only ✓ posted, so the public By-Contract view shows
-            what's been pushed. */}
-        <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {isAdmin ? (
-            (c.forwardedToDiscord || pushState === "done") ? (
+        {/* POSTED/PUSH — admin-only. Admin gets the push button (and AUTO/✓ posted
+            once sent); hidden entirely from the public By-Contract view. */}
+        {isAdmin && (
+          <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {(c.forwardedToDiscord || pushState === "done") ? (
               <span style={{ color: c.forwardedToDiscord && pushState !== "done" ? DIR_BULL : P.dm, fontSize: 10, fontWeight: 700 }}>
                 {c.forwardedToDiscord && pushState !== "done" ? "AUTO" : "✓ posted"}
               </span>
@@ -2701,13 +2703,9 @@ function ContractRow({ c, onClickTicker, isAdmin, onPush, pushState, oiCheck }) 
                 }}>
                 {pushState === "pushing" ? "…" : pushState === "error" ? "✗ retry" : "→ push"}
               </button>
-            )
-          ) : (
-            c.forwardedToDiscord
-              ? <span style={{ color: P.dm, fontSize: 10 }}>✓ posted</span>
-              : <span style={{ color: P.dm, fontSize: 10 }}>—</span>
-          )}
-        </span>
+            )}
+          </span>
+        )}
       </div>
 
       {open && (c.prints || []).map((p, i) => {
