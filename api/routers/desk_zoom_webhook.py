@@ -129,6 +129,24 @@ def repolish(video_id: int, request: Request):
         return {"ok": False, "error": str(e)[:400]}
 
 
+@router.post("/recap/{video_id}")
+def post_discord_recap(video_id: int, request: Request):
+    """Admin: generate + post the team Discord recap for a published session
+    video from its STORED transcript/insights. Works with the scheduler flag
+    off so the feature can be verified before enabling; re-invoking re-posts.
+    PUSH_SECRET bearer, mirroring /repolish. Sync `def` on purpose: the LLM
+    call blocks, so FastAPI must run this in the threadpool."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_session_recap
+    try:
+        return desk_session_recap.post_recap_for_video(int(video_id))
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:400]}
+
+
 @router.get("/insights-status")
 async def insights_status(request: Request):
     """Diagnostics for the session-insights backfill pass: pending queue +

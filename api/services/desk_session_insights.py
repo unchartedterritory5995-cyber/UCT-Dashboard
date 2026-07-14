@@ -861,6 +861,10 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
                 community_seed.upsert_desk_thread(vid)
             except Exception as ce:
                 print(f"[desk-insights] community seed refresh failed (non-fatal): {ce}")
+            # Team Discord recap — this 'generated' path runs once per video
+            # (has_chapters flips), so the recap can't double-post.
+            from api.services import desk_session_recap
+            desk_session_recap.maybe_post_recap(vid)
             has_chapters = True
             results.append({"id": vid, "action": "generated", "source": source,
                             "chapters": len(ins["chapters"]),
