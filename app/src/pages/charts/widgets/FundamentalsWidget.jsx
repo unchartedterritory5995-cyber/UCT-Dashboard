@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import useEarningsTable from '../../../hooks/useEarningsTable'
+import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
 import styles from './FundamentalsWidget.module.css'
@@ -89,6 +90,10 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym } = useWorkspace()
   const sym = groupSyms?.[color] || null
   const { data } = useEarningsTable(sym)
+  // Company name for the header — from the shared snapshot (already fetched for
+  // this ticker elsewhere, so SWR dedupes: no extra request).
+  const { data: snap } = useFundamentalSnapshot(sym)
+  const company = snap?.name && snap.name !== sym ? snap.name : null
   // View choice persists per-widget through the workspace layout save path
   // (same opts mechanism ChartWidget uses for its timeframe). Default = quarterly.
   const view = ['annual', 'quarterly', 'analyst', 'ownership'].includes(opts?.view) ? opts.view : 'quarterly'
@@ -123,7 +128,12 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
 
   return (
     <div className={styles.root}>
-      <div className={styles.toggle} role="tablist" aria-label="Fundamentals view">
+      <div className={styles.header}>
+        <div className={styles.company}>
+          <span className={styles.companySym}>{sym}</span>
+          {company && <span className={styles.companyName}>{company}</span>}
+        </div>
+        <div className={styles.toggle} role="tablist" aria-label="Fundamentals view">
         <button
           type="button"
           role="tab"
@@ -162,6 +172,7 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
         >
           Ownership
         </button>
+        </div>
       </div>
 
       {effectiveView === 'analyst' ? (

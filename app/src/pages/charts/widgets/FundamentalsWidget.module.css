@@ -30,12 +30,43 @@
   margin: 2px 0 4px;
 }
 
+/* ── Header row: company name + segmented toggle on one line ──── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+.company {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+.companySym {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  color: var(--ut-gold);
+  flex-shrink: 0;
+}
+.companyName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Annual / Quarterly segmented toggle ────────────────────── */
 .toggle {
   display: inline-flex;
   gap: 2px;
   padding: 2px;
-  margin: 0 0 5px;
+  margin: 0;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 6px;
