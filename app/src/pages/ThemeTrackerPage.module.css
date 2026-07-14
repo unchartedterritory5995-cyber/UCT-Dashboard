@@ -349,6 +349,24 @@
 .retNeg   { color: #c41f2d; }
 .retFlat  { color: var(--text-muted); }
 
+/* TC2000-style tick flash: the number goes bold for a beat and a colored tint
+   (green uptick / red downtick) fades out behind it. tabular-nums keeps digit
+   width stable so the bold weight doesn't jitter the layout. */
+.retFlash { font-weight: 800; }
+.flashUp  { animation: themeTickUp 0.48s ease-out; border-radius: 3px; }
+.flashDown { animation: themeTickDown 0.48s ease-out; border-radius: 3px; }
+@keyframes themeTickUp {
+  0%   { background: rgba(26, 229, 26, 0.28); }
+  100% { background: transparent; }
+}
+@keyframes themeTickDown {
+  0%   { background: rgba(196, 31, 45, 0.28); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flashUp, .flashDown { animation: none; }
+}
+
 /* ── Loading / empty states ─────────────────────────────────────────────── */
 .loading {
   padding: 40px 24px;

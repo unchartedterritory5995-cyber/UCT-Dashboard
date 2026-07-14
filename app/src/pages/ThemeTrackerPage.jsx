@@ -12,6 +12,7 @@ import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent }
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
+import useRealtimePrices from '../hooks/useRealtimePrices'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
@@ -51,9 +52,62 @@ function groupReturn(theme, periodKey) {
     : avgReturn(theme.holdings, periodKey)
 }
 
-function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym }) {
+// Live return for a holding at `periodKey`: (livePrice − periodRef) / periodRef.
+// Uses the streamed price + the per-period reference close the backend sends in
+// ref_prices. Falls back to the server-computed return when live data is absent.
+function liveReturn(h, periodKey, prices) {
+  const px = prices?.[h.sym]
+  const ref = h.ref_prices?.[periodKey]
+  const live = px?.price
+  if (live != null && Number.isFinite(live) && ref != null && ref !== 0) {
+    return ((live - ref) / ref) * 100
+  }
+  if (periodKey === '1d' && px?.change_pct != null) return px.change_pct  // 1d = today's %
+  return h.returns?.[periodKey] ?? null
+}
+
+// Live group return: anchor the server's group value and apply the AVERAGE live
+// delta of its holdings, so the header ticks smoothly without jumping when live
+// prices engage (server group value may be ETF/NAV-based, not a plain average).
+function liveGroupReturn(theme, periodKey, prices) {
+  const base = groupReturn(theme, periodKey)
+  if (base == null) return null
+  let sum = 0, n = 0
+  for (const h of theme.holdings) {
+    const s = h.returns?.[periodKey]
+    const l = liveReturn(h, periodKey, prices)
+    if (s != null && l != null) { sum += (l - s); n++ }
+  }
+  return n > 0 ? base + sum / n : base
+}
+
+// A return cell that briefly flashes bold (TC2000-style) whenever its displayed
+// value changes — green flash on an uptick, red on a downtick.
+function ReturnCell({ value, baseClass }) {
+  const [dir, setDir] = useState(null)
+  const prevRef = useRef(null)
+  useEffect(() => {
+    const r = value == null ? null : Math.round(value * 100) / 100
+    const p = prevRef.current
+    if (r != null && p != null && r !== p) {
+      setDir(r > p ? 'up' : 'down')
+      prevRef.current = r
+      const id = setTimeout(() => setDir(null), 480)
+      return () => clearTimeout(id)
+    }
+    prevRef.current = r
+  }, [value])
+  const flashCls = dir === 'up' ? styles.flashUp : dir === 'down' ? styles.flashDown : ''
+  return (
+    <span className={`${baseClass} ${dir ? styles.retFlash : ''} ${flashCls}`}>
+      {fmtRet(value)}
+    </span>
+  )
+}
+
+function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices }) {
   const isPortfolio = theme.ticker === 'UCT20'
-  const groupAvg = groupReturn(theme, activeKey)
+  const groupLive = liveGroupReturn(theme, activeKey, prices)
   const momentumDelta = rotationRanking?.momentum_delta
 
   const sortedHoldings = useMemo(() => {
@@ -73,13 +127,11 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
           {isPortfolio && <span className={styles.portfolioBadge}><UIcon name="star-fill" size={13} /></span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
-        <span className={`${styles.ret} ${styles.retActive} ${retClass(groupAvg, styles)}`}>
-          {fmtRet(groupAvg)}
-        </span>
+        <ReturnCell value={groupLive} baseClass={`${styles.ret} ${styles.retActive} ${retClass(groupLive, styles)}`} />
       </div>
 
       {open && sortedHoldings.map(h => {
-        const retVal = h.returns?.[activeKey]
+        const retVal = liveReturn(h, activeKey, prices)
         const isSelected = h.sym === selectedSym
         return (
           <div
@@ -96,9 +148,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
               {getTag && getTag(h.sym) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(h.sym)]?.hex, marginRight: 4 }} />}
               <span className={styles.sym}>{h.sym}</span>
             </span>
-            <span className={`${styles.ret} ${retClass(retVal, styles)}`}>
-              {fmtRet(retVal)}
-            </span>
+            <ReturnCell value={retVal} baseClass={`${styles.ret} ${retClass(retVal, styles)}`} />
           </div>
         )
       })}
@@ -238,6 +288,31 @@ export default function ThemeTrackerPage({ embedded = false }) {
       return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker }))
     }), [filteredThemes, activeKey, sortDir])
 
+  // ── Live percentages ── Stream real-time prices for the holdings of EXPANDED
+  // themes only (bounded, user-controlled — never the whole ~2k-symbol universe,
+  // which would fan out the single-process SSE backend). Each % is recomputed
+  // client-side from the live price + the per-period ref close (see liveReturn).
+  const expandedSyms = useMemo(() => {
+    const s = new Set()
+    for (const theme of filteredThemes) {
+      if (openThemes.has(theme.ticker)) {
+        for (const h of theme.holdings) if (h.sym) s.add(h.sym)
+      }
+    }
+    return [...s]
+  }, [filteredThemes, openThemes])
+
+  const { prices: rtPrices } = useRealtimePrices(expandedSyms)
+  // Sample the stream on a ~300ms cadence so a tick storm can't thrash the list
+  // (still sub-second, so numbers feel live and flash on every change).
+  const rtRef = useRef(rtPrices)
+  rtRef.current = rtPrices
+  const [tickPrices, setTickPrices] = useState(rtPrices)
+  useEffect(() => {
+    const id = setInterval(() => setTickPrices(rtRef.current), 300)
+    return () => clearInterval(id)
+  }, [])
+
   const handleKeyDown = useCallback((e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
     // Don't hijack arrows while user is typing in the search input,
@@ -368,7 +443,8 @@ export default function ThemeTrackerPage({ embedded = false }) {
             <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} onSelectSym={handleSelect}
               activeKey={activeKey} sortDir={sortDir} open={openThemes.has(theme.ticker)} onToggle={toggleTheme}
               rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
-              tickerActions={tickerActions} onHoverSym={handleHoverSym} />
+              tickerActions={tickerActions} onHoverSym={handleHoverSym}
+              prices={openThemes.has(theme.ticker) ? tickPrices : null} />
           ))}
         </div>
       </div>
