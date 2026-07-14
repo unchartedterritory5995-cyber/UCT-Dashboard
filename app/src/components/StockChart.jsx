@@ -5606,6 +5606,9 @@ export default function StockChart({
     return () => { try { ts.unsubscribeVisibleLogicalRangeChange(update) } catch {}; window.removeEventListener('resize', update) }
   }, [dragMeasure, chartReady])
 
+  // New ticker re-frames to the default view, so return the grip to its home spot.
+  useEffect(() => { setGripDragLeft(null) }, [sym])
+
   const onScrollGripDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     e.preventDefault(); e.stopPropagation()
@@ -5617,13 +5620,16 @@ export default function StockChart({
     const startX = e.clientX
     const GRIP_W = 34
     const move = (ev) => {
-      const dxBars = (ev.clientX - startX) / barSpacing   // drag right = forward in time; chart scrolls 1:1
-      try { ts.setVisibleLogicalRange({ from: startRange.from + dxBars, to: startRange.to + dxBars }) } catch {}
-      const r = el.getBoundingClientRect()   // grip travels along with the cursor
+      const dxBars = (ev.clientX - startX) / barSpacing
+      // Move the last candle the SAME direction as the grip: drag left → last
+      // candle moves left (whitespace opens on the right). This repositions the
+      // right edge, not a history-scroll.
+      try { ts.setVisibleLogicalRange({ from: startRange.from - dxBars, to: startRange.to - dxBars }) } catch {}
+      const r = el.getBoundingClientRect()   // grip travels with the cursor and stays where released
       setGripDragLeft(Math.max(4, Math.min(r.width - GRIP_W - 4, ev.clientX - r.left - GRIP_W / 2)))
     }
     const up = () => {
-      setGripDragLeft(null)   // release → grip returns home; the chart stays where you scrolled it
+      // Leave the grip where the user released it (don't snap back home).
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', up)
