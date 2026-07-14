@@ -184,24 +184,33 @@
   background: var(--bg-hover);
 }
 
+/* Inline flow (not flex) so the count chip follows the last word of the title
+   and wraps WITH it — a two-line name like "DIGITAL HEALTH & AESTHETICS" keeps
+   its count right after the text instead of flinging it to the far right. */
 .groupName {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: var(--ut-gold);
   text-transform: uppercase;
+  line-height: 1.4;
 }
 
 .groupCaret {
+  display: inline-block;
+  margin-right: 6px;
   font-size: 9px;
   color: var(--text-muted);
+  vertical-align: middle;
 }
 
 .groupCount {
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
+  white-space: nowrap;
   font-size: 10px;
   font-weight: 500;
   color: var(--text-muted);
@@ -211,9 +220,11 @@
 }
 
 .portfolioBadge {
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
   font-size: 11px;
   color: var(--ut-gold);
-  flex-shrink: 0;
   line-height: 1;
 }
 
