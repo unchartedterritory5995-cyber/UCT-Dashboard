@@ -124,6 +124,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           watermarkOpacity={0.82}
           centerWatermarkOnPlot
           carryDragPlacement={false}
+          rightPadBars={6}
           dailyDefaultBars={126}
           volumeSeparatePane
           volumePaneHeightPct={12}

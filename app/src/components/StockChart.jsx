@@ -632,6 +632,7 @@ export default function StockChart({
   ema9MatchCandle = false,  // Charts workspace: paint the 9-EMA overlay in the candle up-color (MB_UP) so the fast MA matches the candles. Reliable regardless of saved overlay colors; scoped so Model Book is unaffected.
   carryDragPlacement = true, // carry the user's drag-repositioned vertical candle placement across ticker switches. false = each ticker autoscales fresh to the default margins (Charts workspace: prevents the price scale ballooning to a sliver and STICKING when scrolling tickers).
   centerWatermarkOnPlot = false, // center the watermark on the CANDLE PLOT AREA (chart.timeScale().width()/2), not 0.5×pane-width — the pane width includes the right price axis, so a plain 0.5 reads right-of-center. Exact at any widget width.
+  rightPadBars = 3,          // bars of empty space between the last candle and the right price scale (rightOffset + default-zoom right pad). Charts workspace uses more for breathing room.
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
   keepBarsAfterExit = false, // exactDateRange only: DON'T slice bars past exitDate — keep real price history rendering into the right-pad space instead of cutting off (Setup Library "Result" view: exitDate stays framed in place, the ensuing candles fill the screen)
@@ -3187,7 +3188,7 @@ export default function StockChart({
         secondsVisible: false,
         // Exact-range (Model Book) locks to a historical window, so don't pin the
         // latest bar to the right edge — that re-expands the view to "now".
-        rightOffset: exactDateRange ? 0 : 3,
+        rightOffset: exactDateRange ? 0 : rightPadBars,
         rightBarStaysOnScroll: exactDateRange ? false : true,
         // Setup → Result appends the result-era bars while the view sits ON the
         // last bar; LWC's default then shifts the window to the new last bar
@@ -4250,12 +4251,12 @@ export default function StockChart({
           if (filteredBars.length > visibleBars) {
             chart.timeScale().setVisibleLogicalRange({
               from: filteredBars.length - visibleBars - leftBarPad,
-              to: filteredBars.length + 3,
+              to: filteredBars.length + rightPadBars,
             })
           } else {
             chart.timeScale().setVisibleLogicalRange({
               from: -leftBarPad,
-              to: filteredBars.length + 3,
+              to: filteredBars.length + rightPadBars,
             })
           }
         }
