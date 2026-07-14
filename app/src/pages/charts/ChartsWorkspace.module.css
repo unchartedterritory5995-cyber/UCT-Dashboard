@@ -123,15 +123,20 @@
   margin-right: 4px;
 }
 
-/* Big, easy-to-read live day gain ($ + %) beside the ticker. */
+/* Live day gain ($ + %) beside the ticker — matches the ticker's size + box
+   model (14px / 700 / line-height:1, vertically centered) so it lines up on the
+   same baseline instead of riding high. */
 .chartDayGain {
+  display: inline-flex;
+  align-items: center;
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
+  line-height: 1;
   letter-spacing: 0.2px;
   white-space: nowrap;
-  margin: 0 8px 0 4px;
+  margin: 0 8px 0 6px;
 }
 
 .tfBarDivider {
