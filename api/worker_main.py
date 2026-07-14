@@ -454,6 +454,11 @@ def _mount_flow_routers(app) -> None:
         ("live_massive", "api.live_massive_router", "router"),
         ("dealer_positioning", "api.dealer_positioning_router", "router"),
         ("flow_reconcile", "api.flow_reconcile_router", "router"),
+        # Instant-tape SSE (P5 cutover): the proxy forwards
+        # /api/live/massive/stream here — flow.db + its tailer live on this
+        # pod now. Route self-gates (503 enabled:false) unless
+        # MASSIVE_STREAM_ENABLED=1, so it is inert on the bars worker.
+        ("massive_stream", "api.routers.massive_stream_router", "router"),
     )
     for _desc, _mod, _attr in _MOUNTS:
         _try(_desc, lambda m=_mod, a=_attr: app.include_router(

@@ -36,3 +36,30 @@ def test_flow_worker_registers_nightly_prune(monkeypatch):
     assert sched.get_job("flow_nightly_prune") is not None
     if getattr(sched, "running", False):
         sched.shutdown(wait=False)
+
+
+def test_worker_mounts_massive_stream_router():
+    """The instant-tape SSE route must resolve on flow-worker post-cutover —
+    the proxy forwards /api/live/massive/stream here (flow.db + tailer live
+    here now); an unmounted router means members silently lose live push."""
+    from fastapi import FastAPI
+    from api.worker_main import _mount_flow_routers
+    app = FastAPI()
+    _mount_flow_routers(app)
+    paths = {getattr(r, "path", "") for r in app.routes}
+    assert "/api/live/massive/stream" in paths
+
+
+def test_flow_worker_main_starts_stream_tailer(monkeypatch):
+    """flow_worker_main.main() must start the massive_stream tailer (self-
+    gated on MASSIVE_STREAM_ENABLED) — it broadcasts new flow.db rows to SSE."""
+    import api.flow_worker_main as fwm
+    calls = []
+    monkeypatch.setattr("api.massive_stream.start",
+                        lambda: calls.append("stream"), raising=True)
+    monkeypatch.setattr(fwm, "_start_consumer", lambda: None)
+    monkeypatch.setattr(fwm, "_start_flow_schedulers", lambda: None)
+    monkeypatch.setattr(fwm, "_build_app", lambda: None)
+    monkeypatch.setattr("uvicorn.run", lambda *a, **k: None)
+    fwm.main()
+    assert "stream" in calls

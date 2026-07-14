@@ -191,6 +191,14 @@ def main():
     os.environ.setdefault("WORKER_SERVES_FLOW", "1")
     log.info("[startup] flow-worker: consumer + flow routers only (no bars prewarm)")
     _start_consumer()
+    try:
+        # Instant-tape SSE tailer (self-gated on MASSIVE_STREAM_ENABLED):
+        # broadcasts newly-classified flow.db rows to /api/live/massive/stream
+        # subscribers. flow.db lives here post-cutover, so the tailer must too.
+        from api import massive_stream
+        massive_stream.start()
+    except Exception as e:  # noqa: BLE001
+        log.exception("massive_stream tailer start failed (non-fatal): %s", e)
     _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
     app = _build_app()
     port = int(os.environ.get("PORT", "8080"))
