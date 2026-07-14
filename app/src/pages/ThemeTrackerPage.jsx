@@ -91,6 +91,7 @@ function ThemeGroup({ theme, selectedSym, onSelectSym, activeKey, sortDir, open,
             onFocus={onHoverSym ? () => onHoverSym(h.sym) : undefined}
             {...(tickerActions ? tickerActions.longPressProps(h.sym) : {})}
           >
+            <span className={styles.stockDot}>•</span>
             {getTag && getTag(h.sym) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(h.sym)]?.hex, marginRight: 4 }} />}
             <span className={styles.sym}>{h.sym}</span>
             <span className={`${styles.ret} ${retClass(retVal, styles)}`}>
@@ -341,9 +342,15 @@ export default function ThemeTrackerPage({ embedded = false }) {
 
         <div className={styles.tableHeader}>
           <span className={styles.colLabel}>Theme</span>
-          <span className={`${styles.colLabel} ${styles.colLabelActive}`}>
+          <button
+            type="button"
+            className={`${styles.colLabel} ${styles.colLabelActive} ${styles.sortBtn}`}
+            onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+            title={sortDir === 'desc' ? 'Sorted high → low (click for low → high)' : 'Sorted low → high (click for high → low)'}
+          >
             {PERIOD_LABELS[activeKey]}
-          </span>
+            <span className={styles.sortCaret}>{sortDir === 'desc' ? '▼' : '▲'}</span>
+          </button>
         </div>
 
         <div className={styles.tableBody}>
