@@ -2919,6 +2919,8 @@ _AUTO_PUSH_CFG = {
     "grade_a": True,             # push grade A / A+
     "size_sweep_enabled": False, # optional: high-premium Size B sweeps
     "size_min_premium": 3_000_000,
+    "accum_enabled": True,        # push high-conviction accumulations (By-Contract)
+    "accum_min_premium": 3_000_000,  # accumulation premium floor
 }
 
 
@@ -2940,23 +2942,53 @@ def _load_auto_push_cfg():
 _load_auto_push_cfg()
 
 
+def _is_repeater(alert: dict) -> bool:
+    """A GENUINE consistent repeat accumulator — a sustained shape AND a real hit
+    count. NOT 'active on 2 days' (days_active>1 over a multi-day lookback flags
+    almost everything and floods auto-push). A steady/accelerating shape with
+    qualifying_hits>=3 is true repeatability."""
+    shape = (alert.get("accumulation_shape") or "").lower()
+    return shape in ("steady", "accelerating") and (alert.get("qualifying_hits") or 0) >= 3
+
+
 def should_auto_push(alert: dict, cfg: dict = None) -> bool:
-    """Decide whether an alert qualifies for auto-push under the current algo."""
+    """Decide whether an alert qualifies for auto-push under the current algo.
+
+    Single prints: Alpha Gold tier, or grade A/A+ (+ optional high-premium Size
+    sweeps). Accumulations (By-Contract): total premium >= accum_min_premium AND
+    an EFFECTIVE grade of A/A+ — where a genuine multi-day REPEATER gets a
+    one-grade upgrade (a B repeater at $3M+ becomes an A and fires). Consistency +
+    repeatability + size is the tell."""
     if cfg is None:
         cfg = _AUTO_PUSH_CFG
     tier = (alert.get("_tierKey") or "").lower()
     grade = (alert.get("grade") or "").upper()
-    acc_grade = (alert.get("accumulation_grade") or "").upper()   # contracts grade the PATTERN
     name = (alert.get("alertName") or "").lower()
+
+    # ── Single-print tiers ──
     if cfg.get("alpha_gold") and (tier == "alpha" or "alpha gold" in name):
         return True
-    if cfg.get("grade_a") and (grade in ("A+", "A") or acc_grade in ("A+", "A")):
+    if cfg.get("grade_a") and grade in ("A+", "A"):
         return True
     if cfg.get("size_sweep_enabled"):
-        prem = alert.get("alertPremium") or alert.get("total_premium") or 0
+        prem = alert.get("alertPremium") or 0
         typ = (alert.get("_type") or alert.get("alertType") or "").upper()
         if tier == "size" and grade == "B" and prem >= cfg.get("size_min_premium", 3_000_000) and typ == "SWEEP":
             return True
+
+    # ── Accumulation (By-Contract): premium floor + repeatability upgrade ──
+    acc_grade = (alert.get("accumulation_grade") or "").upper()
+    if cfg.get("accum_enabled") and acc_grade:
+        total_prem = alert.get("total_premium") or 0
+        if total_prem >= cfg.get("accum_min_premium", 3_000_000):
+            eff = acc_grade
+            # Consistency + size elevates conviction, but only a B base rides the
+            # repeater upgrade to A. A C/D accumulation shouldn't auto-push on
+            # repeatability alone.
+            if eff == "B" and _is_repeater(alert):
+                eff = "A"
+            if eff in ("A+", "A"):
+                return True
     return False
 
 
@@ -2984,6 +3016,22 @@ def _apply_auto_push(alerts: list, mode: str = "single"):
         pushed = _pushed_keys()
     except Exception:
         pushed = set()
+    # Single prints must ALSO clear the curated cap-tiered premium floors, so a
+    # grade-A print that never cleared its market-cap floor (e.g. $500K on a mega)
+    # does not auto-fire — while the same $500K in a small-cap, which DOES clear
+    # its floor, can. The curated gate already encodes cap-vs-premium; auto-push
+    # inherits it. Accumulations use their own accum_min_premium floor instead.
+    curated_ok = None
+    if mode == "single":
+        try:
+            _thr = _load_thresholds()
+            _ct = {}
+            for _a in alerts:
+                _k = f"{_a.get('ticker','')}|{_a.get('cp','')}|{_a.get('strike','')}|{_a.get('exp','')}"
+                _ct[_k] = _ct.get(_k, 0) + (_a.get("alertPremium") or 0)
+            curated_ok = lambda a: _qualifies_curated(a, _thr, contract_totals=_ct)
+        except Exception:
+            curated_ok = None
     enabled = bool(_AUTO_PUSH_CFG.get("enabled"))
     to_push = []
     for a in alerts:
@@ -2995,6 +3043,8 @@ def _apply_auto_push(alerts: list, mode: str = "single"):
             a["forwardedToDiscord"] = True
             continue
         if enabled and should_auto_push(a):
+            if curated_ok is not None and not curated_ok(a):
+                continue   # conviction match, but failed its cap-tier curated floor
             if _record_push(a, mode, "auto"):           # atomic claim
                 a["forwardedToDiscord"] = True
                 to_push.append(a)
@@ -3116,7 +3166,7 @@ async def set_auto_push_config(request: Request):
         raise HTTPException(400, f"Invalid JSON: {e}")
     if not isinstance(body, dict):
         raise HTTPException(400, "expected a JSON object")
-    for k in ("enabled", "alpha_gold", "grade_a", "size_sweep_enabled", "size_min_premium"):
+    for k in ("enabled", "alpha_gold", "grade_a", "size_sweep_enabled", "size_min_premium", "accum_enabled", "accum_min_premium"):
         if k in body:
             _AUTO_PUSH_CFG[k] = body[k]
     try:
