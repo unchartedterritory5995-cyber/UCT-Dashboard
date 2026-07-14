@@ -6533,7 +6533,11 @@ export default function StockChart({
         <div style={{
           position: 'absolute',
           left: measureReadout.x, top: measureReadout.y,
-          transform: measureReadout.flip ? 'translate(calc(-100% - 14px), 14px)' : 'translate(14px, 14px)',
+          /* Positive/up move → readout sits top-left of the crosshair; negative/down
+             move → bottom-right. Keeps it clear of the measure line either way. */
+          transform: measureReadout.pct >= 0
+            ? 'translate(calc(-100% - 12px), calc(-100% - 12px))'
+            : 'translate(12px, 12px)',
           pointerEvents: 'none', zIndex: 6,
           background: 'rgba(10,11,9,0.94)', border: '1px solid rgba(201,168,76,0.4)',
           borderRadius: 6, padding: '5px 9px', whiteSpace: 'nowrap',
