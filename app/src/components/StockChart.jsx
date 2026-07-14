@@ -630,6 +630,8 @@ export default function StockChart({
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   dailyDefaultBars = null,  // override the Daily default-zoom bar count (Charts workspace: ~126 ≈ 6 months). Daily only; other TFs keep their own defaults.
   ema9MatchCandle = false,  // Charts workspace: paint the 9-EMA overlay in the candle up-color (MB_UP) so the fast MA matches the candles. Reliable regardless of saved overlay colors; scoped so Model Book is unaffected.
+  carryDragPlacement = true, // carry the user's drag-repositioned vertical candle placement across ticker switches. false = each ticker autoscales fresh to the default margins (Charts workspace: prevents the price scale ballooning to a sliver and STICKING when scrolling tickers).
+  centerWatermarkOnPlot = false, // center the watermark on the CANDLE PLOT AREA (chart.timeScale().width()/2), not 0.5×pane-width — the pane width includes the right price axis, so a plain 0.5 reads right-of-center. Exact at any widget width.
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
   keepBarsAfterExit = false, // exactDateRange only: DON'T slice bars past exitDate — keep real price history rendering into the right-pad space instead of cutting off (Setup Library "Result" view: exitDate stays framed in place, the ensuing candles fill the screen)
@@ -3090,7 +3092,7 @@ export default function StockChart({
     // lands in the same proportional spot (scaled to its own range). If it matches the
     // default, treat as "not customized" (null) so volume/indicator pane toggles still
     // re-flow normally.
-    if (exactDateRange) {
+    if (exactDateRange || !carryDragPlacement) {
       // Model Book frames each stock to a fixed year and should just autoscale —
       // the carry-the-drag-placement-across-tickers lock is inappropriate here and
       // compounds badly on huge back-adjusted/log-scale values (uploaded delisted
@@ -3218,6 +3220,14 @@ export default function StockChart({
       const wmLines = (cs.watermark.visible && !hideWatermark)
         ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines)
         : []
+      // centerWatermarkOnPlot: pin the horizontal center to the middle of the
+      // CANDLE PLOT AREA (time-axis width / 2). mediaSize.width in the primitive
+      // includes the right price-axis gutter, so a plain x=0.5 sits right-of-center;
+      // this is exact at any widget width. Falls back to watermarkCenterX otherwise.
+      let _wmCenterX = watermarkCenterX
+      if (centerWatermarkOnPlot) {
+        try { const _tw = chart.timeScale().width(); if (_tw > 0) _wmCenterX = _tw / 2 } catch { /* keep fallback */ }
+      }
       wmCtrlRef.current.setOptions({
         lines: wmLines,
         color: cs.watermark.color,
@@ -3226,7 +3236,7 @@ export default function StockChart({
         x: watermarkX ?? cs.watermark.x,
         y: watermarkY ?? cs.watermark.y,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
-        hardCenterXPx: watermarkCenterX,
+        hardCenterXPx: _wmCenterX,
       })
     }
 
