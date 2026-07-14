@@ -28,6 +28,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
+import * as barsStreamManager from '../lib/barsStreamManager'
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
@@ -1236,16 +1237,36 @@ export default function StockChart({
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
   const legendHoveringRef = useRef(false)
+  // Fastest available developing-bar close, written imperatively (NO re-render)
+  // from the Massive bars WS — the SAME reliable feed the theme tracker + header
+  // gain use. computeLatestCrosshair prefers this so the legend's price / change
+  // match the theme tracker instead of the laggy Finnhub feed.
+  const liveTickRef = useRef(null)
   // Build the legend payload for the LATEST bar (used when the cursor is off the
   // chart and alwaysShowLegend is on). Reads live refs; safe to call from effects.
   const computeLatestCrosshair = () => {
     const bars = prevBarsRef.current
     if (!bars || !bars.length) return null
     const last = bars[bars.length - 1]
-    const o = last.o, h = last.h, l = last.l
+    let o = last.o, h = last.h, l = last.l
     let c = last.c
+    // Prefer the live developing bar the CANDLE is showing (lastBarRef), so the
+    // legend tracks the candle exactly rather than a separate/stale source.
+    const lb = lastBarRef.current
+    if (lb && lb.time === adjustTime(last.t) && Number.isFinite(lb.close)) {
+      o = lb.open; h = lb.high; l = lb.low; c = lb.close
+    }
     const lp = livePricesRef.current?.[symRef.current]
-    if (lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) c = lp.price
+    // Fast Massive tick (ref, no re-render) wins for the close when sane — this
+    // is what makes the legend tick as fast as the theme tracker.
+    const fastTick = liveTickRef.current
+    if (fastTick != null && isSaneLivePrice(fastTick, c, lastServerCloseRef.current)) {
+      c = fastTick
+      if (Number.isFinite(h)) h = Math.max(h, fastTick)
+      if (Number.isFinite(l)) l = Math.min(l, fastTick)
+    } else if (lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) {
+      c = lp.price
+    }
     let vol = last.v
     if ((!vol || vol === 0) && lp?.volume) vol = lp.volume
     // Today's change is close-vs-PREVIOUS-close (the real % move), NOT
@@ -5512,6 +5533,33 @@ export default function StockChart({
     setCrosshairData(computeLatestCrosshair())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alwaysShowLegend, chartReady, ohlcData, overlayData])
+
+  // Live legend ticking. Two pieces, deliberately split so the legend tracks the
+  // fast Massive feed (like the theme tracker) WITHOUT re-rendering the whole
+  // chart per tick (that storm froze the UI — do NOT reintroduce it):
+  //   1. A direct bars-WS subscription writes the newest tick to liveTickRef —
+  //      a REF, so ticks cause NO re-render.
+  //   2. A BOUNDED ~4/sec timer re-renders just the legend from that ref.
+  useEffect(() => {
+    if (!liveUpdates || !sym) return undefined
+    const unsub = barsStreamManager.subscribe(sym, '1', {
+      onBar: (data) => {
+        const c = data?.bar?.c ?? data?.trade?.p
+        if (Number.isFinite(c)) liveTickRef.current = c
+      },
+    })
+    return () => { try { unsub() } catch { /* already gone */ } liveTickRef.current = null }
+  }, [liveUpdates, sym])
+
+  useEffect(() => {
+    if (!alwaysShowLegend || !chartReady) return undefined
+    const id = setInterval(() => {
+      if (legendHoveringRef.current) return   // hover owns the legend — don't fight it
+      setCrosshairData(computeLatestCrosshair())
+    }, 250)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alwaysShowLegend, chartReady, sym])
 
   // ── Multi-chart sync: report visible time-range changes to parent (Task 5 Step 3) ──
   // No-op when onTimeRangeChange is absent. Uses Lightweight Charts'
