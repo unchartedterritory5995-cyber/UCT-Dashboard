@@ -165,12 +165,27 @@
    Fixed width pushes every value to the same right edge (TC2000-style). */
 .legendVertical {
   display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 12px;
+  grid-template-columns: auto auto;   /* content-sized → compact; values sit close to labels */
+  justify-content: start;
+  column-gap: 10px;
   row-gap: 1px;
   align-content: start;
-  width: 150px;
   top: 46px;
+}
+.vlHead {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #d4cfc0;
+  font-weight: 600;
+  white-space: nowrap;
+  padding-bottom: 1px;
+}
+.vlChange {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-weight: 700;
+  white-space: nowrap;
+  padding-bottom: 3px;
 }
 .vlFull {
   grid-column: 1 / -1;

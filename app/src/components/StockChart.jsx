@@ -6422,7 +6422,10 @@ export default function StockChart({
         >
           {verticalLegend ? (
             <>
-              <span className={styles.vlFull} style={{ color: '#d4cfc0' }}>{formatLegendTime(crosshairData.time)}</span>
+              <span className={styles.vlHead}>{formatLegendTime(crosshairData.time)}</span>
+              <span className={styles.vlChange} style={{ color: parseFloat(crosshairData.change) >= 0 ? '#1ae51a' : '#c41f2d' }}>
+                {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
+              </span>
               <span className={styles.vlLabel}>Open</span><span className={styles.vlVal}>{crosshairData.open?.toFixed(2)}</span>
               <span className={styles.vlLabel}>High</span><span className={styles.vlVal}>{crosshairData.high?.toFixed(2)}</span>
               <span className={styles.vlLabel}>Low</span><span className={styles.vlVal}>{crosshairData.low?.toFixed(2)}</span>
@@ -6430,9 +6433,6 @@ export default function StockChart({
               {crosshairData.volume != null && (
                 <><span className={styles.vlLabel}>Vol</span><span className={styles.vlVal}>{formatVolume(crosshairData.volume)}</span></>
               )}
-              <span className={`${styles.vlFull} ${parseFloat(crosshairData.change) >= 0 ? styles.legendUp : styles.legendDown}`}>
-                {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
-              </span>
               {crosshairData.overlays.flatMap((ov, i) => [
                 <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
                 <span key={'v' + i} className={styles.vlVal} style={{ color: ov.color }}>{ov.value?.toFixed(2)}</span>,
@@ -6543,7 +6543,7 @@ export default function StockChart({
           <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? '#1ae51a' : '#c41f2d' }}>
             {measureReadout.dollar >= 0 ? '+' : '-'}${Math.abs(measureReadout.dollar).toFixed(2)}
             <span style={{ marginLeft: 8 }}>
-              {measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%
+              ({measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%)
             </span>
           </div>
           <div style={{ color: '#a8a290', fontSize: 11 }}>
