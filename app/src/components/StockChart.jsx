@@ -670,6 +670,7 @@ export default function StockChart({
   colorByNetChange = false, // color candles by NET CHANGE (close vs previous close, TC2000/StockCharts style) instead of LWC's default close-vs-open
   candlesOnTop = false,     // TradingView-style: draw candle bodies ABOVE the MA/BB/VWAP overlays so the lines pass behind the bodies instead of overlapping them
   hideLastValue = false,    // hide the last-price axis tag on the price series
+  volumeLastValue = false,  // show the current-volume axis tag on the volume pane's right scale (like the price tag on the main chart). Opt-in so Model Book (which deliberately hides it) is unaffected.
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
   markVolumeExtremes = false, // gold the highest-volume-ever bar (Model Book)
@@ -3657,7 +3658,9 @@ export default function StockChart({
           priceScaleId: volScaleId,
           // Model Book: no dashed last-volume price line / axis tag.
           priceLineVisible: !boldCandles && !hidePriceLine,
-          lastValueVisible: !boldCandles && !hidePriceLine,
+          // volumeLastValue opt-in shows the current-volume tag on the right scale
+          // (mirrors the main chart's price tag) even in the bold/charts-workspace look.
+          lastValueVisible: volumeLastValue || (!boldCandles && !hidePriceLine),
         }, volSeparatePane ? 1 : 0)
         volumeSeriesRef.current = vs
         volumeSeparatePaneRef.current = volScaleId

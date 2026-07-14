@@ -172,6 +172,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           candlesOnTop
           ema9MatchCandle
           markVolumeExtremes
+          volumeLastValue
           volumeMa={50}
           hidePriceLine
           watermarkOpacity={0.82}
