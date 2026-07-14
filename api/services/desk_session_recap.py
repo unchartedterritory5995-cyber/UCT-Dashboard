@@ -28,9 +28,15 @@ def is_enabled() -> bool:
     return os.environ.get("DESK_SESSION_DISCORD_RECAP_ENABLED", "") == "1"
 
 
-def _webhook_url() -> str:
-    return (os.environ.get("DISCORD_RECAP_WEBHOOK_URL", "").strip()
-            or os.environ.get("DISCORD_WEBHOOK_URL", "").strip())
+def _webhook_url(category: str = "") -> str:
+    """Live Trading Sessions post to the dedicated #live-trading-recaps webhook
+    (DISCORD_RECAP_WEBHOOK_URL); every other session type falls back to the
+    general alerts webhook so the recap channel stays copy-paste clean."""
+    dedicated = os.environ.get("DISCORD_RECAP_WEBHOOK_URL", "").strip()
+    fallback = os.environ.get("DISCORD_WEBHOOK_URL", "").strip()
+    if dedicated and (category or "").strip().lower() == "live trading sessions":
+        return dedicated
+    return fallback or dedicated
 
 
 # Recap quality is the whole point of the feature (it replaces a human writing
@@ -199,13 +205,13 @@ def post_recap_for_video(video_id: int) -> dict:
     """Generate + post the Discord recap for a published session video from its
     STORED transcript/insights (the Zoom recording is typically gone by now).
     Raises on hard failure — the admin endpoint surfaces the error."""
-    url = _webhook_url()
-    if not url:
-        raise RuntimeError("no Discord webhook configured "
-                           "(DISCORD_RECAP_WEBHOOK_URL / DISCORD_WEBHOOK_URL)")
     v = education_service.get_video(int(video_id))
     if not v:
         raise RuntimeError(f"video {video_id} not found")
+    url = _webhook_url(v.get("category") or "")
+    if not url:
+        raise RuntimeError("no Discord webhook configured "
+                           "(DISCORD_RECAP_WEBHOOK_URL / DISCORD_WEBHOOK_URL)")
     transcript = (v.get("transcript") or "").strip()
     if not transcript:
         raise RuntimeError(f"video {video_id} has no stored transcript yet")

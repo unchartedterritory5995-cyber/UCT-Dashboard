@@ -67,12 +67,20 @@ def test_is_enabled_flag(monkeypatch):
     assert dr.is_enabled()
 
 
-def test_webhook_url_prefers_dedicated_var(monkeypatch):
+def test_webhook_url_routes_by_category(monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://x/general")
     monkeypatch.setenv("DISCORD_RECAP_WEBHOOK_URL", "https://x/recaps")
-    assert dr._webhook_url() == "https://x/recaps"
+    # live sessions → dedicated channel; other types → general fallback
+    assert dr._webhook_url("Live Trading Sessions") == "https://x/recaps"
+    assert dr._webhook_url("Thoughts on the Market") == "https://x/general"
+    assert dr._webhook_url("") == "https://x/general"
+    # dedicated only → still posts (better than dropping)
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "")
+    assert dr._webhook_url("Thoughts on the Market") == "https://x/recaps"
+    # no dedicated → live sessions fall back to general
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://x/general")
     monkeypatch.setenv("DISCORD_RECAP_WEBHOOK_URL", "")
-    assert dr._webhook_url() == "https://x/general"
+    assert dr._webhook_url("Live Trading Sessions") == "https://x/general"
 
 
 def test_maybe_post_recap_disabled_does_nothing(monkeypatch):
@@ -152,6 +160,7 @@ def test_post_recap_requires_transcript(monkeypatch):
 def test_post_recap_requires_webhook(monkeypatch):
     monkeypatch.delenv("DISCORD_RECAP_WEBHOOK_URL", raising=False)
     monkeypatch.delenv("DISCORD_WEBHOOK_URL", raising=False)
+    _stub_video(monkeypatch)
     with pytest.raises(RuntimeError, match="webhook"):
         dr.post_recap_for_video(42)
 
