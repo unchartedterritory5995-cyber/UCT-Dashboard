@@ -150,6 +150,8 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "fifty_two_week_low": _round(info.get("fiftyTwoWeekLow")),
         "fifty_day_avg": _round(info.get("fiftyDayAverage")),
         "two_hundred_day_avg": _round(info.get("twoHundredDayAverage")),
+        # Average daily volume (free from .info) — powers the header's RVOL readout
+        "avg_volume": info.get("averageVolume") or info.get("averageVolume10days"),
         "beta": _round(info.get("beta")),
         # Analyst
         "analyst_target_mean": _round(info.get("targetMeanPrice")),

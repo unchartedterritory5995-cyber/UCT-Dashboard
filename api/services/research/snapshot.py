@@ -102,6 +102,7 @@ def get_snapshot(sym: str) -> dict:
         "free_cash_flow": fund.get("free_cash_flow"),
         # Price context
         "beta": fund.get("beta"),
+        "avg_volume": fund.get("avg_volume"),   # 30-day avg daily volume — powers header RVOL
         "week52_high": fund.get("fifty_two_week_high"),
         "week52_low": fund.get("fifty_two_week_low"),
         "div_yield_pct": fund.get("dividend_yield_pct"),
