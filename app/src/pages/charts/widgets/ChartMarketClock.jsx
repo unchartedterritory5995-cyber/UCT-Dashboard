@@ -1,16 +1,19 @@
 // app/src/pages/charts/widgets/ChartMarketClock.jsx
 // Minimal live market clock for the far right of the Charts-workspace TF bar:
 // a session-tone dot (green open / amber pre/after-hours / grey closed) + live
-// ET time (ticks every second) + an "ET" tag. Reuses useMarketOpen + sessionModel
-// so the dot color can never disagree with the Dashboard's session pill.
+// ET time (ticks every second) + an "ET" tag. Hovering reveals a small popup
+// with the full session status + next boundary ("MARKET CLOSED · Opens Tue
+// 9:30 AM ET"). Reuses useMarketOpen + sessionModel/nextOpenHint so the status
+// can never disagree with the Dashboard's session pill.
 import { useEffect, useState } from 'react'
 import useMarketOpen from '../../../hooks/useMarketOpen'
-import { sessionModel } from '../../../components/dashboard/MarketStatusBar'
+import { sessionModel, nextOpenHint } from '../../../components/dashboard/MarketStatusBar'
 import styles from '../ChartsWorkspace.module.css'
 
 export default function ChartMarketClock() {
   const session = useMarketOpen()
   const [now, setNow] = useState(() => new Date())
+  const [hover, setHover] = useState(false)
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
@@ -22,11 +25,24 @@ export default function ChartMarketClock() {
   })
   const toneCls = tone === 'open' ? styles.clkOpen : tone === 'ext' ? styles.clkExt : styles.clkClosed
 
+  // Full status + next boundary, shown in the hover popup.
+  const detail = session.isOpen ? `${label} · Closes 4:00 PM ET`
+    : session.isExtended ? `${label} · Closes 8:00 PM ET`
+    : `${label} · ${nextOpenHint()}`
+
   return (
-    <div className={`${styles.marketClock} ${toneCls}`} title={`New York · ${label}`}>
+    <div
+      className={`${styles.marketClock} ${toneCls}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
+      tabIndex={0}
+    >
       <span className={styles.clockDot} aria-hidden="true" />
       <span className={styles.clockTime}>{time}</span>
       <span className={styles.clockEt}>ET</span>
+      {hover && <div className={styles.clockPopup} role="status">{detail}</div>}
     </div>
   )
 }

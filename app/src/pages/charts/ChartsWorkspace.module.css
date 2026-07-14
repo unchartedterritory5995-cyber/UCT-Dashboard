@@ -169,11 +169,53 @@
    Earnings meta typography (no pill/border/background) so it belongs in the row.
    Only a small tone dot carries the session color. */
 .marketClock {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
   white-space: nowrap;
   user-select: none;
+  outline: none;   /* focusable for the hover popup, but no focus ring */
+  cursor: default;
+}
+
+/* Hover popup: full session status + next boundary, below the clock. */
+.clockPopup {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 30;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(16, 17, 14, 0.97);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  color: #d8d2c2;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: clockPopIn 0.12s ease-out;
+}
+.clockPopup::before {   /* little caret pointing up at the clock */
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: 16px;
+  width: 7px;
+  height: 7px;
+  background: rgba(16, 17, 14, 0.97);
+  border-left: 1px solid rgba(201, 168, 76, 0.3);
+  border-top: 1px solid rgba(201, 168, 76, 0.3);
+  transform: rotate(45deg);
+}
+@keyframes clockPopIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clockPopup { animation: none; }
 }
 .clockDot {
   width: 6px;
