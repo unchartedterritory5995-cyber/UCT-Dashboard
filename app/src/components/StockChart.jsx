@@ -344,18 +344,24 @@ function isSaneLivePrice(p, lastClose, serverClose) {
 // Bar `.t` is 'YYYY-MM-DD' for D/W/M (→ days) or an epoch-seconds number for
 // intraday (→ h/m; any consistent offset cancels in the diff).
 function _formatMeasureSpan(t1, t2) {
+  let secs
   if (typeof t1 === 'string' && typeof t2 === 'string') {
     const d1 = Date.parse(t1 + 'T00:00:00Z'), d2 = Date.parse(t2 + 'T00:00:00Z')
     if (!Number.isFinite(d1) || !Number.isFinite(d2)) return ''
-    const days = Math.abs(Math.round((d2 - d1) / 86400000))
-    return days === 1 ? '1 day' : `${days} days`
+    secs = Math.abs(d2 - d1) / 1000
+  } else {
+    secs = Math.abs(Number(t2) - Number(t1))
+    if (!Number.isFinite(secs)) return ''
   }
-  const secs = Math.abs(Number(t2) - Number(t1))
-  if (!Number.isFinite(secs)) return ''
-  const h = Math.floor(secs / 3600), m = Math.round((secs % 3600) / 60)
-  if (h >= 24) return `${Math.round(h / 24)}d`
-  if (h >= 1) return m > 0 ? `${h}h ${m}m` : `${h}h`
-  return `${m}m`
+  const days = secs / 86400
+  if (days < 1) {
+    const h = Math.floor(secs / 3600), m = Math.round((secs % 3600) / 60)
+    if (h >= 1) return m > 0 ? `${h}h ${m}m` : `${h}h`
+    return `${m}m`
+  }
+  if (days < 30) { const d = Math.round(days); return d === 1 ? '1 day' : `${d} days` }
+  if (days < 365) return `${(days / 30.44).toFixed(1)} months`
+  return `${(days / 365.25).toFixed(1)} years`
 }
 
 // ─── Volume Profile canvas draw ──────────────────────────────────────────────
@@ -5538,13 +5544,14 @@ export default function StockChart({
       const curLogical = chart.timeScale().coordinateToLogical(x)
       if (curPrice == null || curLogical == null) return
       drawLine(st.startX, st.startY, x, y, w, h)
-      const pct = st.startPrice ? (curPrice - st.startPrice) / st.startPrice * 100 : 0
+      const dollar = curPrice - st.startPrice
+      const pct = st.startPrice ? dollar / st.startPrice * 100 : 0
       const barsN = Math.abs(Math.round(curLogical - st.startLogical))
       const arr = prevBarsRef.current || []
       const clamp = (i) => Math.max(0, Math.min(arr.length - 1, Math.round(i)))
       const b1 = arr[clamp(st.startLogical)], b2 = arr[clamp(curLogical)]
       const span = (b1 && b2) ? _formatMeasureSpan(b1.t, b2.t) : ''
-      setMeasureReadout({ x, y, pct, bars: barsN, span, flip: x > w - 180 })
+      setMeasureReadout({ x, y, dollar, pct, bars: barsN, span, flip: x > w - 200 })
     }
     const end = () => {
       dragMeasureStateRef.current = null
@@ -5575,7 +5582,8 @@ export default function StockChart({
   // at the time axis) lets the user drag left/right to scroll the chart through
   // time. Shown only with dragMeasure. Position tracks the price-axis width +
   // time-axis height so it sits just left of the axis, at the date row.
-  const [scrollGripPos, setScrollGripPos] = useState({ right: 56, bottom: 4 })
+  const [scrollGripPos, setScrollGripPos] = useState({ right: 56, top: null })
+  const [gripDragLeft, setGripDragLeft] = useState(null)  // px while dragging → the grip travels with the cursor
   useEffect(() => {
     if (!dragMeasure || !chartReady) return
     const chart = chartRef.current; if (!chart) return
@@ -5583,8 +5591,13 @@ export default function StockChart({
     const update = () => {
       try {
         const pw = chart.priceScale('right').width() || 56
-        const th = ts.height() || 28
-        setScrollGripPos({ right: pw + 4, bottom: Math.max(3, (th - 16) / 2) })
+        let top = null
+        try {
+          const panes = chart.panes ? chart.panes() : null
+          const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
+          if (h0 > 0) top = Math.max(4, h0 - 22)   // sit just above the volume pane (bottom of the price pane)
+        } catch { /* pane API missing → bottom fallback in JSX */ }
+        setScrollGripPos({ right: pw + 4, top })
       } catch { /* not ready */ }
     }
     update()
@@ -5596,16 +5609,21 @@ export default function StockChart({
   const onScrollGripDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     e.preventDefault(); e.stopPropagation()
-    const chart = chartRef.current; if (!chart) return
+    const chart = chartRef.current, el = containerRef.current
+    if (!chart || !el) return
     const ts = chart.timeScale()
     const startRange = ts.getVisibleLogicalRange(); if (!startRange) return
     const barSpacing = (ts.width() || 1) / Math.max(1e-6, startRange.to - startRange.from)
     const startX = e.clientX
+    const GRIP_W = 34
     const move = (ev) => {
-      const dxBars = (ev.clientX - startX) / barSpacing   // drag right = forward in time
+      const dxBars = (ev.clientX - startX) / barSpacing   // drag right = forward in time; chart scrolls 1:1
       try { ts.setVisibleLogicalRange({ from: startRange.from + dxBars, to: startRange.to + dxBars }) } catch {}
+      const r = el.getBoundingClientRect()   // grip travels along with the cursor
+      setGripDragLeft(Math.max(4, Math.min(r.width - GRIP_W - 4, ev.clientX - r.left - GRIP_W / 2)))
     }
     const up = () => {
+      setGripDragLeft(null)   // release → grip returns home; the chart stays where you scrolled it
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', up)
@@ -6426,16 +6444,19 @@ export default function StockChart({
           transform: measureReadout.flip ? 'translate(calc(-100% - 14px), 14px)' : 'translate(14px, 14px)',
           pointerEvents: 'none', zIndex: 6,
           background: 'rgba(10,11,9,0.94)', border: '1px solid rgba(201,168,76,0.4)',
-          borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap',
-          fontFamily: "'Instrument Sans', system-ui, sans-serif", fontSize: 12,
+          borderRadius: 6, padding: '5px 9px', whiteSpace: 'nowrap',
+          fontFamily: "'Instrument Sans', system-ui, sans-serif", fontSize: 12, lineHeight: 1.35,
           boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
         }}>
-          <span style={{ color: measureReadout.pct >= 0 ? '#1ae51a' : '#c41f2d', fontWeight: 700 }}>
-            {measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%
-          </span>
-          <span style={{ color: '#a8a290', marginLeft: 8 }}>
+          <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? '#1ae51a' : '#c41f2d' }}>
+            {measureReadout.dollar >= 0 ? '+' : '-'}${Math.abs(measureReadout.dollar).toFixed(2)}
+            <span style={{ marginLeft: 8 }}>
+              {measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%
+            </span>
+          </div>
+          <div style={{ color: '#a8a290', fontSize: 11 }}>
             {measureReadout.bars} {measureReadout.bars === 1 ? 'bar' : 'bars'}{measureReadout.span ? ` · ${measureReadout.span}` : ''}
-          </span>
+          </div>
         </div>
       )}
       {/* Time-scroll grip — drag left/right to pan the chart through time (since
@@ -6445,7 +6466,9 @@ export default function StockChart({
           onPointerDown={onScrollGripDown}
           title="Drag left / right to scroll the chart through time"
           style={{
-            position: 'absolute', right: scrollGripPos.right, bottom: scrollGripPos.bottom,
+            position: 'absolute',
+            ...(gripDragLeft != null ? { left: gripDragLeft } : { right: scrollGripPos.right }),
+            ...(scrollGripPos.top != null ? { top: scrollGripPos.top } : { bottom: 30 }),
             zIndex: 7, cursor: 'ew-resize', pointerEvents: 'auto', touchAction: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 34, height: 16, borderRadius: 8,
