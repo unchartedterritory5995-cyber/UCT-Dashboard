@@ -147,6 +147,54 @@ def post_discord_recap(video_id: int, request: Request):
         return {"ok": False, "error": str(e)[:400]}
 
 
+@router.get("/recap-pending")
+def recap_pending(request: Request):
+    """Read-only source list for the terminal/subscription daily-recap job:
+    recent Live Trading Sessions carrying a transcript. NO LLM — pure DB read.
+    PUSH_SECRET bearer. `days`/`category` query-overridable."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import education_service
+    days = int(request.query_params.get("days", "4") or 4)
+    category = request.query_params.get(
+        "category",
+        os.environ.get("DESK_DAILY_SESSION_CATEGORY", "Live Trading Sessions"),
+    )
+    try:
+        return {"sessions": education_service.list_recent_recap_candidates(category, days)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:400]}
+
+
+@router.get("/recap-source/{video_id}")
+def recap_source(video_id: int, request: Request):
+    """Everything the terminal recap job needs to WRITE a recap for one session:
+    title, youtube_id, category, transcript, and pre-computed insights. NO LLM —
+    pure DB read. PUSH_SECRET bearer."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import education_service
+    v = education_service.get_video(int(video_id))
+    if not v:
+        return Response(status_code=404)
+    ins = education_service.get_insights(int(video_id))
+    return {
+        "id": v.get("id"),
+        "youtube_id": v.get("youtube_id") or "",
+        "title": v.get("title") or "",
+        "category": v.get("category") or "",
+        "transcript": v.get("transcript") or "",
+        "headline": ins.get("headline") or "",
+        "summary": ins.get("summary") or [],
+        "chapters": ins.get("chapters") or [],
+        "setups": ins.get("setups") or [],
+    }
+
+
 @router.get("/insights-status")
 async def insights_status(request: Request):
     """Diagnostics for the session-insights backfill pass: pending queue +

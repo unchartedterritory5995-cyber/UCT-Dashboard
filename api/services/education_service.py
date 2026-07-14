@@ -136,6 +136,26 @@ def get_video(video_id: int) -> Optional[dict]:
         return dict(row) if row else None
 
 
+def list_recent_recap_candidates(category: str, days: int = 4) -> list[dict]:
+    """Recent videos in `category` that carry a transcript — the source list for
+    the terminal/subscription daily-recap job. Read-only, no LLM. Newest first."""
+    cutoff = int(time.time()) - int(days) * 86400
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id, youtube_id, title, category, created_at, "
+            "       length(COALESCE(transcript,'')) AS tlen "
+            "FROM edu_videos "
+            "WHERE category = ? AND created_at >= ? "
+            "ORDER BY id DESC",
+            (category, cutoff),
+        ).fetchall()
+    return [{
+        "id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"],
+        "category": r["category"], "created_at": r["created_at"],
+        "has_transcript": bool(r["tlen"]),
+    } for r in rows]
+
+
 # ── Writes (admin) ─────────────────────────────────────────────────────────────
 
 def create_video(payload: dict) -> dict:
