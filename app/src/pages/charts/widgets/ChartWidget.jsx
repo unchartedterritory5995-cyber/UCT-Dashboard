@@ -157,6 +157,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
              margins so candles fill ~85% of the pane. Scoped here so popups /
              Model Book / Journal charts are unaffected. */
           boldCandles
+          colorByNetChange
           ema9MatchCandle
           markVolumeExtremes
           volumeMa={50}

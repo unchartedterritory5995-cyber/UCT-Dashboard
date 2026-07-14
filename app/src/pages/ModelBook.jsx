@@ -1363,7 +1363,6 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
             exactDateRange
             forceLogScale
             boldCandles
-            colorByNetChange
             hideLastValue
             showVolume
             volumeSeparatePane

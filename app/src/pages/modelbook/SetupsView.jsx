@@ -768,7 +768,6 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           hideLegend={!annotating}
           forceScaleMode={ex.scale_mode === 'log' ? 'log' : 'arith'}
           boldCandles
-          colorByNetChange
           hideLastValue
           showVolume
           volumeSeparatePane

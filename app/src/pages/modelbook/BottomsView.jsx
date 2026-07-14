@@ -242,7 +242,6 @@ function BottomDetail({ bottom, onBack }) {
             hideLastValue
             forceScaleMode="arith"
             boldCandles
-            colorByNetChange
             showVolume
             volumeSeparatePane
             markVolumeExtremes

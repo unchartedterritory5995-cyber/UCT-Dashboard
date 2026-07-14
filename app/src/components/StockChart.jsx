@@ -667,6 +667,7 @@ export default function StockChart({
   forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
   boldCandles = false,      // bold solid green/red candles (Model Book look)
+  colorByNetChange = false, // color candles by NET CHANGE (close vs previous close, TC2000/StockCharts style) instead of LWC's default close-vs-open
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
@@ -1197,6 +1198,13 @@ export default function StockChart({
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
+  // ── colorByNetChange (TC2000/StockCharts coloring) ── Track the closes needed to
+  // color the DEVELOPING bar on live ticks: netPrevCloseRef = close of the bar BEFORE
+  // the current last bar (the developing bar's reference); lastNetCloseRef/lastNetTimeRef
+  // track the current last bar so a live rollover to a NEW bar re-bases the reference.
+  const netPrevCloseRef = useRef(null)
+  const lastNetCloseRef = useRef(null)
+  const lastNetTimeRef = useRef(null)
   // ── Phase C single-writer invariant (updated each render below the useRealtimeBars
   // call) ── When barsPushActiveRef.current is true, the Massive push writer is the SOLE
   // developing-bar writer; the Finnhub-fed writers early-return. A ref so writers read the
@@ -3404,6 +3412,58 @@ export default function StockChart({
         const _priceFormat = priceFormat ? { priceFormat } : {}
         priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue, ..._bold, ..._priceFormat })
       } catch { /* older LWC */ }
+
+      // ── colorByNetChange ── Color each candle by close-vs-PREVIOUS-close (TC2000 /
+      // StockCharts style) instead of LWC's built-in close-vs-open. LWC only auto-colors
+      // by open/close at the series level, so net-change coloring requires a per-bar
+      // color/borderColor/wickColor override on the DATA. Rather than touch the ~20
+      // developing-bar writer sites, we wrap the series' setData/update ONCE here so every
+      // write path (historical setData, gold setup/catalyst highlight, live ticks) is
+      // colored consistently. Gated on the prop → only opted-in charts are affected; the
+      // gold-highlight override is preserved (bars that already carry an explicit color
+      // are left untouched). Candles + OHLC bars only (line/area/hollow have no net-change
+      // notion). Same up/down palette the series itself uses so it looks identical apart
+      // from the coloring rule.
+      if (colorByNetChange && (cs.chartType === 'candles' || cs.chartType === 'bars') && !priceSeries.__uctNetWrap) {
+        const _netUp = boldCandles ? MB_UP : (modelBookLook ? BOLD_UP : cs.candles.upColor)
+        const _netDown = boldCandles ? MB_DOWN : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
+        const _paintNet = (bar, prevClose) => {
+          if (!bar || bar.close == null || prevClose == null) return bar
+          if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
+          const c = bar.close >= prevClose ? _netUp : _netDown
+          return { ...bar, color: c, borderColor: c, wickColor: c }
+        }
+        const _realSet = priceSeries.setData.bind(priceSeries)
+        const _realUpd = priceSeries.update.bind(priceSeries)
+        priceSeries.setData = (data) => {
+          if (!Array.isArray(data)) return _realSet(data)
+          let prev = null, lastPrev = null
+          const painted = data.map((b) => {
+            if (b && b.close != null) {
+              lastPrev = prev
+              const out = _paintNet(b, prev)
+              prev = b.close
+              return out
+            }
+            return b
+          })
+          // Refs the update() wrap reads for the developing bar: prev-of-last & the last bar.
+          netPrevCloseRef.current = lastPrev
+          lastNetCloseRef.current = prev
+          lastNetTimeRef.current = painted.length ? data[data.length - 1]?.time : null
+          return _realSet(painted)
+        }
+        priceSeries.update = (bar) => {
+          if (!bar || bar.close == null) return _realUpd(bar)
+          const isNewBar = lastNetTimeRef.current != null && bar.time > lastNetTimeRef.current
+          const prevClose = isNewBar ? lastNetCloseRef.current : netPrevCloseRef.current
+          const out = _paintNet(bar, prevClose)
+          if (isNewBar) { netPrevCloseRef.current = lastNetCloseRef.current; lastNetTimeRef.current = bar.time }
+          lastNetCloseRef.current = bar.close
+          return _realUpd(out)
+        }
+        priceSeries.__uctNetWrap = true
+      }
       prevChartTypeRef.current = cs.chartType
     }
 
