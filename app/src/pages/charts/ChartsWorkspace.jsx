@@ -32,7 +32,7 @@ const WIDGET_DEFAULTS = {
   watchlist: { w: 3, h: 10, minW: 2, minH: 4 },
   themes:    { w: 3, h: 10, minW: 2, minH: 4 },
   scanner:   { w: 4, h: 10, minW: 3, minH: 4 },
-  fundamentals: { w: 4, h: 10, minW: 3, minH: 5 },
+  fundamentals: { w: 4, h: 6, minW: 3, minH: 2 },
 }
 
 function parseLayout(raw) {

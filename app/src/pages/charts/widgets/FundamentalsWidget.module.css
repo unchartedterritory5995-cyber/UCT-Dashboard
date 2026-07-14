@@ -86,11 +86,12 @@
 .estRow td { color: var(--text-muted); }
 .estRow .left { color: var(--ut-gold); font-weight: 600; }
 
-.pos { color: var(--ut-green-bright); }
-.neg { color: var(--ut-red-bright); }
+/* Match the chart's candle colors (MB_UP / MB_DOWN) exactly. */
+.pos { color: #1ae51a; }
+.neg { color: #c41f2d; }
 .rev { font-size: 8px; margin-left: 3px; vertical-align: middle; }
-.revUp { color: var(--ut-green-bright); }
-.revDown { color: var(--ut-red-bright); }
+.revUp { color: #1ae51a; }
+.revDown { color: #c41f2d; }
 
 /* ── Quarterly strip — compact 3-line cards, single wide row ──── */
 .qStrip { display: flex; gap: 5px; flex-wrap: wrap; }
@@ -109,23 +110,23 @@
 }
 .qLabel {
   font-weight: 700;
-  font-size: var(--text-xs, 10px);
+  font-size: 11px;
   letter-spacing: 0.3px;
   color: var(--text-heading);
 }
-.qDate { color: var(--ut-gold); font-size: 9px; font-variant-numeric: tabular-nums; }
+.qDate { color: var(--ut-gold); font-size: 10px; font-variant-numeric: tabular-nums; }
 .qRow {
   display: flex; gap: 4px; align-items: baseline;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   color: var(--text-bright);
-  font-size: var(--text-xs, 10px);
+  font-size: 11px;
 }
 .qRow .muted { color: var(--text-muted); }
 /* Fixed-width metric prefix so EPS/Rev values align vertically within a card. */
-.qRow > .muted:first-child { min-width: 22px; }
+.qRow > .muted:first-child { min-width: 24px; }
 .slash, .est { color: var(--text-muted); }
-.est { font-size: 9px; }
+.est { font-size: 10px; }
 
 /* Container-query collapse: hide the oldest quarter blocks as the WIDGET narrows
    (root is inside .widgetBody which is container-type: inline-size). */
