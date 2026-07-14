@@ -116,3 +116,4 @@ Not planned in detail here by design — it's Ravi's area and concept approval c
 ## Status Log
 
 - 2026-07-13 ~10:00 PM ET: Plan written; decision list posted to Ravi (@manrav) via #system-alerts webhook. Awaiting verdicts.
+- 2026-07-13 ~10:20 PM ET: **ON HOLD — Ravi is aware and wants to hold off on the changes.** Do NOT apply any floor changes. Plan kept for future revisit; when picked back up, re-verify current `etf_premium_floors` values and re-measure the qualifying-print counts (Background section) before re-proposing — the tape mix drifts.
