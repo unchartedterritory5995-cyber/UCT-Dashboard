@@ -25,6 +25,7 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { computePaneMargins } from './chart/paneMargins'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import useRealtimeBarPrices from '../hooks/useRealtimeBarPrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
@@ -2012,7 +2013,20 @@ export default function StockChart({
   const showFatalError = !!error && !bars?.length
 
   // Real-time price streaming for live candle updates
-  const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
+  const { prices: _rawLivePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
+  // Massive bars-WS 1-min tick — the SAME fast/reliable feed the theme tracker
+  // and the intraday push use. Overlay it as the live price so the developing
+  // candle AND the legend tick by tick even on D/W/M, where the Massive
+  // bar-push is NOT the developing-bar writer and the Finnhub feed can sit
+  // stale for minutes. Shadowing `livePrices` means every downstream consumer
+  // (writer A, the legend, livePricesRef) reads the fast tick with no rename.
+  const _barTick = useRealtimeBarPrices(liveUpdates && sym ? [sym] : [])
+  const livePrices = useMemo(() => {
+    const bt = _barTick[sym]?.price
+    if (bt == null) return _rawLivePrices
+    const base = _rawLivePrices[sym]
+    return { ..._rawLivePrices, [sym]: { ...base, price: bt } }
+  }, [_rawLivePrices, _barTick, sym])
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
   const feed = streamStatus({ isStreaming, isStale })
 
@@ -5505,13 +5519,16 @@ export default function StockChart({
     }
   }, [chartReady])
 
-  // Keep the off-chart legend fresh with the latest bar when the cursor isn't hovering.
+  // Keep the off-chart legend fresh with the latest bar when the cursor isn't
+  // hovering. `livePrices` is in the deps so the legend's price / $ change / %
+  // change recompute on EVERY live tick (matching the candle + theme tracker),
+  // not just when the bar series re-merges.
   useEffect(() => {
     if (!alwaysShowLegend || !chartReady) return
     if (legendHoveringRef.current) return
     setCrosshairData(computeLatestCrosshair())
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alwaysShowLegend, chartReady, ohlcData, overlayData])
+  }, [alwaysShowLegend, chartReady, ohlcData, overlayData, livePrices])
 
   // ── Multi-chart sync: report visible time-range changes to parent (Task 5 Step 3) ──
   // No-op when onTimeRangeChange is absent. Uses Lightweight Charts'
