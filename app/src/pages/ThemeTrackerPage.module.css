@@ -294,6 +294,15 @@
   transition: background 0.1s;
 }
 
+/* Wrap the bullet + ticker in ONE grid cell (col 1) so the return stays in
+   col 2 — mirrors .groupName. Without this each span becomes its own grid
+   item and the layout breaks (dot/ticker/% land in different cells/rows). */
+.stockLabel {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 /* Leading bullet — occupies the same box as .groupCaret so the ticker text
    starts at the exact same x as the theme title text above it */
 .stockDot {
