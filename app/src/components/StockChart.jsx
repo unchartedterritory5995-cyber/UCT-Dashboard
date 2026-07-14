@@ -1247,8 +1247,13 @@ export default function StockChart({
     if (lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) c = lp.price
     let vol = last.v
     if ((!vol || vol === 0) && lp?.volume) vol = lp.volume
-    const change = c - o
-    const changePct = o ? (change / o) * 100 : 0
+    // Daily/period change is close-vs-PREVIOUS-close (the real % move), NOT
+    // close-minus-open. For the live bar, `c` is the live price and the prior
+    // bar's close is yesterday's close, so this stays accurate to the second.
+    const prevBar = bars.length >= 2 ? bars[bars.length - 2] : null
+    const prevClose = prevBar && prevBar.c != null ? prevBar.c : null
+    const change = prevClose != null ? c - prevClose : c - o
+    const changePct = (prevClose != null && prevClose) ? (change / prevClose) * 100 : (o ? (change / o) * 100 : 0)
     const ovData = overlayDataRef.current || []
     const rovs = resolvedOverlaysRef.current || []
     const overlays = rovs.map((ov, i) => {
@@ -2019,8 +2024,16 @@ export default function StockChart({
     }
     if (live && Number.isFinite(live.change_pct)) {
       lastChangePctRef.current = live.change_pct
-    } else if (lastBarRef.current && Number.isFinite(lastBarRef.current.open) && Number.isFinite(lastBarRef.current.close) && lastBarRef.current.open) {
-      lastChangePctRef.current = ((lastBarRef.current.close - lastBarRef.current.open) / lastBarRef.current.open) * 100
+    } else if (lastBarRef.current && Number.isFinite(lastBarRef.current.close)) {
+      // Fallback with no live feed: change vs PREVIOUS bar's close (true daily
+      // move), not intra-bar close-minus-open.
+      const _bars = prevBarsRef.current
+      const _prev = _bars && _bars.length >= 2 ? _bars[_bars.length - 2] : null
+      if (_prev && Number.isFinite(_prev.c) && _prev.c) {
+        lastChangePctRef.current = ((lastBarRef.current.close - _prev.c) / _prev.c) * 100
+      } else if (Number.isFinite(lastBarRef.current.open) && lastBarRef.current.open) {
+        lastChangePctRef.current = ((lastBarRef.current.close - lastBarRef.current.open) / lastBarRef.current.open) * 100
+      }
     }
   }, [livePrices, sym])
 
@@ -2467,11 +2480,11 @@ export default function StockChart({
   }, [markVolumeExtremes, filteredBars, entryDate, exitDate])
   const volData = useMemo(() => {
     if (!filteredBars?.length) return []
-    // Model Book volume tracks the TC2000 candle palette (vivid green / deep red)
-    // at a dimmed opacity so dense bars don't overpower the thin candles; the
-    // intraday popup keeps the base bold hue.
-    const upC = boldCandles ? 'rgba(26,229,26,0.82)' : modelBookLook ? 'rgba(33,196,92,0.82)' : cs.volume.upColor
-    const downC = boldCandles ? 'rgba(196,31,45,0.82)' : modelBookLook ? 'rgba(242,54,69,0.82)' : cs.volume.downColor
+    // Volume bars track the candle palette EXACTLY so the red/green of the
+    // volume pane matches the red/green of the candles above it (a dimmed alpha
+    // composites darker over the near-black canvas and reads as a mismatched hue).
+    const upC = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+    const downC = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
     const gold = '#e6b800'
     return filteredBars.map(b => ({
       time: adjustTime(b.t),
@@ -5357,8 +5370,17 @@ export default function StockChart({
       const h = priceData.high ?? priceData.value
       const l = priceData.low ?? priceData.value
       const c = priceData.close ?? priceData.value
-      const change = c - o
-      const changePct = o ? ((change / o) * 100) : 0
+      // Change is vs the PREVIOUS bar's close (true daily/period % move), not
+      // this bar's open. Pull the prior bar straight from the rendered series.
+      let prevClose = null
+      if (param.logical != null && candleSeriesRef.current) {
+        try {
+          const pb = candleSeriesRef.current.dataByIndex(param.logical - 1)
+          if (pb) prevClose = pb.close ?? pb.value ?? null
+        } catch { /* first bar / out of range */ }
+      }
+      const change = (prevClose != null) ? (c - prevClose) : (c - o)
+      const changePct = (prevClose != null && prevClose) ? ((change / prevClose) * 100) : (o ? ((change / o) * 100) : 0)
 
       let rsiValue = null
       if (rsiSeriesRef.current) {
@@ -6201,10 +6223,14 @@ export default function StockChart({
             candleSeriesRef.current.update({ time: tSec, value: candle.c })
           }
           if (volumeSeriesRef.current) {
+            // match the candle palette (same derivation as volData) so the
+            // developing bar's volume color matches the historical bars
+            const _vUp = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             volumeSeriesRef.current.update({
               time: tSec,
               value: candle.v || 0,
-              color: candle.c >= candle.o ? cs.volume.upColor : cs.volume.downColor,
+              color: candle.c >= candle.o ? _vUp : _vDown,
             })
           }
           // Sync trackers so REST path stays consistent
