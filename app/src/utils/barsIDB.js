@@ -31,7 +31,15 @@ const STORE      = 'bars'
 // from the now-correct server data. Without this, users keep seeing the
 // "noon cutoff" symptom in their browser indefinitely even after the
 // backend is fixed.
-const CACHE_LOGIC_VERSION = 4
+//
+// Bumped to 5 on 2026-07-14: the intraday gap-fill fixes (delta gap-fill +
+// on-demand deep-fill) completed the SERVER's stored history, but browsers
+// hold pre-fix IDB caches with interior HOLES, and the `since=` delta refresh
+// only ADDS newer bars — it never backfills an old missing interior bar (e.g.
+// NVDA 30m 07-08 14:30). So every browser kept showing the gap even though the
+// server now has the bar. This bump invalidates those stale caches → one clean
+// full refetch → complete data.
+const CACHE_LOGIC_VERSION = 5
 
 // Max age by SAVE time — secondary bound only. The PRIMARY intraday
 // guard is bar-data freshness (newest bar age), checked in idbGet:
