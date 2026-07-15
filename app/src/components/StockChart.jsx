@@ -1338,6 +1338,7 @@ export default function StockChart({
   // 5th writer-ownership condition alongside barsPushActive. Writers A + D read
   // this ref to yield the D/W/M last bar to the memo-driven setData.
   const sessionOwnsDailyRef = useRef(false)
+  const sessionViewRef = useRef(sessionView)  // latest sessionView, read by live-tick writers
 
   // ── Extended hours (single toggle: pre/post shading AND price data) ──
   // Driven by the ONE `extendedHoursShading` chart setting (labeled "Extended
@@ -2278,7 +2279,8 @@ export default function StockChart({
   // callbacks only fire on a later live tick, so the ref is always current by then.
   useEffect(() => {
     sessionOwnsDailyRef.current = sessionCandleActive || sessionFreezeActive
-  }, [sessionCandleActive, sessionFreezeActive])
+    sessionViewRef.current = sessionView
+  }, [sessionCandleActive, sessionFreezeActive, sessionView])
   // Today's extended-hours aggregate (only fetched while the preview candle is on).
   const sessionExtAgg = useSessionExtBars(sym, sessionCandleActive ? marketSession : null, sessionCandleActive)
 
@@ -3118,13 +3120,22 @@ export default function StockChart({
     // no updated_at) — last.close ≈ prev_close proves a new session is underway.
     const _pc = Number.isFinite(liveData.prev_close) && liveData.prev_close > 0 ? liveData.prev_close : null
     latestLiveRef.current = { sym, price: _p, updated_at: liveData.updated_at,
-      day_open: _do, day_high: _dh, day_low: _dl, prev_close: _pc }
+      day_open: _do, day_high: _dh, day_low: _dl, prev_close: _pc,
+      ext_session: !!liveData.ext_session }
     if (!candleSeriesRef.current || !lastBarRef.current) return
-    // Writer A yields the D/W/M developing bar to the session-preview memo path
-    // while it owns the bar (pre/post-market preview candle or frozen-at-4pm
-    // regular candle). latestLiveRef stays updated above; only the candle write
-    // is skipped so the two paths can't fight over the last bar's close/high/low.
-    if (sessionOwnsDailyRef.current && ['D', 'W', 'M'].includes(resolvedTf)) return
+    if (['D', 'W', 'M'].includes(resolvedTf)) {
+      // Writer A yields the D/W/M developing bar to the session-preview memo path
+      // while it owns the bar (pre/post-market preview candle or frozen-at-4pm
+      // regular candle). latestLiveRef stays updated above; only the candle write
+      // is skipped so the two paths can't fight over the last bar's close/high/low.
+      if (sessionOwnsDailyRef.current) return
+      // Regular Hours mode: NEVER fold an extended-hours print into the daily
+      // candle — even in the up-to-60s window after 4pm before useMarketOpen flips
+      // isExtended (sessionFreezeActive gates off that laggy clock). ext_session is
+      // a per-tick truth from the feed, and _effLivePrice already returned the ext
+      // price into _p, so without this the post price seams the RTH candle.
+      if (sessionViewRef.current === 'regular' && liveData.ext_session) return
+    }
     const price = _p
     const last = lastBarRef.current
     const useOhlc = isOhlcType(cs.chartType)
@@ -3812,6 +3823,7 @@ export default function StockChart({
           sym, price: _cachedPx, updated_at: _cached.updated_at,
           day_open: _cached.day_open, day_high: _cached.day_high,
           day_low: _cached.day_low, prev_close: _cached.prev_close,
+          ext_session: !!_cached.ext_session,
         }
       }
     }
@@ -3843,9 +3855,13 @@ export default function StockChart({
         } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
       }
     } else if (_retopLive?.price && lastBarRef.current
-               && !(sessionOwnsDailyRef.current && ['D', 'W', 'M'].includes(resolvedTf))) {
-      // Skip the D/W/M re-top while session preview owns the bar — the memo-driven
-      // setData above already painted the synthetic/frozen candle correctly.
+               && !(['D', 'W', 'M'].includes(resolvedTf)
+                    && (sessionOwnsDailyRef.current
+                        || (sessionViewRef.current === 'regular' && _retopLive.ext_session)))) {
+      // Skip the D/W/M re-top while session preview owns the bar (the memo-driven
+      // setData above already painted the synthetic/frozen candle) OR when a
+      // Regular-Hours daily chart got an extended-hours print (same lag-independent
+      // guard as Writer A — don't seam post-market onto the RTH candle).
       const lp = _retopLive.price
       const tickSec = _retopLive.updated_at
       const last = lastBarRef.current
