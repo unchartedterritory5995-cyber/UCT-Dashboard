@@ -1214,6 +1214,29 @@ export default function StockChart({
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
+
+  // Keep the plot-centered watermark centered the INSTANT the chart resizes (e.g.
+  // a sibling widget is added and this chart narrows). hardCenterXPx is otherwise
+  // recomputed only when updateChart next runs (on a data poll), leaving the mark
+  // visibly off-center for seconds after a resize. subscribeSizeChange fires on
+  // every time-scale width change.
+  useEffect(() => {
+    if (!chartReady || !centerWatermarkOnPlot) return undefined
+    const chart = chartRef.current
+    if (!chart) return undefined
+    let ts
+    try { ts = chart.timeScale() } catch { return undefined }
+    const onSize = () => {
+      try {
+        const tw = ts.width()
+        if (tw > 0 && wmCtrlRef.current) wmCtrlRef.current.setOptions({ hardCenterXPx: tw / 2 })
+      } catch { /* noop */ }
+    }
+    try { ts.subscribeSizeChange(onSize) } catch { return undefined }
+    onSize()  // sync once on (re)subscribe
+    return () => { try { ts.unsubscribeSizeChange(onSize) } catch { /* noop */ } }
+  }, [chartReady, centerWatermarkOnPlot])
+
   const indexPaneSeriesRef = useRef(null) // LineSeries for the index-comparison pane (Model Book ^IXIC)
   const indexMaSeriesRef = useRef(null)   // 50-period SMA line drawn on the index pane (matches the price chart's 50 SMA color)
   const indexScaleRef = useRef({ range: null, pin: false })  // fixed price range for the index pane's autoscaleInfoProvider (pins it steady across ticker switches; pin=false in Percent mode)
