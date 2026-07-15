@@ -118,12 +118,13 @@ describe('computeSessionTagLines', () => {
     { t: TODAY, o: 9, h: 9.5, l: 8.8, c: 9.4, v: 1 },
   ]
   const colors = { upColor: '#0f0', downColor: '#f00', extColor: '#f5a623' }
-  it('green tag locked at the last RTH close, colored by day direction', () => {
+  it('RTH close tag locked at the last close, colored by day direction, label-only (no line)', () => {
     const lines = computeSessionTagLines({ rthBars: rth, session: 'post', extPrice: 9.7, ...colors })
     const rthTag = lines.find(l => l._sessionTag === 'rth')
     expect(rthTag.price).toBe(9.4)
     expect(rthTag.color).toBe('#0f0')   // 9.4 >= 9.0 → up
-    expect(rthTag.lineVisible).toBe(true)
+    expect(rthTag.axisLabelVisible).toBe(true)  // keep the price label
+    expect(rthTag.lineVisible).toBe(false)      // but no dashed line across the plot
   })
   it('down day colors the RTH tag with the down color', () => {
     const down = [{ t: '2026-06-12', o: 8, h: 10, l: 8, c: 9.5, v: 1 }, { t: TODAY, o: 9, h: 9.5, l: 8, c: 9.0, v: 1 }]

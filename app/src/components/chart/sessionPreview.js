@@ -135,9 +135,9 @@ export function computeSessionTagLines({ rthBars, session, extPrice, upColor, do
       price: rthClose,
       color: up ? upColor : downColor,
       lineWidth: 1,
-      lineStyle: 2,          // dashed — the classic previous-close line
+      lineStyle: 2,
       axisLabelVisible: true,
-      lineVisible: true,
+      lineVisible: false,    // chip only — show the close PRICE LABEL, no line across the plot
       title: '',
       _sessionTag: 'rth',
     })
