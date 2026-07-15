@@ -846,6 +846,7 @@ export default function StockChart({
   // pre/post-market daily candle + the locked-close / Pre-Post price tags. Only
   // meaningful on D/W/M — inert on intraday.
   sessionView = null,
+  hideExtHoursToolbarToggle = false,  // charts workspace moves the intraday EXT/RTH toggle into the widget header, so hide the toolbar one
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -7253,8 +7254,8 @@ export default function StockChart({
             setMagnet={setMagnet}
             chartSettings={cs}
             onUpdateSettings={handleUpdateChartSettings}
-            showExtended={isIntraday ? showExtended : null}
-            onToggleExtended={isIntraday ? handleToggleExtended : null}
+            showExtended={isIntraday && !hideExtHoursToolbarToggle ? showExtended : null}
+            onToggleExtended={isIntraday && !hideExtHoursToolbarToggle ? handleToggleExtended : null}
             onScreenshot={() => setScreenshotPopoverOpen(true)}
             onShowHelp={() => setHelpOpen(true)}
             tf={resolvedTf}

@@ -7,6 +7,8 @@ import { useWorkspace } from '../WorkspaceContext'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
+import usePreferences from '../../../hooks/usePreferences'
+import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import ChartDayGain from './ChartDayGain'
 import styles from '../ChartsWorkspace.module.css'
 
@@ -79,6 +81,20 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const isDWMtf = ['D', 'W', 'M'].includes(tf)
   const extEnabled = mkt.isPremarket || mkt.isExtended
   const extLabel = mkt.isExtended ? 'Include post-market' : 'Include pre-market'
+
+  // ── Intraday extended-hours toggle ("Regular Hours" / "Extended Hours") ──
+  // On intraday timeframes the D/W/M session toggle above is hidden; this pair
+  // replaces the old chart-toolbar EXT/RTH button, moved up here beside the clock.
+  // Backed by the shared `extendedHoursShading` chart setting (StockChart reads
+  // the same pref, so they stay in lockstep). ON = pre/post bars show; OFF =
+  // regular session only (9:30–4:00 ET) with overnight gaps.
+  const { prefs, setPref } = usePreferences()
+  const chartCs = mergeChartSettings(prefs.chart_settings)
+  const extHoursOn = chartCs.extendedHoursShading ?? true
+  const setExtHours = useCallback((on) => {
+    const next = { ...mergeChartSettings(prefs.chart_settings), extendedHoursShading: on, preset: 'custom' }
+    setPref('chart_settings', JSON.stringify(next))
+  }, [prefs.chart_settings, setPref])
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
@@ -172,6 +188,22 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
               >{extLabel}</button>
             </div>
           )}
+          {!isDWMtf && (
+            <div className={styles.sessionToggle} role="group" aria-label="Chart extended hours">
+              <button
+                type="button"
+                className={`${styles.sessionBtn} ${!extHoursOn ? styles.sessionBtnActive : ''}`}
+                onClick={() => setExtHours(false)}
+                title="Regular session only (9:30–4:00 ET), overnight gaps"
+              >Regular Hours</button>
+              <button
+                type="button"
+                className={`${styles.sessionBtn} ${extHoursOn ? styles.sessionBtnActive : ''}`}
+                onClick={() => setExtHours(true)}
+                title="Include pre-market + post-market bars"
+              >Extended Hours</button>
+            </div>
+          )}
           <ChartMarketClock />
           <ShareToFloor card={{ kind: 'chart', ticker: sym, tf }} compact />
         </div>
@@ -190,6 +222,9 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           onTfChange={setTf}
           onCrosshairMove={reportCrosshair}
           externalCrosshair={externalCrosshair}
+          /* The intraday EXT/RTH toggle now lives in the widget header (beside the
+             clock), so suppress the duplicate button in the chart toolbar. */
+          hideExtHoursToolbarToggle
           /* Charts-workspace default look = the Model Book "Throughout the
              Years" main chart, 1:1. boldCandles brings the crisp bold vivid
              palette (MB_UP/MB_DOWN solid bodies + deep #0e0f0d canvas), thin
