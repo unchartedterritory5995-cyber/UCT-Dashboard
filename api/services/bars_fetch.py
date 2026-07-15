@@ -987,19 +987,67 @@ def _session_resample_hourly(bars_src: list[dict]) -> list[dict]:
 # reconciliation worker + one-time heal. Env-tunable.
 _DELTA_HEAL_WINDOW_SECONDS = int(_os.environ.get("BARS_DELTA_HEAL_WINDOW_SECONDS", str(8 * 3600)))
 
+# Gap-fill lookback (days). The trailing heal window above only RE-WRITES recent
+# bars; it never restores an interior bar that was NEVER stored (first fetched
+# mid-session, or dropped) once that hole ages past the heal window — such holes
+# froze permanently (verified 2026-07-14: QQQ 30m 07-08 14:30 present at Massive
+# but absent from SQLite; the delta re-fetched it but the `>= heal_floor` filter
+# discarded it). Gap-fill diffs the freshly-fetched window against what's stored
+# and emits, IN ADDITION to the trailing window, any bar Massive returns that we
+# don't have. It CANNOT fabricate: a bar Massive omits (e.g. a no-trade minute)
+# is simply never added, so there are no false positives. Surgical — on already-
+# complete data nothing extra is written, so it cannot worsen write-lock
+# contention. Per-TF caps bound the extra fetch span (1m is heavy + rarely viewed
+# deep; coarse TFs are cheap to scan a fortnight of). Env-tunable.
+_DELTA_GAPFILL_DAYS = int(_os.environ.get("BARS_DELTA_GAPFILL_DAYS", "14"))
+# Per-TF fetch-span cap. The coarse TFs (15/30/60) are where Massive's aggregate
+# dropped bars AND are cheap to re-scan a fortnight of (≤~900 bars); the fine TFs
+# (1/5) were already ~99% complete and are expensive to re-scan every poll, so
+# keep their gap-fill window short (they still heal via the trailing window +
+# their own coarse-TF companions). 60m fetches 15m, so it tracks the 15m span.
+_GAPFILL_CAP_BY_TF = {"1": 2, "5": 5, "15": 14, "30": 14, "60": 14}
+
+
+def _delta_keep_bar(ts: int, heal_floor: int, stored_ts: "set | None") -> bool:
+    """A re-fetched intraday bar is kept if it's inside the trailing re-aggregation
+    window (heal recent partials) OR it is missing from storage (restore a hole).
+    `stored_ts is None` disables gap-fill (kill-switch) → exact pre-2026-07-14
+    trailing-only behaviour. Pure + module-level so it's unit-testable."""
+    if stored_ts is None:
+        return ts >= heal_floor
+    return ts >= heal_floor or ts not in stored_ts
+
 
 def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
-    """Fetch intraday bars within a trailing heal window of last_ts (unix sec).
+    """Fetch intraday bars within a trailing heal window of last_ts (unix sec),
+    PLUS gap-fill any interior bar missing from storage.
 
     NOT a strict delta: re-aggregates the last _DELTA_HEAL_WINDOW_SECONDS so
-    interior partial bars get corrected (INSERT OR REPLACE), not just the
-    newest one. See _DELTA_HEAL_WINDOW_SECONDS for the full rationale."""
+    interior partial bars get corrected (INSERT OR REPLACE), not just the newest
+    one, AND restores holes anywhere in the (bounded) gap-fill window that were
+    never stored. See _DELTA_HEAL_WINDOW_SECONDS / _DELTA_GAPFILL_DAYS."""
     gap_days = max(2, int((_time.time() - last_ts) / 86400) + 2)
+    gapfill_on = _DELTA_GAPFILL_DAYS > 0 and last_ts  # cold (last_ts==0) never gap-fills
+    if gapfill_on:
+        # Widen the fetched window to the gap-fill reach so interior holes older
+        # than the trailing heal window still get restored (bounded per-TF).
+        gap_days = max(gap_days, min(_DELTA_GAPFILL_DAYS, _GAPFILL_CAP_BY_TF.get(tf, 14)))
     # Floor below which we don't bother re-emitting (already-final history).
     # last_ts==0 (cold) → floor 0 → return everything fetched (full populate).
     heal_floor = max(0, last_ts - _DELTA_HEAL_WINDOW_SECONDS) if last_ts else 0
     from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # Timestamps already stored in (roughly) the fetched window. A re-fetched bar
+    # NOT in this set is a genuine hole to restore. One indexed, lock-free read.
+    # None = gap-fill disabled (kill-switch or cold) → trailing-only behaviour.
+    stored_ts: "set | None" = None
+    if gapfill_on:
+        _window_start = int(_time.time()) - gap_days * 86400 - 86400
+        try:
+            stored_ts = {int(r[0]) for r in _sqlite.get_bars_since(ticker, tf, _window_start)}
+        except Exception:  # noqa: BLE001 — a read failure just disables gap-fill this cycle
+            stored_ts = None
 
     # 60-min: fetch 15-min delta and resample to session-aligned hourly. 15m (not
     # 30m) because Massive's native 30-min aggregate intermittently drops interior
@@ -1027,7 +1075,8 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
             # "stored partial in-progress bar" bug where a chart loaded mid-hour
             # froze the bucket at half-bar values that the prior > filter could
             # never update (Step 4).
-            return [b for b in _session_resample_hourly(bars_src) if b["t"] >= heal_floor]
+            return [b for b in _session_resample_hourly(bars_src)
+                    if _delta_keep_bar(b["t"], heal_floor, stored_ts)]
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(
@@ -1055,7 +1104,9 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
             # WS still wins on display via the per-minute AM broadcaster;
             # REST's update only changes the persisted SQLite row, which
             # bar_broadcaster doesn't compete on for in-progress data.
-            if ts >= heal_floor:
+            # `_delta_keep_bar` also restores interior holes (missing from
+            # stored_ts) anywhere in the fetched window, not just the tail.
+            if _delta_keep_bar(ts, heal_floor, stored_ts):
                 new.append({
                     "t": ts,
                     "o": round(bar["o"], 2), "h": round(bar["h"], 2),
