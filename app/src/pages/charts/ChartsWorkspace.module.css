@@ -436,6 +436,46 @@
 }
 .menuErr { font-size: 10px; color: var(--danger, #f87171); }
 
+/* ── Get-started panel (empty workspace) ── */
+.getStarted {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; pointer-events: none;
+}
+.gsCard {
+  pointer-events: auto;
+  background: var(--bg-elevated, #0d1218);
+  border: 1px solid var(--border, #1f2937);
+  border-radius: 10px;
+  padding: 30px 34px; max-width: 560px; width: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.5);
+}
+.gsCard > :global(svg) { color: var(--accent, #c9a84c); opacity: 0.9; }
+.gsTitle {
+  font-size: 18px; font-weight: 600; letter-spacing: 0.3px;
+  color: var(--text, #e5e7eb); margin: 10px 0 4px; text-align: center;
+}
+.gsSub {
+  font-size: 12px; line-height: 1.5; color: var(--text-muted, #9ca3af);
+  margin: 0; text-align: center; max-width: 420px;
+}
+.gsSectionLabel {
+  align-self: flex-start; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1.2px; color: var(--accent, #c9a84c); margin: 20px 0 9px;
+}
+.gsBtnRow { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.gsChip {
+  background: var(--bg, #0b0f14); border: 1px solid var(--border, #1f2937);
+  color: var(--text, #e5e7eb); border-radius: 6px; padding: 8px 15px;
+  font-size: 12px; cursor: pointer; font-family: inherit;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+.gsChip:hover {
+  border-color: var(--accent, #c9a84c); color: var(--accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.06);
+}
+
 .workspaceBody {
   flex: 1; min-height: 0; min-width: 0;
   overflow: hidden;  /* viewport-locked — widgets stay within visible area */

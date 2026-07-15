@@ -25,7 +25,16 @@ const FIXED_ROWS = 20            // workspace is viewport-locked to this many ro
 const MARGIN_Y = 6                // px gap between widgets vertically
 const BODY_PAD = 6                // px padding around the grid (matches .workspaceBody)
 
+// New users (and Reset) land on an EMPTY workspace + the "get started" panel.
+// Their most recent arrangement is persisted and restored on every later visit.
 const DEFAULT_LAYOUT = {
+  widgets: [],
+  cols: GRID_COLS,
+}
+
+// The classic watchlist + chart + themes arrangement, offered as a one-click
+// "Starter layout" on the get-started panel.
+const STARTER_LAYOUT = {
   widgets: [
     { id: 'w-watchlist', type: 'watchlist', color: 'A', x: 0, y: 0, w: 4,  h: 7,  opts: {} },
     { id: 'w-chart',     type: 'chart',     color: 'A', x: 4, y: 0, w: 20, h: 20, opts: { tf: 'D' } },
@@ -43,6 +52,15 @@ const WIDGET_DEFAULTS = {
   themes:    { w: 6,  h: 10, minW: 2, minH: 4 },
   scanner:   { w: 8,  h: 10, minW: 6, minH: 4 },
   fundamentals: { w: 8, h: 6, minW: 6, minH: 2 },
+}
+
+const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals']
+const WIDGET_LABELS = {
+  chart: 'Chart',
+  watchlist: 'Watchlist',
+  themes: 'Theme Tracker',
+  scanner: 'Scanner',
+  fundamentals: 'Fundamentals',
 }
 
 function parseLayout(raw) {
@@ -124,7 +142,7 @@ function pickWidgetColor(widgets, groupSyms) {
 
 export default function ChartsWorkspace() {
   const isMobile = useMediaQuery('(max-width: 640px)')
-  const { prefs, setPref } = usePreferences()
+  const { prefs, setPref, loading: prefsLoading } = usePreferences()
 
   // Viewport-locked sizing: measure the workspace body and divide its height
   // by FIXED_ROWS so the grid always fills the visible area exactly. The page
@@ -148,6 +166,8 @@ export default function ChartsWorkspace() {
 
   // Layout state — seed from prefs or default.
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
 
   // If prefs arrive AFTER initial render (async fetch), pick them up.
   const loadedFromPrefsRef = useRef(false)
@@ -159,6 +179,16 @@ export default function ChartsWorkspace() {
       loadedFromPrefsRef.current = true
     }
   }, [prefs?.charts_workspace_layout])
+
+  // Hydration gate: not "ready" until the server prefs have settled. This does
+  // TWO things: (1) prevents the empty default layout from being persisted over a
+  // returning user's saved layout before it loads (the "resets to default" bug),
+  // and (2) holds the get-started panel back so a returning user never flashes it.
+  const [hydrated, setHydrated] = useState(false)
+  const hydratedRef = useRef(false)
+  useEffect(() => {
+    if (!prefsLoading && !hydratedRef.current) { hydratedRef.current = true; setHydrated(true) }
+  }, [prefsLoading])
 
   // Color-group state — seed from prefs or empty.
   const [groupSyms, setGroupSymsState] = useState(() => {
@@ -208,6 +238,19 @@ export default function ChartsWorkspace() {
     }, 500)
   }, [setPref])
 
+  // Flush any pending debounced save when leaving the page (SPA nav / unmount) so
+  // the last arrangement is always what loads next time — no dependence on the
+  // 500ms window having elapsed before the user navigates away.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current && hydratedRef.current) {
+        clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = null
+        setPref('charts_workspace_layout', JSON.stringify(layoutRef.current))
+      }
+    }
+  }, [setPref])
+
   // react-grid-layout fires onLayoutChange with the new x/y/w/h array.
   // Merge it back into our widget objects.
   const handleLayoutChange = useCallback((newGridLayout) => {
@@ -219,7 +262,10 @@ export default function ChartsWorkspace() {
         return { ...w, x: l.x, y: l.y, w: l.w, h: l.h }
       })
       const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
-      scheduleSave(next)
+      // Don't persist until prefs have hydrated — RGL fires onLayoutChange on
+      // mount with the (empty) default, which would otherwise clobber a returning
+      // user's saved layout before it loads.
+      if (hydratedRef.current) scheduleSave(next)
       return next
     })
   }, [scheduleSave])
@@ -320,6 +366,11 @@ export default function ChartsWorkspace() {
     flashSaved()
   }, [setPref, flashSaved])
 
+  // Get-started: one-click classic watchlist + chart + themes arrangement.
+  const handleLoadStarter = useCallback(() => {
+    applyTemplate(STARTER_LAYOUT)
+  }, [applyTemplate])
+
   const handleSaveAsTemplate = useCallback(async () => {
     const nm = saveAsName.trim()
     if (!nm) { setSaveErr('Name required'); return }
@@ -377,13 +428,13 @@ export default function ChartsWorkspace() {
             >+ Add Widget</button>
             {addMenuOpen && (
               <div className={styles.addMenu} onMouseLeave={() => setAddMenuOpen(false)}>
-                {['chart', 'watchlist', 'themes', 'scanner', 'fundamentals'].map(t => (
+                {WIDGET_TYPES.map(t => (
                   <button
                     key={t}
                     type="button"
                     className={styles.addMenuItem}
                     onClick={() => { handleAddWidget(t); setAddMenuOpen(false) }}
-                  >{t[0].toUpperCase() + t.slice(1)}</button>
+                  >{WIDGET_LABELS[t]}</button>
                 ))}
               </div>
             )}
@@ -468,6 +519,35 @@ export default function ChartsWorkspace() {
           </button>
         </header>
         <main className={styles.workspaceBody} ref={bodyRef}>
+          {hydrated && layout.widgets.length === 0 && (
+            <div className={styles.getStarted}>
+              <div className={styles.gsCard}>
+                <UIcon name="equity" size={30} />
+                <h2 className={styles.gsTitle}>Build your charts workspace</h2>
+                <p className={styles.gsSub}>Add widgets to design your layout, or open a saved one. It'll be here next time exactly as you leave it.</p>
+
+                <div className={styles.gsSectionLabel}>Add a widget</div>
+                <div className={styles.gsBtnRow}>
+                  {WIDGET_TYPES.map(t => (
+                    <button key={t} type="button" className={styles.gsChip} onClick={() => handleAddWidget(t)}>
+                      {WIDGET_LABELS[t]}
+                    </button>
+                  ))}
+                </div>
+
+                <div className={styles.gsSectionLabel}>Open a layout</div>
+                <div className={styles.gsBtnRow}>
+                  <button type="button" className={styles.gsChip} onClick={handleLoadStarter}>Starter layout</button>
+                  {globalLayouts.map(t => (
+                    <button key={`g${t.id}`} type="button" className={styles.gsChip} onClick={() => applyTemplate(t)}>{t.name}</button>
+                  ))}
+                  {myLayouts.map(t => (
+                    <button key={`m${t.id}`} type="button" className={styles.gsChip} onClick={() => applyTemplate(t)}>{t.name}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           <ResponsiveGridLayout
             className="layout"
             layouts={rglLayouts}
