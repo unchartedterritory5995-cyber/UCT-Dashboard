@@ -1595,10 +1595,13 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
         # Pull MAGENTA + YELLOW always. Also pull WHITE rows above the premium
         # override threshold so they get a chance at promotion in
         # _derive_alert_name. SQL filter avoids loading every WHITE row (huge
-        # volume); we use a conservative absolute floor of $500K which is
-        # below any reasonable premium_override.min_premium setting.
+        # volume). Floor the WHITE pull at premium_override.min_premium: WHITE
+        # rows only promote (surface) at premium >= min_premium — below that
+        # _row_to_alert always drops them, so fetching WHITE 500K-1M was pure
+        # waste (materialized then discarded). Derive from the config so the SQL
+        # floor can't drift from the promotion threshold (was hardcoded 500_000).
         override_cfg = _load_thresholds().get("premium_override", {})
-        override_sql_floor = 500_000  # absolute SQL floor; refined in Python
+        override_sql_floor = int(override_cfg.get("min_premium", 1_000_000))
         # 7/7: source clause is conditional on the etf_enabled admin threshold.
         # When enabled, both 'stocks' and 'indexes' rows flow through so the
         # frontend's Stocks/ETFs toggle can partition them. When disabled
