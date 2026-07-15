@@ -3399,7 +3399,17 @@ export default function StockChart({
       chartRef.current = chart
       setChartReady(true)
     } else {
-      chart.applyOptions(chartOpts)
+      // Re-apply cosmetic/config options on an EXISTING chart, but NOT the
+      // view-scroll options (rightOffset / rightBarStaysOnScroll /
+      // shiftVisibleRangeOnNewBar). Those are set once at creation; re-applying
+      // rightOffset here RE-SCROLLS the chart to the right edge, snapping the
+      // view back whenever the user has panned/zoomed/dragged the price scale
+      // ("chart skips periods / jumps"). Omitting them from the partial
+      // timeScale update leaves LWC's current scroll position untouched. The
+      // zoom-anchoring logic below still sets the visible range explicitly on
+      // sym/tf switches and data-phase swaps.
+      const { rightOffset: _ro, rightBarStaysOnScroll: _rbs, shiftVisibleRangeOnNewBar: _svr, ...tsSafe } = chartOpts.timeScale
+      chart.applyOptions({ ...chartOpts, timeScale: tsSafe })
     }
 
     // ── Symbol watermark (custom v5 pane primitive, behind series) ──
@@ -3450,7 +3460,7 @@ export default function StockChart({
       const shadeOn = !!cs.extendedHoursShading && isIntraday
       sessionShadeRef.current.setOptions({
         enabled: shadeOn,
-        bands: shadeOn ? computeSessionBands(filteredBars) : [],
+        bands: shadeOn ? computeSessionBands(filteredBars, adjustTime) : [],
       })
     }
 
