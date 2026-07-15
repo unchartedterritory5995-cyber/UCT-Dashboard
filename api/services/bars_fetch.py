@@ -83,6 +83,82 @@ _inflight_lock = _threading.Lock()
 _BG_DELTA_MAX = max(2, int(_os.environ.get("BARS_BG_DELTA_MAX", "6")))
 _bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
 
+# On-demand deep gap-fill (2026-07-14). The delta gap-fill (_DELTA_GAPFILL_DAYS)
+# only reaches ~2 weeks back; when a user PANS deeper (months) an interior hole
+# there won't self-heal. This closes that: any intraday chart view kicks a
+# bounded, throttled BACKGROUND job that fetches the viewed depth from Massive,
+# diffs against stored, and INSERTs only the MISSING bars — so whatever range you
+# look at, at any depth, completes itself. Massive is authoritative → can only
+# ADD real bars, never fabricate. Same GIL/write-lock caution as _bg_delta above,
+# so kept DELIBERATELY small (2) AND throttled per (ticker,tf,depth-tier) to at
+# most once per _DEEPFILL_TTL — it fires rarely (only the FIRST view of a depth
+# in a 6h window), unlike the per-poll bg-delta. daemon threads, never the
+# request threadpool. Kill-switch: BARS_DEEPFILL_ENABLED=0.
+_DEEPFILL_ENABLED = _os.environ.get("BARS_DEEPFILL_ENABLED", "1") == "1"
+_DEEPFILL_TTL = int(_os.environ.get("BARS_DEEPFILL_TTL_SECONDS", str(6 * 3600)))
+_DEEPFILL_MAX = max(1, int(_os.environ.get("BARS_DEEPFILL_MAX", "2")))
+_deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
+
+
+def _depth_tier(bars: int) -> int:
+    """Coarse depth bucket for the deep-fill throttle marker, so a shallow view
+    doesn't throttle a later deep pan (each tier verifies independently)."""
+    for cap in (400, 1200, 2500, 5000):
+        if bars <= cap:
+            return cap
+    return 99999
+
+
+def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
+    """Fetch the viewed depth from Massive, diff vs stored, INSERT only the
+    MISSING bars; bust the mem cache if any were filled. Returns the count
+    filled. Synchronous + testable — the background wrapper adds throttle +
+    concurrency bound + the daemon thread. Massive is authoritative, so a bar it
+    omits (real no-trade) is never fabricated."""
+    ticker_up = ticker.upper()
+    raw = _fetch_intraday(ticker_up, tf, bars)
+    fetched = [b for b in (raw or []) if isinstance(b.get("t"), (int, float))]
+    if not fetched or _is_intraday_stale(raw):
+        return 0
+    oldest = min(int(b["t"]) for b in fetched)
+    stored_ts = {int(r[0]) for r in _sqlite.get_bars_since(ticker_up, tf, oldest - 1)}
+    missing = [b for b in fetched if int(b["t"]) not in stored_ts]
+    if missing:
+        _sqlite.put_bars(ticker_up, tf, missing, date_tf=False)
+        cache.delete_prefix(f"bars_{ticker_up}_{tf}_")  # bust stale gappy payloads
+    return len(missing)
+
+
+def _maybe_kick_deepfill(ticker: str, tf: str, bars: int) -> None:
+    """Kick a bounded, throttled, background deep gap-fill of the VIEWED range.
+    See the _DEEPFILL_* block. No-op for non-intraday, when disabled, verified
+    recently (per depth-tier), or at the concurrency cap. Never blocks."""
+    if not _DEEPFILL_ENABLED or tf not in ("1", "5", "15", "30", "60"):
+        return
+    ticker_up = ticker.upper()
+    marker = f"deepfill_{ticker_up}_{tf}_{_depth_tier(bars)}"
+    if cache.get(marker) is not None:
+        return
+    if not _deepfill_sem.acquire(blocking=False):
+        return
+    # Stamp the marker BEFORE spawning so a burst of concurrent views spawns once
+    # (and a failed run still throttles retries for the TTL, not every request).
+    cache.set(marker, 1, ttl=_DEEPFILL_TTL)
+
+    def _run(_t=ticker_up, _tf=tf, _b=bars):
+        import logging as _log
+        _lg = _log.getLogger(__name__)
+        try:
+            n = _deepfill_once(_t, _tf, _b)
+            if n:
+                _lg.info("[deepfill] %s tf=%s depth=%d filled %d missing bars", _t, _tf, _b, n)
+        except Exception as e:  # noqa: BLE001
+            _lg.warning("[deepfill] %s tf=%s failed: %s", _t, _tf, e)
+        finally:
+            _deepfill_sem.release()
+
+    _threading.Thread(target=_run, daemon=True, name=f"deepfill-{ticker_up}-{tf}").start()
+
 # ── Usage-driven intraday hot-set ─────────────────────────────────────────────
 # The prewarmer only refreshes intraday for a static ticker_list[:200].
 # Anything outside that 200 was frozen until a user happened to view it
@@ -1823,6 +1899,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         _mark_serve("yf-only")
         return _yf_only_bars_response(ticker_up, tf, bars)
     _record_intraday_request(ticker_up, tf)
+    # On-demand deep gap-fill of the viewed range (background, throttled, bounded;
+    # fills interior holes at ANY history depth the user pans to). Never blocks.
+    _maybe_kick_deepfill(ticker_up, tf, bars)
     cache_key = f"bars_{ticker_up}_{tf}_{bars}"
     date_tf   = tf in ("D", "W", "M")
 
