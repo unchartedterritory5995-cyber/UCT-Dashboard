@@ -522,22 +522,22 @@ export default function ChartsWorkspace() {
           {hydrated && layout.widgets.length === 0 && (
             <div className={styles.getStarted}>
               <div className={styles.gsCard}>
-                <UIcon name="equity" size={30} />
+                <div className={styles.gsIcon}><UIcon name="equity" size={26} /></div>
                 <h2 className={styles.gsTitle}>Build your charts workspace</h2>
-                <p className={styles.gsSub}>Add widgets to design your layout, or open a saved one. It'll be here next time exactly as you leave it.</p>
+                <p className={styles.gsSub}>Add widgets to design your layout, or open a saved one — it'll be here next time exactly as you leave it.</p>
 
                 <div className={styles.gsSectionLabel}>Add a widget</div>
                 <div className={styles.gsBtnRow}>
                   {WIDGET_TYPES.map(t => (
                     <button key={t} type="button" className={styles.gsChip} onClick={() => handleAddWidget(t)}>
-                      {WIDGET_LABELS[t]}
+                      <span className={styles.gsChipPlus}>+</span>{WIDGET_LABELS[t]}
                     </button>
                   ))}
                 </div>
 
                 <div className={styles.gsSectionLabel}>Open a layout</div>
                 <div className={styles.gsBtnRow}>
-                  <button type="button" className={styles.gsChip} onClick={handleLoadStarter}>Starter layout</button>
+                  <button type="button" className={`${styles.gsChip} ${styles.gsChipStarter}`} onClick={handleLoadStarter}>★ Starter layout</button>
                   {globalLayouts.map(t => (
                     <button key={`g${t.id}`} type="button" className={styles.gsChip} onClick={() => applyTemplate(t)}>{t.name}</button>
                   ))}
