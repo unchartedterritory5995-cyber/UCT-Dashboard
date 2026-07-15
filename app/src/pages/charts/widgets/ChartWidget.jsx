@@ -226,7 +226,9 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           {...(themeIdx.isIndex ? {
             barsOverride: themeIdx.bars,
             barsOverridePending: themeIdx.loading,
-            watermarkName: themeIdx.name || sym.replace(/^\$IDX:/, ''),
+            // Watermark: theme name on top, "<theme> Index" below — not the raw $IDX symbol.
+            watermark: themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            watermarkName: `${themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Index`,
             liveUpdates: false,
           } : {})}
           onSymbolChange={handleSymbolChange}

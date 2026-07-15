@@ -542,8 +542,8 @@ export default function ThemeTrackerPage({ embedded = false }) {
                 tf={indexTf}
                 barsOverride={themeIdx.bars}
                 barsOverridePending={themeIdx.loading}
-                watermarkName={themeIdx.name || selectedName}
-                watermarkSector={themeIdx.sector}
+                watermark={themeIdx.name || selectedName.replace(/ Index$/, '')}
+                watermarkName={`${themeIdx.name || selectedName.replace(/ Index$/, '')} Index`}
                 liveUpdates={false}
                 hidePriceLine
               />
