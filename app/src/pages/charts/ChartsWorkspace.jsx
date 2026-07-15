@@ -30,7 +30,7 @@ const DEFAULT_LAYOUT = {
 const WIDGET_DEFAULTS = {
   chart:     { w: 6, h: 12, minW: 3, minH: 6 },
   watchlist: { w: 3, h: 10, minW: 2, minH: 4 },
-  themes:    { w: 3, h: 10, minW: 2, minH: 4 },
+  themes:    { w: 3, h: 10, minW: 1, minH: 4 },
   scanner:   { w: 4, h: 10, minW: 3, minH: 4 },
   fundamentals: { w: 4, h: 6, minW: 3, minH: 2 },
 }
