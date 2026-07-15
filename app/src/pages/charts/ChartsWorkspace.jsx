@@ -258,6 +258,21 @@ export default function ChartsWorkspace() {
     scheduleSave(DEFAULT_LAYOUT)
   }, [scheduleSave])
 
+  // Explicit "Save layout" — flushes the debounced auto-save and persists the
+  // current arrangement (widgets + color-group tickers) immediately. The auto-save
+  // is debounced 500ms, so a refresh within that window could lose the last change
+  // (the "resets to default on refresh sometimes" report); this guarantees a save.
+  const [savedFlash, setSavedFlash] = useState(false)
+  const savedFlashTimerRef = useRef(null)
+  const handleSaveLayout = useCallback(() => {
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    setPref('charts_workspace_layout', JSON.stringify(layout))
+    setPref('charts_workspace_groups', JSON.stringify(groupSyms))
+    setSavedFlash(true)
+    if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current)
+    savedFlashTimerRef.current = setTimeout(() => setSavedFlash(false), 1600)
+  }, [layout, groupSyms, setPref])
+
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
   if (isMobile) {
@@ -310,6 +325,9 @@ export default function ChartsWorkspace() {
               </div>
             )}
           </div>
+          <button type="button" className={styles.toolbarBtn} onClick={handleSaveLayout}>
+            {savedFlash ? 'Saved ✓' : 'Save layout'}
+          </button>
           <button type="button" className={`${styles.toolbarBtn} ${styles.ghost}`} onClick={handleResetLayout}>
             Reset layout
           </button>

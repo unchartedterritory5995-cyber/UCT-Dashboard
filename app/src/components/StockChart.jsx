@@ -5945,13 +5945,34 @@ export default function StockChart({
       try { chartRef.current.clearCrosshairPosition() } catch {}
     } else {
       try {
-        const priceVal =
+        // Snap the incoming crosshair time to THIS chart's nearest bar so linked
+        // widgets on DIFFERENT timeframes sync correctly: hovering an intraday bar
+        // for a given day moves the daily chart's crosshair to that day's daily
+        // candle (and vice-versa). For same-TF the nearest bar IS the exact bar,
+        // so behavior is unchanged. Times are compared in the adjusted (ET) space
+        // both charts render in. Bars are time-sorted → binary search for nearest.
+        const T = externalCrosshair.time
+        let snapTime = T
+        let priceVal =
           externalCrosshair.price?.close ??
           externalCrosshair.price?.value ??
           (typeof externalCrosshair.price === 'number' ? externalCrosshair.price : 0)
+        const cbars = prevBarsRef.current
+        if (cbars && cbars.length && typeof T === 'number') {
+          let lo = 0, hi = cbars.length - 1
+          while (hi - lo > 1) {
+            const mid = (lo + hi) >> 1
+            if (adjustTime(cbars[mid].t) < T) lo = mid; else hi = mid
+          }
+          const bLo = cbars[lo], bHi = cbars[hi]
+          const nearest =
+            Math.abs(adjustTime(bLo.t) - T) <= Math.abs(adjustTime(bHi.t) - T) ? bLo : bHi
+          snapTime = adjustTime(nearest.t)
+          if (typeof nearest.c === 'number') priceVal = nearest.c
+        }
         chartRef.current.setCrosshairPosition(
           priceVal,
-          externalCrosshair.time,
+          snapTime,
           candleSeriesRef.current,
         )
       } catch {}
