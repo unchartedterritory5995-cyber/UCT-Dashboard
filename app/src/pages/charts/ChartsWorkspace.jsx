@@ -39,7 +39,7 @@ const DEFAULT_LAYOUT = {
 // old cols) is the "in between" the too-thin and the good size.
 const WIDGET_DEFAULTS = {
   chart:     { w: 12, h: 12, minW: 6, minH: 6 },
-  watchlist: { w: 6,  h: 10, minW: 4, minH: 4 },
+  watchlist: { w: 6,  h: 10, minW: 2, minH: 4 },
   themes:    { w: 6,  h: 10, minW: 2, minH: 4 },
   scanner:   { w: 8,  h: 10, minW: 6, minH: 4 },
   fundamentals: { w: 8, h: 6, minW: 6, minH: 2 },
