@@ -3472,6 +3472,13 @@ export default function StockChart({
       },
       rightPriceScale: {
         borderColor: themeColors.borderColor,
+        // Pin a stable minimum width so the axis can't re-flow as the developing
+        // bar's live last-value label re-renders. At fractional display scaling
+        // (e.g. Windows 125/150%) that label's sub-pixel width jitters every price
+        // tick; a floating price-scale width made the whole plot shift left/right
+        // in lockstep with the quotes (the "chart jiggles on every tick" bug).
+        // 76px covers up to ~5-digit prices; the axis simply stops shrinking below it.
+        minimumWidth: 76,
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
