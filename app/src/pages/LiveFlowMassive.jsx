@@ -1330,10 +1330,11 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   );
 }
 
-// ─── DateRail — LIVE pill · prev/next trading day · recent-day chips ·
-//     calendar popover limited to days that actually have flow data.
-//     Replaces the old bare <input type="date"> (which let users pick
-//     weekends/holidays/pre-history days and land on empty tapes).
+// ─── DateRail — LIVE pill + single date button opening a calendar popover
+//     limited to days that actually have flow data.
+//     Redesigned 2026-07-14: was LIVE pill · prev/next arrows · 5 day-chips ·
+//     MORE ▾, which consumed the entire header row. Now two controls; the
+//     calendar carries all day-selection.
 //     Data source: GET /api/flow/dates?source=stocks — the DISTINCT
 //     CreatedDate list from flow.db, i.e. exactly the browsable days. ────────
 const MONTH_NAMES = ["January","February","March","April","May","June",
@@ -1390,28 +1391,6 @@ function DateRail({ targetDate, onDateChange }) {
   const histSet = new Set(hist);
   const isLive = !targetDate;
 
-  // Recent chips: the 5 most recent historical days. If the selected date is
-  // older than the window, it appears as an extra chip so it's always visible.
-  const recent = hist.slice(-5);
-  const chips = (!isLive && !recent.includes(targetDate) && histSet.has(targetDate))
-    ? [targetDate, ...recent] : recent;
-
-  // Step arrows walk the historical list; stepping forward past the newest
-  // historical day returns to LIVE.
-  const idx = isLive ? hist.length : hist.indexOf(targetDate);
-  const stepBack = () => {
-    if (!hist.length) return;
-    if (isLive) { onDateChange(hist[hist.length - 1]); return; }
-    if (idx > 0) onDateChange(hist[idx - 1]);
-  };
-  const stepFwd = () => {
-    if (isLive || idx < 0) return;
-    if (idx >= hist.length - 1) onDateChange(null);
-    else onDateChange(hist[idx + 1]);
-  };
-  const canBack = hist.length > 0 && (isLive || idx > 0);
-  const canFwd = !isLive;
-
   const openCal = () => {
     const base = _mdyToDate(targetDate) || _mdyToDate(hist[hist.length - 1]) || new Date();
     setCalMonth({ y: base.getFullYear(), m: base.getMonth() });
@@ -1434,7 +1413,7 @@ function DateRail({ targetDate, onDateChange }) {
     padding: "3px 8px", cursor: enabled ? "pointer" : "default",
     fontSize: 11, fontFamily: "inherit", lineHeight: 1.5,
     opacity: enabled ? 1 : 0.45,
-  });
+  });  // eslint-disable-line no-unused-vars -- kept for the dates===null fallback path
 
   // Fallback: dates endpoint unavailable → keep the old native input so the
   // page never loses history access.
@@ -1558,7 +1537,10 @@ function DateRail({ targetDate, onDateChange }) {
   }
 
   return (
-    <span ref={railRef} style={{ display: "inline-flex", alignItems: "center", gap: 6, position: "relative", flexWrap: "wrap" }}>
+    <span ref={railRef} style={{ display: "inline-flex", alignItems: "center", gap: 6, position: "relative" }}>
+      {/* Two controls only (redesign 2026-07-14): LIVE pill + a single date
+          button that opens the data-only calendar. Replaces the old
+          arrows + 5 day-chips + MORE rail, which ate the whole header row. */}
       <button
         onClick={() => onDateChange(null)}
         title="Live view — today's tape, streaming"
@@ -1572,42 +1554,20 @@ function DateRail({ targetDate, onDateChange }) {
         ● LIVE
       </button>
 
-      <span style={{ display: "inline-flex", gap: 3 }}>
-        <button onClick={stepBack} disabled={!canBack} style={arrowBtn(canBack)}
-          title="Previous trading day">‹</button>
-        <button onClick={stepFwd} disabled={!canFwd} style={arrowBtn(canFwd)}
-          title={idx >= hist.length - 1 ? "Forward to live" : "Next trading day"}>›</button>
-      </span>
-
-      {chips.map(mdy => {
-        const d = _mdyToDate(mdy);
-        const label = d ? `${DOW_SHORT[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}` : mdy;
-        const active = targetDate === mdy;
-        return (
-          <button key={mdy} onClick={() => onDateChange(active ? null : mdy)}
-            style={chipBtn(active)}
-            title={active ? "Click to return to live" : `View flow for ${mdy}`}>
-            {label}
-          </button>
-        );
-      })}
-
-      <button onClick={openCal} style={{ ...chipBtn(calOpen), color: calOpen ? P.bg : P.dm }}
-        title="Pick any archived day">
-        {selDate && !chips.includes(targetDate)
-          ? `${DOW_SHORT[selDate.getDay()]} ${selDate.getMonth() + 1}/${selDate.getDate()} ▾`
-          : "MORE ▾"}
+      <button
+        onClick={openCal}
+        title="Pick an archived trading day"
+        style={{
+          ...chipBtn(!isLive),
+          color: !isLive ? P.bg : P.dm,
+          borderColor: !isLive ? P.ac : P.bd,
+          fontWeight: !isLive ? 700 : 400,
+        }}
+      >
+        {selDate
+          ? `${DOW_SHORT[selDate.getDay()]} ${selDate.getMonth() + 1}/${selDate.getDate()}/${selDate.getFullYear()} ▾`
+          : "📅 HISTORY ▾"}
       </button>
-
-      {!isLive && (
-        <span style={{
-          color: P.ac, fontSize: 10, fontWeight: 700, letterSpacing: 1,
-          border: `1px solid ${P.ac}44`, borderRadius: 3, padding: "2px 7px",
-          background: `${P.ac}14`,
-        }}>
-          HISTORICAL
-        </span>
-      )}
 
       {calBody}
     </span>
