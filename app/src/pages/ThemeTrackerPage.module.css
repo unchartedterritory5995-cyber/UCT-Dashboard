@@ -338,6 +338,16 @@
   background: var(--bg-hover);
 }
 
+/* "… Index" row = the theme's equal-weight thematic-ETF chart. */
+.indexRow { border-bottom: 1px solid rgba(201, 168, 76, 0.15); }
+.indexRow .sym { color: var(--ut-gold); }
+.indexRow :global(svg) { color: var(--ut-gold); }
+.indexBadge {
+  margin-left: 6px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 1px 5px; border-radius: 3px;
+  background: rgba(201, 168, 76, 0.18); color: var(--ut-gold);
+}
+
 .stockRow.selected {
   background: rgba(201, 168, 76, 0.08);
   border-left: 2px solid var(--ut-gold);

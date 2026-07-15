@@ -8,6 +8,7 @@ import useMarketOpen from '../../../hooks/useMarketOpen'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import usePreferences from '../../../hooks/usePreferences'
+import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import ChartDayGain from './ChartDayGain'
 import styles from '../ChartsWorkspace.module.css'
@@ -66,6 +67,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // Drop any stale external crosshair when this widget's own symbol changes.
   useEffect(() => { setExternalCrosshair(null) }, [sym])
   const tf = opts?.tf || 'D'
+  // Thematic-ETF pseudo-ticker ("$IDX:<slug>"): render the theme's equal-weight
+  // index via barsOverride (D/W/M only). Normal tickers: themeIdx.isIndex=false.
+  const themeIdx = useThemeIndexBars(sym, tf)
+  const indexTf = ['D', 'W', 'M'].includes(tf) ? tf : 'D'
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
     onOptsChange?.({ ...(opts || {}), tf: nextTf })
@@ -217,7 +222,13 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
       >
         <StockChart
           sym={sym}
-          tf={tf}
+          tf={themeIdx.isIndex ? indexTf : tf}
+          {...(themeIdx.isIndex ? {
+            barsOverride: themeIdx.bars,
+            barsOverridePending: themeIdx.loading,
+            watermarkName: themeIdx.name || sym.replace(/^\$IDX:/, ''),
+            liveUpdates: false,
+          } : {})}
           onSymbolChange={handleSymbolChange}
           onTfChange={setTf}
           onCrosshairMove={reportCrosshair}
