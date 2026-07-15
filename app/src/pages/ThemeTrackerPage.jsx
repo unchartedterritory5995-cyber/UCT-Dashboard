@@ -42,6 +42,11 @@ function retClass(val, styles) {
   return styles.retFlat
 }
 
+// Slug for the thematic-ETF index endpoint — must match the backend _slugify.
+function themeSlug(name) {
+  return (name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
 function avgReturn(holdings, periodKey) {
   const vals = holdings.map(h => h.returns?.[periodKey]).filter(v => v != null)
   if (vals.length === 0) return null
@@ -112,7 +117,7 @@ function ReturnCell({ value, baseClass }) {
   )
 }
 
-function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices }) {
+function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, onOpenIndex, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices }) {
   const isPortfolio = theme.ticker === 'UCT20'
   const groupLive = liveGroupReturn(theme, activeKey, prices)
   const momentumDelta = rotationRanking?.momentum_delta
@@ -127,9 +132,13 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
 
   return (
     <>
-      <div className={styles.groupRow} onClick={() => onToggle(theme.ticker)}>
+      <div className={styles.groupRow} onClick={() => onOpenIndex(theme)} title="View the theme's equal-weight combined chart">
         <span className={styles.groupName}>
-          <span className={styles.groupCaret}>{open ? '▾' : '▸'}</span>
+          <span
+            className={styles.groupCaret}
+            onClick={(e) => { e.stopPropagation(); onToggle(theme.ticker) }}
+            title={open ? 'Collapse holdings' : 'Expand holdings'}
+          >{open ? '▾' : '▸'}</span>
           {theme.name}
           {isPortfolio && <span className={styles.portfolioBadge}><UIcon name="star-fill" size={13} /></span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
@@ -201,6 +210,31 @@ export default function ThemeTrackerPage({ embedded = false }) {
   const [chartPeriod, setChartPeriod] = useState('D')
   const [flagToast, setFlagToast] = useState(null)
 
+  // ── Thematic-ETF: equal-weight combined index chart of a whole theme ──
+  // Clicking a theme's NAME opens its index in the right panel (the ▸ caret still
+  // just expands holdings). Bars come from /api/theme-index and feed StockChart via
+  // barsOverride, so it renders as a normal candle chart with the theme watermark.
+  const [themeIndex, setThemeIndex] = useState(null)   // {slug,name,sector,ticker} | null
+  const [themeIndexData, setThemeIndexData] = useState({ bars: null, loading: false })
+  const handleOpenThemeIndex = useCallback((theme) => {
+    setSelectedSym(null)
+    setSelectedNavKey(null)
+    const slug = themeSlug(theme.name)
+    setThemeIndex({ slug, name: theme.name, sector: theme.sector || null, ticker: `$${slug.toUpperCase().replace(/-/g, '_')}` })
+  }, [])
+  // The index only exists at D/W/M; intraday tabs fall back to Daily.
+  const indexTf = ['D', 'W', 'M'].includes(chartPeriod) ? chartPeriod : 'D'
+  useEffect(() => {
+    if (!themeIndex) return undefined
+    let cancelled = false
+    setThemeIndexData({ bars: null, loading: true })
+    fetch(`/api/theme-index/${encodeURIComponent(themeIndex.slug)}?tf=${indexTf}`, { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled) setThemeIndexData({ bars: d?.bars || [], loading: false }) })
+      .catch(() => { if (!cancelled) setThemeIndexData({ bars: [], loading: false }) })
+    return () => { cancelled = true }
+  }, [themeIndex, indexTf])
+
   const rowRefs = useRef({})
   const activeKey = RANK_TO_KEY[activeTab]
 
@@ -243,6 +277,7 @@ export default function ThemeTrackerPage({ embedded = false }) {
   }, [hubSym])  // intentionally do NOT depend on selectedSym (avoid feedback loop)
 
   function handleSelect(sym, name, themeTicker) {
+    setThemeIndex(null)   // picking a ticker leaves index mode
     setSelectedSym(sym)
     setSelectedNavKey(themeTicker ? `${themeTicker}::${sym}` : null)
     setHubSym(sym)
@@ -479,7 +514,7 @@ export default function ThemeTrackerPage({ embedded = false }) {
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
           )}
           {filteredThemes.map(theme => (
-            <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} selectedNavKey={selectedNavKey} onSelectSym={handleSelect}
+            <ThemeGroup key={theme.ticker} theme={theme} selectedSym={selectedSym} selectedNavKey={selectedNavKey} onSelectSym={handleSelect} onOpenIndex={handleOpenThemeIndex}
               activeKey={activeKey} sortDir={sortDir} open={openTheme === theme.ticker} onToggle={toggleTheme}
               rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
               tickerActions={tickerActions} onHoverSym={handleHoverSym}
@@ -491,7 +526,34 @@ export default function ThemeTrackerPage({ embedded = false }) {
       {/* ── Right panel — hidden in embedded mode ── */}
       {!embedded && (
         <div className={styles.rightPanel} ref={chartRef}>
-          {selectedSym ? (
+          {themeIndex ? (
+            <>
+              <div className={styles.chartHeader}>
+                <span className={styles.chartName} style={{ fontWeight: 700, color: 'var(--ut-gold)' }}>{themeIndex.name}</span>
+                <span className={styles.chartName} style={{ opacity: 0.55 }}>Equal-Weight Index</span>
+                <div className={styles.chartPeriodTabs}>
+                  {[['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']].map(([p, label]) => (
+                    <button
+                      key={p}
+                      className={`${styles.chartPeriodBtn} ${indexTf === p ? styles.chartPeriodBtnActive : ''}`}
+                      onClick={() => setChartPeriod(p)}
+                    >{label}</button>
+                  ))}
+                </div>
+              </div>
+              <StockChart
+                sym={themeIndex.ticker}
+                tf={indexTf}
+                barsOverride={themeIndexData.bars}
+                barsOverridePending={themeIndexData.loading}
+                watermarkName={themeIndex.name}
+                watermarkSector={themeIndex.sector}
+                liveUpdates={false}
+                hidePriceLine
+              />
+              <div className={styles.newsLabel}>Equal-weight index of the {themeIndex.name} theme</div>
+            </>
+          ) : selectedSym ? (
             <>
               <div className={styles.chartHeader}>
                 <SymbolSearch sym={selectedSym} onSymbolChange={(s) => { setSelectedSym(s); setSelectedName('') }} />
