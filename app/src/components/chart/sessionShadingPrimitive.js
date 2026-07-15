@@ -22,13 +22,18 @@ export function classifySession(tSec) {
 }
 
 // Group consecutive shaded bars into bands. Each band: { from, to, type } where
-// from/to are bar timestamps (chart time values). Pure for unit testing.
-export function computeSessionBands(bars) {
+// from/to are CHART time values. `shift` maps a raw bar timestamp to the chart's
+// time value (adjustTime = raw + ET_OFFSET). It MUST be applied so that (a) the
+// session is classified on Eastern clock time and (b) from/to match the series'
+// time scale — otherwise timeToCoordinate() misplaces the band and nothing draws.
+export function computeSessionBands(bars, shift) {
   const bands = []
   if (!Array.isArray(bars) || bars.length === 0) return bands
+  const toChartTime = (typeof shift === 'function') ? shift : (t => t)
   let cur = null
   for (const b of bars) {
-    const t = b?.t
+    const raw = b?.t
+    const t = (typeof raw === 'number') ? toChartTime(raw) : raw   // ET-shifted chart time
     const type = classifySession(typeof t === 'number' ? t : NaN)
     if (type && cur && cur.type === type) {
       cur.to = t
