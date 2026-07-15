@@ -198,12 +198,11 @@
 /* ── Theme group row ────────────────────────────────────────────────────── */
 .groupRow {
   display: grid;
-  /* Name fits its content and the % sits right after it (not pinned to a far-right
-     column), so the widget can be dragged narrow without a big name↔% gap. The
-     name column shrinks + wraps when there isn't room. */
-  grid-template-columns: minmax(0, max-content) auto;
-  justify-content: start;
-  column-gap: 8px;
+  /* Name fills the left (wraps when narrow); % stays right-aligned in a shared
+     auto column so all %'s line up vertically on the right. Tighter than the old
+     fixed 80px column so the widget can be dragged narrower. */
+  grid-template-columns: 1fr auto;
+  column-gap: 10px;
   align-items: center;
   padding: 7px 12px;
   background: var(--bg-elevated);
@@ -290,10 +289,9 @@
 /* ── Stock row ──────────────────────────────────────────────────────────── */
 .stockRow {
   display: grid;
-  /* Match .groupRow: ticker + % sit together on the left so the widget goes narrow. */
-  grid-template-columns: minmax(0, max-content) auto;
-  justify-content: start;
-  column-gap: 8px;
+  /* Match .groupRow: % right-aligned in a shared auto column (all lined up). */
+  grid-template-columns: 1fr auto;
+  column-gap: 10px;
   align-items: center;
   /* left padding matches .groupRow (12px) so the bullet + ticker line up
      under the theme caret + title */
