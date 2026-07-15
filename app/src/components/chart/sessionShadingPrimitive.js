@@ -50,7 +50,11 @@ function withAlpha(hex, alpha) {
 // Factory → { primitive, setOptions }.
 // opts: { enabled, bands:[{from,to,type}], preColor, postColor, opacity }
 export function createSessionShadingPrimitive(initial) {
-  let opts = { enabled: false, bands: [], preColor: '#5b7aa8', postColor: '#8a6db0', opacity: 0.10, ...initial }
+  // Neutral light-slate gray for BOTH pre- and post-market so extended hours read
+  // as a subtly brighter/grayer background vs regular hours (TC2000-style), not a
+  // colored tint. Opacity tuned to lighten the near-black canvas without drowning
+  // the candles.
+  let opts = { enabled: false, bands: [], preColor: '#8e97a6', postColor: '#8e97a6', opacity: 0.11, ...initial }
   let chart = null
   let requestUpdate = null
 

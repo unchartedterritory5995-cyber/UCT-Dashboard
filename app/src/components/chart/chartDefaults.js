@@ -90,7 +90,7 @@ export const CHART_DEFAULTS = {
   countdown: false,
   showPatterns: false,
   hideDrawings: false,  // hide all drawings without deleting them
-  extendedHoursShading: false,  // shade pre/post-market on intraday charts
+  extendedHoursShading: true,  // shade pre/post-market on intraday charts (grayer bg vs regular hours)
   volumeOverlayIndicators: [],   // oscillator keys rendered inside the volume pane (left axis)
 
   theme: 'dark', // 'dark' | 'light'
