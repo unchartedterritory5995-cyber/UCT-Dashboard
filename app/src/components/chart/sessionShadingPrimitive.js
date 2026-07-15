@@ -55,11 +55,11 @@ function withAlpha(hex, alpha) {
 // Factory → { primitive, setOptions }.
 // opts: { enabled, bands:[{from,to,type}], preColor, postColor, opacity }
 export function createSessionShadingPrimitive(initial) {
-  // Neutral light-slate gray for BOTH pre- and post-market so extended hours read
-  // as a subtly brighter/grayer background vs regular hours (TC2000-style), not a
-  // colored tint. Opacity tuned to lighten the near-black canvas without drowning
-  // the candles.
-  let opts = { enabled: false, bands: [], preColor: '#8e97a6', postColor: '#8e97a6', opacity: 0.11, ...initial }
+  // Time-of-day session tints (TradingView-style): pre-market (04:00-09:30 ET)
+  // gets a faint warm SUNRISE amber; post-market (16:00-20:00 ET) a faint EVENING
+  // blue. Deliberately low opacity so extended hours read as a subtle colored wash
+  // over the near-black canvas without drowning the candles ("very faint").
+  let opts = { enabled: false, bands: [], preColor: '#e0a94f', postColor: '#4a72c8', opacity: 0.08, ...initial }
   let chart = null
   let requestUpdate = null
 
