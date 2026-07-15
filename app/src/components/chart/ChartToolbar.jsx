@@ -590,11 +590,11 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings }) {
               onChange={e => onUpdateSettings({ ...cs, countdown: e.target.checked, preset: 'custom' })} />
             Countdown to bar close
           </label>
-          <label className={styles.sCheck} title="Shade pre-market (4:00–9:30) and post-market (16:00–20:00) on intraday charts">
+          <label className={styles.sCheck} title="Show pre-market (4:00–9:30) and post-market (16:00–20:00) price data + shading on intraday charts. Off = regular session only (9:30–4:00), with overnight gaps.">
             <input type="checkbox"
               checked={cs.extendedHoursShading ?? false}
               onChange={e => update('extendedHoursShading', e.target.checked)} />
-            Extended-hours shading
+            Extended hours
           </label>
         </div>
         <div className={styles.sRow} style={{ marginTop: 6 }}>

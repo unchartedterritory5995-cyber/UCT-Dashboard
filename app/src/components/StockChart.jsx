@@ -1315,14 +1315,14 @@ export default function StockChart({
   // this ref to yield the D/W/M last bar to the memo-driven setData.
   const sessionOwnsDailyRef = useRef(false)
 
-  // ── Extended hours toggle (regular session only vs all hours) ──
-  const [showExtended, setShowExtended] = useState(() => {
-    try { return localStorage.getItem('uct-chart-extended') !== 'false' } catch { return true }
-  })
-  const handleToggleExtended = useCallback((val) => {
-    setShowExtended(val)
-    try { localStorage.setItem('uct-chart-extended', val ? 'true' : 'false') } catch {}
-  }, [])
+  // ── Extended hours (single toggle: pre/post shading AND price data) ──
+  // Driven by the ONE `extendedHoursShading` chart setting (labeled "Extended
+  // hours" in the UI). ON = pre/post-market candles + shading show; OFF = only
+  // the regular session (9:30–4:00 ET) renders on intraday charts, with overnight
+  // gaps — the pre/post PRICE DATA is filtered out, not just the shading.
+  // handleToggleExtended (the toolbar EXT/RTH button) is defined just below,
+  // after handleUpdateChartSettings, and writes the same setting.
+  const showExtended = cs.extendedHoursShading ?? true
 
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
@@ -1439,6 +1439,12 @@ export default function StockChart({
   const handleUpdateChartSettings = useCallback((newSettings) => {
     setPref('chart_settings', JSON.stringify(newSettings))
   }, [setPref])
+
+  // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
+  // panel toggles, so both stay in lockstep (one logical state, two entry points).
+  const handleToggleExtended = useCallback((val) => {
+    handleUpdateChartSettings({ ...cs, extendedHoursShading: val, preset: 'custom' })
+  }, [cs, handleUpdateChartSettings])
 
   // ── Region-aware right-click menu: build settings sections per region ──
   // Imperative handle to ChartToolbar so a menu item can open its settings
@@ -1576,7 +1582,7 @@ export default function StockChart({
         { id: 'pr-magnet', label: 'Magnet crosshair', kind: 'toggle', checked: !!cs.crosshair?.magnet, onSelect: () => setCs('crosshair.magnet', !cs.crosshair?.magnet) },
       ]
       if (['1', '5', '15', '30', '60'].includes(resolvedTf)) {
-        items.push({ id: 'pr-eh', label: 'Extended-hours shading', kind: 'toggle', checked: !!cs.extendedHoursShading, onSelect: () => setCs('extendedHoursShading', !cs.extendedHoursShading) })
+        items.push({ id: 'pr-eh', label: 'Extended hours', kind: 'toggle', checked: !!cs.extendedHoursShading, onSelect: () => setCs('extendedHoursShading', !cs.extendedHoursShading) })
       }
       items.push({ id: 'pr-swing', label: 'Swing price labels', kind: 'toggle', checked: !!cs.swingLabels?.enabled, onSelect: () => setCs('swingLabels.enabled', !cs.swingLabels?.enabled) })
       if (showVolumeProp === undefined && !cs.volume.visible) {
