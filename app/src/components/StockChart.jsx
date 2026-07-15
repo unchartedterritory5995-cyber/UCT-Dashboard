@@ -1166,7 +1166,6 @@ export default function StockChart({
 
   const containerRef = useRef(null)
   const wmCtrlRef = useRef(null)        // watermark primitive controller
-  const watermarkLogoRef = useRef(null) // loaded company-logo <img> drawn left of the watermark ticker
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
   const sessionShadeRef = useRef(null)      // extended-hours shading primitive
   const sessionShadeAttachedRef = useRef(false)
@@ -1216,26 +1215,6 @@ export default function StockChart({
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
-
-  // Load the company logo for the watermark (drawn to the LEFT of the ticker).
-  // Skipped for pseudo-symbols ($THEME index) and when the ticker line is hidden;
-  // the endpoint returns a tiny placeholder on a miss, filtered by naturalWidth.
-  useEffect(() => {
-    watermarkLogoRef.current = null
-    try { wmCtrlRef.current?.setOptions?.({ logoImg: null }) } catch { /* not attached yet */ }
-    const wantLogo = !hideWatermark && cs.watermark?.visible && cs.watermark?.lines?.ticker
-      && sym && !String(sym).startsWith('$')
-    if (!wantLogo) return undefined
-    let cancelled = false
-    const img = new Image()
-    img.onload = () => {
-      if (cancelled || img.naturalWidth <= 2) return
-      watermarkLogoRef.current = img
-      try { wmCtrlRef.current?.setOptions?.({ logoImg: img }) } catch { /* noop */ }
-    }
-    img.src = `/api/ticker-logo/${encodeURIComponent(sym)}`
-    return () => { cancelled = true }
-  }, [sym, hideWatermark, cs.watermark?.visible, cs.watermark?.lines?.ticker])
 
   // Keep the plot-centered watermark centered the INSTANT the chart resizes (e.g.
   // a sibling widget is added and this chart narrows). hardCenterXPx is otherwise
@@ -3696,7 +3675,6 @@ export default function StockChart({
         y: watermarkY ?? cs.watermark.y,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
         hardCenterXPx: _wmCenterX,
-        logoImg: watermarkLogoRef.current,
       })
     }
 

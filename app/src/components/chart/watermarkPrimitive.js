@@ -64,27 +64,18 @@ function hexToRgb(hex) {
 // Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:string[], color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
-  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, logoImg: null, ...initial }
+  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, ...initial }
   let lastRect = null            // {x,y,w,h} in pane media px from last draw
   let armed = false              // hover/drag highlight
   let requestUpdate = null
 
-  // Company logo sits to the LEFT of the ticker (line 0). Only a real logo image
-  // draws — the /api/ticker-logo endpoint returns a tiny placeholder on a miss.
-  const _hasLogo = () => !!(opts.logoImg && opts.logoImg.naturalWidth > 2)
-  const _logoSizeFor = (fp) => fp * 0.92   // square, ~ticker cap height
-  const _logoGapFor = (fp) => fp * 0.3
-
   function measureBlock(ctx) {
     let w = 0
     let h = 0
-    const hasLogo = _hasLogo()
     opts.lines.forEach((text, i) => {
       const fp = watermarkFontPx(i, opts.sizeScale)
       ctx.font = makeFont(fp)
-      let lw = ctx.measureText(text).width
-      if (i === 0 && hasLogo) lw += _logoSizeFor(fp) + _logoGapFor(fp)
-      w = Math.max(w, lw)
+      w = Math.max(w, ctx.measureText(text).width)
       h += fp + (i > 0 ? LINE_GAP * (opts.sizeScale || 1) : 0)
     })
     return { w, h }
@@ -105,28 +96,12 @@ export function createWatermarkPrimitive(initial) {
           ctx.textAlign = 'center'
           ctx.textBaseline = 'top'
           ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`
-          const hasLogo = _hasLogo()
           let cy = rect.y
           opts.lines.forEach((text, i) => {
             const fp = watermarkFontPx(i, opts.sizeScale)
             if (i > 0) cy += LINE_GAP * (opts.sizeScale || 1)
             ctx.font = makeFont(fp)
-            if (i === 0 && hasLogo) {
-              // [logo][gap][ticker] centered as one unit on line 0.
-              const ls = _logoSizeFor(fp)
-              const gap = _logoGapFor(fp)
-              const tw = ctx.measureText(text).width
-              const left = rect.x + rect.w / 2 - (ls + gap + tw) / 2
-              const prevA = ctx.globalAlpha
-              ctx.globalAlpha = alpha
-              try { ctx.drawImage(opts.logoImg, left, cy + (fp - ls) / 2, ls, ls) } catch { /* broken img */ }
-              ctx.globalAlpha = prevA
-              ctx.textAlign = 'left'
-              ctx.fillText(text, left + ls + gap, cy)
-              ctx.textAlign = 'center'
-            } else {
-              ctx.fillText(text, rect.x + rect.w / 2, cy)
-            }
+            ctx.fillText(text, rect.x + rect.w / 2, cy)
             cy += fp
           })
           if (armed) {
