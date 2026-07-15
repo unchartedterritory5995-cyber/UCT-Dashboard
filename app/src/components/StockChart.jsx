@@ -1879,6 +1879,11 @@ export default function StockChart({
   const [idbLoaded, setIdbLoaded] = useState(false)
   const idbSinceRef     = useRef(null)
   const idbReadyForRef  = useRef(null)  // string `${sym}_${tf}` once IDB load completes
+  // TEMP DIAGNOSTIC (window.__uctBarsDebug) — the sym this chart last PAINTED, so
+  // updateChart can log ticker transitions. Captures the "random chart appears for
+  // a blip then goes away when switching to BLZE with a 2nd widget" report: a blip
+  // shows up as an unexpected paint-sym transition sequence (e.g. A -> X -> BLZE).
+  const paintSymRef = useRef(null)
 
   useEffect(() => {
     if (!sym || !resolvedTf) return
@@ -3377,6 +3382,14 @@ export default function StockChart({
     const _plan = barsRenderPlan(prevBarsRef.current, filteredBars)
     const _incr = _cfgSig != null && _plan.mode === 'incremental' && _cfgSig === lastCfgSigRef.current
     lastCfgSigRef.current = _cfgSig
+    // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
+    // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
+    if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
+      console.log('[bars-paint]', 'PAINT', `${sym}_${resolvedTf}`, 'prev:', paintSymRef.current,
+        '| bars:', filteredBars.length, 'firstT:', filteredBars[0]?.t, 'lastT:', filteredBars[filteredBars.length - 1]?.t,
+        '| mode:', _incr ? 'incremental' : 'full')
+      paintSymRef.current = `${sym}_${resolvedTf}`
+    }
     const _applyData = (series, data) => {
       if (!series || !data) return
       if (_incr && data.length) {
