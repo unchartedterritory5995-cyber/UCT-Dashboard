@@ -1166,6 +1166,7 @@ export default function StockChart({
 
   const containerRef = useRef(null)
   const wmCtrlRef = useRef(null)        // watermark primitive controller
+  const watermarkLogoRef = useRef(null) // loaded company-logo <img> drawn left of the watermark ticker
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
   const sessionShadeRef = useRef(null)      // extended-hours shading primitive
   const sessionShadeAttachedRef = useRef(false)
@@ -1215,6 +1216,26 @@ export default function StockChart({
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
+
+  // Load the company logo for the watermark (drawn to the LEFT of the ticker).
+  // Skipped for pseudo-symbols ($THEME index) and when the ticker line is hidden;
+  // the endpoint returns a tiny placeholder on a miss, filtered by naturalWidth.
+  useEffect(() => {
+    watermarkLogoRef.current = null
+    try { wmCtrlRef.current?.setOptions?.({ logoImg: null }) } catch { /* not attached yet */ }
+    const wantLogo = !hideWatermark && cs.watermark?.visible && cs.watermark?.lines?.ticker
+      && sym && !String(sym).startsWith('$')
+    if (!wantLogo) return undefined
+    let cancelled = false
+    const img = new Image()
+    img.onload = () => {
+      if (cancelled || img.naturalWidth <= 2) return
+      watermarkLogoRef.current = img
+      try { wmCtrlRef.current?.setOptions?.({ logoImg: img }) } catch { /* noop */ }
+    }
+    img.src = `/api/ticker-logo/${encodeURIComponent(sym)}`
+    return () => { cancelled = true }
+  }, [sym, hideWatermark, cs.watermark?.visible, cs.watermark?.lines?.ticker])
 
   // Keep the plot-centered watermark centered the INSTANT the chart resizes (e.g.
   // a sibling widget is added and this chart narrows). hardCenterXPx is otherwise
@@ -2747,16 +2768,24 @@ export default function StockChart({
     const upC = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
     const downC = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
     const gold = '#e6b800'
-    return sessionAppliedBars.map(b => ({
-      time: adjustTime(b.t),
-      value: b.v,
-      color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
-        ? gold
-        : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
-          ? 'rgba(201,168,76,0.9)'
-          : b.c >= b.o ? upC : downC,
-    }))
-  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes])
+    return sessionAppliedBars.map((b, i) => {
+      // Up/down follows the SAME rule as the candles: net change (close vs the
+      // PREVIOUS close) when colorByNetChange is on, else close-vs-open. This is
+      // why a gap-up-then-fade day (AEHR +22% on the day but red open→close) shows
+      // a GREEN volume bar — it's up on net change. First bar has no prior close.
+      const prevC = i > 0 ? sessionAppliedBars[i - 1].c : b.o
+      const isUp = colorByNetChange ? (b.c >= prevC) : (b.c >= b.o)
+      return {
+        time: adjustTime(b.t),
+        value: b.v,
+        color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
+          ? gold
+          : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
+            ? 'rgba(201,168,76,0.9)'
+            : isUp ? upC : downC,
+      }
+    })
+  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange])
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
   // re-tint effect lives AFTER updateChart (below) so its setData wins over
@@ -3324,10 +3353,13 @@ export default function StockChart({
         candleSeriesRef.current.update({ time: tSec, value: c })
       }
       if (volumeSeriesRef.current) {
+        const _pb = prevBarsRef.current
+        const _prevC = colorByNetChange && _pb && _pb.length >= 2 ? _pb[_pb.length - 2].c : null
+        const _up = _prevC != null ? (data.bar.c >= _prevC) : (data.bar.c >= data.bar.o)
         volumeSeriesRef.current.update({
           time: tSec,
           value: data.bar.v,
-          color: data.bar.c >= data.bar.o ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
+          color: _up ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
         })
       }
       // B is the SOLE writer here (gated on barsPushActive above), so it OWNS these refs —
@@ -3664,6 +3696,7 @@ export default function StockChart({
         y: watermarkY ?? cs.watermark.y,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
         hardCenterXPx: _wmCenterX,
+        logoImg: watermarkLogoRef.current,
       })
     }
 
@@ -3881,9 +3914,12 @@ export default function StockChart({
           // Restore the push-owned volume too — else the volume bar shows ~30s-stale server
           // volume until the next AM push (a flicker every SWR poll, retro-audit #5).
           if (volumeSeriesRef.current && Number.isFinite(lb.volume)) {
+            const _pbD = prevBarsRef.current
+            const _prevCD = colorByNetChange && _pbD && _pbD.length >= 2 ? _pbD[_pbD.length - 2].c : null
+            const _upD = _prevCD != null ? (lb.close >= _prevCD) : (lb.close >= lb.open)
             volumeSeriesRef.current.update({
               time: lb.time, value: lb.volume,
-              color: lb.close >= lb.open ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
+              color: _upD ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
             })
           }
         } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
@@ -6740,10 +6776,13 @@ export default function StockChart({
             // developing bar's volume color matches the historical bars
             const _vUp = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
             const _vDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            const _pbC = prevBarsRef.current
+            const _prevCC = colorByNetChange && _pbC && _pbC.length >= 2 ? _pbC[_pbC.length - 2].c : null
+            const _upC = _prevCC != null ? (candle.c >= _prevCC) : (candle.c >= candle.o)
             volumeSeriesRef.current.update({
               time: tSec,
               value: candle.v || 0,
-              color: candle.c >= candle.o ? _vUp : _vDown,
+              color: _upC ? _vUp : _vDown,
             })
           }
           // Sync trackers so REST path stays consistent
