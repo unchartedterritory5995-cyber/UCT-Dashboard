@@ -32,6 +32,10 @@ import * as barsStreamManager from '../lib/barsStreamManager'
 // Beyond this, a Massive bar tick is considered stale and the legend falls back
 // to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
 const LIVE_TICK_FRESH_MS = 6000
+// Default-zoom: place the LAST candle at this fraction of the plot width on EVERY
+// timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
+// bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
+const LAST_CANDLE_POS = 0.96
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
@@ -4507,17 +4511,19 @@ export default function StockChart({
           const visibleBars = (resolvedTf === 'D' && dailyDefaultBars)
             ? dailyDefaultBars
             : (defaultVisible[resolvedTf] || 65)
-          if (filteredBars.length > visibleBars) {
-            chart.timeScale().setVisibleLogicalRange({
-              from: filteredBars.length - visibleBars - leftBarPad,
-              to: filteredBars.length + rightPadBars,
-            })
-          } else {
-            chart.timeScale().setVisibleLogicalRange({
-              from: -leftBarPad,
-              to: filteredBars.length + rightPadBars,
-            })
-          }
+          // Anchor the LAST candle at a CONSTANT fraction (LAST_CANDLE_POS) of the
+          // plot width on every timeframe, so flipping TFs never drifts it. Solving
+          // bar (len-1) at that fraction: to = from + history / LAST_CANDLE_POS.
+          // (Replaces a fixed bars-of-right-pad, which drifted the candle left as
+          // higher-TF bar spacing widened the same pad into a bigger pixel gap.)
+          const _from = filteredBars.length > visibleBars
+            ? filteredBars.length - visibleBars - leftBarPad
+            : -leftBarPad
+          const _hist = (filteredBars.length - 1) - _from
+          const _to = _hist > 0
+            ? _from + _hist / LAST_CANDLE_POS
+            : filteredBars.length + rightPadBars   // 0-1 bars: fall back to bar pad
+          chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
         }
       }
     } else if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0
