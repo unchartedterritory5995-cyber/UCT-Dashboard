@@ -15,7 +15,7 @@ import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
 import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { classifyLiveBar } from './chart/liveBarClassify'
-import { applySessionCandle, computeSessionTagLines } from './chart/sessionPreview'
+import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
 import useMarketOpen from '../hooks/useMarketOpen'
 import useSessionExtBars from '../hooks/useSessionExtBars'
 import PatternOverlay from './chart/PatternOverlay'
@@ -1348,6 +1348,12 @@ export default function StockChart({
   // handleToggleExtended (the toolbar EXT/RTH button) is defined just below,
   // after handleUpdateChartSettings, and writes the same setting.
   const showExtended = cs.extendedHoursShading ?? true
+  // Latest showExtended, read by the live-tick writers (which are callbacks and
+  // would otherwise close over a stale value). When false (RTH), the live path
+  // must not paint pre/post-market intraday bars — mirroring the sessionBars fetch
+  // filter — or the current ext session leaks onto an RTH-only chart.
+  const showExtendedRef = useRef(showExtended)
+  showExtendedRef.current = showExtended
 
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
@@ -3135,6 +3141,11 @@ export default function StockChart({
       // a per-tick truth from the feed, and _effLivePrice already returned the ext
       // price into _p, so without this the post price seams the RTH candle.
       if (sessionViewRef.current === 'regular' && liveData.ext_session) return
+    } else if (!showExtendedRef.current && liveData.ext_session) {
+      // RTH-only intraday (EXT/RTH toggle off): same as Writer B — never fold a
+      // pre/post-market print into the live intraday bar. (Writer A only reaches
+      // intraday when the push feed isn't delivering; this is the fallback path.)
+      return
     }
     const price = _p
     const last = lastBarRef.current
@@ -3261,6 +3272,15 @@ export default function StockChart({
     // with the series and is silently dropped by lightweight-charts.
     const tSec = Math.floor(data.bar.t / 1000) + _ET_OFFSET
     const useOhlc = isOhlcType(cs.chartType)
+
+    // RTH-only intraday (EXT/RTH toolbar toggle = off): drop live pre/post-market
+    // bars, the same 9:30–16:00 ET window sessionBars filters the FETCHED data to.
+    // Without this the CURRENT extended session leaks onto an RTH-only chart via
+    // the live push feed (past ext sessions are already filtered out of history).
+    if (!showExtendedRef.current && !['D', 'W', 'M'].includes(resolvedTf)) {
+      const mins = etMinutes(Math.floor(data.bar.t / 1000))
+      if (mins < 570 || mins >= 960) return
+    }
 
     // Defensive: skip bars with invalid OHLC. WS sources can occasionally
     // emit zero / NaN / nonsensical values at bar boundaries or during
@@ -3857,11 +3877,14 @@ export default function StockChart({
     } else if (_retopLive?.price && lastBarRef.current
                && !(['D', 'W', 'M'].includes(resolvedTf)
                     && (sessionOwnsDailyRef.current
-                        || (sessionViewRef.current === 'regular' && _retopLive.ext_session)))) {
+                        || (sessionViewRef.current === 'regular' && _retopLive.ext_session)))
+               && !(!['D', 'W', 'M'].includes(resolvedTf)
+                    && !showExtendedRef.current && _retopLive.ext_session)) {
       // Skip the D/W/M re-top while session preview owns the bar (the memo-driven
       // setData above already painted the synthetic/frozen candle) OR when a
       // Regular-Hours daily chart got an extended-hours print (same lag-independent
-      // guard as Writer A — don't seam post-market onto the RTH candle).
+      // guard as Writer A). Also skip an RTH-only INTRADAY re-top of an ext print
+      // (Writers B/C already drop the live ext bar; don't let the re-top re-add it).
       const lp = _retopLive.price
       const tickSec = _retopLive.updated_at
       const last = lastBarRef.current
@@ -6652,6 +6675,12 @@ export default function StockChart({
       if (!candle) return
       const price = candle.c
       if (!Number.isFinite(price) || price <= 0) return
+      // RTH-only intraday (EXT/RTH toggle off): don't paint a pre/post-market
+      // developing bar, matching sessionBars' 9:30–16:00 ET fetch filter.
+      if (!showExtendedRef.current) {
+        const _m = etMinutes(candle.t)
+        if (_m < 570 || _m >= 960) return
+      }
       // Sanity bound vs last known close — protects against bad ticks.
       const lastClose = lastBarRef.current?.close
       if (lastClose && lastClose > 0 && Math.abs(price - lastClose) / lastClose > 0.5) return
