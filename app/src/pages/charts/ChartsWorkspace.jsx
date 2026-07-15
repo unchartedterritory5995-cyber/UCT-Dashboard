@@ -180,14 +180,12 @@ export default function ChartsWorkspace() {
     }
   }, [prefs?.charts_workspace_layout])
 
-  // Hydration gate: not "ready" until the server prefs have settled. This does
-  // TWO things: (1) prevents the empty default layout from being persisted over a
-  // returning user's saved layout before it loads (the "resets to default" bug),
-  // and (2) holds the get-started panel back so a returning user never flashes it.
-  const [hydrated, setHydrated] = useState(false)
+  // Hydration gate: don't persist until server prefs have settled, so RGL's
+  // on-mount onLayoutChange can't clobber a returning user's saved layout with the
+  // default before it loads (the "resets to default" bug).
   const hydratedRef = useRef(false)
   useEffect(() => {
-    if (!prefsLoading && !hydratedRef.current) { hydratedRef.current = true; setHydrated(true) }
+    if (!prefsLoading) hydratedRef.current = true
   }, [prefsLoading])
 
   // Color-group state — seed from prefs or empty.
@@ -316,11 +314,6 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave, groupSyms])
 
-  const handleResetLayout = useCallback(() => {
-    setLayout(DEFAULT_LAYOUT)
-    scheduleSave(DEFAULT_LAYOUT)
-  }, [scheduleSave])
-
   // Explicit "Save layout" — flushes the debounced auto-save and persists the
   // current arrangement (widgets + color-group tickers) immediately. The auto-save
   // is debounced 500ms, so a refresh within that window could lose the last change
@@ -342,7 +335,7 @@ export default function ChartsWorkspace() {
   // ── Named layout templates (prebuilt + personal) ──
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout } = useChartLayouts()
+  const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
   const [openMenuOpen, setOpenMenuOpen] = useState(false)
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
   const [saveAsName, setSaveAsName] = useState('')
@@ -366,10 +359,39 @@ export default function ChartsWorkspace() {
     flashSaved()
   }, [setPref, flashSaved])
 
-  // Get-started: one-click classic watchlist + chart + themes arrangement.
-  const handleLoadStarter = useCallback(() => {
-    applyTemplate(STARTER_LAYOUT)
-  }, [applyTemplate])
+  // The "default" layout = the "chart" preset (prebuilt preferred, then personal),
+  // falling back to the classic Starter arrangement if that preset doesn't exist.
+  const resolveDefaultLayout = useCallback(() => {
+    const byName = (arr) => arr.find(t => (t.name || '').trim().toLowerCase() === 'chart')
+    const tpl = byName(globalLayouts) || byName(myLayouts)
+    if (tpl?.layout?.widgets?.length) {
+      return { layout: parseLayout(tpl.layout) || tpl.layout, groups: tpl.groups || null }
+    }
+    return { layout: parseLayout(STARTER_LAYOUT) || STARTER_LAYOUT, groups: null }
+  }, [globalLayouts, myLayouts])
+
+  // New users (no saved layout) open on the default; returning users keep their
+  // most recent layout. Runs once, after prefs + templates settle.
+  const appliedDefaultRef = useRef(false)
+  useEffect(() => {
+    if (appliedDefaultRef.current) return
+    if (prefsLoading || templatesLoading) return
+    if (parseLayout(prefs?.charts_workspace_layout)) { appliedDefaultRef.current = true; return }
+    appliedDefaultRef.current = true
+    const d = resolveDefaultLayout()
+    setLayout(d.layout)
+    if (d.groups) setGroupSymsState({ A: null, B: null, C: null, D: null, ...d.groups })
+  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, resolveDefaultLayout])
+
+  // Reset layout → back to the default (the "chart" preset), persisted.
+  const handleResetLayout = useCallback(() => {
+    const d = resolveDefaultLayout()
+    setLayout(d.layout)
+    setPref('charts_workspace_layout', JSON.stringify(d.layout))
+    const g = { A: null, B: null, C: null, D: null, ...(d.groups || {}) }
+    setGroupSymsState(g)
+    setPref('charts_workspace_groups', JSON.stringify(g))
+  }, [resolveDefaultLayout, setPref])
 
   const handleSaveAsTemplate = useCallback(async () => {
     const nm = saveAsName.trim()
@@ -519,35 +541,6 @@ export default function ChartsWorkspace() {
           </button>
         </header>
         <main className={styles.workspaceBody} ref={bodyRef}>
-          {hydrated && layout.widgets.length === 0 && (
-            <div className={styles.getStarted}>
-              <div className={styles.gsCard}>
-                <div className={styles.gsIcon}><UIcon name="equity" size={26} /></div>
-                <h2 className={styles.gsTitle}>Build your charts workspace</h2>
-                <p className={styles.gsSub}>Add widgets to design your layout, or open a saved one — it'll be here next time exactly as you leave it.</p>
-
-                <div className={styles.gsSectionLabel}>Add a widget</div>
-                <div className={styles.gsBtnRow}>
-                  {WIDGET_TYPES.map(t => (
-                    <button key={t} type="button" className={styles.gsChip} onClick={() => handleAddWidget(t)}>
-                      <span className={styles.gsChipPlus}>+</span>{WIDGET_LABELS[t]}
-                    </button>
-                  ))}
-                </div>
-
-                <div className={styles.gsSectionLabel}>Open a layout</div>
-                <div className={styles.gsBtnRow}>
-                  <button type="button" className={`${styles.gsChip} ${styles.gsChipStarter}`} onClick={handleLoadStarter}>★ Starter layout</button>
-                  {globalLayouts.map(t => (
-                    <button key={`g${t.id}`} type="button" className={styles.gsChip} onClick={() => applyTemplate(t)}>{t.name}</button>
-                  ))}
-                  {myLayouts.map(t => (
-                    <button key={`m${t.id}`} type="button" className={styles.gsChip} onClick={() => applyTemplate(t)}>{t.name}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
           <ResponsiveGridLayout
             className="layout"
             layouts={rglLayouts}
