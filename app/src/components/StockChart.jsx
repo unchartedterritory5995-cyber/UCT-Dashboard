@@ -127,6 +127,59 @@ function formatLegendTime(time) {
   return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+// ─── Time-axis formatting ───────────────────────────────────────────────────
+// Intraday bar times are pre-shifted to ET (adjustTime adds _ET_OFFSET), so we
+// read the UTC parts of the shifted value to get ET wall-clock. Daily+ times are
+// 'YYYY-MM-DD' strings (or business-day objects) with no time-of-day.
+const _WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const _MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function _fmt12(d) {
+  let h = d.getUTCHours(); const m = d.getUTCMinutes()
+  const ap = h >= 12 ? 'PM' : 'AM'
+  h = h % 12 || 12
+  return m === 0 ? `${h} ${ap}` : `${h}:${String(m).padStart(2, '0')} ${ap}`
+}
+
+// Parse a daily+ time (string or business-day object) → a UTC Date, or null.
+function _dayDate(time) {
+  let y, mo, day
+  if (typeof time === 'string') { const p = time.split('-'); y = +p[0]; mo = +p[1]; day = +p[2] }
+  else if (time && typeof time === 'object') { y = time.year; mo = time.month; day = time.day }
+  else return null
+  if (!y) return null
+  return new Date(Date.UTC(y, (mo || 1) - 1, day || 1))
+}
+
+// Bottom-axis TICK labels: 12-hour time on intraday, dates otherwise.
+// tickMarkType (LWC): 0=Year 1=Month 2=DayOfMonth 3=Time 4=TimeWithSeconds.
+function chartTickMarkFormatter(time, tickMarkType) {
+  if (typeof time === 'number') {
+    const d = new Date(time * 1000)
+    if (tickMarkType >= 3) return _fmt12(d)                       // time tick → 12-hour
+    return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`           // intraday day-boundary
+  }
+  const d = _dayDate(time)
+  if (!d) return String(time)
+  if (tickMarkType === 0) return String(d.getUTCFullYear())       // Year
+  if (tickMarkType === 1) return _MO[d.getUTCMonth()]            // Month
+  return String(d.getUTCDate())                                  // DayOfMonth
+}
+
+// CROSSHAIR time label (the hover box on the axis): weekday + date [+ 12-hour].
+// e.g. "Tue 14 Jul '26 12:00 AM"  (daily: "Tue 14 Jul '26").
+function chartCrosshairTimeFormatter(time) {
+  if (typeof time === 'number') {
+    const d = new Date(time * 1000)
+    const yy = String(d.getUTCFullYear()).slice(2)
+    return `${_WD[d.getUTCDay()]} ${d.getUTCDate()} ${_MO[d.getUTCMonth()]} '${yy} ${_fmt12(d)}`
+  }
+  const d = _dayDate(time)
+  if (!d) return String(time)
+  const yy = String(d.getUTCFullYear()).slice(2)
+  return `${_WD[d.getUTCDay()]} ${d.getUTCDate()} ${_MO[d.getUTCMonth()]} '${yy}`
+}
+
 function formatVolume(v) {
   if (!v) return '0'
   if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
@@ -3313,10 +3366,17 @@ export default function StockChart({
         // candles land in the same relative spot regardless of the stock's price.
         scaleMargins: vertMarginsRef.current || _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
       },
+      localization: {
+        // Crosshair time label (the hover box on the axis): weekday + date +
+        // 12-hour time, e.g. "Tue 14 Jul '26 12:00 AM".
+        timeFormatter: chartCrosshairTimeFormatter,
+      },
       timeScale: {
         borderColor: themeColors.borderColor,
         timeVisible: true,
         secondsVisible: false,
+        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour).
+        tickMarkFormatter: chartTickMarkFormatter,
         // Exact-range (Model Book) locks to a historical window, so don't pin the
         // latest bar to the right edge — that re-expands the view to "now".
         rightOffset: exactDateRange ? 0 : rightPadBars,
