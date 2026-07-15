@@ -755,15 +755,26 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     expected_session = _expected_latest_session_yyyymmdd()
 
     if tf == "60":
-        # Need ~2× 30-min bars to produce max_bars session-aligned hourly bars.
-        src = max_bars * 2
-        # fetch_with_validation handles the Massive → FMP → yfinance chain
-        # for the 30-min source, applying per-bar validation at each hop.
-        bars_30m = fetch_with_validation(ticker, "30", src, prior_close=prior_close, expected_session=expected_session)
-        if bars_30m and not _is_intraday_stale(bars_30m):
-            out = _session_resample_hourly(bars_30m)[-max_bars:]
+        # Resample hourly from 15-MINUTE bars, NOT 30-minute. Massive's native
+        # 30-min aggregate is intermittently sparse for even the most liquid names
+        # — it drops individual half-hour bars that the 5m/15m feeds carry in full
+        # (verified 2026-07-14: QQQ 07-08 14:00/15:00, 07-14 12:00/14:00/15:00,
+        # etc.). Because the hourly bar is a resample of those, a single dropped
+        # 30m half-hour silently deletes the ENTIRE hourly candle. 15m is complete
+        # across those windows AND deep enough (1000-day lookback ceiling vs 5m's
+        # 365d) so there is no hourly-history regression. The lookback formula in
+        # _fetch_intraday scales bars_per_day with the TF, so src=max_bars*4 of
+        # 15m spans the identical calendar window that max_bars*2 of 30m did. 60m
+        # is reconciliation-EXEMPT (session-anchored ≠ Polygon clock-hour), so
+        # rebuilding it from a finer feed never fights the heal worker.
+        src = max_bars * 4
+        # fetch_with_validation handles the Massive → FMP → yfinance chain for the
+        # 15-min source, applying per-bar validation at each hop.
+        bars_src = fetch_with_validation(ticker, "15", src, prior_close=prior_close, expected_session=expected_session)
+        if bars_src and not _is_intraday_stale(bars_src):
+            out = _session_resample_hourly(bars_src)[-max_bars:]
             _logger.warning(
-                f"[bars-resample] {ticker} tf=60 src={src} validated_30m={len(bars_30m)} resampled_to={len(out)}"
+                f"[bars-resample] {ticker} tf=60 src={src} validated_15m={len(bars_src)} resampled_to={len(out)}"
             )
             return out
         # Validation pipeline returned None or stale data. Do NOT fall back
@@ -773,7 +784,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         # so corrupt-but-recent bars would silently get persisted to SQLite
         # and the in-memory cache. Return empty instead.
         _logger.warning(
-            "[bars] %s 30m: all sources failed validation, returning empty", ticker
+            "[bars] %s 15m(for 60m): all sources failed validation, returning empty", ticker
         )
         return []
 
@@ -929,18 +940,24 @@ def bucket_60_et_unix_seconds(t_utc: int) -> int:
     return int(datetime(dt.year, dt.month, dt.day, h, 0, tzinfo=et).timestamp())
 
 
-def _session_resample_hourly(bars_30m: list[dict]) -> list[dict]:
-    """Resample 30-min bars to session-aligned 60-min bars.
+def _session_resample_hourly(bars_src: list[dict]) -> list[dict]:
+    """Resample sub-hourly bars (5/15/30-min) to session-aligned 60-min bars.
+
+    Source-granularity-agnostic: every bar is placed by
+    ``bucket_60_et_unix_seconds(bar["t"])``, so feeding 15-min bars yields the
+    SAME hourly candles as feeding 30-min bars — but without the gaps Massive's
+    native 30-min aggregate intermittently leaves (see the tf=="60" fetch path).
+    Bars must be ascending; unordered input still works (each bucket re-sorts).
 
     Regular session (9:30-16:00 ET):
-      - First bar: 9:30-10:00 (30-min only — clean open candle)
+      - First bar: 9:30-10:00 (the clean "open" bucket, anchored at 9:30)
       - Remaining: 10:00-11:00, 11:00-12:00, ..., 15:00-16:00
     Extended hours: clock-aligned 60-min groupings.
     """
     _bucket = bucket_60_et_unix_seconds  # use the canonical function
 
     groups: dict[int, list[dict]] = {}
-    for bar in bars_30m:
+    for bar in bars_src:
         bkt = _bucket(bar["t"])
         groups.setdefault(bkt, []).append(bar)
 
@@ -984,16 +1001,19 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
     from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
 
-    # 60-min: fetch 30-min delta and resample to session-aligned hourly
+    # 60-min: fetch 15-min delta and resample to session-aligned hourly. 15m (not
+    # 30m) because Massive's native 30-min aggregate intermittently drops interior
+    # half-hour bars, which silently deletes whole hourly candles on resample; 15m
+    # carries them. Mirrors the cold-fetch tf=="60" path above — keep both in sync.
     if tf == "60":
         try:
             client = _get_client()
             url = (
-                f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/30/minute"
+                f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/15/minute"
                 f"/{from_date}/{to_date}"
                 f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
             )
-            bars_30m = [
+            bars_src = [
                 {"t": int(b["t"] / 1000), "o": round(b["o"], 2), "h": round(b["h"], 2),
                  "l": round(b["l"], 2), "c": round(b["c"], 2), "v": int(b.get("v", 0))}
                 for b in _paginate_massive_aggs(client, url)
@@ -1007,7 +1027,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
             # "stored partial in-progress bar" bug where a chart loaded mid-hour
             # froze the bucket at half-bar values that the prior > filter could
             # never update (Step 4).
-            return [b for b in _session_resample_hourly(bars_30m) if b["t"] >= heal_floor]
+            return [b for b in _session_resample_hourly(bars_src) if b["t"] >= heal_floor]
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(

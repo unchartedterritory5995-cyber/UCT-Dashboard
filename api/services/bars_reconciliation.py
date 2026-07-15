@@ -54,8 +54,12 @@ _BARS_PER_AUDIT = int(os.environ.get("RECONCILE_BARS_PER_AUDIT", "200"))
 # trustworthy. EXCLUDES:
 #   60m — app stores session-anchored ET hourly (9:30-10:30…) but audit.py
 #         fetches Polygon clock-hour native; they don't align, so reconciling
-#         60m would DELETE correct bars. 60m heals indirectly: once its 30m
-#         source is clean, the 60m resample is clean.
+#         60m would DELETE correct bars. 60m heals indirectly: it is resampled
+#         from 15m (bars_fetch tf=="60"; switched from 30m on 2026-07-14 because
+#         Massive's native 30m aggregate intermittently drops half-hour bars and
+#         silently deleted whole hourly candles), and 15m + 30m drift both
+#         cascade a companion delete (see _heal_companion_60m), so once the
+#         sub-hourly source is clean the 60m resample is clean.
 #   D    — HEALING excluded (a mis-heal on the default TF is the worst case),
 #         but Daily previously had ZERO drift VISIBILITY — if a bad daily bar
 #         ever landed, nothing caught it. Daily now runs a DETECT-ONLY pass
@@ -245,29 +249,33 @@ def _heal_drift(ticker: str, tf: str, bad_timestamps: list[int]) -> int:
     return deleted
 
 
-def _heal_companion_60m(ticker: str, bad_30m_ts: list[int]) -> int:
+def _heal_companion_60m(ticker: str, bad_src_ts: list[int]) -> int:
     """Active companion heal for the 60m timeframe.
 
     60m is deliberately excluded from `_TFS` because the app stores
     session-anchored ET hourly bars while audit.py fetches Polygon clock-hour
     native — they don't align, so auditing 60m directly would DELETE correct
     bars. The standing assumption (see `_TFS` comment) is that "60m heals
-    indirectly: once its 30m source is clean, the 60m resample is clean." But
-    that only fires if SOMETHING re-resamples the 60m row after the 30m is
+    indirectly: once its sub-hourly source is clean, the 60m resample is clean."
+    But that only fires if SOMETHING re-resamples the 60m row after the source is
     healed. Rather than rely on a prewarm pass eventually touching it, we drop
-    the stored 60m rows whose session buckets contain the just-healed 30m
-    timestamps, so the next 60m fetch re-resamples them from the now-clean 30m.
+    the stored 60m rows whose session buckets contain the just-healed sub-hourly
+    timestamps, so the next 60m fetch re-resamples them from the now-clean source.
+
+    ``bad_src_ts`` are the healed sub-hourly (15m or 30m) drift timestamps — 60m
+    is resampled from 15m (see bars_fetch tf=="60"), so both feed this cascade;
+    ``bucket_60_et_unix_seconds`` maps any sub-hourly ts to its hourly bucket.
 
     Returns 60m rows deleted.
     """
-    if not bad_30m_ts:
+    if not bad_src_ts:
         return 0
     try:
         from api.services.bars_fetch import bucket_60_et_unix_seconds
     except Exception:
         _logger.exception("[reconcile] could not import bucket_60_et_unix_seconds")
         return 0
-    buckets = sorted({bucket_60_et_unix_seconds(int(t)) for t in bad_30m_ts})
+    buckets = sorted({bucket_60_et_unix_seconds(int(t)) for t in bad_src_ts})
     return _heal_drift(ticker, "60", buckets)
 
 
@@ -382,12 +390,14 @@ def _run_cycle():
             if result.fail_count > 0:
                 bad_ts = sorted({d.timestamp for d in result.diffs if d.severity == "fail"})
                 healed = _heal_drift(ticker, tf, bad_ts)
-                # 30m drift implies the resampled 60m built from it is also
-                # wrong. Actively drop the overlapping session-hour 60m rows so
-                # they re-resample clean on next fetch (60m isn't audited
-                # directly — see _heal_companion_60m).
+                # 15m/30m drift implies the resampled 60m built from it is also
+                # wrong. 60m is now resampled from 15m (bars_fetch tf=="60"), so
+                # fire the companion heal on BOTH sub-hourly TFs — actively drop
+                # the overlapping session-hour 60m rows so they re-resample clean
+                # on next fetch (60m isn't audited directly — see
+                # _heal_companion_60m).
                 companion_60m = 0
-                if tf == "30":
+                if tf in ("15", "30"):
                     companion_60m = _heal_companion_60m(ticker, bad_ts)
                     healed += companion_60m
                 drift_count += 1
