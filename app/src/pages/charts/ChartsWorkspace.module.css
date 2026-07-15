@@ -76,6 +76,12 @@
   width: 100%;
   min-height: 0;
   min-width: 0;
+  /* Clip internally so the chart widget can NEVER push its scrollable ancestor
+     (.widgetBody, overflow:auto for list/scanner widgets) into showing a vertical
+     scrollbar. When it sat right at that overflow threshold the scrollbar rapidly
+     toggled → the chart's autoSize width oscillated → a constant left-right
+     "shake", most visible on live intraday charts. */
+  overflow: hidden;
 }
 
 .tfBar {
@@ -112,6 +118,7 @@
 .chartFill {
   flex: 1; min-height: 0; min-width: 0; position: relative;
   outline: none;  /* focusable container — keep the chrome clean, no default ring */
+  overflow: hidden;  /* clip the chart's min-height (200px) so a short widget can't bleed past the fill and trigger the ancestor scrollbar → autoSize width shake */
 }
 
 /* Symbol search slot lives at the left of the TF bar. */
