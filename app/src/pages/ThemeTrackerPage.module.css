@@ -37,6 +37,7 @@
 /* ── Period rank tabs ───────────────────────────────────────────────────── */
 .periodBar {
   display: flex;
+  flex-wrap: wrap;   /* narrow widget → tabs that don't fit stack onto the next row */
   gap: 4px;
   padding: 8px 12px;
   background: var(--bg-elevated);

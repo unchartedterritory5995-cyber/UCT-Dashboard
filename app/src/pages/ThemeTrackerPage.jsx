@@ -166,7 +166,7 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
 }
 
 export default function ThemeTrackerPage({ embedded = false }) {
-  const [activeTab, setActiveTab] = useState('1W')
+  const [activeTab, setActiveTab] = useState('Today')  // always open on Today (not persisted → resets every load)
   const { data, isLoading } = useMobileSWR('/api/theme-performance', fetcher, {
     refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 30_000,
     dedupingInterval: 10_000,
