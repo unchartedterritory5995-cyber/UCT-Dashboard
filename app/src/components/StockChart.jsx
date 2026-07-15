@@ -15,6 +15,9 @@ import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
 import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { classifyLiveBar } from './chart/liveBarClassify'
+import { applySessionCandle, computeSessionTagLines } from './chart/sessionPreview'
+import useMarketOpen from '../hooks/useMarketOpen'
+import useSessionExtBars from '../hooks/useSessionExtBars'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
@@ -506,6 +509,7 @@ const MB_DOWN = '#c41f2d'    // deep darker red
 const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the canvas blends with the rest of the screen
 const MB_UP_RGB = '26,229,26', MB_DOWN_RGB = '196,31,45'
 const VOL_MA_COLOR = 'rgba(255,255,255,0.45)'   // volume-pane MA line (subtle white)
+const SESSION_EXT_COLOR = '#f5a623'  // pre/post-market price tag (TradingView "Pre"/"Post" orange)
 const _candleRgba = (up, a) => `rgba(${up ? MB_UP_RGB : MB_DOWN_RGB},${a})`
 // Re-express any hex / rgb / rgba color at the given alpha (for the MA tail fade).
 function colorWithAlpha(color, a) {
@@ -835,6 +839,12 @@ export default function StockChart({
   // markers/price lines, which would "randomly" appear on any ticker the viewer
   // happens to have traded. Set true to suppress the personal journal overlay.
   hideJournalOverlay = false,
+  // ── Extended-hours session preview (Charts workspace only) ──
+  // null on every other surface (feature off). 'regular' | 'extended' from the
+  // workspace's "Regular Hours / Include pre-market" toggle. Drives the synthetic
+  // pre/post-market daily candle + the locked-close / Pre-Post price tags. Only
+  // meaningful on D/W/M — inert on intraday.
+  sessionView = null,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -1298,6 +1308,11 @@ export default function StockChart({
   //   • Writer D — post-setData re-top         (~L3336):  branch — push-owned re-top vs Finnhub re-top
   const barsPushActiveRef = useRef(false)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
+  // Session preview owns the D/W/M developing bar during pre/post market on the
+  // workspace (synthetic pre-market candle / frozen-at-4pm regular candle) — a
+  // 5th writer-ownership condition alongside barsPushActive. Writers A + D read
+  // this ref to yield the D/W/M last bar to the memo-driven setData.
+  const sessionOwnsDailyRef = useRef(false)
 
   // ── Extended hours toggle (regular session only vs all hours) ──
   const [showExtended, setShowExtended] = useState(() => {
@@ -2183,6 +2198,40 @@ export default function StockChart({
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
 
+  // ── Extended-hours session preview (Charts workspace; D/W/M only) ──────────
+  // `sessionView` is non-null only on the workspace. `marketSession` is the live
+  // ET session. Three activation flags drive the behavior; see sessionPreview.js.
+  const marketState = useMarketOpen()
+  const marketSession = marketState.isPremarket ? 'pre'
+    : marketState.isExtended ? 'post'
+    : marketState.isOpen ? 'rth' : 'closed'
+  const _isDWM = ['D', 'W', 'M'].includes(resolvedTf)
+  const _sessionActive = sessionView != null && _isDWM
+  const _inExtWindow = marketSession === 'pre' || marketSession === 'post'
+  const _sessionLive = sym ? livePrices?.[sym] : null
+  // Live extended-hours print (null until the feed flags a real pre/post trade).
+  const sessionExtPrice = (_sessionLive && _sessionLive.ext_session
+    && Number.isFinite(_sessionLive.ext_price) && _sessionLive.ext_price > 0)
+    ? _sessionLive.ext_price : null
+  // Include-mode: synthesize/extend the D/W/M candle from extended-hours data.
+  const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode
+  // Regular-mode post-market: freeze today's candle at the 4pm close (don't let
+  // the live writers fold post-market prints into it). Pre-market regular mode
+  // already leaves yesterday's bar untouched (day_open==0 → classifyLiveBar skip).
+  const sessionFreezeActive = _sessionActive && sessionView === 'regular' && marketSession === 'post' && !replayMode
+  // Show the locked-close + Pre/Post tags whenever it's pre/post market on the
+  // workspace, regardless of the toggle (matches TradingView).
+  const sessionTagsActive = _sessionActive && _inExtWindow && !replayMode
+  // Writers A + D yield the D/W/M last bar to the memo-driven setData while owned.
+  // Kept in a ref (read by the live-tick callbacks); updated in an effect so we
+  // never write a ref during render. Effects run top-to-bottom, and the writer
+  // callbacks only fire on a later live tick, so the ref is always current by then.
+  useEffect(() => {
+    sessionOwnsDailyRef.current = sessionCandleActive || sessionFreezeActive
+  }, [sessionCandleActive, sessionFreezeActive])
+  // Today's extended-hours aggregate (only fetched while the preview candle is on).
+  const sessionExtAgg = useSessionExtBars(sym, sessionCandleActive ? marketSession : null, sessionCandleActive)
+
   // Exact-range frame flips (Setup ⇄ Result) animate — see the exact-range pin
   // effect below. While the framed window SHRINKS (Result → Setup) keep slicing
   // at the OLD wider end so the outgoing candles stay in the series and visibly
@@ -2424,10 +2473,42 @@ export default function StockChart({
     setReplayIndex(null)
   }, [sym, resolvedTf])
 
+  // Extended-hours preview: in include-mode (pre/post market on the workspace),
+  // append a new pre-market candle or extend today's candle from the ext-hours
+  // aggregate + live ext price. filteredBars stays pure (regular-session only);
+  // the synthetic bar rides only the candle/volume/overlay data path so the
+  // green tag can read the true RTH close off filteredBars. When the toggle
+  // flips off (or the 9:30 bell auto-reverts it) this is a no-op.
+  const sessionAppliedBars = useMemo(() => {
+    if (!sessionCandleActive || !filteredBars?.length) return filteredBars
+    const curTime = computeBarTime(resolvedTf, Date.now() / 1000)
+    return applySessionCandle(filteredBars, { curTime, extAgg: sessionExtAgg, extPrice: sessionExtPrice })
+  }, [filteredBars, sessionCandleActive, resolvedTf, sessionExtAgg, sessionExtPrice])
+
   const displayBars = useMemo(() => {
-    if (!filteredBars?.length) return filteredBars
-    return cs.heikinAshi ? toHeikinAshi(filteredBars) : filteredBars
-  }, [filteredBars, cs.heikinAshi])
+    if (!sessionAppliedBars?.length) return sessionAppliedBars
+    return cs.heikinAshi ? toHeikinAshi(sessionAppliedBars) : sessionAppliedBars
+  }, [sessionAppliedBars, cs.heikinAshi])
+
+  // Right-axis session tags — green locked at the last RTH close (from the pure
+  // regular-session bars) + orange Pre/Post tag at the live ext price. Merged
+  // into the price-line applier via allPriceLines below.
+  const sessionTagLines = useMemo(() => {
+    if (!sessionTagsActive || !filteredBars?.length) return null
+    const effUp = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.candles.upColor
+    const effDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.candles.downColor
+    return computeSessionTagLines({
+      rthBars: filteredBars, session: marketSession, extPrice: sessionExtPrice,
+      upColor: effUp, downColor: effDown, extColor: SESSION_EXT_COLOR,
+    })
+  }, [sessionTagsActive, filteredBars, marketSession, sessionExtPrice, boldCandles, modelBookLook, cs.candles.upColor, cs.candles.downColor])
+
+  // User/journal price lines + the dynamic session tags. Kept as one array so the
+  // price-line applier's reference-equality guard picks up ext-price changes.
+  const allPriceLines = useMemo(
+    () => (sessionTagLines?.length ? [...(mergedPriceLines || []), ...sessionTagLines] : mergedPriceLines),
+    [mergedPriceLines, sessionTagLines],
+  )
 
   const ohlcData = useMemo(
     () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
@@ -2587,14 +2668,14 @@ export default function StockChart({
     return { goldTimes: new Set([hve.t]) }
   }, [markVolumeExtremes, filteredBars, entryDate, exitDate])
   const volData = useMemo(() => {
-    if (!filteredBars?.length) return []
+    if (!sessionAppliedBars?.length) return []
     // Volume bars track the candle palette EXACTLY so the red/green of the
     // volume pane matches the red/green of the candles above it (a dimmed alpha
     // composites darker over the near-black canvas and reads as a mismatched hue).
     const upC = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
     const downC = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
     const gold = '#e6b800'
-    return filteredBars.map(b => ({
+    return sessionAppliedBars.map(b => ({
       time: adjustTime(b.t),
       value: b.v,
       color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
@@ -2603,7 +2684,7 @@ export default function StockChart({
           ? 'rgba(201,168,76,0.9)'
           : b.c >= b.o ? upC : downC,
     }))
-  }, [filteredBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes])
+  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes])
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
   // re-tint effect lives AFTER updateChart (below) so its setData wins over
@@ -2615,27 +2696,27 @@ export default function StockChart({
   }, [volData, candleFrameFade, frameFadeAlpha, fadeCutoff])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
-    if (!volumeMa || volumeMa < 2 || !filteredBars?.length) return []
+    if (!volumeMa || volumeMa < 2 || !sessionAppliedBars?.length) return []
     const out = []
     const q = []
     let sum = 0
-    for (const b of filteredBars) {
+    for (const b of sessionAppliedBars) {
       const v = b.v || 0
       q.push(v); sum += v
       if (q.length > volumeMa) sum -= q.shift()
       if (q.length === volumeMa) out.push({ time: adjustTime(b.t), value: sum / volumeMa })
     }
     return out
-  }, [filteredBars, volumeMa, adjustTime])
+  }, [sessionAppliedBars, volumeMa, adjustTime])
   const overlayData = useMemo(() => {
-    if (!filteredBars?.length || !resolvedOverlays?.length) return []
+    if (!sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
       const raw = ov.type === 'EMA'
-        ? computeEMA(filteredBars, ov.period, overlaysFromStart)
-        : computeSMA(filteredBars, ov.period, overlaysFromStart)
+        ? computeEMA(sessionAppliedBars, ov.period, overlaysFromStart)
+        : computeSMA(sessionAppliedBars, ov.period, overlaysFromStart)
       return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
     })
-  }, [filteredBars, resolvedOverlays, adjustTime, overlaysFromStart])
+  }, [sessionAppliedBars, resolvedOverlays, adjustTime, overlaysFromStart])
   // Drive the MA tail opacity each frame of the Setup⇄Result crossfade (the
   // overlay loop in updateChart owns the tail DATA; this only re-tints it as the
   // alpha animates). No-op for charts that don't fade.
@@ -2989,6 +3070,11 @@ export default function StockChart({
     latestLiveRef.current = { sym, price: _p, updated_at: liveData.updated_at,
       day_open: _do, day_high: _dh, day_low: _dl, prev_close: _pc }
     if (!candleSeriesRef.current || !lastBarRef.current) return
+    // Writer A yields the D/W/M developing bar to the session-preview memo path
+    // while it owns the bar (pre/post-market preview candle or frozen-at-4pm
+    // regular candle). latestLiveRef stays updated above; only the candle write
+    // is skipped so the two paths can't fight over the last bar's close/high/low.
+    if (sessionOwnsDailyRef.current && ['D', 'W', 'M'].includes(resolvedTf)) return
     const price = _p
     const last = lastBarRef.current
     const useOhlc = isOhlcType(cs.chartType)
@@ -3265,7 +3351,7 @@ export default function StockChart({
         watermark, watermarkOpacity,
         ovN: overlayData?.length ?? 0,
         mkN: mergedMarkers?.length ?? 0,
-        plN: mergedPriceLines?.length ?? 0,
+        plN: allPriceLines?.length ?? 0,
         cmpN: comparisonData?.length ?? 0,
       })
     } catch {
@@ -3686,7 +3772,10 @@ export default function StockChart({
           }
         } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }
       }
-    } else if (_retopLive?.price && lastBarRef.current) {
+    } else if (_retopLive?.price && lastBarRef.current
+               && !(sessionOwnsDailyRef.current && ['D', 'W', 'M'].includes(resolvedTf))) {
+      // Skip the D/W/M re-top while session preview owns the bar — the memo-driven
+      // setData above already painted the synthetic/frozen candle correctly.
       const lp = _retopLive.price
       const tickSec = _retopLive.updated_at
       const last = lastBarRef.current
@@ -4368,20 +4457,21 @@ export default function StockChart({
     }
 
     // ── Price lines — remove old, add new (only when array reference changes) ──
-    if (lastPriceLinesRef.current !== mergedPriceLines) {
-      lastPriceLinesRef.current = mergedPriceLines
+    if (lastPriceLinesRef.current !== allPriceLines) {
+      lastPriceLinesRef.current = allPriceLines
       for (const pl of priceLineRefs.current) {
         try { candleSeriesRef.current.removePriceLine(pl) } catch {}
       }
       priceLineRefs.current = []
-      if (mergedPriceLines?.length && candleSeriesRef.current) {
-        for (const pl of mergedPriceLines) {
+      if (allPriceLines?.length && candleSeriesRef.current) {
+        for (const pl of allPriceLines) {
           const ref = candleSeriesRef.current.createPriceLine({
             price: pl.price,
             color: pl.color || cs.textColor,
             lineWidth: pl.lineWidth || 1,
             lineStyle: pl.lineStyle ?? 2,
             axisLabelVisible: pl.axisLabelVisible ?? true,
+            lineVisible: pl.lineVisible ?? true,   // session ext tag = chip only (no line)
             title: pl.title || '',
           })
           priceLineRefs.current.push(ref)
@@ -4615,12 +4705,20 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
     updateChart()
   }, [updateChart])
+
+  // Suppress the native last-value axis tag while the session tags are shown, so
+  // the green tag we render (locked at the RTH close) isn't doubled by LWC's
+  // built-in tag following the developing bar. Re-applied on series recreation.
+  useEffect(() => {
+    if (!chartReady || !candleSeriesRef.current) return
+    try { candleSeriesRef.current.applyOptions({ lastValueVisible: !hideLastValue && !sessionTagsActive }) } catch { /* older LWC */ }
+  }, [sessionTagsActive, hideLastValue, chartReady, cs.chartType])
 
   // TradingView-style layering: keep the candle bodies ABOVE the MA / Bollinger /
   // VWAP overlays so those lines pass BEHIND the opaque bodies instead of drawing

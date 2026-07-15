@@ -173,12 +173,43 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Right side of the TF bar: live market clock + share button, pushed far right ── */
+/* ── Right side of the TF bar: session toggle + live market clock + share ── */
 .tfBarRight {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+/* "Regular Hours / Include pre-market" segmented control — sits just left of the
+   clock. Mirrors the TF-button look so it belongs in the row. */
+.sessionToggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border, #1f2937);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sessionBtn {
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  border: none;
+  padding: 3px 9px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sessionBtn + .sessionBtn { border-left: 1px solid var(--border, #1f2937); }
+.sessionBtn:hover:not(:disabled) { color: var(--text, #e5e7eb); }
+.sessionBtn:disabled { opacity: 0.4; cursor: default; }
+.sessionBtnActive,
+.sessionBtnActive:hover {
+  color: var(--accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.12);
 }
 
 /* Live market clock — flat inline text that matches the Market Cap / Next

@@ -4,6 +4,7 @@ import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import ChartMarketClock from './ChartMarketClock'
 import { useWorkspace } from '../WorkspaceContext'
+import useMarketOpen from '../../../hooks/useMarketOpen'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import ChartDayGain from './ChartDayGain'
@@ -67,6 +68,17 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     if (nextTf === tf) return
     onOptsChange?.({ ...(opts || {}), tf: nextTf })
   }, [opts, tf, onOptsChange])
+
+  // ── Extended-hours session view ("Regular Hours" / "Include pre/post-market") ──
+  // Ephemeral per-widget state (not persisted). Defaults to Regular Hours and
+  // auto-reverts at the 9:30 bell, staying regular through the RTH session.
+  // Only meaningful on D/W/M; the toggle is hidden on intraday.
+  const mkt = useMarketOpen()
+  const [sessionView, setSessionView] = useState('regular')
+  useEffect(() => { if (mkt.isOpen) setSessionView('regular') }, [mkt.isOpen])
+  const isDWMtf = ['D', 'W', 'M'].includes(tf)
+  const extEnabled = mkt.isPremarket || mkt.isExtended
+  const extLabel = mkt.isExtended ? 'Include post-market' : 'Include pre-market'
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
@@ -143,6 +155,23 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           </span>
         </div>
         <div className={styles.tfBarRight}>
+          {isDWMtf && (
+            <div className={styles.sessionToggle} role="group" aria-label="Chart session view">
+              <button
+                type="button"
+                className={`${styles.sessionBtn} ${sessionView === 'regular' ? styles.sessionBtnActive : ''}`}
+                onClick={() => setSessionView('regular')}
+                title="Regular trading hours only"
+              >Regular Hours</button>
+              <button
+                type="button"
+                className={`${styles.sessionBtn} ${sessionView === 'extended' ? styles.sessionBtnActive : ''}`}
+                onClick={() => { if (extEnabled) setSessionView('extended') }}
+                disabled={!extEnabled}
+                title={extEnabled ? extLabel : 'Available during pre-market and post-market'}
+              >{extLabel}</button>
+            </div>
+          )}
           <ChartMarketClock />
           <ShareToFloor card={{ kind: 'chart', ticker: sym, tf }} compact />
         </div>
@@ -190,6 +219,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           volumePaneHeightPct={12}
           priceScaleTopMargin={0.12}
           priceScaleBottomMargin={0.10}
+          sessionView={sessionView}
         />
         {flagToast && (
           <div className={styles.flagToast}>
