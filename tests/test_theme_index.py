@@ -36,9 +36,10 @@ def test_holding_joins_when_it_starts():
 
 
 def test_resample_weekly():
+    # Daily index bars carry a "YYYY-MM-DD" t (same Mon–Fri week here).
     daily = [
-        {"t": 1 * D, "o": 100, "h": 105, "l": 99, "c": 104, "v": 10},
-        {"t": 2 * D, "o": 104, "h": 108, "l": 103, "c": 107, "v": 20},
+        {"t": "2026-07-13", "o": 100, "h": 105, "l": 99, "c": 104, "v": 10},
+        {"t": "2026-07-14", "o": 104, "h": 108, "l": 103, "c": 107, "v": 20},
     ]
     wk = _resample(daily, "W")
     assert len(wk) == 1

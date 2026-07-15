@@ -111,10 +111,11 @@ def _compute_index_bars(holdings_bars: dict[str, list[dict]]) -> list[dict]:
         h = max(h, o, c)
         l = min(l, o, c)
         vol = sum(r["v"] for r in rows)
-        # Use the midday-ish timestamp from the first row's date (align to that day).
-        t_ms = rows[0]["t"]
         out.append({
-            "t": t_ms,
+            # Daily/Weekly/Monthly bars carry `t` as a "YYYY-MM-DD" ET date string
+            # (the format the frontend StockChart + LW Charts expect for D/W/M),
+            # NOT unix seconds like intraday.
+            "t": d,
             "o": round(o, 4), "h": round(h, 4), "l": round(l, 4), "c": round(c, 4),
             "v": vol,
         })
@@ -129,7 +130,7 @@ def _resample(daily: list[dict], tf: str) -> list[dict]:
     buckets: dict[str, list[dict]] = {}
     order: list[str] = []
     for b in daily:
-        dt = datetime.fromtimestamp(b["t"] / 1000, tz=timezone.utc)
+        dt = datetime.strptime(b["t"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
         if tf == "W":
             iso = dt.isocalendar()
             key = f"{iso[0]}-W{iso[1]:02d}"
