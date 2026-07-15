@@ -1742,7 +1742,9 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
     # Auto-push scan: mark already-pushed alerts (POSTED persists) and, when the
     # master switch is on, claim + fire newly-qualifying ones. On the FULL set so
     # no client's tier/limit filter hides a qualifier; dedup via the log.
-    _apply_auto_push(all_alerts)
+    # live=... so browsing a historical date MARKS ONLY and never fires (see
+    # _apply_auto_push docstring).
+    _apply_auto_push(all_alerts, live=(today == _today_mdyyyy()))
 
     alerts = all_alerts[:limit]
 
@@ -2583,7 +2585,8 @@ def by_contract(
             # the non-admin view) and fire newly-qualifying ones. Hooked in the ROUTE
             # on fresh builds only — NOT in _build_by_contract, which the manual
             # force-push path also calls.
-            _apply_auto_push(payload.get("contracts", []), mode="accumulation")
+            _apply_auto_push(payload.get("contracts", []), mode="accumulation",
+                             live=(today == _today_mdyyyy()))
             _by_contract_cache[key] = (time.time(), payload)
             return payload
     try:
@@ -2592,7 +2595,8 @@ def by_contract(
         # the non-admin view) and fire newly-qualifying ones. Hooked in the ROUTE
         # on fresh builds only — NOT in _build_by_contract, which the manual
         # force-push path also calls.
-        _apply_auto_push(payload.get("contracts", []), mode="accumulation")
+        _apply_auto_push(payload.get("contracts", []), mode="accumulation",
+                             live=(today == _today_mdyyyy()))
         _by_contract_cache[key] = (time.time(), payload)
         return payload
     finally:
@@ -3039,11 +3043,18 @@ def _unclaim_push(alert: dict):
         pass
 
 
-def _apply_auto_push(alerts: list, mode: str = "single"):
+def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
     """Per-scan auto-push pass, run on the FULL alert set in /recent:
       1) mark forwardedToDiscord on every alert already in the push log — so
          POSTED survives a refresh and shows in the non-admin view;
-      2) if the master switch is on, claim + fire any newly-qualifying alert.
+      2) if the master switch is on AND `live`, claim + fire any newly-
+         qualifying alert.
+
+    `live` (added 2026-07-14): False when the caller is rendering a HISTORICAL
+    date. Browsing back to an older day used to fire that whole day's
+    qualifiers to Discord as new — _push_key is contract+day, so a day that
+    predates auto-push had never been claimed and every qualifier blasted out
+    on view. Historical scans now MARK ONLY (step 1); they never claim or fire.
     The claim (atomic INSERT via _record_push) is the dedup gate, so concurrent
     /recent polls can never double-send. Discord POSTs run in a daemon thread so
     /recent never blocks; a failed POST un-claims so it retries next scan."""
@@ -3067,7 +3078,7 @@ def _apply_auto_push(alerts: list, mode: str = "single"):
             curated_ok = lambda a: _qualifies_curated(a, _thr, contract_totals=_ct)
         except Exception:
             curated_ok = None
-    enabled = bool(_AUTO_PUSH_CFG.get("enabled"))
+    enabled = bool(_AUTO_PUSH_CFG.get("enabled")) and live
     to_push = []
     for a in alerts:
         try:
