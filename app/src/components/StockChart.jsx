@@ -1385,7 +1385,20 @@ export default function StockChart({
     // price so the legend never freezes.
     const ft = liveTickRef.current
     const fastFresh = ft && ft.price != null && (Date.now() - ft.ts) < LIVE_TICK_FRESH_MS
-    if (fastFresh && isSaneLivePrice(ft.price, c, lastServerCloseRef.current)) {
+    // Regular/RTH-only mode during an extended session: the developing candle is
+    // frozen at the RTH close, so keep the LEGEND on it too — don't fold the live
+    // pre/post-market price into close/high/low (else the legend disagrees with the
+    // frozen candle). D/W/M keys off sessionView; intraday off the EXT/RTH toggle.
+    const _nowMin = etMinutes(Math.floor(Date.now() / 1000))
+    const _nowExt = _nowMin < 570 || _nowMin >= 960
+    const _isDWMtf = ['D', 'W', 'M'].includes(resolvedTfRef.current)
+    const _rthLock = _nowExt && (
+      (_isDWMtf && sessionViewRef.current === 'regular')
+      || (!_isDWMtf && !showExtendedRef.current)
+    )
+    if (_rthLock) {
+      // keep c / h / l from the frozen RTH bar
+    } else if (fastFresh && isSaneLivePrice(ft.price, c, lastServerCloseRef.current)) {
       c = ft.price
       if (Number.isFinite(h)) h = Math.max(h, ft.price)
       if (Number.isFinite(l)) l = Math.min(l, ft.price)
@@ -5920,6 +5933,18 @@ export default function StockChart({
         const tf = resolvedTfRef.current
         const isDailyPlus = tf === 'D' || tf === 'W' || tf === 'M'
         if (!isDailyPlus || cs.heikinAshi || barsPushActiveRef.current) return
+        // Session-preview owns the D/W/M bar (Include-mode preview candle or the
+        // Regular-mode frozen-at-4pm candle) — don't let this fast tick fight it.
+        if (sessionOwnsDailyRef.current) return
+        // Regular Hours: never fold a pre/post-market tick into the RTH daily
+        // candle — even in the up-to-60s window before useMarketOpen flips (which
+        // sessionOwnsDailyRef keys off). This tick is live, so wall-clock ET is an
+        // accurate, lag-independent session check. (Writer E was the path still
+        // seaming post-market onto the daily candle after Writers A/D were gated.)
+        if (sessionViewRef.current === 'regular') {
+          const _m = etMinutes(Math.floor(Date.now() / 1000))
+          if (_m < 570 || _m >= 960) return
+        }
         const series = candleSeriesRef.current
         const last = lastBarRef.current
         if (!series || !last) return
