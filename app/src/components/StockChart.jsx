@@ -735,6 +735,7 @@ export default function StockChart({
   dailyDefaultBars = null,  // override the Daily default-zoom bar count (Charts workspace: ~126 ≈ 6 months). Daily only; other TFs keep their own defaults.
   ema9MatchCandle = false,  // Charts workspace: paint the 9-EMA overlay in the candle up-color (MB_UP) so the fast MA matches the candles. Reliable regardless of saved overlay colors; scoped so Model Book is unaffected.
   carryDragPlacement = true, // carry the user's drag-repositioned vertical candle placement across ticker switches. false = each ticker autoscales fresh to the default margins (Charts workspace: prevents the price scale ballooning to a sliver and STICKING when scrolling tickers).
+  keepPresentOnSymbolChange = false, // on a symbol switch, keep the zoom LEVEL but re-anchor the newest candle to the right so a newly-typed ticker always loads at present day (never inherits the prior symbol's scrolled-back/past view). Charts workspace opts in.
   centerWatermarkOnPlot = false, // center the watermark on the CANDLE PLOT AREA (chart.timeScale().width()/2), not 0.5×pane-width — the pane width includes the right price axis, so a plain 0.5 reads right-of-center. Exact at any widget width.
   rightPadBars = 3,          // bars of empty space between the last candle and the right price scale (rightOffset + default-zoom right pad). Charts workspace uses more for breathing room.
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
@@ -4555,10 +4556,21 @@ export default function StockChart({
       let didPreserve = false
       if (!isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
         const newBarCount = filteredBars.length
-        const barsFromRight = oldBarCount - oldRange.to
         const width = oldRange.to - oldRange.from
-        const to = newBarCount - barsFromRight
-        const from = to - width
+        // Symbol switch: keep the user's ZOOM LEVEL (width), but choose the anchor.
+        // keepPresentOnSymbolChange (Charts workspace) always pins the newest candle to
+        // the right so a newly-typed ticker loads at PRESENT DAY — never inheriting a
+        // scrolled-back (past) position from the prior symbol. Otherwise preserve the
+        // prior bars-from-right (flip tickers at the exact same historical view).
+        let to, from
+        if (keepPresentOnSymbolChange) {
+          to = (newBarCount - 1) + width * (1 - LAST_CANDLE_POS)
+          from = to - width
+        } else {
+          const barsFromRight = oldBarCount - oldRange.to
+          to = newBarCount - barsFromRight
+          from = to - width
+        }
         if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
           try {
             chart.timeScale().setVisibleLogicalRange({ from, to })
