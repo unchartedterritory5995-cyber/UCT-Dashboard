@@ -1985,6 +1985,15 @@ export default function StockChart({
     // Without this, a delta response could merge with leftover bars from another
     // ticker still sitting in idbBars state (the cross-ticker race).
     const sameSymTf = idbReadyForRef.current === `${sym}_${resolvedTf}`
+    // TEMP DIAGNOSTIC (enable in DevTools: window.__uctBarsDebug = true) — traces
+    // the delta-sync path to find the "missing candles until ~10s later" stall on
+    // a stale-cache revisit. Logs the since sent, the delta response, the cached
+    // tail, and the merge outcome. Remove once the gap-fill delay is root-caused.
+    const _dbg = typeof window !== 'undefined' && window.__uctBarsDebug
+    if (_dbg) console.log('[bars-delta]', sym, resolvedTf,
+      '| resp:', { delta: data.delta, n: data.bars.length, firstT: data.bars[0]?.t, lastT: data.bars[data.bars.length - 1]?.t },
+      '| idb:', { n: idbBars?.length ?? 0, lastT: idbBars?.[idbBars.length - 1]?.t },
+      '| sinceRef:', idbSinceRef.current, '| sameSymTf:', sameSymTf)
     if (data.delta && idbBars?.length && sameSymTf) {
       const merged = mergeDelta(idbBars, data.bars)
       // refreshInterval flicker guard: when the 30s poll returns no new bars
@@ -2001,12 +2010,17 @@ export default function StockChart({
         && lastIdb.h === lastMerged.h
         && lastIdb.l === lastMerged.l
         && lastIdb.v === lastMerged.v
-      if (sameLength && sameTail) return  // nothing changed — don't repaint
+      if (sameLength && sameTail) {
+        if (_dbg) console.log('[bars-delta]', sym, resolvedTf, '=> SKIPPED (delta added nothing new; gap NOT filled)')
+        return  // nothing changed — don't repaint
+      }
+      if (_dbg) console.log('[bars-delta]', sym, resolvedTf, `=> MERGED ${idbBars.length} -> ${merged.length}`)
       setIdbBars(merged)
       if (merged.length) idbSinceRef.current = merged[merged.length - 1].t
       idbPut(sym, resolvedTf, merged)
       memPut(sym, resolvedTf, merged)
     } else if (!data.delta && data.bars.length) {
+      if (_dbg) console.log('[bars-delta]', sym, resolvedTf, `=> REPLACED (full) with ${data.bars.length}`)
       setIdbBars(data.bars)
       idbSinceRef.current = data.bars[data.bars.length - 1]?.t ?? null
       idbPut(sym, resolvedTf, data.bars)
@@ -5898,6 +5912,13 @@ export default function StockChart({
   // create an infinite loop.
   useEffect(() => {
     if (!chartRef.current || !candleSeriesRef.current) return
+    // Never let the multi-chart sync override the LOCAL user's crosshair while
+    // they're actively hovering THIS chart — the crosshair must only follow their
+    // own mouse. (Bug: with a 2nd synced widget carrying a live chart, its
+    // broadcast snapped the hovered chart's crosshair to the current bar/price
+    // the moment the mouse stopped moving.) When not hovering, the sync applies
+    // normally so you still see the other chart's crosshair.
+    if (legendHoveringRef.current) return
     // Suppress clear-echo: applying a crosshair fires a point-less crosshair
     // event that must not be re-broadcast as a "mouse left" clear.
     applyingExternalRef.current = true

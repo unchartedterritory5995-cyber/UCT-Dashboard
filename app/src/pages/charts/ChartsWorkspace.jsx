@@ -12,7 +12,12 @@ import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
-const COLS = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }
+// 24-col grid (doubled from the original 12) so widgets can size in half-of-the-
+// old-column steps — e.g. the Theme widget now has a width between the old "1 col
+// (too thin)" and "2 cols". Every breakpoint is doubled in lockstep so relative
+// sizing is unchanged; legacy 12-col saved layouts are migrated in parseLayout().
+const GRID_COLS = 24
+const COLS = { lg: GRID_COLS, md: 20, sm: 12, xs: 8, xxs: 4 }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
 const FIXED_ROWS = 20            // workspace is viewport-locked to this many rows
 const MARGIN_Y = 6                // px gap between widgets vertically
@@ -20,19 +25,22 @@ const BODY_PAD = 6                // px padding around the grid (matches .worksp
 
 const DEFAULT_LAYOUT = {
   widgets: [
-    { id: 'w-watchlist', type: 'watchlist', color: 'A', x: 0, y: 0, w: 2, h: 7,  opts: {} },
-    { id: 'w-chart',     type: 'chart',     color: 'A', x: 2, y: 0, w: 10, h: 20, opts: { tf: 'D' } },
-    { id: 'w-themes',    type: 'themes',    color: 'B', x: 0, y: 7, w: 2, h: 13, opts: {} },
+    { id: 'w-watchlist', type: 'watchlist', color: 'A', x: 0, y: 0, w: 4,  h: 7,  opts: {} },
+    { id: 'w-chart',     type: 'chart',     color: 'A', x: 4, y: 0, w: 20, h: 20, opts: { tf: 'D' } },
+    { id: 'w-themes',    type: 'themes',    color: 'B', x: 0, y: 7, w: 4,  h: 13, opts: {} },
   ],
-  cols: 12,
+  cols: GRID_COLS,
 }
 
+// Widths/minW are in 24-col units (2 units = one old column). themes minW is 2
+// so the widget can still go narrow, but the reachable middle size (3 units = 1.5
+// old cols) is the "in between" the too-thin and the good size.
 const WIDGET_DEFAULTS = {
-  chart:     { w: 6, h: 12, minW: 3, minH: 6 },
-  watchlist: { w: 3, h: 10, minW: 2, minH: 4 },
-  themes:    { w: 3, h: 10, minW: 1, minH: 4 },
-  scanner:   { w: 4, h: 10, minW: 3, minH: 4 },
-  fundamentals: { w: 4, h: 6, minW: 3, minH: 2 },
+  chart:     { w: 12, h: 12, minW: 6, minH: 6 },
+  watchlist: { w: 6,  h: 10, minW: 4, minH: 4 },
+  themes:    { w: 6,  h: 10, minW: 2, minH: 4 },
+  scanner:   { w: 8,  h: 10, minW: 6, minH: 4 },
+  fundamentals: { w: 8, h: 6, minW: 6, minH: 2 },
 }
 
 function parseLayout(raw) {
@@ -40,24 +48,35 @@ function parseLayout(raw) {
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
     if (parsed?.widgets && Array.isArray(parsed.widgets)) {
+      // Migrate legacy 12-col layouts to the 24-col grid. Detected by the
+      // absence of the cols:GRID_COLS marker (old saves have cols:12 or none).
+      // Double x AND w so every widget keeps its exact on-screen position + size,
+      // then stamp the new marker so this runs exactly once per user.
+      let widgets = parsed.widgets
+      let cols = parsed.cols
+      if (cols !== GRID_COLS) {
+        widgets = widgets.map(w => ({
+          ...w,
+          x: (w.x || 0) * 2,
+          w: Math.max(2, (w.w || 2) * 2),
+        }))
+        cols = GRID_COLS
+      }
       // Auto-fit legacy layouts (h values < ~5) saved before the viewport-lock
       // change so they don't appear tiny on resume. Detect by checking if max
       // y+h is well below FIXED_ROWS — scale all h values up uniformly.
-      const maxBottom = parsed.widgets.reduce((m, w) => Math.max(m, (w.y || 0) + (w.h || 0)), 0)
+      const maxBottom = widgets.reduce((m, w) => Math.max(m, (w.y || 0) + (w.h || 0)), 0)
       if (maxBottom > 0 && maxBottom <= FIXED_ROWS / 2) {
         const scale = Math.floor(FIXED_ROWS / maxBottom)
         if (scale > 1) {
-          return {
-            ...parsed,
-            widgets: parsed.widgets.map(w => ({
-              ...w,
-              y: (w.y || 0) * scale,
-              h: Math.max(4, (w.h || 4) * scale),
-            })),
-          }
+          widgets = widgets.map(w => ({
+            ...w,
+            y: (w.y || 0) * scale,
+            h: Math.max(4, (w.h || 4) * scale),
+          }))
         }
       }
-      return parsed
+      return { ...parsed, widgets, cols }
     }
   } catch {}
   return null
@@ -262,7 +281,7 @@ export default function ChartsWorkspace() {
       const defaults = WIDGET_DEFAULTS[w.type] || {}
       return {
         i: w.id, x: w.x, y: w.y, w: w.w, h: w.h,
-        minW: defaults.minW || 2, minH: defaults.minH || 3,
+        minW: defaults.minW || 4, minH: defaults.minH || 3,
       }
     }),
   }
