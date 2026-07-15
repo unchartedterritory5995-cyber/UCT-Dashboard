@@ -4653,6 +4653,38 @@ export default function StockChart({
       }
     }
 
+    // ── Keep-the-newest-candle-pinned-right safety net (workspace live charts) ──
+    // After ALL the zoom branches above have run, if the user was viewing the
+    // latest bars and the newest candle has drifted off the right edge, snap it
+    // back. This is mechanism-agnostic: whatever repositioned the view (a
+    // background data-count change re-anchor, LWC's own setData behavior, a
+    // backfill, a resize settle), the end state is enforced — the view must not
+    // move on its own (user requirement). A deliberately scrolled-back view (last
+    // bar NOT near the right before this update) is left completely untouched.
+    if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0 && filteredBars.length > 1) {
+      const preLastIdx = oldBarCount - 1
+      const prePad = oldRange.to - preLastIdx      // empty bars right of the last bar, BEFORE the update
+      const preWidth = oldRange.to - oldRange.from
+      // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
+      const wasViewingLatest = preWidth > 0 && prePad >= -1 && prePad <= Math.max(8, preWidth * 0.25)
+      if (wasViewingLatest) {
+        let fr = null
+        try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+        if (fr) {
+          const w = fr.to - fr.from
+          const lastIdx = filteredBars.length - 1
+          const pos = w > 0 ? (lastIdx - fr.from) / w : 1  // newest candle's 0..1 screen position
+          // Drifted: newest candle pushed left into the middle (pos < 0.85) or shoved
+          // off the right edge (pos > 1.02). Re-pin it to the standard load position.
+          if (w > 0 && (pos < 0.85 || pos > 1.02)) {
+            const to2 = lastIdx + w * (1 - LAST_CANDLE_POS)
+            const from2 = to2 - w
+            try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch { /* out of range mid-load */ }
+          }
+        }
+      }
+    }
+
     // Model Book (exactDateRange): the year frame is DETERMINISTIC for this (stock,
     // year), so re-apply it on EVERY data update — not only on the sym/tf switch
     // handled above. The bars load in phases (IDB cache → network refetch), and a
