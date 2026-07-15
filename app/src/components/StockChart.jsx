@@ -5793,8 +5793,18 @@ export default function StockChart({
     if (!alwaysShowLegend || !chartReady) return undefined
     const id = setInterval(() => {
       if (legendHoveringRef.current) return   // hover owns the legend — don't fight it
-      setCrosshairData(computeLatestCrosshair())
-    }, 250)
+      // crosshairData lives on StockChart, so setting it re-renders this whole
+      // (heavy) component. The old code set a FRESH object every 250ms
+      // unconditionally → ~4 full re-renders/sec per chart, forever. With several
+      // chart widgets open that constant churn janked the live-quote feed
+      // (freezes) and destabilized the chart's redraw/resize (jitter). Only set
+      // state when the displayed legend actually changed, at a calmer cadence.
+      setCrosshairData(prev => {
+        const next = computeLatestCrosshair()
+        try { if (JSON.stringify(prev) === JSON.stringify(next)) return prev } catch { /* fall through */ }
+        return next
+      })
+    }, 500)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alwaysShowLegend, chartReady, sym])
