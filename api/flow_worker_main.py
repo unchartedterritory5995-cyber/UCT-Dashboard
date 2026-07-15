@@ -197,6 +197,32 @@ def _start_flow_schedulers():
             n += 1
         except Exception as e:  # noqa: BLE001
             log.warning("nightly prune scheduling failed: %s", e)
+
+        try:
+            # Daily OI snapshot (5:30 AM ET) — captures Schwab live OI for
+            # contracts with recent flow (retroactive B-side confirmation). Moved
+            # from web at the P5 cutover: flow.db AND the Schwab OPRA consumer +
+            # on-demand OI fetch live HERE now, so this cron must too. Gated on
+            # Schwab creds being present on this pod (copied at cutover).
+            if os.getenv("SCHWAB_APP_KEY"):
+                from apscheduler.triggers.cron import CronTrigger as _OICron
+                from api.oi_snapshots import daily_snapshot_job, init_db as _init_oi_snapshots
+                _init_oi_snapshots()
+                try:
+                    from api.dealer_positioning import init_db as _init_dealer_positioning
+                    _init_dealer_positioning()
+                except Exception as _de:  # noqa: BLE001
+                    log.warning("dealer_positioning init failed: %s", _de)
+                sched.add_job(daily_snapshot_job,
+                              trigger=_OICron(day_of_week="mon-fri", hour=5, minute=30),
+                              id="oi_snapshot_daily", max_instances=1,
+                              replace_existing=True)
+                n += 1
+                log.info("[startup] OI snapshot 5:30am cron registered on flow-worker")
+            else:
+                log.info("[startup] OI snapshot cron skipped (SCHWAB_APP_KEY unset)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("OI snapshot scheduling failed: %s", e)
         if n:
             sched.start()
             log.info("[startup] flow-worker schedulers started (%d job group(s): "
