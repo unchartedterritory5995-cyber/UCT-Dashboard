@@ -1229,7 +1229,8 @@ export default function StockChart({
     const onSize = () => {
       try {
         const tw = ts.width()
-        if (tw > 0 && wmCtrlRef.current) wmCtrlRef.current.setOptions({ hardCenterXPx: tw / 2 })
+        let aw = 0; try { aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
+        if (tw > 0 && wmCtrlRef.current) wmCtrlRef.current.setOptions({ hardCenterXPx: (tw + aw) / 2 })
       } catch { /* noop */ }
     }
     try { ts.subscribeSizeChange(onSize) } catch { return undefined }
@@ -3597,12 +3598,17 @@ export default function StockChart({
         ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines)
         : []
       // centerWatermarkOnPlot: pin the horizontal center to the middle of the
-      // CANDLE PLOT AREA (time-axis width / 2). mediaSize.width in the primitive
-      // includes the right price-axis gutter, so a plain x=0.5 sits right-of-center;
-      // this is exact at any widget width. Falls back to watermarkCenterX otherwise.
+      // WHOLE widget — the candle plot PLUS the right price-axis gutter — measured
+      // from the pane's left edge (= widget's left edge; there's no left axis). So
+      // it's centered between the outer left/right edges of the widget, not just
+      // the candle area. Falls back to watermarkCenterX otherwise.
       let _wmCenterX = watermarkCenterX
       if (centerWatermarkOnPlot) {
-        try { const _tw = chart.timeScale().width(); if (_tw > 0) _wmCenterX = _tw / 2 } catch { /* keep fallback */ }
+        try {
+          const _tw = chart.timeScale().width()
+          let _aw = 0; try { _aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
+          if (_tw > 0) _wmCenterX = (_tw + _aw) / 2
+        } catch { /* keep fallback */ }
       }
       wmCtrlRef.current.setOptions({
         lines: wmLines,
