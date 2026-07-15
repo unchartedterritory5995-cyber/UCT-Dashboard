@@ -1328,13 +1328,17 @@ export default function StockChart({
     }
     let vol = last.v
     if ((!vol || vol === 0) && lp?.volume) vol = lp.volume
-    // Today's change is close-vs-PREVIOUS-close (the real % move), NOT
-    // close-minus-open. Prefer the live feed's OFFICIAL prev_close (the exact
-    // reference the theme tracker + brokers use) so the numbers never disagree;
-    // fall back to the prior bar's close, then the open. `c` is the live price.
+    // Change is close-vs-PREVIOUS-BAR-close ON THE CURRENT TIMEFRAME, so the
+    // legend reflects the selected TF (weekly = vs last week, 5m = vs the prior
+    // 5m bar), not always "today". DAILY is the special case where the prior bar
+    // IS yesterday, so there we prefer the live feed's OFFICIAL prev_close to
+    // match the theme tracker / brokers exactly. `c` is the live price.
     const feedPrev = (lp && Number.isFinite(lp.prev_close) && lp.prev_close > 0) ? lp.prev_close : null
     const prevBar = bars.length >= 2 ? bars[bars.length - 2] : null
-    const prevClose = feedPrev ?? (prevBar && prevBar.c != null ? prevBar.c : null)
+    const prevBarClose = (prevBar && prevBar.c != null) ? prevBar.c : null
+    const prevClose = (resolvedTfRef.current === 'D')
+      ? (feedPrev ?? prevBarClose)
+      : (prevBarClose ?? feedPrev)
     const change = prevClose != null ? c - prevClose : c - o
     const changePct = (prevClose != null && prevClose) ? (change / prevClose) * 100 : (o ? (change / o) * 100 : 0)
     const ovData = overlayDataRef.current || []
