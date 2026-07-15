@@ -3,6 +3,8 @@ import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
+import useChartLayouts from '../../hooks/useChartLayouts'
+import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
 import WidgetHost from './WidgetHost'
@@ -76,10 +78,25 @@ function parseLayout(raw) {
           }))
         }
       }
-      return { ...parsed, widgets, cols }
+      return { ...parsed, widgets: clampWidgetsToRows(widgets), cols }
     }
   } catch {}
   return null
+}
+
+// Keep every widget within the viewport-locked grid: no widget's bottom (y+h)
+// may exceed FIXED_ROWS, or it hangs off the bottom of the screen (the body is
+// overflow:hidden, so the overhang just vanishes — the fundamentals-widget bug).
+// Shrink h to fit the space below y; y is first clamped so at least minH fits.
+// Applied on load, add, template-open, and every layout change before persist.
+function clampWidgetsToRows(widgets) {
+  return widgets.map(w => {
+    const minH = WIDGET_DEFAULTS[w.type]?.minH || 3
+    const y = Math.max(0, Math.min(w.y || 0, FIXED_ROWS - minH))
+    let h = Math.max(minH, Math.min(w.h || minH, FIXED_ROWS))
+    if (y + h > FIXED_ROWS) h = FIXED_ROWS - y  // y ≤ FIXED_ROWS-minH ⇒ h ≥ minH
+    return { ...w, y, h }
+  })
 }
 
 function nextColor(currentColors) {
@@ -201,7 +218,7 @@ export default function ChartsWorkspace() {
         if (!l) return w
         return { ...w, x: l.x, y: l.y, w: l.w, h: l.h }
       })
-      const next = { ...prev, widgets }
+      const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
       scheduleSave(next)
       return next
     })
@@ -247,7 +264,7 @@ export default function ChartsWorkspace() {
         x, y, w, h,
         opts: {},
       }
-      const next = { ...prev, widgets: [...prev.widgets, newWidget] }
+      const next = { ...prev, widgets: clampWidgetsToRows([...prev.widgets, newWidget]) }
       scheduleSave(next)
       return next
     })
@@ -264,14 +281,60 @@ export default function ChartsWorkspace() {
   // (the "resets to default on refresh sometimes" report); this guarantees a save.
   const [savedFlash, setSavedFlash] = useState(false)
   const savedFlashTimerRef = useRef(null)
+  const flashSaved = useCallback(() => {
+    setSavedFlash(true)
+    if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current)
+    savedFlashTimerRef.current = setTimeout(() => setSavedFlash(false), 1600)
+  }, [])
   const handleSaveLayout = useCallback(() => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
     setPref('charts_workspace_layout', JSON.stringify(layout))
     setPref('charts_workspace_groups', JSON.stringify(groupSyms))
-    setSavedFlash(true)
-    if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current)
-    savedFlashTimerRef.current = setTimeout(() => setSavedFlash(false), 1600)
-  }, [layout, groupSyms, setPref])
+    flashSaved()
+  }, [layout, groupSyms, setPref, flashSaved])
+
+  // ── Named layout templates (prebuilt + personal) ──
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout } = useChartLayouts()
+  const [openMenuOpen, setOpenMenuOpen] = useState(false)
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false)
+  const [saveAsName, setSaveAsName] = useState('')
+  const [saveAsScope, setSaveAsScope] = useState('user')  // 'user' | 'global' (admin)
+  const [saveErr, setSaveErr] = useState('')
+
+  // Apply a saved/prebuilt layout: restore the arrangement (+ its color-group
+  // tickers) and persist so it sticks across refreshes. Runs through parseLayout
+  // so any older-shaped template is normalized to the current grid.
+  const applyTemplate = useCallback((tpl) => {
+    if (!tpl?.layout?.widgets) return
+    const normalized = parseLayout(tpl.layout) || tpl.layout
+    setLayout(normalized)
+    setPref('charts_workspace_layout', JSON.stringify(normalized))
+    if (tpl.groups && typeof tpl.groups === 'object') {
+      const g = { A: null, B: null, C: null, D: null, ...tpl.groups }
+      setGroupSymsState(g)
+      setPref('charts_workspace_groups', JSON.stringify(g))
+    }
+    setOpenMenuOpen(false)
+    flashSaved()
+  }, [setPref, flashSaved])
+
+  const handleSaveAsTemplate = useCallback(async () => {
+    const nm = saveAsName.trim()
+    if (!nm) { setSaveErr('Name required'); return }
+    try {
+      await saveLayout({ name: nm, layout, groups: groupSyms, scope: isAdmin ? saveAsScope : 'user' })
+      setSaveAsName(''); setSaveErr(''); setSaveMenuOpen(false)
+      flashSaved()
+    } catch (e) {
+      setSaveErr(e.message || 'Save failed')
+    }
+  }, [saveAsName, layout, groupSyms, isAdmin, saveAsScope, saveLayout, flashSaved])
+
+  const handleDeleteTemplate = useCallback(async (id) => {
+    try { await deleteLayout(id) } catch { /* surfaced by SWR revalidate */ }
+  }, [deleteLayout])
 
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
@@ -310,7 +373,7 @@ export default function ChartsWorkspace() {
             <button
               type="button"
               className={styles.toolbarBtn}
-              onClick={() => setAddMenuOpen(o => !o)}
+              onClick={() => { setAddMenuOpen(o => !o); setOpenMenuOpen(false); setSaveMenuOpen(false) }}
             >+ Add Widget</button>
             {addMenuOpen && (
               <div className={styles.addMenu} onMouseLeave={() => setAddMenuOpen(false)}>
@@ -325,9 +388,81 @@ export default function ChartsWorkspace() {
               </div>
             )}
           </div>
-          <button type="button" className={styles.toolbarBtn} onClick={handleSaveLayout}>
-            {savedFlash ? 'Saved ✓' : 'Save layout'}
-          </button>
+
+          {/* Open a saved / prebuilt layout */}
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              onClick={() => { setOpenMenuOpen(o => !o); setAddMenuOpen(false); setSaveMenuOpen(false) }}
+            >Open layout ▾</button>
+            {openMenuOpen && (
+              <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => setOpenMenuOpen(false)}>
+                {globalLayouts.length === 0 && myLayouts.length === 0 && (
+                  <div className={styles.menuEmpty}>No saved layouts yet</div>
+                )}
+                {globalLayouts.length > 0 && <div className={styles.menuSection}>Prebuilt</div>}
+                {globalLayouts.map(t => (
+                  <div key={`g${t.id}`} className={styles.menuRow}>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
+                    {isAdmin && (
+                      <button type="button" className={styles.menuDel} title="Delete prebuilt template" onClick={() => handleDeleteTemplate(t.id)}>✕</button>
+                    )}
+                  </div>
+                ))}
+                {myLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
+                {myLayouts.map(t => (
+                  <div key={`m${t.id}`} className={styles.menuRow}>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
+                    <button type="button" className={styles.menuDel} title="Delete" onClick={() => handleDeleteTemplate(t.id)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Save current arrangement / save as a named template */}
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              onClick={() => { setSaveMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false) }}
+            >{savedFlash ? 'Saved ✓' : 'Save layout ▾'}</button>
+            {saveMenuOpen && (
+              <div className={styles.addMenu} style={{ minWidth: 230 }}>
+                <button type="button" className={styles.addMenuItem} onClick={() => { handleSaveLayout(); setSaveMenuOpen(false) }}>
+                  Save current arrangement
+                </button>
+                <div className={styles.menuDivider} />
+                <div className={styles.menuForm}>
+                  <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
+                  <input
+                    className={styles.menuInput}
+                    placeholder="Template name"
+                    value={saveAsName}
+                    maxLength={60}
+                    onChange={e => { setSaveAsName(e.target.value); setSaveErr('') }}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSaveAsTemplate() }}
+                  />
+                  {isAdmin && (
+                    <label className={styles.menuCheck}>
+                      <input
+                        type="checkbox"
+                        checked={saveAsScope === 'global'}
+                        onChange={e => setSaveAsScope(e.target.checked ? 'global' : 'user')}
+                      />
+                      Prebuilt (available to all users)
+                    </label>
+                  )}
+                  <button type="button" className={styles.toolbarBtn} style={{ alignSelf: 'flex-start' }} onClick={handleSaveAsTemplate}>
+                    Save template
+                  </button>
+                  {saveErr && <div className={styles.menuErr}>{saveErr}</div>}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button type="button" className={`${styles.toolbarBtn} ${styles.ghost}`} onClick={handleResetLayout}>
             Reset layout
           </button>
@@ -340,6 +475,7 @@ export default function ChartsWorkspace() {
             cols={COLS}
             rowHeight={rowHeight}
             maxRows={FIXED_ROWS}
+            isBounded={true}
             onLayoutChange={handleLayoutChange}
             draggableHandle=".charts-widget-drag-handle"
             compactType="vertical"

@@ -408,6 +408,34 @@
 }
 .addMenuItem:hover { background: var(--bg-hover, #1f2937); color: var(--accent, #c9a84c); }
 
+/* ── Open/Save layout menus ── */
+.menuSection {
+  padding: 6px 14px 2px; font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-muted, #6b7280);
+}
+.menuEmpty { padding: 10px 14px; font-size: 11px; color: var(--text-muted, #6b7280); }
+.menuRow { display: flex; align-items: center; }
+.menuRow:hover { background: var(--bg-hover, #1f2937); }
+.menuRow:hover .addMenuItem { background: transparent; }
+.menuDel {
+  background: transparent; border: none; color: var(--text-muted, #6b7280);
+  cursor: pointer; font-size: 11px; padding: 6px 10px; font-family: inherit;
+}
+.menuDel:hover { color: var(--danger, #f87171); }
+.menuDivider { height: 1px; background: var(--border, #1f2937); margin: 4px 0; }
+.menuForm { display: flex; flex-direction: column; gap: 6px; padding: 6px 12px 10px; }
+.menuInput {
+  background: var(--bg, #0b0f14); border: 1px solid var(--border, #1f2937);
+  border-radius: 3px; color: var(--text, #e5e7eb); padding: 6px 8px;
+  font-size: 11px; font-family: inherit; outline: none;
+}
+.menuInput:focus { border-color: var(--accent, #c9a84c); }
+.menuCheck {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-muted, #9ca3af); cursor: pointer;
+}
+.menuErr { font-size: 10px; color: var(--danger, #f87171); }
+
 .workspaceBody {
   flex: 1; min-height: 0; min-width: 0;
   overflow: hidden;  /* viewport-locked — widgets stay within visible area */

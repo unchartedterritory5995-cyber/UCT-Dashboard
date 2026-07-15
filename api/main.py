@@ -80,6 +80,7 @@ from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
 from api.routers import modelbook as modelbook_router
+from api.routers import charts_layouts as charts_layouts_router
 from api.routers import user_playbook as user_playbook_router
 from api.routers import education as education_router
 from api.routers import fundamentals as fundamentals_router
@@ -970,6 +971,16 @@ async def lifespan(app: FastAPI):
                              name="modelbook-stats-warm").start()
     except Exception as e:
         print(f"[startup] modelbook init failed (non-fatal): {e}")
+
+    # Initialize charts_layouts.db schema unconditionally (same pattern). The
+    # Charts workspace fires /api/charts/layouts on load; without a schema the
+    # read endpoint would 500 on "no such table".
+    try:
+        from api.services import charts_layout_service
+        charts_layout_service._init_db()
+        print("[startup] charts_layouts.db initialized")
+    except Exception as e:
+        print(f"[startup] charts_layouts init failed (non-fatal): {e}")
 
     # Initialize education.db schema unconditionally (same pattern as above).
     # The Educational Videos page fires /api/education/videos on load; without a
@@ -3313,6 +3324,7 @@ app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
 app.include_router(modelbook_router.router)
+app.include_router(charts_layouts_router.router)
 app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
 app.include_router(fundamentals_router.router)
