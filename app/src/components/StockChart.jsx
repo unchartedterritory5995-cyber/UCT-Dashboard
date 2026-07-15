@@ -401,6 +401,21 @@ function isSaneLivePrice(p, lastClose, serverClose) {
   return true
 }
 
+// The price to paint the developing candle with. During an extended session
+// (pre/post-market) the snapshot's `price`/`day_close` FREEZES at the 4pm
+// regular-session close while `ext_price` carries the live pre/post-market
+// print — so using `.price` after the close stamps the STALE RTH close onto the
+// last extended-hours bar (QQQ 7:55pm painted 719.69 instead of the real 722.09;
+// AEHR dragged 93→72 on an earnings pop). Prefer ext_price whenever the feed
+// flags an extended session and it's a sane positive number; else the regular
+// `price`. Mirrors TradingView/TC2000 extended-hours behaviour.
+function _effLivePrice(snap) {
+  if (!snap) return undefined
+  const ext = snap.ext_price
+  if (snap.ext_session && Number.isFinite(ext) && ext > 0) return ext
+  return snap.price
+}
+
 // Format the time span between two bar timestamps for the drag-measure readout.
 // Bar `.t` is 'YYYY-MM-DD' for D/W/M (→ days) or an epoch-seconds number for
 // intraday (→ h/m; any consistent offset cancels in the diff).
@@ -2109,8 +2124,9 @@ export default function StockChart({
   // Prefers live stream values; falls back to last bar close / intra-bar change.
   useEffect(() => {
     const live = sym ? livePrices[sym] : null
-    if (live && Number.isFinite(live.price)) {
-      lastPriceRef.current = live.price
+    const _livePx = _effLivePrice(live)
+    if (live && Number.isFinite(_livePx)) {
+      lastPriceRef.current = _livePx
     } else if (lastBarRef.current && Number.isFinite(lastBarRef.current.close)) {
       lastPriceRef.current = lastBarRef.current.close
     }
@@ -2955,7 +2971,7 @@ export default function StockChart({
     // authoritative developing-bar state. Without this guard the chart can
     // get stuck with a low of 0 (or extreme) until full page reload, dragging
     // EMA/SMA series into a V-shape collapse on intraday charts.
-    const _p = liveData.price
+    const _p = _effLivePrice(liveData)
     // Single sanity chokepoint (see isSaneLivePrice): non-finite/<=0, or
     // >50% deviation from the last painted bar OR the poison-proof clean
     // server close. Mirror of the WS-bar path so they cannot diverge.
@@ -3634,9 +3650,10 @@ export default function StockChart({
       // livePriceStore GLOBAL snapshot holds every ticker any widget tracks
       // (watchlist / movers / themes), synchronously → seed from it as a fallback.
       const _cached = livePrices[sym] || getLivePriceStoreSnapshot()[sym]
-      if (_cached?.price && isSaneLivePrice(_cached.price, lastBarRef.current?.close, lastServerCloseRef.current)) {
+      const _cachedPx = _effLivePrice(_cached)
+      if (_cachedPx && isSaneLivePrice(_cachedPx, lastBarRef.current?.close, lastServerCloseRef.current)) {
         _retopLive = {
-          sym, price: _cached.price, updated_at: _cached.updated_at,
+          sym, price: _cachedPx, updated_at: _cached.updated_at,
           day_open: _cached.day_open, day_high: _cached.day_high,
           day_low: _cached.day_low, prev_close: _cached.prev_close,
         }
