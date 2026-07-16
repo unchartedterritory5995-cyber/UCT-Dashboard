@@ -471,6 +471,8 @@
 /* Market clock text is hardcoded light — turn it dark so it reads on the bright canvas. */
 :global([data-charts-theme='sunrise']) .clockTime { color: #223243; }
 :global([data-charts-theme='sunrise']) .clockEt { color: #566577; }
+/* Market-open clock dot → dark candle green. */
+:global([data-charts-theme='sunrise']) .clkOpen { --clk-tone: #0a5c22; --clk-glow: rgba(10, 92, 34, 0.5); }
 
 .workspaceHeader {
   background: var(--bg-elevated, #0d1218);

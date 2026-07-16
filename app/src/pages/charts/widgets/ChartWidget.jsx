@@ -43,8 +43,12 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
 
   // UCT rating (composite 1–99) — colored by tier.
   const uctRating = Number.isFinite(fund?.composite) ? fund.composite : null
-  const ratingColor = uctRating == null ? '#9b9684'
-    : uctRating >= 80 ? '#22c45c' : uctRating >= 60 ? '#7fb26a' : uctRating >= 40 ? '#c9a84c' : '#c07a63'
+  const _sun = chartsTheme === 'sunrise'
+  const ratingColor = uctRating == null ? (_sun ? '#55606e' : '#9b9684')
+    : uctRating >= 80 ? (_sun ? '#0a5c22' : '#22c45c')
+    : uctRating >= 60 ? (_sun ? '#0a5c22' : '#7fb26a')
+    : uctRating >= 40 ? (_sun ? '#7a5c16' : '#c9a84c')
+    : (_sun ? '#7d1620' : '#c07a63')
   const [flagToast, setFlagToast] = useState(null)
   useEffect(() => {
     if (!flagToast) return
