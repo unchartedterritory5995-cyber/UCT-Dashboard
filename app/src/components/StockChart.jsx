@@ -17,6 +17,7 @@ import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { classifyLiveBar } from './chart/liveBarClassify'
 import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
 import useMarketOpen from '../hooks/useMarketOpen'
+import { getExtSession, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
@@ -2273,9 +2274,11 @@ export default function StockChart({
   // `sessionView` is non-null only on the workspace. `marketSession` is the live
   // ET session. Three activation flags drive the behavior; see sessionPreview.js.
   const marketState = useMarketOpen()
-  const marketSession = marketState.isPremarket ? 'pre'
-    : marketState.isExtended ? 'post'
-    : marketState.isOpen ? 'rth' : 'closed'
+  // Extended session with the overnight-post extension: 'post' spans 4pm ET → 4am
+  // (post-market + overnight), then 'pre' at 4am. anchorDate = the trading day
+  // whose extended data to show (the just-closed day, even after midnight).
+  const _extSess = getExtSession()
+  const marketSession = _extSess.session   // 'pre' | 'post' | 'rth'
   const _isDWM = ['D', 'W', 'M'].includes(resolvedTf)
   const _sessionActive = sessionView != null && _isDWM
   const _inExtWindow = marketSession === 'pre' || marketSession === 'post'
@@ -2302,7 +2305,7 @@ export default function StockChart({
     sessionViewRef.current = sessionView
   }, [sessionCandleActive, sessionFreezeActive, sessionView])
   // Today's extended-hours aggregate (only fetched while the preview candle is on).
-  const sessionExtAgg = useSessionExtBars(sym, sessionCandleActive ? marketSession : null, sessionCandleActive)
+  const sessionExtAgg = useSessionExtBars(sym, sessionCandleActive ? marketSession : null, sessionCandleActive, _extSess.anchorDate)
 
   // Exact-range frame flips (Setup ⇄ Result) animate — see the exact-range pin
   // effect below. While the framed window SHRINKS (Result → Setup) keep slicing
@@ -2553,7 +2556,13 @@ export default function StockChart({
   // flips off (or the 9:30 bell auto-reverts it) this is a no-op.
   const sessionAppliedBars = useMemo(() => {
     if (!sessionCandleActive || !filteredBars?.length) return filteredBars
-    const curTime = computeBarTime(resolvedTf, Date.now() / 1000)
+    // During pre/post (incl. overnight) anchor the session candle to the trading
+    // day the extended data belongs to — so at 2am we extend YESTERDAY's daily bar
+    // with its post-market prints, not spawn a new (empty) calendar-today bar.
+    const _curSec = (marketSession === 'pre' || marketSession === 'post')
+      ? anchorNoonSec(_extSess.anchorDate)
+      : Date.now() / 1000
+    const curTime = computeBarTime(resolvedTf, _curSec)
     return applySessionCandle(filteredBars, { curTime, extAgg: sessionExtAgg, extPrice: sessionExtPrice })
   }, [filteredBars, sessionCandleActive, resolvedTf, sessionExtAgg, sessionExtPrice])
 

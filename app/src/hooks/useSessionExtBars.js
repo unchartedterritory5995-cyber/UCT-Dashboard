@@ -19,7 +19,7 @@ function todayEtStr() {
  * @param {boolean} active
  * @returns {{open,high,low,close,volume}|null}
  */
-export default function useSessionExtBars(sym, session, active) {
+export default function useSessionExtBars(sym, session, active, anchorDate) {
   const [agg, setAgg] = useState(null)
 
   useEffect(() => {
@@ -36,13 +36,15 @@ export default function useSessionExtBars(sym, session, active) {
         if (!r.ok) return
         const payload = await r.json()
         if (cancelled) return   // sym/session change cancels via cleanup below
-        setAgg(aggregateExtBars(payload?.bars || [], { session, todayEt: todayEtStr() }))
+        // Anchor to the trading day the extended data belongs to (overnight →
+        // the just-closed day), falling back to today for the live 4pm–8pm window.
+        setAgg(aggregateExtBars(payload?.bars || [], { session, todayEt: anchorDate || todayEtStr() }))
       } catch { /* keep the last good aggregate on transient failures */ }
     }
     run()
     const id = setInterval(run, 30_000)
     return () => { cancelled = true; clearInterval(id) }
-  }, [sym, session, active])
+  }, [sym, session, active, anchorDate])
 
   return agg
 }

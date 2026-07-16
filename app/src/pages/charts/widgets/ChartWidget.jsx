@@ -5,6 +5,7 @@ import ShareToFloor from '../../../components/community/ShareToFloor'
 import ChartMarketClock from './ChartMarketClock'
 import { useWorkspace } from '../WorkspaceContext'
 import useMarketOpen from '../../../hooks/useMarketOpen'
+import { getExtSession } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import usePreferences from '../../../hooks/usePreferences'
@@ -91,8 +92,12 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const [sessionView, setSessionView] = useState('regular')
   useEffect(() => { if (mkt.isOpen) setSessionView('regular') }, [mkt.isOpen])
   const isDWMtf = ['D', 'W', 'M'].includes(tf)
-  const extEnabled = mkt.isPremarket || mkt.isExtended
-  const extLabel = mkt.isExtended ? 'Include post-market' : 'Include pre-market'
+  // Extended session stays "post-market" from 4pm ET through 4am (post window +
+  // overnight), then flips to "pre-market" at 4am. Re-evaluated on the 60s
+  // useMarketOpen re-render. `mkt` still drives the 9:30 auto-revert above.
+  const _extSess = getExtSession()
+  const extEnabled = _extSess.session === 'pre' || _extSess.session === 'post'
+  const extLabel = _extSess.session === 'pre' ? 'Include pre-market' : 'Include post-market'
 
   // ── Intraday extended-hours toggle ("Regular Hours" / "Extended Hours") ──
   // On intraday timeframes the D/W/M session toggle above is hidden; this pair
