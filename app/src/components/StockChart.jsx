@@ -3750,7 +3750,7 @@ export default function StockChart({
         horzLine: { visible: false, labelVisible: false },
       } : {
         mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
-        vertLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
+        vertLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: canvasTheme === 'sunrise' ? '#fbf1c9' : themeColors.background },
         horzLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
       },
       rightPriceScale: {
@@ -4311,7 +4311,7 @@ export default function StockChart({
       // Charts workspace: repaint the 9-EMA in the candle up-color (MB_UP) so the
       // fast MA matches the candles. Reliable regardless of saved overlay colors.
       const _ov = resolvedOverlays?.[i]
-      if (ema9MatchCandle && _ov?.type === 'EMA' && Number(_ov?.period) === 9) color = MB_UP
+      if (ema9MatchCandle && _ov?.type === 'EMA' && Number(_ov?.period) === 9) color = mbUp
       // Split into base (≤ setup day) + tail (≥ setup day) when fading; the shared
       // cutoff point joins them so the line is seamless at full opacity.
       const baseData = _fadeMA ? ovData.filter(p => String(p.time) <= _cut) : ovData
