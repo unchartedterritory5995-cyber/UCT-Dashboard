@@ -3802,6 +3802,103 @@ def side_diagnostic(target_date: str = Query(default=None, description="Trading 
     }
 
 
+@router.get("/side-method-stats")
+def side_method_stats():
+    """Live side-classification telemetry, straight from the consumer's _state.
+
+    WHY THIS EXISTS (2026-07-16): massive_ws_worker sets these counters on every
+    flush (~lines 886-892) but nothing logs or surfaces them. So the question
+    that actually matters — "are our sides coming from NBBO or from the tick
+    test?" — has been unanswerable. A ~40%-accuracy side bug survived weeks of
+    tuning inside that blind spot.
+
+    ONLY MEANINGFUL ON flow-worker. It owns the WS consumer, so get_status()
+    returns live state. On any other process this returns the never-updated
+    import-time copy (all zeros) — that's the same trap that made `running:false`
+    look like a dead feed on 7/14 when the query hit web instead of the worker.
+
+    Counters are PER-FLUSH (last batch) except reclassified_total /
+    quotes_received, which are cumulative. One read is a snapshot — poll across
+    the session, especially during a fast tape (that's when the tick test does
+    its damage).
+
+    READING THE FORK:
+      lookup_size      — events in the last flush needing a side
+      have_nbbo        — _nbbo_at() found a quote at-or-before the trade
+      fresh_nbbo       — ...and it was within NBBO_STALENESS_NS (5s)
+      classified_nbbo  — side from NBBO (trustworthy)
+      classified_tick  — side from the tick test. This path SATURATES to "A" in
+                         a rising tape: it only knows "price moved up from the
+                         last print", not "above the ask". In a stacked-bid
+                         uptrend every bid-hit prints higher and gets stamped A.
+      no_signal        — no NBBO, no tick history
+
+    If have_nbbo << lookup_size while q_subscribed_count is near the 950 cap,
+    the problem is NOT quote coverage — it's that the trades being classified are
+    OLDER than every quote in _NBBO_HISTORY (bounded 1000 snapshots/contract,
+    ~20-100s on an active name). That is the ingestion-lag corruption path: at a
+    415s lag the quote history has rolled past the trades, _nbbo_at returns None,
+    and everything falls through to the tick test.
+
+    Conversely, if have_nbbo AND fresh_nbbo AND classified_nbbo are all high,
+    the lag theory is dead — NBBO classified these and still got them wrong, and
+    the bug is in _classify_side / avg_price / the quote content itself.
+    """
+    try:
+        from api.massive_ws_worker import get_status
+        st = get_status() or {}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"worker status unavailable: {e}"}
+
+    keys = (
+        "last_side_lookup_size", "last_side_lookup_classified",
+        "last_side_have_nbbo", "last_side_fresh_nbbo",
+        "last_side_classified_nbbo", "last_side_classified_tick",
+        "last_side_no_signal",
+        "reclassify_buffer_size", "reclassified_total", "last_reclassify_count",
+        "quotes_received", "q_subscribed_count",
+        "last_trade_ts", "last_write_ts", "running", "enabled",
+    )
+    stats = {k: st.get(k) for k in keys}
+
+    n = stats.get("last_side_lookup_size") or 0
+    derived = {}
+    if n:
+        def _pct(k):
+            return round(100.0 * (stats.get(k) or 0) / n, 1)
+        derived = {
+            "have_nbbo_pct": _pct("last_side_have_nbbo"),
+            "fresh_nbbo_pct": _pct("last_side_fresh_nbbo"),
+            "classified_nbbo_pct": _pct("last_side_classified_nbbo"),
+            "classified_tick_pct": _pct("last_side_classified_tick"),
+            "no_signal_pct": _pct("last_side_no_signal"),
+        }
+
+    # Write lag: the gap between the last trade seen and the last DB write. When
+    # this grows, _NBBO_HISTORY rolls past the events being classified and NBBO
+    # lookup starts failing — lag becomes a CORRECTNESS bug, not just latency.
+    lag_sec = None
+    try:
+        lt, lw = stats.get("last_trade_ts"), stats.get("last_write_ts")
+        if lt and lw:
+            lag_sec = round(float(lt) - float(lw), 1)
+    except (TypeError, ValueError):
+        pass
+
+    return {
+        "ok": True,
+        "stats": stats,
+        "derived_pct_of_lookup_size": derived,
+        "trade_to_write_lag_sec": lag_sec,
+        "note": ("Per-flush counters. Low have_nbbo_pct while q_subscribed_count "
+                 "is near 950 means trades are being classified AFTER the NBBO "
+                 "history rolled past them (ingestion-lag corruption), not for "
+                 "lack of quotes. High classified_tick_pct means the saturating "
+                 "path is doing the work — it stamps 'A' on everything in a "
+                 "rising tape."),
+    }
+
+
 # ─── OI enrichment from contract_oi_snapshots (snapshot-only, no Schwab) ──
 # The frontend "fetch OI" button was previously wired to /api/oi-snapshot/
 # bulk-fetch, which tries snapshot lookup with an incorrect key format then
