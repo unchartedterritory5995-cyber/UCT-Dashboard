@@ -179,9 +179,10 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         title={displayLabel ? `${sym} — click to search` : 'Search ticker'}
       >
         {displayLabel ? (
-          <span className={styles.labelWrap}>
+          // fullLabel: lift the 240px cap so the whole name has real layout width
+          // (otherwise it overflows the capped box and paints over the day gain).
+          <span className={styles.labelWrap} style={fullLabel ? { maxWidth: 'none' } : undefined}>
             {logoSym && <span className={styles.labelLogo}><CompanyLogo sym={logoSym} name={displayLabel} size={16} round /></span>}
-            {/* fullLabel: never clip — show the full company name (chart widget header). */}
             <span className={styles.labelText} style={fullLabel ? { overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap' } : undefined}>{displayLabel}</span>
           </span>
         ) : sym}
