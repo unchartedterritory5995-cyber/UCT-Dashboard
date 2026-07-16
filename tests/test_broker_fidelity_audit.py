@@ -192,3 +192,32 @@ async def test_stale_holdings_snapshot_skips_equity_check(env):
     check = next(c for c in out["checks"] if c["name"] == "equity_consistency")
     assert check["ok"] is True and check.get("skipped") is True
     assert "2026-01-01" in check["detail"]
+
+
+def test_nightly_runner_syncs_before_auditing(env, monkeypatch):
+    # NOTE: deliberately a sync test — the runner owns its own event loop
+    # (asyncio.run), which cannot start inside pytest-asyncio's loop.
+    # Parity vs a journal synced up to 20min ago false-flags mid-window
+    # trades (real LCID sell, 2026-07-16). The nightly runner must sync each
+    # account FIRST so it audits settled, same-moment data.
+    snap.configure(_sdk(positions=POSITIONS, balances=BALANCES, total=60000))
+    conn = auth_db.get_connection()
+    conn.execute("INSERT OR REPLACE INTO users (id, email, password_hash, role) "
+                 "VALUES ('u1', 'u1@x.com', 'x', 'admin')")
+    conn.execute("UPDATE j2_broker_accounts SET sync_enabled=1, status='active' "
+                 "WHERE id=?", (env["ba_id"],))
+    conn.commit(); conn.close()
+    order = []
+
+    async def fake_sync(user_id, account_id, **kw):
+        order.append(("sync", account_id))
+        return {}
+
+    async def fake_audit(user_id, account_id, **kw):
+        order.append(("audit", account_id))
+        return {"accountId": account_id, "ok": True, "checks": []}
+
+    monkeypatch.setattr(sync, "sync_account", fake_sync)
+    monkeypatch.setattr(fidelity_audit, "audit_account", fake_audit)
+    fidelity_audit.run_fidelity_audits_blocking()
+    assert order == [("sync", env["ba_id"]), ("audit", env["ba_id"])]

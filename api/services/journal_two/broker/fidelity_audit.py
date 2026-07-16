@@ -212,6 +212,7 @@ def run_fidelity_audits_blocking() -> None:
     import asyncio
 
     async def _run() -> None:
+        from api.services.journal_two.broker import sync as sync_engine
         from api.services.journal_two.broker.sync import _user_is_paid
         paid: dict[str, bool] = {}
         conn = get_connection()
@@ -226,7 +227,23 @@ def run_fidelity_audits_blocking() -> None:
             uid = r["user_id"]
             if not _user_is_paid(uid, paid):
                 continue
-            for res in await audit_user(uid):
+            results = []
+            for ba in connections.list_broker_accounts(uid):
+                # Sync FIRST so parity compares settled, same-moment data —
+                # a journal synced up to 20min earlier false-flags trades
+                # made inside that window. Best-effort: still audit on a
+                # failed sync (the audit surfaces the divergence either way).
+                try:
+                    await sync_engine.sync_account(uid, ba["id"])
+                except Exception:  # noqa: BLE001
+                    logger.warning("pre-audit sync failed for %s", ba["id"])
+                try:
+                    results.append(await audit_account(uid, ba["id"]))
+                except Exception as e:  # noqa: BLE001
+                    results.append({"accountId": ba["id"], "ok": False,
+                                    "checks": [{"name": "audit", "ok": False,
+                                                "detail": str(e)[:200]}]})
+            for res in results:
                 if not res["ok"]:
                     bad = "; ".join(f"{c['name']}: {c['detail']}"
                                     for c in res["checks"] if not c["ok"])
