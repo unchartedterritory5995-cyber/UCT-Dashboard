@@ -20,14 +20,21 @@ function todayEtStr() {
  * @returns {{open,high,low,close,volume}|null}
  */
 export default function useSessionExtBars(sym, session, active, anchorDate) {
-  const [agg, setAgg] = useState(null)
+  // Tag the aggregate with the symbol it was computed for. The reset-on-sym-change
+  // in the effect below runs one render LATE (effects fire after render), so on the
+  // first render after a ticker switch `filteredBars` is already the new symbol's
+  // bars while `agg` still holds the prior symbol's aggregate — applying it would
+  // paint a candle at the wrong price (the "pre-market bar shoots to the bottom
+  // then snaps back" glitch when flipping tickers). Gating the return on a matching
+  // sym closes that window synchronously, without waiting for the reset effect.
+  const [state, setState] = useState({ sym: null, agg: null })
 
   useEffect(() => {
     // Reset immediately so a prior symbol's aggregate never briefly applies to a
     // new symbol; the fetch below repopulates when active. One extra render on
     // sym/session/active transitions only — not a hot path.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAgg(null)
+    setState({ sym, agg: null })
     if (!active || !sym || (session !== 'pre' && session !== 'post')) return undefined
     let cancelled = false
     const run = async () => {
@@ -38,7 +45,7 @@ export default function useSessionExtBars(sym, session, active, anchorDate) {
         if (cancelled) return   // sym/session change cancels via cleanup below
         // Anchor to the trading day the extended data belongs to (overnight →
         // the just-closed day), falling back to today for the live 4pm–8pm window.
-        setAgg(aggregateExtBars(payload?.bars || [], { session, todayEt: anchorDate || todayEtStr() }))
+        setState({ sym, agg: aggregateExtBars(payload?.bars || [], { session, todayEt: anchorDate || todayEtStr() }) })
       } catch { /* keep the last good aggregate on transient failures */ }
     }
     run()
@@ -46,5 +53,7 @@ export default function useSessionExtBars(sym, session, active, anchorDate) {
     return () => { cancelled = true; clearInterval(id) }
   }, [sym, session, active, anchorDate])
 
-  return agg
+  // Only surface the aggregate when it belongs to the CURRENT symbol — guards the
+  // one-render gap between a sym switch and the reset effect above.
+  return state.sym === sym ? state.agg : null
 }

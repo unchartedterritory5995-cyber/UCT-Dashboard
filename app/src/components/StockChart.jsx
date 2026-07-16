@@ -40,6 +40,32 @@ const LIVE_TICK_FRESH_MS = 6000
 // timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
 // bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
 const LAST_CANDLE_POS = 0.96
+
+// Per-timeframe default number of visible bars (Daily on the workspace is
+// overridden to ~126 ≈ 6 months via dailyDefaultBars).
+const DEFAULT_VISIBLE_BARS = {
+  '1': 390,   // ~1 trading day of 1min bars
+  '5': 78,    // ~1 trading day of 5min bars
+  '15': 78,   // ~3 trading days of 15min bars
+  '30': 65,   // ~5 trading days of 30min bars
+  '60': 65,   // ~10 trading days of 1hr bars
+  'D': 65,    // ~3 months of daily bars
+  'W': 52,    // ~1 year of weekly bars
+  'M': 36,    // ~3 years of monthly bars
+}
+
+// The canonical default-zoom visible logical range: the newest candle anchored at
+// a CONSTANT fraction (LAST_CANDLE_POS) of the plot width, showing the timeframe's
+// default history. Shared by the initial framing, the snap-back safety guard, and
+// the right-click "Reset view" so all three land on the exact same window.
+function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3 } = {}) {
+  const visibleBars = (tf === 'D' && dailyDefaultBars) ? dailyDefaultBars : (DEFAULT_VISIBLE_BARS[tf] || 65)
+  const from = barsLen > visibleBars ? barsLen - visibleBars - leftBarPad : -leftBarPad
+  const hist = (barsLen - 1) - from
+  const to = hist > 0 ? from + hist / LAST_CANDLE_POS : barsLen + rightPadBars
+  return { from, to }
+}
+
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
@@ -511,6 +537,7 @@ const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the ca
 const MB_UP_RGB = '26,229,26', MB_DOWN_RGB = '196,31,45'
 const VOL_MA_COLOR = 'rgba(255,255,255,0.45)'   // volume-pane MA line (subtle white)
 const SESSION_EXT_COLOR = '#f5a623'  // pre/post-market price tag (TradingView "Pre"/"Post" orange)
+const SESSION_PREVIEW_COLOR = '#d8d6cf'  // muted (not-bright) white for the pre-market preview daily candle
 const _candleRgba = (up, a) => `rgba(${up ? MB_UP_RGB : MB_DOWN_RGB},${a})`
 // Re-express any hex / rgb / rgba color at the given alpha (for the MA tail fade).
 function colorWithAlpha(color, a) {
@@ -1298,6 +1325,7 @@ export default function StockChart({
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
   const lastTfRef = useRef(null)   // Last resolved timeframe — distinguishes tf change from ticker switch
+  const pendingTfReframeRef = useRef(null)  // Set to the new tf on a TF switch; forces the default-latest frame on every commit until the bar count settles (kills the "flip 5m→D snaps hard-left and never recovers" glitch)
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
   const lastCfgSigRef = useRef(null) // A2: render-config signature at last paint — an incremental (last-bar-only) update is only safe when the config is byte-identical to the last paint
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
@@ -1524,7 +1552,22 @@ export default function StockChart({
       handleUpdateChartSettings(next)
     }
     const openSettings = () => { try { toolbarRef.current?.openSettings() } catch {} }
-    const resetView = () => { try { chartRef.current?.timeScale().resetTimeScale() } catch {} }
+    // Reset view: reframe to the timeframe's default window (Daily on the workspace
+    // = dailyDefaultBars ≈ 6 months), newest candle anchored at LAST_CANDLE_POS —
+    // NOT LWC's resetTimeScale() (which fit-all-ed to ~1 year). Falls back to
+    // resetTimeScale when there aren't enough bars to frame.
+    const resetView = () => {
+      try {
+        const ts = chartRef.current?.timeScale(); if (!ts) return
+        const len = lastBarCountRef.current || 0
+        if (len > 1) {
+          const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars })
+          ts.setVisibleLogicalRange({ from, to })
+        } else {
+          ts.resetTimeScale()
+        }
+      } catch {}
+    }
     const autoScale = () => {
       try {
         // Clear any locked vertical placement and restore the default candle band.
@@ -2304,6 +2347,16 @@ export default function StockChart({
   // Show the locked-close + Pre/Post tags whenever it's pre/post market on the
   // workspace, regardless of the toggle (matches TradingView).
   const sessionTagsActive = _sessionActive && _inExtWindow && !replayMode
+  // Same two right-axis tags on INTRADAY charts (1m..1h) on the workspace — the
+  // prev-day close + live Pre/Post price — regardless of the Regular/Extended
+  // toggle. Intraday has no synthetic session candle (that's D/W/M only); it just
+  // gets the price-scale references, sourced straight from the live feed.
+  const sessionTagsIntraday = sessionView != null && !_isDWM && _inExtWindow && !replayMode
+  // The pre-market "include pre-market" preview candle (the appended D/W/M bar) is
+  // painted a muted white so it reads as a not-yet-real preview of where the stock
+  // sits on pre-market prints; at 9:30 the toggle auto-reverts and the real
+  // red/green daily candle takes over.
+  const sessionPreviewLastBar = sessionCandleActive && marketSession === 'pre'
   // Writers A + D yield the D/W/M last bar to the memo-driven setData while owned.
   // Kept in a ref (read by the live-tick callbacks); updated in an effect so we
   // never write a ref during render. Effects run top-to-bottom, and the writer
@@ -2592,16 +2645,58 @@ export default function StockChart({
     })
   }, [sessionTagsActive, filteredBars, marketSession, sessionExtPrice, boldCandles, modelBookLook, cs.candles.upColor, cs.candles.downColor])
 
-  // User/journal price lines + the dynamic session tags. Kept as one array so the
-  // price-line applier's reference-equality guard picks up ext-price changes.
+  // Intraday (1m..1h) version of the two tags. There are no synthetic-candle bars
+  // to read the RTH close from, so the prev-day close comes straight off the live
+  // feed's official `prev_close`, and the Pre/Post tag off the live ext price.
+  // Independent of the Regular/Extended toggle (matches the daily behavior).
+  const intradaySessionTagLines = useMemo(() => {
+    if (!sessionTagsIntraday || !_sessionLive) return null
+    const prevClose = Number.isFinite(_sessionLive.prev_close) && _sessionLive.prev_close > 0 ? _sessionLive.prev_close : null
+    const extPx = sessionExtPrice
+    const effUp = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.candles.upColor
+    const effDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.candles.downColor
+    const lines = []
+    if (prevClose != null) {
+      // Colour the prev-close tag by where pre/post price sits vs it (green when the
+      // extended session is trading above yesterday's close, red below).
+      const up = Number.isFinite(extPx) && extPx > 0 ? extPx >= prevClose : true
+      lines.push({
+        price: prevClose, color: up ? effUp : effDown, lineWidth: 1, lineStyle: 2,
+        axisLabelVisible: true, lineVisible: false, title: '', _sessionTag: 'rth',
+      })
+    }
+    if (Number.isFinite(extPx) && extPx > 0) {
+      lines.push({
+        price: extPx, color: SESSION_EXT_COLOR, lineWidth: 1, lineStyle: 0,
+        axisLabelVisible: true, lineVisible: false,
+        title: marketSession === 'post' ? 'Post' : 'Pre', _sessionTag: 'ext',
+      })
+    }
+    return lines.length ? lines : null
+  }, [sessionTagsIntraday, _sessionLive, sessionExtPrice, marketSession, boldCandles, modelBookLook, cs.candles.upColor, cs.candles.downColor])
+
+  // User/journal price lines + the dynamic session tags (daily OR intraday — the
+  // two are mutually exclusive by timeframe). Kept as one array so the price-line
+  // applier's reference-equality guard picks up ext-price changes.
+  const activeSessionTags = sessionTagLines?.length ? sessionTagLines
+    : (intradaySessionTagLines?.length ? intradaySessionTagLines : null)
   const allPriceLines = useMemo(
-    () => (sessionTagLines?.length ? [...(mergedPriceLines || []), ...sessionTagLines] : mergedPriceLines),
-    [mergedPriceLines, sessionTagLines],
+    () => (activeSessionTags ? [...(mergedPriceLines || []), ...activeSessionTags] : mergedPriceLines),
+    [mergedPriceLines, activeSessionTags],
   )
 
   const ohlcData = useMemo(
-    () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })) : [],
-    [displayBars, adjustTime]
+    () => {
+      if (!displayBars) return []
+      const arr = displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c }))
+      // Paint the pre-market preview candle (the appended last bar) muted white.
+      if (sessionPreviewLastBar && arr.length) {
+        const i = arr.length - 1
+        arr[i] = { ...arr[i], color: SESSION_PREVIEW_COLOR, borderColor: SESSION_PREVIEW_COLOR, wickColor: SESSION_PREVIEW_COLOR }
+      }
+      return arr
+    },
+    [displayBars, adjustTime, sessionPreviewLastBar]
   )
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
@@ -4700,6 +4795,9 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
+      // A timeframe switch must settle at the new tf's default-latest window. Arm the
+      // reframe guard (cleared in the safety net once the bar count stops changing).
+      if (tfChanged) pendingTfReframeRef.current = resolvedTf
 
       // Vertical: always auto-fit the new ticker into the current candle band. chartOpts
       // already applied that band's scaleMargins (= the captured proportional placement,
@@ -4770,31 +4868,12 @@ export default function StockChart({
           const toBar   = (exitIdx >= 0 ? exitIdx : filteredBars.length - 1) + 28
           chart.timeScale().setVisibleLogicalRange({ from: fromBar, to: toBar })
         } else {
-          const defaultVisible = {
-            '1': 390,   // ~1 trading day of 1min bars
-            '5': 78,    // ~1 trading day of 5min bars
-            '15': 78,   // ~3 trading days of 15min bars
-            '30': 65,   // ~5 trading days of 30min bars
-            '60': 65,   // ~10 trading days of 1hr bars
-            'D': 65,    // ~3 months of daily bars
-            'W': 52,    // ~1 year of weekly bars
-            'M': 36,    // ~3 years of monthly bars
-          }
-          const visibleBars = (resolvedTf === 'D' && dailyDefaultBars)
-            ? dailyDefaultBars
-            : (defaultVisible[resolvedTf] || 65)
-          // Anchor the LAST candle at a CONSTANT fraction (LAST_CANDLE_POS) of the
-          // plot width on every timeframe, so flipping TFs never drifts it. Solving
-          // bar (len-1) at that fraction: to = from + history / LAST_CANDLE_POS.
-          // (Replaces a fixed bars-of-right-pad, which drifted the candle left as
-          // higher-TF bar spacing widened the same pad into a bigger pixel gap.)
-          const _from = filteredBars.length > visibleBars
-            ? filteredBars.length - visibleBars - leftBarPad
-            : -leftBarPad
-          const _hist = (filteredBars.length - 1) - _from
-          const _to = _hist > 0
-            ? _from + _hist / LAST_CANDLE_POS
-            : filteredBars.length + rightPadBars   // 0-1 bars: fall back to bar pad
+          // Canonical default zoom: newest candle at LAST_CANDLE_POS, timeframe's
+          // default history (Daily on the workspace = dailyDefaultBars ≈ 6 months).
+          // Shared with the right-click "Reset view" so both land identically.
+          const { from: _from, to: _to } = computeDefaultLogicalRange(
+            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars }
+          )
           chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
         }
       }
@@ -4830,21 +4909,36 @@ export default function StockChart({
       const preLastIdx = oldBarCount - 1
       const prePad = oldRange.to - preLastIdx      // empty bars right of the last bar, BEFORE the update
       const preWidth = oldRange.to - oldRange.from
-      // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
-      const wasViewingLatest = preWidth > 0 && prePad >= -1 && prePad <= Math.max(8, preWidth * 0.25)
-      if (wasViewingLatest) {
-        let fr = null
-        try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
-        if (fr) {
-          const w = fr.to - fr.from
-          const lastIdx = filteredBars.length - 1
-          const pos = w > 0 ? (lastIdx - fr.from) / w : 1  // newest candle's 0..1 screen position
-          // Drifted: newest candle pushed left into the middle (pos < 0.85) or shoved
-          // off the right edge (pos > 1.02). Re-pin it to the standard load position.
-          if (w > 0 && (pos < 0.85 || pos > 1.02)) {
-            const to2 = lastIdx + w * (1 - LAST_CANDLE_POS)
-            const from2 = to2 - w
-            try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch { /* out of range mid-load */ }
+      if (pendingTfReframeRef.current === resolvedTf) {
+        // Just switched INTO this timeframe: deterministically re-assert its
+        // default-latest window on every settling commit (the bars arrive in phases
+        // — IDB cache → network → backfill — each a separate commit). Once the count
+        // stops changing, data has settled; release control so ordinary scroll/zoom
+        // is respected again. Without this, an intermediate phase can strand the view
+        // hard-left and the was-viewing-latest guard below reads that as a deliberate
+        // scroll-back and refuses to fix it (the reported 5m→D snap-left bug).
+        const { from, to } = computeDefaultLogicalRange(
+          filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars }
+        )
+        try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
+        if (filteredBars.length === oldBarCount) pendingTfReframeRef.current = null
+      } else {
+        // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
+        const wasViewingLatest = preWidth > 0 && prePad >= -1 && prePad <= Math.max(8, preWidth * 0.25)
+        if (wasViewingLatest) {
+          let fr = null
+          try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+          if (fr) {
+            const w = fr.to - fr.from
+            const lastIdx = filteredBars.length - 1
+            const pos = w > 0 ? (lastIdx - fr.from) / w : 1  // newest candle's 0..1 screen position
+            // Drifted: newest candle pushed left into the middle (pos < 0.85) or shoved
+            // off the right edge (pos > 1.02). Re-pin it to the standard load position.
+            if (w > 0 && (pos < 0.85 || pos > 1.02)) {
+              const to2 = lastIdx + w * (1 - LAST_CANDLE_POS)
+              const from2 = to2 - w
+              try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch { /* out of range mid-load */ }
+            }
           }
         }
       }
@@ -6481,7 +6575,18 @@ export default function StockChart({
           sections,
           clickPrice,
           currentPrice,
-          resetView: () => { try { chartRef.current?.timeScale().resetTimeScale() } catch { /* noop */ } },
+          resetView: () => {
+            try {
+              const ts = chartRef.current?.timeScale(); if (!ts) return
+              const len = lastBarCountRef.current || 0
+              if (len > 1) {
+                const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars })
+                ts.setVisibleLogicalRange({ from, to })
+              } else {
+                ts.resetTimeScale()
+              }
+            } catch { /* noop */ }
+          },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
         })
       } else {
