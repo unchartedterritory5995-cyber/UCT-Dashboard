@@ -674,6 +674,17 @@
   letter-spacing: 0.5px;
 }
 
+.scanHealthWarn {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: #fbbf24;
+  background: rgba(180, 130, 20, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+
 /* ── Ticker list ── */
 .tickerList {
   list-style: none;

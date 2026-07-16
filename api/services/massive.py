@@ -494,7 +494,8 @@ def get_ticker_details(ticker: str) -> dict:
     Best-effort: returns {} if Massive doesn't serve the reference endpoint."""
     try:
         cli = _get_client()
-        url = f"{_REST_BASE}/v3/reference/tickers/{to_polygon_symbol(ticker)}"
+        url = (f"{_REST_BASE}/v3/reference/tickers/{to_polygon_symbol(ticker)}"
+               f"?apiKey={cli._api_key}")
         j = cli._get(url) or {}
         return j.get("results") or {}
     except Exception:

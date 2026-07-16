@@ -112,7 +112,7 @@ def starters():
           "view": "overview", "sort": {"key": "gap_pct", "dir": "desc"}}},
         {"id": "starter_value_quality", "name": "Cheap quality compounders",
          "spec": {"filters": [
-             {"key": "pe_ttm", "op": "lte", "max": 20},
+             {"key": "pe_fwd", "op": "lte", "max": 20},
              {"key": "roe", "op": "gte", "min": 15},
              {"key": "eps_growth", "op": "gte", "min": 15}],
           "view": "valuation", "sort": {"key": "uct_composite", "dir": "desc"}}},

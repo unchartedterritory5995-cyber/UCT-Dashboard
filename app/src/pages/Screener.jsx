@@ -61,14 +61,17 @@ function fmt(n, d = 2) { return n != null ? n.toFixed(d) : '—' }
 function fmtPct(n) { const s = n >= 0 ? '+' : ''; return `${s}${fmt(n)}%` }
 
 // ── LiveScanTab ───────────────────────────────────────────────────────────────
-function LiveScanTab({ allCandidates, prices }) {
+function LiveScanTab({ allCandidates, prices, isStreaming }) {
   const [feed, setFeed] = useState([])         // [{id, sym, trigger, price, meta, time}]
   const [flashSet, setFlashSet] = useState(new Set())
   const [mutedTriggers, setMutedTriggers] = useState(new Set())
   const firedRef = useRef(new Set())           // `${sym}_${trigId}` — one-shot detection
 
-  // When candidates change (new day), reset fired set
-  useEffect(() => { firedRef.current = new Set() }, [allCandidates])
+  // Reset the one-shot fired set only when the SET OF TICKERS changes (a new
+  // day's candidates) — allCandidates is a fresh array identity on every SWR
+  // refetch, which used to wipe the set every 30 min and re-fire old triggers.
+  const tickerKey = allCandidates.map(r => r.ticker).join(',')
+  useEffect(() => { firedRef.current = new Set() }, [tickerKey])
 
   // Evaluate triggers on every price tick
   useEffect(() => {
@@ -113,17 +116,16 @@ function LiveScanTab({ allCandidates, prices }) {
     setMutedTriggers(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
   }, [])
 
-  const { prices: livePrices, isStreaming } = useRealtimePrices(
-    allCandidates.map(r => r.ticker).filter(Boolean)
-  )
-  // Use parent's prices (already merged)
-
+  // Prices + stream state come from the parent's subscription — a second
+  // useRealtimePrices here doubled the SSE subscription for the same tickers.
   return (
     <div className={styles.liveScan}>
       {/* Header */}
       <div className={styles.liveScanHeader}>
         <span className={`${styles.streamDot} ${isStreaming ? styles.streamDotLive : ''}`} />
-        <span className={styles.streamLabel}>{isStreaming ? 'Live' : 'Connecting...'}</span>
+        <span className={styles.streamLabel}>
+          {!allCandidates.length ? 'No candidates to watch' : isStreaming ? 'Live' : 'Connecting...'}
+        </span>
         <span className={styles.liveScanCount}>{allCandidates.length} candidates</span>
         <div className={styles.triggerFilters}>
           {TRIGGERS.map(t => (
@@ -443,7 +445,7 @@ export default function Screener({ embedded = false }) {
     allCandidates.map(r => r.ticker).filter(Boolean),
     [allCandidates]
   )
-  const { prices } = useRealtimePrices(['board', 'live'].includes(pageTab) ? allTickers : [])
+  const { prices, isStreaming } = useRealtimePrices(['board', 'live'].includes(pageTab) ? allTickers : [])
 
   // Pre-warm Daily bars for the top candidates when scanner data arrives
   useEffect(() => {
@@ -478,11 +480,19 @@ export default function Screener({ embedded = false }) {
       ) : !data ? (
         <SkeletonTable rows={8} cols={3} />
       ) : pageTab === 'live' ? (
-        <LiveScanTab allCandidates={allCandidates} prices={prices} />
+        <LiveScanTab allCandidates={allCandidates} prices={prices} isStreaming={isStreaming} />
       ) : (
         <>
           <PremarketBar premarket={data.premarket_context} />
           <RegimeBar regime={data.regime_context} />
+
+          {allCandidates.length === 0 && generatedAt && (
+            <div className={styles.scanHealthWarn}>
+              The {generatedAt} scan returned zero candidates in every bucket —
+              that usually means the pre-market scan failed upstream, not that
+              nothing set up today.
+            </div>
+          )}
 
           <div className={styles.columnsGrid}>
             <div className={styles.column}>

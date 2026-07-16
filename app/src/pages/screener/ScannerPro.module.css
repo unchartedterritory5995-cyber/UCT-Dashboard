@@ -2,7 +2,11 @@
    literal colors. Container-query friendly so it also works as a /charts widget
    (.widgetBody is the CQ root). */
 
-.wrap { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px 40px; }
+/* .wrap must be height-bounded (flex:1 + min-height:0) so .resultsWrap's own
+   overflow:auto engages — the page shell (.containerFull in Screener.module.css)
+   is overflow:hidden, so without this the results grow past the viewport and
+   everything below the fold (rows, Load more, gallery pager) is unreachable. */
+.wrap { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px 16px; flex: 1; min-height: 0; overflow: hidden; }
 .embedded { padding: 0; height: 100%; overflow: hidden; }
 
 .controlBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -16,7 +20,9 @@
 .filterToggle:hover, .resetBtn:hover, .csvBtn:hover, .saveBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
 
 /* ── Filter panel ── */
-.filterPanel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md, 8px); overflow: hidden; }
+/* flex-shrink:0 + its own max-height/scroll so a tall panel (the "All" tab on a
+   short screen) can never squeeze the results area to nothing. */
+.filterPanel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md, 8px); overflow: auto; flex-shrink: 0; max-height: 45vh; }
 .catTabs { display: flex; gap: 4px; padding: 8px 10px 0; background: var(--bg); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .catTab { padding: 6px 12px; border-radius: 6px 6px 0 0; background: var(--bg-surface); border: 1px solid var(--border); border-bottom: none; color: var(--text-muted); cursor: pointer; font-size: 12px; min-height: 32px; }
 .catTabOn { background: var(--bg-elevated); color: var(--ut-gold); border-color: var(--ut-gold); }
@@ -28,6 +34,8 @@
 .filterSelectActive { border-color: var(--ut-gold); color: var(--ut-gold); }
 .customRange { display: flex; gap: 4px; margin-top: 4px; }
 .customRange input { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 5px; padding: 5px 6px; color: var(--text); width: 100%; font-size: 12px; }
+
+.scanError { background: rgba(160, 25, 25, 0.18); border: 1px solid rgba(248, 113, 113, 0.45); border-radius: var(--radius-sm, 6px); color: #fca5a5; font-size: 12px; padding: 8px 12px; flex-shrink: 0; }
 
 /* ── Results ── */
 .resultsWrap { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md, 8px); overflow: auto; flex: 1; min-height: 0; }

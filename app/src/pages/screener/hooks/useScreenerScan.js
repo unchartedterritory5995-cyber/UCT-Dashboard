@@ -8,12 +8,14 @@ export default function useScreenerScan(spec, { debounce = 300 } = {}) {
   const [isLoading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const timer = useRef()
+  const seq = useRef(0) // guards against out-of-order responses
   const key = spec ? JSON.stringify(spec) : null
 
   useEffect(() => {
     if (!key) return
     clearTimeout(timer.current)
     timer.current = setTimeout(async () => {
+      const mySeq = ++seq.current
       setLoading(true)
       setError(null)
       try {
@@ -22,12 +24,19 @@ export default function useScreenerScan(spec, { debounce = 300 } = {}) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(spec),
         })
-        if (!r.ok) throw new Error(`scan ${r.status}`)
-        setResult(await r.json())
+        if (mySeq !== seq.current) return // a newer request superseded this one
+        if (!r.ok) {
+          let detail = `scan ${r.status}`
+          try { detail = (await r.json())?.detail || detail } catch { /* keep status text */ }
+          throw new Error(detail)
+        }
+        const json = await r.json()
+        if (mySeq !== seq.current) return
+        setResult(json)
       } catch (e) {
-        setError(e)
+        if (mySeq === seq.current) setError(e)
       } finally {
-        setLoading(false)
+        if (mySeq === seq.current) setLoading(false)
       }
     }, debounce)
     return () => clearTimeout(timer.current)

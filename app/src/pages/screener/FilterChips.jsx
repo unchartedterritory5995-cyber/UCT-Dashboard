@@ -11,7 +11,9 @@ export default function FilterChips({ meta, activeFilters, onRemove, onClear }) 
     <div className={styles.chipRow}>
       {entries.map(([key, spec]) => (
         <span key={key} className={styles.chip}>
-          {chipLabel(byKey[key], spec)}
+          {/* Unknown keys (e.g. a stale saved screen) fall back to the raw key so
+              the chip is never blank and stays removable. */}
+          {chipLabel(byKey[key] || { label: key, presets: [] }, spec)}
           <button type="button" className={styles.chipX}
             aria-label={`Remove ${byKey[key]?.label || key} filter`}
             onClick={() => onRemove(key)}>×</button>

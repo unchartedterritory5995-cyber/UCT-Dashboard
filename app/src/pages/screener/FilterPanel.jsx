@@ -31,7 +31,13 @@ export default function FilterPanel({ meta, activeFilters, onChange, activeTab, 
   const applyCustom = (f, minV, maxV) => {
     const hasMin = minV !== '' && minV != null
     const hasMax = maxV !== '' && maxV != null
-    if (!hasMin && !hasMax) { onChange(f.key, null); return }
+    if (!hasMin && !hasMax) {
+      // Both inputs cleared: drop the filter AND close the custom row so the
+      // select goes back to "Any" instead of sticking on "Custom…".
+      setCustomOpen(s => ({ ...s, [f.key]: false }))
+      onChange(f.key, null)
+      return
+    }
     if (hasMin && hasMax) onChange(f.key, { op: 'between', min: +minV, max: +maxV })
     else if (hasMin) onChange(f.key, { op: 'gte', min: +minV })
     else onChange(f.key, { op: 'lte', max: +maxV })

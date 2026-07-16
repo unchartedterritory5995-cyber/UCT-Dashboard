@@ -3,7 +3,8 @@
 // numbers by the snapshot builder (e.g. 25.0 == 25%), so format directly.
 const pct = v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
 const pctPlain = (d = 0) => v => v == null ? '—' : `${v.toFixed(d)}%`
-const usd = v => v == null ? '—' : `$${v.toFixed(2)}`
+const usd = v => v == null ? '—'
+  : `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const cap = v => v == null ? '—'
   : v >= 1e12 ? `$${(v / 1e12).toFixed(1)}T`
   : v >= 1e9 ? `$${(v / 1e9).toFixed(0)}B`
@@ -14,7 +15,7 @@ const heatRs = v => v == null ? '' : v >= 80 ? 'g' : v >= 60 ? 'g1' : ''
 
 export const COLUMN_DEFS = {
   ticker: { label: 'Ticker', fmt: v => v },
-  company: { label: 'Company', fmt: v => (v || '').slice(0, 24) || '—' },
+  company: { label: 'Company', fmt: v => !v ? '—' : v.length > 24 ? `${v.slice(0, 23).trimEnd()}…` : v },
   sector: { label: 'Sector', fmt: v => v || '—' },
   market_cap: { label: 'Mkt Cap', fmt: cap },
   price: { label: 'Price', fmt: usd },

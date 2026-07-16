@@ -43,7 +43,7 @@ export default function ScannerPro({ embedded = false }) {
   useEffect(() => { setPage(1) }, [baseKey])
 
   const spec = useMemo(() => ({ ...baseSpec, page, page_size: PAGE_SIZE }), [baseSpec, page])
-  const { result, isLoading } = useScreenerScan(spec)
+  const { result, isLoading, error } = useScreenerScan(spec)
 
   // Accumulate pages: page 1 replaces, later pages append.
   const [rows, setRows] = useState([])
@@ -103,10 +103,18 @@ export default function ScannerPro({ embedded = false }) {
         <button type="button" className={styles.resetBtn} onClick={reset}>Reset</button>
         <SaveScreenBar currentSpec={baseSpec} onApply={applySpec} />
         <span className={styles.statusLine}>
-          {isLoading && page === 1 ? 'Scanning…' : `${total.toLocaleString()} matches`}
-          {result?.snapshot_date ? ` · snapshot ${result.snapshot_date}` : ''}
+          {error ? 'Scan failed'
+            : isLoading && page === 1 ? 'Scanning…' : `${total.toLocaleString()} matches`}
+          {!error && result?.snapshot_date ? ` · snapshot ${result.snapshot_date}` : ''}
         </span>
       </div>
+
+      {error && (
+        <div className={styles.scanError} role="alert">
+          Scan failed — {String(error.message || error)}. Showing previous results.
+          Remove the offending filter or Reset to recover.
+        </div>
+      )}
 
       {!isPhone && showFilters && panel}
 
@@ -136,7 +144,7 @@ export default function ScannerPro({ embedded = false }) {
           <ChartsGallery rows={rows} livePrices={prices} />
           {hasMore && (
             <div className={styles.loadMoreRow}>
-              <button type="button" className={styles.loadMoreBtn} onClick={onLoadMore}>
+              <button type="button" className={styles.loadMoreBtn} onClick={onLoadMore} disabled={isLoading}>
                 {isLoading ? 'Loading…' : `Load more (${rows.length.toLocaleString()} of ${total.toLocaleString()})`}
               </button>
             </div>
