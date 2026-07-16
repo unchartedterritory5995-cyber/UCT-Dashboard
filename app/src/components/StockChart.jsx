@@ -1229,7 +1229,8 @@ export default function StockChart({
       // the dark canvas — either way just a whisper of a line. Appended so it's included
       // in the legend + line rendering like any other overlay.
       const sma5 = { enabled: true, type: 'SMA', period: 5, color: canvasTheme === 'sunrise' ? 'rgba(0,0,0,0.24)' : 'rgba(255,255,255,0.16)' }
-      return [...base, sma5]
+      // Prepend so the legend lists it above the 9-EMA (numerical order: 5, 9, 20, 50, 200).
+      return [sma5, ...base]
     },
     [overlaysProp, cs.overlays, showSma5, canvasTheme]
   )
