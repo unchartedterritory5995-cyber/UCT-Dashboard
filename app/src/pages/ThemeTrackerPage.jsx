@@ -6,6 +6,7 @@ import styles from './ThemeTrackerPage.module.css'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import CompanyLogo from '../components/CompanyLogo'
+import uctMark from '../components/intro/assets/compass-mark.png'
 import useThemeIndexBars from '../hooks/useThemeIndexBars'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
@@ -525,6 +526,11 @@ export default function ThemeTrackerPage({ embedded = false }) {
           {themeIdx.isIndex ? (
             <>
               <div className={styles.chartHeader}>
+                {/* Thematic indexes have no company ticker → no logo.dev logo.
+                    Use the Uncharted Territory compass mark as the brand logo. */}
+                <span className={styles.stockLogo}>
+                  <img src={uctMark} alt="Uncharted Territory" width={16} height={16} style={{ display: 'block', objectFit: 'contain' }} />
+                </span>
                 <span className={styles.chartName} style={{ fontWeight: 700, color: 'var(--ut-gold)' }}>{themeIdx.name || selectedName}</span>
                 <span className={styles.chartName} style={{ opacity: 0.55 }}>Equal-Weight Index</span>
                 <div className={styles.chartPeriodTabs}>

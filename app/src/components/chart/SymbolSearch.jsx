@@ -1,6 +1,7 @@
 // app/src/components/chart/SymbolSearch.jsx — Clickable symbol badge + predictive search overlay
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import CompanyLogo from '../CompanyLogo'
+import uctMark from '../intro/assets/compass-mark.png'
 import styles from './SymbolSearch.module.css'
 
 // Default suggestions shown when the input is empty. Hardcoded names so the
@@ -38,7 +39,7 @@ const POPULAR_RESULTS = [
   { ticker: 'SOXX',  name: 'iShares Semiconductor ETF' },
 ]
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, displayLabel = null, fullLabel = false }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -182,7 +183,15 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
           // fullLabel: lift the 240px cap so the whole name has real layout width
           // (otherwise it overflows the capped box and paints over the day gain).
           <span className={styles.labelWrap} style={fullLabel ? { maxWidth: 'none' } : undefined}>
-            {logoSym && <span className={styles.labelLogo}><CompanyLogo sym={logoSym} name={displayLabel} size={16} round /></span>}
+            {logoSym ? (
+              <span className={styles.labelLogo}><CompanyLogo sym={logoSym} name={displayLabel} size={16} round /></span>
+            ) : brandLogo ? (
+              // Thematic indexes have no company ticker → no logo.dev logo. Fall back to
+              // the Uncharted Territory compass mark (the app's brand symbol) instead.
+              <span className={styles.labelLogo}>
+                <img src={uctMark} alt="Uncharted Territory" width={16} height={16} style={{ display: 'block', objectFit: 'contain' }} />
+              </span>
+            ) : null}
             <span className={styles.labelText} style={fullLabel ? { overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap' } : undefined}>{displayLabel}</span>
           </span>
         ) : sym}

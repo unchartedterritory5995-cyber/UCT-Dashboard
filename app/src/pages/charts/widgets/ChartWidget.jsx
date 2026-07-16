@@ -89,7 +89,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     return { abs, pct: (abs / pc) * 100, up: abs >= 0 }
   }, [themeIdx.isIndex, themeIdx.bars])
   // Header shows the COMPANY NAME + logo (not the ticker). For a theme index it's
-  // the theme name (no logo). meta.name comes from the shared ticker-meta cache.
+  // the theme name + the Uncharted Territory brand mark (it has no company ticker,
+  // so no logo.dev logo). meta.name comes from the shared ticker-meta cache.
   const meta = useTickerMeta(themeIdx.isIndex ? null : sym)
   const headerLabel = themeIdx.isIndex
     ? (themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
@@ -256,6 +257,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             hideIcon
             fullLabel
             logoSym={themeIdx.isIndex ? null : sym}
+            brandLogo={themeIdx.isIndex}
             displayLabel={headerLabel}
           />
         </div>
