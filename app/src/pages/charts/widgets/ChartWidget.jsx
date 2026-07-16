@@ -233,7 +233,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
 
   return (
     <div className={styles.chartWidget}>
-      <div className={styles.tfBar}>
+      {/* Top border row: logo + company name + day $/% change — sits above the
+          timeframe/meta row so a long company name never pushes the session
+          toggle + clock onto a second line. */}
+      <div className={styles.chartHeaderTop}>
         <div className={styles.symbolSlot}>
           <SymbolSearch
             ref={searchRef}
@@ -245,7 +248,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           />
         </div>
         <ChartDayGain sym={sym} />
-        <span className={styles.tfBarDivider} aria-hidden="true" />
+      </div>
+      <div className={styles.tfBar}>
         {TFS.map(([code, label]) => (
           <button
             key={code}

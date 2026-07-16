@@ -84,9 +84,24 @@
   overflow: hidden;
 }
 
+/* Top border row — logo + company name + day change. Its own row so a long
+   name can't wrap the timeframe/session controls below it. */
+.chartHeaderTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 4px;
+  min-height: 28px;
+  background: var(--bg-elevated, #0d1218);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
 .tfBar {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 2px;
   padding: 4px 6px;
   background: var(--bg-elevated, #0d1218);
@@ -121,13 +136,13 @@
   overflow: hidden;  /* clip the chart's min-height (200px) so a short widget can't bleed past the fill and trigger the ancestor scrollbar → autoSize width shake */
 }
 
-/* Symbol search slot lives at the left of the TF bar. */
+/* Symbol search slot — logo + company name, left-aligned on the top header row. */
 .symbolSlot {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: 56px;
-  margin-right: 4px;
+  justify-content: flex-start;
+  min-width: 0;
+  margin-right: 2px;
 }
 
 /* Live day gain ($ + %) beside the ticker — matches the ticker's size + box
