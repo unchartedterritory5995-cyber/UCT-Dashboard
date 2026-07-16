@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ShareToFloor from '../../../components/community/ShareToFloor'
@@ -77,6 +77,17 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // index via barsOverride (D/W/M only). Normal tickers: themeIdx.isIndex=false.
   const themeIdx = useThemeIndexBars(sym, tf)
   const indexTf = ['D', 'W', 'M'].includes(tf) ? tf : 'D'
+  // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
+  // its header $/% change is the last bar's close vs the prior bar's close.
+  const idxGain = useMemo(() => {
+    const bars = themeIdx.bars
+    if (!themeIdx.isIndex || !Array.isArray(bars) || bars.length < 2) return null
+    const last = bars[bars.length - 1], prev = bars[bars.length - 2]
+    const c = last?.c ?? last?.close, pc = prev?.c ?? prev?.close
+    if (!Number.isFinite(c) || !Number.isFinite(pc) || pc === 0) return null
+    const abs = c - pc
+    return { abs, pct: (abs / pc) * 100, up: abs >= 0 }
+  }, [themeIdx.isIndex, themeIdx.bars])
   // Header shows the COMPANY NAME + logo (not the ticker). For a theme index it's
   // the theme name (no logo). meta.name comes from the shared ticker-meta cache.
   const meta = useTickerMeta(themeIdx.isIndex ? null : sym)
@@ -248,7 +259,15 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             displayLabel={headerLabel}
           />
         </div>
-        <ChartDayGain sym={sym} />
+        {themeIdx.isIndex ? (
+          idxGain && (
+            <span className={styles.chartDayGain} style={{ color: idxGain.up ? '#1ae51a' : '#ff3b47' }}>
+              {idxGain.up ? '+' : ''}{idxGain.abs.toFixed(2)} ({idxGain.up ? '+' : ''}{idxGain.pct.toFixed(2)}%)
+            </span>
+          )
+        ) : (
+          <ChartDayGain sym={sym} />
+        )}
       </div>
       <div className={styles.tfBar}>
         {TFS.map(([code, label]) => (
