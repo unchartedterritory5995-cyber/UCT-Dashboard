@@ -43,6 +43,22 @@ export function computeBarTime(tf, tickTimeSec) {
     const et = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
     return `${et.getFullYear()}-${String(et.getMonth() + 1).padStart(2, '0')}-01`
   }
+  // 60-min: match the backend's ET-anchored hourly bucketing (bucket_60_et_unix_seconds):
+  // the 9:30–9:59 ET session-open bar anchors at 9:30; every other hour floors to the
+  // clock hour. Without this the frontend keyed the first hour at 9:00, so the live tick
+  // planted a fresh FLAT bar instead of updating the fetched 9:30 partial (open lost).
+  if (tf === '60') {
+    const clockHour = Math.floor(tickTimeSec / 3600) * 3600 + ET_OFFSET
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
+      }).formatToParts(new Date(tickTimeSec * 1000))
+      const etHour = +parts.find(p => p.type === 'hour').value
+      const etMin = +parts.find(p => p.type === 'minute').value
+      if (etHour === 9 && etMin >= 30) return clockHour + 1800   // the "clean open" 9:30 bar
+    } catch { /* fall through to the clock-hour bucket */ }
+    return clockHour
+  }
   // Intraday: floor to period boundary in UTC, offset to ET for display
   const period = PERIOD_SECONDS[tf] || 300
   return Math.floor(tickTimeSec / period) * period + ET_OFFSET

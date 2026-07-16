@@ -281,8 +281,22 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
     threshold = _INTRADAY_FRESHNESS_THRESHOLDS.get(tf, 300)
     age = _time.time() - last_ts
 
+    # A new bar bucket has begun since last_ts (the clock rolled into a new bar
+    # interval), so the stored newest bar is the PREVIOUS bucket and the current
+    # in-progress bucket is absent. Force a fetch so the first paint carries the
+    # current PARTIAL bar (its true open + the range elapsed so far) instead of
+    # letting the frontend seed a flat bar at the current price ("current hour
+    # candle starts flat"). Uses the exact bucketing the resample/WS-rollup use
+    # (tf=60 anchors at the 9:30 ET session open, not the clock hour).
+    new_bucket = False
+    try:
+        from api.services.bar_rollup import bucket_start
+        new_bucket = last_ts < (bucket_start(int(_time.time() * 1000), tf) // 1000)
+    except Exception:
+        new_bucket = False
+
     if _is_market_open():
-        return age > threshold
+        return age > threshold or new_bucket
 
     # Off-market refinements (the bug being fixed here):
     # The prior code returned `age > 30h` for ALL off-market times, which
@@ -317,7 +331,7 @@ def _needs_fresh(last_ts: int | None, tf: str) -> bool:
         in_extended_today = False
 
     if in_extended_today:
-        return age > threshold
+        return age > threshold or new_bucket
     # Off-market (overnight/weekend/holiday). The original 30h gate was a
     # blunt "is the data ancient?" guard, but on weekends and especially
     # 3-day holiday weekends it false-positives: Friday-close data is ~64h
