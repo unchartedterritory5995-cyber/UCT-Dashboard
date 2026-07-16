@@ -2,6 +2,13 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
+DEPLOY NOTE (2026-07-16): the flow-worker service watches ONLY
+api/{massive_ws_worker,massive_processor,flow_db,bs_iv,flow_worker_main}.py +
+railway.json — a `railway up` whose diff touches none of those is SKIPPED
+("No changes to watched files"). Changes to other flow modules (e.g.
+flow_gap_autofill / flow_heal_enrich) must touch a watched file to ship;
+this note's edit history doubles as that trigger.
+
 A THIRD Railway service — separate from `web` and the bars `worker` — that runs
 ONLY the Massive OPRA consumer + the flow read/upload routers, owning flow.db on
 its own volume. This is what makes "deploy all day, zero gap" real: web deploys
