@@ -87,8 +87,13 @@ def _normalize_strike(s) -> str:
         return str(s) if s is not None else ""
 
 
-def run_color_rebuild(target_date: str) -> dict:
-    """Rebuild Color for all rows on target_date using BBS conviction rules."""
+def run_color_rebuild(target_date: str, symbols: list = None) -> dict:
+    """Rebuild Color for rows on target_date using BBS conviction rules.
+
+    symbols (2026-07-16, intraday spool-replay): optional scope — evaluate
+    only these underlyings so an intraday run doesn't scan the whole live
+    day inside the tape's process. Full-day rebuilds stay the T+1/post-close
+    callers' job."""
     if not target_date:
         raise ValueError("target_date is required (format 'M/D/YYYY')")
 
@@ -113,13 +118,22 @@ def run_color_rebuild(target_date: str) -> dict:
     try:
         cur = conn.cursor()
 
-        # Pull all rows for target_date
-        cur.execute("""
-            SELECT id, Symbol, CallPut, Strike, ExpirationDate,
-                   Volume, OI, Color, Premium
-            FROM flow
-            WHERE CreatedDate = ?
-        """, (target_date,))
+        # Pull rows for target_date (optionally scoped to given underlyings)
+        if symbols:
+            ph = ",".join("?" * len(symbols))
+            cur.execute(f"""
+                SELECT id, Symbol, CallPut, Strike, ExpirationDate,
+                       Volume, OI, Color, Premium
+                FROM flow
+                WHERE CreatedDate = ? AND Symbol IN ({ph})
+            """, (target_date, *symbols))
+        else:
+            cur.execute("""
+                SELECT id, Symbol, CallPut, Strike, ExpirationDate,
+                       Volume, OI, Color, Premium
+                FROM flow
+                WHERE CreatedDate = ?
+            """, (target_date,))
 
         rows = cur.fetchall()
         stats["rows_scanned"] = len(rows)

@@ -3034,6 +3034,14 @@ async def lifespan(app: FastAPI):
                 print("[startup] Flow gap-autofill cron registered (16:45/21:00/08:00 ET Mon-Fri)")
         except Exception as e:
             print(f"[startup] Flow gap-autofill registration failed (non-fatal): {e}")
+        # Tape-spool gap sweeps (only where the spool/consumer runs; the module
+        # gates itself on FLOW_TAPE_SPOOL/REPLAY_ENABLED).
+        try:
+            from api import flow_tape_spool
+            if flow_tape_spool.register_jobs(_scheduler):
+                print("[startup] tape-spool gap sweeps registered")
+        except Exception as e:
+            print(f"[startup] tape-spool sweep registration failed (non-fatal): {e}")
         # Nightly offsite backup of flow.db to R2 (deploy-survival B4). Ships
         # dark (FLOW_BACKUP_ENABLED=0); 02:30 ET Mon-Sat. flow.db currently has
         # backups only on the same volume = no corruption/loss recovery.

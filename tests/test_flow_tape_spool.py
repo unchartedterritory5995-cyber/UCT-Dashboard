@@ -40,29 +40,33 @@ def test_spool_frame_never_raises_and_counts(monkeypatch):
     fts._q.clear()
 
 
-def test_frames_to_trades_window_filter(spool_dir):
-    t0 = int(datetime(2026, 7, 16, 14, 0, 0, tzinfo=UTC).timestamp() * 1e9)
-    inside = t0 + int(30e9)
-    outside = t0 + int(7200e9)  # 2h later — different hour file bucket
-    path = os.path.join(spool_dir, "tape-20260716-14.jsonl")
-    with open(path, "w") as f:
-        f.write(_frame([("AAA", 1.0, 100, 0, inside)]) + "\n")
-        f.write(_frame([("BBB", 2.0, 100, 0, outside)]) + "\n")
+def _win_ns(target_day, minute, sec=0):
+    day_et = datetime(target_day.year, target_day.month, target_day.day, tzinfo=ET)
+    return int((day_et + timedelta(minutes=minute, seconds=sec)).timestamp() * 1e9)
+
+
+def test_collect_window_trades_assignment_and_junk(spool_dir):
+    """Single-pass collection: trades land in their window, junk/out-of-window
+    frames are skipped, non-dict payload entries don't abort the pass (B7)."""
+    from datetime import date as d
+    target = d(2026, 7, 16)
+    windows = [(600, 606), (660, 663)]         # 10:00–10:06, 11:00–11:03 ET
+    in_w0 = _win_ns(target, 601)
+    in_w1 = _win_ns(target, 661)
+    outside = _win_ns(target, 630)
+    hour = datetime.utcfromtimestamp(in_w0 / 1e9).strftime("%Y%m%d-%H")
+    with open(os.path.join(spool_dir, f"tape-{hour}.jsonl"), "w") as f:
+        f.write(_frame([("AAA", 1.0, 100, 0, in_w0)]) + "\n")
+        f.write(json.dumps(["not-a-dict", {"ev": "T", "sym": "BAD"}]) + "\n")
+        f.write(_frame([("OUT", 1.0, 100, 0, outside)]) + "\n")
         f.write("not json\n")
-    trades = fts._frames_to_trades(t0, t0 + int(3600e9))
-    assert len(trades) == 1
-    assert trades[0][0] == "AAA" and trades[0][5] == inside
-
-
-def test_frames_to_trades_reads_gz_and_truncated(spool_dir):
-    t0 = int(datetime(2026, 7, 16, 14, 0, 0, tzinfo=UTC).timestamp() * 1e9)
-    ts = t0 + int(10e9)
-    gz_path = os.path.join(spool_dir, "tape-20260716-14.jsonl.gz")
-    with gzip.open(gz_path, "wt") as f:
-        f.write(_frame([("CCC", 3.0, 50, 219, ts)]) + "\n")
-    trades = fts._frames_to_trades(t0, t0 + int(3600e9))
-    assert len(trades) == 1
-    assert trades[0][0] == "CCC" and trades[0][4] == 219  # sweep code preserved
+    hour1 = datetime.utcfromtimestamp(in_w1 / 1e9).strftime("%Y%m%d-%H")
+    with gzip.open(os.path.join(spool_dir, f"tape-{hour1}.jsonl.gz"), "wt") as f:
+        f.write(_frame([("CCC", 3.0, 50, 219, in_w1)]) + "\n")
+    by_w = fts._collect_window_trades(target, windows)
+    assert [t[0] for t in by_w[0]] == ["AAA"]
+    assert [t[0] for t in by_w[1]] == ["CCC"]
+    assert by_w[1][0][4] == 219                 # sweep code preserved via .gz
 
 
 def test_replay_disabled_by_default(spool_dir):
@@ -96,28 +100,28 @@ def test_spool_frame_skips_pure_quote_frames(spool_dir):
 def test_replay_gaps_skips_when_no_gaps(spool_dir, monkeypatch):
     import api.flow_gap_autofill as fga
     monkeypatch.setattr(fts, "REPLAY_ENABLED", True)
-    monkeypatch.setattr(fga, "detect_windows", lambda d: ([], "windows"))
+    monkeypatch.setattr(fga, "detect_windows",
+                        lambda d, cap_end_min=None: ([], "windows"))
     monkeypatch.setattr(fga, "_is_trading_day", lambda d: True)
     out = fts.replay_gaps()
     assert out["status"] in ("no_gaps", "not_trading_day")
 
 
-def test_replay_gaps_excludes_live_leading_edge(spool_dir, monkeypatch):
-    """A 'gap' that includes the current minute is the present, not a gap."""
+def test_replay_gaps_passes_intraday_cap(spool_dir, monkeypatch):
+    """Same-day runs must cap detection at now-1 (B1) — the present isn't a gap."""
     import api.flow_gap_autofill as fga
     now_et = datetime.now(ET)
     now_min = now_et.hour * 60 + now_et.minute
+    seen = {}
+
+    def fake_detect(d, cap_end_min=None):
+        seen["cap"] = cap_end_min
+        return [], "windows"
     monkeypatch.setattr(fts, "REPLAY_ENABLED", True)
     monkeypatch.setattr(fga, "_is_trading_day", lambda d: True)
-    monkeypatch.setattr(fga, "detect_windows",
-                        lambda d: ([(now_min - 1, now_min + 1)], "windows"))
-    called = []
-    monkeypatch.setattr(fts, "_replay_window",
-                        lambda *a, **k: called.append(a) or {"inserted": 0, "skipped": 0,
-                                                             "window": a[1:3], "spool_trades": 0})
-    out = fts.replay_gaps(target=now_et.date())
-    assert out["status"] == "no_gaps"
-    assert not called
+    monkeypatch.setattr(fga, "detect_windows", fake_detect)
+    fts.replay_gaps(target=now_et.date())
+    assert seen["cap"] == now_min - 1
 
 
 def test_writer_rotation_and_prune(spool_dir, monkeypatch):
@@ -137,3 +141,103 @@ def test_writer_rotation_and_prune(spool_dir, monkeypatch):
 def test_get_stats_shape(spool_dir):
     s = fts.get_stats()
     assert {"frames_spooled", "frames_dropped", "queue_len", "enabled"} <= set(s)
+
+
+# ── Block B ───────────────────────────────────────────────────────────────
+
+def test_iter_spool_lines_prefers_gz_over_plain_twin(spool_dir):
+    """Crash between gzip and unlink leaves both files — double-reading would
+    mint inflated-Volume phantom rows (B7)."""
+    t0 = int(datetime(2026, 7, 16, 14, 0, 0, tzinfo=UTC).timestamp() * 1e9)
+    ts = t0 + int(10e9)
+    plain = os.path.join(spool_dir, "tape-20260716-14.jsonl")
+    with open(plain, "w") as f:
+        f.write(_frame([("PLAIN", 1.0, 100, 0, ts)]) + "\n")
+    with gzip.open(plain + ".gz", "wt") as f:
+        f.write(_frame([("GZONLY", 1.0, 100, 0, ts)]) + "\n")
+    lines = list(fts._iter_spool_lines(t0, t0 + int(3600e9)))
+    joined = "".join(lines)
+    assert "GZONLY" in joined and "PLAIN" not in joined
+
+
+def test_detect_windows_intraday_cap(tmp_path, monkeypatch):
+    """B1: uncapped intraday detection counted FUTURE minutes as empty and
+    collapsed to full_session; the cap must scope it to the elapsed session."""
+    import sqlite3
+    import api.flow_gap_autofill as fga
+    db = str(tmp_path / "flow.db")
+    with sqlite3.connect(db) as c:
+        c.execute("CREATE TABLE flow (source TEXT, CreatedDate TEXT, CreatedTime TEXT)")
+        rows = []
+        for m in range(570, 600):        # writes 9:30–9:59 …
+            if 574 <= m <= 579:          # … except a gap 9:34–9:39
+                continue
+            rows.append(("stocks", "7/16/2026", f"{m//60}:{m%60:02d}:00 AM"))
+        c.executemany("INSERT INTO flow VALUES (?,?,?)", rows)
+    monkeypatch.setattr(fga, "DB_PATH", db)
+
+    from datetime import date as d
+    target = d(2026, 7, 16)
+    # capped at 10:00 (minute 600): exactly the 9:34–9:40 window, mode=windows
+    win, mode = fga.detect_windows(target, cap_end_min=600)
+    assert mode == "windows"
+    assert win == [(574, 580)]
+    # uncapped: the rest of the session is "empty" → full_session collapse
+    _, mode_uncapped = fga.detect_windows(target)
+    assert mode_uncapped == "full_session"
+
+
+def test_replay_budget_deferral(spool_dir, monkeypatch):
+    import api.flow_gap_autofill as fga
+    monkeypatch.setattr(fts, "REPLAY_ENABLED", True)
+    monkeypatch.setattr(fts, "REPLAY_MAX_MIN", 10)
+    monkeypatch.setattr(fga, "_is_trading_day", lambda d: True)
+    monkeypatch.setattr(fga, "detect_windows",
+                        lambda d, cap_end_min=None: ([(570, 630)], "windows"))
+    monkeypatch.setattr(fga, "_post_discord", lambda m: None)
+    out = fts.replay_gaps()
+    assert out["status"] == "deferred_budget"
+    assert out["deferred"] == [(570, 630)]
+
+
+def test_register_jobs_gated_on_consumer_ownership(spool_dir, monkeypatch):
+    monkeypatch.setattr(fts, "REPLAY_ENABLED", True)
+    monkeypatch.delenv("MASSIVE_WS_ENABLED", raising=False)
+    assert fts.register_jobs(object()) is False
+
+
+def test_replay_window_edge_honesty(tmp_path, spool_dir, monkeypatch):
+    """B2: a chain straddling the gap start was partially captured live —
+    it must NOT be inserted from the spool (only fully-inside chains are)."""
+    from datetime import date as d
+    from api.flow_db import FlowDB
+    dbdir = tmp_path / "dbdir"
+    dbdir.mkdir()
+    dbp = str(dbdir / "flow.db")
+    orig_init = FlowDB.__init__
+
+    def _init(self, db_path=None):
+        orig_init(self, db_path=dbp)
+    monkeypatch.setattr(FlowDB, "__init__", _init)
+    monkeypatch.setattr(fts, "DB_PATH", dbp)
+
+    target = d(2026, 7, 16)
+    day_et = datetime(2026, 7, 16, tzinfo=ET)
+    gap_s, gap_e = 600, 606          # 10:00–10:06 ET
+    gs_ns = int((day_et + timedelta(minutes=gap_s)).timestamp() * 1e9)
+
+    def tr(sym, off_s, price=2.0, size=100):
+        return (sym, price, size, 4, 0, gs_ns + int(off_s * 1e9))
+
+    trades = [
+        # chain A: starts 5s BEFORE the gap (straddler → excluded)
+        tr("O:AAA260821C00050000", -5),
+        # chain B: fully inside (inserted); premium 2.0*100*100=20k ≥ 10k
+        tr("O:BBB260821C00060000", 30),
+    ]
+    out = fts._replay_window(target, gap_s, gap_e, trades)
+    assert out["inserted"] == 1
+    import sqlite3
+    with sqlite3.connect(dbp) as c:
+        syms = [r[0] for r in c.execute("SELECT Symbol FROM flow")]
+    assert syms == ["BBB"]

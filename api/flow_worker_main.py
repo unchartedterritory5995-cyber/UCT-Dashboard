@@ -163,6 +163,13 @@ def _start_flow_schedulers():
         except Exception as e:  # noqa: BLE001
             log.warning("gap-fill scheduling failed: %s", e)
         try:
+            from api import flow_tape_spool
+            if flow_tape_spool.register_jobs(sched):
+                n += 1
+                log.info("[startup] tape-spool gap sweeps registered")
+        except Exception as e:  # noqa: BLE001
+            log.warning("tape-spool sweep scheduling failed: %s", e)
+        try:
             from api import flow_backup
             if flow_backup.register_jobs(sched):
                 n += 1

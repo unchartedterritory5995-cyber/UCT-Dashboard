@@ -1613,6 +1613,11 @@ def _write_events(events: list) -> None:
                 )
 
         _state["last_write_ts"] = time.time()
+        try:
+            from api.flow_watchdog import note_live_insert
+            note_live_insert()      # B5: live-lane heartbeat for the watchdog
+        except Exception:
+            pass
     except Exception as e:
         logger.exception("[massive-ws] DB write failed: %s", e)
         _state["last_error"] = f"db_write: {e}"

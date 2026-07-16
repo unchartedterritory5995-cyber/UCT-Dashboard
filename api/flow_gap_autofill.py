@@ -204,8 +204,13 @@ def windows_from_minutes(minutes_with_rows: set, session_end_min: int,
     return windows, "windows"
 
 
-def detect_windows(target: date):
-    """Detect gap windows for a completed trading day from flow.db stocks rows."""
+def detect_windows(target: date, cap_end_min: int = None):
+    """Detect gap windows for a trading day from flow.db stocks rows.
+
+    cap_end_min (review B1): for INTRADAY detection pass the current
+    minute-of-day — without it, every future session minute counts as empty,
+    which collapses any pre-~12:45 check into a bogus full_session window.
+    Post-close callers (the T+1 heal) omit it and scan the whole session."""
     mdy = _mdy(target)
     minutes = set()
     with _conn() as c:
@@ -215,7 +220,10 @@ def detect_windows(target: date):
             sec = _sec_of_day(row["CreatedTime"] or "")
             if sec is not None:
                 minutes.add(sec // 60)
-    return windows_from_minutes(minutes, _session_end_min(target))
+    end_min = _session_end_min(target)
+    if cap_end_min is not None:
+        end_min = max(SESSION_START_MIN, min(end_min, cap_end_min))
+    return windows_from_minutes(minutes, end_min)
 
 
 # --- Flat-file row building (mirrors massive_flatfiles_worker._process_bytes) --

@@ -50,6 +50,15 @@ _ET = ZoneInfo("America/New_York")
 
 _started = False
 _start_lock = threading.Lock()
+_live_hb = {"ts": 0.0}
+
+
+def note_live_insert() -> None:
+    """Heartbeat from the LIVE consumer's write path (review B5). The spool
+    replay also advances flow.db's max rowid, which would otherwise mask a
+    frozen live lane; when this heartbeat is being fed, row-id advance only
+    counts as progress if the heartbeat moved too."""
+    _live_hb["ts"] = time.time()
 
 
 def _in_watch_window(now_et: datetime) -> bool:
@@ -112,6 +121,7 @@ def _run(service_name: str) -> None:
     last_advance_ts = time.time()
     warned_half = False
     stocks_dead_since = None    # day-start blind-spot timer (review A8)
+    last_hb_seen = 0.0          # live-write heartbeat tracker (review B5)
 
     logger.info("[flow-watchdog] started (service=%s stale=%.0fs interval=%.0fs)",
                 service_name, STALE_SEC, CHECK_INTERVAL_SEC)
@@ -160,11 +170,19 @@ def _run(service_name: str) -> None:
                 continue
             stocks_dead_since = None
 
+            hb = _live_hb["ts"]
             if last_max_id is None or max_id != last_max_id:
                 last_max_id = max_id
-                last_advance_ts = time.time()
-                warned_half = False
+                # B5: when the live write path feeds the heartbeat, a rowid
+                # advance only counts as live progress if the heartbeat moved
+                # too — a spool replay writing rows must not mask a frozen
+                # live lane. Fallback to rowid-only when hb was never fed.
+                if hb == 0 or hb > last_hb_seen:
+                    last_advance_ts = time.time()
+                    warned_half = False
+                last_hb_seen = hb
                 continue
+            last_hb_seen = hb
 
             frozen_for = time.time() - last_advance_ts
             # Half-threshold early warning (manrav 7/16): if lag/flush cadence
