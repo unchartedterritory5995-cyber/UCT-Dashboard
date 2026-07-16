@@ -210,6 +210,11 @@
 }
 :global([data-charts-theme='sunrise']) .rangeBtn { color: #47525f; }
 :global([data-charts-theme='sunrise']) .rangeBtn:hover { color: #1c2836; background: rgba(20, 45, 75, 0.08); }
+/* Vertical OHLCV legend (workspace) — date + labels + values dark & bold on the bright canvas. */
+:global([data-charts-theme='sunrise']) .vlHead { color: #16212e; font-weight: 700; }
+:global([data-charts-theme='sunrise']) .vlLabel,
+:global([data-charts-theme='sunrise']) .vlFull { color: #3f4a57; font-weight: 600; }
+:global([data-charts-theme='sunrise']) .vlVal { color: #12202c; font-weight: 700; }
 
 /* Charts workspace: stack the OHLCV legend single-file down the left as a
    two-column table (label left, value right-aligned), dropped below the toolbar.

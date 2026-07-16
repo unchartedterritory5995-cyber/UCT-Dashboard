@@ -377,6 +377,11 @@
    green. */
 .retPos   { color: #1ae51a; }
 .retNeg   { color: #ff3b47; }
+/* Sunrise (charts workspace): match the dark candle green/red. */
+:global([data-charts-theme='sunrise']) .retPos,
+:global([data-charts-theme='sunrise']) .rotBadgeIn { color: #0a5c22; }
+:global([data-charts-theme='sunrise']) .retNeg,
+:global([data-charts-theme='sunrise']) .rotBadgeOut { color: #7d1620; }
 .retFlat  { color: var(--text-muted); }
 
 /* TC2000-style tick flash: the number goes bold for a beat and a colored tint

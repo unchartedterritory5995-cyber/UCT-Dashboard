@@ -120,6 +120,13 @@
 /* Match the chart's candle colors (MB_UP / MB_DOWN) exactly. */
 .pos { color: #1ae51a; }
 .neg { color: #c41f2d; }
+/* Sunrise: match the dark candle green/red. */
+:global([data-charts-theme='sunrise']) .pos,
+:global([data-charts-theme='sunrise']) .revUp { color: #0a5c22; }
+:global([data-charts-theme='sunrise']) .neg,
+:global([data-charts-theme='sunrise']) .revDown { color: #7d1620; }
+/* Quarter date reads dark on the bright card. */
+:global([data-charts-theme='sunrise']) .qDate { color: #55606e; }
 .rev { font-size: 8px; margin-left: 3px; vertical-align: middle; }
 .revUp { color: #1ae51a; }
 .revDown { color: #c41f2d; }

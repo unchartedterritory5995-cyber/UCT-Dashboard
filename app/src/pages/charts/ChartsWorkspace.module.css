@@ -398,9 +398,10 @@
   --bg-elevated: #f2f6fa;
   --bg-hover: rgba(20, 45, 75, 0.07);
   --border: #c2d2e0;
-  --text: #223243;
-  --text-bright: #0c1824;
-  --text-muted: #566577;
+  --text: #1b2836;
+  --text-bright: #0a141e;
+  --text-heading: #16212e;   /* was light cream — used by widget headings/quarter labels/company names */
+  --text-muted: #3e4a58;   /* darker so labels (tf buttons, meta, headers) read on white */
   /* Darker gold + the SAME very-dark green/red as the candles + volume, so every
      accent (tickers, %s, labels) matches and reads on the bright canvas. */
   --ut-gold: #7a5c16;
@@ -420,14 +421,45 @@
 :global([data-charts-theme='sunrise']) [style*="1ae51a"],
 :global([data-charts-theme='sunrise']) [style*="3cb868"],
 :global([data-charts-theme='sunrise']) [style*="4ade80"],
-:global([data-charts-theme='sunrise']) [style*="22c55e"] {
+:global([data-charts-theme='sunrise']) [style*="22c55e"],
+:global([data-charts-theme='sunrise']) [style*="16a34a"],
+:global([data-charts-theme='sunrise']) [style*="10b981"],
+:global([data-charts-theme='sunrise']) [style*="21c45c"],
+:global([data-charts-theme='sunrise']) [style*="2d8c4e"],
+:global([data-charts-theme='sunrise']) [style*="1a9e"],
+:global([data-charts-theme='sunrise']) [style*="0f9d34"] {
   color: #0a5c22 !important;
 }
 :global([data-charts-theme='sunrise']) [style*="f87171"],
 :global([data-charts-theme='sunrise']) [style*="ef4444"],
 :global([data-charts-theme='sunrise']) [style*="e74c3c"],
 :global([data-charts-theme='sunrise']) [style*="ff3b47"],
-:global([data-charts-theme='sunrise']) [style*="c0392b"] {
+:global([data-charts-theme='sunrise']) [style*="c0392b"],
+:global([data-charts-theme='sunrise']) [style*="c41f2d"],
+:global([data-charts-theme='sunrise']) [style*="dc2626"],
+:global([data-charts-theme='sunrise']) [style*="b91c1c"] {
+  color: #7d1620 !important;
+}
+/* Header meta labels + timeframe buttons — darker so they read on the bright header. */
+:global([data-charts-theme='sunrise']) .chartMetaLabel,
+:global([data-charts-theme='sunrise']) .tfBtn { color: #45515f; }
+:global([data-charts-theme='sunrise']) .tfBtn:hover { color: #12202c; }
+/* Header row separators (company-name row + timeframe row) — visible grey-black. */
+:global([data-charts-theme='sunrise']) .chartHeaderTop { border-bottom-color: rgba(28, 40, 54, 0.3); }
+:global([data-charts-theme='sunrise']) .tfBar { border-bottom-color: rgba(28, 40, 54, 0.24); }
+/* Safety net: React serializes inline #hex colors to rgb() in the style attr, so
+   catch the rgb() forms of the vivid greens/reds any remaining inline-styled widget
+   value uses, and pull them to the dark candle palette. */
+:global([data-charts-theme='sunrise']) [style*="rgb(26, 229, 26)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(60, 184, 104)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(74, 222, 128)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(34, 197, 94)"] {
+  color: #0a5c22 !important;
+}
+:global([data-charts-theme='sunrise']) [style*="rgb(255, 59, 71)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(196, 31, 45)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(248, 113, 113)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(239, 68, 68)"] {
   color: #7d1620 !important;
 }
 :global([data-charts-theme='sunrise']) .workspaceHeader {

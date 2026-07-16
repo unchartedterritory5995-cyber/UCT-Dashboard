@@ -3710,7 +3710,7 @@ export default function StockChart({
         fontSize: 10,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
-        ...((boldCandles || subtleSeparator) ? { panes: { separatorColor: 'rgba(255,255,255,0.18)', separatorHoverColor: 'rgba(255,255,255,0.32)', enableResize: !frozen } } : {}),
+        ...((boldCandles || subtleSeparator) ? { panes: { separatorColor: canvasTheme === 'sunrise' ? 'rgba(30,42,58,0.5)' : 'rgba(255,255,255,0.18)', separatorHoverColor: canvasTheme === 'sunrise' ? 'rgba(30,42,58,0.7)' : 'rgba(255,255,255,0.32)', enableResize: !frozen } } : {}),
       },
       // Frozen (Setup Library examples): the chart is a static exhibit pinned to
       // its framed window — no pan/zoom/axis-drag, and the wheel is left alone so
@@ -3941,14 +3941,20 @@ export default function StockChart({
       // are left untouched). Candles + OHLC bars only (line/area/hollow have no net-change
       // notion). Same up/down palette the series itself uses so it looks identical apart
       // from the coloring rule.
-      if (colorByNetChange && canvasTheme !== 'sunrise' && (cs.chartType === 'candles' || cs.chartType === 'bars') && !priceSeries.__uctNetWrap) {
+      if (colorByNetChange && (cs.chartType === 'candles' || cs.chartType === 'bars') && !priceSeries.__uctNetWrap) {
         const _netUp = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
         const _netDown = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
+        // Sunrise keeps the HOLLOW look while still coloring by NET CHANGE: a
+        // net-change-up bar is hollow (transparent body + green outline); a
+        // net-change-down bar is filled red. Every other theme stays solid.
+        const _hollowNet = canvasTheme === 'sunrise'
         const _paintNet = (bar, prevClose) => {
           if (!bar || bar.close == null || prevClose == null) return bar
           if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
-          const c = bar.close >= prevClose ? _netUp : _netDown
-          return { ...bar, color: c, borderColor: c, wickColor: c }
+          const up = bar.close >= prevClose
+          const c = up ? _netUp : _netDown
+          const body = (_hollowNet && up) ? 'rgba(0,0,0,0)' : c
+          return { ...bar, color: body, borderColor: c, wickColor: c }
         }
         const _realSet = priceSeries.setData.bind(priceSeries)
         const _realUpd = priceSeries.update.bind(priceSeries)
@@ -7311,7 +7317,7 @@ export default function StockChart({
           {verticalLegend ? (
             <>
               <span className={styles.vlHead}>{formatLegendTime(crosshairData.time)}</span>
-              <span className={styles.vlChange} style={{ color: parseFloat(crosshairData.change) >= 0 ? '#1ae51a' : '#c41f2d' }}>
+              <span className={styles.vlChange} style={{ color: parseFloat(crosshairData.change) >= 0 ? (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d') }}>
                 {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
               </span>
               <span className={styles.vlLabel}>Open</span><span className={styles.vlVal}>{crosshairData.open?.toFixed(2)}</span>
