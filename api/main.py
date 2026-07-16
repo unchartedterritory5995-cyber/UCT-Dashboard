@@ -2169,9 +2169,13 @@ async def lifespan(app: FastAPI):
             _bs_interval = int(os.getenv("BROKER_SYNC_INTERVAL_MIN", "20"))
             # Incremental sync -- runs only inside the active market-data window
             # (the runner self-gates), so overnight/weekend ticks are no-ops.
+            # jitter: both this interval and the hourly patterns_universe_scan
+            # (an auth.db WRITER) are boot-anchored, so without jitter every
+            # 3rd sync tick lands inside the scan's write window and loses the
+            # 3s auth.db lock wait ("database is locked" hourly — prod 7/13-15).
             _scheduler.add_job(
                 _broker_sync_engine.run_due_sync_blocking,
-                trigger=IntervalTrigger(minutes=_bs_interval),
+                trigger=IntervalTrigger(minutes=_bs_interval, jitter=120),
                 id="broker_sync_due", max_instances=1, replace_existing=True,
             )
             # Nightly full reconcile (corrections/voids outside the window).
