@@ -4934,10 +4934,14 @@ export default function StockChart({
       // timeframe"). Capture the outgoing anchor + width now; the guard below re-asserts
       // it on every settling commit until the bar count stops changing.
       if (tfChanged) {
+        // Preserve the zoom WIDTH from the outgoing view; the newest candle is re-pinned
+        // to the fixed right anchor (LAST_CANDLE_POS) below. Do NOT derive the anchor from
+        // oldRange + oldBarCount: after setData() with the new tf's bars, getVisibleLogicalRange
+        // is clamped to the NEW data extent while oldBarCount is the OLD tf's count, so that
+        // ratio is garbage when the two tfs have different bar counts — it snapped the chart
+        // to the middle (SMH 1H bug).
         const _w = oldRange ? (oldRange.to - oldRange.from) : null
-        const _lastIdx = oldBarCount - 1
-        const _pos = (oldRange && _w > 0 && _lastIdx >= 0) ? (_lastIdx - oldRange.from) / _w : LAST_CANDLE_POS
-        pendingTfReframeRef.current = { tf: resolvedTf, pos: _pos, width: (_w > 0 ? _w : null) }
+        pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
       }
 
       // Vertical: always auto-fit the new ticker into the current candle band. chartOpts
@@ -5011,10 +5015,10 @@ export default function StockChart({
         } else {
           const _pt = pendingTfReframeRef.current
           if (tfChanged && _pt && _pt.width > 0) {
-            // TF switch: pin the new last candle to the SAME position + width as the
-            // outgoing view, so the chart doesn't move — only the timeframe flips.
+            // TF switch: keep the same zoom WIDTH and pin the newest candle to the fixed
+            // right anchor, so the chart doesn't move — only the timeframe flips.
             const lastIdx = filteredBars.length - 1
-            const to = lastIdx + _pt.width * (1 - _pt.pos)
+            const to = lastIdx + _pt.width * (1 - LAST_CANDLE_POS)
             const from = to - _pt.width
             chart.timeScale().setVisibleLogicalRange({ from, to })
           } else {
@@ -5070,7 +5074,7 @@ export default function StockChart({
         let from, to
         if (_pt.width > 0) {
           const lastIdx = filteredBars.length - 1
-          to = lastIdx + _pt.width * (1 - _pt.pos)
+          to = lastIdx + _pt.width * (1 - LAST_CANDLE_POS)
           from = to - _pt.width
         } else {
           ;({ from, to } = computeDefaultLogicalRange(
