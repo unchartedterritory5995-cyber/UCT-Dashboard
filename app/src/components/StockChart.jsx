@@ -1596,6 +1596,19 @@ export default function StockChart({
     // resetTimeScale when there aren't enough bars to frame.
     const resetView = () => {
       try {
+        // VERTICAL first: clear any manual price-scale drag / locked placement and
+        // re-enable auto-scale so the candles are always re-framed. Dragging the price
+        // axis pins a fixed price range that the horizontal reframe alone can't undo —
+        // that's the "reset does nothing / candles gone off-screen" bug.
+        vertMarginsRef.current = null
+        focusPriceRangeRef.current = null
+        try {
+          mainPriceScale()?.applyOptions({
+            autoScale: true,
+            scaleMargins: _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+          })
+        } catch {}
+        // HORIZONTAL: reframe to the timeframe default.
         const ts = chartRef.current?.timeScale(); if (!ts) return
         const len = lastBarCountRef.current || 0
         if (len > 1) {
@@ -6642,6 +6655,18 @@ export default function StockChart({
           currentPrice,
           resetView: () => {
             try {
+              // VERTICAL: clear manual price-scale drag / locked placement + re-enable
+              // auto-scale so candles are always re-framed (axis-drag pins a fixed
+              // range the horizontal reframe can't undo — "reset does nothing" bug).
+              vertMarginsRef.current = null
+              focusPriceRangeRef.current = null
+              try {
+                mainPriceScale()?.applyOptions({
+                  autoScale: true,
+                  scaleMargins: _mainMargins(cs, showVolume && volData.length > 0 && !volInSeparatePane, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+                })
+              } catch { /* noop */ }
+              // HORIZONTAL: reframe to the timeframe default.
               const ts = chartRef.current?.timeScale(); if (!ts) return
               const len = lastBarCountRef.current || 0
               if (len > 1) {
