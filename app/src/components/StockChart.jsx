@@ -2753,6 +2753,20 @@ export default function StockChart({
     () => {
       if (!displayBars) return []
       const arr = displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c }))
+      // Sunrise: an INSIDE BAR (its whole high–low sits within the PREVIOUS bar's
+      // high–low, wicks included) is painted solid black regardless of direction.
+      // Data-level (uses displayBars directly) so it's deterministic for every bar,
+      // including today's developing bar. The net-change paint wrapper preserves an
+      // explicit color, so this black survives.
+      if (canvasTheme === 'sunrise') {
+        for (let i = 1; i < arr.length; i++) {
+          const cur = arr[i], prev = arr[i - 1]
+          if (cur.high != null && cur.low != null && prev.high != null && prev.low != null
+              && cur.high <= prev.high && cur.low >= prev.low) {
+            arr[i] = { ...cur, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
+          }
+        }
+      }
       // Paint the pre-market preview candle (the appended last bar) muted white.
       if (sessionPreviewLastBar && arr.length) {
         const i = arr.length - 1
@@ -2760,7 +2774,7 @@ export default function StockChart({
       }
       return arr
     },
-    [displayBars, adjustTime, sessionPreviewLastBar]
+    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme]
   )
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
