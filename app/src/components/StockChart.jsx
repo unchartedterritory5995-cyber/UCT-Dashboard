@@ -1366,7 +1366,7 @@ export default function StockChart({
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
   const lastTfRef = useRef(null)   // Last resolved timeframe — distinguishes tf change from ticker switch
-  const pendingTfReframeRef = useRef(null)  // Set to the new tf on a TF switch; forces the default-latest frame on every commit until the bar count settles (kills the "flip 5m→D snaps hard-left and never recovers" glitch)
+  const pendingTfReframeRef = useRef(null)  // On a TF switch, holds { tf, pos, width } of the OUTGOING view; re-asserts that exact anchor+zoom on every commit until the bar count settles, so flipping timeframes doesn't move the chart (and can't snap hard-left during the phased load)
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
   const lastCfgSigRef = useRef(null) // A2: render-config signature at last paint — an incremental (last-bar-only) update is only safe when the config is byte-identical to the last paint
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
@@ -4928,9 +4928,17 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
-      // A timeframe switch must settle at the new tf's default-latest window. Arm the
-      // reframe guard (cleared in the safety net once the bar count stops changing).
-      if (tfChanged) pendingTfReframeRef.current = resolvedTf
+      // A timeframe switch must PRESERVE the viewport: keep the last candle at the
+      // exact same screen position AND the same zoom width, then just swap in the new
+      // tf's bars — no reset to the tf default, no leftward snap ("just flip the
+      // timeframe"). Capture the outgoing anchor + width now; the guard below re-asserts
+      // it on every settling commit until the bar count stops changing.
+      if (tfChanged) {
+        const _w = oldRange ? (oldRange.to - oldRange.from) : null
+        const _lastIdx = oldBarCount - 1
+        const _pos = (oldRange && _w > 0 && _lastIdx >= 0) ? (_lastIdx - oldRange.from) / _w : LAST_CANDLE_POS
+        pendingTfReframeRef.current = { tf: resolvedTf, pos: _pos, width: (_w > 0 ? _w : null) }
+      }
 
       // Vertical: always auto-fit the new ticker into the current candle band. chartOpts
       // already applied that band's scaleMargins (= the captured proportional placement,
@@ -5001,13 +5009,22 @@ export default function StockChart({
           const toBar   = (exitIdx >= 0 ? exitIdx : filteredBars.length - 1) + 28
           chart.timeScale().setVisibleLogicalRange({ from: fromBar, to: toBar })
         } else {
-          // Canonical default zoom: newest candle at LAST_CANDLE_POS, timeframe's
-          // default history (Daily on the workspace = dailyDefaultBars ≈ 6 months).
-          // Shared with the right-click "Reset view" so both land identically.
-          const { from: _from, to: _to } = computeDefaultLogicalRange(
-            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars }
-          )
-          chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
+          const _pt = pendingTfReframeRef.current
+          if (tfChanged && _pt && _pt.width > 0) {
+            // TF switch: pin the new last candle to the SAME position + width as the
+            // outgoing view, so the chart doesn't move — only the timeframe flips.
+            const lastIdx = filteredBars.length - 1
+            const to = lastIdx + _pt.width * (1 - _pt.pos)
+            const from = to - _pt.width
+            chart.timeScale().setVisibleLogicalRange({ from, to })
+          } else {
+            // First load (no prior view): canonical default zoom — newest candle at
+            // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
+            const { from: _from, to: _to } = computeDefaultLogicalRange(
+              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars }
+            )
+            chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
+          }
         }
       }
     } else if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0
@@ -5042,17 +5059,24 @@ export default function StockChart({
       const preLastIdx = oldBarCount - 1
       const prePad = oldRange.to - preLastIdx      // empty bars right of the last bar, BEFORE the update
       const preWidth = oldRange.to - oldRange.from
-      if (pendingTfReframeRef.current === resolvedTf) {
-        // Just switched INTO this timeframe: deterministically re-assert its
-        // default-latest window on every settling commit (the bars arrive in phases
-        // — IDB cache → network → backfill — each a separate commit). Once the count
-        // stops changing, data has settled; release control so ordinary scroll/zoom
-        // is respected again. Without this, an intermediate phase can strand the view
-        // hard-left and the was-viewing-latest guard below reads that as a deliberate
-        // scroll-back and refuses to fix it (the reported 5m→D snap-left bug).
-        const { from, to } = computeDefaultLogicalRange(
-          filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars }
-        )
+      if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf) {
+        // Just switched INTO this timeframe: deterministically re-assert the PRESERVED
+        // viewport (same last-candle position + zoom width as the outgoing view) on every
+        // settling commit (the bars arrive in phases — IDB cache → network → backfill —
+        // each a separate commit). This keeps the chart from snapping during the load.
+        // Once the count stops changing, data has settled; release control so ordinary
+        // scroll/zoom is respected again.
+        const _pt = pendingTfReframeRef.current
+        let from, to
+        if (_pt.width > 0) {
+          const lastIdx = filteredBars.length - 1
+          to = lastIdx + _pt.width * (1 - _pt.pos)
+          from = to - _pt.width
+        } else {
+          ;({ from, to } = computeDefaultLogicalRange(
+            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars }
+          ))
+        }
         try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
         if (filteredBars.length === oldBarCount) pendingTfReframeRef.current = null
       } else {
