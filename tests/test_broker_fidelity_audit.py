@@ -169,3 +169,26 @@ async def test_option_fetch_failure_skips_equity_check(env):
     check = next(c for c in out["checks"] if c["name"] == "equity_consistency")
     assert check["ok"] is True and check.get("skipped") is True
     assert "option" in check["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_stale_holdings_snapshot_skips_equity_check(env):
+    # Real Webull finding (2026-07-16): SnapTrade refreshes HOLDINGS nightly
+    # but balances move intraday. Comparing a live total against an 11pm
+    # holdings snapshot fabricates divergence — mixed-freshness audits must
+    # SKIP with the snapshot age as the reason, not fail.
+    sdk = _sdk(positions=[], balances=BALANCES, total=10200)
+    sdk.account_information.list_user_accounts = lambda **kw: _Resp([{
+        "id": "S1",
+        "balance": {"total": {"amount": 10200, "currency": "USD"}},
+        "sync_status": {"holdings": {
+            "last_successful_sync": "2026-01-01T03:16:23.162210+00:00",
+            "initial_sync_completed": True,
+        }},
+    }])
+    snap.configure(sdk)
+    await sync.sync_account("u1", env["ba_id"])
+    out = await fidelity_audit.audit_account("u1", env["ba_id"])
+    check = next(c for c in out["checks"] if c["name"] == "equity_consistency")
+    assert check["ok"] is True and check.get("skipped") is True
+    assert "2026-01-01" in check["detail"]

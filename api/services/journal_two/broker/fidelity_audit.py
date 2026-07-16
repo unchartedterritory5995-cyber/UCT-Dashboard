@@ -41,9 +41,30 @@ _EQUITY_REL_TOLERANCE = 0.02   # 2%
 _EQUITY_ABS_FLOOR = 5.0        # small accounts: $5 slack
 _QTY_TOLERANCE = 1e-6
 
+# SnapTrade refreshes HOLDINGS ~nightly while balances move intraday (real
+# Webull finding 2026-07-16: a day-trader's live total vs an 11pm-empty
+# holdings snapshot fabricated a growing "divergence"). Equity comparison is
+# only meaningful when the holdings snapshot is recent; the nightly 3:40am
+# audit naturally runs right after SnapTrade's overnight refresh.
+_HOLDINGS_FRESH_HOURS = 6
+
 
 def _post_discord(title: str, description: str) -> None:  # patchable seam
     _notif_discord(title, description)
+
+
+def _holdings_synced_at(raw_account: dict | None):
+    """SnapTrade's own holdings-snapshot timestamp for the account, or None."""
+    from datetime import datetime, timezone
+    try:
+        ts = ((raw_account or {}).get("sync_status") or {}) \
+            .get("holdings", {}).get("last_successful_sync")
+        if not ts:
+            return None
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except Exception:  # noqa: BLE001 — shape drift must not break the audit
+        return None
 
 
 async def audit_account(user_id: str, broker_account_id: str,
@@ -85,7 +106,20 @@ async def audit_account(user_id: str, broker_account_id: str,
     cash, _bp = balances.usd_cash_buying_power(raw_balances)
     derived = (cash or 0.0) + balances.market_value(raw_positions) \
         + balances.option_market_value(raw_options)
-    if broker_total is None:
+    holdings_synced_at = _holdings_synced_at(match)
+    holdings_stale = False
+    if holdings_synced_at is not None:
+        from datetime import datetime, timedelta, timezone
+        age = datetime.now(timezone.utc) - holdings_synced_at
+        holdings_stale = age > timedelta(hours=_HOLDINGS_FRESH_HOURS)
+    if broker_total is not None and holdings_stale:
+        checks.append({
+            "name": "equity_consistency", "ok": True, "skipped": True,
+            "detail": "holdings snapshot stale (SnapTrade last synced holdings "
+                      f"{holdings_synced_at.isoformat()}) — live balance vs old "
+                      "holdings is not comparable; audited nightly post-refresh",
+        })
+    elif broker_total is None:
         checks.append({"name": "equity_consistency", "ok": True, "skipped": True,
                        "detail": "broker does not report a total — derived-only"})
     elif options_failed:
