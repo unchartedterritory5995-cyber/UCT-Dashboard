@@ -2194,7 +2194,25 @@ async def lifespan(app: FastAPI):
                 trigger=IntervalTrigger(minutes=_bs_warm_interval),
                 id="broker_sync_warming", max_instances=1, replace_existing=True,
             )
-            print(f"[startup] Broker sync scheduler ON (every {_bs_interval}m, market-hours; nightly reconcile 2:30am ET)")
+            # Fleet monitor — hourly sweep for stuck member connections
+            # (stranded connect / stale sync / still-broken / SnapTrade
+            # heartbeat) → owner Discord digest. Cron :37 keeps it OFF the
+            # boot-anchored interval jobs (auth.db contention hygiene).
+            from api.services.journal_two.broker import fleet_monitor as _broker_fleet
+            _scheduler.add_job(
+                _broker_fleet.run_fleet_check_blocking,
+                trigger=CronTrigger(minute=37),
+                id="broker_fleet_monitor", max_instances=1, replace_existing=True,
+            )
+            # Synthetic canary — nightly end-to-end pipeline proof on the
+            # robot user's test-brokerage connection. No-op until
+            # BROKER_CANARY_USER_ID is set.
+            _scheduler.add_job(
+                _broker_fleet.run_canary_sync_blocking,
+                trigger=CronTrigger(hour=3, minute=10),
+                id="broker_canary_sync", max_instances=1, replace_existing=True,
+            )
+            print(f"[startup] Broker sync scheduler ON (every {_bs_interval}m, market-hours; nightly reconcile 2:30am ET; fleet monitor :37 hourly)")
 
         def _cot_daily_catchup():
             try:

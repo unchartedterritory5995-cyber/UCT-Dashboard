@@ -324,6 +324,14 @@ async def reset_user_secret(snaptrade_user_id: str, user_secret: str) -> str:
     return secret
 
 
+async def api_status() -> dict:
+    """Partner-level SnapTrade heartbeat: provider up + our key valid.
+    Raises the mapped Snap* error on failure."""
+    sdk = _sdk()
+    body = await _call(sdk.api_status.check)
+    return body if isinstance(body, dict) else {"online": bool(body)}
+
+
 async def list_users() -> list[str]:
     """Partner-level: every SnapTrade userId registered under our key.
     Admin-diagnostic use (is this member registered SnapTrade-side at all?)."""
