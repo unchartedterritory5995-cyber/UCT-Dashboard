@@ -1296,6 +1296,9 @@ export default function StockChart({
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
   const lastCfgSigRef = useRef(null) // A2: render-config signature at last paint — an incremental (last-bar-only) update is only safe when the config is byte-identical to the last paint
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
+  // True only while a Ctrl+drag measure is in progress — every handleScroll site
+  // reads it so a data-poll re-applyOptions can't unlock the chart mid-measure.
+  const measureLockRef = useRef(false)
   const focusRafRef = useRef(null)        // in-flight focus-zoom animation frame id
   const focusActiveRef = useRef(false)    // true while a setup-focus zoom owns the view (suppresses the year-range pin)
   const focusKeyRef = useRef(null)        // sym+tf the focus belongs to — a change releases focus back to the pin
@@ -3569,15 +3572,11 @@ export default function StockChart({
       // Frozen (Setup Library examples): the chart is a static exhibit pinned to
       // its framed window — no pan/zoom/axis-drag, and the wheel is left alone so
       // it scrolls the PAGE instead of the chart.
-      // Measure mode (Charts workspace, cursor active) disables MOUSE drag-pan so a
-      // left-drag measures instead of moving the chart — wheel-zoom + touch stay on.
-      // Computed here (not just the dedicated effect) so a data-poll re-applyOptions
-      // can't clobber it back to a pannable chart.
-      handleScroll: frozen ? false
-        : (dragMeasure && (!activeTool || activeTool === 'cursor'))
-          ? { mouseWheel: true, pressedMouseMove: false, horzTouchDrag: true, vertTouchDrag: true }
-          : true,
-      handleScale: !frozen,
+      // Plain mouse-drag PANS the chart (default). Drag-to-measure is gated behind
+      // Ctrl: onDown sets measureLockRef while Ctrl+dragging so the chart stays put.
+      // Computed here (re-runs on data polls) so a poll can't unlock mid-measure.
+      handleScroll: (frozen || measureLockRef.current) ? false : true,
+      handleScale: frozen || measureLockRef.current ? false : true,
       grid: {
         vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
         horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
@@ -6164,22 +6163,16 @@ export default function StockChart({
   const dragMeasureStateRef = useRef(null)   // { startX, startY, startPrice, startLogical } while dragging
   const [measureReadout, setMeasureReadout] = useState(null)  // { x, y, pct, bars, span, flip } | null
 
-  // Disable MOUSE drag-pan in cursor mode so a plain left-drag draws the measure
-  // line instead of panning. Wheel-zoom + touch-pan stay on; a drawing tool or
-  // `frozen` (Setup Library) is untouched.
+  // Plain mouse-drag pans (default). The Ctrl+drag measure locks scrolling only for
+  // the duration of the drag (in onDown/end below); frozen (Setup Library) stays
+  // non-pannable. This effect just holds the default so a data-poll re-applyOptions
+  // can't clobber it.
   useEffect(() => {
     const chart = chartRef.current
     if (!chart || !chartReady) return
-    const measureMode = dragMeasure && (!activeTool || activeTool === 'cursor')
-    try {
-      chart.applyOptions({
-        handleScroll: frozen ? false
-          : measureMode
-            ? { mouseWheel: true, pressedMouseMove: false, horzTouchDrag: true, vertTouchDrag: true }
-            : true,
-      })
-    } catch { /* chart not ready */ }
-  }, [dragMeasure, activeTool, frozen, chartReady])
+    if (measureLockRef.current) return   // don't clobber an in-progress measure lock
+    try { chart.applyOptions({ handleScroll: frozen ? false : true }) } catch { /* not ready */ }
+  }, [frozen, chartReady])
 
   // Press-drag A→B: dashed line on a transient canvas + a cursor-following
   // % / bars / time readout. Free cursor price (coordinateToPrice, unsnapped).
@@ -6231,19 +6224,29 @@ export default function StockChart({
     }
     const end = () => {
       dragMeasureStateRef.current = null
+      measureLockRef.current = false
       clearLine(); setMeasureReadout(null)
+      // Restore pan + zoom after the Ctrl+drag measure.
+      try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', end)
       window.removeEventListener('pointercancel', end)
     }
     const onDown = (e) => {
       if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
+      // Only measure while Ctrl is held — a plain drag pans the chart (LWC handles it).
+      if (!e.ctrlKey) return
       const series = candleSeriesRef.current, chart = chartRef.current
       if (!series || !chart) return
       const { x, y } = getPos(e)
       const startPrice = series.coordinateToPrice(y)
       const startLogical = chart.timeScale().coordinateToLogical(x)
       if (startPrice == null || startLogical == null) return
+      // Lock the chart in place for the whole measure so it can't pan/zoom while
+      // you drag A→B; end() restores it. measureLockRef also survives data-poll
+      // re-applyOptions (see the creation handleScroll site).
+      measureLockRef.current = true
+      try { chart.applyOptions({ handleScroll: false, handleScale: false }) } catch { /* noop */ }
       dragMeasureStateRef.current = { startX: x, startY: y, startPrice, startLogical }
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', end)
@@ -6251,7 +6254,7 @@ export default function StockChart({
     }
     el.addEventListener('pointerdown', onDown)
     return () => { el.removeEventListener('pointerdown', onDown); end() }
-  }, [dragMeasure, chartReady, activeTool])
+  }, [dragMeasure, chartReady, activeTool, frozen])
 
   // ── Time-scroll grip ──────────────────────────────────────────────────────
   // Because drag-pan is repurposed for measuring, this small grip (bottom-right,
