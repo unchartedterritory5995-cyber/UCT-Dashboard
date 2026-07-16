@@ -150,3 +150,18 @@
 .itemActive .itemSym {
   color: #e4c870;
 }
+
+/* Company-name + logo label mode (charts workspace header) */
+.labelWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 240px;
+}
+.labelLogo { display: inline-flex; flex-shrink: 0; }
+.labelText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

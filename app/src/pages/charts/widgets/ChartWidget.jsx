@@ -9,6 +9,7 @@ import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
+import useTickerMeta from '../../../hooks/useTickerMeta'
 import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import ChartDayGain from './ChartDayGain'
 import styles from '../ChartsWorkspace.module.css'
@@ -71,6 +72,12 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // index via barsOverride (D/W/M only). Normal tickers: themeIdx.isIndex=false.
   const themeIdx = useThemeIndexBars(sym, tf)
   const indexTf = ['D', 'W', 'M'].includes(tf) ? tf : 'D'
+  // Header shows the COMPANY NAME + logo (not the ticker). For a theme index it's
+  // the theme name (no logo). meta.name comes from the shared ticker-meta cache.
+  const meta = useTickerMeta(themeIdx.isIndex ? null : sym)
+  const headerLabel = themeIdx.isIndex
+    ? (themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+    : (meta?.name || sym)
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
     onOptsChange?.({ ...(opts || {}), tf: nextTf })
@@ -149,7 +156,14 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     <div className={styles.chartWidget}>
       <div className={styles.tfBar}>
         <div className={styles.symbolSlot}>
-          <SymbolSearch ref={searchRef} sym={sym} onSymbolChange={handleSymbolChange} hideIcon />
+          <SymbolSearch
+            ref={searchRef}
+            sym={sym}
+            onSymbolChange={handleSymbolChange}
+            hideIcon
+            logoSym={themeIdx.isIndex ? null : sym}
+            displayLabel={headerLabel}
+          />
         </div>
         <ChartDayGain sym={sym} />
         <span className={styles.tfBarDivider} aria-hidden="true" />

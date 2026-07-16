@@ -1,5 +1,6 @@
 // app/src/components/chart/SymbolSearch.jsx — Clickable symbol badge + predictive search overlay
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
+import CompanyLogo from '../CompanyLogo'
 import styles from './SymbolSearch.module.css'
 
 // Default suggestions shown when the input is empty. Hardcoded names so the
@@ -37,7 +38,7 @@ const POPULAR_RESULTS = [
   { ticker: 'SOXX',  name: 'iShares Semiconductor ETF' },
 ]
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, displayLabel = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -175,9 +176,14 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         className={styles.badge}
         style={hideIcon ? { justifyContent: 'center', width: '100%' } : undefined}
         onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setOpen(true) } }}
-        title="Search ticker"
+        title={displayLabel ? `${sym} — click to search` : 'Search ticker'}
       >
-        {sym}
+        {displayLabel ? (
+          <span className={styles.labelWrap}>
+            {logoSym && <span className={styles.labelLogo}><CompanyLogo sym={logoSym} name={displayLabel} size={16} round /></span>}
+            <span className={styles.labelText}>{displayLabel}</span>
+          </span>
+        ) : sym}
         {!hideIcon && (
           <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="5" cy="5" r="3.5" />
