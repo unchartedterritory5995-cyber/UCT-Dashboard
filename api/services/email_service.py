@@ -122,6 +122,21 @@ def send_welcome_email(email: str, display_name: str) -> bool:
     return send_email(email, "Welcome to UCT Intelligence", html)
 
 
+def send_broker_reconnect_email(email: str, display_name: str, brokerage: str) -> bool:
+    """One-per-incident nudge when a member's brokerage connection breaks —
+    the only broker-sync email members ever receive (transient failures never
+    email; see journal_two/broker/notifications.py)."""
+    greeting = display_name or "there"
+    url = "https://uctintelligence.com/settings"
+    html = _wrap_html(f"""\
+<h1 style="font-size:20px;font-weight:600;color:#e8e6df;text-align:center;margin:0 0 4px 0;">Reconnect your brokerage</h1>
+<p style="font-size:14px;color:#a8a290;text-align:center;margin:0 0 24px 0;">Hey {greeting}, your {brokerage} connection stopped syncing and needs to be re-authorized.</p>
+<p style="font-size:13px;color:#a8a290;line-height:1.6;margin:0 0 8px 0;">Your journal won't receive new trades until it's reconnected. It takes one click:</p>
+{_button_html(url, "Reconnect in Settings")}
+<p style="font-size:12px;color:#6b6a60;text-align:center;margin:16px 0 0 0;">This usually happens after a password change at your broker or an expired authorization. You can review your connections anytime in Settings.</p>""")
+    return send_email(email, "Action needed: reconnect your brokerage — UCT Intelligence", html)
+
+
 def send_subscription_confirmation(email: str, display_name: str) -> bool:
     greeting = display_name or "there"
     html = _wrap_html(f"""\

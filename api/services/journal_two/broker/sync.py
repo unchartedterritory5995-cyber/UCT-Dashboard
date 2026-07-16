@@ -25,6 +25,7 @@ from api.services import crypto_box
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two.broker import (
     connections, snaptrade_client as snap, activities_store, reconstruct, balances, dedup,
+    notifications,
 )
 
 # Per-account async locks (process-local). Prevents on-open + scheduled +
@@ -366,6 +367,8 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                                    error="Encryption key unavailable — reconnect required")
             connections.record_sync_result(user_id, broker_account_id, ok=False,
                                             error="encryption key unavailable")
+            notifications.connection_broken(user_id, ba, "encryption key unavailable",
+                                            prior_status=ba["status"])
             raise
         if bu is None:
             connections.record_sync_result(user_id, broker_account_id, ok=False, error="no broker identity")
@@ -377,11 +380,13 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             raw = await _fetch_all_activities(
                 bu["snaptradeUserId"], bu["userSecret"], ba["snaptradeAccountId"], start_date
             )
-        except snap.SnapUserSecretInvalid:
+        except snap.SnapUserSecretInvalid as e:
             connections.set_status(user_id, broker_account_id, "broken",
                                    error="SnapTrade user secret invalid — reconnect required")
             connections.record_sync_result(user_id, broker_account_id, ok=False,
                                             error="user secret invalid")
+            notifications.connection_broken(user_id, ba, str(e),
+                                            prior_status=ba["status"])
             raise
         except snap.SnapAuthError as e:
             # Generic 401/403 (no secret-invalid code in the body — prod
@@ -392,6 +397,8 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             connections.set_status(user_id, broker_account_id, "broken",
                                    error=f"SnapTrade rejected this connection — reconnect required ({e})")
             connections.record_sync_result(user_id, broker_account_id, ok=False, error=str(e))
+            notifications.connection_broken(user_id, ba, str(e),
+                                            prior_status=ba["status"])
             raise
         except snap.SnapError as e:
             connections.record_sync_result(user_id, broker_account_id, ok=False, error=str(e))
@@ -513,4 +520,9 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
     except Exception as e:
         # Already recorded specific failures above; ensure the log closes.
         _finish_log(log_id, ok=False, error=str(e))
+        # Owner-only repeated-failure ping for NON-auth failures (auth paths
+        # above already fired connection_broken; member is never emailed for
+        # transient failures). Reads the log row just written above.
+        if not isinstance(e, (snap.SnapAuthError, crypto_box.CryptoBoxError)):
+            notifications.sync_failed(user_id, ba, str(e))
         raise
