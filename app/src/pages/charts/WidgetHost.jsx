@@ -23,7 +23,7 @@ function WidgetBody({ widget, onOptsChange }) {
     case 'themes':    return <ThemesWidget    color={widget.color} opts={widget.opts} />
     case 'scanner':   return <ScannerWidget   color={widget.color} opts={widget.opts} />
     case 'fundamentals': return <FundamentalsWidget color={widget.color} opts={widget.opts} onOptsChange={onOptsChange} />
-    case 'aisearch':  return <AiSearchWidget />
+    case 'aisearch':  return <AiSearchWidget color={widget.color} />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {widget.type}</div>
   }
 }

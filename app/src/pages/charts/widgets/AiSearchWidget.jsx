@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
-import HighlightThesis from '../../../utils/highlightThesis'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useWorkspace } from '../WorkspaceContext'
 import styles from './AiSearchWidget.module.css'
 
 const EXAMPLES = [
@@ -18,7 +18,47 @@ function Spark({ size = 15 }) {
   )
 }
 
-function AnswerBody({ text }) {
+// Splits inline text into: [Label]($TICKER) links, bare $TICKERS, **bold**, and ±pct%.
+// Everything else is plain text. Ticker/name links + bare cashtags render as gold
+// clickable buttons; percentages use the chart-matched gain/loss colors.
+const RICH_RE = /(\[[^\]]+\]\(\$[A-Za-z][A-Za-z.\-]{0,6}\)|\$[A-Z]{1,5}(?:\.[A-Z])?\b|\*\*[^*]+\*\*|[+-]\d+(?:\.\d+)?%)/g
+
+function renderRich(text, onTicker) {
+  const src = String(text || '')
+  const parts = src.split(RICH_RE)
+  return parts.map((p, i) => {
+    if (!p) return null
+    // [Display]($TICKER) — company name OR ticker, clickable, ticker explicit
+    let m = /^\[([^\]]+)\]\(\$([A-Za-z][A-Za-z.\-]{0,6})\)$/.exec(p)
+    if (m) {
+      const tk = m[2].toUpperCase()
+      return (
+        <button key={i} type="button" className={styles.ticker} title={`Open ${tk} on the chart`} onClick={() => onTicker(tk)}>
+          {m[1]}
+        </button>
+      )
+    }
+    // bare $TICKER cashtag
+    m = /^\$([A-Z]{1,5}(?:\.[A-Z])?)$/.exec(p)
+    if (m) {
+      const tk = m[1]
+      return (
+        <button key={i} type="button" className={styles.ticker} title={`Open ${tk} on the chart`} onClick={() => onTicker(tk)}>
+          {tk}
+        </button>
+      )
+    }
+    // **bold**
+    if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i}>{p.slice(2, -2)}</strong>
+    // ±pct — chart-matched green/red (widget CSS overrides --gain/--loss to chart colors)
+    if (/^[+-]\d+(?:\.\d+)?%$/.test(p)) {
+      return <span key={i} style={{ color: p[0] === '-' ? 'var(--loss)' : 'var(--gain)', fontWeight: 600 }}>{p}</span>
+    }
+    return <span key={i}>{p}</span>
+  })
+}
+
+function AnswerBody({ text, onTicker }) {
   const lines = String(text || '').split('\n')
   return (
     <>
@@ -30,7 +70,7 @@ function AnswerBody({ text }) {
         return (
           <div key={i} className={bullet ? styles.bullet : styles.para}>
             {bullet && <span className={styles.dot}>•</span>}
-            <span><HighlightThesis text={body} /></span>
+            <span>{renderRich(body, onTicker)}</span>
           </div>
         )
       })}
@@ -38,7 +78,17 @@ function AnswerBody({ text }) {
   )
 }
 
-export default function AiSearchWidget() {
+export default function AiSearchWidget({ initialQuery = null, color = null, onTicker = null }) {
+  const { aiSearchBus, setGroupSym } = useWorkspace()
+
+  // Clicking a ticker/company name in an answer loads it on the chart linked to
+  // THIS widget's color group (or a caller-supplied handler, e.g. the temp popup).
+  const handleTicker = useCallback((tk) => {
+    if (!tk) return
+    if (onTicker) { onTicker(tk); return }
+    if (color && setGroupSym) setGroupSym(color, tk)
+  }, [onTicker, color, setGroupSym])
+
   const [query, setQuery] = useState('')
   const [answer, setAnswer] = useState(null)
   const [citations, setCitations] = useState([])
@@ -73,6 +123,20 @@ export default function AiSearchWidget() {
   }, [query, loading])
 
   const askFollowUp = (q) => { setQuery(q); run(q) }
+
+  // Register with the workspace AI bus so a chart's "AI search" action runs here,
+  // and auto-run an initialQuery (used by the temporary popup). runRef keeps the
+  // subscription stable while always calling the latest run.
+  const runRef = useRef(run)
+  runRef.current = run
+  useEffect(() => {
+    if (!aiSearchBus?.subscribe) return undefined
+    return aiSearchBus.subscribe((q) => { setQuery(q); runRef.current(q) })
+  }, [aiSearchBus])
+  useEffect(() => {
+    if (initialQuery) runRef.current(initialQuery)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); run() }
@@ -122,7 +186,7 @@ export default function AiSearchWidget() {
         {!loading && !error && answer != null && (
           <div className={styles.answer}>
             {asked && <div className={styles.asked}>{asked}</div>}
-            <div className={styles.answerText}><AnswerBody text={answer} /></div>
+            <div className={styles.answerText}><AnswerBody text={answer} onTicker={handleTicker} /></div>
 
             {related.length > 0 && (
               <div className={styles.followups}>

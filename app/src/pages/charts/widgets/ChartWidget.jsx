@@ -7,11 +7,14 @@ import { useWorkspace } from '../WorkspaceContext'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { getExtSession } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
+import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
+import AiSearchWidget from './AiSearchWidget'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import { mergeChartSettings } from '../../../components/chart/chartDefaults'
+import UIcon from '../../../components/ui/UIcon'
 import ChartDayGain from './ChartDayGain'
 import styles from '../ChartsWorkspace.module.css'
 
@@ -24,7 +27,8 @@ const TFS = [
 const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
 
 export default function ChartWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym, crosshairBus } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus } = useWorkspace()
+  const { createAlert } = useWatchlistAlerts()
   const sym = groupSyms[color] || 'SPY'
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
@@ -169,6 +173,64 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     searchRef.current?.openWith(e.key)
   }, [sym, isFlagged, toggleFlag])
 
+  // ── Right-click context menu (charts-workspace only) ──
+  // Providing onBarContextMenu makes StockChart route the right-click HERE instead
+  // of the app-wide GlobalAddPositionProvider menu, so the workspace gets its own
+  // clean menu: Set alert · Reset view · Chart settings · AI search (on a bar).
+  const [ctxMenu, setCtxMenu] = useState(null)   // {x,y,price,bar,currentPrice,resetView,openSettings}
+  const [ctxToast, setCtxToast] = useState(null)
+  const [tempAi, setTempAi] = useState(null)     // {query,x,y} — transient AI popup when no AI widget exists
+  const closeCtx = useCallback(() => setCtxMenu(null), [])
+
+  const handleBarContextMenu = useCallback((p) => {
+    try { p.event?.preventDefault?.() } catch { /* noop */ }
+    // Clamp so the ~230px×~180px menu stays on screen.
+    const x = Math.min(p.clientX, window.innerWidth - 236)
+    const y = Math.min(p.clientY, window.innerHeight - 190)
+    setCtxMenu({ x: Math.max(6, x), y: Math.max(6, y), rawX: p.clientX, rawY: p.clientY,
+      price: p.clickPrice, bar: p.bar, currentPrice: p.currentPrice,
+      resetView: p.resetView, openSettings: p.openSettings })
+  }, [])
+
+  useEffect(() => {
+    if (!ctxToast) return undefined
+    const t = setTimeout(() => setCtxToast(null), 1800)
+    return () => clearTimeout(t)
+  }, [ctxToast])
+
+  const handleSetAlert = useCallback(() => {
+    const price = ctxMenu?.price
+    if (!Number.isFinite(price)) { closeCtx(); return }
+    const dir = (Number.isFinite(ctxMenu?.currentPrice) && price < ctxMenu.currentPrice) ? 'below' : 'above'
+    try { createAlert(sym, price, dir); setCtxToast(`Alert set: ${sym} ${dir} $${price.toFixed(2)}`) }
+    catch { setCtxToast('Could not set alert') }
+    closeCtx()
+  }, [ctxMenu, sym, createAlert, closeCtx])
+
+  const barDateStr = useCallback((t) => {
+    if (typeof t === 'string') return t                 // daily 'YYYY-MM-DD'
+    if (typeof t === 'number' && Number.isFinite(t)) {
+      try { return new Date(t * 1000).toISOString().slice(0, 10) } catch { /* noop */ }
+    }
+    return null
+  }, [])
+
+  const handleAiSearch = useCallback(() => {
+    const bar = ctxMenu?.bar
+    const d = barDateStr(bar?.t)
+    if (!d) { closeCtx(); return }
+    const query = `What were the major news headlines and catalysts that moved ${sym} on ${d}? Give the specific % move that day, the driving story, and any analyst actions.`
+    const menuX = ctxMenu.rawX, menuY = ctxMenu.rawY
+    closeCtx()
+    // Route to a mounted AI Search widget if one exists, else a transient popup.
+    const delivered = aiSearchBus?.request?.(query)
+    if (!delivered) {
+      const x = Math.max(8, Math.min(menuX, window.innerWidth - 388))
+      const y = Math.max(8, Math.min(menuY, window.innerHeight - 452))
+      setTempAi({ query, x, y })
+    }
+  }, [ctxMenu, sym, barDateStr, aiSearchBus, closeCtx])
+
   return (
     <div className={styles.chartWidget}>
       <div className={styles.tfBar}>
@@ -301,13 +363,59 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           priceScaleTopMargin={0.12}
           priceScaleBottomMargin={0.10}
           sessionView={sessionView}
+          onBarContextMenu={handleBarContextMenu}
         />
         {flagToast && (
           <div className={styles.flagToast}>
             {flagToast === 'flagged' ? `⚑ ${sym} added to Flagged` : `${sym} removed from Flagged`}
           </div>
         )}
+        {ctxToast && <div className={styles.flagToast}>{ctxToast}</div>}
       </div>
+
+      {/* ── Chart right-click menu ── */}
+      {ctxMenu && (
+        <>
+          <div
+            className={styles.chartCtxBackdrop}
+            onClick={closeCtx}
+            onContextMenu={(e) => { e.preventDefault(); closeCtx() }}
+          />
+          <div className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y }} role="menu">
+            {Number.isFinite(ctxMenu.price) && (
+              <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
+                <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
+                Set alert @ ${ctxMenu.price.toFixed(2)}
+              </button>
+            )}
+            <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
+              <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
+            </button>
+            <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.openSettings?.(); closeCtx() }}>
+              <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
+            </button>
+            {ctxMenu.bar && (
+              <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
+                <UIcon name="sparkle" size={14} className={styles.chartCtxIcon} />AI search this bar
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Transient AI popup (only when no AI Search widget is in the layout) ── */}
+      {tempAi && (
+        <>
+          <div className={styles.chartCtxBackdrop} onClick={() => setTempAi(null)} />
+          <div className={styles.tempAiTab} style={{ left: tempAi.x, top: tempAi.y }}>
+            <AiSearchWidget
+              initialQuery={tempAi.query}
+              color={color}
+              onTicker={(tk) => { setGroupSym(color, tk); setTempAi(null) }}
+            />
+          </div>
+        </>
+      )}
     </div>
   )
 }

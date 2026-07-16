@@ -6481,6 +6481,8 @@ export default function StockChart({
           sections,
           clickPrice,
           currentPrice,
+          resetView: () => { try { chartRef.current?.timeScale().resetTimeScale() } catch { /* noop */ } },
+          openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
         })
       } else {
         window.dispatchEvent(new CustomEvent('uct:chart-contextmenu', {

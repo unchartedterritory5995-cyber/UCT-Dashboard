@@ -224,8 +224,20 @@ export default function ChartsWorkspace() {
     }
   }
 
+  // AI-search bus: a chart's "AI search" context action routes a query to any
+  // mounted AI Search widget; request() returns false when none exist so the
+  // caller can fall back to a temporary popup.
+  const aiSearchBusRef = useRef(null)
+  if (!aiSearchBusRef.current) {
+    const subs = new Set()
+    aiSearchBusRef.current = {
+      subscribe: (fn) => { subs.add(fn); return () => subs.delete(fn) },
+      request: (query) => { if (subs.size === 0) return false; subs.forEach((fn) => fn(query)); return true },
+    }
+  }
+
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, crosshairBus: crosshairBusRef.current }),
+    () => ({ groupSyms, setGroupSym, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current }),
     [groupSyms, setGroupSym],
   )
 

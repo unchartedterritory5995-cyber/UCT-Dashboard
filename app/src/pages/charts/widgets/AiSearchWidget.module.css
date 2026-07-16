@@ -155,3 +155,15 @@
   display: inline-block; flex-shrink: 0;
 }
 @keyframes aiSpin { to { transform: rotate(360deg); } }
+
+/* Clickable ticker / company-name inside an answer — gold, obvious it opens a chart. */
+.ticker {
+  display: inline; padding: 0 1px; margin: 0;
+  background: transparent; border: none; font: inherit;
+  color: var(--ut-gold, #c9a84c);
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.ticker:hover { background: rgba(201, 168, 76, 0.16); color: #e3c877; text-decoration: underline; }
