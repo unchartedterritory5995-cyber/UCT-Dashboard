@@ -64,6 +64,15 @@ export default function FloatingOrb({ context = 'global' }) {
   const dragRef = useRef({ active: false, captured: false, moved: false, startX: 0, startY: 0, posX: 0, posY: 0, pointerId: 0 })
   const [pos, setPos] = useState(loadPos)
   const [dragging, setDragging] = useState(false)
+  // Minimized: hide every button and shrink to a small compass dot in the corner.
+  // Click the dot to expand back to full size. Persisted across reloads.
+  const [minimized, setMinimized] = useState(() => {
+    try { return localStorage.getItem('voice.orb.minimized') === '1' } catch { return false }
+  })
+  const setMin = useCallback((v) => {
+    setMinimized(v)
+    try { localStorage.setItem('voice.orb.minimized', v ? '1' : '0') } catch { /* noop */ }
+  }, [])
   // One-time discoverability coach-mark for new (paid) users — the orb is
   // otherwise a mystery. Shown once, dismissed on first tap or "Got it".
   const [showCoachmark, setShowCoachmark] = useState(() => {
@@ -144,6 +153,7 @@ export default function FloatingOrb({ context = 'global' }) {
 
   const onClick = () => {
     if (consumeDragClick()) return
+    if (minimized) { setMin(false); return }   // expand from the minimized compass dot
     if (showCoachmark) dismissCoachmark()
     inSession ? disconnect() : connect(context)
   }
@@ -231,15 +241,15 @@ export default function FloatingOrb({ context = 'global' }) {
     >
       <button
         type="button"
-        className={`${styles.orb} ${stateClass} ${inTrainMode ? styles.training : ''}`}
+        className={`${styles.orb} ${stateClass} ${inTrainMode ? styles.training : ''} ${minimized ? styles.minimized : ''}`}
         onClick={onClick}
-        aria-label={label}
-        title={inTrainMode ? 'In Train Me mode — tap to exit' : label}
+        aria-label={minimized ? 'Expand Compass' : label}
+        title={minimized ? 'Compass minimized — tap to expand' : (inTrainMode ? 'In Train Me mode — tap to exit' : label)}
       >
         <CompassOrb state={orbState} />
         {errorGlyph && <span className={styles.errorBadge}><UIcon name={errorGlyph} size={12} /></span>}
       </button>
-      {!inSession && (
+      {!inSession && !minimized && (
         <button
           type="button"
           className={styles.trainBtn}
@@ -250,15 +260,15 @@ export default function FloatingOrb({ context = 'global' }) {
           <UIcon name="education" size={16} />
         </button>
       )}
-      {!inSession && <VisionAttachButton />}
-      {!inSession && <AgentPicker />}
+      {!inSession && !minimized && <VisionAttachButton />}
+      {!inSession && !minimized && <AgentPicker onMinimize={() => setMin(true)} />}
       {inTrainMode && (
         <div className={styles.trainBadge}>Training</div>
       )}
       {inSession && voice.sessionContext && voice.sessionContext !== 'global' && voice.sessionContext !== 'train_me' && (
         <div className={styles.agentBadge}>{voice.sessionContext.replace('_', ' ')}</div>
       )}
-      {showCoachmark && !inSession && !tucked && !dragging && (
+      {showCoachmark && !inSession && !minimized && !tucked && !dragging && (
         <div
           onPointerDown={(e) => e.stopPropagation()}
           style={{

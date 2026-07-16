@@ -11,7 +11,7 @@ import styles from './AgentPicker.module.css'
  *
  * Hidden while in a session — orb is the disconnect control then.
  */
-export default function AgentPicker() {
+export default function AgentPicker({ onMinimize }) {
   const voice = useVoice()
   const { connect, disconnect } = useRealtimeSession()
   const [agents, setAgents] = useState([])
@@ -104,6 +104,22 @@ export default function AgentPicker() {
               </span>
             </button>
           ))}
+          {onMinimize && (
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.agentRow}
+              style={{ borderLeftColor: 'transparent', borderTop: '1px solid rgba(255,255,255,0.09)', marginTop: 3, paddingTop: 8 }}
+              onClick={() => { setOpen(false); onMinimize() }}
+              title="Hide the buttons and shrink Compass to a small dot in the corner"
+            >
+              <span className={styles.emoji} aria-hidden="true">–</span>
+              <span className={styles.body}>
+                <span className={styles.name}>Minimize Compass</span>
+                <span className={styles.desc}>Shrink to a small dot — tap it to expand</span>
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>

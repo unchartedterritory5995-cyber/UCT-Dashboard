@@ -29,6 +29,19 @@
   outline: 2px solid #c9a84c;
   outline-offset: 3px;
 }
+/* Minimized: a small, still compass dot tucked into the corner. Tap to expand.
+   animation:none stops the idle breathing so it stays small; transform-origin keeps
+   it anchored to the bottom-right. */
+.minimized {
+  transform: scale(0.44);
+  transform-origin: bottom right;
+  animation: none;
+  opacity: 0.92;
+}
+.minimized:hover {
+  transform: scale(0.52);
+  filter: brightness(1.1);
+}
 .errorBadge {
   position: absolute;
   top: -4px;
