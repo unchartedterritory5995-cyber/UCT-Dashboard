@@ -7317,7 +7317,7 @@ export default function StockChart({
           {verticalLegend ? (
             <>
               <span className={styles.vlHead}>{formatLegendTime(crosshairData.time)}</span>
-              <span className={styles.vlChange} style={{ color: parseFloat(crosshairData.change) >= 0 ? '#1ae51a' : '#c41f2d' }}>
+              <span className={styles.vlChange} style={{ color: parseFloat(crosshairData.change) >= 0 ? (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d') }}>
                 {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
               </span>
               <span className={styles.vlLabel}>Open</span><span className={styles.vlVal}>{crosshairData.open?.toFixed(2)}</span>

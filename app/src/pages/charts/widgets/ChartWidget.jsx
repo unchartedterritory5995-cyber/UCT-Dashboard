@@ -264,7 +264,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         </div>
         {themeIdx.isIndex ? (
           idxGain && (
-            <span className={styles.chartDayGain} style={{ color: idxGain.up ? '#1ae51a' : '#ff3b47' }}>
+            <span className={styles.chartDayGain} style={{ color: idxGain.up ? (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47') }}>
               {idxGain.up ? '+' : ''}{idxGain.abs.toFixed(2)} ({idxGain.up ? '+' : ''}{idxGain.pct.toFixed(2)}%)
             </span>
           )

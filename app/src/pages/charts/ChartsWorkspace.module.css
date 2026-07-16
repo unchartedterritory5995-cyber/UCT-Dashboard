@@ -444,6 +444,24 @@
 :global([data-charts-theme='sunrise']) .chartMetaLabel,
 :global([data-charts-theme='sunrise']) .tfBtn { color: #45515f; }
 :global([data-charts-theme='sunrise']) .tfBtn:hover { color: #12202c; }
+/* Header row separators (company-name row + timeframe row) — visible grey-black. */
+:global([data-charts-theme='sunrise']) .chartHeaderTop { border-bottom-color: rgba(28, 40, 54, 0.3); }
+:global([data-charts-theme='sunrise']) .tfBar { border-bottom-color: rgba(28, 40, 54, 0.24); }
+/* Safety net: React serializes inline #hex colors to rgb() in the style attr, so
+   catch the rgb() forms of the vivid greens/reds any remaining inline-styled widget
+   value uses, and pull them to the dark candle palette. */
+:global([data-charts-theme='sunrise']) [style*="rgb(26, 229, 26)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(60, 184, 104)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(74, 222, 128)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(34, 197, 94)"] {
+  color: #0a5c22 !important;
+}
+:global([data-charts-theme='sunrise']) [style*="rgb(255, 59, 71)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(196, 31, 45)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(248, 113, 113)"],
+:global([data-charts-theme='sunrise']) [style*="rgb(239, 68, 68)"] {
+  color: #7d1620 !important;
+}
 :global([data-charts-theme='sunrise']) .workspaceHeader {
   background: #eaf1f8;
 }
