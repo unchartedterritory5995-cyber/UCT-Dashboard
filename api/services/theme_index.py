@@ -26,6 +26,7 @@ l <= min(o,c).
 from __future__ import annotations
 
 import concurrent.futures
+import math
 import re
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
@@ -107,9 +108,17 @@ def _compute_index_bars(holdings_bars: dict[str, list[dict]]) -> list[dict]:
         h = level * (1 + avg_h)
         l = level * (1 + avg_l)
         c = level * (1 + avg_c)
-        # Guarantee a valid candle (constituents' extremes aren't simultaneous).
-        h = max(h, o, c)
-        l = min(l, o, c)
+        # The averaged high/low OVERSTATE the index's true daily range: the
+        # constituents don't hit their intraday extremes at the same instant, so
+        # max(mean) <= mean(max). Averaging each stock's individual peak/trough
+        # stacks every stock's full range into long "barcode" wicks. Shrink the
+        # wicks toward the body by a diversification factor (~1/sqrt(n)) so the
+        # index reads like a real diversified index, not stacked single-name ranges.
+        n = len(rows)
+        shrink = max(0.3, min(0.6, 1.0 / math.sqrt(n))) if n > 1 else 1.0
+        body_top, body_bot = max(o, c), min(o, c)
+        h = body_top + (h - body_top) * shrink
+        l = body_bot - (body_bot - l) * shrink
         vol = sum(r["v"] for r in rows)
         out.append({
             # Daily/Weekly/Monthly bars carry `t` as a "YYYY-MM-DD" ET date string
