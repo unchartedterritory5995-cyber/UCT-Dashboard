@@ -36,8 +36,23 @@ def _bar_start_for(ts: int, tf: str) -> int:
     return (ts // interval) * interval
 
 
-def apply_tick(sym: str, price: float, ts: int, size: int, tf: str = "1") -> list[dict]:
-    """Apply a tick to the (sym, tf) candle. Returns list of closed bars (0 or 1)."""
+def apply_tick(
+    sym: str,
+    price: float,
+    ts: int,
+    size: int,
+    tf: str = "1",
+    update_hl: bool = True,
+    update_last: bool = True,
+) -> list[dict]:
+    """Apply a tick to the (sym, tf) candle. Returns list of closed bars (0 or 1).
+
+    update_hl / update_last mirror the SIP condition eligibility of the source
+    print: a non-high/low-eligible print (odd-lot, out-of-sequence, form-T, etc.)
+    must not extend h/l, and a non-last-sale print must not move the close — while
+    its volume still counts. Defaults True (fully eligible) so existing callers are
+    unaffected.
+    """
     sym = sym.upper()
     bar_start = _bar_start_for(ts, tf)
     closed: list[dict] = []
@@ -55,6 +70,11 @@ def apply_tick(sym: str, price: float, ts: int, size: int, tf: str = "1") -> lis
             cur = None
 
         if cur is None:
+            # Don't let a print that can't set last AND can't mark high/low DEFINE a
+            # fresh bar (its price never really printed as a last sale). Wait for an
+            # eligible trade / the authoritative bar to open the candle.
+            if not update_last and not update_hl:
+                return closed
             _state[key] = {
                 "t": bar_start, "o": price, "h": price, "l": price, "c": price,
                 "v": size, "last_tick_ts": ts,
@@ -66,11 +86,12 @@ def apply_tick(sym: str, price: float, ts: int, size: int, tf: str = "1") -> lis
         if prev_close > 0 and abs(price - prev_close) / prev_close > _TICK_DEVIATION_THRESHOLD:
             return closed
 
-        # Apply
-        cur["c"] = price
-        if price > cur["h"]:
+        # Apply — gated by print eligibility (volume always accumulates).
+        if update_last:
+            cur["c"] = price
+        if update_hl and price > cur["h"]:
             cur["h"] = price
-        if price < cur["l"]:
+        if update_hl and price < cur["l"]:
             cur["l"] = price
         cur["v"] = (cur.get("v", 0) or 0) + size
         cur["last_tick_ts"] = ts

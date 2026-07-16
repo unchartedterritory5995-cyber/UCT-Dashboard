@@ -83,6 +83,12 @@ def parse_aggregate_event(raw: dict) -> Optional[dict]:
                 "t": raw["t"],
                 "p": raw["p"],
                 "s": raw["s"],
+                # SIP sale-condition codes (Polygon `c`). Carried so the broadcaster
+                # can drop ghost prints (odd-lot / out-of-sequence / form-T / average-
+                # priced) from the developing candle's high/low + last — matching how
+                # TC2000/TradingView filter the consolidated tape. Absent on some feeds
+                # → treated as a plain regular trade (fully eligible).
+                "c": raw.get("c"),
             },
             "kind": "T",
         }

@@ -1578,6 +1578,22 @@ async def lifespan(app: FastAPI):
         "status_endpoint=/api/admin/bars-stream-status (frontend rollout% in StockChart.BARS_PUSH_ROLLOUT_PCT)"
     )
 
+    # SIP trade-condition filter — keep ghost prints (odd-lot / out-of-sequence /
+    # form-T / average-priced) out of the live candle's high/low + last, on both
+    # the Massive push feed and the Finnhub fallback. Best-effort load of the
+    # provider's authoritative update_rules in a daemon thread (non-blocking).
+    try:
+        from api.services import trade_conditions
+        trade_conditions.start_background_load()
+        print(
+            "[startup] trade-condition-filter: "
+            f"enabled={'on' if trade_conditions.FILTER_ENABLED else 'off'} "
+            "(env TRADE_CONDITION_FILTER_ENABLED) applied_to=massive_push+finnhub "
+            "authoritative_rules=loading|fallback"
+        )
+    except Exception as _tce:
+        print(f"[startup] trade-condition-filter init failed (non-fatal): {_tce}")
+
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull")
     else:

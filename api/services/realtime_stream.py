@@ -15,6 +15,8 @@ import threading
 import time
 from collections import Counter
 
+from api.services import trade_conditions
+
 _logger = logging.getLogger(__name__)
 
 # Finnhub WebSocket (free tier, real-time US equity trades)
@@ -307,26 +309,36 @@ def _process_finnhub_trade(trade):
     trade_vol = trade.get("v", 0)
     timestamp = trade.get("t", 0)  # milliseconds
 
+    # SIP sale-condition gate (matches TC2000/TradingView tape filtering): an
+    # odd-lot / out-of-sequence / form-T / average-priced print may NOT move the
+    # last price (last_ok) or extend a candle's high/low (hl_ok). Missing/unknown
+    # conditions → (True, True) = fully eligible, so real trades are never hidden.
+    hl_ok, last_ok = trade_conditions.classify(trade.get("c"))
+
+    # Record liveness regardless — a print DID occur (Finnhub ms → epoch seconds).
+    ts_seconds = int(timestamp / 1000) if timestamp else int(time.time())
+
     with _lock:
-        prev = _prices.get(sym, {})
-        prev_close = prev.get("prev_close", trade_price)
-        if prev_close and prev_close > 0:
-            change_pct = round((trade_price - prev_close) / prev_close * 100, 4)
-        else:
-            change_pct = 0.0
-        _prices[sym] = {
-            "price": round(trade_price, 2),
-            "change_pct": change_pct,
-            "change": round(trade_price - prev_close, 4) if prev_close else 0,
-            # volume intentionally omitted: REST polling owns accurate day volume.
-            # Accumulating tick volumes here produced unbounded runaway totals.
-            "prev_close": prev_close,
-            "timestamp": timestamp,
-            "updated_at": time.time(),
-        }
-        # Record liveness — Finnhub timestamps are ms, _last_seen tracks epoch seconds
-        ts_seconds = int(timestamp / 1000) if timestamp else int(time.time())
         _last_seen[sym] = ts_seconds
+        # Only a LAST-SALE-eligible print advances the displayed last price; an
+        # ineligible print (odd-lot etc.) leaves the quote at the prior real trade.
+        if last_ok:
+            prev = _prices.get(sym, {})
+            prev_close = prev.get("prev_close", trade_price)
+            if prev_close and prev_close > 0:
+                change_pct = round((trade_price - prev_close) / prev_close * 100, 4)
+            else:
+                change_pct = 0.0
+            _prices[sym] = {
+                "price": round(trade_price, 2),
+                "change_pct": change_pct,
+                "change": round(trade_price - prev_close, 4) if prev_close else 0,
+                # volume intentionally omitted: REST polling owns accurate day volume.
+                # Accumulating tick volumes here produced unbounded runaway totals.
+                "prev_close": prev_close,
+                "timestamp": timestamp,
+                "updated_at": time.time(),
+            }
 
     # Feed realtime_candle (separate lock — no contention with _lock above).
     # _record_tick is NOT called from this production path, so we hook the
@@ -336,7 +348,10 @@ def _process_finnhub_trade(trade):
         from api.services import realtime_candle
         actual_size = int(trade_vol) if trade_vol else 1
         for tf in ("1", "5", "15", "30", "60"):
-            realtime_candle.apply_tick(sym, price=trade_price, ts=ts_seconds, size=actual_size, tf=tf)
+            realtime_candle.apply_tick(
+                sym, price=trade_price, ts=ts_seconds, size=actual_size, tf=tf,
+                update_hl=hl_ok, update_last=last_ok,
+            )
     except Exception:
         pass  # observability layer; never break tick handling
 

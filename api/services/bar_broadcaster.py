@@ -34,6 +34,7 @@ import time as _time
 from typing import Callable, Optional
 
 from api.services.bar_rollup import TF_TO_SECONDS, aggregate, bucket_start
+from api.services import trade_conditions
 
 _logger = logging.getLogger(__name__)
 
@@ -149,10 +150,15 @@ class BarBroadcaster:
         sym = sym.upper()
 
         if kind == "T":
-            # Trade tick path — payload is {t, p, s}
+            # Trade tick path — payload is {t, p, s, c?}
             trade_t = payload["t"]
             trade_p = payload["p"]
             trade_s = payload["s"]
+            # SIP sale-condition gate (matches TC2000/TradingView tape filtering):
+            # an odd-lot / out-of-sequence / form-T / average-priced print may NOT
+            # extend the candle's high/low (hl_ok) or move its last/close (last_ok).
+            # Missing conditions / disabled filter → (True, True) = fully eligible.
+            hl_ok, last_ok = trade_conditions.classify(payload.get("c"))
             # 1-min bucket: create or update partial from trade
             for tf in ("1",) + ROLLUP_TFS:
                 new_start = bucket_start(trade_t, tf)
@@ -160,7 +166,12 @@ class BarBroadcaster:
                 with self._lock:
                     prev = self._partials.get(key)
                     if prev is None or prev["t"] != new_start:
-                        # No partial for current minute yet — create one anchored at bucket start
+                        # No partial for the current minute yet. Do NOT let a
+                        # non-last-sale print (odd-lot/OOS/etc.) DEFINE a new bar's
+                        # open/high/low/close — wait for an eligible trade or the AM
+                        # baseline reset. Volume-only prints simply don't seed a bar.
+                        if not last_ok and not hl_ok:
+                            continue
                         next_partial = {
                             "t": new_start,
                             "o": trade_p,
@@ -170,13 +181,15 @@ class BarBroadcaster:
                             "v": trade_s,
                         }
                     else:
-                        # Update existing partial: extend h/l, update close, sum volume
+                        # Update existing partial: extend h/l + move close ONLY for
+                        # eligible prints; volume accumulates for every print (odd-lots
+                        # count toward volume on the consolidated tape).
                         next_partial = {
                             "t": prev["t"],
                             "o": prev["o"],
-                            "h": max(prev["h"], trade_p),
-                            "l": min(prev["l"], trade_p),
-                            "c": trade_p,
+                            "h": max(prev["h"], trade_p) if hl_ok else prev["h"],
+                            "l": min(prev["l"], trade_p) if hl_ok else prev["l"],
+                            "c": trade_p if last_ok else prev["c"],
                             "v": prev["v"] + trade_s,
                         }
                     self._partials[key] = next_partial
