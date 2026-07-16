@@ -4152,17 +4152,29 @@ export default function StockChart({
       // the developing bar from a WS rollup that only accumulated since we subscribed,
       // collapsing the current candle to the "since you opened it" window — the reported
       // "bar shows correct data for a moment, then loses it until ~10s after close" bug.
-      // Intraday only; the same-bucket merge NEVER shrinks the range and keeps the
-      // tick-fresh close, so live tick extensions still survive an SWR refresh.
+      // Intraday only.
       if (!['D', 'W', 'M'].includes(resolvedTf)) {
         const _lt = adjustTime(last.t)
         const _lb = liveBarRef.current
         if (!_lb || _lb.time !== _lt) {
           liveBarRef.current = { time: _lt, open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
         } else {
+          // Reconcile H/L to the server's TRADE-BASED bucket (the real tape — matches
+          // TC2000/TradingView), keeping ONLY the extension the live CLOSE actually
+          // reached. This HEALS ghost wicks: a spurious tick (a stale/quote print during
+          // the Finnhub→push handoff, or an out-of-sequence print) that spiked the H/L
+          // above/below what truly traded gets DISCARDED here, because the server bucket
+          // never confirms it and the snapped-back live close doesn't reach it. Previously
+          // this did Math.max/Math.min against the accumulated _lb.high/_lb.low, so a ghost,
+          // once baked in, was preserved forever (writer D re-tops from liveBarRef every
+          // SWR poll) — the "current candle shows a wick that never traded" bug. A REAL
+          // fast wick the server hasn't ingested yet is briefly under-shown, then reappears
+          // once the server bucket includes that trade (≤ one refresh) — converging to the
+          // true tape instead of accumulating fakes.
+          const _c = Number.isFinite(_lb.close) ? _lb.close : last.c
           _lb.open = last.o
-          _lb.high = Math.max(_lb.high, last.h)
-          _lb.low = Math.min(_lb.low, last.l)
+          _lb.high = Math.max(last.h, _c)
+          _lb.low = Math.min(last.l, _c)
         }
       }
     }
