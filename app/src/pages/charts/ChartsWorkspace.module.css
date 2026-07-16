@@ -414,6 +414,9 @@
   --ut-red: #7d1620;
   --ut-red-bright: #7d1620;
   --ut-red-dim: #7d162018;
+  /* Theme-tracker tick-flash tint → dark candle green/red (read inside its keyframes). */
+  --tick-up-bg: rgba(10, 92, 34, 0.26);
+  --tick-down-bg: rgba(125, 22, 32, 0.24);
 }
 /* %s that hardcode the vivid dark-theme green/red instead of the tokens — pull them
    to the dark Sunrise palette so all percentages match (fundamentals, theme tracker,

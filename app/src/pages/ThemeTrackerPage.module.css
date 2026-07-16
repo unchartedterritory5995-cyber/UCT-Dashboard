@@ -390,29 +390,20 @@
 .retFlash { font-weight: 800; }
 .flashUp  { animation: themeTickUp 0.48s ease-out; border-radius: 3px; }
 .flashDown { animation: themeTickDown 0.48s ease-out; border-radius: 3px; }
+/* Tint driven by a CSS var so a theme can recolor it WITHOUT redefining the keyframe
+   (CSS-modules doesn't reliably rewrite a keyframe name referenced inside :global()).
+   var() resolves per-element at animation time from the cascaded custom property. */
 @keyframes themeTickUp {
-  0%   { background: rgba(26, 229, 26, 0.28); }
+  0%   { background: var(--tick-up-bg, rgba(26, 229, 26, 0.28)); }
   100% { background: transparent; }
 }
 @keyframes themeTickDown {
-  0%   { background: rgba(196, 31, 45, 0.28); }
+  0%   { background: var(--tick-down-bg, rgba(196, 31, 45, 0.28)); }
   100% { background: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
   .flashUp, .flashDown { animation: none; }
 }
-/* Sunrise: the tick-flash tint matches the dark candle green/red instead of the
-   vivid dark-theme colors. */
-@keyframes themeTickUpSunrise {
-  0%   { background: rgba(10, 92, 34, 0.26); }
-  100% { background: transparent; }
-}
-@keyframes themeTickDownSunrise {
-  0%   { background: rgba(125, 22, 32, 0.24); }
-  100% { background: transparent; }
-}
-:global([data-charts-theme='sunrise']) .flashUp { animation-name: themeTickUpSunrise; }
-:global([data-charts-theme='sunrise']) .flashDown { animation-name: themeTickDownSunrise; }
 
 /* ── Loading / empty states ─────────────────────────────────────────────── */
 .loading {
