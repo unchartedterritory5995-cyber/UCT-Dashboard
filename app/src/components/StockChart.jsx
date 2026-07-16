@@ -6267,34 +6267,39 @@ export default function StockChart({
     if (!dragMeasure || !chartReady) return
     const chart = chartRef.current; if (!chart) return
     const ts = chart.timeScale()
-    const update = () => {
+    let raf = null
+    let lastTop = -1, lastLeft = -1
+    // rAF sampler: recompute the grip's top/left every frame but only re-render on
+    // a change. This tracks the price/volume pane BOUNDARY as you drag the pane
+    // separator (resize the volume pane) — the grip stays pinned to the top of the
+    // volume pane — as well as pan/zoom (horizontal) and window resize.
+    const tick = () => {
+      let top = null
       try {
-        let top = null
-        try {
-          const panes = chart.panes ? chart.panes() : null
-          const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
-          if (h0 > 0) top = Math.max(4, h0 - 22)   // sit just above the volume pane (bottom of the price pane)
-        } catch { /* pane API missing → bottom fallback in JSX */ }
-        // Center the grip horizontally on the LAST candle (not the price axis) so
-        // it always lines up vertically with the most recent bar. Recomputed on
-        // every visible-range change, so it tracks the candle during pan/zoom.
-        let left = null
-        try {
-          const t = lastBarRef.current?.time
-          const x = (t != null) ? ts.timeToCoordinate(t) : null
-          if (x != null && Number.isFinite(x)) {
-            const plotW = ts.width() || 0
-            const maxLeft = plotW > 0 ? plotW - GRIP_W - 2 : x
-            left = Math.max(2, Math.min(maxLeft, x - GRIP_W / 2))
-          }
-        } catch { /* range not ready */ }
+        const panes = chart.panes ? chart.panes() : null
+        const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
+        if (h0 > 0) top = Math.max(4, h0 - 22)   // just above the price/volume boundary
+      } catch { /* pane API missing → bottom fallback in JSX */ }
+      // Center the grip horizontally on the LAST candle so it lines up with the
+      // most recent bar as the chart pans/zooms.
+      let left = null
+      try {
+        const t = lastBarRef.current?.time
+        const x = (t != null) ? ts.timeToCoordinate(t) : null
+        if (x != null && Number.isFinite(x)) {
+          const plotW = ts.width() || 0
+          const maxLeft = plotW > 0 ? plotW - GRIP_W - 2 : x
+          left = Math.max(2, Math.min(maxLeft, x - GRIP_W / 2))
+        }
+      } catch { /* range not ready */ }
+      if (top !== lastTop || left !== lastLeft) {
+        lastTop = top; lastLeft = left
         setScrollGripPos({ left, top })
-      } catch { /* not ready */ }
+      }
+      raf = requestAnimationFrame(tick)
     }
-    update()
-    try { ts.subscribeVisibleLogicalRangeChange(update) } catch {}
-    window.addEventListener('resize', update)
-    return () => { try { ts.unsubscribeVisibleLogicalRangeChange(update) } catch {}; window.removeEventListener('resize', update) }
+    raf = requestAnimationFrame(tick)
+    return () => { if (raf) cancelAnimationFrame(raf) }
   }, [dragMeasure, chartReady])
 
   const onScrollGripDown = (e) => {
