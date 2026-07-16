@@ -347,14 +347,11 @@ export default function ChartsWorkspace() {
   // so any older-shaped template is normalized to the current grid.
   const applyTemplate = useCallback((tpl) => {
     if (!tpl?.layout?.widgets) return
+    // Switch the ARRANGEMENT only — keep whatever tickers are currently loaded in
+    // each color group. A template must not swap the stock you're looking at.
     const normalized = parseLayout(tpl.layout) || tpl.layout
     setLayout(normalized)
     setPref('charts_workspace_layout', JSON.stringify(normalized))
-    if (tpl.groups && typeof tpl.groups === 'object') {
-      const g = { A: null, B: null, C: null, D: null, ...tpl.groups }
-      setGroupSymsState(g)
-      setPref('charts_workspace_groups', JSON.stringify(g))
-    }
     setOpenMenuOpen(false)
     flashSaved()
   }, [setPref, flashSaved])
@@ -397,13 +394,15 @@ export default function ChartsWorkspace() {
     const nm = saveAsName.trim()
     if (!nm) { setSaveErr('Name required'); return }
     try {
-      await saveLayout({ name: nm, layout, groups: groupSyms, scope: isAdmin ? saveAsScope : 'user' })
+      // Templates store the ARRANGEMENT only — never the tickers, so opening one
+      // never swaps the stock you're viewing.
+      await saveLayout({ name: nm, layout, groups: null, scope: isAdmin ? saveAsScope : 'user' })
       setSaveAsName(''); setSaveErr(''); setSaveMenuOpen(false)
       flashSaved()
     } catch (e) {
       setSaveErr(e.message || 'Save failed')
     }
-  }, [saveAsName, layout, groupSyms, isAdmin, saveAsScope, saveLayout, flashSaved])
+  }, [saveAsName, layout, isAdmin, saveAsScope, saveLayout, flashSaved])
 
   const handleDeleteTemplate = useCallback(async (id) => {
     try { await deleteLayout(id) } catch { /* surfaced by SWR revalidate */ }
