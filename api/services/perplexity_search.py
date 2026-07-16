@@ -26,6 +26,7 @@ _BASE = "https://api.perplexity.ai/chat/completions"
 
 # Three tiers Perplexity exposes. Voice routes based on question depth.
 _MODELS = {
+    "lite":      "sonar",             # cheapest — base web search, no pro synthesis
     "fast":      "sonar-pro",
     "reasoning": "sonar-reasoning-pro",
     "deep":      "sonar-deep-research",
@@ -33,6 +34,7 @@ _MODELS = {
 
 # Per-tier timeouts. Deep research can run for minutes.
 _TIMEOUTS = {
+    "lite":      15,
     "fast":      18,
     "reasoning": 35,
     "deep":      300,   # 5 min — deep research is intentionally slow
@@ -70,6 +72,7 @@ _SEARCH_CACHE = TTLCache()
 
 # Per-mode cache TTLs. Deep research is expensive so we cache it 1 hour.
 _CACHE_TTL = {
+    "lite":      900,    # 15 min
     "fast":      900,    # 15 min
     "reasoning": 1800,   # 30 min
     "deep":      3600,   # 1 hour

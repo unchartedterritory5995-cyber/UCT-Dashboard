@@ -52,15 +52,17 @@ const WIDGET_DEFAULTS = {
   themes:    { w: 6,  h: 10, minW: 2, minH: 4 },
   scanner:   { w: 8,  h: 10, minW: 6, minH: 4 },
   fundamentals: { w: 8, h: 6, minW: 6, minH: 2 },
+  aisearch:  { w: 7,  h: 10, minW: 3, minH: 3 },
 }
 
-const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals']
+const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'aisearch']
 const WIDGET_LABELS = {
   chart: 'Chart',
   watchlist: 'Watchlist',
   themes: 'Theme Tracker',
   scanner: 'Scanner',
   fundamentals: 'Fundamentals',
+  aisearch: 'AI Search',
 }
 
 function parseLayout(raw) {

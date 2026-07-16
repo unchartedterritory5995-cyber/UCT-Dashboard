@@ -82,6 +82,7 @@ from api.routers import wire_feedback as wire_feedback_router
 from api.routers import modelbook as modelbook_router
 from api.routers import charts_layouts as charts_layouts_router
 from api.routers import theme_index as theme_index_router
+from api.routers import ai_search as ai_search_router
 from api.routers import user_playbook as user_playbook_router
 from api.routers import education as education_router
 from api.routers import fundamentals as fundamentals_router
@@ -3331,6 +3332,7 @@ app.include_router(wire_feedback_router.router)
 app.include_router(modelbook_router.router)
 app.include_router(charts_layouts_router.router)
 app.include_router(theme_index_router.router)
+app.include_router(ai_search_router.router)
 app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
 app.include_router(fundamentals_router.router)

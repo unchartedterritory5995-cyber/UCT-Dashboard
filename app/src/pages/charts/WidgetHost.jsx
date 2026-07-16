@@ -3,6 +3,7 @@ import WatchlistWidget from './widgets/WatchlistWidget'
 import ThemesWidget from './widgets/ThemesWidget'
 import ScannerWidget from './widgets/ScannerWidget'
 import FundamentalsWidget from './widgets/FundamentalsWidget'
+import AiSearchWidget from './widgets/AiSearchWidget'
 import WidgetHeader from './WidgetHeader'
 import styles from './ChartsWorkspace.module.css'
 
@@ -12,6 +13,7 @@ const TYPE_LABEL = {
   themes: 'Themes',
   scanner: 'Scanner',
   fundamentals: 'Fundamentals',
+  aisearch: 'AI Search',
 }
 
 function WidgetBody({ widget, onOptsChange }) {
@@ -21,6 +23,7 @@ function WidgetBody({ widget, onOptsChange }) {
     case 'themes':    return <ThemesWidget    color={widget.color} opts={widget.opts} />
     case 'scanner':   return <ScannerWidget   color={widget.color} opts={widget.opts} />
     case 'fundamentals': return <FundamentalsWidget color={widget.color} opts={widget.opts} onOptsChange={onOptsChange} />
+    case 'aisearch':  return <AiSearchWidget />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {widget.type}</div>
   }
 }
