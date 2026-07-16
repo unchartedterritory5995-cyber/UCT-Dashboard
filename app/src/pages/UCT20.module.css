@@ -1,5 +1,29 @@
 .page { padding: 20px 24px; }
-.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; }
+
+/* ── Methodology ("How it's built") ──────────────────────────────────────── */
+.methodBtn {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  color: var(--text-muted); background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 6px; padding: 5px 10px;
+  cursor: pointer; white-space: nowrap; min-height: 30px;
+}
+.methodBtn:hover { color: var(--ut-gold); border-color: var(--ut-gold); }
+.methodBody { padding: 4px 18px 22px; max-width: 640px; }
+.methodLede { font-size: 13px; line-height: 1.65; color: var(--text); margin: 10px 0 4px; }
+.methodH {
+  font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--ut-gold);
+  margin: 18px 0 6px;
+}
+.methodP { font-size: 12.5px; line-height: 1.65; color: var(--text-muted); margin: 0; }
+.methodDisclaimer {
+  font-size: 11px; line-height: 1.55; color: var(--text-muted);
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  margin-top: 20px; padding-top: 12px; font-style: italic;
+}
 .heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; }
 
 /* ── Table (shared grid across header + rows) ─────────────────────────────── */

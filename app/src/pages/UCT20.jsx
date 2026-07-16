@@ -3,6 +3,7 @@ import { useState, useMemo, useCallback } from 'react'
 import UIcon from '../components/ui/UIcon'
 import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
+import Sheet from '../components/mobile/Sheet'
 import TileCard from '../components/TileCard'
 import TickerPopup from '../components/TickerPopup'
 import UCT20Performance from '../components/tiles/UCT20Performance'
@@ -234,6 +235,68 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
   )
 }
 
+function MethodologySheet({ open, onClose }) {
+  return (
+    <Sheet open={open} onClose={onClose} variant="auto" title="How the UCT20 is built">
+      <div className={styles.methodBody}>
+        <p className={styles.methodLede}>
+          The UCT20 is a fully systematic ranking, rebuilt every trading morning at
+          7:35 AM ET. No name is ever hand-picked — every slot is earned from the
+          same scored data, and the full process is described below.
+        </p>
+
+        <h3 className={styles.methodH}>1 · The universe</h3>
+        <p className={styles.methodP}>
+          A stock must first pass every gate just to be considered: price above $10,
+          average volume over 1M shares, market cap above $500M, trading above its
+          200-day moving average, and at least $15M in average daily dollar volume.
+          Roughly 800–1,000 names qualify on a normal day.
+        </p>
+
+        <h3 className={styles.methodH}>2 · The composite score</h3>
+        <p className={styles.methodP}>
+          Each candidate is scored on six weighted factors: relative strength versus
+          the S&amp;P 500 measured across 1, 3, 6, and 12 months and weighted toward the
+          longer timeframes (40%), trend quality — proximity to 52-week highs, price
+          tightness, volume contraction, and moving-average structure (26%), earnings
+          growth with a bonus for growth accelerating above its own 5-year trend (16%),
+          liquidity (12%), and institutional sponsorship (6%).
+        </p>
+
+        <h3 className={styles.methodH}>3 · Bonuses and penalties</h3>
+        <p className={styles.methodP}>
+          Stocks within 4% of their 52-week high earn the largest bonus; stocks far
+          below their highs are penalized. Names in the market&rsquo;s leading sectors and
+          leading industry groups get a small boost — but only when the stock itself
+          is already strong. Heavy short interest, biotech binary risk, and an
+          earnings report inside 3 days each apply a haircut.
+        </p>
+
+        <h3 className={styles.methodH}>4 · Stability</h3>
+        <p className={styles.methodP}>
+          Proven leaders get a small tenure bonus so the list turns over 1–3 names a
+          day instead of churning, and a separate 13-week momentum screen lets young
+          leaders — recent IPOs, fresh breakouts — compete with the established names.
+          In a weakening tape (S&amp;P below its 50- or 200-day average) all scores are
+          marked down.
+        </p>
+
+        <h3 className={styles.methodH}>5 · Integrity</h3>
+        <p className={styles.methodP}>
+          The data feed is validated before every publish, and if a morning run ever
+          produces a degraded list, yesterday&rsquo;s known-good list is served instead of a
+          broken one. The ER badge flags names reporting earnings within 7 days.
+        </p>
+
+        <p className={styles.methodDisclaimer}>
+          The UCT20 is a systematic momentum ranking for research and education. It is
+          not investment advice or a recommendation to buy any security.
+        </p>
+      </div>
+    </Sheet>
+  )
+}
+
 export default function UCT20() {
   const { mutate } = useSWRConfig()
   const { data: rows }    = useSWR('/api/leadership',      fetcher, { refreshInterval: 3600000 })
@@ -241,6 +304,7 @@ export default function UCT20() {
   const { data: insiderFeed } = useSWR('/api/insider/feed', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
   const { data: rsRankings } = useMobileSWR('/api/rs-rankings', fetcher, { refreshInterval: 3600000, marketHoursOnly: true })
   const [expandedIdx, setExpandedIdx] = useState(null)
+  const [showMethodology, setShowMethodology] = useState(false)
 
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/leadership'),
@@ -319,13 +383,18 @@ export default function UCT20() {
         >
           Read all picks
         </ReadAloudButton>
+        <button className={styles.methodBtn} onClick={() => setShowMethodology(true)}>
+          <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+          How it&rsquo;s built
+        </button>
       </div>
+      <MethodologySheet open={showMethodology} onClose={() => setShowMethodology(false)} />
       {leadershipStatus === 'stale' && stocks.length > 0 && (
         <div className={styles.staleBanner}>
           Last updated: {leadershipUpdated || 'unknown'} — data may be older than 26 hours. Refreshing soon.
         </div>
       )}
-      <TileCard title="UCT Leadership 20 — Current Top Stocks">
+      <TileCard title="UCT 20 — Current Top Stocks">
         {!rows ? (
           <SkeletonTable rows={8} cols={3} />
         ) : stocks.length === 0 ? (
