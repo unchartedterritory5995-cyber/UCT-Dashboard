@@ -780,7 +780,15 @@ def register_jobs(scheduler) -> bool:
         logger.info("[gap-fill] disabled (FLOW_GAP_AUTOFILL_ENABLED != 1)")
         return False
     from apscheduler.triggers.cron import CronTrigger
-    for hh, mm in ((16, 45), (21, 0), (8, 0)):
+    # 16:35 is the T-1 SAFETY RETRY: at that minute _latest_completed_trading_day
+    # still resolves to YESTERDAY (today only counts from 16:45), so if the
+    # morning 08:00/08:15 runs hit no_file (Massive's stated publish is ~11 AM
+    # ET; often earlier in practice), yesterday's gaps — including a tail-of-day
+    # death like 7/15's 2:47 PM→close — heal the same afternoon instead of
+    # stranding until the NEXT morning's walkback. Post-close, so it honors the
+    # never-during-market-hours rule; the 24h manifest guard makes it a no-op
+    # when the morning run succeeded.
+    for hh, mm in ((16, 35), (16, 45), (21, 0), (8, 0)):
         scheduler.add_job(
             run_fill, CronTrigger(day_of_week="mon-fri", hour=hh, minute=mm),
             id=f"flow_gap_autofill_{hh:02d}{mm:02d}",
@@ -793,8 +801,8 @@ def register_jobs(scheduler) -> bool:
         run_fill_walkback, CronTrigger(day_of_week="mon-fri", hour=8, minute=15),
         id="flow_gap_autofill_walkback",
         max_instances=1, replace_existing=True)
-    logger.info("[gap-fill] scheduled 16:45 / 21:00 / 08:00 T-1 + 08:15 walkback "
-                "(%d trading days) ET Mon-Fri (dry_run=%s)",
+    logger.info("[gap-fill] scheduled 16:35 T-1 retry / 16:45 / 21:00 / 08:00 T-1 "
+                "+ 08:15 walkback (%d trading days) ET Mon-Fri (dry_run=%s)",
                 WALKBACK_TRADING_DAYS, DRY_RUN)
     return True
 
