@@ -60,11 +60,17 @@ def _in_watch_window(now_et: datetime) -> bool:
 
 
 def _newest_row():
-    """(max_id, created_date_str) of the newest row, or (None, None)."""
+    """(max_id, created_date_str) of the newest STOCKS row, or (None, None).
+
+    STOCKS-ONLY (2026-07-16 blind-spot fix): the 9:31 open-wedge froze the
+    stocks pipeline while indexes rows kept inserting, so the any-source
+    MAX(id) kept advancing and this watchdog never fired — the tape members
+    watch was dead for 9+ minutes with the guard green. "The tape" = stocks."""
     conn = sqlite3.connect(DB_PATH, timeout=5)
     try:
         row = conn.execute(
-            "SELECT id, CreatedDate FROM flow ORDER BY id DESC LIMIT 1"
+            "SELECT id, CreatedDate FROM flow WHERE source='stocks' "
+            "ORDER BY id DESC LIMIT 1"
         ).fetchone()
     finally:
         conn.close()
