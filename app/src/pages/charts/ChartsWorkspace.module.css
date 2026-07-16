@@ -398,9 +398,9 @@
   --bg-elevated: #f2f6fa;
   --bg-hover: rgba(20, 45, 75, 0.07);
   --border: #c2d2e0;
-  --text: #223243;
-  --text-bright: #0c1824;
-  --text-muted: #566577;
+  --text: #1b2836;
+  --text-bright: #0a141e;
+  --text-muted: #3e4a58;   /* darker so labels (tf buttons, meta, headers) read on white */
   /* Darker gold + the SAME very-dark green/red as the candles + volume, so every
      accent (tickers, %s, labels) matches and reads on the bright canvas. */
   --ut-gold: #7a5c16;
@@ -420,16 +420,29 @@
 :global([data-charts-theme='sunrise']) [style*="1ae51a"],
 :global([data-charts-theme='sunrise']) [style*="3cb868"],
 :global([data-charts-theme='sunrise']) [style*="4ade80"],
-:global([data-charts-theme='sunrise']) [style*="22c55e"] {
+:global([data-charts-theme='sunrise']) [style*="22c55e"],
+:global([data-charts-theme='sunrise']) [style*="16a34a"],
+:global([data-charts-theme='sunrise']) [style*="10b981"],
+:global([data-charts-theme='sunrise']) [style*="21c45c"],
+:global([data-charts-theme='sunrise']) [style*="2d8c4e"],
+:global([data-charts-theme='sunrise']) [style*="1a9e"],
+:global([data-charts-theme='sunrise']) [style*="0f9d34"] {
   color: #0a5c22 !important;
 }
 :global([data-charts-theme='sunrise']) [style*="f87171"],
 :global([data-charts-theme='sunrise']) [style*="ef4444"],
 :global([data-charts-theme='sunrise']) [style*="e74c3c"],
 :global([data-charts-theme='sunrise']) [style*="ff3b47"],
-:global([data-charts-theme='sunrise']) [style*="c0392b"] {
+:global([data-charts-theme='sunrise']) [style*="c0392b"],
+:global([data-charts-theme='sunrise']) [style*="c41f2d"],
+:global([data-charts-theme='sunrise']) [style*="dc2626"],
+:global([data-charts-theme='sunrise']) [style*="b91c1c"] {
   color: #7d1620 !important;
 }
+/* Header meta labels + timeframe buttons — darker so they read on the bright header. */
+:global([data-charts-theme='sunrise']) .chartMetaLabel,
+:global([data-charts-theme='sunrise']) .tfBtn { color: #45515f; }
+:global([data-charts-theme='sunrise']) .tfBtn:hover { color: #12202c; }
 :global([data-charts-theme='sunrise']) .workspaceHeader {
   background: #eaf1f8;
 }

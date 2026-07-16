@@ -25,6 +25,8 @@
 .badge:hover {
   opacity: 0.8;
 }
+/* Sunrise theme: darker gold so the ticker/company name reads on the bright header. */
+:global([data-charts-theme='sunrise']) .badge { color: #7a5c16; }
 /* Phone: give the clickable ticker title a comfortable tap height. inline-flex
    + center keeps the glyph aligned; only the hit area grows. */
 @media (max-width: 640px) {
