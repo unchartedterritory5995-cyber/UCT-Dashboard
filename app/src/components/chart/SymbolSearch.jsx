@@ -189,7 +189,10 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
               // Thematic indexes have no company ticker → no logo.dev logo. Fall back to
               // the Uncharted Territory compass mark (the app's brand symbol) instead.
               <span className={styles.labelLogo}>
-                <img src={uctMark} alt="Uncharted Territory" width={16} height={16} style={{ display: 'block', objectFit: 'contain' }} />
+                {/* Rendered a touch larger than a company logo (20 vs 16): the mark
+                    has transparent padding + pointed arms and isn't clipped to a
+                    filled circle, so it reads smaller at the same box size. */}
+                <img src={uctMark} alt="Uncharted Territory" width={20} height={20} style={{ display: 'block', objectFit: 'contain' }} />
               </span>
             ) : null}
             <span className={styles.labelText} style={fullLabel ? { overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap' } : undefined}>{displayLabel}</span>
