@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
+import CompassOrb from '../../../components/voice/CompassOrb'
 import styles from './AiSearchWidget.module.css'
 
 const EXAMPLES = [
@@ -9,12 +10,12 @@ const EXAMPLES = [
   'Recent analyst upgrades on NVDA',
 ]
 
-// AI icon (sparkle) — inline so we don't depend on a UIcon glyph name.
+// AI icon — the Compass brand orb (sized wrapper; CompassOrb fills its container).
 function Spark({ size = 15 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 2l1.8 5.4L19 9.2l-5.2 1.8L12 16l-1.8-5L5 9.2l5.2-1.8L12 2zM19 14l.9 2.7L22.5 18l-2.6.9L19 21.5l-.9-2.6L15.5 18l2.6-.9L19 14z" />
-    </svg>
+    <span style={{ width: size, height: size, display: 'inline-flex', flexShrink: 0 }} aria-hidden="true">
+      <CompassOrb />
+    </span>
   )
 }
 
@@ -172,7 +173,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
 
         {!loading && !error && answer == null && (
           <div className={styles.empty}>
-            <span className={styles.emptySpark}><Spark size={26} /></span>
+            <span className={styles.emptySpark}><Spark size={34} /></span>
             <div className={styles.emptyTitle}>Ask the markets anything</div>
             <div className={styles.emptySub}>Earnings recaps, sympathy plays, catalysts, comparables — cited, current.</div>
             <div className={styles.exampleWrap}>
