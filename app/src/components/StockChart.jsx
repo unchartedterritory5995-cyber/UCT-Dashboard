@@ -1536,7 +1536,13 @@ export default function StockChart({
   activeToolRef.current = activeTool
   const [positionTool, setPositionTool] = useState({ entry: '', stop: '', target: '', risk: 200, direction: 'long' })
   const positionPriceLines = useRef([])
-  const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color)
+  const [drawColor, setDrawColor] = useState(canvasTheme === 'sunrise' ? '#000000' : cs.drawingDefaults.color)
+  // Sunrise defaults the drawing color to black (reads on the bright canvas); other
+  // themes use the user's configured default. A manual palette pick persists until the
+  // theme (or the saved default) changes.
+  useEffect(() => {
+    setDrawColor(canvasTheme === 'sunrise' ? '#000000' : cs.drawingDefaults.color)
+  }, [canvasTheme, cs.drawingDefaults.color])
   const [drawWidth, setDrawWidth] = useState(cs.drawingDefaults.width)
   const [magnet, setMagnet] = useState(false)  // snap drawings to nearest O/H/L/C
   const [selectedId, setSelectedId] = useState(null)
@@ -1619,7 +1625,7 @@ export default function StockChart({
     const drawLineItem = hasPrice ? {
       id: 'draw-hline',
       label: <><UIcon name="ruler" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />{`Draw line at $${fmtPrice(clickPrice)}`}</>,
-      onSelect: () => { try { addDrawingRef.current?.({ type: 'horizontal', points: [{ price: clickPrice }], color: cs.drawingDefaults?.color || '#c9a84c', lineWidth: cs.drawingDefaults?.width || 1 }) } catch {} },
+      onSelect: () => { try { addDrawingRef.current?.({ type: 'horizontal', points: [{ price: clickPrice }], color: canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c'), lineWidth: cs.drawingDefaults?.width || 1 }) } catch {} },
     } : null
     const copyPriceItem = hasPrice ? {
       id: 'copy-price',

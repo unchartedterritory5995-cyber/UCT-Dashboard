@@ -80,7 +80,7 @@ const TOOLS = [
 
 const COLORS = [
   '#c9a84c', '#4ade80', '#ef4444', '#60a5fa',
-  '#f472b6', '#fb923c', '#a78bfa', '#e2e8f0',
+  '#f472b6', '#fb923c', '#a78bfa', '#e2e8f0', '#000000',
 ]
 
 const WIDTHS = [1, 2, 3]
