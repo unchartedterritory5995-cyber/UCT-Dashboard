@@ -3515,11 +3515,21 @@ export default function StockChart({
       return
     }
 
+    // Merge, don't overwrite: a Massive WS rollup for the CURRENT bucket may have only
+    // accumulated since we subscribed (fresh ticker / tf switch), so its o/h/l can be a
+    // partial slice of the bucket. Preserve the true OPEN and only EXTEND high/low from
+    // the developing bar we already have (seeded from the fetched partial bar), so the
+    // current candle keeps its full-so-far range instead of collapsing to the WS window.
+    const _pbB = lastBarRef.current
+    const _sameB = _pbB && _pbB.time === tSec && Number.isFinite(_pbB.open)
+    const _oB = _sameB ? _pbB.open : o
+    const _hB = _sameB ? Math.max(_pbB.high, h) : h
+    const _lB = _sameB ? Math.min(_pbB.low, l) : l
     try {
       if (useOhlc) {
         candleSeriesRef.current.update({
           time: tSec,
-          open: o, high: h, low: l, close: c,
+          open: _oB, high: _hB, low: _lB, close: c,
         })
       } else {
         candleSeriesRef.current.update({ time: tSec, value: c })
@@ -3543,8 +3553,8 @@ export default function StockChart({
       // new bar even though the Finnhub writers are suppressed. Carry VOLUME on liveBarRef so the
       // post-setData re-top can restore it (else the developing bar shows ~30s-stale server
       // volume until the next AM push — a volume flicker every SWR poll, retro-audit #5).
-      liveBarRef.current = { time: tSec, open: o, high: h, low: l, close: c, volume: data.bar.v }
-      lastBarRef.current = { time: tSec, open: o, high: h, low: l, close: c, volume: data.bar.v }
+      liveBarRef.current = { time: tSec, open: _oB, high: _hB, low: _lB, close: c, volume: data.bar.v }
+      lastBarRef.current = { time: tSec, open: _oB, high: _hB, low: _lB, close: c, volume: data.bar.v }
     } catch {
       // lightweight-charts throws if `time` regresses below the series' last bar.
       // Silently ignore — out-of-order frames are rare and self-correct on next bar.
