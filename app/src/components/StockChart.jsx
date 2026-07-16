@@ -6378,9 +6378,10 @@ export default function StockChart({
       const ctx = c.getContext('2d'); if (!ctx) return
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, h)
-      ctx.strokeStyle = 'rgba(224,218,200,0.85)'; ctx.lineWidth = 1; ctx.setLineDash([5, 4])
+      const _measC = canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.9)' : 'rgba(224,218,200,0.85)'
+      ctx.strokeStyle = _measC; ctx.lineWidth = 1; ctx.setLineDash([5, 4])
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
-      ctx.setLineDash([]); ctx.fillStyle = 'rgba(224,218,200,0.95)'
+      ctx.setLineDash([]); ctx.fillStyle = canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.98)' : 'rgba(224,218,200,0.95)'
       ctx.beginPath(); ctx.arc(x1, y1, 2.5, 0, 6.283); ctx.fill()
       ctx.beginPath(); ctx.arc(x2, y2, 2.5, 0, 6.283); ctx.fill()
     }
@@ -6435,7 +6436,7 @@ export default function StockChart({
     }
     el.addEventListener('pointerdown', onDown)
     return () => { el.removeEventListener('pointerdown', onDown); end() }
-  }, [dragMeasure, chartReady, activeTool, frozen])
+  }, [dragMeasure, chartReady, activeTool, frozen, canvasTheme])
 
   // ── Persist a user's volume-pane resize ───────────────────────────────────
   // LWC has no separator-drag event, so poll the actual volume-pane fraction; when
@@ -7466,15 +7467,17 @@ export default function StockChart({
           pointerEvents: 'none', zIndex: 6, whiteSpace: 'nowrap',
           fontFamily: "'Instrument Sans', system-ui, sans-serif", fontSize: 12, lineHeight: 1.35,
           /* No box — float the data on the canvas; dark text-shadow keeps it legible over candles. */
-          textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)',
+          textShadow: canvasTheme === 'sunrise'
+            ? '0 1px 2px rgba(255,255,255,0.95), 0 0 2px rgba(255,255,255,0.9)'
+            : '0 1px 3px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)',
         }}>
-          <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? '#1ae51a' : '#c41f2d' }}>
+          <div style={{ fontWeight: 700, color: measureReadout.pct >= 0 ? (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d') }}>
             {measureReadout.dollar >= 0 ? '+' : '-'}${Math.abs(measureReadout.dollar).toFixed(2)}
             <span style={{ marginLeft: 8 }}>
               ({measureReadout.pct >= 0 ? '+' : ''}{measureReadout.pct.toFixed(2)}%)
             </span>
           </div>
-          <div style={{ color: '#a8a290', fontSize: 11 }}>
+          <div style={{ color: canvasTheme === 'sunrise' ? '#3f4a57' : '#a8a290', fontSize: 11 }}>
             {measureReadout.bars} {measureReadout.bars === 1 ? 'bar' : 'bars'}{measureReadout.span ? ` · ${measureReadout.span}` : ''}
           </div>
         </div>
@@ -7492,9 +7495,10 @@ export default function StockChart({
             zIndex: 7, cursor: 'ew-resize', pointerEvents: 'auto', touchAction: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 34, height: 16, borderRadius: 8,
-            background: 'rgba(201,168,76,0.18)', border: '1px solid rgba(201,168,76,0.5)',
-            color: '#c9a84c', userSelect: 'none',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+            background: canvasTheme === 'sunrise' ? 'rgba(255,255,255,0.62)' : 'rgba(201,168,76,0.18)',
+            border: canvasTheme === 'sunrise' ? '1px solid rgba(18,24,30,0.6)' : '1px solid rgba(201,168,76,0.5)',
+            color: canvasTheme === 'sunrise' ? '#3b3320' : '#c9a84c', userSelect: 'none',
+            boxShadow: canvasTheme === 'sunrise' ? '0 1px 4px rgba(20,35,55,0.2)' : '0 1px 4px rgba(0,0,0,0.4)',
           }}
         >
           <svg width="22" height="10" viewBox="0 0 22 10" style={{ display: 'block' }}>
