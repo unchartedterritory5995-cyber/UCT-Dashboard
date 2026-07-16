@@ -2033,6 +2033,61 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         headers={"Cache-Control": "public, max-age=5"},
                     )
 
+        # SAME-SESSION STALE intraday on the FIRST PAINT (no `since`): serve it
+        # SYNCHRONOUSLY, not stale-while-revalidate. `_is_cold_stale_intraday` only
+        # catches SESSION-scale staleness, so a cache that's a few bars behind "now"
+        # (e.g. prewarmed 15 min ago) fell through to the async bg heal below — the
+        # missing recent bars then showed as a blank GAP behind the live developing
+        # candle until the next 30s poll ("first flip to intraday is missing candles").
+        # The browser's `since=` delta path already fetches synchronously; give the
+        # first paint the same. Only first paints reach this function (repeat polls
+        # carry `since`), so this adds NO latency to steady-state polling. Bounded: a
+        # small trailing delta, _inflight-deduped, intraday only, and only when the
+        # cache has enough rows (partial/deep depth is handled by the branches above).
+        if tf in ("1", "5", "15", "30", "60") and not is_partial:
+            with _inflight_lock:
+                if cache_key in _inflight:
+                    _sd_wait, _sd_do = _inflight[cache_key], False
+                else:
+                    _sd_wait = _threading.Event()
+                    _inflight[cache_key] = _sd_wait
+                    _sd_do = True
+            if _sd_do:
+                try:
+                    _sd_new = _delta_intraday(ticker_up, tf, last_ts)
+                    if _sd_new and not _is_intraday_stale(_sd_new):
+                        _sqlite.put_bars(ticker_up, tf, _sd_new, date_tf=False)
+                    _sd_rows = _sqlite.get_bars(ticker_up, tf, bars)
+                    payload = {
+                        "ticker": ticker_up, "tf": tf,
+                        "bars": _fmt_sqlite_bars(_sd_rows or stored_rows, tf),
+                    }
+                    if payload["bars"]:
+                        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+                    return JSONResponse(
+                        content=payload,
+                        headers={"Cache-Control": "public, max-age=5"},
+                    )
+                except Exception as _sd_e:
+                    import logging as _log_sd
+                    _log_sd.getLogger(__name__).error(
+                        f"[bars] sync intraday delta failed {ticker_up} tf={tf}: "
+                        f"{type(_sd_e).__name__}: {_sd_e}"
+                    )
+                    # Fall through to the stale-serve below — same UX as before.
+                finally:
+                    with _inflight_lock:
+                        _inflight.pop(cache_key, None)
+                    _sd_wait.set()
+            else:
+                _sd_wait.wait(timeout=8)
+                hit = cache.get(cache_key)
+                if hit is not None:
+                    return JSONResponse(
+                        content=hit,
+                        headers={"Cache-Control": "public, max-age=5"},
+                    )
+
         # Stale-while-revalidate: SQLite has data but it needs updating.
         # Serve the stale data immediately (no spinner) and refresh in the background.
         # The browser's SWR will revalidate after a short TTL and pick up fresh data.
