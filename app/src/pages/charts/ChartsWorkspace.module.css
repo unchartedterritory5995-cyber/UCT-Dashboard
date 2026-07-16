@@ -401,6 +401,21 @@
   --text: #223243;
   --text-bright: #0c1824;
   --text-muted: #566577;
+  /* Darker gold + green so accents (tickers, %s, labels) read on the bright canvas. */
+  --ut-gold: #8a6a1c;
+  --ut-gold-dim: #8a6a1c1a;
+  --ut-gold-glow: #8a6a1c33;
+  --ut-green: #12793a;
+  --ut-green-bright: #148a3f;
+  --ut-green-dim: #12793a18;
+  --ut-green-glow: #12793a40;
+}
+/* Positive %s / greens that hardcode the vivid dark-theme greens instead of the
+   tokens — pull them down to the darker Sunrise green so they stand out on white. */
+:global([data-charts-theme='sunrise']) [style*="1ae51a"],
+:global([data-charts-theme='sunrise']) [style*="3cb868"],
+:global([data-charts-theme='sunrise']) [style*="4ade80"] {
+  color: #148a3f !important;
 }
 :global([data-charts-theme='sunrise']) .workspaceHeader {
   background: #eaf1f8;

@@ -540,6 +540,7 @@ const BOLD_DOWN = '#f23645'
 // no other chart on the site is touched.
 const MB_UP = '#1ae51a'      // pure vivid TC2000 spring-green (low blue → really pops)
 const MB_DOWN = '#c41f2d'    // deep darker red
+const SUNRISE_UP = '#0b8f2f' // darker, saturated green for the Sunrise LIGHT theme — the vivid MB_UP washes out on the bright canvas
 const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the canvas blends with the rest of the screen
 const MB_UP_RGB = '26,229,26', MB_DOWN_RGB = '196,31,45'
 const VOL_MA_COLOR = 'rgba(255,255,255,0.45)'   // volume-pane MA line (subtle white)
@@ -891,6 +892,9 @@ export default function StockChart({
 
   // ── Chart settings from user preferences ──
   const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
+  // Effective candle/volume up-green: darkened for the Sunrise light theme so it
+  // stands out on the bright canvas; the normal vivid MB_UP everywhere else.
+  const mbUp = canvasTheme === 'sunrise' ? SUNRISE_UP : MB_UP
 
   // ── Theme colors (light / dark) layered over user chart settings ──
   // Returns layout/grid/crosshair/candle colors based on cs.theme. Used in
@@ -903,10 +907,10 @@ export default function StockChart({
         background: '#eaf3fb',   // solid fallback (also the crosshair label bg)
         backgroundGradient: { top: '#c9e4f6', bottom: '#fbf1c9' },
         textColor: '#243040',
-        gridColor: 'rgba(20,35,55,0.07)',
+        gridColor: 'transparent',   // no grid lines on the Sunrise theme
         borderColor: 'rgba(20,35,55,0.22)',
         crosshairColor: '#586573',
-        candleUp: boldCandles ? MB_UP : cs.candles?.upColor,
+        candleUp: boldCandles ? mbUp : cs.candles?.upColor,
         candleDown: boldCandles ? MB_DOWN : cs.candles?.downColor,
       }
     }
@@ -1487,7 +1491,7 @@ export default function StockChart({
       const d = ovData[i]?.data
       const pt = (d && d.length) ? d[d.length - 1] : null
       if (!pt || !ov) return null
-      const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? MB_UP : ov.color
+      const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUp : ov.color
       return { label: `${ov.type} ${ov.period}`, value: pt.value, color }
     }).filter(Boolean)
     return {
@@ -2660,7 +2664,7 @@ export default function StockChart({
   // into the price-line applier via allPriceLines below.
   const sessionTagLines = useMemo(() => {
     if (!sessionTagsActive || !filteredBars?.length) return null
-    const effUp = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.candles.upColor
+    const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
     const effDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.candles.downColor
     return computeSessionTagLines({
       rthBars: filteredBars, session: marketSession, extPrice: sessionExtPrice,
@@ -2676,7 +2680,7 @@ export default function StockChart({
     if (!sessionTagsIntraday || !_sessionLive) return null
     const prevClose = Number.isFinite(_sessionLive.prev_close) && _sessionLive.prev_close > 0 ? _sessionLive.prev_close : null
     const extPx = sessionExtPrice
-    const effUp = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.candles.upColor
+    const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
     const effDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.candles.downColor
     const lines = []
     if (prevClose != null) {
@@ -2879,7 +2883,7 @@ export default function StockChart({
     // Volume bars track the candle palette EXACTLY so the red/green of the
     // volume pane matches the red/green of the candles above it (a dimmed alpha
     // composites darker over the near-black canvas and reads as a mismatched hue).
-    const upC = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+    const upC = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
     const downC = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
     const gold = '#e6b800'
     return sessionAppliedBars.map((b, i) => {
@@ -3353,7 +3357,7 @@ export default function StockChart({
         if (volumeSeriesRef.current) {
           // Full-opacity default color (matches closed bars + volData) — no lighter
           // "developing" tint. Value is 0 here so it's invisible until the next tick.
-          const _vUpN = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+          const _vUpN = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
           volumeSeriesRef.current.update({ time: barTime, value: 0, color: _vUpN })
         }
       } else {
@@ -3475,7 +3479,7 @@ export default function StockChart({
         const _up = _prevC != null ? (data.bar.c >= _prevC) : (data.bar.c >= data.bar.o)
         // Full-opacity default color (same derivation as volData) — the developing
         // bar matches the closed bars instead of a lighter tint.
-        const _vUp = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+        const _vUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
         const _vDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
         volumeSeriesRef.current.update({
           time: tSec,
@@ -3899,7 +3903,7 @@ export default function StockChart({
         // popup falls back to the lighter default cs.candles palette.
         // Model Book (boldCandles) gets the punchier TC2000 palette (vivid green
         // / deep red); the intraday popup (modelBookLook) keeps the base bold one.
-        const _bUp = boldCandles ? MB_UP : BOLD_UP
+        const _bUp = boldCandles ? mbUp : BOLD_UP
         const _bDown = boldCandles ? MB_DOWN : BOLD_DOWN
         const _bold = (boldCandles || modelBookLook) ? {
           upColor: _bUp, downColor: _bDown,
@@ -3924,7 +3928,7 @@ export default function StockChart({
       // notion). Same up/down palette the series itself uses so it looks identical apart
       // from the coloring rule.
       if (colorByNetChange && (cs.chartType === 'candles' || cs.chartType === 'bars') && !priceSeries.__uctNetWrap) {
-        const _netUp = boldCandles ? MB_UP : (modelBookLook ? BOLD_UP : cs.candles.upColor)
+        const _netUp = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
         const _netDown = boldCandles ? MB_DOWN : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
         const _paintNet = (bar, prevClose) => {
           if (!bar || bar.close == null || prevClose == null) return bar
@@ -4036,7 +4040,7 @@ export default function StockChart({
             const _prevCD = colorByNetChange && _pbD && _pbD.length >= 2 ? _pbD[_pbD.length - 2].c : null
             const _upD = _prevCD != null ? (lb.close >= _prevCD) : (lb.close >= lb.open)
             // Full-opacity default color (same derivation as volData) — no lighter tint.
-            const _vUpD = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vUpD = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
             const _vDownD = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             volumeSeriesRef.current.update({
               time: lb.time, value: lb.volume,
@@ -5924,7 +5928,7 @@ export default function StockChart({
         const ov = resolvedOverlays?.[i]
         if (!d || !ov) return null
         // Match the DISPLAYED line color (ema9MatchCandle repaints the 9-EMA to MB_UP).
-        const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? MB_UP : ov.color
+        const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUp : ov.color
         return { label: `${ov.type} ${ov.period}`, value: d.value, color }
       }).filter(Boolean)
 
@@ -6954,7 +6958,7 @@ export default function StockChart({
           if (volumeSeriesRef.current) {
             // match the candle palette (same derivation as volData) so the
             // developing bar's volume color matches the historical bars
-            const _vUp = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
             const _vDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             const _pbC = prevBarsRef.current
             const _prevCC = colorByNetChange && _pbC && _pbC.length >= 2 ? _pbC[_pbC.length - 2].c : null
