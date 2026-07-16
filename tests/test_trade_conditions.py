@@ -5,9 +5,18 @@ the developing candle's high/low or last, but must still count toward volume —
 matching how TC2000/TradingView filter the consolidated tape.
 """
 
+import pytest
+
 from api.services import trade_conditions as tc
 from api.services import realtime_candle as rc
 from api.services.bar_broadcaster import BarBroadcaster
+
+
+@pytest.fixture(autouse=True)
+def _enable_filter(monkeypatch):
+    # The filter ships DEFAULT-OFF after the 2026-07-16 extended-hours incident;
+    # these tests exercise the gating logic, so force it on.
+    monkeypatch.setattr(tc, "FILTER_ENABLED", True)
 
 
 # ── classify() ────────────────────────────────────────────────────────────────
@@ -26,9 +35,15 @@ def test_odd_lot_blocks_both():
     assert tc.classify([37]) == (False, False)
 
 
-def test_extended_and_out_of_sequence_block_both():
-    assert tc.classify([12]) == (False, False)  # Form T
-    assert tc.classify([13]) == (False, False)  # Extended, sold out of sequence
+def test_extended_hours_prints_stay_eligible():
+    # Form-T (12) and ext-hours sold-OOS (13) are the LEGITIMATE extended session,
+    # not ghosts — the client gates RTH-vs-ext by the toggle. Never filter them,
+    # or the whole post-market session freezes (the NFLX earnings-flicker incident).
+    assert tc.classify([12]) == (True, True)
+    assert tc.classify([13]) == (True, True)
+
+
+def test_out_of_sequence_and_synthetic_block_both():
     assert tc.classify([32]) == (False, False)  # Sold (Out of Sequence)
     assert tc.classify([33]) == (False, False)  # Sold (Out of Sequence)
     assert tc.classify([2]) == (False, False)   # Average Price Trade
