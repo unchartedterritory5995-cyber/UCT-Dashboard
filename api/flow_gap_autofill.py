@@ -836,9 +836,16 @@ def status():
         last_enrich = flow_heal_enrich.last_result()
     except Exception:
         pass
+    spool = None
+    try:
+        from api import flow_tape_spool
+        spool = flow_tape_spool.get_stats()
+    except Exception:
+        pass
     return JSONResponse({"enabled": ENABLED, "dry_run": DRY_RUN,
                          "min_gap_minutes": MIN_GAP_MINUTES,
-                         "last_enrich": last_enrich, "runs": runs})
+                         "last_enrich": last_enrich, "tape_spool": spool,
+                         "runs": runs})
 
 
 @router.post("/run")
@@ -884,6 +891,24 @@ def trigger_enrich(target_date: str, authorization: str = Header(default="")):
     threading.Thread(target=_do, daemon=True, name="flow-heal-enrich-manual").start()
     return JSONResponse({"status": "started",
                          "check": "/api/flow-gap-fill/status (last_enrich)"})
+
+
+@router.post("/replay-spool")
+def trigger_spool_replay(authorization: str = Header(default="")):
+    """Manually heal TODAY's gap windows from the raw tape spool (the
+    autonomous path runs at consumer boot). Idempotent; daemon thread."""
+    _require_push_secret(authorization)
+
+    def _do():
+        try:
+            from api import flow_tape_spool
+            flow_tape_spool.replay_gaps()
+        except Exception as e:
+            logger.exception("[gap-fill] manual spool replay failed: %s", e)
+
+    threading.Thread(target=_do, daemon=True, name="flow-spool-replay-manual").start()
+    return JSONResponse({"status": "started",
+                         "check": "/api/flow-gap-fill/status (tape_spool.last_replay)"})
 
 
 @router.post("/rollback/{run_id}")

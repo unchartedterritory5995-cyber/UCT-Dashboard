@@ -1199,6 +1199,22 @@ def _nbbo_at(sym: str, ts_ns: int) -> tuple | None:
 _ER_CACHE: dict = {}            # {symbol: ('T'|'F', fetched_at_ts)}
 _ER_TTL_SEC = 6 * 60 * 60       # refresh ER flag every 6 hours
 
+
+def _tape_spool(msg) -> None:
+    """Raw-frame spool hook for the receive loop. Lazy-bound + total —
+    the tape must never depend on the spool module importing/working."""
+    global _tape_spool_fn
+    try:
+        if _tape_spool_fn is None:
+            from api.flow_tape_spool import spool_frame as _fn
+            _tape_spool_fn = _fn
+        _tape_spool_fn(msg)
+    except Exception:
+        pass
+
+
+_tape_spool_fn = None
+
 # MktCap/Sector cache for _load_ticker_metadata (2026-07-16 write-loop fix —
 # same class as _ER_CACHE). {symbol: ({'mktcap':..,'sector':..}, fetched_at)}
 _META_CACHE: dict = {}
@@ -2452,6 +2468,11 @@ async def _run_session(ws):
 
     try:
         async for msg in ws:
+            # Raw-tape spool (2026-07-16, gap-elimination): hand the frame to
+            # the spool BEFORE any parsing so a wedged pipeline can't lose
+            # received prints — boot replay heals gaps from this. O(1) deque
+            # append; never raises, never blocks.
+            _tape_spool(msg)
             # Massive batches multiple events per WS frame into a JSON array
             try:
                 payload = json.loads(msg)
@@ -2705,6 +2726,18 @@ def start() -> bool:
     # daemon thread so the write loop never pays cold ER lookups at the open.
     threading.Thread(target=prewarm_er_cache, daemon=True,
                      name="massive-ws-er-prewarm").start()
+
+    # Raw-tape spool + boot gap-replay (2026-07-16 gap-elimination): spool
+    # every received frame; after boot, heal today's gap windows from the
+    # spool so a freeze/restart costs lag, not data.
+    try:
+        from api import flow_tape_spool
+        if flow_tape_spool.start_writer():
+            print("[startup] tape spool writer started")
+        if flow_tape_spool.start_boot_replay():
+            print("[startup] tape-spool boot gap-replay armed")
+    except Exception as e:
+        print(f"[startup] tape spool failed to start (non-fatal): {e}")
 
     # Retroactive Spot backfill: fills blank Spot on today's rows that were
     # written by prior worker processes (before this restart). Runs in a
