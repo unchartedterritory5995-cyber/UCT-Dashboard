@@ -199,6 +199,15 @@ class DupResolveBody(BaseModel):
     action: str  # 'merge' | 'dismiss'
 
 
+@router.get("/admin/user-debug")
+async def admin_user_debug(user_id: str, user: dict = Depends(require_admin)) -> dict[str, Any]:
+    """Per-member broker triage bundle: our DB state (identity, accounts,
+    recent syncs) + live SnapTrade probes (registered? authorizations incl.
+    the disabled flag, live account count). Answers 'member says connect
+    isn't working' in one call."""
+    return await broker_service.admin_user_debug(user_id)
+
+
 @router.get("/admin/stats")
 def admin_stats(user: dict = Depends(require_admin)) -> dict[str, Any]:
     """Connected-user count + cost estimate ($1.50/connected user/mo SnapTrade)
@@ -416,9 +425,15 @@ async def webhook(request: Request) -> dict[str, Any]:
     if len(_webhook_tasks) >= _WEBHOOK_MAX_INFLIGHT:
         return {"ok": True, "deferred": "busy"}
 
+    # New-connection events must IMPORT the accounts first — a portal flow can
+    # complete without the member's browser ever running the client-side
+    # import (Webull incident 2026-07-15); this server-side path is the
+    # browser-independent safety net.
+    refresh_first = event in _REFRESH_EVENTS
+
     async def _bg():
         try:
-            await broker_service_sync_all(uct_user_id)
+            await broker_service_sync_all(uct_user_id, refresh_first=refresh_first)
         except Exception:
             pass
     task = asyncio.create_task(_bg())
@@ -427,8 +442,20 @@ async def webhook(request: Request) -> dict[str, Any]:
     return {"ok": True, "scheduled": True}
 
 
-async def broker_service_sync_all(user_id: str) -> Any:
+# Events that mean "a new connection/account exists at SnapTrade" — these must
+# map accounts into our DB before syncing, or the sync loops over nothing.
+_REFRESH_EVENTS = {"CONNECTION_ADDED", "NEW_ACCOUNT_AVAILABLE"}
+
+
+async def broker_service_sync_all(user_id: str, *, refresh_first: bool = False) -> Any:
     """Indirection so the webhook can trigger a full user sync without a
-    top-level import cycle."""
+    top-level import cycle. With refresh_first, newly available brokerage
+    accounts are imported (best-effort) and warming starts before the sync."""
     from api.services.journal_two.broker import sync as broker_sync_engine
+    if refresh_first:
+        try:
+            await broker_service.refresh_accounts(user_id)
+            _begin_warming(user_id)
+        except Exception:
+            pass  # best-effort — the sync below still covers known accounts
     return await broker_sync_engine.sync_all_for_user(user_id)

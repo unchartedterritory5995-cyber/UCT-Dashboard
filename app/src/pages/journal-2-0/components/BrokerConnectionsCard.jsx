@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import TileCard from '../../../components/TileCard'
 import { useAuth } from '../../../context/AuthContext'
 import BrokerImportingBanner from './BrokerImportingBanner'
@@ -72,6 +72,32 @@ export default function BrokerConnectionsCard() {
     return () => { cancelled = true }
   }, [load])
 
+  // Self-heal: connection exists but ZERO accounts are mapped on our side —
+  // the stranded state left behind when a portal return never reached this
+  // card's handler. Import the accounts once on sight.
+  const autoRefreshed = useRef(false)
+  useEffect(() => {
+    if (autoRefreshed.current) return
+    if (!status?.connected || (status.accounts || []).length > 0) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('broker') === 'connected') return // return-effect owns this
+    autoRefreshed.current = true
+    ;(async () => {
+      setBusy(true)
+      try {
+        const r = await fetch('/api/j2/broker/accounts/refresh', {
+          method: 'POST', credentials: 'include',
+        })
+        if (r.ok) {
+          const sr = await fetch('/api/j2/broker/sync?full=1&force=1', { method: 'POST', credentials: 'include' })
+          if (sr.ok) setSyncResult(summarizeSync(await sr.json()))
+        }
+      } catch { /* status reload below still reflects reality */ }
+      await load()
+      setBusy(false)
+    })()
+  }, [status, load])
+
   const startConnect = async () => {
     setBusy(true); setError(null)
     try {
@@ -81,7 +107,12 @@ export default function BrokerConnectionsCard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           consent: true,
-          customRedirect: `${window.location.origin}/settings?broker=connected`,
+          // section=connections is LOAD-BEARING: this card owns the
+          // ?broker=connected return handling and only mounts inside the
+          // Connections section of the sectioned Settings page. Without it
+          // the return lands on Account, nothing imports the new accounts,
+          // and the connection looks dead (Webull incident 2026-07-15).
+          customRedirect: `${window.location.origin}/settings?section=connections&broker=connected`,
         }),
       })
       if (!r.ok) {

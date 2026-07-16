@@ -31,6 +31,47 @@ function mockFetch(routes) {
   })
 }
 
+describe('BrokerConnectionsCard — Webull incident regressions (2026-07-15)', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/settings')
+    vi.restoreAllMocks()
+  })
+
+  it('sends the portal back to the CONNECTIONS section (the return handler only mounts there)', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    mockFetch([
+      ['/api/j2/broker/status', { body: { ...STATUS, connected: false } }],
+      ['/api/j2/broker/connect', { body: { redirectUri: 'https://app.snaptrade.com/x' } }],
+    ])
+    render(<BrokerConnectionsCard />)
+    fireEvent.click(await screen.findByText('Connect a brokerage'))
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByText('Continue to broker login'))
+    await vi.waitFor(() => {
+      const call = global.fetch.mock.calls.find(c => String(c[0]).includes('/connect'))
+      expect(call).toBeTruthy()
+      const body = JSON.parse(call[1].body)
+      expect(body.customRedirect).toContain('section=connections')
+      expect(body.customRedirect).toContain('broker=connected')
+    })
+  })
+
+  it('self-heals connected-but-zero-accounts by importing accounts on sight', async () => {
+    // James's exact stranded state: SnapTrade connection exists, our side has
+    // no mapped accounts, and no ?broker=connected param remains.
+    mockFetch([
+      ['/api/j2/broker/accounts/refresh', { body: { accounts: [] } }],
+      ['/api/j2/broker/status', { body: STATUS }],
+    ])
+    render(<BrokerConnectionsCard />)
+    await vi.waitFor(() => {
+      const called = global.fetch.mock.calls.some(c =>
+        String(c[0]).includes('/accounts/refresh'))
+      expect(called).toBe(true)
+    })
+  })
+})
+
 describe('BrokerConnectionsCard — portal return path', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/settings?broker=connected')

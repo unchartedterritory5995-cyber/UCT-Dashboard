@@ -1581,6 +1581,19 @@ export default function Settings() {
   const rawSection = searchParams.get('section')
   const section = SECTIONS.some(s => s.id === rawSection) ? rawSection : 'account'
   const activeSection = SECTIONS.find(s => s.id === section)
+
+  // A SnapTrade portal return (?broker=connected) MUST land on the
+  // Connections section: BrokerConnectionsCard owns that param's handling
+  // (accounts import + first sync) and only mounts there. Catches legacy/
+  // stale redirects that omit section= (Webull incident 2026-07-15).
+  useEffect(() => {
+    if (searchParams.get('broker') === 'connected' && section !== 'connections') {
+      const next = new URLSearchParams(searchParams)
+      next.set('section', 'connections')
+      setSearchParams(next, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [query, setQuery] = useState('')
   const [flashCard, setFlashCard] = useState(null)
   const [paletteOpen, setPaletteOpen] = useState(false)

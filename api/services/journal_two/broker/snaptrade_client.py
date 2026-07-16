@@ -324,6 +324,26 @@ async def reset_user_secret(snaptrade_user_id: str, user_secret: str) -> str:
     return secret
 
 
+async def list_users() -> list[str]:
+    """Partner-level: every SnapTrade userId registered under our key.
+    Admin-diagnostic use (is this member registered SnapTrade-side at all?)."""
+    sdk = _sdk()
+    body = await _call(sdk.authentication.list_snap_trade_users)
+    return [str(u) for u in body] if isinstance(body, list) else []
+
+
+async def list_authorizations(user_id: str, user_secret: str) -> list[dict]:
+    """The user's brokerage authorizations (connection objects). The
+    `disabled` flag here is the ground truth for 'connected but nothing
+    syncs' — a portal flow can complete while the authorization is dead."""
+    sdk = _sdk()
+    body = await _call(
+        sdk.connections.list_brokerage_authorizations,
+        user_id=user_id, user_secret=user_secret,
+    )
+    return body if isinstance(body, list) else []
+
+
 async def list_accounts(user_id: str, user_secret: str) -> list[dict]:
     """All brokerage accounts the user has connected. Returns a list of
     account dicts (id, name, number, institution_name, ...)."""

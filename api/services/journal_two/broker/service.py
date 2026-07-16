@@ -276,6 +276,54 @@ def sync_log(
         conn.close()
 
 
+async def admin_user_debug(user_id: str) -> dict[str, Any]:
+    """Admin triage bundle for ONE member's broker chain: our DB state plus
+    live SnapTrade probes. Answers where a "connect isn't working" report
+    actually died — no identity, not registered SnapTrade-side, a DISABLED
+    brokerage authorization, zero live accounts, or failing syncs. Every
+    probe is best-effort: a SnapTrade hiccup shows as an error string, the
+    call itself never raises."""
+    out: dict[str, Any] = {
+        "userId": user_id,
+        "dbIdentity": False,
+        "accounts": connections.list_broker_accounts(user_id),
+        "recentSyncs": sync_log(user_id, limit=10),
+        "snaptradeRegistered": False,
+        "authorizations": [],
+        "liveAccounts": None,
+    }
+    bu = None
+    try:
+        bu = connections.get_broker_user(user_id)
+    except crypto_box.CryptoBoxError as e:
+        out["dbIdentityError"] = f"identity present but secret undecryptable: {e}"
+    out["dbIdentity"] = bu is not None or "dbIdentityError" in out
+
+    try:
+        out["snaptradeRegistered"] = user_id in await snap.list_users()
+    except Exception as e:  # noqa: BLE001 — diagnostic must never raise
+        out["snaptradeRegisteredError"] = str(e)
+
+    if bu:
+        try:
+            auths = await snap.list_authorizations(bu["snaptradeUserId"], bu["userSecret"])
+            out["authorizations"] = [{
+                "id": a.get("id"),
+                "brokerage": (a.get("brokerage") or {}).get("name"),
+                "disabled": a.get("disabled"),
+                "disabledDate": a.get("disabled_date"),
+                "createdDate": a.get("created_date"),
+            } for a in auths if isinstance(a, dict)]
+        except Exception as e:  # noqa: BLE001
+            out["authorizationsError"] = str(e)
+        try:
+            out["liveAccounts"] = len(
+                await snap.list_accounts(bu["snaptradeUserId"], bu["userSecret"]))
+        except Exception as e:  # noqa: BLE001
+            out["liveAccountsError"] = str(e)
+    return out
+
+
 def trust_summary(user_id: str) -> dict[str, Any]:
     """Sync Trust Center summary: per broker account, the health fields +
     imported-vs-broker counts + a coarse token state. Read-only (never

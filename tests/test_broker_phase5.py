@@ -173,3 +173,41 @@ def test_purge_on_account_deletion(env):
     assert conn.execute("SELECT COUNT(*) AS n FROM j2_broker_accounts WHERE user_id='u1'").fetchone()["n"] == 0
     assert conn.execute("SELECT COUNT(*) AS n FROM j2_broker_activities WHERE user_id='u1'").fetchone()["n"] == 0
     conn.close()
+
+
+# ── webhook-driven account import (Webull incident 2026-07-15) ───────────────
+# A SnapTrade connection can succeed while the member's browser never lands on
+# the Connections section (the ?broker=connected handler). CONNECTION_ADDED /
+# NEW_ACCOUNT_AVAILABLE must therefore import accounts server-side.
+
+def test_webhook_refresh_events_cover_new_connections():
+    from api.routers import broker_sync as br
+    assert "CONNECTION_ADDED" in br._REFRESH_EVENTS
+    assert "NEW_ACCOUNT_AVAILABLE" in br._REFRESH_EVENTS
+
+
+@pytest.mark.asyncio
+async def test_sync_all_indirection_refreshes_accounts_first(env, monkeypatch):
+    from api.routers import broker_sync as br
+    from api.services.journal_two.broker import service as broker_service
+    calls = []
+
+    async def fake_refresh(user_id):
+        calls.append(("refresh", user_id))
+        return []
+
+    async def fake_sync(user_id):
+        calls.append(("sync", user_id))
+        return {}
+
+    monkeypatch.setattr(broker_service, "refresh_accounts", fake_refresh)
+    monkeypatch.setattr(sync, "sync_all_for_user", fake_sync)
+    await br.broker_service_sync_all("u1", refresh_first=True)
+    assert calls == [("refresh", "u1"), ("sync", "u1")]
+    # And a refresh failure must never block the sync itself.
+    async def boom(user_id):
+        raise RuntimeError("snaptrade down")
+    monkeypatch.setattr(broker_service, "refresh_accounts", boom)
+    calls.clear()
+    await br.broker_service_sync_all("u1", refresh_first=True)
+    assert calls == [("sync", "u1")]
