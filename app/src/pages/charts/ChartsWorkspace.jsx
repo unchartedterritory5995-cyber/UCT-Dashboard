@@ -554,10 +554,6 @@ export default function ChartsWorkspace() {
             )}
           </div>
 
-          <button type="button" className={`${styles.toolbarBtn} ${styles.ghost}`} onClick={handleResetLayout}>
-            Reset layout
-          </button>
-
           {/* Chart theme — recolors the whole workspace (charts + all widgets).
               Kept in the LEFT cluster (not pushed right) so it never collides with the
               fixed help "?" pinned to the top-right corner of the viewport. */}
@@ -581,6 +577,10 @@ export default function ChartsWorkspace() {
               </div>
             )}
           </div>
+
+          <button type="button" className={`${styles.toolbarBtn} ${styles.ghost}`} onClick={handleResetLayout}>
+            Reset layout
+          </button>
         </header>
         <main className={styles.workspaceBody} ref={bodyRef}>
           <ResponsiveGridLayout
