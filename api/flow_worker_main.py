@@ -199,6 +199,40 @@ def _start_flow_schedulers():
             log.warning("nightly prune scheduling failed: %s", e)
 
         try:
+            # Auto-push scanners — fire Discord alerts on a timer instead of on
+            # page views. Before this, _apply_auto_push only ran inside /recent
+            # and /by-contract, so no viewer = no push (7/15: laptop asleep all
+            # afternoon, nothing fired; a browser opened at 8:06 PM ET then
+            # flushed the day's backlog at once). By-Contract was worse:
+            # accumulations only fired while that tab was open.
+            #
+            # MUST run here and ONLY here — web has a SEPARATE pushed.db, so a
+            # second scanner there would double-post rather than dedup.
+            #
+            # Lighter than a browser: the tape polls /recent every 5s (12/min)
+            # and By-Contract every 30s; these are 1/min and 0.2/min. If this
+            # lets the tab stay closed, total load drops.
+            #
+            # max_instances=1 + coalesce: a scan slower than its interval must
+            # never pile up — that's the read contention that starves the
+            # consumer's writes.
+            from apscheduler.triggers.interval import IntervalTrigger
+            from api.live_massive_router import (auto_push_scan_single,
+                                                 auto_push_scan_accum)
+            sched.add_job(auto_push_scan_single,
+                          trigger=IntervalTrigger(seconds=60),
+                          id="auto_push_scan_single", max_instances=1,
+                          coalesce=True, replace_existing=True)
+            sched.add_job(auto_push_scan_accum,
+                          trigger=IntervalTrigger(seconds=300),
+                          id="auto_push_scan_accum", max_instances=1,
+                          coalesce=True, replace_existing=True)
+            n += 1
+            log.info("[startup] auto-push scanners registered (single=60s, accum=300s)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("auto-push scanner scheduling failed: %s", e)
+
+        try:
             # Daily OI snapshot (5:30 AM ET) — captures Schwab live OI for
             # contracts with recent flow (retroactive B-side confirmation). Moved
             # from web at the P5 cutover: flow.db AND the Schwab OPRA consumer +
