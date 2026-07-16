@@ -26,8 +26,8 @@ l <= min(o,c).
 from __future__ import annotations
 
 import concurrent.futures
-import math
 import re
+import statistics
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -71,31 +71,55 @@ def resolve_theme(slug: str) -> Optional[tuple[str, dict, list[str]]]:
 
 def _compute_index_bars(holdings_bars: dict[str, list[dict]]) -> list[dict]:
     """Equal-weight, daily-rebalanced OHLC index from per-holding daily bars."""
-    # Per holding: date -> return descriptor vs its own previous close.
+    # Per holding: date -> return descriptor vs its own previous close; plus each
+    # constituent's close-return series (for the diversification-ratio wick scale).
     per_day: dict[str, list[dict]] = {}
+    sym_returns: dict[str, list[float]] = {}
     for sym, bars in holdings_bars.items():
         clean = [b for b in (bars or [])
                  if all(isinstance(b.get(k), (int, float)) for k in ("t", "o", "h", "l", "c"))
                  and b["o"] > 0 and b["h"] > 0 and b["l"] > 0 and b["c"] > 0]
         clean.sort(key=lambda b: b["t"])
+        rcs: list[float] = []
         for k in range(1, len(clean)):
             prev_c = clean[k - 1]["c"]
             if prev_c <= 0:
                 continue
             b = clean[k]
             d = _et_date_str(b["t"])
+            rc = b["c"] / prev_c - 1.0
             per_day.setdefault(d, []).append({
                 "ro": b["o"] / prev_c - 1.0,
                 "rh": b["h"] / prev_c - 1.0,
                 "rl": b["l"] / prev_c - 1.0,
-                "rc": b["c"] / prev_c - 1.0,
+                "rc": rc,
                 "v": float(b.get("v") or 0),
-                "t": b["t"],
             })
+            rcs.append(rc)
+        if len(rcs) >= 5:
+            sym_returns[sym] = rcs
+
+    dates = sorted(per_day.keys())
+
+    # Wicks = the averaged per-constituent high/low ranges, which OVERSTATE the
+    # index's true daily range because the constituents don't hit their extremes at
+    # the same instant (max of a mean <= mean of maxes). Scale them by the basket's
+    # DIVERSIFICATION RATIO D = sigma(equal-weight portfolio) / mean(sigma(constituent))
+    # = sqrt(rho + (1-rho)/n): a tightly-correlated sector (semis) → D near 1 → real
+    # full wicks; a diverse basket → lower D → dampened wicks. This is how a real
+    # equal-weight ETF's daily range relates to its holdings'. Clamp so wicks never
+    # vanish (>=0.5) and never exceed the raw averaged range (<=1.0).
+    D = 1.0
+    port_returns = [sum(r["rc"] for r in per_day[d]) / len(per_day[d]) for d in dates if per_day[d]]
+    indiv_vols = [statistics.pstdev(v) for v in sym_returns.values() if len(v) >= 2]
+    if len(port_returns) >= 5 and indiv_vols:
+        avg_iv = sum(indiv_vols) / len(indiv_vols)
+        if avg_iv > 1e-9:
+            D = max(0.5, min(1.0, statistics.pstdev(port_returns) / avg_iv))
 
     out: list[dict] = []
     level = _BASE
-    for d in sorted(per_day.keys()):
+    for d in dates:
         rows = per_day[d]
         n = len(rows)
         if not n:
@@ -108,22 +132,13 @@ def _compute_index_bars(holdings_bars: dict[str, list[dict]]) -> list[dict]:
         h = level * (1 + avg_h)
         l = level * (1 + avg_l)
         c = level * (1 + avg_c)
-        # The averaged high/low OVERSTATE the index's true daily range: the
-        # constituents don't hit their intraday extremes at the same instant, so
-        # max(mean) <= mean(max). Averaging each stock's individual peak/trough
-        # stacks every stock's full range into long "barcode" wicks. Shrink the
-        # wicks toward the body by a diversification factor (~1/sqrt(n)) so the
-        # index reads like a real diversified index, not stacked single-name ranges.
-        n = len(rows)
-        shrink = max(0.3, min(0.6, 1.0 / math.sqrt(n))) if n > 1 else 1.0
         body_top, body_bot = max(o, c), min(o, c)
-        h = body_top + (h - body_top) * shrink
-        l = body_bot - (body_bot - l) * shrink
+        h = body_top + (h - body_top) * D
+        l = body_bot - (body_bot - l) * D
         vol = sum(r["v"] for r in rows)
         out.append({
-            # Daily/Weekly/Monthly bars carry `t` as a "YYYY-MM-DD" ET date string
-            # (the format the frontend StockChart + LW Charts expect for D/W/M),
-            # NOT unix seconds like intraday.
+            # D/W/M bars carry `t` as a "YYYY-MM-DD" ET date string (frontend + LW
+            # Charts format for D/W/M), NOT unix seconds like intraday.
             "t": d,
             "o": round(o, 4), "h": round(h, 4), "l": round(l, 4), "c": round(c, 4),
             "v": vol,
