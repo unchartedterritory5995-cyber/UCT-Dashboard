@@ -135,3 +135,35 @@ async def test_missing_broker_total_is_skipped_not_failed(env):
     out = await fidelity_audit.audit_account("u1", env["ba_id"])
     check = next(c for c in out["checks"] if c["name"] == "equity_consistency")
     assert check["ok"] is True and check.get("skipped") is True
+
+
+@pytest.mark.asyncio
+async def test_include_raw_returns_broker_payloads(env):
+    # Diagnosing a divergence needs the RAW SnapTrade payloads (admin-only).
+    snap.configure(_sdk(positions=POSITIONS, balances=BALANCES, total=60000))
+    await sync.sync_account("u1", env["ba_id"])
+    out = await fidelity_audit.audit_account("u1", env["ba_id"], include_raw=True)
+    assert out["raw"]["balances"] == BALANCES
+    assert out["raw"]["account"]["balance"]["total"]["amount"] == 60000
+    assert out["raw"]["positions"] == POSITIONS
+    # Default stays lean — no raw payloads.
+    out2 = await fidelity_audit.audit_account("u1", env["ba_id"])
+    assert "raw" not in out2
+
+
+@pytest.mark.asyncio
+async def test_option_fetch_failure_skips_equity_check(env):
+    # A failed option-holdings fetch must NOT silently value options at $0 —
+    # that fabricates an equity divergence (or masks one). Skip the equity
+    # check with an explicit reason instead.
+    sdk = _sdk(positions=POSITIONS, balances=BALANCES, total=60000)
+
+    def boom(**kw):
+        raise RuntimeError("options endpoint down")
+    sdk.account_information.get_user_account_option_holdings = boom
+    snap.configure(sdk)
+    await sync.sync_account("u1", env["ba_id"])
+    out = await fidelity_audit.audit_account("u1", env["ba_id"])
+    check = next(c for c in out["checks"] if c["name"] == "equity_consistency")
+    assert check["ok"] is True and check.get("skipped") is True
+    assert "option" in check["detail"].lower()

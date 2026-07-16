@@ -209,12 +209,14 @@ async def admin_user_debug(user_id: str, user: dict = Depends(require_admin)) ->
 
 
 @router.get("/admin/fidelity-audit")
-async def admin_fidelity_audit(user_id: str, user: dict = Depends(require_admin)) -> dict[str, Any]:
+async def admin_fidelity_audit(user_id: str, raw: bool = False,
+                               user: dict = Depends(require_admin)) -> dict[str, Any]:
     """On-demand fidelity audit for one member: does their imported journal
     reconcile against the broker's own reported numbers? (Also runs nightly
-    across the fleet with Discord digest on divergence.)"""
+    across the fleet with Discord digest on divergence.) raw=1 includes the
+    exact broker payloads for field-level diagnosis of a divergence."""
     from api.services.journal_two.broker import fidelity_audit
-    return {"results": await fidelity_audit.audit_user(user_id)}
+    return {"results": await fidelity_audit.audit_user(user_id, include_raw=raw)}
 
 
 @router.get("/admin/stats")

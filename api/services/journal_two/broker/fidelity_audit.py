@@ -46,7 +46,8 @@ def _post_discord(title: str, description: str) -> None:  # patchable seam
     _notif_discord(title, description)
 
 
-async def audit_account(user_id: str, broker_account_id: str) -> dict[str, Any]:
+async def audit_account(user_id: str, broker_account_id: str,
+                        *, include_raw: bool = False) -> dict[str, Any]:
     """Audit one account. Returns {accountId, brokerage, ok, checks:[...]}.
     A check is {"name", "ok", "detail"} (+ "skipped" when not applicable).
     Raises only on missing account/identity — SnapTrade errors surface as a
@@ -63,11 +64,13 @@ async def audit_account(user_id: str, broker_account_id: str) -> dict[str, Any]:
     try:
         raw_positions = await snap.get_positions(bu["snaptradeUserId"], bu["userSecret"], sid)
         raw_balances = await snap.get_balances(bu["snaptradeUserId"], bu["userSecret"], sid)
+        options_failed = False
         try:
             raw_options = await snap.get_option_holdings(
                 bu["snaptradeUserId"], bu["userSecret"], sid)
         except Exception:  # noqa: BLE001 — optional endpoint on some brokers
             raw_options = []
+            options_failed = True  # never silently value options at $0
         accts = await snap.list_accounts(bu["snaptradeUserId"], bu["userSecret"])
         match = next((a for a in (accts or []) if a.get("id") == sid), None)
         broker_total = balances._account_total_usd(match) if match else None
@@ -85,6 +88,10 @@ async def audit_account(user_id: str, broker_account_id: str) -> dict[str, Any]:
     if broker_total is None:
         checks.append({"name": "equity_consistency", "ok": True, "skipped": True,
                        "detail": "broker does not report a total — derived-only"})
+    elif options_failed:
+        checks.append({"name": "equity_consistency", "ok": True, "skipped": True,
+                       "detail": "option holdings fetch failed — cannot derive "
+                                 "full equity without option marks"})
     else:
         diff = abs(derived - broker_total)
         tol = max(_EQUITY_ABS_FLOOR, abs(broker_total) * _EQUITY_REL_TOLERANCE)
@@ -134,20 +141,31 @@ async def audit_account(user_id: str, broker_account_id: str) -> dict[str, Any]:
                    or "all activity types recognized"),
     })
 
-    return {
+    result: dict[str, Any] = {
         "accountId": broker_account_id,
         "brokerage": ba.get("brokerageName"),
         "ok": all(c["ok"] for c in checks),
         "checks": checks,
     }
+    if include_raw:
+        # Diagnosis payloads (admin-only surface): the exact broker data the
+        # checks ran against, so a divergence can be attributed to a field.
+        result["raw"] = {
+            "balances": raw_balances,
+            "account": match,
+            "positions": raw_positions,
+            "optionHoldings": raw_options,
+            "optionHoldingsFetchFailed": options_failed,
+        }
+    return result
 
 
-async def audit_user(user_id: str) -> list[dict[str, Any]]:
+async def audit_user(user_id: str, *, include_raw: bool = False) -> list[dict[str, Any]]:
     """Audit every account of one user (skips none; per-account isolation)."""
     out = []
     for ba in connections.list_broker_accounts(user_id):
         try:
-            out.append(await audit_account(user_id, ba["id"]))
+            out.append(await audit_account(user_id, ba["id"], include_raw=include_raw))
         except Exception as e:  # noqa: BLE001
             out.append({"accountId": ba["id"], "ok": False,
                         "checks": [{"name": "audit", "ok": False, "detail": str(e)[:200]}]})
