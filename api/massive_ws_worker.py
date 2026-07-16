@@ -676,52 +676,50 @@ def _load_ticker_metadata(symbols: list) -> dict:
     if not clean:
         return {}
 
+    # WRITE-LOOP SAFETY (2026-07-16, the SECOND _load_er_flags-class fix; see
+    # also _load_cumulative_volume's 7/9 note — same disease, third organ):
+    # this runs on EVERY batch with NO cache, and the MAX(id) GROUP BY walked
+    # each symbol's ENTIRE history TWICE (MktCap + Sector). Per-batch cost grew
+    # with the table — the deploy-free day-over-day lag creep (Mon 4s → Wed
+    # 18s). MktCap/Sector move on earnings timescales: cache 24h + bounded
+    # newest-row lookups (rides idx_flow_symbol_created).
+    now = time.time()
     out: dict = {}
+    to_fetch = []
+    for sym in clean:
+        entry = _META_CACHE.get(sym)
+        if entry and (now - entry[1]) < _META_TTL_SEC:
+            if entry[0]:
+                out[sym] = dict(entry[0])
+        else:
+            to_fetch.append(sym)
+    if not to_fetch:
+        return out
+
     try:
         with sqlite3.connect(db.db_path, timeout=10) as conn:
-            # MktCap: most recent non-zero per symbol
-            placeholders = ",".join("?" for _ in clean)
-            mc_sql = f"""
-                SELECT f.Symbol, f.MktCap
-                FROM flow f
-                INNER JOIN (
-                    SELECT Symbol, MAX(id) AS max_id
-                    FROM flow
-                    WHERE Symbol IN ({placeholders})
-                      AND MktCap IS NOT NULL AND MktCap != '' AND MktCap != '0'
-                    GROUP BY Symbol
-                ) latest ON f.id = latest.max_id
-            """
-            for sym, mc_raw in conn.execute(mc_sql, clean):
-                if not sym:
-                    continue
-                sym = sym.strip().upper()
-                try:
-                    mc = int(float((mc_raw or "0").strip()))
-                except (ValueError, TypeError):
-                    mc = 0
-                if mc > 0:
-                    out.setdefault(sym, {})["mktcap"] = mc
-
-            # Sector: most recent non-blank per symbol
-            sec_sql = f"""
-                SELECT f.Symbol, f.Sector
-                FROM flow f
-                INNER JOIN (
-                    SELECT Symbol, MAX(id) AS max_id
-                    FROM flow
-                    WHERE Symbol IN ({placeholders})
-                      AND Sector IS NOT NULL AND Sector != ''
-                    GROUP BY Symbol
-                ) latest ON f.id = latest.max_id
-            """
-            for sym, sec_raw in conn.execute(sec_sql, clean):
-                if not sym:
-                    continue
-                sym = sym.strip().upper()
-                sec = (sec_raw or "").strip()
-                if sec:
-                    out.setdefault(sym, {})["sector"] = sec
+            for sym in to_fetch:
+                meta = {}
+                row = conn.execute(
+                    "SELECT MktCap FROM flow WHERE Symbol = ? "
+                    "AND MktCap IS NOT NULL AND MktCap != '' AND MktCap != '0' "
+                    "ORDER BY rowid DESC LIMIT 1", (sym,)).fetchone()
+                if row:
+                    try:
+                        mc = int(float((row[0] or "0").strip()))
+                        if mc > 0:
+                            meta["mktcap"] = mc
+                    except (ValueError, TypeError):
+                        pass
+                row = conn.execute(
+                    "SELECT Sector FROM flow WHERE Symbol = ? "
+                    "AND Sector IS NOT NULL AND Sector != '' "
+                    "ORDER BY rowid DESC LIMIT 1", (sym,)).fetchone()
+                if row and (row[0] or "").strip():
+                    meta["sector"] = row[0].strip()
+                _META_CACHE[sym] = (meta, now)
+                if meta:
+                    out[sym] = dict(meta)
     except Exception as e:
         logger.warning("[massive-ws] _load_ticker_metadata SQL failed: %s", e)
 
@@ -1201,6 +1199,11 @@ def _nbbo_at(sym: str, ts_ns: int) -> tuple | None:
 _ER_CACHE: dict = {}            # {symbol: ('T'|'F', fetched_at_ts)}
 _ER_TTL_SEC = 6 * 60 * 60       # refresh ER flag every 6 hours
 
+# MktCap/Sector cache for _load_ticker_metadata (2026-07-16 write-loop fix —
+# same class as _ER_CACHE). {symbol: ({'mktcap':..,'sector':..}, fetched_at)}
+_META_CACHE: dict = {}
+_META_TTL_SEC = 24 * 60 * 60    # metadata moves on earnings timescales
+
 
 def _load_er_flags(symbols: list) -> dict:
     """Phase 2g: look up ER flag per symbol from recent FlowDB rows.
@@ -1282,6 +1285,31 @@ def prewarm_er_cache() -> int:
             er_clean = (er or 'F').strip().upper()
             _ER_CACHE.setdefault(sym, ('T' if er_clean == 'T' else 'F', now))
         logger.info("[massive-ws] ER cache prewarmed: %d symbols", len(rows))
+
+        # MktCap/Sector prewarm (same rationale): one boot-time pass instead
+        # of per-batch history walks. Newest non-blank row per symbol.
+        meta: dict = {}
+        with sqlite3.connect(db.db_path, timeout=15) as conn:
+            for sym, mc in conn.execute(
+                    "SELECT Symbol, MktCap FROM flow WHERE rowid IN ("
+                    "  SELECT MAX(rowid) FROM flow WHERE MktCap IS NOT NULL "
+                    "  AND MktCap != '' AND MktCap != '0' GROUP BY Symbol)"):
+                try:
+                    v = int(float((mc or "0").strip()))
+                    if sym and v > 0:
+                        meta.setdefault(sym, {})["mktcap"] = v
+                except (ValueError, TypeError):
+                    pass
+            for sym, sec in conn.execute(
+                    "SELECT Symbol, Sector FROM flow WHERE rowid IN ("
+                    "  SELECT MAX(rowid) FROM flow WHERE Sector IS NOT NULL "
+                    "  AND Sector != '' GROUP BY Symbol)"):
+                if sym and (sec or "").strip():
+                    meta.setdefault(sym, {})["sector"] = sec.strip()
+        now2 = time.time()
+        for sym, m in meta.items():
+            _META_CACHE.setdefault(sym, (m, now2))
+        logger.info("[massive-ws] metadata cache prewarmed: %d symbols", len(meta))
         return len(rows)
     except Exception as e:
         logger.warning("[massive-ws] ER prewarm failed (non-fatal): %s", e)

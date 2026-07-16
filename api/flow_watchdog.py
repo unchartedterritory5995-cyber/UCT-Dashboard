@@ -98,6 +98,7 @@ def _run(service_name: str) -> None:
     boot_ts = time.time()
     last_max_id = None
     last_advance_ts = time.time()
+    warned_half = False
 
     logger.info("[flow-watchdog] started (service=%s stale=%.0fs interval=%.0fs)",
                 service_name, STALE_SEC, CHECK_INTERVAL_SEC)
@@ -122,9 +123,23 @@ def _run(service_name: str) -> None:
             if last_max_id is None or max_id != last_max_id:
                 last_max_id = max_id
                 last_advance_ts = time.time()
+                warned_half = False
                 continue
 
             frozen_for = time.time() - last_advance_ts
+            # Half-threshold early warning (manrav 7/16): if lag/flush cadence
+            # ever creeps toward STALE_SEC, force-exiting a slow-but-alive
+            # consumer would cause a restart spiral (restarts make lag worse).
+            # Surface the approach in Discord BEFORE the exit fires so a human
+            # sees it while there's still time to raise the threshold.
+            if frozen_for >= STALE_SEC / 2 and not warned_half:
+                warned_half = True
+                _alert_discord(
+                    f"⚠️ **[{service_name}] flow-watchdog: stocks inserts "
+                    f"quiet for {int(frozen_for)}s** (half of the {int(STALE_SEC)}s "
+                    f"force-exit threshold). If this is pipeline LAG rather than a "
+                    f"freeze, raise FLOW_FREEZE_WATCHDOG_STALE_SEC before the exit "
+                    f"fires and causes a restart spiral.")
             if frozen_for >= STALE_SEC:
                 msg = (f":rotating_light: **[{service_name}] flow-watchdog: tape FROZEN** — "
                        f"no flow.db inserts for {int(frozen_for)}s during market hours "
