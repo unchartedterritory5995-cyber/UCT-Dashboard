@@ -284,6 +284,16 @@ def run_oi_backfill(target_mdy: str, max_stale_days: int = None) -> dict:
              "exact_date_contracts": 0, "stale_contracts": 0,
              "rows_updated": 0, "snapshot_rows_on_date": 0}
 
+    # _backfill_flow_oi issues one UPDATE per (contract × strike/exp candidate)
+    # keyed on Symbol+CreatedDate — without this index each UPDATE full-scans a
+    # multi-GB flow table and a big heal day grinds for HOURS (observed live on
+    # the 7/14 re-heal: thread parked in oi_snapshot_router.py:459). One-time
+    # build costs a couple of minutes; IF NOT EXISTS makes it a no-op after.
+    with sqlite3.connect(DB_PATH, timeout=60) as conn:
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_symbol_created "
+                     "ON flow(Symbol, CreatedDate)")
+        conn.commit()
+
     with sqlite3.connect(DB_PATH, timeout=30) as conn:
         sym_rows = conn.execute(
             "SELECT DISTINCT Symbol FROM flow "
