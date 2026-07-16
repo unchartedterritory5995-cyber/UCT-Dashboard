@@ -401,6 +401,18 @@
 @media (prefers-reduced-motion: reduce) {
   .flashUp, .flashDown { animation: none; }
 }
+/* Sunrise: the tick-flash tint matches the dark candle green/red instead of the
+   vivid dark-theme colors. */
+@keyframes themeTickUpSunrise {
+  0%   { background: rgba(10, 92, 34, 0.26); }
+  100% { background: transparent; }
+}
+@keyframes themeTickDownSunrise {
+  0%   { background: rgba(125, 22, 32, 0.24); }
+  100% { background: transparent; }
+}
+:global([data-charts-theme='sunrise']) .flashUp { animation-name: themeTickUpSunrise; }
+:global([data-charts-theme='sunrise']) .flashDown { animation-name: themeTickDownSunrise; }
 
 /* ── Loading / empty states ─────────────────────────────────────────────── */
 .loading {
