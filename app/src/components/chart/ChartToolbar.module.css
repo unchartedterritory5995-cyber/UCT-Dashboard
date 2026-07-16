@@ -4,7 +4,10 @@
   position: absolute;
   left: 4px;
   top: 4px;
-  right: 64px;
+  /* Clear the price scale on the right. LWC sizes it to the widest label in view
+     (4-digit prices + padding run ~72px+), so 64px let the right-side action icons
+     overlap the axis. The .tools row scrolls if the extra reservation crowds it. */
+  right: 84px;
   height: 26px;
   z-index: 5;
   display: flex;
