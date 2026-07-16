@@ -46,6 +46,20 @@ router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 ET = timezone(timedelta(hours=-4))
 
+# Market session bounds, ET minutes-since-midnight. Also duplicated locally in
+# the restart-log endpoint (MARKET_OPEN_ET_HHMM); worth collapsing to these.
+_MARKET_OPEN_ET_MIN = 9 * 60 + 30    # 9:30 ET
+_MARKET_CLOSE_ET_MIN = 16 * 60       # 16:00 ET
+
+
+def _in_market_hours(now_et: datetime = None) -> bool:
+    """True during 9:30-16:00 ET, Mon-Fri. No holiday calendar — on a holiday
+    this returns True, but there's no flow to qualify, so nothing fires."""
+    n = now_et or datetime.now(ET)
+    if n.weekday() >= 5:
+        return False
+    return _MARKET_OPEN_ET_MIN <= (n.hour * 60 + n.minute) < _MARKET_CLOSE_ET_MIN
+
 
 # ─── Tier priority (for convictionScore weighting) ─────────────────────────
 # Lower priority number = higher quality signal. Matches Bullflow taxonomy.
@@ -2888,6 +2902,27 @@ def _pushed_conn():
     return conn
 
 
+def _alert_trading_day(alert: dict) -> str:
+    """The ET trading day an alert belongs to, ISO date. Single = the print's
+    execution date; accumulation = its most recent qualifying hit.
+
+    Derived from the alert's OWN event time, never wall-clock now, so a 10:00 AM
+    print keys to its own day regardless of when the scan that finds it runs.
+
+    2026-07-15 bug this fixes: both call sites used date.today() — the
+    CONTAINER'S UTC date. At 00:06 UTC (8:06 PM ET, still the 7/15 session) the
+    key flipped to 7/16, collided with none of the existing 7/15 claims, and
+    re-fired the whole day's alerts to Discord as duplicates.
+    """
+    ts = alert.get("last_ts") or alert.get("timestamp")
+    try:
+        if ts:
+            return datetime.fromtimestamp(float(ts), tz=ET).date().isoformat()
+    except (TypeError, ValueError, OSError):
+        pass
+    return datetime.now(ET).date().isoformat()
+
+
 def _push_key(alert: dict) -> str:
     """Contract+day identity, so a contract pushed once (manual OR auto, single OR
     accumulation) is recorded/pushed only once."""
@@ -2896,7 +2931,7 @@ def _push_key(alert: dict) -> str:
         str(alert.get("cp", "")).upper(),
         str(alert.get("strike", "")),
         _exp_us(alert.get("exp", "")),
-        str(alert.get("alertDate") or alert.get("_date") or date.today().isoformat()),
+        str(alert.get("alertDate") or alert.get("_date") or _alert_trading_day(alert)),
     ])
 
 
@@ -2912,7 +2947,7 @@ def _record_push(alert: dict, mode: str, source: str) -> bool:
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (_push_key(alert), alert.get("ticker"), alert.get("cp"),
              str(alert.get("strike", "")), _exp_us(alert.get("exp", "")),
-             str(alert.get("alertDate") or alert.get("_date") or date.today().isoformat()),
+             str(alert.get("alertDate") or alert.get("_date") or _alert_trading_day(alert)),
              alert.get("alertPremium") or alert.get("total_premium"),
              alert.get("grade") or alert.get("accumulation_grade"),
              alert.get("_side") or alert.get("side"),
@@ -2957,6 +2992,10 @@ _AUTO_PUSH_CFG = {
     "size_min_premium": 3_000_000,
     "accum_enabled": True,        # push high-conviction accumulations (By-Contract)
     "accum_min_premium": 3_000_000,  # accumulation premium floor
+    # ── Time gates (2026-07-15). Runtime-tunable; both off == prior behaviour.
+    "market_hours_only": True,    # never fire outside 9:30-16:00 ET, Mon-Fri
+    "max_alert_age_sec": 600,     # single: don't fire a print older than 10 min
+    "accum_max_age_sec": 0,       # accumulation: 0 = OFF (see _push_window_ok)
 }
 
 
@@ -2985,6 +3024,51 @@ def _is_repeater(alert: dict) -> bool:
     qualifying_hits>=3 is true repeatability."""
     shape = (alert.get("accumulation_shape") or "").lower()
     return shape in ("steady", "accelerating") and (alert.get("qualifying_hits") or 0) >= 3
+
+
+def _alert_age_sec(alert: dict, mode: str = "single") -> float | None:
+    """Seconds between the alert's own event time and now. None when it carries
+    no usable timestamp — callers ABSTAIN rather than block, since a missing
+    timestamp is a data gap, not evidence of staleness."""
+    ts = alert.get("last_ts") if mode == "accumulation" else alert.get("timestamp")
+    if not ts:
+        ts = alert.get("timestamp") or alert.get("last_ts")
+    try:
+        return time.time() - float(ts)
+    except (TypeError, ValueError, OSError):
+        return None
+
+
+def _push_window_ok(alert: dict, mode: str, cfg: dict) -> bool:
+    """Time-window guards. Independent of alert QUALITY — should_auto_push
+    decides WHAT qualifies, this decides WHEN it may fire.
+
+    Prevents two failures, both from auto-push being scan-triggered (a scan only
+    happens on a page view or a scheduler tick):
+      1) OFF-HOURS FLUSH — 7/15: nothing fired all afternoon (laptop asleep),
+         then a browser opened at 8:06 PM ET and pushed the day's backlog at once.
+      2) IN-SESSION STALE FLUSH — same mechanism inside market hours (asleep
+         10:00-14:00, opened at 14:00 -> 10:00 AM prints fire 4h late). The
+         market-hours gate can't catch that one; the age gate can.
+
+    Still required once the scheduler exists: flow-worker restarted 5x on 7/15,
+    and a scheduler would otherwise flush its own backlog on every boot.
+
+    ACCUMULATION AGE (accum_max_age_sec default 0 = off): a multi-day
+    accumulator's last_ts can legitimately be days old — it's a rollup over a
+    lookback window, so "recent hit" != "recent event". A 10-min gate would block
+    every genuine multi-day build. market_hours_only still covers accumulations.
+    """
+    if cfg.get("market_hours_only", True) and not _in_market_hours():
+        return False
+
+    max_age = (cfg.get("accum_max_age_sec", 0) if mode == "accumulation"
+               else cfg.get("max_alert_age_sec", 600))
+    if max_age:
+        age = _alert_age_sec(alert, mode)
+        if age is not None and age > max_age:
+            return False
+    return True
 
 
 def should_auto_push(alert: dict, cfg: dict = None) -> bool:
@@ -3091,7 +3175,7 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
         if key in pushed:
             a["forwardedToDiscord"] = True
             continue
-        if enabled and should_auto_push(a):
+        if enabled and should_auto_push(a) and _push_window_ok(a, mode, _AUTO_PUSH_CFG):
             if curated_ok is not None and not curated_ok(a):
                 continue   # conviction match, but failed its cap-tier curated floor
             if _record_push(a, mode, "auto"):           # atomic claim
@@ -3108,6 +3192,54 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
                     _unclaim_push(a)
         threading.Thread(target=_fire, args=(list(to_push),), daemon=True).start()
     return alerts
+
+
+# ─── Server-side auto-push scanners (2026-07-15) ──────────────────────────
+# Auto-push was hooked into the scan paths (/recent, /by-contract) because those
+# already produced a classified alert set. The consequence surfaced 7/15: no
+# viewer means no scan means no push. Accumulations were worse — they only ever
+# fired while the By-Contract tab was open.
+#
+# These are called by flow-worker's APScheduler (see flow_worker_main). They
+# reuse the exact scan+push paths the routes use, so there's no second copy of
+# the push logic to drift. Registered ONLY on flow-worker, which owns flow.db
+# and serves /api/live/massive/* — web must NOT run them: the two pods have
+# SEPARATE pushed.db files, so a double scanner would double-post rather than
+# dedup (_record_push's INSERT OR IGNORE only guards within one file).
+
+def auto_push_scan_single():
+    """Timer-driven single-print scan. _compute_recent calls _apply_auto_push
+    internally on the FULL classified set (before the [:limit] trim), so `limit`
+    here doesn't affect what fires — it only bounds the response we discard."""
+    if not _AUTO_PUSH_CFG.get("enabled") or not _in_market_hours():
+        return
+    _compute_recent(_today_mdyyyy(), 500, None, "recent", None, True)
+
+
+def auto_push_scan_accum():
+    """Timer-driven accumulation scan.
+
+    Params mirror what LiveFlowMassive.jsx sends (min_hits=3, lookback_days=3,
+    exclude_algo defaulted True) so the scheduler evaluates the SAME contract set
+    the radar displays. stock_etf="stocks" because should_auto_push excludes
+    source="indexes" outright — scanning them would be pure cost.
+
+    Respects _by_contract_lock (single-flight): if a route-triggered build is
+    already running it will fire the pushes itself, so we skip rather than pay
+    for a second 30s+ rollup. Warms the route cache on success.
+    """
+    if not _AUTO_PUSH_CFG.get("enabled") or not _in_market_hours():
+        return
+    today = _today_mdyyyy()
+    key = (today, "stocks", 3, True, 3)
+    if not _by_contract_lock.acquire(blocking=False):
+        return  # route build in flight; it fires its own pushes
+    try:
+        payload = _build_by_contract(today, "stocks", 3, True, 3)
+        _apply_auto_push(payload.get("contracts", []), mode="accumulation", live=True)
+        _by_contract_cache[key] = (time.time(), payload)
+    finally:
+        _by_contract_lock.release()
 
 
 @router.post("/force-push-discord")
