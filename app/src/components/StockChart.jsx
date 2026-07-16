@@ -1387,6 +1387,10 @@ export default function StockChart({
   // track the current last bar so a live rollover to a NEW bar re-bases the reference.
   const netPrevCloseRef = useRef(null)
   const lastNetCloseRef = useRef(null)
+  // {high,low} of the last bar + the bar before it — for the Sunrise inside-bar check
+  // on the developing (live) bar (setData tracks these inline for historical bars).
+  const lastNetBarRef = useRef(null)
+  const netPrevBarRef = useRef(null)
   const lastNetTimeRef = useRef(null)
   // ── Phase C single-writer invariant (updated each render below the useRealtimeBars
   // call) ── When barsPushActiveRef.current is true, the Massive push writer is the SOLE
@@ -3967,9 +3971,17 @@ export default function StockChart({
         // net-change-up bar is hollow (transparent body + green outline); a
         // net-change-down bar is filled red. Every other theme stays solid.
         const _hollowNet = canvasTheme === 'sunrise'
-        const _paintNet = (bar, prevClose) => {
+        // Sunrise: an INSIDE BAR (its whole range sits within the previous candle's
+        // high–low, wicks included) is painted solid BLACK regardless of direction.
+        const _isInside = (bar, prevBar) => (
+          _hollowNet && prevBar
+          && bar.high != null && bar.low != null && prevBar.high != null && prevBar.low != null
+          && bar.high <= prevBar.high && bar.low >= prevBar.low
+        )
+        const _paintNet = (bar, prevClose, prevBar) => {
           if (!bar || bar.close == null || prevClose == null) return bar
           if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
+          if (_isInside(bar, prevBar)) return { ...bar, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
           const up = bar.close >= prevClose
           const c = up ? _netUp : _netDown
           const body = (_hollowNet && up) ? 'rgba(0,0,0,0)' : c
@@ -3979,12 +3991,14 @@ export default function StockChart({
         const _realUpd = priceSeries.update.bind(priceSeries)
         priceSeries.setData = (data) => {
           if (!Array.isArray(data)) return _realSet(data)
-          let prev = null, lastPrev = null
+          let prev = null, lastPrev = null, prevBar = null, lastPrevBar = null
           const painted = data.map((b) => {
             if (b && b.close != null) {
               lastPrev = prev
-              const out = _paintNet(b, prev)
+              lastPrevBar = prevBar
+              const out = _paintNet(b, prev, prevBar)
               prev = b.close
+              prevBar = { high: b.high, low: b.low }
               return out
             }
             return b
@@ -3992,6 +4006,8 @@ export default function StockChart({
           // Refs the update() wrap reads for the developing bar: prev-of-last & the last bar.
           netPrevCloseRef.current = lastPrev
           lastNetCloseRef.current = prev
+          netPrevBarRef.current = lastPrevBar
+          lastNetBarRef.current = prevBar
           lastNetTimeRef.current = painted.length ? data[data.length - 1]?.time : null
           return _realSet(painted)
         }
@@ -3999,9 +4015,15 @@ export default function StockChart({
           if (!bar || bar.close == null) return _realUpd(bar)
           const isNewBar = lastNetTimeRef.current != null && bar.time > lastNetTimeRef.current
           const prevClose = isNewBar ? lastNetCloseRef.current : netPrevCloseRef.current
-          const out = _paintNet(bar, prevClose)
-          if (isNewBar) { netPrevCloseRef.current = lastNetCloseRef.current; lastNetTimeRef.current = bar.time }
+          const prevBar = isNewBar ? lastNetBarRef.current : netPrevBarRef.current
+          const out = _paintNet(bar, prevClose, prevBar)
+          if (isNewBar) {
+            netPrevCloseRef.current = lastNetCloseRef.current
+            netPrevBarRef.current = lastNetBarRef.current
+            lastNetTimeRef.current = bar.time
+          }
           lastNetCloseRef.current = bar.close
+          lastNetBarRef.current = { high: bar.high, low: bar.low }
           return _realUpd(out)
         }
         priceSeries.__uctNetWrap = true
