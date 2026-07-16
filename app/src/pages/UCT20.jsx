@@ -29,6 +29,30 @@ function fmtPrice(v) {
   return `$${v.toFixed(2)}`
 }
 
+// Earnings proximity — engine ships days_to_earnings only for a CONFIRMED
+// upcoming report (past/unknown dates arrive as null).
+const ER_BADGE_MAX_DAYS = 7   // show the row badge inside this window
+const ER_SOON_DAYS      = 3   // red styling: binary risk a breakout buyer inherits
+
+function earningsInfo(item) {
+  const days = num(item.days_to_earnings)
+  if (days == null || days < 0) return null
+  const session = item.earnings_session === 'BMO' || item.earnings_session === 'AMC'
+    ? item.earnings_session : null
+  let dateLabel = null
+  if (typeof item.earnings_date === 'string' && item.earnings_date.length >= 10) {
+    const d = new Date(`${item.earnings_date}T12:00:00`)
+    if (!Number.isNaN(d.getTime()))
+      dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+  return {
+    days,
+    badge: days === 0 ? 'ER TODAY' : `ER ${days}D`,
+    soon: days <= ER_SOON_DAYS,
+    detail: [dateLabel, session].filter(Boolean).join(' · ') + (dateLabel ? ` (${days === 0 ? 'today' : `${days}d`})` : ''),
+  }
+}
+
 // ── Accurate, deterministic trend / posture tag ───────────────────────────
 // Replaces the old AI-thesis `setup_type` (which was inaccurate). Derived
 // purely from the engine's real computed fields — EMA stack, distance above
@@ -89,6 +113,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
   const company  = item.company ?? ''
   const rating   = num(item.score ?? item.rs_score)
   const tag      = trendTag(item)
+  const earnings = earningsInfo(item)
 
   const livePrice = num(liveData?.price) ?? num(item.price)
   const liveChg   = num(liveData?.change_pct) ?? num(item.change)
@@ -134,6 +159,9 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
           </span>
           {isNew && <span className={styles.newBadge}>NEW</span>}
           {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
+          {earnings && earnings.days <= ER_BADGE_MAX_DAYS && (
+            <span className={`${styles.erBadge} ${earnings.soon ? styles.erBadgeSoon : ''}`}>{earnings.badge}</span>
+          )}
           {company && <span className={styles.companyName}>{company}</span>}
         </span>
         <span className={styles.price}>{fmtPrice(livePrice) ?? '—'}</span>
@@ -197,6 +225,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
               <Stat label="Inst Own" value={num(item.inst_own) != null ? `${num(item.inst_own).toFixed(0)}%` : null} />
               <Stat label="Inst Δ" value={num(item.inst_trans) != null ? `${num(item.inst_trans) >= 0 ? '+' : ''}${num(item.inst_trans).toFixed(1)}%` : null} tone={(num(item.inst_trans) ?? 0) >= 0 ? 'gain' : 'loss'} />
               <Stat label="Short Float" value={num(item.short_flt) != null ? `${num(item.short_flt).toFixed(1)}%` : null} />
+              <Stat label="Earnings" value={earnings?.detail || null} tone={earnings?.soon ? 'loss' : undefined} />
             </div>
           </aside>
         </div>
