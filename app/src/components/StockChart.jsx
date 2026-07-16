@@ -99,6 +99,13 @@ const _dateToMs = (v) => {
   return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
 }
 
+// Date-range presets for the bottom-left range bar (TC2000-style). Value = months
+// back from the newest bar; 'ytd' = since Jan 1 of the newest bar's year. 12M and 1Y
+// are intentionally both present (same ~12-month window) per the requested button set.
+const RANGE_OPTS = [
+  ['3M', 3], ['6M', 6], ['YTD', 'ytd'], ['12M', 12], ['1Y', 12], ['5Y', 60],
+]
+
 // Bars-worth of blank space to render on the LEFT when a framed window's start
 // date predates the earliest loaded bar — e.g. a Setup Library / Model Book
 // example whose frame start is before the stock's IPO (first-ever trading day).
@@ -797,6 +804,7 @@ export default function StockChart({
   overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
   volumePaneHeightPct = null, // override the separate volume pane height (%)
+  showRangeSelector = false, // show the TC2000-style date-range bar (3M/6M/YTD/12M/1Y/5Y) bottom-left, above the volume pane
   onVolumePaneResize = null,  // (pct) => void — fired when the user drags the price/volume separator, so the caller can persist the new height
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
@@ -6598,6 +6606,8 @@ export default function StockChart({
             } catch { /* noop */ }
           },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
+          clearDrawings: () => { try { clearAll?.() } catch { /* noop */ } },
+          hasDrawings: (drawings?.length || 0) > 0,
         })
       } else {
         window.dispatchEvent(new CustomEvent('uct:chart-contextmenu', {
@@ -6989,6 +6999,30 @@ export default function StockChart({
   }, [sym, resolvedTf, replayMode, cs.heikinAshi, cs.chartType, cs.volume.upColor, cs.volume.downColor])
 
   // ── Render ──
+  // Date-range bar (bottom-left, above the volume pane). Reframes the visible window
+  // to the requested price-history span on the CURRENT bars via a date-based cutoff,
+  // so it works precisely on daily (its intended use) and degrades gracefully to
+  // "all available" on shorter-history intraday timeframes.
+  const applyRange = (val) => {
+    try {
+      const ts = chartRef.current?.timeScale()
+      const _bars = filteredBars
+      if (!ts || !_bars || _bars.length < 2) return
+      const lastMs = _dateToMs(_bars[_bars.length - 1].t)
+      if (!Number.isFinite(lastMs)) return
+      const d = new Date(lastMs)
+      const cutoffMs = val === 'ytd'
+        ? Date.UTC(d.getUTCFullYear(), 0, 1)
+        : Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - val, d.getUTCDate())
+      let fromIdx = _bars.findIndex(b => _dateToMs(b.t) >= cutoffMs)
+      if (fromIdx < 0) fromIdx = 0
+      const lastIdx = _bars.length - 1
+      if (lastIdx - fromIdx < 1) return
+      ts.setVisibleLogicalRange({ from: fromIdx, to: lastIdx + (rightPadBars || 3) })
+    } catch { /* noop */ }
+  }
+  const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
+
   return (
     <div className={`${styles.wrapper} ${className}`} style={{ height }}>
       {replayMode && sessionBars?.length > 0 && (
@@ -7389,6 +7423,19 @@ export default function StockChart({
           <svg width="22" height="10" viewBox="0 0 22 10" style={{ display: 'block' }}>
             <path d="M6 1 L2 5 L6 9 M16 1 L20 5 L16 9" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
+        </div>
+      )}
+      {showRangeSelector && chartReady && filteredBars?.length > 1 && (
+        <div className={styles.rangeBar} style={{ bottom: `calc(${_rangeVolPct}% + 30px)` }}>
+          {RANGE_OPTS.map(([label, val], i) => (
+            <button
+              key={label + i}
+              type="button"
+              className={styles.rangeBtn}
+              title={`Show ${label} of price history`}
+              onClick={() => applyRange(val)}
+            >{label}</button>
+          ))}
         </div>
       )}
       {bars?.length > 0 && (

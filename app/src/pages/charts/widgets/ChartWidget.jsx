@@ -201,7 +201,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     const y = Math.min(p.clientY, window.innerHeight - 190)
     setCtxMenu({ x: Math.max(6, x), y: Math.max(6, y), rawX: p.clientX, rawY: p.clientY,
       price: p.clickPrice, bar: p.bar, currentPrice: p.currentPrice,
-      resetView: p.resetView, openSettings: p.openSettings })
+      resetView: p.resetView, openSettings: p.openSettings,
+      clearDrawings: p.clearDrawings, hasDrawings: p.hasDrawings })
   }, [])
 
   useEffect(() => {
@@ -384,6 +385,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           rightPadBars={6}
           dailyDefaultBars={126}
           volumeSeparatePane
+          showRangeSelector
           volumePaneHeightPct={volPanePct}
           onVolumePaneResize={handleVolPaneResize}
           priceScaleTopMargin={0.12}
@@ -420,6 +422,11 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.openSettings?.(); closeCtx() }}>
               <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
             </button>
+            {ctxMenu.hasDrawings && (
+              <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
+                <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
+              </button>
+            )}
             {ctxMenu.bar && (
               <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
                 <UIcon name="sparkle" size={14} className={styles.chartCtxIcon} />AI search this bar
