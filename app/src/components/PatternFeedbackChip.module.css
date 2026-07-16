@@ -2,6 +2,11 @@
   display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;
   font-size: 11px; color: var(--text-muted, #706b5e);
 }
+/* Phone: the admin-only feedback chip crowds dense table rows (scanner results)
+   and squeezes the ticker cell — it's a desk-side curation tool, hide it. */
+@media (max-width: 640px) {
+  .chip { display: none; }
+}
 .compact { gap: 2px; }
 .btn {
   background: transparent; border: 1px solid var(--border, #2e3127); border-radius: 6px;
