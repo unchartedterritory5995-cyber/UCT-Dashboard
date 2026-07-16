@@ -192,6 +192,25 @@
   font-weight: 600;
 }
 
+/* ── TSDR — Sunrise: legend box + chart chrome on the bright canvas ─────────── */
+:global([data-charts-theme='sunrise']) .legend {
+  background: rgba(250, 250, 243, 0.9);   /* soft off-white — stands out on the gradient without being stark */
+  color: #33404f;
+  box-shadow: 0 1px 5px rgba(20, 35, 55, 0.14);
+}
+:global([data-charts-theme='sunrise']) .legendTime,
+:global([data-charts-theme='sunrise']) .legendLabel { color: #55606e; }
+:global([data-charts-theme='sunrise']) .legendVal { color: #1c2836; }
+:global([data-charts-theme='sunrise']) .legendUp { color: #0a5c22; }
+:global([data-charts-theme='sunrise']) .legendDown { color: #7d1620; }
+:global([data-charts-theme='sunrise']) .wrapper { background: #eef4ea; }
+:global([data-charts-theme='sunrise']) .rangeBar {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(20, 45, 75, 0.16);
+}
+:global([data-charts-theme='sunrise']) .rangeBtn { color: #47525f; }
+:global([data-charts-theme='sunrise']) .rangeBtn:hover { color: #1c2836; background: rgba(20, 45, 75, 0.08); }
+
 /* Charts workspace: stack the OHLCV legend single-file down the left as a
    two-column table (label left, value right-aligned), dropped below the toolbar.
    Fixed width pushes every value to the same right edge (TC2000-style). */

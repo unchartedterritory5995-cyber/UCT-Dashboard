@@ -540,7 +540,11 @@ const BOLD_DOWN = '#f23645'
 // no other chart on the site is touched.
 const MB_UP = '#1ae51a'      // pure vivid TC2000 spring-green (low blue → really pops)
 const MB_DOWN = '#c41f2d'    // deep darker red
-const SUNRISE_UP = '#0b8f2f' // darker, saturated green for the Sunrise LIGHT theme — the vivid MB_UP washes out on the bright canvas
+const SUNRISE_UP = '#0a5c22'   // very dark green for the Sunrise LIGHT theme (candles + volume)
+const SUNRISE_DOWN = '#7d1620' // very dark red for the Sunrise LIGHT theme (candles + volume)
+// Continuous sky gradient painted on the chart CONTAINER (behind a transparent LWC
+// canvas) so it flows unbroken through the price pane AND the volume pane.
+const SUNRISE_GRADIENT = 'linear-gradient(to bottom, #cbe6f7 0%, #e6eede 52%, #fbf1c9 100%)'
 const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the canvas blends with the rest of the screen
 const MB_UP_RGB = '26,229,26', MB_DOWN_RGB = '196,31,45'
 const VOL_MA_COLOR = 'rgba(255,255,255,0.45)'   // volume-pane MA line (subtle white)
@@ -895,6 +899,7 @@ export default function StockChart({
   // Effective candle/volume up-green: darkened for the Sunrise light theme so it
   // stands out on the bright canvas; the normal vivid MB_UP everywhere else.
   const mbUp = canvasTheme === 'sunrise' ? SUNRISE_UP : MB_UP
+  const mbDown = canvasTheme === 'sunrise' ? SUNRISE_DOWN : MB_DOWN
 
   // ── Theme colors (light / dark) layered over user chart settings ──
   // Returns layout/grid/crosshair/candle colors based on cs.theme. Used in
@@ -904,14 +909,14 @@ export default function StockChart({
       // TSDR — Sunrise: a light sky-gradient canvas (blue top → sun-yellow bottom),
       // dark ink for text/scales, faint grid. Candles KEEP the current green/red.
       return {
-        background: '#eaf3fb',   // solid fallback (also the crosshair label bg)
-        backgroundGradient: { top: '#c9e4f6', bottom: '#fbf1c9' },
+        background: '#eaf3fb',    // crosshair axis-label background (solid, light)
+        layoutTransparent: true,  // canvas transparent → the container's CSS sky-gradient shows through unbroken across BOTH panes
         textColor: '#243040',
         gridColor: 'transparent',   // no grid lines on the Sunrise theme
         borderColor: 'rgba(20,35,55,0.22)',
         crosshairColor: '#586573',
         candleUp: boldCandles ? mbUp : cs.candles?.upColor,
-        candleDown: boldCandles ? MB_DOWN : cs.candles?.downColor,
+        candleDown: boldCandles ? mbDown : cs.candles?.downColor,
       }
     }
     if (cs.theme === 'light') {
@@ -2665,7 +2670,7 @@ export default function StockChart({
   const sessionTagLines = useMemo(() => {
     if (!sessionTagsActive || !filteredBars?.length) return null
     const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
-    const effDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.candles.downColor
+    const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
     return computeSessionTagLines({
       rthBars: filteredBars, session: marketSession, extPrice: sessionExtPrice,
       upColor: effUp, downColor: effDown, extColor: SESSION_EXT_COLOR,
@@ -2681,7 +2686,7 @@ export default function StockChart({
     const prevClose = Number.isFinite(_sessionLive.prev_close) && _sessionLive.prev_close > 0 ? _sessionLive.prev_close : null
     const extPx = sessionExtPrice
     const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
-    const effDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.candles.downColor
+    const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
     const lines = []
     if (prevClose != null) {
       // Colour the prev-close tag by where pre/post price sits vs it (green when the
@@ -2884,7 +2889,7 @@ export default function StockChart({
     // volume pane matches the red/green of the candles above it (a dimmed alpha
     // composites darker over the near-black canvas and reads as a mismatched hue).
     const upC = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-    const downC = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+    const downC = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
     const gold = '#e6b800'
     return sessionAppliedBars.map((b, i) => {
       // Up/down follows the SAME rule as the candles: net change (close vs the
@@ -3480,7 +3485,7 @@ export default function StockChart({
         // Full-opacity default color (same derivation as volData) — the developing
         // bar matches the closed bars instead of a lighter tint.
         const _vUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-        const _vDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+        const _vDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
         volumeSeriesRef.current.update({
           time: tSec,
           value: data.bar.v,
@@ -3695,9 +3700,11 @@ export default function StockChart({
     // ── Create or update chart instance ──
     const chartOpts = {
       layout: {
-        background: themeColors.backgroundGradient
-          ? { type: ColorType.VerticalGradient, topColor: themeColors.backgroundGradient.top, bottomColor: themeColors.backgroundGradient.bottom }
-          : { type: ColorType.Solid, color: themeColors.background },
+        background: themeColors.layoutTransparent
+          ? { type: ColorType.Solid, color: 'rgba(255,255,255,0)' }   // transparent → container gradient shows through (continuous across panes)
+          : themeColors.backgroundGradient
+            ? { type: ColorType.VerticalGradient, topColor: themeColors.backgroundGradient.top, bottomColor: themeColors.backgroundGradient.bottom }
+            : { type: ColorType.Solid, color: themeColors.background },
         textColor: themeColors.textColor,
         fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 10,
@@ -3848,7 +3855,8 @@ export default function StockChart({
     // When swapping the candle series, the markers controller is bound to the
     // old series — detach it so the next markers update creates a fresh
     // controller against the new series.
-    if (prevChartTypeRef.current !== cs.chartType && candleSeriesRef.current) {
+    const _priceStyleKey = `${cs.chartType || 'candles'}|${canvasTheme || ''}`
+    if (prevChartTypeRef.current !== _priceStyleKey && candleSeriesRef.current) {
       try { chart.removeSeries(candleSeriesRef.current) } catch {}
       candleSeriesRef.current = null
       try { markersControllerRef.current?.detach?.() } catch {}
@@ -3904,8 +3912,14 @@ export default function StockChart({
         // Model Book (boldCandles) gets the punchier TC2000 palette (vivid green
         // / deep red); the intraday popup (modelBookLook) keeps the base bold one.
         const _bUp = boldCandles ? mbUp : BOLD_UP
-        const _bDown = boldCandles ? MB_DOWN : BOLD_DOWN
-        const _bold = (boldCandles || modelBookLook) ? {
+        const _bDown = boldCandles ? mbDown : BOLD_DOWN
+        const _bold = canvasTheme === 'sunrise' ? {
+          // Sunrise default = HOLLOW candles (TC2000 look): up = hollow body + dark
+          // green outline; down = filled dark red. Same palette as the volume bars.
+          upColor: 'rgba(0,0,0,0)', downColor: mbDown,
+          borderVisible: true, borderUpColor: mbUp, borderDownColor: mbDown,
+          wickUpColor: mbUp, wickDownColor: mbDown,
+        } : (boldCandles || modelBookLook) ? {
           upColor: _bUp, downColor: _bDown,
           borderVisible: false,                       // pure solid bodies (TC2000 look)
           wickUpColor: _bUp, wickDownColor: _bDown,
@@ -3927,9 +3941,9 @@ export default function StockChart({
       // are left untouched). Candles + OHLC bars only (line/area/hollow have no net-change
       // notion). Same up/down palette the series itself uses so it looks identical apart
       // from the coloring rule.
-      if (colorByNetChange && (cs.chartType === 'candles' || cs.chartType === 'bars') && !priceSeries.__uctNetWrap) {
+      if (colorByNetChange && canvasTheme !== 'sunrise' && (cs.chartType === 'candles' || cs.chartType === 'bars') && !priceSeries.__uctNetWrap) {
         const _netUp = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
-        const _netDown = boldCandles ? MB_DOWN : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
+        const _netDown = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
         const _paintNet = (bar, prevClose) => {
           if (!bar || bar.close == null || prevClose == null) return bar
           if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
@@ -3967,7 +3981,7 @@ export default function StockChart({
         }
         priceSeries.__uctNetWrap = true
       }
-      prevChartTypeRef.current = cs.chartType
+      prevChartTypeRef.current = _priceStyleKey
     }
 
     // Set price data. The separate gold-recolor effect below re-applies the
@@ -4041,7 +4055,7 @@ export default function StockChart({
             const _upD = _prevCD != null ? (lb.close >= _prevCD) : (lb.close >= lb.open)
             // Full-opacity default color (same derivation as volData) — no lighter tint.
             const _vUpD = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-            const _vDownD = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            const _vDownD = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             volumeSeriesRef.current.update({
               time: lb.time, value: lb.volume,
               color: _upD ? _vUpD : _vDownD,
@@ -6959,7 +6973,7 @@ export default function StockChart({
             // match the candle palette (same derivation as volData) so the
             // developing bar's volume color matches the historical bars
             const _vUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-            const _vDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            const _vDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             const _pbC = prevBarsRef.current
             const _prevCC = colorByNetChange && _pbC && _pbC.length >= 2 ? _pbC[_pbC.length - 2].c : null
             const _upC = _prevCC != null ? (candle.c >= _prevCC) : (candle.c >= candle.o)
@@ -7108,7 +7122,12 @@ export default function StockChart({
       <div
         ref={containerRef}
         className={styles.chart}
-        style={{ display: (showFatalError || selectedRangeEmpty) ? 'none' : 'block' }}
+        style={{
+          display: (showFatalError || selectedRangeEmpty) ? 'none' : 'block',
+          // Sunrise: paint the continuous sky gradient here, BEHIND the transparent
+          // LWC canvas, so it flows unbroken through the price + volume panes.
+          background: canvasTheme === 'sunrise' ? SUNRISE_GRADIENT : undefined,
+        }}
       />
       {/* ── Dark Pool volume profile bars — uses series.priceToCoordinate() to
           stay aligned with candles at any zoom/pan level. Updates every frame
