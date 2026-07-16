@@ -811,6 +811,7 @@ export default function StockChart({
   volumePaneHeightPct = null, // override the separate volume pane height (%)
   showRangeSelector = false, // show the TC2000-style date-range bar (3M/6M/YTD/12M/1Y/5Y) bottom-left, above the volume pane
   canvasTheme = null,        // workspace chart-theme override: 'sunrise' = light gradient canvas (keeps green/red candles); null = the normal dark canvas
+  showSma5 = false,          // workspace: add a faint 5-period SMA overlay (legend included). Very low-opacity so it's barely visible.
   onVolumePaneResize = null,  // (pct) => void — fired when the user drags the price/volume separator, so the caller can persist the new height
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
@@ -1221,8 +1222,16 @@ export default function StockChart({
   // Volume in its own pane (no bottom band reserved on the price scale).
   const volInSeparatePane = volumeSeparatePane || !!cs.volume?.separatePane
   const resolvedOverlays = useMemo(
-    () => overlaysProp !== undefined ? overlaysProp : cs.overlays.filter(o => o.enabled),
-    [overlaysProp, cs.overlays]
+    () => {
+      const base = overlaysProp !== undefined ? overlaysProp : cs.overlays.filter(o => o.enabled)
+      if (!showSma5 || base.some(o => o.type === 'SMA' && Number(o.period) === 5)) return base
+      // A very faint 5-SMA (barely visible). Dark on the light Sunrise canvas, light on
+      // the dark canvas — either way just a whisper of a line. Appended so it's included
+      // in the legend + line rendering like any other overlay.
+      const sma5 = { enabled: true, type: 'SMA', period: 5, color: canvasTheme === 'sunrise' ? 'rgba(0,0,0,0.24)' : 'rgba(255,255,255,0.16)' }
+      return [...base, sma5]
+    },
+    [overlaysProp, cs.overlays, showSma5, canvasTheme]
   )
 
   const containerRef = useRef(null)
@@ -2931,7 +2940,7 @@ export default function StockChart({
             : isUp ? upC : downC,
       }
     })
-  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange])
+  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme])
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
   // re-tint effect lives AFTER updateChart (below) so its setData wins over

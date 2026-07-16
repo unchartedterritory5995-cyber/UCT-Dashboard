@@ -390,6 +390,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           dailyDefaultBars={126}
           volumeSeparatePane
           showRangeSelector
+          showSma5
           canvasTheme={chartsTheme === 'sunrise' ? 'sunrise' : null}
           volumePaneHeightPct={volPanePct}
           onVolumePaneResize={handleVolPaneResize}
