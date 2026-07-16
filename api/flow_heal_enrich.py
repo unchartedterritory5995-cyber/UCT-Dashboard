@@ -342,11 +342,62 @@ def run_oi_backfill(target_mdy: str, max_stale_days: int = None) -> dict:
     stats["stale_contracts"] = (
         stats["snapshot_contracts_matched"] - stats["exact_date_contracts"])
 
-    from api.oi_snapshot_router import _backfill_flow_oi
-    resolved = [(ck, oi, "heal-enrich")
-                for ck, (_sd, oi) in snap_by_key.items()]
-    stats["rows_updated"] = _backfill_flow_oi(resolved, target_date=target_mdy)
+    stats["rows_updated"] = _apply_oi_setbased(snap_by_key, target_mdy)
     return stats
+
+
+def _apply_oi_setbased(snap_by_key: dict, target_mdy: str) -> int:
+    """Write resolved OI onto empty-OI flow rows in ONE statement.
+
+    The router's _backfill_flow_oi issues one UPDATE per contract × strike/exp
+    string variant — ~3M statements for a 142k-contract heal day, which ground
+    for hours even indexed (observed live, 7/14 re-heal). Instead: explode the
+    same candidate variants into an indexed TEMP table and let a single
+    UPDATE ... WHERE EXISTS sweep the day once."""
+    rows = []
+    for ck, (_sd, oi) in snap_by_key.items():
+        try:
+            sym, cp_letter, strike_s, exp = ck.split("|", 3)
+            strike = float(strike_s)
+        except (ValueError, AttributeError):
+            continue
+        cp = "CALL" if cp_letter == "C" else "PUT"
+        strikes = {str(strike), "%g" % strike, f"{strike:.1f}", f"{strike:.2f}"}
+        if strike == int(strike):
+            strikes.add(str(int(strike)))
+            strikes.add(f"{int(strike)}.0")
+        exps = {exp}
+        try:
+            m, d, y = exp.split("/")
+            exps.add(f"{int(m):02d}/{int(d):02d}/{y}")
+            exps.add(f"{int(m)}/{int(d)}/{y}")
+            exps.add(f"{y}-{int(m):02d}-{int(d):02d}")
+        except ValueError:
+            pass
+        for s in strikes:
+            for e in exps:
+                rows.append((sym, cp, s, e, int(oi)))
+
+    with sqlite3.connect(DB_PATH, timeout=60) as conn:
+        conn.execute("DROP TABLE IF EXISTS temp._heal_oi")
+        conn.execute(
+            "CREATE TEMP TABLE _heal_oi ("
+            "sym TEXT, cp TEXT, strike TEXT, exp TEXT, oi INTEGER, "
+            "PRIMARY KEY (sym, cp, strike, exp)) WITHOUT ROWID")
+        conn.executemany(
+            "INSERT OR IGNORE INTO _heal_oi VALUES (?,?,?,?,?)", rows)
+        cur = conn.execute(
+            "UPDATE flow SET OI = CAST((SELECT t.oi FROM _heal_oi t "
+            "  WHERE t.sym = flow.Symbol AND t.cp = flow.CallPut "
+            "    AND t.strike = flow.Strike AND t.exp = flow.ExpirationDate) AS TEXT) "
+            "WHERE CreatedDate = ? AND (OI = '0' OR OI = '' OR OI IS NULL) "
+            "  AND EXISTS (SELECT 1 FROM _heal_oi t "
+            "  WHERE t.sym = flow.Symbol AND t.cp = flow.CallPut "
+            "    AND t.strike = flow.Strike AND t.exp = flow.ExpirationDate)",
+            (target_mdy,))
+        updated = cur.rowcount
+        conn.commit()
+    return updated
 
 
 # ── Step 4: classification parity (the honesty check) ────────────────────
