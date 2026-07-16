@@ -45,14 +45,24 @@ export default function BrokerConnectionsCard() {
     ;(async () => {
       setBusy(true)
       try {
-        await fetch('/api/j2/broker/accounts/refresh', {
+        const rr = await fetch('/api/j2/broker/accounts/refresh', {
           method: 'POST', credentials: 'include',
         })
-        // First connect → full historical backfill; show what landed.
-        const r = await fetch('/api/j2/broker/sync?full=1', { method: 'POST', credentials: 'include' })
-        if (r.ok) setSyncResult(summarizeSync(await r.json()))
+        if (!rr.ok) {
+          const d = await rr.json().catch(() => ({}))
+          setError(d.detail || 'Could not import your accounts — try reconnecting.')
+        } else {
+          // First connect → full historical backfill; show what landed.
+          const r = await fetch('/api/j2/broker/sync?full=1', { method: 'POST', credentials: 'include' })
+          if (r.ok) {
+            setSyncResult(summarizeSync(await r.json()))
+          } else {
+            const d = await r.json().catch(() => ({}))
+            setError(d.detail || 'Your accounts connected but the first import failed — click "Sync now" to retry.')
+          }
+        }
       } catch {
-        /* surfaced via status reload below */
+        setError('Your connection finished but the first import failed — click "Sync now" to retry.')
       }
       params.delete('broker')
       const qs = params.toString()
@@ -106,7 +116,12 @@ export default function BrokerConnectionsCard() {
       // after the first sync, e.g. options); force=1 also bypasses the cooldown.
       const url = full ? '/api/j2/broker/sync?full=1&force=1' : '/api/j2/broker/sync'
       const r = await fetch(url, { method: 'POST', credentials: 'include' })
-      if (r.ok) setSyncResult(summarizeSync(await r.json()))
+      if (r.ok) {
+        setSyncResult(summarizeSync(await r.json()))
+      } else {
+        const d = await r.json().catch(() => ({}))
+        setError(d.detail || 'Sync failed — try again shortly.')
+      }
     } catch {
       setError('Sync failed — try again shortly.')
     }

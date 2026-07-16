@@ -202,3 +202,18 @@ def test_not_configured(monkeypatch):
     assert sc.is_configured() is False
     with pytest.raises(sc.SnapNotConfigured):
         sc._sdk()
+
+
+# ── error message carries the SnapTrade body (prod diagnosability) ───────────
+
+def test_auth_error_message_carries_code_and_detail():
+    # Prod 2026-07-14: a bare "SnapTrade API error 401: Unauthorized" was
+    # undiagnosable. The mapped message must include the response body's
+    # code + detail when present so sync_log errors are actionable.
+    e = _api_exc(401, body={"code": "1234", "detail": "Signature invalid"},
+                 reason="Unauthorized")
+    err = sc._map_api_exception(e)
+    assert isinstance(err, sc.SnapAuthError)
+    s = str(err)
+    assert "1234" in s
+    assert "Signature invalid" in s

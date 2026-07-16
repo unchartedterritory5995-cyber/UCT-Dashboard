@@ -15,6 +15,7 @@ and corrections heal (Phase 5) build on this.
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 import uuid
 from datetime import datetime, timezone, date, timedelta
 from typing import Any
@@ -38,6 +39,12 @@ _MAX_PAGES = 1000  # safety cap (≈1M activities)
 
 WARMING_WINDOW_HOURS = 2
 WARMING_STABLE_TICKS = 2  # consecutive no-growth ticks before warming stops
+
+# Backoff delays (seconds) after a transient SQLite "database is locked" —
+# auth.db write contention on the single web pod (prod 2026-07-13/15: one
+# member's scheduled syncs failed every cycle with no retry). _do_sync is
+# idempotent (stable external_ids), so re-running it whole is safe.
+_LOCKED_RETRY_DELAYS = (1.0, 3.0)
 
 
 class BrokerAccountNotFound(Exception):
@@ -147,7 +154,15 @@ async def sync_account(user_id: str, broker_account_id: str, *,
         if ba and _within_cooldown(ba, cooldown_seconds):
             return {"skipped": "cooldown", "lastSyncAt": ba.get("lastSyncAt")}
     async with _lock_for(broker_account_id):
-        return await _do_sync(user_id, broker_account_id, full=full)
+        attempts = 1 + len(_LOCKED_RETRY_DELAYS)
+        for attempt in range(attempts):
+            try:
+                return await _do_sync(user_id, broker_account_id, full=full)
+            except sqlite3.OperationalError as e:
+                if "locked" not in str(e).lower() or attempt == attempts - 1:
+                    raise
+                await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt])
+        raise RuntimeError("unreachable")  # loop always returns or raises
 
 
 async def sync_all_for_user(user_id: str, *, full: bool = False,
@@ -367,6 +382,16 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                                    error="SnapTrade user secret invalid — reconnect required")
             connections.record_sync_result(user_id, broker_account_id, ok=False,
                                             error="user secret invalid")
+            raise
+        except snap.SnapAuthError as e:
+            # Generic 401/403 (no secret-invalid code in the body — prod
+            # 2026-07-14 shape). Still user-actionable: mark broken so the UI
+            # shows "Reconnect needed" (connect auto-recovers by re-registering).
+            # A later successful sync flips status back to active, so even a
+            # transient partner-wide auth blip self-heals.
+            connections.set_status(user_id, broker_account_id, "broken",
+                                   error=f"SnapTrade rejected this connection — reconnect required ({e})")
+            connections.record_sync_result(user_id, broker_account_id, ok=False, error=str(e))
             raise
         except snap.SnapError as e:
             connections.record_sync_result(user_id, broker_account_id, ok=False, error=str(e))

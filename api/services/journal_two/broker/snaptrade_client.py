@@ -191,6 +191,14 @@ def _map_api_exception(e: Any) -> SnapError:
     body = _to_plain(raw_body) if raw_body is not None else None
     code = _body_code(body)
     msg = f"SnapTrade API error {status}: {getattr(e, 'reason', '') or ''}".strip()
+    # Carry the response body's code/detail into the message — a bare
+    # "401: Unauthorized" in sync_log is undiagnosable (prod 2026-07-14).
+    if code is not None:
+        msg += f" (code {code})"
+    if isinstance(body, dict):
+        detail = body.get("detail") or body.get("message")
+        if detail:
+            msg += f" — {str(detail)[:200]}"
 
     if status == 429:
         retry_after = None

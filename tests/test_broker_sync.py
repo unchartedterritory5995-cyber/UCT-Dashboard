@@ -214,6 +214,62 @@ async def test_secret_invalid_marks_broken(env):
 
 
 @pytest.mark.asyncio
+async def test_generic_auth_error_marks_broken(env):
+    # A 401 WITHOUT the secret-invalid code (no body / generic reason) — the
+    # real-world shape from prod 2026-07-14 — must still flag the connection
+    # broken so the UI shows "Reconnect needed" instead of silently failing.
+    def boom(**kw):
+        e = ApiException(status=401, reason="Unauthorized")
+        e.body = None
+        e.headers = {}
+        raise e
+    snap.configure(_Group(account_information=_Group(get_account_activities=boom)))
+    with pytest.raises(snap.SnapAuthError):
+        await sync.sync_account("u1", env["ba_id"])
+    ba = connections.get_broker_account("u1", env["ba_id"])
+    assert ba["status"] == "broken"
+    assert ba["lastSyncStatus"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_sync_retries_when_database_locked(env, monkeypatch):
+    # A transient SQLite "database is locked" (auth.db write contention on the
+    # single web pod) must not fail the sync outright — retry the idempotent
+    # _do_sync and succeed on the second attempt.
+    import sqlite3
+    real = activities_store.store_activities
+    state = {"n": 0}
+
+    def flaky(*a, **kw):
+        state["n"] += 1
+        if state["n"] == 1:
+            raise sqlite3.OperationalError("database is locked")
+        return real(*a, **kw)
+
+    monkeypatch.setattr(activities_store, "store_activities", flaky)
+    monkeypatch.setattr(sync, "_LOCKED_RETRY_DELAYS", (0.0,), raising=False)
+    out = await sync.sync_account("u1", env["ba_id"])
+    assert out["imported"] == 2
+    assert state["n"] == 2
+    ba = connections.get_broker_account("u1", env["ba_id"])
+    assert ba["lastSyncStatus"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_sync_locked_exhausted_still_raises(env, monkeypatch):
+    # Persistent lock (not transient) → retries exhaust → error surfaces.
+    import sqlite3
+
+    def always_locked(*a, **kw):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(activities_store, "store_activities", always_locked)
+    monkeypatch.setattr(sync, "_LOCKED_RETRY_DELAYS", (0.0,), raising=False)
+    with pytest.raises(sqlite3.OperationalError):
+        await sync.sync_account("u1", env["ba_id"])
+
+
+@pytest.mark.asyncio
 async def test_sync_log_written(env):
     await sync.sync_account("u1", env["ba_id"])
     conn = auth_db.get_connection()
