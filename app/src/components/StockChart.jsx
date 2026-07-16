@@ -2361,6 +2361,56 @@ export default function StockChart({
     []
   )
 
+  // Extend the MA overlays out to the developing/live bar so they NEVER lag behind
+  // the live candle. The live writers advance the candle series tick-by-tick (and
+  // roll it into new buckets), but overlayData is a memo over the FETCHED bars, so
+  // between SWR refreshes the MA line stopped a few bars short of the newest candle
+  // (user report: "moving averages should always extend to current bar"). Given the
+  // developing bar (tSec, close c), recompute each overlay's value AT that bar and
+  // update()/append its series point. EXACT for both SMA (mean of the last `period`
+  // closes ending at the live bar) and EMA (one recurrence step from the prior bar's
+  // stored EMA) — no windowed approximation, so it lands exactly where the next full
+  // recompute will. Cheap: O(overlays × period) per tick, no full-series walk. Shared
+  // by every live writer (A Finnhub tick + B Massive push) so the MA tracks the
+  // developing bar regardless of which feed owns it.
+  const _extendOverlaysLive = useCallback((tSec, c) => {
+    const defs = resolvedOverlaysRef.current
+    const ovAll = overlayDataRef.current
+    const series = overlaySeriesRefs.current
+    const bars = prevBarsRef.current
+    if (!defs || !defs.length || !ovAll || !series || !series.length || !bars || !bars.length) return
+    if (!Number.isFinite(c)) return
+    const sameBucket = adjustTime(bars[bars.length - 1].t) === tSec
+    for (let i = 0; i < series.length && i < defs.length; i++) {
+      const def = defs[i]
+      const period = def ? Number(def.period) : NaN
+      if (!series[i] || !(period > 0)) continue
+      let val = null
+      if (def.type === 'EMA') {
+        const arr = ovAll[i]?.data
+        // Prior bar's EMA: the point before the developing bar (same bucket → its
+        // stored point is the stale developing value, so step from the one before),
+        // or the last stored point (a brand-new bucket).
+        const priorIdx = (arr?.length || 0) - (sameBucket ? 2 : 1)
+        const prior = priorIdx >= 0 ? arr[priorIdx]?.value : null
+        if (prior != null && Number.isFinite(prior)) {
+          const k = 2 / (period + 1)
+          val = c * k + prior * (1 - k)
+        }
+      } else {
+        // SMA: mean of the last `period` closes ENDING at the developing bar (live
+        // close = the tail value; skip the stale developing bar when same-bucket).
+        let sum = c, cnt = 1
+        let j = bars.length - (sameBucket ? 2 : 1)
+        while (j >= 0 && cnt < period) { sum += bars[j].c; cnt++; j-- }
+        if (cnt === period) val = sum / period
+      }
+      if (val != null && Number.isFinite(val)) {
+        try { series[i].update({ time: tSec, value: val }) } catch { /* time regressed / disposed */ }
+      }
+    }
+  }, [adjustTime])
+
   // Filter bars to regular session only when extended hours hidden
   const sessionBars = useMemo(() => {
     if (!bars || !isIntraday || showExtended) return bars
@@ -3412,6 +3462,7 @@ export default function StockChart({
           const _vUpN = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
           volumeSeriesRef.current.update({ time: barTime, value: 0, color: _vUpN })
         }
+        _extendOverlaysLive(barTime, price)
       } else {
         // ── SAME CANDLE (decision.kind === 'update') ──
         // The "new D/W/M day without confirmed session" case is now handled by
@@ -3441,11 +3492,12 @@ export default function StockChart({
         // Volume: don't override — let API-provided volume stand (refreshes every 15s)
         // The API has accurate per-bar volume; live delta calculations are unreliable
         lastBarRef.current = { ...updated, volume: last.volume }
+        _extendOverlaysLive(last.time, price)
       }
     } catch (e) {
       if (e?.message) console.warn('[StockChart] live update error:', e.message)
     }
-  }, [livePrices, sym, resolvedTf, cs.chartType, replayMode])
+  }, [livePrices, sym, resolvedTf, cs.chartType, replayMode, _extendOverlaysLive])
 
   // Real-time bar streaming (Phase 4) — Massive AM events.
   // 60-min was added 2026-05-22 once the backend rollup adopted the canonical
@@ -3556,11 +3608,13 @@ export default function StockChart({
       // volume until the next AM push — a volume flicker every SWR poll, retro-audit #5).
       liveBarRef.current = { time: tSec, open: _oB, high: _hB, low: _lB, close: c, volume: data.bar.v }
       lastBarRef.current = { time: tSec, open: _oB, high: _hB, low: _lB, close: c, volume: data.bar.v }
+      // Drag the MA overlays out to this developing bar (see _extendOverlaysLive).
+      _extendOverlaysLive(tSec, c)
     } catch {
       // lightweight-charts throws if `time` regresses below the series' last bar.
       // Silently ignore — out-of-order frames are rare and self-correct on next bar.
     }
-  }, [cs.chartType, sym, resolvedTf, replayMode])
+  }, [cs.chartType, sym, resolvedTf, replayMode, _extendOverlaysLive])
 
   const onRealtimeReconnect = useCallback((lastBarT) => {
     // Gap-backfill on reconnect — uses the existing `since` param of /api/bars.
@@ -4969,6 +5023,18 @@ export default function StockChart({
         // is clamped to the NEW data extent while oldBarCount is the OLD tf's count, so that
         // ratio is garbage when the two tfs have different bar counts — it snapped the chart
         // to the middle (SMH 1H bug).
+        const _w = oldRange ? (oldRange.to - oldRange.from) : null
+        pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
+      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange) {
+        // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
+        // new ticker's bars arrive in PHASES (IDB cache → network → older-history
+        // backfill), each a separate updateChart commit with a DIFFERENT bar count.
+        // The keepPresent branch below frames the FIRST phase correctly, but later
+        // phases were left to a fragile "was the user viewing latest" heuristic that
+        // misjudged across tickers of different length — so the chart loaded correct
+        // for ~0.5s then drifted to the middle (SNDK 5m bug). Reuse the exact TF-switch
+        // mechanism: hold the outgoing zoom width and let the settling-guard re-assert
+        // newest-at-LAST_CANDLE_POS on EVERY commit until the bar count stops changing.
         const _w = oldRange ? (oldRange.to - oldRange.from) : null
         pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
       }
