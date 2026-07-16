@@ -255,8 +255,12 @@ def _start_flow_schedulers():
                     _init_dealer_positioning()
                 except Exception as _de:  # noqa: BLE001
                     log.warning("dealer_positioning init failed: %s", _de)
+                # timezone EXPLICIT (2026-07-16): a pre-built CronTrigger defaults
+                # to server-local UTC, not the scheduler's ET — this fired at
+                # 1:30 AM ET, where it collided with overnight heal write-locks.
                 sched.add_job(daily_snapshot_job,
-                              trigger=_OICron(day_of_week="mon-fri", hour=5, minute=30),
+                              trigger=_OICron(day_of_week="mon-fri", hour=5, minute=30,
+                                              timezone=ZoneInfo("America/New_York")),
                               id="oi_snapshot_daily", max_instances=1,
                               replace_existing=True)
                 n += 1
