@@ -50,7 +50,12 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         f"https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
         f"?tickers={tickers_param}&apiKey={client._api_key}"
     )
-    data = client._get(url)
+    # Short per-call timeout: this runs inside the Semaphore(6) valve on an anyio
+    # threadpool worker. The client-level default read timeout is 25s (tuned for
+    # large historical-bar fetches) — far too long for a 2s user poll. A slow Massive
+    # would otherwise pin up to 6 workers for 25s each and, under a post-deploy cold
+    # herd, exhaust the 64-worker pool (the launch-day 524 class). 5s caps that.
+    data = client._get(url, timeout=5.0)
     out: dict = {}
     for t in data.get("tickers", []):
         ticker = t.get("ticker", "")

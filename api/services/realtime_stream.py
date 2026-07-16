@@ -229,6 +229,10 @@ async def _run_websocket():
         _logger.warning("[stream] FINNHUB_API_KEY not set — WebSocket disabled")
         return
 
+    # Force a reconnect if the socket goes totally silent this long while we have
+    # active subscriptions (dead-but-open feed: TCP alive, not pushing). A healthy
+    # Finnhub connection always emits trades or its own app-level pings well within it.
+    _RECV_TIMEOUT_S = 45
     backoff = 1
     while True:
         try:
@@ -249,8 +253,24 @@ async def _run_websocket():
                 if all_tickers:
                     _logger.info("[stream] Re-subscribed %d active tickers on reconnect", len(all_tickers))
 
-                # Process messages
-                async for raw_msg in ws:
+                # Process messages with a liveness ceiling. Total silence for
+                # _RECV_TIMEOUT_S while tickers are subscribed = dead-but-open feed →
+                # break to force a full reconnect + resubscribe rather than waiting on
+                # the protocol ping timeout. Cancelling a timed-out recv() leaves the
+                # socket usable for the next iteration.
+                while True:
+                    try:
+                        raw_msg = await asyncio.wait_for(ws.recv(), timeout=_RECV_TIMEOUT_S)
+                    except asyncio.TimeoutError:
+                        with _lock:
+                            n_sub = len(_subscribed)
+                        if n_sub > 0:
+                            _logger.warning(
+                                "[stream] No Finnhub messages for %ds with %d active subs — feed silent, forcing reconnect",
+                                _RECV_TIMEOUT_S, n_sub,
+                            )
+                            break  # exit inner loop → context manager closes ws → outer reconnect
+                        continue   # nothing subscribed: silence is expected, keep waiting
                     try:
                         data = json.loads(raw_msg)
                         msg_type = data.get("type", "")
@@ -269,7 +289,9 @@ async def _run_websocket():
             _running = False
             _ws_connection = None
             await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, 60)
+            # Cap the reconnect gap low: this is the live-quote feed, so a long backoff
+            # is a long visible quote freeze. 15s max (was 60s).
+            backoff = min(backoff * 2, 15)
 
 
 def _process_finnhub_trade(trade):

@@ -226,6 +226,17 @@ function _watchdogSweep() {
   }
 }
 
+// Backgrounded/asleep tabs throttle (or fully freeze) the setInterval watchdog, so an
+// EventSource that dies silently while hidden (proxy idle-timeout, laptop sleep) isn't
+// detected until a delayed tick AFTER the tab returns — the quotes look frozen for a
+// beat on refocus. Force an immediate sweep on becoming visible so stale/dead buckets
+// reconnect the instant the user comes back.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) _watchdogSweep()
+  })
+}
+
 // ── test hooks ──────────────────────────────────────────────────────────────
 
 export function _resetForTests() {

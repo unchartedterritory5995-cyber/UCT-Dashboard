@@ -5,8 +5,17 @@ Dark-themed HTML templates matching UCT dashboard branding.
 
 import os
 import logging
+import concurrent.futures
 
 logger = logging.getLogger(__name__)
+
+# Bound every Resend send. The SDK wraps `requests` with no timeout, so a hung
+# Resend/network call would block the CALLER indefinitely — and callers include the
+# offloaded alert-check thread (whose lock would then never release) and various
+# schedulers. Running the send in this pool and joining with a timeout guarantees the
+# caller returns within the window even if the underlying request lingers.
+_SEND_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="email-send")
+_SEND_TIMEOUT_S = 10.0
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 FROM_EMAIL = os.environ.get("FROM_EMAIL", "UCT Intelligence <noreply@uctintelligence.com>")
@@ -32,15 +41,22 @@ def send_email(to: str, subject: str, html: str) -> bool:
     if not _resend:
         logger.warning(f"[email] Skipping email to {to} (Resend not configured)")
         return False
-    try:
+
+    def _do():
         _resend.Emails.send({
             "from": FROM_EMAIL,
             "to": [to],
             "subject": subject,
             "html": html,
         })
+
+    try:
+        _SEND_POOL.submit(_do).result(timeout=_SEND_TIMEOUT_S)
         logger.info(f"[email] Sent '{subject}' to {to}")
         return True
+    except concurrent.futures.TimeoutError:
+        logger.error(f"[email] Timed out (>{_SEND_TIMEOUT_S}s) sending '{subject}' to {to}")
+        return False
     except Exception as e:
         logger.error(f"[email] Failed to send '{subject}' to {to}: {e}")
         return False

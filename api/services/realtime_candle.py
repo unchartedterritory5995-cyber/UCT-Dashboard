@@ -141,7 +141,11 @@ async def reconciliation_worker():
     On disagreement, replace the bar in state and enqueue a bar_correction event.
     """
     _ensure_queue()
+    import os
     from api.services import bars_fetch, candle_reconcile
+    if os.environ.get("REALTIME_RECONCILE_ENABLED", "1") != "1":
+        _logger.info("[realtime_candle] reconciliation_worker disabled via REALTIME_RECONCILE_ENABLED")
+        return
     while True:
         try:
             await asyncio.sleep(60)
@@ -151,10 +155,21 @@ async def reconciliation_worker():
                 cur = get_current(sym, tf)
                 if not cur:
                     continue
+                # CRITICAL: fetch_minute_snapshot is a BLOCKING synchronous Massive
+                # REST call (httpx, up to a 25s read). This worker runs on the shared
+                # main event loop, so calling it inline froze EVERY SSE stream + HTTP
+                # request for the duration — the "live quotes + charts freeze every
+                # ~60s then recover" bug. Offload it to a thread and bound the wait so
+                # the loop is never blocked; yield between symbols so a large tracked
+                # set can't monopolize the loop even via the executor hand-offs.
                 try:
-                    rest_bar = bars_fetch.fetch_minute_snapshot(sym, cur["t"])
+                    rest_bar = await asyncio.wait_for(
+                        asyncio.to_thread(bars_fetch.fetch_minute_snapshot, sym, cur["t"]),
+                        timeout=6.0,
+                    )
                 except Exception:
                     rest_bar = None
+                await asyncio.sleep(0)  # cooperative yield between symbols
                 decision = candle_reconcile.reconcile(cur, rest_bar)
                 if decision["verdict"] == "correction":
                     correction = decision["correction"]

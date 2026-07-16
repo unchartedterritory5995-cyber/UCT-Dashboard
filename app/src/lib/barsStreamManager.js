@@ -30,7 +30,11 @@ const BARS_WATCHDOG_TICK_MS = 10000
 // the SSE keeps heartbeating — `delivering` must go false so the consumer falls back
 // to Finnhub instead of freezing the candle with Finnhub suppressed (review blocker #2).
 export const BARS_LIVE_STALE_MS = 120000       // engage: a bar within 2min = push is live
-export const BARS_LIVE_DISENGAGE_MS = 300000   // hysteresis: once live, hold until 5min of silence
+// Hysteresis: once live, hold before handing back to Finnhub. Was 5min — too long a
+// visible freeze when Massive push goes silent but the SSE keeps heartbeating (the
+// candle stayed push-owned-but-frozen with Finnhub suppressed). 150s keeps a margin
+// above the 120s engage window (no thrash) while capping the stale-candle window.
+export const BARS_LIVE_DISENGAGE_MS = 150000
 
 let _nextId = 1
 const _subscribers = new Map()  // id -> { sym, tf, key, onBar, onReconnect, onStatus }
@@ -249,6 +253,16 @@ function _watchdogSweep() {
   // unchanged, so this only re-renders a chart when its (connected/healthy/delivering)
   // actually flips.
   _notifyAllStatus()
+}
+
+// Backgrounded/asleep tabs throttle (or fully freeze) the setInterval watchdog, so a
+// silently-dead bars connection isn't detected until a delayed tick after refocus.
+// Force an immediate sweep on becoming visible so a stale/dead feed reconnects (and
+// `delivering` is re-evaluated) the instant the user comes back.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) _watchdogSweep()
+  })
 }
 
 // ── test hooks ──────────────────────────────────────────────────────────────
