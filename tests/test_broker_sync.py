@@ -283,3 +283,32 @@ async def test_sync_log_written(env):
     assert row["status"] == "ok"
     assert row["trades_imported"] == 2
     assert row["finished_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_locked_retry_delays_are_jittered(env, monkeypatch):
+    # Parallel syncs that retry in LOCKSTEP re-collide (prod 2026-07-16
+    # morning bursts). Each retry sleep must be jittered around its base.
+    import sqlite3
+    sleeps = []
+
+    async def capture_sleep(s):
+        sleeps.append(s)
+
+    monkeypatch.setattr(sync.asyncio, "sleep", capture_sleep)
+    monkeypatch.setattr(sync.random, "uniform", lambda a, b: 1.3)
+    monkeypatch.setattr(sync, "_LOCKED_RETRY_DELAYS", (2.0,))
+
+    def always_locked(*a, **kw):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(activities_store, "store_activities", always_locked)
+    with pytest.raises(sqlite3.OperationalError):
+        await sync.sync_account("u1", env["ba_id"])
+    assert sleeps == [2.0 * 1.3]
+
+
+def test_locked_retry_has_a_longer_tail():
+    # Three retries (four attempts) with a patient tail — a big concurrent
+    # backfill can hold auth.db past a ~4s total budget.
+    assert sync._LOCKED_RETRY_DELAYS == (1.0, 3.0, 8.0)

@@ -211,3 +211,30 @@ async def test_sync_all_indirection_refreshes_accounts_first(env, monkeypatch):
     calls.clear()
     await br.broker_service_sync_all("u1", refresh_first=True)
     assert calls == [("sync", "u1")]
+
+
+@pytest.mark.asyncio
+async def test_sync_due_accounts_default_is_serial(env, monkeypatch):
+    # SQLite is single-writer: concurrent scheduled syncs contend on auth.db
+    # with EACH OTHER ("database is locked" bursts across multiple members,
+    # prod 2026-07-16 08:07 + 11:14 UTC, retries colliding in lockstep). The
+    # DEFAULT must be one account at a time; parallelism stays available via
+    # BROKER_SYNC_CONCURRENCY for a future multi-writer store.
+    import asyncio as _asyncio
+    _mk_paid_user("u1"); _mk_paid_user("u2")
+    _mk_account("u1", "S1", "1111")
+    _mk_account("u2", "S2", "2222")
+    monkeypatch.delenv("BROKER_SYNC_CONCURRENCY", raising=False)
+    inflight = {"now": 0, "max": 0}
+
+    async def tracking_sync(user_id, account_id):
+        inflight["now"] += 1
+        inflight["max"] = max(inflight["max"], inflight["now"])
+        await _asyncio.sleep(0.01)
+        inflight["now"] -= 1
+        return {}
+
+    monkeypatch.setattr(sync, "sync_account", tracking_sync)
+    out = await sync.sync_due_accounts(interval_minutes=20)
+    assert out["due"] == 2 and out["synced"] == 2
+    assert inflight["max"] == 1

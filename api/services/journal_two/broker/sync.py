@@ -15,6 +15,7 @@ and corrections heal (Phase 5) build on this.
 from __future__ import annotations
 
 import asyncio
+import random
 import sqlite3
 import uuid
 from datetime import datetime, timezone, date, timedelta
@@ -44,8 +45,12 @@ WARMING_STABLE_TICKS = 2  # consecutive no-growth ticks before warming stops
 # Backoff delays (seconds) after a transient SQLite "database is locked" —
 # auth.db write contention on the single web pod (prod 2026-07-13/15: one
 # member's scheduled syncs failed every cycle with no retry). _do_sync is
-# idempotent (stable external_ids), so re-running it whole is safe.
-_LOCKED_RETRY_DELAYS = (1.0, 3.0)
+# idempotent (stable external_ids), so re-running it whole is safe. Each
+# delay is JITTERED ×[0.5, 1.5] at sleep time so parallel retriers don't
+# re-collide in lockstep, and the tail is patient enough to outlast a big
+# concurrent backfill (prod 2026-07-16: multi-member bursts exhausted a
+# ~4s budget).
+_LOCKED_RETRY_DELAYS = (1.0, 3.0, 8.0)
 
 
 class BrokerAccountNotFound(Exception):
@@ -162,7 +167,7 @@ async def sync_account(user_id: str, broker_account_id: str, *,
             except sqlite3.OperationalError as e:
                 if "locked" not in str(e).lower() or attempt == attempts - 1:
                     raise
-                await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt])
+                await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt] * random.uniform(0.5, 1.5))
         raise RuntimeError("unreachable")  # loop always returns or raises
 
 
@@ -192,8 +197,12 @@ async def sync_due_accounts(
     import os
     interval = interval_minutes if interval_minutes is not None else int(
         os.getenv("BROKER_SYNC_INTERVAL_MIN", "20"))
+    # Default SERIAL: auth.db is single-writer SQLite, so concurrent account
+    # syncs contend with EACH OTHER on every write ("database is locked"
+    # bursts across members, prod 2026-07-16). Parallelism only ever sped up
+    # the network fetches — not worth the lock storms at this member count.
     conc = concurrency if concurrency is not None else int(
-        os.getenv("BROKER_SYNC_CONCURRENCY", "4"))
+        os.getenv("BROKER_SYNC_CONCURRENCY", "1"))
     due = connections.list_due_accounts(interval)
     # Downgrade-pause: only sync accounts whose user is still paid (or admin).
     # A user who downgrades simply stops being background-synced — no Stripe
