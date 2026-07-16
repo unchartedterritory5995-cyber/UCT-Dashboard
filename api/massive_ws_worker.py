@@ -1225,51 +1225,67 @@ def _load_er_flags(symbols: list) -> dict:
     if not to_fetch:
         return out
 
-    # Query FlowDB for most recent ER value per symbol. ER comes in as 'T'
-    # or 'F' (BBS uses single-char codes for boolean flags).
+    # Query FlowDB for the most recent ER value per symbol. ER comes in as
+    # 'T' or 'F' (BBS uses single-char codes for boolean flags).
     #
-    # We need the latest VALID (non-empty) value PER SYMBOL. Date ordering
-    # is tricky because CreatedDate is M/D/YYYY text not ISO. So we sort by
-    # parsing the date columns. SQLite doesn't have native date parsing for
-    # this format, but we can use date(substr(...)) tricks. Simpler approach:
-    # pull ALL valid-ER rows per symbol and do the date comparison in Python.
+    # WRITE-LOOP SAFETY (2026-07-16 open-freeze fix): this runs INSIDE the
+    # consumer's classify path. The old unbounded per-symbol query pulled a
+    # symbol's ENTIRE history and date-parsed it in Python — after any boot
+    # (cold cache) the first batches at the open scanned full SPY/QQQ-class
+    # histories and stalled the writer for minutes (the 9:31/9:48 freezes;
+    # threads-dump 7/13 first fingered this). Now: newest inserted valid-ER
+    # row per symbol (rowid DESC LIMIT 1, index-assisted) — newest insert is
+    # an acceptable proxy for latest date since ER flags refresh daily and a
+    # 6h cache tolerates far more drift than backfill row-order can cause.
     try:
         import sqlite3
-        from datetime import datetime as _dt
         from api.flow_db import FlowDB
         db = FlowDB()
         with sqlite3.connect(db.db_path, timeout=10) as conn:
-            placeholders = ",".join("?" for _ in to_fetch)
-            sql = f"""
-                SELECT Symbol, ER, CreatedDate FROM flow
-                WHERE Symbol IN ({placeholders})
-                  AND ER IS NOT NULL AND TRIM(ER) != ''
-            """
-            cur = conn.execute(sql, to_fetch)
-            # Group by symbol, pick the one with latest parsed date
-            by_sym = {}  # symbol -> (parsed_date, er_value)
-            for sym, er, created_date in cur.fetchall():
-                try:
-                    d = _dt.strptime(created_date, "%m/%d/%Y").date()
-                except (ValueError, TypeError):
-                    continue
-                existing = by_sym.get(sym)
-                if existing is None or d > existing[0]:
-                    by_sym[sym] = (d, er)
-            for sym, (_, er) in by_sym.items():
-                er_clean = (er or 'F').strip().upper()
+            for sym in to_fetch:
+                row = conn.execute(
+                    "SELECT ER FROM flow WHERE Symbol = ? "
+                    "AND ER IS NOT NULL AND TRIM(ER) != '' "
+                    "ORDER BY rowid DESC LIMIT 1", (sym,)).fetchone()
+                er_clean = ((row[0] if row else 'F') or 'F').strip().upper()
                 er_val = 'T' if er_clean == 'T' else 'F'
                 out[sym] = er_val
                 _ER_CACHE[sym] = (er_val, now)
-        # For any symbol not found, cache 'F' so we don't keep re-querying
-        for sym in to_fetch:
-            if sym not in out:
-                out[sym] = 'F'
-                _ER_CACHE[sym] = ('F', now)
     except Exception as e:
         logger.warning("[massive-ws] ER flag lookup failed: %s", e)
+        for sym in to_fetch:
+            out.setdefault(sym, 'F')
 
     return out
+
+
+def prewarm_er_cache() -> int:
+    """One bounded pass that fills _ER_CACHE for every symbol seen in the last
+    ~10 days, so the consumer's write loop never pays a cold ER lookup at the
+    market open (each restart used to re-cold the cache — freeze, restart,
+    re-freeze). Runs in a daemon thread at consumer start, OFF the write path.
+    Returns symbols warmed."""
+    try:
+        import sqlite3
+        from api.flow_db import FlowDB
+        db = FlowDB()
+        now = time.time()
+        with sqlite3.connect(db.db_path, timeout=15) as conn:
+            rows = conn.execute(
+                "SELECT Symbol, ER FROM flow WHERE rowid IN ("
+                "  SELECT MAX(rowid) FROM flow "
+                "  WHERE ER IS NOT NULL AND TRIM(ER) != '' GROUP BY Symbol)"
+            ).fetchall()
+        for sym, er in rows:
+            if not sym:
+                continue
+            er_clean = (er or 'F').strip().upper()
+            _ER_CACHE.setdefault(sym, ('T' if er_clean == 'T' else 'F', now))
+        logger.info("[massive-ws] ER cache prewarmed: %d symbols", len(rows))
+        return len(rows)
+    except Exception as e:
+        logger.warning("[massive-ws] ER prewarm failed (non-fatal): %s", e)
+        return 0
 
 
 def _load_spot_for_events(events: list) -> dict:
@@ -2656,6 +2672,11 @@ def start() -> bool:
     _state["started_at"] = time.time()
     _state["running"] = True
     t.start()
+
+    # ER-cache prewarm (2026-07-16 open-freeze fix): fill the whole cache in a
+    # daemon thread so the write loop never pays cold ER lookups at the open.
+    threading.Thread(target=prewarm_er_cache, daemon=True,
+                     name="massive-ws-er-prewarm").start()
 
     # Retroactive Spot backfill: fills blank Spot on today's rows that were
     # written by prior worker processes (before this restart). Runs in a
