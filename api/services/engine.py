@@ -906,7 +906,6 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     import requests as _req
 
     av_key  = os.environ.get("ALPHAVANTAGE_API_KEY", "")
-    fh_key  = os.environ.get("FINNHUB_API_KEY", "")
 
     # ── Step 1: Quarterly EPS history (FMP primary, AV fallback) ──────────────
     yoy_eps_growth = None
@@ -950,12 +949,18 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     try:
         today_str = _dt.date.today().isoformat()
         from_str  = (_dt.date.today() - _dt.timedelta(days=3)).isoformat()
-        fh_url = (
-            f"https://finnhub.io/api/v1/company-news"
-            f"?symbol={sym}&from={from_str}&to={today_str}&token={fh_key}"
+        # Routed through the budgeted _fh_get so per-symbol news sweeps share
+        # the global 429 cooldown / junk-symbol skip instead of hammering an
+        # exhausted rate bucket with a raw request per reporter.
+        from api.services.earnings_estimates import _fh_get as _fh_budgeted
+        fh_resp = _fh_budgeted(
+            "/company-news",
+            {"symbol": sym, "from": from_str, "to": today_str},
+            timeout=_FH_TIMEOUT_SECS,
         )
-        fh_resp = _with_retry(lambda: _req.get(fh_url, timeout=_FH_TIMEOUT_SECS).json())
-        if not isinstance(fh_resp, list):
+        if fh_resp is None:
+            fh_resp = []  # budget-shed or failed — _fh_get already logged it
+        elif not isinstance(fh_resp, list):
             raise ValueError(f"Finnhub returned unexpected shape: {type(fh_resp)}")
         for item in fh_resp[:_EARNINGS_NEWS_MAX_ITEMS]:
             ts = item.get("datetime", 0)
@@ -1254,7 +1259,6 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
     import datetime as _dt
     import requests as _req
     av_key = os.environ.get("ALPHAVANTAGE_API_KEY", "")
-    fh_key = os.environ.get("FINNHUB_API_KEY", "")
 
     # ── Step 1: Quarterly EPS history (FMP primary, AV fallback) ──────────────
     yoy_eps_growth = None
@@ -1297,12 +1301,18 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
     try:
         today_str = _dt.date.today().isoformat()
         from_str  = (_dt.date.today() - _dt.timedelta(days=3)).isoformat()
-        fh_url = (
-            f"https://finnhub.io/api/v1/company-news"
-            f"?symbol={sym}&from={from_str}&to={today_str}&token={fh_key}"
+        # Routed through the budgeted _fh_get so per-symbol news sweeps share
+        # the global 429 cooldown / junk-symbol skip instead of hammering an
+        # exhausted rate bucket with a raw request per reporter.
+        from api.services.earnings_estimates import _fh_get as _fh_budgeted
+        fh_resp = _fh_budgeted(
+            "/company-news",
+            {"symbol": sym, "from": from_str, "to": today_str},
+            timeout=_FH_TIMEOUT_SECS,
         )
-        fh_resp = _with_retry(lambda: _req.get(fh_url, timeout=_FH_TIMEOUT_SECS).json())
-        if not isinstance(fh_resp, list):
+        if fh_resp is None:
+            fh_resp = []  # budget-shed or failed — _fh_get already logged it
+        elif not isinstance(fh_resp, list):
             raise ValueError(f"Finnhub returned unexpected shape: {type(fh_resp)}")
         for item in fh_resp[:_EARNINGS_NEWS_MAX_ITEMS]:
             ts = item.get("datetime", 0)

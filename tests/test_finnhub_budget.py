@@ -110,6 +110,16 @@ def test_intel_success_still_cached_normally(monkeypatch):
     cache.invalidate("earnings_intel_GOODQ")
 
 
+def test_engine_company_news_routes_through_budgeted_fh_get():
+    """engine.py's per-symbol news sweeps must not hand-roll Finnhub requests —
+    raw calls bypass the shared 429 cooldown and re-created the storm."""
+    import inspect
+    from api.services import engine
+    src = inspect.getsource(engine)
+    assert "api/v1/company-news" not in src
+    assert src.count("_fh_budgeted") >= 2
+
+
 # ── Sticky actuals ledger ──────────────────────────────────────────────────────
 
 def _day(entries):
