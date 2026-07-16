@@ -5,6 +5,9 @@ Cached 6 hours per ticker via the shared TTLCache singleton.
 
 import os
 import logging
+import threading
+import time as _time
+
 import requests
 
 from api.services.cache import cache
@@ -14,16 +17,56 @@ _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 21_600  # 6 hours (used by get_earnings_intel)
 _FRESH_TTL = 900     # 15 min — earnings-window fast path for an incomplete year
+_INTEL_FAIL_TTL = 600  # 10 min — negative cache when ALL intel calls fail (429 storm damper)
 _MARKERS_CACHE_TTL = 43_200  # 12 hours (used by get_chart_markers)
 _TIMEOUT = 6  # seconds per Finnhub request
 
+# Finnhub free tier = 60 calls/min. When a 429 lands, EVERY caller funneling
+# through _fh_get backs off together for this long — without a shared cooldown
+# each enrichment/markers/next-report burst keeps hammering an already-exhausted
+# minute bucket, and because failures used to be uncached the storm re-fired on
+# every recompute (the 2026-07-15 all-dash Beats column).
+_FH_COOLDOWN_SECONDS = 20.0
+_fh_cooldown_until = 0.0
+_fh_cooldown_lock = threading.Lock()
+
+# Endpoints the current Finnhub plan rejects outright (403) — e.g.
+# /stock/price-target moved to premium. Re-probed daily via the cache TTL.
+_FH_FORBIDDEN_TTL = 86_400
+
+# Distinguishes "cached total failure" from a cache miss (both read back as
+# None through TTLCache.get otherwise). Identity-compared, never mutated.
+_INTEL_FAIL_SENTINEL = {"_intel_failed": True}
+
+
+def _junk_symbol(sym) -> bool:
+    """Symbols Finnhub can never resolve (index/synthetic notations like
+    $IDX:SEMICONDUCTORS or ^VIX). Calling for them burns rate budget on
+    guaranteed failures, every single time."""
+    s = str(sym or "")
+    return (not s) or any(c in s for c in ("$", "^", ":", "/"))
+
 
 def _fh_get(path: str, params: dict, timeout: int | None = None) -> dict | list | None:
-    """Fire a Finnhub GET request. Returns parsed JSON or None on failure."""
+    """Fire a Finnhub GET request. Returns parsed JSON or None on failure.
+
+    Budget guards (all return None without a network call):
+      • symbols Finnhub can't resolve ($/^/:-style) are skipped
+      • a shared 20s cooldown engages after any 429
+      • endpoints that 403'd (plan-forbidden) are skipped for 24h
+    """
+    global _fh_cooldown_until
     api_key = os.environ.get("FINNHUB_API_KEY", "")
     if not api_key:
         _logger.warning("FINNHUB_API_KEY not set — earnings intel unavailable")
         return None
+    if "symbol" in params and _junk_symbol(params.get("symbol")):
+        return None
+    if cache.get(f"fh_forbidden_{path}"):
+        return None
+    with _fh_cooldown_lock:
+        if _time.monotonic() < _fh_cooldown_until:
+            return None
     params["token"] = api_key
     try:
         resp = requests.get(
@@ -31,6 +74,15 @@ def _fh_get(path: str, params: dict, timeout: int | None = None) -> dict | list 
             params=params,
             timeout=timeout or _TIMEOUT,
         )
+        if resp.status_code == 429:
+            with _fh_cooldown_lock:
+                _fh_cooldown_until = _time.monotonic() + _FH_COOLDOWN_SECONDS
+            _logger.warning("Finnhub 429 on %s — cooling down %ss", path, _FH_COOLDOWN_SECONDS)
+            return None
+        if resp.status_code == 403:
+            cache.set(f"fh_forbidden_{path}", True, ttl=_FH_FORBIDDEN_TTL)
+            _logger.warning("Finnhub 403 on %s — plan-forbidden, skipping for 24h", path)
+            return None
         resp.raise_for_status()
         return resp.json()
     except Exception as exc:
@@ -50,7 +102,7 @@ def get_earnings_intel(ticker: str) -> dict | None:
     cache_key = f"earnings_intel_{ticker}"
     cached = cache.get(cache_key)
     if cached is not None:
-        return cached
+        return None if cached is _INTEL_FAIL_SENTINEL else cached
 
     # ── 1. Historical EPS (last 4 quarters) ─────────────────────────────────
     beat_history = []
@@ -96,8 +148,11 @@ def get_earnings_intel(ticker: str) -> dict | None:
             "lastUpdated": pt_raw.get("lastUpdated", ""),
         }
 
-    # If all three failed, return None (don't cache failures long)
+    # If all three failed, negative-cache briefly. Uncached failures made every
+    # 5-min enrichment recompute retry the whole day's reporters × 3 calls —
+    # once rate-limited, the 429 storm sustained itself indefinitely.
     if not beat_history and consensus is None and price_target is None:
+        cache.set(cache_key, _INTEL_FAIL_SENTINEL, ttl=_INTEL_FAIL_TTL)
         return None
 
     result = {
