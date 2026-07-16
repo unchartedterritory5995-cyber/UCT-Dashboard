@@ -3328,7 +3328,10 @@ export default function StockChart({
           lastBarRef.current = { ...liveBarRef.current, volume: 0 }
         }
         if (volumeSeriesRef.current) {
-          volumeSeriesRef.current.update({ time: barTime, value: 0, color: 'rgba(74,222,128,0.35)' })
+          // Full-opacity default color (matches closed bars + volData) — no lighter
+          // "developing" tint. Value is 0 here so it's invisible until the next tick.
+          const _vUpN = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+          volumeSeriesRef.current.update({ time: barTime, value: 0, color: _vUpN })
         }
       } else {
         // ── SAME CANDLE (decision.kind === 'update') ──
@@ -3447,10 +3450,14 @@ export default function StockChart({
         const _pb = prevBarsRef.current
         const _prevC = colorByNetChange && _pb && _pb.length >= 2 ? _pb[_pb.length - 2].c : null
         const _up = _prevC != null ? (data.bar.c >= _prevC) : (data.bar.c >= data.bar.o)
+        // Full-opacity default color (same derivation as volData) — the developing
+        // bar matches the closed bars instead of a lighter tint.
+        const _vUp = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+        const _vDown = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
         volumeSeriesRef.current.update({
           time: tSec,
           value: data.bar.v,
-          color: _up ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
+          color: _up ? _vUp : _vDown,
         })
       }
       // B is the SOLE writer here (gated on barsPushActive above), so it OWNS these refs —
@@ -4003,9 +4010,12 @@ export default function StockChart({
             const _pbD = prevBarsRef.current
             const _prevCD = colorByNetChange && _pbD && _pbD.length >= 2 ? _pbD[_pbD.length - 2].c : null
             const _upD = _prevCD != null ? (lb.close >= _prevCD) : (lb.close >= lb.open)
+            // Full-opacity default color (same derivation as volData) — no lighter tint.
+            const _vUpD = boldCandles ? MB_UP : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vDownD = boldCandles ? MB_DOWN : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             volumeSeriesRef.current.update({
               time: lb.time, value: lb.volume,
-              color: _upD ? 'rgba(74,222,128,0.5)' : 'rgba(239,83,80,0.5)',
+              color: _upD ? _vUpD : _vDownD,
             })
           }
         } catch { /* server tail newer than the last push bar — ignore, next push bar re-tops */ }

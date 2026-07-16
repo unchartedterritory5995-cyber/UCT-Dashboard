@@ -1,5 +1,6 @@
 // app/src/components/chart/SymbolSearch.jsx — Clickable symbol badge + predictive search overlay
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { createPortal } from 'react-dom'
 import CompanyLogo from '../CompanyLogo'
 import uctMark from '../intro/assets/compass-mark.png'
 import styles from './SymbolSearch.module.css'
@@ -48,6 +49,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   const wrapRef = useRef(null)
   const listRef = useRef(null)
   const abortRef = useRef(null)
+  const dropdownRef = useRef(null)
+  // Fixed-position coords for the portaled dropdown (see the positioning effect).
+  const [menuPos, setMenuPos] = useState(null)
 
   // Imperative open-with-text — used by ChartWidget so typing a letter on the
   // chart opens the search with that letter already entered.
@@ -65,20 +69,47 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     },
   }), [])
 
-  // Focus input when opened.
+  // Position the dropdown as a fixed-position PORTAL (rendered to document.body).
+  // The chart-widget header is `overflow:hidden` and only ~28px tall, and the grid
+  // item's transform makes even position:fixed get clipped — so an in-tree dropdown
+  // has its top/bottom cut off. A portal escapes every ancestor. Recompute on
+  // scroll/resize so it tracks the badge while open.
   useEffect(() => {
-    if (open && inputRef.current) {
+    if (!open) { setMenuPos(null); return }
+    const place = () => {
+      const el = wrapRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const W = Math.min(280, window.innerWidth - 16)
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8))
+      setMenuPos({ left, top: r.bottom + 4, width: W })
+    }
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [open])
+
+  // Focus the input once it's mounted (after the position is known). The
+  // activeElement guard keeps a scroll-triggered reposition from stealing the caret.
+  useEffect(() => {
+    if (open && menuPos && inputRef.current && document.activeElement !== inputRef.current) {
       inputRef.current.focus()
       const len = inputRef.current.value.length
       try { inputRef.current.setSelectionRange(len, len) } catch {}
     }
-  }, [open])
+  }, [open, menuPos])
 
-  // Close on outside click
+  // Close on outside click (the portaled dropdown lives outside wrapRef, so check both)
   useEffect(() => {
     if (!open) return
     const handler = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+      const inWrap = wrapRef.current && wrapRef.current.contains(e.target)
+      const inMenu = dropdownRef.current && dropdownRef.current.contains(e.target)
+      if (!inWrap && !inMenu) setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -206,8 +237,12 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         )}
       </button>
 
-      {open && (
-        <div className={styles.dropdown}>
+      {open && menuPos && createPortal(
+        <div
+          ref={dropdownRef}
+          className={styles.dropdown}
+          style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, width: menuPos.width, zIndex: 3000 }}
+        >
           <div className={styles.inputRow}>
             <input
               ref={inputRef}
@@ -248,7 +283,8 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
               </button>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
