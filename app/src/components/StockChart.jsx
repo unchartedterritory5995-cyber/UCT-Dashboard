@@ -3782,13 +3782,18 @@ export default function StockChart({
       },
       rightPriceScale: {
         borderColor: themeColors.borderColor,
+        // No vertical separator line between the plot and the axis — the values sit
+        // right against the plot (also lets the volume-pane scale align cleanly under
+        // the price scale, since both panes are now borderless).
+        borderVisible: false,
         // Pin a stable minimum width so the axis can't re-flow as the developing
         // bar's live last-value label re-renders. At fractional display scaling
         // (e.g. Windows 125/150%) that label's sub-pixel width jitters every price
         // tick; a floating price-scale width made the whole plot shift left/right
         // in lockstep with the quotes (the "chart jiggles on every tick" bug).
-        // 76px covers up to ~5-digit prices; the axis simply stops shrinking below it.
-        minimumWidth: 76,
+        // 64px covers up to ~4-digit prices comfortably (workspace typical) while
+        // pulling the values closer to the right edge.
+        minimumWidth: 64,
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
@@ -3987,7 +3992,12 @@ export default function StockChart({
       // are left untouched). Candles + OHLC bars only (line/area/hollow have no net-change
       // notion). Same up/down palette the series itself uses so it looks identical apart
       // from the coloring rule.
-      if (colorByNetChange && (cs.chartType === 'candles' || cs.chartType === 'bars') && !priceSeries.__uctNetWrap) {
+      // Net-change eligibility: candles/bars always; on Sunrise ALSO 'hollow' (the
+      // Sunrise look is hollow, and without this a saved 'hollow' chart type skips the
+      // wrap entirely and LWC colors by close-vs-OPEN — the "up day shows red" bug).
+      const _netEligible = cs.chartType === 'candles' || cs.chartType === 'bars'
+        || (canvasTheme === 'sunrise' && isOhlcType(cs.chartType))
+      if (colorByNetChange && _netEligible && !priceSeries.__uctNetWrap) {
         const _netUp = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
         const _netDown = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
         // Sunrise keeps the HOLLOW look while still coloring by NET CHANGE: a
