@@ -13,6 +13,7 @@ const POS_KEY = 'voice.orb.position'
 const COACHMARK_KEY = 'voice.orb.coachmarkSeen'
 const DRAG_THRESHOLD_PX = 5
 const EDGE_PADDING_PX = 8
+const IDLE_TUCK_MS = 4000
 
 function loadPos() {
   if (typeof localStorage === 'undefined') return null
@@ -85,6 +86,29 @@ export default function FloatingOrb({ context = 'global' }) {
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
 
+  // Idle edge-tuck: viewport-locked pages (e.g. /charts) never scroll, so the
+  // scroll tuck alone leaves the orb permanently over content. After IDLE_TUCK_MS
+  // without the pointer/focus on the cluster, glide it into the nearest edge
+  // leaving a small sliver; hover/tap/focus glides it back out.
+  const [hovered, setHovered] = useState(false)
+  const [idleTucked, setIdleTucked] = useState(false)
+  const idleTimerRef = useRef(null)
+  // A live session or drag pins the orb out; the coachmark must stay readable.
+  const inSessionLive = voice.mode === 'c' && voice.status !== 'idle' && voice.status !== 'error'
+  const tuckBlocked = hovered || inSessionLive || dragging || showCoachmark
+  useEffect(() => {
+    if (tuckBlocked) {
+      clearTimeout(idleTimerRef.current)
+      setIdleTucked(false)
+      return undefined
+    }
+    idleTimerRef.current = setTimeout(() => setIdleTucked(true), IDLE_TUCK_MS)
+    return () => clearTimeout(idleTimerRef.current)
+  }, [tuckBlocked])
+  // Declared here (above the early returns) — assigned after `tucked` is computed.
+  const tuckedRef = useRef(false)
+  const tuckTapRef = useRef(false)
+
   useEffect(() => {
     function onResize() {
       setPos(prev => {
@@ -140,8 +164,13 @@ export default function FloatingOrb({ context = 'global' }) {
   // Hide entirely when a modal/sheet is open (so the orb never covers its bottom
   // CTA on mobile) — unless we're mid live call.
   if (scrollLocked && !inSession) return null
-  // Tuck the orb away while scrolling — but never during a live call or a drag.
-  const tucked = hiddenOnScroll && !inSession && !dragging
+  // Tuck the orb away while scrolling or idle — but never during a live call,
+  // a drag, or while the pointer/focus is on it (hover always wins the tuck).
+  const tucked = (hiddenOnScroll || idleTucked) && !inSession && !dragging && !hovered
+  // Which edge to tuck into: nearest horizontal edge to the dragged position
+  // (default bottom-right placement tucks right).
+  const tuckSide = pos && typeof window !== 'undefined' && pos.x < window.innerWidth / 2 ? 'left' : 'right'
+  tuckedRef.current = tucked
 
   const consumeDragClick = () => {
     if (dragRef.current.moved) {
@@ -151,8 +180,20 @@ export default function FloatingOrb({ context = 'global' }) {
     return false
   }
 
+  // A tap that lands while tucked only wakes the orb — it must never
+  // start/stop a session. Stamped at pointerdown (before hover-untuck can
+  // re-render), consumed by the click handlers.
+  const consumeTuckTap = () => {
+    if (tuckTapRef.current) {
+      tuckTapRef.current = false
+      return true
+    }
+    return false
+  }
+
   const onClick = () => {
     if (consumeDragClick()) return
+    if (consumeTuckTap()) return
     if (minimized) { setMin(false); return }   // expand from the minimized compass dot
     if (showCoachmark) dismissCoachmark()
     inSession ? disconnect() : connect(context)
@@ -168,6 +209,14 @@ export default function FloatingOrb({ context = 'global' }) {
 
   const handlePointerDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
+    if (tuckedRef.current) {
+      // Waking from the sliver: consume this press entirely (no drag init —
+      // the rect is mid-transform; no session toggle — see consumeTuckTap).
+      tuckTapRef.current = true
+      setHovered(true)
+      return
+    }
+    setHovered(true)
     const el = clusterRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
@@ -232,12 +281,16 @@ export default function FloatingOrb({ context = 'global' }) {
   return (
     <div
       ref={clusterRef}
-      className={`${styles.orbCluster} ${dragging ? styles.dragging : ''} ${tucked ? styles.hidden : ''}`}
+      className={`${styles.orbCluster} ${dragging ? styles.dragging : ''} ${tucked ? (tuckSide === 'left' ? styles.tuckedLeft : styles.tuckedRight) : ''}`}
       style={clusterStyle}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
     >
       <button
         type="button"
@@ -249,7 +302,7 @@ export default function FloatingOrb({ context = 'global' }) {
         <CompassOrb state={orbState} />
         {errorGlyph && <span className={styles.errorBadge}><UIcon name={errorGlyph} size={12} /></span>}
       </button>
-      {!inSession && !minimized && (
+      {!inSession && !minimized && !tucked && (
         <button
           type="button"
           className={styles.trainBtn}
@@ -260,8 +313,8 @@ export default function FloatingOrb({ context = 'global' }) {
           <UIcon name="education" size={16} />
         </button>
       )}
-      {!inSession && !minimized && <VisionAttachButton />}
-      {!inSession && !minimized && <AgentPicker onMinimize={() => setMin(true)} />}
+      {!inSession && !minimized && !tucked && <VisionAttachButton />}
+      {!inSession && !minimized && !tucked && <AgentPicker onMinimize={() => setMin(true)} />}
       {inTrainMode && (
         <div className={styles.trainBadge}>Training</div>
       )}

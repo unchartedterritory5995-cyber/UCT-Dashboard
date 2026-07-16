@@ -157,19 +157,26 @@
   cursor: grabbing;
 }
 
-/* Auto-hide on scroll-down: slide out + fade so it never covers content. */
+/* Edge-tuck (scroll-down OR idle): glide into the nearest edge leaving a small
+   sliver of the orb — hover/tap/focus the sliver to glide back out. Pointer
+   events stay ON (the sliver is the recovery affordance). */
 .orbCluster {
   transition: transform 0.28s var(--ease-out, ease), opacity 0.24s ease;
 }
-.orbCluster.hidden {
-  transform: translateY(calc(100% + 90px));
-  opacity: 0;
-  pointer-events: none;
+.orbCluster.tuckedRight {
+  transform: translateX(calc(100% - 14px));
+  opacity: 0.7;
+}
+.orbCluster.tuckedLeft {
+  transform: translateX(calc(-100% + 14px));
+  opacity: 0.7;
 }
 .orbCluster.dragging { transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .orbCluster { transition: opacity 0.001s; }
-  .orbCluster.hidden { transform: none; }
+  /* No slide — tucked reads as a stationary low-opacity ghost. */
+  .orbCluster.tuckedRight,
+  .orbCluster.tuckedLeft { transform: none; opacity: 0.3; }
 }
 
 /* Touch shells (≤1024px): the bottom tab bar owns the bottom edge, so the
