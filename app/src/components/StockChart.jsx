@@ -4092,6 +4092,24 @@ export default function StockChart({
       // rejected and the phantom sticks — DDOG 20798 = 100x lock-in),
       // this is ONLY ever set from server data and can't be poisoned.
       if (Number.isFinite(last.c) && last.c > 0) lastServerCloseRef.current = last.c
+      // Seed/merge liveBarRef (the ref the push re-top / Writer D re-applies from) with
+      // the FETCHED partial bar's FULL open+high+low. Without this, the re-top re-paints
+      // the developing bar from a WS rollup that only accumulated since we subscribed,
+      // collapsing the current candle to the "since you opened it" window — the reported
+      // "bar shows correct data for a moment, then loses it until ~10s after close" bug.
+      // Intraday only; the same-bucket merge NEVER shrinks the range and keeps the
+      // tick-fresh close, so live tick extensions still survive an SWR refresh.
+      if (!['D', 'W', 'M'].includes(resolvedTf)) {
+        const _lt = adjustTime(last.t)
+        const _lb = liveBarRef.current
+        if (!_lb || _lb.time !== _lt) {
+          liveBarRef.current = { time: _lt, open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
+        } else {
+          _lb.open = last.o
+          _lb.high = Math.max(_lb.high, last.h)
+          _lb.low = Math.min(_lb.low, last.l)
+        }
+      }
     }
 
     // For the Finnhub re-top below: prefer the frozen tick for THIS ticker; on a
