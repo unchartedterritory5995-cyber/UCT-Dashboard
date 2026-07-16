@@ -3728,7 +3728,18 @@ export default function StockChart({
       _cfgSig = null
     }
     const _plan = barsRenderPlan(prevBarsRef.current, filteredBars)
-    const _incr = _cfgSig != null && _plan.mode === 'incremental' && _cfgSig === lastCfgSigRef.current
+    const _cfgSame = _cfgSig != null && _cfgSig === lastCfgSigRef.current
+    const _incr = _cfgSame && _plan.mode === 'incremental'
+    // Bars AND config byte-identical to the last paint → the series already hold
+    // exactly this data; re-`setData`ing would be a pure wipe/repaint. CRITICAL in
+    // EXTENDED HOURS: the live session price-tag (intradaySessionTagLines → allPriceLines)
+    // recomputes on EVERY tick, re-running this whole effect ~1×/sec. A full setData
+    // there erases the live-writer-painted DEVELOPING bar (which isn't in filteredBars
+    // when the server hasn't served the current partial bucket) — it vanished and got
+    // re-added every tick, shaking the chart. Skipping the no-op paint leaves the
+    // developing bar (and the live-extended MAs) untouched; the price tags still
+    // re-apply below.
+    const _noop = _cfgSame && _plan.mode === 'noop'
     lastCfgSigRef.current = _cfgSig
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
@@ -3740,6 +3751,10 @@ export default function StockChart({
     }
     const _applyData = (series, data) => {
       if (!series || !data) return
+      // Nothing changed since the last paint — don't touch the series (see _noop).
+      // A redundant setData here is what wiped the developing bar every tick in
+      // extended hours; leaving the series as-is preserves the live-writer bar.
+      if (_noop) return
       if (_incr && data.length) {
         try { series.update(data[data.length - 1]); return } catch { /* fall through to full setData */ }
       }
