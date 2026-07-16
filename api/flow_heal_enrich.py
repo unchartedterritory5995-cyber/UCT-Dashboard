@@ -73,6 +73,13 @@ MIN_PREMIUM = 10_000
 _LAST = {"result": None}
 _LOCK = threading.Lock()
 
+# One enrich at a time. Concurrent runs collide on flow.db's single writer —
+# the first holds the write lock through its giant UPDATE transaction and every
+# later run "completes" in ~2min with database-is-locked on all three steps
+# (observed live on the 7/14 re-heal: two duplicate triggers produced two
+# bogus 'incomplete' results while the real run kept grinding).
+_RUN_LOCK = threading.Lock()
+
 
 def last_result():
     with _LOCK:
@@ -430,6 +437,17 @@ def enrich_day(target: date, gz_path: str = None, *, force: bool = False) -> dic
     if not ENABLED and not force:
         out["status"] = "disabled"
         return out
+    if not _RUN_LOCK.acquire(blocking=False):
+        out["status"] = "already_running"
+        return out
+    try:
+        return _enrich_day_locked(target, gz_path, mdy, out, started)
+    finally:
+        _RUN_LOCK.release()
+
+
+def _enrich_day_locked(target: date, gz_path: str, mdy: str, out: dict,
+                       started: float) -> dict:
 
     # 1. OI first — rebuild-color with OI=0 bakes in wrong colors (spec §2).
     try:
