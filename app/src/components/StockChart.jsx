@@ -103,7 +103,7 @@ const _dateToMs = (v) => {
 // back from the newest bar; 'ytd' = since Jan 1 of the newest bar's year. 12M and 1Y
 // are intentionally both present (same ~12-month window) per the requested button set.
 const RANGE_OPTS = [
-  ['3M', 3], ['6M', 6], ['YTD', 'ytd'], ['12M', 12], ['1Y', 12], ['5Y', 60],
+  ['3M', 3], ['6M', 6], ['YTD', 'ytd'], ['1Y', 12], ['5Y', 60],
 ]
 
 // Bars-worth of blank space to render on the LEFT when a framed window's start
