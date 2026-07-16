@@ -2212,6 +2212,16 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(hour=3, minute=10),
                 id="broker_canary_sync", max_instances=1, replace_existing=True,
             )
+            # Fidelity audit — nightly reconciliation of every synced account
+            # against the broker's OWN reported numbers (equity, position
+            # quantities, unknown activity types) → Discord on divergence.
+            # 3:40am ET: after the 2:30 nightly reconcile + 3:10 canary.
+            from api.services.journal_two.broker import fidelity_audit as _broker_fidelity
+            _scheduler.add_job(
+                _broker_fidelity.run_fidelity_audits_blocking,
+                trigger=CronTrigger(hour=3, minute=40),
+                id="broker_fidelity_audit", max_instances=1, replace_existing=True,
+            )
             print(f"[startup] Broker sync scheduler ON (every {_bs_interval}m, market-hours; nightly reconcile 2:30am ET; fleet monitor :37 hourly)")
 
         def _cot_daily_catchup():

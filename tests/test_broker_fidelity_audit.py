@@ -1,0 +1,137 @@
+"""Per-account broker fidelity audit — machine verification that our imported
+journal reconciles against the broker's OWN reported numbers (the ground
+truth SnapTrade already hands us). Catches broker-specific parsing/math
+errors automatically, per account, without a member comparing screens:
+
+  • equity_consistency — our derived equity (cash + stock MV + option MV)
+    must match the broker-reported account total within tolerance;
+  • position_parity — broker position quantities == our imported open rows;
+  • unknown_activity_types — the ledger contains no activity types our
+    adapter can't classify (a new broker's quirk shows up here first).
+"""
+
+from __future__ import annotations
+
+import pytest
+from cryptography.fernet import Fernet
+
+from api.services import auth_db
+from api.services.journal_two.db import ensure_schema
+from api.services.journal_two.broker import (
+    snaptrade_client as snap, connections, sync, fidelity_audit,
+)
+
+
+class _Resp:
+    def __init__(self, body):
+        self.body = body
+
+
+class _Group:
+    def __init__(self, **m):
+        for k, v in m.items():
+            setattr(self, k, v)
+
+
+class _NoThrottle:
+    async def acquire(self, n=1):
+        return None
+
+
+def _sdk(*, positions, balances, total, activities=None, options=None):
+    return _Group(account_information=_Group(
+        get_account_activities=lambda **kw: _Resp(
+            {"data": activities or [], "pagination": {}}),
+        get_user_account_positions=lambda **kw: _Resp(positions),
+        get_user_account_balance=lambda **kw: _Resp(balances),
+        list_user_accounts=lambda **kw: _Resp(
+            [{"id": "S1", "balance": {"total": {"amount": total, "currency": "USD"}}}]),
+        get_user_account_option_holdings=lambda **kw: _Resp(options or []),
+    ))
+
+
+POSITIONS = [{"symbol": {"symbol": "NVDA"}, "units": 100, "price": 500,
+              "average_purchase_price": 450, "currency": {"code": "USD"}}]
+BALANCES = [{"currency": "USD", "cash": 10000, "buying_power": 20000}]
+
+
+@pytest.fixture
+def env(tmp_path, monkeypatch):
+    dbfile = tmp_path / "auth.db"
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(dbfile))
+    auth_db.init_db()
+    conn = auth_db.get_connection()
+    ensure_schema(conn)
+    conn.close()
+    monkeypatch.setenv("BROKER_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    monkeypatch.setenv("SNAPTRADE_CLIENT_ID", "cid")
+    monkeypatch.setenv("SNAPTRADE_CONSUMER_KEY", "ck")
+    snap.set_limiter(_NoThrottle())
+    connections.save_broker_user("u1", "u1-uid", "secret")
+    ba = connections.map_snaptrade_account("u1", {
+        "id": "S1", "name": "Webull", "number": "1234",
+        "institution_name": "Webull",
+    })
+    yield {"ba_id": ba["id"]}
+    snap.reset()
+
+
+@pytest.mark.asyncio
+async def test_consistent_account_passes(env):
+    # cash 10000 + 100×500 = 60000 == broker-reported total 60000.
+    snap.configure(_sdk(positions=POSITIONS, balances=BALANCES, total=60000))
+    await sync.sync_account("u1", env["ba_id"])   # imports the position rows
+    out = await fidelity_audit.audit_account("u1", env["ba_id"])
+    assert out["ok"] is True
+    names = {c["name"]: c for c in out["checks"]}
+    assert names["equity_consistency"]["ok"] is True
+    assert names["position_parity"]["ok"] is True
+    assert names["unknown_activity_types"]["ok"] is True
+
+
+@pytest.mark.asyncio
+async def test_equity_divergence_fails(env):
+    # Broker says 75000; our math derives 60000 → 20% off → parsing/math bug
+    # for this broker. Must FAIL loudly.
+    snap.configure(_sdk(positions=POSITIONS, balances=BALANCES, total=75000))
+    await sync.sync_account("u1", env["ba_id"])
+    out = await fidelity_audit.audit_account("u1", env["ba_id"])
+    check = next(c for c in out["checks"] if c["name"] == "equity_consistency")
+    assert check["ok"] is False
+    assert out["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_position_qty_mismatch_fails(env):
+    snap.configure(_sdk(positions=POSITIONS, balances=BALANCES, total=60000))
+    await sync.sync_account("u1", env["ba_id"])
+    # Corrupt our imported row (simulates a reconciliation bug).
+    conn = auth_db.get_connection()
+    conn.execute("UPDATE j2_positions SET shares = 90 WHERE user_id='u1' AND symbol='NVDA'")
+    conn.commit(); conn.close()
+    out = await fidelity_audit.audit_account("u1", env["ba_id"])
+    check = next(c for c in out["checks"] if c["name"] == "position_parity")
+    assert check["ok"] is False
+    assert "NVDA" in str(check["detail"])
+
+
+@pytest.mark.asyncio
+async def test_unknown_activity_type_flagged(env):
+    acts = [{"id": "x1", "type": "MYSTERY_EVENT", "amount": 5,
+             "trade_date": "2026-07-01", "currency": "USD"}]
+    snap.configure(_sdk(positions=POSITIONS, balances=BALANCES, total=60000,
+                        activities=acts))
+    await sync.sync_account("u1", env["ba_id"])
+    out = await fidelity_audit.audit_account("u1", env["ba_id"])
+    check = next(c for c in out["checks"] if c["name"] == "unknown_activity_types")
+    assert check["ok"] is False
+    assert "MYSTERY_EVENT" in str(check["detail"])
+
+
+@pytest.mark.asyncio
+async def test_missing_broker_total_is_skipped_not_failed(env):
+    snap.configure(_sdk(positions=POSITIONS, balances=BALANCES, total=None))
+    await sync.sync_account("u1", env["ba_id"])
+    out = await fidelity_audit.audit_account("u1", env["ba_id"])
+    check = next(c for c in out["checks"] if c["name"] == "equity_consistency")
+    assert check["ok"] is True and check.get("skipped") is True
