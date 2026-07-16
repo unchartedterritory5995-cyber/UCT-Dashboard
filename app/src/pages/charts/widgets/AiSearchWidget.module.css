@@ -100,7 +100,7 @@
   font-size: 12px; font-weight: 600; color: var(--ut-gold, #c9a84c);
   margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border, #1f2937);
 }
-.answerText { font-size: 13px; line-height: 1.62; color: #dfe4ea; }
+.answerText { font-size: 13px; line-height: 1.62; color: var(--text, #dfe4ea); }
 .para { margin: 0 0 8px; }
 .bullet { display: flex; gap: 8px; margin: 0 0 6px; align-items: baseline; }
 .dot { color: var(--ut-gold, #c9a84c); flex-shrink: 0; line-height: 1.4; }
@@ -167,3 +167,11 @@
   transition: background 0.1s ease, color 0.1s ease;
 }
 .ticker:hover { background: rgba(201, 168, 76, 0.16); color: #e3c877; text-decoration: underline; }
+
+/* ── Sunrise (light) chart theme ──
+   .root pins vivid --gain/--loss locally, which outranks the workspace-level
+   sunrise overrides — re-pin them (and the light-gold hover colors) to the
+   theme's dark candle palette so answers read on the bright canvas. */
+:global([data-charts-theme='sunrise']) .root { --gain: #0a5c22; --loss: #7d1620; }
+:global([data-charts-theme='sunrise']) .askBtn:hover:not(:disabled) { color: #5c460f; }
+:global([data-charts-theme='sunrise']) .ticker:hover { color: #5c460f; }
