@@ -92,6 +92,7 @@ def web_search(
     recency: str | None = None,
     domain_pack: str = "general",
     domains: list[str] | None = None,
+    related: bool = False,
 ) -> dict[str, Any]:
     """Synthesized web answer with citations.
 
@@ -127,7 +128,7 @@ def web_search(
     # Cache key incorporates everything that affects the answer
     cache_key = (
         f"pplx::{model}::{recency_filter or 'any'}::{domain_pack}::"
-        f"{max_tokens}::{(system or '')[:40]}::{query.lower()[:300]}"
+        f"{max_tokens}::{int(related)}::{(system or '')[:40]}::{query.lower()[:300]}"
     )
     cached = _SEARCH_CACHE.get(cache_key)
     if cached is not None:
@@ -153,6 +154,8 @@ def web_search(
         payload["search_domain_filter"] = domains[:20]
     if recency_filter:
         payload["search_recency_filter"] = recency_filter
+    if related:
+        payload["return_related_questions"] = True
 
     try:
         t0 = time.time()
@@ -188,9 +191,13 @@ def web_search(
         raw_citations = []
     citations = [str(c) for c in raw_citations if c][:10]
 
+    raw_related = data.get("related_questions") or []
+    related_questions = [str(q).strip() for q in raw_related if q and str(q).strip()][:4] if isinstance(raw_related, list) else []
+
     result = {
         "answer": answer,
         "citations": citations,
+        "related_questions": related_questions,
         "model": model,
         "mode": resolved_mode,
         "domain_pack": domain_pack,

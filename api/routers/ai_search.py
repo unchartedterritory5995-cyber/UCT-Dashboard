@@ -42,4 +42,5 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
         system=_WIDGET_SYSTEM,
         mode=mode,
         domain_pack="finance",
+        related=True,   # Perplexity returns 3-4 related follow-up questions
     )

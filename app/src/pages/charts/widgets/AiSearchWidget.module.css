@@ -5,6 +5,10 @@
   min-height: 0;
   background: var(--bg, #0b0f14);
   color: var(--text, #e5e7eb);
+  /* Match the chart's vivid green/red so ± percentages in AI answers (colored by
+     HighlightThesis via --gain/--loss) read the same as the candles. */
+  --gain: #1ae51a;
+  --loss: #c41f2d;
 }
 
 /* ── Search row (fixed at top) ── */
@@ -101,6 +105,25 @@
 .bullet { display: flex; gap: 8px; margin: 0 0 6px; align-items: baseline; }
 .dot { color: var(--ut-gold, #c9a84c); flex-shrink: 0; line-height: 1.4; }
 .gap { height: 6px; }
+
+/* ── Follow-up questions ── */
+.followups { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border, #1f2937); }
+.followLabel {
+  display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--ut-gold, #c9a84c); margin-bottom: 7px;
+}
+.followList { display: flex; flex-direction: column; gap: 6px; }
+.follow {
+  display: flex; align-items: baseline; gap: 7px; width: 100%; text-align: left;
+  background: var(--bg-elevated, #141a22);
+  border: 1px solid var(--border, #262f3b);
+  color: var(--text, #dfe4ea);
+  border-radius: 7px; padding: 7px 11px;
+  font-size: 12px; line-height: 1.4; cursor: pointer; font-family: inherit;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.follow:hover { border-color: var(--ut-gold, #c9a84c); background: rgba(201, 168, 76, 0.06); color: var(--ut-gold, #c9a84c); }
+.followArrow { color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
 
 .citations { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border, #1f2937); }
 .citLabel {
