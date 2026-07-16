@@ -419,12 +419,23 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
         return
 
     try:
+        import time as _t
+
         import requests
         r = requests.get(
             "https://finnhub.io/api/v1/calendar/earnings",
             params={"from": past_dates[0], "to": today_str, "token": fh_key},
             timeout=10,
         )
+        if r.status_code == 429:
+            # This ONE range call fills every actual on the board — worth a
+            # single short retry when it lands mid rate-limit burst.
+            _t.sleep(2)
+            r = requests.get(
+                "https://finnhub.io/api/v1/calendar/earnings",
+                params={"from": past_dates[0], "to": today_str, "token": fh_key},
+                timeout=10,
+            )
         if not r.ok:
             return
         fh_map = {
@@ -452,6 +463,75 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
             _logger.info("Calendar: Finnhub patched %d actuals through %s", patched, today_str)
     except Exception as exc:
         _logger.warning("Calendar: Finnhub actuals patch failed: %s", exc)
+
+
+# ── Sticky actuals — printed results must never disappear ─────────────────────
+#
+# The weekly cache rebuilds from EW+Finviz every 10 min. When a rebuild lands
+# while the Finnhub patch is rate-limited (429), the fresh actual-less build
+# used to REPLACE a cache that already showed actuals — reported EPS/revenue
+# would appear, then vanish until a later rebuild got lucky. This ledger on the
+# /data volume makes actuals one-way: once a build has them, every later build
+# inherits them (and they survive redeploys).
+
+_STICKY_ACTUALS_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "calendar_actuals.json")
+_STICKY_KEEP_DAYS = 14
+_STICKY_FIELDS = ("eps_act", "rev_act", "eps_est", "rev_est")
+_sticky_actuals_lock = threading.Lock()
+
+
+def _merge_sticky_actuals(days: dict, today_str: str) -> None:
+    """Harvest reported actuals into the on-disk ledger AND backfill any entry
+    whose actuals a degraded rebuild dropped. Never raises."""
+    with _sticky_actuals_lock:
+        try:
+            import json as _json
+            try:
+                with open(_STICKY_ACTUALS_PATH, encoding="utf-8") as f:
+                    ledger = _json.load(f)
+                if not isinstance(ledger, dict):
+                    ledger = {}
+            except (FileNotFoundError, ValueError):
+                ledger = {}
+
+            changed = False
+            for ds, day in days.items():
+                if ds > today_str:
+                    continue  # future days can't have actuals
+                day_map = ledger.get(ds) or {}
+                for e in _day_entries(day):
+                    sym = e.get("sym")
+                    if not sym:
+                        continue
+                    if e.get("eps_act") is not None:
+                        snap = {k: e.get(k) for k in _STICKY_FIELDS}
+                        if day_map.get(sym) != snap:
+                            day_map[sym] = snap
+                            changed = True
+                    elif sym in day_map:
+                        held = day_map[sym]
+                        e["eps_act"] = held.get("eps_act")
+                        if e.get("rev_act") is None:
+                            e["rev_act"] = held.get("rev_act")
+                        if e.get("eps_est") is None:
+                            e["eps_est"] = held.get("eps_est")
+                        if e.get("rev_est") is None:
+                            e["rev_est"] = held.get("rev_est")
+                if day_map:
+                    ledger[ds] = day_map
+
+            cutoff = (date.fromisoformat(today_str) - timedelta(days=_STICKY_KEEP_DAYS)).isoformat()
+            stale = [ds for ds in ledger if ds < cutoff]
+            for ds in stale:
+                del ledger[ds]
+
+            if changed or stale:
+                tmp = _STICKY_ACTUALS_PATH + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    _json.dump(ledger, f)
+                os.replace(tmp, _STICKY_ACTUALS_PATH)
+        except Exception as exc:
+            _logger.warning("Calendar: sticky actuals merge failed: %s", exc)
 
 
 # ── Month-range helpers ────────────────────────────────────────────────────────
@@ -990,6 +1070,7 @@ def get_calendar(week: str | None = None):
     # ── 4. Finnhub actuals patch for today's pending reporters ───────────────
     #    Catches companies that report BMO after the 7:35 AM wire run.
     _patch_today_actuals(days, today.isoformat())
+    _merge_sticky_actuals(days, today.isoformat())
 
     # ── 5. Econ events: ALWAYS from ForexFactory (real data, never AI) ────────
     #    Overlays econ/fed on whichever earnings path ran above.
@@ -1213,6 +1294,7 @@ def refresh_calendar(user: dict = Depends(require_admin)):
             days[ds] = _empty_day(d, today)
 
     _patch_today_actuals(days, today.isoformat())
+    _merge_sticky_actuals(days, today.isoformat())
     _curate_econ_events(week_start, week_end, days)
     _attach_names(days)
     _attach_date_moves(days)
