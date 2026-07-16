@@ -236,9 +236,13 @@ export default function ChartsWorkspace() {
     }
   }
 
+  // Workspace-wide chart theme ('default' | 'sunrise'), persisted like the layout.
+  const chartsTheme = prefs.charts_theme || 'default'
+  const setChartsTheme = useCallback((t) => setPref('charts_theme', t), [setPref])
+
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current }),
-    [groupSyms, setGroupSym],
+    () => ({ groupSyms, setGroupSym, chartsTheme, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current }),
+    [groupSyms, setGroupSym, chartsTheme],
   )
 
   // Debounced layout persist (500ms).
@@ -352,6 +356,7 @@ export default function ChartsWorkspace() {
   const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
   const [openMenuOpen, setOpenMenuOpen] = useState(false)
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false)
   const [saveAsName, setSaveAsName] = useState('')
   const [saveAsScope, setSaveAsScope] = useState('user')  // 'user' | 'global' (admin)
   const [saveErr, setSaveErr] = useState('')
@@ -452,7 +457,7 @@ export default function ChartsWorkspace() {
 
   return (
     <WorkspaceContext.Provider value={workspaceValue}>
-      <div className={styles.workspace}>
+      <div className={styles.workspace} data-charts-theme={chartsTheme}>
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
@@ -552,6 +557,30 @@ export default function ChartsWorkspace() {
           <button type="button" className={`${styles.toolbarBtn} ${styles.ghost}`} onClick={handleResetLayout}>
             Reset layout
           </button>
+
+          {/* Chart theme — recolors the whole workspace (charts + all widgets).
+              Kept in the LEFT cluster (not pushed right) so it never collides with the
+              fixed help "?" pinned to the top-right corner of the viewport. */}
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              onClick={() => { setThemeMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false) }}
+            >Chart theme ▾</button>
+            {themeMenuOpen && (
+              <div className={styles.addMenu} style={{ minWidth: 180 }} onMouseLeave={() => setThemeMenuOpen(false)}>
+                {[['default', 'Default'], ['sunrise', 'TSDR — Sunrise']].map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={chartsTheme === val ? { color: 'var(--ut-green-bright, #1ae51a)' } : undefined}
+                    onClick={() => { setChartsTheme(val); setThemeMenuOpen(false) }}
+                  >{chartsTheme === val ? '✓ ' : ''}{label}</button>
+                ))}
+              </div>
+            )}
+          </div>
         </header>
         <main className={styles.workspaceBody} ref={bodyRef}>
           <ResponsiveGridLayout

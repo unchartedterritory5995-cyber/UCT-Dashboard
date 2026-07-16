@@ -18,6 +18,12 @@
 .nav:hover {
   width: 200px;
   align-items: flex-start;
+  /* Enter-delay so the expand only fires on a DELIBERATE, sustained hover — not on
+     a transient layout flick (a scrollbar toggling, a re-render reflow) that briefly
+     slides the nav under a stationary cursor. Without it, a sub-frame spurious hover
+     played the full 0.2s expand+collapse = the "menu shakes by itself" bug. Collapse
+     stays instant: the base .nav rule (delay 0) applies on hover-out. */
+  transition-delay: 0.12s;
 }
 .brand {
   display: flex;
@@ -52,6 +58,7 @@
   max-width: 150px;
   margin-left: 11px;
   opacity: 1;
+  transition-delay: 0.12s;   /* match the width enter-delay so labels don't flash on a filtered flick */
 }
 .brandNameTop {
   font-family: var(--font-display, var(--font-sans));
@@ -130,6 +137,7 @@
 }
 .nav:hover .label {
   opacity: 1;
+  transition-delay: 0.12s;   /* match the width enter-delay so labels don't flash on a filtered flick */
 }
 
 /* ─── Tablet: lock to icon-only, no hover expand ─────────────────────────────── */

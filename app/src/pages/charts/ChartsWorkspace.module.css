@@ -387,6 +387,56 @@
   color: var(--text, #e5e7eb);
 }
 
+/* ── TSDR — Sunrise light theme (workspace-wide) ─────────────────────────────
+   The chart CANVAS gets a light sky-gradient via StockChart's canvasTheme; here we
+   flip the workspace chrome + every variable-driven widget (panels, headers, text,
+   borders) to a light palette so they read correctly on the bright look. Iteration 1:
+   widget internals that hardcode dark colors still need per-widget passes. */
+:global([data-charts-theme='sunrise']) {
+  --bg: #d7e6f2;
+  --bg-surface: #e8eff5;
+  --bg-elevated: #f2f6fa;
+  --bg-hover: rgba(20, 45, 75, 0.07);
+  --border: #c2d2e0;
+  --text: #223243;
+  --text-bright: #0c1824;
+  --text-muted: #566577;
+  /* Darker gold + the SAME very-dark green/red as the candles + volume, so every
+     accent (tickers, %s, labels) matches and reads on the bright canvas. */
+  --ut-gold: #7a5c16;
+  --ut-gold-dim: #7a5c161a;
+  --ut-gold-glow: #7a5c1633;
+  --ut-green: #0a5c22;
+  --ut-green-bright: #0a5c22;
+  --ut-green-dim: #0a5c2218;
+  --ut-green-glow: #0a5c2240;
+  --ut-red: #7d1620;
+  --ut-red-bright: #7d1620;
+  --ut-red-dim: #7d162018;
+}
+/* %s that hardcode the vivid dark-theme green/red instead of the tokens — pull them
+   to the dark Sunrise palette so all percentages match (fundamentals, theme tracker,
+   header). */
+:global([data-charts-theme='sunrise']) [style*="1ae51a"],
+:global([data-charts-theme='sunrise']) [style*="3cb868"],
+:global([data-charts-theme='sunrise']) [style*="4ade80"],
+:global([data-charts-theme='sunrise']) [style*="22c55e"] {
+  color: #0a5c22 !important;
+}
+:global([data-charts-theme='sunrise']) [style*="f87171"],
+:global([data-charts-theme='sunrise']) [style*="ef4444"],
+:global([data-charts-theme='sunrise']) [style*="e74c3c"],
+:global([data-charts-theme='sunrise']) [style*="ff3b47"],
+:global([data-charts-theme='sunrise']) [style*="c0392b"] {
+  color: #7d1620 !important;
+}
+:global([data-charts-theme='sunrise']) .workspaceHeader {
+  background: #eaf1f8;
+}
+/* Market clock text is hardcoded light — turn it dark so it reads on the bright canvas. */
+:global([data-charts-theme='sunrise']) .clockTime { color: #223243; }
+:global([data-charts-theme='sunrise']) .clockEt { color: #566577; }
+
 .workspaceHeader {
   background: var(--bg-elevated, #0d1218);
   border-bottom: 1px solid var(--border, #1f2937);

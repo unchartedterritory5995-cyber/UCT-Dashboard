@@ -233,17 +233,28 @@ def deliver_alert_payload(
 
 
 def run_alert_check(price_data: dict):
-    """Run alert check in background thread. Skips if already checking."""
+    """Run the alert check + delivery OFF the caller's thread. Skips if already checking.
+
+    This is called from the /api/live-prices poll (an anyio threadpool worker). The
+    work — an auth.db scan, then per-fire email (Resend) + Discord + DB writes — used
+    to run INLINE despite this docstring, so a slow delivery pinned the poll worker
+    (and, under load, starved the shared pool). Now the worker returns immediately and
+    a daemon thread does the delivery; the non-blocking lock still prevents pileup.
+    """
     if not price_data:
         return
     if not _check_lock.acquire(blocking=False):
         return
-    try:
-        prices_flat = {sym: info["price"] if isinstance(info, dict) else info for sym, info in price_data.items()}
-        triggered = check_alerts_against_prices(prices_flat)
-        if triggered:
-            _logger.info("Triggered %d price alert(s)", len(triggered))
-    except Exception as e:
-        _logger.warning("Alert check failed: %s", e)
-    finally:
-        _check_lock.release()
+
+    def _work():
+        try:
+            prices_flat = {sym: info["price"] if isinstance(info, dict) else info for sym, info in price_data.items()}
+            triggered = check_alerts_against_prices(prices_flat)
+            if triggered:
+                _logger.info("Triggered %d price alert(s)", len(triggered))
+        except Exception as e:
+            _logger.warning("Alert check failed: %s", e)
+        finally:
+            _check_lock.release()
+
+    threading.Thread(target=_work, daemon=True, name="alert-check").start()

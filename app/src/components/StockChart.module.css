@@ -13,6 +13,38 @@
   height: 100%;
 }
 
+/* TC2000-style date-range bar — bottom-left, just above the volume pane. */
+.rangeBar {
+  position: absolute;
+  left: 8px;
+  z-index: 6;
+  display: flex;
+  gap: 1px;
+  padding: 2px 3px;
+  border-radius: 6px;
+  background: rgba(14, 15, 13, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+}
+.rangeBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #8a8578;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+}
+.rangeBtn:hover {
+  color: #e2dfd6;
+  background: rgba(255, 255, 255, 0.07);
+}
+
 /* ── UCT brand mark — replaces the built-in TradingView attribution logo ── */
 .brandLogo {
   position: absolute;
@@ -159,6 +191,25 @@
   color: #f87171;
   font-weight: 600;
 }
+
+/* ── TSDR — Sunrise: legend box + chart chrome on the bright canvas ─────────── */
+:global([data-charts-theme='sunrise']) .legend {
+  background: rgba(250, 250, 243, 0.9);   /* soft off-white — stands out on the gradient without being stark */
+  color: #33404f;
+  box-shadow: 0 1px 5px rgba(20, 35, 55, 0.14);
+}
+:global([data-charts-theme='sunrise']) .legendTime,
+:global([data-charts-theme='sunrise']) .legendLabel { color: #55606e; }
+:global([data-charts-theme='sunrise']) .legendVal { color: #1c2836; }
+:global([data-charts-theme='sunrise']) .legendUp { color: #0a5c22; }
+:global([data-charts-theme='sunrise']) .legendDown { color: #7d1620; }
+:global([data-charts-theme='sunrise']) .wrapper { background: #eef4ea; }
+:global([data-charts-theme='sunrise']) .rangeBar {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(20, 45, 75, 0.16);
+}
+:global([data-charts-theme='sunrise']) .rangeBtn { color: #47525f; }
+:global([data-charts-theme='sunrise']) .rangeBtn:hover { color: #1c2836; background: rgba(20, 45, 75, 0.08); }
 
 /* Charts workspace: stack the OHLCV legend single-file down the left as a
    two-column table (label left, value right-aligned), dropped below the toolbar.

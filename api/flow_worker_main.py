@@ -8,6 +8,7 @@ railway.json — a `railway up` whose diff touches none of those is SKIPPED
 ("No changes to watched files"). Changes to other flow modules (e.g.
 flow_gap_autofill / flow_heal_enrich) must touch a watched file to ship;
 this note's edit history doubles as that trigger.
+(touch: 2026-07-16 — carry the explicit-ET cron-timezone pins, cdc4a158.)
 
 A THIRD Railway service — separate from `web` and the bars `worker` — that runs
 ONLY the Massive OPRA consumer + the flow read/upload routers, owning flow.db on

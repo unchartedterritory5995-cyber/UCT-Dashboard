@@ -11,7 +11,7 @@ class _FakeClient:
     def __init__(self, day_c):
         self._day_c = day_c
 
-    def _get(self, url):
+    def _get(self, url, timeout=None):
         return {"tickers": [{
             "ticker": "AAPL",
             "day": {"c": self._day_c, "o": 1, "h": 2, "l": 0.5, "v": 100},

@@ -45,15 +45,23 @@ async function _poll() {
   const tickers = _union()
   if (tickers.length === 0) return
   _inflight = true
+  // Bound the request. WITHOUT this, a fetch that never settles — OS sleep/wake or a
+  // Wi-Fi switch tears down the socket mid-flight, or the backend hangs — leaves the
+  // `await` pending forever, so `_inflight` never clears and EVERY app-wide quote
+  // freezes until a manual refresh. The AbortController guarantees the promise
+  // settles (rejects) so `finally` always runs.
+  const _ac = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const _timeout = _ac ? setTimeout(() => { try { _ac.abort() } catch { /* noop */ } }, 10000) : null
   try {
-    const r = await fetch(`/api/live-prices?tickers=${tickers.join(',')}`)
+    const r = await fetch(`/api/live-prices?tickers=${tickers.join(',')}`, _ac ? { signal: _ac.signal } : undefined)
     if (r.ok) {
       _prices = (await r.json()) || {}
       _emit()
     }
   } catch {
-    // transient (network blip / brief restart) — keep last prices, retry next tick
+    // transient (network blip / brief restart / timeout-abort) — keep last prices, retry next tick
   } finally {
+    if (_timeout) clearTimeout(_timeout)
     _inflight = false
     if (_pollAgain) {
       _pollAgain = false

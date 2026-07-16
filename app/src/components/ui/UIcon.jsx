@@ -349,20 +349,15 @@ export const UICON_NAMES = Object.keys(ICONS)
 
 let _gid = 0
 
-const prefersReduce = () =>
-  typeof window !== 'undefined'
-  && typeof window.matchMedia === 'function'
-  && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
 /**
  * UIcon — branded UI icon.
  *
  * Default ("line") = currentColor stroke, so it inherits its surface's color
  * (use for semantic icons: check=green, warning=red, etc.).
  *
- * Brand treatment (DEFAULT for non-semantic icons) = a metallic gold gradient
- * with a slow shimmer sweep, a double gold glow, and a touch more weight — an
- * embossed, premium UCT feel. Shimmer is dropped for prefers-reduced-motion.
+ * Brand treatment (DEFAULT for non-semantic icons) = a STATIC metallic gold
+ * gradient with a soft gold glow and a touch more weight — an embossed, premium
+ * UCT feel. (No animated shimmer — the icons stay perfectly still.)
  *
  * `gold` is undefined by default → ALL icons get the gold treatment. Pass
  * `gold={false}` to force currentColor for a specific use (e.g. an icon whose
@@ -407,16 +402,6 @@ export default function UIcon({ name, size = 18, strokeWidth = 1.7, gold, classN
             <stop offset="50%" stopColor="#e8d18c" />
             <stop offset="60%" stopColor="#cba954" />
             <stop offset="100%" stopColor="#8f6f2c" />
-            {!prefersReduce() && (
-              <animateTransform
-                attributeName="gradientTransform"
-                type="translate"
-                from="-0.55 0"
-                to="0.55 0"
-                dur="6.5s"
-                repeatCount="indefinite"
-              />
-            )}
           </linearGradient>
         </defs>
       )}
