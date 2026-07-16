@@ -400,6 +400,7 @@
   --border: #c2d2e0;
   --text: #1b2836;
   --text-bright: #0a141e;
+  --text-heading: #16212e;   /* was light cream — used by widget headings/quarter labels/company names */
   --text-muted: #3e4a58;   /* darker so labels (tf buttons, meta, headers) read on white */
   /* Darker gold + the SAME very-dark green/red as the candles + volume, so every
      accent (tickers, %s, labels) matches and reads on the bright canvas. */
