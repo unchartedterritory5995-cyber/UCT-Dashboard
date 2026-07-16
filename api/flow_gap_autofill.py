@@ -258,10 +258,21 @@ def _build_fill_rows(target: date):
 
     stocks = [e for e in events if not is_index_source(e.root)]
     indexes = [e for e in events if is_index_source(e.root)]
-    ticker_meta = _load_ticker_metadata(DB_PATH, list({e.root for e in events}))
+    all_roots = list({e.root for e in events})
+    ticker_meta = _load_ticker_metadata(DB_PATH, all_roots)
     snap_iso = target.isoformat()
     oi_stocks = _load_oi_for_events(DB_PATH, stocks, snap_iso)
     oi_indexes = _load_oi_for_events(DB_PATH, indexes, snap_iso)
+    # ER copy-forward (review A2): backfill rows used to hardcode ER='F',
+    # which both mislabeled the healed rows AND poisoned every newest-row ER
+    # reader (heals insert at higher rowids). Reuse the consumer's bounded,
+    # cohort-aware lookup so healed rows carry the symbol's real flag.
+    try:
+        from api.massive_ws_worker import _load_er_flags
+        er_map = _load_er_flags(all_roots)
+    except Exception as e:
+        logger.warning("[gap-fill] ER copy-forward unavailable (%s) — rows get 'F'", e)
+        er_map = {}
 
     out = {"stocks": [], "indexes": []}
     for evts, source, oi_map in ((stocks, "stocks", oi_stocks),
@@ -271,7 +282,7 @@ def _build_fill_rows(target: date):
             row = event_to_bbs_row(
                 ev, source=source,
                 mktcap=meta.get("mktcap", 0), sector=meta.get("sector", ""),
-                oi=oi_map.get(i, 0))
+                oi=oi_map.get(i, 0), er_flag=er_map.get(ev.root, 'F'))
             sec = _sec_of_day(row["CreatedTime"])
             if sec is not None:
                 out[source].append((sec, row))
@@ -891,6 +902,19 @@ def trigger_enrich(target_date: str, authorization: str = Header(default="")):
     threading.Thread(target=_do, daemon=True, name="flow-heal-enrich-manual").start()
     return JSONResponse({"status": "started",
                          "check": "/api/flow-gap-fill/status (last_enrich)"})
+
+
+@router.post("/spool-control")
+def spool_control(spool: bool = None, replay: bool = None,
+                  authorization: str = Header(default="")):
+    """Runtime kill switch for the tape spool / replay (review A5) — flips the
+    module gates WITHOUT a restart (a restart is itself a tape gap)."""
+    _require_push_secret(authorization)
+    try:
+        from api import flow_tape_spool
+        return JSONResponse(flow_tape_spool.set_flags(spool=spool, replay=replay))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)[:200])
 
 
 @router.post("/replay-spool")

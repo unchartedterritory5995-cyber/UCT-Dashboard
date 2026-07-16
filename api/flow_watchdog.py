@@ -77,6 +77,18 @@ def _newest_row():
     return (row[0], row[1]) if row else (None, None)
 
 
+def _any_source_today(today_str: str) -> bool:
+    """True if ANY row (any source) has today's CreatedDate — i.e. the session
+    is live and writers are up, even if the stocks lane never started."""
+    conn = sqlite3.connect(DB_PATH, timeout=5)
+    try:
+        row = conn.execute(
+            "SELECT CreatedDate FROM flow ORDER BY id DESC LIMIT 1").fetchone()
+    finally:
+        conn.close()
+    return bool(row and row[0] == today_str)
+
+
 def _today_mdyyyy(now_et: datetime) -> str:
     # flow.db CreatedDate format is M/D/YYYY with no zero padding.
     return f"{now_et.month}/{now_et.day}/{now_et.year}"
@@ -99,6 +111,7 @@ def _run(service_name: str) -> None:
     last_max_id = None
     last_advance_ts = time.time()
     warned_half = False
+    stocks_dead_since = None    # day-start blind-spot timer (review A8)
 
     logger.info("[flow-watchdog] started (service=%s stale=%.0fs interval=%.0fs)",
                 service_name, STALE_SEC, CHECK_INTERVAL_SEC)
@@ -115,10 +128,37 @@ def _run(service_name: str) -> None:
             max_id, created_date = _newest_row()
             if max_id is None:
                 continue
-            if created_date != _today_mdyyyy(now_et):
-                # No rows today at all — closed session/holiday or a feed that
-                # never started. Restarting can't help either; stay quiet.
+            today_str = _today_mdyyyy(now_et)
+            if created_date != today_str:
+                # Newest STOCKS row isn't from today. Two very different cases
+                # (review A8): if NOTHING wrote today it's a closed session /
+                # holiday — stay quiet. But if OTHER sources ARE writing today,
+                # the stocks lane died before its first insert of the day (the
+                # 7/14 shape) — that's a freeze this watchdog exists to catch.
+                if _any_source_today(today_str):
+                    if stocks_dead_since is None:
+                        stocks_dead_since = time.time()
+                    dead_for = time.time() - stocks_dead_since
+                    if dead_for >= STALE_SEC / 2 and not warned_half:
+                        warned_half = True
+                        _alert_discord(
+                            f"⚠️ **[{service_name}] flow-watchdog: NO stocks "
+                            f"inserts today for {int(dead_for)}s while other "
+                            f"sources write** — stocks lane may have died "
+                            f"before its first insert.")
+                    if dead_for >= STALE_SEC:
+                        msg = (f":rotating_light: **[{service_name}] "
+                               f"flow-watchdog: stocks lane NEVER STARTED "
+                               f"today** ({int(dead_for)}s dead while other "
+                               f"sources write). Force-exiting for restart.")
+                        logger.critical("[flow-watchdog] %s", msg)
+                        _alert_discord(msg)
+                        time.sleep(2)
+                        os._exit(43)
+                else:
+                    stocks_dead_since = None
                 continue
+            stocks_dead_since = None
 
             if last_max_id is None or max_id != last_max_id:
                 last_max_id = max_id

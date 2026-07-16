@@ -382,6 +382,15 @@ def _process_bytes(gz_bytes: bytes, source_date: date) -> dict:
         len(oi_indexes), len(indexes_events),
     )
 
+    # ER copy-forward (review A2): full-day ingests used to hardcode ER='F',
+    # poisoning newest-row ER readers. Bounded, cohort-aware lookup.
+    try:
+        from api.massive_ws_worker import _load_er_flags
+        er_map = _load_er_flags(all_syms)
+    except Exception as e:
+        logger.warning("[massive-ff] ER copy-forward unavailable (%s)", e)
+        er_map = {}
+
     def _to_csv(evts, source, oi_map):
         buf = io.StringIO()
         buf.write(header)
@@ -392,6 +401,7 @@ def _process_bytes(gz_bytes: bytes, source_date: date) -> dict:
                 mktcap=meta.get("mktcap", 0),
                 sector=meta.get("sector", ""),
                 oi=oi_map.get(i, 0),
+                er_flag=er_map.get(ev.root, 'F'),
             )
             buf.write(",".join(str(row.get(c, "")) for c in COLUMNS) + "\n")
         return buf.getvalue()

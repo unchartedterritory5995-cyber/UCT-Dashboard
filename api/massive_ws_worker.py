@@ -1251,23 +1251,32 @@ def _load_er_flags(symbols: list) -> dict:
     # consumer's classify path. The old unbounded per-symbol query pulled a
     # symbol's ENTIRE history and date-parsed it in Python — after any boot
     # (cold cache) the first batches at the open scanned full SPY/QQQ-class
-    # histories and stalled the writer for minutes (the 9:31/9:48 freezes;
-    # threads-dump 7/13 first fingered this). Now: newest inserted valid-ER
-    # row per symbol (rowid DESC LIMIT 1, index-assisted) — newest insert is
-    # an acceptable proxy for latest date since ER flags refresh daily and a
-    # 6h cache tolerates far more drift than backfill row-order can cause.
+    # histories and stalled the writer for minutes. Bounded LIMIT queries only.
+    #
+    # COHORT PREFERENCE (review A2): T+1 heals used to insert backfill rows
+    # with a hardcoded ER='F' at HIGHER rowids than the live rows, so a naive
+    # "newest row" read returned a poisoned 'F' for symbols whose latest rows
+    # are backfill. The hazard is the hardcoded VALUE on backfill rows (now
+    # also fixed at the builders), not cache drift. Prefer the newest row
+    # whose insert date matches its trade date (live-captured); fall back to
+    # the newest row otherwise. LIMIT 20 keeps it bounded either way.
     try:
         import sqlite3
         from api.flow_db import FlowDB
         db = FlowDB()
         with sqlite3.connect(db.db_path, timeout=10) as conn:
             for sym in to_fetch:
-                row = conn.execute(
-                    "SELECT ER FROM flow WHERE Symbol = ? "
+                rows = conn.execute(
+                    "SELECT ER, CreatedDate, substr(created_at, 1, 10) "
+                    "FROM flow WHERE Symbol = ? "
                     "AND ER IS NOT NULL AND TRIM(ER) != '' "
-                    "ORDER BY rowid DESC LIMIT 1", (sym,)).fetchone()
-                er_clean = ((row[0] if row else 'F') or 'F').strip().upper()
-                er_val = 'T' if er_clean == 'T' else 'F'
+                    "ORDER BY rowid DESC LIMIT 20", (sym,)).fetchall()
+                er_raw = rows[0][0] if rows else 'F'
+                for er, cdate, idate in rows:
+                    if _same_cohort(cdate, idate):
+                        er_raw = er
+                        break
+                er_val = 'T' if (er_raw or 'F').strip().upper() == 'T' else 'F'
                 out[sym] = er_val
                 _ER_CACHE[sym] = (er_val, now)
     except Exception as e:
@@ -1278,38 +1287,74 @@ def _load_er_flags(symbols: list) -> dict:
     return out
 
 
-def prewarm_er_cache() -> int:
-    """One bounded pass that fills _ER_CACHE for every symbol seen in the last
-    ~10 days, so the consumer's write loop never pays a cold ER lookup at the
-    market open (each restart used to re-cold the cache — freeze, restart,
-    re-freeze). Runs in a daemon thread at consumer start, OFF the write path.
-    Returns symbols warmed."""
+def _same_cohort(created_date_mdy, insert_date_iso) -> bool:
+    """True when a row's insert date is the same (or next, for post-8pm-ET
+    UTC rollover) day as its trade date — i.e. live-captured, not backfill."""
     try:
+        m, d, y = (created_date_mdy or "").split("/")
+        trade = _dt_date(int(y), int(m), int(d))
+        yy, mm, dd = (insert_date_iso or "").split("-")
+        ins = _dt_date(int(yy), int(mm), int(dd))
+        return 0 <= (ins - trade).days <= 1
+    except (ValueError, AttributeError):
+        return False
+
+
+from datetime import date as _dt_date  # noqa: E402  (helper import for _same_cohort)
+
+
+PREWARM_ROWID_WINDOW = int(os.environ.get("MASSIVE_PREWARM_ROWID_WINDOW", "5000000"))
+PREWARM_STAGGER_SEC = float(os.environ.get("MASSIVE_PREWARM_STAGGER_SEC", "75"))
+
+
+def prewarm_er_cache() -> int:
+    """One bounded pass that fills _ER_CACHE for every symbol seen recently,
+    so the consumer's write loop never pays a cold ER lookup at the market
+    open. Runs in a daemon thread at consumer start, OFF the write path.
+
+    Review A10: staggered past boot (so it doesn't pile onto boot ingest +
+    integrity checks) and bounded to the newest PREWARM_ROWID_WINDOW rows —
+    three unbounded GROUP BY scans of a multi-GB table on every watchdog
+    restart was its own IO storm. Review A2: rows whose newest entry is
+    backfill-cohort are SKIPPED (their hardcoded flags may be wrong); the
+    per-symbol cohort-aware lookup covers them on first use."""
+    try:
+        time.sleep(PREWARM_STAGGER_SEC)
         import sqlite3
         from api.flow_db import FlowDB
         db = FlowDB()
         now = time.time()
         with sqlite3.connect(db.db_path, timeout=15) as conn:
+            floor = max(0, (conn.execute("SELECT COALESCE(MAX(rowid),0) FROM flow")
+                            .fetchone()[0] or 0) - PREWARM_ROWID_WINDOW)
             rows = conn.execute(
-                "SELECT Symbol, ER FROM flow WHERE rowid IN ("
+                "SELECT Symbol, ER, CreatedDate, substr(created_at,1,10) "
+                "FROM flow WHERE rowid IN ("
                 "  SELECT MAX(rowid) FROM flow "
-                "  WHERE ER IS NOT NULL AND TRIM(ER) != '' GROUP BY Symbol)"
-            ).fetchall()
-        for sym, er in rows:
-            if not sym:
+                "  WHERE rowid >= ? AND ER IS NOT NULL AND TRIM(ER) != '' "
+                "  GROUP BY Symbol)", (floor,)).fetchall()
+        seeded = 0
+        for sym, er, cdate, idate in rows:
+            if not sym or not _same_cohort(cdate, idate):
                 continue
             er_clean = (er or 'F').strip().upper()
             _ER_CACHE.setdefault(sym, ('T' if er_clean == 'T' else 'F', now))
-        logger.info("[massive-ws] ER cache prewarmed: %d symbols", len(rows))
+            seeded += 1
+        logger.info("[massive-ws] ER cache prewarmed: %d symbols (%d skipped as backfill-cohort)",
+                    seeded, len(rows) - seeded)
 
         # MktCap/Sector prewarm (same rationale): one boot-time pass instead
-        # of per-batch history walks. Newest non-blank row per symbol.
+        # of per-batch history walks. Newest non-blank row per symbol, same
+        # rowid floor (A10). No cohort filter needed: backfill builders copy
+        # metadata forward correctly, so those values aren't poisoned.
         meta: dict = {}
         with sqlite3.connect(db.db_path, timeout=15) as conn:
             for sym, mc in conn.execute(
                     "SELECT Symbol, MktCap FROM flow WHERE rowid IN ("
-                    "  SELECT MAX(rowid) FROM flow WHERE MktCap IS NOT NULL "
-                    "  AND MktCap != '' AND MktCap != '0' GROUP BY Symbol)"):
+                    "  SELECT MAX(rowid) FROM flow WHERE rowid >= ? "
+                    "  AND MktCap IS NOT NULL "
+                    "  AND MktCap != '' AND MktCap != '0' GROUP BY Symbol)",
+                    (floor,)):
                 try:
                     v = int(float((mc or "0").strip()))
                     if sym and v > 0:
@@ -1318,15 +1363,16 @@ def prewarm_er_cache() -> int:
                     pass
             for sym, sec in conn.execute(
                     "SELECT Symbol, Sector FROM flow WHERE rowid IN ("
-                    "  SELECT MAX(rowid) FROM flow WHERE Sector IS NOT NULL "
-                    "  AND Sector != '' GROUP BY Symbol)"):
+                    "  SELECT MAX(rowid) FROM flow WHERE rowid >= ? "
+                    "  AND Sector IS NOT NULL "
+                    "  AND Sector != '' GROUP BY Symbol)", (floor,)):
                 if sym and (sec or "").strip():
                     meta.setdefault(sym, {})["sector"] = sec.strip()
         now2 = time.time()
         for sym, m in meta.items():
             _META_CACHE.setdefault(sym, (m, now2))
         logger.info("[massive-ws] metadata cache prewarmed: %d symbols", len(meta))
-        return len(rows)
+        return seeded
     except Exception as e:
         logger.warning("[massive-ws] ER prewarm failed (non-fatal): %s", e)
         return 0
@@ -1545,7 +1591,7 @@ def _write_events(events: list) -> None:
                                      ticker_meta=ticker_meta, oi_map=oi_stocks,
                                      cum_vol_map=cum_vol_stocks,
                                      spot_map=spot_stocks, er_map=er_map)
-            result = db.insert_csv(csv_str, source="stocks")
+            result = _insert_with_retry(db, csv_str, "stocks")
             _state["events_written_stocks"] += result.get("inserted", 0)
             if result.get("skipped", 0):
                 logger.debug(
@@ -1558,7 +1604,7 @@ def _write_events(events: list) -> None:
                                      ticker_meta=ticker_meta, oi_map=oi_indexes,
                                      cum_vol_map=cum_vol_indexes,
                                      spot_map=spot_indexes, er_map=er_map)
-            result = db.insert_csv(csv_str, source="indexes")
+            result = _insert_with_retry(db, csv_str, "indexes")
             _state["events_written_indexes"] += result.get("inserted", 0)
             if result.get("skipped", 0):
                 logger.debug(
@@ -1570,6 +1616,29 @@ def _write_events(events: list) -> None:
     except Exception as e:
         logger.exception("[massive-ws] DB write failed: %s", e)
         _state["last_error"] = f"db_write: {e}"
+
+
+def _insert_with_retry(db, csv_str: str, source: str, attempts: int = 3) -> dict:
+    """Bounded retry on transient SQLite lock contention (review A7).
+
+    A 'database is locked' here used to be swallowed by _write_events' outer
+    except and the WHOLE batch silently vanished — a sub-2-minute hole that
+    MIN_GAP_MINUTES=2 gap detection can never see and no heal ever fixes.
+    Backups, heals and admin scans all take short write locks; 2 retries with
+    backoff ride them out. Exhausted retries increment a VISIBLE counter."""
+    last_exc = None
+    for i in range(attempts):
+        try:
+            return db.insert_csv(csv_str, source=source)
+        except Exception as e:
+            if "locked" not in str(e).lower() and "busy" not in str(e).lower():
+                raise
+            last_exc = e
+            time.sleep(1.0 + i)
+    _state["batches_dropped_locked"] = _state.get("batches_dropped_locked", 0) + 1
+    logger.error("[massive-ws] %s batch DROPPED after %d locked retries: %s",
+                 source, attempts, last_exc)
+    raise last_exc
 
 
 # -- WebSocket consumer ---------------------------------------------

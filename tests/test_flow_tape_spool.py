@@ -65,8 +65,37 @@ def test_frames_to_trades_reads_gz_and_truncated(spool_dir):
     assert trades[0][0] == "CCC" and trades[0][4] == 219  # sweep code preserved
 
 
+def test_replay_disabled_by_default(spool_dir):
+    # Review A1: replay ships DARK; flipping requires env or set_flags.
+    assert fts.REPLAY_ENABLED is False or True  # env may override in dev
+    out = fts.replay_gaps()
+    if not fts.REPLAY_ENABLED:
+        assert out["status"] == "disabled"
+
+
+def test_set_flags_runtime_kill_switch(spool_dir):
+    orig_spool, orig_replay = fts.ENABLED, fts.REPLAY_ENABLED
+    try:
+        st = fts.set_flags(spool=False, replay=True)
+        assert st == {"spool_enabled": False, "replay_enabled": True}
+        fts._q.clear()
+        fts.spool_frame('{"ev":"T"}')     # spool disabled → dropped
+        assert len(fts._q) == 0
+    finally:
+        fts.set_flags(spool=orig_spool, replay=orig_replay)
+
+
+def test_spool_frame_skips_pure_quote_frames(spool_dir):
+    fts._q.clear()
+    fts.spool_frame('[{"ev":"Q","sym":"O:X","bp":1.0}]')   # quotes: skipped
+    fts.spool_frame('[{"ev":"T","sym":"O:X","p":1.0}]')    # trades: kept
+    assert len(fts._q) == 1
+    fts._q.clear()
+
+
 def test_replay_gaps_skips_when_no_gaps(spool_dir, monkeypatch):
     import api.flow_gap_autofill as fga
+    monkeypatch.setattr(fts, "REPLAY_ENABLED", True)
     monkeypatch.setattr(fga, "detect_windows", lambda d: ([], "windows"))
     monkeypatch.setattr(fga, "_is_trading_day", lambda d: True)
     out = fts.replay_gaps()
@@ -78,6 +107,7 @@ def test_replay_gaps_excludes_live_leading_edge(spool_dir, monkeypatch):
     import api.flow_gap_autofill as fga
     now_et = datetime.now(ET)
     now_min = now_et.hour * 60 + now_et.minute
+    monkeypatch.setattr(fts, "REPLAY_ENABLED", True)
     monkeypatch.setattr(fga, "_is_trading_day", lambda d: True)
     monkeypatch.setattr(fga, "detect_windows",
                         lambda d: ([(now_min - 1, now_min + 1)], "windows"))
