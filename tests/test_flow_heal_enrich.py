@@ -226,11 +226,14 @@ def test_parity_flags_inert_heal(flow_db):
     assert parity["baseline"]["source"] == "live-captured"
     assert parity["heal_complete"] is False
 
-    # Enrich the backfilled cohort → parity turns green
+    # Enrich the backfilled cohort → parity turns green. use_cache=False is
+    # the post-mutation contract (enrich_day recomputes + refreshes the cache);
+    # the cached read must still serve the stale value until then.
     with sqlite3.connect(flow_db) as c:
         c.execute("UPDATE flow SET Side='A', OI='50' "
                   "WHERE created_at LIKE '2026-07-15%'")
-    parity2 = fhe.classification_parity(mdy)
+    assert fhe.classification_parity(mdy)["heal_complete"] is False  # cached
+    parity2 = fhe.classification_parity(mdy, use_cache=False)
     assert parity2["heal_complete"] is True
 
 

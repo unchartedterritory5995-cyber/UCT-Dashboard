@@ -408,11 +408,29 @@ _DEFAULT_BASELINE = {"sided_pct": 40.0, "oi_pos_pct": 70.0}
 _MIN_LIVE_BASELINE_ROWS = 500
 _PARITY_RATIO = 0.5   # backfilled must reach half the baseline to count as complete
 
+# Per-date parity cache. worker-history calls classification_parity on every
+# request; per-request full-day scans of a growing live day made that endpoint
+# time out intraday (7/16). Heal health changes on heal cadence, not request
+# cadence — 10 min staleness is fine. enrich_day busts it after mutating.
+_PARITY_CACHE = {}          # mdy -> (ts, result)
+_PARITY_TTL_SEC = 600
 
-def classification_parity(target_mdy: str) -> dict:
+
+def classification_parity(target_mdy: str, *, use_cache: bool = True) -> dict:
     """Compare the backfilled cohort (created_at date > trade date) against the
     live-captured cohort on sided-% and OI>0-%. Row presence is NOT heal
     success — this is what /worker-history was blind to."""
+    key = (DB_PATH, target_mdy)
+    if use_cache:
+        hit = _PARITY_CACHE.get(key)
+        if hit and (time.time() - hit[0]) < _PARITY_TTL_SEC:
+            return hit[1]
+    out = _classification_parity_uncached(target_mdy)
+    _PARITY_CACHE[key] = (time.time(), out)
+    return out
+
+
+def _classification_parity_uncached(target_mdy: str) -> dict:
     target_d = _mdy_to_date(target_mdy)
     if target_d is None:
         return {"error": f"bad target_date {target_mdy!r}"}
@@ -574,9 +592,10 @@ def _enrich_day_locked(target: date, gz_path: str, mdy: str, out: dict,
             except OSError:
                 pass
 
-    # 4. Honesty check.
+    # 4. Honesty check (use_cache=False: we just mutated the day — recompute
+    #    and refresh the parity cache for worker-history readers).
     try:
-        out["parity"] = classification_parity(mdy)
+        out["parity"] = classification_parity(mdy, use_cache=False)
         out["status"] = ("completed" if out["parity"].get("heal_complete")
                          else "incomplete")
     except Exception as e:
