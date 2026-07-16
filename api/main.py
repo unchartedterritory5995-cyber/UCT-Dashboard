@@ -2734,9 +2734,13 @@ async def lifespan(app: FastAPI):
             # on web too would write to web's frozen flow.db AND refresh-race the
             # shared Schwab token. Gate it to where the consumer runs.
             if os.getenv("MASSIVE_WS_ENABLED") == "1":
+                # timezone EXPLICIT (2026-07-16): a pre-built CronTrigger defaults
+                # to the SERVER-LOCAL tz (UTC on Railway), NOT the scheduler's ET —
+                # this job had been firing at 5:30 UTC = 1:30 AM ET.
                 _scheduler.add_job(
                     daily_snapshot_job,
-                    trigger=CronTrigger(day_of_week="mon-fri", hour=5, minute=30),
+                    trigger=CronTrigger(day_of_week="mon-fri", hour=5, minute=30,
+                                        timezone=ZoneInfo("America/New_York")),
                     id="oi_snapshot_daily",
                     max_instances=1,
                     replace_existing=True,

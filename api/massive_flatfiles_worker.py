@@ -619,12 +619,14 @@ def register_jobs(scheduler) -> bool:
         except Exception as e:
             logger.exception("[massive-ff] scheduled run crashed: %s", e)
 
-    # Three retries -- each is a no-op if previous already succeeded
+    # Three retries -- each is a no-op if previous already succeeded.
+    # timezone is EXPLICIT (2026-07-16): the flow-worker scheduler runs UTC,
+    # so without it these "ET" times fired at 7:30/8:00/8:30 AM ET.
     for hh, mm in [(11, 30), (12, 0), (12, 30)]:
         scheduler.add_job(
             _wrapped,
             trigger=CronTrigger(
-                day_of_week="mon-fri", hour=hh, minute=mm,
+                day_of_week="mon-fri", hour=hh, minute=mm, timezone=ET,
             ),
             id=f"massive_flatfiles_daily_{hh:02d}{mm:02d}",
             max_instances=1,
