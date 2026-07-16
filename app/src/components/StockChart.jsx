@@ -805,6 +805,7 @@ export default function StockChart({
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
   volumePaneHeightPct = null, // override the separate volume pane height (%)
   showRangeSelector = false, // show the TC2000-style date-range bar (3M/6M/YTD/12M/1Y/5Y) bottom-left, above the volume pane
+  canvasTheme = null,        // workspace chart-theme override: 'sunrise' = light gradient canvas (keeps green/red candles); null = the normal dark canvas
   onVolumePaneResize = null,  // (pct) => void — fired when the user drags the price/volume separator, so the caller can persist the new height
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
@@ -895,6 +896,20 @@ export default function StockChart({
   // Returns layout/grid/crosshair/candle colors based on cs.theme. Used in
   // chartOpts below and re-applied via useEffect when theme changes.
   const themeColors = useMemo(() => {
+    if (canvasTheme === 'sunrise') {
+      // TSDR — Sunrise: a light sky-gradient canvas (blue top → sun-yellow bottom),
+      // dark ink for text/scales, faint grid. Candles KEEP the current green/red.
+      return {
+        background: '#eaf3fb',   // solid fallback (also the crosshair label bg)
+        backgroundGradient: { top: '#c9e4f6', bottom: '#fbf1c9' },
+        textColor: '#243040',
+        gridColor: 'rgba(20,35,55,0.07)',
+        borderColor: 'rgba(20,35,55,0.22)',
+        crosshairColor: '#586573',
+        candleUp: boldCandles ? MB_UP : cs.candles?.upColor,
+        candleDown: boldCandles ? MB_DOWN : cs.candles?.downColor,
+      }
+    }
     if (cs.theme === 'light') {
       return {
         background: '#ffffff',
@@ -918,7 +933,7 @@ export default function StockChart({
       candleUp: cs.candles?.upColor,
       candleDown: cs.candles?.downColor,
     }
-  }, [cs.theme, cs.background, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor, boldCandles])
+  }, [cs.theme, cs.background, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor, boldCandles, canvasTheme])
 
   // ── Price-scale: forceLogScale (Model Book) defaults to log without touching
   // the user's global chart-settings pref. A per-instance override lets the
@@ -3676,7 +3691,9 @@ export default function StockChart({
     // ── Create or update chart instance ──
     const chartOpts = {
       layout: {
-        background: { type: ColorType.Solid, color: themeColors.background },
+        background: themeColors.backgroundGradient
+          ? { type: ColorType.VerticalGradient, topColor: themeColors.backgroundGradient.top, bottomColor: themeColors.backgroundGradient.bottom }
+          : { type: ColorType.Solid, color: themeColors.background },
         textColor: themeColors.textColor,
         fontFamily: "'Instrument Sans', sans-serif",
         fontSize: 10,
@@ -5014,7 +5031,7 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars])
+  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, canvasTheme])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

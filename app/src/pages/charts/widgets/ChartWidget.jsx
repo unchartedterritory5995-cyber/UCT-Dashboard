@@ -27,7 +27,7 @@ const TFS = [
 const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
 
 export default function ChartWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   const sym = groupSyms[color] || 'SPY'
 
@@ -386,6 +386,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           dailyDefaultBars={126}
           volumeSeparatePane
           showRangeSelector
+          canvasTheme={chartsTheme === 'sunrise' ? 'sunrise' : null}
           volumePaneHeightPct={volPanePct}
           onVolumePaneResize={handleVolPaneResize}
           priceScaleTopMargin={0.12}
