@@ -120,6 +120,9 @@
 /* Match the chart's candle colors (MB_UP / MB_DOWN) exactly. */
 .pos { color: #1ae51a; }
 .neg { color: #c41f2d; }
+/* Sunrise: match the dark candle green/red. */
+:global([data-charts-theme='sunrise']) .pos { color: #0a5c22; }
+:global([data-charts-theme='sunrise']) .neg { color: #7d1620; }
 .rev { font-size: 8px; margin-left: 3px; vertical-align: middle; }
 .revUp { color: #1ae51a; }
 .revDown { color: #c41f2d; }
