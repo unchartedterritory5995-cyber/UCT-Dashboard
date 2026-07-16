@@ -143,6 +143,7 @@
   justify-content: flex-start;
   min-width: 0;
   margin-right: 2px;
+  flex-shrink: 0;   /* never squeeze the company name — show it in full */
 }
 
 /* Live day gain ($ + %) beside the ticker — matches the ticker's size + box

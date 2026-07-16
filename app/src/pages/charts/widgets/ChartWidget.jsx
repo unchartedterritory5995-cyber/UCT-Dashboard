@@ -243,6 +243,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             sym={sym}
             onSymbolChange={handleSymbolChange}
             hideIcon
+            fullLabel
             logoSym={themeIdx.isIndex ? null : sym}
             displayLabel={headerLabel}
           />
