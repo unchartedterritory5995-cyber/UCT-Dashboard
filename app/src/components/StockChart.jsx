@@ -770,6 +770,7 @@ export default function StockChart({
   overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
   volumePaneHeightPct = null, // override the separate volume pane height (%)
+  onVolumePaneResize = null,  // (pct) => void — fired when the user drags the price/volume separator, so the caller can persist the new height
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
@@ -1288,6 +1289,10 @@ export default function StockChart({
   const lastPriceLinesRef = useRef(undefined)
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const volMaSeriesRef = useRef(null)  // 50-MA line on the volume pane
+  // Volume-pane height % last APPLIED via setStretchFactor. Gate re-applies on it
+  // so a 30s data poll can't reset the pane and fight a user's separator drag; the
+  // drag sampler compares the live pane % against it to detect a user resize.
+  const lastAppliedVolPctRef = useRef(null)
   const volMaTailSeriesRef = useRef(null)  // candleFrameFade: post-setup tail of the volume MA (crossfades with everything else)
   const lastBarRef = useRef(null)
   const prevChartTypeRef = useRef(null)
@@ -4031,6 +4036,7 @@ export default function StockChart({
         }, volSeparatePane ? 1 : 0)
         volumeSeriesRef.current = vs
         volumeSeparatePaneRef.current = volScaleId
+        lastAppliedVolPctRef.current = null  // fresh pane → force the height (re)apply below
       }
       if (volSeparatePane) {
         // Own pane: small top margin so bars don't kiss the divider; size the
@@ -4043,7 +4049,10 @@ export default function StockChart({
           const pct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume.paneHeightPct ?? 22))
           const mainPane = candleSeriesRef.current?.getPane?.()
           const volPane = volumeSeriesRef.current?.getPane?.()
-          if (mainPane && volPane) {
+          // Only (re)apply when the TARGET height changed — otherwise a periodic
+          // data-poll re-run would snap the pane back and undo a user's drag.
+          if (mainPane && volPane && lastAppliedVolPctRef.current !== pct) {
+            lastAppliedVolPctRef.current = pct
             if (indexPaneSeriesRef.current) {
               const idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
               try { indexPaneSeriesRef.current.getPane().setStretchFactor(idxPct) } catch {}
@@ -6255,6 +6264,38 @@ export default function StockChart({
     el.addEventListener('pointerdown', onDown)
     return () => { el.removeEventListener('pointerdown', onDown); end() }
   }, [dragMeasure, chartReady, activeTool, frozen])
+
+  // ── Persist a user's volume-pane resize ───────────────────────────────────
+  // LWC has no separator-drag event, so poll the actual volume-pane fraction; when
+  // it diverges from what we last applied (the user dragged the separator), fire
+  // onVolumePaneResize so the caller can persist it + feed it back as
+  // volumePaneHeightPct. Only active when a caller wants to persist (workspace).
+  useEffect(() => {
+    if (!chartReady || !onVolumePaneResize) return undefined
+    const chart = chartRef.current
+    if (!chart) return undefined
+    const id = setInterval(() => {
+      try {
+        const mainPane = candleSeriesRef.current?.getPane?.()
+        const volPane = volumeSeriesRef.current?.getPane?.()
+        if (!mainPane || !volPane || mainPane === volPane) return
+        const hMain = mainPane.getHeight(), hVol = volPane.getHeight()
+        const total = hMain + hVol
+        if (!(total > 0)) return
+        const actual = Math.round((hVol / total) * 100)
+        const applied = lastAppliedVolPctRef.current
+        // Detect + fire only — do NOT touch lastAppliedVolPctRef here. Leaving it at
+        // the code-applied value keeps updateChart's gate (lastApplied === pct)
+        // TRUE during the drag, so a data poll won't re-apply the old height and
+        // snap the pane back. Once the persisted value feeds back as the prop,
+        // updateChart applies it, lastApplied catches up, and this stops firing.
+        if (applied != null && Math.abs(actual - applied) >= 2 && actual >= 5 && actual <= 60) {
+          onVolumePaneResize(actual)
+        }
+      } catch { /* not ready */ }
+    }, 300)
+    return () => clearInterval(id)
+  }, [chartReady, onVolumePaneResize])
 
   // ── Time-scroll grip ──────────────────────────────────────────────────────
   // Because drag-pan is repurposed for measuring, this small grip (bottom-right,

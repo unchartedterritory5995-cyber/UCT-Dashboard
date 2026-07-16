@@ -113,6 +113,18 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     setPref('chart_settings', JSON.stringify(next))
   }, [prefs.chart_settings, setPref])
 
+  // Volume-pane height persists per-user across the charts workspace (default 12%),
+  // so dragging the price/volume separator sticks across ticker changes + refresh.
+  const volPanePct = (() => {
+    const v = Number(prefs?.charts_vol_pane_pct)
+    return Number.isFinite(v) && v >= 5 && v <= 60 ? v : 12
+  })()
+  const volSaveTimerRef = useRef(null)
+  const handleVolPaneResize = useCallback((pct) => {
+    if (volSaveTimerRef.current) clearTimeout(volSaveTimerRef.current)
+    volSaveTimerRef.current = setTimeout(() => setPref('charts_vol_pane_pct', String(pct)), 400)
+  }, [setPref])
+
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
 
@@ -284,7 +296,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           rightPadBars={6}
           dailyDefaultBars={126}
           volumeSeparatePane
-          volumePaneHeightPct={12}
+          volumePaneHeightPct={volPanePct}
+          onVolumePaneResize={handleVolPaneResize}
           priceScaleTopMargin={0.12}
           priceScaleBottomMargin={0.10}
           sessionView={sessionView}
