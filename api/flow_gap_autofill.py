@@ -22,8 +22,12 @@ p2-gapfill-spec.md — read it before changing anything here):
 - CACHE-VERSION: flow_router's version is row-count based — a delete-N/
   insert-N fill is INVISIBLE without bump_data_version() (and a boot re-bump,
   because the offset is process-local). Both are mandatory here.
-- Accepted degradation on backfilled rows: Side='' / Spot='0' / IV='0';
-  OI/MktCap/Sector/Type/Dte fully populated. Present-but-degraded ≫ absent.
+- Backfilled rows are CLASSIFIED post-fill by api/flow_heal_enrich.py
+  (OI from dated snapshots → color rebuild → Side tick-test patches → parity
+  check vs the live-captured baseline). Rows-only heals looked green to every
+  health check while being invisible to side/V-OI gated tiers (7/14/2026:
+  0% sided, 89% OI=0 — spec: autoheal_classification_spec.md). Remaining
+  accepted degradation: Spot='0' / IV='0'.
 
 Gates: FLOW_GAP_AUTOFILL_ENABLED (default 0 — ships dark),
 FLOW_GAP_AUTOFILL_DRY_RUN (default 1 for week one),
@@ -234,6 +238,19 @@ def _build_fill_rows(target: date):
     if gz is None:
         return None, {}
 
+    # Persist the raw tape so the post-fill classification enrichment
+    # (flow_heal_enrich side-patches step) can stream it without a second
+    # S3 download. run_fill deletes it when done.
+    tape_path = None
+    try:
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+        tape_path = os.path.join(BACKUP_DIR, f"tape-{target.isoformat()}.csv.gz")
+        with open(tape_path, "wb") as f:
+            f.write(gz)
+    except OSError as e:
+        logger.warning("[gap-fill] tape persist failed (enrich will re-download): %s", e)
+        tape_path = None
+
     df = pd.read_csv(io.BytesIO(gzip.decompress(gz)))
     df = df.sort_values("sip_timestamp", kind="stable").reset_index(drop=True)
     events, agg_stats = batch_process(df, min_premium=MIN_PREMIUM, min_volume=MIN_VOLUME)
@@ -260,7 +277,7 @@ def _build_fill_rows(target: date):
                 out[source].append((sec, row))
     stats = {"events_stocks": len(stocks), "events_indexes": len(indexes),
              "min_premium": MIN_PREMIUM, "min_volume": MIN_VOLUME,
-             "agg": agg_stats}
+             "agg": agg_stats, "tape_path": tape_path}
     return out, stats
 
 
@@ -466,6 +483,14 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
 
         result = {"status": None, "run_id": run_id, "target_date": mdy,
                   "windows": [], "dry_run": dry_run}
+        tape_to_cleanup = None
+
+        def _cleanup_tape():
+            if tape_to_cleanup:
+                try:
+                    os.remove(tape_to_cleanup)
+                except OSError:
+                    pass
         try:
             windows, mode = detect_windows(target)
             with _conn() as c:
@@ -501,6 +526,7 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
                     return result
 
             fill_rows, ff_stats = _build_fill_rows(target)
+            tape_to_cleanup = (ff_stats or {}).get("tape_path")
             if fill_rows is None:
                 _finish(run_id, "no_file")
                 result["status"] = "no_file"
@@ -531,6 +557,26 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
                 c.close()
 
             problems = _post_fill_assertions(target)
+
+            # Classification enrichment (OI → color → Side, then a parity
+            # check) — rows-only heals look perfect to every row-count health
+            # check while being invisible to side/V-OI gated tiers. Runs
+            # BEFORE the version bump so clients pick up classified rows.
+            enrich_result = None
+            if totals["inserted"] > 0:
+                with _conn() as c2:
+                    c2.execute("UPDATE flow_fill_runs SET heartbeat_at=datetime('now') "
+                               "WHERE run_id=?", (run_id,))
+                    c2.commit()
+                try:
+                    from api import flow_heal_enrich
+                    enrich_result = flow_heal_enrich.enrich_day(
+                        target, gz_path=ff_stats.get("tape_path"))
+                    result["enrich"] = enrich_result
+                except Exception as e:
+                    logger.exception("[gap-fill] enrichment failed (fill stands): %s", e)
+                    result["enrich"] = {"status": "failed", "error": str(e)[:300]}
+
             version_after = _bump_version()
             _finish(run_id, "completed", version_before=version_before,
                     version_after=version_after)
@@ -542,6 +588,16 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
                    f"deleted {totals['deleted']} (archived), inserted {totals['inserted']}, "
                    f"dupes {totals['skipped']} · version {version_before}→{version_after} · "
                    f"backup {os.path.basename(backup_path) if backup_path else 'SKIPPED'}")
+            if enrich_result is not None:
+                try:
+                    from api import flow_heal_enrich as _fhe
+                    msg += "\n" + _fhe.summary_line(enrich_result)
+                    if enrich_result.get("status") == "incomplete":
+                        msg += ("\n\U0001F6A8 heal INCOMPLETE: backfilled rows diverge "
+                                "from live classification baseline — day is partially "
+                                "inert for curated tiers")
+                except Exception:
+                    pass
             if problems:
                 msg += (f"\n\U0001F6A8 @here POST-FILL ASSERTION FAILED: {problems} — "
                         f"consider POST /api/flow-gap-fill/rollback/{run_id}")
@@ -553,6 +609,8 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
             _post_discord(f"\U0001F534 FLOW GAP-FILL {mdy} failed: {str(e)[:300]} "
                           f"(per-window atomicity: nothing half-applied)")
             return {"status": "failed", "run_id": run_id, "error": str(e)[:300]}
+        finally:
+            _cleanup_tape()
     finally:
         _RUN_LOCK.release()
 
@@ -756,8 +814,15 @@ def status():
         for r in runs:
             r["windows"] = [dict(w) for w in c.execute(
                 "SELECT * FROM flow_fill_windows WHERE run_id=?", (r["run_id"],))]
+    last_enrich = None
+    try:
+        from api import flow_heal_enrich
+        last_enrich = flow_heal_enrich.last_result()
+    except Exception:
+        pass
     return JSONResponse({"enabled": ENABLED, "dry_run": DRY_RUN,
-                         "min_gap_minutes": MIN_GAP_MINUTES, "runs": runs})
+                         "min_gap_minutes": MIN_GAP_MINUTES,
+                         "last_enrich": last_enrich, "runs": runs})
 
 
 @router.post("/run")
@@ -776,6 +841,33 @@ def trigger_run(target_date: str = None, force: bool = False, dry_run: bool = No
         target=run_fill, kwargs={"target": target, "force": force, "dry_run": dry_run},
         daemon=True, name="flow-gap-fill-manual").start()
     return JSONResponse({"status": "started", "check": "/api/flow-gap-fill/status"})
+
+
+@router.post("/enrich")
+def trigger_enrich(target_date: str, authorization: str = Header(default="")):
+    """Manually run classification enrichment (OI → color → Side → parity)
+    for an already-healed date — e.g. re-heal 7/14 whose rows landed
+    unclassified. NEVER inline — daemon thread; result lands in
+    /status.last_enrich and Discord. target_date: 'YYYY-MM-DD'."""
+    _require_push_secret(authorization)
+    try:
+        target = date.fromisoformat(target_date)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="target_date must be YYYY-MM-DD")
+
+    def _do():
+        try:
+            from api import flow_heal_enrich
+            res = flow_heal_enrich.enrich_day(target, force=True)
+            _bump_version()
+            _post_discord(flow_heal_enrich.summary_line(res))
+        except Exception as e:
+            logger.exception("[gap-fill] manual enrich failed: %s", e)
+            _post_discord(f"\U0001F534 ENRICH {target_date} failed: {str(e)[:200]}")
+
+    threading.Thread(target=_do, daemon=True, name="flow-heal-enrich-manual").start()
+    return JSONResponse({"status": "started",
+                         "check": "/api/flow-gap-fill/status (last_enrich)"})
 
 
 @router.post("/rollback/{run_id}")

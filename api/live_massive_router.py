@@ -4535,6 +4535,25 @@ def _worker_history_impl(target_date, min_gap_minutes):
             "the worker wasn't running for most of the session."
         )
 
+    # Classification parity (2026-07-15): writes-per-minute alone is a FALSE
+    # GREEN on healed days — 7/14 reported 390/390 minutes with zero downtime
+    # while every restored row was unclassified (0% sided, 89% OI=0) and
+    # invisible to the curated tiers. A heal check must assert classification
+    # parity, not row presence. Additive block; never breaks the endpoint.
+    classification = None
+    try:
+        from api.flow_heal_enrich import classification_parity
+        classification = classification_parity(today)
+        if classification.get("backfilled", {}).get("rows") and \
+                not classification.get("heal_complete"):
+            interp_parts.append(
+                "WARNING: backfilled rows on this date diverge sharply from "
+                "the live classification baseline (sided-%/OI>0-%) — the heal "
+                "is INCOMPLETE for side/V-OI gated tiers despite full row "
+                "coverage. Re-run POST /api/flow-gap-fill/enrich.")
+    except Exception as _cls_err:
+        classification = {"error": str(_cls_err)}
+
     # Restored 2026-07-06 mid-session: an earlier str_replace edit consumed
     # this final return block, causing the endpoint to fall off the end of
     # the function and implicitly return None (serialized by FastAPI as
@@ -4554,6 +4573,7 @@ def _worker_history_impl(target_date, min_gap_minutes):
         "total_estimated_dropped_events": total_estimated_dropped,
         "sample_hour_rates": hourly,
         "total_rows_scanned": len(times),
+        "classification": classification,
         "interpretation": " ".join(interp_parts),
     }
 

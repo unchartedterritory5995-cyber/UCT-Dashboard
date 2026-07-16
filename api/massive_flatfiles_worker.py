@@ -278,6 +278,16 @@ def _download(d: date) -> Optional[bytes]:
         if code in ("NoSuchKey", "404"):
             logger.info("[massive-ff] no file at %s (not yet published?)", key)
             return None
+        if code in ("403", "AccessDenied", "Forbidden"):
+            # Massive returns 403 (not 404) for not-yet-published dates — the
+            # evening gap-fill runs hit this every day and used to surface as
+            # a red "failed" instead of a calm "no_file". A GENUINE credential
+            # problem also lands here; the warning keeps it diagnosable.
+            logger.warning(
+                "[massive-ff] 403 at %s — treating as not-yet-published "
+                "(if this persists past T+1 midday, check MASSIVE_S3_* creds)",
+                key)
+            return None
         raise
 
 
@@ -467,6 +477,16 @@ def process_date(target_date: date, *, force: bool = False) -> dict:
                 result["inserted_indexes"] = stats["inserted_indexes"]
                 result["skipped_dupes"] = stats["skipped_dupes"]
                 logger.info("[massive-ff] %s", result["message"])
+                # Full-day ingests land with the same classification gaps as
+                # gap-fill windows (side='', OI only from snapshots) — run the
+                # enrichment pipeline so the day isn't inert for curated tiers.
+                if (stats["inserted_stocks"] + stats["inserted_indexes"]) > 0:
+                    try:
+                        from api import flow_heal_enrich
+                        result["enrich"] = flow_heal_enrich.enrich_day(target_date)
+                    except Exception as e:
+                        logger.exception("[massive-ff] enrichment failed (ingest stands)")
+                        result["enrich"] = {"status": "failed", "error": str(e)[:300]}
     except Exception as e:
         logger.exception("[massive-ff] process_date(%s) failed: %s", date_str, e)
         result["status"] = "error"
