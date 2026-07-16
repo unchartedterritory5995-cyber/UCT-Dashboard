@@ -39,15 +39,17 @@ class _NoThrottle:
 
 
 def _sdk(*, positions, balances, total, activities=None, options=None):
-    return _Group(account_information=_Group(
-        get_account_activities=lambda **kw: _Resp(
-            {"data": activities or [], "pagination": {}}),
-        get_user_account_positions=lambda **kw: _Resp(positions),
-        get_user_account_balance=lambda **kw: _Resp(balances),
-        list_user_accounts=lambda **kw: _Resp(
-            [{"id": "S1", "balance": {"total": {"amount": total, "currency": "USD"}}}]),
-        get_user_account_option_holdings=lambda **kw: _Resp(options or []),
-    ))
+    return _Group(
+        account_information=_Group(
+            get_account_activities=lambda **kw: _Resp(
+                {"data": activities or [], "pagination": {}}),
+            get_user_account_positions=lambda **kw: _Resp(positions),
+            get_user_account_balance=lambda **kw: _Resp(balances),
+            list_user_accounts=lambda **kw: _Resp(
+                [{"id": "S1", "balance": {"total": {"amount": total, "currency": "USD"}}}]),
+        ),
+        options=_Group(list_option_holdings=lambda **kw: _Resp(options or [])),
+    )
 
 
 POSITIONS = [{"symbol": {"symbol": "NVDA"}, "units": 100, "price": 500,
@@ -160,7 +162,7 @@ async def test_option_fetch_failure_skips_equity_check(env):
 
     def boom(**kw):
         raise RuntimeError("options endpoint down")
-    sdk.account_information.get_user_account_option_holdings = boom
+    sdk.options.list_option_holdings = boom
     snap.configure(sdk)
     await sync.sync_account("u1", env["ba_id"])
     out = await fidelity_audit.audit_account("u1", env["ba_id"])
