@@ -170,19 +170,25 @@ def _run(service_name: str) -> None:
                 continue
             stocks_dead_since = None
 
+            # B5, corrected: progress = EITHER newest stocks rowid advanced OR
+            # the live-write heartbeat fired since the last check. Advancing
+            # rowid alone is NOT progress when the heartbeat has been fed at
+            # least once (replay writes rows without touching the heartbeat).
+            # A first-boot process with no hb yet falls back to rowid-only.
             hb = _live_hb["ts"]
-            if last_max_id is None or max_id != last_max_id:
+            rowid_advanced = last_max_id is None or max_id != last_max_id
+            hb_advanced = hb > last_hb_seen
+            hb_ever_fed = hb > 0 or last_hb_seen > 0
+            progress = hb_advanced or (rowid_advanced and not hb_ever_fed)
+            if progress:
                 last_max_id = max_id
-                # B5: when the live write path feeds the heartbeat, a rowid
-                # advance only counts as live progress if the heartbeat moved
-                # too — a spool replay writing rows must not mask a frozen
-                # live lane. Fallback to rowid-only when hb was never fed.
-                if hb == 0 or hb > last_hb_seen:
-                    last_advance_ts = time.time()
-                    warned_half = False
+                last_advance_ts = time.time()
                 last_hb_seen = hb
+                warned_half = False
                 continue
-            last_hb_seen = hb
+            # NO progress — fall through to the frozen_for check.
+            last_hb_seen = max(last_hb_seen, hb)
+            last_max_id = max_id
 
             frozen_for = time.time() - last_advance_ts
             # Half-threshold early warning (manrav 7/16): if lag/flush cadence
