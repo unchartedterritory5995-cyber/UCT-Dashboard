@@ -429,6 +429,42 @@ def set_sync_enabled(
     )
 
 
+def list_accounts_by_authorization(
+    user_id: str, authorization_id: str, conn: sqlite3.Connection | None = None
+) -> list[dict[str, Any]]:
+    """Accounts mapped under one SnapTrade brokerage authorization (the id is
+    stamped during sync — accounts not yet stamped won't match)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM j2_broker_accounts "
+            "WHERE user_id = ? AND brokerage_authorization_id = ?",
+            (user_id, authorization_id),
+        ).fetchall()
+        return [_row_to_broker_account(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def get_account_by_snaptrade_id(
+    user_id: str, snaptrade_account_id: str, conn: sqlite3.Connection | None = None
+) -> dict[str, Any] | None:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM j2_broker_accounts "
+            "WHERE user_id = ? AND snaptrade_account_id = ?",
+            (user_id, snaptrade_account_id),
+        ).fetchone()
+        return _row_to_broker_account(row)
+    finally:
+        if owned:
+            conn.close()
+
+
 def set_status(
     user_id: str, broker_account_id: str, status: str,
     conn: sqlite3.Connection | None = None, *, error: str | None = None,

@@ -403,38 +403,54 @@ _WEBHOOK_MAX_INFLIGHT = int(os.getenv("BROKER_WEBHOOK_MAX_INFLIGHT", "20"))
 
 @router.post("/webhook")
 async def webhook(request: Request) -> dict[str, Any]:
-    """SnapTrade webhook. Authenticated by a shared secret in the body
-    (SNAPTRADE_WEBHOOK_SECRET, set in the SnapTrade dashboard) — NOT by user
-    session. On a data-changing event we trigger a background sync for that
-    user so the journal updates reactively (reducing polling pressure)."""
-    secret = os.getenv("SNAPTRADE_WEBHOOK_SECRET")
-    if not secret:
+    """SnapTrade webhook. Authenticated by the Signature header (HMAC-SHA256
+    over the sorted-compact JSON payload with the consumer key, per docs)
+    with the legacy body webhookSecret as fallback — NOT by user session.
+    Data-changing events trigger a background sync for that user (this is
+    the primary freshness path; scheduled polling is the fallback).
+    Connection-lifecycle events update account status instantly."""
+    from api.services.journal_two.broker import webhook_security
+    consumer_key = os.getenv("SNAPTRADE_CONSUMER_KEY")
+    legacy_secret = os.getenv("SNAPTRADE_WEBHOOK_SECRET")
+    if not consumer_key and not legacy_secret:
         raise HTTPException(status_code=503, detail="Webhooks not configured.")
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON.")
-    sent = str(body.get("webhookSecret") or "")
-    if not hmac.compare_digest(sent, secret):
-        raise HTTPException(status_code=401, detail="Bad webhook secret.")
+    accepted, _mode = webhook_security.verify(
+        body, request.headers.get("Signature"),
+        consumer_key=consumer_key, legacy_secret=legacy_secret,
+    )
+    if not accepted:
+        raise HTTPException(status_code=401, detail="Bad webhook signature.")
 
     # We registered SnapTrade users keyed by our UCT user id, so userId == ours.
     uct_user_id = body.get("userId")
     event = str(body.get("eventType") or body.get("type") or "").upper()
+    if not uct_user_id:
+        return {"ok": True, "ignored": True}
+    # Validate the user actually has a broker identity (don't act for
+    # arbitrary/forged userIds).
+    if not broker_conns.has_broker_user(str(uct_user_id)):
+        return {"ok": True, "ignored": "unknown user"}
+
+    # Connection-lifecycle events: instant status updates, no data sync needed
+    # (except FIXED, which also falls through to a sync below).
+    handled = _handle_lifecycle_event(str(uct_user_id), event, body)
+
     # Sync ONLY on known data-changing events (an empty/unknown event no longer
-    # triggers a sync — narrows the abuse surface).
+    # triggers a sync — narrows the abuse surface). TRADE_DETECTION fires
+    # seconds after an external trade executes (per-account subscription via
+    # SnapTrade support) — ready if/when subscribed.
     sync_events = {
         "CONNECTION_ADDED", "CONNECTION_UPDATED", "CONNECTION_FIXED",
         "ACCOUNT_HOLDINGS_UPDATED", "ACCOUNT_TRANSACTIONS_UPDATED",
         "ACCOUNT_TRANSACTIONS_INITIAL_UPDATE", "NEW_ACCOUNT_AVAILABLE",
-        "TRADES_PLACED",
+        "TRADES_PLACED", "TRADE_DETECTION",
     }
-    if not uct_user_id or event not in sync_events:
-        return {"ok": True, "ignored": True}
-    # Validate the user actually has a broker identity (don't spawn work for
-    # arbitrary/forged userIds) and cap concurrent webhook-driven syncs.
-    if not broker_conns.has_broker_user(str(uct_user_id)):
-        return {"ok": True, "ignored": "unknown user"}
+    if event not in sync_events:
+        return {"ok": True, "handled": handled} if handled else {"ok": True, "ignored": True}
     if len(_webhook_tasks) >= _WEBHOOK_MAX_INFLIGHT:
         return {"ok": True, "deferred": "busy"}
 
@@ -453,6 +469,57 @@ async def webhook(request: Request) -> dict[str, Any]:
     _webhook_tasks.add(task)
     task.add_done_callback(_webhook_tasks.discard)
     return {"ok": True, "scheduled": True}
+
+
+def _handle_lifecycle_event(user_id: str, event: str, body: dict) -> str | None:
+    """Instant account-status updates from connection-lifecycle webhooks.
+    Local journal data is NEVER deleted here (mirror-fidelity: history stays
+    even when the connection goes away at SnapTrade). Returns a short label
+    when the event mutated state, else None. Never raises."""
+    try:
+        auth_id = str(body.get("brokerageAuthorizationId")
+                      or body.get("authorizationId") or "")
+        if event == "CONNECTION_BROKEN" and auth_id:
+            from api.services.journal_two.broker import notifications
+            for ba in broker_conns.list_accounts_by_authorization(user_id, auth_id):
+                if ba["status"] != "broken":
+                    broker_conns.set_status(
+                        user_id, ba["id"], "broken",
+                        error="SnapTrade reported the connection broken — reconnect required")
+                    notifications.connection_broken(
+                        user_id, ba, "webhook CONNECTION_BROKEN",
+                        prior_status=ba["status"])
+            return "connection_broken"
+        if event == "CONNECTION_FIXED" and auth_id:
+            for ba in broker_conns.list_accounts_by_authorization(user_id, auth_id):
+                if ba["status"] == "broken":
+                    broker_conns.set_status(user_id, ba["id"], "active")
+            return "connection_fixed"
+        if event in ("CONNECTION_DELETED", "USER_DELETED"):
+            accounts = (broker_conns.list_accounts_by_authorization(user_id, auth_id)
+                        if (event == "CONNECTION_DELETED" and auth_id)
+                        else broker_conns.list_broker_accounts(user_id))
+            for ba in accounts:
+                broker_conns.set_status(
+                    user_id, ba["id"], "disabled",
+                    error=f"Connection removed at SnapTrade ({event})")
+                broker_conns.set_sync_enabled(user_id, ba["id"], False)
+            return event.lower()
+        if event == "ACCOUNT_REMOVED":
+            snap_acct = str(body.get("accountId") or "")
+            ba = (broker_conns.get_account_by_snaptrade_id(user_id, snap_acct)
+                  if snap_acct else None)
+            if ba:
+                broker_conns.set_status(
+                    user_id, ba["id"], "disabled",
+                    error="Account removed from the connection at SnapTrade")
+                broker_conns.set_sync_enabled(user_id, ba["id"], False)
+                return "account_removed"
+    except Exception:
+        import logging
+        logging.getLogger("broker_webhook").exception(
+            "lifecycle event handling failed (%s)", event)
+    return None
 
 
 # Events that mean "a new connection/account exists at SnapTrade" — these must
