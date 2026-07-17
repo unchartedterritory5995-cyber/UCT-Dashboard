@@ -1,10 +1,10 @@
 /* Floating color panel — pops out to the side of the Chart Settings modal. */
 .panel {
-  width: 208px;
-  padding: 11px;
+  width: 288px;
+  padding: 13px;
   background: #0e0e0f;
   border: 1px solid #2c2c2d;
-  border-radius: 11px;
+  border-radius: 12px;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.72);
   animation: cpIn 120ms ease;
 }
@@ -38,18 +38,18 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 3px;
+  gap: 4px;
 }
 .sw {
   width: 100%;
   aspect-ratio: 1;
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0;
   cursor: pointer;
   transition: transform 80ms;
 }
-.sw:hover { transform: scale(1.2); position: relative; z-index: 1; }
+.sw:hover { transform: scale(1.25); position: relative; z-index: 1; }
 .swActive { box-shadow: 0 0 0 2px #0e0e0f, 0 0 0 3px #c9a84c; }
 
 .savedLabel {

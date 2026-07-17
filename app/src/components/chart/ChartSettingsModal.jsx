@@ -111,10 +111,10 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   useLayoutEffect(() => {
     if (!open || !activeTarget || !panelRef.current) { setPanelPos(null); return }
     const r = panelRef.current.getBoundingClientRect()
-    const W = 232, gap = 12
+    const W = 316, gap = 12
     let left = r.right + gap
     if (left + W > window.innerWidth - 8) left = Math.max(8, r.left - W - gap)
-    const top = Math.max(8, Math.min(r.top + 4, window.innerHeight - 440))
+    const top = Math.max(8, Math.min(r.top + 4, window.innerHeight - 460))
     setPanelPos({ left, top })
   }, [activeTarget, open])
 
@@ -175,8 +175,10 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     />
   )
 
-  return createPortal(
-    <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
+  return (
+    <>
+      {createPortal(
+        <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div className={styles.panel} ref={panelRef} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <span className={styles.title}>Chart Settings</span>
@@ -225,38 +227,48 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             <section className={styles.section}>
               <div className={styles.sectionLabel}>Colors</div>
               {curColorMode === 'onecolor' ? (
-                <div className={styles.cRow}>
-                  <span className={styles.cRowLabel}>Color</span>
-                  <div className={styles.cSwatches}>{colorSwatch('one', 'Color')}</div>
+                <div className={styles.cGroups}>
+                  <div className={styles.cGroup}>
+                    <span className={styles.cGroupLabel}>Color</span>
+                    <div className={styles.cSwatches}>{colorSwatch('one', 'Color')}</div>
+                  </div>
                 </div>
               ) : isCandleType ? (
-                <>
-                  <div className={styles.cRow}>
-                    <span className={styles.cRowLabel}>Body</span>
+                <div className={styles.cGroups}>
+                  <div className={styles.cGroup}>
+                    <span className={styles.cGroupLabel}>Body</span>
                     <div className={styles.cSwatches}>{colorSwatch('bodyUp', 'Body Up')}{colorSwatch('bodyDown', 'Body Down')}</div>
                   </div>
-                  <div className={styles.cRow}>
-                    <span className={styles.cRowLabel}>Borders</span>
+                  <div className={styles.cGroup}>
+                    <span className={styles.cGroupLabel}>Borders</span>
                     <div className={styles.cSwatches}>{colorSwatch('borderUp', 'Border Up')}{colorSwatch('borderDown', 'Border Down')}</div>
                   </div>
-                  <div className={styles.cRow}>
-                    <span className={styles.cRowLabel}>Wick</span>
+                  <div className={styles.cGroup}>
+                    <span className={styles.cGroupLabel}>Wick</span>
                     <div className={styles.cSwatches}>{colorSwatch('wickUp', 'Wick Up')}{colorSwatch('wickDown', 'Wick Down')}</div>
                   </div>
-                </>
+                </div>
               ) : (
-                <div className={styles.cRow}>
-                  <span className={styles.cRowLabel}>Color</span>
-                  <div className={styles.cSwatches}>{colorSwatch('bodyUp', 'Up')}{colorSwatch('bodyDown', 'Down')}</div>
+                <div className={styles.cGroups}>
+                  <div className={styles.cGroup}>
+                    <span className={styles.cGroupLabel}>Color</span>
+                    <div className={styles.cSwatches}>{colorSwatch('bodyUp', 'Up')}{colorSwatch('bodyDown', 'Down')}</div>
+                  </div>
                 </div>
               )}
             </section>
           )}
         </div>
       </div>
-
-      {activeTarget && panelPos && (
-        <div data-color-panel style={{ position: 'fixed', left: panelPos.left, top: panelPos.top, zIndex: 9100 }}>
+        </div>,
+        document.body,
+      )}
+      {activeTarget && panelPos && createPortal(
+        <div
+          data-color-panel
+          style={{ position: 'fixed', left: panelPos.left, top: panelPos.top, zIndex: 9100 }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <ColorPanel
             title={activeTarget.label}
             value={targetValue(activeTarget.target)}
@@ -266,9 +278,9 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
           />
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>,
-    document.body,
+    </>
   )
 }

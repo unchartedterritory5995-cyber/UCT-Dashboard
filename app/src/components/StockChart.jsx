@@ -1406,6 +1406,11 @@ export default function StockChart({
   // track the current last bar so a live rollover to a NEW bar re-bases the reference.
   const netPrevCloseRef = useRef(null)
   const lastNetCloseRef = useRef(null)
+  // Live candle colors read by the net-change wrapper (see updateChart). Kept in a
+  // ref + off the price-style key so a COLOR change repaints via setData instead of
+  // destroying+recreating the price series (that recreation re-fit the price scale =
+  // the "chart shakes up/down when I change a color" bug). Type/theme still recreate.
+  const netColorsRef = useRef({})
   // {high,low} of the last bar + the bar before it — for the Sunrise inside-bar check
   // on the developing (live) bar (setData tracks these inline for historical bars).
   const lastNetBarRef = useRef(null)
@@ -4022,7 +4027,31 @@ export default function StockChart({
     // Include the effective candle colors so a color-picker change recreates the
     // series (re-runs the `_bold` options + re-installs the net-change wrapper with
     // the new palette). mbUp/mbDown resolve to the user's colors when userCandleColors.
-    const _priceStyleKey = `${cs.chartType || 'candles'}|${canvasTheme || ''}|${cs.candleColorMode || 'netchange'}|${mbUp}|${mbDown}|${cs.candles.oneColor || ''}|${cs.candles.upBorder || ''}|${cs.candles.downBorder || ''}|${cs.candles.upWick || ''}|${cs.candles.downWick || ''}`
+    // Effective candle colors — refreshed every run into netColorsRef so the wrapper
+    // and the live series options below read the latest WITHOUT recreating the series.
+    {
+      const _m = cs.candleColorMode || 'netchange'
+      const _u = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
+      const _d = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
+      netColorsRef.current = {
+        mode: _m, up: _u, down: _d,
+        one: (userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : _u,
+        borUp: userCandleColors ? (cs.candles.upBorder || _u) : _u,
+        borDown: userCandleColors ? (cs.candles.downBorder || _d) : _d,
+        wickUp: userCandleColors ? (cs.candles.upWick || _u) : _u,
+        wickDown: userCandleColors ? (cs.candles.downWick || _d) : _d,
+        hollow: canvasTheme === 'sunrise' || cs.chartType === 'hollow',
+        insideBlack: canvasTheme === 'sunrise',
+      }
+    }
+    // Only a change of the underlying LWC SERIES TYPE (+ theme) recreates the series.
+    // candles↔hollow share a Candlestick series and bars↔hlc share a Bar series — the
+    // difference (hollow body / hidden open tick) is applied live below, so toggling
+    // them (and colors, and the color mode) never destroys the series = no shake.
+    const _ct = cs.chartType || 'candles'
+    const _seriesType = (_ct === 'candles' || _ct === 'hollow') ? 'candle'
+      : (_ct === 'bars' || _ct === 'hlc') ? 'bar' : _ct
+    const _priceStyleKey = `${_seriesType}|${canvasTheme || ''}`
     if (prevChartTypeRef.current !== _priceStyleKey && candleSeriesRef.current) {
       try { chart.removeSeries(candleSeriesRef.current) } catch {}
       candleSeriesRef.current = null
@@ -4145,55 +4174,43 @@ export default function StockChart({
       // Candle color mode (user-selectable): 'openclose' colors natively by
       // close-vs-open (LWC default) → NO per-bar wrap. 'netchange' (close-vs-prev-
       // close) and 'onecolor' (every bar one color) paint each bar here.
-      const _colorMode = cs.candleColorMode || 'netchange'
-      const _wrapMode = _colorMode === 'netchange' || _colorMode === 'onecolor'
       const _netEligible = cs.chartType === 'candles' || cs.chartType === 'bars' || cs.chartType === 'hlc'
         || cs.chartType === 'hollow'
         || (canvasTheme === 'sunrise' && isOhlcType(cs.chartType))
-      if (colorByNetChange && _wrapMode && _netEligible && !priceSeries.__uctNetWrap) {
-        const _netUp = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
-        const _netDown = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
-        const _oneColor = (userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : _netUp   // single color for 'onecolor' mode
-        // Separate Border + Wick colors (the Body/Borders/Wick controls). Default to
-        // the body color so an unset value keeps the solid look. Only user-editable on
-        // the workspace (userCandleColors); Model Book keeps body=border=wick.
-        const _borUp = userCandleColors ? (cs.candles.upBorder || _netUp) : _netUp
-        const _borDown = userCandleColors ? (cs.candles.downBorder || _netDown) : _netDown
-        const _wickUp = userCandleColors ? (cs.candles.upWick || _netUp) : _netUp
-        const _wickDown = userCandleColors ? (cs.candles.downWick || _netDown) : _netDown
-        // Hollow bodies when the HOLLOW chart type OR the Sunrise look is active: an
-        // "up" bar is hollow (transparent body + colored outline), a "down" bar is filled.
-        const _hollow = canvasTheme === 'sunrise' || cs.chartType === 'hollow'
-        // Sunrise-only: an INSIDE BAR (whole range within the previous candle's
-        // high–low, wicks included) is painted solid BLACK regardless of direction.
-        const _insideBlack = canvasTheme === 'sunrise'
+      // Install the wrapper for EVERY OHLC type (regardless of color mode) so a mode
+      // change doesn't need a recreate. In open-close mode _paintNet is a passthrough
+      // and LWC colors natively from the live series options.
+      if (colorByNetChange && _netEligible && !priceSeries.__uctNetWrap) {
         const _isInside = (bar, prevBar) => (
           prevBar
           && bar.high != null && bar.low != null && prevBar.high != null && prevBar.low != null
           && bar.high <= prevBar.high && bar.low >= prevBar.low
         )
+        // Colors are read LIVE from netColorsRef (updated every render) so a color
+        // change repaints via setData without recreating the series (no shake).
         const _paintNet = (bar, prevClose, prevBar) => {
           if (!bar || bar.close == null) return bar
           if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
-          if (_insideBlack && _isInside(bar, prevBar)) return { ...bar, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
+          const NC = netColorsRef.current
+          if (NC.mode === 'openclose') return bar   // native close-vs-open coloring
+          if (NC.insideBlack && _isInside(bar, prevBar)) return { ...bar, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
           // One color: every bar the same body/border/wick (shape still hollow on up).
-          if (_colorMode === 'onecolor') {
+          if (NC.mode === 'onecolor') {
             const up = bar.open != null ? bar.close >= bar.open : true
-            const body = (_hollow && up) ? 'rgba(0,0,0,0)' : _oneColor
-            return { ...bar, color: body, borderColor: _oneColor, wickColor: _oneColor }
+            const body = (NC.hollow && up) ? 'rgba(0,0,0,0)' : NC.one
+            return { ...bar, color: body, borderColor: NC.one, wickColor: NC.one }
           }
           // Direction drives green/red AND the hollow/filled shape. Net-change uses
           // close-vs-prev-close; open-close uses close-vs-open.
           let up
-          if (_colorMode === 'netchange') {
+          if (NC.mode === 'netchange') {
             if (prevClose == null) return bar   // first bar — no prior close to compare
             up = bar.close >= prevClose
           } else {
             up = bar.open != null ? bar.close >= bar.open : true
           }
-          const bodyC = up ? _netUp : _netDown
-          const body = (_hollow && up) ? 'rgba(0,0,0,0)' : bodyC
-          return { ...bar, color: body, borderColor: (up ? _borUp : _borDown), wickColor: (up ? _wickUp : _wickDown) }
+          const body = (NC.hollow && up) ? 'rgba(0,0,0,0)' : (up ? NC.up : NC.down)
+          return { ...bar, color: body, borderColor: (up ? NC.borUp : NC.borDown), wickColor: (up ? NC.wickUp : NC.wickDown) }
         }
         const _realSet = priceSeries.setData.bind(priceSeries)
         const _realUpd = priceSeries.update.bind(priceSeries)
@@ -4238,6 +4255,30 @@ export default function StockChart({
       }
       prevChartTypeRef.current = _priceStyleKey
     }
+
+    // ── Live color apply (no recreate) ── Colors are NOT in the price-style key, so
+    // a color change reaches here without destroying the series. For the WRAPPER modes
+    // (netchange/onecolor) the per-bar setData below repaints; for OPEN-CLOSE (native,
+    // no wrapper) we push the up/down colors onto the series here so the change still
+    // lands. Runs every render; cheap applyOptions, and it never re-fits the scale.
+    try {
+      const NC = netColorsRef.current
+      if (_ct === 'candles' || _ct === 'hollow') {
+        candleSeriesRef.current.applyOptions({
+          upColor: (_ct === 'hollow') ? 'rgba(0,0,0,0)' : NC.up,
+          downColor: NC.down,
+          borderVisible: (_ct === 'hollow') ? true : (canvasTheme === 'sunrise' ? true : !!userCandleColors),
+          borderUpColor: NC.borUp, borderDownColor: NC.borDown,
+          wickUpColor: NC.wickUp, wickDownColor: NC.wickDown,
+        })
+      } else if (_ct === 'bars' || _ct === 'hlc') {
+        candleSeriesRef.current.applyOptions({ upColor: NC.up, downColor: NC.down, openVisible: _ct !== 'hlc' })
+      } else if (_ct === 'line') {
+        candleSeriesRef.current.applyOptions({ color: NC.mode === 'onecolor' ? NC.one : NC.up })
+      } else if (_ct === 'area') {
+        candleSeriesRef.current.applyOptions({ lineColor: NC.mode === 'onecolor' ? NC.one : NC.up })
+      }
+    } catch { /* series may be mid-swap */ }
 
     // Set price data. The separate gold-recolor effect below re-applies the
     // setup-candle highlight right after every updateChart (it lists updateChart

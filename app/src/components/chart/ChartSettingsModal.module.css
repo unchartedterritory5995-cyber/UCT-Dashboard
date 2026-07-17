@@ -186,20 +186,22 @@
 .modeCardActive .modeName { color: #e7cf8f; }
 .modeCardActive .modeDesc { color: #b39a5e; }
 
-/* Colors — compact rows: label + up/down swatches (TradingView-style). */
-.cRow {
+/* Colors — Body / Borders / Wick sit side-by-side to save vertical space. */
+.cGroups {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 6px 0;
+  gap: 26px;
+  flex-wrap: wrap;
 }
-.cRow + .cRow { border-top: 1px solid #161617; }
-.cRowLabel {
-  font-size: 12.5px;
+.cGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cGroupLabel {
+  font-size: 11px;
   font-weight: 600;
-  color: #d8d2c2;
-  width: 66px;
-  flex-shrink: 0;
+  letter-spacing: 0.3px;
+  color: #b9b4a3;
 }
 .cSwatches { display: flex; gap: 8px; }
 .cSwatch {

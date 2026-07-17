@@ -39,21 +39,30 @@ const normHex = (s) => {
   return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : null
 }
 
-// ── Palette: 12 uniform columns (gray + 11 hues) × 6 shades. Every column uses
-// the SAME light→dark saturation/value ramp, so the whole grid blends smoothly and
-// nothing stands out. The exact brand colors live in the separate Defaults row. ──
-const HUES = [0, 28, 45, 62, 140, 168, 190, 215, 248, 280, 325]
-const SHADES = [[0.18, 1.0], [0.38, 0.98], [0.58, 0.9], [0.72, 0.72], [0.82, 0.52], [0.88, 0.32]]
-const GRAY_V = [1.0, 0.82, 0.64, 0.46, 0.28, 0.08]
+// ── Palette: 12 columns × 6 shades. Each column is a smooth tint→shade ramp
+// ANCHORED on its base color (base sits at row 2, with lighter tints above + darker
+// shades below), and the app's exact brand colors ARE those anchors — so they're
+// natural cells in the gradient (not out of place) and highlight when selected. ──
+function _rgb(hex) { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255] }
+function _mix(hex, t, amt) { const c = _rgb(hex); return `#${[0, 1, 2].map((i) => toHex2((c[i] + (t[i] - c[i]) * amt) / 255)).join('')}` }
+const _W = [255, 255, 255], _K = [14, 14, 16]
+const ramp = (base) => [_mix(base, _W, 0.60), _mix(base, _W, 0.32), base, _mix(base, _K, 0.28), _mix(base, _K, 0.52), _mix(base, _K, 0.74)]
+
 const COLUMNS = [
-  GRAY_V.map((v) => hsvToHex(0, 0, v)),
-  ...HUES.map((h) => SHADES.map(([s, v]) => hsvToHex(h, s, v))),
+  ['#ffffff', '#cfcfcf', '#9a9a9a', '#666666', '#333333', '#000000'], // neutrals (white + black)
+  ramp('#c41f2d'), // chart down-red
+  ramp('#e74c3c'), // Theme-Tracker red
+  ramp('#e0862f'), // orange
+  ramp('#c9a84c'), // site gold
+  ramp('#e3cf4a'), // yellow
+  ramp('#1ae51a'), // chart up-green
+  ramp('#3cb868'), // Theme-Tracker green
+  ramp('#28b0a2'), // teal
+  ramp('#3f7fe0'), // blue
+  ramp('#7d5be0'), // violet
+  ramp('#d24ba8'), // magenta
 ]
 const PALETTE = [0, 1, 2, 3, 4, 5].map((r) => COLUMNS.map((col) => col[r]))
-
-// The exact colors used across the app — kept available without disturbing the grid.
-// chart up-green, theme green, chart down-red, theme red, site gold, white, black.
-const DEFAULTS = ['#1ae51a', '#3cb868', '#c41f2d', '#e74c3c', '#c9a84c', '#ffffff', '#000000']
 
 export default function ColorPanel({ title, value, onChange, onClose, savedColors = [], onSaveColor, onDeleteColor }) {
   const [customOpen, setCustomOpen] = useState(false)
@@ -98,11 +107,6 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
 
       <div className={styles.grid}>
         {PALETTE.map((rowArr, r) => rowArr.map((c, ci) => Sw(c, `p${r}-${ci}`)))}
-      </div>
-
-      <div className={styles.savedLabel}>Defaults</div>
-      <div className={styles.defaultsRow}>
-        {DEFAULTS.map((c) => Sw(c, `d-${c}`))}
       </div>
 
       {savedColors.length > 0 && (
