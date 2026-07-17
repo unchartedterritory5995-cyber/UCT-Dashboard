@@ -259,6 +259,16 @@ re-anchor on grid-cell first paint.
 - SPY-class intermittent one-cell mis-frame on some roundtrips (self-heals via Reset view /
   reload; frequency reduced by the v1.1 fixes — retest after members use it).
 
+## v1.4 (2026-07-17 afternoon) — cell maximize + declutter
+
+- **Cell maximize**: expand icon per header (new UIcon `expand`/`collapse`
+  glyphs) → CSS-promotes the cell over the grid body (`.cellMaximized`
+  absolute/inset-0/z-6; `.gridBody` position:relative) — NO remount, instant,
+  keeps state; full width shows the complete primary header; collapse restores;
+  stale maximized-id auto-restores. Gear+expand grouped in `.cellHeaderRight`.
+- **Declutter**: `hideWatermark` (watermark off entirely — header already names
+  the chart) + `hideJournalOverlay` (trade markers plastered small cells).
+
 ## v1.3 (2026-07-17 afternoon) — uniform cell header + polish batch
 
 - **Grid cell header now mirrors the primary ChartWidget header 1:1** (owner
