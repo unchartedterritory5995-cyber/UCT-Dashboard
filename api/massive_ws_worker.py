@@ -1458,6 +1458,16 @@ def _load_spot_for_events(events: list) -> dict:
     return out
 
 
+# In-memory day-volume counters (2026-07-17 final cumvol fix): the per-batch
+# SQL aggregation re-scans ALL of today's rows every batch (CAST per row), a
+# FIXED ~1s-per-15k-rows cost that grew to 11-13s/batch by afternoon — batch
+# size irrelevant. Seed ONCE per (boot, date) with the same grouped query,
+# then maintain counts in memory (the writer is single-threaded by design:
+# single consumer + 1-worker executor). Restart → reseed from DB, so counts
+# never drift from what's actually persisted.
+_CUMVOL_STATE: dict = {"date": None, "counts": None}
+
+
 def _load_cumulative_volume(events: list) -> dict:
     """Phase 2d: compute cumulative day volume per contract for BBS-style Color.
 
@@ -1496,61 +1506,64 @@ def _load_cumulative_volume(events: list) -> dict:
         if key not in contracts:
             contracts[key] = strike_strs
 
-    # Query FlowDB for day-to-date cumulative volume -- ONE batched GROUP BY.
-    # WAS a SUM(Volume) query PER CONTRACT (docstring assumed 50 events/30
-    # contracts). At the open with coalesced batches that's THOUSANDS of scans
-    # over the growing 400K-row flow table per write -> 72s blocking writes, the
-    # writer fell minutes behind wall (2026-07-09). One grouped scan for the
-    # whole batch instead, matched back to contracts in Python (identical result).
-    db_vol = {}  # (root, cp, strike, exp_mdy) -> sum(Volume)
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        syms = list({e.root for e in events})
-        db_agg = {}  # (Symbol, CallPut, StrikeStr, Exp) -> sum(Volume)
-        if syms:
-            with sqlite3.connect(db.db_path, timeout=10) as conn:
-                ph = ",".join("?" * len(syms))
-                # INDEXED BY (2026-07-17): the new idx_flow_contract's columns
-                # match this GROUP BY exactly, so the planner switched to it —
-                # which reads every HISTORICAL row per symbol and date-filters
-                # row-by-row (cumvol 1s -> 11-98s/batch the moment that index
-                # appeared). Pin the day-scoped (CreatedDate, Symbol) index built at
-                # boot alongside idx_flow_contract; fall back unhinted if the name is absent locally.
+    # Seed the in-memory day counters ONCE per (boot, date): the same grouped
+    # query the per-batch path used, but for ALL symbols and only ever run at
+    # boot / date rollover. From then on, counts live in memory and the
+    # per-batch cost is a dict walk — the 11-13s fixed re-aggregation is gone.
+    st = _CUMVOL_STATE
+    if st["date"] != trade_date_mdY or st["counts"] is None:
+        counts: dict = {}
+        try:
+            from api.flow_db import FlowDB
+            db = FlowDB()
+            t0 = time.perf_counter()
+            with sqlite3.connect(db.db_path, timeout=15) as conn:
                 _sql_cum = (
                     "SELECT Symbol, CallPut, Strike, ExpirationDate, "
                     "COALESCE(SUM(CAST(Volume AS INTEGER)),0) "
                     "FROM flow INDEXED BY idx_flow_created_symbol "
-                    "WHERE CreatedDate=? AND Symbol IN (" + ph + ") "
+                    "WHERE CreatedDate=? "
                     "GROUP BY Symbol, CallPut, Strike, ExpirationDate")
                 try:
-                    cur = conn.execute(_sql_cum, [trade_date_mdY, *syms])
+                    cur = conn.execute(_sql_cum, (trade_date_mdY,))
                 except sqlite3.OperationalError:
                     cur = conn.execute(
                         _sql_cum.replace(
                             " INDEXED BY idx_flow_created_symbol", ""),
-                        [trade_date_mdY, *syms],
+                        (trade_date_mdY,),
                     )
                 for r in cur.fetchall():
-                    db_agg[(r[0], r[1], str(r[2]), r[3])] = int(r[4] or 0)
-        for key, strike_strs in contracts.items():
-            root, cp, strike, exp_mdy = key
-            total = 0
-            for strike_str in strike_strs:
-                total += db_agg.get((root, cp, strike_str, exp_mdy), 0)
-            if total > 0:
-                db_vol[key] = total
-    except Exception as e:
-        logger.warning("[massive-ws] cumulative volume lookup failed: %s", e)
+                    counts[(r[0], r[1], str(r[2]), r[3])] = int(r[4] or 0)
+            logger.info(
+                "[massive-ws] cumvol counters seeded: %d contracts for %s "
+                "in %.1fs (one-time per boot/date)",
+                len(counts), trade_date_mdY, time.perf_counter() - t0)
+        except Exception as e:
+            logger.warning("[massive-ws] cumvol seed failed (counts start "
+                           "empty, heal reconciles): %s", e)
+        st["date"] = trade_date_mdY
+        st["counts"] = counts
+    counts = st["counts"]
 
-    # For each event, cumulative = DB total + sum of this batch up to (incl) this event
+    # Per event: cumulative = seeded/maintained day total + in-batch running
+    # sum; then fold this batch INTO the counters (under the first canonical
+    # strike string) so the next batch sees it without any DB round-trip.
     batch_running = {}  # (root, cp, strike, exp_mdy) -> running batch sum
     out = {}
     for i, e in enumerate(events):
         exp_mdy = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
         key = (e.root, e.cp, e.strike, exp_mdy)
+        strike_strs = contracts.get(key) or [str(float(e.strike))]
+        day_total = 0
+        for ss in strike_strs:
+            day_total += counts.get((e.root, e.cp, ss, exp_mdy), 0)
         batch_running[key] = batch_running.get(key, 0) + e.total_size
-        out[i] = db_vol.get(key, 0) + batch_running[key]
+        out[i] = day_total + batch_running[key]
+    for key, added in batch_running.items():
+        root, cp, strike, exp_mdy = key
+        ss0 = (contracts.get(key) or [str(float(strike))])[0]
+        ck = (root, cp, ss0, exp_mdy)
+        counts[ck] = counts.get(ck, 0) + added
     return out
 
 

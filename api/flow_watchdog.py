@@ -65,7 +65,14 @@ def _in_watch_window(now_et: datetime) -> bool:
     if now_et.weekday() >= 5:
         return False
     mins = now_et.hour * 60 + now_et.minute
-    return (9 * 60 + 45) <= mins <= (15 * 60 + 55)
+    # Window start 9:45 → 9:32 (2026-07-17): the 9:34:49 in-place crash fell in
+    # the old blind spot, which covered the HIGHEST-volume stretch of the day.
+    # 9:45 presumably dodged pre-first-insert false fires, but the A8
+    # _any_source_today guard + the B5 heartbeat logic now handle that case
+    # explicitly. Env-tunable escape hatch if an open-window false-fire class
+    # ever appears.
+    start = int(os.environ.get("FLOW_WATCHDOG_START_MIN", str(9 * 60 + 32)))
+    return start <= mins <= (15 * 60 + 55)
 
 
 def _newest_row():
