@@ -28,7 +28,7 @@ const TFS = [
 const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
 
 export default function ChartWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   const sym = groupSyms[color] || 'SPY'
 
@@ -77,6 +77,27 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   }, [crosshairBus, color])
   // Drop any stale external crosshair when this widget's own symbol changes.
   useEffect(() => { setExternalCrosshair(null) }, [sym])
+
+  // ── Hotkey dedupe: only the last-hovered chart widget handles keydowns ──
+  // null-means-all preserves the legacy behavior until the first hover; after
+  // that, one TF keypress retimes exactly one chart (and settings toggles fire
+  // ONE pref POST instead of one per mounted widget). Callback + ref = zero
+  // re-renders on hover crossings.
+  const markActive = useCallback(() => {
+    if (activeChartRef) activeChartRef.current = widgetIdRef.current
+  }, [activeChartRef])
+  const hotkeysIsActive = useCallback(() => {
+    const a = activeChartRef?.current
+    return a == null || a === widgetIdRef.current
+  }, [activeChartRef])
+  // If THIS widget is active when it unmounts (closed via ✕ / New Layout /
+  // mode switch), revert to null-means-all — otherwise every surviving
+  // widget's hotkeys go dead until the pointer crosses another chart.
+  useEffect(() => () => {
+    if (activeChartRef && activeChartRef.current === widgetIdRef.current) {
+      activeChartRef.current = null
+    }
+  }, [activeChartRef])
   const tf = opts?.tf || 'D'
   // Thematic-ETF pseudo-ticker ("$IDX:<slug>"): render the theme's equal-weight
   // index via barsOverride (D/W/M only). Normal tickers: themeIdx.isIndex=false.
@@ -276,7 +297,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   }, [ctxMenu, sym, barDateStr, aiSearchBus, closeCtx])
 
   return (
-    <div className={styles.chartWidget}>
+    <div className={styles.chartWidget} onPointerEnter={markActive} onFocusCapture={markActive}>
       {/* Top border row: logo + company name + day $/% change — sits above the
           timeframe/meta row so a long company name never pushes the session
           toggle + clock onto a second line. */}
@@ -398,6 +419,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           onOpenSettings={() => setSettingsOpen(true)}
           onCrosshairMove={reportCrosshair}
           externalCrosshair={externalCrosshair}
+          hotkeysActive={hotkeysIsActive}
           /* The intraday EXT/RTH toggle now lives in the widget header (beside the
              clock), so suppress the duplicate button in the chart toolbar. */
           hideExtHoursToolbarToggle
