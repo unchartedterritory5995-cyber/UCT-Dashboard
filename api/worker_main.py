@@ -91,6 +91,15 @@ def _start_prewarmer():
     threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
 
 
+def _start_deep_history_warm():
+    """One-time deep D/W/M history warm for the whole universe (flag-gated,
+    worker-only). Runs in its own daemon thread so it never blocks boot; no-ops
+    unless DEEP_HISTORY_WARM_ENABLED=1 and the done-marker is absent."""
+    from api.services.deep_history_warm import deep_warm_history_once
+    log.info("starting deep-history-warm thread")
+    threading.Thread(target=deep_warm_history_once, daemon=True, name="deep-warm").start()
+
+
 def _start_massive_ws():
     """Start the Massive WebSocket flow consumer thread.
 
@@ -521,6 +530,7 @@ def main():
     ).start()
 
     _start_prewarmer()
+    _start_deep_history_warm()
     _start_massive_ws()
     _start_keepwarm()
     # Live-flow outage monitor + daily scorecard (deploy-survival P3).
