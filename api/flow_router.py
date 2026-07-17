@@ -147,41 +147,32 @@ def _build_gzipped_csv(source: str, days) -> bytes:
     delta-merge's days=1 refresh and small-range views stay complete.
 
     days=None means "all data" — passed to db.stream_csv without a days arg."""
-    gen = db.stream_csv(source=source, days=days) if days else db.stream_csv(source=source)
-
     cap_days = int(os.environ.get("FLOW_CSV_CAP_DAYS", "20"))
     cap_rows = int(os.environ.get("FLOW_CSV_CAP_ROWS", "50000"))
     should_cap = (days is None) or (days >= cap_days)
+
+    # 2026-07-17: pass cap_rows through so SQLite does the top-N selection in C
+    # (ORDER BY CAST(Premium AS REAL) DESC LIMIT ?). This router used to collect
+    # the whole range into one Python string, split it into 275K-770K strings,
+    # and sort them with a per-line split(",") key — GIL-held CPU on the same
+    # process that owns the OPRA consumer, and past Cloudflare's 100s limit once
+    # FLOW_CSV_CAP_DAYS dropped to 5 (which moved days=5 from the fast uncapped
+    # branch into the slow collect+sort branch). stream_csv has had the cap_rows
+    # param since the commit whose docstring promised exactly this; it was never
+    # wired up. Row content is unchanged: the capped stream is Premium-DESC
+    # ordered, same as the Python sort it replaces.
+    cr = cap_rows if should_cap else None
+    gen = (db.stream_csv(source=source, days=days, cap_rows=cr) if days
+           else db.stream_csv(source=source, cap_rows=cr))
 
     buf = io.BytesIO()
     # compresslevel=1: ~60% faster than default level 6, ~10% larger output.
     # mtime=0: deterministic gzip header — same data → byte-identical output.
     with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=1, mtime=0) as gz:
-        if not should_cap:
-            for chunk in gen:
-                if isinstance(chunk, str):
-                    chunk = chunk.encode("utf-8")
-                gz.write(chunk)
-        else:
-            # Collect the full CSV (server has the RAM; the browser doesn't),
-            # then keep the top-N rows by premium to bound the client payload.
-            text = "".join(c if isinstance(c, str) else c.decode("utf-8") for c in gen)
-            nl = text.find("\n")
-            header = text[:nl] if nl >= 0 else text
-            body = [ln for ln in text[nl + 1:].split("\n") if ln] if nl >= 0 else []
-            if len(body) > cap_rows:
-                cols = [c.strip().lower() for c in header.split(",")]
-                pidx = cols.index("premium") if "premium" in cols else None
-                if pidx is not None:
-                    def _prem(ln):
-                        try:
-                            return float(ln.split(",")[pidx] or 0)
-                        except (ValueError, IndexError):
-                            return 0.0
-                    body.sort(key=_prem, reverse=True)
-                    body = body[:cap_rows]
-            out = header + "\n" + "\n".join(body) + ("\n" if body else "")
-            gz.write(out.encode("utf-8"))
+        for chunk in gen:
+            if isinstance(chunk, str):
+                chunk = chunk.encode("utf-8")
+            gz.write(chunk)
     return buf.getvalue()
 
 
