@@ -15,7 +15,18 @@
   overflow: hidden;
 }
 
+/* Container-owned wrapper: the grid item. Carries the active-cell class so
+   activeIdx changes reconcile ONLY this div — the memo'd cell inside never
+   re-renders on a mouse sweep. */
+.cellOuter {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .cell {
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -28,9 +39,9 @@
 }
 
 /* Active-cell affordance: hotkeys go to the hovered/focused cell.
-   :focus-within (not :focus-visible on the root) — focus lands on the inner
-   chart wrapper or the open search input, never on .cell itself. */
-.cellActive {
+   :focus-within (not :focus-visible) — focus lands on the inner chart wrapper
+   or the open search input, never on the cell root itself. */
+.cellActive > .cell {
   border-color: var(--ut-gold, #c9a84c);
 }
 .cell:focus-within {
@@ -163,7 +174,7 @@
     overflow-y: auto;
     gap: 8px;
   }
-  .cell {
+  .cellOuter {
     flex: 0 0 auto;
     height: 45vh;
     min-height: 260px;

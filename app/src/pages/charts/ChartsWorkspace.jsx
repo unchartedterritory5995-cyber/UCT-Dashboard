@@ -10,6 +10,9 @@ import { WorkspaceContext } from './WorkspaceContext'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
+import MultiChartGrid from './grid/MultiChartGrid'
+import MultiChartMenu from './grid/MultiChartMenu'
+import useMultiChartState from './grid/useMultiChartState'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -224,6 +227,11 @@ export default function ChartsWorkspace() {
     }
   }
 
+  // Active chart widget (hotkey dedupe): the last-hovered ChartWidget's id.
+  // Ref (not state) so hover crossings never re-render anything; each widget's
+  // StockChart reads it through a hotkeysActive callback at keydown time.
+  const activeChartRef = useRef(null)
+
   // AI-search bus: a chart's "AI search" context action routes a query to any
   // mounted AI Search widget; request() returns false when none exist so the
   // caller can fall back to a temporary popup.
@@ -241,7 +249,7 @@ export default function ChartsWorkspace() {
   const setChartsTheme = useCallback((t) => setPref('charts_theme', t), [setPref])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current }),
+    () => ({ groupSyms, setGroupSym, chartsTheme, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef }),
     [groupSyms, setGroupSym, chartsTheme],
   )
 
@@ -431,18 +439,35 @@ export default function ChartsWorkspace() {
 
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
+  // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
+  const mc = useMultiChartState()
+  const [mcMenuOpen, setMcMenuOpen] = useState(false)
+  const gridMode = mc.state.mode === 'grid'
+  // Grid-kind templates live in the same /api/charts/layouts store; keep them
+  // out of the workspace Open-layout menu (their {widgets:[]} shape would
+  // apply as a blank board) — the Multi Charts dropdown lists them instead.
+  const wsGlobalLayouts = globalLayouts.filter(t => t.layout?.kind !== 'multichart')
+  const wsMyLayouts = myLayouts.filter(t => t.layout?.kind !== 'multichart')
+
   if (isMobile) {
     // Phone: tabbed widget stack (RGL drag/resize doesn't fit a phone). Rendered
-    // inside the provider so widgets keep color-group ticker linking.
+    // inside the provider so widgets keep color-group ticker linking. Grid mode
+    // renders as a vertically stacked cell list (its own @media CSS).
     return (
       <WorkspaceContext.Provider value={workspaceValue}>
-        <MobileWorkspace
-          widgets={layout.widgets}
-          onRemove={handleRemoveWidget}
-          onColorChange={handleColorChange}
-          onOptsChange={handleOptsChange}
-          onAddWidget={handleAddWidget}
-        />
+        {gridMode ? (
+          <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%' }}>
+            <MultiChartGrid mc={mc} />
+          </div>
+        ) : (
+          <MobileWorkspace
+            widgets={layout.widgets}
+            onRemove={handleRemoveWidget}
+            onColorChange={handleColorChange}
+            onOptsChange={handleOptsChange}
+            onAddWidget={handleAddWidget}
+          />
+        )}
       </WorkspaceContext.Provider>
     )
   }
@@ -462,11 +487,12 @@ export default function ChartsWorkspace() {
       <div className={styles.workspace} data-charts-theme={chartsTheme}>
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
+          {!gridMode && (<>
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
               className={styles.toolbarBtn}
-              onClick={() => { setAddMenuOpen(o => !o); setOpenMenuOpen(false); setSaveMenuOpen(false) }}
+              onClick={() => { setAddMenuOpen(o => !o); setOpenMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false) }}
             >+ Add Widget</button>
             {addMenuOpen && (
               <div className={styles.addMenu} onMouseLeave={() => setAddMenuOpen(false)}>
@@ -492,7 +518,7 @@ export default function ChartsWorkspace() {
             <button
               type="button"
               className={styles.toolbarBtn}
-              onClick={() => { setOpenMenuOpen(o => !o); setAddMenuOpen(false); setSaveMenuOpen(false) }}
+              onClick={() => { setOpenMenuOpen(o => !o); setAddMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false) }}
             >Open layout ▾</button>
             {openMenuOpen && (
               <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => setOpenMenuOpen(false)}>
@@ -510,7 +536,7 @@ export default function ChartsWorkspace() {
                     >{chartsTheme === val ? '✓ ' : ''}{label}</button>
                   </div>
                 ))}
-                {globalLayouts.map(t => (
+                {wsGlobalLayouts.map(t => (
                   <div key={`g${t.id}`} className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
                     {isAdmin && (
@@ -518,8 +544,8 @@ export default function ChartsWorkspace() {
                     )}
                   </div>
                 ))}
-                {myLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
-                {myLayouts.map(t => (
+                {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
+                {wsMyLayouts.map(t => (
                   <div key={`m${t.id}`} className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
                     <button type="button" className={styles.menuDel} title="Delete" onClick={() => handleDeleteTemplate(t.id)}>✕</button>
@@ -534,7 +560,7 @@ export default function ChartsWorkspace() {
             <button
               type="button"
               className={styles.toolbarBtn}
-              onClick={() => { setSaveMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false) }}
+              onClick={() => { setSaveMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false); setMcMenuOpen(false) }}
             >{savedFlash ? 'Saved ✓' : 'Save layout ▾'}</button>
             {saveMenuOpen && (
               <div className={styles.addMenu} style={{ minWidth: 230 }}>
@@ -570,9 +596,30 @@ export default function ChartsWorkspace() {
               </div>
             )}
           </div>
+          </>)}
 
+          {/* Multi-Chart grid mode — fixed N×M grid of independent chart cells. */}
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              onClick={() => { setMcMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false) }}
+            >▦ Multi Charts ▾</button>
+            {mcMenuOpen && (
+              <MultiChartMenu mc={mc} onClose={() => setMcMenuOpen(false)} />
+            )}
+          </div>
+          {gridMode && (
+            <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
+              Workspace
+            </button>
+          )}
         </header>
         <main className={styles.workspaceBody} ref={bodyRef}>
+          {gridMode ? (
+            <MultiChartGrid mc={mc} />
+          ) : (
           <ResponsiveGridLayout
             className="layout"
             layouts={rglLayouts}
@@ -605,6 +652,7 @@ export default function ChartsWorkspace() {
               </div>
             ))}
           </ResponsiveGridLayout>
+          )}
         </main>
       </div>
     </WorkspaceContext.Provider>
