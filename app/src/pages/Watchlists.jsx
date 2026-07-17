@@ -11,7 +11,7 @@ import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import useTagColors from '../hooks/useTagColors'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
-import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent } from '../utils/prefetchBars'
+import { prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent } from '../utils/prefetchBars'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
@@ -387,6 +387,16 @@ export default function Watchlists({ embedded = false }) {
       row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     }
   }, [selectedSym])
+
+  // Durable warm of the WHOLE visible list into IndexedDB, so arrowing through it
+  // with the keyboard (faster than hover-prefetch can react) is instant — and stays
+  // instant across page reloads. Bounded + idle-deferred inside prefetchBarsToIDB,
+  // and it skips already-warm tickers, so a big list doesn't hammer the network.
+  useEffect(() => {
+    if (!visibleSymsFlat.length) return
+    prefetchBarsToIDB(visibleSymsFlat, chartPeriod)
+    if (chartPeriod !== 'D') prefetchBarsToIDB(visibleSymsFlat, 'D')
+  }, [visibleSymsFlat, chartPeriod])
 
   // Prefetch all timeframes for current ticker + adjacent flagged tickers
   useEffect(() => {
