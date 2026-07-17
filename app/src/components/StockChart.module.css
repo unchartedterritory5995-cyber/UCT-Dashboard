@@ -236,6 +236,7 @@
 :global([data-charts-theme='sunrise']) .rangeBtn { color: #47525f; }
 :global([data-charts-theme='sunrise']) .rangeBtn:hover { color: #1c2836; background: rgba(20, 45, 75, 0.08); }
 /* Vertical OHLCV legend (workspace) — date + labels + values dark & bold on the bright canvas. */
+:global([data-charts-theme='sunrise']) .legendVertical { background: rgba(255, 255, 255, 0.55); box-shadow: none; }
 :global([data-charts-theme='sunrise']) .vlHead { color: #16212e; font-weight: 700; }
 :global([data-charts-theme='sunrise']) .vlLabel,
 :global([data-charts-theme='sunrise']) .vlFull { color: #3f4a57; font-weight: 600; }
@@ -252,12 +253,20 @@
   row-gap: 1px;
   align-content: start;
   top: 46px;
+  /* Match the volume-pane legend / range-tab styling exactly: more transparent
+     background, app sans font (not mono). Day's-change + MA rows keep their inline
+     colors. */
+  background: rgba(14, 15, 13, 0.55);
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 10.5px;
+  line-height: 1.25;
 }
 .vlHead {
   grid-column: 1 / -1;
   text-align: center;
-  color: #d4cfc0;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
   white-space: nowrap;
   padding-bottom: 1px;
 }
@@ -270,19 +279,20 @@
 }
 .vlFull {
   grid-column: 1 / -1;
-  color: #a8a290;
+  color: rgba(255, 255, 255, 0.42);
   font-weight: 600;
   white-space: nowrap;
 }
 .vlLabel {
-  color: #a8a290;
-  font-weight: 500;
+  color: rgba(255, 255, 255, 0.42);
+  font-weight: 600;
+  letter-spacing: 0.2px;
   white-space: nowrap;
 }
 .vlVal {
   text-align: right;
-  color: #d4cfc0;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
