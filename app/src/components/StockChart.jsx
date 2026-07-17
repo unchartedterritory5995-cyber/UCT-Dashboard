@@ -1222,24 +1222,8 @@ export default function StockChart({
     return eventMarkers
   }, [markersData, cs.markers, resolvedTf])
 
-  // Earnings events (daily/weekly only) with the reporting bar's LOW, so the badge
-  // primitive can hug just under the candle and click-matching has the dates. The
-  // date string maps 1:1 to a daily/weekly bar time (adjustTime is identity there).
-  const earningsEvents = useMemo(() => {
-    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
-    if (!cs.markers?.earnings || !markersData?.earnings || !isDailyWeekly || !filteredBars?.length) return []
-    const lowByDate = new Map()
-    for (const b of filteredBars) lowByDate.set(String(b.t), +b.l)
-    const out = []
-    for (const e of markersData.earnings) {
-      if (!e.date) continue
-      const low = lowByDate.get(String(e.date))
-      if (!Number.isFinite(low)) continue   // no matching bar (e.g. outside the loaded range)
-      out.push({ date: e.date, low, beat: e.beat, data: e })
-    }
-    return out
-  }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
   // { data, x, y } while an earnings popover is open (null = closed).
+  // (earningsEvents itself is derived AFTER filteredBars is declared — see below.)
   const [earningsPopup, setEarningsPopup] = useState(null)
 
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
@@ -2684,6 +2668,26 @@ export default function StockChart({
       return t >= lo && t <= hi
     })
   }, [exactDateRange, entryDate, exitDate, bars])
+
+  // Earnings events (daily/weekly only) with the reporting bar's LOW, so the badge
+  // primitive can hug just under the candle and click-matching has the dates. The
+  // date string maps 1:1 to a daily/weekly bar time (adjustTime is identity there).
+  // MUST live after filteredBars is declared (it reads it) — declaring it earlier
+  // hit filteredBars' temporal dead zone and crashed the whole chart (ReferenceError).
+  const earningsEvents = useMemo(() => {
+    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    if (!cs.markers?.earnings || !markersData?.earnings || !isDailyWeekly || !filteredBars?.length) return []
+    const lowByDate = new Map()
+    for (const b of filteredBars) lowByDate.set(String(b.t), +b.l)
+    const out = []
+    for (const e of markersData.earnings) {
+      if (!e.date) continue
+      const low = lowByDate.get(String(e.date))
+      if (!Number.isFinite(low)) continue   // no matching bar (e.g. outside the loaded range)
+      out.push({ date: e.date, low, beat: e.beat, data: e })
+    }
+    return out
+  }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
