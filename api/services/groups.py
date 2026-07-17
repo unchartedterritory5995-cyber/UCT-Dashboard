@@ -59,3 +59,48 @@ def cap_universe_set() -> set:
 
 def is_chartable(sym: str) -> bool:
     return normalize_sym(sym) in cap_universe_set()
+
+
+def _get_all_themes():
+    from api.services import theme_db
+    return theme_db.get_all_themes()
+
+
+def _rotation_order():
+    """theme_name (lower) -> rank index, hottest first. Empty on cold cache."""
+    try:
+        from api.services import theme_performance
+        sig = theme_performance.compute_rotation_signals()
+        themes = sig.get("themes") if isinstance(sig, dict) else sig
+        order = {}
+        for i, t in enumerate(themes or []):
+            nm = (t.get("name") or "").strip().lower()
+            if nm:
+                order[nm] = i
+        return order
+    except Exception:
+        return {}
+
+
+def list_groups() -> list:
+    data = _get_all_themes()
+    cap = cap_universe_set()
+    order = _rotation_order()
+    rows = []
+    for t in data.get("themes", []):
+        holdings = t.get("holdings") or []
+        chartable = sum(1 for h in holdings if normalize_sym(h.get("sym", "")) in cap)
+        rows.append({
+            "id": t["id"],
+            "name": t["name"],
+            "sector_id": t.get("sector_id"),
+            "etf_ticker": t.get("etf_ticker"),
+            "total": len(holdings),
+            "chartable": chartable,
+            "sub_theme_count": len(t.get("sub_themes") or []),
+        })
+    # Hot themes first (rotation rank); themes not in the signal sink to the
+    # bottom in stable name order — cold cache => plain alphabetical.
+    big = len(rows) + 1
+    rows.sort(key=lambda r: (order.get((r["name"] or "").strip().lower(), big), r["name"]))
+    return rows

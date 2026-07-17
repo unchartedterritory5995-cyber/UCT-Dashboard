@@ -34,3 +34,20 @@ def test_cap_universe_set_missing_file_returns_empty_and_does_not_cache(monkeypa
     monkeypatch.setattr(groups, "_cap_universe_path", lambda: "/no/such/cap_universe.json")
     assert groups.cap_universe_set() == set()
     assert groups._CAP_CACHE["set"] is None    # failure not cached -> retries next call
+
+
+def test_list_groups_shapes_and_chartable_count(monkeypatch):
+    fake = {"sectors": [], "themes": [
+        {"id": "space", "name": "Space", "sector_id": "innovation",
+         "etf_ticker": "UFO", "sub_themes": [{"id": "launch", "name": "Launch"}],
+         "holdings": [{"sym": "RKLB"}, {"sym": "ASTS"}, {"sym": "DEADCO"}]},
+    ]}
+    monkeypatch.setattr(groups, "_get_all_themes", lambda: fake)
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"RKLB", "ASTS"})
+    monkeypatch.setattr(groups, "_rotation_order", lambda: {})
+    out = groups.list_groups()
+    row = next(r for r in out if r["id"] == "space")
+    assert row["total"] == 3
+    assert row["chartable"] == 2          # DEADCO excluded
+    assert row["etf_ticker"] == "UFO"
+    assert row["sub_theme_count"] == 1
