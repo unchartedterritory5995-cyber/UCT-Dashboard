@@ -44,4 +44,24 @@ describe('mergeSettingsOverride', () => {
     expect(out.chartType).toBe('area')
     expect(out.background).toBe(CHART_DEFAULTS.background)
   })
+
+  // DRIFT GUARD: mergeSettingsOverride keeps its own list of section keys that
+  // must merge one level instead of replacing wholesale. If a new object-valued
+  // section is added to CHART_DEFAULTS (the historical pattern: swingLabels,
+  // markers, positionCalc all arrived over time) but not to that list, a
+  // section override would silently DROP the user's sibling sub-settings. This
+  // walks every object section generically so the lists can never drift apart.
+  it('every object-valued CHART_DEFAULTS section merges one level, never replaces', () => {
+    const full = mergeChartSettings(null)
+    for (const [key, val] of Object.entries(CHART_DEFAULTS)) {
+      if (!val || typeof val !== 'object' || Array.isArray(val)) continue
+      const subKeys = Object.keys(val)
+      if (subKeys.length < 2) continue   // need a sibling to prove merging
+      const [first, ...siblings] = subKeys
+      const out = mergeSettingsOverride(full, { [key]: { [first]: full[key][first] } })
+      for (const sk of siblings) {
+        expect(out[key][sk], `${key}.${sk} dropped — add '${key}' to the override section list`).toEqual(full[key][sk])
+      }
+    }
+  })
 })

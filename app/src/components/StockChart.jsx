@@ -8324,6 +8324,7 @@ export default function StockChart({
           })}
         >
           <ChartDrawingOverlay
+            readOnly={!annotationsEditable}
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             bars={bars}
@@ -8383,6 +8384,7 @@ export default function StockChart({
       {staticAnnotations != null && staticAnnotations.length > 0 && bars?.length > 0 && (!indexPaneSymbol || overlayBounds) && (
         <div style={overlayWrapStyle({ zIndex: 4, pointerEvents: 'none' })}>
           <ChartDrawingOverlay
+            readOnly
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             bars={bars}
@@ -8413,6 +8415,7 @@ export default function StockChart({
         && (indexAnnotationsEditable || indexAnnotations.length > 0) && (
         <div style={indexOverlayWrapStyle({ zIndex: 4, pointerEvents: indexAnnotationsEditable ? 'auto' : 'none' })}>
           <ChartDrawingOverlay
+            readOnly={!indexAnnotationsEditable}
             chartRef={chartRef}
             seriesRef={indexPaneSeriesRef}
             bars={bars}

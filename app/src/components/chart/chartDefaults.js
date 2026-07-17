@@ -346,7 +346,7 @@ export const CHART_TYPE_OPTIONS = [
 // a memo dependency inside StockChart.
 const _OVERRIDE_SECTION_KEYS = [
   'candles', 'bgGradient', 'grid', 'crosshair', 'volume',
-  'drawingDefaults', 'swingLabels', 'markers', 'positionCalc',
+  'drawingDefaults', 'swingLabels', 'markers', 'positionCalc', 'header',
 ]
 export function mergeSettingsOverride(base, partial) {
   if (!partial) return base
