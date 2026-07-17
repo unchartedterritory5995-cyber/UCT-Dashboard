@@ -699,6 +699,25 @@ _STALE_OK_DAYS = 5   # how far back to walk for "stale-but-OK" snapshot match
 CHUNK_SIZE = 200
 
 
+def _in_market_hours() -> bool:
+    """True Mon-Fri 9:20 AM - 4:20 PM ET (options tape 9:30-4:15 + buffer).
+
+    The snapshot job runs ON THE FLOW-WORKER POD. Its Massive-fallback chain
+    parsing is heavy pure-Python CPU: on 2026-07-17 a re-kicked run that
+    overlapped the open GIL-starved the OPRA consumer's writer thread — the
+    tape fell into 4-5 min batch-flush cycles (rows captured but minutes
+    late) until the pod was redeployed. OI is as-of yesterday's close all
+    day, so there is never a reason to run during the session; the 5:30 AM
+    cron finishes ~7:50. This guard makes the job yield the pod to the tape.
+    """
+    from zoneinfo import ZoneInfo
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    if now_et.weekday() >= 5:
+        return False
+    mins = now_et.hour * 60 + now_et.minute
+    return 560 <= mins < 980  # 9:20 (560) .. 16:20 (980)
+
+
 def daily_snapshot_job() -> Dict:
     """Cron entry point. Runs once daily.
 
@@ -743,6 +762,27 @@ def daily_snapshot_job() -> Dict:
             chunk = contracts[chunk_start : chunk_start + CHUNK_SIZE]
             chunk_num = chunk_start // CHUNK_SIZE + 1
             total_chunks = (total + CHUNK_SIZE - 1) // CHUNK_SIZE
+
+            # Market-hours guard — the tape owns this pod during the session.
+            # Abort at the chunk boundary (partial progress is durable via
+            # per-chunk record_batch); re-kick after 4:20 PM ET to finish.
+            if _in_market_hours():
+                logger.warning(
+                    "[oi-snapshot] Market hours reached after chunk %d/%d — "
+                    "halting so the OPRA consumer keeps the pod. Re-kick "
+                    "POST /api/oi-snapshot/run after 4:20 PM ET to finish.",
+                    chunks_done, total_chunks,
+                )
+                summary = {
+                    "date": today_iso,
+                    "halted_market_hours": True,
+                    "chunks_done": chunks_done,
+                    "total_chunks": total_chunks,
+                    "successes": total_successes,
+                    "inserted": total_inserted,
+                }
+                finish_run(run_id, "completed", summary)
+                return summary
 
             # Cancellation check — if run was manually cancelled, bail out
             if _is_run_cancelled(run_id):
