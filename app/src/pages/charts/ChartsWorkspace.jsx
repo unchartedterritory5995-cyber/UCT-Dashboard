@@ -399,15 +399,18 @@ export default function ChartsWorkspace() {
     if (d.groups) setGroupSymsState({ A: null, B: null, C: null, D: null, ...d.groups })
   }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, resolveDefaultLayout])
 
-  // Reset layout → back to the default (the "chart" preset), persisted.
-  const handleResetLayout = useCallback(() => {
-    const d = resolveDefaultLayout()
-    setLayout(d.layout)
-    setPref('charts_workspace_layout', JSON.stringify(d.layout))
-    const g = { A: null, B: null, C: null, D: null, ...(d.groups || {}) }
+  // New layout → wipe to a blank workspace (no widgets) so the user can build a
+  // fresh board from scratch. Clears the color groups too. Persisted like any edit,
+  // so a returning user stays on the blank board until they add a widget or open a
+  // saved layout. (Named/saved layouts are untouched — only the working board is.)
+  const handleNewLayout = useCallback(() => {
+    const blank = { widgets: [], cols: GRID_COLS }
+    setLayout(blank)
+    setPref('charts_workspace_layout', JSON.stringify(blank))
+    const g = { A: null, B: null, C: null, D: null }
     setGroupSymsState(g)
     setPref('charts_workspace_groups', JSON.stringify(g))
-  }, [resolveDefaultLayout, setPref])
+  }, [setPref])
 
   const handleSaveAsTemplate = useCallback(async () => {
     const nm = saveAsName.trim()
@@ -479,6 +482,11 @@ export default function ChartsWorkspace() {
               </div>
             )}
           </div>
+
+          {/* New layout — wipe to a blank board to build from scratch. */}
+          <button type="button" className={styles.toolbarBtn} onClick={handleNewLayout}>
+            New Layout
+          </button>
 
           {/* Open a saved / prebuilt layout */}
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
@@ -577,10 +585,6 @@ export default function ChartsWorkspace() {
               </div>
             )}
           </div>
-
-          <button type="button" className={`${styles.toolbarBtn} ${styles.ghost}`} onClick={handleResetLayout}>
-            Reset layout
-          </button>
         </header>
         <main className={styles.workspaceBody} ref={bodyRef}>
           <ResponsiveGridLayout
