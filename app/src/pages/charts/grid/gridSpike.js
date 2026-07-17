@@ -215,6 +215,10 @@ export function createSpike({ n, tf }) {
     }
     try { console.table(rows) } catch { /* noop */ }
     console.log('[gridspike:done] ' + JSON.stringify(summary))
+    // Persist for out-of-band harvesting: a spike can run in a plain visible
+    // browser window (rAF unthrottled) while an automation session reads the
+    // result later from the same origin's localStorage.
+    try { localStorage.setItem('uct.gridspike.last', JSON.stringify(summary)) } catch { /* quota */ }
   }
 
   return spike
