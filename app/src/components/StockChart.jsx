@@ -6880,7 +6880,12 @@ export default function StockChart({
     if ((!showRangeSelector && !showVolLegend) || !chartReady) return
     const chart = chartRef.current, container = containerRef.current
     if (!chart || !container) return
-    let raf = null, lastBottom = -1, lastTop = -1
+    // Track the last element too, not just the last value: on a symbol flip the
+    // range-bar / legend divs remount (fresh DOM node with no inline position → it
+    // falls back to the CSS default and lands INSIDE the volume pane). A value-only
+    // guard would skip re-writing the new node because the computed value didn't
+    // change; keying on the element as well re-pins it immediately after a remount.
+    let raf = null, lastBottom = -1, lastTop = -1, lastRb = null, lastVl = null
     const tick = () => {
       try {
         const panes = chart.panes ? chart.panes() : null
@@ -6890,12 +6895,12 @@ export default function StockChart({
           const rb = rangeBarRef.current
           if (rb) {
             const bottom = Math.round(Math.max(30, H - h0 + 8)) // 8px above the boundary
-            if (bottom !== lastBottom) { lastBottom = bottom; rb.style.bottom = `${bottom}px` }
+            if (bottom !== lastBottom || rb !== lastRb) { lastBottom = bottom; lastRb = rb; rb.style.bottom = `${bottom}px` }
           }
           const vl = volLegendRef.current
           if (vl) {
             const top = Math.round(h0 + 5) // just below the boundary = volume pane top
-            if (top !== lastTop) { lastTop = top; vl.style.top = `${top}px` }
+            if (top !== lastTop || vl !== lastVl) { lastTop = top; lastVl = vl; vl.style.top = `${top}px` }
           }
         }
       } catch { /* pane API missing → CSS fallback */ }
