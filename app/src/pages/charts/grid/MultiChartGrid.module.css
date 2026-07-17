@@ -36,6 +36,11 @@
   background: var(--bg-surface, #0d1117);
   border: 1px solid var(--border, #2a3340);
   border-radius: var(--radius-md, 6px);
+  /* Query container so the header's meta + session blocks can collapse by CELL
+     width (not viewport) — dense grids (3x3/4x4) get just name + TF bar + gear;
+     roomy grids (2x2) get the full primary-chart header. inline-size only, so
+     the flex/min-height chain that LWC autoSize depends on is unaffected. */
+  container-type: inline-size;
 }
 
 /* Active-cell affordance: hotkeys go to the hovered/focused cell.
@@ -49,26 +54,11 @@
   box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.35);
 }
 
-.cellHeader {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 30px;
-  flex: 0 0 30px;
-  padding: 0 8px 0 4px;
-  border-bottom: 1px solid var(--border, #2a3340);
-  min-width: 0;
-}
-
-.cellSymWrap {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-}
-
-.cellTfSelect {
+/* Per-cell chart Style select — a compact grid extra in the top header row
+   (the primary chart puts chart type in the gear modal, but that's global; the
+   per-cell override needs its own control). Sits between the day gain and the
+   gear; the gear's margin-left:auto pushes itself to the far right. */
+.cellStyleSelect {
   background: transparent;
   color: var(--text-muted, #9aa4b2);
   border: 1px solid var(--border, #2a3340);
@@ -79,8 +69,19 @@
   cursor: pointer;
   flex: 0 0 auto;
 }
-.cellTfSelect:hover { color: var(--text-bright, #e5e9f0); }
-.cellTfSelect option { background: var(--bg-elevated, #12171f); }
+.cellStyleSelect:hover { color: var(--text-bright, #e5e9f0); }
+.cellStyleSelect option { background: var(--bg-elevated, #12171f); }
+
+/* Header collapse for narrow/dense cells (queried against the CELL width via
+   the container-type above). Session toggle + clock go first (widest, least
+   essential); the Market Cap / Next Earnings / UCT Rating meta goes next.
+   The name + day gain + Style + gear + 8-button TF bar always stay. */
+@container (max-width: 700px) {
+  .gridSession { display: none; }
+}
+@container (max-width: 560px) {
+  .gridMeta { display: none; }
+}
 
 .cellChart {
   flex: 1;

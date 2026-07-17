@@ -2,21 +2,29 @@
 //
 // One cell of the Multi-Chart grid: a controlled {sym, tf} chart composed on
 // StockChart directly (NOT ChartWidget — the workspace widget's symbol comes
-// from the 4-color-group model, which caps independent tickers at 4, and its
-// per-cell data fan-out (fundamentals/meta/theme-index) is too heavy ×16).
-// Chrome is deliberately minimal: SymbolSearch badge, compact TF select,
-// ChartDayGain, Shift+F flag toast. Everything else (gear/settings, session
-// toggles, market clock, share) lives at the grid-container level or not at
-// all in v1. Exported as React.memo — the container hands every prop with a
-// stable identity so a mouse sweep across the grid re-renders zero charts.
+// from the 4-color-group model, which caps independent tickers at 4). The
+// header mirrors the workspace ChartWidget header 1:1 so grid cells look
+// UNIFORM with the primary chart (owner request): logo + full company name +
+// day gain + per-cell Style + gear (top row); the 8-button timeframe bar +
+// Market Cap / Next Earnings / UCT Rating + session toggle + live clock
+// (second row). The meta + session block collapse via container query in
+// dense/narrow cells (see MultiChartGrid.module.css). Exported as React.memo —
+// the container hands every prop with a stable identity so a mouse sweep across
+// the grid re-renders zero charts.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ChartDayGain from '../widgets/ChartDayGain'
+import ChartMarketClock from '../widgets/ChartMarketClock'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
-import { CHART_TYPE_OPTIONS } from '../../../components/chart/chartDefaults'
+import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
+import useTickerMeta from '../../../hooks/useTickerMeta'
+import useMarketOpen from '../../../hooks/useMarketOpen'
+import usePreferences from '../../../hooks/usePreferences'
+import { getExtSession } from '../../../utils/extSession'
+import { CHART_TYPE_OPTIONS, mergeChartSettings } from '../../../components/chart/chartDefaults'
 import UIcon from '../../../components/ui/UIcon'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
@@ -44,6 +52,42 @@ function GridChartCell({
   onBarsReady,        // () => void — releases this cell's mount-queue slot
 }) {
   const sym = cell.sym
+
+  // ── Header data (mirrors ChartWidget so grid cells match the primary chart) ──
+  const { prefs, setPref } = usePreferences()
+  const { data: fund } = useFundamentalSnapshot(sym)
+  const meta = useTickerMeta(sym)
+  const headerLabel = meta?.name || sym || ''
+  const mktCap = fund?.metrics?.market_cap || null
+  const nextEarnStr = (() => {
+    const iso = fund?.next_earnings
+    if (!iso) return null
+    const [y, mo, da] = String(iso).split('-').map(Number)
+    return (y && mo && da) ? `${mo}/${da}/${y}` : null
+  })()
+  const uctRating = Number.isFinite(fund?.composite) ? fund.composite : null
+  const _sun = canvasTheme === 'sunrise'
+  const ratingColor = uctRating == null ? (_sun ? '#55606e' : '#9b9684')
+    : uctRating >= 80 ? (_sun ? '#0a5c22' : '#22c45c')
+    : uctRating >= 60 ? (_sun ? '#0a5c22' : '#7fb26a')
+    : uctRating >= 40 ? (_sun ? '#7a5c16' : '#c9a84c')
+    : (_sun ? '#7d1620' : '#c07a63')
+
+  // Session toggle — ephemeral per-cell (D/W/M) + shared extendedHoursShading
+  // pref (intraday). Copied verbatim from ChartWidget so behavior is identical.
+  const mkt = useMarketOpen()
+  const [sessionView, setSessionView] = useState('regular')
+  useEffect(() => { if (mkt.isOpen) setSessionView('regular') }, [mkt.isOpen])
+  const isDWMtf = ['D', 'W', 'M'].includes(cell.tf)
+  const _extSess = getExtSession()
+  const extEnabled = _extSess.session === 'pre' || _extSess.session === 'post'
+  const extLabel = _extSess.session === 'pre' ? 'Include pre-market' : 'Include post-market'
+  const extHoursOn = mergeChartSettings(prefs.chart_settings).extendedHoursShading ?? true
+  const setExtHours = useCallback((on) => {
+    const next = { ...mergeChartSettings(prefs.chart_settings), extendedHoursShading: on, preset: 'custom' }
+    setPref('chart_settings', JSON.stringify(next))
+  }, [prefs.chart_settings, setPref])
+
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const [flagToast, setFlagToast] = useState(null)
   useEffect(() => {
@@ -164,17 +208,23 @@ function GridChartCell({
 
   return (
     <div className={styles.cell} data-grid-cell-id={cell.id}>
-      <div className={styles.cellHeader}>
-        <span className={styles.cellSymWrap}>
+      {/* Top row — logo + company name + day gain + per-cell Style + gear.
+          Same classes/markup as ChartWidget's .chartHeaderTop for pixel parity. */}
+      <div className={wsStyles.chartHeaderTop}>
+        <span className={wsStyles.symbolSlot}>
           <SymbolSearch
             ref={searchRef}
             sym={sym || ''}
             onSymbolChange={handleSymbolChange}
+            hideIcon
+            fullLabel
+            logoSym={sym || null}
+            displayLabel={headerLabel}
           />
         </span>
         {sym && <ChartDayGain sym={sym} />}
         <select
-          className={styles.cellTfSelect}
+          className={styles.cellStyleSelect}
           value={cell.chartType || ''}
           onChange={(e) => handleTypeChange(e.target.value)}
           aria-label="Chart style (this cell)"
@@ -184,16 +234,80 @@ function GridChartCell({
             <option key={code || 'inherit'} value={code}>{label}</option>
           ))}
         </select>
-        <select
-          className={styles.cellTfSelect}
-          value={cell.tf}
-          onChange={(e) => handleTfChange(e.target.value)}
-          aria-label="Timeframe"
+        <button
+          type="button"
+          className={wsStyles.chartSettingsBtn}
+          onClick={() => onOpenSettings?.()}
+          title="Chart settings"
+          aria-label="Chart settings"
         >
-          {TFS.map(([code, label]) => (
-            <option key={code} value={code}>{label}</option>
-          ))}
-        </select>
+          <UIcon name="gear" size={15} />
+        </button>
+      </div>
+      {/* Second row — 8-button timeframe bar + meta + session toggle + clock.
+          The meta + session blocks collapse in narrow cells (container query). */}
+      <div className={wsStyles.tfBar}>
+        {TFS.map(([code, label]) => (
+          <button
+            key={code}
+            type="button"
+            className={`${wsStyles.tfBtn} ${cell.tf === code ? wsStyles.tfBtnActive : ''}`}
+            onClick={() => handleTfChange(code)}
+          >{label}</button>
+        ))}
+        {sym && (
+          <div className={`${wsStyles.chartMeta} ${styles.gridMeta}`}>
+            <span className={wsStyles.chartMetaItem}>
+              <span className={wsStyles.chartMetaLabel}>Market Cap</span>
+              <span className={wsStyles.chartMetaVal} style={{ color: '#c9a84c' }}>{mktCap || '—'}</span>
+            </span>
+            <span className={wsStyles.chartMetaItem}>
+              <span className={wsStyles.chartMetaLabel}>Next Earnings</span>
+              <span className={wsStyles.chartMetaVal} style={{ color: '#6ba3be' }}>{nextEarnStr || '—'}</span>
+            </span>
+            <span className={wsStyles.chartMetaItem}>
+              <span className={wsStyles.chartMetaLabel}>UCT Rating</span>
+              <span className={wsStyles.chartMetaVal} style={{ color: ratingColor }}>{uctRating != null ? uctRating : '—'}</span>
+            </span>
+          </div>
+        )}
+        {sym && (
+          <div className={`${wsStyles.tfBarRight} ${styles.gridSession}`}>
+            {isDWMtf ? (
+              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart session view">
+                <button
+                  type="button"
+                  className={`${wsStyles.sessionBtn} ${sessionView === 'regular' ? wsStyles.sessionBtnActive : ''}`}
+                  onClick={() => setSessionView('regular')}
+                  title="Regular trading hours only"
+                >Regular Hours</button>
+                <button
+                  type="button"
+                  className={`${wsStyles.sessionBtn} ${sessionView === 'extended' ? wsStyles.sessionBtnActive : ''}`}
+                  onClick={() => { if (extEnabled) setSessionView('extended') }}
+                  disabled={!extEnabled}
+                  title={extEnabled ? extLabel : 'Available during pre-market and post-market'}
+                >{extLabel}</button>
+              </div>
+            ) : (
+              <div className={wsStyles.sessionToggle} role="group" aria-label="Chart extended hours">
+                <button
+                  type="button"
+                  className={`${wsStyles.sessionBtn} ${!extHoursOn ? wsStyles.sessionBtnActive : ''}`}
+                  onClick={() => setExtHours(false)}
+                  title="Regular session only (9:30–4:00 ET), overnight gaps"
+                >Regular Hours</button>
+                <button
+                  type="button"
+                  className={`${wsStyles.sessionBtn} ${extHoursOn ? wsStyles.sessionBtnActive : ''}`}
+                  onClick={() => setExtHours(true)}
+                  title="Include pre-market + post-market bars"
+                >Extended Hours</button>
+              </div>
+            )}
+            <ChartMarketClock />
+          </div>
+        )}
       </div>
       <div
         ref={focusableRef}
@@ -251,6 +365,8 @@ function GridChartCell({
             priceScaleBottomMargin={0.10}
             canvasTheme={canvasTheme}
             settingsOverride={settingsOverride}
+            sessionView={sessionView}
+            hideExtHoursToolbarToggle
           />
         ) : (
           <button
