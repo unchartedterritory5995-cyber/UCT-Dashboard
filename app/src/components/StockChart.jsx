@@ -5259,10 +5259,16 @@ export default function StockChart({
         if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - LAST_CANDLE_POS)
           from = to - width
-        } else {
+        } else if (Math.abs(oldRange.to - oldBarCount) <= Math.abs(oldRange.to - newBarCount)) {
           const barsFromRight = oldBarCount - oldRange.to
           to = newBarCount - barsFromRight
           from = to - width
+        } else {
+          // Captured range already re-mapped to the NEW series (see the
+          // count-change guard below) — bars-from-right vs the stale old count
+          // would throw the view off the data. Keep the remapped range.
+          to = oldRange.to
+          from = oldRange.from
         }
         if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
           try {
@@ -5339,12 +5345,23 @@ export default function StockChart({
       // (Restores commit 911dfe91, lost in a later StockChart overwrite; Model
       // Book / entryDate charts have their own pins below.)
       const newBarCount = filteredBars.length
-      const barsFromRight = oldBarCount - oldRange.to
-      const width = oldRange.to - oldRange.from
-      const to = newBarCount - barsFromRight
-      const from = to - width
-      if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
-        try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch {}
+      // LWC can have ALREADY re-anchored the captured range to the NEW data
+      // extent by the time this effect reads it (observed on the multi-chart
+      // grid's workspace↔grid series swaps: 600→8422 came back as 8262..8427).
+      // Computing bars-from-right against the STALE old count then extrapolates
+      // the view thousands of bars outside the data — a blank or left-squeezed
+      // chart. Only re-anchor when the captured range is still consistent with
+      // the OLD extent; when it already tracks the new one, trust it as-is.
+      const rangeTracksOldExtent =
+        Math.abs(oldRange.to - oldBarCount) <= Math.abs(oldRange.to - newBarCount)
+      if (rangeTracksOldExtent) {
+        const barsFromRight = oldBarCount - oldRange.to
+        const width = oldRange.to - oldRange.from
+        const to = newBarCount - barsFromRight
+        const from = to - width
+        if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
+          try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch {}
+        }
       }
     }
 
