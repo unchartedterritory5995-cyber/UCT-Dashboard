@@ -68,6 +68,29 @@ describe('session candle → render plan (the seam that broke)', () => {
     expect(barsRenderPlan(mk(12.6), mk(12.6)).mode).toBe('noop')
   })
 
+  // The 2026-07-17 follow-up: the candle appeared instantly at the live price, then
+  // grew its body + wicks ~1s later on every ticker open. Cause is right here — the
+  // live ext price lands from a warm cache while the aggregate is a per-symbol fetch,
+  // and a price with no aggregate has no range to draw. StockChart now waits for
+  // useSessionExtBars' `ready` before applying the candle at all.
+  it('price-only (aggregate still loading) collapses to a flat doji, then morphs', () => {
+    const priceOnly = applySessionCandle(RTH, {
+      curTime: '2026-07-17', extAgg: null, extPrice: 12.2,
+    })
+    const doji = priceOnly[priceOnly.length - 1]
+    expect([doji.o, doji.h, doji.l, doji.c]).toEqual([12.2, 12.2, 12.2, 12.2])  // no body, no wicks
+    expect(doji.v).toBe(0)
+
+    const full = applySessionCandle(RTH, {
+      curTime: '2026-07-17',
+      extAgg: { open: 11.9, high: 12.4, low: 11.7, close: 12.2, volume: 300 },
+      extPrice: 12.2,
+    })
+    // Same bar, same timestamp, different OHLC — the user-visible fill-in.
+    expect(barsRenderPlan(priceOnly, full).mode).toBe('incremental')
+    expect(full[full.length - 1].o).toBe(11.9)
+  })
+
   it('regular hours / intraday: displayBars IS filteredBars, so the guard still holds', () => {
     // sessionCandleActive false → applySessionCandle is a pass-through (same ref),
     // so planning off displayBars is byte-identical to the old filteredBars behavior.

@@ -2563,11 +2563,8 @@ export default function StockChart({
   // toggle. Intraday has no synthetic session candle (that's D/W/M only); it just
   // gets the price-scale references, sourced straight from the live feed.
   const sessionTagsIntraday = sessionView != null && !_isDWM && _inExtWindow && !replayMode
-  // The pre-market "include pre-market" preview candle (the appended D/W/M bar) is
-  // painted a muted white so it reads as a not-yet-real preview of where the stock
-  // sits on pre-market prints; at 9:30 the toggle auto-reverts and the real
-  // red/green daily candle takes over.
-  const sessionPreviewLastBar = sessionCandleActive && marketSession === 'pre'
+  // (sessionPreviewLastBar — the muted-white preview paint — is derived below, once
+  // we know whether the session candle actually got applied to the bars.)
   // Writers A + D yield the D/W/M last bar to the memo-driven setData while owned.
   // Kept in a ref (read by the live-tick callbacks); updated in an effect so we
   // never write a ref during render. Effects run top-to-bottom, and the writer
@@ -2577,7 +2574,9 @@ export default function StockChart({
     sessionViewRef.current = sessionView
   }, [sessionCandleActive, sessionFreezeActive, sessionView])
   // Today's extended-hours aggregate (only fetched while the preview candle is on).
-  const sessionExtAgg = useSessionExtBars(sym, sessionCandleActive ? marketSession : null, sessionCandleActive, _extSess.anchorDate)
+  // `ready` gates the paint below — see the memo. Until this symbol's fetch lands we
+  // have only the live ext price, which is not enough to draw an honest candle.
+  const { agg: sessionExtAgg, ready: sessionExtReady } = useSessionExtBars(sym, sessionCandleActive ? marketSession : null, sessionCandleActive, _extSess.anchorDate)
 
   // Exact-range frame flips (Setup ⇄ Result) animate — see the exact-range pin
   // effect below. While the framed window SHRINKS (Result → Setup) keep slicing
@@ -2836,6 +2835,14 @@ export default function StockChart({
   // flips off (or the 9:30 bell auto-reverts it) this is a no-op.
   const sessionAppliedBars = useMemo(() => {
     if (!sessionCandleActive || !filteredBars?.length) return filteredBars
+    // Wait for THIS symbol's ext-hours aggregate before painting anything. The live
+    // ext price lands almost immediately (warm shared live-prices cache) while the
+    // aggregate is a per-symbol fetch (~1s). Painting on price alone gives
+    // applySessionCandle nothing to build a range from, so it collapses to o=h=l=c:
+    // a flat doji at the live price that visibly grows its body + wicks when the
+    // aggregate arrives — on every ticker open/search. One late-but-complete candle
+    // beats a fast wrong one. (Post-market has the same tell: h/l would jump.)
+    if (!sessionExtReady) return filteredBars
     // During pre/post (incl. overnight) anchor the session candle to the trading
     // day the extended data belongs to — so at 2am we extend YESTERDAY's daily bar
     // with its post-market prints, not spawn a new (empty) calendar-today bar.
@@ -2844,7 +2851,16 @@ export default function StockChart({
       : Date.now() / 1000
     const curTime = computeBarTime(resolvedTf, _curSec)
     return applySessionCandle(filteredBars, { curTime, extAgg: sessionExtAgg, extPrice: sessionExtPrice })
-  }, [filteredBars, sessionCandleActive, resolvedTf, sessionExtAgg, sessionExtPrice])
+  }, [filteredBars, sessionCandleActive, resolvedTf, sessionExtAgg, sessionExtPrice, sessionExtReady])
+
+  // The pre-market "include pre-market" preview candle is painted a muted white so it
+  // reads as a not-yet-real preview of where the stock sits on pre-market prints; at
+  // 9:30 the toggle auto-reverts and the real red/green daily candle takes over.
+  // Keyed on the candle having actually been APPLIED, not merely on the toggle being
+  // on: while the aggregate is still loading (above) the last bar is YESTERDAY's real
+  // RTH candle, and whiting that out for a second is exactly the flash we're killing.
+  const sessionPreviewLastBar = sessionCandleActive && marketSession === 'pre'
+    && sessionAppliedBars !== filteredBars
 
   const displayBars = useMemo(() => {
     if (!sessionAppliedBars?.length) return sessionAppliedBars

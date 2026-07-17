@@ -12,12 +12,22 @@ function todayEtStr() {
  * (which /api/bars serves across the full 4:00am–8:00pm ET span) and folds the
  * in-window prints into a single { open, high, low, close, volume }.
  *
- * Inert (returns null, fetches nothing) unless `active` and a pre/post session.
+ * Inert (fetches nothing) unless `active` and a pre/post session.
+ *
+ * Returns { agg, ready }. `ready` distinguishes "the fetch for THIS symbol hasn't
+ * landed yet" from "it landed and there are no extended-hours prints" — both of
+ * which are agg == null. The caller MUST NOT paint a session candle until ready:
+ * the live ext PRICE arrives from a warm shared cache almost instantly while this
+ * aggregate is a per-symbol network fetch (~1s), and applySessionCandle seeded from
+ * a price alone collapses to o=h=l=c — a flat doji at the live price that visibly
+ * morphs into the real body/wicks when the aggregate lands. `ready` only goes false
+ * for the FIRST fetch of a (sym, session, anchorDate); the 30s refresh never flips
+ * it back, or the candle would blink out twice a minute.
  *
  * @param {string}  sym
  * @param {('pre'|'post'|null)} session
  * @param {boolean} active
- * @returns {{open,high,low,close,volume}|null}
+ * @returns {{agg: {open,high,low,close,volume}|null, ready: boolean}}
  */
 export default function useSessionExtBars(sym, session, active, anchorDate) {
   // Tag the aggregate with the symbol it was computed for. The reset-on-sym-change
@@ -27,26 +37,33 @@ export default function useSessionExtBars(sym, session, active, anchorDate) {
   // paint a candle at the wrong price (the "pre-market bar shoots to the bottom
   // then snaps back" glitch when flipping tickers). Gating the return on a matching
   // sym closes that window synchronously, without waiting for the reset effect.
-  const [state, setState] = useState({ sym: null, agg: null })
+  const [state, setState] = useState({ sym: null, agg: null, ready: false })
 
   useEffect(() => {
     // Reset immediately so a prior symbol's aggregate never briefly applies to a
     // new symbol; the fetch below repopulates when active. One extra render on
     // sym/session/active transitions only — not a hot path.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState({ sym, agg: null })
+    setState({ sym, agg: null, ready: false })
     if (!active || !sym || (session !== 'pre' && session !== 'post')) return undefined
     let cancelled = false
+    // A settled fetch marks ready even when it yields nothing, so a symbol with no
+    // extended-hours prints (or a failing endpoint) doesn't wedge the caller waiting
+    // forever. Keeps the last good aggregate on transient failures.
+    const settle = (agg) => {
+      if (cancelled) return
+      setState(s => (s.sym === sym ? { sym, agg: agg !== undefined ? agg : s.agg, ready: true } : s))
+    }
     const run = async () => {
       try {
         const r = await fetch(`/api/bars/${encodeURIComponent(sym)}?tf=5&bars=300`)
-        if (!r.ok) return
+        if (!r.ok) { settle(undefined); return }
         const payload = await r.json()
         if (cancelled) return   // sym/session change cancels via cleanup below
         // Anchor to the trading day the extended data belongs to (overnight →
         // the just-closed day), falling back to today for the live 4pm–8pm window.
-        setState({ sym, agg: aggregateExtBars(payload?.bars || [], { session, todayEt: anchorDate || todayEtStr() }) })
-      } catch { /* keep the last good aggregate on transient failures */ }
+        settle(aggregateExtBars(payload?.bars || [], { session, todayEt: anchorDate || todayEtStr() }))
+      } catch { settle(undefined) }
     }
     run()
     const id = setInterval(run, 30_000)
@@ -55,5 +72,5 @@ export default function useSessionExtBars(sym, session, active, anchorDate) {
 
   // Only surface the aggregate when it belongs to the CURRENT symbol — guards the
   // one-render gap between a sym switch and the reset effect above.
-  return state.sym === sym ? state.agg : null
+  return state.sym === sym ? { agg: state.agg, ready: state.ready } : { agg: null, ready: false }
 }
