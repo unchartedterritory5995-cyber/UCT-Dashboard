@@ -40,10 +40,17 @@ describe('EarningsMarkerPopover', () => {
     expect(screen.queryByText('Revenue')).toBeNull()
   })
 
-  it('colors a miss red and formats a negative surprise', () => {
+  it('colors a POSITIVE surprise with the beat color (regression: was always red)', () => {
+    render(<EarningsMarkerPopover data={MU} x={0} y={0} sym="MU" beatColor="#00ff00" missColor="#ff0000" onClose={() => {}} />)
+    const surprise = screen.getByText('+3.01 (+32.8%)')
+    expect(surprise.style.color).toBe('rgb(0, 255, 0)')   // beat color, not red
+  })
+
+  it('colors a NEGATIVE surprise with the miss color + formats it', () => {
     const miss = { date: '2026-01-10', beat: false, eps_actual: 1.0, eps_estimate: 1.5, eps_surprise_pct: -33.3, revenue_actual: null }
-    render(<EarningsMarkerPopover data={miss} x={0} y={0} sym="XYZ" onClose={() => {}} />)
-    expect(screen.getByText('-0.50 (-33.3%)')).toBeTruthy()
+    render(<EarningsMarkerPopover data={miss} x={0} y={0} sym="XYZ" beatColor="#00ff00" missColor="#ff0000" onClose={() => {}} />)
+    const surprise = screen.getByText('-0.50 (-33.3%)')
+    expect(surprise.style.color).toBe('rgb(255, 0, 0)')   // miss color
   })
 
   it('Escape and the ✕ button both close it', () => {

@@ -6,8 +6,6 @@ import styles from './EarningsMarkerPopover.module.css'
 // chart. Data comes straight off the marker (/api/chart/markers → FMP), so it
 // opens instantly with no extra fetch. Self-contained: figures only, no footer.
 
-const UP = '#4ade80'
-const DOWN = '#f87171'
 const DIM = '#8a8a90'
 
 // EPS / plain numbers: up to 2 decimals, trailing zeros kept for cents-like reads.
@@ -43,22 +41,25 @@ function pctStr(p) {
   return `${+p >= 0 ? '+' : ''}${(+p).toFixed(1)}%`
 }
 
-// One "Surprise" line: absolute beat/miss + the % in one color.
-function SurpriseRow({ label, absStr, pct }) {
-  if (absStr == null && pct == null) return null
-  const up = (pct != null ? +pct >= 0 : true)
-  const color = up ? UP : DOWN
+// One "Surprise" line: absolute beat/miss + the %, colored by the SIGN (beat color
+// for an upside surprise, miss color for a downside). `pctNum` is the raw number
+// used for the sign; `pctStr` is the display text. (The prior bug colored every row
+// red because it took `+"+32.8%"` → NaN → treated as negative.)
+function SurpriseRow({ label, absStr, pctNum, pctText, beatColor, missColor }) {
+  if (absStr == null && pctText == null) return null
+  const up = pctNum != null ? pctNum >= 0 : true
+  const color = up ? beatColor : missColor
   return (
     <div className={styles.row}>
       <span className={styles.k} style={{ color }}>{label}</span>
       <span className={styles.v} style={{ color }}>
-        {absStr != null ? absStr : ''}{pct != null ? ` (${pct})` : ''}
+        {absStr != null ? absStr : ''}{pctText != null ? ` (${pctText})` : ''}
       </span>
     </div>
   )
 }
 
-export default function EarningsMarkerPopover({ data, x, y, sym, onClose }) {
+export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1ae51a', missColor = '#c41f2d', onClose }) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -77,12 +78,15 @@ export default function EarningsMarkerPopover({ data, x, y, sym, onClose }) {
 
   const epsA = data.eps_actual, epsE = data.eps_estimate
   const epsSurpAbs = (isNum(epsA) && isNum(epsE)) ? `${+epsA - +epsE >= 0 ? '+' : ''}${(+epsA - +epsE).toFixed(2)}` : null
-  const epsPct = pctStr(data.eps_surprise_pct != null ? data.eps_surprise_pct : data.surprise)
+  const epsPctNum = data.eps_surprise_pct != null ? +data.eps_surprise_pct
+    : (data.surprise != null ? +data.surprise : null)
+  const epsPctText = pctStr(epsPctNum)
 
   const revA = data.revenue_actual, revE = data.revenue_estimate
   const hasRev = isNum(revA) || isNum(revE)
   const revSurpAbs = (isNum(revA) && isNum(revE)) ? `${+revA - +revE >= 0 ? '+' : ''}${fmtBig(+revA - +revE)}` : null
-  const revPct = pctStr(data.revenue_surprise_pct)
+  const revPctNum = data.revenue_surprise_pct != null ? +data.revenue_surprise_pct : null
+  const revPctText = pctStr(revPctNum)
 
   // Clamp within the viewport (the popover is small; nudge left/up near edges).
   const W = 232, H = 260
@@ -103,13 +107,13 @@ export default function EarningsMarkerPopover({ data, x, y, sym, onClose }) {
       <div className={styles.sectionLabel}>EPS</div>
       <div className={styles.row}><span className={styles.k}>Reported</span><span className={styles.v}>{fmtNum(epsA)}</span></div>
       <div className={styles.row}><span className={styles.k}>Estimate</span><span className={styles.v}>{fmtNum(epsE, 3).replace(/0+$/, '').replace(/\.$/, '')}</span></div>
-      <SurpriseRow label="Surprise" absStr={epsSurpAbs} pct={epsPct} />
+      <SurpriseRow label="Surprise" absStr={epsSurpAbs} pctNum={epsPctNum} pctText={epsPctText} beatColor={beatColor} missColor={missColor} />
 
       {hasRev && (<>
         <div className={styles.sectionLabel}>Revenue</div>
         <div className={styles.row}><span className={styles.k}>Reported</span><span className={styles.v}>{fmtBig(revA)}</span></div>
         <div className={styles.row}><span className={styles.k}>Estimate</span><span className={styles.v}>{fmtBig(revE)}</span></div>
-        <SurpriseRow label="Surprise" absStr={revSurpAbs} pct={revPct} />
+        <SurpriseRow label="Surprise" absStr={revSurpAbs} pctNum={revPctNum} pctText={revPctText} beatColor={beatColor} missColor={missColor} />
       </>)}
     </div>,
     document.body,

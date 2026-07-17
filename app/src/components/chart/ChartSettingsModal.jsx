@@ -237,6 +237,9 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     swingUp: ['swingLabels', 'upColor'],
     swingDown: ['swingLabels', 'downColor'],
     swingBg: ['swingLabels', 'bg'],
+    // Earnings beat/miss badge colors (also color the popover surprise rows).
+    earnBeat: ['markers', 'earningsBeat'],
+    earnMiss: ['markers', 'earningsMiss'],
   }
   const setColorTarget = (target, hex) => {
     // Watermark keeps color + opacity as SEPARATE settings (the chart reads them
@@ -283,6 +286,8 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'swingDown': return swing.downColor || '#f87171'
       // Unset background halo matches the canvas, so show that as the swatch default.
       case 'swingBg': return swing.bg || settings.background || '#0e0f0d'
+      case 'earnBeat': return evtMarkers.earningsBeat || '#1ae51a'
+      case 'earnMiss': return evtMarkers.earningsMiss || '#c41f2d'
       default: return '#1ae51a'
     }
   }
@@ -591,11 +596,18 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
               {EVENT_MARKERS.map(([key, label]) => (
                 <div className={styles.field} key={key}>
                   <span className={styles.fieldLabel}>{label}</span>
-                  <button
-                    type="button" role="switch" aria-checked={!!evtMarkers[key]} aria-label={label}
-                    className={`${styles.toggle} ${evtMarkers[key] ? styles.toggleOn : ''}`}
-                    onClick={() => setMarker(key, !evtMarkers[key])}
-                  ><span className={styles.toggleKnob} /></button>
+                  <div className={styles.hdrRowCtl}>
+                    {/* Earnings badge is beat/miss-colored — expose both when it's on. */}
+                    {key === 'earnings' && evtMarkers.earnings && (<>
+                      {colorSwatch('earnBeat', 'Beat color')}
+                      {colorSwatch('earnMiss', 'Miss color')}
+                    </>)}
+                    <button
+                      type="button" role="switch" aria-checked={!!evtMarkers[key]} aria-label={label}
+                      className={`${styles.toggle} ${evtMarkers[key] ? styles.toggleOn : ''}`}
+                      onClick={() => setMarker(key, !evtMarkers[key])}
+                    ><span className={styles.toggleKnob} /></button>
+                  </div>
                 </div>
               ))}
             </div>

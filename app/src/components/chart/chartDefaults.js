@@ -121,7 +121,13 @@ export const CHART_DEFAULTS = {
   logScale:   false,
   percentScale: false,
   comparisonSymbols: [], // Array<{ sym: string, color: string, enabled: boolean }>
-  markers: { earnings: false, splits: false, dividends: false, news: false },
+  // Event markers. earningsBeat/earningsMiss default to the candle up/down colors
+  // (#1ae51a / #c41f2d) so the "E" badge matches the chart out of the box; both are
+  // user-overridable (Markers tab) and also color the surprise rows in the popover.
+  markers: {
+    earnings: false, splits: false, dividends: false, news: false,
+    earningsBeat: '#1ae51a', earningsMiss: '#c41f2d',
+  },
   countdown: false,
   showPatterns: false,
   hideDrawings: false,  // hide all drawings without deleting them

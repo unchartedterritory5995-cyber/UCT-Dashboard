@@ -20,6 +20,7 @@ import useMarketOpen from '../hooks/useMarketOpen'
 import { getExtSession, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
 import EarningsMarkerPopover from './chart/EarningsMarkerPopover'
+import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
@@ -1188,25 +1189,8 @@ export default function StockChart({
     const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
     if (!markersData || !isDailyWeekly) return []
     const eventMarkers = []
-    if (cs.markers?.earnings && Array.isArray(markersData.earnings)) {
-      for (const e of markersData.earnings) {
-        if (!e.date) continue
-        // Clean single-glyph badge (TC2000-style). The surprise % moved OFF the
-        // marker into the click-popup — an inline "E +32.8%" was the clutter. A
-        // consistent circle (not up/down arrows, which read as trade signals)
-        // colored by beat: green beat / red miss / grey unknown.
-        eventMarkers.push({
-          time: e.date,
-          position: 'belowBar',
-          color: e.beat === true ? '#4ade80' : e.beat === false ? '#f87171' : '#94a3b8',
-          shape: 'circle',
-          text: 'E',
-          size: 1.2,
-          id: `earn-${e.date}`,
-          _earnings: e,
-        })
-      }
-    }
+    // Earnings are NOT LWC markers anymore — they're drawn as a slick "E" badge by
+    // earningsBadgePrimitive (see earningsEvents below). Splits/dividends stay LWC.
     if (cs.markers?.splits && Array.isArray(markersData.splits)) {
       for (const s of markersData.splits) {
         if (!s.date) continue
@@ -1238,8 +1222,23 @@ export default function StockChart({
     return eventMarkers
   }, [markersData, cs.markers, resolvedTf])
 
-  // Earnings markers alone (carry `_earnings`) — click-matched to open the popover.
-  const earningsMarkers = useMemo(() => chartEventMarkers.filter(m => m._earnings), [chartEventMarkers])
+  // Earnings events (daily/weekly only) with the reporting bar's LOW, so the badge
+  // primitive can hug just under the candle and click-matching has the dates. The
+  // date string maps 1:1 to a daily/weekly bar time (adjustTime is identity there).
+  const earningsEvents = useMemo(() => {
+    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    if (!cs.markers?.earnings || !markersData?.earnings || !isDailyWeekly || !filteredBars?.length) return []
+    const lowByDate = new Map()
+    for (const b of filteredBars) lowByDate.set(String(b.t), +b.l)
+    const out = []
+    for (const e of markersData.earnings) {
+      if (!e.date) continue
+      const low = lowByDate.get(String(e.date))
+      if (!Number.isFinite(low)) continue   // no matching bar (e.g. outside the loaded range)
+      out.push({ date: e.date, low, beat: e.beat, data: e })
+    }
+    return out
+  }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
   // { data, x, y } while an earnings popover is open (null = closed).
   const [earningsPopup, setEarningsPopup] = useState(null)
 
@@ -1297,6 +1296,8 @@ export default function StockChart({
   const sessionShadeAttachedRef = useRef(false)
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
   const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
+  const earnBadgeRef = useRef(null)       // earnings "E" badge series primitive controller
+  const earnBadgeAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const tickerMeta = useTickerMeta(sym)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
   //  1. No curated name → use live ticker meta, but let a curated sector/industry
@@ -4192,6 +4193,7 @@ export default function StockChart({
       markersControllerRef.current = null
       focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
       swingAttachedRef.current = false           // swing-label primitive must re-attach to the new series
+      earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
     }
 
     if (!candleSeriesRef.current) {
@@ -5281,6 +5283,24 @@ export default function StockChart({
         bg: sl.bg || cs.background,
       })
       swingCtrlRef.current.setPoints(swingPoints)
+    }
+
+    // ── Earnings "E" badge (custom v5 series primitive) ──
+    if (candleSeriesRef.current) {
+      if (!earnBadgeRef.current) earnBadgeRef.current = createEarningsBadgePrimitive({})
+      if (!earnBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(earnBadgeRef.current.primitive)
+          earnBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      const mk = cs.markers || {}
+      earnBadgeRef.current.setOptions({
+        enabled: earningsEvents.length > 0,
+        beatColor: mk.earningsBeat || '#1ae51a',
+        missColor: mk.earningsMiss || '#c41f2d',
+      })
+      earnBadgeRef.current.setPoints(earningsEvents.map(e => ({ time: e.date, price: e.low, beat: e.beat })))
     }
 
     // View handling on initial load / timeframe change / ticker switch.
@@ -7266,19 +7286,19 @@ export default function StockChart({
   // string, so match by string equality. Opens the popover at the click point.
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !earningsMarkers.length) { setEarningsPopup(null); return }
+    if (!chart || !earningsEvents.length) { setEarningsPopup(null); return }
     const handler = (param) => {
       if (!param || param.time == null) { return }
-      const hit = earningsMarkers.find(m => String(m.time) === String(param.time))
+      const hit = earningsEvents.find(m => String(m.date) === String(param.time))
       if (!hit) return
       const rect = containerRef.current?.getBoundingClientRect()
       const px = rect && param.point ? rect.left + param.point.x + 12 : (rect?.left ?? 0) + 40
       const py = rect && param.point ? rect.top + param.point.y + 12 : (rect?.top ?? 0) + 40
-      setEarningsPopup({ data: hit._earnings, x: px, y: py })
+      setEarningsPopup({ data: hit.data, x: px, y: py })
     }
     chart.subscribeClick(handler)
     return () => { try { chart.unsubscribeClick(handler) } catch {} }
-  }, [earningsMarkers])
+  }, [earningsEvents])
 
   // Close the earnings popover when the symbol or timeframe changes out from under it.
   useEffect(() => { setEarningsPopup(null) }, [sym, resolvedTf])
@@ -7664,6 +7684,8 @@ export default function StockChart({
           x={earningsPopup.x}
           y={earningsPopup.y}
           sym={sym}
+          beatColor={cs.markers?.earningsBeat || '#1ae51a'}
+          missColor={cs.markers?.earningsMiss || '#c41f2d'}
           onClose={() => setEarningsPopup(null)}
         />
       )}

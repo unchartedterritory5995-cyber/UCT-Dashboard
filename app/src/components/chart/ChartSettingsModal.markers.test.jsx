@@ -88,6 +88,31 @@ describe('ChartSettingsModal — Markers tab', () => {
     expect(next.preset).toBe('custom')
   })
 
+  it('earnings shows Beat/Miss color swatches only when on; they write markers colors', () => {
+    const onChange = vi.fn()
+    render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
+    openMarkers()
+
+    // Off by default → no beat/miss swatches.
+    expect(screen.queryByTitle('Beat color')).toBeNull()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Earnings' }))
+    // (onChange emits earnings:true; re-render with it on to reveal the swatches)
+    const withEarnings = mergeChartSettings(JSON.stringify({ markers: { earnings: true } }))
+    onChange.mockClear()
+    render(<ChartSettingsModal open settings={withEarnings} onChange={onChange} />)
+    // second modal instance — target its Markers tab
+    fireEvent.click(screen.getAllByRole('tab', { name: 'Markers' })[1])
+
+    const beat = screen.getByTitle('Beat color')
+    fireEvent.click(beat)
+    const picker = screen.getByRole('dialog', { name: /Beat color/i })
+    const hex = within(picker).getByDisplayValue('1ae51a')
+    fireEvent.change(hex, { target: { value: '00ff00' } })
+    fireEvent.keyDown(hex, { key: 'Enter' })
+    expect(lastCall(onChange).markers.earningsBeat.toLowerCase()).toContain('00ff00')
+  })
+
   it('countdown toggle writes cs.countdown', () => {
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
