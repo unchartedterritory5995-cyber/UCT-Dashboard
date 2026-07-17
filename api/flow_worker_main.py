@@ -43,6 +43,7 @@ MASSIVE_WS_DRY_RUN=0, FLOW_PROXY_TRUST=1 (trust web's vouched auth), PUSH_SECRET
 import os
 import asyncio
 import threading
+import time
 import logging
 from contextlib import asynccontextmanager
 
@@ -148,7 +149,30 @@ def _build_app() -> FastAPI:
     return app
 
 
+def _ensure_flow_indexes():
+    """One-time (IF NOT EXISTS) index for the writer's OI stage-2 fallback.
+
+    2026-07-17 write-profile: that stage probed flow with
+    WHERE Symbol/CallPut/Strike/ExpirationDate ORDER BY id DESC per event —
+    with no matching composite index a MISS scanned the whole table, and it
+    was 86.7s of an 88.7s batch. Build takes seconds once at boot; probes
+    become index seeks forever after.
+    """
+    try:
+        import sqlite3
+        from api.flow_db import FlowDB
+        t0 = time.time()
+        with sqlite3.connect(FlowDB().db_path, timeout=60) as conn:
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_flow_contract "
+                "ON flow(Symbol, CallPut, Strike, ExpirationDate)")
+        log.info("flow.db idx_flow_contract ensured in %.1fs", time.time() - t0)
+    except Exception as e:  # noqa: BLE001
+        log.warning("idx_flow_contract create failed (non-fatal): %s", e)
+
+
 def _start_consumer():
+    _ensure_flow_indexes()
     try:
         from api.massive_ws_worker import start as _ws_start
         log.info("starting Massive OPRA consumer")

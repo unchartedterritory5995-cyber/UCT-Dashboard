@@ -469,6 +469,15 @@ def get_status() -> dict:
 
 # -- Event handling -------------------------------------------------
 
+# Stage-2 fallback result cache: contract_key -> (oi_or_None, cached_at).
+# Hits AND misses cached (misses are the expensive case — see the 2026-07-17
+# write-profile note inside _load_oi_for_events). OI moves once daily, so a
+# short TTL is safe; the on-demand fetch pipeline still upgrades misses via
+# Stage 1 on later batches.
+_OI_FALLBACK_CACHE: dict = {}
+_OI_FALLBACK_TTL = float(os.environ.get("MASSIVE_OI_FALLBACK_CACHE_TTL", "600"))
+
+
 def _load_oi_for_events(events: list) -> dict:
     """
     Look up OI for each event using a two-stage lookup:
@@ -531,8 +540,26 @@ def _load_oi_for_events(events: list) -> dict:
                 if idx is not None and oi is not None and oi > 0:
                     out[idx] = int(oi)
 
-            # Stage 2: flow table fallback for events that missed
-            unresolved = [(k, i, e) for k, i, e in keys_and_idx if i not in out]
+            # Stage 2: flow table fallback for events that missed.
+            #
+            # 2026-07-17 write-profile finding: this stage was 86,688ms of an
+            # 88,734ms batch — up to 3 ORDER-BY-id-DESC probes PER EVENT
+            # against flow, re-run EVERY batch for contracts with no OI
+            # anywhere (fresh weeklies scan the whole table and miss again 2s
+            # later). Two rails fix it: idx_flow_contract (created at
+            # flow-worker boot) makes each probe an index seek, and a 10-min
+            # result cache (hits AND misses) skips repeat probes entirely.
+            _now_cache = time.time()
+            unresolved = []
+            for k, i, e in keys_and_idx:
+                if i in out:
+                    continue
+                _hit = _OI_FALLBACK_CACHE.get(k)
+                if _hit is not None and (_now_cache - _hit[1]) < _OI_FALLBACK_TTL:
+                    if _hit[0]:
+                        out[i] = _hit[0]
+                else:
+                    unresolved.append((k, i, e))
             if unresolved:
                 # Build per-contract query against flow. Each contract is
                 # (Symbol, CallPut, Strike, ExpirationDate). We use the MAX(id)
@@ -579,6 +606,14 @@ def _load_oi_for_events(events: list) -> dict:
                                     break
                             except (ValueError, TypeError):
                                 continue
+                    # Cache the outcome either way — a miss cached is a
+                    # full-probe skipped on every batch for the next 10 min.
+                    _OI_FALLBACK_CACHE[key] = (out.get(i), _now_cache)
+                if len(_OI_FALLBACK_CACHE) > 30000:
+                    _cut = _now_cache - _OI_FALLBACK_TTL
+                    for _k in [_k for _k, _v in _OI_FALLBACK_CACHE.items()
+                               if _v[1] < _cut]:
+                        _OI_FALLBACK_CACHE.pop(_k, None)
     except Exception as e:
         logger.warning("[massive-ws] OI batch lookup failed: %s", e)
 
