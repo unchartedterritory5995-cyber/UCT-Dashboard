@@ -1189,6 +1189,32 @@ _RAW_T_MAX = 50            # keep last 50 prints per contract
 # per session for the time window relevant to classification.
 _NBBO_HISTORY: dict = {}    # sym -> deque[(ts_ns, bid, ask)]
 _NBBO_HISTORY_MAX = 1000    # keep last 1000 NBBO snapshots per contract
+# MEMORY-LEAK FIX (2026-07-17, Ravi's find): both _NBBO_HISTORY and _nbbo_table
+# are dicts that grew ONE entry per contract EVER subscribed all session and
+# were only .clear()'d at teardown. The per-contract deque is bounded, but the
+# DICT is not — at pool churn that's tens of thousands of contracts, ~100 MB/min
+# monotonic. Today's 20 restarts were an accidental GC; with the tape now stable
+# a clean 6.5h Monday session projected ~39 GB vs a 32 GB ceiling ~2:30-3:00 PM ET.
+# Fix: (1) evict a contract's NBBO state when it leaves the Q-pool [primary], and
+# (2) a backstop sweep that drops entries no longer in _q_subscribed when the map
+# exceeds this cap [catches in-flight quotes for just-unsubscribed contracts].
+_NBBO_CONTRACTS_MAX = int(os.environ.get("MASSIVE_NBBO_CONTRACTS_MAX", "2500"))
+
+
+def _evict_dead_nbbo() -> None:
+    """Drop NBBO state for contracts no longer subscribed. O(n) but only runs
+    when the map exceeds _NBBO_CONTRACTS_MAX — the Q-pool caps at ~950, so this
+    fires only on straggler buildup, and the survivors are exactly the live
+    pool. Never touches subscribed contracts' history."""
+    if len(_NBBO_HISTORY) <= _NBBO_CONTRACTS_MAX:
+        return
+    dead = [s for s in _NBBO_HISTORY if s not in _q_subscribed]
+    for s in dead:
+        _NBBO_HISTORY.pop(s, None)
+        _nbbo_table.pop(s, None)
+    if dead:
+        logger.info("[massive-ws] NBBO map trim: evicted %d unsubscribed "
+                    "contracts (now %d tracked)", len(dead), len(_NBBO_HISTORY))
 
 
 def _nbbo_at(sym: str, ts_ns: int) -> tuple | None:
@@ -2155,6 +2181,12 @@ async def _run_session(ws):
                         "params": params,
                     }))
                     _q_subscribed.difference_update(unsubs)
+                    # MEMORY-LEAK FIX (2026-07-17): drop the evicted contracts'
+                    # NBBO state — they're no longer classified, so their history
+                    # is dead weight. This is the primary bound on _NBBO_HISTORY.
+                    for _u in unsubs:
+                        _NBBO_HISTORY.pop(_u, None)
+                        _nbbo_table.pop(_u, None)
                     _state["q_unsubscribes_sent"] += 1
                     logger.info("[massive-ws] Q.unsubscribed %d contracts "
                                 "(pool now %d)", len(unsubs), len(_q_subscribed))
@@ -2731,6 +2763,12 @@ async def _run_session(ws):
                     if nh is None:
                         nh = deque(maxlen=_NBBO_HISTORY_MAX)
                         _NBBO_HISTORY[sym] = nh
+                        # Backstop for the leak: a quote can arrive for a
+                        # just-unsubscribed contract (in-flight), re-creating an
+                        # entry the unsub path already cleared. Sweep dead
+                        # entries when the map overgrows so it can't creep.
+                        if len(_NBBO_HISTORY) > _NBBO_CONTRACTS_MAX:
+                            _evict_dead_nbbo()
                     nh.append((ts_ms * 1_000_000, bid, ask))
                     _state["quotes_received"] += 1
                 elif ev_type == "status":
