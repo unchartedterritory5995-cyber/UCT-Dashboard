@@ -271,7 +271,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'hdrDayDown': return hdrColors.dayChangeDown || '#ff3b47'
       case 'hdrMarketCap': return hdrColors.marketCap || '#c9a84c'
       case 'hdrNextEarnings': return hdrColors.nextEarnings || '#6ba3be'
-      case 'hdrUctRating': return hdrColors.uctRating || '#c9a84c'
+      case 'hdrUctRating': return hdrColors.uctRating || '#1ae51a'  // price-candle up-green
       case 'hdrLegend': return hdrColors.legend || '#a8a290'
       default: return '#1ae51a'
     }

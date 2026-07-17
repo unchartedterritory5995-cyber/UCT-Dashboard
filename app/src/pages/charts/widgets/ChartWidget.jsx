@@ -44,12 +44,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
 
   // UCT rating (composite 1–99) — colored by tier.
   const uctRating = Number.isFinite(fund?.composite) ? fund.composite : null
-  const _sun = chartsTheme === 'sunrise'
-  const ratingColor = uctRating == null ? (_sun ? '#55606e' : '#9b9684')
-    : uctRating >= 80 ? (_sun ? '#0a5c22' : '#22c45c')
-    : uctRating >= 60 ? (_sun ? '#0a5c22' : '#7fb26a')
-    : uctRating >= 40 ? (_sun ? '#7a5c16' : '#c9a84c')
-    : (_sun ? '#7d1620' : '#c07a63')
+  // UCT rating default = the price-candle up-green (CHART_DEFAULTS.candles.upColor),
+  // so it matches the candles out of the box and opening its picker starts on that
+  // exact color. Overridable per user via header.colors.uctRating.
+  const UCT_RATING_DEFAULT = '#1ae51a'
   const [flagToast, setFlagToast] = useState(null)
   useEffect(() => {
     if (!flagToast) return
@@ -384,7 +382,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             {hdr.showUctRating && (
               <span className={styles.chartMetaItem}>
                 <span className={styles.chartMetaLabel}>UCT Rating</span>
-                <span className={styles.chartMetaVal} style={{ color: hdrColors.uctRating || ratingColor }}>{uctRating != null ? uctRating : '—'}</span>
+                <span className={styles.chartMetaVal} style={{ color: hdrColors.uctRating || UCT_RATING_DEFAULT }}>{uctRating != null ? uctRating : '—'}</span>
               </span>
             )}
           </div>
