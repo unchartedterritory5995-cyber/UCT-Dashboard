@@ -2307,9 +2307,18 @@ export default function OptionsFlowDashboard() {
   // triggers a full refetch — which is what reloaded 100k+ trades on every bump
   // and crashed 60-day tabs with Out-of-Memory. dataVersion still drives the
   // delta below, so it's not orphaned.
-  const csvFile = dataMode === "index"
-    ? (fetchDays === 0 ? "/api/flow/indexes-data?all_data=true" : `/api/flow/indexes-data?days=${fetchDays}`)
-    : (fetchDays === 0 ? "/api/flow/data?all_data=true" : `/api/flow/data?days=${fetchDays}`);
+  // 2026-07-17: a calendar range asks the SERVER for exactly those dates.
+  // Previously the calendar set fetchDays=0 -> all_data=true, which is capped
+  // UNCONDITIONALLY (top FLOW_CSV_CAP_ROWS by premium across every day in the
+  // DB, regardless of FLOW_CSV_CAP_DAYS). The client then filtered that 50K
+  // down to the picked day, so a single historical date rendered its ~0.4%
+  // share of history: 7/16 showed 511 trades of 128,525 actually in flow.db.
+  // With date_from/date_to the server scopes the query and caps on the RANGE's
+  // own length, so a one-day pick streams that day whole.
+  const _base = dataMode === "index" ? "/api/flow/indexes-data" : "/api/flow/data";
+  const csvFile = (dateFrom && dateTo)
+    ? `${_base}?date_from=${dateFrom}&date_to=${dateTo}`
+    : (fetchDays === 0 ? `${_base}?all_data=true` : `${_base}?days=${fetchDays}`);
 
   // Extract unique dates from parsed rows
   const availableDates = useMemo(() => {
