@@ -789,6 +789,7 @@ export default function StockChart({
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
   boldCandles = false,      // bold solid green/red candles (Model Book look)
   userCandleColors = false, // Charts workspace: the "bold" candle/volume colors come from the user's cs.candles (upColor/downColor) instead of the hardcoded MB palette, so the settings-modal color pickers actually paint. Model Book (no prop) keeps its fixed MB colors.
+  userCanvas = false,       // Charts workspace: the canvas (background solid/gradient, grid, crosshair, text) comes from the user's cs settings instead of the hardcoded MB background. Model Book keeps MB_BG.
   colorByNetChange = false, // color candles by NET CHANGE (close vs previous close, TC2000/StockCharts style) instead of LWC's default close-vs-open
   candlesOnTop = false,     // TradingView-style: draw candle bodies ABOVE the MA/BB/VWAP overlays so the lines pass behind the bodies instead of overlapping them
   hideLastValue = false,    // hide the last-price axis tag on the price series
@@ -942,9 +943,12 @@ export default function StockChart({
     }
     return {
       // Model Book charts (boldCandles) ride a deep-navy canvas to make the
-      // bold green/red candles pop (TC2000 look); every other surface keeps the
-      // user's configured background.
-      background: boldCandles ? MB_BG : cs.background,
+      // bold green/red candles pop (TC2000 look). The Charts workspace (userCanvas)
+      // instead reads the user's background — solid OR a top→bottom gradient (shown
+      // via the container CSS + a transparent LWC canvas, like Sunrise). Every other
+      // surface keeps the user's configured background.
+      background: (userCanvas || !boldCandles) ? cs.background : MB_BG,
+      layoutTransparent: userCanvas && cs.bgMode === 'gradient',
       textColor: cs.textColor,
       gridColor: cs.grid?.color,
       borderColor: cs.grid?.color,
@@ -952,7 +956,7 @@ export default function StockChart({
       candleUp: cs.candles?.upColor,
       candleDown: cs.candles?.downColor,
     }
-  }, [cs.theme, cs.background, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor, boldCandles, canvasTheme])
+  }, [cs.theme, cs.background, cs.bgMode, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor, boldCandles, canvasTheme, userCanvas])
 
   // ── Price-scale: forceLogScale (Model Book) defaults to log without touching
   // the user's global chart-settings pref. A per-instance override lets the
@@ -7503,9 +7507,14 @@ export default function StockChart({
         className={styles.chart}
         style={{
           display: (showFatalError || selectedRangeEmpty) ? 'none' : 'block',
-          // Sunrise: paint the continuous sky gradient here, BEHIND the transparent
-          // LWC canvas, so it flows unbroken through the price + volume panes.
-          background: canvasTheme === 'sunrise' ? SUNRISE_GRADIENT : undefined,
+          // Sunrise (and any user gradient) paints a continuous gradient HERE, behind
+          // the transparent LWC canvas, so it flows unbroken through the price + volume
+          // panes. The user gradient (Canvas settings) works the same way.
+          background: canvasTheme === 'sunrise'
+            ? SUNRISE_GRADIENT
+            : (userCanvas && cs.bgMode === 'gradient'
+                ? `linear-gradient(to bottom, ${cs.bgGradient?.top || '#16233b'} 0%, ${cs.bgGradient?.bottom || '#0e0f0d'} 100%)`
+                : undefined),
         }}
       />
       {/* ── Dark Pool volume profile bars — uses series.priceToCoordinate() to

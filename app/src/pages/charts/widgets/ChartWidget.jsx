@@ -411,6 +411,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
              Model Book / Journal charts are unaffected. */
           boldCandles
           userCandleColors
+          userCanvas
           colorByNetChange
           candlesOnTop
           ema9MatchCandle

@@ -22,7 +22,12 @@ export const CHART_DEFAULTS = {
   // (LWC-native); 'onecolor' = every bar a single color.
   candleColorMode: 'netchange', // 'onecolor' | 'netchange' | 'openclose'
 
-  background: '#1a1c17',
+  // Canvas. background = the solid canvas color (defaults to the app --bg so the
+  // workspace look is unchanged now that it reads this instead of a hardcoded value).
+  // bgMode 'gradient' paints a top→bottom gradient across both panes (like Sunrise).
+  background: '#0e0f0d',
+  bgMode: 'solid',        // 'solid' | 'gradient'
+  bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
   textColor: '#706b5e',
   grid: { color: 'rgba(46,49,39,0.25)', visible: true },
 
@@ -232,6 +237,8 @@ export function mergeChartSettings(userSettings) {
     candles: { ...CHART_DEFAULTS.candles, ...(parsed.candles || {}) },
     candleColorMode: parsed.candleColorMode || CHART_DEFAULTS.candleColorMode,
     background: parsed.background || CHART_DEFAULTS.background,
+    bgMode: parsed.bgMode || CHART_DEFAULTS.bgMode,
+    bgGradient: { ...CHART_DEFAULTS.bgGradient, ...(parsed.bgGradient || {}) },
     textColor: parsed.textColor || CHART_DEFAULTS.textColor,
     grid: { ...CHART_DEFAULTS.grid, ...(parsed.grid || {}) },
     crosshair: { ...CHART_DEFAULTS.crosshair, ...(parsed.crosshair || {}) },
