@@ -563,16 +563,17 @@ export default function ChartsWorkspace() {
           </div>
 
           {/* Chart theme — recolors the whole workspace (charts + all widgets).
-              Kept in the LEFT cluster (not pushed right) so it never collides with the
-              fixed help "?" pinned to the top-right corner of the viewport. */}
-          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
+              Pushed to the far RIGHT of the header (margin-left:auto), with right
+              margin so it clears the fixed help "?" pinned to the top-right of the
+              viewport. Its dropdown is right-aligned so it opens leftward on-screen. */}
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative', marginLeft: 'auto', marginRight: 36 }}>
             <button
               type="button"
               className={styles.toolbarBtn}
               onClick={() => { setThemeMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false) }}
             >Chart theme ▾</button>
             {themeMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 180 }} onMouseLeave={() => setThemeMenuOpen(false)}>
+              <div className={styles.addMenu} style={{ minWidth: 180, left: 'auto', right: 0 }} onMouseLeave={() => setThemeMenuOpen(false)}>
                 {[['default', 'Default'], ['sunrise', 'TSDR — Sunrise']].map(([val, label]) => (
                   <button
                     key={val}
