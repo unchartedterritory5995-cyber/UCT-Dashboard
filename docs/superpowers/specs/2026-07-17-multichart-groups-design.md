@@ -232,15 +232,30 @@ Only when `resolve_primary_theme` finds no theme. Grounded Haiku:
 
 ## 10. Phasing
 
-1. **Core scan:** Groups mode toggle, picker (`/api/groups`), `/api/groups/{id}/top`
-   (today's-move ranking + cold-cache tier fallback), `fillCells` + mount-queue admission,
-   chartability filter + normalization, group memory + sanitizer + Refresh, group-heat
-   header + per-cell badges.
-2. **Peers:** shared resolver + `/api/groups/peers` (taxonomy, similarity), committed
-   auto-fill + latch + Undo, rationale-on-hover, ETF pin.
-3. **AI fallback:** grounded Haiku, offloaded + validated + cached.
-4. **Sync + boards:** time-range sync (with StockChart guard), saved named Group boards,
-   fast-switch polish (rotation sort, recents/favorites, arrows).
+**v1 = full scanner + peers** (both halves of the pitch ship together; owner pulled
+peers into v1):
+
+1. **Core scan + peers (v1):**
+   - Groups mode toggle; picker (`/api/groups`, rotation-sorted); chartability filter +
+     `normalize_sym`.
+   - `/api/groups/{id}/top?n=&by=today` (today's-move ranking + RS→1M→curated-tier
+     cold-cache fallback chain); `fillCells` + `(id, sym)` mount-queue admission.
+   - Group memory + `sanitizeState` extension + Refresh.
+   - Group-heat header + per-cell badges (today % + tier) + rationale-on-hover; ETF pin
+     when the theme has a chartable one.
+   - **Peers:** shared `resolve_primary_theme` (tier-first, factor buckets excluded,
+     also backs `/api/ticker-meta`); `/api/groups/peers` (taxonomy, similarity-ranked);
+     committed auto-fill-on-type + async request-latch + Undo toast.
+2. **AI peer fallback:** grounded Haiku for tickers not in the taxonomy — offloaded off
+   the request path, validated (cap_universe + sector match + seed dedup + null-meta
+   refusal), cached on `(SEED_UPPER, n, version)`.
+3. **Sync + boards + polish:** time-range sync (with the StockChart echo guard),
+   saved named Group boards (`/api/charts/layouts`), fast-switch polish (recents /
+   favorites, ‹ › next/prev arrows, RVOL badge if a cheap source exists).
+
+Note: peer-fill in v1 always returns *something usable* — a taxonomy hit fills peers, a
+miss keeps the seed solo with a "no group found" note. The AI fallback (phase 2) only
+upgrades the miss case; v1 is not blocked on it.
 
 ## 11. Edge cases
 
