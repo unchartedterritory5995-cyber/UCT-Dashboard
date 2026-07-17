@@ -39,6 +39,22 @@ const normHex = (s) => {
   return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : null
 }
 
+// Colors may carry an alpha as an 8-digit hex (#rrggbbaa). Split into the #rrggbb
+// part + a 0..1 opacity; join back (dropping the alpha at full opacity).
+function splitColor(v) {
+  const s = (v || '').trim()
+  const m8 = /^#?([0-9a-f]{6})([0-9a-f]{2})$/i.exec(s)
+  if (m8) return { rgb: `#${m8[1].toLowerCase()}`, a: parseInt(m8[2], 16) / 255 }
+  const m6 = /^#?([0-9a-f]{6})$/i.exec(s)
+  if (m6) return { rgb: `#${m6[1].toLowerCase()}`, a: 1 }
+  return { rgb: '#000000', a: 1 }
+}
+function joinColor(rgb, a) {
+  const base = normHex(rgb) || '#000000'
+  if (a >= 0.999) return base
+  return base + Math.round(clamp01(a) * 255).toString(16).padStart(2, '0')
+}
+
 // ── Palette: 12 columns × 6 shades. Each column is a smooth tint→shade ramp
 // ANCHORED on its base color (base sits at row 2, with lighter tints above + darker
 // shades below), and the app's exact brand colors ARE those anchors — so they're
@@ -68,21 +84,29 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
   const [customOpen, setCustomOpen] = useState(false)
   const svRef = useRef(null)
   const hueRef = useRef(null)
-  const hsv = useMemo(() => hexToHsv(value) || { h: 0, s: 0, v: 0 }, [value])
-  const [hexText, setHexText] = useState(value || '#000000')
-  useEffect(() => { setHexText(value || '#000000') }, [value])
+  const opRef = useRef(null)
+  // Split the value into its RGB + opacity. Palette / hex / custom set the RGB (alpha
+  // preserved); the opacity slider sets the alpha (RGB preserved).
+  const { rgb: curRgb, a: curA } = useMemo(() => splitColor(value), [value])
+  const hsv = useMemo(() => hexToHsv(curRgb) || { h: 0, s: 0, v: 0 }, [curRgb])
+  const [hexText, setHexText] = useState(curRgb)
+  useEffect(() => { setHexText(curRgb) }, [curRgb])
 
-  const emit = useCallback((hex) => { onChange?.(hex) }, [onChange])
-  const cur = normHex(value)
+  const emitRgb = useCallback((rgb) => { onChange?.(joinColor(rgb, curA)) }, [onChange, curA])
+  const emitAlpha = useCallback((a) => { onChange?.(joinColor(curRgb, a)) }, [onChange, curRgb])
 
   const svPointer = useCallback((e) => {
     const r = svRef.current?.getBoundingClientRect(); if (!r) return
-    emit(hsvToHex(hsv.h, clamp01((e.clientX - r.left) / r.width), clamp01(1 - (e.clientY - r.top) / r.height)))
-  }, [emit, hsv.h])
+    emitRgb(hsvToHex(hsv.h, clamp01((e.clientX - r.left) / r.width), clamp01(1 - (e.clientY - r.top) / r.height)))
+  }, [emitRgb, hsv.h])
   const huePointer = useCallback((e) => {
     const r = hueRef.current?.getBoundingClientRect(); if (!r) return
-    emit(hsvToHex(clamp01((e.clientX - r.left) / r.width) * 360, hsv.s || 1, hsv.v || 1))
-  }, [emit, hsv.s, hsv.v])
+    emitRgb(hsvToHex(clamp01((e.clientX - r.left) / r.width) * 360, hsv.s || 1, hsv.v || 1))
+  }, [emitRgb, hsv.s, hsv.v])
+  const opPointer = useCallback((e) => {
+    const r = opRef.current?.getBoundingClientRect(); if (!r) return
+    emitAlpha(clamp01((e.clientX - r.left) / r.width))
+  }, [emitAlpha])
   const startDrag = useCallback((handler) => (e) => {
     e.preventDefault(); handler(e)
     let raf = 0, last = null
@@ -91,11 +115,11 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
     const up = (ev) => { if (raf) cancelAnimationFrame(raf); handler(ev); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
   }, [])
-  const commitHex = useCallback(() => { const n = normHex(hexText); if (n) emit(n); else setHexText(value || '#000000') }, [hexText, emit, value])
+  const commitHex = useCallback(() => { const n = normHex(hexText); if (n) emitRgb(n); else setHexText(curRgb) }, [hexText, emitRgb, curRgb])
 
   const Sw = (c, key) => (
-    <button key={key} type="button" className={`${styles.sw} ${cur === c ? styles.swActive : ''}`}
-      style={{ background: c }} title={c} onClick={() => emit(c)} />
+    <button key={key} type="button" className={`${styles.sw} ${curRgb === c ? styles.swActive : ''}`}
+      style={{ background: c }} title={c} onClick={() => emitRgb(c)} />
   )
 
   return (
@@ -115,8 +139,8 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
           <div className={styles.savedRow}>
             {savedColors.map((c, i) => (
               <span key={`s-${c}-${i}`} className={styles.savedItem}>
-                <button type="button" className={`${styles.sw} ${cur === normHex(c) ? styles.swActive : ''}`}
-                  style={{ background: c }} title={c} onClick={() => emit(c)} />
+                <button type="button" className={`${styles.sw} ${curRgb === normHex(c) ? styles.swActive : ''}`}
+                  style={{ background: c }} title={c} onClick={() => emitRgb(c)} />
                 {onDeleteColor && (
                   <button type="button" className={styles.del} title="Remove saved color"
                     onClick={(e) => { e.stopPropagation(); onDeleteColor(c) }}>×</button>
@@ -133,7 +157,7 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
           onChange={(e) => setHexText(e.target.value)} onBlur={commitHex}
           onKeyDown={(e) => { if (e.key === 'Enter') commitHex() }} />
         <button type="button" className={`${styles.custBtn} ${customOpen ? styles.custOn : ''}`} onClick={() => setCustomOpen(o => !o)}>Custom</button>
-        <button type="button" className={styles.saveBtn} onClick={() => onSaveColor?.(cur || value)}>Save</button>
+        <button type="button" className={styles.saveBtn} onClick={() => onSaveColor?.(curRgb)}>Save</button>
       </div>
 
       {customOpen && (
@@ -141,13 +165,24 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
           <div className={styles.svBox} ref={svRef} style={{ background: hsvToHex(hsv.h, 1, 1) }} onPointerDown={startDrag(svPointer)}>
             <div className={styles.svWhite} />
             <div className={styles.svBlack} />
-            <div className={styles.svThumb} style={{ left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`, background: value }} />
+            <div className={styles.svThumb} style={{ left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`, background: curRgb }} />
           </div>
           <div className={styles.hueBar} ref={hueRef} onPointerDown={startDrag(huePointer)}>
             <div className={styles.hueThumb} style={{ left: `${(hsv.h / 360) * 100}%` }} />
           </div>
         </div>
       )}
+
+      {/* Opacity — per-color (each swatch: body/borders/wick, up/down). */}
+      <div className={styles.opLabel}>Opacity</div>
+      <div className={styles.opRow}>
+        <div className={styles.opTrack} ref={opRef} onPointerDown={startDrag(opPointer)}>
+          <div className={styles.opChecker} />
+          <div className={styles.opFill} style={{ background: `linear-gradient(to right, ${curRgb}00, ${curRgb})` }} />
+          <div className={styles.opThumb} style={{ left: `${curA * 100}%` }} />
+        </div>
+        <span className={styles.opVal}>{Math.round(curA * 100)}%</span>
+      </div>
     </div>
   )
 }
