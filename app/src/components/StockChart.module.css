@@ -17,6 +17,7 @@
 .rangeBar {
   position: absolute;
   left: 8px;
+  bottom: 22%; /* fallback until the rAF sampler pins it live above the volume pane */
   z-index: 6;
   display: flex;
   gap: 1px;

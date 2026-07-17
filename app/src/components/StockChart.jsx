@@ -6851,6 +6851,37 @@ export default function StockChart({
   // time-axis height so it sits just left of the axis, at the date row.
   const GRIP_W = 34   // grip button width — used to center it on the last candle
   const [scrollGripPos, setScrollGripPos] = useState({ left: null, top: null })
+  const rangeBarRef = useRef(null)
+
+  // Keep the date-range bar (3M/6M/YTD/…) pinned just above the volume pane's TOP,
+  // tracking the live pane boundary as the user drags the price/volume separator.
+  // Positioning it off the persisted paneHeightPct setting made it jump seconds late
+  // (the setting only saves after the drag settles). A rAF sampler reads the actual
+  // pane heights every frame and writes `bottom` straight to the DOM (no React
+  // re-render → no fight → smooth), so it slides with the divider in real time.
+  useEffect(() => {
+    if (!showRangeSelector || !chartReady) return
+    const chart = chartRef.current, container = containerRef.current
+    if (!chart || !container) return
+    let raf = null, lastBottom = -1
+    const tick = () => {
+      const el = rangeBarRef.current
+      if (el) {
+        try {
+          const panes = chart.panes ? chart.panes() : null
+          const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
+          const H = container.clientHeight || 0
+          if (h0 > 0 && H > 0) {
+            const bottom = Math.round(Math.max(30, H - h0 + 8)) // 8px above the boundary
+            if (bottom !== lastBottom) { lastBottom = bottom; el.style.bottom = `${bottom}px` }
+          }
+        } catch { /* pane API missing → CSS fallback */ }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    tick()
+    return () => { if (raf) cancelAnimationFrame(raf) }
+  }, [showRangeSelector, chartReady])
   useEffect(() => {
     if (!dragMeasure || !chartReady) return
     const chart = chartRef.current; if (!chart) return
@@ -7887,7 +7918,7 @@ export default function StockChart({
         </div>
       )}
       {showRangeSelector && chartReady && filteredBars?.length > 1 && (
-        <div className={styles.rangeBar} style={{ bottom: `calc(${_rangeVolPct}% + 30px)` }}>
+        <div ref={rangeBarRef} className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
               key={label + i}
