@@ -219,6 +219,36 @@ open at full 30-year depth in the workspace can paint that cell mis-framed (full
 memCache carryover); Reset view or a reload reframes it. Fix candidate: force a default-zoom
 re-anchor on grid-cell first paint.
 
+## v1.1 (2026-07-17 morning) — shipped
+
+- **Blank-cell roundtrip bug root-caused and fixed** (3-lens parallel investigation): paint/
+  framing latches survived chart destruction, so a destroy→recreate (StrictMode remount, warm
+  caches) produced a chart under an armed 'noop' render plan — created, never painted, never
+  framed. Fix: latch reset in the unmount cleanup + `_freshChart` guard + width-proportional
+  viewing-latest floor. The stale-count re-anchor got `rangeDescribesOldExtent` (scrolled-back
+  ranges ALWAYS re-anchor classically; only old-extent-impossible + new-edge-hugging ranges are
+  trusted as LWC-remapped).
+- **Saved drawings render read-only in grid cells** (`showSavedDrawings` + ChartDrawingOverlay
+  `readOnly` prop — no window keydown registration, so Ctrl+Z/V/Escape are not swallowed ×16).
+- **Per-cell chart style** (`settingsOverride` merged over the global blob inside StockChart;
+  write-restore keeps overrides out of the global blob but preserves deliberate user edits via
+  Object.is diffing; canonical `CHART_TYPE_OPTIONS` shared by picker + sanitizer).
+- **Theme rows in the Multi Charts menu** (was unreachable from grid mode).
+- 8-angle review ran; residual accepted findings → punch list below.
+
+**Punch list from v1.1 review (deferred, non-blocking):**
+- Read-only drawings layer runs ChartDrawingOverlay's per-frame rAF sampler per cell with
+  drawings (render engine for pan-tracking) — consider a visible-range-subscription redraw or
+  one shared ticker if dense grids show jank. Model Book's static layer shares the recipe
+  (single instance) and still registers its keydown handler — consider `readOnly` there too.
+- Latch refs could group into one paintLatch object so reset can't drift from declaration.
+- mergeSettingsOverride section-key list duplicates mergeChartSettings shape knowledge; unify
+  via a shared section-keys export before any SECTION override ships (write-restore is also
+  whole-key — needs sub-key diffing for section overrides).
+- Theme row array duplicated between workspace + grid menus (2 items; extract on 3rd theme).
+- SPY-class intermittent one-cell mis-frame on some roundtrips (self-heals via Reset view /
+  reload; frequency reduced by the v1.1 fixes — retest after members use it).
+
 ## Live verification (2026-07-16, local build)
 
 3×3 grid: presets dropdown w/ icons + custom N×M + sync toggle ✓ · row-major cell carryover ✓ ·
