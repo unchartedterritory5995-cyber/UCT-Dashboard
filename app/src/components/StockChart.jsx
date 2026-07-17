@@ -906,6 +906,10 @@ export default function StockChart({
   // the normal vivid MB_UP everywhere else (Model Book, popups).
   const mbUp = canvasTheme === 'sunrise' ? SUNRISE_UP : (userCandleColors ? (cs.candles.upColor || MB_UP) : MB_UP)
   const mbDown = canvasTheme === 'sunrise' ? SUNRISE_DOWN : (userCandleColors ? (cs.candles.downColor || MB_DOWN) : MB_DOWN)
+  // The ema9MatchCandle overlay borrows the candle up-HUE, but a moving average must
+  // stay fully opaque — the candle's per-color opacity (8-digit #rrggbbaa from the
+  // color picker) must NOT bleed into the MA line. Strip any trailing alpha.
+  const mbUpOpaque = /^#[0-9a-f]{8}$/i.test(mbUp) ? mbUp.slice(0, 7) : mbUp
   // Volume bars keep the FIXED bold palette regardless of the user's candle color —
   // volume gets its own color control later, so changing candle colors must not
   // touch it. (This is the original mbUp/mbDown, before userCandleColors.)
@@ -1528,7 +1532,7 @@ export default function StockChart({
       const d = ovData[i]?.data
       const pt = (d && d.length) ? d[d.length - 1] : null
       if (!pt || !ov) return null
-      const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUp : ov.color
+      const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
       return { label: `${ov.type} ${ov.period}`, value: pt.value, color }
     }).filter(Boolean)
     return {
@@ -4616,7 +4620,7 @@ export default function StockChart({
       // Charts workspace: repaint the 9-EMA in the candle up-color (MB_UP) so the
       // fast MA matches the candles. Reliable regardless of saved overlay colors.
       const _ov = resolvedOverlays?.[i]
-      if (ema9MatchCandle && _ov?.type === 'EMA' && Number(_ov?.period) === 9) color = mbUp
+      if (ema9MatchCandle && _ov?.type === 'EMA' && Number(_ov?.period) === 9) color = mbUpOpaque
       // Split into base (≤ setup day) + tail (≥ setup day) when fading; the shared
       // cutoff point joins them so the line is seamless at full opacity.
       const baseData = _fadeMA ? ovData.filter(p => String(p.time) <= _cut) : ovData
@@ -6312,7 +6316,7 @@ export default function StockChart({
         const ov = resolvedOverlays?.[i]
         if (!d || !ov) return null
         // Match the DISPLAYED line color (ema9MatchCandle repaints the 9-EMA to MB_UP).
-        const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUp : ov.color
+        const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
         return { label: `${ov.type} ${ov.period}`, value: d.value, color }
       }).filter(Boolean)
 
