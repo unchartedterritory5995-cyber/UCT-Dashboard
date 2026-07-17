@@ -73,14 +73,13 @@
 .cellStyleSelect option { background: var(--bg-elevated, #12171f); }
 
 /* Header collapse for narrow/dense cells (queried against the CELL width via
-   the container-type above). Session toggle + clock go first (widest, least
-   essential); the Market Cap / Next Earnings / UCT Rating meta goes next.
-   The name + day gain + Style + gear + 8-button TF bar always stay. */
+   the container-type above). Only the session toggle + clock collapse — they're
+   the widest, least-essential controls. The Market Cap / Next Earnings / UCT
+   Rating meta ALWAYS shows (owner request): the tfBar's flex-wrap lets it drop
+   onto its own line in tight cells (e.g. 4x4) rather than overflow, so every
+   cell carries the full informational header the primary chart has. */
 @container (max-width: 700px) {
   .gridSession { display: none; }
-}
-@container (max-width: 560px) {
-  .gridMeta { display: none; }
 }
 
 .cellChart {
