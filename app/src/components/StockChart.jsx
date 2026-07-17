@@ -7486,22 +7486,23 @@ export default function StockChart({
 
   // Proactive deep-history warm (dwell-gated) — makes scroll-back INSTANT.
   // The viewport-first first paint is shallow (FIRST_PAINT_BARS) for an instant
-  // open; the pan-backfill above then loads full history on demand, which costs
-  // ~1-3s the FIRST time a user scrolls back on a given stock. Here we remove
-  // that wait for daily/weekly/monthly: once a chart has been studied for ~2.5s
-  // (so we don't warm on quick ticker-flipping), we quietly bump to the full
-  // depth in the background. It reuses the exact same setFetchDepth path as the
-  // pan-backfill, so the same-ticker re-anchor holds the visible view (no jump)
-  // — by the time the user pans left, the deep history is already loaded. Server
-  // SQLite caches it once for everyone, so this is a one-time fetch per stock.
-  // Intraday is excluded: its deep windows are 20-30k bars, too heavy to load on
-  // every chart that's merely open — those stay on-demand via the pan backfill.
+  // open; then we quietly bump to the FULL depth in the background so the whole
+  // history is loaded without the user having to pan-and-wait. It reuses the same
+  // setFetchDepth path as the pan-backfill, so the same-ticker re-anchor holds the
+  // visible view (no jump) — by the time the user zooms/scrolls out, the deep
+  // history is already there. Server SQLite caches it once for everyone.
+  //
+  // ALL timeframes warm (intraday included) — the user wants hourly/30m/15m/5m to
+  // reach their full available history, not just the ~600-bar first-paint window
+  // (that was the "hourly only goes back to May" symptom). Intraday deep windows
+  // ARE large (up to ~20-30k bars, capped by the backend's per-TF lookback), so we
+  // keep the short dwell delay to skip warming on quick ticker-flips, and multi-
+  // chart grid cells still pass backgroundWarm=false to avoid a cold-open herd.
   useEffect(() => {
     if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
     if (!backgroundWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
-    if (!['D', 'W', 'M'].includes(resolvedTf)) return undefined
-    const id = setTimeout(() => setFetchDepth(_fullTarget), 2500)
+    const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
   }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm])
 

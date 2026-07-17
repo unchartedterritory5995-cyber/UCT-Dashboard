@@ -604,9 +604,11 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     # depth knob is the requested `max_bars` (frontend fullBarsFor), bounded
     # here so a runaway request can't pull a decade of 1-min in one shot.
     # Per-TF ceilings (calendar days): 1m ~2mo, 5m ~1yr, 15m ~2.7yr,
-    # 30m/60m ~6yr (60m resamples from the 30m fetch, so 30's ceiling feeds it).
+    # 30m/60m ~8.7yr (60m resamples from the 30m fetch, so 30's ceiling feeds it).
+    # Raised 30/60 to 3200d so the frontend's deeper hourly target (fullBarsFor 60
+    # → ~8yr) isn't clipped — the provider has the history; these are only ceilings.
     bars_per_day = (16 * 60) // multiplier
-    max_lookback = {1: 60, 5: 365, 15: 1000, 30: 2200, 60: 2200}.get(multiplier, 2200)
+    max_lookback = {1: 60, 5: 365, 15: 1000, 30: 3200, 60: 3200}.get(multiplier, 2200)
     lookback_days = min(max_lookback, max(10, int(max_bars / max(bars_per_day, 1) * 1.5) + 5))
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
