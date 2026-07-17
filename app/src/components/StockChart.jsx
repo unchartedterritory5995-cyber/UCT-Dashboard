@@ -817,7 +817,10 @@ export default function StockChart({
   onVolumePaneResize = null,  // (pct) => void — fired when the user drags the price/volume separator, so the caller can persist the new height
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
+  backgroundWarm = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
+  onBarsReady = null,       // optional () => void — fired at most once per mount, when the chart first has renderable bars OR reaches fatal error (first loading=false). The grid mount queue uses it to release a concurrency slot.
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
+  hotkeysActive = true,     // boolean | () => boolean — gates this instance's document-level keydown shortcuts at dispatch time (read via latest-ref: neither form re-subscribes, the callback form never re-renders). Multi-chart surfaces pass a callback reading the container's active-cell ref so one keypress doesn't retime every mounted chart. Absent/true = today's always-active behavior.
   onOpenSettings = null,    // optional () => void — when set, the "Chart settings" context-menu item opens THIS instead of the old toolbar panel (charts workspace uses the new centered modal)
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
   onCompareChange = null,   // callback(sym) — parent manages compareSymbol state
@@ -828,6 +831,7 @@ export default function StockChart({
   externalTimeRange = null, // {from, to} | null — apply external time range from sync context
   hideReplay = false,       // hide the Replay / Time Machine button
   hidePatterns = false,     // hide the pattern-recognition toggle button
+  disablePatterns = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
   hideCompare = false,      // hide both compare-symbol entry points (text input + popover)
   hideCountdown = false,    // hide the intraday bar-close countdown badge
   // ── Animated "focus a setup" zoom (Model Book) ──
@@ -1806,7 +1810,7 @@ export default function StockChart({
     handleUpdateChartSettings({ ...cs, showPatterns: next, preset: 'custom' })
   }, [cs, handleUpdateChartSettings])
   const [activeDetection, setActiveDetection] = useState(null)
-  const { detections: patternDetections } = usePatternDetections(sym, resolvedTf, showPatterns, 50)
+  const { detections: patternDetections } = usePatternDetections(sym, resolvedTf, showPatterns && !disablePatterns, 50)
 
   // ── Screenshot + Share state ──
   const [screenshotPopoverOpen, setScreenshotPopoverOpen] = useState(false)
@@ -2239,7 +2243,7 @@ export default function StockChart({
   // Order: fast / common TFs first (D, W, M, 60, 30) so most TF switches are
   // already instant by the time the slow intraday TFs (15, 5, 1) get fetched.
   useEffect(() => {
-    if (!sym) return
+    if (!sym || !backgroundWarm) return
     const ORDER = ['D', 'W', 'M', '60', '30', '15', '5', '1']
     const tfs   = ORDER.filter(t => t !== resolvedTf)
     let cancelled = false
@@ -2284,7 +2288,7 @@ export default function StockChart({
     runSequential()
 
     return () => { cancelled = true }
-  }, [sym])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sym, backgroundWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bars: IDB renders instantly; full SWR data replaces it when available.
   // BUT never paint a stale intraday IDB series — that's what fuses a
@@ -2337,6 +2341,19 @@ export default function StockChart({
                         ? _memBars
                         : (_aggBars?.length ? _aggBars : null))))))
   const loading = !bars && !error
+  // First-bars latch: fire onBarsReady exactly once per mount, on the first
+  // render where loading settles false — renderable bars OR fatal error both
+  // count, so a dead ticker never starves the grid mount queue waiting on it.
+  // Latest-callback ref per the codebase's stale-closure convention.
+  const onBarsReadyRef = useRef(onBarsReady)
+  onBarsReadyRef.current = onBarsReady
+  const barsReadyFiredRef = useRef(false)
+  useEffect(() => {
+    if (!loading && !barsReadyFiredRef.current) {
+      barsReadyFiredRef.current = true
+      try { onBarsReadyRef.current?.() } catch {}
+    }
+  }, [loading])
   // Only surface the "Failed to load chart" overlay when we have NOTHING
   // to render. If IDB has cached bars (or the SWR data was already painted
   // before the error), keep showing them and let the 30s SWR refresh
@@ -2622,8 +2639,16 @@ export default function StockChart({
   // of truth. Covers timeframes, drawing tools, display toggles, indicator
   // toggles, replay controls, and the help overlay. Replaces the older
   // hand-rolled handler that lived here previously.
+  const hotkeysActiveRef = useRef(hotkeysActive)
+  hotkeysActiveRef.current = hotkeysActive
   useEffect(() => {
     const onKey = (e) => {
+      // Instance gate: multi-chart surfaces hand every cell this prop so only
+      // the ACTIVE cell handles a keypress (otherwise 'D' retimes all N cells
+      // and settings toggles fire N duplicate pref POSTs). Read via latest-ref
+      // so the callback form costs zero re-subscribes and zero re-renders.
+      const ha = hotkeysActiveRef.current
+      if (typeof ha === 'function' ? !ha() : ha === false) return
       // Ignore when typing in inputs/textareas/contentEditable
       const target = e.target
       if (target) {
@@ -7248,11 +7273,12 @@ export default function StockChart({
   // every chart that's merely open — those stay on-demand via the pan backfill.
   useEffect(() => {
     if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (!backgroundWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
     if (!['D', 'W', 'M'].includes(resolvedTf)) return undefined
     const id = setTimeout(() => setFetchDepth(_fullTarget), 2500)
     return () => clearTimeout(id)
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
@@ -7873,7 +7899,7 @@ export default function StockChart({
           ))}
         </div>
       )}
-      {bars?.length > 0 && (
+      {!disablePatterns && bars?.length > 0 && (
         <PatternOverlay
           chart={chartRef.current}
           series={candleSeriesRef.current}
@@ -7970,7 +7996,7 @@ export default function StockChart({
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}
             hideReplay={hideReplay}
-            hidePatterns={hidePatterns}
+            hidePatterns={hidePatterns || disablePatterns}
             hideCompare={hideCompare}
             hideCountdown={hideCountdown}
           />
