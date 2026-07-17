@@ -154,3 +154,35 @@ def test_ticker_meta_primary_theme_none_when_unresolved(monkeypatch):
     from api.services import ticker_meta
     monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
     assert ticker_meta._primary_theme("ZZZZ") is None
+
+
+from fastapi.testclient import TestClient
+from api.main import app
+
+client = TestClient(app)
+
+
+def test_groups_list_endpoint(monkeypatch):
+    monkeypatch.setattr(groups, "list_groups",
+                        lambda: [{"id": "space", "name": "Space", "total": 6, "chartable": 6}])
+    r = client.get("/api/groups")
+    assert r.status_code == 200
+    assert r.json()["groups"][0]["id"] == "space"
+
+
+def test_group_top_endpoint(monkeypatch):
+    monkeypatch.setattr(groups, "top_n",
+                        lambda tid, n, by: {"group_id": tid, "syms": ["RKLB", "ASTS"],
+                                            "total": 2, "by": by, "ranked_as_of": "regular"})
+    r = client.get("/api/groups/space/top?n=2&by=today")
+    assert r.status_code == 200
+    assert r.json()["syms"] == ["RKLB", "ASTS"]
+
+
+def test_group_peers_endpoint(monkeypatch):
+    monkeypatch.setattr(groups, "resolve_peers",
+                        lambda sym, n: {"seed": sym, "group_id": "space",
+                                        "peers": ["ASTS"], "source": "taxonomy"})
+    r = client.get("/api/groups/peers?sym=RKLB&n=5")
+    assert r.status_code == 200
+    assert r.json()["source"] == "taxonomy"

@@ -48,6 +48,7 @@ from api.routers import ticker_meta as ticker_meta_router
 from api.routers import ticker_search as ticker_search_router
 from api.routers import breadth_monitor as breadth_monitor_router
 from api.routers import theme_performance as theme_performance_router
+from api.routers import groups as groups_router
 from api.routers import sector_strength as sector_strength_router
 from api.services import cot_service as _cot_service
 from api.top_flow_router import router as top_flow_router
@@ -3325,6 +3326,7 @@ app.include_router(bars_router.router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
+app.include_router(groups_router.router)
 app.include_router(sector_strength_router.router)
 # Flow read-proxy (P5 cutover): registered BEFORE every local flow-family
 # router so, when FLOW_READS_PROXY_ENABLED=1, all flow.db-backed reads are
