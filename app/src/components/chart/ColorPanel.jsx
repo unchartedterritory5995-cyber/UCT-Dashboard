@@ -91,6 +91,8 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
   const svRef = useRef(null)
   const hueRef = useRef(null)
   const opRef = useRef(null)
+  const opThumbRef = useRef(null)
+  const opValRef = useRef(null)
   // Split the value into its RGB + opacity. Palette / hex / custom set the RGB (alpha
   // preserved); the opacity slider sets the alpha (RGB preserved).
   const { rgb: curRgb, a: curA } = useMemo(() => splitColor(value), [value])
@@ -109,12 +111,43 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
     const r = hueRef.current?.getBoundingClientRect(); if (!r) return
     emitRgb(hsvToHex(clamp01((e.clientX - r.left) / r.width) * 360, hsv.s || 1, hsv.v || 1))
   }, [emitRgb, hsv.s, hsv.v])
-  const opPointer = useCallback((e) => {
-    const r = opRef.current?.getBoundingClientRect(); if (!r) return
+  // Opacity slider — ULTRA-SMOOTH drag. Each move writes the thumb position (and %
+  // label) straight to the DOM, so the circle tracks the pointer at the monitor's
+  // frame rate regardless of how heavy the downstream chart repaint is. The actual
+  // color change (onChange → full chart re-render) is THROTTLED to ~25/s during the
+  // drag; the exact final value is always committed on release. (Before this, the
+  // thumb was React-driven off the settings round-trip, so a slow chart repaint made
+  // it stutter.)
+  const posToAlpha = useCallback((clientX) => {
+    const r = opRef.current?.getBoundingClientRect(); if (!r) return null
     // Inset the usable track by the thumb radius (7px) so 0% / 100% sit where the
     // thumb is fully visible (not clipped at the track edges).
-    emitAlpha(clamp01((e.clientX - r.left - 7) / (r.width - 14)))
-  }, [emitAlpha])
+    return clamp01((clientX - r.left - 7) / (r.width - 14))
+  }, [])
+  const paintAlpha = useCallback((a) => {
+    if (opThumbRef.current) opThumbRef.current.style.left = `calc(7px + ${a} * (100% - 14px))`
+    if (opValRef.current) opValRef.current.textContent = `${Math.round(a * 100)}%`
+  }, [])
+  const opDrag = useCallback((e) => {
+    e.preventDefault()
+    const a0 = posToAlpha(e.clientX)
+    let raf = 0, last = null, lastEmit = performance.now(), cur = a0
+    if (a0 != null) { paintAlpha(a0); emitAlpha(a0) }
+    const step = (t) => {
+      raf = 0; if (!last) return
+      const a = posToAlpha(last.clientX); last = null
+      if (a == null) return
+      cur = a; paintAlpha(a)
+      if (t - lastEmit > 40) { lastEmit = t; emitAlpha(a) }   // throttle the heavy update
+    }
+    const move = (ev) => { last = ev; if (!raf) raf = requestAnimationFrame(step) }
+    const up = () => {
+      if (raf) cancelAnimationFrame(raf)
+      if (cur != null) emitAlpha(cur)                         // commit exact final value
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
+  }, [posToAlpha, paintAlpha, emitAlpha])
   const startDrag = useCallback((handler) => (e) => {
     e.preventDefault(); handler(e)
     let raf = 0, last = null
@@ -184,12 +217,12 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
       {/* Opacity — per-color (each swatch: body/borders/wick, up/down). */}
       <div className={styles.opLabel}>Opacity</div>
       <div className={styles.opRow}>
-        <div className={styles.opTrack} ref={opRef} onPointerDown={startDrag(opPointer)}>
+        <div className={styles.opTrack} ref={opRef} onPointerDown={opDrag}>
           <div className={styles.opChecker} />
           <div className={styles.opFill} style={{ background: `linear-gradient(to right, ${curRgb}00, ${curRgb})` }} />
-          <div className={styles.opThumb} style={{ left: `calc(7px + ${curA} * (100% - 14px))` }} />
+          <div className={styles.opThumb} ref={opThumbRef} style={{ left: `calc(7px + ${curA} * (100% - 14px))` }} />
         </div>
-        <span className={styles.opVal}>{Math.round(curA * 100)}%</span>
+        <span className={styles.opVal} ref={opValRef}>{Math.round(curA * 100)}%</span>
       </div>
 
       {/* Thickness + line style — only for line-type targets (e.g. crosshair). */}

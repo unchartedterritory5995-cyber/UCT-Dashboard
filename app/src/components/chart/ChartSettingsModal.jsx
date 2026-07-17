@@ -236,7 +236,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'grid': return grid.color || 'rgba(46,49,39,0.25)'
       case 'crosshair': return crosshair.color || '#706b5e'
       case 'text': return settings.textColor || '#706b5e'
-      case 'watermark': return joinHexA(watermark.color || '#a8a290', watermark.opacity ?? 0.07)
+      case 'watermark': return joinHexA(watermark.color || '#a8a290', (watermark.opacity == null || watermark.opacity === 0.07) ? 0.82 : watermark.opacity)
       default: return '#1ae51a'
     }
   }

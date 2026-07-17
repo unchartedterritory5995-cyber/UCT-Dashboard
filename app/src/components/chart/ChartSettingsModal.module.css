@@ -16,7 +16,9 @@
 
 .panel {
   width: min(560px, 94vw);
-  max-height: 88vh;
+  /* Fixed height so the modal doesn't resize between tabs — the longer Canvas
+     tab scrolls inside .body instead of growing the whole modal. */
+  height: min(568px, 88vh);
   display: flex;
   flex-direction: column;
   background: #0e0e10;
@@ -98,6 +100,8 @@
 }
 
 .body {
+  flex: 1;
+  min-height: 0;
   padding: 18px;
   overflow-y: auto;
 }

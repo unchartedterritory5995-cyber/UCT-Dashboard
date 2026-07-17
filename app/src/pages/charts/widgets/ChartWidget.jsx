@@ -441,7 +441,11 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           volumeLastValue
           volumeMa={50}
           hidePriceLine
-          watermarkOpacity={0.82}
+          /* Watermark opacity is user-controllable via Chart Settings → Canvas.
+             The settings default (0.07, the global faint default) is treated as
+             "unset" → the workspace's strong 0.82; any value the user picks wins.
+             Other surfaces keep the global 0.07 default (they don't pass this). */
+          watermarkOpacity={chartCs.watermark.opacity === 0.07 ? 0.82 : chartCs.watermark.opacity}
           centerWatermarkOnPlot
           carryDragPlacement={false}
           keepPresentOnSymbolChange
