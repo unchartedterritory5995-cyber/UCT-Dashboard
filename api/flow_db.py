@@ -161,6 +161,38 @@ class FlowDB:
             return [d[1] for d in dated[:days]]
         return [d[1] for d in dated]
 
+    def dates_in_range(self, source: str, iso_from: str, iso_to: str) -> list[str]:
+        """CreatedDate strings (M/D/YYYY) inside an inclusive ISO date range.
+
+        The DateRail calendar emits ISO (YYYY-MM-DD); CreatedDate is stored as
+        M/D/YYYY TEXT, so a string BETWEEN is meaningless ("7/9/2026" > "7/10/2026"
+        lexically) and the range has to be resolved by parsing. Only DISTINCT
+        dates are parsed (~133 rows), so this is cheap despite not using an index.
+
+        Returned newest-first, matching _resolve_dates' contract. Empty list when
+        the range is unparseable or covers no trading days — callers treat that
+        as "header only", never as "all dates".
+        """
+        try:
+            f = datetime.strptime(iso_from.strip(), "%Y-%m-%d")
+            t = datetime.strptime(iso_to.strip(), "%Y-%m-%d")
+        except (ValueError, TypeError, AttributeError):
+            return []
+        if t < f:
+            f, t = t, f
+        with self._conn() as conn:
+            cursor = conn.execute(
+                "SELECT DISTINCT CreatedDate FROM flow WHERE source = ?", (source,)
+            )
+            raw = [r[0] for r in cursor.fetchall()]
+        dated = []
+        for d in raw:
+            parsed = self._parse_date_mdy(d)
+            if parsed and f <= parsed <= t:
+                dated.append((parsed, d))
+        dated.sort(key=lambda x: x[0], reverse=True)
+        return [d[1] for d in dated]
+
     def insert_csv(self, csv_content: str, source: str = "stocks") -> dict:
         """
         Insert CSV rows into the database. Skips duplicates automatically.
@@ -265,7 +297,7 @@ class FlowDB:
     # ── Streaming CSV (preferred for /api/flow/data) ────────────────────
 
     def stream_csv(self, source: str = "stocks", days: int | None = None,
-                   cap_rows: int | None = None):
+                   cap_rows: int | None = None, dates: list | None = None):
         """
         Generator that yields CSV chunks from the database.
 
@@ -289,8 +321,14 @@ class FlowDB:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         try:
-            # Resolve target dates
-            selected_dates = self._resolve_dates(conn, source, days)
+            # Resolve target dates. An explicit `dates` list (from the DateRail
+            # calendar, via dates_in_range) wins over the days-back path. Note
+            # `dates is not None` rather than a truthiness check: an EMPTY list
+            # means "the range contains no trading days" and must yield a bare
+            # header — falling through to _resolve_dates there would silently
+            # serve the entire table.
+            selected_dates = (dates if dates is not None
+                              else self._resolve_dates(conn, source, days))
             if not selected_dates:
                 yield _HEADER_LINE
                 return
