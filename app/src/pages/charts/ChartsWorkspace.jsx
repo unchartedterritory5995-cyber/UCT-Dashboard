@@ -525,8 +525,10 @@ export default function ChartsWorkspace() {
           <button type="button" className={styles.toolbarBtn} onClick={handleNewLayout}>
             New Layout
           </button>
+          </>)}
 
-          {/* Open a saved / prebuilt layout */}
+          {/* Open a saved / prebuilt layout — visible in BOTH modes (it hosts
+              the Multi Chart flyout, the grid mode's only entry point). */}
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
@@ -549,9 +551,33 @@ export default function ChartsWorkspace() {
                     >{chartsTheme === val ? '✓ ' : ''}{label}</button>
                   </div>
                 ))}
+                {/* Multi Chart — a layout option, not a header tab. Hover or
+                    click opens the grid-selection flyout beside this menu.
+                    The flyout is a DOM child of this row, so the parent
+                    dropdown's onMouseLeave doesn't fire while it's hovered. */}
+                <div
+                  className={styles.menuRow}
+                  style={{ position: 'relative' }}
+                  onMouseEnter={() => setMcMenuOpen(true)}
+                  onMouseLeave={() => setMcMenuOpen(false)}
+                >
+                  <button
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={{ flex: 1, ...(gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : {}) }}
+                    onClick={() => setMcMenuOpen(o => !o)}
+                  >{gridMode ? '✓ ' : ''}▦ Multi Chart ▸</button>
+                  {mcMenuOpen && (
+                    <MultiChartMenu
+                      mc={mc}
+                      flyout
+                      onClose={() => { setMcMenuOpen(false); setOpenMenuOpen(false) }}
+                    />
+                  )}
+                </div>
                 {wsGlobalLayouts.map(t => (
                   <div key={`g${t.id}`} className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
                     {isAdmin && (
                       <button type="button" className={styles.menuDel} title="Delete prebuilt template" onClick={() => handleDeleteTemplate(t.id)}>✕</button>
                     )}
@@ -560,7 +586,7 @@ export default function ChartsWorkspace() {
                 {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
                 {wsMyLayouts.map(t => (
                   <div key={`m${t.id}`} className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
                     <button type="button" className={styles.menuDel} title="Delete" onClick={() => handleDeleteTemplate(t.id)}>✕</button>
                   </div>
                 ))}
@@ -569,6 +595,7 @@ export default function ChartsWorkspace() {
           </div>
 
           {/* Save current arrangement / save as a named template */}
+          {!gridMode && (
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
@@ -609,20 +636,8 @@ export default function ChartsWorkspace() {
               </div>
             )}
           </div>
-          </>)}
+          )}
 
-          {/* Multi-Chart grid mode — fixed N×M grid of independent chart cells. */}
-          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-              onClick={() => { setMcMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false) }}
-            >▦ Multi Charts ▾</button>
-            {mcMenuOpen && (
-              <MultiChartMenu mc={mc} onClose={() => setMcMenuOpen(false)} />
-            )}
-          </div>
           {gridMode && (
             <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
               Workspace
