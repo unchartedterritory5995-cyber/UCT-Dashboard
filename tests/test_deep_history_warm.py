@@ -20,8 +20,8 @@ def test_ticker_list_always_includes_priority_and_is_resilient():
 
 
 def test_deep_targets_match_frontend_full_history():
-    # Daily target must reach full history (frontend fullBarsFor('D') = 20000).
-    assert dhw._DEEP_TARGET["D"] == 20000
+    # Daily target = ~50yr, kept in lockstep with fullBarsFor('D') in barsBackfill.js.
+    assert dhw._DEEP_TARGET["D"] == 12500
     # Skip floor is below the target so a modern name with only a few thousand
     # sessions is still attempted once (its cache hit is fast if nothing deeper).
     assert dhw._DEEP_ENOUGH["D"] < dhw._DEEP_TARGET["D"]

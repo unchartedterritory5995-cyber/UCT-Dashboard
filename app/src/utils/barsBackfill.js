@@ -20,7 +20,10 @@ export const FIRST_PAINT_BARS = 600
 //     nobody scrolls 1-min back a decade, and the payload must stay renderable.
 export function fullBarsFor(tf) {
   switch (tf) {
-    case 'D': return 20000   // ~79 years of daily sessions → IPO for any name
+    case 'D': return 12500   // ~50 years of daily sessions — full life of any tradeable
+                             // name (even 1970s-80s IPOs) without the ~79yr request
+                             // that made the backend chase empty pre-1976 history.
+                             // MUST match deep_history_warm _DEEP_TARGET['D'].
     case 'W': return 4000    // ~77 years of weeks
     case 'M': return 1200    // ~100 years of months
     case '1': return 20000   // ~1 month of 1-min (provider-limited; deep 1m is rare)

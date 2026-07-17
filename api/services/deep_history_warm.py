@@ -28,14 +28,18 @@ import sqlite3
 
 
 # Full-history targets — matched to the frontend's fullBarsFor(tf) so a warmed
-# entry satisfies the chart's request as a pure cache hit.
-_DEEP_TARGET = {"D": 20000, "W": 4000, "M": 1200}
+# entry satisfies the chart's request as a pure cache hit. Daily is capped at ~50
+# years (12500 sessions): that covers essentially every tradeable stock's full
+# life (even 1970s-80s IPOs) WITHOUT the ~79-year request that made the backend
+# chase empty pre-1976 history and fall through to slow yfinance dead-ends on
+# every ticker. MUST stay in lockstep with fullBarsFor('D') in barsBackfill.js.
+_DEEP_TARGET = {"D": 12500, "W": 4000, "M": 1200}
 # A (ticker, tf) is considered "already deep" — and skipped — once its cached bar
 # count reaches this floor for the tf. Below the daily floor a modern name (e.g. a
 # 2015 IPO) has only a few thousand sessions total, so we still attempt it once;
 # _get_bars_inner is a fast cache hit if there's genuinely nothing deeper to pull.
 _DEEP_ENOUGH = {"D": 5200, "W": 1100, "M": 400}
-_WORKERS = 3          # gentle — deep cold fetches are slow; don't starve the pre-warmer
+_WORKERS = 2          # gentle — fewer concurrent deep fetches = less memory/CPU churn
 _SLEEP_BETWEEN = 0.0  # per-job politeness handled by the provider client's limiter
 
 
