@@ -34,6 +34,19 @@ logger = logging.getLogger("broker_fleet")
 _STRANDED_GRACE_MIN = 15     # portal round-trips + webhook imports settle fast
 _STALE_SYNC_HOURS = 24
 
+# Known internal/test users the owner has told us to keep out of the digest.
+# Extend at runtime via BROKER_FLEET_SUPPRESS (comma/space-separated user ids).
+_DEFAULT_SUPPRESS = frozenset({
+    # Bracco's old test connection (Robinhood ••8710) — owner call 2026-07-16
+    "38c023cf-0e81-4187-aa43-ac51a751ae79",
+})
+
+
+def _suppressed_user_ids() -> frozenset[str]:
+    import os
+    extra = (os.getenv("BROKER_FLEET_SUPPRESS") or "").replace(",", " ").split()
+    return _DEFAULT_SUPPRESS | frozenset(extra)
+
 # ET-day of the last digest, keyed by a fingerprint of the finding set, so a
 # persistent problem pings once per day instead of hourly.
 _last_digest: dict[str, str] = {}
@@ -118,7 +131,9 @@ async def run_fleet_check() -> dict[str, Any]:
     """One sweep. Returns {findings, pinged}. Never raises."""
     findings: list[dict[str, Any]] = []
     try:
-        findings.extend(_collect_findings())
+        suppressed = _suppressed_user_ids()
+        findings.extend(f for f in _collect_findings()
+                        if f.get("userId") not in suppressed)
     except Exception as e:  # noqa: BLE001 — monitor must never break the host
         logger.exception("fleet DB sweep failed")
         findings.append({"kind": "monitor_error", "userId": None, "detail": str(e)[:200]})

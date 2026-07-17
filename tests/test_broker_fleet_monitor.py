@@ -140,6 +140,44 @@ async def test_same_findings_dedupe_per_day(env):
 
 
 @pytest.mark.asyncio
+async def test_suppressed_user_via_env_is_dropped(env, monkeypatch):
+    monkeypatch.setenv("BROKER_FLEET_SUPPRESS", "u-testacct, u-other")
+    env["mk_user"]("u-testacct")
+    _mk_conn_with_account(
+        "u-testacct", status="broken",
+        last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=1)))
+    out = await fleet_monitor.run_fleet_check()
+    assert out["findings"] == []
+    assert env["pings"] == []
+
+
+@pytest.mark.asyncio
+async def test_bracco_test_account_suppressed_by_default(env):
+    uid = "38c023cf-0e81-4187-aa43-ac51a751ae79"
+    env["mk_user"](uid)
+    _mk_conn_with_account(
+        uid, status="broken",
+        last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=1)))
+    out = await fleet_monitor.run_fleet_check()
+    assert out["findings"] == []
+    assert env["pings"] == []
+
+
+@pytest.mark.asyncio
+async def test_suppression_leaves_other_users_flagged(env, monkeypatch):
+    monkeypatch.setenv("BROKER_FLEET_SUPPRESS", "u-testacct")
+    env["mk_user"]("u-testacct"); env["mk_user"]("u-real")
+    _mk_conn_with_account(
+        "u-testacct", status="broken",
+        last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=1)))
+    _mk_conn_with_account(
+        "u-real", status="broken",
+        last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=1)))
+    out = await fleet_monitor.run_fleet_check()
+    assert [f["userId"] for f in out["findings"]] == ["u-real"]
+
+
+@pytest.mark.asyncio
 async def test_snaptrade_heartbeat_failure_is_a_finding(env):
     def down(**kw):
         raise RuntimeError("connection refused")
