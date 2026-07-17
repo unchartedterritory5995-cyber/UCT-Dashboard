@@ -106,3 +106,22 @@
 .dupPair { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .dupSym { font-size: 13px; font-weight: 600; }
 .dupMeta { font-size: 11px; opacity: 0.65; }
+
+.acctType {
+  color: var(--color-text-muted, #8a8f98);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.paperChip {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(201, 168, 76, 0.5);
+  color: #c9a84c;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}

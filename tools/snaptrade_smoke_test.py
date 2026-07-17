@@ -105,17 +105,29 @@ async def cmd_register() -> None:
     print(f"  user_secret = {out['user_secret'][:6]}… (stored)")
 
 
-async def cmd_portal() -> None:
+async def cmd_portal(broker: str | None = None) -> None:
     from api.services.journal_two.broker import snaptrade_client as snap
     st = _load_state()
     if not st.get("user_id"):
         print("No registered user. Run `register` first.")
         sys.exit(1)
-    uri = await snap.login_redirect_uri(st["user_id"], st["user_secret"])
+    uri = await snap.login_redirect_uri(
+        st["user_id"], st["user_secret"], broker=broker, connection_type="read")
     print("\n=== OPEN THIS URL IN A BROWSER TO CONNECT A BROKERAGE ===\n")
     print(uri)
+    if broker:
+        print(f"\n(Portal pinned to broker={broker}.)")
     print("\nIn the portal pick a brokerage (use SnapTrade's TEST brokerage for a dry run),")
     print("finish the flow, then run:  python tools/snaptrade_smoke_test.py data\n")
+
+
+async def cmd_sandbox() -> None:
+    """E2E against SnapTrade's synthetic SANDBOX brokerage (NON-PRODUCTION
+    keys only; enabled by default there). Scenario accounts come pre-loaded
+    with positions/orders/transactions incl. error cases — the full
+    connect → backfill → sync path without a real brokerage login.
+    Flow: register → this (opens portal pinned to SANDBOX) → data."""
+    await cmd_portal(broker="SANDBOX")
 
 
 async def cmd_data() -> None:
@@ -166,6 +178,8 @@ def main() -> None:
         asyncio.run(cmd_register())
     elif cmd == "portal":
         asyncio.run(cmd_portal())
+    elif cmd == "sandbox":
+        asyncio.run(cmd_sandbox())
     elif cmd == "data":
         asyncio.run(cmd_data())
     elif cmd == "cleanup":

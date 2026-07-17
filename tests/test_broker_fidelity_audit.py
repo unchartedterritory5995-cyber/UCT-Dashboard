@@ -221,3 +221,33 @@ def test_nightly_runner_syncs_before_auditing(env, monkeypatch):
     monkeypatch.setattr(fidelity_audit, "audit_account", fake_audit)
     fidelity_audit.run_fidelity_audits_blocking()
     assert order == [("sync", env["ba_id"]), ("audit", env["ba_id"])]
+
+
+def test_balance_history_check_flags_divergence(tmp_path, monkeypatch):
+    """SnapTrade balanceHistory oracle vs our stored equity snapshots."""
+    from api.services import auth_db
+    from api.services.journal_two.db import ensure_schema
+    from api.services.journal_two.broker import fidelity_audit
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
+    conn = auth_db.get_connection(); ensure_schema(conn)
+    conn.execute(
+        "INSERT INTO j2_broker_equity_snapshots "
+        "(user_id, broker_account_id, snapshot_date, total_equity, cash, "
+        " market_value, synced_at) "
+        "VALUES ('u1','ba1','2026-07-15', 1000.0, 100, 900, '2026-07-15')")
+    conn.commit(); conn.close()
+
+    # Agreeing history → ok
+    ok_check = fidelity_audit._balance_history_check("u1", "ba1", [
+        {"date": "2026-07-15", "total": {"amount": 1001.0}}])
+    assert ok_check["ok"] is True and not ok_check.get("skipped")
+
+    # Diverging history → flagged
+    bad_check = fidelity_audit._balance_history_check("u1", "ba1", [
+        {"date": "2026-07-15", "total": {"amount": 1500.0}}])
+    assert bad_check["ok"] is False
+
+    # No overlap → skipped, never a false alarm
+    skip_check = fidelity_audit._balance_history_check("u1", "ba1", [
+        {"date": "2026-01-01", "amount": 5.0}])
+    assert skip_check["ok"] is True and skip_check.get("skipped")

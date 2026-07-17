@@ -709,6 +709,9 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_broker_accounts ADD COLUMN tx_initial_sync_completed INTEGER",
     "ALTER TABLE j2_broker_accounts ADD COLUMN tx_last_successful_sync TEXT",
     "ALTER TABLE j2_broker_accounts ADD COLUMN first_transaction_date TEXT",
+    # Paper-trading flag from the SnapTrade account object — paper accounts
+    # must be visually segregated so simulated results never read as real.
+    "ALTER TABLE j2_broker_accounts ADD COLUMN is_paper INTEGER",
 ]
 
 

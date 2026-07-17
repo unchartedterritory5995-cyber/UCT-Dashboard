@@ -528,6 +528,10 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                         tx = ss.get("transactions") or {}
                         auth_id = match.get("brokerage_authorization")
                         tx_done = tx.get("initial_sync_completed")
+                        paper = match.get("is_paper")
+                        if paper is None:
+                            paper = (match.get("meta") or {}).get("is_paper") \
+                                if isinstance(match.get("meta"), dict) else None
                         connections.record_holdings_meta(
                             user_id, broker_account_id,
                             holdings_synced_at=str(hs) if hs else None,
@@ -538,6 +542,7 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                                                      if tx.get("last_successful_sync") else None),
                             first_transaction_date=(str(tx["first_transaction_date"])
                                                     if tx.get("first_transaction_date") else None),
+                            is_paper=(bool(paper) if paper is not None else None),
                         )
                     except Exception:
                         pass

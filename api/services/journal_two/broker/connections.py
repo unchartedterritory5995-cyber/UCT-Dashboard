@@ -510,6 +510,7 @@ def record_holdings_meta(
     tx_initial_sync_completed: bool | None = None,
     tx_last_successful_sync: str | None = None,
     first_transaction_date: str | None = None,
+    is_paper: bool | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> bool:
     """Persist SnapTrade sync_status metadata: the broker-reported holdings
@@ -528,6 +529,8 @@ def record_holdings_meta(
         fields["tx_last_successful_sync"] = tx_last_successful_sync
     if first_transaction_date is not None:
         fields["first_transaction_date"] = first_transaction_date
+    if is_paper is not None:
+        fields["is_paper"] = 1 if is_paper else 0
     if not fields:
         return False
     return _update_account_fields(user_id, broker_account_id, fields, conn)
@@ -683,6 +686,7 @@ def _row_to_broker_account(row: sqlite3.Row | None) -> dict[str, Any] | None:
                                    else bool(row["tx_initial_sync_completed"])),
         "txLastSuccessfulSync": row["tx_last_successful_sync"],
         "firstTransactionDate": row["first_transaction_date"],
+        "isPaper": None if row["is_paper"] is None else bool(row["is_paper"]),
         "warming": bool(
             row["warming_until"]
             and row["warming_until"] > datetime.now(timezone.utc).isoformat()

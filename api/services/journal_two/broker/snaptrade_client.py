@@ -285,17 +285,25 @@ async def login_redirect_uri(
     *,
     custom_redirect: str | None = None,
     reconnect: str | None = None,
+    broker: str | None = None,
+    connection_type: str | None = None,
 ) -> str:
     """Get the SnapTrade Connection-Portal redirect URL for this user.
     `custom_redirect` is the URL SnapTrade returns the browser to after the
     user finishes. `reconnect` is a brokerage-authorization id when fixing a
-    broken connection."""
+    broken connection. `broker` pins the portal to one brokerage slug (e.g.
+    'SANDBOX' on non-prod keys for the synthetic test brokerage).
+    `connection_type` is 'read' (our default posture) or 'trade'."""
     sdk = _sdk()
     kwargs: dict[str, Any] = {"user_id": snaptrade_user_id, "user_secret": user_secret}
     if custom_redirect:
         kwargs["custom_redirect"] = custom_redirect
     if reconnect:
         kwargs["reconnect"] = reconnect
+    if broker:
+        kwargs["broker"] = broker
+    if connection_type:
+        kwargs["connection_type"] = connection_type
     body = await _call(sdk.authentication.login_snap_trade_user, **kwargs)
     uri = body.get("redirectURI") if isinstance(body, dict) else None
     if not uri:
@@ -348,6 +356,20 @@ async def list_authorizations(user_id: str, user_secret: str) -> list[dict]:
     body = await _call(
         sdk.connections.list_brokerage_authorizations,
         user_id=user_id, user_secret=user_secret,
+    )
+    return body if isinstance(body, list) else []
+
+
+async def get_balance_history(user_id: str, user_secret: str,
+                              account_id: str) -> list[dict]:
+    """Estimated historical total account value per day (positions MV +
+    cash). BETA: disabled by default (SnapTrade must enable it for the
+    client), max 1-year lookback, broker-limited, values are estimates —
+    used only as a cross-check oracle for our own equity reconstruction."""
+    sdk = _sdk()
+    body = await _call(
+        sdk.account_information.get_account_balance_history,
+        user_id=user_id, user_secret=user_secret, account_id=account_id,
     )
     return body if isinstance(body, list) else []
 

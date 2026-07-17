@@ -297,6 +297,8 @@ export default function BrokerConnectionsCard() {
                 <div className={styles.acctMain}>
                   <span className={styles.acctName}>
                     {a.brokerageName || 'Brokerage'}{a.accountNumberMasked ? ` ${a.accountNumberMasked}` : ''}
+                    {a.accountType ? <span className={styles.acctType}> · {a.accountType}</span> : null}
+                    {a.isPaper ? <span className={styles.paperChip} title="Paper-trading (simulated) account">PAPER</span> : null}
                   </span>
                   <span className={styles.acctMeta}>
                     {a.status === 'broken'

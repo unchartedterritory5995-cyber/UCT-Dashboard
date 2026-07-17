@@ -67,6 +67,63 @@ def _holdings_synced_at(raw_account: dict | None):
         return None
 
 
+def _history_amount(entry: dict) -> float | None:
+    """Amount from a balanceHistory row — shapes vary ({total:{amount}},
+    {amount}, {value})."""
+    for path in (("total", "amount"), ("amount",), ("value",)):
+        v: Any = entry
+        for k in path:
+            v = v.get(k) if isinstance(v, dict) else None
+        if isinstance(v, (int, float)):
+            return float(v)
+    return None
+
+
+def _balance_history_check(user_id: str, broker_account_id: str,
+                           history: list[dict]) -> dict[str, Any]:
+    """Compare SnapTrade's estimated daily totals against our stored equity
+    snapshots on overlapping dates (last 5). Both sides are estimates —
+    tolerance mirrors equity_consistency."""
+    theirs: dict[str, float] = {}
+    for e in history or []:
+        if not isinstance(e, dict):
+            continue
+        day = str(e.get("date") or "")[:10]
+        amt = _history_amount(e)
+        if day and amt is not None:
+            theirs[day] = amt
+    if not theirs:
+        return {"name": "balance_history_oracle", "ok": True, "skipped": True,
+                "detail": "no history rows returned"}
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT snapshot_date, total_equity FROM j2_broker_equity_snapshots "
+            "WHERE user_id = ? AND broker_account_id = ? "
+            "ORDER BY snapshot_date DESC LIMIT 30",
+            (user_id, broker_account_id),
+        ).fetchall()
+    finally:
+        conn.close()
+    ours = {str(r["snapshot_date"])[:10]: float(r["total_equity"] or 0)
+            for r in rows}
+    overlap = sorted(set(theirs) & set(ours), reverse=True)[:5]
+    if not overlap:
+        return {"name": "balance_history_oracle", "ok": True, "skipped": True,
+                "detail": "no overlapping dates yet"}
+    diffs = []
+    for day in overlap:
+        diff = abs(theirs[day] - ours[day])
+        tol = max(_EQUITY_ABS_FLOOR, abs(theirs[day]) * _EQUITY_REL_TOLERANCE)
+        if diff > tol:
+            diffs.append(f"{day}: snaptrade {theirs[day]:.2f} vs ours "
+                         f"{ours[day]:.2f} (diff {diff:.2f})")
+    return {
+        "name": "balance_history_oracle", "ok": not diffs,
+        "detail": "; ".join(diffs) or f"{len(overlap)} overlapping days agree",
+    }
+
+
 async def audit_account(user_id: str, broker_account_id: str,
                         *, include_raw: bool = False) -> dict[str, Any]:
     """Audit one account. Returns {accountId, brokerage, ok, checks:[...]}.
@@ -163,6 +220,21 @@ async def audit_account(user_id: str, broker_account_id: str,
         "name": "position_parity", "ok": not mismatches,
         "detail": "; ".join(mismatches) or f"{len(broker_qty)} positions match exactly",
     })
+
+    # 2b. balance_history_oracle — SnapTrade's own estimated daily account
+    # value vs our stored equity snapshots. BETA endpoint, disabled by
+    # default at SnapTrade; inert until BROKER_BALANCE_HISTORY_ENABLED=1.
+    import os as _os
+    if (_os.getenv("BROKER_BALANCE_HISTORY_ENABLED") or "0") == "1":
+        try:
+            history = await snap.get_balance_history(
+                bu["snaptradeUserId"], bu["userSecret"], sid)
+            checks.append(_balance_history_check(
+                user_id, broker_account_id, history))
+        except Exception as e:  # noqa: BLE001 — beta endpoint; never fatal
+            checks.append({"name": "balance_history_oracle", "ok": True,
+                           "skipped": True,
+                           "detail": f"endpoint unavailable: {str(e)[:120]}"})
 
     # 3. unknown_activity_types — new-broker quirks show up here first.
     unknown = Counter()
