@@ -3824,7 +3824,11 @@ export default function StockChart({
     }
     const _plan = barsRenderPlan(prevBarsRef.current, filteredBars)
     const _cfgSame = _cfgSig != null && _cfgSig === lastCfgSigRef.current
-    const _incr = _cfgSame && _plan.mode === 'incremental'
+    // A chart/series that doesn't exist yet gets CREATED later in this run —
+    // a 'noop'/'incremental' plan (latched from a destroyed predecessor with
+    // content-identical bars) must never skip its first real paint.
+    const _freshChart = !chartRef.current || !candleSeriesRef.current
+    const _incr = _cfgSame && _plan.mode === 'incremental' && !_freshChart
     // Bars AND config byte-identical to the last paint → the series already hold
     // exactly this data; re-`setData`ing would be a pure wipe/repaint. CRITICAL in
     // EXTENDED HOURS: the live session price-tag (intradaySessionTagLines → allPriceLines)
@@ -3834,7 +3838,7 @@ export default function StockChart({
     // re-added every tick, shaking the chart. Skipping the no-op paint leaves the
     // developing bar (and the live-extended MAs) untouched; the price tags still
     // re-apply below.
-    const _noop = _cfgSame && _plan.mode === 'noop'
+    const _noop = _cfgSame && _plan.mode === 'noop' && !_freshChart
     lastCfgSigRef.current = _cfgSig
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
@@ -5417,7 +5421,12 @@ export default function StockChart({
         if (filteredBars.length === oldBarCount) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
-        const wasViewingLatest = preWidth > 0 && prePad >= -1 && prePad <= Math.max(8, preWidth * 0.25)
+        // Floor at -3 (was -1): LWC-side drift during a warm-cache commit storm
+        // can push the newest candle ~2 bars past the right edge (observed
+        // prePad -2.2 on grid-cell remounts) — still "viewing the latest" by any
+        // human reading; a deliberate scroll-back is tens of bars off, so -3
+        // cannot misfire on user intent.
+        const wasViewingLatest = preWidth > 0 && prePad >= -3 && prePad <= Math.max(8, preWidth * 0.25)
         if (wasViewingLatest) {
           let fr = null
           try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
@@ -7313,6 +7322,24 @@ export default function StockChart({
         volumeSeriesRef.current = null
         overlaySeriesRefs.current = []
         priceLineRefs.current = []
+        // Reset every paint/framing latch alongside the chart they describe.
+        // These survive a destroy→recreate cycle otherwise (StrictMode's
+        // simulated remount, or any future remount path with warm caches):
+        // chart #2 then comes up under an armed 'noop' render plan and an
+        // already-consumed zoom key — created but never painted, never framed
+        // (the blank multi-chart grid cells after a mode roundtrip).
+        volMaSeriesRef.current = null
+        volMaTailSeriesRef.current = null
+        volumeSeparatePaneRef.current = false
+        prevChartTypeRef.current = null
+        wmAttachedRef.current = false
+        sessionShadeAttachedRef.current = false
+        lastCfgSigRef.current = null
+        prevBarsRef.current = null
+        lastBarCountRef.current = 0
+        zoomKeyRef.current = null
+        lastTfRef.current = null
+        pendingTfReframeRef.current = null
       }
     }
   }, [])
