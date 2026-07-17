@@ -465,32 +465,8 @@
 :global([data-charts-theme='sunrise']) [style*="rgb(239, 68, 68)"] {
   color: #7d1620 !important;
 }
-/* User request (2026-07-16): keep every Sunrise WIDGET exactly as-is, but the
-   workspace backdrop (behind / in the gaps between the widgets) and the top charts
-   menu bar use the DEFAULT dark chrome. The per-chart sky-gradient lives on each
-   StockChart wrapper (StockChart.jsx ~L7372), so the charts stay bright regardless
-   of the backdrop. The backdrop override sets `.workspace`'s background explicitly
-   (NOT via --bg) so any widget that reads --bg is unaffected. The header re-declares
-   the theme vars back to their tokens.css :root defaults so its buttons + dropdown
-   menus render as the standard dark toolbar; this scope is the header ONLY — the
-   widgets live in .workspaceBody (a sibling) and never inherit it. */
-:global([data-charts-theme='sunrise']).workspace {
-  background: #0e0f0d;   /* default --bg */
-}
 :global([data-charts-theme='sunrise']) .workspaceHeader {
-  background: #22251e;   /* default --bg-elevated */
-  border-bottom-color: #2e3127;
-  --bg: #0e0f0d;
-  --bg-surface: #1a1c17;
-  --bg-elevated: #22251e;
-  --bg-hover: #2a2d24;
-  --border: #2e3127;
-  --text: #a8a290;
-  --text-bright: #e0dac8;
-  --text-muted: #706b5e;
-  --ut-gold: #c9a84c;
-  --ut-gold-dim: #c9a84c1a;
-  --ut-gold-glow: #c9a84c33;
+  background: #eaf1f8;
 }
 /* Market clock text is hardcoded light — turn it dark so it reads on the bright canvas. */
 :global([data-charts-theme='sunrise']) .clockTime { color: #223243; }
