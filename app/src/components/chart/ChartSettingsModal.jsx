@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import ChartColorPicker from './ChartColorPicker'
 import styles from './ChartSettingsModal.module.css'
 
 /**
@@ -88,7 +89,7 @@ const COLOR_MODES = [
   { val: 'openclose', label: 'Open vs Close' },
 ]
 
-export default function ChartSettingsModal({ open, onClose, settings, onChange }) {
+export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -110,6 +111,17 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange }
     onChange?.({ ...settings, candleColorMode: val, preset: 'custom' })
   }
   const showColorMode = OHLC_TYPES.has(curType)
+
+  // Candle colors. Up/down set body+border+wick together (the basic control);
+  // 'onecolor' mode uses a single dedicated color.
+  const candles = settings?.candles || {}
+  const setCandleColor = (which, hex) => {
+    const next = { ...candles }
+    if (which === 'up')   { next.upColor = hex;   next.upBorder = hex;   next.upWick = hex }
+    if (which === 'down') { next.downColor = hex; next.downBorder = hex; next.downWick = hex }
+    if (which === 'one')  { next.oneColor = hex }
+    onChange?.({ ...settings, candles: next, preset: 'custom' })
+  }
 
   return createPortal(
     <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
@@ -153,6 +165,40 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange }
                     <span className={styles.modeName}>{label}</span>
                   </button>
                 ))}
+              </div>
+            </section>
+          )}
+
+          {showColorMode && (
+            <section className={styles.section}>
+              <div className={styles.sectionLabel}>Colors</div>
+              <div className={styles.colorList}>
+                {curColorMode === 'onecolor' ? (
+                  <ChartColorPicker
+                    label="Color"
+                    value={candles.oneColor || candles.upColor || '#1ae51a'}
+                    onChange={(hex) => setCandleColor('one', hex)}
+                    savedColors={savedColors}
+                    onSaveColor={onSaveColor}
+                  />
+                ) : (
+                  <>
+                    <ChartColorPicker
+                      label="Up"
+                      value={candles.upColor || '#1ae51a'}
+                      onChange={(hex) => setCandleColor('up', hex)}
+                      savedColors={savedColors}
+                      onSaveColor={onSaveColor}
+                    />
+                    <ChartColorPicker
+                      label="Down"
+                      value={candles.downColor || '#c41f2d'}
+                      onChange={(hex) => setCandleColor('down', hex)}
+                      savedColors={savedColors}
+                      onSaveColor={onSaveColor}
+                    />
+                  </>
+                )}
               </div>
             </section>
           )}

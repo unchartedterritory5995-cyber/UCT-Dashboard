@@ -4,12 +4,17 @@ export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
 
   candles: {
-    upColor: '#3cb868',
-    downColor: '#e74c3c',
-    upBorder: '#3cb868',
-    downBorder: '#e74c3c',
-    upWick: '#3cb868',
-    downWick: '#e74c3c',
+    // Defaults are the workspace "bold" palette (formerly hardcoded as MB_UP/MB_DOWN
+    // in StockChart) so charts look identical by default now that the workspace
+    // sources candle colors from settings (userCandleColors). oneColor = the single
+    // color used by the "One Color" coloring mode.
+    upColor: '#1ae51a',
+    downColor: '#c41f2d',
+    upBorder: '#1ae51a',
+    downBorder: '#c41f2d',
+    upWick: '#1ae51a',
+    downWick: '#c41f2d',
+    oneColor: '#1ae51a',
   },
 
   // How candles/bars are colored. 'netchange' = close-vs-previous-close (default,

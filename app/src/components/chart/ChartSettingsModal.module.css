@@ -185,3 +185,10 @@
 }
 .modeCardActive .modeName { color: #e7cf8f; }
 .modeCardActive .modeDesc { color: #b39a5e; }
+
+/* Colors — a stacked list of color-picker rows. */
+.colorList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

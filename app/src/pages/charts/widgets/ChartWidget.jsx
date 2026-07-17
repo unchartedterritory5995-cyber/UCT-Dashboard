@@ -141,6 +141,20 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const updateChartSettings = useCallback((next) => {
     setPref('chart_settings', JSON.stringify(next))
   }, [setPref])
+  // User-saved custom colors, shared across every picker in the settings modal.
+  const savedColors = useMemo(() => {
+    try {
+      const raw = prefs.chart_saved_colors
+      const arr = typeof raw === 'string' ? JSON.parse(raw) : raw
+      return Array.isArray(arr) ? arr : []
+    } catch { return [] }
+  }, [prefs.chart_saved_colors])
+  const saveColor = useCallback((hex) => {
+    if (!hex) return
+    const h = String(hex).toLowerCase()
+    const next = [h, ...savedColors.filter(c => String(c).toLowerCase() !== h)].slice(0, 18)
+    setPref('chart_saved_colors', JSON.stringify(next))
+  }, [savedColors, setPref])
 
   // Volume-pane height persists per-user across the charts workspace (default 12%),
   // so dragging the price/volume separator sticks across ticker changes + refresh.
@@ -392,6 +406,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
              margins so candles fill ~85% of the pane. Scoped here so popups /
              Model Book / Journal charts are unaffected. */
           boldCandles
+          userCandleColors
           colorByNetChange
           candlesOnTop
           ema9MatchCandle
@@ -481,6 +496,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         onClose={() => setSettingsOpen(false)}
         settings={chartCs}
         onChange={updateChartSettings}
+        savedColors={savedColors}
+        onSaveColor={saveColor}
       />
     </div>
   )

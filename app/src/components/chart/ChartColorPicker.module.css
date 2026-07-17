@@ -1,0 +1,179 @@
+.field {
+  position: relative;
+}
+
+/* Trigger row — swatch + label + hex tag. */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  background: #121213;
+  border: 1px solid #232324;
+  border-radius: 9px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 120ms, background 120ms;
+}
+.trigger:hover { background: #171718; border-color: #34342f; }
+
+.swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+.label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #d8d2c2;
+  flex: 1;
+  text-align: left;
+}
+
+.hexTag {
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  color: #7c7768;
+  text-transform: uppercase;
+}
+
+/* Expanded editor — renders INLINE below the trigger (inside the modal's own
+   scroll area) so it can never be clipped by the modal's rounded overflow. */
+.pop {
+  margin-top: 8px;
+  padding: 12px;
+  background: #0e0e0f;
+  border: 1px solid #2a2a2b;
+  border-radius: 11px;
+}
+
+.customRow {
+  display: flex;
+  gap: 10px;
+  height: 132px;
+}
+
+/* Saturation / value square */
+.svBox {
+  position: relative;
+  flex: 1;
+  border-radius: 7px;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+.svWhite {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0));
+}
+.svBlack {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, #000, rgba(0, 0, 0, 0));
+}
+.svThumb {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Hue slider (vertical) */
+.hueBar {
+  position: relative;
+  width: 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  touch-action: none;
+  background: linear-gradient(to bottom,
+    #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%,
+    #0000ff 67%, #ff00ff 83%, #ff0000 100%);
+}
+.hueThumb {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  height: 6px;
+  border-radius: 3px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Hex row */
+.hexRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 11px;
+}
+.hexPreview {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.hexInput {
+  flex: 1;
+  min-width: 0;
+  background: #17171a;
+  border: 1px solid #2f2f31;
+  border-radius: 6px;
+  color: #e5e0d2;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  padding: 6px 8px;
+  outline: none;
+}
+.hexInput:focus { border-color: #c9a84c; }
+.saveBtn {
+  background: #1b1b1d;
+  border: 1px solid #34342f;
+  color: #c9a84c;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 6px 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+.saveBtn:hover { background: rgba(201, 168, 76, 0.12); border-color: #c9a84c; }
+
+.groupLabel {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #6c6858;
+  margin: 12px 0 7px;
+}
+
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.gridSwatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 90ms, box-shadow 90ms;
+}
+.gridSwatch:hover { transform: scale(1.12); }
+.gridSwatchActive { box-shadow: 0 0 0 2px #c9a84c; }

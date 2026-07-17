@@ -788,6 +788,7 @@ export default function StockChart({
   forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
   boldCandles = false,      // bold solid green/red candles (Model Book look)
+  userCandleColors = false, // Charts workspace: the "bold" candle/volume colors come from the user's cs.candles (upColor/downColor) instead of the hardcoded MB palette, so the settings-modal color pickers actually paint. Model Book (no prop) keeps its fixed MB colors.
   colorByNetChange = false, // color candles by NET CHANGE (close vs previous close, TC2000/StockCharts style) instead of LWC's default close-vs-open
   candlesOnTop = false,     // TradingView-style: draw candle bodies ABOVE the MA/BB/VWAP overlays so the lines pass behind the bodies instead of overlapping them
   hideLastValue = false,    // hide the last-price axis tag on the price series
@@ -899,9 +900,11 @@ export default function StockChart({
   // ── Chart settings from user preferences ──
   const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
   // Effective candle/volume up-green: darkened for the Sunrise light theme so it
-  // stands out on the bright canvas; the normal vivid MB_UP everywhere else.
-  const mbUp = canvasTheme === 'sunrise' ? SUNRISE_UP : MB_UP
-  const mbDown = canvasTheme === 'sunrise' ? SUNRISE_DOWN : MB_DOWN
+  // stands out on the bright canvas; on the Charts workspace (userCandleColors) it
+  // comes from the user's saved candle color so the settings pickers actually paint;
+  // the normal vivid MB_UP everywhere else (Model Book, popups).
+  const mbUp = canvasTheme === 'sunrise' ? SUNRISE_UP : (userCandleColors ? (cs.candles.upColor || MB_UP) : MB_UP)
+  const mbDown = canvasTheme === 'sunrise' ? SUNRISE_DOWN : (userCandleColors ? (cs.candles.downColor || MB_DOWN) : MB_DOWN)
 
   // ── Theme colors (light / dark) layered over user chart settings ──
   // Returns layout/grid/crosshair/candle colors based on cs.theme. Used in
@@ -3992,7 +3995,10 @@ export default function StockChart({
     // When swapping the candle series, the markers controller is bound to the
     // old series — detach it so the next markers update creates a fresh
     // controller against the new series.
-    const _priceStyleKey = `${cs.chartType || 'candles'}|${canvasTheme || ''}|${cs.candleColorMode || 'netchange'}`
+    // Include the effective candle colors so a color-picker change recreates the
+    // series (re-runs the `_bold` options + re-installs the net-change wrapper with
+    // the new palette). mbUp/mbDown resolve to the user's colors when userCandleColors.
+    const _priceStyleKey = `${cs.chartType || 'candles'}|${canvasTheme || ''}|${cs.candleColorMode || 'netchange'}|${mbUp}|${mbDown}|${cs.candles.oneColor || ''}`
     if (prevChartTypeRef.current !== _priceStyleKey && candleSeriesRef.current) {
       try { chart.removeSeries(candleSeriesRef.current) } catch {}
       candleSeriesRef.current = null
@@ -4107,7 +4113,7 @@ export default function StockChart({
       if (colorByNetChange && _wrapMode && _netEligible && !priceSeries.__uctNetWrap) {
         const _netUp = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
         const _netDown = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
-        const _oneColor = _netUp   // single color for 'onecolor' mode (a picker sets this later)
+        const _oneColor = (userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : _netUp   // single color for 'onecolor' mode
         // Hollow bodies when the HOLLOW chart type OR the Sunrise look is active: an
         // "up" bar is hollow (transparent body + colored outline), a "down" bar is filled.
         const _hollow = canvasTheme === 'sunrise' || cs.chartType === 'hollow'
