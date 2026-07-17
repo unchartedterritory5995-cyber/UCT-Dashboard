@@ -86,7 +86,7 @@ const COLOR_MODES = [
   { val: 'openclose', label: 'Open vs Close' },
 ]
 
-export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor }) {
+export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -111,16 +111,31 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   // keep them visible + clickable. (Their "area" fill is auto transparent gray.)
   const showColorMode = true
 
-  // Candle colors. Up/down set body+border+wick together (the basic control);
-  // 'onecolor' mode uses a single dedicated color.
+  // Candle colors. Candles/Hollow expose Body / Borders / Wick separately; bars &
+  // line/area just use the body (up/down) color. 'onecolor' mode = a single color.
   const candles = settings?.candles || {}
+  const isCandleType = curType === 'candles' || curType === 'hollow'
   const setCandleColor = (which, hex) => {
     const next = { ...candles }
-    if (which === 'up')   { next.upColor = hex;   next.upBorder = hex;   next.upWick = hex }
-    if (which === 'down') { next.downColor = hex; next.downBorder = hex; next.downWick = hex }
-    if (which === 'one')  { next.oneColor = hex }
+    const map = {
+      bodyUp: 'upColor', bodyDown: 'downColor',
+      borderUp: 'upBorder', borderDown: 'downBorder',
+      wickUp: 'upWick', wickDown: 'downWick',
+      one: 'oneColor',
+    }
+    if (map[which]) next[map[which]] = hex
     onChange?.({ ...settings, candles: next, preset: 'custom' })
   }
+  const picker = (label, which, val) => (
+    <ChartColorPicker
+      label={label}
+      value={val}
+      onChange={(hex) => setCandleColor(which, hex)}
+      savedColors={savedColors}
+      onSaveColor={onSaveColor}
+      onDeleteColor={onDeleteColor}
+    />
+  )
 
   return createPortal(
     <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
@@ -171,34 +186,34 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
           {showColorMode && (
             <section className={styles.section}>
               <div className={styles.sectionLabel}>Colors</div>
-              <div className={styles.colorList}>
-                {curColorMode === 'onecolor' ? (
-                  <ChartColorPicker
-                    label="Color"
-                    value={candles.oneColor || candles.upColor || '#1ae51a'}
-                    onChange={(hex) => setCandleColor('one', hex)}
-                    savedColors={savedColors}
-                    onSaveColor={onSaveColor}
-                  />
-                ) : (
-                  <>
-                    <ChartColorPicker
-                      label="Up"
-                      value={candles.upColor || '#1ae51a'}
-                      onChange={(hex) => setCandleColor('up', hex)}
-                      savedColors={savedColors}
-                      onSaveColor={onSaveColor}
-                    />
-                    <ChartColorPicker
-                      label="Down"
-                      value={candles.downColor || '#c41f2d'}
-                      onChange={(hex) => setCandleColor('down', hex)}
-                      savedColors={savedColors}
-                      onSaveColor={onSaveColor}
-                    />
-                  </>
-                )}
-              </div>
+              {curColorMode === 'onecolor' ? (
+                <div className={styles.colorList}>
+                  {picker('Color', 'one', candles.oneColor || candles.upColor || '#1ae51a')}
+                </div>
+              ) : isCandleType ? (
+                <>
+                  <div className={styles.subLabel}>Body</div>
+                  <div className={styles.colorList}>
+                    {picker('Up', 'bodyUp', candles.upColor || '#1ae51a')}
+                    {picker('Down', 'bodyDown', candles.downColor || '#c41f2d')}
+                  </div>
+                  <div className={styles.subLabel}>Borders</div>
+                  <div className={styles.colorList}>
+                    {picker('Up', 'borderUp', candles.upBorder || candles.upColor || '#1ae51a')}
+                    {picker('Down', 'borderDown', candles.downBorder || candles.downColor || '#c41f2d')}
+                  </div>
+                  <div className={styles.subLabel}>Wick</div>
+                  <div className={styles.colorList}>
+                    {picker('Up', 'wickUp', candles.upWick || candles.upColor || '#1ae51a')}
+                    {picker('Down', 'wickDown', candles.downWick || candles.downColor || '#c41f2d')}
+                  </div>
+                </>
+              ) : (
+                <div className={styles.colorList}>
+                  {picker('Up', 'bodyUp', candles.upColor || '#1ae51a')}
+                  {picker('Down', 'bodyDown', candles.downColor || '#c41f2d')}
+                </div>
+              )}
             </section>
           )}
         </div>

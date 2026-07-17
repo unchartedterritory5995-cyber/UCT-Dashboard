@@ -46,22 +46,28 @@ const normHex = (s) => {
   return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : null
 }
 
-// ── Palette: columns = hue, rows = shade (light → dark). Built once. ────────────
-const HUES = [0, 22, 40, 55, 130, 158, 185, 210, 240, 270, 300, 330]
-const SHADES = [[0.28, 1.0], [0.5, 0.97], [0.72, 0.9], [0.9, 0.72], [0.96, 0.5], [0.98, 0.32]]
-const GRAY_V = [1.0, 0.8, 0.62, 0.45, 0.28, 0.0]
+// ── Palette: 12 columns (hue) × 6 rows (shade, light → dark). Brand columns are
+// hand-tuned so the EXACT chart + Theme-Tracker green/red and the site gold are
+// real cells (they highlight when selected); the rest are generated per hue. ──────
+function shadeCol(h) {
+  return [[0.30, 1.0], [0.52, 0.96], [0.8, 0.88], [0.92, 0.64], [0.96, 0.44], [0.98, 0.28]]
+    .map(([s, v]) => hsvToHex(h, s, v))
+}
+const GRAY_COL  = ['#ffffff', '#c7c7c7', '#909090', '#5c5c5c', '#2e2e2e', '#000000']
+// f23645, #e74c3c = Theme-Tracker red, #c41f2d = default chart down-red.
+const RED_COL   = ['#fecaca', '#f87171', '#f23645', '#e74c3c', '#c41f2d', '#7d1620']
+// #c9a84c = the site gold used for theme names / accents.
+const GOLD_COL  = ['#f3e3b0', '#e7cf8f', '#c9a84c', '#a8892f', '#7a5c16', '#4d3a0e']
+// #1ae51a = default chart up-green, #3cb868 = Theme-Tracker green.
+const GREEN_COL = ['#d9fbd0', '#86efac', '#1ae51a', '#3cb868', '#15803d', '#0a5c22']
+const COLUMNS = [
+  GRAY_COL, RED_COL, shadeCol(28), GOLD_COL, shadeCol(52), GREEN_COL,
+  shadeCol(165), shadeCol(190), shadeCol(215), shadeCol(245), shadeCol(278), shadeCol(325),
+]
+// Row-major: each row spans every hue at one shade level.
+const PALETTE = [0, 1, 2, 3, 4, 5].map((r) => COLUMNS.map((col) => col[r]))
 
-// A 13-col × 6-row grid, stored row-major: first col grayscale, then each hue.
-const PALETTE = SHADES.map(([s, v], row) => [
-  hsvToHex(0, 0, GRAY_V[row]),
-  ...HUES.map((h) => hsvToHex(h, s, v)),
-])
-
-// UCT brand colors — includes the Theme Tracker / Fundamentals green & red so
-// they're one click, plus the chart green/red + gold.
-const UCT_COLORS = ['#1ae51a', '#3cb868', '#21c45c', '#0a5c22', '#c41f2d', '#e74c3c', '#f23645', '#7d1620', '#c9a84c', '#ffffff', '#9ca3af', '#000000']
-
-export default function ChartColorPicker({ value, onChange, label, savedColors = [], onSaveColor }) {
+export default function ChartColorPicker({ value, onChange, label, savedColors = [], onSaveColor, onDeleteColor }) {
   const [open, setOpen] = useState(false)
   const [customOpen, setCustomOpen] = useState(false)
   const wrapRef = useRef(null)
@@ -143,14 +149,31 @@ export default function ChartColorPicker({ value, onChange, label, savedColors =
             {PALETTE.map((rowArr, r) => rowArr.map((c, ci) => Swatch(c, `p${r}-${ci}`)))}
           </div>
 
-          <div className={styles.brandRow}>
-            {UCT_COLORS.map((c) => Swatch(c, `u-${c}`))}
-          </div>
-
           {savedColors.length > 0 && (
-            <div className={styles.savedRow}>
-              {savedColors.map((c, i) => Swatch(c, `s-${c}-${i}`))}
-            </div>
+            <>
+              <div className={styles.savedLabel}>Saved</div>
+              <div className={styles.savedRow}>
+                {savedColors.map((c, i) => (
+                  <span key={`s-${c}-${i}`} className={styles.savedItem}>
+                    <button
+                      type="button"
+                      className={`${styles.sw} ${cur === normHex(c) ? styles.swActive : ''}`}
+                      style={{ background: c }}
+                      title={c}
+                      onClick={() => emit(c)}
+                    />
+                    {onDeleteColor && (
+                      <button
+                        type="button"
+                        className={styles.savedDel}
+                        title="Remove saved color"
+                        onClick={(e) => { e.stopPropagation(); onDeleteColor(c) }}
+                      >×</button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </>
           )}
 
           <div className={styles.footer}>

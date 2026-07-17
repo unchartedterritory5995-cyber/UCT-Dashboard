@@ -152,8 +152,12 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const saveColor = useCallback((hex) => {
     if (!hex) return
     const h = String(hex).toLowerCase()
-    const next = [h, ...savedColors.filter(c => String(c).toLowerCase() !== h)].slice(0, 18)
+    const next = [h, ...savedColors.filter(c => String(c).toLowerCase() !== h)].slice(0, 24)
     setPref('chart_saved_colors', JSON.stringify(next))
+  }, [savedColors, setPref])
+  const deleteColor = useCallback((hex) => {
+    const h = String(hex).toLowerCase()
+    setPref('chart_saved_colors', JSON.stringify(savedColors.filter(c => String(c).toLowerCase() !== h)))
   }, [savedColors, setPref])
 
   // Volume-pane height persists per-user across the charts workspace (default 12%),
@@ -498,6 +502,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         onChange={updateChartSettings}
         savedColors={savedColors}
         onSaveColor={saveColor}
+        onDeleteColor={deleteColor}
       />
     </div>
   )

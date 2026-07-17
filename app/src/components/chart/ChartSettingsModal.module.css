@@ -190,5 +190,14 @@
 .colorList {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+.colorList + .subLabel { margin-top: 12px; }
+.subLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #8a8574;
+  margin-bottom: 7px;
 }

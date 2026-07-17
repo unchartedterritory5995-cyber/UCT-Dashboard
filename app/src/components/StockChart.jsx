@@ -4022,7 +4022,7 @@ export default function StockChart({
     // Include the effective candle colors so a color-picker change recreates the
     // series (re-runs the `_bold` options + re-installs the net-change wrapper with
     // the new palette). mbUp/mbDown resolve to the user's colors when userCandleColors.
-    const _priceStyleKey = `${cs.chartType || 'candles'}|${canvasTheme || ''}|${cs.candleColorMode || 'netchange'}|${mbUp}|${mbDown}|${cs.candles.oneColor || ''}`
+    const _priceStyleKey = `${cs.chartType || 'candles'}|${canvasTheme || ''}|${cs.candleColorMode || 'netchange'}|${mbUp}|${mbDown}|${cs.candles.oneColor || ''}|${cs.candles.upBorder || ''}|${cs.candles.downBorder || ''}|${cs.candles.upWick || ''}|${cs.candles.downWick || ''}`
     if (prevChartTypeRef.current !== _priceStyleKey && candleSeriesRef.current) {
       try { chart.removeSeries(candleSeriesRef.current) } catch {}
       candleSeriesRef.current = null
@@ -4113,8 +4113,14 @@ export default function StockChart({
           wickUpColor: _bUp, wickDownColor: _bDown,
         } : (boldCandles || modelBookLook) ? {
           upColor: _bUp, downColor: _bDown,
-          borderVisible: false,                       // pure solid bodies (TC2000 look)
-          wickUpColor: _bUp, wickDownColor: _bDown,
+          // Workspace (userCandleColors): borders VISIBLE so the user's Border colors
+          // render (default border = body color → still looks solid). Model Book keeps
+          // pure solid bodies (no border line).
+          borderVisible: !!userCandleColors,
+          borderUpColor: userCandleColors ? (cs.candles.upBorder || _bUp) : _bUp,
+          borderDownColor: userCandleColors ? (cs.candles.downBorder || _bDown) : _bDown,
+          wickUpColor: userCandleColors ? (cs.candles.upWick || _bUp) : _bUp,
+          wickDownColor: userCandleColors ? (cs.candles.downWick || _bDown) : _bDown,
         } : {}
         // Optional integer-only price axis (DarkPool page passes precision:0
         // for large-cap stocks so the axis shows "200" not "200.00").
@@ -4148,6 +4154,13 @@ export default function StockChart({
         const _netUp = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
         const _netDown = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
         const _oneColor = (userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : _netUp   // single color for 'onecolor' mode
+        // Separate Border + Wick colors (the Body/Borders/Wick controls). Default to
+        // the body color so an unset value keeps the solid look. Only user-editable on
+        // the workspace (userCandleColors); Model Book keeps body=border=wick.
+        const _borUp = userCandleColors ? (cs.candles.upBorder || _netUp) : _netUp
+        const _borDown = userCandleColors ? (cs.candles.downBorder || _netDown) : _netDown
+        const _wickUp = userCandleColors ? (cs.candles.upWick || _netUp) : _netUp
+        const _wickDown = userCandleColors ? (cs.candles.downWick || _netDown) : _netDown
         // Hollow bodies when the HOLLOW chart type OR the Sunrise look is active: an
         // "up" bar is hollow (transparent body + colored outline), a "down" bar is filled.
         const _hollow = canvasTheme === 'sunrise' || cs.chartType === 'hollow'
@@ -4163,8 +4176,14 @@ export default function StockChart({
           if (!bar || bar.close == null) return bar
           if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
           if (_insideBlack && _isInside(bar, prevBar)) return { ...bar, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
-          // Direction drives green/red (netchange) AND hollow/filled shape. Net-change
-          // uses close-vs-prev-close; one-color uses close-vs-open just for the shape.
+          // One color: every bar the same body/border/wick (shape still hollow on up).
+          if (_colorMode === 'onecolor') {
+            const up = bar.open != null ? bar.close >= bar.open : true
+            const body = (_hollow && up) ? 'rgba(0,0,0,0)' : _oneColor
+            return { ...bar, color: body, borderColor: _oneColor, wickColor: _oneColor }
+          }
+          // Direction drives green/red AND the hollow/filled shape. Net-change uses
+          // close-vs-prev-close; open-close uses close-vs-open.
           let up
           if (_colorMode === 'netchange') {
             if (prevClose == null) return bar   // first bar — no prior close to compare
@@ -4172,9 +4191,9 @@ export default function StockChart({
           } else {
             up = bar.open != null ? bar.close >= bar.open : true
           }
-          const c = _colorMode === 'onecolor' ? _oneColor : (up ? _netUp : _netDown)
-          const body = (_hollow && up) ? 'rgba(0,0,0,0)' : c
-          return { ...bar, color: body, borderColor: c, wickColor: c }
+          const bodyC = up ? _netUp : _netDown
+          const body = (_hollow && up) ? 'rgba(0,0,0,0)' : bodyC
+          return { ...bar, color: body, borderColor: (up ? _borUp : _borDown), wickColor: (up ? _wickUp : _wickDown) }
         }
         const _realSet = priceSeries.setData.bind(priceSeries)
         const _realUpd = priceSeries.update.bind(priceSeries)
