@@ -166,7 +166,16 @@ def _ensure_flow_indexes():
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_flow_contract "
                 "ON flow(Symbol, CallPut, Strike, ExpirationDate)")
-        log.info("flow.db idx_flow_contract ensured in %.1fs", time.time() - t0)
+            # Day-scoped index for the cumvol GROUP BY — created here so the
+            # INDEXED BY hint in _load_cumulative_volume is guaranteed to
+            # resolve (idx_flow_contract's shape otherwise seduces the planner
+            # into scanning full symbol histories — the 11-98s/batch regression
+            # seen the moment idx_flow_contract appeared on 7/17).
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_flow_created_symbol "
+                "ON flow(CreatedDate, Symbol)")
+        log.info("flow.db idx_flow_contract + idx_flow_created_symbol "
+                 "ensured in %.1fs", time.time() - t0)
     except Exception as e:  # noqa: BLE001
         log.warning("idx_flow_contract create failed (non-fatal): %s", e)
 

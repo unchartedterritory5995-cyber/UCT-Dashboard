@@ -1511,13 +1511,26 @@ def _load_cumulative_volume(events: list) -> dict:
         if syms:
             with sqlite3.connect(db.db_path, timeout=10) as conn:
                 ph = ",".join("?" * len(syms))
-                cur = conn.execute(
+                # INDEXED BY (2026-07-17): the new idx_flow_contract's columns
+                # match this GROUP BY exactly, so the planner switched to it —
+                # which reads every HISTORICAL row per symbol and date-filters
+                # row-by-row (cumvol 1s -> 11-98s/batch the moment that index
+                # appeared). Pin the day-scoped (CreatedDate, Symbol) index built at
+                # boot alongside idx_flow_contract; fall back unhinted if the name is absent locally.
+                _sql_cum = (
                     "SELECT Symbol, CallPut, Strike, ExpirationDate, "
                     "COALESCE(SUM(CAST(Volume AS INTEGER)),0) "
-                    "FROM flow WHERE CreatedDate=? AND Symbol IN (" + ph + ") "
-                    "GROUP BY Symbol, CallPut, Strike, ExpirationDate",
-                    [trade_date_mdY, *syms],
-                )
+                    "FROM flow INDEXED BY idx_flow_created_symbol "
+                    "WHERE CreatedDate=? AND Symbol IN (" + ph + ") "
+                    "GROUP BY Symbol, CallPut, Strike, ExpirationDate")
+                try:
+                    cur = conn.execute(_sql_cum, [trade_date_mdY, *syms])
+                except sqlite3.OperationalError:
+                    cur = conn.execute(
+                        _sql_cum.replace(
+                            " INDEXED BY idx_flow_created_symbol", ""),
+                        [trade_date_mdY, *syms],
+                    )
                 for r in cur.fetchall():
                     db_agg[(r[0], r[1], str(r[2]), r[3])] = int(r[4] or 0)
         for key, strike_strs in contracts.items():
