@@ -84,4 +84,16 @@ describe('gridLayouts', () => {
   it('makeEmptyCell produces a D-timeframe empty slot', () => {
     expect(makeEmptyCell()).toMatchObject({ sym: null, tf: 'D' })
   })
+
+  it('sanitizeState carries a valid group and drops a malformed one', () => {
+    const ok = sanitizeState({ layout: '3x3', cells: [], group: { id: 'space', by: 'today', n: 9 } })
+    expect(ok.group).toEqual({ id: 'space', by: 'today', n: 9 })
+    expect(ok.syncTimeRange).toBe(false)
+
+    const bad = sanitizeState({ layout: '2x2', cells: [], group: { by: 'today' } }) // no id
+    expect(bad.group).toBeNull()
+
+    const none = sanitizeState({ layout: '2x2', cells: [] })
+    expect(none.group).toBeNull()
+  })
 })
