@@ -6866,8 +6866,6 @@ export default function StockChart({
   // at the time axis) lets the user drag left/right to scroll the chart through
   // time. Shown only with dragMeasure. Position tracks the price-axis width +
   // time-axis height so it sits just left of the axis, at the date row.
-  const GRIP_W = 34   // grip button width — used to center it on the last candle
-  const [scrollGripPos, setScrollGripPos] = useState({ left: null, top: null })
   const rangeBarRef = useRef(null)
 
   // Pin two volume-pane overlays to the LIVE price/volume pane boundary as the user
@@ -6906,78 +6904,6 @@ export default function StockChart({
     tick()
     return () => { if (raf) cancelAnimationFrame(raf) }
   }, [showRangeSelector, showVolLegend, chartReady])
-  useEffect(() => {
-    if (!dragMeasure || !chartReady) return
-    const chart = chartRef.current; if (!chart) return
-    const ts = chart.timeScale()
-    let raf = null
-    let lastTop = -1, lastLeft = -1
-    // rAF sampler: recompute the grip's top/left every frame but only re-render on
-    // a change. This tracks the price/volume pane BOUNDARY as you drag the pane
-    // separator (resize the volume pane) — the grip stays pinned to the top of the
-    // volume pane — as well as pan/zoom (horizontal) and window resize.
-    const tick = () => {
-      let top = null
-      try {
-        const panes = chart.panes ? chart.panes() : null
-        const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
-        if (h0 > 0) top = Math.max(4, h0 - 22)   // just above the price/volume boundary
-      } catch { /* pane API missing → bottom fallback in JSX */ }
-      // Center the grip horizontally on the LAST candle so it lines up with the
-      // most recent bar as the chart pans/zooms.
-      let left = null
-      try {
-        const t = lastBarRef.current?.time
-        const x = (t != null) ? ts.timeToCoordinate(t) : null
-        if (x != null && Number.isFinite(x)) {
-          const plotW = ts.width() || 0
-          const maxLeft = plotW > 0 ? plotW - GRIP_W - 2 : x
-          left = Math.max(2, Math.min(maxLeft, x - GRIP_W / 2))
-        }
-      } catch { /* range not ready */ }
-      if (top !== lastTop || left !== lastLeft) {
-        lastTop = top; lastLeft = left
-        setScrollGripPos({ left, top })
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [dragMeasure, chartReady])
-
-  const onScrollGripDown = (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
-    e.preventDefault(); e.stopPropagation()
-    const chart = chartRef.current, el = containerRef.current
-    if (!chart || !el) return
-    const ts = chart.timeScale()
-    const startRange = ts.getVisibleLogicalRange(); if (!startRange) return
-    // bars-per-pixel from the chart's OWN coordinate mapping — robust. Deriving it
-    // from ts.width() read 0 in the event handler → barSpacing ~0.008 → a tiny drag
-    // jumped the view thousands of bars ("skips back 20 years"). This is exact 1:1.
-    const l0 = ts.coordinateToLogical(0), l100 = ts.coordinateToLogical(100)
-    const barsPerPx = (l0 != null && l100 != null && l100 !== l0)
-      ? (l100 - l0) / 100
-      : (startRange.to - startRange.from) / Math.max(1, el.getBoundingClientRect().width)
-    const startX = e.clientX
-    const move = (ev) => {
-      const dxBars = (ev.clientX - startX) * barsPerPx
-      // Move the last candle the SAME direction as the grip: drag left → last
-      // candle moves left (whitespace opens on the right). This repositions the
-      // right edge, not a history-scroll. The grip itself re-centers on the last
-      // candle via the visibleLogicalRange subscription that this setter fires.
-      try { ts.setVisibleLogicalRange({ from: startRange.from - dxBars, to: startRange.to - dxBars }) } catch {}
-    }
-    const up = () => {
-      // Leave the grip where the user released it (don't snap back home).
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-      window.removeEventListener('pointercancel', up)
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-    window.addEventListener('pointercancel', up)
-  }
 
   useEffect(() => {
     const el = containerRef.current
@@ -7915,30 +7841,6 @@ export default function StockChart({
           <div style={{ color: canvasTheme === 'sunrise' ? '#3f4a57' : '#a8a290', fontSize: 11 }}>
             {measureReadout.bars} {measureReadout.bars === 1 ? 'bar' : 'bars'}{measureReadout.span ? ` · ${measureReadout.span}` : ''}
           </div>
-        </div>
-      )}
-      {/* Time-scroll grip — drag left/right to pan the chart through time (since
-          drag-pan is repurposed for measuring). */}
-      {dragMeasure && chartReady && (
-        <div
-          onPointerDown={onScrollGripDown}
-          title="Drag left / right to scroll the chart through time"
-          style={{
-            position: 'absolute',
-            ...(scrollGripPos.left != null ? { left: scrollGripPos.left } : { right: 56 }),
-            ...(scrollGripPos.top != null ? { top: scrollGripPos.top } : { bottom: 30 }),
-            zIndex: 7, cursor: 'ew-resize', pointerEvents: 'auto', touchAction: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 34, height: 16, borderRadius: 8,
-            background: canvasTheme === 'sunrise' ? 'rgba(255,255,255,0.62)' : 'rgba(201,168,76,0.18)',
-            border: canvasTheme === 'sunrise' ? '1px solid rgba(18,24,30,0.6)' : '1px solid rgba(201,168,76,0.5)',
-            color: canvasTheme === 'sunrise' ? '#3b3320' : '#c9a84c', userSelect: 'none',
-            boxShadow: canvasTheme === 'sunrise' ? '0 1px 4px rgba(20,35,55,0.2)' : '0 1px 4px rgba(0,0,0,0.4)',
-          }}
-        >
-          <svg width="22" height="10" viewBox="0 0 22 10" style={{ display: 'block' }}>
-            <path d="M6 1 L2 5 L6 9 M16 1 L20 5 L16 9" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
         </div>
       )}
       {showRangeSelector && chartReady && filteredBars?.length > 1 && (
