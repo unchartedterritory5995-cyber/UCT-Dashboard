@@ -95,6 +95,7 @@ const TARGET_MAP = {
 
 export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor }) {
   const panelRef = useRef(null)
+  const [activeTab, setActiveTab] = useState('price') // 'price' | 'canvas'
   const [activeTarget, setActiveTarget] = useState(null) // { target, label }
   const [panelPos, setPanelPos] = useState(null)
 
@@ -106,6 +107,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   }, [open, onClose, activeTarget])
 
   useEffect(() => { if (!open) setActiveTarget(null) }, [open])
+  useEffect(() => { if (activeTab !== 'price') setActiveTarget(null) }, [activeTab])
 
   // Position the pop-out color panel to the RIGHT of the modal (flip left if tight).
   useLayoutEffect(() => {
@@ -186,7 +188,24 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
           <button type="button" className={styles.close} onClick={onClose} aria-label="Close">✕</button>
         </div>
 
+        <div className={styles.tabs} role="tablist">
+          {[['price', 'Price Style'], ['canvas', 'Canvas']].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === id}
+              className={`${styles.tab} ${activeTab === id ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab(id)}
+            >{label}</button>
+          ))}
+        </div>
+
         <div className={styles.body}>
+          {activeTab === 'canvas' && (
+            <div className={styles.blankTab}>Canvas settings coming soon.</div>
+          )}
+          {activeTab === 'price' && (<>
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Type</div>
             <div className={styles.typeGrid}>
@@ -259,6 +278,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
               )}
             </section>
           )}
+          </>)}
         </div>
       </div>
         </div>,
