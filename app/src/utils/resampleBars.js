@@ -73,3 +73,78 @@ export function resample(bars, fromTf, toTf) {
   if (toTf === 'M') return resampleDailyToMonthly(bars)
   return null
 }
+
+// ── Custom-timeframe aggregation ─────────────────────────────────────────────
+// These power the arbitrary intervals in the timeframe menu (2m/45m/65m/4h/3d/…).
+// The base bars come from the native fetch; the bucket key becomes each output
+// bar's `t`. Buckets are STABLE (a bar's bucket never changes as new bars arrive)
+// so the developing bar updates in place instead of the whole series re-bucketing.
+
+// ET hours+minutes for a UTC-seconds timestamp (intraday `t` is unix seconds).
+function _etHM(tSec) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date(tSec * 1000))
+  const h = +parts.find(p => p.type === 'hour').value
+  const m = +parts.find(p => p.type === 'minute').value
+  return h * 60 + m
+}
+
+// Intraday minutes/hours, anchored to the 9:30 ET session open (matches TV: a 45m
+// chart breaks at 9:30, 10:15, 11:00 …). The bucket START = this bar's time minus
+// its offset within the bucket, so all bars in one bucket share a key WITHOUT any
+// wall-clock→unix reconversion (no DST hazard — a bucket never spans a day).
+export function resampleIntradaySession(bars, bucketMinutes) {
+  if (!bars || !bars.length || !(bucketMinutes > 0)) return []
+  const B = bucketMinutes
+  return _aggregate(bars, (t) => {
+    const minsSinceOpen = _etHM(t) - 570               // 570 = 9:30 ET
+    const off = ((minsSinceOpen % B) + B) % B          // 0..B-1, correct for pre-open (negative)
+    return t - off * 60                                // unix-sec bucket start
+  })
+}
+
+// N-of-a-native-daily-bucket, calendar-anchored for STABILITY:
+//   nDaily   → group calendar days into fixed N-day windows from the unix epoch
+//   nWeekly  → group ISO weeks into fixed N-week windows
+//   nMonthly → group calendar months into fixed N-month windows (12M = calendar
+//              year, 3M = calendar quarter — anchored to January)
+// Base `t` is 'YYYY-MM-DD'; the key is the window-start date string.
+function _epochDay(t) { return Math.floor(Date.parse(t + 'T00:00:00Z') / 86400000) }
+function _dayStr(epochDay) { return new Date(epochDay * 86400000).toISOString().slice(0, 10) }
+
+export function resampleNDaily(daily, n) {
+  if (!daily || !daily.length || !(n > 1)) return daily || []
+  return _aggregate(daily, t => _dayStr(Math.floor(_epochDay(t) / n) * n))
+}
+export function resampleNWeekly(weekly, n) {
+  if (!weekly || !weekly.length || !(n > 1)) return weekly || []
+  // Base weekly bars are ISO-Fridays; bucket by ISO-week index (Friday's epochDay/7).
+  return _aggregate(weekly, t => {
+    const wk = Math.floor(_epochDay(t) / 7)
+    const bucketWk = Math.floor(wk / n) * n
+    return _dayStr(bucketWk * 7)   // representative window-start date (a Thursday); label only
+  })
+}
+export function resampleNMonthly(monthly, n) {
+  if (!monthly || !monthly.length || !(n > 1)) return monthly || []
+  return _aggregate(monthly, t => {
+    const [y, mo] = t.split('-').map(Number)
+    const idx = y * 12 + (mo - 1)
+    const start = Math.floor(idx / n) * n
+    return `${Math.floor(start / 12)}-${String((start % 12) + 1).padStart(2, '0')}-01`
+  })
+}
+
+// Dispatch base bars → the custom timeframe described by `spec` (from
+// timeframes.resampleSpec). Returns base bars unchanged when spec is null (native).
+export function resampleForSpec(baseBars, spec) {
+  if (!spec || !baseBars) return baseBars || []
+  switch (spec.kind) {
+    case 'intradaySession': return resampleIntradaySession(baseBars, spec.minutes)
+    case 'nDaily': return resampleNDaily(baseBars, spec.n)
+    case 'nWeekly': return resampleNWeekly(baseBars, spec.n)
+    case 'nMonthly': return resampleNMonthly(baseBars, spec.n)
+    default: return baseBars
+  }
+}
