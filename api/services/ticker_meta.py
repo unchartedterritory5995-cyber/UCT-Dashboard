@@ -118,21 +118,18 @@ _TIER_RANK = {"core": 0, "relevant": 1, "peripheral": 2}
 
 
 def _primary_theme(ticker: str):
-    """The single most-relevant UCT theme name for a ticker, or None.
+    """The single most-relevant UCT theme NAME for a ticker, or None.
 
-    Cheap indexed SQLite lookup via the theme taxonomy DB — read fresh each
-    call (sub-ms) so taxonomy edits reflect immediately and it never caches a
-    stale theme. Never raises (theme DB may be unseeded in some contexts)."""
+    Delegates to groups.resolve_primary_theme so the theme shown here and the
+    peers the /charts Groups mode fills always agree (tier-first, factor
+    buckets excluded). Lazy import avoids a module-load cycle. Never raises."""
     ticker = (ticker or "").upper().strip()
     if not ticker:
         return None
     try:
-        from api.services.theme_db import get_themes_for_ticker
-        rows = get_themes_for_ticker(ticker)
-        if not rows:
-            return None
-        rows.sort(key=lambda m: (_TIER_RANK.get(m.get("tier"), 99), m.get("theme_id") or ""))
-        return rows[0].get("theme_name") or None
+        from api.services.groups import resolve_primary_theme
+        row = resolve_primary_theme(ticker)
+        return (row or {}).get("theme_name") or None
     except Exception as e:
         _logger.info("ticker_meta theme lookup failed for %s: %s", ticker, e)
         return None

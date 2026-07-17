@@ -141,3 +141,16 @@ def test_resolve_peers_sub_theme_first_then_widen(monkeypatch):
     assert out["source"] == "taxonomy"
     assert out["peers"][0] == "LUNR"      # same sub-theme floats to top
     assert "RKLB" not in out["peers"]     # seed excluded
+
+
+def test_ticker_meta_primary_theme_matches_resolver(monkeypatch):
+    from api.services import ticker_meta
+    monkeypatch.setattr(groups, "resolve_primary_theme",
+                        lambda s: {"theme_id": "semis", "theme_name": "Semiconductors"})
+    assert ticker_meta._primary_theme("NVDA") == "Semiconductors"
+
+
+def test_ticker_meta_primary_theme_none_when_unresolved(monkeypatch):
+    from api.services import ticker_meta
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    assert ticker_meta._primary_theme("ZZZZ") is None
