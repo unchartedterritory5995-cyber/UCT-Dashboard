@@ -30,8 +30,9 @@
 # Flow-worker watched files — keep in sync with the Railway service settings.
 FLOW_WATCHED="api/massive_ws_worker.py api/massive_processor.py api/flow_db.py \
 api/bs_iv.py api/flow_worker_main.py api/live_massive_router.py api/flow_router.py \
-api/worker_main.py api/flow_heal_enrich.py api/flow_gap_autofill.py \
+api/flow_router_mount.py api/flow_heal_enrich.py api/flow_gap_autofill.py \
 api/massive_flatfiles_worker.py api/flow_watchdog.py api/oi_snapshots.py \
+api/flow_rest_backfill.py \
 api/massive_stream.py api/flow_tape_spool.py api/flow_backup.py \
 api/dealer_positioning.py railway.json requirements.txt"
 

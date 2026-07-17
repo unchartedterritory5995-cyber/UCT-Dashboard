@@ -139,8 +139,12 @@ def _build_app() -> FastAPI:
         return _health()
 
     # Mount every flow.db / consumer-state router (reuses the reviewed mounter).
-    from api.worker_main import _mount_flow_routers
-    _mount_flow_routers(app)
+    # Dedicated module (2026-07-17) — NOT worker_main.py: importing the mounter
+    # from the shared bars-worker entry made a pure-charts change to that file
+    # restart the OPRA consumer mid-session. flow_router_mount.py is a
+    # flow-worker-only dependency in the watch paths; worker_main.py is dropped.
+    from api.flow_router_mount import mount_flow_routers
+    mount_flow_routers(app)
 
     # Thread stack-dump diagnostics (7/14 incident: "which line is the hot
     # thread on" took an hour to infer from /proc; this answers it in one call).

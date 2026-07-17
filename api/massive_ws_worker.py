@@ -1466,6 +1466,57 @@ def _load_spot_for_events(events: list) -> dict:
 # single consumer + 1-worker executor). Restart → reseed from DB, so counts
 # never drift from what's actually persisted.
 _CUMVOL_STATE: dict = {"date": None, "counts": None}
+_CUMVOL_SEED_LOCK = threading.Lock()
+_cumvol_seeding_date = {"date": None}  # guards against double-seed
+
+
+def _kick_cumvol_seed(trade_date_mdY: str) -> None:
+    """Fire a ONE-SHOT background thread that folds the pre-boot day-to-date
+    volume into the live counters. Never blocks the writer. Idempotent per
+    date. Adds to (never overwrites) the live-maintained counts so volume the
+    writer accrued while the seed ran is preserved."""
+    if _cumvol_seeding_date["date"] == trade_date_mdY:
+        return
+    _cumvol_seeding_date["date"] = trade_date_mdY
+
+    def _run():
+        import sqlite3
+        counts_from_db = {}
+        try:
+            from api.flow_db import FlowDB
+            t0 = time.perf_counter()
+            with sqlite3.connect(FlowDB().db_path, timeout=30) as conn:
+                _sql = ("SELECT Symbol, CallPut, Strike, ExpirationDate, "
+                        "COALESCE(SUM(CAST(Volume AS INTEGER)),0) "
+                        "FROM flow INDEXED BY idx_flow_created_symbol "
+                        "WHERE CreatedDate=? "
+                        "GROUP BY Symbol, CallPut, Strike, ExpirationDate")
+                try:
+                    cur = conn.execute(_sql, (trade_date_mdY,))
+                except sqlite3.OperationalError:
+                    cur = conn.execute(
+                        _sql.replace(" INDEXED BY idx_flow_created_symbol", ""),
+                        (trade_date_mdY,))
+                for r in cur.fetchall():
+                    counts_from_db[(r[0], r[1], str(r[2]), r[3])] = int(r[4] or 0)
+            # Merge into the live counters under the lock. The DB total already
+            # INCLUDES any rows the live writer persisted before this query ran,
+            # AND the live counters ALSO accrued those — so overwrite with the
+            # DB value (authoritative day-to-date) rather than add (would double
+            # count). Rows written AFTER the query but before this merge are the
+            # only skew, bounded by the query duration + next heal fixes it.
+            with _CUMVOL_SEED_LOCK:
+                if _CUMVOL_STATE["date"] == trade_date_mdY and _CUMVOL_STATE["counts"] is not None:
+                    _CUMVOL_STATE["counts"].update(counts_from_db)
+            logger.info("[massive-ws] cumvol background seed merged: %d "
+                        "contracts for %s in %.1fs (tape never blocked)",
+                        len(counts_from_db), trade_date_mdY,
+                        time.perf_counter() - t0)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[massive-ws] cumvol background seed failed "
+                           "(live counts stand; heal reconciles): %s", e)
+
+    threading.Thread(target=_run, name="cumvol-seed", daemon=True).start()
 
 
 def _load_cumulative_volume(events: list) -> dict:
@@ -1506,43 +1557,21 @@ def _load_cumulative_volume(events: list) -> dict:
         if key not in contracts:
             contracts[key] = strike_strs
 
-    # Seed the in-memory day counters ONCE per (boot, date): the same grouped
-    # query the per-batch path used, but for ALL symbols and only ever run at
-    # boot / date rollover. From then on, counts live in memory and the
-    # per-batch cost is a dict walk — the 11-13s fixed re-aggregation is gone.
+    # NON-BLOCKING seed (2026-07-17 pt2): the DB seed scans the whole day's
+    # rows (~80s at 62k contracts) and MUST NOT run inline — it froze the tape
+    # ~115s on the 4:04 restart. Instead the writer maintains counts live from
+    # the first event; a one-shot background thread folds in the pre-boot day
+    # total when it lands. So the tape NEVER blocks on the seed; the only cost
+    # is that batches in the first ~80s slightly UNDER-count cumvol (missing
+    # pre-boot volume) → some rows read a lighter color until the seed merges
+    # and the nightly heal reconciles. A 115s freeze traded for cosmetic,
+    # self-healing imprecision on a restart's first minute.
     st = _CUMVOL_STATE
-    if st["date"] != trade_date_mdY or st["counts"] is None:
-        counts: dict = {}
-        try:
-            from api.flow_db import FlowDB
-            db = FlowDB()
-            t0 = time.perf_counter()
-            with sqlite3.connect(db.db_path, timeout=15) as conn:
-                _sql_cum = (
-                    "SELECT Symbol, CallPut, Strike, ExpirationDate, "
-                    "COALESCE(SUM(CAST(Volume AS INTEGER)),0) "
-                    "FROM flow INDEXED BY idx_flow_created_symbol "
-                    "WHERE CreatedDate=? "
-                    "GROUP BY Symbol, CallPut, Strike, ExpirationDate")
-                try:
-                    cur = conn.execute(_sql_cum, (trade_date_mdY,))
-                except sqlite3.OperationalError:
-                    cur = conn.execute(
-                        _sql_cum.replace(
-                            " INDEXED BY idx_flow_created_symbol", ""),
-                        (trade_date_mdY,),
-                    )
-                for r in cur.fetchall():
-                    counts[(r[0], r[1], str(r[2]), r[3])] = int(r[4] or 0)
-            logger.info(
-                "[massive-ws] cumvol counters seeded: %d contracts for %s "
-                "in %.1fs (one-time per boot/date)",
-                len(counts), trade_date_mdY, time.perf_counter() - t0)
-        except Exception as e:
-            logger.warning("[massive-ws] cumvol seed failed (counts start "
-                           "empty, heal reconciles): %s", e)
+    if st["date"] != trade_date_mdY:
+        # New boot or date rollover: start live counts now, seed in background.
         st["date"] = trade_date_mdY
-        st["counts"] = counts
+        st["counts"] = {}
+        _kick_cumvol_seed(trade_date_mdY)
     counts = st["counts"]
 
     # Per event: cumulative = seeded/maintained day total + in-batch running
