@@ -54,6 +54,24 @@ const DEFAULT_VISIBLE_BARS = {
   'M': 36,    // ~3 years of monthly bars
 }
 
+// Decide whether a captured visible range still DESCRIBES THE OLD DATA EXTENT
+// (safe to re-anchor bars-from-right against the old count) or was ALREADY
+// re-mapped by LWC to the new extent during setData (re-anchoring against the
+// stale old count would extrapolate the view thousands of bars off the data —
+// the blank multi-chart cells on series-length swaps). Any range whose right
+// edge sits within the old extent's plausible window — which includes EVERY
+// scrolled-back position — is treated as old, so scrolled-back users always
+// keep the bars-from-right re-anchor. Only a range that is impossible for the
+// old extent AND hugs the new extent's right edge is trusted as re-mapped;
+// anything else falls back to the re-anchor (whose validity guard drops
+// out-of-range results safely).
+function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
+  if (!oldRange) return false
+  if (oldRange.to <= oldCount + 8) return true
+  const padNew = newCount - oldRange.to
+  return !(padNew >= -8 && padNew <= 8)
+}
+
 // The canonical default-zoom visible logical range: the newest candle anchored at
 // a CONSTANT fraction (LAST_CANDLE_POS) of the plot width, showing the timeframe's
 // default history. Shared by the initial framing, the snap-back safety guard, and
@@ -1612,17 +1630,21 @@ export default function StockChart({
     // Every settings write site spreads {...cs}, which carries any per-instance
     // settingsOverride — restore overridden top-level keys from the
     // un-overridden base so an override never leaks into the GLOBAL blob.
-    // (The watermark-drag commit builds from mergeChartSettings(prefs) directly
-    // and cannot leak — keep it that way if refactored.)
+    // Restore ONLY keys the write carried through unchanged (Object.is vs cs):
+    // a key the user deliberately edited differs from cs and must persist —
+    // blanket-restoring would silently drop their global edit. Section-object
+    // overrides would need sub-key diffing here; today's only override is the
+    // primitive per-cell chartType. (The watermark-drag commit builds from
+    // mergeChartSettings(prefs) directly and cannot leak — keep it that way.)
     let persisted = newSettings
     if (settingsOverride) {
       persisted = { ...newSettings }
       for (const k of Object.keys(settingsOverride)) {
-        if (k in csBase) persisted[k] = csBase[k]
+        if (k in csBase && Object.is(newSettings[k], cs[k])) persisted[k] = csBase[k]
       }
     }
     setPref('chart_settings', JSON.stringify(persisted))
-  }, [setPref, settingsOverride, csBase])
+  }, [setPref, settingsOverride, csBase, cs])
 
   // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
   // panel toggles, so both stay in lockstep (one logical state, two entry points).
@@ -5281,13 +5303,13 @@ export default function StockChart({
         if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - LAST_CANDLE_POS)
           from = to - width
-        } else if (Math.abs(oldRange.to - oldBarCount) <= Math.abs(oldRange.to - newBarCount)) {
+        } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
           const barsFromRight = oldBarCount - oldRange.to
           to = newBarCount - barsFromRight
           from = to - width
         } else {
-          // Captured range already re-mapped to the NEW series (see the
-          // count-change guard below) — bars-from-right vs the stale old count
+          // Captured range already re-mapped to the NEW series (see
+          // rangeDescribesOldExtent) — bars-from-right vs the stale old count
           // would throw the view off the data. Keep the remapped range.
           to = oldRange.to
           from = oldRange.from
@@ -5372,11 +5394,8 @@ export default function StockChart({
       // grid's workspace↔grid series swaps: 600→8422 came back as 8262..8427).
       // Computing bars-from-right against the STALE old count then extrapolates
       // the view thousands of bars outside the data — a blank or left-squeezed
-      // chart. Only re-anchor when the captured range is still consistent with
-      // the OLD extent; when it already tracks the new one, trust it as-is.
-      const rangeTracksOldExtent =
-        Math.abs(oldRange.to - oldBarCount) <= Math.abs(oldRange.to - newBarCount)
-      if (rangeTracksOldExtent) {
+      // chart. Re-anchor only when the range still describes the old extent.
+      if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
         const barsFromRight = oldBarCount - oldRange.to
         const width = oldRange.to - oldRange.from
         const to = newBarCount - barsFromRight
@@ -5421,12 +5440,15 @@ export default function StockChart({
         if (filteredBars.length === oldBarCount) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
-        // Floor at -3 (was -1): LWC-side drift during a warm-cache commit storm
-        // can push the newest candle ~2 bars past the right edge (observed
-        // prePad -2.2 on grid-cell remounts) — still "viewing the latest" by any
-        // human reading; a deliberate scroll-back is tens of bars off, so -3
-        // cannot misfire on user intent.
-        const wasViewingLatest = preWidth > 0 && prePad >= -3 && prePad <= Math.max(8, preWidth * 0.25)
+        // Width-proportional floor (was a flat -1): LWC-side drift during a
+        // warm-cache commit storm can park the newest candle ~2 bars past the
+        // right edge (observed prePad -2.2 at width 90 on grid-cell remounts) —
+        // still "viewing the latest". Proportional so a tightly-zoomed intraday
+        // chart keeps the old -1 floor and a deliberate 2-bar nudge there is
+        // never snapped back; wide windows are additionally protected by the
+        // pos<0.85/pos>1.02 gate below, which a small nudge doesn't trip.
+        const _padFloor = Math.max(1, preWidth * 0.03)
+        const wasViewingLatest = preWidth > 0 && prePad >= -_padFloor && prePad <= Math.max(8, preWidth * 0.25)
         if (wasViewingLatest) {
           let fr = null
           try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
@@ -7971,6 +7993,7 @@ export default function StockChart({
             removeDrawing={NOOP}
             selectedId={null}
             setSelectedId={NOOP}
+            readOnly
           />
         </div>
       )}

@@ -16,6 +16,7 @@ import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ChartDayGain from '../widgets/ChartDayGain'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
+import { CHART_TYPE_OPTIONS } from '../../../components/chart/chartDefaults'
 import UIcon from '../../../components/ui/UIcon'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
@@ -26,10 +27,7 @@ const TFS = [
 ]
 
 // Per-cell chart style. '' = inherit the user's global chart_settings type.
-const CELL_CHART_TYPES = [
-  ['', 'Style'], ['candles', 'Candles'], ['hollow', 'Hollow'],
-  ['bars', 'Bars'], ['hlc', 'HLC'], ['line', 'Line'], ['area', 'Area'],
-]
+const CELL_CHART_TYPES = [['', 'Style'], ...CHART_TYPE_OPTIONS]
 
 // Letter or digit, no modifier combos. Period allowed for class-share tickers (BRK.B).
 const TICKER_KEY_RE = /^[A-Za-z0-9.]$/

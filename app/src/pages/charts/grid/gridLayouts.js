@@ -6,6 +6,8 @@
 // hydrated from prefs (a stale save from before a cap downgrade must degrade
 // gracefully instead of mounting more charts than the cap allows).
 
+import { CHART_TYPE_OPTIONS } from '../../../components/chart/chartDefaults'
+
 // Hard ceiling on cells in a grid. 16 pending the perf spike (see the design
 // spec's decision tree) — lower it there, never raise it without a spike run.
 export const GRID_MAX_CELLS = 16
@@ -69,7 +71,8 @@ export function reconcileCells(cells, cellCount) {
 }
 
 const VALID_TFS = new Set(['1', '5', '15', '30', '60', 'D', 'W', 'M'])
-const VALID_CHART_TYPES = new Set(['candles', 'hollow', 'bars', 'hlc', 'line', 'area'])
+// Derived from the canonical picker list so sanitizer and picker cannot drift.
+const VALID_CHART_TYPES = new Set(CHART_TYPE_OPTIONS.map(([code]) => code))
 
 // Sanitize state hydrated from the multichart_state pref (or an old V1 blob).
 // Never trust persisted shapes: bad tf → 'D', bad sym → empty cell, over-cap

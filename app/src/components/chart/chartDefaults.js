@@ -309,6 +309,15 @@ export function mergeChartSettings(userSettings) {
   }
 }
 
+// Canonical per-cell chart style options (multi-chart grid): [value, label].
+// gridLayouts derives its persisted-state whitelist from this list so the
+// picker and the sanitizer can never drift apart. 'hlc' is rendered via
+// OHLC_TYPES in StockChart; the older toolbar/settings pickers predate it.
+export const CHART_TYPE_OPTIONS = [
+  ['candles', 'Candles'], ['hollow', 'Hollow'], ['bars', 'Bars'],
+  ['hlc', 'HLC'], ['line', 'Line'], ['area', 'Area'],
+]
+
 // ─── Per-instance settings override (multi-chart grid cells) ─────────────────
 // Deep-merges a PARTIAL settings blob over an already-merged base (the user's
 // global chart_settings). Primitives replace; the section objects
