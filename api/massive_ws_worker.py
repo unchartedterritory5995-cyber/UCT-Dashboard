@@ -251,7 +251,23 @@ MAX_Q_SUBSCRIPTIONS = 950
 # Tightened to 5s. Trades on a contract whose latest NBBO is >5s old will
 # fall through to tick-test (or stay unclassified). This is the right
 # tradeoff: lower classification rate, but the ones we classify are right.
-NBBO_STALENESS_NS = 5_000_000_000  # 5s -- tightened from 60s in Phase 1 audit
+# 2026-07-16: raised 5s -> 30s. Measured against Massive's REST quotes API
+# (real ground truth, no 950-slot cap) across 4 runs on 7/15-7/16:
+#
+#   31-57% of prints had NO quote within 5s. Those fell to the tick test,
+#   which INVENTS a direction. A slightly stale book beats an invented one.
+#
+#   Proof: SNDK 7/24 $1310P, 15:33:09 ET. NBBO was 23s old but STABLE
+#   (120.00/122.10). Price 119.61 = below bid = BB, independently confirmed by
+#   the reference tape (234@119.615_BB). Live rejected the quote for age, fell
+#   to the tick test, stamped "A", and fired ALPHA GOLD BULL on a contract with
+#   ~$25M of puts being SOLD. The stale quote had the right answer all along.
+#
+# The 5s rule was written to prevent stale-book misclassification, but the
+# fallback it triggers is worse than the staleness it prevents. 30s is a
+# compromise: still rejects genuinely dead books, keeps the stable ones.
+# Watch last_side_fresh_nbbo vs last_side_have_nbbo in /side-method-stats.
+NBBO_STALENESS_NS = 30_000_000_000  # 30s (was 5s; 60s before the Phase 1 audit)
 
 
 # ── Subscribe-lag recovery (2026-07-11) ────────────────────────────
@@ -823,57 +839,39 @@ def _classify_events_side(events: list) -> None:
         # Phase 2i: Use RAW T print history instead of event-to-event prices.
         # We bisect into _RAW_T_HISTORY to find the last raw print BEFORE
         # this event's first timestamp -- that's the "previous tick" for
-        # Lee-Ready classification. Validated 86.7% -> 96.0% accuracy improvement.
+        # ── TICK TEST REMOVED (2026-07-16) ────────────────────────────────
+        # Was: walk _RAW_T_HISTORY back for the last price before the event,
+        # then  diff_pct > 0.5 -> "A"  /  diff_pct < -0.5 -> "B".
+        #
+        # WHY IT'S GONE: it SATURATES. In a stacked-bid uptrend every seller
+        # hitting the rising bid prints higher than the last trade, so the test
+        # stamps "A" on prints that were bid-side. It cannot distinguish "above
+        # the ask" from "next print up the ladder" -- it never sees the book at
+        # all. The 6/29 Phase 1 audit caught exactly this and removed AA/BB from
+        # this path, but A/B carries the identical flaw and was left in.
+        #
+        # MEASURED (Massive REST quotes as ground truth, 7/15-7/16, 4 runs over
+        # alpha+size, both live and post-heal):
+        #   - ZERO direction flips originated from the NBBO path.
+        #   - Every confirmed flip originated HERE.
+        #   - SNDK 7/24 $1310P: true BB (below bid), tick test said A,
+        #     fired ALPHA GOLD BULL on a contract with ~$25M of puts SOLD.
+        #
+        # The tick test does not fill coverage gaps -- it launders ignorance
+        # into confidence, and the curated tiers then treat that confidence as
+        # signal. A blank Side is dropped by the gates, which is the correct
+        # outcome for a print we genuinely cannot classify.
+        #
+        # NOTE: this only helps if thresholds.sweep_empty_side_as_ask is FALSE.
+        # Otherwise blank-side SWEEPs get presumed ASK downstream in
+        # _derive_direction and the same wrong answer comes out the far end.
+        #
+        # classified_tick stays in _state deliberately: it should now read 0 on
+        # /side-method-stats, which is how we confirm this is live.
         if not nbbo_classified:
-            hist = _RAW_T_HISTORY.get(sym)
-            if hist:
-                # Find latest price before evt.first_ts_ns (event start)
-                last_price = None
-                prev_diff_price = None
-                # Walk backward through deque (newest to oldest)
-                for ts, px in reversed(hist):
-                    if ts >= evt.first_ts_ns:
-                        continue  # this print is AT or AFTER event - skip
-                    if last_price is None:
-                        last_price = px
-                    elif abs(px - last_price) > 0.001:
-                        prev_diff_price = px
-                        break
-                if last_price is not None and last_price > 0:
-                    diff_pct = (evt.avg_price - last_price) / last_price * 100
-                    # Phase 1 audit (6/29): removed AA/BB tier from tick test.
-                    # Tick test only knows "price moved up or down from last
-                    # print" -- it CANNOT know whether the trade was above
-                    # the contemporaneous ask (AA) or below the bid (BB).
-                    # Those subdivisions require fresh NBBO comparison.
-                    # Returning AA/BB from a 5% tick move manufactures false
-                    # confidence -- a 5% move in a stacked-bid uptrend is
-                    # not "above ask," it's just "next print up the ladder."
-                    #
-                    # Tick test now produces A/B only. NBBO path retains
-                    # the full AA/A/B/BB vocabulary.
-                    if diff_pct > 0.5:
-                        evt.side = "A"; evt.side_method = "tick"; classified += 1; classified_tick += 1
-                    elif diff_pct < -0.5:
-                        evt.side = "B"; evt.side_method = "tick"; classified += 1; classified_tick += 1
-                    elif prev_diff_price is not None and prev_diff_price > 0:
-                        # zero-tick: use direction of last differing price
-                        if last_price > prev_diff_price:
-                            evt.side = "A"; evt.side_method = "tick"; classified += 1; classified_tick += 1
-                        elif last_price < prev_diff_price:
-                            evt.side = "B"; evt.side_method = "tick"; classified += 1; classified_tick += 1
-                        else:
-                            no_signal += 1
-                    else:
-                        no_signal += 1
-                else:
-                    no_signal += 1
-                    if not nbbo and len(sample_misses) < 5:
-                        sample_misses.append(sym)
-            else:
-                no_signal += 1
-                if not nbbo and len(sample_misses) < 5:
-                    sample_misses.append(sym)
+            no_signal += 1
+            if not nbbo and len(sample_misses) < 5:
+                sample_misses.append(sym)
 
         # Phase 2i: tick cache (_TICK_TEST_CACHE) is no longer updated here
         # because we use _RAW_T_HISTORY (raw print history) for tick test.

@@ -2,8 +2,8 @@
 .panel {
   width: 288px;
   padding: 13px;
-  background: #12140d;
-  border: 1px solid #2e3127;
+  background: #0e0e10;
+  border: 1px solid #242426;
   border-radius: 12px;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.72);
   animation: cpIn 120ms ease;
@@ -20,19 +20,19 @@
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: #f0ead8;
+  color: #ededed;
   text-transform: uppercase;
 }
 .close {
   background: transparent;
   border: none;
-  color: #6f6a5e;
+  color: #6b6b6b;
   font-size: 12px;
   cursor: pointer;
   padding: 3px 5px;
   border-radius: 5px;
 }
-.close:hover { color: #f0ead8; background: rgba(255, 255, 255, 0.06); }
+.close:hover { color: #ededed; background: rgba(255, 255, 255, 0.06); }
 
 /* Shade grid — 12 hue columns × 6 shades. */
 .grid {
@@ -50,14 +50,14 @@
   transition: transform 80ms;
 }
 .sw:hover { transform: scale(1.25); position: relative; z-index: 1; }
-.swActive { box-shadow: 0 0 0 2px #12140d, 0 0 0 3px #c9a84c; }
+.swActive { box-shadow: 0 0 0 2px #0e0e10, 0 0 0 3px #c9a84c; }
 
 .savedLabel {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #6c6858;
+  color: #6b6b6b;
   margin: 9px 0 5px;
 }
 .savedRow,
@@ -73,7 +73,7 @@
   width: 13px; height: 13px;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid #33372b;
+  border: 1px solid #2b2b2d;
   background: #1a1a1b;
   color: #cfcabb;
   font-size: 10px;
@@ -93,13 +93,13 @@
   gap: 5px;
   margin-top: 10px;
 }
-.hash { color: #6c6858; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; }
+.hash { color: #6b6b6b; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; }
 .hexInput {
   width: 60px;
-  background: #191c14;
-  border: 1px solid #33372b;
+  background: #161618;
+  border: 1px solid #2b2b2d;
   border-radius: 6px;
-  color: #e5e0d2;
+  color: #dcdcdc;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11.5px;
   padding: 5px 6px;
@@ -114,12 +114,12 @@
   padding: 5px 9px;
   border-radius: 6px;
   cursor: pointer;
-  border: 1px solid #3a3d32;
-  background: #22251d;
+  border: 1px solid #2e2e30;
+  background: #1c1c1e;
   transition: background 120ms, border-color 120ms, color 120ms;
 }
-.custBtn { color: #9a9484; margin-left: auto; }
-.custBtn:hover { color: #d8d2c2; border-color: #3a3d32; }
+.custBtn { color: #808080; margin-left: auto; }
+.custBtn:hover { color: #d4d4d4; border-color: #2e2e30; }
 .custOn { color: #e7cf8f; border-color: #c9a84c; background: rgba(201, 168, 76, 0.12); }
 .saveBtn { color: #c9a84c; }
 .saveBtn:hover { background: rgba(201, 168, 76, 0.12); border-color: #c9a84c; }
@@ -172,7 +172,7 @@
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #6c6858;
+  color: #6b6b6b;
   margin: 12px 0 6px;
 }
 .opRow { display: flex; align-items: center; gap: 9px; }
@@ -184,7 +184,7 @@
   overflow: hidden;
   cursor: pointer;
   touch-action: none;
-  border: 1px solid #2e3127;
+  border: 1px solid #242426;
 }
 .opChecker {
   position: absolute;
@@ -213,7 +213,7 @@
 .opVal {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 11px;
-  color: #b9b4a3;
+  color: #b0b0b0;
   min-width: 34px;
   text-align: right;
 }

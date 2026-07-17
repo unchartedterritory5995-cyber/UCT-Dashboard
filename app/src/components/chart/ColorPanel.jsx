@@ -47,6 +47,12 @@ function splitColor(v) {
   if (m8) return { rgb: `#${m8[1].toLowerCase()}`, a: parseInt(m8[2], 16) / 255 }
   const m6 = /^#?([0-9a-f]{6})$/i.exec(s)
   if (m6) return { rgb: `#${m6[1].toLowerCase()}`, a: 1 }
+  // rgb()/rgba() — canvas defaults (e.g. grid) may come through in this form.
+  const mr = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(s)
+  if (mr) {
+    const rgb = `#${toHex2(+mr[1] / 255)}${toHex2(+mr[2] / 255)}${toHex2(+mr[3] / 255)}`
+    return { rgb, a: mr[4] === undefined ? 1 : clamp01(parseFloat(mr[4])) }
+  }
   return { rgb: '#000000', a: 1 }
 }
 function joinColor(rgb, a) {
@@ -105,7 +111,9 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
   }, [emitRgb, hsv.s, hsv.v])
   const opPointer = useCallback((e) => {
     const r = opRef.current?.getBoundingClientRect(); if (!r) return
-    emitAlpha(clamp01((e.clientX - r.left) / r.width))
+    // Inset the usable track by the thumb radius (7px) so 0% / 100% sit where the
+    // thumb is fully visible (not clipped at the track edges).
+    emitAlpha(clamp01((e.clientX - r.left - 7) / (r.width - 14)))
   }, [emitAlpha])
   const startDrag = useCallback((handler) => (e) => {
     e.preventDefault(); handler(e)
@@ -179,7 +187,7 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
         <div className={styles.opTrack} ref={opRef} onPointerDown={startDrag(opPointer)}>
           <div className={styles.opChecker} />
           <div className={styles.opFill} style={{ background: `linear-gradient(to right, ${curRgb}00, ${curRgb})` }} />
-          <div className={styles.opThumb} style={{ left: `${curA * 100}%` }} />
+          <div className={styles.opThumb} style={{ left: `calc(7px + ${curA} * (100% - 14px))` }} />
         </div>
         <span className={styles.opVal}>{Math.round(curA * 100)}%</span>
       </div>

@@ -107,7 +107,8 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   }, [open, onClose, activeTarget])
 
   useEffect(() => { if (!open) setActiveTarget(null) }, [open])
-  useEffect(() => { if (activeTab !== 'price') setActiveTarget(null) }, [activeTab])
+  useEffect(() => { if (open) setActiveTab('price') }, [open]) // always open on Price Style
+  useEffect(() => { setActiveTarget(null) }, [activeTab])
 
   // Position the pop-out color panel to the RIGHT of the modal (flip left if tight).
   useLayoutEffect(() => {
@@ -150,10 +151,29 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   // Candle colors. Candles/Hollow expose Body / Borders / Wick separately; bars &
   // line/area just use the body (up/down) color. 'onecolor' mode = a single color.
   const candles = settings?.candles || {}
+  const grid = settings?.grid || {}
+  const crosshair = settings?.crosshair || {}
+  const watermark = settings?.watermark || {}
   const isCandleType = curType === 'candles' || curType === 'hollow'
-  const setCandleColor = (which, hex) => {
-    if (!TARGET_MAP[which]) return
-    onChange?.({ ...settings, candles: { ...candles, [TARGET_MAP[which]]: hex }, preset: 'custom' })
+  const bgMode = settings?.bgMode || 'solid'
+
+  // A color "target" → the nested settings path it writes. Covers candles + canvas.
+  const COLOR_PATHS = {
+    bodyUp: ['candles', 'upColor'], bodyDown: ['candles', 'downColor'],
+    borderUp: ['candles', 'upBorder'], borderDown: ['candles', 'downBorder'],
+    wickUp: ['candles', 'upWick'], wickDown: ['candles', 'downWick'],
+    one: ['candles', 'oneColor'],
+    bg: ['background'], bgTop: ['bgGradient', 'top'], bgBottom: ['bgGradient', 'bottom'],
+    grid: ['grid', 'color'], crosshair: ['crosshair', 'color'], text: ['textColor'],
+  }
+  const setColorTarget = (target, hex) => {
+    const path = COLOR_PATHS[target]; if (!path) return
+    const next = { ...settings }
+    let o = next
+    for (let i = 0; i < path.length - 1; i++) { o[path[i]] = { ...(o[path[i]] || {}) }; o = o[path[i]] }
+    o[path[path.length - 1]] = hex
+    next.preset = 'custom'
+    onChange?.(next)
   }
   const targetValue = (t) => {
     switch (t) {
@@ -164,9 +184,19 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'wickUp': return candles.upWick || candles.upColor || '#1ae51a'
       case 'wickDown': return candles.downWick || candles.downColor || '#c41f2d'
       case 'one': return candles.oneColor || candles.upColor || '#1ae51a'
+      case 'bg': return settings.background || '#0e0f0d'
+      case 'bgTop': return settings.bgGradient?.top || '#16233b'
+      case 'bgBottom': return settings.bgGradient?.bottom || '#0e0f0d'
+      case 'grid': return grid.color || 'rgba(46,49,39,0.25)'
+      case 'crosshair': return crosshair.color || '#706b5e'
+      case 'text': return settings.textColor || '#706b5e'
       default: return '#1ae51a'
     }
   }
+  const setSetting = (patch) => onChange?.({ ...settings, ...patch, preset: 'custom' })
+  const setBgMode = (m) => { if (m !== bgMode) setSetting({ bgMode: m }) }
+  const setGridVisible = (v) => setSetting({ grid: { ...grid, visible: v } })
+  const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
   const colorSwatch = (target, label) => (
     <button
       type="button"
@@ -202,9 +232,92 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
         </div>
 
         <div className={styles.body}>
-          {activeTab === 'canvas' && (
-            <div className={styles.blankTab}>Canvas settings coming soon.</div>
-          )}
+          {activeTab === 'canvas' && (<>
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Background</div>
+            <div className={styles.card}>
+              <div className={styles.seg} role="tablist">
+                {[['solid', 'Solid'], ['gradient', 'Gradient']].map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    role="tab"
+                    aria-selected={bgMode === val}
+                    className={`${styles.segBtn} ${bgMode === val ? styles.segBtnActive : ''}`}
+                    onClick={() => setBgMode(val)}
+                  >{label}</button>
+                ))}
+              </div>
+              {bgMode === 'solid' ? (
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Color</span>
+                  {colorSwatch('bg', 'Background')}
+                </div>
+              ) : (<>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Top</span>
+                  {colorSwatch('bgTop', 'Gradient Top')}
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Bottom</span>
+                  {colorSwatch('bgBottom', 'Gradient Bottom')}
+                </div>
+              </>)}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Grid</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Show grid lines</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={grid.visible !== false}
+                  className={`${styles.toggle} ${grid.visible !== false ? styles.toggleOn : ''}`}
+                  onClick={() => setGridVisible(grid.visible === false)}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+              {grid.visible !== false && (
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Line color</span>
+                  {colorSwatch('grid', 'Grid')}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Crosshair &amp; Text</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Crosshair</span>
+                {colorSwatch('crosshair', 'Crosshair')}
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Scale text</span>
+                {colorSwatch('text', 'Scale Text')}
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Watermark</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Show ticker watermark</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={watermark.visible !== false}
+                  className={`${styles.toggle} ${watermark.visible !== false ? styles.toggleOn : ''}`}
+                  onClick={() => setWmVisible(watermark.visible === false)}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+            </div>
+          </section>
+          </>)}
           {activeTab === 'price' && (<>
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Type</div>
@@ -293,7 +406,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
           <ColorPanel
             title={activeTarget.label}
             value={targetValue(activeTarget.target)}
-            onChange={(hex) => setCandleColor(activeTarget.target, hex)}
+            onChange={(hex) => setColorTarget(activeTarget.target, hex)}
             onClose={() => setActiveTarget(null)}
             savedColors={savedColors}
             onSaveColor={onSaveColor}

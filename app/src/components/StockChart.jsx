@@ -789,6 +789,7 @@ export default function StockChart({
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
   boldCandles = false,      // bold solid green/red candles (Model Book look)
   userCandleColors = false, // Charts workspace: the "bold" candle/volume colors come from the user's cs.candles (upColor/downColor) instead of the hardcoded MB palette, so the settings-modal color pickers actually paint. Model Book (no prop) keeps its fixed MB colors.
+  userCanvas = false,       // Charts workspace: the canvas (background solid/gradient, grid, crosshair, text) comes from the user's cs settings instead of the hardcoded MB background. Model Book keeps MB_BG.
   colorByNetChange = false, // color candles by NET CHANGE (close vs previous close, TC2000/StockCharts style) instead of LWC's default close-vs-open
   candlesOnTop = false,     // TradingView-style: draw candle bodies ABOVE the MA/BB/VWAP overlays so the lines pass behind the bodies instead of overlapping them
   hideLastValue = false,    // hide the last-price axis tag on the price series
@@ -905,6 +906,10 @@ export default function StockChart({
   // the normal vivid MB_UP everywhere else (Model Book, popups).
   const mbUp = canvasTheme === 'sunrise' ? SUNRISE_UP : (userCandleColors ? (cs.candles.upColor || MB_UP) : MB_UP)
   const mbDown = canvasTheme === 'sunrise' ? SUNRISE_DOWN : (userCandleColors ? (cs.candles.downColor || MB_DOWN) : MB_DOWN)
+  // The ema9MatchCandle overlay borrows the candle up-HUE, but a moving average must
+  // stay fully opaque — the candle's per-color opacity (8-digit #rrggbbaa from the
+  // color picker) must NOT bleed into the MA line. Strip any trailing alpha.
+  const mbUpOpaque = /^#[0-9a-f]{8}$/i.test(mbUp) ? mbUp.slice(0, 7) : mbUp
   // Volume bars keep the FIXED bold palette regardless of the user's candle color —
   // volume gets its own color control later, so changing candle colors must not
   // touch it. (This is the original mbUp/mbDown, before userCandleColors.)
@@ -942,9 +947,12 @@ export default function StockChart({
     }
     return {
       // Model Book charts (boldCandles) ride a deep-navy canvas to make the
-      // bold green/red candles pop (TC2000 look); every other surface keeps the
-      // user's configured background.
-      background: boldCandles ? MB_BG : cs.background,
+      // bold green/red candles pop (TC2000 look). The Charts workspace (userCanvas)
+      // instead reads the user's background — solid OR a top→bottom gradient (shown
+      // via the container CSS + a transparent LWC canvas, like Sunrise). Every other
+      // surface keeps the user's configured background.
+      background: (userCanvas || !boldCandles) ? cs.background : MB_BG,
+      layoutTransparent: userCanvas && cs.bgMode === 'gradient',
       textColor: cs.textColor,
       gridColor: cs.grid?.color,
       borderColor: cs.grid?.color,
@@ -952,7 +960,7 @@ export default function StockChart({
       candleUp: cs.candles?.upColor,
       candleDown: cs.candles?.downColor,
     }
-  }, [cs.theme, cs.background, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor, boldCandles, canvasTheme])
+  }, [cs.theme, cs.background, cs.bgMode, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor, boldCandles, canvasTheme, userCanvas])
 
   // ── Price-scale: forceLogScale (Model Book) defaults to log without touching
   // the user's global chart-settings pref. A per-instance override lets the
@@ -1524,7 +1532,7 @@ export default function StockChart({
       const d = ovData[i]?.data
       const pt = (d && d.length) ? d[d.length - 1] : null
       if (!pt || !ov) return null
-      const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUp : ov.color
+      const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
       return { label: `${ov.type} ${ov.period}`, value: pt.value, color }
     }).filter(Boolean)
     return {
@@ -4612,7 +4620,7 @@ export default function StockChart({
       // Charts workspace: repaint the 9-EMA in the candle up-color (MB_UP) so the
       // fast MA matches the candles. Reliable regardless of saved overlay colors.
       const _ov = resolvedOverlays?.[i]
-      if (ema9MatchCandle && _ov?.type === 'EMA' && Number(_ov?.period) === 9) color = mbUp
+      if (ema9MatchCandle && _ov?.type === 'EMA' && Number(_ov?.period) === 9) color = mbUpOpaque
       // Split into base (≤ setup day) + tail (≥ setup day) when fading; the shared
       // cutoff point joins them so the line is seamless at full opacity.
       const baseData = _fadeMA ? ovData.filter(p => String(p.time) <= _cut) : ovData
@@ -6308,7 +6316,7 @@ export default function StockChart({
         const ov = resolvedOverlays?.[i]
         if (!d || !ov) return null
         // Match the DISPLAYED line color (ema9MatchCandle repaints the 9-EMA to MB_UP).
-        const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUp : ov.color
+        const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
         return { label: `${ov.type} ${ov.period}`, value: d.value, color }
       }).filter(Boolean)
 
@@ -7503,9 +7511,14 @@ export default function StockChart({
         className={styles.chart}
         style={{
           display: (showFatalError || selectedRangeEmpty) ? 'none' : 'block',
-          // Sunrise: paint the continuous sky gradient here, BEHIND the transparent
-          // LWC canvas, so it flows unbroken through the price + volume panes.
-          background: canvasTheme === 'sunrise' ? SUNRISE_GRADIENT : undefined,
+          // Sunrise (and any user gradient) paints a continuous gradient HERE, behind
+          // the transparent LWC canvas, so it flows unbroken through the price + volume
+          // panes. The user gradient (Canvas settings) works the same way.
+          background: canvasTheme === 'sunrise'
+            ? SUNRISE_GRADIENT
+            : (userCanvas && cs.bgMode === 'gradient'
+                ? `linear-gradient(to bottom, ${cs.bgGradient?.top || '#16233b'} 0%, ${cs.bgGradient?.bottom || '#0e0f0d'} 100%)`
+                : undefined),
         }}
       />
       {/* ── Dark Pool volume profile bars — uses series.priceToCoordinate() to
