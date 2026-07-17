@@ -820,6 +820,7 @@ export default function StockChart({
   hideWatermark = false,      // force the symbol watermark OFF regardless of settings (intraday popup)
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
+  legendColor = null,         // workspace: override the base OHLCV legend text color (time + O/H/L/C/V). null = CSS default. Change%/overlay/indicator colors keep their own (semantic) colors.
   hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
   dragMeasure = false,        // Charts workspace: plain left-drag draws a transient measure line + % / bars / time readout (TC2000-style) instead of panning. Cursor mode only; mouse only.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
@@ -7836,7 +7837,12 @@ export default function StockChart({
           >%</button>
         </div>
       )}
-      {crosshairData && !hideLegend && (
+      {crosshairData && !hideLegend && (() => {
+        // User override for the BASE legend text (time + O/H/L/C/V). Inline so it beats
+        // the base classes' own color; change%/overlays/indicators are intentionally
+        // left to their semantic colors. undefined = keep the CSS-class default.
+        const legBase = legendColor ? { color: legendColor } : undefined
+        return (
         <div
           className={`${styles.legend}${verticalLegend ? ' ' + styles.legendVertical : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it. */
@@ -7844,16 +7850,16 @@ export default function StockChart({
         >
           {verticalLegend ? (
             <>
-              <span className={styles.vlHead}>{formatLegendTime(crosshairData.time)}</span>
+              <span className={styles.vlHead} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
               <span className={styles.vlChange} style={{ color: parseFloat(crosshairData.change) >= 0 ? (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d') }}>
                 {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
               </span>
-              <span className={styles.vlLabel}>Open</span><span className={styles.vlVal}>{crosshairData.open?.toFixed(2)}</span>
-              <span className={styles.vlLabel}>High</span><span className={styles.vlVal}>{crosshairData.high?.toFixed(2)}</span>
-              <span className={styles.vlLabel}>Low</span><span className={styles.vlVal}>{crosshairData.low?.toFixed(2)}</span>
-              <span className={styles.vlLabel}>Close</span><span className={styles.vlVal}>{crosshairData.close?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>Open</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>High</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>Low</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>Close</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
               {crosshairData.volume != null && (
-                <><span className={styles.vlLabel}>Vol</span><span className={styles.vlVal}>{formatVolume(crosshairData.volume)}</span></>
+                <><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></>
               )}
               {crosshairData.overlays.flatMap((ov, i) => [
                 <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
@@ -7872,13 +7878,13 @@ export default function StockChart({
             </>
           ) : (
           <>
-          <span className={styles.legendTime}>{formatLegendTime(crosshairData.time)}</span>
-          <span className={styles.legendLabel}>O <span className={styles.legendVal}>{crosshairData.open?.toFixed(2)}</span></span>
-          <span className={styles.legendLabel}>H <span className={styles.legendVal}>{crosshairData.high?.toFixed(2)}</span></span>
-          <span className={styles.legendLabel}>L <span className={styles.legendVal}>{crosshairData.low?.toFixed(2)}</span></span>
-          <span className={styles.legendLabel}>C <span className={styles.legendVal}>{crosshairData.close?.toFixed(2)}</span></span>
+          <span className={styles.legendTime} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
+          <span className={styles.legendLabel} style={legBase}>O <span className={styles.legendVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span></span>
+          <span className={styles.legendLabel} style={legBase}>H <span className={styles.legendVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span></span>
+          <span className={styles.legendLabel} style={legBase}>L <span className={styles.legendVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span></span>
+          <span className={styles.legendLabel} style={legBase}>C <span className={styles.legendVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span></span>
           {crosshairData.volume != null && (
-            <span className={styles.legendLabel}>V <span className={styles.legendVal}>{formatVolume(crosshairData.volume)}</span></span>
+            <span className={styles.legendLabel} style={legBase}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
           )}
           <span className={parseFloat(crosshairData.change) >= 0 ? styles.legendUp : styles.legendDown}>
             {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
@@ -7939,7 +7945,8 @@ export default function StockChart({
           </>
           )}
         </div>
-      )}
+        )
+      })()}
       <canvas
         ref={vpCanvasRef}
         style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 2 }}

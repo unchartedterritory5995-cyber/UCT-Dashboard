@@ -44,6 +44,12 @@ export const CHART_DEFAULTS = {
     showNextEarnings: true,
     showUctRating: true,
     showLegend: true,       // the on-chart OHLCV crosshair legend
+    // Per-item color overrides for the header/legend readouts. Each key is unset
+    // (absent) by default = keep the item's built-in color: day change stays
+    // red/green by direction, UCT rating stays tier-colored, market cap/next
+    // earnings/legend keep their defaults. A hex here overrides that one item.
+    // Keys: dayChange, marketCap, nextEarnings, uctRating, legend.
+    colors: {},
   },
 
   overlays: [
@@ -260,6 +266,10 @@ export function mergeChartSettings(userSettings) {
       ...CHART_DEFAULTS.header,
       ...(parsed.header || {}),
       timeframes: Array.isArray(parsed.header?.timeframes) ? parsed.header.timeframes : CHART_DEFAULTS.header.timeframes,
+      // Deep-merge colors: the spread above replaces the whole `header` object, so a
+      // stored partial `colors` (e.g. only marketCap set) would drop the others'
+      // defaults. Same trap `timeframes` guards against — merge, never wholesale-swap.
+      colors: { ...CHART_DEFAULTS.header.colors, ...(parsed.header?.colors || {}) },
     },
     overlays: Array.isArray(parsed.overlays)
       ? parsed.overlays.map((o, i) => ({ ...CHART_DEFAULTS.overlays[i], ...o }))

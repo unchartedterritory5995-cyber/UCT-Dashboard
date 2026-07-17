@@ -118,12 +118,14 @@ const HEADER_TFS = [
   ['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'],
   ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M'],
 ]
+// [toggle key, label, color target, header.colors key]. The color target/key drive
+// the per-row color swatch + Auto reset in the Show section.
 const HEADER_TOGGLES = [
-  ['showChange', 'Day change ($ / %)'],
-  ['showMarketCap', 'Market cap'],
-  ['showNextEarnings', 'Next earnings'],
-  ['showUctRating', 'UCT rating'],
-  ['showLegend', 'Chart legend'],
+  ['showChange', 'Day change ($ / %)', 'hdrDayChange', 'dayChange'],
+  ['showMarketCap', 'Market cap', 'hdrMarketCap', 'marketCap'],
+  ['showNextEarnings', 'Next earnings', 'hdrNextEarnings', 'nextEarnings'],
+  ['showUctRating', 'UCT rating', 'hdrUctRating', 'uctRating'],
+  ['showLegend', 'Chart legend', 'hdrLegend', 'legend'],
 ]
 
 export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor }) {
@@ -222,6 +224,12 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     one: ['candles', 'oneColor'],
     bg: ['background'], bgTop: ['bgGradient', 'top'], bgBottom: ['bgGradient', 'bottom'],
     grid: ['grid', 'color'], crosshair: ['crosshair', 'color'], text: ['textColor'],
+    // Per-item header/legend color overrides (Header tab → Show).
+    hdrDayChange: ['header', 'colors', 'dayChange'],
+    hdrMarketCap: ['header', 'colors', 'marketCap'],
+    hdrNextEarnings: ['header', 'colors', 'nextEarnings'],
+    hdrUctRating: ['header', 'colors', 'uctRating'],
+    hdrLegend: ['header', 'colors', 'legend'],
   }
   const setColorTarget = (target, hex) => {
     // Watermark keeps color + opacity as SEPARATE settings (the chart reads them
@@ -255,6 +263,13 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'crosshair': return crosshair.color || '#706b5e'
       case 'text': return settings.textColor || '#706b5e'
       case 'watermark': return joinHexA(watermark.color || '#a8a290', (watermark.opacity == null || watermark.opacity === 0.07) ? 0.82 : watermark.opacity)
+      // Header/legend overrides: show the active override, else the item's built-in
+      // color so the swatch reads as the current on-screen color while "Auto".
+      case 'hdrDayChange': return hdrColors.dayChange || '#1ae51a'
+      case 'hdrMarketCap': return hdrColors.marketCap || '#c9a84c'
+      case 'hdrNextEarnings': return hdrColors.nextEarnings || '#6ba3be'
+      case 'hdrUctRating': return hdrColors.uctRating || '#c9a84c'
+      case 'hdrLegend': return hdrColors.legend || '#a8a290'
       default: return '#1ae51a'
     }
   }
@@ -267,6 +282,13 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   // Header tab.
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
+  const hdrColors = header.colors || {}
+  const hdrColorSet = (key) => hdrColors[key] != null
+  // Clear one header-item override → the item returns to its built-in (auto) color.
+  const clearHeaderColor = (key) => {
+    const nextColors = { ...hdrColors }; delete nextColors[key]
+    setSetting({ header: { ...header, colors: nextColors } })
+  }
   const headerTfs = Array.isArray(header.timeframes) ? header.timeframes : []
   const toggleHeaderTf = (code) => setHeader({ timeframes: headerTfs.includes(code) ? headerTfs.filter((c) => c !== code) : [...headerTfs, code] })
   const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
@@ -448,18 +470,37 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Show</div>
             <div className={styles.card}>
-              {HEADER_TOGGLES.map(([key, label]) => (
-                <div className={styles.field} key={key}>
-                  <span className={styles.fieldLabel}>{label}</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={header[key] !== false}
-                    className={`${styles.toggle} ${header[key] !== false ? styles.toggleOn : ''}`}
-                    onClick={() => setHeader({ [key]: header[key] === false })}
-                  ><span className={styles.toggleKnob} /></button>
-                </div>
-              ))}
+              {HEADER_TOGGLES.map(([key, label, target, colorKey]) => {
+                const on = header[key] !== false
+                const overridden = hdrColorSet(colorKey)
+                return (
+                  <div className={styles.field} key={key}>
+                    <span className={styles.fieldLabel}>{label}</span>
+                    <div className={styles.hdrRowCtl}>
+                      {/* Color override — only meaningful when the item is shown. */}
+                      {on && (overridden ? (
+                        <button
+                          type="button"
+                          className={styles.hdrAutoBtn}
+                          onClick={() => clearHeaderColor(colorKey)}
+                          title="Reset to automatic color"
+                          aria-label={`Reset ${label} to automatic color`}
+                        >Auto</button>
+                      ) : (
+                        <span className={styles.hdrAutoTag} title="Using the automatic color">Auto</span>
+                      ))}
+                      {on && colorSwatch(target, `${label} color`)}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={on}
+                        className={`${styles.toggle} ${on ? styles.toggleOn : ''}`}
+                        onClick={() => setHeader({ [key]: header[key] === false })}
+                      ><span className={styles.toggleKnob} /></button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </section>
 

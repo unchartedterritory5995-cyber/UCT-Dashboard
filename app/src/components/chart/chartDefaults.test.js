@@ -24,3 +24,29 @@ describe('watermark settings', () => {
     expect(cs.watermark.lines).toEqual({ ticker: false, company: true, sector: true, industry: true, theme: true })
   })
 })
+
+describe('header per-item color overrides', () => {
+  it('defaults to no overrides (every item keeps its built-in color)', () => {
+    expect(CHART_DEFAULTS.header.colors).toEqual({})
+    const cs = mergeChartSettings(JSON.stringify({}))
+    expect(cs.header.colors).toEqual({})
+  })
+
+  it('preserves a stored override while keeping the show toggles', () => {
+    const cs = mergeChartSettings(JSON.stringify({ header: { colors: { marketCap: '#ff0000' } } }))
+    expect(cs.header.colors.marketCap).toBe('#ff0000')
+    expect(cs.header.showMarketCap).toBe(true)   // untouched sibling
+  })
+
+  it('a partial colors blob does NOT wipe unset keys (the mergeChartSettings wholesale-replace trap)', () => {
+    // header is spread as one object, so without the dedicated colors deep-merge a
+    // stored {marketCap} would drop the rest — this pins that it stays a real merge.
+    const cs = mergeChartSettings(JSON.stringify({
+      header: { colors: { marketCap: '#111111', legend: '#222222' } },
+    }))
+    expect(cs.header.colors).toEqual({ marketCap: '#111111', legend: '#222222' })
+    // and the other header fields survive the colors-only save
+    expect(cs.header.timeframes).toEqual(CHART_DEFAULTS.header.timeframes)
+    expect(cs.header.showLegend).toBe(true)
+  })
+})

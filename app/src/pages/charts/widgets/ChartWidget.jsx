@@ -168,6 +168,9 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     return list.length ? list : TFS   // never leave the TF bar empty
   })()
   const showAnyMeta = hdr.showMarketCap || hdr.showNextEarnings || hdr.showUctRating
+  // Per-item header color overrides (Chart Settings → Header → Show). Absent = the
+  // item keeps its built-in color (see chartDefaults header.colors).
+  const hdrColors = hdr.colors || {}
   const setExtHours = useCallback((on) => {
     const next = { ...mergeChartSettings(prefs.chart_settings), extendedHoursShading: on, preset: 'custom' }
     setPref('chart_settings', JSON.stringify(next))
@@ -334,12 +337,12 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         </div>
         {hdr.showChange && (themeIdx.isIndex ? (
           idxGain && (
-            <span className={styles.chartDayGain} style={{ color: idxGain.up ? (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47') }}>
+            <span className={styles.chartDayGain} style={{ color: hdrColors.dayChange || (idxGain.up ? (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47')) }}>
               {idxGain.up ? '+' : ''}{idxGain.abs.toFixed(2)} ({idxGain.up ? '+' : ''}{idxGain.pct.toFixed(2)}%)
             </span>
           )
         ) : (
-          <ChartDayGain sym={sym} />
+          <ChartDayGain sym={sym} overrideColor={hdrColors.dayChange || null} />
         ))}
         {/* Chart settings — opens the centered settings modal. Sits at the top-right
             of the header, directly above the market clock. */}
@@ -367,19 +370,19 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             {hdr.showMarketCap && (
               <span className={styles.chartMetaItem}>
                 <span className={styles.chartMetaLabel}>Market Cap</span>
-                <span className={styles.chartMetaVal} style={{ color: '#c9a84c' }}>{mktCap || '—'}</span>
+                <span className={styles.chartMetaVal} style={{ color: hdrColors.marketCap || '#c9a84c' }}>{mktCap || '—'}</span>
               </span>
             )}
             {hdr.showNextEarnings && (
               <span className={styles.chartMetaItem}>
                 <span className={styles.chartMetaLabel}>Next Earnings</span>
-                <span className={styles.chartMetaVal} style={{ color: '#6ba3be' }}>{nextEarnStr || '—'}</span>
+                <span className={styles.chartMetaVal} style={{ color: hdrColors.nextEarnings || '#6ba3be' }}>{nextEarnStr || '—'}</span>
               </span>
             )}
             {hdr.showUctRating && (
               <span className={styles.chartMetaItem}>
                 <span className={styles.chartMetaLabel}>UCT Rating</span>
-                <span className={styles.chartMetaVal} style={{ color: ratingColor }}>{uctRating != null ? uctRating : '—'}</span>
+                <span className={styles.chartMetaVal} style={{ color: hdrColors.uctRating || ratingColor }}>{uctRating != null ? uctRating : '—'}</span>
               </span>
             )}
           </div>
@@ -480,6 +483,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           lockWatermark
           alwaysShowLegend
           hideLegend={!hdr.showLegend}
+          legendColor={hdrColors.legend || null}
           rightPadBars={6}
           dailyDefaultBars={126}
           volumeSeparatePane
