@@ -496,22 +496,20 @@ export default function ChartsWorkspace() {
             >Open layout ▾</button>
             {openMenuOpen && (
               <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => setOpenMenuOpen(false)}>
-                {/* Chart theme — recolors the whole workspace (charts + all widgets). */}
-                <div className={styles.menuSection}>Chart theme</div>
+                <div className={styles.menuSection}>Prebuilt</div>
+                {/* Chart theme presets, listed among the prebuilt layouts. These
+                    recolor the whole workspace (charts + all widgets) rather than
+                    swap the widget arrangement; the active one shows a ✓. */}
                 {[['default', 'Default'], ['sunrise', 'TSDR — Sunrise']].map(([val, label]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    className={styles.addMenuItem}
-                    style={chartsTheme === val ? { color: 'var(--ut-green-bright, #1ae51a)' } : undefined}
-                    onClick={() => { setChartsTheme(val); setOpenMenuOpen(false) }}
-                  >{chartsTheme === val ? '✓ ' : ''}{label}</button>
+                  <div key={`theme-${val}`} className={styles.menuRow}>
+                    <button
+                      type="button"
+                      className={styles.addMenuItem}
+                      style={{ flex: 1, ...(chartsTheme === val ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
+                      onClick={() => { setChartsTheme(val); setOpenMenuOpen(false) }}
+                    >{chartsTheme === val ? '✓ ' : ''}{label}</button>
+                  </div>
                 ))}
-                <div className={styles.menuDivider} />
-                {globalLayouts.length === 0 && myLayouts.length === 0 && (
-                  <div className={styles.menuEmpty}>No saved layouts yet</div>
-                )}
-                {globalLayouts.length > 0 && <div className={styles.menuSection}>Prebuilt</div>}
                 {globalLayouts.map(t => (
                   <div key={`g${t.id}`} className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
