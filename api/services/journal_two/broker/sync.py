@@ -188,6 +188,24 @@ async def sync_all_for_user(user_id: str, *, full: bool = False,
     return results
 
 
+def _default_interval_min() -> int:
+    """Scheduled-sync cadence. SnapTrade's launch guide caps BACKGROUND
+    polling at 4 holdings calls/day/user and ONE activities call per account
+    per 24h — the old 20-minute loop made ~72/day of each. Default mode
+    'daily' schedules each account once per 24h (the 20-min scheduler tick
+    just filters for due accounts, so syncs stay naturally spread across the
+    day by connect time); intraday freshness comes from webhooks, on-login
+    manual refresh, and the Recent Orders poll instead. BROKER_SYNC_MODE=
+    legacy restores the old cadence; explicit BROKER_SYNC_INTERVAL_MIN wins
+    over either mode."""
+    import os
+    explicit = os.getenv("BROKER_SYNC_INTERVAL_MIN")
+    if explicit:
+        return int(explicit)
+    mode = (os.getenv("BROKER_SYNC_MODE") or "daily").strip().lower()
+    return 20 if mode == "legacy" else 1440
+
+
 async def sync_due_accounts(
     *, interval_minutes: int | None = None, concurrency: int | None = None
 ) -> dict[str, Any]:
@@ -195,8 +213,8 @@ async def sync_due_accounts(
     interval, across all users, with bounded concurrency. One failing account
     never blocks the others (isolated per-account)."""
     import os
-    interval = interval_minutes if interval_minutes is not None else int(
-        os.getenv("BROKER_SYNC_INTERVAL_MIN", "20"))
+    interval = (interval_minutes if interval_minutes is not None
+                else _default_interval_min())
     # Default SERIAL: auth.db is single-writer SQLite, so concurrent account
     # syncs contend with EACH OTHER on every write ("database is locked"
     # bursts across members, prod 2026-07-16). Parallelism only ever sped up
