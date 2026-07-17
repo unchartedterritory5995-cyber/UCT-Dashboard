@@ -51,6 +51,24 @@ import uvicorn
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(name)s] %(message)s")
+
+# Crash forensics (2026-07-17: three in-place CRASHes — 9:34/10:14/10:26 ET —
+# left NO trace in logs). faulthandler catches C-level deaths (segfault/abort);
+# threading.excepthook catches uncaught exceptions in worker threads, which
+# otherwise print bare to a stderr that Railway's rate limiter was dropping.
+import faulthandler
+faulthandler.enable()
+
+
+def _thread_excepthook(args):
+    logging.getLogger("flow-worker").critical(
+        "UNCAUGHT EXCEPTION in thread %s",
+        getattr(args.thread, "name", "?"),
+        exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+    )
+
+
+threading.excepthook = _thread_excepthook
 for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
                "websockets.protocol", "asyncio", "uvicorn.access"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)

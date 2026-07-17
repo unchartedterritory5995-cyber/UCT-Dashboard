@@ -2617,7 +2617,16 @@ async def _run_session(ws):
                     nh.append((ts_ms * 1_000_000, bid, ask))
                     _state["quotes_received"] += 1
                 elif ev_type == "status":
-                    logger.info("[massive-ws] status: %s", evt)
+                    _msg = str(evt.get("message", ""))
+                    if _msg.startswith(("subscribed to:", "unsubscribed to:")):
+                        # Per-contract sub/unsub acks flood 500+ lines/sec at
+                        # the open — they hit Railway's log rate cap (dropping
+                        # every other message, incl. crash tracebacks) and burn
+                        # recv-loop CPU. The aggregate "Q.subscribed N
+                        # contracts (pool now X)" lines already cover this.
+                        logger.debug("[massive-ws] status: %s", evt)
+                    else:
+                        logger.info("[massive-ws] status: %s", evt)
                 else:
                     # Other event types (AM, A, FMV) -- not subscribed
                     logger.debug("[massive-ws] unhandled ev=%s", ev_type)
