@@ -442,7 +442,10 @@ export default function ChartsWorkspace() {
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
   const mc = useMultiChartState()
   const [mcMenuOpen, setMcMenuOpen] = useState(false)
-  const gridMode = mc.state.mode === 'grid'
+  // ?gridspike=N (admin-only) forces grid mode for the perf harness.
+  const gridSpikeRequested = isAdmin && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).has('gridspike')
+  const gridMode = mc.state.mode === 'grid' || gridSpikeRequested
   // Grid-kind templates live in the same /api/charts/layouts store; keep them
   // out of the workspace Open-layout menu (their {widgets:[]} shape would
   // apply as a blank board) — the Multi Charts dropdown lists them instead.

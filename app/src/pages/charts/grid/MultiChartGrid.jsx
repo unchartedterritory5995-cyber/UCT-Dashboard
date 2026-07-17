@@ -15,19 +15,47 @@
 // re-renders zero StockCharts.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import usePreferences from '../../../hooks/usePreferences'
+import { useAuth } from '../../../context/AuthContext'
 import { useWorkspace } from '../WorkspaceContext'
 import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
 import GridChartCell from './GridChartCell'
 import useStaggeredMount from './useStaggeredMount'
 import { parseLayoutId } from './gridLayouts'
+import { createSpike, SPIKE_SYMS } from './gridSpike'
 import styles from './MultiChartGrid.module.css'
 
 export default function MultiChartGrid({ mc }) {
   const { chartsTheme } = useWorkspace()
   const { prefs, setPref } = usePreferences()
-  const { state, hydrated } = mc
+  const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+
+  // ── Perf-spike harness (admin-only, ?gridspike=N&tf=D|5) ──
+  // Forces a synthetic N-cell grid of distinct liquid tickers through the REAL
+  // grid path (mount queue, lite profile, theme) with persistence disabled —
+  // a spike run must never write a 16-cell board into the user's saved state.
+  const spikeN = Math.max(0, Math.min(16, Number(searchParams.get('gridspike')) || 0))
+  const spikeActive = spikeN > 0 && user?.role === 'admin'
+  const spikeTf = searchParams.get('tf') === '5' ? '5' : 'D'
+  const spikeRef = useRef(null)
+  if (spikeActive && !spikeRef.current) spikeRef.current = createSpike({ n: spikeN, tf: spikeTf })
+  const spikeState = useMemo(() => {
+    if (!spikeActive) return null
+    const cols = Math.ceil(Math.sqrt(spikeN))
+    const rows = Math.ceil(spikeN / cols)
+    return {
+      mode: 'grid',
+      layout: `${rows}x${cols}`,
+      cells: SPIKE_SYMS.slice(0, spikeN).map((sym, i) => ({ id: `spike${i}`, sym, tf: spikeTf })),
+      syncCrosshair: false,
+    }
+  }, [spikeActive, spikeN, spikeTf])
+
+  const state = spikeState || mc.state
+  const hydrated = spikeActive || mc.hydrated
   const layout = parseLayoutId(state.layout)
   const cells = state.cells
   const cellsRef = useRef(cells)
@@ -50,8 +78,8 @@ export default function MultiChartGrid({ mc }) {
     [cells.length],   // eslint-disable-line react-hooks/exhaustive-deps
   )
   const onChangeFns = useMemo(
-    () => cells.map((_, i) => (next) => mc.updateCellAt(i, next)),
-    [cells.length, mc.updateCellAt],   // eslint-disable-line react-hooks/exhaustive-deps
+    () => cells.map((_, i) => (next) => { if (!spikeActive) mc.updateCellAt(i, next) }),
+    [cells.length, mc.updateCellAt, spikeActive],   // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   // ── Crosshair sync bus (ref-based; passed to cells only while Sync is on) ──
@@ -63,7 +91,11 @@ export default function MultiChartGrid({ mc }) {
       subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn) },
     }
   }
-  const crosshairBus = state.syncCrosshair ? busRef.current : null
+  // Spike mode wires the counting bus (validity guard for the sweep — emit()
+  // counts, subscribe is a no-op so cells never fan out = sync-OFF numbers).
+  const crosshairBus = spikeActive
+    ? spikeRef.current.bus
+    : (state.syncCrosshair ? busRef.current : null)
 
   // ── Mount queue: only cells WITH a symbol consume slots ──
   const chartIds = useMemo(() => cells.filter(c => c.sym).map(c => c.id), [cells])
@@ -75,6 +107,17 @@ export default function MultiChartGrid({ mc }) {
     }),
     [cells.length, release],   // eslint-disable-line react-hooks/exhaustive-deps
   )
+
+  // Spike instrumentation: stamp mountAt when the queue actually admits a
+  // cell's chart (post-commit, so the cell's DOM node exists for the
+  // first-canvas MutationObserver).
+  useEffect(() => {
+    const spike = spikeRef.current
+    if (!spike) return
+    for (const c of cells) {
+      if (c.sym && mountedIds.has(c.id)) spike.reportCellMount(c.id, c.sym)
+    }
+  }, [mountedIds, cells])
 
   // ── Shared chart settings modal (exact ChartWidget wiring) ──
   const gridCs = mergeChartSettings(prefs.chart_settings)
