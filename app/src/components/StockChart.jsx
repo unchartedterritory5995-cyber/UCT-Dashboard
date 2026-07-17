@@ -5471,7 +5471,16 @@ export default function StockChart({
           ))
         }
         try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
-        if (filteredBars.length === oldBarCount) pendingTfReframeRef.current = null
+        // The session preview candle is part of SETTLING, not a post-settle live bar.
+        // It lands ~1s after the RTH bars (separate per-symbol /api/bars?tf=5 fetch),
+        // so keying release on the RTH count alone released the guard one commit too
+        // early: the candle then appended with nothing re-asserting the range, and
+        // shiftVisibleRangeOnNewBar walked the whole view left by a bar — the "opens,
+        // then repositions once" jitter when flipping tickers in pre/post market.
+        // Holding the guard until the aggregate resolves keeps the RTH bars exactly
+        // put; the preview candle just appears in the right pad.
+        const _sessionSettled = !sessionCandleActive || sessionExtReady
+        if (filteredBars.length === oldBarCount && _sessionSettled) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
         // Width-proportional floor (was a flat -1): LWC-side drift during a
@@ -5556,7 +5565,7 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, canvasTheme, sessionPreviewLastBar])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
