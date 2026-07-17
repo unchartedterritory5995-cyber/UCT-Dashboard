@@ -1,0 +1,137 @@
+/* Chart Settings modal — centered, OLED-black, matches the UCT dark aesthetic.
+   Portaled to <body> so it centers on the viewport regardless of the widget. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(2px);
+  padding: 20px;
+}
+
+.panel {
+  width: min(560px, 94vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: #0b0b0c;
+  border: 1px solid #232323;
+  border-radius: 12px;
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+  animation: pop 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #1c1c1d;
+  background: linear-gradient(180deg, #101011 0%, #0b0b0c 100%);
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #ece7d6;
+}
+
+.close {
+  background: transparent;
+  border: none;
+  color: #6f6a5e;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: color 120ms, background 120ms;
+}
+.close:hover { color: #ece7d6; background: rgba(255, 255, 255, 0.05); }
+
+.body {
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.section + .section { margin-top: 22px; }
+
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #7c7768;
+  margin-bottom: 12px;
+}
+
+/* Type selector — a clean 3-across grid of icon cards. */
+.typeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 460px) {
+  .typeGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.typeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 16px 8px 12px;
+  background: #121213;
+  border: 1px solid #232324;
+  border-radius: 9px;
+  color: #9a9484;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 120ms, background 120ms, color 120ms, transform 120ms;
+}
+.typeCard:hover {
+  background: #171718;
+  border-color: #34342f;
+  color: #d8d2c2;
+  transform: translateY(-1px);
+}
+
+.typeGlyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  color: inherit;
+}
+
+.typeName {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Active card — gold accent, matching the site's premium accent. */
+.typeCardActive,
+.typeCardActive:hover {
+  background: rgba(201, 168, 76, 0.10);
+  border-color: #c9a84c;
+  color: #e7cf8f;
+  transform: none;
+}

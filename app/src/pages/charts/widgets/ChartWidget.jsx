@@ -16,6 +16,7 @@ import useTickerMeta from '../../../hooks/useTickerMeta'
 import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import UIcon from '../../../components/ui/UIcon'
 import ChartDayGain from './ChartDayGain'
+import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
 import styles from '../ChartsWorkspace.module.css'
 
 const TFS = [
@@ -132,6 +133,14 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     const next = { ...mergeChartSettings(prefs.chart_settings), extendedHoursShading: on, preset: 'custom' }
     setPref('chart_settings', JSON.stringify(next))
   }, [prefs.chart_settings, setPref])
+
+  // New chart-settings modal (opened by the button above the clock). Persists the
+  // whole merged settings object to the shared chart_settings pref; StockChart reads
+  // the same pref so changes apply live.
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const updateChartSettings = useCallback((next) => {
+    setPref('chart_settings', JSON.stringify(next))
+  }, [setPref])
 
   // Volume-pane height persists per-user across the charts workspace (default 12%),
   // so dragging the price/volume separator sticks across ticker changes + refresh.
@@ -275,6 +284,17 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         ) : (
           <ChartDayGain sym={sym} />
         )}
+        {/* Chart settings — opens the centered settings modal. Sits at the top-right
+            of the header, directly above the market clock. */}
+        <button
+          type="button"
+          className={styles.chartSettingsBtn}
+          onClick={() => setSettingsOpen(true)}
+          title="Chart settings"
+          aria-label="Chart settings"
+        >
+          <UIcon name="gear" size={15} />
+        </button>
       </div>
       <div className={styles.tfBar}>
         {TFS.map(([code, label]) => (
@@ -357,6 +377,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           } : {})}
           onSymbolChange={handleSymbolChange}
           onTfChange={setTf}
+          onOpenSettings={() => setSettingsOpen(true)}
           onCrosshairMove={reportCrosshair}
           externalCrosshair={externalCrosshair}
           /* The intraday EXT/RTH toggle now lives in the widget header (beside the
@@ -455,6 +476,12 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           </div>
         </>
       )}
+      <ChartSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={chartCs}
+        onChange={updateChartSettings}
+      />
     </div>
   )
 }

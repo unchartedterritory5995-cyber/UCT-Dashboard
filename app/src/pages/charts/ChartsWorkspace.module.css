@@ -169,6 +169,29 @@
   margin: 2px 4px;
 }
 
+/* Chart settings button — top-right of the header, directly above the market clock. */
+.chartSettingsBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+.chartSettingsBtn:hover {
+  color: var(--accent, #c9a84c);
+  border-color: var(--border, #2e3127);
+  background: rgba(201, 168, 76, 0.08);
+}
+
 /* Market Cap + Next Earnings labels, in the space right of the timeframes. */
 .chartMeta {
   display: flex;

@@ -418,7 +418,7 @@ function computeBarTime(tf, tickTimeSec) {
 
 // ─── Series type helpers ─────────────────────────────────────────────────────
 
-const OHLC_TYPES = new Set(['candles', 'hollow', 'bars'])
+const OHLC_TYPES = new Set(['candles', 'hollow', 'bars', 'hlc'])
 const VWAP_TFS = new Set(['1', '5', '15', '30', '60'])
 
 function isOhlcType(chartType) {
@@ -816,6 +816,7 @@ export default function StockChart({
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
+  onOpenSettings = null,    // optional () => void — when set, the "Chart settings" context-menu item opens THIS instead of the old toolbar panel (charts workspace uses the new centered modal)
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
   onCompareChange = null,   // callback(sym) — parent manages compareSymbol state
   // ── Optional multi-chart sync hooks (additive — all behavior unchanged when absent) ──
@@ -1603,7 +1604,12 @@ export default function StockChart({
       next.preset = 'custom'
       handleUpdateChartSettings(next)
     }
-    const openSettings = () => { try { toolbarRef.current?.openSettings() } catch {} }
+    // Charts workspace passes onOpenSettings → route the "Chart settings" menu item
+    // to the new centered modal; other surfaces fall back to the old toolbar panel.
+    const openSettings = () => {
+      if (onOpenSettings) { try { onOpenSettings() } catch {} return }
+      try { toolbarRef.current?.openSettings() } catch {}
+    }
     // Reset view: reframe to the timeframe's default window (Daily on the workspace
     // = dailyDefaultBars ≈ 6 months), newest candle anchored at LAST_CANDLE_POS —
     // NOT LWC's resetTimeScale() (which fit-all-ed to ~1 year). Falls back to
@@ -1766,7 +1772,7 @@ export default function StockChart({
     secs.push({ id: 'view', items: viewItems })
 
     return secs
-  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays, resolvedTf, onTfChange])
+  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays, resolvedTf, onTfChange, onOpenSettings])
 
   // ── Pattern overlay state (Phase 5 Tasks 1, 3, 4) ──
   // Toggle persists via chart_settings (usePreferences). Local UI state mirrors
@@ -4011,6 +4017,13 @@ export default function StockChart({
             upColor: cs.candles.upColor, downColor: cs.candles.downColor,
           })
           break
+        case 'hlc':
+          // HLC bar = OHLC bar with the left "open" tick hidden.
+          priceSeries = chart.addSeries(BarSeries, {
+            upColor: cs.candles.upColor, downColor: cs.candles.downColor,
+            openVisible: false,
+          })
+          break
         case 'line':
           priceSeries = chart.addSeries(LineSeries, {
             color: cs.candles.upColor, lineWidth: 2,
@@ -4075,7 +4088,7 @@ export default function StockChart({
       // Net-change eligibility: candles/bars always; on Sunrise ALSO 'hollow' (the
       // Sunrise look is hollow, and without this a saved 'hollow' chart type skips the
       // wrap entirely and LWC colors by close-vs-OPEN — the "up day shows red" bug).
-      const _netEligible = cs.chartType === 'candles' || cs.chartType === 'bars'
+      const _netEligible = cs.chartType === 'candles' || cs.chartType === 'bars' || cs.chartType === 'hlc'
         || (canvasTheme === 'sunrise' && isOhlcType(cs.chartType))
       if (colorByNetChange && _netEligible && !priceSeries.__uctNetWrap) {
         const _netUp = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
