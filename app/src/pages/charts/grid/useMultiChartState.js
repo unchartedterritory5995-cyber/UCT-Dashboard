@@ -105,6 +105,46 @@ export default function useMultiChartState() {
     apply(prev => ({ ...prev, cells: prev.cells.map((c, i) => (i === index ? nextCell : c)) }))
   }, [apply])
 
+  // Bulk fill (Groups mode). ONE apply() — never a loop of updateCellAt (that
+  // races the debounced save). Reuse a cell id when the target sym matches an
+  // existing cell's sym so overlapping charts don't remount; mint fresh ids
+  // only for genuinely-new syms. Grows/shrinks the layout to fit N (<= cap).
+  const fillCells = useCallback((syms, group = null) => {
+    apply(prev => {
+      const want = (Array.isArray(syms) ? syms : [])
+        .map(s => (typeof s === 'string' ? s.trim().toUpperCase() : null))
+        .filter(Boolean)
+      const layout = parseLayoutId(prev.layout)
+      const count = Math.min(layout.cellCount, want.length || layout.cellCount)
+      // Pool of reusable {id} by sym, from the current cells (each id once).
+      const pool = new Map()
+      for (const c of prev.cells) {
+        if (c.sym && !pool.has(c.sym)) pool.set(c.sym, c.id)
+      }
+      const used = new Set()
+      const cells = []
+      for (let i = 0; i < count; i++) {
+        const sym = want[i] || null
+        let id
+        if (sym && pool.has(sym) && !used.has(pool.get(sym))) {
+          id = pool.get(sym); used.add(id)
+        } else {
+          id = Math.random().toString(36).slice(2, 8)
+        }
+        cells.push({ id, sym, tf: prev.cells[i]?.tf || 'D' })
+      }
+      return { ...prev, mode: 'grid', cells, group: group || prev.group || null }
+    })
+  }, [apply])
+
+  const setGroup = useCallback((group) => {
+    apply(prev => ({ ...prev, group: group || null }))
+  }, [apply])
+
+  const clearGroup = useCallback(() => {
+    apply(prev => ({ ...prev, group: null }))
+  }, [apply])
+
   const setSyncCrosshair = useCallback((on) => {
     apply(prev => ({ ...prev, syncCrosshair: !!on }))
   }, [apply])
@@ -123,5 +163,6 @@ export default function useMultiChartState() {
     state, hydrated,
     settingsOpen, setSettingsOpen,
     enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, applyGridTemplate,
+    fillCells, setGroup, clearGroup,
   }
 }
