@@ -235,89 +235,86 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
           {activeTab === 'canvas' && (<>
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Background</div>
-            <div className={styles.modeRow}>
-              {[['solid', 'Solid'], ['gradient', 'Gradient']].map(([val, label]) => (
-                <button
-                  key={val}
-                  type="button"
-                  className={`${styles.modeCard} ${bgMode === val ? styles.modeCardActive : ''}`}
-                  onClick={() => setBgMode(val)}
-                  aria-pressed={bgMode === val}
-                >
-                  <span className={styles.modeName}>{label}</span>
-                </button>
-              ))}
+            <div className={styles.card}>
+              <div className={styles.seg} role="tablist">
+                {[['solid', 'Solid'], ['gradient', 'Gradient']].map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    role="tab"
+                    aria-selected={bgMode === val}
+                    className={`${styles.segBtn} ${bgMode === val ? styles.segBtnActive : ''}`}
+                    onClick={() => setBgMode(val)}
+                  >{label}</button>
+                ))}
+              </div>
+              {bgMode === 'solid' ? (
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Color</span>
+                  {colorSwatch('bg', 'Background')}
+                </div>
+              ) : (<>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Top</span>
+                  {colorSwatch('bgTop', 'Gradient Top')}
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Bottom</span>
+                  {colorSwatch('bgBottom', 'Gradient Bottom')}
+                </div>
+              </>)}
             </div>
-            {bgMode === 'solid' ? (
-              <div className={styles.cGroupsSingle}>
-                <div className={styles.cGroup}>
-                  <span className={styles.cGroupLabel}>Color</span>
-                  <div className={styles.cSwatches}>{colorSwatch('bg', 'Background')}</div>
-                </div>
-              </div>
-            ) : (
-              <div className={styles.cGroups}>
-                <div className={styles.cGroup}>
-                  <span className={styles.cGroupLabel}>Top</span>
-                  <div className={styles.cSwatches}>{colorSwatch('bgTop', 'Gradient Top')}</div>
-                </div>
-                <div className={styles.cGroup}>
-                  <span className={styles.cGroupLabel}>Bottom</span>
-                  <div className={styles.cSwatches}>{colorSwatch('bgBottom', 'Gradient Bottom')}</div>
-                </div>
-                <div className={styles.cGroup} />
-              </div>
-            )}
           </section>
 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Grid</div>
-            <div className={styles.rowBetween}>
-              <span className={styles.rowText}>Show grid lines</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={grid.visible !== false}
-                className={`${styles.toggle} ${grid.visible !== false ? styles.toggleOn : ''}`}
-                onClick={() => setGridVisible(grid.visible === false)}
-              ><span className={styles.toggleKnob} /></button>
-            </div>
-            {grid.visible !== false && (
-              <div className={styles.cGroupsSingle}>
-                <div className={styles.cGroup}>
-                  <span className={styles.cGroupLabel}>Line color</span>
-                  <div className={styles.cSwatches}>{colorSwatch('grid', 'Grid')}</div>
-                </div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Show grid lines</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={grid.visible !== false}
+                  className={`${styles.toggle} ${grid.visible !== false ? styles.toggleOn : ''}`}
+                  onClick={() => setGridVisible(grid.visible === false)}
+                ><span className={styles.toggleKnob} /></button>
               </div>
-            )}
+              {grid.visible !== false && (
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Line color</span>
+                  {colorSwatch('grid', 'Grid')}
+                </div>
+              )}
+            </div>
           </section>
 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Crosshair &amp; Text</div>
-            <div className={styles.cGroups}>
-              <div className={styles.cGroup}>
-                <span className={styles.cGroupLabel}>Crosshair</span>
-                <div className={styles.cSwatches}>{colorSwatch('crosshair', 'Crosshair')}</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Crosshair</span>
+                {colorSwatch('crosshair', 'Crosshair')}
               </div>
-              <div className={styles.cGroup}>
-                <span className={styles.cGroupLabel}>Scale text</span>
-                <div className={styles.cSwatches}>{colorSwatch('text', 'Scale Text')}</div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Scale text</span>
+                {colorSwatch('text', 'Scale Text')}
               </div>
-              <div className={styles.cGroup} />
             </div>
           </section>
 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Watermark</div>
-            <div className={styles.rowBetween}>
-              <span className={styles.rowText}>Show ticker watermark</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={watermark.visible !== false}
-                className={`${styles.toggle} ${watermark.visible !== false ? styles.toggleOn : ''}`}
-                onClick={() => setWmVisible(watermark.visible === false)}
-              ><span className={styles.toggleKnob} /></button>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Show ticker watermark</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={watermark.visible !== false}
+                  className={`${styles.toggle} ${watermark.visible !== false ? styles.toggleOn : ''}`}
+                  onClick={() => setWmVisible(watermark.visible === false)}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
             </div>
           </section>
           </>)}

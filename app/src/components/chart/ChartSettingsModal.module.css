@@ -111,15 +111,50 @@
 
 .section + .section { margin-top: 22px; }
 
-/* Canvas — labeled row with a toggle switch on the right. */
-.rowBetween {
+/* Canvas — grouped card of aligned rows (label left, control right). */
+.card {
+  background: #131315;
+  border: 1px solid #232325;
+  border-radius: 10px;
+  padding: 0 14px;
+}
+.field {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 48px;
 }
-.rowBetween + .cGroupsSingle { margin-top: 14px; }
-.rowText { font-size: 12.5px; color: #d4d4d4; }
+.field + .field { border-top: 1px solid #202022; }
+.fieldLabel { font-size: 12.5px; font-weight: 500; color: #d4d4d4; }
+
+/* Segmented control (Solid / Gradient) — sits flush at the top of the card. */
+.seg {
+  display: flex;
+  gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px solid #202022;
+}
+.segBtn {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #8a8a8a;
+  cursor: pointer;
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+.segBtn:hover { color: #cfcfcf; background: #1a1a1c; }
+.segBtnActive,
+.segBtnActive:hover {
+  color: #e7cf8f;
+  background: rgba(201, 168, 76, 0.10);
+  border-color: #c9a84c;
+}
 .toggle {
   position: relative;
   width: 38px;
