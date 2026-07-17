@@ -108,6 +108,24 @@ const TARGET_MAP = {
   one: 'oneColor',
 }
 
+// Header tab options.
+const TITLE_MODES = [
+  { val: 'ticker', label: 'Ticker' },
+  { val: 'company', label: 'Company' },
+  { val: 'both', label: 'Both' },
+]
+const HEADER_TFS = [
+  ['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'],
+  ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M'],
+]
+const HEADER_TOGGLES = [
+  ['showChange', 'Day change ($ / %)'],
+  ['showMarketCap', 'Market cap'],
+  ['showNextEarnings', 'Next earnings'],
+  ['showUctRating', 'UCT rating'],
+  ['showLegend', 'Chart legend'],
+]
+
 export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor }) {
   const panelRef = useRef(null)
   const dragRef = useRef(null)
@@ -246,6 +264,11 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
   const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
   const wmLines = watermark.lines || {}
+  // Header tab.
+  const header = settings?.header || {}
+  const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
+  const headerTfs = Array.isArray(header.timeframes) ? header.timeframes : []
+  const toggleHeaderTf = (code) => setHeader({ timeframes: headerTfs.includes(code) ? headerTfs.filter((c) => c !== code) : [...headerTfs, code] })
   const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
   const curTextSize = settings.textSize ?? 11
   const colorSwatch = (target, label, bg) => (
@@ -275,7 +298,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
         </div>
 
         <div className={styles.tabs} role="tablist">
-          {[['price', 'Price Style'], ['canvas', 'Canvas']].map(([id, label]) => (
+          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['header', 'Header']].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -401,6 +424,62 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                   {colorSwatch('watermark', 'Watermark', watermark.color || '#a8a290')}
                 </div>
               </>)}
+            </div>
+          </section>
+          </>)}
+          {activeTab === 'header' && (<>
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Title</div>
+            <div className={styles.modeRow}>
+              {TITLE_MODES.map(({ val, label }) => (
+                <button
+                  key={val}
+                  type="button"
+                  className={`${styles.modeCard} ${(header.titleMode || 'company') === val ? styles.modeCardActive : ''}`}
+                  onClick={() => setHeader({ titleMode: val })}
+                  aria-pressed={(header.titleMode || 'company') === val}
+                >
+                  <span className={styles.modeName}>{label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Show</div>
+            <div className={styles.card}>
+              {HEADER_TOGGLES.map(([key, label]) => (
+                <div className={styles.field} key={key}>
+                  <span className={styles.fieldLabel}>{label}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={header[key] !== false}
+                    className={`${styles.toggle} ${header[key] !== false ? styles.toggleOn : ''}`}
+                    onClick={() => setHeader({ [key]: header[key] === false })}
+                  ><span className={styles.toggleKnob} /></button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Timeframes</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Buttons</span>
+                <div className={styles.chipRow}>
+                  {HEADER_TFS.map(([code, label]) => (
+                    <button
+                      key={code}
+                      type="button"
+                      className={`${styles.chip} ${headerTfs.includes(code) ? styles.chipOn : ''}`}
+                      onClick={() => toggleHeaderTf(code)}
+                      aria-pressed={headerTfs.includes(code)}
+                    >{label}</button>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
           </>)}

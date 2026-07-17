@@ -118,9 +118,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // the theme name + the Uncharted Territory brand mark (it has no company ticker,
   // so no logo.dev logo). meta.name comes from the shared ticker-meta cache.
   const meta = useTickerMeta(themeIdx.isIndex ? null : sym)
-  const headerLabel = themeIdx.isIndex
+  const companyName = meta?.name || sym
+  const indexLabel = themeIdx.isIndex
     ? (themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
-    : (meta?.name || sym)
+    : null
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
     onOptsChange?.({ ...(opts || {}), tf: nextTf })
@@ -150,6 +151,23 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const { prefs, setPref } = usePreferences()
   const chartCs = mergeChartSettings(prefs.chart_settings)
   const extHoursOn = chartCs.extendedHoursShading ?? true
+
+  // Header customization (Chart Settings → Header). Title mode, visible timeframe
+  // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
+  const hdr = chartCs.header
+  const headerLabel = themeIdx.isIndex
+    ? indexLabel
+    : hdr.titleMode === 'ticker'
+      ? sym
+      : hdr.titleMode === 'both'
+        ? (companyName && companyName !== sym ? `${sym} (${companyName})` : sym)
+        : companyName
+  const visibleTfs = (() => {
+    const sel = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
+    const list = TFS.filter(([code]) => sel.includes(code))
+    return list.length ? list : TFS   // never leave the TF bar empty
+  })()
+  const showAnyMeta = hdr.showMarketCap || hdr.showNextEarnings || hdr.showUctRating
   const setExtHours = useCallback((on) => {
     const next = { ...mergeChartSettings(prefs.chart_settings), extendedHoursShading: on, preset: 'custom' }
     setPref('chart_settings', JSON.stringify(next))
@@ -314,7 +332,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             displayLabel={headerLabel}
           />
         </div>
-        {themeIdx.isIndex ? (
+        {hdr.showChange && (themeIdx.isIndex ? (
           idxGain && (
             <span className={styles.chartDayGain} style={{ color: idxGain.up ? (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47') }}>
               {idxGain.up ? '+' : ''}{idxGain.abs.toFixed(2)} ({idxGain.up ? '+' : ''}{idxGain.pct.toFixed(2)}%)
@@ -322,7 +340,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           )
         ) : (
           <ChartDayGain sym={sym} />
-        )}
+        ))}
         {/* Chart settings — opens the centered settings modal. Sits at the top-right
             of the header, directly above the market clock. */}
         <button
@@ -336,7 +354,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         </button>
       </div>
       <div className={styles.tfBar}>
-        {TFS.map(([code, label]) => (
+        {visibleTfs.map(([code, label]) => (
           <button
             key={code}
             type="button"
@@ -344,20 +362,28 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             onClick={() => setTf(code)}
           >{label}</button>
         ))}
-        <div className={styles.chartMeta}>
-          <span className={styles.chartMetaItem}>
-            <span className={styles.chartMetaLabel}>Market Cap</span>
-            <span className={styles.chartMetaVal} style={{ color: '#c9a84c' }}>{mktCap || '—'}</span>
-          </span>
-          <span className={styles.chartMetaItem}>
-            <span className={styles.chartMetaLabel}>Next Earnings</span>
-            <span className={styles.chartMetaVal} style={{ color: '#6ba3be' }}>{nextEarnStr || '—'}</span>
-          </span>
-          <span className={styles.chartMetaItem}>
-            <span className={styles.chartMetaLabel}>UCT Rating</span>
-            <span className={styles.chartMetaVal} style={{ color: ratingColor }}>{uctRating != null ? uctRating : '—'}</span>
-          </span>
-        </div>
+        {showAnyMeta && (
+          <div className={styles.chartMeta}>
+            {hdr.showMarketCap && (
+              <span className={styles.chartMetaItem}>
+                <span className={styles.chartMetaLabel}>Market Cap</span>
+                <span className={styles.chartMetaVal} style={{ color: '#c9a84c' }}>{mktCap || '—'}</span>
+              </span>
+            )}
+            {hdr.showNextEarnings && (
+              <span className={styles.chartMetaItem}>
+                <span className={styles.chartMetaLabel}>Next Earnings</span>
+                <span className={styles.chartMetaVal} style={{ color: '#6ba3be' }}>{nextEarnStr || '—'}</span>
+              </span>
+            )}
+            {hdr.showUctRating && (
+              <span className={styles.chartMetaItem}>
+                <span className={styles.chartMetaLabel}>UCT Rating</span>
+                <span className={styles.chartMetaVal} style={{ color: ratingColor }}>{uctRating != null ? uctRating : '—'}</span>
+              </span>
+            )}
+          </div>
+        )}
         <div className={styles.tfBarRight}>
           {isDWMtf && (
             <div className={styles.sessionToggle} role="group" aria-label="Chart session view">
@@ -453,6 +479,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           verticalLegend
           lockWatermark
           alwaysShowLegend
+          hideLegend={!hdr.showLegend}
           rightPadBars={6}
           dailyDefaultBars={126}
           volumeSeparatePane

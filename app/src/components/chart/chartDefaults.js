@@ -34,6 +34,18 @@ export const CHART_DEFAULTS = {
 
   crosshair: { color: '#706b5e', style: 1, width: 1, magnet: false }, // LineStyle: 0=solid, 1=dotted, 2=dashed, 3=large-dashed; width in px; magnet snaps to OHLC
 
+  // Chart-widget header (workspace): the title/change row + timeframe bar + info
+  // stats. Fully user-toggleable via Chart Settings → Header.
+  header: {
+    titleMode: 'company',   // 'company' | 'ticker' | 'both' (TICKER (Company Name))
+    showChange: true,       // current-day $ + % change beside the title
+    timeframes: ['1', '5', '15', '30', '60', 'D', 'W', 'M'], // which TF buttons show
+    showMarketCap: true,
+    showNextEarnings: true,
+    showUctRating: true,
+    showLegend: true,       // the on-chart OHLCV crosshair legend
+  },
+
   overlays: [
     { enabled: true, type: 'EMA', period: 9,   color: '#4ade80' },
     { enabled: true, type: 'EMA', period: 20,  color: '#f472b6' },
@@ -244,6 +256,11 @@ export function mergeChartSettings(userSettings) {
     textSize: parsed.textSize ?? CHART_DEFAULTS.textSize,
     grid: { ...CHART_DEFAULTS.grid, ...(parsed.grid || {}) },
     crosshair: { ...CHART_DEFAULTS.crosshair, ...(parsed.crosshair || {}) },
+    header: {
+      ...CHART_DEFAULTS.header,
+      ...(parsed.header || {}),
+      timeframes: Array.isArray(parsed.header?.timeframes) ? parsed.header.timeframes : CHART_DEFAULTS.header.timeframes,
+    },
     overlays: Array.isArray(parsed.overlays)
       ? parsed.overlays.map((o, i) => ({ ...CHART_DEFAULTS.overlays[i], ...o }))
       : CHART_DEFAULTS.overlays.map(o => ({ ...o })),
