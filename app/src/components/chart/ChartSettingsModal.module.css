@@ -19,8 +19,8 @@
   max-height: 88vh;
   display: flex;
   flex-direction: column;
-  background: #0b0b0c;
-  border: 1px solid #232323;
+  background: #101108;
+  border: 1px solid #2e3127;
   border-radius: 12px;
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.7),
@@ -40,15 +40,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-bottom: 1px solid #1c1c1d;
-  background: linear-gradient(180deg, #101011 0%, #0b0b0c 100%);
+  border-bottom: 1px solid #262920;
+  background: linear-gradient(180deg, #181a10 0%, #101108 100%);
 }
 
 .title {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: #ece7d6;
+  color: #f0ead8;
 }
 
 .close {
@@ -62,11 +62,51 @@
   border-radius: 6px;
   transition: color 120ms, background 120ms;
 }
-.close:hover { color: #ece7d6; background: rgba(255, 255, 255, 0.05); }
+.close:hover { color: #f0ead8; background: rgba(255, 255, 255, 0.05); }
+
+/* Tabs — horizontal row under the header (Price Style / Canvas / …). */
+.tabs {
+  display: flex;
+  gap: 22px;
+  padding: 0 18px;
+  border-bottom: 1px solid #262920;
+}
+.tab {
+  position: relative;
+  background: transparent;
+  border: none;
+  padding: 11px 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #7c7768;
+  cursor: pointer;
+  transition: color 120ms;
+}
+.tab:hover { color: #c4bead; }
+.tabActive { color: #f0ead8; }
+.tabActive::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: #c9a84c;
+  border-radius: 2px 2px 0 0;
+}
 
 .body {
   padding: 18px;
   overflow-y: auto;
+}
+
+.blankTab {
+  padding: 40px 8px;
+  text-align: center;
+  font-size: 12.5px;
+  color: #6c6858;
 }
 
 .section + .section { margin-top: 22px; }
@@ -97,8 +137,8 @@
   justify-content: center;
   gap: 9px;
   padding: 16px 8px 12px;
-  background: #121213;
-  border: 1px solid #232324;
+  background: #191c15;
+  border: 1px solid #2e3127;
   border-radius: 9px;
   color: #9a9484;
   cursor: pointer;
@@ -106,8 +146,8 @@
   transition: border-color 120ms, background 120ms, color 120ms, transform 120ms;
 }
 .typeCard:hover {
-  background: #171718;
-  border-color: #34342f;
+  background: #20231b;
+  border-color: #3a3d32;
   color: #d8d2c2;
   transform: translateY(-1px);
 }
@@ -152,8 +192,8 @@
   align-items: center;
   justify-content: center;
   padding: 12px;
-  background: #121213;
-  border: 1px solid #232324;
+  background: #191c15;
+  border: 1px solid #2e3127;
   border-radius: 9px;
   cursor: pointer;
   font-family: inherit;
@@ -161,8 +201,8 @@
   transition: border-color 120ms, background 120ms, transform 120ms;
 }
 .modeCard:hover {
-  background: #171718;
-  border-color: #34342f;
+  background: #20231b;
+  border-color: #3a3d32;
   transform: translateY(-1px);
 }
 
@@ -186,27 +226,35 @@
 .modeCardActive .modeName { color: #e7cf8f; }
 .modeCardActive .modeDesc { color: #b39a5e; }
 
-/* Colors — compact rows: label + up/down swatches (TradingView-style). */
-.cRow {
+/* Colors — Body / Borders / Wick line up under the 3 columns above (Body left,
+   Borders center, Wick right), each centered within its third. */
+.cGroups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.cGroup {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 6px 0;
+  gap: 9px;
 }
-.cRow + .cRow { border-top: 1px solid #161617; }
-.cRowLabel {
-  font-size: 12.5px;
+.cGroupLabel {
+  font-size: 11px;
   font-weight: 600;
-  color: #d8d2c2;
-  width: 66px;
-  flex-shrink: 0;
+  letter-spacing: 0.3px;
+  color: #b9b4a3;
 }
-.cSwatches { display: flex; gap: 8px; }
+.cSwatches { display: flex; gap: 10px; justify-content: center; }
+
+/* Single-group color layout (one-color mode, line/area) — left-aligned. */
+.cGroupsSingle { display: flex; }
+.cGroupsSingle .cGroup { align-items: flex-start; }
 .cSwatch {
   width: 30px;
   height: 30px;
   border-radius: 6px;
-  border: 1px solid #3a3a3b;
+  border: 1px solid #33372b;
   cursor: pointer;
   padding: 0;
   transition: border-color 120ms, box-shadow 120ms;
@@ -215,5 +263,5 @@
 .cSwatchActive,
 .cSwatchActive:hover {
   border-color: transparent;
-  box-shadow: 0 0 0 2px #0b0b0c, 0 0 0 3px #c9a84c;
+  box-shadow: 0 0 0 2px #101108, 0 0 0 3px #c9a84c;
 }
