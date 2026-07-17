@@ -952,3 +952,41 @@ def trigger_rollback(run_id: int, _auth: dict = Depends(require_flow_admin)):
     if t.is_alive():
         return JSONResponse({"status": "running", "check": "/api/flow-gap-fill/status"})
     return JSONResponse(out)
+
+
+@router.get("/rest-backfill-probe")
+def rest_backfill_probe(ticker: str = "O:SPY260918C00600000", window_sec: int = 300,
+                        _auth: dict = Depends(require_flow_admin)):
+    """Read-only: verify Massive /v3/trades works + returns the expected shape.
+    No writes. Run this before enabling FLOW_REST_BACKFILL_ENABLED."""
+    from api import flow_rest_backfill
+    return JSONResponse(flow_rest_backfill.probe(ticker=ticker, window_sec=window_sec))
+
+
+@router.get("/rest-backfill-status")
+def rest_backfill_status(_auth: dict = Depends(require_flow_admin)):
+    from api import flow_rest_backfill
+    return JSONResponse(flow_rest_backfill.get_status())
+
+
+@router.post("/rest-backfill")
+def rest_backfill_run(start_ns: int, end_ns: int, use_qpool: bool = True,
+                      _auth: dict = Depends(require_flow_admin)):
+    """Manually backfill [start_ns, end_ns] for the current Q-pool contracts
+    (idempotent, dedup-safe). Gated by FLOW_REST_BACKFILL_ENABLED. Used to test
+    the path against live data before wiring the auto-on-reconnect hook."""
+    from api import flow_rest_backfill
+    contracts = []
+    if use_qpool:
+        try:
+            from api.massive_ws_worker import _q_subscribed
+            contracts = list(_q_subscribed)
+        except Exception as e:  # noqa: BLE001
+            return JSONResponse({"status": f"qpool_unavailable: {e}"}, status_code=503)
+
+    def _do():
+        flow_rest_backfill.backfill_window(start_ns, end_ns, contracts)
+
+    threading.Thread(target=_do, daemon=True, name="flow-rest-backfill-manual").start()
+    return JSONResponse({"status": "started", "contracts": len(contracts),
+                         "check": "/api/flow-gap-fill/rest-backfill-status"})
