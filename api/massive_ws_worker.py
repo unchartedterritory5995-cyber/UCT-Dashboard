@@ -1529,6 +1529,11 @@ def _write_events(events: list) -> None:
         from api.flow_db import FlowDB
         db = FlowDB()
 
+        # Per-pass timing (2026-07-17): the writer sustains ~30 ev/s vs the
+        # ~650/s open firehose and nobody knows WHICH enrichment pass eats the
+        # time. One INFO line per coalesced batch answers it in production.
+        _tp0 = time.perf_counter()
+
         # Enrich with MktCap + Sector from FlowDB cache (free, instant, no API).
         # Any ticker that's been in FlowDB before (BBS upload, prior writes)
         # has its metadata cached. New tickers get empty metadata; the page's
@@ -1556,6 +1561,8 @@ def _write_events(events: list) -> None:
                 len(ticker_meta), len(all_syms),
             )
 
+        _tp_meta = time.perf_counter()
+
         # OI enrichment: look up snapshot OI for each event's contract.
         # Powers Color (WHITE/YELLOW/MAGENTA) per BBS rules. Without OI we
         # can't tell if a trade exceeds existing positioning -- everything
@@ -1566,6 +1573,8 @@ def _write_events(events: list) -> None:
         _state["last_oi_lookup_size"] = len(stocks) + len(indexes)
         _state["last_oi_lookup_resolved"] = len(oi_stocks) + len(oi_indexes)
 
+        _tp_oi = time.perf_counter()
+
         # Phase 2d: cumulative day volume per contract for BBS-style Color.
         # Combined with OI, this drives YELLOW/MAGENTA confirmation. Without
         # this, Color is computed from single-event volume and we sit at
@@ -1573,16 +1582,22 @@ def _write_events(events: list) -> None:
         cum_vol_stocks = _load_cumulative_volume(stocks) if stocks else {}
         cum_vol_indexes = _load_cumulative_volume(indexes) if indexes else {}
 
+        _tp_cum = time.perf_counter()
+
         # Phase 2b: spot price enrichment. Best-effort -- symbols not in cache
         # get omitted and spot=0 in the row (same as pre-Phase-2b behavior).
         # Symbols queue for background fetch; next batch picks them up.
         spot_stocks = _load_spot_for_events(stocks) if stocks else {}
         spot_indexes = _load_spot_for_events(indexes) if indexes else {}
 
+        _tp_spot = time.perf_counter()
+
         # Phase 2g: ER flag from FlowDB cache (BBS uploads provide this).
         # Free lookup, no external API.
         all_syms_for_er = list({e.root for e in events})
         er_map = _load_er_flags(all_syms_for_er)
+
+        _tp_er = time.perf_counter()
 
         if stocks:
             csv_str = _events_to_csv(stocks, "stocks",
@@ -1609,6 +1624,18 @@ def _write_events(events: list) -> None:
                     "[massive-ws] indexes: %d inserted, %d skipped (dupes)",
                     result["inserted"], result.get("skipped", 0),
                 )
+
+        _tp_ins = time.perf_counter()
+        _prof = (
+            "[massive-ws] write-profile: n=%d meta=%.0fms oi=%.0fms "
+            "cumvol=%.0fms spot=%.0fms er=%.0fms csv+insert=%.0fms total=%.0fms"
+            % (len(events),
+               (_tp_meta - _tp0) * 1000, (_tp_oi - _tp_meta) * 1000,
+               (_tp_cum - _tp_oi) * 1000, (_tp_spot - _tp_cum) * 1000,
+               (_tp_er - _tp_spot) * 1000, (_tp_ins - _tp_er) * 1000,
+               (_tp_ins - _tp0) * 1000))
+        _state["last_write_profile"] = _prof
+        logger.info(_prof)
 
         _state["last_write_ts"] = time.time()
         try:

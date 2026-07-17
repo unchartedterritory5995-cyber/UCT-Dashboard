@@ -122,6 +122,15 @@ def _run(service_name: str) -> None:
     warned_half = False
     stocks_dead_since = None    # day-start blind-spot timer (review A8)
     last_hb_seen = 0.0          # live-write heartbeat tracker (review B5)
+    # True-lag alerting (2026-07-17): the morning's stealth failure was writes
+    # HAPPENING (heartbeat advancing, this watchdog silent) while the writer
+    # trailed the tape by minutes-to-an-hour. Alert on write lag itself —
+    # last_trade_ts (newest event received) vs last_write_ts (newest write) —
+    # sustained over 2 checks. WARN only, never force-exit: restarts make lag
+    # worse. Cooldown so a long lag episode pages once per 15 min, not per check.
+    lag_warn_sec = float(os.environ.get("FLOW_LAG_WARN_SEC", "120"))
+    lag_consec = 0
+    last_lag_alert_ts = 0.0
 
     logger.info("[flow-watchdog] started (service=%s stale=%.0fs interval=%.0fs)",
                 service_name, STALE_SEC, CHECK_INTERVAL_SEC)
@@ -134,6 +143,27 @@ def _run(service_name: str) -> None:
                 continue
             if time.time() - boot_ts < MIN_UPTIME_SEC:
                 continue
+
+            # True-lag check — independent of the freeze logic below.
+            try:
+                from api.massive_ws_worker import _state as _ws_state
+                _ltt = _ws_state.get("last_trade_ts")
+                _lwt = _ws_state.get("last_write_ts")
+                _lag = (_ltt - _lwt) if (_ltt and _lwt and _ltt > _lwt) else 0.0
+                if _lag > lag_warn_sec:
+                    lag_consec += 1
+                else:
+                    lag_consec = 0
+                if lag_consec >= 2 and time.time() - last_lag_alert_ts > 900:
+                    last_lag_alert_ts = time.time()
+                    _prof = _ws_state.get("last_write_profile") or "n/a"
+                    _alert_discord(
+                        f"🟠 **[{service_name}] flow write LAG {int(_lag)}s** — "
+                        f"tape is being captured but written {int(_lag)}s behind "
+                        f"(members see stale flow). NOT restarting (restarts "
+                        f"worsen lag). Latest write-profile: {_prof}")
+            except Exception:
+                pass
 
             max_id, created_date = _newest_row()
             if max_id is None:
