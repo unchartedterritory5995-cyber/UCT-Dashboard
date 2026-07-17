@@ -80,9 +80,6 @@ const CHART_TYPES = [
   { val: 'area',    label: 'Area' },
 ]
 
-// Coloring only applies to OHLC-style types (candles/bars); line & area are single-color.
-const OHLC_TYPES = new Set(['candles', 'hollow', 'hlc', 'bars'])
-
 const COLOR_MODES = [
   { val: 'onecolor',  label: 'One Color' },
   { val: 'netchange', label: 'Net Change' },
@@ -110,7 +107,9 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     if (val === curColorMode) return
     onChange?.({ ...settings, candleColorMode: val, preset: 'custom' })
   }
-  const showColorMode = OHLC_TYPES.has(curType)
+  // Shown for every type — line & area also color by these modes (per-segment), so
+  // keep them visible + clickable. (Their "area" fill is auto transparent gray.)
+  const showColorMode = true
 
   // Candle colors. Up/down set body+border+wick together (the basic control);
   // 'onecolor' mode uses a single dedicated color.

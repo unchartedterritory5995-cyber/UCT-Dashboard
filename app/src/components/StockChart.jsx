@@ -905,6 +905,11 @@ export default function StockChart({
   // the normal vivid MB_UP everywhere else (Model Book, popups).
   const mbUp = canvasTheme === 'sunrise' ? SUNRISE_UP : (userCandleColors ? (cs.candles.upColor || MB_UP) : MB_UP)
   const mbDown = canvasTheme === 'sunrise' ? SUNRISE_DOWN : (userCandleColors ? (cs.candles.downColor || MB_DOWN) : MB_DOWN)
+  // Volume bars keep the FIXED bold palette regardless of the user's candle color —
+  // volume gets its own color control later, so changing candle colors must not
+  // touch it. (This is the original mbUp/mbDown, before userCandleColors.)
+  const mbVolUp = canvasTheme === 'sunrise' ? SUNRISE_UP : MB_UP
+  const mbVolDown = canvasTheme === 'sunrise' ? SUNRISE_DOWN : MB_DOWN
 
   // ── Theme colors (light / dark) layered over user chart settings ──
   // Returns layout/grid/crosshair/candle colors based on cs.theme. Used in
@@ -2972,8 +2977,27 @@ export default function StockChart({
     })
   }, [goldOhlc, candleFrameFade, frameFadeAlpha, fadeCutoff, highlightTimeSet])
   const closeData = useMemo(
-    () => displayBars ? displayBars.map(b => ({ time: adjustTime(b.t), value: b.c })) : [],
-    [displayBars, adjustTime]
+    () => {
+      if (!displayBars) return []
+      const isLineArea = cs.chartType === 'line' || cs.chartType === 'area'
+      const mode = cs.candleColorMode || 'netchange'
+      // Per-segment green/red for line & area in net-change / open-close modes. One
+      // color (and every non-line/area type) stays a plain value series.
+      if (!isLineArea || mode === 'onecolor') {
+        return displayBars.map(b => ({ time: adjustTime(b.t), value: b.c }))
+      }
+      let prevClose = null
+      return displayBars.map(b => {
+        let up
+        if (mode === 'netchange') up = prevClose == null ? true : b.c >= prevClose
+        else up = (b.o != null) ? b.c >= b.o : true
+        prevClose = b.c
+        const col = up ? mbUp : mbDown
+        // `color` is read by LineSeries, `lineColor` by AreaSeries — set both.
+        return { time: adjustTime(b.t), value: b.c, color: col, lineColor: col }
+      })
+    },
+    [displayBars, adjustTime, cs.chartType, cs.candleColorMode, mbUp, mbDown],
   )
   const hvcSet = useMemo(
     () => cs.volume.hvcEnabled && !disableHvc && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
@@ -2994,8 +3018,8 @@ export default function StockChart({
     // Volume bars track the candle palette EXACTLY so the red/green of the
     // volume pane matches the red/green of the candles above it (a dimmed alpha
     // composites darker over the near-black canvas and reads as a mismatched hue).
-    const upC = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-    const downC = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+    const upC = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+    const downC = boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
     const gold = '#e6b800'
     return sessionAppliedBars.map((b, i) => {
       // Up/down follows the SAME rule as the candles: net change (close vs the
@@ -3468,7 +3492,7 @@ export default function StockChart({
         if (volumeSeriesRef.current) {
           // Full-opacity default color (matches closed bars + volData) — no lighter
           // "developing" tint. Value is 0 here so it's invisible until the next tick.
-          const _vUpN = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+          const _vUpN = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
           volumeSeriesRef.current.update({ time: barTime, value: 0, color: _vUpN })
         }
         _extendOverlaysLive(barTime, price)
@@ -3602,8 +3626,8 @@ export default function StockChart({
         const _up = _prevC != null ? (data.bar.c >= _prevC) : (data.bar.c >= data.bar.o)
         // Full-opacity default color (same derivation as volData) — the developing
         // bar matches the closed bars instead of a lighter tint.
-        const _vUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-        const _vDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+        const _vUp = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+        const _vDown = boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
         volumeSeriesRef.current.update({
           time: tSec,
           value: data.bar.v,
@@ -4030,19 +4054,29 @@ export default function StockChart({
             openVisible: false,
           })
           break
-        case 'line':
-          priceSeries = chart.addSeries(LineSeries, {
-            color: cs.candles.upColor, lineWidth: 2,
-          })
+        case 'line': {
+          // One-color = the single color; net/open-close = per-segment (from
+          // closeData's per-point `color`), with the up color as the base.
+          const _lineBase = (cs.candleColorMode === 'onecolor')
+            ? ((userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : mbUp)
+            : mbUp
+          priceSeries = chart.addSeries(LineSeries, { color: _lineBase, lineWidth: 2 })
           break
-        case 'area':
+        }
+        case 'area': {
+          const _areaBase = (cs.candleColorMode === 'onecolor')
+            ? ((userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : mbUp)
+            : mbUp
+          // The fill under an area chart is always a neutral, automatic transparent
+          // gray (per request) — only the LINE follows the color mode.
           priceSeries = chart.addSeries(AreaSeries, {
-            lineColor: cs.candles.upColor,
-            topColor: cs.candles.upColor + '66',
-            bottomColor: cs.candles.upColor + '08',
+            lineColor: _areaBase,
+            topColor: 'rgba(140,140,140,0.16)',
+            bottomColor: 'rgba(140,140,140,0.0)',
             lineWidth: 2,
           })
           break
+        }
         default: // 'candles'
           priceSeries = chart.addSeries(CandlestickSeries, {
             upColor: cs.candles.upColor, downColor: cs.candles.downColor,
@@ -4286,8 +4320,8 @@ export default function StockChart({
             const _prevCD = colorByNetChange && _pbD && _pbD.length >= 2 ? _pbD[_pbD.length - 2].c : null
             const _upD = _prevCD != null ? (lb.close >= _prevCD) : (lb.close >= lb.open)
             // Full-opacity default color (same derivation as volData) — no lighter tint.
-            const _vUpD = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-            const _vDownD = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            const _vUpD = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vDownD = boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             volumeSeriesRef.current.update({
               time: lb.time, value: lb.volume,
               color: _upD ? _vUpD : _vDownD,
@@ -7257,8 +7291,8 @@ export default function StockChart({
           if (volumeSeriesRef.current) {
             // match the candle palette (same derivation as volData) so the
             // developing bar's volume color matches the historical bars
-            const _vUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-            const _vDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            const _vUp = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vDown = boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             const _pbC = prevBarsRef.current
             const _prevCC = colorByNetChange && _pbC && _pbC.length >= 2 ? _pbC[_pbC.length - 2].c : null
             const _upC = _prevCC != null ? (candle.c >= _prevCC) : (candle.c >= candle.o)
