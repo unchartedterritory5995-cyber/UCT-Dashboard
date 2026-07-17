@@ -42,7 +42,8 @@ import time
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Header, HTTPException
+from api.flow_admin_auth import require_flow_admin
+from fastapi import Depends, APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
@@ -869,10 +870,9 @@ def status():
 
 @router.post("/run")
 def trigger_run(target_date: str = None, force: bool = False, dry_run: bool = None,
-                authorization: str = Header(default="")):
+                _auth: dict = Depends(require_flow_admin)):
     """Manual trigger. NEVER inline — spawns a daemon thread and returns.
     target_date: 'YYYY-MM-DD' (default: latest completed trading day)."""
-    _require_push_secret(authorization)
     target = None
     if target_date:
         try:
@@ -886,12 +886,11 @@ def trigger_run(target_date: str = None, force: bool = False, dry_run: bool = No
 
 
 @router.post("/enrich")
-def trigger_enrich(target_date: str, authorization: str = Header(default="")):
+def trigger_enrich(target_date: str, _auth: dict = Depends(require_flow_admin)):
     """Manually run classification enrichment (OI → color → Side → parity)
     for an already-healed date — e.g. re-heal 7/14 whose rows landed
     unclassified. NEVER inline — daemon thread; result lands in
     /status.last_enrich and Discord. target_date: 'YYYY-MM-DD'."""
-    _require_push_secret(authorization)
     try:
         target = date.fromisoformat(target_date)
     except (ValueError, TypeError):
@@ -914,10 +913,9 @@ def trigger_enrich(target_date: str, authorization: str = Header(default="")):
 
 @router.post("/spool-control")
 def spool_control(spool: bool = None, replay: bool = None,
-                  authorization: str = Header(default="")):
+                  _auth: dict = Depends(require_flow_admin)):
     """Runtime kill switch for the tape spool / replay (review A5) — flips the
     module gates WITHOUT a restart (a restart is itself a tape gap)."""
-    _require_push_secret(authorization)
     try:
         from api import flow_tape_spool
         return JSONResponse(flow_tape_spool.set_flags(spool=spool, replay=replay))
@@ -926,10 +924,9 @@ def spool_control(spool: bool = None, replay: bool = None,
 
 
 @router.post("/replay-spool")
-def trigger_spool_replay(authorization: str = Header(default="")):
+def trigger_spool_replay(_auth: dict = Depends(require_flow_admin)):
     """Manually heal TODAY's gap windows from the raw tape spool (the
     autonomous path runs at consumer boot). Idempotent; daemon thread."""
-    _require_push_secret(authorization)
 
     def _do():
         try:
@@ -944,8 +941,7 @@ def trigger_spool_replay(authorization: str = Header(default="")):
 
 
 @router.post("/rollback/{run_id}")
-def trigger_rollback(run_id: int, authorization: str = Header(default="")):
-    _require_push_secret(authorization)
+def trigger_rollback(run_id: int, _auth: dict = Depends(require_flow_admin)):
     out = {}
 
     def _do():

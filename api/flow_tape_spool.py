@@ -51,6 +51,15 @@ ENABLED = os.environ.get("FLOW_TAPE_SPOOL_ENABLED", "1").lower() in ("1", "true"
 # inserts, chunked/yielding CPU, live-writer conflict abort, scheduled sweeps).
 # Runtime kill: POST /api/flow-gap-fill/spool-control {"replay": false}.
 REPLAY_ENABLED = os.environ.get("FLOW_TAPE_REPLAY_ENABLED", "1").lower() in ("1", "true", "yes")
+# 2026-07-17 incident: the INTRADAY replays (boot +390s, :05/:25/:45 sweeps)
+# bulk-insert into flow.db DURING the session, hold the write lock for 30-90s,
+# and the live consumer DROPS batches after 3 locked retries — the replay
+# caused the very gaps it exists to heal (5 gaps / ~9,444 prints, each drop
+# ~3 min after a replay trigger). The spool holds 26h, so the 16:12 close
+# sweep alone heals the whole day with ZERO live contention. Intraday replay
+# is therefore opt-in and OFF by default; do not re-enable until
+# _replay_window re-checks _live_writer_conflicts INSIDE windows.
+REPLAY_INTRADAY = os.environ.get("FLOW_TAPE_REPLAY_INTRADAY", "0").lower() in ("1", "true", "yes")
 # Total gap minutes replayed per run; anything beyond defers to the T+1 heal
 # (review B3 — bounds worst-case CPU/memory inside the live tape process).
 REPLAY_MAX_MIN = int(os.environ.get("FLOW_TAPE_REPLAY_MAX_MIN", "120"))
@@ -601,12 +610,12 @@ def replay_gaps(target: date = None) -> dict:
 def start_boot_replay() -> bool:
     """Daemon thread: after boot settles, heal any of today's gaps from the
     spool — this is what turns a watchdog restart into zero data loss."""
-    if not (ENABLED and REPLAY_ENABLED):
+    if not (ENABLED and REPLAY_ENABLED and REPLAY_INTRADAY):
         return False
 
     def _run():
         time.sleep(REPLAY_BOOT_DELAY_SEC)
-        if not REPLAY_ENABLED:               # re-check after the sleep (A5)
+        if not (REPLAY_ENABLED and REPLAY_INTRADAY):  # re-check post-sleep (A5)
             return
         try:
             now_et = datetime.now(ET)
@@ -635,16 +644,18 @@ def register_jobs(scheduler) -> bool:
     if os.environ.get("MASSIVE_WS_ENABLED") != "1":
         return False
     from apscheduler.triggers.cron import CronTrigger
-    scheduler.add_job(replay_gaps,
-                      CronTrigger(day_of_week="mon-fri", hour="10-15",
-                                  minute="5,25,45", timezone=ET),
-                      id="tape_spool_sweep", max_instances=1,
-                      replace_existing=True, coalesce=True)
+    if REPLAY_INTRADAY:
+        scheduler.add_job(replay_gaps,
+                          CronTrigger(day_of_week="mon-fri", hour="10-15",
+                                      minute="5,25,45", timezone=ET),
+                          id="tape_spool_sweep", max_instances=1,
+                          replace_existing=True, coalesce=True)
     scheduler.add_job(replay_gaps,
                       CronTrigger(day_of_week="mon-fri", hour=16, minute=12,
                                   timezone=ET),
                       id="tape_spool_sweep_close", max_instances=1,
                       replace_existing=True, coalesce=True)
-    logger.info("[tape-spool] sweep jobs registered (:05/:25/:45 10:00-15:45 "
-                "+ 16:12 ET Mon-Fri)")
+    logger.info("[tape-spool] sweep jobs registered (16:12 ET Mon-Fri%s)",
+                " + :05/:25/:45 10:00-15:45 INTRADAY" if REPLAY_INTRADAY else
+                "; intraday sweeps OFF — see REPLAY_INTRADAY note")
     return True
