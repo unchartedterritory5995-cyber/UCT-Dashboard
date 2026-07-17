@@ -141,7 +141,7 @@ def bump_data_version() -> int:
     return _current_version()
 
 
-def _build_gzipped_csv(source: str, days) -> bytes:
+def _build_gzipped_csv(source: str, days, dates=None) -> bytes:
     """Stream the CSV generator through the gzip compressor, returning the
     full gzipped bytes.
 
@@ -153,10 +153,19 @@ def _build_gzipped_csv(source: str, days) -> bytes:
     page barely renders) is trimmed. Short ranges (<cap) stream in full so the
     delta-merge's days=1 refresh and small-range views stay complete.
 
-    days=None means "all data" — passed to db.stream_csv without a days arg."""
+    days=None means "all data" — passed to db.stream_csv without a days arg.
+
+    `dates` (from the DateRail calendar via db.dates_in_range) overrides `days`
+    and scopes the query to exactly those CreatedDates. The cap then keys off
+    how many days the range ACTUALLY covers, so a one-day pick streams that day
+    whole (2026-07-17: previously the calendar sent all_data=true, which is
+    unconditionally capped, so a single historical day arrived as its ~0.4%
+    share of the top-50K-by-premium across all 133 days — 511 rows of 128,525
+    for 7/16)."""
     cap_days = int(os.environ.get("FLOW_CSV_CAP_DAYS", "20"))
     cap_rows = int(os.environ.get("FLOW_CSV_CAP_ROWS", "50000"))
-    should_cap = (days is None) or (days >= cap_days)
+    n_days = len(dates) if dates is not None else days
+    should_cap = (n_days is None) or (n_days >= cap_days)
 
     # 2026-07-17: pass cap_rows through so SQLite does the top-N selection in C
     # (ORDER BY CAST(Premium AS REAL) DESC LIMIT ?). This router used to collect
@@ -169,8 +178,12 @@ def _build_gzipped_csv(source: str, days) -> bytes:
     # wired up. Row content is unchanged: the capped stream is Premium-DESC
     # ordered, same as the Python sort it replaces.
     cr = cap_rows if should_cap else None
-    gen = (db.stream_csv(source=source, days=days, cap_rows=cr) if days
-           else db.stream_csv(source=source, cap_rows=cr))
+    if dates is not None:
+        gen = db.stream_csv(source=source, dates=dates, cap_rows=cr)
+    elif days:
+        gen = db.stream_csv(source=source, days=days, cap_rows=cr)
+    else:
+        gen = db.stream_csv(source=source, cap_rows=cr)
 
     buf = io.BytesIO()
     # compresslevel=1: ~60% faster than default level 6, ~10% larger output.
@@ -183,7 +196,7 @@ def _build_gzipped_csv(source: str, days) -> bytes:
     return buf.getvalue()
 
 
-def _get_cached_or_build(source: str, days) -> bytes:
+def _get_cached_or_build(source: str, days, dates=None) -> bytes:
     """Returns gzipped CSV bytes for (source, days), using the in-memory cache
     when version matches. LRU eviction at _RESPONSE_CACHE_MAX entries.
 
@@ -204,7 +217,8 @@ def _get_cached_or_build(source: str, days) -> bytes:
     the compute. First-ever request for a key has nothing stale to serve, so it
     blocks on the lock and double-checks the cache on acquire."""
     version = _current_version()
-    key = (source, days)
+    # dates makes the key: two different calendar ranges must not share an entry.
+    key = (source, days, tuple(dates) if dates is not None else None)
     cached = _RESPONSE_CACHE.get(key)
     if cached and cached[0] == version:
         _RESPONSE_CACHE.move_to_end(key)  # touch — most recently used
@@ -224,19 +238,19 @@ def _get_cached_or_build(source: str, days) -> bytes:
             c2 = _RESPONSE_CACHE.get(key)
             if c2 and c2[0] == _current_version():
                 return c2[1]
-            return _store(_build_gzipped_csv(source, days))
+            return _store(_build_gzipped_csv(source, days, dates))
     try:
-        return _store(_build_gzipped_csv(source, days))
+        return _store(_build_gzipped_csv(source, days, dates))
     finally:
         _BUILD_LOCK.release()
 
 
-def _serve_csv(source: str, days, request: Request):
+def _serve_csv(source: str, days, request: Request, dates=None):
     """Build (or fetch cached) gzipped CSV and return as Response with
     appropriate encoding header. Always sets Content-Length implicitly via
     Response so CF can cache."""
     try:
-        gzipped = _get_cached_or_build(source, days)
+        gzipped = _get_cached_or_build(source, days, dates)
     except Exception as e:
         return Response(content=f"Error: {e}", status_code=500, media_type="text/plain")
 
@@ -267,6 +281,26 @@ def _parse_query_days(request: Request):
         return days
     except (ValueError, TypeError):
         return 1
+
+
+def _parse_query_range(request: Request):
+    """(date_from, date_to) as ISO YYYY-MM-DD from the DateRail calendar, or None.
+
+    Both must be present — a half-open range is treated as no range so the
+    caller falls back to the days-back path rather than guessing an endpoint.
+    """
+    f = (request.query_params.get("date_from") or "").strip()
+    t = (request.query_params.get("date_to") or "").strip()
+    return (f, t) if f and t else None
+
+
+def _resolve_request(source: str, request: Request):
+    """(days, dates) for a /data request. `dates` is non-None only for an
+    explicit calendar range, in which case `days` is ignored downstream."""
+    rng = _parse_query_range(request)
+    if rng:
+        return None, db.dates_in_range(source, rng[0], rng[1])
+    return _parse_query_days(request), None
 
 
 @flow_router.post("/upload")
@@ -353,16 +387,22 @@ def get_flow_data(request: Request):
     Serve stock flow data as gzipped CSV (cached at CF edge).
     ?days=N (default 1) — last N trading days.
     ?all_data=true — all available data (heavy; opt-in only)
+    ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD — explicit calendar range. Scoped
+      server-side to exactly those trading days, and the premium cap keys off
+      how many days the range covers, so a single-day pick streams that day
+      whole instead of arriving as a slice of an all_data cap.
     """
-    days = _parse_query_days(request)
-    return _serve_csv("stocks", days, request)
+    days, dates = _resolve_request("stocks", request)
+    return _serve_csv("stocks", days, request, dates=dates)
 
 
 @flow_router.get("/indexes-data")
 def get_indexes_data(request: Request):
-    """Serve indexes/ETF flow data as gzipped CSV (cached at CF edge)."""
-    days = _parse_query_days(request)
-    return _serve_csv("indexes", days, request)
+    """Serve indexes/ETF flow data as gzipped CSV (cached at CF edge).
+
+    Same ?date_from/?date_to support as /data — see get_flow_data."""
+    days, dates = _resolve_request("indexes", request)
+    return _serve_csv("indexes", days, request, dates=dates)
 
 
 @flow_router.get("/stats")
