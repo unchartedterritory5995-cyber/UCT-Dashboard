@@ -1418,6 +1418,12 @@ export default function StockChart({
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
   const lastCfgSigRef = useRef(null) // A2: render-config signature at last paint — an incremental (last-bar-only) update is only safe when the config is byte-identical to the last paint
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
+  // A2: the bars actually PAINTED at the last setData (i.e. displayBars, which carries
+  // the session-preview candle). Distinct from prevBarsRef (pure regular-session bars):
+  // the no-op/incremental render plan must be measured against what's on screen, or a
+  // change that lives only on the display path — the pre/post-market preview candle —
+  // is read as "nothing changed" and never paints. See the plan comment in updateChart.
+  const prevPaintBarsRef = useRef(null)
   // True only while a Ctrl+drag measure is in progress — every handleScroll site
   // reads it so a data-poll re-applyOptions can't unlock the chart mid-measure.
   const measureLockRef = useRef(false)
@@ -3810,6 +3816,7 @@ export default function StockChart({
         try { s.setData([]) } catch {}
       }
       lastCfgSigRef.current = null
+      prevPaintBarsRef.current = null   // series were cleared — next paint must be full
       return
     }
 
@@ -3834,6 +3841,10 @@ export default function StockChart({
         cs, adjustTime, vwapOverride, hideWatermark, hidePriceLine, leftBarPad,
         modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles,
         watermark, watermarkOpacity,
+        // Covers ohlcData's remaining dep — the muted-white paint of the pre-market
+        // preview candle, which changes colors without changing any bar VALUE (so the
+        // render plan below can't see it).
+        sessionPreviewLastBar,
         ovN: overlayData?.length ?? 0,
         mkN: mergedMarkers?.length ?? 0,
         plN: allPriceLines?.length ?? 0,
@@ -3844,7 +3855,14 @@ export default function StockChart({
       // full paint (null cfgSig guarantees _incr is false this run).
       _cfgSig = null
     }
-    const _plan = barsRenderPlan(prevBarsRef.current, filteredBars)
+    // Plan against displayBars (what actually gets painted), NOT filteredBars. The
+    // session-preview candle rides ONLY the display path by design — filteredBars stays
+    // pure regular-session — so planning off filteredBars reports 'noop' the moment the
+    // "Include pre/post-market" toggle flips (and on every ext-price tick), and the
+    // synthetic candle never reaches the series. Intraday/RTH is unaffected: with no
+    // session candle and no Heikin-Ashi, displayBars IS filteredBars (same reference),
+    // so the extended-hours no-op guard this plan exists for behaves exactly as before.
+    const _plan = barsRenderPlan(prevPaintBarsRef.current, displayBars)
     const _cfgSame = _cfgSig != null && _cfgSig === lastCfgSigRef.current
     // A chart/series that doesn't exist yet gets CREATED later in this run —
     // a 'noop'/'incremental' plan (latched from a destroyed predecessor with
@@ -5520,7 +5538,9 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, canvasTheme])
+    // Baseline for the next render plan — the bars this paint actually put on screen.
+    prevPaintBarsRef.current = displayBars
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, canvasTheme, sessionPreviewLastBar])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -7358,6 +7378,7 @@ export default function StockChart({
         sessionShadeAttachedRef.current = false
         lastCfgSigRef.current = null
         prevBarsRef.current = null
+        prevPaintBarsRef.current = null
         lastBarCountRef.current = 0
         zoomKeyRef.current = null
         lastTfRef.current = null

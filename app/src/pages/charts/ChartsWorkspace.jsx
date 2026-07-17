@@ -22,7 +22,17 @@ const ResponsiveGridLayout = WidthProvider(Responsive)
 // (too thin)" and "2 cols". Every breakpoint is doubled in lockstep so relative
 // sizing is unchanged; legacy 12-col saved layouts are migrated in parseLayout().
 const GRID_COLS = 24
-const COLS = { lg: GRID_COLS, md: 20, sm: 12, xs: 8, xxs: 4 }
+// EVERY breakpoint uses the SAME column count on purpose — do not re-introduce a
+// narrowing ladder (md:20, sm:12, …). We persist ONE arrangement (layout.widgets),
+// so a breakpoint whose col count differs made RGL re-map x/w to fit the narrower
+// grid, fire onLayoutChange with those squeezed coords, and handleLayoutChange
+// persisted them over the only layout we keep — permanently destroying it. Widening
+// the window back could never restore it (the original x/w were gone), which is why
+// widgets stayed bunched in the left of a maximized window after a shrink.
+// With cols constant, a resize only changes colWidth (containerWidth / 24), so widgets
+// scale proportionally and land back exactly where they were. This mirrors how
+// rowHeight already scales vertically via the ResizeObserver below.
+const COLS = { lg: GRID_COLS, md: GRID_COLS, sm: GRID_COLS, xs: GRID_COLS, xxs: GRID_COLS }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
 const FIXED_ROWS = 20            // workspace is viewport-locked to this many rows
 const MARGIN_Y = 6                // px gap between widgets vertically
