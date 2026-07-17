@@ -1,0 +1,197 @@
+# Multi-Chart Grid Mode — Design Spec (2026-07-16)
+
+Owner-approved feature: a second mode on `/charts` that swaps the drag/resize workspace for a
+fixed CSS grid of independent chart cells (2x2 / 3x2 / 3x3 presets + custom N×M), each cell with
+its own ticker + timeframe. Approved product decisions: **manual ticker per slot · fully
+independent timeframe per cell · named saved layouts per member · built as a mode toggle inside
+/charts**. v1 ships cells with **drawing tools OFF**.
+
+Design validated by two multi-agent passes (analysis wf_3014bbeb-a80, solutions+adversarial
+verify wf_2d2b4fee-813) against master `e380f6be`. All file:line refs are that commit.
+
+## Non-goals / already solved (do not build)
+
+- **No stream multiplexing.** `priceStreamManager` / `barsStreamManager` / `livePriceStore`
+  already pool browser-wide: 16 cells = 1 price SSE + 1 bars SSE + 1 union REST poll. A second
+  mux would double-subscribe and defeat backend refcounting.
+- **No backend changes.** Bars 3-layer cache absorbs a staggered 16-cell open; prefs and
+  `/api/charts/layouts` already exist.
+- **No time-range sync in v1** (feedback loops with `keepPresentOnSymbolChange`); crosshair
+  sync only, default OFF, ref-bus pattern.
+- **No per-cell chart settings in v1** (escape hatch specced below, deferred).
+
+## Architecture
+
+`ChartsWorkspace` gains `mode: 'workspace' | 'grid'` (persisted). Header gets a **Multi Charts**
+dropdown (same `.toolbarBtnGroup` pattern): preset rows with grid-shape icons, custom N×M form,
+saved layouts, "Back to workspace" when in grid mode. The `<main .workspaceBody>` child swaps
+from `<ResponsiveGridLayout>` to `<MultiChartGrid>`; header, WorkspaceContext.Provider and the
+`data-charts-theme` root stay mounted (Sunrise contract).
+
+New files under `app/src/pages/charts/grid/`:
+
+- **`gridLayouts.js`** — presets (1x2, 2x1, 2x2, 2x3, 3x2, 3x3, 4x4) + custom N×M generator,
+  `GRID_MAX_CELLS` (16 pending spike), clamp for stale oversized prefs. Ported from orphaned
+  `pages/multichart/multiChartLayouts.js` + its test.
+- **`useStaggeredMount.js`** — concurrency-limited mount queue: ≤3 cells loading at once, slot
+  released on first `onBarsReady` or 5 s safety timer; reconcile on layout switch never
+  unmounts live cells. (Fixed-delay stagger rejected — doesn't bound in-flight when server is
+  slow, the actual 2026-05-24 incident condition.)
+- **`GridChartCell.jsx`** — controlled cell `{cell:{id,sym,tf}, onChange, crosshairBus,
+  volPanePct, isActive, onOpenSettings, onBarsReady}`. Chrome: SymbolSearch badge (wrapper
+  span, SymbolSearch has no className prop), compact TF `<select>`, ChartDayGain, Shift+F flag
+  toast. Empty cell (`sym=null`): no StockChart, "+ Add ticker" → `searchRef.openWith('')`.
+- **`MultiChartGrid.jsx`** — container: cells state, debounced (500 ms) + hydration-gated
+  `multichart_state` pref, mount queue, active-cell tracking, crosshair bus + Sync toggle,
+  ONE gear → shared `ChartSettingsModal` (ChartWidget wiring incl. savedColors), per-cell
+  clean context menu, layout picker plumbing, named layouts.
+- **`MultiChartGrid.module.css`** — `.gridBody` uses `repeat(n, minmax(0,1fr))` tracks +
+  `overflow:hidden` at every level (StockChart `.wrapper` has `min-height:200px`; unclipped
+  bleed re-triggers the documented autoSize width-shake loop). No transforms (canvas blur on
+  fractional Windows scaling — same reason workspace passes `useCSSTransforms={false}`).
+
+## StockChart additive props (~35 LOC, all default = today's behavior)
+
+| Prop | Default | Effect |
+|---|---|---|
+| `backgroundWarm` | `true` | `false` skips the all-TF warm chain (:2228) and D/W/M dwell-warm (:7181). On-demand paths (primary SWR, pan backfill, TF switch) untouched. |
+| `onBarsReady` | `null` | Fires once per mount at first `loading===false` (:2326) — bars OR fatal error — via latest-ref latch. Releases a mount-queue slot. |
+| `hotkeysActive` | `true` | `boolean \| () => boolean`, read via latest-ref at top of the document keydown handler (:2612). Function form = zero re-renders on active-cell changes. |
+| `disablePatterns` | `false` | `usePatternDetections(sym, tf, showPatterns && !disablePatterns)` (:1796), PatternOverlay not mounted (:7803), toolbar gets `hidePatterns \|\| disablePatterns` (:7900). New prop, NOT strengthened `hidePatterns` — 3 of 9 existing callers are partner-owned OptionsFlow surfaces. |
+
+## Grid cell — verified lite recipe
+
+`sym tf onSymbolChange onTfChange` + crosshair pair when bus on + `showDrawingTools={false}
+boldCandles userCandleColors colorByNetChange candlesOnTop ema9MatchCandle hidePriceLine
+markVolumeExtremes volumeMa={50} volumeSeparatePane volumePaneHeightPct={volPanePct??12}
+volumeLastValue carryDragPlacement={false} keepPresentOnSymbolChange dragMeasure lockWatermark
+verticalLegend centerWatermarkOnPlot watermarkOpacity={0.82} rightPadBars={6}
+dailyDefaultBars={126} priceScaleTopMargin={0.12} priceScaleBottomMargin={0.10}
+canvasTheme={sunrise?'sunrise':null} backgroundWarm={false} onBarsReady disablePatterns
+hotkeysActive={isActive}`. (`hideReplay/hidePatterns/hideCompare` inert under
+`showDrawingTools={false}` — toolbar never mounts; passed anyway as future-proofing for the
+v2 drawing flip.) `liveUpdates` stays default true (pooled).
+
+**Adversarial-verify revisions folded in:**
+- Focus wrapper (`tabIndex={0}`, keydown type-to-search) wraps ONLY `.cellChart` (ChartWidget
+  parity); active ring via `.cell:focus-within`; keydown bail adds `SELECT`.
+- `if (!cell.sym) return` guards on Shift+F flag and `handleSymbolChange` (else `toggleFlag(null)`
+  writes a literal null into Flagged localStorage and syncs it).
+- `useEffect(() => { if (!crosshairBus) setExternalCrosshair(null) }, [crosshairBus])` so
+  toggling Sync off clears frozen crosshairs; subscribe effect gated on `crosshairBus && cell.sym`.
+- Cross-symbol sync: intraday cells snap to their OWN nearest-bar close (on-scale); only D/W/M
+  string-time bars fall back to source price (effectively time-only). Documented, not a bug.
+
+## Active-cell hotkey model (grid + workspace fix)
+
+Grid: `activeCellRef` seeded to 0, hover-sticky (`onPointerEnter`) + `onFocusCapture`, clamp
+effect on shrink. **Memoization contract (verify-mandated):** cell exported as `React.memo`;
+per-index `isActiveFns` and `onChangeFns` built with `useMemo` on `[cells.length]` using
+functional `setCells`; activeIdx className lives on the container-owned wrapper div only, so a
+mouse sweep across 4x4 re-renders zero StockCharts.
+
+Workspace (separate, independently revertable commit): `activeChartRef` on WorkspaceContext
+(FALLBACK gets `activeChartRef: null`), ChartWidget root `onPointerEnter` sets it,
+`hotkeysActive` callback `a == null || a === widgetIdRef.current` (null-means-all = today's
+behavior until first hover), **plus unmount cleanup**: if the ref holds this widget's id, null
+it — otherwise closing the hovered widget leaves ALL workspace hotkeys dead.
+
+## Settings semantics (v1: global)
+
+`chart_settings` stays one global blob for all cells. One gear in the grid toolbar opens the
+shared `ChartSettingsModal` (wired like ChartWidget.jsx:129-157 + :494-501, savedColors
+included; extract `useSavedChartColors` hook to share). Per-cell right-click gets a
+**custom clean context menu via `onBarContextMenu`** (verify Option B — the sections-path
+"Chart settings…" item is gated on `showDrawingTools` at :1660 and the payload's
+`openSettings` routes to a null `toolbarRef`, so it is unreachable in lite cells; the custom
+menu also avoids exposing the app-root J2 menu's global "Chart type" submenu in cells).
+Known + accepted: keyboard `toggle:` hotkeys from a focused cell write the global blob (one
+POST after the hotkey fix). Settings write with 16 cells = applyOptions/setData update passes,
+no chart re-init (instance reuse confirmed :3939-3955). Optimistic pref writes revert only on
+network failure, not HTTP errors (pre-existing).
+
+**Deferred escape hatch (specced, not shipped):** `settingsOverride` partial-blob prop merged
+over `cs` at :901 (csBase/cs split), `mergeSettingsOverride` helper in chartDefaults, and
+write-restore in `handleUpdateChartSettings` so overrides never leak into the global blob
+(write sites: region menu :1600-1614, keyboard toggles :2653-2689, scale :969, ext-hours
+:1589, patterns :1793 — all funnel through :1582; watermark-drag commit :1289-1292 writes the
+pref directly but builds from the global blob, cannot leak). Then per-cell chartType ≈ 20 LOC.
+
+## Persistence
+
+- Working state: `multichart_state` pref `{layout:{rows,cols}, cells:[{id,sym,tf}], syncCrosshair,
+  activeLayoutId}` — 500 ms debounce, flush-on-unmount, `hydratedRef` gate (never persist before
+  the pref loads; V1's hydration-clobber race is the known trap). Written only on discrete
+  changes, never crosshair/zoom.
+- Named layouts: existing `/api/charts/layouts` service with a `kind:'multichart'` marker inside
+  `layout_json`, client-filtered (workspace Open-layout list excludes them; grid list includes
+  only them) — falls back to a `multichart_templates` pref if the list API can't filter cleanly.
+- Mode: persisted alongside (`charts_mode` inside multichart_state or its own key).
+
+## Drawings store (separate prerequisite ship)
+
+Fixes today's latent workspace bug (two same-sym charts clobber `uct-chart-drawings`
+last-writer-wins). Module store `drawingsStore.js` (realtimeCandle pattern) +
+`useChartDrawings` rewritten as a `useSyncExternalStore` adapter with a byte-identical return
+surface (zero StockChart/overlay edits). Shared per-sym undo/redo stack. Verify-mandated:
+- Microtask dedup for undo/redo AND **content-keyed dedup for `addDrawing`** (Ctrl+V paste
+  fans out to every same-sym overlay via window keydown — without dedup one paste persists N
+  clones); no-op guards on `removeDrawing`/`updateDrawing` (double-selected Delete = junk
+  history step).
+- **rAF-coalesced notify** (writes stay synchronous; notify once per frame per sym) — a raw
+  store notify re-renders the ENTIRE StockChart of every same-sym cell per pointermove drag.
+- Pinned contract: `getSnapshot` for unloaded sym returns frozen EMPTY_SNAPSHOT, no side
+  effects in render; subscribe's 0→1 lazy-load REPLACES the snapshot object; `snapshotHistory`
+  rebuilds snapshot + notifies (toolbar canUndo at drag start); store keys are the RAW sym
+  string (do NOT copy realtimeCandle's toUpperCase).
+- Same key/format, no migration. Cross-tab reconciliation deferred.
+
+## Mount storm (verified CONFIRMED, no revisions)
+
+Cold 4x4 without gating ≈ 130+ requests (16 primary + 112 warm-chain + 16 full-depth dwell) —
+the documented 2026-05-24 outage class. Fix: `backgroundWarm={false}` per cell + the 3-wide
+mount queue + ChartSkeleton placeholders + prefs-hydration gate before first mount. Cold 4x4
+becomes 16 shallow 600-bar fetches at ≤3-4 concurrent; warm grid paints near-instantly (IDB
+hits release slots in ms). Rapid ticker flips in a cell cost exactly 1 fetch.
+
+## Perf spike (before finalizing GRID_MAX_CELLS)
+
+Admin-only `?gridspike=N&tf=D|5` runs the REAL grid path with persistence disabled, 16 distinct
+liquid tickers, instrumentation module `gridSpike.js` → `window.__gridSpike` +
+`[gridspike:done]` JSON console line (machine-readable for Chrome-MCP/Playwright).
+Verify-mandated fixes: first-frame signal = **MutationObserver watching each cell's container
+for first `<canvas>` insertion** (chart is created lazily after bars — an onTimeRangeChange
+latch never fires; effect lacks `chartReady` dep); sweep dispatches synthetic `mouseenter`
+first then `mousemove` on the LAST canvas (LWC attaches its listener lazily in mouseenter, on
+the top canvas) with a `moveEvents===0 → invalid` guard so a silent regression can't fake-pass;
+per-cell `mountAt` stamped at queue admission (not shell mount), all-framed measured from
+`gridEnterAt`. Thresholds: warm per-cell median ≤700 ms, p95 ≤1.5 s; all-framed 3x3 ≤3 s /
+4x4 ≤5 s; cold 3x3 ≤8 s / 4x4 ≤12 s; sweep median ≤33 ms, p95 ≤50 ms; heap settled ≤500 MB,
+idle 2-min growth ≤20 MB. Decision tree: pass → 4x4; crosshair-only fail → 4x4 with sync
+force-off >9 cells; mount ≤1.5× over + heap pass → soft cap (toast, picker defaults 3x3);
+heap/leak fail → hard cap 12 (if 4x3 passes pro-rata) else 9; 3x3 fails → presets 2x2/3x2
+only. Results recorded in this doc (section below). Sweep aborts unless tab visible
+(rAF-freeze lesson).
+
+## Mobile (<640 px)
+
+At the existing `isMobile` early-return: grid mode renders stacked lite cells (~45 vh each),
+same provider wrapper. No JS column collapse on desktop (CSS handles it).
+
+## Housekeeping
+
+Remove dead `MultiChart` lazy import (App.jsx:64); retire `pages/MultiChart.jsx` +
+superseded `pages/multichart/*` once `gridLayouts.js` ports the math + test; MobileTabBar
+`/multi-chart` entry; keep the `/multi-chart` → `/charts` LegacyRedirect.
+
+## Ship plan
+
+1. Commit spec. 2. Drawings store (own commit — prerequisite, independently useful).
+3. StockChart props (own commit). 4. Grid engine + container + workspace toggle.
+5. Workspace hotkey dedupe (own commit). 6. Mobile + housekeeping. 7. Spike run → cap.
+8. vitest `--pool=threads` + build + live Playwright verify (DOM, single SSE at 3x3, Sunrise
+pass) → push `origin feat/multichart-grid:master` in the deploy window.
+
+## Perf spike results
+
+_(to be filled by the spike run — raw `[gridspike:done]` JSON per matrix cell + environment)_
