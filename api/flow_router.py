@@ -45,6 +45,7 @@ import os
 import gzip
 import io
 import time
+import threading
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 db = FlowDB(DB_PATH)
@@ -63,6 +64,12 @@ _FLOW_CACHE_HEADERS = {
 # At ~15MB per large entry, 8 entries caps cache at ~120MB worst case.
 _RESPONSE_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
 _RESPONSE_CACHE_MAX = 8
+# Single-flight: bound concurrent CSV builds to 1 per process. Without this,
+# every cache miss (and the version bucket rolls every 60s) launched its own
+# full build; N of them GIL-thrash on the same process as the OPRA consumer and
+# none finish inside the bucket, so the cache can never be populated. Mirrors
+# _day_stats_lock in live_massive_router.
+_BUILD_LOCK = threading.Lock()
 
 # Manual bump offset for in-place row updates (admin endpoints that mutate
 # Color, Side, source, etc. without changing total row count).
@@ -178,7 +185,24 @@ def _build_gzipped_csv(source: str, days) -> bytes:
 
 def _get_cached_or_build(source: str, days) -> bytes:
     """Returns gzipped CSV bytes for (source, days), using the in-memory cache
-    when version matches. LRU eviction at _RESPONSE_CACHE_MAX entries."""
+    when version matches. LRU eviction at _RESPONSE_CACHE_MAX entries.
+
+    Single-flight + stale-serve (2026-07-17), mirroring live_massive_router's
+    /day-stats. WHY: _current_version() rolls every _VERSION_BUCKET_SEC (60s).
+    With no lock, every poll/retry/reload that missed the cache started its OWN
+    full build; they piled into the threadpool, all holding the GIL on the same
+    process as the OPRA consumer, so each got slower as more arrived. Once a
+    build exceeded 60s the cache became impossible to populate: the entry is
+    stamped with the version at build START and checked against the version at
+    request TIME, so every finished build was already stale on arrival ->
+    permanent miss -> more concurrent builds -> slower still. Self-reinforcing;
+    only a restart cleared it. That is the 2026-07-01 524 outage class, and it
+    is what made /data 502 at 122s on 7/17.
+
+    Now: ONE build at a time per process. Concurrent callers serve the previous
+    payload (bounded staleness — one extra bucket) instead of queueing behind
+    the compute. First-ever request for a key has nothing stale to serve, so it
+    blocks on the lock and double-checks the cache on acquire."""
     version = _current_version()
     key = (source, days)
     cached = _RESPONSE_CACHE.get(key)
@@ -186,11 +210,25 @@ def _get_cached_or_build(source: str, days) -> bytes:
         _RESPONSE_CACHE.move_to_end(key)  # touch — most recently used
         return cached[1]
 
-    payload = _build_gzipped_csv(source, days)
-    if len(_RESPONSE_CACHE) >= _RESPONSE_CACHE_MAX:
-        _RESPONSE_CACHE.popitem(last=False)  # evict LRU
-    _RESPONSE_CACHE[key] = (version, payload)
-    return payload
+    def _store(payload):
+        if key not in _RESPONSE_CACHE and len(_RESPONSE_CACHE) >= _RESPONSE_CACHE_MAX:
+            _RESPONSE_CACHE.popitem(last=False)  # evict LRU
+        _RESPONSE_CACHE[key] = (version, payload)
+        _RESPONSE_CACHE.move_to_end(key)
+        return payload
+
+    if not _BUILD_LOCK.acquire(blocking=False):
+        if cached:
+            return cached[1]        # serve stale rather than queue behind the build
+        with _BUILD_LOCK:           # first-ever for this key: must build once
+            c2 = _RESPONSE_CACHE.get(key)
+            if c2 and c2[0] == _current_version():
+                return c2[1]
+            return _store(_build_gzipped_csv(source, days))
+    try:
+        return _store(_build_gzipped_csv(source, days))
+    finally:
+        _BUILD_LOCK.release()
 
 
 def _serve_csv(source: str, days, request: Request):
