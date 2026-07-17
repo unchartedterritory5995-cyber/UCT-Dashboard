@@ -524,7 +524,15 @@ async def _fetch_oi_all_async(
     ).lower() in ("1", "true", "yes")
     unresolved_idx = [i for i, (_, oi) in enumerate(results) if oi is None]
     if unresolved_idx and not massive_disabled:
-        massive_batch = [contracts[i] for i in unresolved_idx]
+        # Flow-table CallPut is 'CALL'/'PUT' but the Massive module keys its
+        # chain index on 'C'/'P' letters AND builds contract_keys with the cp
+        # it was given — pass the normalized letter or nothing ever resolves
+        # and no resolved key would merge back (the 7/15-17 "fetched N tickers
+        # -> 0/198 contracts resolved" collapse).
+        massive_batch = [
+            (s, "C" if str(cp).upper() in ("C", "CALL") else "P", k, x)
+            for s, cp, k, x in (contracts[i] for i in unresolved_idx)
+        ]
         # Same size-scaled timeout logic as the Schwab call above: 12s
         # ceiling for small on-demand batches (hang protection), 60s
         # for cron chunks that span dozens of underlyings.
