@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import ChartColorPicker from './ChartColorPicker'
+import ColorPanel from './ColorPanel'
 import styles from './ChartSettingsModal.module.css'
 
 /**
@@ -86,13 +86,48 @@ const COLOR_MODES = [
   { val: 'openclose', label: 'Open vs Close' },
 ]
 
+const TARGET_MAP = {
+  bodyUp: 'upColor', bodyDown: 'downColor',
+  borderUp: 'upBorder', borderDown: 'downBorder',
+  wickUp: 'upWick', wickDown: 'downWick',
+  one: 'oneColor',
+}
+
 export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor }) {
+  const panelRef = useRef(null)
+  const [activeTarget, setActiveTarget] = useState(null) // { target, label }
+  const [panelPos, setPanelPos] = useState(null)
+
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    const onKey = (e) => { if (e.key === 'Escape') { if (activeTarget) setActiveTarget(null); else onClose?.() } }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, onClose, activeTarget])
+
+  useEffect(() => { if (!open) setActiveTarget(null) }, [open])
+
+  // Position the pop-out color panel to the RIGHT of the modal (flip left if tight).
+  useLayoutEffect(() => {
+    if (!open || !activeTarget || !panelRef.current) { setPanelPos(null); return }
+    const r = panelRef.current.getBoundingClientRect()
+    const W = 232, gap = 12
+    let left = r.right + gap
+    if (left + W > window.innerWidth - 8) left = Math.max(8, r.left - W - gap)
+    const top = Math.max(8, Math.min(r.top + 4, window.innerHeight - 440))
+    setPanelPos({ left, top })
+  }, [activeTarget, open])
+
+  // Close the color panel on an outside click (not a swatch, not inside the panel).
+  useEffect(() => {
+    if (!activeTarget) return
+    const onDown = (e) => {
+      if (e.target.closest?.('[data-color-swatch]') || e.target.closest?.('[data-color-panel]')) return
+      setActiveTarget(null)
+    }
+    window.addEventListener('mousedown', onDown, true)
+    return () => window.removeEventListener('mousedown', onDown, true)
+  }, [activeTarget])
 
   if (!open) return null
 
@@ -107,8 +142,6 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     if (val === curColorMode) return
     onChange?.({ ...settings, candleColorMode: val, preset: 'custom' })
   }
-  // Shown for every type — line & area also color by these modes (per-segment), so
-  // keep them visible + clickable. (Their "area" fill is auto transparent gray.)
   const showColorMode = true
 
   // Candle colors. Candles/Hollow expose Body / Borders / Wick separately; bars &
@@ -116,30 +149,35 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const candles = settings?.candles || {}
   const isCandleType = curType === 'candles' || curType === 'hollow'
   const setCandleColor = (which, hex) => {
-    const next = { ...candles }
-    const map = {
-      bodyUp: 'upColor', bodyDown: 'downColor',
-      borderUp: 'upBorder', borderDown: 'downBorder',
-      wickUp: 'upWick', wickDown: 'downWick',
-      one: 'oneColor',
-    }
-    if (map[which]) next[map[which]] = hex
-    onChange?.({ ...settings, candles: next, preset: 'custom' })
+    if (!TARGET_MAP[which]) return
+    onChange?.({ ...settings, candles: { ...candles, [TARGET_MAP[which]]: hex }, preset: 'custom' })
   }
-  const picker = (label, which, val) => (
-    <ChartColorPicker
-      label={label}
-      value={val}
-      onChange={(hex) => setCandleColor(which, hex)}
-      savedColors={savedColors}
-      onSaveColor={onSaveColor}
-      onDeleteColor={onDeleteColor}
+  const targetValue = (t) => {
+    switch (t) {
+      case 'bodyUp': return candles.upColor || '#1ae51a'
+      case 'bodyDown': return candles.downColor || '#c41f2d'
+      case 'borderUp': return candles.upBorder || candles.upColor || '#1ae51a'
+      case 'borderDown': return candles.downBorder || candles.downColor || '#c41f2d'
+      case 'wickUp': return candles.upWick || candles.upColor || '#1ae51a'
+      case 'wickDown': return candles.downWick || candles.downColor || '#c41f2d'
+      case 'one': return candles.oneColor || candles.upColor || '#1ae51a'
+      default: return '#1ae51a'
+    }
+  }
+  const colorSwatch = (target, label) => (
+    <button
+      type="button"
+      data-color-swatch
+      className={`${styles.cSwatch} ${activeTarget?.target === target ? styles.cSwatchActive : ''}`}
+      style={{ background: targetValue(target) }}
+      title={label}
+      onClick={() => setActiveTarget({ target, label })}
     />
   )
 
   return createPortal(
     <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
-      <div className={styles.panel} onMouseDown={(e) => e.stopPropagation()}>
+      <div className={styles.panel} ref={panelRef} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <span className={styles.title}>Chart Settings</span>
           <button type="button" className={styles.close} onClick={onClose} aria-label="Close">✕</button>
@@ -187,37 +225,49 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             <section className={styles.section}>
               <div className={styles.sectionLabel}>Colors</div>
               {curColorMode === 'onecolor' ? (
-                <div className={styles.colorList}>
-                  {picker('Color', 'one', candles.oneColor || candles.upColor || '#1ae51a')}
+                <div className={styles.cRow}>
+                  <span className={styles.cRowLabel}>Color</span>
+                  <div className={styles.cSwatches}>{colorSwatch('one', 'Color')}</div>
                 </div>
               ) : isCandleType ? (
                 <>
-                  <div className={styles.subLabel}>Body</div>
-                  <div className={styles.colorList}>
-                    {picker('Up', 'bodyUp', candles.upColor || '#1ae51a')}
-                    {picker('Down', 'bodyDown', candles.downColor || '#c41f2d')}
+                  <div className={styles.cRow}>
+                    <span className={styles.cRowLabel}>Body</span>
+                    <div className={styles.cSwatches}>{colorSwatch('bodyUp', 'Body Up')}{colorSwatch('bodyDown', 'Body Down')}</div>
                   </div>
-                  <div className={styles.subLabel}>Borders</div>
-                  <div className={styles.colorList}>
-                    {picker('Up', 'borderUp', candles.upBorder || candles.upColor || '#1ae51a')}
-                    {picker('Down', 'borderDown', candles.downBorder || candles.downColor || '#c41f2d')}
+                  <div className={styles.cRow}>
+                    <span className={styles.cRowLabel}>Borders</span>
+                    <div className={styles.cSwatches}>{colorSwatch('borderUp', 'Border Up')}{colorSwatch('borderDown', 'Border Down')}</div>
                   </div>
-                  <div className={styles.subLabel}>Wick</div>
-                  <div className={styles.colorList}>
-                    {picker('Up', 'wickUp', candles.upWick || candles.upColor || '#1ae51a')}
-                    {picker('Down', 'wickDown', candles.downWick || candles.downColor || '#c41f2d')}
+                  <div className={styles.cRow}>
+                    <span className={styles.cRowLabel}>Wick</span>
+                    <div className={styles.cSwatches}>{colorSwatch('wickUp', 'Wick Up')}{colorSwatch('wickDown', 'Wick Down')}</div>
                   </div>
                 </>
               ) : (
-                <div className={styles.colorList}>
-                  {picker('Up', 'bodyUp', candles.upColor || '#1ae51a')}
-                  {picker('Down', 'bodyDown', candles.downColor || '#c41f2d')}
+                <div className={styles.cRow}>
+                  <span className={styles.cRowLabel}>Color</span>
+                  <div className={styles.cSwatches}>{colorSwatch('bodyUp', 'Up')}{colorSwatch('bodyDown', 'Down')}</div>
                 </div>
               )}
             </section>
           )}
         </div>
       </div>
+
+      {activeTarget && panelPos && (
+        <div data-color-panel style={{ position: 'fixed', left: panelPos.left, top: panelPos.top, zIndex: 9100 }}>
+          <ColorPanel
+            title={activeTarget.label}
+            value={targetValue(activeTarget.target)}
+            onChange={(hex) => setCandleColor(activeTarget.target, hex)}
+            onClose={() => setActiveTarget(null)}
+            savedColors={savedColors}
+            onSaveColor={onSaveColor}
+            onDeleteColor={onDeleteColor}
+          />
+        </div>
+      )}
     </div>,
     document.body,
   )

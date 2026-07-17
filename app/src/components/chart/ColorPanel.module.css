@@ -1,67 +1,76 @@
-.field { position: relative; }
+/* Floating color panel — pops out to the side of the Chart Settings modal. */
+.panel {
+  width: 208px;
+  padding: 11px;
+  background: #0e0e0f;
+  border: 1px solid #2c2c2d;
+  border-radius: 11px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.72);
+  animation: cpIn 120ms ease;
+}
+@keyframes cpIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 
-/* Trigger row — swatch + label + hex tag. */
-.trigger {
+.head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 11px;
-  background: #121213;
-  border: 1px solid #232324;
-  border-radius: 8px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #e7e1d2;
+  text-transform: uppercase;
+}
+.close {
+  background: transparent;
+  border: none;
+  color: #6f6a5e;
+  font-size: 12px;
   cursor: pointer;
-  font-family: inherit;
-  transition: border-color 120ms, background 120ms;
+  padding: 3px 5px;
+  border-radius: 5px;
 }
-.trigger:hover { background: #171718; border-color: #34342f; }
+.close:hover { color: #ece7d6; background: rgba(255, 255, 255, 0.06); }
 
-.swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-.label { font-size: 12.5px; font-weight: 600; color: #d8d2c2; flex: 1; text-align: left; }
-.hexTag { font-size: 11px; font-family: 'IBM Plex Mono', ui-monospace, monospace; color: #7c7768; text-transform: uppercase; }
-
-/* Expanded editor — inline (inside the modal's scroll area), compact. */
-.pop {
-  margin-top: 8px;
-  padding: 10px;
-  background: #0e0e0f;
-  border: 1px solid #2a2a2b;
-  border-radius: 10px;
-}
-
-/* Shade grid — columns = hue, rows = shade. */
+/* Shade grid — 12 hue columns × 6 shades. */
 .grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 3px;
 }
+.sw {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0;
+  cursor: pointer;
+  transition: transform 80ms;
+}
+.sw:hover { transform: scale(1.2); position: relative; z-index: 1; }
+.swActive { box-shadow: 0 0 0 2px #0e0e0f, 0 0 0 3px #c9a84c; }
 
 .savedLabel {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: #6c6858;
-  margin: 9px 0 6px;
+  margin: 9px 0 5px;
 }
-.savedRow {
+.savedRow,
+.defaultsRow {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 3px;
 }
 .savedItem { position: relative; display: block; }
-.savedDel {
+.del {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 13px;
-  height: 13px;
+  top: -5px; right: -5px;
+  width: 13px; height: 13px;
   padding: 0;
   border-radius: 50%;
   border: 1px solid #3a3a3b;
@@ -75,48 +84,34 @@
   justify-content: center;
   z-index: 2;
 }
-.savedItem:hover .savedDel { display: inline-flex; }
-.savedDel:hover { background: #7d1620; border-color: #a5242f; color: #fff; }
+.savedItem:hover .del { display: inline-flex; }
+.del:hover { background: #7d1620; border-color: #a5242f; color: #fff; }
 
-.sw {
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  padding: 0;
-  cursor: pointer;
-  transition: transform 80ms;
-}
-.sw:hover { transform: scale(1.18); position: relative; z-index: 1; }
-.swActive { box-shadow: 0 0 0 2px #0e0e0f, 0 0 0 3px #c9a84c; }
-
-/* Footer — hex field + Custom toggle + Save. */
 .footer {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 9px;
+  gap: 5px;
+  margin-top: 10px;
 }
-.hexHash { color: #6c6858; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; }
+.hash { color: #6c6858; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; }
 .hexInput {
-  width: 66px;
+  width: 60px;
   background: #17171a;
   border: 1px solid #2f2f31;
   border-radius: 6px;
   color: #e5e0d2;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 12px;
-  padding: 5px 7px;
+  font-size: 11.5px;
+  padding: 5px 6px;
   outline: none;
   text-transform: lowercase;
 }
 .hexInput:focus { border-color: #c9a84c; }
-
 .custBtn, .saveBtn {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   font-family: inherit;
-  padding: 5px 10px;
+  padding: 5px 9px;
   border-radius: 6px;
   cursor: pointer;
   border: 1px solid #34342f;
@@ -125,16 +120,15 @@
 }
 .custBtn { color: #9a9484; margin-left: auto; }
 .custBtn:hover { color: #d8d2c2; border-color: #45453d; }
-.custBtnOn { color: #e7cf8f; border-color: #c9a84c; background: rgba(201, 168, 76, 0.12); }
+.custOn { color: #e7cf8f; border-color: #c9a84c; background: rgba(201, 168, 76, 0.12); }
 .saveBtn { color: #c9a84c; }
 .saveBtn:hover { background: rgba(201, 168, 76, 0.12); border-color: #c9a84c; }
 
-/* Custom SV + hue (revealed on demand). */
-.customRow { margin-top: 10px; }
+.customWrap { margin-top: 10px; }
 .svBox {
   position: relative;
   width: 100%;
-  height: 104px;
+  height: 96px;
   border-radius: 7px;
   overflow: hidden;
   cursor: crosshair;
@@ -159,8 +153,7 @@
   cursor: pointer;
   touch-action: none;
   background: linear-gradient(to right,
-    #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%,
-    #0000ff 67%, #ff00ff 83%, #ff0000 100%);
+    #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
 }
 .hueThumb {
   position: absolute;
