@@ -412,12 +412,22 @@ def status(user_id: str) -> dict[str, Any]:
             "WHERE user_id = ? AND status = 'pending'",
             (user_id,),
         ).fetchone()["n"]
+        # Per-broker operational health (cache-only; refreshes in background).
+        # Lets the UI say "Webull data is degraded right now" instead of the
+        # member blaming the journal.
+        broker_health: list[dict[str, Any]] = []
+        try:
+            from api.services.journal_two.broker import partner_health
+            broker_health = partner_health.degraded_connected_brokers_cached(accounts)
+        except Exception:
+            pass
         return {
             "connected": connected,
             "consentAt": row["consent_at"] if row else None,
             "accounts": accounts,
             "dupFlagsPending": dup_pending,
             "snaptradeConfigured": snap.is_configured(),
+            "brokerHealth": broker_health,
         }
     finally:
         conn.close()

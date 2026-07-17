@@ -146,6 +146,21 @@ async def run_fleet_check() -> dict[str, Any]:
                 "kind": "snaptrade_unreachable", "userId": None,
                 "detail": str(e)[:200],
             })
+        # Per-broker operational flags for brokers our members actually have
+        # connected — a degraded Webull explains "my data is stale" tickets
+        # before they're filed.
+        try:
+            from api.services.journal_two.broker import connections, partner_health
+            accounts = connections.list_all_sync_enabled_accounts()
+            for d in await partner_health.degraded_connected_brokers(accounts):
+                state = ("maintenance" if d["maintenanceMode"]
+                         else "degraded" if d["isDegraded"] else "disabled")
+                findings.append({
+                    "kind": "broker_degraded", "userId": None,
+                    "detail": f"{d['brokerage']}: {state} per SnapTrade partner info",
+                })
+        except Exception:  # noqa: BLE001 — advisory only
+            logger.exception("partner health check failed")
 
     pinged = False
     if findings:

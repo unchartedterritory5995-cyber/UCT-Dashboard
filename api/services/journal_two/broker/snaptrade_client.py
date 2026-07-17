@@ -352,6 +352,16 @@ async def list_authorizations(user_id: str, user_secret: str) -> list[dict]:
     return body if isinstance(body, list) else []
 
 
+async def get_partner_info() -> dict:
+    """Client-level entitlements + per-broker health: capability flags
+    (can_access_holdings/trades/…) and each brokerage's enabled /
+    maintenance_mode / is_degraded / allows_trading flags. No user creds —
+    keyed by the API client itself."""
+    sdk = _sdk()
+    body = await _call(sdk.reference_data.get_partner_info)
+    return body if isinstance(body, dict) else {}
+
+
 async def refresh_authorization(user_id: str, user_secret: str,
                                 authorization_id: str) -> dict:
     """Ask SnapTrade to pull fresh holdings/transactions from the brokerage
