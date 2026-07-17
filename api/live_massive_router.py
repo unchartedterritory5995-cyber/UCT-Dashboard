@@ -3383,6 +3383,18 @@ async def save_thresholds(request: Request):
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
+        # 2026-07-16: was MISSING from this whitelist since the flag was added
+        # on 7/3, so a POST containing it 400'd and the flag could never be
+        # anything but its `.get(..., True)` default. Its sibling
+        # derive_strict_bid_only_bb was here from the start — plain oversight.
+        #
+        # Why it matters: the flag presumes ASK for blank-side SWEEPs on the
+        # docstring's claim that sweeps are "~85%+ buyer-initiated". Measured
+        # against flow.db on 7/15 (n=21,161) and 7/16 (n=8,352): 50%. A coin
+        # flip, at every premium bucket. ~2,399 alerts/day carry an invented
+        # direction — e.g. AMAT 9/18 $400P on 7/16 went out as "Size Bears" on
+        # a print the reference tape shows filled at the BID.
+        "sweep_empty_side_as_ask",   # presume ASK for blank-side SWEEPs (see above)
         "fresh_strike_min_volume",   # min volume to promote OI=0 fresh strikes
         "bullish_bearish_min_vol_oi_ratio",  # V/OI gate for catchall tier
         "leaps_min_vol_oi_ratio",    # V/OI gate for LEAPS tier
