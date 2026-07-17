@@ -28,6 +28,30 @@
   backdrop-filter: blur(2px);
   pointer-events: auto;
 }
+
+/* Volume-pane legend — top-left of the volume pane: dollar volume + avg volume
+   over the MA period. `top` is pinned live to the pane boundary by a rAF sampler. */
+.volLegend {
+  position: absolute;
+  left: 8px;
+  top: 76%; /* fallback until the sampler pins it to the volume pane top */
+  z-index: 6;
+  display: flex;
+  gap: 12px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(14, 15, 13, 0.55);
+  font-size: 10.5px;
+  line-height: 1.25;
+  pointer-events: none;
+  user-select: none;
+}
+.volLegItem { display: inline-flex; gap: 5px; align-items: baseline; }
+.volLegLabel { color: rgba(255, 255, 255, 0.42); font-weight: 600; letter-spacing: 0.2px; }
+.volLegVal { color: rgba(255, 255, 255, 0.85); font-weight: 700; font-variant-numeric: tabular-nums; }
+:global([data-charts-theme='sunrise']) .volLegend { background: rgba(255, 255, 255, 0.55); }
+:global([data-charts-theme='sunrise']) .volLegLabel { color: #47525f; }
+:global([data-charts-theme='sunrise']) .volLegVal { color: #12202c; }
 .rangeBtn {
   background: transparent;
   border: none;

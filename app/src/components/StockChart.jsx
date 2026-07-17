@@ -1379,6 +1379,8 @@ export default function StockChart({
   const lastPriceLinesRef = useRef(undefined)
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const volMaSeriesRef = useRef(null)  // 50-MA line on the volume pane
+  const volMaDataRef = useRef([])      // latest volMaData (avg-volume series) for the crosshair legend
+  const volLegendRef = useRef(null)    // volume-pane top-left legend ($ vol + avg vol) — positioned live
   // Volume-pane height % last APPLIED via setStretchFactor. Gate re-applies on it
   // so a 30s data poll can't reset the pane and fight a user's separator drag; the
   // drag sampler compares the live pane % against it to detect a user resize.
@@ -1539,9 +1541,13 @@ export default function StockChart({
       const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
       return { label: `${ov.type} ${ov.period}`, value: pt.value, color }
     }).filter(Boolean)
+    const vma = volMaDataRef.current
     return {
       time: last.t, open: o, high: h, low: l, close: c, volume: vol,
       change: change.toFixed(2), changePct: changePct.toFixed(2),
+      dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
+      volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
+      volMaPeriod: volumeMa || null,
       overlays, rsi: null, macd: null, macdSig: null, stochK: null, stochD: null,
       atr: null, sar: null, ichimokuTenkan: null, ichimokuKijun: null, compare: null,
     }
@@ -6294,6 +6300,7 @@ export default function StockChart({
     symRef.current = sym
     resolvedTfRef.current = resolvedTf
     onCrosshairMoveRef.current = onCrosshairMove
+    volMaDataRef.current = volMaData
   })
 
   // ── Crosshair legend: subscribe to hover events ──
@@ -6410,6 +6417,13 @@ export default function StockChart({
         compareValue = dc?.value ?? (comparisonData.at(-1)?.value ?? null)
       }
 
+      let volAvg = null
+      if (volMaSeriesRef.current) {
+        const dm = param.seriesData.get(volMaSeriesRef.current)
+        const vma = volMaDataRef.current
+        volAvg = dm?.value ?? ((vma && vma.length) ? vma[vma.length - 1].value : null)
+      }
+
       legendHoveringRef.current = true
       setCrosshairData({
         time: param.time,
@@ -6417,6 +6431,9 @@ export default function StockChart({
         volume: vol,
         change: change.toFixed(2),
         changePct: changePct.toFixed(2),
+        dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
+        volAvg,
+        volMaPeriod: volumeMa || null,
         overlays: ovValues,
         rsi: rsiValue, macd: macdValue, macdSig: macdSignalValue,
         stochK: stochKValue, stochD: stochDValue,
@@ -6853,35 +6870,42 @@ export default function StockChart({
   const [scrollGripPos, setScrollGripPos] = useState({ left: null, top: null })
   const rangeBarRef = useRef(null)
 
-  // Keep the date-range bar (3M/6M/YTD/…) pinned just above the volume pane's TOP,
-  // tracking the live pane boundary as the user drags the price/volume separator.
-  // Positioning it off the persisted paneHeightPct setting made it jump seconds late
+  // Pin two volume-pane overlays to the LIVE price/volume pane boundary as the user
+  // drags the separator: the date-range bar (3M/6M/YTD/…) just ABOVE the boundary,
+  // and the volume legend ($ vol + avg vol) just BELOW it (top-left of the volume
+  // pane). Positioning off the persisted paneHeightPct made them jump seconds late
   // (the setting only saves after the drag settles). A rAF sampler reads the actual
-  // pane heights every frame and writes `bottom` straight to the DOM (no React
-  // re-render → no fight → smooth), so it slides with the divider in real time.
+  // pane heights every frame and writes the offsets straight to the DOM (no React
+  // re-render → no fight → smooth), so they slide with the divider in real time.
+  const showVolLegend = showVolume && volInSeparatePane
   useEffect(() => {
-    if (!showRangeSelector || !chartReady) return
+    if ((!showRangeSelector && !showVolLegend) || !chartReady) return
     const chart = chartRef.current, container = containerRef.current
     if (!chart || !container) return
-    let raf = null, lastBottom = -1
+    let raf = null, lastBottom = -1, lastTop = -1
     const tick = () => {
-      const el = rangeBarRef.current
-      if (el) {
-        try {
-          const panes = chart.panes ? chart.panes() : null
-          const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
-          const H = container.clientHeight || 0
-          if (h0 > 0 && H > 0) {
+      try {
+        const panes = chart.panes ? chart.panes() : null
+        const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
+        const H = container.clientHeight || 0
+        if (h0 > 0 && H > 0) {
+          const rb = rangeBarRef.current
+          if (rb) {
             const bottom = Math.round(Math.max(30, H - h0 + 8)) // 8px above the boundary
-            if (bottom !== lastBottom) { lastBottom = bottom; el.style.bottom = `${bottom}px` }
+            if (bottom !== lastBottom) { lastBottom = bottom; rb.style.bottom = `${bottom}px` }
           }
-        } catch { /* pane API missing → CSS fallback */ }
-      }
+          const vl = volLegendRef.current
+          if (vl) {
+            const top = Math.round(h0 + 5) // just below the boundary = volume pane top
+            if (top !== lastTop) { lastTop = top; vl.style.top = `${top}px` }
+          }
+        }
+      } catch { /* pane API missing → CSS fallback */ }
       raf = requestAnimationFrame(tick)
     }
     tick()
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [showRangeSelector, chartReady])
+  }, [showRangeSelector, showVolLegend, chartReady])
   useEffect(() => {
     if (!dragMeasure || !chartReady) return
     const chart = chartRef.current; if (!chart) return
@@ -7928,6 +7952,25 @@ export default function StockChart({
               onClick={() => applyRange(val)}
             >{label}</button>
           ))}
+        </div>
+      )}
+      {/* Volume-pane legend (top-left): dollar volume + average volume over the MA
+          period. Follows the crosshair (or the latest bar), pinned live to the top
+          of the volume pane. */}
+      {showVolLegend && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
+        <div ref={volLegendRef} className={styles.volLegend}>
+          {crosshairData.dollarVol != null && (
+            <span className={styles.volLegItem}>
+              <span className={styles.volLegLabel}>$ Vol</span>
+              <span className={styles.volLegVal}>{formatDpNotional(crosshairData.dollarVol)}</span>
+            </span>
+          )}
+          {crosshairData.volAvg != null && crosshairData.volMaPeriod && (
+            <span className={styles.volLegItem}>
+              <span className={styles.volLegLabel}>Avg {crosshairData.volMaPeriod}D</span>
+              <span className={styles.volLegVal}>{formatVolume(crosshairData.volAvg)}</span>
+            </span>
+          )}
         </div>
       )}
       {!disablePatterns && bars?.length > 0 && (
