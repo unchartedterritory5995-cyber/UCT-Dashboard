@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './EarningsMarkerPopover.module.css'
 
@@ -61,6 +61,24 @@ function SurpriseRow({ label, absStr, pctNum, pctText, beatColor, missColor }) {
 
 export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1ae51a', missColor = '#c41f2d', onClose }) {
   const ref = useRef(null)
+  // Position is finalized after mount using the popover's REAL size, so it never
+  // overhangs the viewport bottom (badges now sit low on the chart → clicks land
+  // near the bottom edge; a fixed-height guess overlapped the OS taskbar area).
+  const [pos, setPos] = useState(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const MARGIN = 16
+    const w = el.offsetWidth || 232
+    const h = el.offsetHeight || 300
+    const vw = window.innerWidth, vh = window.innerHeight
+    const left = Math.max(MARGIN, Math.min(x, vw - w - MARGIN))
+    // Prefer opening downward; if it wouldn't clear the bottom, flip ABOVE the click.
+    let top = y
+    if (top + h + MARGIN > vh) top = Math.max(MARGIN, y - h - 24)   // open upward from the click
+    top = Math.max(MARGIN, Math.min(top, vh - h - MARGIN))          // final safety clamp
+    setPos({ left, top })
+  }, [x, y, data])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -88,13 +106,14 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
   const revPctNum = data.revenue_surprise_pct != null ? +data.revenue_surprise_pct : null
   const revPctText = pctStr(revPctNum)
 
-  // Clamp within the viewport (the popover is small; nudge left/up near edges).
-  const W = 232, H = 260
-  const left = Math.max(8, Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - W - 8))
-  const top = Math.max(8, Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 800) - H - 8))
+  // First paint renders off-screen (measure), then useLayoutEffect pins the real
+  // position before the browser shows it — so there's no visible jump.
+  const style = pos
+    ? { left: pos.left, top: pos.top }
+    : { left: x, top: y, visibility: 'hidden' }
 
   return createPortal(
-    <div ref={ref} className={styles.pop} style={{ left, top }} role="dialog" aria-label={`${sym || ''} earnings`}>
+    <div ref={ref} className={styles.pop} style={style} role="dialog" aria-label={`${sym || ''} earnings`}>
       <div className={styles.head}>
         <span className={styles.title}>{sym ? `${sym} · Earnings` : 'Earnings'}</span>
         <button type="button" className={styles.close} onClick={onClose} aria-label="Close">✕</button>
