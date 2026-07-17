@@ -16,7 +16,7 @@ import logging
 import time
 from typing import Optional
 
-from api.services.auth_db import get_connection
+from api.services.pattern_engine.pattern_db import get_connection
 from api.services.pattern_engine.types import Detection
 
 logger = logging.getLogger(__name__)

@@ -12,7 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from api.services.auth_db import get_connection, init_db
+from api.services.pattern_engine.pattern_db import get_connection, init_db
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.diagnostics import collect_health
 

@@ -829,7 +829,9 @@ def _exec_scan_active_patterns(*, user_id, account_id, args, conn=None) -> dict:
     cap = max(1, min(200, int(args.get("limit") or 20)))
     recent_cutoff = int(_t.time()) - 7 * 24 * 60 * 60
 
-    c = conn or get_connection()
+    # Pattern tables live in their own DB (pattern_db), never the caller's
+    # auth.db connection — ignore `conn` here.
+    from api.services.pattern_engine.pattern_db import get_connection as _pattern_conn
     sql = """SELECT id, sym, tf, pattern_id, category, direction, confidence,
                     status, levels_json, detected_at
                FROM pattern_detections
@@ -844,7 +846,11 @@ def _exec_scan_active_patterns(*, user_id, account_id, args, conn=None) -> dict:
         params.append(cat)
     sql += " ORDER BY detected_at DESC, confidence DESC LIMIT ?"
     params.append(cap)
-    rows = c.execute(sql, params).fetchall()
+    c = _pattern_conn()
+    try:
+        rows = c.execute(sql, params).fetchall()
+    finally:
+        c.close()
     out = []
     for r in rows:
         try:

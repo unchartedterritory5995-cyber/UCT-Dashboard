@@ -2093,7 +2093,7 @@ def _scan_active_patterns(
     conf_min = max(50.0, min(100.0, float(min_conf or 70.0)))
 
     try:
-        from api.services.auth_db import get_connection
+        from api.services.pattern_engine.pattern_db import get_connection
         import time as _time, json as _json
         recent_cutoff = int(_time.time()) - 7 * 24 * 60 * 60
 

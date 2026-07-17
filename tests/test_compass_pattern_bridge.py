@@ -17,16 +17,19 @@ import pytest
 
 @pytest.fixture
 def db_conn(monkeypatch):
+    # Pattern tables live in their own DB (pattern_db) since 2026-07-16 —
+    # the tools read patterns.db, so that's what this fixture seeds.
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
-    monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
-    from api.services import auth_db
-    importlib.reload(auth_db)
-    auth_db.init_db()
+    monkeypatch.setenv("PATTERN_DB_PATH", tmp.name)
+    from api.services.pattern_engine import pattern_db
+    pattern_db._initialized_paths.clear()
+    pattern_db.init_db()
     conn = sqlite3.connect(tmp.name)
     conn.row_factory = sqlite3.Row
     yield conn
     conn.close()
+    pattern_db._initialized_paths.clear()
     os.unlink(tmp.name)
 
 

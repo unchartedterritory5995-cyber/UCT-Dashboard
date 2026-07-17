@@ -1,7 +1,7 @@
 import unittest.mock
 
 from api.services.pattern_engine import memory
-from api.services.auth_db import init_db, get_connection
+from api.services.pattern_engine.pattern_db import init_db, get_connection
 
 
 def _detection(**overrides):

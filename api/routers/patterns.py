@@ -104,7 +104,7 @@ from api.services.pattern_engine.detectors.candlestick import marubozu as _marub
 from api.services.pattern_engine.detectors.classical import nr7 as _nr7  # noqa: F401
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.detectors.registry import list_pattern_ids
-from api.services.auth_db import get_connection
+from api.services.pattern_engine.pattern_db import get_connection
 from api.services.cache import cache
 import json
 import time

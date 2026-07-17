@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 
-from api.services.auth_db import get_connection, init_db
+from api.services.pattern_engine.pattern_db import get_connection, init_db
 
 
 def collect_health() -> dict:

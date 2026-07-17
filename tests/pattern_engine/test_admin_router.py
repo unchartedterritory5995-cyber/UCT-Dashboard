@@ -4,7 +4,7 @@ import uuid
 from fastapi.testclient import TestClient
 
 from api.main import app
-from api.services.auth_db import get_connection, init_db
+from api.services.pattern_engine.pattern_db import get_connection, init_db
 from api.services.pattern_engine import memory
 
 
