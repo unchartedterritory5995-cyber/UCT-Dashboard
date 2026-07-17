@@ -232,6 +232,10 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     hdrNextEarnings: ['header', 'colors', 'nextEarnings'],
     hdrUctRating: ['header', 'colors', 'uctRating'],
     hdrLegend: ['header', 'colors', 'legend'],
+    // Swing-label colors (Markers tab).
+    swingColor: ['swingLabels', 'color'],
+    swingUp: ['swingLabels', 'upColor'],
+    swingDown: ['swingLabels', 'downColor'],
   }
   const setColorTarget = (target, hex) => {
     // Watermark keeps color + opacity as SEPARATE settings (the chart reads them
@@ -273,6 +277,9 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'hdrNextEarnings': return hdrColors.nextEarnings || '#6ba3be'
       case 'hdrUctRating': return hdrColors.uctRating || '#1ae51a'  // price-candle up-green
       case 'hdrLegend': return hdrColors.legend || '#a8a290'
+      case 'swingColor': return swing.color || '#d4d0c4'
+      case 'swingUp': return swing.upColor || '#4ade80'
+      case 'swingDown': return swing.downColor || '#f87171'
       default: return '#1ae51a'
     }
   }
@@ -287,6 +294,13 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
   const hdrColors = header.colors || {}
   const headerTfs = Array.isArray(header.timeframes) ? header.timeframes : []
+  // Markers tab.
+  const swing = settings?.swingLabels || {}
+  const setSwing = (patch) => setSetting({ swingLabels: { ...swing, ...patch } })
+  const evtMarkers = settings?.markers || {}
+  const setMarker = (key, v) => setSetting({ markers: { ...evtMarkers, [key]: v } })
+  const SWING_SENS = [['low', 'Low'], ['medium', 'Med'], ['high', 'High']]
+  const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News']]
   const toggleHeaderTf = (code) => setHeader({ timeframes: headerTfs.includes(code) ? headerTfs.filter((c) => c !== code) : [...headerTfs, code] })
   const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
   const curTextSize = settings.textSize ?? 11
@@ -317,7 +331,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
         </div>
 
         <div className={styles.tabs} role="tablist">
-          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['header', 'Header']].map(([id, label]) => (
+          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -507,6 +521,82 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                     >{label}</button>
                   ))}
                 </div>
+              </div>
+            </div>
+          </section>
+          </>)}
+          {activeTab === 'markers' && (<>
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Swing labels</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Swing prices</span>
+                <button
+                  type="button" role="switch" aria-checked={!!swing.enabled} aria-label="Swing prices"
+                  className={`${styles.toggle} ${swing.enabled ? styles.toggleOn : ''}`}
+                  onClick={() => setSwing({ enabled: !swing.enabled })}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+              {swing.enabled && (<>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Sensitivity</span>
+                  <div className={styles.seg} role="tablist">
+                    {SWING_SENS.map(([val, label]) => (
+                      <button
+                        key={val} type="button" role="tab"
+                        aria-selected={(swing.sensitivity || 'medium') === val}
+                        className={`${styles.segBtn} ${(swing.sensitivity || 'medium') === val ? styles.segBtnActive : ''}`}
+                        onClick={() => setSwing({ sensitivity: val })}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Label color</span>
+                  {colorSwatch('swingColor', 'Swing label color')}
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Tint by type</span>
+                  <div className={styles.hdrRowCtl}>
+                    {swing.tintByType && colorSwatch('swingUp', 'Swing-high color')}
+                    {swing.tintByType && colorSwatch('swingDown', 'Swing-low color')}
+                    <button
+                      type="button" role="switch" aria-checked={!!swing.tintByType} aria-label="Tint by type"
+                      className={`${styles.toggle} ${swing.tintByType ? styles.toggleOn : ''}`}
+                      onClick={() => setSwing({ tintByType: !swing.tintByType })}
+                    ><span className={styles.toggleKnob} /></button>
+                  </div>
+                </div>
+              </>)}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Event markers</div>
+            <div className={styles.card}>
+              {EVENT_MARKERS.map(([key, label]) => (
+                <div className={styles.field} key={key}>
+                  <span className={styles.fieldLabel}>{label}</span>
+                  <button
+                    type="button" role="switch" aria-checked={!!evtMarkers[key]} aria-label={label}
+                    className={`${styles.toggle} ${evtMarkers[key] ? styles.toggleOn : ''}`}
+                    onClick={() => setMarker(key, !evtMarkers[key])}
+                  ><span className={styles.toggleKnob} /></button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Countdown</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Countdown to bar close</span>
+                <button
+                  type="button" role="switch" aria-checked={!!settings.countdown} aria-label="Countdown to bar close"
+                  className={`${styles.toggle} ${settings.countdown ? styles.toggleOn : ''}`}
+                  onClick={() => setSetting({ countdown: !settings.countdown })}
+                ><span className={styles.toggleKnob} /></button>
               </div>
             </div>
           </section>

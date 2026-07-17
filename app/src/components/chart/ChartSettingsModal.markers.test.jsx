@@ -1,0 +1,64 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, within } from '@testing-library/react'
+import ChartSettingsModal from './ChartSettingsModal'
+import { mergeChartSettings } from './chartDefaults'
+
+// The Markers tab (ported from the old gear panel): swing labels, event markers,
+// and the bar-close countdown. Guards that each control writes the setting the
+// workspace chart actually reads (cs.swingLabels / cs.markers / cs.countdown).
+
+const base = () => mergeChartSettings(JSON.stringify({}))
+const openMarkers = () => fireEvent.click(screen.getByRole('tab', { name: 'Markers' }))
+const lastCall = (spy) => spy.mock.calls[spy.mock.calls.length - 1][0]
+
+describe('ChartSettingsModal — Markers tab', () => {
+  it('enabling swing prices reveals sensitivity + color and writes swingLabels.enabled', () => {
+    const onChange = vi.fn()
+    render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
+    openMarkers()
+
+    // Collapsed until enabled.
+    expect(screen.queryByRole('tab', { name: 'Med' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Swing prices' }))
+    expect(lastCall(onChange).swingLabels.enabled).toBe(true)
+  })
+
+  it('sensitivity + tint-by-type colors write through', () => {
+    const onChange = vi.fn()
+    const enabled = mergeChartSettings(JSON.stringify({ swingLabels: { enabled: true, tintByType: true } }))
+    render(<ChartSettingsModal open settings={enabled} onChange={onChange} />)
+    openMarkers()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'High' }))
+    expect(lastCall(onChange).swingLabels.sensitivity).toBe('high')
+
+    // Tint-by-type on → up/down swatches are present; pick the up color.
+    fireEvent.click(screen.getByTitle('Swing-high color'))
+    const picker = screen.getByRole('dialog', { name: /Swing-high color/i })
+    const hex = within(picker).getByDisplayValue('4ade80')
+    fireEvent.change(hex, { target: { value: '00ff00' } })
+    fireEvent.keyDown(hex, { key: 'Enter' })
+    expect(lastCall(onChange).swingLabels.upColor.toLowerCase()).toContain('00ff00')
+  })
+
+  it('event-marker toggles write cs.markers.<key> without disturbing siblings', () => {
+    const onChange = vi.fn()
+    render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
+    openMarkers()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Earnings' }))
+    const next = lastCall(onChange)
+    expect(next.markers.earnings).toBe(true)
+    expect(next.markers.splits).toBe(false)   // sibling intact
+    expect(next.preset).toBe('custom')
+  })
+
+  it('countdown toggle writes cs.countdown', () => {
+    const onChange = vi.fn()
+    render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
+    openMarkers()
+    fireEvent.click(screen.getByRole('switch', { name: /Countdown to bar close/i }))
+    expect(lastCall(onChange).countdown).toBe(true)
+  })
+})
