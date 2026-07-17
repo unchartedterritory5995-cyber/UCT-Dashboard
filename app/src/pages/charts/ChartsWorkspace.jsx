@@ -356,7 +356,6 @@ export default function ChartsWorkspace() {
   const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
   const [openMenuOpen, setOpenMenuOpen] = useState(false)
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
-  const [themeMenuOpen, setThemeMenuOpen] = useState(false)
   const [saveAsName, setSaveAsName] = useState('')
   const [saveAsScope, setSaveAsScope] = useState('user')  // 'user' | 'global' (admin)
   const [saveErr, setSaveErr] = useState('')
@@ -497,6 +496,18 @@ export default function ChartsWorkspace() {
             >Open layout ▾</button>
             {openMenuOpen && (
               <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => setOpenMenuOpen(false)}>
+                {/* Chart theme — recolors the whole workspace (charts + all widgets). */}
+                <div className={styles.menuSection}>Chart theme</div>
+                {[['default', 'Default'], ['sunrise', 'TSDR — Sunrise']].map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={chartsTheme === val ? { color: 'var(--ut-green-bright, #1ae51a)' } : undefined}
+                    onClick={() => { setChartsTheme(val); setOpenMenuOpen(false) }}
+                  >{chartsTheme === val ? '✓ ' : ''}{label}</button>
+                ))}
+                <div className={styles.menuDivider} />
                 {globalLayouts.length === 0 && myLayouts.length === 0 && (
                   <div className={styles.menuEmpty}>No saved layouts yet</div>
                 )}
@@ -562,30 +573,6 @@ export default function ChartsWorkspace() {
             )}
           </div>
 
-          {/* Chart theme — recolors the whole workspace (charts + all widgets).
-              Pushed to the far RIGHT of the header (margin-left:auto), with right
-              margin so it clears the fixed help "?" pinned to the top-right of the
-              viewport. Its dropdown is right-aligned so it opens leftward on-screen. */}
-          <div className={styles.toolbarBtnGroup} style={{ position: 'relative', marginLeft: 'auto', marginRight: 36 }}>
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              onClick={() => { setThemeMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false) }}
-            >Chart theme ▾</button>
-            {themeMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 180, left: 'auto', right: 0 }} onMouseLeave={() => setThemeMenuOpen(false)}>
-                {[['default', 'Default'], ['sunrise', 'TSDR — Sunrise']].map(([val, label]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    className={styles.addMenuItem}
-                    style={chartsTheme === val ? { color: 'var(--ut-green-bright, #1ae51a)' } : undefined}
-                    onClick={() => { setChartsTheme(val); setThemeMenuOpen(false) }}
-                  >{chartsTheme === val ? '✓ ' : ''}{label}</button>
-                ))}
-              </div>
-            )}
-          </div>
         </header>
         <main className={styles.workspaceBody} ref={bodyRef}>
           <ResponsiveGridLayout
