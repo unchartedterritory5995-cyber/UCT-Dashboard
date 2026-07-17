@@ -2,23 +2,27 @@
 // stacked symbol watermark BEHIND the series (bottom z-order). Position is a
 // normalized {x,y} fraction of the pane; styling/lines come from chart settings.
 
-const FONT_RAMP = [54, 20, 14, 13]   // px @ sizeScale 1.0, per line index
+// Font size is a property of the line's ROLE, not its position. The ticker is the
+// big hero line; company/sector/industry/theme are the smaller supporting lines —
+// so deselecting the ticker must NOT promote the company name to the hero size.
+const ROLE_SIZE = { ticker: 54, company: 20, sector: 14, industry: 13, theme: 13 }
 const LINE_GAP = 6                   // px between lines @ scale 1.0
 const FONT_FAMILY = "'Instrument Sans', sans-serif"
 const makeFont = fp => `700 ${fp}px ${FONT_FAMILY}`
 
+// Returns [{ text, size }] — size = px @ sizeScale 1.0, fixed per role.
 export function composeWatermarkLines(sym, meta, lines) {
   const out = []
-  if (lines.ticker && sym) out.push(String(sym))
-  if (lines.company && meta?.name) out.push(meta.name)
-  if (lines.sector && meta?.sector) out.push(meta.sector)
-  if (lines.industry && meta?.industry) out.push(meta.industry)
-  if (lines.theme && meta?.theme) out.push(meta.theme)
+  if (lines.ticker && sym) out.push({ text: String(sym), size: ROLE_SIZE.ticker })
+  if (lines.company && meta?.name) out.push({ text: meta.name, size: ROLE_SIZE.company })
+  if (lines.sector && meta?.sector) out.push({ text: meta.sector, size: ROLE_SIZE.sector })
+  if (lines.industry && meta?.industry) out.push({ text: meta.industry, size: ROLE_SIZE.industry })
+  if (lines.theme && meta?.theme) out.push({ text: meta.theme, size: ROLE_SIZE.theme })
   return out
 }
 
-export function watermarkFontPx(lineIndex, sizeScale) {
-  const base = FONT_RAMP[Math.min(lineIndex, FONT_RAMP.length - 1)]
+export function watermarkFontPx(line, sizeScale) {
+  const base = typeof line === 'object' ? (line?.size ?? 13) : ROLE_SIZE.company
   return Math.round(base * (sizeScale || 1))
 }
 
@@ -72,10 +76,10 @@ export function createWatermarkPrimitive(initial) {
   function measureBlock(ctx) {
     let w = 0
     let h = 0
-    opts.lines.forEach((text, i) => {
-      const fp = watermarkFontPx(i, opts.sizeScale)
+    opts.lines.forEach((line, i) => {
+      const fp = watermarkFontPx(line, opts.sizeScale)
       ctx.font = makeFont(fp)
-      w = Math.max(w, ctx.measureText(text).width)
+      w = Math.max(w, ctx.measureText(line.text).width)
       h += fp + (i > 0 ? LINE_GAP * (opts.sizeScale || 1) : 0)
     })
     return { w, h }
@@ -97,11 +101,11 @@ export function createWatermarkPrimitive(initial) {
           ctx.textBaseline = 'top'
           ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`
           let cy = rect.y
-          opts.lines.forEach((text, i) => {
-            const fp = watermarkFontPx(i, opts.sizeScale)
+          opts.lines.forEach((line, i) => {
+            const fp = watermarkFontPx(line, opts.sizeScale)
             if (i > 0) cy += LINE_GAP * (opts.sizeScale || 1)
             ctx.font = makeFont(fp)
-            ctx.fillText(text, rect.x + rect.w / 2, cy)
+            ctx.fillText(line.text, rect.x + rect.w / 2, cy)
             cy += fp
           })
           if (armed) {

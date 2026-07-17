@@ -110,9 +110,33 @@ const TARGET_MAP = {
 
 export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor }) {
   const panelRef = useRef(null)
+  const dragRef = useRef(null)
   const [activeTab, setActiveTab] = useState('price') // 'price' | 'canvas'
   const [activeTarget, setActiveTarget] = useState(null) // { target, label }
   const [panelPos, setPanelPos] = useState(null)
+  const [pos, setPos] = useState(null) // dragged modal position {left, top}; null = centered
+
+  useEffect(() => { if (!open) setPos(null) }, [open]) // re-center on each open
+
+  // Drag the modal by its header (like a floating tool window). Stays open while
+  // dragging; clicking the ✕ or outside still closes it.
+  const startDrag = (e) => {
+    if (e.button !== 0 || e.target.closest?.('[data-modal-close]')) return
+    const r = panelRef.current?.getBoundingClientRect(); if (!r) return
+    e.preventDefault()
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top, w: r.width, h: r.height }
+    let raf = 0, last = null
+    const flush = () => {
+      raf = 0; const d = dragRef.current; if (!d || !last) return
+      const nx = Math.max(8, Math.min(window.innerWidth - d.w - 8, d.ox + (last.clientX - d.sx)))
+      const ny = Math.max(8, Math.min(window.innerHeight - d.h - 8, d.oy + (last.clientY - d.sy)))
+      setPos({ left: nx, top: ny }); last = null
+    }
+    const move = (ev) => { last = ev; if (!raf) raf = requestAnimationFrame(flush) }
+    const up = () => { if (raf) cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -135,7 +159,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     // Align the color panel's BOTTOM edge with the settings modal's bottom edge.
     const bottom = Math.max(8, window.innerHeight - r.bottom)
     setPanelPos({ left, bottom })
-  }, [activeTarget, open])
+  }, [activeTarget, open, pos])
 
   // Close the color panel on an outside click (not a swatch, not inside the panel).
   useEffect(() => {
@@ -222,7 +246,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
   const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
   const wmLines = watermark.lines || {}
-  const TEXT_SIZES = [[10, 'S'], [11, 'M'], [13, 'L'], [15, 'XL']]
+  const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
   const curTextSize = settings.textSize ?? 11
   const colorSwatch = (target, label, bg) => (
     <button
@@ -239,10 +263,15 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     <>
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
-      <div className={styles.panel} ref={panelRef} onMouseDown={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
+      <div
+        className={styles.panel}
+        ref={panelRef}
+        onMouseDown={(e) => e.stopPropagation()}
+        style={pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : undefined}
+      >
+        <div className={styles.header} onPointerDown={startDrag} style={{ cursor: 'move' }}>
           <span className={styles.title}>Chart Settings</span>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" data-modal-close className={styles.close} onClick={onClose} aria-label="Close" style={{ cursor: 'pointer' }}>✕</button>
         </div>
 
         <div className={styles.tabs} role="tablist">
@@ -324,20 +353,16 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
               </div>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Scale text</span>
-                {colorSwatch('text', 'Scale Text')}
-              </div>
-              <div className={styles.field}>
-                <span className={styles.fieldLabel}>Text size</span>
-                <div className={styles.seg2}>
-                  {TEXT_SIZES.map(([px, label]) => (
-                    <button
-                      key={px}
-                      type="button"
-                      className={`${styles.seg2Btn} ${curTextSize === px ? styles.seg2BtnActive : ''}`}
-                      onClick={() => setSetting({ textSize: px })}
-                      aria-pressed={curTextSize === px}
-                    >{label}</button>
-                  ))}
+                <div className={styles.fieldControls}>
+                  <select
+                    className={styles.sizeSelect}
+                    value={curTextSize}
+                    onChange={(e) => setSetting({ textSize: Number(e.target.value) })}
+                    aria-label="Scale text size"
+                  >
+                    {TEXT_SIZES.map((px) => <option key={px} value={px}>{px}</option>)}
+                  </select>
+                  {colorSwatch('text', 'Scale Text')}
                 </div>
               </div>
             </div>
