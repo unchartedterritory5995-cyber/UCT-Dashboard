@@ -93,6 +93,16 @@ _SCHEMA = """
 
 _TABLES = ("pattern_detections", "pattern_outcomes", "pattern_stats", "pattern_feedback")
 
+# Legacy copy guard: prod auth.db held 2.37M detection rows (~15+ GB with the
+# JSON blobs) — a blanket INSERT..SELECT built a 10 GB WAL inside one request
+# and nearly filled the volume (2026-07-17). Detections/outcomes are transient
+# (the hourly scan repopulates; consumers read the last 7 days), so the bulk
+# tables migrate only when small. Stats + operator feedback are tiny and
+# always copied.
+_MIGRATE_MAX_ROWS = int(os.getenv("PATTERN_DB_MIGRATE_MAX_ROWS", "100000"))
+_SMALL_TABLES = ("pattern_stats", "pattern_feedback")
+_BULK_TABLES = ("pattern_detections", "pattern_outcomes")
+
 _init_lock = threading.Lock()
 _initialized_paths: set[str] = set()
 
@@ -127,20 +137,30 @@ def _migrate_from_auth_db(conn: sqlite3.Connection) -> None:
     try:
         conn.execute("ATTACH DATABASE ? AS legacy", (src,))
         try:
-            has = conn.execute(
-                "SELECT name FROM legacy.sqlite_master WHERE type='table' AND name='pattern_detections'"
-            ).fetchone()
-            if not has:
+            def _legacy_has(t: str) -> bool:
+                return conn.execute(
+                    "SELECT name FROM legacy.sqlite_master WHERE type='table' AND name=?", (t,)
+                ).fetchone() is not None
+
+            if not _legacy_has("pattern_detections"):
                 return
             copied = 0
-            for t in _TABLES:
-                exists = conn.execute(
-                    "SELECT name FROM legacy.sqlite_master WHERE type='table' AND name=?", (t,)
-                ).fetchone()
-                if exists:
+            for t in _SMALL_TABLES:
+                if _legacy_has(t):
                     cur = conn.execute(f"INSERT OR IGNORE INTO {t} SELECT * FROM legacy.{t}")
-                    copied += cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
-            conn.commit()
+                    copied += max(cur.rowcount or 0, 0)
+                    conn.commit()  # bound the WAL per table
+            n_det = conn.execute("SELECT COUNT(*) FROM legacy.pattern_detections").fetchone()[0]
+            if n_det > _MIGRATE_MAX_ROWS:
+                print(f"[patterns] Legacy detections too large to migrate "
+                      f"({n_det} rows > {_MIGRATE_MAX_ROWS}); scan repopulates hourly. "
+                      f"Copied {copied} stats/feedback rows.")
+                return
+            for t in _BULK_TABLES:
+                if _legacy_has(t):
+                    cur = conn.execute(f"INSERT OR IGNORE INTO {t} SELECT * FROM legacy.{t}")
+                    copied += max(cur.rowcount or 0, 0)
+                    conn.commit()
             if copied:
                 print(f"[patterns] Migrated {copied} legacy rows from auth.db into patterns.db")
         finally:

@@ -79,3 +79,45 @@ def test_legacy_auth_db_rows_migrate_once(tmp_path, monkeypatch):
         assert row is not None and row["sym"] == "AAPL"
     finally:
         conn.close()
+
+
+def test_huge_legacy_detections_skip_bulk_but_copy_small_tables(tmp_path, monkeypatch):
+    """Prod regression 2026-07-17: a 2.37M-row legacy table must NOT be bulk
+    copied (it built a 10 GB WAL in-request). Stats/feedback still migrate."""
+    _isolate(tmp_path, monkeypatch)
+    monkeypatch.setattr(pattern_db, "_MIGRATE_MAX_ROWS", 1)
+    legacy = sqlite3.connect(tmp_path / "auth.db")
+    legacy.execute("""CREATE TABLE pattern_detections (
+        id TEXT PRIMARY KEY, sym TEXT NOT NULL, tf TEXT NOT NULL,
+        pattern_id TEXT NOT NULL, category TEXT NOT NULL, direction TEXT NOT NULL,
+        start_t INTEGER NOT NULL, end_t INTEGER NOT NULL, confidence REAL NOT NULL,
+        quality_json TEXT NOT NULL, geometry_json TEXT NOT NULL,
+        levels_json TEXT NOT NULL, context_json TEXT NOT NULL,
+        narrative_json TEXT NOT NULL, status TEXT NOT NULL,
+        detected_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL,
+        hash_key TEXT NOT NULL UNIQUE)""")
+    for i in range(3):  # 3 rows > cap of 1
+        legacy.execute(
+            "INSERT INTO pattern_detections VALUES (?,?,'D','bull_flag','classical',"
+            "'bullish',1,2,75,'{}','{}','{}','{}','{}','ready',10,10,?)",
+            (f"d{i}", "AAPL", f"hk{i}"))
+    legacy.execute("""CREATE TABLE pattern_stats (
+        pattern_id TEXT NOT NULL, tf TEXT NOT NULL, regime_bucket TEXT NOT NULL,
+        n_total INTEGER NOT NULL DEFAULT 0, n_resolved INTEGER NOT NULL DEFAULT 0,
+        n_entry_hit INTEGER NOT NULL DEFAULT 0, n_target_hit INTEGER NOT NULL DEFAULT 0,
+        n_stop_hit INTEGER NOT NULL DEFAULT 0, avg_mfe_pct REAL, avg_mae_pct REAL,
+        median_bars INTEGER, hit_rate REAL, expectancy_R REAL,
+        last_updated INTEGER NOT NULL, PRIMARY KEY (pattern_id, tf, regime_bucket))""")
+    legacy.execute(
+        "INSERT INTO pattern_stats VALUES ('bull_flag','D','bull',5,4,3,2,1,"
+        "2.0,-1.0,4,0.5,0.8,100)")
+    legacy.commit()
+    legacy.close()
+
+    init_db()
+    conn = get_connection()
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM pattern_detections").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM pattern_stats").fetchone()[0] == 1
+    finally:
+        conn.close()
