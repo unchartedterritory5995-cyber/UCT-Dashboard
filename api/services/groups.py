@@ -191,8 +191,7 @@ def _theme_holdings(theme_id: str) -> list:
 
 
 def top_n(theme_id: str, n: int, by: str = "today") -> dict:
-    from api.services import theme_db
-    holdings = theme_db.get_theme_holdings(theme_id)
+    holdings = _theme_holdings(theme_id)
     ranked = rank_holdings(holdings, by=by)
     top = ranked[: max(1, int(n))]
     # Per-sym tier + rationale for the cell badges (keyed hyphen).
@@ -209,4 +208,64 @@ def top_n(theme_id: str, n: int, by: str = "today") -> dict:
         "total": len(ranked),
         "by": "rs" if by == "rs" else "today",
         "ranked_as_of": _ranked_as_of(),
+    }
+
+
+# Style/factor buckets are poor peer sets — excluded from seed resolution.
+_FACTOR_THEME_NAMES = {
+    "meme & retail", "small cap growth", "dividend aristocrats",
+}
+
+
+def _themes_for_ticker(sym: str) -> list:
+    from api.services import theme_db
+    return theme_db.get_themes_for_ticker(to_taxonomy_sym(sym))
+
+
+def _theme_size(theme_id: str) -> int:
+    for r in list_groups():
+        if r["id"] == theme_id:
+            return r["total"]
+    return 0
+
+
+def resolve_primary_theme(sym: str):
+    """The membership row whose theme the seed should take peers from, or None.
+    Smallest theme where the seed ranks highest by tier; factor buckets excluded.
+    Shared with ticker_meta so the displayed theme and filled peers agree."""
+    rows = [r for r in _themes_for_ticker(sym)
+            if (r.get("theme_name") or "").strip().lower() not in _FACTOR_THEME_NAMES]
+    if not rows:
+        return None
+    rows.sort(key=lambda r: (
+        _TIER_RANK.get(r.get("tier"), 99),
+        _theme_size(r.get("theme_id")),
+        r.get("theme_id") or "",
+    ))
+    return rows[0]
+
+
+def resolve_peers(sym: str, n: int) -> dict:
+    """Peers = the seed's primary theme's other chartable holdings, same
+    sub-theme floated to the top, ranked by today's move. v1: no AI fallback —
+    a taxonomy miss returns source='none' (caller keeps the seed solo)."""
+    seed_hy = normalize_sym(sym)
+    row = resolve_primary_theme(sym)
+    if not row:
+        return {"seed": seed_hy, "group_id": None, "peers": [], "source": "none"}
+
+    theme_id = row.get("theme_id")
+    seed_sub = row.get("sub_theme_id")
+    holdings = _theme_holdings(theme_id)
+    ranked = rank_holdings(holdings, by="today", seed=seed_hy)  # chartable, seed-excluded
+
+    sub_by_sym = {normalize_sym(h.get("sym", "")): h.get("sub_theme_id") for h in holdings}
+    # Stable float: same-sub-theme names first, preserving the ranked order within each group.
+    ranked.sort(key=lambda hy: 0 if (seed_sub and sub_by_sym.get(hy) == seed_sub) else 1)
+
+    return {
+        "seed": seed_hy,
+        "group_id": theme_id,
+        "peers": ranked[: max(1, int(n))],
+        "source": "taxonomy",
     }

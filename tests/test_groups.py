@@ -97,3 +97,47 @@ def test_top_n_returns_rows_with_tier_and_rationale(monkeypatch):
     out = groups.top_n("space", 2, by="today")
     assert out["syms"] == ["RKLB", "ASTS"]
     assert out["rows"][0] == {"sym": "RKLB", "tier": "core", "rationale": "Launch"}
+
+
+def test_resolve_primary_theme_prefers_core_over_smaller_relevant(monkeypatch):
+    # NVDA: core in Semiconductors (size 3) + AI (size 3); relevant in
+    # Video Games (size 2, the "fewest holdings"). Core must win.
+    rows = [
+        {"theme_id": "semis", "theme_name": "Semiconductors", "tier": "core", "sub_theme_id": None},
+        {"theme_id": "video_games", "theme_name": "Video Games", "tier": "relevant", "sub_theme_id": None},
+    ]
+    monkeypatch.setattr(groups, "_themes_for_ticker", lambda s: rows)
+    monkeypatch.setattr(groups, "_theme_size", lambda tid: {"semis": 3, "video_games": 2}.get(tid, 0))
+    r = groups.resolve_primary_theme("NVDA")
+    assert r["theme_id"] == "semis"
+
+
+def test_resolve_primary_theme_excludes_factor_buckets(monkeypatch):
+    rows = [
+        {"theme_id": "meme_retail", "theme_name": "Meme & Retail", "tier": "core", "sub_theme_id": None},
+        {"theme_id": "fintech", "theme_name": "Fintech", "tier": "relevant", "sub_theme_id": None},
+    ]
+    monkeypatch.setattr(groups, "_themes_for_ticker", lambda s: rows)
+    monkeypatch.setattr(groups, "_theme_size", lambda tid: 10)
+    r = groups.resolve_primary_theme("PLTR")
+    assert r["theme_id"] == "fintech"   # Meme & Retail excluded
+
+
+def test_resolve_peers_sub_theme_first_then_widen(monkeypatch):
+    seed_row = {"theme_id": "space", "theme_name": "Space", "tier": "core", "sub_theme_id": "launch"}
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: seed_row)
+    monkeypatch.setattr(groups, "cap_universe_set",
+                        lambda: {"RKLB", "ASTS", "LUNR", "LMT"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    holdings = [
+        {"sym": "RKLB", "tier": "core", "sub_theme_id": "launch"},   # the seed
+        {"sym": "ASTS", "tier": "core", "sub_theme_id": "satellites"},
+        {"sym": "LUNR", "tier": "relevant", "sub_theme_id": "launch"},  # same sub-theme -> boosted
+        {"sym": "LMT", "tier": "core", "sub_theme_id": "defense"},
+    ]
+    monkeypatch.setattr(groups, "_theme_holdings", lambda tid: holdings)
+    out = groups.resolve_peers("RKLB", 3)
+    assert out["source"] == "taxonomy"
+    assert out["peers"][0] == "LUNR"      # same sub-theme floats to top
+    assert "RKLB" not in out["peers"]     # seed excluded
