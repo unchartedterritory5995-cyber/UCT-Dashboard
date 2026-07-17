@@ -57,6 +57,25 @@ describe('ChartSettingsModal — Markers tab', () => {
     expect(lastCall(onChange).swingLabels.bg.toLowerCase()).toContain('112233')
   })
 
+  it('the label-background toggle turns the box off, hiding its swatch', () => {
+    const onChange = vi.fn()
+    const enabled = mergeChartSettings(JSON.stringify({ swingLabels: { enabled: true } }))
+    render(<ChartSettingsModal open settings={enabled} onChange={onChange} />)
+    openMarkers()
+
+    // Default on → swatch present.
+    expect(screen.getByTitle('Swing label background')).toBeTruthy()
+    fireEvent.click(screen.getByRole('switch', { name: 'Label background' }))
+    expect(lastCall(onChange).swingLabels.bgEnabled).toBe(false)
+  })
+
+  it('with the background off, no swatch is shown', () => {
+    const off = mergeChartSettings(JSON.stringify({ swingLabels: { enabled: true, bgEnabled: false } }))
+    render(<ChartSettingsModal open settings={off} onChange={vi.fn()} />)
+    openMarkers()
+    expect(screen.queryByTitle('Swing label background')).toBeNull()
+  })
+
   it('event-marker toggles write cs.markers.<key> without disturbing siblings', () => {
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={onChange} />)

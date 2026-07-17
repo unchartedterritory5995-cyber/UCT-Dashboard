@@ -4,7 +4,7 @@
 // time→x comes from chart.timeScale(). Pivot points come from swingPivots.js.
 
 const FONT_FAMILY = "'Instrument Sans', sans-serif"
-const GAP = 5          // px gap between the wick tip and the label
+const GAP = 10         // px gap between the wick tip and the label
 const PAD_X = 3        // px horizontal padding inside the background box
 const PAD_Y = 2        // px vertical padding inside the background box
 const RADIUS = 3       // px corner radius of the background box
@@ -19,6 +19,7 @@ export function createSwingLabelsPrimitive(initial) {
     tintByType: false,
     upColor: '#4ade80',
     downColor: '#f87171',
+    showBg: true,
     bg: '#1a1c17',
     fontPx: 11,
     ...initial,
@@ -68,15 +69,18 @@ export function createSwingLabelsPrimitive(initial) {
             if (rect.x < 0 || rect.x + rect.w > mediaSize.width) continue
             if (intersects(rect, drawn)) continue
             drawn.push(rect)
-            // Filled rounded background box (user-colorable via opts.bg; defaults to
-            // the canvas color so it reads as a clean readability plate over candles).
-            ctx.fillStyle = opts.bg
-            if (typeof ctx.roundRect === 'function') {
-              ctx.beginPath()
-              ctx.roundRect(rect.x, rect.y, rect.w, rect.h, RADIUS)
-              ctx.fill()
-            } else {
-              ctx.fillRect(rect.x, rect.y, rect.w, rect.h)   // pre-roundRect fallback
+            // Filled rounded background box (toggle via opts.showBg; user-colorable
+            // via opts.bg, defaulting to the canvas color so it reads as a clean
+            // readability plate over candles). When off, the price prints bare.
+            if (opts.showBg) {
+              ctx.fillStyle = opts.bg
+              if (typeof ctx.roundRect === 'function') {
+                ctx.beginPath()
+                ctx.roundRect(rect.x, rect.y, rect.w, rect.h, RADIUS)
+                ctx.fill()
+              } else {
+                ctx.fillRect(rect.x, rect.y, rect.w, rect.h)   // pre-roundRect fallback
+              }
             }
             ctx.textBaseline = isHigh ? 'bottom' : 'top'
             ctx.fillStyle = colorFor(p.type)

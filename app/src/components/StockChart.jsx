@@ -2951,7 +2951,9 @@ export default function StockChart({
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
   // right-edge bars are never pivots, so live updates can't make labels flicker.
-  const swingLabelsOn = !!cs.swingLabels?.enabled
+  // Swing labels are a Daily/Weekly/Monthly feature only — the pivots are noise on
+  // intraday bars (1m..1h), so gate them off there regardless of the toggle.
+  const swingLabelsOn = !!cs.swingLabels?.enabled && _isDWM
   const swingSensitivity = cs.swingLabels?.sensitivity || 'medium'
   const swingPoints = useMemo(
     () => swingLabelsOn ? detectSwingPivots(ohlcData, sensitivityToParams(swingSensitivity, resolvedTf)) : [],
@@ -5259,13 +5261,14 @@ export default function StockChart({
       }
       const sl = cs.swingLabels || {}
       swingCtrlRef.current.setOptions({
-        enabled: !!sl.enabled,
+        enabled: swingLabelsOn,   // D/W/M-gated (see swingLabelsOn) — never on intraday
         color: sl.color || '#d4d0c4',
         tintByType: !!sl.tintByType,
         upColor: sl.upColor || '#4ade80',
         downColor: sl.downColor || '#f87171',
-        // The label's background halo. A user-set color wins; unset matches the
-        // canvas so the halo just reads as a readability outline over candles.
+        // The label's background box. showBg toggles it; a user-set color wins,
+        // unset matches the canvas so it reads as a clean plate over candles.
+        showBg: sl.bgEnabled !== false,
         bg: sl.bg || cs.background,
       })
       swingCtrlRef.current.setPoints(swingPoints)

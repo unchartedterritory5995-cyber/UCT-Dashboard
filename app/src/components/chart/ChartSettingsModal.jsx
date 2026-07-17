@@ -560,7 +560,14 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Label background</span>
-                  {colorSwatch('swingBg', 'Swing label background')}
+                  <div className={styles.hdrRowCtl}>
+                    {swing.bgEnabled !== false && colorSwatch('swingBg', 'Swing label background')}
+                    <button
+                      type="button" role="switch" aria-checked={swing.bgEnabled !== false} aria-label="Label background"
+                      className={`${styles.toggle} ${swing.bgEnabled !== false ? styles.toggleOn : ''}`}
+                      onClick={() => setSwing({ bgEnabled: swing.bgEnabled === false })}
+                    ><span className={styles.toggleKnob} /></button>
+                  </div>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Tint by type</span>
