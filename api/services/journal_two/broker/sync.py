@@ -335,6 +335,17 @@ async def _warming_sync() -> dict[str, Any]:
             await sync_account(a["userId"], a["id"], full=True)
         except Exception:  # noqa: BLE001 — one bad account never blocks the rest
             pass
+        # Deterministic done-signal: SnapTrade's own sync_status flag
+        # (captured during the sync above) says the initial transaction
+        # backfill finished — no need to wait out stable-tick guesswork.
+        try:
+            refreshed = connections.get_broker_account(a["userId"], a["id"])
+        except Exception:  # noqa: BLE001
+            refreshed = None
+        if refreshed and refreshed.get("txInitialSyncCompleted"):
+            connections.clear_warming(a["userId"], a["id"])
+            cleared += 1
+            continue
         count = _activity_count(a["userId"], a["id"])
         prev = a.get("warmingLastActivityCount")
         ticks = int(a.get("warmingStableTicks") or 0)
@@ -481,16 +492,26 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                 if match:
                     broker_total = balances._account_total_usd(match)
                     # Freshness bookkeeping: the broker-reported holdings
-                    # snapshot time ("positions as of") + the authorization id
-                    # (needed to request a manual refresh). Best-effort.
+                    # snapshot time ("positions as of"), the authorization id
+                    # (needed to request a manual refresh), and the
+                    # transactions sync-status trio (deterministic backfill
+                    # completeness). Best-effort.
                     try:
-                        hs = ((match.get("sync_status") or {})
-                              .get("holdings") or {}).get("last_successful_sync")
+                        ss = match.get("sync_status") or {}
+                        hs = (ss.get("holdings") or {}).get("last_successful_sync")
+                        tx = ss.get("transactions") or {}
                         auth_id = match.get("brokerage_authorization")
+                        tx_done = tx.get("initial_sync_completed")
                         connections.record_holdings_meta(
                             user_id, broker_account_id,
                             holdings_synced_at=str(hs) if hs else None,
                             authorization_id=str(auth_id) if auth_id else None,
+                            tx_initial_sync_completed=(bool(tx_done)
+                                                       if tx_done is not None else None),
+                            tx_last_successful_sync=(str(tx["last_successful_sync"])
+                                                     if tx.get("last_successful_sync") else None),
+                            first_transaction_date=(str(tx["first_transaction_date"])
+                                                    if tx.get("first_transaction_date") else None),
                         )
                     except Exception:
                         pass

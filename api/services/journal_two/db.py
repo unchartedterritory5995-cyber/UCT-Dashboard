@@ -702,6 +702,13 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_broker_accounts ADD COLUMN holdings_synced_at TEXT",
     "ALTER TABLE j2_broker_accounts ADD COLUMN brokerage_authorization_id TEXT",
     "ALTER TABLE j2_broker_accounts ADD COLUMN last_manual_refresh_at TEXT",
+    # SnapTrade sync_status.transactions (2026-07-17) — deterministic backfill
+    # completeness: initial_sync_completed replaces the stable-ticks warming
+    # heuristic; last_successful_sync (a DATE: synced-through day) +
+    # first_transaction_date power honest history-range display.
+    "ALTER TABLE j2_broker_accounts ADD COLUMN tx_initial_sync_completed INTEGER",
+    "ALTER TABLE j2_broker_accounts ADD COLUMN tx_last_successful_sync TEXT",
+    "ALTER TABLE j2_broker_accounts ADD COLUMN first_transaction_date TEXT",
 ]
 
 

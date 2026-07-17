@@ -76,3 +76,32 @@ def test_run_warming_sync_blocking_never_raises(monkeypatch):
         raise RuntimeError("db down")
     monkeypatch.setattr(broker_sync.connections, "list_warming_accounts", _boom)
     broker_sync.run_warming_sync_blocking()  # should swallow
+
+
+def test_warming_clears_immediately_when_snaptrade_reports_backfill_done(monkeypatch):
+    """sync_status.transactions.initial_sync_completed (captured during the
+    sync) is the deterministic done-signal — warming ends without waiting for
+    stable ticks."""
+    acct = {"id": "ba3", "userId": "u1", "warmingLastActivityCount": None,
+            "warmingStableTicks": 0, "warmingUntil":
+            (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()}
+    calls = {"cleared": [], "bumped": []}
+
+    monkeypatch.setattr(broker_sync.connections, "list_warming_accounts", lambda now: [acct])
+    monkeypatch.setattr(broker_sync, "_user_is_paid", lambda uid, cache: True)
+    monkeypatch.setattr(broker_sync, "_activity_count", lambda uid, baid: 3)
+
+    async def _fake_sync(uid, baid, *, full=False, cooldown_seconds=0.0):
+        return {"imported": 3}
+    monkeypatch.setattr(broker_sync, "sync_account", _fake_sync)
+    monkeypatch.setattr(broker_sync.connections, "get_broker_account",
+                        lambda uid, baid: {"id": baid, "txInitialSyncCompleted": True})
+    monkeypatch.setattr(broker_sync.connections, "bump_warming_state",
+                        lambda uid, baid, **k: calls["bumped"].append(k))
+    monkeypatch.setattr(broker_sync.connections, "clear_warming",
+                        lambda uid, baid: calls["cleared"].append(baid))
+
+    _run(broker_sync._warming_sync())
+
+    assert calls["cleared"] == ["ba3"]
+    assert calls["bumped"] == []

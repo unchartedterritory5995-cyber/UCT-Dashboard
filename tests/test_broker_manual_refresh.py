@@ -98,13 +98,23 @@ async def test_sync_stores_holdings_synced_at_and_auth_id(env):
         list_user_accounts=lambda **kw: _Resp([{
             "id": "S1", "brokerage_authorization": "auth-xyz",
             "balance": {"total": {"amount": 1000, "currency": "USD"}},
-            "sync_status": {"holdings": {"last_successful_sync": hs}},
+            "sync_status": {
+                "holdings": {"last_successful_sync": hs},
+                "transactions": {
+                    "initial_sync_completed": True,
+                    "last_successful_sync": "2026-07-16",
+                    "first_transaction_date": "2024-01-05",
+                },
+            },
         }]),
     )))
     await sync.sync_account("u1", env["ba_id"])
     ba = connections.get_broker_account("u1", env["ba_id"])
     assert ba["holdingsSyncedAt"] == hs
     assert ba["brokerageAuthorizationId"] == "auth-xyz"
+    assert ba["txInitialSyncCompleted"] is True
+    assert ba["txLastSuccessfulSync"] == "2026-07-16"
+    assert ba["firstTransactionDate"] == "2024-01-05"
 
 
 # ── maybe_refresh_user budget logic ──────────────────────────────────────────

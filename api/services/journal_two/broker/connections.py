@@ -490,16 +490,27 @@ def record_holdings_meta(
     user_id: str, broker_account_id: str, *,
     holdings_synced_at: str | None = None,
     authorization_id: str | None = None,
+    tx_initial_sync_completed: bool | None = None,
+    tx_last_successful_sync: str | None = None,
+    first_transaction_date: str | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> bool:
-    """Persist the broker-reported holdings snapshot time (+ the SnapTrade
-    authorization id, needed to request a manual refresh). None values are
-    skipped so a payload without sync_status never blanks a prior stamp."""
+    """Persist SnapTrade sync_status metadata: the broker-reported holdings
+    snapshot time, the authorization id (needed for manual refresh), and the
+    transactions sync-status trio (backfill completeness + synced-through
+    date + first known transaction). None values are skipped so a payload
+    without sync_status never blanks a prior stamp."""
     fields: dict[str, Any] = {}
     if holdings_synced_at is not None:
         fields["holdings_synced_at"] = holdings_synced_at
     if authorization_id is not None:
         fields["brokerage_authorization_id"] = authorization_id
+    if tx_initial_sync_completed is not None:
+        fields["tx_initial_sync_completed"] = 1 if tx_initial_sync_completed else 0
+    if tx_last_successful_sync is not None:
+        fields["tx_last_successful_sync"] = tx_last_successful_sync
+    if first_transaction_date is not None:
+        fields["first_transaction_date"] = first_transaction_date
     if not fields:
         return False
     return _update_account_fields(user_id, broker_account_id, fields, conn)
@@ -651,6 +662,10 @@ def _row_to_broker_account(row: sqlite3.Row | None) -> dict[str, Any] | None:
         "holdingsSyncedAt": row["holdings_synced_at"],
         "brokerageAuthorizationId": row["brokerage_authorization_id"],
         "lastManualRefreshAt": row["last_manual_refresh_at"],
+        "txInitialSyncCompleted": (None if row["tx_initial_sync_completed"] is None
+                                   else bool(row["tx_initial_sync_completed"])),
+        "txLastSuccessfulSync": row["tx_last_successful_sync"],
+        "firstTransactionDate": row["first_transaction_date"],
         "warming": bool(
             row["warming_until"]
             and row["warming_until"] > datetime.now(timezone.utc).isoformat()
