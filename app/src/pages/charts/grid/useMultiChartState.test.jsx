@@ -31,4 +31,13 @@ describe('fillCells', () => {
     expect(result.current.state.group).toBeNull()
     expect(result.current.state.cells.map(c => c.sym)).toEqual(['AAA', 'BBB', 'CCC', 'DDD'])
   })
+
+  it('under-fill pads to the current grid size with trailing empty cells', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.enterGrid('2x2'))
+    act(() => result.current.fillCells(['RKLB', 'ASTS'], { id: 'space', by: 'today', n: 4 }))
+    const cells = result.current.state.cells
+    expect(cells).toHaveLength(4)                       // == cellCount, not 2
+    expect(cells.map(c => c.sym)).toEqual(['RKLB', 'ASTS', null, null])
+  })
 })

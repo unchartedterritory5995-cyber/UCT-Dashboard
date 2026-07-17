@@ -108,14 +108,17 @@ export default function useMultiChartState() {
   // Bulk fill (Groups mode). ONE apply() — never a loop of updateCellAt (that
   // races the debounced save). Reuse a cell id when the target sym matches an
   // existing cell's sym so overlapping charts don't remount; mint fresh ids
-  // only for genuinely-new syms. Grows/shrinks the layout to fit N (<= cap).
+  // only for genuinely-new syms. Fills the current grid size (layout.cellCount).
   const fillCells = useCallback((syms, group = null) => {
     apply(prev => {
       const want = (Array.isArray(syms) ? syms : [])
         .map(s => (typeof s === 'string' ? s.trim().toUpperCase() : null))
         .filter(Boolean)
       const layout = parseLayoutId(prev.layout)
-      const count = Math.min(layout.cellCount, want.length || layout.cellCount)
+      // Always fill the CURRENT grid size: under-fill -> trailing empty cells
+      // (spec under-fill contract), over-fill -> extra syms dropped. Keeps
+      // cells.length === cellCount like every other mutator.
+      const count = layout.cellCount
       // Pool of reusable {id} by sym, from the current cells (each id once).
       const pool = new Map()
       for (const c of prev.cells) {
