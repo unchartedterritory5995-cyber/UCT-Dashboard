@@ -86,7 +86,7 @@ const COLUMNS = [
 ]
 const PALETTE = [0, 1, 2, 3, 4, 5].map((r) => COLUMNS.map((col) => col[r]))
 
-export default function ColorPanel({ title, value, onChange, onClose, savedColors = [], onSaveColor, onDeleteColor }) {
+export default function ColorPanel({ title, value, onChange, onClose, savedColors = [], onSaveColor, onDeleteColor, line = null }) {
   const [customOpen, setCustomOpen] = useState(false)
   const svRef = useRef(null)
   const hueRef = useRef(null)
@@ -191,6 +191,32 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
         </div>
         <span className={styles.opVal}>{Math.round(curA * 100)}%</span>
       </div>
+
+      {/* Thickness + line style — only for line-type targets (e.g. crosshair). */}
+      {line && (
+        <>
+          <div className={styles.opLabel}>Thickness</div>
+          <div className={styles.lineOpts}>
+            {[1, 2, 3, 4].map((w) => (
+              <button key={w} type="button"
+                className={`${styles.lineOpt} ${line.width === w ? styles.lineOptOn : ''}`}
+                onClick={() => line.onWidth?.(w)} aria-label={`Thickness ${w}`}>
+                <span className={styles.lineSample} style={{ borderTopWidth: w }} />
+              </button>
+            ))}
+          </div>
+          <div className={styles.opLabel}>Line style</div>
+          <div className={styles.lineOpts}>
+            {[[0, 'solid'], [2, 'dashed'], [1, 'dotted']].map(([s, name]) => (
+              <button key={s} type="button"
+                className={`${styles.lineOpt} ${line.style === s ? styles.lineOptOn : ''}`}
+                onClick={() => line.onStyle?.(s)} aria-label={name}>
+                <span className={styles.lineSample} style={{ borderTopWidth: 2, borderTopStyle: name }} />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

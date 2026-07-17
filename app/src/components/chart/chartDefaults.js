@@ -29,9 +29,10 @@ export const CHART_DEFAULTS = {
   bgMode: 'solid',        // 'solid' | 'gradient'
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
   textColor: '#706b5e',
+  textSize: 11,           // price/time scale font size (px)
   grid: { color: 'rgba(46,49,39,0.25)', visible: true },
 
-  crosshair: { color: '#706b5e', style: 3, magnet: false }, // 0=solid, 2=dashed, 3=dotted; magnet snaps to OHLC
+  crosshair: { color: '#706b5e', style: 1, width: 1, magnet: false }, // LineStyle: 0=solid, 1=dotted, 2=dashed, 3=large-dashed; width in px; magnet snaps to OHLC
 
   overlays: [
     { enabled: true, type: 'EMA', period: 9,   color: '#4ade80' },
@@ -240,6 +241,7 @@ export function mergeChartSettings(userSettings) {
     bgMode: parsed.bgMode || CHART_DEFAULTS.bgMode,
     bgGradient: { ...CHART_DEFAULTS.bgGradient, ...(parsed.bgGradient || {}) },
     textColor: parsed.textColor || CHART_DEFAULTS.textColor,
+    textSize: parsed.textSize ?? CHART_DEFAULTS.textSize,
     grid: { ...CHART_DEFAULTS.grid, ...(parsed.grid || {}) },
     crosshair: { ...CHART_DEFAULTS.crosshair, ...(parsed.crosshair || {}) },
     overlays: Array.isArray(parsed.overlays)

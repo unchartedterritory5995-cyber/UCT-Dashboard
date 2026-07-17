@@ -11,6 +11,21 @@ import styles from './ChartSettingsModal.module.css'
  * persists the whole object (via chart_settings preference).
  */
 
+// #rrggbb + 0..1 alpha ⇄ 8-digit hex — for the watermark, whose color & opacity
+// are stored as separate settings but edited through the one opacity-aware picker.
+function splitHexA(v) {
+  const m8 = /^#?([0-9a-f]{6})([0-9a-f]{2})$/i.exec((v || '').trim())
+  if (m8) return { rgb: `#${m8[1].toLowerCase()}`, a: parseInt(m8[2], 16) / 255 }
+  const m6 = /^#?([0-9a-f]{6})$/i.exec((v || '').trim())
+  return { rgb: m6 ? `#${m6[1].toLowerCase()}` : '#a8a290', a: 1 }
+}
+function joinHexA(rgb, a) {
+  const base = /^#[0-9a-f]{6}$/i.test(rgb || '') ? rgb.toLowerCase() : '#a8a290'
+  const av = Math.max(0, Math.min(1, a ?? 1))
+  if (av >= 0.999) return base
+  return base + Math.round(av * 255).toString(16).padStart(2, '0')
+}
+
 // Compact type glyphs (24×24, currentColor) so each option reads at a glance.
 function TypeGlyph({ kind }) {
   const s = { width: 26, height: 26, display: 'block' }
@@ -167,6 +182,13 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     grid: ['grid', 'color'], crosshair: ['crosshair', 'color'], text: ['textColor'],
   }
   const setColorTarget = (target, hex) => {
+    // Watermark keeps color + opacity as SEPARATE settings (the chart reads them
+    // apart), so map the picker's 8-digit color → {color, opacity}.
+    if (target === 'watermark') {
+      const { rgb, a } = splitHexA(hex)
+      onChange?.({ ...settings, watermark: { ...watermark, color: rgb, opacity: a }, preset: 'custom' })
+      return
+    }
     const path = COLOR_PATHS[target]; if (!path) return
     const next = { ...settings }
     let o = next
@@ -190,6 +212,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'grid': return grid.color || 'rgba(46,49,39,0.25)'
       case 'crosshair': return crosshair.color || '#706b5e'
       case 'text': return settings.textColor || '#706b5e'
+      case 'watermark': return joinHexA(watermark.color || '#a8a290', watermark.opacity ?? 0.07)
       default: return '#1ae51a'
     }
   }
@@ -197,12 +220,16 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const setBgMode = (m) => { if (m !== bgMode) setSetting({ bgMode: m }) }
   const setGridVisible = (v) => setSetting({ grid: { ...grid, visible: v } })
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
-  const colorSwatch = (target, label) => (
+  const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
+  const wmLines = watermark.lines || {}
+  const TEXT_SIZES = [[10, 'S'], [11, 'M'], [13, 'L'], [15, 'XL']]
+  const curTextSize = settings.textSize ?? 11
+  const colorSwatch = (target, label, bg) => (
     <button
       type="button"
       data-color-swatch
       className={`${styles.cSwatch} ${activeTarget?.target === target ? styles.cSwatchActive : ''}`}
-      style={{ background: targetValue(target) }}
+      style={{ background: bg || targetValue(target) }}
       title={label}
       onClick={() => setActiveTarget({ target, label })}
     />
@@ -299,6 +326,20 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                 <span className={styles.fieldLabel}>Scale text</span>
                 {colorSwatch('text', 'Scale Text')}
               </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Text size</span>
+                <div className={styles.seg2}>
+                  {TEXT_SIZES.map(([px, label]) => (
+                    <button
+                      key={px}
+                      type="button"
+                      className={`${styles.seg2Btn} ${curTextSize === px ? styles.seg2BtnActive : ''}`}
+                      onClick={() => setSetting({ textSize: px })}
+                      aria-pressed={curTextSize === px}
+                    >{label}</button>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
 
@@ -306,7 +347,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             <div className={styles.sectionLabel}>Watermark</div>
             <div className={styles.card}>
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Show ticker watermark</span>
+                <span className={styles.fieldLabel}>Show watermark</span>
                 <button
                   type="button"
                   role="switch"
@@ -315,6 +356,26 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                   onClick={() => setWmVisible(watermark.visible === false)}
                 ><span className={styles.toggleKnob} /></button>
               </div>
+              {watermark.visible !== false && (<>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Fields</span>
+                  <div className={styles.chipRow}>
+                    {[['ticker', 'Ticker'], ['company', 'Company'], ['sector', 'Sector'], ['industry', 'Industry'], ['theme', 'Theme']].map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`${styles.chip} ${wmLines[key] !== false ? styles.chipOn : ''}`}
+                        onClick={() => setWmLine(key, wmLines[key] === false)}
+                        aria-pressed={wmLines[key] !== false}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Color &amp; opacity</span>
+                  {colorSwatch('watermark', 'Watermark', watermark.color || '#a8a290')}
+                </div>
+              </>)}
             </div>
           </section>
           </>)}
@@ -411,6 +472,12 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
+            line={activeTarget.target === 'crosshair' ? {
+              width: crosshair.width ?? 1,
+              style: crosshair.style ?? 3,
+              onWidth: (w) => setSetting({ crosshair: { ...crosshair, width: w } }),
+              onStyle: (s) => setSetting({ crosshair: { ...crosshair, style: s } }),
+            } : null}
           />
         </div>,
         document.body,

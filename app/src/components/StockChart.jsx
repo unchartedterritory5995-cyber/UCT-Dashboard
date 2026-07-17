@@ -3879,7 +3879,7 @@ export default function StockChart({
             : { type: ColorType.Solid, color: themeColors.background },
         textColor: themeColors.textColor,
         fontFamily: "'Instrument Sans', sans-serif",
-        fontSize: 10,
+        fontSize: cs.textSize ?? 11,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
         ...((boldCandles || subtleSeparator) ? { panes: { separatorColor: canvasTheme === 'sunrise' ? 'rgba(30,42,58,0.5)' : 'rgba(255,255,255,0.18)', separatorHoverColor: canvasTheme === 'sunrise' ? 'rgba(30,42,58,0.7)' : 'rgba(255,255,255,0.32)', enableResize: !frozen } } : {}),
@@ -3903,8 +3903,8 @@ export default function StockChart({
         horzLine: { visible: false, labelVisible: false },
       } : {
         mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
-        vertLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: canvasTheme === 'sunrise' ? '#fbf1c9' : themeColors.background },
-        horzLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
+        vertLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: canvasTheme === 'sunrise' ? '#fbf1c9' : themeColors.background },
+        horzLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
       },
       rightPriceScale: {
         borderColor: themeColors.borderColor,
