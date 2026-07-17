@@ -130,7 +130,10 @@ def test_webhook_accepts_valid_secret(client):
 
 
 def test_webhook_missing_secret_config(client, monkeypatch):
+    # Neither the legacy secret nor the consumer key (signature verification)
+    # configured → webhooks are unconfigured.
     monkeypatch.delenv("SNAPTRADE_WEBHOOK_SECRET", raising=False)
+    monkeypatch.delenv("SNAPTRADE_CONSUMER_KEY", raising=False)
     r = client.post("/api/j2/broker/webhook", json={"webhookSecret": "x"})
     assert r.status_code == 503
 

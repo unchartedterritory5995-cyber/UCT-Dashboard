@@ -2183,17 +2183,28 @@ async def lifespan(app: FastAPI):
         # job keeps it light on the 512MB pod.
         if os.getenv("BROKER_SYNC_ENABLED") == "1":
             from api.services.journal_two.broker import sync as _broker_sync_engine
-            _bs_interval = int(os.getenv("BROKER_SYNC_INTERVAL_MIN", "20"))
-            # Incremental sync -- runs only inside the active market-data window
-            # (the runner self-gates), so overnight/weekend ticks are no-ops.
-            # jitter: both this interval and the hourly patterns_universe_scan
-            # (an auth.db WRITER) are boot-anchored, so without jitter every
-            # 3rd sync tick lands inside the scan's write window and loses the
-            # 3s auth.db lock wait ("database is locked" hourly — prod 7/13-15).
+            # Scheduler TICK (how often we check for due accounts) — the
+            # actual per-account cadence lives in sync._default_interval_min
+            # (default: once per account per 24h, SnapTrade polling-cap
+            # compliance; BROKER_SYNC_MODE=legacy restores 20-min syncs).
+            # jitter: both this interval and the hourly patterns scan are
+            # boot-anchored; without jitter ticks align ("locked" 7/13-15).
+            _bs_tick = int(os.getenv("BROKER_SYNC_TICK_MIN", "20"))
             _scheduler.add_job(
                 _broker_sync_engine.run_due_sync_blocking,
-                trigger=IntervalTrigger(minutes=_bs_interval, jitter=120),
+                trigger=IntervalTrigger(minutes=_bs_tick, jitter=120),
                 id="broker_sync_due", max_instances=1, replace_existing=True,
+            )
+            # Recent Orders poll — free real-time trade capture (SnapTrade's
+            # documented alternative to paid TRADE_DETECTION): every 5 min
+            # per account during market hours, executed equity fills become
+            # provisional journal trades within minutes. Self-gates on
+            # market window + BROKER_RECENT_ORDERS_ENABLED.
+            from api.services.journal_two.broker import recent_orders as _broker_recent
+            _scheduler.add_job(
+                _broker_recent.run_poll_blocking,
+                trigger=IntervalTrigger(minutes=5, jitter=20),
+                id="broker_recent_orders_poll", max_instances=1, replace_existing=True,
             )
             # Nightly full reconcile (corrections/voids outside the window).
             _scheduler.add_job(

@@ -403,6 +403,24 @@ async def get_positions(user_id: str, user_secret: str, account_id: str) -> list
     return body if isinstance(body, list) else []
 
 
+async def get_recent_orders(user_id: str, user_secret: str, account_id: str,
+                            *, only_executed: bool = True) -> list[dict]:
+    """Orders from the last ~24h. ALWAYS real-time (never cached) and the
+    calls are included free on pay-as-you-go plans — SnapTrade's documented
+    free alternative to the paid TRADE_DETECTION webhook. Contractual cap:
+    poll at most once per 5 minutes per account, market hours only."""
+    sdk = _sdk()
+    body = await _call(
+        sdk.account_information.get_user_account_recent_orders,
+        user_id=user_id, user_secret=user_secret, account_id=account_id,
+        only_executed=only_executed,
+    )
+    if isinstance(body, dict):
+        orders = body.get("orders") or body.get("data") or []
+        return orders if isinstance(orders, list) else []
+    return body if isinstance(body, list) else []
+
+
 async def get_option_holdings(user_id: str, user_secret: str, account_id: str) -> list[dict]:
     """Current OPTION contract holdings for one account. Separate endpoint from
     get_positions (which returns equities only) — this is the source of truth

@@ -284,6 +284,23 @@ def get_broker_account(
             conn.close()
 
 
+def list_all_sync_enabled_accounts(
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Every sync-enabled account across ALL users (any status). Used by the
+    Recent Orders poll, which filters status itself."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM j2_broker_accounts WHERE sync_enabled = 1"
+        ).fetchall()
+        return [_row_to_broker_account(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
 def list_due_accounts(
     interval_minutes: int, conn: sqlite3.Connection | None = None
 ) -> list[dict[str, Any]]:

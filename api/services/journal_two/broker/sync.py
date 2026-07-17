@@ -453,6 +453,14 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             user_id, broker_account_id, present_ids, since=since
         )
 
+        # Provisional intraday fills (Recent Orders poll) whose real
+        # transaction just landed — or that aged out — are replaced here so
+        # the FIFO never double-counts a fill. Best-effort.
+        try:
+            activities_store.prune_provisional(user_id, broker_account_id, raw)
+        except Exception:
+            pass
+
         # Reconstruct over the FULL (now-healed) ledger (FIFO needs complete
         # history). reconstruct_account also prunes broker trades/strategies
         # whose source activity is gone — the trade-side of the heal.

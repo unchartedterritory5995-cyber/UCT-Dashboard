@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
@@ -156,16 +156,23 @@ def heal_window(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # Provisional intraday fills (external_id 'intraday:…', injected from
+        # the Recent Orders poll) are NEVER in the broker's transactions feed
+        # until the next day — excluding them from the heal is what keeps
+        # same-day trades alive until the real activity replaces them
+        # (prune_provisional handles that replacement).
         if since is None:
             rows = conn.execute(
                 "SELECT id, external_id FROM j2_broker_activities "
-                "WHERE user_id = ? AND broker_account_id = ?",
+                "WHERE user_id = ? AND broker_account_id = ? "
+                "AND external_id NOT LIKE 'intraday:%'",
                 (user_id, broker_account_id),
             ).fetchall()
         else:
             rows = conn.execute(
                 "SELECT id, external_id FROM j2_broker_activities "
                 "WHERE user_id = ? AND broker_account_id = ? "
+                "AND external_id NOT LIKE 'intraday:%' "
                 "AND occurred_at IS NOT NULL AND occurred_at >= ?",
                 (user_id, broker_account_id, since),
             ).fetchall()
@@ -189,6 +196,88 @@ def heal_window(
                 conn.rollback()
                 raise
         return len(to_delete)
+    finally:
+        if owned:
+            conn.close()
+
+
+def prune_provisional(
+    user_id: str,
+    broker_account_id: str,
+    real_activities: list[dict],
+    *,
+    max_age_days: int = 3,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """Remove provisional intraday fills (from the Recent Orders poll) that
+    are now covered by the broker's real transactions feed — matched on
+    (symbol, type, |units|, trade day) — plus any older than `max_age_days`
+    (safety net: by then the real feed has covered that day). Runs during the
+    scheduled sync, right after the real activities land."""
+    from api.services.journal_two.broker import snaptrade_adapter as adapter
+
+    def _day(v) -> str:
+        return str(v or "")[:10]
+
+    covered = set()
+    for act in real_activities:
+        if not isinstance(act, dict):
+            continue
+        try:
+            units = abs(float(act.get("units") or 0))
+        except (TypeError, ValueError):
+            units = 0.0
+        covered.add((
+            (adapter.extract_symbol(act) or "").upper(),
+            str(act.get("type") or "").upper(),
+            round(units, 4),
+            _day(adapter.normalize_date(act)),
+        ))
+
+    owned = conn is None
+    conn = conn or get_connection()
+    removed = 0
+    try:
+        rows = conn.execute(
+            "SELECT id, external_id, raw_json, occurred_at, created_at "
+            "FROM j2_broker_activities "
+            "WHERE user_id = ? AND broker_account_id = ? "
+            "AND external_id LIKE 'intraday:%'",
+            (user_id, broker_account_id),
+        ).fetchall()
+        if not rows:
+            return 0
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).isoformat()
+        to_delete = []
+        for r in rows:
+            try:
+                act = json.loads(r["raw_json"])
+            except (TypeError, json.JSONDecodeError):
+                to_delete.append(r["id"])
+                continue
+            try:
+                units = abs(float(act.get("units") or 0))
+            except (TypeError, ValueError):
+                units = 0.0
+            key = ((adapter.extract_symbol(act) or "").upper(),
+                   str(act.get("type") or "").upper(),
+                   round(units, 4), _day(r["occurred_at"]))
+            aged_out = (r["occurred_at"] or r["created_at"] or "") < cutoff
+            if key in covered or aged_out:
+                to_delete.append(r["id"])
+        if to_delete:
+            conn.execute("BEGIN")
+            try:
+                conn.executemany(
+                    "DELETE FROM j2_broker_activities WHERE id = ?",
+                    [(i,) for i in to_delete],
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            removed = len(to_delete)
+        return removed
     finally:
         if owned:
             conn.close()
