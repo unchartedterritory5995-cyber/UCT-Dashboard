@@ -2245,6 +2245,12 @@ export default function StockChart({
     () => (_isCustomTf && customBaseData?.bars?.length ? resampleForSpec(customBaseData.bars, _customSpec) : null),
     [_isCustomTf, customBaseData, _customSpec],
   )
+  // "Intraday-like": native intraday OR a custom TF resampled from an intraday base.
+  // Drives the RTH (extended-hours) filter + session shading so custom minute/hour
+  // charts hide pre/post market on Regular Hours and shade it on Extended — exactly
+  // like the native intraday codes. (The native single-writer live path stays gated
+  // on `isIntraday` alone; custom TFs get their own live writer below.)
+  const _intradayLike = isIntraday || (_isCustomTf && _customBaseIntraday)
 
   // ── Comparison symbol SWR fetch ──
   const compareSwrUrl = compareSymbol
@@ -2533,7 +2539,7 @@ export default function StockChart({
 
   // Filter bars to regular session only when extended hours hidden
   const sessionBars = useMemo(() => {
-    if (!bars || !isIntraday || showExtended) return bars
+    if (!bars || !_intradayLike || showExtended) return bars
 
     const getETMins = (t) => {
       const d = new Date(t * 1000)
@@ -2548,7 +2554,7 @@ export default function StockChart({
       // All intraday RTH: 9:30 AM (570 min) to 4:00 PM (960 min) ET
       return mins >= 570 && mins < 960
     })
-  }, [bars, isIntraday, showExtended, resolvedTf])
+  }, [bars, _intradayLike, showExtended, resolvedTf])
 
   // ── Replay / Time Machine state ──
   const [replayMode, setReplayMode] = useState(false)
@@ -4176,7 +4182,7 @@ export default function StockChart({
       } catch { /* older pane API — primitive optional */ }
     }
     {
-      const shadeOn = !!cs.extendedHoursShading && isIntraday
+      const shadeOn = !!cs.extendedHoursShading && _intradayLike
       sessionShadeRef.current.setOptions({
         enabled: shadeOn,
         bands: shadeOn ? computeSessionBands(filteredBars, adjustTime) : [],
@@ -5643,6 +5649,33 @@ export default function StockChart({
   useEffect(() => {
     updateChart()
   }, [updateChart])
+
+  // ── Custom-TF live developing bar ──
+  // Custom intraday TFs skip the native single-writer machinery (that's keyed on the
+  // 8 native codes), so their candle+quote would freeze. Give them a lightweight live
+  // writer: fold the live price into the last visible candle every tick. Runs AFTER
+  // updateChart so it wins over the 30s setData; native TFs untouched (_isCustomTf).
+  useEffect(() => {
+    if (!_isCustomTf || !_customBaseIntraday || cs.heikinAshi) return   // HA shows transformed bars, not raw
+    const series = candleSeriesRef.current
+    if (!series || !filteredBars?.length) return
+    const last = filteredBars[filteredBars.length - 1]
+    if (typeof last.t !== 'number') return
+    const lp = sym ? livePrices[sym] : null
+    const px = lp && Number.isFinite(lp.price) && lp.price > 0 ? lp.price : null
+    if (px == null) return
+    // In Regular Hours, don't fold a pre/post print into the frozen RTH close.
+    if (!showExtended) {
+      const et = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
+      const [h, m] = et.split(':').map(Number)
+      const nowMin = h * 60 + m
+      if (nowMin < 570 || nowMin >= 960) return
+    }
+    const time = adjustTime(last.t)
+    try {
+      series.update({ time, open: last.o, high: Math.max(+last.h, px), low: Math.min(+last.l, px), close: px })
+    } catch { /* time regressed / series mid-swap */ }
+  }, [_isCustomTf, _customBaseIntraday, filteredBars, livePrices, sym, adjustTime, showExtended, cs.heikinAshi])
 
   // Suppress the native last-value axis tag while the session tags are shown, so
   // the green tag we render (locked at the RTH close) isn't doubled by LWC's
