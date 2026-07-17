@@ -18,7 +18,7 @@ import UIcon from '../../../components/ui/UIcon'
 import ChartDayGain from './ChartDayGain'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
 import TimeframeMenu from './TimeframeMenu'
-import { tfLabel } from '../../../components/chart/timeframes'
+import { tfLabel, tfSortKey } from '../../../components/chart/timeframes'
 import styles from '../ChartsWorkspace.module.css'
 
 const TFS = [
@@ -169,6 +169,9 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
     const codes = fav.length ? [...fav] : TFS.map(([c]) => c)
     if (tf && !codes.includes(tf)) codes.push(tf)
+    // Always lowest→highest duration, so a newly-favorited 1m lands at the front,
+    // not wherever it was added (1m before … before 1D before 1M).
+    codes.sort((a, b) => tfSortKey(a) - tfSortKey(b))
     return codes.map(c => [c, tfLabel(c)])
   })()
   const [tfMenuOpen, setTfMenuOpen] = useState(false)

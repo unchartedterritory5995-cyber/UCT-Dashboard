@@ -114,10 +114,6 @@ const TITLE_MODES = [
   { val: 'company', label: 'Company' },
   { val: 'both', label: 'Both' },
 ]
-const HEADER_TFS = [
-  ['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'],
-  ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M'],
-]
 // Header "Show" rows: a visibility toggle + one or more color swatches. Day change
 // carries TWO swatches (up-day / down-day colors); the rest carry one. Each swatch
 // is [color target, picker label].
@@ -301,7 +297,6 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
   const hdrColors = header.colors || {}
-  const headerTfs = Array.isArray(header.timeframes) ? header.timeframes : []
   // Markers tab.
   const swing = settings?.swingLabels || {}
   const setSwing = (patch) => setSetting({ swingLabels: { ...swing, ...patch } })
@@ -309,7 +304,6 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const setMarker = (key, v) => setSetting({ markers: { ...evtMarkers, [key]: v } })
   const SWING_SENS = [['low', 'Low'], ['medium', 'Med'], ['high', 'High']]
   const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News']]
-  const toggleHeaderTf = (code) => setHeader({ timeframes: headerTfs.includes(code) ? headerTfs.filter((c) => c !== code) : [...headerTfs, code] })
   const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
   const curTextSize = settings.textSize ?? 11
   const colorSwatch = (target, label, bg) => (
@@ -512,26 +506,8 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
               })}
             </div>
           </section>
-
-          <section className={styles.section}>
-            <div className={styles.sectionLabel}>Timeframes</div>
-            <div className={styles.card}>
-              <div className={styles.field}>
-                <span className={styles.fieldLabel}>Favorites</span>
-                <div className={styles.chipRow}>
-                  {HEADER_TFS.map(([code, label]) => (
-                    <button
-                      key={code}
-                      type="button"
-                      className={`${styles.chip} ${headerTfs.includes(code) ? styles.chipOn : ''}`}
-                      onClick={() => toggleHeaderTf(code)}
-                      aria-pressed={headerTfs.includes(code)}
-                    >{label}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
+          {/* Timeframes/Favorites are managed on the chart's own timeframe menu (the
+              ⌄ button) — star to favorite there; no separate settings section. */}
           </>)}
           {activeTab === 'markers' && (<>
           <section className={styles.section}>

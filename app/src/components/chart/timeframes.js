@@ -45,7 +45,9 @@ export function makeTfCode(unit, count) {
   return null
 }
 
-// Short display label for a code (header buttons + menu rows).
+// Short display label for a code (header buttons + menu rows). Minutes/hours are
+// lowercase (1m, 45m, 2h); days/weeks/months uppercase (1D, 2W, 1M) — so 1-minute
+// ('1m') and 1-month ('1M') never read alike.
 export function tfLabel(code) {
   const { unit, count, minutes } = parseTf(code)
   if (Number.isNaN(count)) return String(code)
@@ -55,6 +57,20 @@ export function tfLabel(code) {
   if (unit === 'weeks') return `${count}W`
   if (unit === 'months') return `${count}M`
   return String(code)
+}
+
+// Ascending duration weight for ordering the Favorites row lowest→highest
+// (1m < 5m < 1h < 4h < 1D < 2W < 1M < 3M …). Minutes and hours share the total-
+// minutes scale; days/weeks/months use day-equivalents so units never interleave.
+export function tfSortKey(code) {
+  const { unit, count, minutes } = parseTf(code)
+  if (Number.isNaN(count)) return Number.MAX_SAFE_INTEGER
+  const DAY = 1440
+  if (unit === 'minutes' || unit === 'hours') return minutes
+  if (unit === 'days') return count * DAY
+  if (unit === 'weeks') return count * DAY * 7
+  if (unit === 'months') return count * DAY * 30
+  return Number.MAX_SAFE_INTEGER
 }
 
 // The resample recipe for a CUSTOM code: which native base to fetch, and how to

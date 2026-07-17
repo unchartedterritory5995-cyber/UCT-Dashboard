@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  isNativeTf, parseTf, makeTfCode, tfLabel, resampleSpec, fetchTf, isValidTf, ALL_MENU_CODES,
+  isNativeTf, parseTf, makeTfCode, tfLabel, resampleSpec, fetchTf, isValidTf, ALL_MENU_CODES, tfSortKey,
 } from './timeframes'
 
 describe('timeframes model', () => {
@@ -59,5 +59,16 @@ describe('timeframes model', () => {
 
   it('every catalog code is valid + parseable', () => {
     for (const c of ALL_MENU_CODES) expect(isValidTf(c)).toBe(true)
+  })
+
+  it('labels distinguish 1-minute from 1-month (case)', () => {
+    expect(tfLabel('1')).toBe('1m')   // lowercase minute
+    expect(tfLabel('M')).toBe('1M')   // uppercase month
+  })
+
+  it('tfSortKey orders lowest→highest duration across units', () => {
+    const shuffled = ['M', '1', 'D', '60', '5', '2W', '240', '3M', '15', '2D']
+    const sorted = [...shuffled].sort((a, b) => tfSortKey(a) - tfSortKey(b))
+    expect(sorted).toEqual(['1', '5', '15', '60', '240', 'D', '2D', '2W', 'M', '3M'])
   })
 })
