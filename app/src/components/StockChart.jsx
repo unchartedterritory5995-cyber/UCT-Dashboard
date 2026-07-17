@@ -4214,13 +4214,20 @@ export default function StockChart({
       const _m = cs.candleColorMode || 'netchange'
       const _u = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
       const _d = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
+      // Sunrise is a fixed light theme: candle bodies are forced to SUNRISE_UP/DOWN
+      // (_u/_d), so the wick + border MUST follow the body — NOT the user's saved
+      // upWick/downWick/upBorder/downBorder (which are the dark-theme palette and
+      // render a brighter, mismatched red/green wick on the Sunrise canvas). This
+      // keeps NC in lockstep with the `_bold` sunrise series-creation options
+      // (wick/border = mbUp/mbDown) so the live color-apply below can't re-split them.
+      const _sruniform = canvasTheme === 'sunrise'
       netColorsRef.current = {
         mode: _m, up: _u, down: _d,
         one: (userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : _u,
-        borUp: userCandleColors ? (cs.candles.upBorder || _u) : _u,
-        borDown: userCandleColors ? (cs.candles.downBorder || _d) : _d,
-        wickUp: userCandleColors ? (cs.candles.upWick || _u) : _u,
-        wickDown: userCandleColors ? (cs.candles.downWick || _d) : _d,
+        borUp: _sruniform ? _u : (userCandleColors ? (cs.candles.upBorder || _u) : _u),
+        borDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downBorder || _d) : _d),
+        wickUp: _sruniform ? _u : (userCandleColors ? (cs.candles.upWick || _u) : _u),
+        wickDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downWick || _d) : _d),
         hollow: canvasTheme === 'sunrise' || cs.chartType === 'hollow',
         insideBlack: canvasTheme === 'sunrise',
       }
