@@ -12,6 +12,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import useChartLayouts from '../../../hooks/useChartLayouts'
+import usePreferences from '../../../hooks/usePreferences'
 import { LAYOUTS, GRID_MAX_CELLS, makeLayout } from './gridLayouts'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
@@ -33,6 +34,8 @@ function LayoutIcon({ rows, cols }) {
 export default function MultiChartMenu({ mc, onClose }) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const { prefs, setPref } = usePreferences()
+  const chartsTheme = prefs.charts_theme || 'default'
   const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout } = useChartLayouts()
   const gridGlobal = globalLayouts.filter(t => t.layout?.kind === 'multichart')
   const gridMine = myLayouts.filter(t => t.layout?.kind === 'multichart')
@@ -68,7 +71,7 @@ export default function MultiChartMenu({ mc, onClose }) {
           kind: 'multichart',
           widgets: [],
           layout: mc.state.layout,
-          cells: mc.state.cells.map(c => ({ sym: c.sym, tf: c.tf })),
+          cells: mc.state.cells.map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null })),
         },
         groups: null,
         scope: isAdmin ? saveScope : 'user',
@@ -114,6 +117,19 @@ export default function MultiChartMenu({ mc, onClose }) {
         <button type="button" className={wsStyles.toolbarBtn} onClick={applyCustom}>Apply</button>
       </div>
 
+      <div className={wsStyles.menuDivider} />
+      {/* Chart theme — same charts_theme pref the workspace Open-layout menu
+          drives; duplicated here because that menu is hidden in grid mode. */}
+      <div className={wsStyles.menuSection}>Chart theme</div>
+      {[['default', 'Default'], ['sunrise', 'TSDR — Sunrise']].map(([val, label]) => (
+        <button
+          key={`theme-${val}`}
+          type="button"
+          className={wsStyles.addMenuItem}
+          style={chartsTheme === val ? { color: 'var(--ut-green-bright, #1ae51a)' } : undefined}
+          onClick={() => { setPref('charts_theme', val); onClose() }}
+        >{chartsTheme === val ? '✓ ' : ''}{label}</button>
+      ))}
       <div className={wsStyles.menuDivider} />
       <label className={wsStyles.menuCheck}>
         <input

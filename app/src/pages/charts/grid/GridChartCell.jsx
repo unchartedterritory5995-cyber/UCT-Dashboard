@@ -10,7 +10,7 @@
 // all in v1. Exported as React.memo — the container hands every prop with a
 // stable identity so a mouse sweep across the grid re-renders zero charts.
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import ChartDayGain from '../widgets/ChartDayGain'
@@ -23,6 +23,12 @@ import styles from './MultiChartGrid.module.css'
 const TFS = [
   ['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'],
   ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M'],
+]
+
+// Per-cell chart style. '' = inherit the user's global chart_settings type.
+const CELL_CHART_TYPES = [
+  ['', 'Style'], ['candles', 'Candles'], ['hollow', 'Hollow'],
+  ['bars', 'Bars'], ['hlc', 'HLC'], ['line', 'Line'], ['area', 'Area'],
 ]
 
 // Letter or digit, no modifier combos. Period allowed for class-share tickers (BRK.B).
@@ -84,6 +90,18 @@ function GridChartCell({
   const handleTfChange = useCallback((tf) => {
     if (tf === cell.tf) return
     onChange({ ...cell, tf })
+  }, [cell, onChange])
+
+  // Per-cell chart type: a PARTIAL settings override merged over the user's
+  // global chart_settings inside StockChart — this cell only, never persisted
+  // into the global blob (write-restore lives in StockChart). Stable identity
+  // per the settingsOverride contract.
+  const settingsOverride = useMemo(
+    () => (cell.chartType ? { chartType: cell.chartType } : null),
+    [cell.chartType],
+  )
+  const handleTypeChange = useCallback((val) => {
+    onChange({ ...cell, chartType: val || null })
   }, [cell, onChange])
 
   const handleChartClick = useCallback(() => {
@@ -159,6 +177,17 @@ function GridChartCell({
         {sym && <ChartDayGain sym={sym} />}
         <select
           className={styles.cellTfSelect}
+          value={cell.chartType || ''}
+          onChange={(e) => handleTypeChange(e.target.value)}
+          aria-label="Chart style (this cell)"
+          title="Chart style for this cell — 'Style' inherits your global chart settings"
+        >
+          {CELL_CHART_TYPES.map(([code, label]) => (
+            <option key={code || 'inherit'} value={code}>{label}</option>
+          ))}
+        </select>
+        <select
+          className={styles.cellTfSelect}
           value={cell.tf}
           onChange={(e) => handleTfChange(e.target.value)}
           aria-label="Timeframe"
@@ -191,6 +220,7 @@ function GridChartCell({
                only mounts under showDrawingTools) — kept as future-proofing
                for the v2 drawing-tools flip. */
             showDrawingTools={false}
+            showSavedDrawings
             hideReplay
             hidePatterns
             hideCompare
@@ -222,6 +252,7 @@ function GridChartCell({
             priceScaleTopMargin={0.12}
             priceScaleBottomMargin={0.10}
             canvasTheme={canvasTheme}
+            settingsOverride={settingsOverride}
           />
         ) : (
           <button

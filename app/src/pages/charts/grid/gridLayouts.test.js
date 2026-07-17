@@ -69,6 +69,18 @@ describe('gridLayouts', () => {
     expect(s.cells[5].sym).toBeNull()
   })
 
+  it('sanitizeState keeps a valid per-cell chartType and nulls garbage', () => {
+    const s = sanitizeState({
+      layout: '1x2',
+      cells: [
+        { id: 'a', sym: 'NVDA', tf: 'D', chartType: 'line' },
+        { id: 'b', sym: 'AMD', tf: 'D', chartType: 'zigzag' },
+      ],
+    })
+    expect(s.cells[0].chartType).toBe('line')
+    expect(s.cells[1].chartType).toBeNull()
+  })
+
   it('makeEmptyCell produces a D-timeframe empty slot', () => {
     expect(makeEmptyCell()).toMatchObject({ sym: null, tf: 'D' })
   })

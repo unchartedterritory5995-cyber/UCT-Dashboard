@@ -308,3 +308,34 @@ export function mergeChartSettings(userSettings) {
     preset: parsed.preset || 'classic',
   }
 }
+
+// ─── Per-instance settings override (multi-chart grid cells) ─────────────────
+// Deep-merges a PARTIAL settings blob over an already-merged base (the user's
+// global chart_settings). Primitives replace; the section objects
+// mergeChartSettings treats as objects merge one level (watermark.lines and
+// per-indicator two); arrays replace wholesale. Precedence: CHART_DEFAULTS <
+// global blob < override. Callers must pass a STABLE object (useMemo) — it is
+// a memo dependency inside StockChart.
+const _OVERRIDE_SECTION_KEYS = [
+  'candles', 'bgGradient', 'grid', 'crosshair', 'volume',
+  'drawingDefaults', 'swingLabels', 'markers', 'positionCalc',
+]
+export function mergeSettingsOverride(base, partial) {
+  if (!partial) return base
+  const out = { ...base }
+  for (const [k, v] of Object.entries(partial)) {
+    if (v === undefined) continue
+    if (k === 'watermark' && v && typeof v === 'object') {
+      out.watermark = { ...base.watermark, ...v, lines: { ...base.watermark?.lines, ...(v.lines || {}) } }
+    } else if (k === 'indicators' && v && typeof v === 'object') {
+      const ind = { ...base.indicators }
+      for (const [ik, iv] of Object.entries(v)) ind[ik] = { ...(base.indicators?.[ik] || {}), ...(iv || {}) }
+      out.indicators = ind
+    } else if (_OVERRIDE_SECTION_KEYS.includes(k) && v && typeof v === 'object' && !Array.isArray(v)) {
+      out[k] = { ...(base[k] || {}), ...v }
+    } else {
+      out[k] = v
+    }
+  }
+  return out
+}

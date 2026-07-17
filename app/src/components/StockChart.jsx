@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType, LineType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
-import { mergeChartSettings } from './chart/chartDefaults'
+import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
@@ -832,6 +832,8 @@ export default function StockChart({
   hideReplay = false,       // hide the Replay / Time Machine button
   hidePatterns = false,     // hide the pattern-recognition toggle button
   disablePatterns = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
+  showSavedDrawings = false, // render the user's saved per-symbol drawings as a READ-ONLY layer when the drawing tools are off (multi-chart grid cells: a member's trendlines must not vanish there). Inert when showDrawingTools is on — the editable overlay already renders them.
+  settingsOverride = null,  // optional PARTIAL chart_settings blob merged over the user's global settings for THIS instance only (multi-chart grid: per-cell chart type). Precedence defaults < global < override; overridden keys are restored from the un-overridden base before any settings write persists, so an override can never leak into the global blob. MUST be identity-stable (useMemo) — it's a memo dep.
   hideCompare = false,      // hide both compare-symbol entry points (text input + popover)
   hideCountdown = false,    // hide the intraday bar-close countdown badge
   // ── Animated "focus a setup" zoom (Model Book) ──
@@ -903,7 +905,11 @@ export default function StockChart({
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
 
   // ── Chart settings from user preferences ──
-  const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
+  const csBase = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
+  const cs = useMemo(
+    () => (settingsOverride ? mergeSettingsOverride(csBase, settingsOverride) : csBase),
+    [csBase, settingsOverride],
+  )
   // Effective candle/volume up-green: darkened for the Sunrise light theme so it
   // stands out on the bright canvas; on the Charts workspace (userCandleColors) it
   // comes from the user's saved candle color so the settings pickers actually paint;
@@ -1603,8 +1609,20 @@ export default function StockChart({
     try { localStorage.setItem('uct-draw-repeat', val ? 'true' : 'false') } catch {}
   }, [])
   const handleUpdateChartSettings = useCallback((newSettings) => {
-    setPref('chart_settings', JSON.stringify(newSettings))
-  }, [setPref])
+    // Every settings write site spreads {...cs}, which carries any per-instance
+    // settingsOverride — restore overridden top-level keys from the
+    // un-overridden base so an override never leaks into the GLOBAL blob.
+    // (The watermark-drag commit builds from mergeChartSettings(prefs) directly
+    // and cannot leak — keep it that way if refactored.)
+    let persisted = newSettings
+    if (settingsOverride) {
+      persisted = { ...newSettings }
+      for (const k of Object.keys(settingsOverride)) {
+        if (k in csBase) persisted[k] = csBase[k]
+      }
+    }
+    setPref('chart_settings', JSON.stringify(persisted))
+  }, [setPref, settingsOverride, csBase])
 
   // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
   // panel toggles, so both stay in lockstep (one logical state, two entry points).
@@ -7906,6 +7924,28 @@ export default function StockChart({
           enabled={showPatterns}
           onDetectionClick={setActiveDetection}
         />
+      )}
+      {/* Read-only saved-drawings layer (multi-chart grid cells): the member's
+          per-symbol drawings render but can't be edited — same NOOP recipe as
+          the Model Book staticAnnotations layer below. */}
+      {showSavedDrawings && !showDrawingTools && !cs.hideDrawings && bars?.length > 0 && drawings.length > 0 && (
+        <div style={overlayWrapStyle({ zIndex: 4, pointerEvents: 'none' })}>
+          <ChartDrawingOverlay
+            chartRef={chartRef}
+            seriesRef={candleSeriesRef}
+            bars={bars}
+            activeTool={null}
+            setActiveTool={NOOP}
+            color={drawColor}
+            lineWidth={drawWidth}
+            drawings={drawings}
+            addDrawing={NOOP}
+            updateDrawing={NOOP}
+            removeDrawing={NOOP}
+            selectedId={null}
+            setSelectedId={NOOP}
+          />
+        </div>
       )}
       {showDrawingTools && bars?.length > 0 && (
         <>

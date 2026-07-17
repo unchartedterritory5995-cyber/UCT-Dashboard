@@ -69,6 +69,7 @@ export function reconcileCells(cells, cellCount) {
 }
 
 const VALID_TFS = new Set(['1', '5', '15', '30', '60', 'D', 'W', 'M'])
+const VALID_CHART_TYPES = new Set(['candles', 'hollow', 'bars', 'hlc', 'line', 'area'])
 
 // Sanitize state hydrated from the multichart_state pref (or an old V1 blob).
 // Never trust persisted shapes: bad tf → 'D', bad sym → empty cell, over-cap
@@ -83,6 +84,7 @@ export function sanitizeState(raw) {
       id: typeof c?.id === 'string' && c.id ? c.id : genId(),
       sym: typeof c?.sym === 'string' && c.sym.trim() ? c.sym.trim().toUpperCase() : null,
       tf: VALID_TFS.has(c?.tf) ? c.tf : 'D',
+      chartType: VALID_CHART_TYPES.has(c?.chartType) ? c.chartType : null,
     }))
   return {
     layout: layout.id,
