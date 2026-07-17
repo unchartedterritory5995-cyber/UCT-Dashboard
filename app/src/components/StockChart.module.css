@@ -39,18 +39,19 @@
   display: flex;
   gap: 12px;
   padding: 2px 7px;
-  border-radius: 5px;
+  border-radius: 3px;
   background: rgba(14, 15, 13, 0.55);
-  font-size: 10.5px;
-  line-height: 1.25;
+  /* Match the main chart legend: mono font + tan/gold label + value colors. */
+  font-family: var(--font-mono);
+  font-size: 10px;
   pointer-events: none;
   user-select: none;
 }
 .volLegItem { display: inline-flex; gap: 5px; align-items: baseline; }
-.volLegLabel { color: rgba(255, 255, 255, 0.42); font-weight: 600; letter-spacing: 0.2px; }
-.volLegVal { color: rgba(255, 255, 255, 0.85); font-weight: 700; font-variant-numeric: tabular-nums; }
+.volLegLabel { color: #a8a290; font-weight: 500; }
+.volLegVal { color: #d4cfc0; font-weight: 600; font-variant-numeric: tabular-nums; }
 :global([data-charts-theme='sunrise']) .volLegend { background: rgba(255, 255, 255, 0.55); }
-:global([data-charts-theme='sunrise']) .volLegLabel { color: #47525f; }
+:global([data-charts-theme='sunrise']) .volLegLabel { color: #3f4a57; }
 :global([data-charts-theme='sunrise']) .volLegVal { color: #12202c; }
 .rangeBtn {
   background: transparent;
@@ -253,20 +254,14 @@
   row-gap: 1px;
   align-content: start;
   top: 46px;
-  /* Match the volume-pane legend / range-tab styling exactly: more transparent
-     background, app sans font (not mono). Day's-change + MA rows keep their inline
-     colors. */
+  /* Keep the more-transparent background; font + colors stay the original mono look. */
   background: rgba(14, 15, 13, 0.55);
-  border-radius: 5px;
-  font-family: inherit;
-  font-size: 10.5px;
-  line-height: 1.25;
 }
 .vlHead {
   grid-column: 1 / -1;
   text-align: center;
-  color: rgba(255, 255, 255, 0.85);
-  font-weight: 700;
+  color: #d4cfc0;
+  font-weight: 600;
   white-space: nowrap;
   padding-bottom: 1px;
 }
@@ -279,20 +274,19 @@
 }
 .vlFull {
   grid-column: 1 / -1;
-  color: rgba(255, 255, 255, 0.42);
+  color: #a8a290;
   font-weight: 600;
   white-space: nowrap;
 }
 .vlLabel {
-  color: rgba(255, 255, 255, 0.42);
-  font-weight: 600;
-  letter-spacing: 0.2px;
+  color: #a8a290;
+  font-weight: 500;
   white-space: nowrap;
 }
 .vlVal {
   text-align: right;
-  color: rgba(255, 255, 255, 0.85);
-  font-weight: 700;
+  color: #d4cfc0;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
