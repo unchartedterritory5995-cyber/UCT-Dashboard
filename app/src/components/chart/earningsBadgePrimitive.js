@@ -6,7 +6,7 @@
 // draw-only. Points come with the bar LOW so the badge hugs just under the candle.
 
 const FONT_FAMILY = "'Instrument Sans', sans-serif"
-const GAP = 8          // px below the bar low
+const ROW_BOTTOM = 6   // px from the price-pane bottom (badges sit just above volume)
 const PAD_X = 6        // px horizontal padding inside the pill
 const PAD_Y = 3        // px vertical padding
 const GLYPH = '#0c0c0e' // near-black glyph on the colored pill
@@ -55,16 +55,17 @@ export function createEarningsBadgePrimitive(initial) {
           const w = gw + PAD_X * 2
           const h = opts.fontPx + PAD_Y * 2
           const r = Math.min(4, h / 2)
+          // Fixed row near the bottom of the price pane (just above the volume pane),
+          // so every badge lines up horizontally regardless of price; only x tracks
+          // the reporting day. timeToCoordinate is recomputed each frame → the row
+          // glides smoothly as the chart pans/zooms.
+          const rowTop = mediaSize.height - ROW_BOTTOM - h
           const drawn = []
           for (const p of opts.points) {
             const x = ts.timeToCoordinate(p.time)
             if (x == null || x < 0 || x > mediaSize.width) continue
-            const yLow = series.priceToCoordinate(p.price)
-            if (yLow == null) continue
-            const top = yLow + GAP
-            const rect = { x: x - w / 2, y: top, w, h }
+            const rect = { x: x - w / 2, y: rowTop, w, h }
             if (rect.x < 0 || rect.x + rect.w > mediaSize.width) continue
-            if (rect.y + rect.h > mediaSize.height) continue
             if (intersects(rect, drawn)) continue
             drawn.push(rect)
             // Pill
