@@ -480,6 +480,20 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                               if a.get("id") == ba["snaptradeAccountId"]), None)
                 if match:
                     broker_total = balances._account_total_usd(match)
+                    # Freshness bookkeeping: the broker-reported holdings
+                    # snapshot time ("positions as of") + the authorization id
+                    # (needed to request a manual refresh). Best-effort.
+                    try:
+                        hs = ((match.get("sync_status") or {})
+                              .get("holdings") or {}).get("last_successful_sync")
+                        auth_id = match.get("brokerage_authorization")
+                        connections.record_holdings_meta(
+                            user_id, broker_account_id,
+                            holdings_synced_at=str(hs) if hs else None,
+                            authorization_id=str(auth_id) if auth_id else None,
+                        )
+                    except Exception:
+                        pass
             except Exception:
                 broker_total = None
             bal_res = balances.write_balances(

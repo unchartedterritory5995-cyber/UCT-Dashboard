@@ -6,7 +6,7 @@
  */
 import { useState } from 'react'
 import useSWR from 'swr'
-import { timeAgoShort } from '../../../utils/timeAgo'
+import { timeAgoShort, formatET } from '../../../utils/timeAgo'
 import styles from './BrokerSyncStatus.module.css'
 
 const fetcher = (url) =>
@@ -30,6 +30,14 @@ export default function BrokerSyncStatus({ onSynced }) {
     .sort()
     .pop()
   const broken = accounts.some((a) => a.status === 'broken')
+  // Broker-reported holdings snapshot time (SnapTrade refreshes holdings
+  // ~nightly; balances move intraday). Oldest across accounts — never
+  // overclaim freshness.
+  const holdingsAsOf = accounts
+    .map((a) => a.holdingsSyncedAt)
+    .filter(Boolean)
+    .sort()
+    .shift()
 
   const syncNow = async () => {
     setBusy(true)
@@ -61,6 +69,14 @@ export default function BrokerSyncStatus({ onSynced }) {
       </span>
       <span className={styles.sep}>·</span>
       <span className={styles.muted}>auto every 20m</span>
+      {!broken && holdingsAsOf && (
+        <>
+          <span className={styles.sep}>·</span>
+          <span className={styles.muted} title="Your broker reports position holdings on a delayed schedule; balances update intraday.">
+            positions as of {formatET(holdingsAsOf)} · balances live
+          </span>
+        </>
+      )}
       <button type="button" className={styles.btn} onClick={syncNow} disabled={busy}>
         {busy ? 'Syncing…' : 'Sync now'}
       </button>

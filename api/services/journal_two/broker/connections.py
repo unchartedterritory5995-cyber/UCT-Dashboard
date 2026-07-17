@@ -450,6 +450,35 @@ def update_cursor(
     )
 
 
+def record_holdings_meta(
+    user_id: str, broker_account_id: str, *,
+    holdings_synced_at: str | None = None,
+    authorization_id: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    """Persist the broker-reported holdings snapshot time (+ the SnapTrade
+    authorization id, needed to request a manual refresh). None values are
+    skipped so a payload without sync_status never blanks a prior stamp."""
+    fields: dict[str, Any] = {}
+    if holdings_synced_at is not None:
+        fields["holdings_synced_at"] = holdings_synced_at
+    if authorization_id is not None:
+        fields["brokerage_authorization_id"] = authorization_id
+    if not fields:
+        return False
+    return _update_account_fields(user_id, broker_account_id, fields, conn)
+
+
+def record_manual_refresh(
+    user_id: str, broker_account_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    return _update_account_fields(
+        user_id, broker_account_id,
+        {"last_manual_refresh_at": datetime.now(timezone.utc).isoformat()}, conn,
+    )
+
+
 def record_sync_result(
     user_id: str, broker_account_id: str, *, ok: bool, error: str | None = None,
     conn: sqlite3.Connection | None = None,
@@ -583,6 +612,9 @@ def _row_to_broker_account(row: sqlite3.Row | None) -> dict[str, Any] | None:
         "warmingUntil": row["warming_until"],
         "warmingLastActivityCount": row["warming_last_activity_count"],
         "warmingStableTicks": row["warming_stable_ticks"] or 0,
+        "holdingsSyncedAt": row["holdings_synced_at"],
+        "brokerageAuthorizationId": row["brokerage_authorization_id"],
+        "lastManualRefreshAt": row["last_manual_refresh_at"],
         "warming": bool(
             row["warming_until"]
             and row["warming_until"] > datetime.now(timezone.utc).isoformat()

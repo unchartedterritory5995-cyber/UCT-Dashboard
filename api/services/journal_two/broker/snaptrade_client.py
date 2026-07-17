@@ -352,6 +352,23 @@ async def list_authorizations(user_id: str, user_secret: str) -> list[dict]:
     return body if isinstance(body, list) else []
 
 
+async def refresh_authorization(user_id: str, user_secret: str,
+                                authorization_id: str) -> dict:
+    """Ask SnapTrade to pull fresh holdings/transactions from the brokerage
+    for one authorization (their scheduled refresh is only ~nightly). The
+    pull is async on SnapTrade's side — completion arrives later as an
+    ACCOUNT_HOLDINGS_UPDATED / ACCOUNT_TRANSACTIONS_UPDATED webhook, which
+    triggers our sync. May be billed per call on some plans — call sites
+    must budget (see manual_refresh.py)."""
+    sdk = _sdk()
+    body = await _call(
+        sdk.connections.refresh_brokerage_authorization,
+        authorization_id=authorization_id,
+        user_id=user_id, user_secret=user_secret,
+    )
+    return body if isinstance(body, dict) else {"status": body}
+
+
 async def list_accounts(user_id: str, user_secret: str) -> list[dict]:
     """All brokerage accounts the user has connected. Returns a list of
     account dicts (id, name, number, institution_name, ...)."""

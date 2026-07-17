@@ -424,8 +424,10 @@ async def webhook(request: Request) -> dict[str, Any]:
     # Sync ONLY on known data-changing events (an empty/unknown event no longer
     # triggers a sync — narrows the abuse surface).
     sync_events = {
-        "CONNECTION_ADDED", "CONNECTION_UPDATED", "ACCOUNT_HOLDINGS_UPDATED",
-        "ACCOUNT_TRANSACTIONS_UPDATED", "NEW_ACCOUNT_AVAILABLE", "TRADES_PLACED",
+        "CONNECTION_ADDED", "CONNECTION_UPDATED", "CONNECTION_FIXED",
+        "ACCOUNT_HOLDINGS_UPDATED", "ACCOUNT_TRANSACTIONS_UPDATED",
+        "ACCOUNT_TRANSACTIONS_INITIAL_UPDATE", "NEW_ACCOUNT_AVAILABLE",
+        "TRADES_PLACED",
     }
     if not uct_user_id or event not in sync_events:
         return {"ok": True, "ignored": True}

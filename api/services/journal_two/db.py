@@ -694,6 +694,14 @@ _PHASE_2_ALTERS = [
     "adherence_pct REAL, updated_at TEXT NOT NULL, "
     "PRIMARY KEY (user_id, trade_ref))",
     "CREATE INDEX IF NOT EXISTS idx_j2_adherence_user ON j2_trade_adherence(user_id)",
+    # Broker data freshness (2026-07-16) — SnapTrade refreshes holdings ~nightly;
+    # we track the broker-reported holdings snapshot time so the UI can show an
+    # honest "positions as of" stamp, plus the authorization id + last manual
+    # refresh stamp so we can request a budgeted on-demand refresh for stale
+    # intraday holdings.
+    "ALTER TABLE j2_broker_accounts ADD COLUMN holdings_synced_at TEXT",
+    "ALTER TABLE j2_broker_accounts ADD COLUMN brokerage_authorization_id TEXT",
+    "ALTER TABLE j2_broker_accounts ADD COLUMN last_manual_refresh_at TEXT",
 ]
 
 

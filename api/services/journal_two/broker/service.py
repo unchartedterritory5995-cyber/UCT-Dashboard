@@ -387,6 +387,14 @@ def trust_summary(user_id: str) -> dict[str, Any]:
 def status(user_id: str) -> dict[str, Any]:
     """Connection + per-account summary for the Settings panel. Never
     decrypts the secret (works even if the key is lost — surfaces 'broken')."""
+    # Opportunistic freshness: a member looking at their journal during
+    # trading hours with a stale (nightly) holdings snapshot triggers a
+    # budgeted SnapTrade re-pull. Fire-and-forget; never blocks the response.
+    try:
+        from api.services.journal_two.broker import manual_refresh
+        manual_refresh.maybe_refresh_user_background(user_id)
+    except Exception:
+        pass
     conn = get_connection()
     try:
         row = conn.execute(
