@@ -186,16 +186,18 @@
 .modeCardActive .modeName { color: #e7cf8f; }
 .modeCardActive .modeDesc { color: #b39a5e; }
 
-/* Colors — Body / Borders / Wick sit side-by-side to save vertical space. */
+/* Colors — Body / Borders / Wick line up under the 3 columns above (Body left,
+   Borders center, Wick right), each centered within its third. */
 .cGroups {
-  display: flex;
-  gap: 26px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
 .cGroup {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 9px;
 }
 .cGroupLabel {
   font-size: 11px;
@@ -203,7 +205,11 @@
   letter-spacing: 0.3px;
   color: #b9b4a3;
 }
-.cSwatches { display: flex; gap: 8px; }
+.cSwatches { display: flex; gap: 10px; justify-content: center; }
+
+/* Single-group color layout (one-color mode, line/area) — left-aligned. */
+.cGroupsSingle { display: flex; }
+.cGroupsSingle .cGroup { align-items: flex-start; }
 .cSwatch {
   width: 30px;
   height: 30px;

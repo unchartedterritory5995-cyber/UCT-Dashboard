@@ -114,8 +114,9 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     const W = 316, gap = 12
     let left = r.right + gap
     if (left + W > window.innerWidth - 8) left = Math.max(8, r.left - W - gap)
-    const top = Math.max(8, Math.min(r.top + 4, window.innerHeight - 460))
-    setPanelPos({ left, top })
+    // Align the color panel's BOTTOM edge with the settings modal's bottom edge.
+    const bottom = Math.max(8, window.innerHeight - r.bottom)
+    setPanelPos({ left, bottom })
   }, [activeTarget, open])
 
   // Close the color panel on an outside click (not a swatch, not inside the panel).
@@ -227,7 +228,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             <section className={styles.section}>
               <div className={styles.sectionLabel}>Colors</div>
               {curColorMode === 'onecolor' ? (
-                <div className={styles.cGroups}>
+                <div className={styles.cGroupsSingle}>
                   <div className={styles.cGroup}>
                     <span className={styles.cGroupLabel}>Color</span>
                     <div className={styles.cSwatches}>{colorSwatch('one', 'Color')}</div>
@@ -266,7 +267,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       {activeTarget && panelPos && createPortal(
         <div
           data-color-panel
-          style={{ position: 'fixed', left: panelPos.left, top: panelPos.top, zIndex: 9100 }}
+          style={{ position: 'fixed', left: panelPos.left, bottom: panelPos.bottom, zIndex: 9100 }}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <ColorPanel
