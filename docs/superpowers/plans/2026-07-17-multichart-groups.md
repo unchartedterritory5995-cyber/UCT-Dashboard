@@ -298,6 +298,18 @@ def test_rank_holdings_today_then_fallbacks(monkeypatch):
     ranked = groups.rank_holdings(holdings, by="today")
     assert ranked == ["AAA", "BBB", "CCC", "DDD"]
     assert "DEAD" not in ranked
+
+
+def test_top_n_returns_rows_with_tier_and_rationale(monkeypatch):
+    monkeypatch.setattr(groups, "_theme_holdings",
+                        lambda tid: [{"sym": "RKLB", "tier": "core", "rationale": "Launch"},
+                                     {"sym": "ASTS", "tier": "core", "rationale": "Sats"}])
+    import api.services.theme_db as tdb
+    monkeypatch.setattr(tdb, "get_theme_holdings", groups._theme_holdings)
+    monkeypatch.setattr(groups, "rank_holdings", lambda h, by="today", seed=None: ["RKLB", "ASTS"])
+    out = groups.top_n("space", 2, by="today")
+    assert out["syms"] == ["RKLB", "ASTS"]
+    assert out["rows"][0] == {"sym": "RKLB", "tier": "core", "rationale": "Launch"}
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -387,9 +399,18 @@ def top_n(theme_id: str, n: int, by: str = "today") -> dict:
     from api.services import theme_db
     holdings = theme_db.get_theme_holdings(theme_id)
     ranked = rank_holdings(holdings, by=by)
+    top = ranked[: max(1, int(n))]
+    # Per-sym tier + rationale for the cell badges (keyed hyphen).
+    meta = {normalize_sym(h.get("sym", "")): h for h in holdings}
+    rows = [{
+        "sym": s,
+        "tier": (meta.get(s) or {}).get("tier"),
+        "rationale": (meta.get(s) or {}).get("rationale") or "",
+    } for s in top]
     return {
         "group_id": theme_id,
-        "syms": ranked[: max(1, int(n))],
+        "syms": top,
+        "rows": rows,
         "total": len(ranked),
         "by": "rs" if by == "rs" else "today",
         "ranked_as_of": _ranked_as_of(),
@@ -1692,8 +1713,176 @@ git commit -m "feat(groups): wire mode chrome, composite mount-queue keys, heat 
 
 ---
 
+## Task 15: Per-cell badges (today % + tier) + rationale tooltip
+
+**Files:**
+- Create: `app/src/pages/charts/grid/cellBadge.js`
+- Create: `app/src/pages/charts/grid/cellBadge.test.js`
+- Modify: `app/src/pages/charts/grid/MultiChartGrid.jsx` (fetch group rows → `metaBySym`; pass badge/rationale per cell)
+- Modify: `app/src/pages/charts/grid/GridChartCell.jsx` (accept + render `badge`/`rationale`)
+- Modify: `app/src/pages/charts/grid/MultiChartGrid.module.css` (badge styles)
+
+**Interfaces:**
+- Consumes: `fetchGroupTop` (now returns `rows:[{sym,tier,rationale}]`); the shared `useLivePrices` map already built in Task 14.
+- Produces: `buildCellBadges(cells, metaBySym, livePrices) -> [{changePct, tier, rationale} | null]` (index-aligned to `cells`); `GridChartCell` renders a header badge (today % colored + tier chip) with the rationale as a `title` tooltip when a `badge` prop is present.
+
+The badge is **live** (today % from the shared price pool), while tier + rationale are static per (group, sym). `MultiChartGrid` fetches the current group's rows once whenever `state.group.id` changes (this also restores badges on reload) and builds `metaBySym`. Non-group (manual) grids pass `badge=null` so nothing changes there.
+
+- [ ] **Step 1: Write the failing test**
+
+```javascript
+// app/src/pages/charts/grid/cellBadge.test.js
+import { describe, it, expect } from 'vitest'
+import { buildCellBadges } from './cellBadge'
+
+describe('buildCellBadges', () => {
+  it('merges live today% with static tier/rationale, index-aligned', () => {
+    const cells = [{ id: 'a', sym: 'RKLB' }, { id: 'b', sym: 'ASTS' }, { id: 'c', sym: null }]
+    const meta = { RKLB: { tier: 'core', rationale: 'Launch' }, ASTS: { tier: 'core', rationale: 'Sats' } }
+    const live = { RKLB: { change_pct: 8.2 }, ASTS: { change_pct: -1.1 } }
+    const out = buildCellBadges(cells, meta, live)
+    expect(out[0]).toEqual({ changePct: 8.2, tier: 'core', rationale: 'Launch' })
+    expect(out[1]).toEqual({ changePct: -1.1, tier: 'core', rationale: 'Sats' })
+    expect(out[2]).toBeNull()   // empty cell -> no badge
+  })
+
+  it('tolerates missing meta / live (partial data)', () => {
+    const cells = [{ id: 'a', sym: 'XYZ' }]
+    const out = buildCellBadges(cells, {}, {})
+    expect(out[0]).toEqual({ changePct: null, tier: null, rationale: '' })
+  })
+})
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd app && npx vitest run --pool=threads src/pages/charts/grid/cellBadge.test.js`
+Expected: FAIL (module not found)
+
+- [ ] **Step 3: Write minimal implementation**
+
+```javascript
+// app/src/pages/charts/grid/cellBadge.js
+// Per-cell scanner badge data: live today% + the group's static tier/rationale.
+// Index-aligned to cells; null for empty cells so manual grids show nothing.
+
+export function buildCellBadges(cells, metaBySym, livePrices) {
+  return (cells || []).map(c => {
+    if (!c || !c.sym) return null
+    const m = (metaBySym && metaBySym[c.sym]) || {}
+    const lp = (livePrices && livePrices[c.sym]) || {}
+    const changePct = Number.isFinite(lp.change_pct) ? lp.change_pct : null
+    return { changePct, tier: m.tier || null, rationale: m.rationale || '' }
+  })
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `cd app && npx vitest run --pool=threads src/pages/charts/grid/cellBadge.test.js`
+Expected: PASS
+
+- [ ] **Step 5: Wire `metaBySym` + badges into `MultiChartGrid.jsx`**
+
+Add a group-rows fetch (import `buildCellBadges` and `fetchGroupTop` — the latter is already imported in Task 14):
+
+```jsx
+import { buildCellBadges } from './cellBadge'
+// ...
+const [groupMeta, setGroupMeta] = useState({})   // {name, total, metaBySym}
+useEffect(() => {
+  const g = state.group
+  if (!g?.id) { setGroupMeta({}); return }
+  let live = true
+  fetchGroupTop(g.id, { n: 16, by: g.by || 'today' }).then(res => {
+    if (!live) return
+    const metaBySym = {}
+    for (const r of (res.rows || [])) metaBySym[r.sym] = { tier: r.tier, rationale: r.rationale }
+    setGroupMeta({ total: res.total, metaBySym })
+  })
+  return () => { live = false }
+}, [state.group?.id, state.group?.by])
+
+const cellBadges = useMemo(
+  () => buildCellBadges(cells, groupMeta.metaBySym || {}, livePrices),
+  [cells, groupMeta.metaBySym, livePrices],
+)
+```
+
+Pass the badge to each cell in the render (only in group mode):
+
+```jsx
+<GridChartCell
+  cell={{ ...cell, sym: loadSym }}
+  badge={state.group ? cellBadges[i] : null}
+  rationale={state.group ? cellBadges[i]?.rationale : ''}
+  ... />
+```
+
+Use `groupMeta.total` for the heat header's `total` (replaces the `groupTotalRef` placeholder from Task 14):
+
+```jsx
+{state.group && (
+  <GroupHeatHeader
+    groupName={groupMeta.name || state.group.id}
+    total={groupMeta.total}
+    shown={gridSyms.length}
+    holdings={heatHoldings}
+  />
+)}
+```
+
+- [ ] **Step 6: Render the badge in `GridChartCell.jsx`**
+
+Add `badge` and `rationale` to the props destructure. In the header's meta row (next to the existing `wsStyles.chartMeta` / `styles.gridMeta` block), render:
+
+```jsx
+{badge && (
+  <span
+    className={styles.cellBadge}
+    title={rationale || undefined}
+    aria-label={`today ${badge.changePct ?? '—'}%, ${badge.tier || 'holding'}`}
+  >
+    {badge.tier && <span className={styles.cellBadgeTier}>{badge.tier[0].toUpperCase()}</span>}
+    {Number.isFinite(badge.changePct) && (
+      <span style={{ color: badge.changePct >= 0 ? '#22c55e' : '#f87171' }}>
+        {badge.changePct >= 0 ? '+' : ''}{badge.changePct.toFixed(1)}%
+      </span>
+    )}
+  </span>
+)}
+```
+
+Add styles to `MultiChartGrid.module.css`:
+
+```css
+/* Scanner badge on each group cell: tier chip + live today %. */
+.cellBadge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; flex: 0 0 auto; }
+.cellBadgeTier {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 3px; font-size: 9px; font-weight: 700;
+  color: var(--text-muted, #9aa4b2); border: 1px solid var(--border, #2a3340);
+}
+```
+
+- [ ] **Step 7: Run the tests + verify locally**
+
+Run: `cd app && npx vitest run --pool=threads src/pages/charts/grid/`
+Expected: PASS (all grid tests incl. `cellBadge`).
+
+Then on the local dev server, enter a group and confirm each cell header shows its tier chip + live today % (green/red), and hovering a cell's badge shows the rationale tooltip.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add app/src/pages/charts/grid/cellBadge.js app/src/pages/charts/grid/cellBadge.test.js app/src/pages/charts/grid/MultiChartGrid.jsx app/src/pages/charts/grid/GridChartCell.jsx app/src/pages/charts/grid/MultiChartGrid.module.css
+git commit -m "feat(groups): per-cell badges (today % + tier) + rationale tooltip"
+```
+
+---
+
 ## Deferred to later phases (NOT in this plan)
 
 - **Phase 2 — AI peer fallback** (grounded Haiku for tickers absent from the taxonomy): `groups.resolve_peers` returns `source:'none'` today; add a `_ai_peers(seed)` path (ticker-meta grounding → `claude-haiku-4-5` structured output → validate against `cap_universe` + sector match + seed dedup → cache `(SEED, n, version)`, offloaded off the request path).
-- **Phase 3 — time-range sync** (add the `applyingExternalRangeRef` echo guard to `StockChart` first — the hooks exist but the applier has no guard), **saved named Group boards** (via `/api/charts/layouts` with the group id in the `layout` blob), **fast-switch polish** (recents/favorites, ‹ › arrows, RVOL badge if a cheap source appears), **per-cell badges + rationale tooltip** wired into `GridChartCell` (the header math from Task 13 is ready), and the **`?gridspike` board-swap mode** for automated group-switch perf proof.
+- **Phase 3 — time-range sync** (add the `applyingExternalRangeRef` echo guard to `StockChart` first — the hooks exist but the applier has no guard), **saved named Group boards** (via `/api/charts/layouts` with the group id in the `layout` blob), **fast-switch polish** (recents/favorites, ‹ › arrows, RVOL badge if a cheap source appears), the **pinned group ETF** (the one remaining heat-layer item — ETFs bypass `cap_universe` validation since they chart via Massive; ~63/99 themes have one), and the **`?gridspike` board-swap mode** for automated group-switch perf proof. (Per-cell badges + rationale are now in v1 — Task 15.)
 - **Curation track** — the chartable filter (Task 1) makes the endpoints skip the 183 non-chartable holdings; a follow-up should surface that set as a worklist and fix the taxonomy (`themes_taxonomy.json` is ~3 months stale).
