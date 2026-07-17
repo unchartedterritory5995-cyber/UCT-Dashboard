@@ -8,8 +8,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.62);
-  backdrop-filter: blur(2px);
+  /* No dim / no blur — the workspace stays fully visible behind the modal. The
+     full-screen layer is transparent; it only exists to catch an outside click. */
+  background: transparent;
   padding: 20px;
 }
 
@@ -135,3 +136,53 @@
   color: #e7cf8f;
   transform: none;
 }
+
+/* Color-based-on — a 3-across segmented row of labeled cards. */
+.modeRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 460px) {
+  .modeRow { grid-template-columns: 1fr; }
+}
+
+.modeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 11px 12px;
+  background: #121213;
+  border: 1px solid #232324;
+  border-radius: 9px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: border-color 120ms, background 120ms, transform 120ms;
+}
+.modeCard:hover {
+  background: #171718;
+  border-color: #34342f;
+  transform: translateY(-1px);
+}
+
+.modeName {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #d8d2c2;
+}
+.modeDesc {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #7c7768;
+}
+
+.modeCardActive,
+.modeCardActive:hover {
+  background: rgba(201, 168, 76, 0.10);
+  border-color: #c9a84c;
+  transform: none;
+}
+.modeCardActive .modeName { color: #e7cf8f; }
+.modeCardActive .modeDesc { color: #b39a5e; }

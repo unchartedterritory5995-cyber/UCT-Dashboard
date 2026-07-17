@@ -12,6 +12,11 @@ export const CHART_DEFAULTS = {
     downWick: '#e74c3c',
   },
 
+  // How candles/bars are colored. 'netchange' = close-vs-previous-close (default,
+  // matches the workspace's long-standing look); 'openclose' = close-vs-open
+  // (LWC-native); 'onecolor' = every bar a single color.
+  candleColorMode: 'netchange', // 'onecolor' | 'netchange' | 'openclose'
+
   background: '#1a1c17',
   textColor: '#706b5e',
   grid: { color: 'rgba(46,49,39,0.25)', visible: true },

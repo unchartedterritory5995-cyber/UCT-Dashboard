@@ -3992,7 +3992,7 @@ export default function StockChart({
     // When swapping the candle series, the markers controller is bound to the
     // old series — detach it so the next markers update creates a fresh
     // controller against the new series.
-    const _priceStyleKey = `${cs.chartType || 'candles'}|${canvasTheme || ''}`
+    const _priceStyleKey = `${cs.chartType || 'candles'}|${canvasTheme || ''}|${cs.candleColorMode || 'netchange'}`
     if (prevChartTypeRef.current !== _priceStyleKey && candleSeriesRef.current) {
       try { chart.removeSeries(candleSeriesRef.current) } catch {}
       candleSeriesRef.current = null
@@ -4063,6 +4063,14 @@ export default function StockChart({
           upColor: 'rgba(0,0,0,0)', downColor: mbDown,
           borderVisible: true, borderUpColor: mbUp, borderDownColor: mbDown,
           wickUpColor: mbUp, wickDownColor: mbDown,
+        } : cs.chartType === 'hollow' ? {
+          // HOLLOW chart type in a non-sunrise theme (e.g. the default bold workspace):
+          // up = transparent body + colored outline, down = filled. Without this the
+          // boldCandles branch below forces borderVisible:false + a solid up body, so
+          // the hollow type rendered as normal filled candles (the reported bug).
+          upColor: 'rgba(0,0,0,0)', downColor: _bDown,
+          borderVisible: true, borderUpColor: _bUp, borderDownColor: _bDown,
+          wickUpColor: _bUp, wickDownColor: _bDown,
         } : (boldCandles || modelBookLook) ? {
           upColor: _bUp, downColor: _bDown,
           borderVisible: false,                       // pure solid bodies (TC2000 look)
@@ -4088,29 +4096,44 @@ export default function StockChart({
       // Net-change eligibility: candles/bars always; on Sunrise ALSO 'hollow' (the
       // Sunrise look is hollow, and without this a saved 'hollow' chart type skips the
       // wrap entirely and LWC colors by close-vs-OPEN — the "up day shows red" bug).
+      // Candle color mode (user-selectable): 'openclose' colors natively by
+      // close-vs-open (LWC default) → NO per-bar wrap. 'netchange' (close-vs-prev-
+      // close) and 'onecolor' (every bar one color) paint each bar here.
+      const _colorMode = cs.candleColorMode || 'netchange'
+      const _wrapMode = _colorMode === 'netchange' || _colorMode === 'onecolor'
       const _netEligible = cs.chartType === 'candles' || cs.chartType === 'bars' || cs.chartType === 'hlc'
+        || cs.chartType === 'hollow'
         || (canvasTheme === 'sunrise' && isOhlcType(cs.chartType))
-      if (colorByNetChange && _netEligible && !priceSeries.__uctNetWrap) {
+      if (colorByNetChange && _wrapMode && _netEligible && !priceSeries.__uctNetWrap) {
         const _netUp = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
         const _netDown = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
-        // Sunrise keeps the HOLLOW look while still coloring by NET CHANGE: a
-        // net-change-up bar is hollow (transparent body + green outline); a
-        // net-change-down bar is filled red. Every other theme stays solid.
-        const _hollowNet = canvasTheme === 'sunrise'
-        // Sunrise: an INSIDE BAR (its whole range sits within the previous candle's
+        const _oneColor = _netUp   // single color for 'onecolor' mode (a picker sets this later)
+        // Hollow bodies when the HOLLOW chart type OR the Sunrise look is active: an
+        // "up" bar is hollow (transparent body + colored outline), a "down" bar is filled.
+        const _hollow = canvasTheme === 'sunrise' || cs.chartType === 'hollow'
+        // Sunrise-only: an INSIDE BAR (whole range within the previous candle's
         // high–low, wicks included) is painted solid BLACK regardless of direction.
+        const _insideBlack = canvasTheme === 'sunrise'
         const _isInside = (bar, prevBar) => (
-          _hollowNet && prevBar
+          prevBar
           && bar.high != null && bar.low != null && prevBar.high != null && prevBar.low != null
           && bar.high <= prevBar.high && bar.low >= prevBar.low
         )
         const _paintNet = (bar, prevClose, prevBar) => {
-          if (!bar || bar.close == null || prevClose == null) return bar
+          if (!bar || bar.close == null) return bar
           if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
-          if (_isInside(bar, prevBar)) return { ...bar, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
-          const up = bar.close >= prevClose
-          const c = up ? _netUp : _netDown
-          const body = (_hollowNet && up) ? 'rgba(0,0,0,0)' : c
+          if (_insideBlack && _isInside(bar, prevBar)) return { ...bar, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
+          // Direction drives green/red (netchange) AND hollow/filled shape. Net-change
+          // uses close-vs-prev-close; one-color uses close-vs-open just for the shape.
+          let up
+          if (_colorMode === 'netchange') {
+            if (prevClose == null) return bar   // first bar — no prior close to compare
+            up = bar.close >= prevClose
+          } else {
+            up = bar.open != null ? bar.close >= bar.open : true
+          }
+          const c = _colorMode === 'onecolor' ? _oneColor : (up ? _netUp : _netDown)
+          const body = (_hollow && up) ? 'rgba(0,0,0,0)' : c
           return { ...bar, color: body, borderColor: c, wickColor: c }
         }
         const _realSet = priceSeries.setData.bind(priceSeries)

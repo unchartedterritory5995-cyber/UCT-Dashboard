@@ -79,6 +79,15 @@ const CHART_TYPES = [
   { val: 'area',    label: 'Area' },
 ]
 
+// Coloring only applies to OHLC-style types (candles/bars); line & area are single-color.
+const OHLC_TYPES = new Set(['candles', 'hollow', 'hlc', 'bars'])
+
+const COLOR_MODES = [
+  { val: 'onecolor',  label: 'One Color',     desc: 'Every bar one color' },
+  { val: 'netchange', label: 'Net Change',    desc: 'Close vs prev close' },
+  { val: 'openclose', label: 'Open vs Close', desc: 'Close vs open' },
+]
+
 export default function ChartSettingsModal({ open, onClose, settings, onChange }) {
   useEffect(() => {
     if (!open) return
@@ -94,6 +103,13 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange }
     if (val === curType) return
     onChange?.({ ...settings, chartType: val, preset: 'custom' })
   }
+
+  const curColorMode = settings?.candleColorMode || 'netchange'
+  const setColorMode = (val) => {
+    if (val === curColorMode) return
+    onChange?.({ ...settings, candleColorMode: val, preset: 'custom' })
+  }
+  const showColorMode = OHLC_TYPES.has(curType)
 
   return createPortal(
     <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
@@ -121,6 +137,26 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange }
               ))}
             </div>
           </section>
+
+          {showColorMode && (
+            <section className={styles.section}>
+              <div className={styles.sectionLabel}>Color based on</div>
+              <div className={styles.modeRow}>
+                {COLOR_MODES.map(({ val, label, desc }) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className={`${styles.modeCard} ${curColorMode === val ? styles.modeCardActive : ''}`}
+                    onClick={() => setColorMode(val)}
+                    aria-pressed={curColorMode === val}
+                  >
+                    <span className={styles.modeName}>{label}</span>
+                    <span className={styles.modeDesc}>{desc}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>,
