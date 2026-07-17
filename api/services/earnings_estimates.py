@@ -596,24 +596,64 @@ def get_chart_markers(ticker: str) -> dict:
     from_date = (today - timedelta(days=365 * 5)).strftime("%Y-%m-%d")
     to_date   = today.strftime("%Y-%m-%d")
 
-    # ── Earnings history (last 16 quarters ≈ 4 years) ─────────────────────────
+    # ── Earnings history (EPS + revenue) ──────────────────────────────────────
+    # FMP `stable/earnings` is primary: it carries EPS AND revenue AND the report
+    # date in one call, so each marker gets full data (the click-popup shows EPS +
+    # revenue) and lands on the day the stock actually moved on the print. Finnhub
+    # `/stock/earnings` (EPS only, keyed to the fiscal period-end) is the fallback
+    # when FMP has nothing. Dedup by report date, preferring the estimate-bearing
+    # row (FMP occasionally carries a consensus row + an alternate for one report).
     try:
-        eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": 16})
-        if isinstance(eps_raw, list):
-            for q in eps_raw:
-                date_str = q.get("period") or q.get("date") or q.get("reportDate")
-                if not date_str:
+        fmp_rows = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 24})
+        best_by_date = {}
+        if isinstance(fmp_rows, list):
+            for q in fmp_rows:
+                ds = str(q.get("date") or "")[:10]
+                if not ds:
                     continue
-                actual   = q.get("actual")
-                estimate = q.get("estimate")
-                beat = bool(actual >= estimate) if (actual is not None and estimate is not None) else None
-                result["earnings"].append({
-                    "date": str(date_str)[:10],
+                eps_a, eps_e = q.get("epsActual"), q.get("epsEstimated")
+                rev_a, rev_e = q.get("revenueActual"), q.get("revenueEstimated")
+                if eps_a is None and rev_a is None:
+                    continue  # upcoming quarter — nothing reported yet
+                beat = bool(eps_a >= eps_e) if (eps_a is not None and eps_e is not None) else None
+                row = {
+                    "date": ds,
                     "beat": beat,
-                    "surprise": q.get("surprisePercent"),
-                    "eps_actual": actual,
-                    "eps_estimate": estimate,
-                })
+                    "surprise": _surprise_pct(eps_a, eps_e),
+                    "eps_actual": eps_a,
+                    "eps_estimate": eps_e,
+                    "eps_surprise_pct": _surprise_pct(eps_a, eps_e),
+                    "revenue_actual": rev_a,
+                    "revenue_estimate": rev_e,
+                    "revenue_surprise_pct": _surprise_pct(rev_a, rev_e),
+                }
+                prev = best_by_date.get(ds)
+                if prev is None or (row["eps_estimate"] is not None and prev.get("eps_estimate") is None):
+                    best_by_date[ds] = row
+        if best_by_date:
+            result["earnings"] = list(best_by_date.values())
+        else:
+            # Fallback: Finnhub EPS-only (no revenue) when FMP has nothing.
+            eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": 16})
+            if isinstance(eps_raw, list):
+                for q in eps_raw:
+                    date_str = q.get("period") or q.get("date") or q.get("reportDate")
+                    if not date_str:
+                        continue
+                    actual   = q.get("actual")
+                    estimate = q.get("estimate")
+                    beat = bool(actual >= estimate) if (actual is not None and estimate is not None) else None
+                    result["earnings"].append({
+                        "date": str(date_str)[:10],
+                        "beat": beat,
+                        "surprise": q.get("surprisePercent"),
+                        "eps_actual": actual,
+                        "eps_estimate": estimate,
+                        "eps_surprise_pct": q.get("surprisePercent"),
+                        "revenue_actual": None,
+                        "revenue_estimate": None,
+                        "revenue_surprise_pct": None,
+                    })
     except Exception as exc:
         _logger.warning("get_chart_markers earnings failed for %s: %s", ticker, exc)
 
