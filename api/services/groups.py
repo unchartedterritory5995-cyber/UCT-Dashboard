@@ -10,8 +10,11 @@ ticker-search, and /api/bars. The taxonomy stores dot class-shares (BRK.B);
 convert with to_taxonomy_sym() only for theme_db lookups.
 """
 import json
+import logging
 import os
 import time
+
+_logger = logging.getLogger(__name__)
 
 _CAP_CACHE = {"set": None, "at": 0.0}
 _CAP_TTL = 3600.0
@@ -33,9 +36,11 @@ def _cap_universe_path() -> str:
 
 
 def cap_universe_set() -> set:
-    """Cached set of chartable tickers (hyphen form). 1h TTL."""
+    """Cached set of chartable tickers (hyphen form). 1h TTL. A failed/empty
+    load is NOT cached so a transient miss retries next call (never pins the
+    whole feature 'non-chartable' for an hour)."""
     now = time.monotonic()
-    if _CAP_CACHE["set"] is not None and (now - _CAP_CACHE["at"]) < _CAP_TTL:
+    if _CAP_CACHE["set"] and (now - _CAP_CACHE["at"]) < _CAP_TTL:
         return _CAP_CACHE["set"]
     out = set()
     try:
@@ -43,10 +48,12 @@ def cap_universe_set() -> set:
             data = json.load(fh)
         if isinstance(data, list):
             out = {normalize_sym(t) for t in data if t}
-    except Exception:
+    except Exception as e:
+        _logger.warning("groups: cap_universe load failed: %s", e)
         out = set()
-    _CAP_CACHE["set"] = out
-    _CAP_CACHE["at"] = now
+    if out:                       # only cache a real (non-empty) universe
+        _CAP_CACHE["set"] = out
+        _CAP_CACHE["at"] = now
     return out
 
 

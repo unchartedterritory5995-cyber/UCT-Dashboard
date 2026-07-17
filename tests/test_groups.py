@@ -17,3 +17,20 @@ def test_is_chartable_uses_cap_universe(monkeypatch):
     assert groups.is_chartable("AAPL") is True
     assert groups.is_chartable("brk.b") is True     # normalized to BRK-B
     assert groups.is_chartable("ZZZZ") is False
+
+
+def test_cap_universe_set_loads_and_normalizes(tmp_path, monkeypatch):
+    p = tmp_path / "cap.json"
+    p.write_text('["aapl", "BRK.B", "", "nvda"]', encoding="utf-8")
+    groups._CAP_CACHE["set"] = None
+    monkeypatch.setattr(groups, "_cap_universe_path", lambda: str(p))
+    s = groups.cap_universe_set()
+    assert "AAPL" in s and "BRK-B" in s and "NVDA" in s
+    assert "" not in s
+
+
+def test_cap_universe_set_missing_file_returns_empty_and_does_not_cache(monkeypatch):
+    groups._CAP_CACHE["set"] = None
+    monkeypatch.setattr(groups, "_cap_universe_path", lambda: "/no/such/cap_universe.json")
+    assert groups.cap_universe_set() == set()
+    assert groups._CAP_CACHE["set"] is None    # failure not cached -> retries next call
