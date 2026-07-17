@@ -100,12 +100,14 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const inputRef = useRef(null)
 
   // Auto-grow the ask box so a long question stays fully visible while typing
-  // (caps at ~4 lines, then scrolls inside the box).
+  // (caps at ~4 lines, then scrolls inside the box). Empty stays single-line —
+  // Chrome counts the WRAPPED placeholder in scrollHeight, which would balloon
+  // the idle row in a narrow widget.
   useEffect(() => {
     const el = inputRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 92)}px`
+    el.style.height = query ? `${Math.min(el.scrollHeight, 92)}px` : ''
   }, [query])
 
   const run = useCallback(async (q) => {
