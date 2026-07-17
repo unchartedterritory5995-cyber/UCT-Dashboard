@@ -8425,6 +8425,30 @@ export default function OptionsFlowDashboard() {
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction{searchDte!=="All"?" ("+({ST:"0–59d",LT:"60–179d",LEAPS:"180+d"})[searchDte]+")":""}</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
                       <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{ccTrades.length} directional trades</div>
+                      {/* Date scope (2026-07-17). /api/flow/ticker returns a
+                          symbol's flow across EVERY date; the client scopes it
+                          to availableDates, which follows the FETCHED range,
+                          not the rail's highlighted preset. Those diverge:
+                          once fetchDays hits 0 ("All"), needsFetch is false for
+                          every preset, so clicking 1d relabels the rail while
+                          parsedRows still holds all 133 days — and Search shows
+                          a ticker's whole history under a "1d" badge. FRMI read
+                          $34.2M / 557 trades across 91 days when the day itself
+                          was $200K / 6. The totals were never wrong; nothing
+                          said what they covered. */}
+                      {(() => {
+                        const ds = [...new Set(ccTrades.map(t => t.Dt).filter(Boolean))];
+                        if (!ds.length) return null;
+                        const key = s => { const p = String(s).split("/"); return (parseInt(p[0])||0)*100 + (parseInt(p[1])||0); };
+                        ds.sort((a,b) => key(a) - key(b));
+                        const multi = ds.length > 1;
+                        return (
+                          <div style={{ fontSize:9, color:multi?P.ac:P.dm, marginTop:3, fontWeight:multi?700:400 }}
+                               title={multi ? "Search shows this ticker's full flow across every loaded date — not just the selected day." : "Single trading day."}>
+                            {multi ? `across ${ds.length} trading days · ${ds[0]} – ${ds[ds.length-1]}` : `${ds[0]} only`}
+                          </div>
+                        );
+                      })()}
                       {/* Still-open net direction — shows if the net read
                           flips once you account for closures. */}
                       {stillOpenComputable && (
