@@ -44,11 +44,10 @@ export const CHART_DEFAULTS = {
     showNextEarnings: true,
     showUctRating: true,
     showLegend: true,       // the on-chart OHLCV crosshair legend
-    // Per-item color overrides for the header/legend readouts. Each key is unset
-    // (absent) by default = keep the item's built-in color: day change stays
-    // red/green by direction, UCT rating stays tier-colored, market cap/next
-    // earnings/legend keep their defaults. A hex here overrides that one item.
-    // Keys: dayChange, marketCap, nextEarnings, uctRating, legend.
+    // Per-item colors for the header/legend readouts. Each key is unset (absent) by
+    // default = keep the item's built-in color; a hex here overrides that one item.
+    // Day change is a pair (up-day / down-day). Keys: dayChangeUp, dayChangeDown,
+    // marketCap, nextEarnings, uctRating, legend.
     colors: {},
   },
 

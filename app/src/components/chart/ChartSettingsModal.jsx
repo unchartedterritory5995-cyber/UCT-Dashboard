@@ -118,14 +118,15 @@ const HEADER_TFS = [
   ['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'],
   ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M'],
 ]
-// [toggle key, label, color target, header.colors key]. The color target/key drive
-// the per-row color swatch + Auto reset in the Show section.
-const HEADER_TOGGLES = [
-  ['showChange', 'Day change ($ / %)', 'hdrDayChange', 'dayChange'],
-  ['showMarketCap', 'Market cap', 'hdrMarketCap', 'marketCap'],
-  ['showNextEarnings', 'Next earnings', 'hdrNextEarnings', 'nextEarnings'],
-  ['showUctRating', 'UCT rating', 'hdrUctRating', 'uctRating'],
-  ['showLegend', 'Chart legend', 'hdrLegend', 'legend'],
+// Header "Show" rows: a visibility toggle + one or more color swatches. Day change
+// carries TWO swatches (up-day / down-day colors); the rest carry one. Each swatch
+// is [color target, picker label].
+const HEADER_ROWS = [
+  { key: 'showChange', label: 'Day change ($ / %)', swatches: [['hdrDayUp', 'Up-day color'], ['hdrDayDown', 'Down-day color']] },
+  { key: 'showMarketCap', label: 'Market cap', swatches: [['hdrMarketCap', 'Market cap color']] },
+  { key: 'showNextEarnings', label: 'Next earnings', swatches: [['hdrNextEarnings', 'Next earnings color']] },
+  { key: 'showUctRating', label: 'UCT rating', swatches: [['hdrUctRating', 'UCT rating color']] },
+  { key: 'showLegend', label: 'Chart legend', swatches: [['hdrLegend', 'Chart legend color']] },
 ]
 
 export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor }) {
@@ -224,8 +225,9 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     one: ['candles', 'oneColor'],
     bg: ['background'], bgTop: ['bgGradient', 'top'], bgBottom: ['bgGradient', 'bottom'],
     grid: ['grid', 'color'], crosshair: ['crosshair', 'color'], text: ['textColor'],
-    // Per-item header/legend color overrides (Header tab → Show).
-    hdrDayChange: ['header', 'colors', 'dayChange'],
+    // Per-item header/legend colors (Header tab → Show). Day change is a pair.
+    hdrDayUp: ['header', 'colors', 'dayChangeUp'],
+    hdrDayDown: ['header', 'colors', 'dayChangeDown'],
     hdrMarketCap: ['header', 'colors', 'marketCap'],
     hdrNextEarnings: ['header', 'colors', 'nextEarnings'],
     hdrUctRating: ['header', 'colors', 'uctRating'],
@@ -263,9 +265,10 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'crosshair': return crosshair.color || '#706b5e'
       case 'text': return settings.textColor || '#706b5e'
       case 'watermark': return joinHexA(watermark.color || '#a8a290', (watermark.opacity == null || watermark.opacity === 0.07) ? 0.82 : watermark.opacity)
-      // Header/legend overrides: show the active override, else the item's built-in
-      // color so the swatch reads as the current on-screen color while "Auto".
-      case 'hdrDayChange': return hdrColors.dayChange || '#1ae51a'
+      // Header/legend colors: the stored value, else the item's built-in default so
+      // the swatch reads as the current on-screen color before the user changes it.
+      case 'hdrDayUp': return hdrColors.dayChangeUp || '#1ae51a'
+      case 'hdrDayDown': return hdrColors.dayChangeDown || '#ff3b47'
       case 'hdrMarketCap': return hdrColors.marketCap || '#c9a84c'
       case 'hdrNextEarnings': return hdrColors.nextEarnings || '#6ba3be'
       case 'hdrUctRating': return hdrColors.uctRating || '#c9a84c'
@@ -283,12 +286,6 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
   const hdrColors = header.colors || {}
-  const hdrColorSet = (key) => hdrColors[key] != null
-  // Clear one header-item override → the item returns to its built-in (auto) color.
-  const clearHeaderColor = (key) => {
-    const nextColors = { ...hdrColors }; delete nextColors[key]
-    setSetting({ header: { ...header, colors: nextColors } })
-  }
   const headerTfs = Array.isArray(header.timeframes) ? header.timeframes : []
   const toggleHeaderTf = (code) => setHeader({ timeframes: headerTfs.includes(code) ? headerTfs.filter((c) => c !== code) : [...headerTfs, code] })
   const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
@@ -470,26 +467,16 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Show</div>
             <div className={styles.card}>
-              {HEADER_TOGGLES.map(([key, label, target, colorKey]) => {
+              {HEADER_ROWS.map(({ key, label, swatches }) => {
                 const on = header[key] !== false
-                const overridden = hdrColorSet(colorKey)
                 return (
                   <div className={styles.field} key={key}>
                     <span className={styles.fieldLabel}>{label}</span>
                     <div className={styles.hdrRowCtl}>
-                      {/* Color override — only meaningful when the item is shown. */}
-                      {on && (overridden ? (
-                        <button
-                          type="button"
-                          className={styles.hdrAutoBtn}
-                          onClick={() => clearHeaderColor(colorKey)}
-                          title="Reset to automatic color"
-                          aria-label={`Reset ${label} to automatic color`}
-                        >Auto</button>
-                      ) : (
-                        <span className={styles.hdrAutoTag} title="Using the automatic color">Auto</span>
+                      {/* Color swatch(es) — only meaningful when the item is shown. */}
+                      {on && swatches.map(([target, pickerLabel]) => (
+                        <span key={target}>{colorSwatch(target, pickerLabel)}</span>
                       ))}
-                      {on && colorSwatch(target, `${label} color`)}
                       <button
                         type="button"
                         role="switch"

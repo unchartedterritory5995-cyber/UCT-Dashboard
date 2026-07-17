@@ -3,58 +3,64 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings } from './chartDefaults'
 
-// The header per-item color override, driven through the real modal → ColorPanel →
-// onChange path. Guards the wiring the merge/default unit tests can't see: that a
-// swatch writes header.colors.<key> and "Auto" clears it back to the built-in color.
+// The header per-item colors, driven through the real modal → ColorPanel → onChange
+// path. Guards the wiring the merge/default unit tests can't see: that a swatch writes
+// the right header.colors.<key>, that Day change exposes TWO swatches (up / down), and
+// that hidden items expose no color controls.
 
 const base = () => mergeChartSettings(JSON.stringify({}))
-
-function openHeaderTab() {
-  fireEvent.click(screen.getByRole('tab', { name: 'Header' }))
-}
-
-// Latest onChange payload (the modal emits the whole settings object each edit).
+const openHeaderTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Header' }))
 const lastCall = (spy) => spy.mock.calls[spy.mock.calls.length - 1][0]
 
-describe('ChartSettingsModal — header color overrides', () => {
-  it('picking a color writes header.colors.marketCap without touching other keys', () => {
+function pickColor(pickerLabel, currentHex, nextHex) {
+  fireEvent.click(screen.getByTitle(pickerLabel))                     // open the picker
+  const picker = screen.getByRole('dialog', { name: new RegExp(pickerLabel, 'i') })
+  const hex = within(picker).getByDisplayValue(currentHex)
+  fireEvent.change(hex, { target: { value: nextHex } })
+  fireEvent.keyDown(hex, { key: 'Enter' })
+}
+
+describe('ChartSettingsModal — header colors', () => {
+  it('there is no Auto affordance anywhere in the Show section', () => {
+    render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
+    openHeaderTab()
+    expect(screen.queryByText('Auto')).toBeNull()
+  })
+
+  it('Day change exposes an up-day and a down-day swatch that write separate colors', () => {
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
     openHeaderTab()
 
-    // Each shown row starts on Auto (built-in color).
-    expect(screen.getAllByText('Auto').length).toBeGreaterThanOrEqual(5)
+    // Two swatches on the day-change row (defaults: green up / red down).
+    pickColor('Up-day color', '1ae51a', '00ff00')
+    expect(lastCall(onChange).header.colors.dayChangeUp.toLowerCase()).toContain('00ff00')
 
-    fireEvent.click(screen.getByTitle('Market cap color'))          // open the picker
-    const picker = screen.getByRole('dialog', { name: /Market cap color/i })
-    const hex = within(picker).getByDisplayValue('c9a84c')          // effective (auto) default
-    fireEvent.change(hex, { target: { value: 'ff0000' } })
-    fireEvent.keyDown(hex, { key: 'Enter' })
-
+    pickColor('Down-day color', 'ff3b47', '0000ff')
     const next = lastCall(onChange)
-    expect(next.header.colors.marketCap.toLowerCase()).toContain('ff0000')
-    expect(next.header.colors.dayChange).toBeUndefined()            // siblings untouched
-    expect(next.header.showMarketCap).toBe(true)
+    expect(next.header.colors.dayChangeDown.toLowerCase()).toContain('0000ff')
+    expect(next.header.showChange).toBe(true)
     expect(next.preset).toBe('custom')
   })
 
-  it('Auto resets an active override back to the built-in color', () => {
+  it('single-color items write their own key without touching siblings', () => {
     const onChange = vi.fn()
-    const withOverride = mergeChartSettings(JSON.stringify({ header: { colors: { uctRating: '#00ff00' } } }))
-    render(<ChartSettingsModal open settings={withOverride} onChange={onChange} />)
+    render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
     openHeaderTab()
 
-    // The UCT rating row now shows a clickable Auto reset (a <button>, not the tag).
-    fireEvent.click(screen.getByRole('button', { name: /Reset UCT rating to automatic/i }))
+    pickColor('Market cap color', 'c9a84c', 'ff0000')
     const next = lastCall(onChange)
-    expect('uctRating' in next.header.colors).toBe(false)           // cleared
+    expect(next.header.colors.marketCap.toLowerCase()).toContain('ff0000')
+    expect(next.header.colors.nextEarnings).toBeUndefined()
+    expect(next.header.showMarketCap).toBe(true)
   })
 
-  it('hiding an item removes its color controls (override is meaningless when hidden)', () => {
-    const onChange = vi.fn()
-    const hidden = mergeChartSettings(JSON.stringify({ header: { showNextEarnings: false } }))
-    render(<ChartSettingsModal open settings={hidden} onChange={onChange} />)
+  it('hiding an item removes its color swatch(es)', () => {
+    const hidden = mergeChartSettings(JSON.stringify({ header: { showNextEarnings: false, showChange: false } }))
+    render(<ChartSettingsModal open settings={hidden} onChange={vi.fn()} />)
     openHeaderTab()
     expect(screen.queryByTitle('Next earnings color')).toBeNull()
+    expect(screen.queryByTitle('Up-day color')).toBeNull()
+    expect(screen.queryByTitle('Down-day color')).toBeNull()
   })
 })

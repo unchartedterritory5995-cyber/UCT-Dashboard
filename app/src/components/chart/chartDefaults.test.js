@@ -25,17 +25,18 @@ describe('watermark settings', () => {
   })
 })
 
-describe('header per-item color overrides', () => {
-  it('defaults to no overrides (every item keeps its built-in color)', () => {
+describe('header per-item colors', () => {
+  it('defaults to no colors set (every item keeps its built-in color)', () => {
     expect(CHART_DEFAULTS.header.colors).toEqual({})
     const cs = mergeChartSettings(JSON.stringify({}))
     expect(cs.header.colors).toEqual({})
   })
 
-  it('preserves a stored override while keeping the show toggles', () => {
-    const cs = mergeChartSettings(JSON.stringify({ header: { colors: { marketCap: '#ff0000' } } }))
-    expect(cs.header.colors.marketCap).toBe('#ff0000')
-    expect(cs.header.showMarketCap).toBe(true)   // untouched sibling
+  it('preserves stored day-change up/down colors while keeping the show toggle', () => {
+    const cs = mergeChartSettings(JSON.stringify({ header: { colors: { dayChangeUp: '#00ff00', dayChangeDown: '#ff0000' } } }))
+    expect(cs.header.colors.dayChangeUp).toBe('#00ff00')
+    expect(cs.header.colors.dayChangeDown).toBe('#ff0000')
+    expect(cs.header.showChange).toBe(true)   // untouched sibling
   })
 
   it('a partial colors blob does NOT wipe unset keys (the mergeChartSettings wholesale-replace trap)', () => {

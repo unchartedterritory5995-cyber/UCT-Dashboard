@@ -337,12 +337,14 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         </div>
         {hdr.showChange && (themeIdx.isIndex ? (
           idxGain && (
-            <span className={styles.chartDayGain} style={{ color: hdrColors.dayChange || (idxGain.up ? (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47')) }}>
+            <span className={styles.chartDayGain} style={{ color: idxGain.up
+              ? (hdrColors.dayChangeUp || (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'))
+              : (hdrColors.dayChangeDown || (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47')) }}>
               {idxGain.up ? '+' : ''}{idxGain.abs.toFixed(2)} ({idxGain.up ? '+' : ''}{idxGain.pct.toFixed(2)}%)
             </span>
           )
         ) : (
-          <ChartDayGain sym={sym} overrideColor={hdrColors.dayChange || null} />
+          <ChartDayGain sym={sym} upOverride={hdrColors.dayChangeUp || null} downOverride={hdrColors.dayChangeDown || null} />
         ))}
         {/* Chart settings — opens the centered settings modal. Sits at the top-right
             of the header, directly above the market clock. */}

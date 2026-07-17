@@ -15,12 +15,12 @@ import styles from '../ChartsWorkspace.module.css'
  * Tick price from the Massive bars WS (same reliable feed as the candle);
  * official prev_close from REST. Change = live − prev_close.
  */
-export default function ChartDayGain({ sym, overrideColor = null }) {
+export default function ChartDayGain({ sym, upOverride = null, downOverride = null }) {
   const { chartsTheme } = useWorkspace()
-  // A user override (Chart Settings → Header) flattens both directions to one color;
-  // unset keeps the red/green up/down signal.
-  const upColor = overrideColor || (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a')
-  const downColor = overrideColor || (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47')
+  // User-chosen up/down colors (Chart Settings → Header); each falls back to the
+  // theme's built-in green/red when unset.
+  const upColor = upOverride || (chartsTheme === 'sunrise' ? '#0a5c22' : '#1ae51a')
+  const downColor = downOverride || (chartsTheme === 'sunrise' ? '#7d1620' : '#ff3b47')
   const { prices: rtHdr } = useRealtimePrices(sym ? [sym] : [])
   const barHdr = useRealtimeBarPrices(sym ? [sym] : [])
   // freshest-wins across the two feeds so a gap in either never freezes the gain
