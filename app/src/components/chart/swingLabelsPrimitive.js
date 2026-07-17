@@ -5,7 +5,9 @@
 
 const FONT_FAMILY = "'Instrument Sans', sans-serif"
 const GAP = 5          // px gap between the wick tip and the label
-const HALO_WIDTH = 3   // px outline that keeps text readable over candles/grids
+const PAD_X = 3        // px horizontal padding inside the background box
+const PAD_Y = 2        // px vertical padding inside the background box
+const RADIUS = 3       // px corner radius of the background box
 
 // Factory → { primitive, setPoints, setOptions }.
 // opts: { enabled, points:[{time,price,type}], color, tintByType, upColor, downColor, bg, fontPx }
@@ -50,9 +52,6 @@ export function createSwingLabelsPrimitive(initial) {
           ctx.save()
           ctx.font = `600 ${opts.fontPx}px ${FONT_FAMILY}`
           ctx.textAlign = 'center'
-          ctx.lineJoin = 'round'
-          ctx.lineWidth = HALO_WIDTH
-          ctx.strokeStyle = opts.bg
           const fh = opts.fontPx
           const drawn = []
           for (const p of opts.points) {
@@ -65,12 +64,21 @@ export function createSwingLabelsPrimitive(initial) {
             const isHigh = p.type === 'high'
             const ty = isHigh ? y - GAP : y + GAP
             const boxY = isHigh ? ty - fh : ty
-            const rect = { x: x - w / 2 - 2, y: boxY - 1, w: w + 4, h: fh + 2 }
+            const rect = { x: x - w / 2 - PAD_X, y: boxY - PAD_Y, w: w + PAD_X * 2, h: fh + PAD_Y * 2 }
             if (rect.x < 0 || rect.x + rect.w > mediaSize.width) continue
             if (intersects(rect, drawn)) continue
             drawn.push(rect)
+            // Filled rounded background box (user-colorable via opts.bg; defaults to
+            // the canvas color so it reads as a clean readability plate over candles).
+            ctx.fillStyle = opts.bg
+            if (typeof ctx.roundRect === 'function') {
+              ctx.beginPath()
+              ctx.roundRect(rect.x, rect.y, rect.w, rect.h, RADIUS)
+              ctx.fill()
+            } else {
+              ctx.fillRect(rect.x, rect.y, rect.w, rect.h)   // pre-roundRect fallback
+            }
             ctx.textBaseline = isHigh ? 'bottom' : 'top'
-            ctx.strokeText(label, x, ty)
             ctx.fillStyle = colorFor(p.type)
             ctx.fillText(label, x, ty)
           }

@@ -42,6 +42,21 @@ describe('ChartSettingsModal — Markers tab', () => {
     expect(lastCall(onChange).swingLabels.upColor.toLowerCase()).toContain('00ff00')
   })
 
+  it('the label-background swatch writes swingLabels.bg', () => {
+    const onChange = vi.fn()
+    const enabled = mergeChartSettings(JSON.stringify({ swingLabels: { enabled: true } }))
+    render(<ChartSettingsModal open settings={enabled} onChange={onChange} />)
+    openMarkers()
+
+    fireEvent.click(screen.getByTitle('Swing label background'))
+    const picker = screen.getByRole('dialog', { name: /Swing label background/i })
+    // Unset bg → swatch defaults to the canvas background color.
+    const hex = within(picker).getByDisplayValue(enabled.background.replace(/^#/, ''))
+    fireEvent.change(hex, { target: { value: '112233' } })
+    fireEvent.keyDown(hex, { key: 'Enter' })
+    expect(lastCall(onChange).swingLabels.bg.toLowerCase()).toContain('112233')
+  })
+
   it('event-marker toggles write cs.markers.<key> without disturbing siblings', () => {
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={onChange} />)

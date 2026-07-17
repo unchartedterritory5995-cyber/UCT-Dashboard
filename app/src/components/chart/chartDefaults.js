@@ -114,6 +114,7 @@ export const CHART_DEFAULTS = {
     tintByType: false,     // tint swing-high labels up-color, swing-low down-color
     upColor: '#4ade80',
     downColor: '#f87171',
+    bg: null,              // the label's background halo; null = match the canvas background
   },
   heikinAshi: false,
   logScale:   false,

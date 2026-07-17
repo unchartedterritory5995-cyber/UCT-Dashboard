@@ -5264,7 +5264,9 @@ export default function StockChart({
         tintByType: !!sl.tintByType,
         upColor: sl.upColor || '#4ade80',
         downColor: sl.downColor || '#f87171',
-        bg: cs.background,
+        // The label's background halo. A user-set color wins; unset matches the
+        // canvas so the halo just reads as a readability outline over candles.
+        bg: sl.bg || cs.background,
       })
       swingCtrlRef.current.setPoints(swingPoints)
     }

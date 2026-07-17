@@ -236,6 +236,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     swingColor: ['swingLabels', 'color'],
     swingUp: ['swingLabels', 'upColor'],
     swingDown: ['swingLabels', 'downColor'],
+    swingBg: ['swingLabels', 'bg'],
   }
   const setColorTarget = (target, hex) => {
     // Watermark keeps color + opacity as SEPARATE settings (the chart reads them
@@ -280,6 +281,8 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'swingColor': return swing.color || '#d4d0c4'
       case 'swingUp': return swing.upColor || '#4ade80'
       case 'swingDown': return swing.downColor || '#f87171'
+      // Unset background halo matches the canvas, so show that as the swatch default.
+      case 'swingBg': return swing.bg || settings.background || '#0e0f0d'
       default: return '#1ae51a'
     }
   }
@@ -554,6 +557,10 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Label color</span>
                   {colorSwatch('swingColor', 'Swing label color')}
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Label background</span>
+                  {colorSwatch('swingBg', 'Swing label background')}
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Tint by type</span>
