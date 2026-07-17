@@ -3970,6 +3970,14 @@ export default function StockChart({
 
     let chart = chartRef.current
 
+    // Capture the TRUE pre-update visible range, BEFORE any setData below shifts it.
+    // The same-ticker backfill re-anchor (a depth jump like the 600→12025 dwell-warm)
+    // uses THIS instead of a post-setData read — LWC re-anchors the range to the new
+    // (much larger) extent during setData, so reading it afterward is unreliable and
+    // was letting the view snap back to default when deep history loaded.
+    let _preUpdateRange = null
+    try { _preUpdateRange = chart?.timeScale().getVisibleLogicalRange() } catch { /* no chart yet */ }
+
     // ── Capture the OUTGOING ticker's vertical candle placement (proportional lock) ──
     // Runs only on a true ticker switch (same timeframe), BEFORE chartOpts re-applies
     // scaleMargins. We measure where the visible candles sit within the price pane as
@@ -5490,31 +5498,24 @@ export default function StockChart({
           }
         }
       }
-    } else if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0
+    } else if (!entryDate && !exactDateRange && _preUpdateRange && oldBarCount > 0
                && oldBarCount !== filteredBars.length) {
       // SAME ticker/tf, but the bar COUNT changed since the last render — the
       // IDB-cache → network full-fetch swap OR a viewport-first older-history
-      // backfill (FIRST_PAINT→full). LWC preserves the visible logical range
-      // NUMERICALLY across setData, so the prior range now maps to older dates
-      // ("chart jumps back to ~2019"). Re-anchor to the same bars-from-right +
-      // width so the user's date-position holds fixed across data phases.
-      // (Restores commit 911dfe91, lost in a later StockChart overwrite; Model
-      // Book / entryDate charts have their own pins below.)
+      // backfill / dwell-warm (FIRST_PAINT→full, 600→12025). A backfill only
+      // PREPENDS older history — the newest bar is unchanged — so the user's view
+      // is invariant in "bars-from-right + width". Re-anchor to exactly that using
+      // the PRE-setData range (captured at updateChart top, before LWC could shift
+      // it), so a big depth jump keeps the user exactly where they were instead of
+      // snapping to the default window. (Model Book / entryDate have their own pins.)
       const newBarCount = filteredBars.length
-      // LWC can have ALREADY re-anchored the captured range to the NEW data
-      // extent by the time this effect reads it (observed on the multi-chart
-      // grid's workspace↔grid series swaps: 600→8422 came back as 8262..8427).
-      // Computing bars-from-right against the STALE old count then extrapolates
-      // the view thousands of bars outside the data — a blank or left-squeezed
-      // chart. Re-anchor only when the range still describes the old extent.
-      if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
-        const barsFromRight = oldBarCount - oldRange.to
-        const width = oldRange.to - oldRange.from
-        const to = newBarCount - barsFromRight
-        const from = to - width
-        if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
-          try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch {}
-        }
+      const pr = _preUpdateRange
+      const barsFromRight = oldBarCount - pr.to
+      const width = pr.to - pr.from
+      const to = newBarCount - barsFromRight
+      const from = to - width
+      if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
+        try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch {}
       }
     }
 
