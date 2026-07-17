@@ -207,6 +207,16 @@ prod pre-caches the whole universe):
 - **Sweep: invalid ("tab not visible")** — the validity guard worked as designed; a hidden
   tab throttles rAF so the guard refused to emit garbage. Needs one foregrounded run:
   open `/charts?gridspike=16&tf=D` in a visible tab, wait ~90 s, read `[gridspike:done]`.
+
+**VISIBLE-TAB RUN (2026-07-17 ~1:10 PM ET, real foreground Chrome window, warm server
+cache — the summary now also persists to `localStorage['uct.gridspike.last']`):**
+`allFramedMs: 901` (16/16 framed) · per-cell mount→paint `median 20 ms / p95 71 ms` ·
+heap `8 MB base → 74 MB settled (+63 MB for 16 charts) → 47 MB idle (−25 MB GC)` ·
+`0` idle long tasks / 60 s. Every threshold passed by 1–2 orders of magnitude.
+**GRID_MAX_CELLS = 16 (4×4) CONFIRMED WITH DATA.** Sweep remains harness-invalid
+("no crosshair events delivered"): LWC doesn't respond to the synthetic mousemove
+dispatch — a harness-only limitation (real-mouse crosshair verified interactively);
+fix candidate: PointerEvent dispatch / price-pane top-canvas targeting.
 - Interactive verification (visible session, 3x3 + 5 charts): fluid hover/crosshair/type-to-
   search; single pooled SSE connection confirmed via netstat (1 TCP conn for 5 charts).
 

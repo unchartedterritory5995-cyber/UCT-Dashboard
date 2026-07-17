@@ -637,6 +637,48 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 - Spec: `docs/superpowers/specs/2026-05-24-charts-hub-v2-workspace-design.md`
 - Plan: `docs/superpowers/plans/2026-05-24-charts-hub-v2-workspace.md` (16 tasks)
 
+## Multi-Chart Grid Mode — /charts (shipped 2026-07-16/17)
+
+A second MODE of the Charts workspace: a fixed N×M CSS grid of independent chart
+cells (presets 1x2→4x4 + custom N×M, hard cap `GRID_MAX_CELLS=16` in
+`gridLayouts.js` — perf-spike-validated: 16 cells framed in ~900ms, +63MB heap).
+Entry point: **Open Layout ▾ → "▦ Multi Chart ▸"** (hover/click flyout) — NOT a
+header tab (owner decision 7/17). Source: `app/src/pages/charts/grid/`.
+
+- **Cell = `GridChartCell`** (React.memo, controlled `{id, sym, tf, chartType}`)
+  composed on StockChart directly with the ChartWidget canvas recipe — NEVER
+  ChartWidget itself (color groups cap at 4 independent syms). Per-cell chart
+  Style select via the `settingsOverride` StockChart prop (partial blob merged
+  over the global `chart_settings`; write-restore keeps overrides out of the
+  global blob). Saved drawings render read-only (`showSavedDrawings` +
+  `ChartDrawingOverlay readOnly` — display-only overlays must pass `readOnly`
+  or their window keydown swallows Ctrl+Z/V/Escape page-wide).
+- **Mount queue** (`useStaggeredMount`): ≤3 cells loading at once, slot freed by
+  StockChart `onBarsReady` or 5s safety timer — the guard against the
+  2026-05-24 fetch-herd outage class. Cells pass `backgroundWarm={false}` (no
+  all-TF warm chain / dwell-warm). NEVER bypass with eager mounts.
+- **Streaming needs NOTHING**: priceStreamManager/barsStreamManager pool
+  browser-wide (16 cells = 1 SSE). Never add a per-cell stream or second mux.
+- **Persistence**: working state = `multichart_state` pref (500ms debounce +
+  hydration gate + flush-on-unmount, sanitized by `gridLayouts.sanitizeState`);
+  named grids = `/api/charts/layouts` rows with `layout.kind='multichart'` and
+  `widgets: []` (passes backend validation) — BOTH menus filter by `kind`, and
+  grid templates DO store tickers/tfs/chartTypes (unlike arrangement-only
+  workspace templates).
+- **Hotkeys**: each cell passes `hotkeysActive={() => activeCellRef.current === i}`
+  (hover/focus-tracked in `MultiChartGrid`) so one TF keypress retimes only the
+  active cell; ChartWidget uses the same prop via `WorkspaceContext.activeChartRef`.
+- **StockChart paint/framing latches** (`lastCfgSigRef`/`prevBarsRef`/`zoomKeyRef`
+  etc.) are RESET in the unmount cleanup and gated by `_freshChart` — a
+  destroyed→recreated chart must never inherit a 'noop' render plan (blank-cell
+  bug class). Series-length swaps use `rangeDescribesOldExtent` before the
+  bars-from-right re-anchor.
+- **Perf harness**: admin-only `?gridspike=N&tf=D|5` runs the real grid path with
+  persistence off; results → console `[gridspike:done]` + 
+  `localStorage['uct.gridspike.last']`. Run it in a VISIBLE tab (hidden tabs
+  rAF-throttle; the sweep has a validity guard). Spec + punch list:
+  `docs/superpowers/specs/2026-07-16-multichart-grid-design.md`.
+
 ## Charts — Lightweight Charts v5
 
 All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key component: `app/src/components/StockChart.jsx`.
