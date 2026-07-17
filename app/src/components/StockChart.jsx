@@ -19,6 +19,7 @@ import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/s
 import useMarketOpen from '../hooks/useMarketOpen'
 import { getExtSession, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
+import EarningsMarkerPopover from './chart/EarningsMarkerPopover'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
@@ -1190,16 +1191,19 @@ export default function StockChart({
     if (cs.markers?.earnings && Array.isArray(markersData.earnings)) {
       for (const e of markersData.earnings) {
         if (!e.date) continue
-        const surpTxt = (e.surprise != null && Number.isFinite(+e.surprise))
-          ? ` ${(+e.surprise >= 0 ? '+' : '')}${(+e.surprise).toFixed(1)}%`
-          : ''
+        // Clean single-glyph badge (TC2000-style). The surprise % moved OFF the
+        // marker into the click-popup — an inline "E +32.8%" was the clutter. A
+        // consistent circle (not up/down arrows, which read as trade signals)
+        // colored by beat: green beat / red miss / grey unknown.
         eventMarkers.push({
           time: e.date,
           position: 'belowBar',
           color: e.beat === true ? '#4ade80' : e.beat === false ? '#f87171' : '#94a3b8',
-          shape: e.beat === true ? 'arrowUp' : e.beat === false ? 'arrowDown' : 'circle',
-          text: `E${surpTxt}`,
-          size: 1,
+          shape: 'circle',
+          text: 'E',
+          size: 1.2,
+          id: `earn-${e.date}`,
+          _earnings: e,
         })
       }
     }
@@ -1233,6 +1237,11 @@ export default function StockChart({
     }
     return eventMarkers
   }, [markersData, cs.markers, resolvedTf])
+
+  // Earnings markers alone (carry `_earnings`) — click-matched to open the popover.
+  const earningsMarkers = useMemo(() => chartEventMarkers.filter(m => m._earnings), [chartEventMarkers])
+  // { data, x, y } while an earnings popover is open (null = closed).
+  const [earningsPopup, setEarningsPopup] = useState(null)
 
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
@@ -7251,6 +7260,29 @@ export default function StockChart({
     }
   }, [newsMarkers, resolvedTf])
 
+  // ── Earnings marker click → themed earnings popover ──
+  // Same time-match approach as news markers (LWC has no marker-click event).
+  // Earnings markers only render on daily/weekly, whose time is a 'YYYY-MM-DD'
+  // string, so match by string equality. Opens the popover at the click point.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !earningsMarkers.length) { setEarningsPopup(null); return }
+    const handler = (param) => {
+      if (!param || param.time == null) { return }
+      const hit = earningsMarkers.find(m => String(m.time) === String(param.time))
+      if (!hit) return
+      const rect = containerRef.current?.getBoundingClientRect()
+      const px = rect && param.point ? rect.left + param.point.x + 12 : (rect?.left ?? 0) + 40
+      const py = rect && param.point ? rect.top + param.point.y + 12 : (rect?.top ?? 0) + 40
+      setEarningsPopup({ data: hit._earnings, x: px, y: py })
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch {} }
+  }, [earningsMarkers])
+
+  // Close the earnings popover when the symbol or timeframe changes out from under it.
+  useEffect(() => { setEarningsPopup(null) }, [sym, resolvedTf])
+
   // ── Highlighted setup/catalyst candle click → onHighlightClick (Model Book) ──
   // Clicking a painted setup/catalyst candle opens the intraday 5-min popup. We
   // match the clicked time against the highlight set, resolve it back to the
@@ -7625,6 +7657,15 @@ export default function StockChart({
         <div className={styles.countdownPosition}>
           <CountdownTimer barStartTime={currentBarStart} tfSeconds={countdownTfSec} />
         </div>
+      )}
+      {earningsPopup && (
+        <EarningsMarkerPopover
+          data={earningsPopup.data}
+          x={earningsPopup.x}
+          y={earningsPopup.y}
+          sym={sym}
+          onClose={() => setEarningsPopup(null)}
+        />
       )}
       {enabledComparisons.length > 0 && (
         <div className={styles.comparisonLegend}>
