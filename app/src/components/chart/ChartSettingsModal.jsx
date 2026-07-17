@@ -83,9 +83,9 @@ const CHART_TYPES = [
 const OHLC_TYPES = new Set(['candles', 'hollow', 'hlc', 'bars'])
 
 const COLOR_MODES = [
-  { val: 'onecolor',  label: 'One Color',     desc: 'Every bar one color' },
-  { val: 'netchange', label: 'Net Change',    desc: 'Close vs prev close' },
-  { val: 'openclose', label: 'Open vs Close', desc: 'Close vs open' },
+  { val: 'onecolor',  label: 'One Color' },
+  { val: 'netchange', label: 'Net Change' },
+  { val: 'openclose', label: 'Open vs Close' },
 ]
 
 export default function ChartSettingsModal({ open, onClose, settings, onChange }) {
@@ -142,7 +142,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange }
             <section className={styles.section}>
               <div className={styles.sectionLabel}>Color based on</div>
               <div className={styles.modeRow}>
-                {COLOR_MODES.map(({ val, label, desc }) => (
+                {COLOR_MODES.map(({ val, label }) => (
                   <button
                     key={val}
                     type="button"
@@ -151,7 +151,6 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange }
                     aria-pressed={curColorMode === val}
                   >
                     <span className={styles.modeName}>{label}</span>
-                    <span className={styles.modeDesc}>{desc}</span>
                   </button>
                 ))}
               </div>

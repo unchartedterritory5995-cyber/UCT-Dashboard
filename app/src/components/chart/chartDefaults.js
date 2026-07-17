@@ -225,6 +225,7 @@ export function mergeChartSettings(userSettings) {
   return {
     chartType: parsed.chartType || CHART_DEFAULTS.chartType,
     candles: { ...CHART_DEFAULTS.candles, ...(parsed.candles || {}) },
+    candleColorMode: parsed.candleColorMode || CHART_DEFAULTS.candleColorMode,
     background: parsed.background || CHART_DEFAULTS.background,
     textColor: parsed.textColor || CHART_DEFAULTS.textColor,
     grid: { ...CHART_DEFAULTS.grid, ...(parsed.grid || {}) },
