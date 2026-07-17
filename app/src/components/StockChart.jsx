@@ -4025,11 +4025,15 @@ export default function StockChart({
         // Pin a stable minimum width so the axis can't re-flow as the developing
         // bar's live last-value label re-renders. At fractional display scaling
         // (e.g. Windows 125/150%) that label's sub-pixel width jitters every price
-        // tick; a floating price-scale width made the whole plot shift left/right
+        // tick; a floating price-scale width makes the whole plot shift left/right
         // in lockstep with the quotes (the "chart jiggles on every tick" bug).
-        // 64px covers up to ~4-digit prices comfortably (workspace typical) while
-        // pulling the values closer to the right edge.
-        minimumWidth: 64,
+        // ⚠️ DO NOT LOWER below the widest last-value TAG width or the bug returns —
+        // a $600–900 price ("695.34") + the tag's background padding overflows a
+        // 64px axis, so it auto-sized per tick and the intraday WS push feed
+        // (multiple ticks/sec) made it shake continuously. 76 is the value verified
+        // against a DPR-1.5 live-tick repro (0 shifts). Tightening the axis is not
+        // worth reintroducing the jitter.
+        minimumWidth: 76,
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
