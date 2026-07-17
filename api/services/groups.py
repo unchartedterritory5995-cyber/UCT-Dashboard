@@ -14,6 +14,8 @@ import logging
 import os
 import time
 
+from api.services.ticker_meta import _TIER_RANK
+
 _logger = logging.getLogger(__name__)
 
 _CAP_CACHE = {"set": None, "at": 0.0}
@@ -109,3 +111,102 @@ def list_groups() -> list:
     big = len(rows) + 1
     rows.sort(key=lambda r: (order.get((r["name"] or "").strip().lower(), big), r["name"]))
     return rows
+
+
+def _today_map(syms: list) -> dict:
+    """{sym(hyphen upper): todaysChangePerc}. One batched Massive snapshot; the
+    same source theme_performance uses. Empty on failure (falls back to RS)."""
+    if not syms:
+        return {}
+    try:
+        from api.services.massive import get_etf_snapshots
+        raw = get_etf_snapshots(syms) or {}
+        return {normalize_sym(k): v for k, v in raw.items()}
+    except Exception:
+        return {}
+
+
+def _rs_map() -> dict:
+    """{ticker(hyphen upper): rs item}. Cache-only; {} when cold."""
+    try:
+        from api.services.rs_ranking import compute_rs_scores
+        return {normalize_sym(it["ticker"]): it for it in (compute_rs_scores() or [])}
+    except Exception:
+        return {}
+
+
+def rank_holdings(holdings: list, by: str = "today", seed: str = None) -> list:
+    """Rank taxonomy holdings; return chartable hyphen syms best-first.
+
+    holdings: [{sym, tier, sub_theme_id?}] in taxonomy (dot) form.
+    Excludes the seed and non-chartable names. No-data names sort last.
+    """
+    cap = cap_universe_set()
+    seed_hy = normalize_sym(seed) if seed else None
+    cands = []
+    for idx, h in enumerate(holdings):
+        hy = normalize_sym(h.get("sym", ""))
+        if not hy or hy not in cap or hy == seed_hy:
+            continue
+        cands.append((idx, hy, h))
+    if not cands:
+        return []
+
+    today = _today_map([hy for _, hy, _ in cands])
+    rs = _rs_map()
+
+    def bands(hy, h):
+        t = today.get(hy)
+        r = rs.get(hy) or {}
+        rank = r.get("rs_rank")
+        m1 = (r.get("returns") or {}).get("1m")
+        tier = _TIER_RANK.get(h.get("tier"), 99)
+        metrics = {"today": t, "rs": rank, "m1": m1}
+        primary = "today" if by != "rs" else "rs"
+        secondary = "rs" if by != "rs" else "today"
+        order = [primary, secondary, "m1"]
+        for band, key in enumerate(order):
+            v = metrics[key]
+            if v is not None:
+                return (band, -float(v))
+        # Band 3: no data — curated tier order, then taxonomy list position.
+        return (len(order), tier)
+
+    cands.sort(key=lambda c: (bands(c[1], c[2]), c[0]))
+    return [hy for _, hy, _ in cands]
+
+
+def _ranked_as_of() -> str:
+    try:
+        from api.services.massive import _detect_session
+        return _detect_session()
+    except Exception:
+        return "unknown"
+
+
+def _theme_holdings(theme_id: str) -> list:
+    """Fetch holdings for a theme. Helper for testing and top_n()."""
+    from api.services import theme_db
+    return theme_db.get_theme_holdings(theme_id)
+
+
+def top_n(theme_id: str, n: int, by: str = "today") -> dict:
+    from api.services import theme_db
+    holdings = theme_db.get_theme_holdings(theme_id)
+    ranked = rank_holdings(holdings, by=by)
+    top = ranked[: max(1, int(n))]
+    # Per-sym tier + rationale for the cell badges (keyed hyphen).
+    meta = {normalize_sym(h.get("sym", "")): h for h in holdings}
+    rows = [{
+        "sym": s,
+        "tier": (meta.get(s) or {}).get("tier"),
+        "rationale": (meta.get(s) or {}).get("rationale") or "",
+    } for s in top]
+    return {
+        "group_id": theme_id,
+        "syms": top,
+        "rows": rows,
+        "total": len(ranked),
+        "by": "rs" if by == "rs" else "today",
+        "ranked_as_of": _ranked_as_of(),
+    }

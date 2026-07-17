@@ -65,3 +65,35 @@ def test_rotation_order_ranks_hot_themes_first(monkeypatch):
     assert order["space"] == 0             # hottest (1w_rank 90) first
     assert order["semiconductors"] == 1
     assert order["utilities"] == 2          # None rank sinks last
+
+
+def test_rank_holdings_today_then_fallbacks(monkeypatch):
+    holdings = [
+        {"sym": "AAA", "tier": "core"},       # today +5
+        {"sym": "BBB", "tier": "core"},       # no today, rs 80
+        {"sym": "CCC", "tier": "relevant"},   # no today, no rs, 1m +12
+        {"sym": "DDD", "tier": "peripheral"}, # no data at all -> last, tier order
+        {"sym": "DEAD", "tier": "core"},      # not chartable -> excluded
+    ]
+    monkeypatch.setattr(groups, "cap_universe_set",
+                        lambda: {"AAA", "BBB", "CCC", "DDD"})
+    monkeypatch.setattr(groups, "_today_map",
+                        lambda syms: {"AAA": 5.0})
+    monkeypatch.setattr(groups, "_rs_map",
+                        lambda: {"BBB": {"rs_rank": 80, "returns": {"1m": 3.0}},
+                                 "CCC": {"rs_rank": None, "returns": {"1m": 12.0}}})
+    ranked = groups.rank_holdings(holdings, by="today")
+    assert ranked == ["AAA", "BBB", "CCC", "DDD"]
+    assert "DEAD" not in ranked
+
+
+def test_top_n_returns_rows_with_tier_and_rationale(monkeypatch):
+    monkeypatch.setattr(groups, "_theme_holdings",
+                        lambda tid: [{"sym": "RKLB", "tier": "core", "rationale": "Launch"},
+                                     {"sym": "ASTS", "tier": "core", "rationale": "Sats"}])
+    import api.services.theme_db as tdb
+    monkeypatch.setattr(tdb, "get_theme_holdings", groups._theme_holdings)
+    monkeypatch.setattr(groups, "rank_holdings", lambda h, by="today", seed=None: ["RKLB", "ASTS"])
+    out = groups.top_n("space", 2, by="today")
+    assert out["syms"] == ["RKLB", "ASTS"]
+    assert out["rows"][0] == {"sym": "RKLB", "tier": "core", "rationale": "Launch"}
