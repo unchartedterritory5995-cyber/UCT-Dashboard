@@ -17,6 +17,8 @@ import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import UIcon from '../../../components/ui/UIcon'
 import ChartDayGain from './ChartDayGain'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
+import TimeframeMenu from './TimeframeMenu'
+import { tfLabel } from '../../../components/chart/timeframes'
 import styles from '../ChartsWorkspace.module.css'
 
 const TFS = [
@@ -160,11 +162,34 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
       : hdr.titleMode === 'both'
         ? (companyName && companyName !== sym ? `${sym} (${companyName})` : sym)
         : companyName
+  // Favorites row: any code (native or custom) rendered via tfLabel; the active TF
+  // is always shown even if it isn't favorited (so a just-picked custom interval
+  // stays visible). Falls back to the native set when the user has no favorites.
   const visibleTfs = (() => {
-    const sel = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
-    const list = TFS.filter(([code]) => sel.includes(code))
-    return list.length ? list : TFS   // never leave the TF bar empty
+    const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
+    const codes = fav.length ? [...fav] : TFS.map(([c]) => c)
+    if (tf && !codes.includes(tf)) codes.push(tf)
+    return codes.map(c => [c, tfLabel(c)])
   })()
+  const [tfMenuOpen, setTfMenuOpen] = useState(false)
+  const [tfMenuAnchor, setTfMenuAnchor] = useState(null)
+  const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
+  const patchHeader = useCallback((patch) => {
+    const cur = mergeChartSettings(prefs.chart_settings)
+    setPref('chart_settings', JSON.stringify({ ...cur, header: { ...cur.header, ...patch }, preset: 'custom' }))
+  }, [prefs.chart_settings, setPref])
+  const toggleTfFav = useCallback((code) => {
+    const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
+    patchHeader({ timeframes: fav.includes(code) ? fav.filter(c => c !== code) : [...fav, code] })
+  }, [hdr.timeframes, patchHeader])
+  const addCustomTf = useCallback((code) => {
+    if (!customTfs.includes(code)) patchHeader({ customTimeframes: [...customTfs, code] })
+    setTf(code)
+  }, [customTfs, patchHeader, setTf])
+  const removeCustomTf = useCallback((code) => {
+    const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
+    patchHeader({ customTimeframes: customTfs.filter(c => c !== code), timeframes: fav.filter(c => c !== code) })
+  }, [customTfs, hdr.timeframes, patchHeader])
   const showAnyMeta = hdr.showMarketCap || hdr.showNextEarnings || hdr.showUctRating
   // Per-item header color overrides (Chart Settings → Header → Show). Absent = the
   // item keeps its built-in color (see chartDefaults header.colors).
@@ -365,6 +390,26 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             onClick={() => setTf(code)}
           >{label}</button>
         ))}
+        <button
+          type="button"
+          className={styles.tfBtn}
+          title="More timeframes"
+          aria-label="More timeframes"
+          onClick={(e) => { setTfMenuAnchor(e.currentTarget.getBoundingClientRect()); setTfMenuOpen(v => !v) }}
+        >⌄</button>
+        {tfMenuOpen && (
+          <TimeframeMenu
+            tf={tf}
+            onSelect={(code) => { setTf(code); setTfMenuOpen(false) }}
+            favorites={Array.isArray(hdr.timeframes) ? hdr.timeframes : []}
+            onToggleFav={toggleTfFav}
+            customCodes={customTfs}
+            onAddCustom={addCustomTf}
+            onRemoveCustom={removeCustomTf}
+            anchor={tfMenuAnchor}
+            onClose={() => setTfMenuOpen(false)}
+          />
+        )}
         {showAnyMeta && (
           <div className={styles.chartMeta}>
             {hdr.showMarketCap && (

@@ -517,7 +517,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             <div className={styles.sectionLabel}>Timeframes</div>
             <div className={styles.card}>
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Buttons</span>
+                <span className={styles.fieldLabel}>Favorites</span>
                 <div className={styles.chipRow}>
                   {HEADER_TFS.map(([code, label]) => (
                     <button

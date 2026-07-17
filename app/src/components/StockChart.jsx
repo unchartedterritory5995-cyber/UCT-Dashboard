@@ -93,7 +93,8 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { resample } from '../utils/resampleBars'
+import { resample, resampleForSpec } from '../utils/resampleBars'
+import { isNativeTf, fetchTf, resampleSpec } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
@@ -2190,10 +2191,15 @@ export default function StockChart({
   // intermediate depth MUST also full-fetch or it would delta-fetch nothing. The
   // bar count grows and the existing same-ticker re-anchor holds the view steady.
   if (fetchDepth > FIRST_PAINT_BARS || _pinnedFull) _sinceParam = null
+  // Custom (non-native) timeframe → the native path fetches nothing; the isolated
+  // custom SWR below fetches the base + resamples. Declared here so swrUrl can defer.
+  const _isCustomTf = !!sym && !isNativeTf(resolvedTf)
+  const _customBaseTf = _isCustomTf ? fetchTf(resolvedTf) : null
+  const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf) : null), [_isCustomTf, resolvedTf])
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   const _hasOverride = _overrideArr || barsOverridePending
-  const swrUrl = _hasOverride
+  const swrUrl = (_hasOverride || _isCustomTf)
     ? null
     : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
         ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
@@ -2217,6 +2223,27 @@ export default function StockChart({
       refreshWhenHidden: false,
       onErrorRetry: barsSwrOnErrorRetry,
     }
+  )
+
+  // ── Custom timeframe: fetch the NATIVE base, resample client-side ──
+  // (_isCustomTf / _customBaseTf / _customSpec are declared ABOVE the native SWR so
+  // it can null itself out for a custom TF; the fetch + resample happen here.)
+  const _customBaseIntraday = ['1', '5', '15', '30', '60'].includes(_customBaseTf)
+  // Pull a generous base window so the resampled series has enough bars to fill the view.
+  const _customBaseBars = _customBaseIntraday ? 5000 : 6000
+  const customSwrUrl = _isCustomTf
+    ? `/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&bars=${_customBaseBars}`
+    : null
+  const { data: customBaseData } = useSWR(customSwrUrl, fetcher, {
+    dedupingInterval: dedupMs,
+    revalidateOnFocus: false,
+    refreshInterval: _customBaseIntraday ? 30_000 : 300_000,
+    refreshWhenHidden: false,
+    onErrorRetry: barsSwrOnErrorRetry,
+  })
+  const customBars = useMemo(
+    () => (_isCustomTf && customBaseData?.bars?.length ? resampleForSpec(customBaseData.bars, _customSpec) : null),
+    [_isCustomTf, customBaseData, _customSpec],
   )
 
   // ── Comparison symbol SWR fetch ──
@@ -2374,7 +2401,9 @@ export default function StockChart({
     () => (_dailyForAgg ? resample(_dailyForAgg, 'D', resolvedTf) : null),
     [_dailyForAgg, resolvedTf],
   )
-  const bars = _overrideArr
+  const bars = _isCustomTf
+    ? customBars   // custom TF: the resampled base bars (null until the base loads)
+    : _overrideArr
     ? barsOverride
     : (barsOverridePending
         ? null  // override expected but not here yet → render nothing (spinner), don't fall back to provider data

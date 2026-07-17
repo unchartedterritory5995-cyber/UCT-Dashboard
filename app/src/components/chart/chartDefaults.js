@@ -39,7 +39,8 @@ export const CHART_DEFAULTS = {
   header: {
     titleMode: 'company',   // 'company' | 'ticker' | 'both' (TICKER (Company Name))
     showChange: true,       // current-day $ + % change beside the title
-    timeframes: ['1', '5', '15', '30', '60', 'D', 'W', 'M'], // which TF buttons show
+    timeframes: ['1', '5', '15', '30', '60', 'D', 'W', 'M'], // favorites — which TF buttons show in the header
+    customTimeframes: [],   // user-created custom interval codes (e.g. '45','120','3D') saved for reuse
     showMarketCap: true,
     showNextEarnings: true,
     showUctRating: true,
@@ -273,6 +274,7 @@ export function mergeChartSettings(userSettings) {
       ...CHART_DEFAULTS.header,
       ...(parsed.header || {}),
       timeframes: Array.isArray(parsed.header?.timeframes) ? parsed.header.timeframes : CHART_DEFAULTS.header.timeframes,
+      customTimeframes: Array.isArray(parsed.header?.customTimeframes) ? parsed.header.customTimeframes : CHART_DEFAULTS.header.customTimeframes,
       // Deep-merge colors: the spread above replaces the whole `header` object, so a
       // stored partial `colors` (e.g. only marketCap set) would drop the others'
       // defaults. Same trap `timeframes` guards against — merge, never wholesale-swap.

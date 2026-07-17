@@ -69,4 +69,10 @@ describe('StockChart render smoke', () => {
       <StockChart sym="AAPL" tf="D" settingsOverride={{ markers: { earnings: true } }} />
     )).not.toThrow()
   })
+
+  it('mounts on a CUSTOM timeframe (base-fetch + resample path)', () => {
+    for (const tf of ['45', '120', '3D', '3M']) {
+      expect(() => render(<StockChart sym="AAPL" tf={tf} />)).not.toThrow()
+    }
+  })
 })
