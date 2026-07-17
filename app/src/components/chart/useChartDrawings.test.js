@@ -3,12 +3,16 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import useChartDrawings from './useChartDrawings'
+import * as drawingsStore from './drawingsStore'
 
 const hz = (price) => ({ type: 'horizontal', points: [{ price }] })
 const STORE = 'uct-chart-drawings'
 const stored = (sym) => (JSON.parse(localStorage.getItem(STORE) || '{}')[sym] || [])
 
-beforeEach(() => localStorage.clear())
+beforeEach(() => {
+  localStorage.clear()
+  drawingsStore._reset()   // module-level registry persists across tests in a file
+})
 
 describe('useChartDrawings', () => {
   it('adds, returns an id, and persists to localStorage', () => {
@@ -111,5 +115,31 @@ describe('useChartDrawings', () => {
     const { result } = renderHook(() => useChartDrawings('SPY'))
     expect(result.current.drawings).toHaveLength(1)
     expect(result.current.drawings[0].points[0].price).toBe(123)
+  })
+
+  // ── Multi-instance (same-sym multi-chart) — the shared-store regression ──
+
+  it('two instances on the same sym stay live-synced and never clobber each other', () => {
+    const a = renderHook(() => useChartDrawings('SPY'))
+    const b = renderHook(() => useChartDrawings('SPY'))   // B mounted BEFORE A's add
+    act(() => { a.result.current.addDrawing(hz(100)) })
+    // B sees A's drawing live, without any remount
+    expect(b.result.current.drawings).toHaveLength(1)
+    expect(b.result.current.drawings[0].points[0].price).toBe(100)
+    // B's own add PRESERVES A's drawing (pre-store: last-writer-wins wiped it)
+    act(() => { b.result.current.addDrawing(hz(200)) })
+    expect(a.result.current.drawings).toHaveLength(2)
+    expect(stored('SPY')).toHaveLength(2)
+  })
+
+  it('undo from instance B reverts the drawing instance A added (shared history)', () => {
+    const a = renderHook(() => useChartDrawings('SPY'))
+    const b = renderHook(() => useChartDrawings('SPY'))
+    act(() => { a.result.current.addDrawing(hz(100)) })
+    expect(b.result.current.canUndo).toBe(true)
+    act(() => b.result.current.undo())
+    expect(a.result.current.drawings).toHaveLength(0)
+    expect(b.result.current.drawings).toHaveLength(0)
+    expect(stored('SPY')).toHaveLength(0)
   })
 })
