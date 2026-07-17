@@ -61,6 +61,22 @@ export default function MultiChartGrid({ mc }) {
   const cellsRef = useRef(cells)
   cellsRef.current = cells
 
+  // ── Maximize: one cell expands to cover the whole grid body (no remount —
+  // the cell stays mounted and its wrapper is CSS-promoted over the grid, so
+  // the chart just autoSizes up and back). ──
+  const [maxId, setMaxId] = useState(null)
+  const onToggleMaxFns = useMemo(
+    () => cells.map((_, i) => () => {
+      const id = cellsRef.current[i]?.id
+      setMaxId(cur => (cur === id ? null : id))
+    }),
+    [cells.length],   // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  // A maximized id that no longer exists (layout change / cell cleared) restores.
+  useEffect(() => {
+    if (maxId && !cells.some(c => c.id === maxId)) setMaxId(null)
+  }, [cells, maxId])
+
   // ── Active-cell tracking (hover-sticky, seeded to cell 0, focus-aware) ──
   const activeCellRef = useRef(0)
   const [activeIdx, setActiveIdx] = useState(0)
@@ -173,7 +189,7 @@ export default function MultiChartGrid({ mc }) {
           return (
             <div
               key={cell.id}
-              className={`${styles.cellOuter} ${activeIdx === i ? styles.cellActive : ''}`}
+              className={`${styles.cellOuter} ${activeIdx === i ? styles.cellActive : ''} ${maxId === cell.id ? styles.cellMaximized : ''} ${maxId && maxId !== cell.id ? styles.cellHiddenBehindMax : ''}`}
               onPointerEnter={() => setActive(i)}
               onFocusCapture={() => setActive(i)}
             >
@@ -183,10 +199,12 @@ export default function MultiChartGrid({ mc }) {
                 crosshairBus={crosshairBus}
                 volPanePct={volPanePct}
                 isActive={isActiveFns[i]}
-                dailyDefaultBars={dailyDefaultBars}
+                dailyDefaultBars={maxId === cell.id ? 126 : dailyDefaultBars}
                 canvasTheme={canvasTheme}
                 onOpenSettings={openSettings}
                 onBarsReady={onBarsReadyFns[i]}
+                isMaximized={maxId === cell.id}
+                onToggleMaximize={onToggleMaxFns[i]}
               />
             </div>
           )

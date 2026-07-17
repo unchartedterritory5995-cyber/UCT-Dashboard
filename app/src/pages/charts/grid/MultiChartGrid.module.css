@@ -13,6 +13,52 @@
   display: grid;
   gap: 6px;
   overflow: hidden;
+  position: relative;   /* anchor for a maximized cell's inset:0 overlay */
+}
+
+/* Maximize: promote one cell over the whole grid body (no remount — its chart
+   just autoSizes up). The others are hidden behind it. */
+.cellMaximized {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+}
+.cellHiddenBehindMax {
+  visibility: hidden;
+}
+
+/* Right-corner control group (gear + maximize). One margin-left:auto on the
+   WRAPPER pins the pair to the far right; inside it the gear's own
+   margin-left:auto is inert (no free space), so they stay adjacent — fixes the
+   two-auto split that floated the maximize button mid-header when expanded. */
+.cellHeaderRight {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* Small header icon button (maximize/restore) — matches the gear's look. */
+.cellIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+.cellIconBtn:hover {
+  color: var(--ut-gold, #c9a84c);
+  border-color: var(--border, #2e3127);
+  background: rgba(201, 168, 76, 0.08);
 }
 
 /* Container-owned wrapper: the grid item. Carries the active-cell class so

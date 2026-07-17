@@ -50,6 +50,8 @@ function GridChartCell({
   canvasTheme,        // 'sunrise' | null — threaded from WorkspaceContext
   onOpenSettings,     // opens the grid's ONE shared ChartSettingsModal
   onBarsReady,        // () => void — releases this cell's mount-queue slot
+  isMaximized,        // this cell is expanded to fill the whole grid body
+  onToggleMaximize,   // () => void — expand/restore this cell
 }) {
   const sym = cell.sym
 
@@ -234,15 +236,26 @@ function GridChartCell({
             <option key={code || 'inherit'} value={code}>{label}</option>
           ))}
         </select>
-        <button
-          type="button"
-          className={wsStyles.chartSettingsBtn}
-          onClick={() => onOpenSettings?.()}
-          title="Chart settings"
-          aria-label="Chart settings"
-        >
-          <UIcon name="gear" size={15} />
-        </button>
+        <span className={styles.cellHeaderRight}>
+          <button
+            type="button"
+            className={wsStyles.chartSettingsBtn}
+            onClick={() => onOpenSettings?.()}
+            title="Chart settings"
+            aria-label="Chart settings"
+          >
+            <UIcon name="gear" size={15} />
+          </button>
+          <button
+            type="button"
+            className={styles.cellIconBtn}
+            onClick={() => onToggleMaximize?.()}
+            title={isMaximized ? 'Restore grid' : 'Maximize this chart'}
+            aria-label={isMaximized ? 'Restore grid' : 'Maximize this chart'}
+          >
+            <UIcon name={isMaximized ? 'collapse' : 'expand'} size={14} />
+          </button>
+        </span>
       </div>
       {/* Second row — 8-button timeframe bar + meta + session toggle + clock.
           The meta + session blocks collapse in narrow cells (container query). */}
@@ -350,8 +363,12 @@ function GridChartCell({
             volumeLastValue
             volumeMa={50}
             hidePriceLine
-            watermarkOpacity={0.82}
-            centerWatermarkOnPlot
+            /* Mini-chart declutter: the header already shows the full company
+               name + logo, so the big canvas watermark is redundant — off
+               entirely. And suppress the viewer's own journal trade markers
+               (they plaster a small cell). */
+            hideWatermark
+            hideJournalOverlay
             carryDragPlacement={false}
             keepPresentOnSymbolChange
             dragMeasure
