@@ -53,7 +53,21 @@ from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+FLOW_DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+# 2026-07-17 (Ravi's #1 structural fix): contract_oi_snapshots + oi_snapshot_runs
+# used to live INSIDE flow.db, so every OI write (5:30 cron AND the consumer's
+# own on-demand Schwab fetch every 20s) took the flow.db WRITE LOCK — and
+# FlowDB._conn's timeout=30 means a contended insert BLOCKS the writer thread
+# 30-93s before dropping a batch. Moving the tables to their OWN file removes
+# that contention by construction: OI writes never touch the tape's lock again.
+# Readers keep their SQL unchanged and call attach_oi_snapshots(conn) so the
+# unqualified table name resolves to the attached DB (the flow.db copies are
+# DROPped at migration, so resolution is unambiguous + a missed attach fails
+# LOUD, never silently reads stale OI).
+OI_DB_PATH = os.environ.get("OI_SNAPSHOTS_DB_PATH", "/data/oi_snapshots.db")
+DB_PATH = OI_DB_PATH  # oi_snapshots.py's own reads/writes go to the new file
+_ATTACH_ALIAS = "oidb"
+_migrated = False
 
 # How many days back to consider when computing "active contracts"
 DAYS_BACK_TO_SNAPSHOT = 30
@@ -190,10 +204,85 @@ def _conn():
 
 
 def init_db():
-    """Create the snapshot table. Idempotent — safe to call on every startup."""
+    """Create the snapshot tables in the OI DB + one-time migrate from flow.db.
+    Idempotent — safe to call on every startup."""
     with _conn() as c:
         c.executescript(SCHEMA)
-    logger.info("[oi-snapshot] DB initialized")
+    _migrate_from_flow_db_once()
+    logger.info("[oi-snapshot] DB initialized (path=%s)", OI_DB_PATH)
+
+
+def _migrate_from_flow_db_once() -> None:
+    """One-time move of contract_oi_snapshots + oi_snapshot_runs from flow.db
+    into the dedicated OI DB, then DROP the flow.db copies so readers can't
+    resolve a stale table. Safe/idempotent: if flow.db no longer has the tables
+    (already migrated, or fresh install), this no-ops. Never raises — a failed
+    migration leaves flow.db intact and readers keep working against it via the
+    attach fallback path in attach_oi_snapshots."""
+    global _migrated
+    if _migrated:
+        return
+    import os as _os
+    if not _os.path.exists(FLOW_DB_PATH) or FLOW_DB_PATH == OI_DB_PATH:
+        _migrated = True
+        return
+    try:
+        c = sqlite3.connect(OI_DB_PATH, timeout=60)
+        try:
+            c.execute("PRAGMA journal_mode=WAL")
+            c.execute("ATTACH DATABASE ? AS flowsrc", (FLOW_DB_PATH,))
+            has = c.execute(
+                "SELECT name FROM flowsrc.sqlite_master WHERE type='table' "
+                "AND name IN ('contract_oi_snapshots','oi_snapshot_runs')"
+            ).fetchall()
+            names = {r[0] for r in has}
+            moved = 0
+            if "contract_oi_snapshots" in names:
+                cur = c.execute(
+                    "INSERT OR IGNORE INTO contract_oi_snapshots "
+                    "(contract_key, snap_date, oi, source, created_at) "
+                    "SELECT contract_key, snap_date, oi, source, created_at "
+                    "FROM flowsrc.contract_oi_snapshots")
+                moved = cur.rowcount
+            if "oi_snapshot_runs" in names:
+                try:
+                    c.execute(
+                        "INSERT OR IGNORE INTO oi_snapshot_runs "
+                        "SELECT * FROM flowsrc.oi_snapshot_runs")
+                except Exception:
+                    pass  # runs table is diagnostic; snapshots are what matter
+            c.commit()  # release the INSERT transaction BEFORE detaching
+            c.execute("DETACH DATABASE flowsrc")
+        finally:
+            c.close()
+        # Drop the flow.db copies in a SEPARATE connection so the DROP takes
+        # flow.db's lock briefly ONCE (off-hours boot), not during the copy.
+        if names:
+            with sqlite3.connect(FLOW_DB_PATH, timeout=60) as fc:
+                fc.execute("PRAGMA busy_timeout=30000")
+                for t in ("contract_oi_snapshots", "oi_snapshot_runs"):
+                    if t in names:
+                        fc.execute(f"DROP TABLE IF EXISTS {t}")
+            logger.info("[oi-snapshot] migrated tables out of flow.db -> %s "
+                        "(%d snapshot rows); flow.db copies dropped",
+                        OI_DB_PATH, moved)
+        _migrated = True
+    except Exception as e:  # noqa: BLE001
+        logger.exception("[oi-snapshot] migration failed (flow.db copies kept "
+                         "as fallback): %s", e)
+
+
+def attach_oi_snapshots(conn) -> None:
+    """Attach the OI DB to a caller's (flow.db) connection so their existing
+    `... FROM contract_oi_snapshots` queries resolve to the moved table.
+    No-op-safe: if already attached or the file is missing, swallow. Callers
+    keep their SQL unchanged; unqualified name resolves to the attached DB
+    because the flow.db copy was dropped at migration."""
+    try:
+        conn.execute("ATTACH DATABASE ? AS " + _ATTACH_ALIAS, (OI_DB_PATH,))
+    except Exception as e:  # noqa: BLE001 — already attached / locked / missing
+        if "already in use" not in str(e).lower():
+            logger.debug("[oi-snapshot] attach skipped: %s", e)
 
 
 # ── Date helpers (BBS format: M/D/YYYY) ──────────────────────────────────

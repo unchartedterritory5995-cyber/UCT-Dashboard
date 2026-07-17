@@ -525,6 +525,13 @@ def _load_oi_for_events(events: list) -> dict:
     out = {}
     try:
         with sqlite3.connect(db_path, timeout=10) as conn:
+            # contract_oi_snapshots moved to its own DB (2026-07-17) — attach so
+            # the Stage-1 query below resolves it; Stage 2 still hits flow (main).
+            try:
+                from api.oi_snapshots import attach_oi_snapshots
+                attach_oi_snapshots(conn)
+            except Exception:
+                pass
             # Stage 1: contract_oi_snapshots
             keys = [k for k, _, _ in keys_and_idx]
             placeholders = ",".join("?" for _ in keys)
