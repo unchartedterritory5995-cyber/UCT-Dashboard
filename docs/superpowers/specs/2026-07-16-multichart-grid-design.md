@@ -259,6 +259,24 @@ re-anchor on grid-cell first paint.
 - SPY-class intermittent one-cell mis-frame on some roundtrips (self-heals via Reset view /
   reload; frequency reduced by the v1.1 fixes — retest after members use it).
 
+## v1.3 (2026-07-17 afternoon) — uniform cell header + polish batch
+
+- **Grid cell header now mirrors the primary ChartWidget header 1:1** (owner
+  request — cells were minimal). Reuses ChartWidget's exact CSS classes:
+  top row = logo + full company name + day gain + per-cell Style + gear; second
+  row = 8-button TF bar + Market Cap / Next Earnings / UCT Rating + session
+  toggle + live clock. Adds the matching hooks + `sessionView` wiring.
+  **Meta + session collapse by CELL width via `container-type: inline-size` on
+  `.cell`**: 2-col full header, 3-col drops session (>700px hide), 4x4 (458px,
+  verified) drops meta too (>560px hide) — no wrap/overflow. ChartWidget
+  untouched (owner co-edits it). Fetch note: adds useFundamentalSnapshot +
+  useTickerMeta per cell (SWR-deduped/cached; bounded) — acceptable, watch at
+  scale.
+- Model Book display-only overlays got `readOnly` (were swallowing hotkeys).
+- Generic settings-section drift-guard test (caught the new `header` section).
+- Stale test trio rewritten (root cause: `useAuth` in render path); suite green.
+- Visible-tab spike: 16 cells ~900ms framed, +63MB, GRID_MAX_CELLS=16 confirmed.
+
 ## Live verification (2026-07-16, local build)
 
 3×3 grid: presets dropdown w/ icons + custom N×M + sync toggle ✓ · row-major cell carryover ✓ ·
