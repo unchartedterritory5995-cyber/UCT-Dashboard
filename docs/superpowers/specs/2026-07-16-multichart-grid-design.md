@@ -192,6 +192,40 @@ superseded `pages/multichart/*` once `gridLayouts.js` ports the math + test; Mob
 8. vitest `--pool=threads` + build + live Playwright verify (DOM, single SSE at 3x3, Sunrise
 pass) → push `origin feat/multichart-grid:master` in the deploy window.
 
-## Perf spike results
+## Perf spike results (2026-07-16, owner PC, local backend, market closed)
 
-_(to be filled by the spike run — raw `[gridspike:done]` JSON per matrix cell + environment)_
+`?gridspike=16&tf=D`, Chrome via CDP automation, **cold local server cache** (worst case —
+prod pre-caches the whole universe):
+
+- **Heap: decisive PASS.** base 36 MB → settled 46 MB (+10 MB for 16 mounted charts, vs the
+  ≤500 MB threshold) → idle 39 MB after 60 s (negative growth — GC; no leak signature).
+- **All 16 cells visually framed ≈10 s** from grid enter on the cold-cache run, mount queue
+  ≤3-wide, no request herd (per-cell/all-framed timer values from this run are NOT quotable —
+  the tab was CDP-hidden and rAF-throttled, so `framedAt` stamps landed on forced frames).
+- **Idle long tasks: 0/60 s** (underestimate in a hidden tab; consistent with the fluid
+  interactive session).
+- **Sweep: invalid ("tab not visible")** — the validity guard worked as designed; a hidden
+  tab throttles rAF so the guard refused to emit garbage. Needs one foregrounded run:
+  open `/charts?gridspike=16&tf=D` in a visible tab, wait ~90 s, read `[gridspike:done]`.
+- Interactive verification (visible session, 3x3 + 5 charts): fluid hover/crosshair/type-to-
+  search; single pooled SSE connection confirmed via netstat (1 TCP conn for 5 charts).
+
+**Decision (tree branch b): GRID_MAX_CELLS stays 16 (4×4 ships).** Heap + visual + interactive
+all pass; crosshair sync is already default-OFF (the tree's downgrade for unproven sweeps);
+the in-tree harness re-runs the sweep any time from a visible tab.
+
+**Known cosmetic wart (punch list):** switching workspace→grid while the SAME symbol was just
+open at full 30-year depth in the workspace can paint that cell mis-framed (full-depth
+memCache carryover); Reset view or a reload reframes it. Fix candidate: force a default-zoom
+re-anchor on grid-cell first paint.
+
+## Live verification (2026-07-16, local build)
+
+3×3 grid: presets dropdown w/ icons + custom N×M + sync toggle ✓ · row-major cell carryover ✓ ·
+empty-cell "+ Add ticker" + type-to-search (NVDA) ✓ · per-cell TF independence (NVDA 1W, rest
+1D) ✓ · custom right-click menu (alert @ price / reset view / chart settings) ✓ · persistence +
+auto-restore of mode/cells/tf across reload ✓ · single pooled SSE ✓ · zero console errors ✓ ·
+**Sunrise theme in grid cells ✓** (cells render the exact workspace/Bracco chart treatment —
+same StockChart recipe, same per-user chart_settings blob, same data-charts-theme root) ·
+workspace mode untouched ✓ · owner independently exercised 2×3 + back-to-workspace in a
+parallel tab; state persisted their actions faithfully ✓.
