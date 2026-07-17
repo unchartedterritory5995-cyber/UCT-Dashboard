@@ -51,3 +51,17 @@ def test_list_groups_shapes_and_chartable_count(monkeypatch):
     assert row["chartable"] == 2          # DEADCO excluded
     assert row["etf_ticker"] == "UFO"
     assert row["sub_theme_count"] == 1
+
+
+def test_rotation_order_ranks_hot_themes_first(monkeypatch):
+    import api.services.theme_performance as tp
+    sig = {"rankings": {
+        "UFO": {"name": "Space", "1w_rank": 90.0},
+        "SMH": {"name": "Semiconductors", "1w_rank": 40.0},
+        "XLU": {"name": "Utilities", "1w_rank": None},
+    }, "rotating_in": [], "rotating_out": [], "generated_at": ""}
+    monkeypatch.setattr(tp, "compute_rotation_signals", lambda: sig)
+    order = groups._rotation_order()
+    assert order["space"] == 0             # hottest (1w_rank 90) first
+    assert order["semiconductors"] == 1
+    assert order["utilities"] == 2          # None rank sinks last

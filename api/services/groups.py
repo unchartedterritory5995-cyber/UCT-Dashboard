@@ -67,22 +67,27 @@ def _get_all_themes():
 
 
 def _rotation_order():
-    """theme_name (lower) -> rank index, hottest first. Empty on cold cache."""
+    """theme_name (lower) -> rank index, hottest first (highest 1-week rank
+    percentile from theme-rotation). {} when the rotation cache is cold /
+    unavailable, so list_groups() falls back to name order."""
     try:
         from api.services import theme_performance
         sig = theme_performance.compute_rotation_signals()
-        themes = sig.get("themes") if isinstance(sig, dict) else sig
-        order = {}
-        for i, t in enumerate(themes or []):
-            nm = (t.get("name") or "").strip().lower()
+        rankings = (sig or {}).get("rankings") or {}
+        rows = []
+        for entry in rankings.values():
+            nm = (entry.get("name") or "").strip().lower()
             if nm:
-                order[nm] = i
-        return order
+                rows.append((entry.get("1w_rank"), nm))
+        # Hottest first: highest 1w_rank; None ranks sink last; name for ties.
+        rows.sort(key=lambda r: (-(r[0]) if r[0] is not None else float("inf"), r[1]))
+        return {nm: i for i, (_, nm) in enumerate(rows)}
     except Exception:
         return {}
 
 
 def list_groups() -> list:
+    """Groups for the picker: {id,name,sector_id,etf_ticker,total,chartable,sub_theme_count}, hottest first."""
     data = _get_all_themes()
     cap = cap_universe_set()
     order = _rotation_order()
