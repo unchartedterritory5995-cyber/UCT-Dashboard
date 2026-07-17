@@ -10,6 +10,9 @@ import { WorkspaceContext } from './WorkspaceContext'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
+import MultiChartGrid from './grid/MultiChartGrid'
+import MultiChartMenu from './grid/MultiChartMenu'
+import useMultiChartState from './grid/useMultiChartState'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -19,7 +22,17 @@ const ResponsiveGridLayout = WidthProvider(Responsive)
 // (too thin)" and "2 cols". Every breakpoint is doubled in lockstep so relative
 // sizing is unchanged; legacy 12-col saved layouts are migrated in parseLayout().
 const GRID_COLS = 24
-const COLS = { lg: GRID_COLS, md: 20, sm: 12, xs: 8, xxs: 4 }
+// EVERY breakpoint uses the SAME column count on purpose — do not re-introduce a
+// narrowing ladder (md:20, sm:12, …). We persist ONE arrangement (layout.widgets),
+// so a breakpoint whose col count differs made RGL re-map x/w to fit the narrower
+// grid, fire onLayoutChange with those squeezed coords, and handleLayoutChange
+// persisted them over the only layout we keep — permanently destroying it. Widening
+// the window back could never restore it (the original x/w were gone), which is why
+// widgets stayed bunched in the left of a maximized window after a shrink.
+// With cols constant, a resize only changes colWidth (containerWidth / 24), so widgets
+// scale proportionally and land back exactly where they were. This mirrors how
+// rowHeight already scales vertically via the ResizeObserver below.
+const COLS = { lg: GRID_COLS, md: GRID_COLS, sm: GRID_COLS, xs: GRID_COLS, xxs: GRID_COLS }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
 const FIXED_ROWS = 20            // workspace is viewport-locked to this many rows
 const MARGIN_Y = 6                // px gap between widgets vertically
@@ -224,6 +237,11 @@ export default function ChartsWorkspace() {
     }
   }
 
+  // Active chart widget (hotkey dedupe): the last-hovered ChartWidget's id.
+  // Ref (not state) so hover crossings never re-render anything; each widget's
+  // StockChart reads it through a hotkeysActive callback at keydown time.
+  const activeChartRef = useRef(null)
+
   // AI-search bus: a chart's "AI search" context action routes a query to any
   // mounted AI Search widget; request() returns false when none exist so the
   // caller can fall back to a temporary popup.
@@ -241,7 +259,7 @@ export default function ChartsWorkspace() {
   const setChartsTheme = useCallback((t) => setPref('charts_theme', t), [setPref])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current }),
+    () => ({ groupSyms, setGroupSym, chartsTheme, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef }),
     [groupSyms, setGroupSym, chartsTheme],
   )
 
@@ -431,18 +449,38 @@ export default function ChartsWorkspace() {
 
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
+  // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
+  const mc = useMultiChartState()
+  const [mcMenuOpen, setMcMenuOpen] = useState(false)
+  // ?gridspike=N (admin-only) forces grid mode for the perf harness.
+  const gridSpikeRequested = isAdmin && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).has('gridspike')
+  const gridMode = mc.state.mode === 'grid' || gridSpikeRequested
+  // Grid-kind templates live in the same /api/charts/layouts store; keep them
+  // out of the workspace Open-layout menu (their {widgets:[]} shape would
+  // apply as a blank board) — the Multi Charts dropdown lists them instead.
+  const wsGlobalLayouts = globalLayouts.filter(t => t.layout?.kind !== 'multichart')
+  const wsMyLayouts = myLayouts.filter(t => t.layout?.kind !== 'multichart')
+
   if (isMobile) {
     // Phone: tabbed widget stack (RGL drag/resize doesn't fit a phone). Rendered
-    // inside the provider so widgets keep color-group ticker linking.
+    // inside the provider so widgets keep color-group ticker linking. Grid mode
+    // renders as a vertically stacked cell list (its own @media CSS).
     return (
       <WorkspaceContext.Provider value={workspaceValue}>
-        <MobileWorkspace
-          widgets={layout.widgets}
-          onRemove={handleRemoveWidget}
-          onColorChange={handleColorChange}
-          onOptsChange={handleOptsChange}
-          onAddWidget={handleAddWidget}
-        />
+        {gridMode ? (
+          <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%' }}>
+            <MultiChartGrid mc={mc} />
+          </div>
+        ) : (
+          <MobileWorkspace
+            widgets={layout.widgets}
+            onRemove={handleRemoveWidget}
+            onColorChange={handleColorChange}
+            onOptsChange={handleOptsChange}
+            onAddWidget={handleAddWidget}
+          />
+        )}
       </WorkspaceContext.Provider>
     )
   }
@@ -462,11 +500,12 @@ export default function ChartsWorkspace() {
       <div className={styles.workspace} data-charts-theme={chartsTheme}>
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
+          {!gridMode && (<>
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
               className={styles.toolbarBtn}
-              onClick={() => { setAddMenuOpen(o => !o); setOpenMenuOpen(false); setSaveMenuOpen(false) }}
+              onClick={() => { setAddMenuOpen(o => !o); setOpenMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false) }}
             >+ Add Widget</button>
             {addMenuOpen && (
               <div className={styles.addMenu} onMouseLeave={() => setAddMenuOpen(false)}>
@@ -486,13 +525,15 @@ export default function ChartsWorkspace() {
           <button type="button" className={styles.toolbarBtn} onClick={handleNewLayout}>
             New Layout
           </button>
+          </>)}
 
-          {/* Open a saved / prebuilt layout */}
+          {/* Open a saved / prebuilt layout — visible in BOTH modes (it hosts
+              the Multi Chart flyout, the grid mode's only entry point). */}
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
               className={styles.toolbarBtn}
-              onClick={() => { setOpenMenuOpen(o => !o); setAddMenuOpen(false); setSaveMenuOpen(false) }}
+              onClick={() => { setOpenMenuOpen(o => !o); setAddMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false) }}
             >Open layout ▾</button>
             {openMenuOpen && (
               <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => setOpenMenuOpen(false)}>
@@ -510,18 +551,42 @@ export default function ChartsWorkspace() {
                     >{chartsTheme === val ? '✓ ' : ''}{label}</button>
                   </div>
                 ))}
-                {globalLayouts.map(t => (
+                {/* Multi Chart — a layout option, not a header tab. Hover or
+                    click opens the grid-selection flyout beside this menu.
+                    The flyout is a DOM child of this row, so the parent
+                    dropdown's onMouseLeave doesn't fire while it's hovered. */}
+                <div
+                  className={styles.menuRow}
+                  style={{ position: 'relative' }}
+                  onMouseEnter={() => setMcMenuOpen(true)}
+                  onMouseLeave={() => setMcMenuOpen(false)}
+                >
+                  <button
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={{ flex: 1, ...(gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : {}) }}
+                    onClick={() => setMcMenuOpen(o => !o)}
+                  >{gridMode ? '✓ ' : ''}▦ Multi Chart ▸</button>
+                  {mcMenuOpen && (
+                    <MultiChartMenu
+                      mc={mc}
+                      flyout
+                      onClose={() => { setMcMenuOpen(false); setOpenMenuOpen(false) }}
+                    />
+                  )}
+                </div>
+                {wsGlobalLayouts.map(t => (
                   <div key={`g${t.id}`} className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
                     {isAdmin && (
                       <button type="button" className={styles.menuDel} title="Delete prebuilt template" onClick={() => handleDeleteTemplate(t.id)}>✕</button>
                     )}
                   </div>
                 ))}
-                {myLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
-                {myLayouts.map(t => (
+                {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
+                {wsMyLayouts.map(t => (
                   <div key={`m${t.id}`} className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => applyTemplate(t)}>{t.name}</button>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
                     <button type="button" className={styles.menuDel} title="Delete" onClick={() => handleDeleteTemplate(t.id)}>✕</button>
                   </div>
                 ))}
@@ -530,11 +595,12 @@ export default function ChartsWorkspace() {
           </div>
 
           {/* Save current arrangement / save as a named template */}
+          {!gridMode && (
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
               className={styles.toolbarBtn}
-              onClick={() => { setSaveMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false) }}
+              onClick={() => { setSaveMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false); setMcMenuOpen(false) }}
             >{savedFlash ? 'Saved ✓' : 'Save layout ▾'}</button>
             {saveMenuOpen && (
               <div className={styles.addMenu} style={{ minWidth: 230 }}>
@@ -570,9 +636,18 @@ export default function ChartsWorkspace() {
               </div>
             )}
           </div>
+          )}
 
+          {gridMode && (
+            <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
+              Workspace
+            </button>
+          )}
         </header>
         <main className={styles.workspaceBody} ref={bodyRef}>
+          {gridMode ? (
+            <MultiChartGrid mc={mc} />
+          ) : (
           <ResponsiveGridLayout
             className="layout"
             layouts={rglLayouts}
@@ -605,6 +680,7 @@ export default function ChartsWorkspace() {
               </div>
             ))}
           </ResponsiveGridLayout>
+          )}
         </main>
       </div>
     </WorkspaceContext.Provider>

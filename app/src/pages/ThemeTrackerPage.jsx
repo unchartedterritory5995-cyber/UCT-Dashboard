@@ -11,7 +11,7 @@ import useThemeIndexBars from '../hooks/useThemeIndexBars'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
-import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent } from '../utils/prefetchBars'
+import { prefetchBar, prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent } from '../utils/prefetchBars'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
@@ -254,7 +254,14 @@ export default function ThemeTrackerPage({ embedded = false }) {
       // browser), and prefetchBars dedups against in-flight requests.
       const theme = data?.themes?.find(t => t.ticker === ticker)
       if (theme?.holdings?.length) {
-        prefetchBars(theme.holdings.map(h => h.sym), chartPeriod)
+        const syms = theme.holdings.map(h => h.sym)
+        prefetchBars(syms, chartPeriod)
+        // Durable warm of the WHOLE group into IndexedDB so arrowing through it
+        // (even with the keyboard, faster than hover) is instant — and survives a
+        // page reload, unlike the in-memory prefetch above. Also warm Daily since
+        // that's the default chart TF a click lands on.
+        prefetchBarsToIDB(syms, chartPeriod)
+        if (chartPeriod !== 'D') prefetchBarsToIDB(syms, 'D')
       }
       return ticker                      // opening a new one closes the previous
     })

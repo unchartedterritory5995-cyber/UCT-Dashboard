@@ -42,7 +42,8 @@ import time
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Header, HTTPException
+from api.flow_admin_auth import require_flow_admin
+from fastapi import Depends, APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
@@ -869,10 +870,9 @@ def status():
 
 @router.post("/run")
 def trigger_run(target_date: str = None, force: bool = False, dry_run: bool = None,
-                authorization: str = Header(default="")):
+                _auth: dict = Depends(require_flow_admin)):
     """Manual trigger. NEVER inline — spawns a daemon thread and returns.
     target_date: 'YYYY-MM-DD' (default: latest completed trading day)."""
-    _require_push_secret(authorization)
     target = None
     if target_date:
         try:
@@ -886,12 +886,11 @@ def trigger_run(target_date: str = None, force: bool = False, dry_run: bool = No
 
 
 @router.post("/enrich")
-def trigger_enrich(target_date: str, authorization: str = Header(default="")):
+def trigger_enrich(target_date: str, _auth: dict = Depends(require_flow_admin)):
     """Manually run classification enrichment (OI → color → Side → parity)
     for an already-healed date — e.g. re-heal 7/14 whose rows landed
     unclassified. NEVER inline — daemon thread; result lands in
     /status.last_enrich and Discord. target_date: 'YYYY-MM-DD'."""
-    _require_push_secret(authorization)
     try:
         target = date.fromisoformat(target_date)
     except (ValueError, TypeError):
@@ -914,10 +913,9 @@ def trigger_enrich(target_date: str, authorization: str = Header(default="")):
 
 @router.post("/spool-control")
 def spool_control(spool: bool = None, replay: bool = None,
-                  authorization: str = Header(default="")):
+                  _auth: dict = Depends(require_flow_admin)):
     """Runtime kill switch for the tape spool / replay (review A5) — flips the
     module gates WITHOUT a restart (a restart is itself a tape gap)."""
-    _require_push_secret(authorization)
     try:
         from api import flow_tape_spool
         return JSONResponse(flow_tape_spool.set_flags(spool=spool, replay=replay))
@@ -926,10 +924,9 @@ def spool_control(spool: bool = None, replay: bool = None,
 
 
 @router.post("/replay-spool")
-def trigger_spool_replay(authorization: str = Header(default="")):
+def trigger_spool_replay(_auth: dict = Depends(require_flow_admin)):
     """Manually heal TODAY's gap windows from the raw tape spool (the
     autonomous path runs at consumer boot). Idempotent; daemon thread."""
-    _require_push_secret(authorization)
 
     def _do():
         try:
@@ -944,8 +941,7 @@ def trigger_spool_replay(authorization: str = Header(default="")):
 
 
 @router.post("/rollback/{run_id}")
-def trigger_rollback(run_id: int, authorization: str = Header(default="")):
-    _require_push_secret(authorization)
+def trigger_rollback(run_id: int, _auth: dict = Depends(require_flow_admin)):
     out = {}
 
     def _do():
@@ -956,3 +952,41 @@ def trigger_rollback(run_id: int, authorization: str = Header(default="")):
     if t.is_alive():
         return JSONResponse({"status": "running", "check": "/api/flow-gap-fill/status"})
     return JSONResponse(out)
+
+
+@router.get("/rest-backfill-probe")
+def rest_backfill_probe(ticker: str = "O:SPY260918C00600000", window_sec: int = 300,
+                        _auth: dict = Depends(require_flow_admin)):
+    """Read-only: verify Massive /v3/trades works + returns the expected shape.
+    No writes. Run this before enabling FLOW_REST_BACKFILL_ENABLED."""
+    from api import flow_rest_backfill
+    return JSONResponse(flow_rest_backfill.probe(ticker=ticker, window_sec=window_sec))
+
+
+@router.get("/rest-backfill-status")
+def rest_backfill_status(_auth: dict = Depends(require_flow_admin)):
+    from api import flow_rest_backfill
+    return JSONResponse(flow_rest_backfill.get_status())
+
+
+@router.post("/rest-backfill")
+def rest_backfill_run(start_ns: int, end_ns: int, use_qpool: bool = True,
+                      _auth: dict = Depends(require_flow_admin)):
+    """Manually backfill [start_ns, end_ns] for the current Q-pool contracts
+    (idempotent, dedup-safe). Gated by FLOW_REST_BACKFILL_ENABLED. Used to test
+    the path against live data before wiring the auto-on-reconnect hook."""
+    from api import flow_rest_backfill
+    contracts = []
+    if use_qpool:
+        try:
+            from api.massive_ws_worker import _q_subscribed
+            contracts = list(_q_subscribed)
+        except Exception as e:  # noqa: BLE001
+            return JSONResponse({"status": f"qpool_unavailable: {e}"}, status_code=503)
+
+    def _do():
+        flow_rest_backfill.backfill_window(start_ns, end_ns, contracts)
+
+    threading.Thread(target=_do, daemon=True, name="flow-rest-backfill-manual").start()
+    return JSONResponse({"status": "started", "contracts": len(contracts),
+                         "check": "/api/flow-gap-fill/rest-backfill-status"})

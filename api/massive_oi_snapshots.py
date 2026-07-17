@@ -235,6 +235,11 @@ async def _fetch_oi_all_async(batch: Iterable[tuple]) -> list:
     # Drop module-level cache from any prior call to keep memory bounded
     _PER_CALL_CACHE.clear()
 
+    def _norm_cp(cp) -> str:
+        """Accept 'C'/'P' or flow-table 'CALL'/'PUT' — the chain index and
+        the returned contract_keys both use the single letter."""
+        return "C" if str(cp).upper() in ("C", "CALL") else "P"
+
     # Group batch by underlying ticker
     by_ticker: dict = defaultdict(list)
     for entry in batch:
@@ -245,7 +250,7 @@ async def _fetch_oi_all_async(batch: Iterable[tuple]) -> list:
         if not sym or sym[-1].isdigit():
             # Skip adjusted/when-issued symbols — Massive may 404
             continue
-        by_ticker[sym].append((cp_letter, strike, exp_mdy))
+        by_ticker[sym].append((_norm_cp(cp_letter), strike, exp_mdy))
 
     if not by_ticker:
         return []
@@ -276,6 +281,7 @@ async def _fetch_oi_all_async(batch: Iterable[tuple]) -> list:
             sym, cp_letter, strike, exp_mdy = entry
         except (ValueError, TypeError):
             continue
+        cp_letter = _norm_cp(cp_letter)
         ck = _contract_key(sym, cp_letter, strike, exp_mdy)
         chain_idx = chains_by_ticker.get(sym, {})
         try:

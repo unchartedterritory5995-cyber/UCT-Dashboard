@@ -30,8 +30,18 @@
   color: var(--text, #e5e7eb);
   font-size: 13px;
   font-family: inherit;
+  /* Auto-growing textarea: JS sets height from scrollHeight (capped ~4 lines),
+     after which it scrolls inside the box. */
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.45;
+  padding: 0;
+  height: 19px;   /* single-line baseline; JS grows it */
 }
 .input::placeholder { color: var(--text-muted, #6b7280); }
+/* Empty box: clip the placeholder to one line (like the old <input>) so a
+   narrow widget doesn't wrap it or show an inner scrollbar. */
+.input:placeholder-shown { white-space: nowrap; overflow: hidden; }
 .clearBtn {
   background: transparent; border: none; color: var(--text-muted, #6b7280);
   cursor: pointer; font-size: 12px; padding: 2px 4px; flex-shrink: 0;

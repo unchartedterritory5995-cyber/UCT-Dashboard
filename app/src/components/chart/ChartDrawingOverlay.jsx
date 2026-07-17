@@ -700,6 +700,9 @@ export default function ChartDrawingOverlay({
   undo = null,               // undo/redo/snapshotHistory — wired for the MAIN user-drawings
   redo = null,               //   overlay (useChartDrawings). Annotation overlays omit them
   snapshotHistory = null,    //   (no-op), so Ctrl+Z there does nothing.
+  readOnly = false,          // display-only layer (multi-chart grid cells): skip the window
+                             //   keydown handler entirely — a NOOP-wired instance would still
+                             //   preventDefault Escape/Ctrl+Z/Ctrl+V app-wide, ×N cells.
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -1816,6 +1819,7 @@ export default function ChartDrawingOverlay({
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
+    if (readOnly) return undefined
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
 
@@ -1900,7 +1904,7 @@ export default function ChartDrawingOverlay({
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTool, pendingPoints, selectedId, isDragging, setActiveTool, setSelectedId, removeDrawing, addDrawing, undo, redo])
+  }, [activeTool, pendingPoints, selectedId, isDragging, setActiveTool, setSelectedId, removeDrawing, addDrawing, undo, redo, readOnly])
 
   // Reset pending on tool change
   useEffect(() => {

@@ -3,31 +3,57 @@
 #
 # Every push to master auto-deploys the Railway WEB service (no watch paths —
 # it serves the SPA bundle). A mid-market container swap drops /api/* for
-# minutes and permanently gaps the Massive OPRA options tape (OPRA does not
-# replay; gaps heal only from the T+1 flat file overnight). House rule: ship
-# web deploys >=4:20 PM ET or <9:15 AM ET — see the liveflow deploy-survival
-# spec and CLAUDE.md "Shipping window".
+# minutes. The FLOW-WORKER service (Massive OPRA options consumer) is also
+# GitHub-triggered, on NARROW watch paths (the flow files listed below, set
+# per-service in the Railway dashboard 2026-07-17 — NEVER in railway.json).
+# A flow-worker swap gaps the options tape PERMANENTLY (OPRA does not replay;
+# gaps heal only from the T+1 flat file overnight). House rule: ship
+# >=4:20 PM ET or <9:15 AM ET — see the liveflow deploy-survival spec.
 #
 # 2026-07-13: eleven market-hours pushes caused repeated member-facing 500s +
-# three tape gaps. This hook makes the rule mechanical.
+# three tape gaps. 2026-07-16: eight market-hours flow-worker deploys (all via
+# UCT_PUSH_OVERRIDE misuse while watch paths were still broad) dropped ~13.9k
+# prints. This hook makes the rule mechanical.
 #
 # Install (shared across all worktrees):
 #   cp tools/git-hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
 #
-# Emergency override:  UCT_PUSH_OVERRIDE=1 git push ...
-# Test override:       UCT_HOOK_TEST_NOW="<dow 0-6> <minutes-since-midnight>"
+# Overrides — for GENUINE emergencies (site down, worse than a swap) ONLY.
+# Claude sessions: do NOT set these for routine work; batch and push after
+# 4:20 PM ET instead.
+#   Web-only emergency:            UCT_PUSH_OVERRIDE=1 git push ...
+#   Flow-touching emergency:       UCT_PUSH_OVERRIDE=1 UCT_FLOW_OVERRIDE=1 git push ...
+#     (a push whose diff touches a flow-worker watched file needs BOTH — a
+#      generic override must never bounce the options tape by accident)
+# Test override:  UCT_HOOK_TEST_NOW="<dow 0-6> <minutes-since-midnight>"
 
-if [ "$UCT_PUSH_OVERRIDE" = "1" ]; then
-  echo "[uct pre-push] override accepted (UCT_PUSH_OVERRIDE=1) — pushing during freeze window" >&2
-  # still consume stdin so git does not see a broken pipe
-  while read -r _l _ls _r _rs; do :; done
-  exit 0
-fi
+# Flow-worker watched files — keep in sync with the Railway service settings.
+FLOW_WATCHED="api/massive_ws_worker.py api/massive_processor.py api/flow_db.py \
+api/bs_iv.py api/flow_worker_main.py api/live_massive_router.py api/flow_router.py \
+api/flow_router_mount.py api/flow_heal_enrich.py api/flow_gap_autofill.py \
+api/massive_flatfiles_worker.py api/flow_watchdog.py api/oi_snapshots.py \
+api/flow_rest_backfill.py \
+api/massive_stream.py api/flow_tape_spool.py api/flow_backup.py \
+api/dealer_positioning.py railway.json requirements.txt"
 
 pushes_master=0
+flow_touched=""
 while read -r local_ref local_sha remote_ref remote_sha; do
   case "$remote_ref" in
-    refs/heads/master) pushes_master=1 ;;
+    refs/heads/master)
+      pushes_master=1
+      # Deleted ref → nothing deploys from it.
+      case "$local_sha" in 0000000000000000000000000000000000000000) continue ;; esac
+      # New remote ref → diff against the known remote master instead.
+      base="$remote_sha"
+      case "$base" in 0000000000000000000000000000000000000000) base="origin/master" ;; esac
+      changed=$(git diff --name-only "$base".."$local_sha" 2>/dev/null)
+      for f in $changed; do
+        for w in $FLOW_WATCHED; do
+          [ "$f" = "$w" ] && flow_touched="$flow_touched $f"
+        done
+      done
+      ;;
   esac
 done
 [ "$pushes_master" = "1" ] || exit 0
@@ -50,19 +76,50 @@ if [ "$dow" = "bad" ]; then
 fi
 
 # Freeze window: Mon(1)-Fri(5), 9:15 AM (555) through 4:19 PM (979) ET.
+in_freeze=0
 if [ "$dow" -ge 1 ] && [ "$dow" -le 5 ] && [ "$mins" -ge 555 ] && [ "$mins" -lt 980 ]; then
-  cat >&2 <<'MSG'
+  in_freeze=1
+fi
+[ "$in_freeze" = "1" ] || exit 0
+
+# --- Inside the freeze window from here ---
+
+# A flow-worker-touching push needs BOTH overrides: a mid-session flow-worker
+# swap permanently gaps the OPRA tape, so the generic web override is not enough.
+if [ -n "$flow_touched" ] && [ "$UCT_FLOW_OVERRIDE" != "1" ]; then
+  cat >&2 <<MSG
+[uct pre-push] BLOCKED: this push touches flow-worker WATCHED files during
+market hours (Mon-Fri 9:15 AM - 4:20 PM ET):
+ $flow_touched
+
+  A flow-worker redeploy drops the live Massive OPRA options tape for minutes
+  and the gap is PERMANENT until the overnight T+1 flat file. 2026-07-16:
+  eight mid-session deploys cost ~13,900 prints and corrupted the day's flow
+  data for live members and the side-classification work.
+
+  -> Keep committing locally; push after 4:20 PM ET.
+  -> TRUE emergency on the flow path itself (feed already dead, fix in hand):
+       UCT_PUSH_OVERRIDE=1 UCT_FLOW_OVERRIDE=1 git push ...
+MSG
+  exit 1
+fi
+
+if [ "$UCT_PUSH_OVERRIDE" = "1" ]; then
+  echo "[uct pre-push] override accepted (UCT_PUSH_OVERRIDE=1) — pushing during freeze window." >&2
+  echo "[uct pre-push] REMINDER: overrides are for genuine emergencies only (2026-07-16 lesson)." >&2
+  exit 0
+fi
+
+cat >&2 <<'MSG'
 [uct pre-push] BLOCKED: push to master during market hours (Mon-Fri 9:15 AM - 4:20 PM ET).
 
   Every master push swaps the Railway web container: /api/* drops for minutes
-  and the Massive OPRA options tape gaps PERMANENTLY (no replay until the T+1
-  flat file). The 2026-07-13 morning deploy storm caused member-facing 500s
-  and three tape gaps exactly this way.
+  for live members. The 2026-07-13 morning deploy storm caused member-facing
+  500s and three tape gaps; 2026-07-16's override misuse cost eight more.
 
   -> Keep committing locally; batch the push until after 4:20 PM ET.
   -> Genuine emergency (site down, worse than a swap):
        UCT_PUSH_OVERRIDE=1 git push ...
+     (if your diff touches flow files you will also need UCT_FLOW_OVERRIDE=1)
 MSG
-  exit 1
-fi
-exit 0
+exit 1

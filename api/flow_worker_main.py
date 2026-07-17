@@ -2,13 +2,21 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
-DEPLOY NOTE (2026-07-16): the flow-worker service watches ONLY
-api/{massive_ws_worker,massive_processor,flow_db,bs_iv,flow_worker_main}.py +
-railway.json — a `railway up` whose diff touches none of those is SKIPPED
-("No changes to watched files"). Changes to other flow modules (e.g.
-flow_gap_autofill / flow_heal_enrich) must touch a watched file to ship;
-this note's edit history doubles as that trigger.
-(touch: 2026-07-16 — carry the explicit-ET cron-timezone pins, cdc4a158.)
+DEPLOY NOTE (2026-07-17): the flow-worker service is GitHub-triggered on NARROW
+watch paths set in the Railway service settings (never railway.json — that file
+is shared by all three services): api/{massive_ws_worker,massive_processor,
+flow_db,bs_iv,flow_worker_main,live_massive_router,flow_router,worker_main,
+flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,
+oi_snapshots,massive_stream,flow_tape_spool,flow_backup,dealer_positioning}.py
++ railway.json + requirements.txt. Keep tools/git-hooks/pre-push's FLOW_WATCHED
+list in sync. Until 2026-07-17 the patterns were effectively api/** — ANY web
+push bounced the OPRA consumer mid-session (8 deploys / ~13.9k lost prints on
+2026-07-16 alone); that is fixed at the source now. A push touching none of the
+watched files is SKIPPED ("No changes to watched files"); a change to any other
+flow module must touch a watched file (this note's edit history doubles as that
+trigger). Flow-worker-touching pushes ship strictly outside Mon-Fri 9:15-16:20 ET
+(pre-push hook enforces; UCT_FLOW_OVERRIDE=1 required on top of UCT_PUSH_OVERRIDE
+for a true mid-session flow emergency).
 
 A THIRD Railway service — separate from `web` and the bars `worker` — that runs
 ONLY the Massive OPRA consumer + the flow read/upload routers, owning flow.db on
@@ -35,6 +43,7 @@ MASSIVE_WS_DRY_RUN=0, FLOW_PROXY_TRUST=1 (trust web's vouched auth), PUSH_SECRET
 import os
 import asyncio
 import threading
+import time
 import logging
 from contextlib import asynccontextmanager
 
@@ -43,6 +52,24 @@ import uvicorn
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(name)s] %(message)s")
+
+# Crash forensics (2026-07-17: three in-place CRASHes — 9:34/10:14/10:26 ET —
+# left NO trace in logs). faulthandler catches C-level deaths (segfault/abort);
+# threading.excepthook catches uncaught exceptions in worker threads, which
+# otherwise print bare to a stderr that Railway's rate limiter was dropping.
+import faulthandler
+faulthandler.enable()
+
+
+def _thread_excepthook(args):
+    logging.getLogger("flow-worker").critical(
+        "UNCAUGHT EXCEPTION in thread %s",
+        getattr(args.thread, "name", "?"),
+        exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+    )
+
+
+threading.excepthook = _thread_excepthook
 for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
                "websockets.protocol", "asyncio", "uvicorn.access"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
@@ -112,8 +139,12 @@ def _build_app() -> FastAPI:
         return _health()
 
     # Mount every flow.db / consumer-state router (reuses the reviewed mounter).
-    from api.worker_main import _mount_flow_routers
-    _mount_flow_routers(app)
+    # Dedicated module (2026-07-17) — NOT worker_main.py: importing the mounter
+    # from the shared bars-worker entry made a pure-charts change to that file
+    # restart the OPRA consumer mid-session. flow_router_mount.py is a
+    # flow-worker-only dependency in the watch paths; worker_main.py is dropped.
+    from api.flow_router_mount import mount_flow_routers
+    mount_flow_routers(app)
 
     # Thread stack-dump diagnostics (7/14 incident: "which line is the hot
     # thread on" took an hour to infer from /proc; this answers it in one call).
@@ -122,7 +153,39 @@ def _build_app() -> FastAPI:
     return app
 
 
+def _ensure_flow_indexes():
+    """One-time (IF NOT EXISTS) index for the writer's OI stage-2 fallback.
+
+    2026-07-17 write-profile: that stage probed flow with
+    WHERE Symbol/CallPut/Strike/ExpirationDate ORDER BY id DESC per event —
+    with no matching composite index a MISS scanned the whole table, and it
+    was 86.7s of an 88.7s batch. Build takes seconds once at boot; probes
+    become index seeks forever after.
+    """
+    try:
+        import sqlite3
+        from api.flow_db import FlowDB
+        t0 = time.time()
+        with sqlite3.connect(FlowDB().db_path, timeout=60) as conn:
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_flow_contract "
+                "ON flow(Symbol, CallPut, Strike, ExpirationDate)")
+            # Day-scoped index for the cumvol GROUP BY — created here so the
+            # INDEXED BY hint in _load_cumulative_volume is guaranteed to
+            # resolve (idx_flow_contract's shape otherwise seduces the planner
+            # into scanning full symbol histories — the 11-98s/batch regression
+            # seen the moment idx_flow_contract appeared on 7/17).
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_flow_created_symbol "
+                "ON flow(CreatedDate, Symbol)")
+        log.info("flow.db idx_flow_contract + idx_flow_created_symbol "
+                 "ensured in %.1fs", time.time() - t0)
+    except Exception as e:  # noqa: BLE001
+        log.warning("idx_flow_contract create failed (non-fatal): %s", e)
+
+
 def _start_consumer():
+    _ensure_flow_indexes()
     try:
         from api.massive_ws_worker import start as _ws_start
         log.info("starting Massive OPRA consumer")

@@ -91,6 +91,15 @@ def _start_prewarmer():
     threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
 
 
+def _start_deep_history_warm():
+    """One-time deep D/W/M history warm for the whole universe (flag-gated,
+    worker-only). Runs in its own daemon thread so it never blocks boot; no-ops
+    unless DEEP_HISTORY_WARM_ENABLED=1 and the done-marker is absent."""
+    from api.services.deep_history_warm import deep_warm_history_once
+    log.info("starting deep-history-warm thread")
+    threading.Thread(target=deep_warm_history_once, daemon=True, name="deep-warm").start()
+
+
 def _start_massive_ws():
     """Start the Massive WebSocket flow consumer thread.
 
@@ -419,60 +428,17 @@ def _build_app() -> FastAPI:
     # UNCHANGED until cutover (honors "nothing slow before uvicorn"). /api/live
     # (Bullflow) is intentionally NOT mounted here — that consumer stays on web.
     if os.environ.get("WORKER_SERVES_FLOW", "0") == "1":
-        _mount_flow_routers(app)
+        from api.flow_router_mount import mount_flow_routers
+        mount_flow_routers(app)
 
     return app
 
 
-def _mount_flow_routers(app) -> None:
-    """Include every flow.db / OPRA-consumer-state router on the worker.
-
-    Mirrors the web registrations exactly (same prefixes) so a request proxied
-    to `http://<worker>.railway.internal:$PORT/api/flow/...` resolves the same
-    way it did on web. Import failures are logged but non-fatal so a single bad
-    router can't stop the worker from booting + serving /api/health.
-    """
-    def _try(desc, fn):
-        try:
-            fn()
-        except Exception as e:  # noqa: BLE001
-            logging.getLogger("uvicorn.error").warning(
-                "[worker-flow] failed to mount %s: %s", desc, e)
-
-    # CORRECTED set (P5 review): only flow.db-backed / OPRA-consumer-state
-    # routers. top-flow/flow-scoreboard (top_flow_picks.json), darkpool
-    # (darkpool.db), and flow-explain (flow_explain.db + per-user auth) have
-    # web-local backing stores -> they stay on WEB, are NOT mounted here.
-    # Each mounted independently so one bad import degrades only that endpoint,
-    # not the whole flow family.
-    _MOUNTS = (
-        ("flow_router", "api.flow_router", "flow_router"),
-        ("flow_summary", "api.flow_summary", "flow_summary_router"),
-        ("oi_snapshot", "api.oi_snapshot_router", "router"),
-        ("notable_flow", "api.notable_flow_router", "router"),
-        ("liveflow_health", "api.routers.liveflow_health", "router"),
-        ("live_massive", "api.live_massive_router", "router"),
-        ("dealer_positioning", "api.dealer_positioning_router", "router"),
-        ("flow_reconcile", "api.flow_reconcile_router", "router"),
-        # Instant-tape SSE (P5 cutover): the proxy forwards
-        # /api/live/massive/stream here — flow.db + its tailer live on this
-        # pod now. Route self-gates (503 enabled:false) unless
-        # MASSIVE_STREAM_ENABLED=1, so it is inert on the bars worker.
-        ("massive_stream", "api.routers.massive_stream_router", "router"),
-    )
-    for _desc, _mod, _attr in _MOUNTS:
-        _try(_desc, lambda m=_mod, a=_attr: app.include_router(
-            getattr(__import__(m, fromlist=[a]), a)))
-
-    if os.environ.get("FLOW_GAP_AUTOFILL_ENABLED", "0") == "1":
-        _try("flow_gap_autofill_router", lambda: app.include_router(
-            __import__("api.flow_gap_autofill", fromlist=["router"]).router))
-    if os.environ.get("FLOW_BACKUP_ENABLED", "0") == "1":
-        _try("flow_backup_router", lambda: app.include_router(
-            __import__("api.flow_backup", fromlist=["router"]).router))
-
-    logging.getLogger("uvicorn.error").info(
-        "[worker-flow] WORKER_SERVES_FLOW=1 -> flow routers mounted on worker")
+# _mount_flow_routers moved to api/flow_router_mount.py (2026-07-17) so
+# flow_worker_main.py imports the mounter from a flow-worker-only file instead
+# of this shared bars-worker entry point (which was causing false mid-session
+# flow-worker redeploys). Thin re-export kept for any external caller.
+from api.flow_router_mount import mount_flow_routers as _mount_flow_routers  # noqa: E402,F401
 
 
 def main():
@@ -521,6 +487,7 @@ def main():
     ).start()
 
     _start_prewarmer()
+    _start_deep_history_warm()
     _start_massive_ws()
     _start_keepwarm()
     # Live-flow outage monitor + daily scorecard (deploy-survival P3).

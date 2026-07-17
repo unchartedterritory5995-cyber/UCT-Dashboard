@@ -1,0 +1,228 @@
+/* Multi-Chart grid mode — fixed N×M CSS grid inside .workspaceBody.
+   minmax(0,1fr) tracks + overflow:hidden at EVERY level are load-bearing:
+   StockChart's .wrapper carries min-height:200px, and an unclipped bleed
+   re-triggers the ancestor-scrollbar → autoSize width-shake loop (see the
+   .chartFill comment in ChartsWorkspace.module.css). No transforms anywhere —
+   translate() positioning blurs canvases under fractional Windows display
+   scaling (why the workspace passes useCSSTransforms={false} to RGL). */
+
+.gridBody {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  overflow: hidden;
+  position: relative;   /* anchor for a maximized cell's inset:0 overlay */
+}
+
+/* Maximize: promote one cell over the whole grid body (no remount — its chart
+   just autoSizes up). The others are hidden behind it. */
+.cellMaximized {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+}
+.cellHiddenBehindMax {
+  visibility: hidden;
+}
+
+/* Right-corner control group (gear + maximize). One margin-left:auto on the
+   WRAPPER pins the pair to the far right; inside it the gear's own
+   margin-left:auto is inert (no free space), so they stay adjacent — fixes the
+   two-auto split that floated the maximize button mid-header when expanded. */
+.cellHeaderRight {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* Small header icon button (maximize/restore) — matches the gear's look. */
+.cellIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+.cellIconBtn:hover {
+  color: var(--ut-gold, #c9a84c);
+  border-color: var(--border, #2e3127);
+  background: rgba(201, 168, 76, 0.08);
+}
+
+/* Container-owned wrapper: the grid item. Carries the active-cell class so
+   activeIdx changes reconcile ONLY this div — the memo'd cell inside never
+   re-renders on a mouse sweep. */
+.cellOuter {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-surface, #0d1117);
+  border: 1px solid var(--border, #2a3340);
+  border-radius: var(--radius-md, 6px);
+  /* Query container so the header's meta + session blocks can collapse by CELL
+     width (not viewport) — dense grids (3x3/4x4) get just name + TF bar + gear;
+     roomy grids (2x2) get the full primary-chart header. inline-size only, so
+     the flex/min-height chain that LWC autoSize depends on is unaffected. */
+  container-type: inline-size;
+}
+
+/* Active-cell affordance: hotkeys go to the hovered/focused cell.
+   :focus-within (not :focus-visible) — focus lands on the inner chart wrapper
+   or the open search input, never on the cell root itself. */
+.cellActive > .cell {
+  border-color: var(--ut-gold, #c9a84c);
+}
+.cell:focus-within {
+  border-color: var(--ut-gold, #c9a84c);
+  box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.35);
+}
+
+/* Per-cell chart Style select — a compact grid extra in the top header row
+   (the primary chart puts chart type in the gear modal, but that's global; the
+   per-cell override needs its own control). Sits between the day gain and the
+   gear; the gear's margin-left:auto pushes itself to the far right. */
+.cellStyleSelect {
+  background: transparent;
+  color: var(--text-muted, #9aa4b2);
+  border: 1px solid var(--border, #2a3340);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 4px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.cellStyleSelect:hover { color: var(--text-bright, #e5e9f0); }
+.cellStyleSelect option { background: var(--bg-elevated, #12171f); }
+
+/* Header collapse for narrow/dense cells (queried against the CELL width via
+   the container-type above). Only the session toggle + clock collapse — they're
+   the widest, least-essential controls. The Market Cap / Next Earnings / UCT
+   Rating meta ALWAYS shows (owner request): the tfBar's flex-wrap lets it drop
+   onto its own line in tight cells (e.g. 4x4) rather than overflow, so every
+   cell carries the full informational header the primary chart has. */
+@container (max-width: 700px) {
+  .gridSession { display: none; }
+}
+
+.cellChart {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;   /* clips StockChart's 200px min-height on short cells */
+  outline: none;
+}
+
+.cellEmpty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #6b7280);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cellEmpty:hover { color: var(--ut-gold, #c9a84c); }
+.cellEmptyPlus {
+  font-size: 26px;
+  line-height: 1;
+  border: 1px dashed var(--border, #2a3340);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cellEmpty:hover .cellEmptyPlus { border-color: var(--ut-gold, #c9a84c); }
+
+/* Skeleton slot: queued cells awaiting their mount-queue turn. */
+.cellSkeleton {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, #6b7280);
+  font-size: 12px;
+}
+
+/* Custom N×M form row inside the Multi Charts dropdown. */
+.nxmForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+.nxmInput {
+  width: 44px;
+  background: var(--bg-surface, #0d1117);
+  border: 1px solid var(--border, #2a3340);
+  border-radius: 4px;
+  color: var(--text-bright, #e5e9f0);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+  text-align: center;
+}
+.nxmX { color: var(--text-muted, #6b7280); font-size: 11px; }
+
+/* Mini grid-shape icon for preset rows. */
+.layoutIcon {
+  display: inline-grid;
+  gap: 1.5px;
+  margin-right: 8px;
+  flex: 0 0 auto;
+}
+.layoutIconCell {
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  opacity: 0.55;
+  border-radius: 1px;
+}
+
+/* Phone (≤640px): grid mode renders as a vertically stacked list. */
+@media (max-width: 640px) {
+  .gridBody {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    gap: 8px;
+  }
+  .cellOuter {
+    flex: 0 0 auto;
+    height: 45vh;
+    min-height: 260px;
+  }
+}

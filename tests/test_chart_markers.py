@@ -79,6 +79,61 @@ class TestGetChartMarkersSuccess:
         assert "date" in d0
 
 
+class TestGetChartMarkersRevenue:
+    """FMP stable/earnings is primary: each marker carries EPS + revenue so the
+    click-popup can show both. Finnhub is the EPS-only fallback."""
+    def setup_method(self):
+        _fresh_cache("MU")
+
+    def test_fmp_primary_attaches_revenue_and_dedups_by_date(self):
+        today = _today()
+        d_recent = (today - timedelta(days=20)).isoformat()
+        fmp_rows = [
+            {"date": d_recent, "epsActual": 12.20, "epsEstimated": 9.186,
+             "revenueActual": 23_860_000_000, "revenueEstimated": 19_970_000_000},
+            # duplicate report date, no estimate → the estimate-bearing row wins
+            {"date": d_recent, "epsActual": 12.20, "epsEstimated": None,
+             "revenueActual": 23_860_000_000, "revenueEstimated": None},
+            # an upcoming quarter (nothing reported) → skipped
+            {"date": (today + timedelta(days=40)).isoformat(),
+             "epsActual": None, "epsEstimated": 1.0, "revenueActual": None, "revenueEstimated": None},
+        ]
+
+        def fake_fmp_get(path, params, timeout=10):
+            return fmp_rows if path == "/stable/earnings" else None
+
+        with patch.object(earnings_estimates, "_fmp_get", side_effect=fake_fmp_get), \
+             patch.object(earnings_estimates, "_fh_get", return_value=None):
+            result = earnings_estimates.get_chart_markers("MU")
+
+        assert len(result["earnings"]) == 1              # deduped, upcoming dropped
+        e = result["earnings"][0]
+        assert e["beat"] is True
+        assert e["eps_actual"] == 12.20 and e["eps_estimate"] == 9.186
+        assert e["eps_surprise_pct"] == 32.8             # (12.20-9.186)/9.186*100
+        assert e["revenue_actual"] == 23_860_000_000
+        assert e["revenue_estimate"] == 19_970_000_000
+        assert e["revenue_surprise_pct"] == 19.5         # (23.86-19.97)/19.97*100
+
+    def test_finnhub_fallback_when_fmp_empty_has_null_revenue(self):
+        today = _today()
+        eps_payload = [{"period": (today - timedelta(days=10)).isoformat(),
+                        "actual": 2.0, "estimate": 1.8, "surprisePercent": 11.1}]
+
+        def fake_fh_get(path, params):
+            return eps_payload if path == "/stock/earnings" else None
+
+        with patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get):
+            result = earnings_estimates.get_chart_markers("MU")
+
+        assert len(result["earnings"]) == 1
+        e = result["earnings"][0]
+        assert e["eps_actual"] == 2.0
+        assert e["revenue_actual"] is None               # Finnhub has no revenue
+        assert e["revenue_surprise_pct"] is None
+
+
 class TestGetChartMarkersResilience:
     def setup_method(self):
         _fresh_cache("FAILMIX")

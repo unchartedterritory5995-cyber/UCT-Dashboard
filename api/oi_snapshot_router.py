@@ -523,6 +523,11 @@ def backfill_flow_oi_for_date(
 
     db = FlowDB()
     with sqlite3.connect(db.db_path, timeout=30) as conn:
+        try:
+            from api.oi_snapshots import attach_oi_snapshots
+            attach_oi_snapshots(conn)
+        except Exception:
+            pass
         # 1) Symbols with empty-OI rows on this date — bounds the snapshot scan.
         sym_rows = conn.execute(
             "SELECT DISTINCT Symbol FROM flow "

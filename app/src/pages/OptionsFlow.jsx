@@ -2307,9 +2307,18 @@ export default function OptionsFlowDashboard() {
   // triggers a full refetch — which is what reloaded 100k+ trades on every bump
   // and crashed 60-day tabs with Out-of-Memory. dataVersion still drives the
   // delta below, so it's not orphaned.
-  const csvFile = dataMode === "index"
-    ? (fetchDays === 0 ? "/api/flow/indexes-data?all_data=true" : `/api/flow/indexes-data?days=${fetchDays}`)
-    : (fetchDays === 0 ? "/api/flow/data?all_data=true" : `/api/flow/data?days=${fetchDays}`);
+  // 2026-07-17: a calendar range asks the SERVER for exactly those dates.
+  // Previously the calendar set fetchDays=0 -> all_data=true, which is capped
+  // UNCONDITIONALLY (top FLOW_CSV_CAP_ROWS by premium across every day in the
+  // DB, regardless of FLOW_CSV_CAP_DAYS). The client then filtered that 50K
+  // down to the picked day, so a single historical date rendered its ~0.4%
+  // share of history: 7/16 showed 511 trades of 128,525 actually in flow.db.
+  // With date_from/date_to the server scopes the query and caps on the RANGE's
+  // own length, so a one-day pick streams that day whole.
+  const _base = dataMode === "index" ? "/api/flow/indexes-data" : "/api/flow/data";
+  const csvFile = (dateFrom && dateTo)
+    ? `${_base}?date_from=${dateFrom}&date_to=${dateTo}`
+    : (fetchDays === 0 ? `${_base}?all_data=true` : `${_base}?days=${fetchDays}`);
 
   // Extract unique dates from parsed rows
   const availableDates = useMemo(() => {
@@ -8416,6 +8425,30 @@ export default function OptionsFlowDashboard() {
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction{searchDte!=="All"?" ("+({ST:"0–59d",LT:"60–179d",LEAPS:"180+d"})[searchDte]+")":""}</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
                       <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{ccTrades.length} directional trades</div>
+                      {/* Date scope (2026-07-17). /api/flow/ticker returns a
+                          symbol's flow across EVERY date; the client scopes it
+                          to availableDates, which follows the FETCHED range,
+                          not the rail's highlighted preset. Those diverge:
+                          once fetchDays hits 0 ("All"), needsFetch is false for
+                          every preset, so clicking 1d relabels the rail while
+                          parsedRows still holds all 133 days — and Search shows
+                          a ticker's whole history under a "1d" badge. FRMI read
+                          $34.2M / 557 trades across 91 days when the day itself
+                          was $200K / 6. The totals were never wrong; nothing
+                          said what they covered. */}
+                      {(() => {
+                        const ds = [...new Set(ccTrades.map(t => t.Dt).filter(Boolean))];
+                        if (!ds.length) return null;
+                        const key = s => { const p = String(s).split("/"); return (parseInt(p[0])||0)*100 + (parseInt(p[1])||0); };
+                        ds.sort((a,b) => key(a) - key(b));
+                        const multi = ds.length > 1;
+                        return (
+                          <div style={{ fontSize:9, color:multi?P.ac:P.dm, marginTop:3, fontWeight:multi?700:400 }}
+                               title={multi ? "Search shows this ticker's full flow across every loaded date — not just the selected day." : "Single trading day."}>
+                            {multi ? `across ${ds.length} trading days · ${ds[0]} – ${ds[ds.length-1]}` : `${ds[0]} only`}
+                          </div>
+                        );
+                      })()}
                       {/* Still-open net direction — shows if the net read
                           flips once you account for closures. */}
                       {stillOpenComputable && (

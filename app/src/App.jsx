@@ -61,7 +61,6 @@ const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPag
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
 const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trade/TradeDetailPage'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
-const MultiChart = lazy(() => import('./pages/MultiChart'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const ChartsWorkspace = lazy(() => import('./pages/charts/ChartsWorkspace'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))

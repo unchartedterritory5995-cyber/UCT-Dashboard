@@ -4057,6 +4057,13 @@ async def enrich_oi(
 
     try:
         with sqlite3.connect(DB_PATH, timeout=10) as conn:
+            # contract_oi_snapshots moved to its own DB (2026-07-17) — attach so
+            # the OI-enrich queries below resolve it.
+            try:
+                from api.oi_snapshots import attach_oi_snapshots
+                attach_oi_snapshots(conn)
+            except Exception:
+                pass
             # ── Step 1: Detect stored key format from a small probe set.
             # Reuses confirmation-map's proven approach — try up to 20 probe
             # contracts, use the first variant that hits, then commit to that

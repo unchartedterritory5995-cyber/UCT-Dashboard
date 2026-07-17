@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import useSWR from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, ColorType, LineType } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
-import { mergeChartSettings } from './chart/chartDefaults'
+import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
@@ -19,6 +19,8 @@ import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/s
 import useMarketOpen from '../hooks/useMarketOpen'
 import { getExtSession, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
+import EarningsMarkerPopover from './chart/EarningsMarkerPopover'
+import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
@@ -54,6 +56,24 @@ const DEFAULT_VISIBLE_BARS = {
   'M': 36,    // ~3 years of monthly bars
 }
 
+// Decide whether a captured visible range still DESCRIBES THE OLD DATA EXTENT
+// (safe to re-anchor bars-from-right against the old count) or was ALREADY
+// re-mapped by LWC to the new extent during setData (re-anchoring against the
+// stale old count would extrapolate the view thousands of bars off the data —
+// the blank multi-chart cells on series-length swaps). Any range whose right
+// edge sits within the old extent's plausible window — which includes EVERY
+// scrolled-back position — is treated as old, so scrolled-back users always
+// keep the bars-from-right re-anchor. Only a range that is impossible for the
+// old extent AND hugs the new extent's right edge is trusted as re-mapped;
+// anything else falls back to the re-anchor (whose validity guard drops
+// out-of-range results safely).
+function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
+  if (!oldRange) return false
+  if (oldRange.to <= oldCount + 8) return true
+  const padNew = newCount - oldRange.to
+  return !(padNew >= -8 && padNew <= 8)
+}
+
 // The canonical default-zoom visible logical range: the newest candle anchored at
 // a CONSTANT fraction (LAST_CANDLE_POS) of the plot width, showing the timeframe's
 // default history. Shared by the initial framing, the snap-back safety guard, and
@@ -73,7 +93,8 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { resample } from '../utils/resampleBars'
+import { resample, resampleForSpec } from '../utils/resampleBars'
+import { isNativeTf, fetchTf, resampleSpec } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
@@ -802,6 +823,7 @@ export default function StockChart({
   hideWatermark = false,      // force the symbol watermark OFF regardless of settings (intraday popup)
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
+  legendColor = null,         // workspace: override the base OHLCV legend text color (time + O/H/L/C/V). null = CSS default. Change%/overlay/indicator colors keep their own (semantic) colors.
   hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
   dragMeasure = false,        // Charts workspace: plain left-drag draws a transient measure line + % / bars / time readout (TC2000-style) instead of panning. Cursor mode only; mouse only.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
@@ -817,7 +839,10 @@ export default function StockChart({
   onVolumePaneResize = null,  // (pct) => void — fired when the user drags the price/volume separator, so the caller can persist the new height
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
+  backgroundWarm = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
+  onBarsReady = null,       // optional () => void — fired at most once per mount, when the chart first has renderable bars OR reaches fatal error (first loading=false). The grid mount queue uses it to release a concurrency slot.
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
+  hotkeysActive = true,     // boolean | () => boolean — gates this instance's document-level keydown shortcuts at dispatch time (read via latest-ref: neither form re-subscribes, the callback form never re-renders). Multi-chart surfaces pass a callback reading the container's active-cell ref so one keypress doesn't retime every mounted chart. Absent/true = today's always-active behavior.
   onOpenSettings = null,    // optional () => void — when set, the "Chart settings" context-menu item opens THIS instead of the old toolbar panel (charts workspace uses the new centered modal)
   compareSymbol = null,     // optional secondary symbol for % return comparison overlay
   onCompareChange = null,   // callback(sym) — parent manages compareSymbol state
@@ -828,6 +853,9 @@ export default function StockChart({
   externalTimeRange = null, // {from, to} | null — apply external time range from sync context
   hideReplay = false,       // hide the Replay / Time Machine button
   hidePatterns = false,     // hide the pattern-recognition toggle button
+  disablePatterns = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
+  showSavedDrawings = false, // render the user's saved per-symbol drawings as a READ-ONLY layer when the drawing tools are off (multi-chart grid cells: a member's trendlines must not vanish there). Inert when showDrawingTools is on — the editable overlay already renders them.
+  settingsOverride = null,  // optional PARTIAL chart_settings blob merged over the user's global settings for THIS instance only (multi-chart grid: per-cell chart type). Precedence defaults < global < override; overridden keys are restored from the un-overridden base before any settings write persists, so an override can never leak into the global blob. MUST be identity-stable (useMemo) — it's a memo dep.
   hideCompare = false,      // hide both compare-symbol entry points (text input + popover)
   hideCountdown = false,    // hide the intraday bar-close countdown badge
   // ── Animated "focus a setup" zoom (Model Book) ──
@@ -899,7 +927,11 @@ export default function StockChart({
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
 
   // ── Chart settings from user preferences ──
-  const cs = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
+  const csBase = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
+  const cs = useMemo(
+    () => (settingsOverride ? mergeSettingsOverride(csBase, settingsOverride) : csBase),
+    [csBase, settingsOverride],
+  )
   // Effective candle/volume up-green: darkened for the Sunrise light theme so it
   // stands out on the bright canvas; on the Charts workspace (userCandleColors) it
   // comes from the user's saved candle color so the settings pickers actually paint;
@@ -1158,22 +1190,8 @@ export default function StockChart({
     const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
     if (!markersData || !isDailyWeekly) return []
     const eventMarkers = []
-    if (cs.markers?.earnings && Array.isArray(markersData.earnings)) {
-      for (const e of markersData.earnings) {
-        if (!e.date) continue
-        const surpTxt = (e.surprise != null && Number.isFinite(+e.surprise))
-          ? ` ${(+e.surprise >= 0 ? '+' : '')}${(+e.surprise).toFixed(1)}%`
-          : ''
-        eventMarkers.push({
-          time: e.date,
-          position: 'belowBar',
-          color: e.beat === true ? '#4ade80' : e.beat === false ? '#f87171' : '#94a3b8',
-          shape: e.beat === true ? 'arrowUp' : e.beat === false ? 'arrowDown' : 'circle',
-          text: `E${surpTxt}`,
-          size: 1,
-        })
-      }
-    }
+    // Earnings are NOT LWC markers anymore — they're drawn as a slick "E" badge by
+    // earningsBadgePrimitive (see earningsEvents below). Splits/dividends stay LWC.
     if (cs.markers?.splits && Array.isArray(markersData.splits)) {
       for (const s of markersData.splits) {
         if (!s.date) continue
@@ -1204,6 +1222,10 @@ export default function StockChart({
     }
     return eventMarkers
   }, [markersData, cs.markers, resolvedTf])
+
+  // { data, x, y } while an earnings popover is open (null = closed).
+  // (earningsEvents itself is derived AFTER filteredBars is declared — see below.)
+  const [earningsPopup, setEarningsPopup] = useState(null)
 
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
@@ -1259,6 +1281,8 @@ export default function StockChart({
   const sessionShadeAttachedRef = useRef(false)
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
   const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
+  const earnBadgeRef = useRef(null)       // earnings "E" badge series primitive controller
+  const earnBadgeAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const tickerMeta = useTickerMeta(sym)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
   //  1. No curated name → use live ticker meta, but let a curated sector/industry
@@ -1375,6 +1399,8 @@ export default function StockChart({
   const lastPriceLinesRef = useRef(undefined)
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
   const volMaSeriesRef = useRef(null)  // 50-MA line on the volume pane
+  const volMaDataRef = useRef([])      // latest volMaData (avg-volume series) for the crosshair legend
+  const volLegendRef = useRef(null)    // volume-pane top-left legend ($ vol + avg vol) — positioned live
   // Volume-pane height % last APPLIED via setStretchFactor. Gate re-applies on it
   // so a 30s data poll can't reset the pane and fight a user's separator drag; the
   // drag sampler compares the live pane % against it to detect a user resize.
@@ -1388,6 +1414,12 @@ export default function StockChart({
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
   const lastCfgSigRef = useRef(null) // A2: render-config signature at last paint — an incremental (last-bar-only) update is only safe when the config is byte-identical to the last paint
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
+  // A2: the bars actually PAINTED at the last setData (i.e. displayBars, which carries
+  // the session-preview candle). Distinct from prevBarsRef (pure regular-session bars):
+  // the no-op/incremental render plan must be measured against what's on screen, or a
+  // change that lives only on the display path — the pre/post-market preview candle —
+  // is read as "nothing changed" and never paints. See the plan comment in updateChart.
+  const prevPaintBarsRef = useRef(null)
   // True only while a Ctrl+drag measure is in progress — every handleScroll site
   // reads it so a data-poll re-applyOptions can't unlock the chart mid-measure.
   const measureLockRef = useRef(false)
@@ -1535,9 +1567,13 @@ export default function StockChart({
       const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
       return { label: `${ov.type} ${ov.period}`, value: pt.value, color }
     }).filter(Boolean)
+    const vma = volMaDataRef.current
     return {
       time: last.t, open: o, high: h, low: l, close: c, volume: vol,
       change: change.toFixed(2), changePct: changePct.toFixed(2),
+      dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
+      volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
+      volMaPeriod: volumeMa || null,
       overlays, rsi: null, macd: null, macdSig: null, stochK: null, stochD: null,
       atr: null, sar: null, ichimokuTenkan: null, ichimokuKijun: null, compare: null,
     }
@@ -1593,8 +1629,24 @@ export default function StockChart({
     try { localStorage.setItem('uct-draw-repeat', val ? 'true' : 'false') } catch {}
   }, [])
   const handleUpdateChartSettings = useCallback((newSettings) => {
-    setPref('chart_settings', JSON.stringify(newSettings))
-  }, [setPref])
+    // Every settings write site spreads {...cs}, which carries any per-instance
+    // settingsOverride — restore overridden top-level keys from the
+    // un-overridden base so an override never leaks into the GLOBAL blob.
+    // Restore ONLY keys the write carried through unchanged (Object.is vs cs):
+    // a key the user deliberately edited differs from cs and must persist —
+    // blanket-restoring would silently drop their global edit. Section-object
+    // overrides would need sub-key diffing here; today's only override is the
+    // primitive per-cell chartType. (The watermark-drag commit builds from
+    // mergeChartSettings(prefs) directly and cannot leak — keep it that way.)
+    let persisted = newSettings
+    if (settingsOverride) {
+      persisted = { ...newSettings }
+      for (const k of Object.keys(settingsOverride)) {
+        if (k in csBase && Object.is(newSettings[k], cs[k])) persisted[k] = csBase[k]
+      }
+    }
+    setPref('chart_settings', JSON.stringify(persisted))
+  }, [setPref, settingsOverride, csBase, cs])
 
   // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
   // panel toggles, so both stay in lockstep (one logical state, two entry points).
@@ -1806,7 +1858,7 @@ export default function StockChart({
     handleUpdateChartSettings({ ...cs, showPatterns: next, preset: 'custom' })
   }, [cs, handleUpdateChartSettings])
   const [activeDetection, setActiveDetection] = useState(null)
-  const { detections: patternDetections } = usePatternDetections(sym, resolvedTf, showPatterns, 50)
+  const { detections: patternDetections } = usePatternDetections(sym, resolvedTf, showPatterns && !disablePatterns, 50)
 
   // ── Screenshot + Share state ──
   const [screenshotPopoverOpen, setScreenshotPopoverOpen] = useState(false)
@@ -2139,10 +2191,15 @@ export default function StockChart({
   // intermediate depth MUST also full-fetch or it would delta-fetch nothing. The
   // bar count grows and the existing same-ticker re-anchor holds the view steady.
   if (fetchDepth > FIRST_PAINT_BARS || _pinnedFull) _sinceParam = null
+  // Custom (non-native) timeframe → the native path fetches nothing; the isolated
+  // custom SWR below fetches the base + resamples. Declared here so swrUrl can defer.
+  const _isCustomTf = !!sym && !isNativeTf(resolvedTf)
+  const _customBaseTf = _isCustomTf ? fetchTf(resolvedTf) : null
+  const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf) : null), [_isCustomTf, resolvedTf])
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   const _hasOverride = _overrideArr || barsOverridePending
-  const swrUrl = _hasOverride
+  const swrUrl = (_hasOverride || _isCustomTf)
     ? null
     : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
         ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
@@ -2167,6 +2224,33 @@ export default function StockChart({
       onErrorRetry: barsSwrOnErrorRetry,
     }
   )
+
+  // ── Custom timeframe: fetch the NATIVE base, resample client-side ──
+  // (_isCustomTf / _customBaseTf / _customSpec are declared ABOVE the native SWR so
+  // it can null itself out for a custom TF; the fetch + resample happen here.)
+  const _customBaseIntraday = ['1', '5', '15', '30', '60'].includes(_customBaseTf)
+  // Pull a generous base window so the resampled series has enough bars to fill the view.
+  const _customBaseBars = _customBaseIntraday ? 5000 : 6000
+  const customSwrUrl = _isCustomTf
+    ? `/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&bars=${_customBaseBars}`
+    : null
+  const { data: customBaseData } = useSWR(customSwrUrl, fetcher, {
+    dedupingInterval: dedupMs,
+    revalidateOnFocus: false,
+    refreshInterval: _customBaseIntraday ? 30_000 : 300_000,
+    refreshWhenHidden: false,
+    onErrorRetry: barsSwrOnErrorRetry,
+  })
+  const customBars = useMemo(
+    () => (_isCustomTf && customBaseData?.bars?.length ? resampleForSpec(customBaseData.bars, _customSpec) : null),
+    [_isCustomTf, customBaseData, _customSpec],
+  )
+  // "Intraday-like": native intraday OR a custom TF resampled from an intraday base.
+  // Drives the RTH (extended-hours) filter + session shading so custom minute/hour
+  // charts hide pre/post market on Regular Hours and shade it on Extended — exactly
+  // like the native intraday codes. (The native single-writer live path stays gated
+  // on `isIntraday` alone; custom TFs get their own live writer below.)
+  const _intradayLike = isIntraday || (_isCustomTf && _customBaseIntraday)
 
   // ── Comparison symbol SWR fetch ──
   const compareSwrUrl = compareSymbol
@@ -2239,7 +2323,7 @@ export default function StockChart({
   // Order: fast / common TFs first (D, W, M, 60, 30) so most TF switches are
   // already instant by the time the slow intraday TFs (15, 5, 1) get fetched.
   useEffect(() => {
-    if (!sym) return
+    if (!sym || !backgroundWarm) return
     const ORDER = ['D', 'W', 'M', '60', '30', '15', '5', '1']
     const tfs   = ORDER.filter(t => t !== resolvedTf)
     let cancelled = false
@@ -2284,7 +2368,7 @@ export default function StockChart({
     runSequential()
 
     return () => { cancelled = true }
-  }, [sym])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sym, backgroundWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bars: IDB renders instantly; full SWR data replaces it when available.
   // BUT never paint a stale intraday IDB series — that's what fuses a
@@ -2323,7 +2407,9 @@ export default function StockChart({
     () => (_dailyForAgg ? resample(_dailyForAgg, 'D', resolvedTf) : null),
     [_dailyForAgg, resolvedTf],
   )
-  const bars = _overrideArr
+  const bars = _isCustomTf
+    ? customBars   // custom TF: the resampled base bars (null until the base loads)
+    : _overrideArr
     ? barsOverride
     : (barsOverridePending
         ? null  // override expected but not here yet → render nothing (spinner), don't fall back to provider data
@@ -2337,6 +2423,19 @@ export default function StockChart({
                         ? _memBars
                         : (_aggBars?.length ? _aggBars : null))))))
   const loading = !bars && !error
+  // First-bars latch: fire onBarsReady exactly once per mount, on the first
+  // render where loading settles false — renderable bars OR fatal error both
+  // count, so a dead ticker never starves the grid mount queue waiting on it.
+  // Latest-callback ref per the codebase's stale-closure convention.
+  const onBarsReadyRef = useRef(onBarsReady)
+  onBarsReadyRef.current = onBarsReady
+  const barsReadyFiredRef = useRef(false)
+  useEffect(() => {
+    if (!loading && !barsReadyFiredRef.current) {
+      barsReadyFiredRef.current = true
+      try { onBarsReadyRef.current?.() } catch {}
+    }
+  }, [loading])
   // Only surface the "Failed to load chart" overlay when we have NOTHING
   // to render. If IDB has cached bars (or the SWR data was already painted
   // before the error), keep showing them and let the 30s SWR refresh
@@ -2440,7 +2539,7 @@ export default function StockChart({
 
   // Filter bars to regular session only when extended hours hidden
   const sessionBars = useMemo(() => {
-    if (!bars || !isIntraday || showExtended) return bars
+    if (!bars || !_intradayLike || showExtended) return bars
 
     const getETMins = (t) => {
       const d = new Date(t * 1000)
@@ -2455,7 +2554,7 @@ export default function StockChart({
       // All intraday RTH: 9:30 AM (570 min) to 4:00 PM (960 min) ET
       return mins >= 570 && mins < 960
     })
-  }, [bars, isIntraday, showExtended, resolvedTf])
+  }, [bars, _intradayLike, showExtended, resolvedTf])
 
   // ── Replay / Time Machine state ──
   const [replayMode, setReplayMode] = useState(false)
@@ -2494,11 +2593,8 @@ export default function StockChart({
   // toggle. Intraday has no synthetic session candle (that's D/W/M only); it just
   // gets the price-scale references, sourced straight from the live feed.
   const sessionTagsIntraday = sessionView != null && !_isDWM && _inExtWindow && !replayMode
-  // The pre-market "include pre-market" preview candle (the appended D/W/M bar) is
-  // painted a muted white so it reads as a not-yet-real preview of where the stock
-  // sits on pre-market prints; at 9:30 the toggle auto-reverts and the real
-  // red/green daily candle takes over.
-  const sessionPreviewLastBar = sessionCandleActive && marketSession === 'pre'
+  // (sessionPreviewLastBar — the muted-white preview paint — is derived below, once
+  // we know whether the session candle actually got applied to the bars.)
   // Writers A + D yield the D/W/M last bar to the memo-driven setData while owned.
   // Kept in a ref (read by the live-tick callbacks); updated in an effect so we
   // never write a ref during render. Effects run top-to-bottom, and the writer
@@ -2508,7 +2604,9 @@ export default function StockChart({
     sessionViewRef.current = sessionView
   }, [sessionCandleActive, sessionFreezeActive, sessionView])
   // Today's extended-hours aggregate (only fetched while the preview candle is on).
-  const sessionExtAgg = useSessionExtBars(sym, sessionCandleActive ? marketSession : null, sessionCandleActive, _extSess.anchorDate)
+  // `ready` gates the paint below — see the memo. Until this symbol's fetch lands we
+  // have only the live ext price, which is not enough to draw an honest candle.
+  const { agg: sessionExtAgg, ready: sessionExtReady } = useSessionExtBars(sym, sessionCandleActive ? marketSession : null, sessionCandleActive, _extSess.anchorDate)
 
   // Exact-range frame flips (Setup ⇄ Result) animate — see the exact-range pin
   // effect below. While the framed window SHRINKS (Result → Setup) keep slicing
@@ -2606,6 +2704,26 @@ export default function StockChart({
     })
   }, [exactDateRange, entryDate, exitDate, bars])
 
+  // Earnings events (daily/weekly only) with the reporting bar's LOW, so the badge
+  // primitive can hug just under the candle and click-matching has the dates. The
+  // date string maps 1:1 to a daily/weekly bar time (adjustTime is identity there).
+  // MUST live after filteredBars is declared (it reads it) — declaring it earlier
+  // hit filteredBars' temporal dead zone and crashed the whole chart (ReferenceError).
+  const earningsEvents = useMemo(() => {
+    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    if (!cs.markers?.earnings || !markersData?.earnings || !isDailyWeekly || !filteredBars?.length) return []
+    const lowByDate = new Map()
+    for (const b of filteredBars) lowByDate.set(String(b.t), +b.l)
+    const out = []
+    for (const e of markersData.earnings) {
+      if (!e.date) continue
+      const low = lowByDate.get(String(e.date))
+      if (!Number.isFinite(low)) continue   // no matching bar (e.g. outside the loaded range)
+      out.push({ date: e.date, low, beat: e.beat, data: e })
+    }
+    return out
+  }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
+
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
     if (!filteredBars?.length) return null
@@ -2622,8 +2740,16 @@ export default function StockChart({
   // of truth. Covers timeframes, drawing tools, display toggles, indicator
   // toggles, replay controls, and the help overlay. Replaces the older
   // hand-rolled handler that lived here previously.
+  const hotkeysActiveRef = useRef(hotkeysActive)
+  hotkeysActiveRef.current = hotkeysActive
   useEffect(() => {
     const onKey = (e) => {
+      // Instance gate: multi-chart surfaces hand every cell this prop so only
+      // the ACTIVE cell handles a keypress (otherwise 'D' retimes all N cells
+      // and settings toggles fire N duplicate pref POSTs). Read via latest-ref
+      // so the callback form costs zero re-subscribes and zero re-renders.
+      const ha = hotkeysActiveRef.current
+      if (typeof ha === 'function' ? !ha() : ha === false) return
       // Ignore when typing in inputs/textareas/contentEditable
       const target = e.target
       if (target) {
@@ -2759,6 +2885,14 @@ export default function StockChart({
   // flips off (or the 9:30 bell auto-reverts it) this is a no-op.
   const sessionAppliedBars = useMemo(() => {
     if (!sessionCandleActive || !filteredBars?.length) return filteredBars
+    // Wait for THIS symbol's ext-hours aggregate before painting anything. The live
+    // ext price lands almost immediately (warm shared live-prices cache) while the
+    // aggregate is a per-symbol fetch (~1s). Painting on price alone gives
+    // applySessionCandle nothing to build a range from, so it collapses to o=h=l=c:
+    // a flat doji at the live price that visibly grows its body + wicks when the
+    // aggregate arrives — on every ticker open/search. One late-but-complete candle
+    // beats a fast wrong one. (Post-market has the same tell: h/l would jump.)
+    if (!sessionExtReady) return filteredBars
     // During pre/post (incl. overnight) anchor the session candle to the trading
     // day the extended data belongs to — so at 2am we extend YESTERDAY's daily bar
     // with its post-market prints, not spawn a new (empty) calendar-today bar.
@@ -2767,7 +2901,16 @@ export default function StockChart({
       : Date.now() / 1000
     const curTime = computeBarTime(resolvedTf, _curSec)
     return applySessionCandle(filteredBars, { curTime, extAgg: sessionExtAgg, extPrice: sessionExtPrice })
-  }, [filteredBars, sessionCandleActive, resolvedTf, sessionExtAgg, sessionExtPrice])
+  }, [filteredBars, sessionCandleActive, resolvedTf, sessionExtAgg, sessionExtPrice, sessionExtReady])
+
+  // The pre-market "include pre-market" preview candle is painted a muted white so it
+  // reads as a not-yet-real preview of where the stock sits on pre-market prints; at
+  // 9:30 the toggle auto-reverts and the real red/green daily candle takes over.
+  // Keyed on the candle having actually been APPLIED, not merely on the toggle being
+  // on: while the aggregate is still loading (above) the last bar is YESTERDAY's real
+  // RTH candle, and whiting that out for a second is exactly the flash we're killing.
+  const sessionPreviewLastBar = sessionCandleActive && marketSession === 'pre'
+    && sessionAppliedBars !== filteredBars
 
   const displayBars = useMemo(() => {
     if (!sessionAppliedBars?.length) return sessionAppliedBars
@@ -2857,7 +3000,9 @@ export default function StockChart({
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
   // right-edge bars are never pivots, so live updates can't make labels flicker.
-  const swingLabelsOn = !!cs.swingLabels?.enabled
+  // Swing labels are a Daily/Weekly/Monthly feature only — the pivots are noise on
+  // intraday bars (1m..1h), so gate them off there regardless of the toggle.
+  const swingLabelsOn = !!cs.swingLabels?.enabled && _isDWM
   const swingSensitivity = cs.swingLabels?.sensitivity || 'medium'
   const swingPoints = useMemo(
     () => swingLabelsOn ? detectSwingPivots(ohlcData, sensitivityToParams(swingSensitivity, resolvedTf)) : [],
@@ -3739,6 +3884,7 @@ export default function StockChart({
         try { s.setData([]) } catch {}
       }
       lastCfgSigRef.current = null
+      prevPaintBarsRef.current = null   // series were cleared — next paint must be full
       return
     }
 
@@ -3763,6 +3909,10 @@ export default function StockChart({
         cs, adjustTime, vwapOverride, hideWatermark, hidePriceLine, leftBarPad,
         modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles,
         watermark, watermarkOpacity,
+        // Covers ohlcData's remaining dep — the muted-white paint of the pre-market
+        // preview candle, which changes colors without changing any bar VALUE (so the
+        // render plan below can't see it).
+        sessionPreviewLastBar,
         ovN: overlayData?.length ?? 0,
         mkN: mergedMarkers?.length ?? 0,
         plN: allPriceLines?.length ?? 0,
@@ -3773,9 +3923,20 @@ export default function StockChart({
       // full paint (null cfgSig guarantees _incr is false this run).
       _cfgSig = null
     }
-    const _plan = barsRenderPlan(prevBarsRef.current, filteredBars)
+    // Plan against displayBars (what actually gets painted), NOT filteredBars. The
+    // session-preview candle rides ONLY the display path by design — filteredBars stays
+    // pure regular-session — so planning off filteredBars reports 'noop' the moment the
+    // "Include pre/post-market" toggle flips (and on every ext-price tick), and the
+    // synthetic candle never reaches the series. Intraday/RTH is unaffected: with no
+    // session candle and no Heikin-Ashi, displayBars IS filteredBars (same reference),
+    // so the extended-hours no-op guard this plan exists for behaves exactly as before.
+    const _plan = barsRenderPlan(prevPaintBarsRef.current, displayBars)
     const _cfgSame = _cfgSig != null && _cfgSig === lastCfgSigRef.current
-    const _incr = _cfgSame && _plan.mode === 'incremental'
+    // A chart/series that doesn't exist yet gets CREATED later in this run —
+    // a 'noop'/'incremental' plan (latched from a destroyed predecessor with
+    // content-identical bars) must never skip its first real paint.
+    const _freshChart = !chartRef.current || !candleSeriesRef.current
+    const _incr = _cfgSame && _plan.mode === 'incremental' && !_freshChart
     // Bars AND config byte-identical to the last paint → the series already hold
     // exactly this data; re-`setData`ing would be a pure wipe/repaint. CRITICAL in
     // EXTENDED HOURS: the live session price-tag (intradaySessionTagLines → allPriceLines)
@@ -3785,7 +3946,7 @@ export default function StockChart({
     // re-added every tick, shaking the chart. Skipping the no-op paint leaves the
     // developing bar (and the live-extended MAs) untouched; the price tags still
     // re-apply below.
-    const _noop = _cfgSame && _plan.mode === 'noop'
+    const _noop = _cfgSame && _plan.mode === 'noop' && !_freshChart
     lastCfgSigRef.current = _cfgSig
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
@@ -3808,6 +3969,14 @@ export default function StockChart({
     }
 
     let chart = chartRef.current
+
+    // Capture the TRUE pre-update visible range, BEFORE any setData below shifts it.
+    // The same-ticker backfill re-anchor (a depth jump like the 600→12025 dwell-warm)
+    // uses THIS instead of a post-setData read — LWC re-anchors the range to the new
+    // (much larger) extent during setData, so reading it afterward is unreliable and
+    // was letting the view snap back to default when deep history loaded.
+    let _preUpdateRange = null
+    try { _preUpdateRange = chart?.timeScale().getVisibleLogicalRange() } catch { /* no chart yet */ }
 
     // ── Capture the OUTGOING ticker's vertical candle placement (proportional lock) ──
     // Runs only on a true ticker switch (same timeframe), BEFORE chartOpts re-applies
@@ -3879,7 +4048,7 @@ export default function StockChart({
             : { type: ColorType.Solid, color: themeColors.background },
         textColor: themeColors.textColor,
         fontFamily: "'Instrument Sans', sans-serif",
-        fontSize: 10,
+        fontSize: cs.textSize ?? 11,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
         ...((boldCandles || subtleSeparator) ? { panes: { separatorColor: canvasTheme === 'sunrise' ? 'rgba(30,42,58,0.5)' : 'rgba(255,255,255,0.18)', separatorHoverColor: canvasTheme === 'sunrise' ? 'rgba(30,42,58,0.7)' : 'rgba(255,255,255,0.32)', enableResize: !frozen } } : {}),
@@ -3903,8 +4072,8 @@ export default function StockChart({
         horzLine: { visible: false, labelVisible: false },
       } : {
         mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
-        vertLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: canvasTheme === 'sunrise' ? '#fbf1c9' : themeColors.background },
-        horzLine: { color: themeColors.crosshairColor, width: 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
+        vertLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: canvasTheme === 'sunrise' ? '#fbf1c9' : themeColors.background },
+        horzLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
       },
       rightPriceScale: {
         borderColor: themeColors.borderColor,
@@ -3915,11 +4084,15 @@ export default function StockChart({
         // Pin a stable minimum width so the axis can't re-flow as the developing
         // bar's live last-value label re-renders. At fractional display scaling
         // (e.g. Windows 125/150%) that label's sub-pixel width jitters every price
-        // tick; a floating price-scale width made the whole plot shift left/right
+        // tick; a floating price-scale width makes the whole plot shift left/right
         // in lockstep with the quotes (the "chart jiggles on every tick" bug).
-        // 64px covers up to ~4-digit prices comfortably (workspace typical) while
-        // pulling the values closer to the right edge.
-        minimumWidth: 64,
+        // ⚠️ DO NOT LOWER below the widest last-value TAG width or the bug returns —
+        // a $600–900 price ("695.34") + the tag's background padding overflows a
+        // 64px axis, so it auto-sized per tick and the intraday WS push feed
+        // (multiple ticks/sec) made it shake continuously. 76 is the value verified
+        // against a DPR-1.5 live-tick repro (0 shifts). Tightening the axis is not
+        // worth reintroducing the jitter.
+        minimumWidth: 76,
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
@@ -4017,7 +4190,7 @@ export default function StockChart({
       } catch { /* older pane API — primitive optional */ }
     }
     {
-      const shadeOn = !!cs.extendedHoursShading && isIntraday
+      const shadeOn = !!cs.extendedHoursShading && _intradayLike
       sessionShadeRef.current.setOptions({
         enabled: shadeOn,
         bands: shadeOn ? computeSessionBands(filteredBars, adjustTime) : [],
@@ -4041,13 +4214,20 @@ export default function StockChart({
       const _m = cs.candleColorMode || 'netchange'
       const _u = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
       const _d = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
+      // Sunrise is a fixed light theme: candle bodies are forced to SUNRISE_UP/DOWN
+      // (_u/_d), so the wick + border MUST follow the body — NOT the user's saved
+      // upWick/downWick/upBorder/downBorder (which are the dark-theme palette and
+      // render a brighter, mismatched red/green wick on the Sunrise canvas). This
+      // keeps NC in lockstep with the `_bold` sunrise series-creation options
+      // (wick/border = mbUp/mbDown) so the live color-apply below can't re-split them.
+      const _sruniform = canvasTheme === 'sunrise'
       netColorsRef.current = {
         mode: _m, up: _u, down: _d,
         one: (userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : _u,
-        borUp: userCandleColors ? (cs.candles.upBorder || _u) : _u,
-        borDown: userCandleColors ? (cs.candles.downBorder || _d) : _d,
-        wickUp: userCandleColors ? (cs.candles.upWick || _u) : _u,
-        wickDown: userCandleColors ? (cs.candles.downWick || _d) : _d,
+        borUp: _sruniform ? _u : (userCandleColors ? (cs.candles.upBorder || _u) : _u),
+        borDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downBorder || _d) : _d),
+        wickUp: _sruniform ? _u : (userCandleColors ? (cs.candles.upWick || _u) : _u),
+        wickDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downWick || _d) : _d),
         hollow: canvasTheme === 'sunrise' || cs.chartType === 'hollow',
         insideBlack: canvasTheme === 'sunrise',
       }
@@ -4067,6 +4247,7 @@ export default function StockChart({
       markersControllerRef.current = null
       focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
       swingAttachedRef.current = false           // swing-label primitive must re-attach to the new series
+      earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
     }
 
     if (!candleSeriesRef.current) {
@@ -5145,14 +5326,35 @@ export default function StockChart({
       }
       const sl = cs.swingLabels || {}
       swingCtrlRef.current.setOptions({
-        enabled: !!sl.enabled,
+        enabled: swingLabelsOn,   // D/W/M-gated (see swingLabelsOn) — never on intraday
         color: sl.color || '#d4d0c4',
         tintByType: !!sl.tintByType,
         upColor: sl.upColor || '#4ade80',
         downColor: sl.downColor || '#f87171',
-        bg: cs.background,
+        // The label's background box. showBg toggles it; a user-set color wins,
+        // unset matches the canvas so it reads as a clean plate over candles.
+        showBg: sl.bgEnabled !== false,
+        bg: sl.bg || cs.background,
       })
       swingCtrlRef.current.setPoints(swingPoints)
+    }
+
+    // ── Earnings "E" badge (custom v5 series primitive) ──
+    if (candleSeriesRef.current) {
+      if (!earnBadgeRef.current) earnBadgeRef.current = createEarningsBadgePrimitive({})
+      if (!earnBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(earnBadgeRef.current.primitive)
+          earnBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      const mk = cs.markers || {}
+      earnBadgeRef.current.setOptions({
+        enabled: earningsEvents.length > 0,
+        beatColor: mk.earningsBeat || '#1ae51a',
+        missColor: mk.earningsMiss || '#c41f2d',
+      })
+      earnBadgeRef.current.setPoints(earningsEvents.map(e => ({ time: e.date, price: e.low, beat: e.beat })))
     }
 
     // View handling on initial load / timeframe change / ticker switch.
@@ -5228,10 +5430,16 @@ export default function StockChart({
         if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - LAST_CANDLE_POS)
           from = to - width
-        } else {
+        } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
           const barsFromRight = oldBarCount - oldRange.to
           to = newBarCount - barsFromRight
           from = to - width
+        } else {
+          // Captured range already re-mapped to the NEW series (see
+          // rangeDescribesOldExtent) — bars-from-right vs the stale old count
+          // would throw the view off the data. Keep the remapped range.
+          to = oldRange.to
+          from = oldRange.from
         }
         if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
           try {
@@ -5297,19 +5505,20 @@ export default function StockChart({
           }
         }
       }
-    } else if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0
+    } else if (!entryDate && !exactDateRange && _preUpdateRange && oldBarCount > 0
                && oldBarCount !== filteredBars.length) {
       // SAME ticker/tf, but the bar COUNT changed since the last render — the
       // IDB-cache → network full-fetch swap OR a viewport-first older-history
-      // backfill (FIRST_PAINT→full). LWC preserves the visible logical range
-      // NUMERICALLY across setData, so the prior range now maps to older dates
-      // ("chart jumps back to ~2019"). Re-anchor to the same bars-from-right +
-      // width so the user's date-position holds fixed across data phases.
-      // (Restores commit 911dfe91, lost in a later StockChart overwrite; Model
-      // Book / entryDate charts have their own pins below.)
+      // backfill / dwell-warm (FIRST_PAINT→full, 600→12025). A backfill only
+      // PREPENDS older history — the newest bar is unchanged — so the user's view
+      // is invariant in "bars-from-right + width". Re-anchor to exactly that using
+      // the PRE-setData range (captured at updateChart top, before LWC could shift
+      // it), so a big depth jump keeps the user exactly where they were instead of
+      // snapping to the default window. (Model Book / entryDate have their own pins.)
       const newBarCount = filteredBars.length
-      const barsFromRight = oldBarCount - oldRange.to
-      const width = oldRange.to - oldRange.from
+      const pr = _preUpdateRange
+      const barsFromRight = oldBarCount - pr.to
+      const width = pr.to - pr.from
       const to = newBarCount - barsFromRight
       const from = to - width
       if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
@@ -5348,10 +5557,27 @@ export default function StockChart({
           ))
         }
         try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
-        if (filteredBars.length === oldBarCount) pendingTfReframeRef.current = null
+        // The session preview candle is part of SETTLING, not a post-settle live bar.
+        // It lands ~1s after the RTH bars (separate per-symbol /api/bars?tf=5 fetch),
+        // so keying release on the RTH count alone released the guard one commit too
+        // early: the candle then appended with nothing re-asserting the range, and
+        // shiftVisibleRangeOnNewBar walked the whole view left by a bar — the "opens,
+        // then repositions once" jitter when flipping tickers in pre/post market.
+        // Holding the guard until the aggregate resolves keeps the RTH bars exactly
+        // put; the preview candle just appears in the right pad.
+        const _sessionSettled = !sessionCandleActive || sessionExtReady
+        if (filteredBars.length === oldBarCount && _sessionSettled) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
-        const wasViewingLatest = preWidth > 0 && prePad >= -1 && prePad <= Math.max(8, preWidth * 0.25)
+        // Width-proportional floor (was a flat -1): LWC-side drift during a
+        // warm-cache commit storm can park the newest candle ~2 bars past the
+        // right edge (observed prePad -2.2 at width 90 on grid-cell remounts) —
+        // still "viewing the latest". Proportional so a tightly-zoomed intraday
+        // chart keeps the old -1 floor and a deliberate 2-bar nudge there is
+        // never snapped back; wide windows are additionally protected by the
+        // pos<0.85/pos>1.02 gate below, which a small nudge doesn't trip.
+        const _padFloor = Math.max(1, preWidth * 0.03)
+        const wasViewingLatest = preWidth > 0 && prePad >= -_padFloor && prePad <= Math.max(8, preWidth * 0.25)
         if (wasViewingLatest) {
           let fr = null
           try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
@@ -5423,12 +5649,41 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-  }, [filteredBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, canvasTheme])
+    // Baseline for the next render plan — the bars this paint actually put on screen.
+    prevPaintBarsRef.current = displayBars
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
     updateChart()
   }, [updateChart])
+
+  // ── Custom-TF live developing bar ──
+  // Custom intraday TFs skip the native single-writer machinery (that's keyed on the
+  // 8 native codes), so their candle+quote would freeze. Give them a lightweight live
+  // writer: fold the live price into the last visible candle every tick. Runs AFTER
+  // updateChart so it wins over the 30s setData; native TFs untouched (_isCustomTf).
+  useEffect(() => {
+    if (!_isCustomTf || !_customBaseIntraday || cs.heikinAshi) return   // HA shows transformed bars, not raw
+    const series = candleSeriesRef.current
+    if (!series || !filteredBars?.length) return
+    const last = filteredBars[filteredBars.length - 1]
+    if (typeof last.t !== 'number') return
+    const lp = sym ? livePrices[sym] : null
+    const px = lp && Number.isFinite(lp.price) && lp.price > 0 ? lp.price : null
+    if (px == null) return
+    // In Regular Hours, don't fold a pre/post print into the frozen RTH close.
+    if (!showExtended) {
+      const et = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
+      const [h, m] = et.split(':').map(Number)
+      const nowMin = h * 60 + m
+      if (nowMin < 570 || nowMin >= 960) return
+    }
+    const time = adjustTime(last.t)
+    try {
+      series.update({ time, open: last.o, high: Math.max(+last.h, px), low: Math.min(+last.l, px), close: px })
+    } catch { /* time regressed / series mid-swap */ }
+  }, [_isCustomTf, _customBaseIntraday, filteredBars, livePrices, sym, adjustTime, showExtended, cs.heikinAshi])
 
   // Suppress the native last-value axis tag while the session tags are shown, so
   // the green tag we render (locked at the RTH close) isn't doubled by LWC's
@@ -6269,6 +6524,7 @@ export default function StockChart({
     symRef.current = sym
     resolvedTfRef.current = resolvedTf
     onCrosshairMoveRef.current = onCrosshairMove
+    volMaDataRef.current = volMaData
   })
 
   // ── Crosshair legend: subscribe to hover events ──
@@ -6385,6 +6641,13 @@ export default function StockChart({
         compareValue = dc?.value ?? (comparisonData.at(-1)?.value ?? null)
       }
 
+      let volAvg = null
+      if (volMaSeriesRef.current) {
+        const dm = param.seriesData.get(volMaSeriesRef.current)
+        const vma = volMaDataRef.current
+        volAvg = dm?.value ?? ((vma && vma.length) ? vma[vma.length - 1].value : null)
+      }
+
       legendHoveringRef.current = true
       setCrosshairData({
         time: param.time,
@@ -6392,6 +6655,9 @@ export default function StockChart({
         volume: vol,
         change: change.toFixed(2),
         changePct: changePct.toFixed(2),
+        dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
+        volAvg,
+        volMaPeriod: volumeMa || null,
         overlays: ovValues,
         rsi: rsiValue, macd: macdValue, macdSig: macdSignalValue,
         stochK: stochKValue, stochD: stochDValue,
@@ -6824,80 +7090,49 @@ export default function StockChart({
   // at the time axis) lets the user drag left/right to scroll the chart through
   // time. Shown only with dragMeasure. Position tracks the price-axis width +
   // time-axis height so it sits just left of the axis, at the date row.
-  const GRIP_W = 34   // grip button width — used to center it on the last candle
-  const [scrollGripPos, setScrollGripPos] = useState({ left: null, top: null })
+  const rangeBarRef = useRef(null)
+
+  // Pin two volume-pane overlays to the LIVE price/volume pane boundary as the user
+  // drags the separator: the date-range bar (3M/6M/YTD/…) just ABOVE the boundary,
+  // and the volume legend ($ vol + avg vol) just BELOW it (top-left of the volume
+  // pane). Positioning off the persisted paneHeightPct made them jump seconds late
+  // (the setting only saves after the drag settles). A rAF sampler reads the actual
+  // pane heights every frame and writes the offsets straight to the DOM (no React
+  // re-render → no fight → smooth), so they slide with the divider in real time.
+  const showVolLegend = showVolume && volInSeparatePane
   useEffect(() => {
-    if (!dragMeasure || !chartReady) return
-    const chart = chartRef.current; if (!chart) return
-    const ts = chart.timeScale()
-    let raf = null
-    let lastTop = -1, lastLeft = -1
-    // rAF sampler: recompute the grip's top/left every frame but only re-render on
-    // a change. This tracks the price/volume pane BOUNDARY as you drag the pane
-    // separator (resize the volume pane) — the grip stays pinned to the top of the
-    // volume pane — as well as pan/zoom (horizontal) and window resize.
+    if ((!showRangeSelector && !showVolLegend) || !chartReady) return
+    const chart = chartRef.current, container = containerRef.current
+    if (!chart || !container) return
+    // Track the last element too, not just the last value: on a symbol flip the
+    // range-bar / legend divs remount (fresh DOM node with no inline position → it
+    // falls back to the CSS default and lands INSIDE the volume pane). A value-only
+    // guard would skip re-writing the new node because the computed value didn't
+    // change; keying on the element as well re-pins it immediately after a remount.
+    let raf = null, lastBottom = -1, lastTop = -1, lastRb = null, lastVl = null
     const tick = () => {
-      let top = null
       try {
         const panes = chart.panes ? chart.panes() : null
         const h0 = (panes && panes[0] && panes[0].getHeight) ? panes[0].getHeight() : 0
-        if (h0 > 0) top = Math.max(4, h0 - 22)   // just above the price/volume boundary
-      } catch { /* pane API missing → bottom fallback in JSX */ }
-      // Center the grip horizontally on the LAST candle so it lines up with the
-      // most recent bar as the chart pans/zooms.
-      let left = null
-      try {
-        const t = lastBarRef.current?.time
-        const x = (t != null) ? ts.timeToCoordinate(t) : null
-        if (x != null && Number.isFinite(x)) {
-          const plotW = ts.width() || 0
-          const maxLeft = plotW > 0 ? plotW - GRIP_W - 2 : x
-          left = Math.max(2, Math.min(maxLeft, x - GRIP_W / 2))
+        const H = container.clientHeight || 0
+        if (h0 > 0 && H > 0) {
+          const rb = rangeBarRef.current
+          if (rb) {
+            const bottom = Math.round(Math.max(30, H - h0 + 8)) // 8px above the boundary
+            if (bottom !== lastBottom || rb !== lastRb) { lastBottom = bottom; lastRb = rb; rb.style.bottom = `${bottom}px` }
+          }
+          const vl = volLegendRef.current
+          if (vl) {
+            const top = Math.round(h0 + 5) // just below the boundary = volume pane top
+            if (top !== lastTop || vl !== lastVl) { lastTop = top; lastVl = vl; vl.style.top = `${top}px` }
+          }
         }
-      } catch { /* range not ready */ }
-      if (top !== lastTop || left !== lastLeft) {
-        lastTop = top; lastLeft = left
-        setScrollGripPos({ left, top })
-      }
+      } catch { /* pane API missing → CSS fallback */ }
       raf = requestAnimationFrame(tick)
     }
-    raf = requestAnimationFrame(tick)
+    tick()
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [dragMeasure, chartReady])
-
-  const onScrollGripDown = (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
-    e.preventDefault(); e.stopPropagation()
-    const chart = chartRef.current, el = containerRef.current
-    if (!chart || !el) return
-    const ts = chart.timeScale()
-    const startRange = ts.getVisibleLogicalRange(); if (!startRange) return
-    // bars-per-pixel from the chart's OWN coordinate mapping — robust. Deriving it
-    // from ts.width() read 0 in the event handler → barSpacing ~0.008 → a tiny drag
-    // jumped the view thousands of bars ("skips back 20 years"). This is exact 1:1.
-    const l0 = ts.coordinateToLogical(0), l100 = ts.coordinateToLogical(100)
-    const barsPerPx = (l0 != null && l100 != null && l100 !== l0)
-      ? (l100 - l0) / 100
-      : (startRange.to - startRange.from) / Math.max(1, el.getBoundingClientRect().width)
-    const startX = e.clientX
-    const move = (ev) => {
-      const dxBars = (ev.clientX - startX) * barsPerPx
-      // Move the last candle the SAME direction as the grip: drag left → last
-      // candle moves left (whitespace opens on the right). This repositions the
-      // right edge, not a history-scroll. The grip itself re-centers on the last
-      // candle via the visibleLogicalRange subscription that this setter fires.
-      try { ts.setVisibleLogicalRange({ from: startRange.from - dxBars, to: startRange.to - dxBars }) } catch {}
-    }
-    const up = () => {
-      // Leave the grip where the user released it (don't snap back home).
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-      window.removeEventListener('pointercancel', up)
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-    window.addEventListener('pointercancel', up)
-  }
+  }, [showRangeSelector, showVolLegend, chartReady])
 
   useEffect(() => {
     const el = containerRef.current
@@ -7119,6 +7354,29 @@ export default function StockChart({
     }
   }, [newsMarkers, resolvedTf])
 
+  // ── Earnings marker click → themed earnings popover ──
+  // Same time-match approach as news markers (LWC has no marker-click event).
+  // Earnings markers only render on daily/weekly, whose time is a 'YYYY-MM-DD'
+  // string, so match by string equality. Opens the popover at the click point.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !earningsEvents.length) { setEarningsPopup(null); return }
+    const handler = (param) => {
+      if (!param || param.time == null) { return }
+      const hit = earningsEvents.find(m => String(m.date) === String(param.time))
+      if (!hit) return
+      const rect = containerRef.current?.getBoundingClientRect()
+      const px = rect && param.point ? rect.left + param.point.x + 12 : (rect?.left ?? 0) + 40
+      const py = rect && param.point ? rect.top + param.point.y + 12 : (rect?.top ?? 0) + 40
+      setEarningsPopup({ data: hit.data, x: px, y: py })
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch {} }
+  }, [earningsEvents])
+
+  // Close the earnings popover when the symbol or timeframe changes out from under it.
+  useEffect(() => { setEarningsPopup(null) }, [sym, resolvedTf])
+
   // ── Highlighted setup/catalyst candle click → onHighlightClick (Model Book) ──
   // Clicking a painted setup/catalyst candle opens the intraday 5-min popup. We
   // match the clicked time against the highlight set, resolve it back to the
@@ -7236,23 +7494,25 @@ export default function StockChart({
 
   // Proactive deep-history warm (dwell-gated) — makes scroll-back INSTANT.
   // The viewport-first first paint is shallow (FIRST_PAINT_BARS) for an instant
-  // open; the pan-backfill above then loads full history on demand, which costs
-  // ~1-3s the FIRST time a user scrolls back on a given stock. Here we remove
-  // that wait for daily/weekly/monthly: once a chart has been studied for ~2.5s
-  // (so we don't warm on quick ticker-flipping), we quietly bump to the full
-  // depth in the background. It reuses the exact same setFetchDepth path as the
-  // pan-backfill, so the same-ticker re-anchor holds the visible view (no jump)
-  // — by the time the user pans left, the deep history is already loaded. Server
-  // SQLite caches it once for everyone, so this is a one-time fetch per stock.
-  // Intraday is excluded: its deep windows are 20-30k bars, too heavy to load on
-  // every chart that's merely open — those stay on-demand via the pan backfill.
+  // open; then we quietly bump to the FULL depth in the background so the whole
+  // history is loaded without the user having to pan-and-wait. It reuses the same
+  // setFetchDepth path as the pan-backfill, so the same-ticker re-anchor holds the
+  // visible view (no jump) — by the time the user zooms/scrolls out, the deep
+  // history is already there. Server SQLite caches it once for everyone.
+  //
+  // ALL timeframes warm (intraday included) — the user wants hourly/30m/15m/5m to
+  // reach their full available history, not just the ~600-bar first-paint window
+  // (that was the "hourly only goes back to May" symptom). Intraday deep windows
+  // ARE large (up to ~20-30k bars, capped by the backend's per-TF lookback), so we
+  // keep the short dwell delay to skip warming on quick ticker-flips, and multi-
+  // chart grid cells still pass backgroundWarm=false to avoid a cold-open herd.
   useEffect(() => {
     if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (!backgroundWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
-    if (!['D', 'W', 'M'].includes(resolvedTf)) return undefined
-    const id = setTimeout(() => setFetchDepth(_fullTarget), 2500)
+    const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
@@ -7266,6 +7526,25 @@ export default function StockChart({
         volumeSeriesRef.current = null
         overlaySeriesRefs.current = []
         priceLineRefs.current = []
+        // Reset every paint/framing latch alongside the chart they describe.
+        // These survive a destroy→recreate cycle otherwise (StrictMode's
+        // simulated remount, or any future remount path with warm caches):
+        // chart #2 then comes up under an armed 'noop' render plan and an
+        // already-consumed zoom key — created but never painted, never framed
+        // (the blank multi-chart grid cells after a mode roundtrip).
+        volMaSeriesRef.current = null
+        volMaTailSeriesRef.current = null
+        volumeSeparatePaneRef.current = false
+        prevChartTypeRef.current = null
+        wmAttachedRef.current = false
+        sessionShadeAttachedRef.current = false
+        lastCfgSigRef.current = null
+        prevBarsRef.current = null
+        prevPaintBarsRef.current = null
+        lastBarCountRef.current = 0
+        zoomKeyRef.current = null
+        lastTfRef.current = null
+        pendingTfReframeRef.current = null
       }
     }
   }, [])
@@ -7473,6 +7752,17 @@ export default function StockChart({
         <div className={styles.countdownPosition}>
           <CountdownTimer barStartTime={currentBarStart} tfSeconds={countdownTfSec} />
         </div>
+      )}
+      {earningsPopup && (
+        <EarningsMarkerPopover
+          data={earningsPopup.data}
+          x={earningsPopup.x}
+          y={earningsPopup.y}
+          sym={sym}
+          beatColor={cs.markers?.earningsBeat || '#1ae51a'}
+          missColor={cs.markers?.earningsMiss || '#c41f2d'}
+          onClose={() => setEarningsPopup(null)}
+        />
       )}
       {enabledComparisons.length > 0 && (
         <div className={styles.comparisonLegend}>
@@ -7694,7 +7984,12 @@ export default function StockChart({
           >%</button>
         </div>
       )}
-      {crosshairData && !hideLegend && (
+      {crosshairData && !hideLegend && (() => {
+        // User override for the BASE legend text (time + O/H/L/C/V). Inline so it beats
+        // the base classes' own color; change%/overlays/indicators are intentionally
+        // left to their semantic colors. undefined = keep the CSS-class default.
+        const legBase = legendColor ? { color: legendColor } : undefined
+        return (
         <div
           className={`${styles.legend}${verticalLegend ? ' ' + styles.legendVertical : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it. */
@@ -7702,16 +7997,16 @@ export default function StockChart({
         >
           {verticalLegend ? (
             <>
-              <span className={styles.vlHead}>{formatLegendTime(crosshairData.time)}</span>
+              <span className={styles.vlHead} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
               <span className={styles.vlChange} style={{ color: parseFloat(crosshairData.change) >= 0 ? (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d') }}>
                 {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
               </span>
-              <span className={styles.vlLabel}>Open</span><span className={styles.vlVal}>{crosshairData.open?.toFixed(2)}</span>
-              <span className={styles.vlLabel}>High</span><span className={styles.vlVal}>{crosshairData.high?.toFixed(2)}</span>
-              <span className={styles.vlLabel}>Low</span><span className={styles.vlVal}>{crosshairData.low?.toFixed(2)}</span>
-              <span className={styles.vlLabel}>Close</span><span className={styles.vlVal}>{crosshairData.close?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>Open</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>High</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>Low</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>Close</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
               {crosshairData.volume != null && (
-                <><span className={styles.vlLabel}>Vol</span><span className={styles.vlVal}>{formatVolume(crosshairData.volume)}</span></>
+                <><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></>
               )}
               {crosshairData.overlays.flatMap((ov, i) => [
                 <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
@@ -7730,13 +8025,13 @@ export default function StockChart({
             </>
           ) : (
           <>
-          <span className={styles.legendTime}>{formatLegendTime(crosshairData.time)}</span>
-          <span className={styles.legendLabel}>O <span className={styles.legendVal}>{crosshairData.open?.toFixed(2)}</span></span>
-          <span className={styles.legendLabel}>H <span className={styles.legendVal}>{crosshairData.high?.toFixed(2)}</span></span>
-          <span className={styles.legendLabel}>L <span className={styles.legendVal}>{crosshairData.low?.toFixed(2)}</span></span>
-          <span className={styles.legendLabel}>C <span className={styles.legendVal}>{crosshairData.close?.toFixed(2)}</span></span>
+          <span className={styles.legendTime} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
+          <span className={styles.legendLabel} style={legBase}>O <span className={styles.legendVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span></span>
+          <span className={styles.legendLabel} style={legBase}>H <span className={styles.legendVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span></span>
+          <span className={styles.legendLabel} style={legBase}>L <span className={styles.legendVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span></span>
+          <span className={styles.legendLabel} style={legBase}>C <span className={styles.legendVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span></span>
           {crosshairData.volume != null && (
-            <span className={styles.legendLabel}>V <span className={styles.legendVal}>{formatVolume(crosshairData.volume)}</span></span>
+            <span className={styles.legendLabel} style={legBase}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
           )}
           <span className={parseFloat(crosshairData.change) >= 0 ? styles.legendUp : styles.legendDown}>
             {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
@@ -7797,7 +8092,8 @@ export default function StockChart({
           </>
           )}
         </div>
-      )}
+        )
+      })()}
       <canvas
         ref={vpCanvasRef}
         style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 2 }}
@@ -7836,32 +8132,8 @@ export default function StockChart({
           </div>
         </div>
       )}
-      {/* Time-scroll grip — drag left/right to pan the chart through time (since
-          drag-pan is repurposed for measuring). */}
-      {dragMeasure && chartReady && (
-        <div
-          onPointerDown={onScrollGripDown}
-          title="Drag left / right to scroll the chart through time"
-          style={{
-            position: 'absolute',
-            ...(scrollGripPos.left != null ? { left: scrollGripPos.left } : { right: 56 }),
-            ...(scrollGripPos.top != null ? { top: scrollGripPos.top } : { bottom: 30 }),
-            zIndex: 7, cursor: 'ew-resize', pointerEvents: 'auto', touchAction: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 34, height: 16, borderRadius: 8,
-            background: canvasTheme === 'sunrise' ? 'rgba(255,255,255,0.62)' : 'rgba(201,168,76,0.18)',
-            border: canvasTheme === 'sunrise' ? '1px solid rgba(18,24,30,0.6)' : '1px solid rgba(201,168,76,0.5)',
-            color: canvasTheme === 'sunrise' ? '#3b3320' : '#c9a84c', userSelect: 'none',
-            boxShadow: canvasTheme === 'sunrise' ? '0 1px 4px rgba(20,35,55,0.2)' : '0 1px 4px rgba(0,0,0,0.4)',
-          }}
-        >
-          <svg width="22" height="10" viewBox="0 0 22 10" style={{ display: 'block' }}>
-            <path d="M6 1 L2 5 L6 9 M16 1 L20 5 L16 9" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-      )}
       {showRangeSelector && chartReady && filteredBars?.length > 1 && (
-        <div className={styles.rangeBar} style={{ bottom: `calc(${_rangeVolPct}% + 30px)` }}>
+        <div ref={rangeBarRef} className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
               key={label + i}
@@ -7873,7 +8145,26 @@ export default function StockChart({
           ))}
         </div>
       )}
-      {bars?.length > 0 && (
+      {/* Volume-pane legend (top-left): dollar volume + average volume over the MA
+          period. Follows the crosshair (or the latest bar), pinned live to the top
+          of the volume pane. */}
+      {showVolLegend && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
+        <div ref={volLegendRef} className={styles.volLegend}>
+          {crosshairData.dollarVol != null && (
+            <span className={styles.volLegItem}>
+              <span className={styles.volLegLabel}>$ Vol</span>
+              <span className={styles.volLegVal}>{formatDpNotional(crosshairData.dollarVol)}</span>
+            </span>
+          )}
+          {crosshairData.volAvg != null && crosshairData.volMaPeriod && (
+            <span className={styles.volLegItem}>
+              <span className={styles.volLegLabel}>Avg {crosshairData.volMaPeriod}D</span>
+              <span className={styles.volLegVal}>{formatVolume(crosshairData.volAvg)}</span>
+            </span>
+          )}
+        </div>
+      )}
+      {!disablePatterns && bars?.length > 0 && (
         <PatternOverlay
           chart={chartRef.current}
           series={candleSeriesRef.current}
@@ -7882,6 +8173,29 @@ export default function StockChart({
           enabled={showPatterns}
           onDetectionClick={setActiveDetection}
         />
+      )}
+      {/* Read-only saved-drawings layer (multi-chart grid cells): the member's
+          per-symbol drawings render but can't be edited — same NOOP recipe as
+          the Model Book staticAnnotations layer below. */}
+      {showSavedDrawings && !showDrawingTools && !cs.hideDrawings && bars?.length > 0 && drawings.length > 0 && (
+        <div style={overlayWrapStyle({ zIndex: 4, pointerEvents: 'none' })}>
+          <ChartDrawingOverlay
+            chartRef={chartRef}
+            seriesRef={candleSeriesRef}
+            bars={bars}
+            activeTool={null}
+            setActiveTool={NOOP}
+            color={drawColor}
+            lineWidth={drawWidth}
+            drawings={drawings}
+            addDrawing={NOOP}
+            updateDrawing={NOOP}
+            removeDrawing={NOOP}
+            selectedId={null}
+            setSelectedId={NOOP}
+            readOnly
+          />
+        </div>
       )}
       {showDrawingTools && bars?.length > 0 && (
         <>
@@ -7970,7 +8284,7 @@ export default function StockChart({
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}
             hideReplay={hideReplay}
-            hidePatterns={hidePatterns}
+            hidePatterns={hidePatterns || disablePatterns}
             hideCompare={hideCompare}
             hideCountdown={hideCountdown}
           />
@@ -8018,6 +8332,7 @@ export default function StockChart({
           })}
         >
           <ChartDrawingOverlay
+            readOnly={!annotationsEditable}
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             bars={bars}
@@ -8077,6 +8392,7 @@ export default function StockChart({
       {staticAnnotations != null && staticAnnotations.length > 0 && bars?.length > 0 && (!indexPaneSymbol || overlayBounds) && (
         <div style={overlayWrapStyle({ zIndex: 4, pointerEvents: 'none' })}>
           <ChartDrawingOverlay
+            readOnly
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             bars={bars}
@@ -8107,6 +8423,7 @@ export default function StockChart({
         && (indexAnnotationsEditable || indexAnnotations.length > 0) && (
         <div style={indexOverlayWrapStyle({ zIndex: 4, pointerEvents: indexAnnotationsEditable ? 'auto' : 'none' })}>
           <ChartDrawingOverlay
+            readOnly={!indexAnnotationsEditable}
             chartRef={chartRef}
             seriesRef={indexPaneSeriesRef}
             bars={bars}

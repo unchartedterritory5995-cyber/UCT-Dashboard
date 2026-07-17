@@ -10,6 +10,11 @@ const FALLBACK = {
   // request(query) → delivers to any mounted AI Search widget; returns true if one
   // handled it (so the caller can fall back to a temporary popup when false).
   aiSearchBus: { subscribe: () => () => {}, request: () => false },
+  // Ref holding the widgetId of the last-hovered chart widget. null = every
+  // chart handles hotkeys (pre-first-hover baseline = the legacy behavior);
+  // after a hover, only the active widget's document keydown fires, so a TF
+  // key no longer retimes every mounted chart / fires N duplicate pref POSTs.
+  activeChartRef: null,
 }
 
 export function useWorkspace() {

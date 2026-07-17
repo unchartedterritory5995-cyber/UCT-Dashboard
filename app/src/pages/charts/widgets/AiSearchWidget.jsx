@@ -99,6 +99,17 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const [error, setError] = useState(null)
   const inputRef = useRef(null)
 
+  // Auto-grow the ask box so a long question stays fully visible while typing
+  // (caps at ~4 lines, then scrolls inside the box). Empty stays single-line —
+  // Chrome counts the WRAPPED placeholder in scrollHeight, which would balloon
+  // the idle row in a narrow widget.
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = query ? `${Math.min(el.scrollHeight, 92)}px` : ''
+  }, [query])
+
   const run = useCallback(async (q) => {
     const question = (q ?? query).trim()
     if (!question || loading) return
@@ -147,11 +158,12 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     <div className={styles.root}>
       <div className={styles.searchRow}>
         <span className={styles.spark}><Spark /></span>
-        <input
+        <textarea
           ref={inputRef}
           className={styles.input}
           placeholder="Ask anything about the markets…"
           value={query}
+          rows={1}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
         />

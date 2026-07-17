@@ -3,18 +3,19 @@ import { composeWatermarkLines, watermarkFontPx, computeWatermarkRect } from './
 
 describe('composeWatermarkLines', () => {
   const meta = { name: 'Tesla Inc', sector: 'Consumer Cyclical', industry: 'Auto Manufacturers' }
+  const texts = (arr) => arr.map((l) => l.text)
   it('all lines on → 4 lines in order', () => {
-    expect(composeWatermarkLines('TSLA', meta, { ticker: true, company: true, sector: true, industry: true }))
+    expect(texts(composeWatermarkLines('TSLA', meta, { ticker: true, company: true, sector: true, industry: true })))
       .toEqual(['TSLA', 'Tesla Inc', 'Consumer Cyclical', 'Auto Manufacturers'])
   })
   it('skips disabled and null lines', () => {
-    expect(composeWatermarkLines('TSLA', { name: null, sector: 'X', industry: null },
-      { ticker: true, company: true, sector: true, industry: true }))
+    expect(texts(composeWatermarkLines('TSLA', { name: null, sector: 'X', industry: null },
+      { ticker: true, company: true, sector: true, industry: true })))
       .toEqual(['TSLA', 'X'])
   })
   it('ticker always available even with null meta', () => {
-    expect(composeWatermarkLines('TSLA', { name: null, sector: null, industry: null },
-      { ticker: true, company: true, sector: true, industry: true })).toEqual(['TSLA'])
+    expect(texts(composeWatermarkLines('TSLA', { name: null, sector: null, industry: null },
+      { ticker: true, company: true, sector: true, industry: true }))).toEqual(['TSLA'])
   })
   it('all toggles off → empty', () => {
     expect(composeWatermarkLines('TSLA', meta, { ticker: false, company: false, sector: false, industry: false }))
@@ -22,24 +23,32 @@ describe('composeWatermarkLines', () => {
   })
   it('appends the UCT theme as a 5th line when enabled and present', () => {
     const m = { name: 'SolarEdge Technologies, Inc.', sector: 'Technology', industry: 'Solar', theme: 'Clean Energy' }
-    expect(composeWatermarkLines('SEDG', m, { ticker: true, company: true, sector: true, industry: true, theme: true }))
+    expect(texts(composeWatermarkLines('SEDG', m, { ticker: true, company: true, sector: true, industry: true, theme: true })))
       .toEqual(['SEDG', 'SolarEdge Technologies, Inc.', 'Technology', 'Solar', 'Clean Energy'])
   })
   it('skips theme line when toggled off or theme is null', () => {
     const m = { name: 'X', sector: 'S', industry: 'I', theme: null }
-    expect(composeWatermarkLines('AAA', m, { ticker: true, company: false, sector: false, industry: false, theme: true }))
+    expect(texts(composeWatermarkLines('AAA', m, { ticker: true, company: false, sector: false, industry: false, theme: true })))
       .toEqual(['AAA'])
-    expect(composeWatermarkLines('AAA', { ...m, theme: 'T' }, { ticker: true, company: false, sector: false, industry: false, theme: false }))
+    expect(texts(composeWatermarkLines('AAA', { ...m, theme: 'T' }, { ticker: true, company: false, sector: false, industry: false, theme: false })))
       .toEqual(['AAA'])
+  })
+  it('font size is per-role, not per-position — company stays small when ticker is off', () => {
+    const m = { name: 'Big Company Name', sector: 'S', industry: 'I' }
+    const withTicker = composeWatermarkLines('TSLA', m, { ticker: true, company: true, sector: false, industry: false })
+    const noTicker = composeWatermarkLines('TSLA', m, { ticker: false, company: true, sector: false, industry: false })
+    expect(withTicker[0].size).toBe(54)                // ticker is the hero
+    expect(withTicker[1].size).toBe(20)                // company small
+    expect(noTicker[0].size).toBe(20)                  // company DOES NOT balloon to 54
   })
 })
 
 describe('watermarkFontPx', () => {
-  it('line 0 largest, decreasing, scaled by sizeScale', () => {
-    expect(watermarkFontPx(0, 1)).toBe(54)
-    expect(watermarkFontPx(1, 1)).toBe(20)
-    expect(watermarkFontPx(0, 2)).toBe(108)
-    expect(watermarkFontPx(3, 1)).toBe(13)
+  it('sizes by the line role, scaled by sizeScale', () => {
+    expect(watermarkFontPx({ text: 'X', size: 54 }, 1)).toBe(54)
+    expect(watermarkFontPx({ text: 'X', size: 20 }, 1)).toBe(20)
+    expect(watermarkFontPx({ text: 'X', size: 54 }, 2)).toBe(108)
+    expect(watermarkFontPx({ text: 'X', size: 13 }, 1)).toBe(13)
   })
 })
 

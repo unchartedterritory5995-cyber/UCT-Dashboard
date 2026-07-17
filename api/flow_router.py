@@ -45,6 +45,7 @@ import os
 import gzip
 import io
 import time
+import threading
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 db = FlowDB(DB_PATH)
@@ -63,6 +64,12 @@ _FLOW_CACHE_HEADERS = {
 # At ~15MB per large entry, 8 entries caps cache at ~120MB worst case.
 _RESPONSE_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
 _RESPONSE_CACHE_MAX = 8
+# Single-flight: bound concurrent CSV builds to 1 per process. Without this,
+# every cache miss (and the version bucket rolls every 60s) launched its own
+# full build; N of them GIL-thrash on the same process as the OPRA consumer and
+# none finish inside the bucket, so the cache can never be populated. Mirrors
+# _day_stats_lock in live_massive_router.
+_BUILD_LOCK = threading.Lock()
 
 # Manual bump offset for in-place row updates (admin endpoints that mutate
 # Color, Side, source, etc. without changing total row count).
@@ -134,7 +141,7 @@ def bump_data_version() -> int:
     return _current_version()
 
 
-def _build_gzipped_csv(source: str, days) -> bytes:
+def _build_gzipped_csv(source: str, days, dates=None) -> bytes:
     """Stream the CSV generator through the gzip compressor, returning the
     full gzipped bytes.
 
@@ -146,68 +153,104 @@ def _build_gzipped_csv(source: str, days) -> bytes:
     page barely renders) is trimmed. Short ranges (<cap) stream in full so the
     delta-merge's days=1 refresh and small-range views stay complete.
 
-    days=None means "all data" — passed to db.stream_csv without a days arg."""
-    gen = db.stream_csv(source=source, days=days) if days else db.stream_csv(source=source)
+    days=None means "all data" — passed to db.stream_csv without a days arg.
 
+    `dates` (from the DateRail calendar via db.dates_in_range) overrides `days`
+    and scopes the query to exactly those CreatedDates. The cap then keys off
+    how many days the range ACTUALLY covers, so a one-day pick streams that day
+    whole (2026-07-17: previously the calendar sent all_data=true, which is
+    unconditionally capped, so a single historical day arrived as its ~0.4%
+    share of the top-50K-by-premium across all 133 days — 511 rows of 128,525
+    for 7/16)."""
     cap_days = int(os.environ.get("FLOW_CSV_CAP_DAYS", "20"))
     cap_rows = int(os.environ.get("FLOW_CSV_CAP_ROWS", "50000"))
-    should_cap = (days is None) or (days >= cap_days)
+    n_days = len(dates) if dates is not None else days
+    should_cap = (n_days is None) or (n_days >= cap_days)
+
+    # 2026-07-17: pass cap_rows through so SQLite does the top-N selection in C
+    # (ORDER BY CAST(Premium AS REAL) DESC LIMIT ?). This router used to collect
+    # the whole range into one Python string, split it into 275K-770K strings,
+    # and sort them with a per-line split(",") key — GIL-held CPU on the same
+    # process that owns the OPRA consumer, and past Cloudflare's 100s limit once
+    # FLOW_CSV_CAP_DAYS dropped to 5 (which moved days=5 from the fast uncapped
+    # branch into the slow collect+sort branch). stream_csv has had the cap_rows
+    # param since the commit whose docstring promised exactly this; it was never
+    # wired up. Row content is unchanged: the capped stream is Premium-DESC
+    # ordered, same as the Python sort it replaces.
+    cr = cap_rows if should_cap else None
+    if dates is not None:
+        gen = db.stream_csv(source=source, dates=dates, cap_rows=cr)
+    elif days:
+        gen = db.stream_csv(source=source, days=days, cap_rows=cr)
+    else:
+        gen = db.stream_csv(source=source, cap_rows=cr)
 
     buf = io.BytesIO()
     # compresslevel=1: ~60% faster than default level 6, ~10% larger output.
     # mtime=0: deterministic gzip header — same data → byte-identical output.
     with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=1, mtime=0) as gz:
-        if not should_cap:
-            for chunk in gen:
-                if isinstance(chunk, str):
-                    chunk = chunk.encode("utf-8")
-                gz.write(chunk)
-        else:
-            # Collect the full CSV (server has the RAM; the browser doesn't),
-            # then keep the top-N rows by premium to bound the client payload.
-            text = "".join(c if isinstance(c, str) else c.decode("utf-8") for c in gen)
-            nl = text.find("\n")
-            header = text[:nl] if nl >= 0 else text
-            body = [ln for ln in text[nl + 1:].split("\n") if ln] if nl >= 0 else []
-            if len(body) > cap_rows:
-                cols = [c.strip().lower() for c in header.split(",")]
-                pidx = cols.index("premium") if "premium" in cols else None
-                if pidx is not None:
-                    def _prem(ln):
-                        try:
-                            return float(ln.split(",")[pidx] or 0)
-                        except (ValueError, IndexError):
-                            return 0.0
-                    body.sort(key=_prem, reverse=True)
-                    body = body[:cap_rows]
-            out = header + "\n" + "\n".join(body) + ("\n" if body else "")
-            gz.write(out.encode("utf-8"))
+        for chunk in gen:
+            if isinstance(chunk, str):
+                chunk = chunk.encode("utf-8")
+            gz.write(chunk)
     return buf.getvalue()
 
 
-def _get_cached_or_build(source: str, days) -> bytes:
+def _get_cached_or_build(source: str, days, dates=None) -> bytes:
     """Returns gzipped CSV bytes for (source, days), using the in-memory cache
-    when version matches. LRU eviction at _RESPONSE_CACHE_MAX entries."""
+    when version matches. LRU eviction at _RESPONSE_CACHE_MAX entries.
+
+    Single-flight + stale-serve (2026-07-17), mirroring live_massive_router's
+    /day-stats. WHY: _current_version() rolls every _VERSION_BUCKET_SEC (60s).
+    With no lock, every poll/retry/reload that missed the cache started its OWN
+    full build; they piled into the threadpool, all holding the GIL on the same
+    process as the OPRA consumer, so each got slower as more arrived. Once a
+    build exceeded 60s the cache became impossible to populate: the entry is
+    stamped with the version at build START and checked against the version at
+    request TIME, so every finished build was already stale on arrival ->
+    permanent miss -> more concurrent builds -> slower still. Self-reinforcing;
+    only a restart cleared it. That is the 2026-07-01 524 outage class, and it
+    is what made /data 502 at 122s on 7/17.
+
+    Now: ONE build at a time per process. Concurrent callers serve the previous
+    payload (bounded staleness — one extra bucket) instead of queueing behind
+    the compute. First-ever request for a key has nothing stale to serve, so it
+    blocks on the lock and double-checks the cache on acquire."""
     version = _current_version()
-    key = (source, days)
+    # dates makes the key: two different calendar ranges must not share an entry.
+    key = (source, days, tuple(dates) if dates is not None else None)
     cached = _RESPONSE_CACHE.get(key)
     if cached and cached[0] == version:
         _RESPONSE_CACHE.move_to_end(key)  # touch — most recently used
         return cached[1]
 
-    payload = _build_gzipped_csv(source, days)
-    if len(_RESPONSE_CACHE) >= _RESPONSE_CACHE_MAX:
-        _RESPONSE_CACHE.popitem(last=False)  # evict LRU
-    _RESPONSE_CACHE[key] = (version, payload)
-    return payload
+    def _store(payload):
+        if key not in _RESPONSE_CACHE and len(_RESPONSE_CACHE) >= _RESPONSE_CACHE_MAX:
+            _RESPONSE_CACHE.popitem(last=False)  # evict LRU
+        _RESPONSE_CACHE[key] = (version, payload)
+        _RESPONSE_CACHE.move_to_end(key)
+        return payload
+
+    if not _BUILD_LOCK.acquire(blocking=False):
+        if cached:
+            return cached[1]        # serve stale rather than queue behind the build
+        with _BUILD_LOCK:           # first-ever for this key: must build once
+            c2 = _RESPONSE_CACHE.get(key)
+            if c2 and c2[0] == _current_version():
+                return c2[1]
+            return _store(_build_gzipped_csv(source, days, dates))
+    try:
+        return _store(_build_gzipped_csv(source, days, dates))
+    finally:
+        _BUILD_LOCK.release()
 
 
-def _serve_csv(source: str, days, request: Request):
+def _serve_csv(source: str, days, request: Request, dates=None):
     """Build (or fetch cached) gzipped CSV and return as Response with
     appropriate encoding header. Always sets Content-Length implicitly via
     Response so CF can cache."""
     try:
-        gzipped = _get_cached_or_build(source, days)
+        gzipped = _get_cached_or_build(source, days, dates)
     except Exception as e:
         return Response(content=f"Error: {e}", status_code=500, media_type="text/plain")
 
@@ -238,6 +281,26 @@ def _parse_query_days(request: Request):
         return days
     except (ValueError, TypeError):
         return 1
+
+
+def _parse_query_range(request: Request):
+    """(date_from, date_to) as ISO YYYY-MM-DD from the DateRail calendar, or None.
+
+    Both must be present — a half-open range is treated as no range so the
+    caller falls back to the days-back path rather than guessing an endpoint.
+    """
+    f = (request.query_params.get("date_from") or "").strip()
+    t = (request.query_params.get("date_to") or "").strip()
+    return (f, t) if f and t else None
+
+
+def _resolve_request(source: str, request: Request):
+    """(days, dates) for a /data request. `dates` is non-None only for an
+    explicit calendar range, in which case `days` is ignored downstream."""
+    rng = _parse_query_range(request)
+    if rng:
+        return None, db.dates_in_range(source, rng[0], rng[1])
+    return _parse_query_days(request), None
 
 
 @flow_router.post("/upload")
@@ -324,16 +387,22 @@ def get_flow_data(request: Request):
     Serve stock flow data as gzipped CSV (cached at CF edge).
     ?days=N (default 1) — last N trading days.
     ?all_data=true — all available data (heavy; opt-in only)
+    ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD — explicit calendar range. Scoped
+      server-side to exactly those trading days, and the premium cap keys off
+      how many days the range covers, so a single-day pick streams that day
+      whole instead of arriving as a slice of an all_data cap.
     """
-    days = _parse_query_days(request)
-    return _serve_csv("stocks", days, request)
+    days, dates = _resolve_request("stocks", request)
+    return _serve_csv("stocks", days, request, dates=dates)
 
 
 @flow_router.get("/indexes-data")
 def get_indexes_data(request: Request):
-    """Serve indexes/ETF flow data as gzipped CSV (cached at CF edge)."""
-    days = _parse_query_days(request)
-    return _serve_csv("indexes", days, request)
+    """Serve indexes/ETF flow data as gzipped CSV (cached at CF edge).
+
+    Same ?date_from/?date_to support as /data — see get_flow_data."""
+    days, dates = _resolve_request("indexes", request)
+    return _serve_csv("indexes", days, request, dates=dates)
 
 
 @flow_router.get("/stats")

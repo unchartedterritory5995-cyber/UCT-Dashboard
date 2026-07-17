@@ -139,6 +139,11 @@ def _load_oi_for_events(db_path: str, events: list, snap_date_iso: str) -> dict:
     out = {}
     try:
         with sqlite3.connect(db_path, timeout=10) as conn:
+            try:
+                from api.oi_snapshots import attach_oi_snapshots
+                attach_oi_snapshots(conn)
+            except Exception:
+                pass
             sql = f"""
                 SELECT contract_key, oi
                 FROM contract_oi_snapshots

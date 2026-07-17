@@ -11,6 +11,21 @@ import styles from './ChartSettingsModal.module.css'
  * persists the whole object (via chart_settings preference).
  */
 
+// #rrggbb + 0..1 alpha ⇄ 8-digit hex — for the watermark, whose color & opacity
+// are stored as separate settings but edited through the one opacity-aware picker.
+function splitHexA(v) {
+  const m8 = /^#?([0-9a-f]{6})([0-9a-f]{2})$/i.exec((v || '').trim())
+  if (m8) return { rgb: `#${m8[1].toLowerCase()}`, a: parseInt(m8[2], 16) / 255 }
+  const m6 = /^#?([0-9a-f]{6})$/i.exec((v || '').trim())
+  return { rgb: m6 ? `#${m6[1].toLowerCase()}` : '#a8a290', a: 1 }
+}
+function joinHexA(rgb, a) {
+  const base = /^#[0-9a-f]{6}$/i.test(rgb || '') ? rgb.toLowerCase() : '#a8a290'
+  const av = Math.max(0, Math.min(1, a ?? 1))
+  if (av >= 0.999) return base
+  return base + Math.round(av * 255).toString(16).padStart(2, '0')
+}
+
 // Compact type glyphs (24×24, currentColor) so each option reads at a glance.
 function TypeGlyph({ kind }) {
   const s = { width: 26, height: 26, display: 'block' }
@@ -93,11 +108,52 @@ const TARGET_MAP = {
   one: 'oneColor',
 }
 
+// Header tab options.
+const TITLE_MODES = [
+  { val: 'ticker', label: 'Ticker' },
+  { val: 'company', label: 'Company' },
+  { val: 'both', label: 'Both' },
+]
+// Header "Show" rows: a visibility toggle + one or more color swatches. Day change
+// carries TWO swatches (up-day / down-day colors); the rest carry one. Each swatch
+// is [color target, picker label].
+const HEADER_ROWS = [
+  { key: 'showChange', label: 'Day change ($ / %)', swatches: [['hdrDayUp', 'Up-day color'], ['hdrDayDown', 'Down-day color']] },
+  { key: 'showMarketCap', label: 'Market cap', swatches: [['hdrMarketCap', 'Market cap color']] },
+  { key: 'showNextEarnings', label: 'Next earnings', swatches: [['hdrNextEarnings', 'Next earnings color']] },
+  { key: 'showUctRating', label: 'UCT rating', swatches: [['hdrUctRating', 'UCT rating color']] },
+  { key: 'showLegend', label: 'Chart legend', swatches: [['hdrLegend', 'Chart legend color']] },
+]
+
 export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor }) {
   const panelRef = useRef(null)
+  const dragRef = useRef(null)
   const [activeTab, setActiveTab] = useState('price') // 'price' | 'canvas'
   const [activeTarget, setActiveTarget] = useState(null) // { target, label }
   const [panelPos, setPanelPos] = useState(null)
+  const [pos, setPos] = useState(null) // dragged modal position {left, top}; null = centered
+
+  useEffect(() => { if (!open) setPos(null) }, [open]) // re-center on each open
+
+  // Drag the modal by its header (like a floating tool window). Stays open while
+  // dragging; clicking the ✕ or outside still closes it.
+  const startDrag = (e) => {
+    if (e.button !== 0 || e.target.closest?.('[data-modal-close]')) return
+    const r = panelRef.current?.getBoundingClientRect(); if (!r) return
+    e.preventDefault()
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top, w: r.width, h: r.height }
+    let raf = 0, last = null
+    const flush = () => {
+      raf = 0; const d = dragRef.current; if (!d || !last) return
+      const nx = Math.max(8, Math.min(window.innerWidth - d.w - 8, d.ox + (last.clientX - d.sx)))
+      const ny = Math.max(8, Math.min(window.innerHeight - d.h - 8, d.oy + (last.clientY - d.sy)))
+      setPos({ left: nx, top: ny }); last = null
+    }
+    const move = (ev) => { last = ev; if (!raf) raf = requestAnimationFrame(flush) }
+    const up = () => { if (raf) cancelAnimationFrame(raf); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -120,7 +176,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     // Align the color panel's BOTTOM edge with the settings modal's bottom edge.
     const bottom = Math.max(8, window.innerHeight - r.bottom)
     setPanelPos({ left, bottom })
-  }, [activeTarget, open])
+  }, [activeTarget, open, pos])
 
   // Close the color panel on an outside click (not a swatch, not inside the panel).
   useEffect(() => {
@@ -165,8 +221,30 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     one: ['candles', 'oneColor'],
     bg: ['background'], bgTop: ['bgGradient', 'top'], bgBottom: ['bgGradient', 'bottom'],
     grid: ['grid', 'color'], crosshair: ['crosshair', 'color'], text: ['textColor'],
+    // Per-item header/legend colors (Header tab → Show). Day change is a pair.
+    hdrDayUp: ['header', 'colors', 'dayChangeUp'],
+    hdrDayDown: ['header', 'colors', 'dayChangeDown'],
+    hdrMarketCap: ['header', 'colors', 'marketCap'],
+    hdrNextEarnings: ['header', 'colors', 'nextEarnings'],
+    hdrUctRating: ['header', 'colors', 'uctRating'],
+    hdrLegend: ['header', 'colors', 'legend'],
+    // Swing-label colors (Markers tab).
+    swingColor: ['swingLabels', 'color'],
+    swingUp: ['swingLabels', 'upColor'],
+    swingDown: ['swingLabels', 'downColor'],
+    swingBg: ['swingLabels', 'bg'],
+    // Earnings beat/miss badge colors (also color the popover surprise rows).
+    earnBeat: ['markers', 'earningsBeat'],
+    earnMiss: ['markers', 'earningsMiss'],
   }
   const setColorTarget = (target, hex) => {
+    // Watermark keeps color + opacity as SEPARATE settings (the chart reads them
+    // apart), so map the picker's 8-digit color → {color, opacity}.
+    if (target === 'watermark') {
+      const { rgb, a } = splitHexA(hex)
+      onChange?.({ ...settings, watermark: { ...watermark, color: rgb, opacity: a }, preset: 'custom' })
+      return
+    }
     const path = COLOR_PATHS[target]; if (!path) return
     const next = { ...settings }
     let o = next
@@ -190,6 +268,22 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       case 'grid': return grid.color || 'rgba(46,49,39,0.25)'
       case 'crosshair': return crosshair.color || '#706b5e'
       case 'text': return settings.textColor || '#706b5e'
+      case 'watermark': return joinHexA(watermark.color || '#a8a290', (watermark.opacity == null || watermark.opacity === 0.07) ? 0.82 : watermark.opacity)
+      // Header/legend colors: the stored value, else the item's built-in default so
+      // the swatch reads as the current on-screen color before the user changes it.
+      case 'hdrDayUp': return hdrColors.dayChangeUp || '#1ae51a'
+      case 'hdrDayDown': return hdrColors.dayChangeDown || '#ff3b47'
+      case 'hdrMarketCap': return hdrColors.marketCap || '#c9a84c'
+      case 'hdrNextEarnings': return hdrColors.nextEarnings || '#6ba3be'
+      case 'hdrUctRating': return hdrColors.uctRating || '#1ae51a'  // price-candle up-green
+      case 'hdrLegend': return hdrColors.legend || '#a8a290'
+      case 'swingColor': return swing.color || '#d4d0c4'
+      case 'swingUp': return swing.upColor || '#4ade80'
+      case 'swingDown': return swing.downColor || '#f87171'
+      // Unset background halo matches the canvas, so show that as the swatch default.
+      case 'swingBg': return swing.bg || settings.background || '#0e0f0d'
+      case 'earnBeat': return evtMarkers.earningsBeat || '#1ae51a'
+      case 'earnMiss': return evtMarkers.earningsMiss || '#c41f2d'
       default: return '#1ae51a'
     }
   }
@@ -197,12 +291,27 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const setBgMode = (m) => { if (m !== bgMode) setSetting({ bgMode: m }) }
   const setGridVisible = (v) => setSetting({ grid: { ...grid, visible: v } })
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
-  const colorSwatch = (target, label) => (
+  const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
+  const wmLines = watermark.lines || {}
+  // Header tab.
+  const header = settings?.header || {}
+  const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
+  const hdrColors = header.colors || {}
+  // Markers tab.
+  const swing = settings?.swingLabels || {}
+  const setSwing = (patch) => setSetting({ swingLabels: { ...swing, ...patch } })
+  const evtMarkers = settings?.markers || {}
+  const setMarker = (key, v) => setSetting({ markers: { ...evtMarkers, [key]: v } })
+  const SWING_SENS = [['low', 'Low'], ['medium', 'Med'], ['high', 'High']]
+  const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News']]
+  const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
+  const curTextSize = settings.textSize ?? 11
+  const colorSwatch = (target, label, bg) => (
     <button
       type="button"
       data-color-swatch
       className={`${styles.cSwatch} ${activeTarget?.target === target ? styles.cSwatchActive : ''}`}
-      style={{ background: targetValue(target) }}
+      style={{ background: bg || targetValue(target) }}
       title={label}
       onClick={() => setActiveTarget({ target, label })}
     />
@@ -212,14 +321,19 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     <>
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
-      <div className={styles.panel} ref={panelRef} onMouseDown={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
+      <div
+        className={styles.panel}
+        ref={panelRef}
+        onMouseDown={(e) => e.stopPropagation()}
+        style={pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : undefined}
+      >
+        <div className={styles.header} onPointerDown={startDrag} style={{ cursor: 'move' }}>
           <span className={styles.title}>Chart Settings</span>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" data-modal-close className={styles.close} onClick={onClose} aria-label="Close" style={{ cursor: 'pointer' }}>✕</button>
         </div>
 
         <div className={styles.tabs} role="tablist">
-          {[['price', 'Price Style'], ['canvas', 'Canvas']].map(([id, label]) => (
+          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -297,7 +411,17 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
               </div>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Scale text</span>
-                {colorSwatch('text', 'Scale Text')}
+                <div className={styles.fieldControls}>
+                  <select
+                    className={styles.sizeSelect}
+                    value={curTextSize}
+                    onChange={(e) => setSetting({ textSize: Number(e.target.value) })}
+                    aria-label="Scale text size"
+                  >
+                    {TEXT_SIZES.map((px) => <option key={px} value={px}>{px}</option>)}
+                  </select>
+                  {colorSwatch('text', 'Scale Text')}
+                </div>
               </div>
             </div>
           </section>
@@ -306,13 +430,174 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             <div className={styles.sectionLabel}>Watermark</div>
             <div className={styles.card}>
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Show ticker watermark</span>
+                <span className={styles.fieldLabel}>Show watermark</span>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={watermark.visible !== false}
                   className={`${styles.toggle} ${watermark.visible !== false ? styles.toggleOn : ''}`}
                   onClick={() => setWmVisible(watermark.visible === false)}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+              {watermark.visible !== false && (<>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Fields</span>
+                  <div className={styles.chipRow}>
+                    {[['ticker', 'Ticker'], ['company', 'Company'], ['sector', 'Sector'], ['industry', 'Industry'], ['theme', 'Theme']].map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`${styles.chip} ${wmLines[key] !== false ? styles.chipOn : ''}`}
+                        onClick={() => setWmLine(key, wmLines[key] === false)}
+                        aria-pressed={wmLines[key] !== false}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Color &amp; opacity</span>
+                  {colorSwatch('watermark', 'Watermark', watermark.color || '#a8a290')}
+                </div>
+              </>)}
+            </div>
+          </section>
+          </>)}
+          {activeTab === 'header' && (<>
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Title</div>
+            <div className={styles.modeRow}>
+              {TITLE_MODES.map(({ val, label }) => (
+                <button
+                  key={val}
+                  type="button"
+                  className={`${styles.modeCard} ${(header.titleMode || 'company') === val ? styles.modeCardActive : ''}`}
+                  onClick={() => setHeader({ titleMode: val })}
+                  aria-pressed={(header.titleMode || 'company') === val}
+                >
+                  <span className={styles.modeName}>{label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Show</div>
+            <div className={styles.card}>
+              {HEADER_ROWS.map(({ key, label, swatches }) => {
+                const on = header[key] !== false
+                return (
+                  <div className={styles.field} key={key}>
+                    <span className={styles.fieldLabel}>{label}</span>
+                    <div className={styles.hdrRowCtl}>
+                      {/* Color swatch(es) — only meaningful when the item is shown. */}
+                      {on && swatches.map(([target, pickerLabel]) => (
+                        <span key={target}>{colorSwatch(target, pickerLabel)}</span>
+                      ))}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={on}
+                        className={`${styles.toggle} ${on ? styles.toggleOn : ''}`}
+                        onClick={() => setHeader({ [key]: header[key] === false })}
+                      ><span className={styles.toggleKnob} /></button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+          {/* Timeframes/Favorites are managed on the chart's own timeframe menu (the
+              ⌄ button) — star to favorite there; no separate settings section. */}
+          </>)}
+          {activeTab === 'markers' && (<>
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Swing labels</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Swing prices</span>
+                <button
+                  type="button" role="switch" aria-checked={!!swing.enabled} aria-label="Swing prices"
+                  className={`${styles.toggle} ${swing.enabled ? styles.toggleOn : ''}`}
+                  onClick={() => setSwing({ enabled: !swing.enabled })}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+              {swing.enabled && (<>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Sensitivity</span>
+                  <div className={styles.seg} role="tablist">
+                    {SWING_SENS.map(([val, label]) => (
+                      <button
+                        key={val} type="button" role="tab"
+                        aria-selected={(swing.sensitivity || 'medium') === val}
+                        className={`${styles.segBtn} ${(swing.sensitivity || 'medium') === val ? styles.segBtnActive : ''}`}
+                        onClick={() => setSwing({ sensitivity: val })}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Label color</span>
+                  {colorSwatch('swingColor', 'Swing label color')}
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Label background</span>
+                  <div className={styles.hdrRowCtl}>
+                    {swing.bgEnabled !== false && colorSwatch('swingBg', 'Swing label background')}
+                    <button
+                      type="button" role="switch" aria-checked={swing.bgEnabled !== false} aria-label="Label background"
+                      className={`${styles.toggle} ${swing.bgEnabled !== false ? styles.toggleOn : ''}`}
+                      onClick={() => setSwing({ bgEnabled: swing.bgEnabled === false })}
+                    ><span className={styles.toggleKnob} /></button>
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Tint by type</span>
+                  <div className={styles.hdrRowCtl}>
+                    {swing.tintByType && colorSwatch('swingUp', 'Swing-high color')}
+                    {swing.tintByType && colorSwatch('swingDown', 'Swing-low color')}
+                    <button
+                      type="button" role="switch" aria-checked={!!swing.tintByType} aria-label="Tint by type"
+                      className={`${styles.toggle} ${swing.tintByType ? styles.toggleOn : ''}`}
+                      onClick={() => setSwing({ tintByType: !swing.tintByType })}
+                    ><span className={styles.toggleKnob} /></button>
+                  </div>
+                </div>
+              </>)}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Event markers</div>
+            <div className={styles.card}>
+              {EVENT_MARKERS.map(([key, label]) => (
+                <div className={styles.field} key={key}>
+                  <span className={styles.fieldLabel}>{label}</span>
+                  <div className={styles.hdrRowCtl}>
+                    {/* Earnings badge is beat/miss-colored — expose both when it's on. */}
+                    {key === 'earnings' && evtMarkers.earnings && (<>
+                      {colorSwatch('earnBeat', 'Beat color')}
+                      {colorSwatch('earnMiss', 'Miss color')}
+                    </>)}
+                    <button
+                      type="button" role="switch" aria-checked={!!evtMarkers[key]} aria-label={label}
+                      className={`${styles.toggle} ${evtMarkers[key] ? styles.toggleOn : ''}`}
+                      onClick={() => setMarker(key, !evtMarkers[key])}
+                    ><span className={styles.toggleKnob} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Countdown</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Countdown to bar close</span>
+                <button
+                  type="button" role="switch" aria-checked={!!settings.countdown} aria-label="Countdown to bar close"
+                  className={`${styles.toggle} ${settings.countdown ? styles.toggleOn : ''}`}
+                  onClick={() => setSetting({ countdown: !settings.countdown })}
                 ><span className={styles.toggleKnob} /></button>
               </div>
             </div>
@@ -411,6 +696,12 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
+            line={activeTarget.target === 'crosshair' ? {
+              width: crosshair.width ?? 1,
+              style: crosshair.style ?? 3,
+              onWidth: (w) => setSetting({ crosshair: { ...crosshair, width: w } }),
+              onStyle: (s) => setSetting({ crosshair: { ...crosshair, style: s } }),
+            } : null}
           />
         </div>,
         document.body,

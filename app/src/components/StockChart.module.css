@@ -17,6 +17,7 @@
 .rangeBar {
   position: absolute;
   left: 8px;
+  bottom: calc(22% + 32px); /* fallback (above the volume pane) until the rAF sampler pins it live */
   z-index: 6;
   display: flex;
   gap: 1px;
@@ -27,6 +28,31 @@
   backdrop-filter: blur(2px);
   pointer-events: auto;
 }
+
+/* Volume-pane legend — top-left of the volume pane: dollar volume + avg volume
+   over the MA period. `top` is pinned live to the pane boundary by a rAF sampler. */
+.volLegend {
+  position: absolute;
+  left: 8px;
+  top: 76%; /* fallback until the sampler pins it to the volume pane top */
+  z-index: 6;
+  display: flex;
+  gap: 12px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(14, 15, 13, 0.55);
+  /* Match the main chart legend: mono font + tan/gold label + value colors. */
+  font-family: var(--font-mono);
+  font-size: 10px;
+  pointer-events: none;
+  user-select: none;
+}
+.volLegItem { display: inline-flex; gap: 5px; align-items: baseline; }
+.volLegLabel { color: #a8a290; font-weight: 500; }
+.volLegVal { color: #d4cfc0; font-weight: 600; font-variant-numeric: tabular-nums; }
+:global([data-charts-theme='sunrise']) .volLegend { background: rgba(255, 255, 255, 0.55); }
+:global([data-charts-theme='sunrise']) .volLegLabel { color: #3f4a57; }
+:global([data-charts-theme='sunrise']) .volLegVal { color: #12202c; }
 .rangeBtn {
   background: transparent;
   border: none;
@@ -211,6 +237,7 @@
 :global([data-charts-theme='sunrise']) .rangeBtn { color: #47525f; }
 :global([data-charts-theme='sunrise']) .rangeBtn:hover { color: #1c2836; background: rgba(20, 45, 75, 0.08); }
 /* Vertical OHLCV legend (workspace) — date + labels + values dark & bold on the bright canvas. */
+:global([data-charts-theme='sunrise']) .legendVertical { background: rgba(255, 255, 255, 0.55); box-shadow: none; }
 :global([data-charts-theme='sunrise']) .vlHead { color: #16212e; font-weight: 700; }
 :global([data-charts-theme='sunrise']) .vlLabel,
 :global([data-charts-theme='sunrise']) .vlFull { color: #3f4a57; font-weight: 600; }
@@ -227,6 +254,8 @@
   row-gap: 1px;
   align-content: start;
   top: 46px;
+  /* Keep the more-transparent background; font + colors stay the original mono look. */
+  background: rgba(14, 15, 13, 0.55);
 }
 .vlHead {
   grid-column: 1 / -1;

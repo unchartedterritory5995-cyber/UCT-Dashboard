@@ -469,6 +469,15 @@ def get_status() -> dict:
 
 # -- Event handling -------------------------------------------------
 
+# Stage-2 fallback result cache: contract_key -> (oi_or_None, cached_at).
+# Hits AND misses cached (misses are the expensive case — see the 2026-07-17
+# write-profile note inside _load_oi_for_events). OI moves once daily, so a
+# short TTL is safe; the on-demand fetch pipeline still upgrades misses via
+# Stage 1 on later batches.
+_OI_FALLBACK_CACHE: dict = {}
+_OI_FALLBACK_TTL = float(os.environ.get("MASSIVE_OI_FALLBACK_CACHE_TTL", "600"))
+
+
 def _load_oi_for_events(events: list) -> dict:
     """
     Look up OI for each event using a two-stage lookup:
@@ -516,6 +525,13 @@ def _load_oi_for_events(events: list) -> dict:
     out = {}
     try:
         with sqlite3.connect(db_path, timeout=10) as conn:
+            # contract_oi_snapshots moved to its own DB (2026-07-17) — attach so
+            # the Stage-1 query below resolves it; Stage 2 still hits flow (main).
+            try:
+                from api.oi_snapshots import attach_oi_snapshots
+                attach_oi_snapshots(conn)
+            except Exception:
+                pass
             # Stage 1: contract_oi_snapshots
             keys = [k for k, _, _ in keys_and_idx]
             placeholders = ",".join("?" for _ in keys)
@@ -531,8 +547,26 @@ def _load_oi_for_events(events: list) -> dict:
                 if idx is not None and oi is not None and oi > 0:
                     out[idx] = int(oi)
 
-            # Stage 2: flow table fallback for events that missed
-            unresolved = [(k, i, e) for k, i, e in keys_and_idx if i not in out]
+            # Stage 2: flow table fallback for events that missed.
+            #
+            # 2026-07-17 write-profile finding: this stage was 86,688ms of an
+            # 88,734ms batch — up to 3 ORDER-BY-id-DESC probes PER EVENT
+            # against flow, re-run EVERY batch for contracts with no OI
+            # anywhere (fresh weeklies scan the whole table and miss again 2s
+            # later). Two rails fix it: idx_flow_contract (created at
+            # flow-worker boot) makes each probe an index seek, and a 10-min
+            # result cache (hits AND misses) skips repeat probes entirely.
+            _now_cache = time.time()
+            unresolved = []
+            for k, i, e in keys_and_idx:
+                if i in out:
+                    continue
+                _hit = _OI_FALLBACK_CACHE.get(k)
+                if _hit is not None and (_now_cache - _hit[1]) < _OI_FALLBACK_TTL:
+                    if _hit[0]:
+                        out[i] = _hit[0]
+                else:
+                    unresolved.append((k, i, e))
             if unresolved:
                 # Build per-contract query against flow. Each contract is
                 # (Symbol, CallPut, Strike, ExpirationDate). We use the MAX(id)
@@ -579,6 +613,14 @@ def _load_oi_for_events(events: list) -> dict:
                                     break
                             except (ValueError, TypeError):
                                 continue
+                    # Cache the outcome either way — a miss cached is a
+                    # full-probe skipped on every batch for the next 10 min.
+                    _OI_FALLBACK_CACHE[key] = (out.get(i), _now_cache)
+                if len(_OI_FALLBACK_CACHE) > 30000:
+                    _cut = _now_cache - _OI_FALLBACK_TTL
+                    for _k in [_k for _k, _v in _OI_FALLBACK_CACHE.items()
+                               if _v[1] < _cut]:
+                        _OI_FALLBACK_CACHE.pop(_k, None)
     except Exception as e:
         logger.warning("[massive-ws] OI batch lookup failed: %s", e)
 
@@ -1154,6 +1196,32 @@ _RAW_T_MAX = 50            # keep last 50 prints per contract
 # per session for the time window relevant to classification.
 _NBBO_HISTORY: dict = {}    # sym -> deque[(ts_ns, bid, ask)]
 _NBBO_HISTORY_MAX = 1000    # keep last 1000 NBBO snapshots per contract
+# MEMORY-LEAK FIX (2026-07-17, Ravi's find): both _NBBO_HISTORY and _nbbo_table
+# are dicts that grew ONE entry per contract EVER subscribed all session and
+# were only .clear()'d at teardown. The per-contract deque is bounded, but the
+# DICT is not — at pool churn that's tens of thousands of contracts, ~100 MB/min
+# monotonic. Today's 20 restarts were an accidental GC; with the tape now stable
+# a clean 6.5h Monday session projected ~39 GB vs a 32 GB ceiling ~2:30-3:00 PM ET.
+# Fix: (1) evict a contract's NBBO state when it leaves the Q-pool [primary], and
+# (2) a backstop sweep that drops entries no longer in _q_subscribed when the map
+# exceeds this cap [catches in-flight quotes for just-unsubscribed contracts].
+_NBBO_CONTRACTS_MAX = int(os.environ.get("MASSIVE_NBBO_CONTRACTS_MAX", "2500"))
+
+
+def _evict_dead_nbbo() -> None:
+    """Drop NBBO state for contracts no longer subscribed. O(n) but only runs
+    when the map exceeds _NBBO_CONTRACTS_MAX — the Q-pool caps at ~950, so this
+    fires only on straggler buildup, and the survivors are exactly the live
+    pool. Never touches subscribed contracts' history."""
+    if len(_NBBO_HISTORY) <= _NBBO_CONTRACTS_MAX:
+        return
+    dead = [s for s in _NBBO_HISTORY if s not in _q_subscribed]
+    for s in dead:
+        _NBBO_HISTORY.pop(s, None)
+        _nbbo_table.pop(s, None)
+    if dead:
+        logger.info("[massive-ws] NBBO map trim: evicted %d unsubscribed "
+                    "contracts (now %d tracked)", len(dead), len(_NBBO_HISTORY))
 
 
 def _nbbo_at(sym: str, ts_ns: int) -> tuple | None:
@@ -1423,6 +1491,67 @@ def _load_spot_for_events(events: list) -> dict:
     return out
 
 
+# In-memory day-volume counters (2026-07-17 final cumvol fix): the per-batch
+# SQL aggregation re-scans ALL of today's rows every batch (CAST per row), a
+# FIXED ~1s-per-15k-rows cost that grew to 11-13s/batch by afternoon — batch
+# size irrelevant. Seed ONCE per (boot, date) with the same grouped query,
+# then maintain counts in memory (the writer is single-threaded by design:
+# single consumer + 1-worker executor). Restart → reseed from DB, so counts
+# never drift from what's actually persisted.
+_CUMVOL_STATE: dict = {"date": None, "counts": None}
+_CUMVOL_SEED_LOCK = threading.Lock()
+_cumvol_seeding_date = {"date": None}  # guards against double-seed
+
+
+def _kick_cumvol_seed(trade_date_mdY: str) -> None:
+    """Fire a ONE-SHOT background thread that folds the pre-boot day-to-date
+    volume into the live counters. Never blocks the writer. Idempotent per
+    date. Adds to (never overwrites) the live-maintained counts so volume the
+    writer accrued while the seed ran is preserved."""
+    if _cumvol_seeding_date["date"] == trade_date_mdY:
+        return
+    _cumvol_seeding_date["date"] = trade_date_mdY
+
+    def _run():
+        import sqlite3
+        counts_from_db = {}
+        try:
+            from api.flow_db import FlowDB
+            t0 = time.perf_counter()
+            with sqlite3.connect(FlowDB().db_path, timeout=30) as conn:
+                _sql = ("SELECT Symbol, CallPut, Strike, ExpirationDate, "
+                        "COALESCE(SUM(CAST(Volume AS INTEGER)),0) "
+                        "FROM flow INDEXED BY idx_flow_created_symbol "
+                        "WHERE CreatedDate=? "
+                        "GROUP BY Symbol, CallPut, Strike, ExpirationDate")
+                try:
+                    cur = conn.execute(_sql, (trade_date_mdY,))
+                except sqlite3.OperationalError:
+                    cur = conn.execute(
+                        _sql.replace(" INDEXED BY idx_flow_created_symbol", ""),
+                        (trade_date_mdY,))
+                for r in cur.fetchall():
+                    counts_from_db[(r[0], r[1], str(r[2]), r[3])] = int(r[4] or 0)
+            # Merge into the live counters under the lock. The DB total already
+            # INCLUDES any rows the live writer persisted before this query ran,
+            # AND the live counters ALSO accrued those — so overwrite with the
+            # DB value (authoritative day-to-date) rather than add (would double
+            # count). Rows written AFTER the query but before this merge are the
+            # only skew, bounded by the query duration + next heal fixes it.
+            with _CUMVOL_SEED_LOCK:
+                if _CUMVOL_STATE["date"] == trade_date_mdY and _CUMVOL_STATE["counts"] is not None:
+                    _CUMVOL_STATE["counts"].update(counts_from_db)
+            logger.info("[massive-ws] cumvol background seed merged: %d "
+                        "contracts for %s in %.1fs (tape never blocked)",
+                        len(counts_from_db), trade_date_mdY,
+                        time.perf_counter() - t0)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[massive-ws] cumvol background seed failed "
+                           "(live counts stand; heal reconciles): %s", e)
+
+    threading.Thread(target=_run, name="cumvol-seed", daemon=True).start()
+
+
 def _load_cumulative_volume(events: list) -> dict:
     """Phase 2d: compute cumulative day volume per contract for BBS-style Color.
 
@@ -1461,48 +1590,42 @@ def _load_cumulative_volume(events: list) -> dict:
         if key not in contracts:
             contracts[key] = strike_strs
 
-    # Query FlowDB for day-to-date cumulative volume -- ONE batched GROUP BY.
-    # WAS a SUM(Volume) query PER CONTRACT (docstring assumed 50 events/30
-    # contracts). At the open with coalesced batches that's THOUSANDS of scans
-    # over the growing 400K-row flow table per write -> 72s blocking writes, the
-    # writer fell minutes behind wall (2026-07-09). One grouped scan for the
-    # whole batch instead, matched back to contracts in Python (identical result).
-    db_vol = {}  # (root, cp, strike, exp_mdy) -> sum(Volume)
-    try:
-        from api.flow_db import FlowDB
-        db = FlowDB()
-        syms = list({e.root for e in events})
-        db_agg = {}  # (Symbol, CallPut, StrikeStr, Exp) -> sum(Volume)
-        if syms:
-            with sqlite3.connect(db.db_path, timeout=10) as conn:
-                ph = ",".join("?" * len(syms))
-                cur = conn.execute(
-                    "SELECT Symbol, CallPut, Strike, ExpirationDate, "
-                    "COALESCE(SUM(CAST(Volume AS INTEGER)),0) "
-                    "FROM flow WHERE CreatedDate=? AND Symbol IN (" + ph + ") "
-                    "GROUP BY Symbol, CallPut, Strike, ExpirationDate",
-                    [trade_date_mdY, *syms],
-                )
-                for r in cur.fetchall():
-                    db_agg[(r[0], r[1], str(r[2]), r[3])] = int(r[4] or 0)
-        for key, strike_strs in contracts.items():
-            root, cp, strike, exp_mdy = key
-            total = 0
-            for strike_str in strike_strs:
-                total += db_agg.get((root, cp, strike_str, exp_mdy), 0)
-            if total > 0:
-                db_vol[key] = total
-    except Exception as e:
-        logger.warning("[massive-ws] cumulative volume lookup failed: %s", e)
+    # NON-BLOCKING seed (2026-07-17 pt2): the DB seed scans the whole day's
+    # rows (~80s at 62k contracts) and MUST NOT run inline — it froze the tape
+    # ~115s on the 4:04 restart. Instead the writer maintains counts live from
+    # the first event; a one-shot background thread folds in the pre-boot day
+    # total when it lands. So the tape NEVER blocks on the seed; the only cost
+    # is that batches in the first ~80s slightly UNDER-count cumvol (missing
+    # pre-boot volume) → some rows read a lighter color until the seed merges
+    # and the nightly heal reconciles. A 115s freeze traded for cosmetic,
+    # self-healing imprecision on a restart's first minute.
+    st = _CUMVOL_STATE
+    if st["date"] != trade_date_mdY:
+        # New boot or date rollover: start live counts now, seed in background.
+        st["date"] = trade_date_mdY
+        st["counts"] = {}
+        _kick_cumvol_seed(trade_date_mdY)
+    counts = st["counts"]
 
-    # For each event, cumulative = DB total + sum of this batch up to (incl) this event
+    # Per event: cumulative = seeded/maintained day total + in-batch running
+    # sum; then fold this batch INTO the counters (under the first canonical
+    # strike string) so the next batch sees it without any DB round-trip.
     batch_running = {}  # (root, cp, strike, exp_mdy) -> running batch sum
     out = {}
     for i, e in enumerate(events):
         exp_mdy = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
         key = (e.root, e.cp, e.strike, exp_mdy)
+        strike_strs = contracts.get(key) or [str(float(e.strike))]
+        day_total = 0
+        for ss in strike_strs:
+            day_total += counts.get((e.root, e.cp, ss, exp_mdy), 0)
         batch_running[key] = batch_running.get(key, 0) + e.total_size
-        out[i] = db_vol.get(key, 0) + batch_running[key]
+        out[i] = day_total + batch_running[key]
+    for key, added in batch_running.items():
+        root, cp, strike, exp_mdy = key
+        ss0 = (contracts.get(key) or [str(float(strike))])[0]
+        ck = (root, cp, ss0, exp_mdy)
+        counts[ck] = counts.get(ck, 0) + added
     return out
 
 
@@ -1528,6 +1651,11 @@ def _write_events(events: list) -> None:
     try:
         from api.flow_db import FlowDB
         db = FlowDB()
+
+        # Per-pass timing (2026-07-17): the writer sustains ~30 ev/s vs the
+        # ~650/s open firehose and nobody knows WHICH enrichment pass eats the
+        # time. One INFO line per coalesced batch answers it in production.
+        _tp0 = time.perf_counter()
 
         # Enrich with MktCap + Sector from FlowDB cache (free, instant, no API).
         # Any ticker that's been in FlowDB before (BBS upload, prior writes)
@@ -1556,6 +1684,8 @@ def _write_events(events: list) -> None:
                 len(ticker_meta), len(all_syms),
             )
 
+        _tp_meta = time.perf_counter()
+
         # OI enrichment: look up snapshot OI for each event's contract.
         # Powers Color (WHITE/YELLOW/MAGENTA) per BBS rules. Without OI we
         # can't tell if a trade exceeds existing positioning -- everything
@@ -1566,6 +1696,8 @@ def _write_events(events: list) -> None:
         _state["last_oi_lookup_size"] = len(stocks) + len(indexes)
         _state["last_oi_lookup_resolved"] = len(oi_stocks) + len(oi_indexes)
 
+        _tp_oi = time.perf_counter()
+
         # Phase 2d: cumulative day volume per contract for BBS-style Color.
         # Combined with OI, this drives YELLOW/MAGENTA confirmation. Without
         # this, Color is computed from single-event volume and we sit at
@@ -1573,16 +1705,22 @@ def _write_events(events: list) -> None:
         cum_vol_stocks = _load_cumulative_volume(stocks) if stocks else {}
         cum_vol_indexes = _load_cumulative_volume(indexes) if indexes else {}
 
+        _tp_cum = time.perf_counter()
+
         # Phase 2b: spot price enrichment. Best-effort -- symbols not in cache
         # get omitted and spot=0 in the row (same as pre-Phase-2b behavior).
         # Symbols queue for background fetch; next batch picks them up.
         spot_stocks = _load_spot_for_events(stocks) if stocks else {}
         spot_indexes = _load_spot_for_events(indexes) if indexes else {}
 
+        _tp_spot = time.perf_counter()
+
         # Phase 2g: ER flag from FlowDB cache (BBS uploads provide this).
         # Free lookup, no external API.
         all_syms_for_er = list({e.root for e in events})
         er_map = _load_er_flags(all_syms_for_er)
+
+        _tp_er = time.perf_counter()
 
         if stocks:
             csv_str = _events_to_csv(stocks, "stocks",
@@ -1609,6 +1747,18 @@ def _write_events(events: list) -> None:
                     "[massive-ws] indexes: %d inserted, %d skipped (dupes)",
                     result["inserted"], result.get("skipped", 0),
                 )
+
+        _tp_ins = time.perf_counter()
+        _prof = (
+            "[massive-ws] write-profile: n=%d meta=%.0fms oi=%.0fms "
+            "cumvol=%.0fms spot=%.0fms er=%.0fms csv+insert=%.0fms total=%.0fms"
+            % (len(events),
+               (_tp_meta - _tp0) * 1000, (_tp_oi - _tp_meta) * 1000,
+               (_tp_cum - _tp_oi) * 1000, (_tp_spot - _tp_cum) * 1000,
+               (_tp_er - _tp_spot) * 1000, (_tp_ins - _tp_er) * 1000,
+               (_tp_ins - _tp0) * 1000))
+        _state["last_write_profile"] = _prof
+        logger.info(_prof)
 
         _state["last_write_ts"] = time.time()
         try:
@@ -2038,6 +2188,12 @@ async def _run_session(ws):
                         "params": params,
                     }))
                     _q_subscribed.difference_update(unsubs)
+                    # MEMORY-LEAK FIX (2026-07-17): drop the evicted contracts'
+                    # NBBO state — they're no longer classified, so their history
+                    # is dead weight. This is the primary bound on _NBBO_HISTORY.
+                    for _u in unsubs:
+                        _NBBO_HISTORY.pop(_u, None)
+                        _nbbo_table.pop(_u, None)
                     _state["q_unsubscribes_sent"] += 1
                     logger.info("[massive-ws] Q.unsubscribed %d contracts "
                                 "(pool now %d)", len(unsubs), len(_q_subscribed))
@@ -2614,10 +2770,25 @@ async def _run_session(ws):
                     if nh is None:
                         nh = deque(maxlen=_NBBO_HISTORY_MAX)
                         _NBBO_HISTORY[sym] = nh
+                        # Backstop for the leak: a quote can arrive for a
+                        # just-unsubscribed contract (in-flight), re-creating an
+                        # entry the unsub path already cleared. Sweep dead
+                        # entries when the map overgrows so it can't creep.
+                        if len(_NBBO_HISTORY) > _NBBO_CONTRACTS_MAX:
+                            _evict_dead_nbbo()
                     nh.append((ts_ms * 1_000_000, bid, ask))
                     _state["quotes_received"] += 1
                 elif ev_type == "status":
-                    logger.info("[massive-ws] status: %s", evt)
+                    _msg = str(evt.get("message", ""))
+                    if _msg.startswith(("subscribed to:", "unsubscribed to:")):
+                        # Per-contract sub/unsub acks flood 500+ lines/sec at
+                        # the open — they hit Railway's log rate cap (dropping
+                        # every other message, incl. crash tracebacks) and burn
+                        # recv-loop CPU. The aggregate "Q.subscribed N
+                        # contracts (pool now X)" lines already cover this.
+                        logger.debug("[massive-ws] status: %s", evt)
+                    else:
+                        logger.info("[massive-ws] status: %s", evt)
                 else:
                     # Other event types (AM, A, FMV) -- not subscribed
                     logger.debug("[massive-ws] unhandled ev=%s", ev_type)

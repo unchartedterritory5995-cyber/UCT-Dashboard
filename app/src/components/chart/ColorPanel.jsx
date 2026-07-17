@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import styles from './ColorPanel.module.css'
 
 /**
@@ -86,11 +86,14 @@ const COLUMNS = [
 ]
 const PALETTE = [0, 1, 2, 3, 4, 5].map((r) => COLUMNS.map((col) => col[r]))
 
-export default function ColorPanel({ title, value, onChange, onClose, savedColors = [], onSaveColor, onDeleteColor }) {
+export default function ColorPanel({ title, value, onChange, onClose, savedColors = [], onSaveColor, onDeleteColor, line = null }) {
   const [customOpen, setCustomOpen] = useState(false)
   const svRef = useRef(null)
   const hueRef = useRef(null)
   const opRef = useRef(null)
+  const opThumbRef = useRef(null)
+  const opValRef = useRef(null)
+  const opDraggingRef = useRef(false)
   // Split the value into its RGB + opacity. Palette / hex / custom set the RGB (alpha
   // preserved); the opacity slider sets the alpha (RGB preserved).
   const { rgb: curRgb, a: curA } = useMemo(() => splitColor(value), [value])
@@ -98,8 +101,13 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
   const [hexText, setHexText] = useState(curRgb)
   useEffect(() => { setHexText(curRgb) }, [curRgb])
 
-  const emitRgb = useCallback((rgb) => { onChange?.(joinColor(rgb, curA)) }, [onChange, curA])
-  const emitAlpha = useCallback((a) => { onChange?.(joinColor(curRgb, a)) }, [onChange, curRgb])
+  // Read current rgb/alpha from refs so emit callbacks stay STABLE across renders —
+  // otherwise every opacity emit changes emitRgb's identity and re-renders the whole
+  // 72-swatch palette mid-drag (a big per-emit stall).
+  const curRgbRef = useRef(curRgb); curRgbRef.current = curRgb
+  const curARef = useRef(curA); curARef.current = curA
+  const emitRgb = useCallback((rgb) => { onChange?.(joinColor(rgb, curARef.current)) }, [onChange])
+  const emitAlpha = useCallback((a) => { onChange?.(joinColor(curRgbRef.current, a)) }, [onChange])
 
   const svPointer = useCallback((e) => {
     const r = svRef.current?.getBoundingClientRect(); if (!r) return
@@ -109,12 +117,64 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
     const r = hueRef.current?.getBoundingClientRect(); if (!r) return
     emitRgb(hsvToHex(clamp01((e.clientX - r.left) / r.width) * 360, hsv.s || 1, hsv.v || 1))
   }, [emitRgb, hsv.s, hsv.v])
-  const opPointer = useCallback((e) => {
-    const r = opRef.current?.getBoundingClientRect(); if (!r) return
-    // Inset the usable track by the thumb radius (7px) so 0% / 100% sit where the
-    // thumb is fully visible (not clipped at the track edges).
-    emitAlpha(clamp01((e.clientX - r.left - 7) / (r.width - 14)))
-  }, [emitAlpha])
+  // Opacity slider — ULTRA-SMOOTH drag. Each move writes the thumb position (and %
+  // label) straight to the DOM, so the circle tracks the pointer at the monitor's
+  // frame rate regardless of how heavy the downstream chart repaint is. The actual
+  // color change (onChange → full chart re-render) is THROTTLED to ~25/s during the
+  // drag; the exact final value is always committed on release. (Before this, the
+  // thumb was React-driven off the settings round-trip, so a slow chart repaint made
+  // it stutter.)
+  // Position the thumb via a GPU transform (never `left`) so moving it does NOT
+  // invalidate layout — writing `left` + reading getBoundingClientRect each frame
+  // was layout-thrashing (forced reflow every frame = the "skipping" feel). `w` is
+  // the track's inner width; passed in during a drag (measured once) so no per-frame
+  // rect reads happen either.
+  const paintAlpha = useCallback((a, w) => {
+    const el = opThumbRef.current
+    if (el) {
+      const width = w ?? (opRef.current?.getBoundingClientRect().width || 0)
+      const px = 7 + a * (width - 14)
+      el.style.transform = `translate(calc(${px}px - 50%), -50%)`
+    }
+    if (opValRef.current) opValRef.current.textContent = `${Math.round(a * 100)}%`
+  }, [])
+  // Keep the thumb in sync with the value when NOT dragging (palette/hex/custom
+  // changes). During a drag the thumb is owned entirely by opDrag's DOM writes, so
+  // React never repositions it (which would fight the drag and read stale/quantized
+  // round-trip values — the "lags behind the mouse" artifact).
+  useLayoutEffect(() => { if (!opDraggingRef.current) paintAlpha(curA) }, [curA, paintAlpha])
+  const opDrag = useCallback((e) => {
+    e.preventDefault()
+    // Measure the track ONCE — it can't move/resize mid-drag — so the frame loop
+    // never touches the DOM for reads (no forced reflow).
+    const rect = opRef.current?.getBoundingClientRect(); if (!rect) return
+    opDraggingRef.current = true
+    const toA = (clientX) => clamp01((clientX - rect.left - 7) / (rect.width - 14))
+    let raf = 0, last = null, cur = toA(e.clientX), lastEmit = 0, pending = false
+    // Emit the LATEST value on a macrotask, THROTTLED — so the heavy chart re-render
+    // never runs inside the rAF frame that paints the thumb. Thumb moves at full
+    // frame rate; the chart just updates a bit behind.
+    const scheduleEmit = () => {
+      if (pending) return
+      pending = true
+      const wait = Math.max(0, 60 - (performance.now() - lastEmit))
+      setTimeout(() => { pending = false; lastEmit = performance.now(); if (cur != null) emitAlpha(cur) }, wait)
+    }
+    paintAlpha(cur, rect.width); scheduleEmit()
+    const step = () => {
+      raf = 0; if (!last) return
+      cur = toA(last.clientX); last = null
+      paintAlpha(cur, rect.width); scheduleEmit()   // paint now (cheap), emit later (heavy, throttled)
+    }
+    const move = (ev) => { last = ev; if (!raf) raf = requestAnimationFrame(step) }
+    const up = () => {
+      if (raf) cancelAnimationFrame(raf)
+      opDraggingRef.current = false
+      paintAlpha(cur, rect.width); emitAlpha(cur)    // commit exact final value
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
+  }, [paintAlpha, emitAlpha])
   const startDrag = useCallback((handler) => (e) => {
     e.preventDefault(); handler(e)
     let raf = 0, last = null
@@ -125,9 +185,15 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
   }, [])
   const commitHex = useCallback(() => { const n = normHex(hexText); if (n) emitRgb(n); else setHexText(curRgb) }, [hexText, emitRgb, curRgb])
 
-  const Sw = (c, key) => (
-    <button key={key} type="button" className={`${styles.sw} ${curRgb === c ? styles.swActive : ''}`}
-      style={{ background: c }} title={c} onClick={() => emitRgb(c)} />
+  // Memoized so an opacity emit (which changes curA but NOT curRgb) doesn't re-render
+  // all 72 swatches mid-drag. emitRgb is stable, so this only rebuilds when the
+  // selected rgb changes.
+  const paletteGrid = useMemo(
+    () => PALETTE.map((rowArr, r) => rowArr.map((c, ci) => (
+      <button key={`p${r}-${ci}`} type="button" className={`${styles.sw} ${curRgb === c ? styles.swActive : ''}`}
+        style={{ background: c }} title={c} onClick={() => emitRgb(c)} />
+    ))),
+    [curRgb, emitRgb],
   )
 
   return (
@@ -138,7 +204,7 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
       </div>
 
       <div className={styles.grid}>
-        {PALETTE.map((rowArr, r) => rowArr.map((c, ci) => Sw(c, `p${r}-${ci}`)))}
+        {paletteGrid}
       </div>
 
       {savedColors.length > 0 && (
@@ -184,13 +250,40 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
       {/* Opacity — per-color (each swatch: body/borders/wick, up/down). */}
       <div className={styles.opLabel}>Opacity</div>
       <div className={styles.opRow}>
-        <div className={styles.opTrack} ref={opRef} onPointerDown={startDrag(opPointer)}>
+        <div className={styles.opTrack} ref={opRef} onPointerDown={opDrag}>
           <div className={styles.opChecker} />
           <div className={styles.opFill} style={{ background: `linear-gradient(to right, ${curRgb}00, ${curRgb})` }} />
-          <div className={styles.opThumb} style={{ left: `calc(7px + ${curA} * (100% - 14px))` }} />
+          {/* left is written imperatively (paintAlpha) — never via React — so a drag is never fought by a re-render */}
+          <div className={styles.opThumb} ref={opThumbRef} />
         </div>
-        <span className={styles.opVal}>{Math.round(curA * 100)}%</span>
+        <span className={styles.opVal} ref={opValRef}>{Math.round(curA * 100)}%</span>
       </div>
+
+      {/* Thickness + line style — only for line-type targets (e.g. crosshair). */}
+      {line && (
+        <>
+          <div className={styles.opLabel}>Thickness</div>
+          <div className={styles.lineOpts}>
+            {[1, 2, 3, 4].map((w) => (
+              <button key={w} type="button"
+                className={`${styles.lineOpt} ${line.width === w ? styles.lineOptOn : ''}`}
+                onClick={() => line.onWidth?.(w)} aria-label={`Thickness ${w}`}>
+                <span className={styles.lineSample} style={{ borderTopWidth: w }} />
+              </button>
+            ))}
+          </div>
+          <div className={styles.opLabel}>Line style</div>
+          <div className={styles.lineOpts}>
+            {[[0, 'solid'], [2, 'dashed'], [1, 'dotted']].map(([s, name]) => (
+              <button key={s} type="button"
+                className={`${styles.lineOpt} ${line.style === s ? styles.lineOptOn : ''}`}
+                onClick={() => line.onStyle?.(s)} aria-label={name}>
+                <span className={styles.lineSample} style={{ borderTopWidth: 2, borderTopStyle: name }} />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -120,7 +120,9 @@
   font-weight: 600;
   letter-spacing: 0.6px;
   cursor: pointer;
-  text-transform: uppercase;
+  /* No text-transform: labels carry their own case (minutes '1m'/'45m' lowercase,
+     hours '1h', days/weeks/months '1D'/'2W'/'1M' uppercase) so 1-minute and
+     1-month never both read as '1M'. */
 }
 .tfBtn:hover { color: var(--text, #e5e7eb); border-color: var(--border, #1f2937); }
 

@@ -170,6 +170,22 @@ const ICONS = {
   flag: <path d="M5.5 21V3.8M5.5 3.8h10.5l-2 4 2 4H5.5" />,
   check: <path d="M5 12.5l4.5 4.5L19 6.5" />,
   x: <path d="M6 6l12 12M18 6L6 18" />,
+  expand: (
+    <>
+      <path d="M14 4h6v6" />
+      <path d="M20 4l-7 7" />
+      <path d="M10 20H4v-6" />
+      <path d="M4 20l7-7" />
+    </>
+  ),
+  collapse: (
+    <>
+      <path d="M20 10h-6V4" />
+      <path d="M14 10l6-6" />
+      <path d="M4 14h6v6" />
+      <path d="M10 14l-6 6" />
+    </>
+  ),
   link: (
     <>
       <path d="M9.5 14.5l5-5" />

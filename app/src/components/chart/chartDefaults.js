@@ -29,9 +29,28 @@ export const CHART_DEFAULTS = {
   bgMode: 'solid',        // 'solid' | 'gradient'
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
   textColor: '#706b5e',
+  textSize: 11,           // price/time scale font size (px)
   grid: { color: 'rgba(46,49,39,0.25)', visible: true },
 
-  crosshair: { color: '#706b5e', style: 3, magnet: false }, // 0=solid, 2=dashed, 3=dotted; magnet snaps to OHLC
+  crosshair: { color: '#706b5e', style: 1, width: 1, magnet: false }, // LineStyle: 0=solid, 1=dotted, 2=dashed, 3=large-dashed; width in px; magnet snaps to OHLC
+
+  // Chart-widget header (workspace): the title/change row + timeframe bar + info
+  // stats. Fully user-toggleable via Chart Settings → Header.
+  header: {
+    titleMode: 'company',   // 'company' | 'ticker' | 'both' (TICKER (Company Name))
+    showChange: true,       // current-day $ + % change beside the title
+    timeframes: ['1', '5', '15', '30', '60', 'D', 'W', 'M'], // favorites — which TF buttons show in the header
+    customTimeframes: [],   // user-created custom interval codes (e.g. '45','120','3D') saved for reuse
+    showMarketCap: true,
+    showNextEarnings: true,
+    showUctRating: true,
+    showLegend: true,       // the on-chart OHLCV crosshair legend
+    // Per-item colors for the header/legend readouts. Each key is unset (absent) by
+    // default = keep the item's built-in color; a hex here overrides that one item.
+    // Day change is a pair (up-day / down-day). Keys: dayChangeUp, dayChangeDown,
+    // marketCap, nextEarnings, uctRating, legend.
+    colors: {},
+  },
 
   overlays: [
     { enabled: true, type: 'EMA', period: 9,   color: '#4ade80' },
@@ -96,12 +115,20 @@ export const CHART_DEFAULTS = {
     tintByType: false,     // tint swing-high labels up-color, swing-low down-color
     upColor: '#4ade80',
     downColor: '#f87171',
+    bgEnabled: true,       // draw the label's background box at all
+    bg: null,              // the box color; null = match the canvas background
   },
   heikinAshi: false,
   logScale:   false,
   percentScale: false,
   comparisonSymbols: [], // Array<{ sym: string, color: string, enabled: boolean }>
-  markers: { earnings: false, splits: false, dividends: false, news: false },
+  // Event markers. earningsBeat/earningsMiss default to the candle up/down colors
+  // (#1ae51a / #c41f2d) so the "E" badge matches the chart out of the box; both are
+  // user-overridable (Markers tab) and also color the surprise rows in the popover.
+  markers: {
+    earnings: false, splits: false, dividends: false, news: false,
+    earningsBeat: '#1ae51a', earningsMiss: '#c41f2d',
+  },
   countdown: false,
   showPatterns: false,
   hideDrawings: false,  // hide all drawings without deleting them
@@ -240,8 +267,19 @@ export function mergeChartSettings(userSettings) {
     bgMode: parsed.bgMode || CHART_DEFAULTS.bgMode,
     bgGradient: { ...CHART_DEFAULTS.bgGradient, ...(parsed.bgGradient || {}) },
     textColor: parsed.textColor || CHART_DEFAULTS.textColor,
+    textSize: parsed.textSize ?? CHART_DEFAULTS.textSize,
     grid: { ...CHART_DEFAULTS.grid, ...(parsed.grid || {}) },
     crosshair: { ...CHART_DEFAULTS.crosshair, ...(parsed.crosshair || {}) },
+    header: {
+      ...CHART_DEFAULTS.header,
+      ...(parsed.header || {}),
+      timeframes: Array.isArray(parsed.header?.timeframes) ? parsed.header.timeframes : CHART_DEFAULTS.header.timeframes,
+      customTimeframes: Array.isArray(parsed.header?.customTimeframes) ? parsed.header.customTimeframes : CHART_DEFAULTS.header.customTimeframes,
+      // Deep-merge colors: the spread above replaces the whole `header` object, so a
+      // stored partial `colors` (e.g. only marketCap set) would drop the others'
+      // defaults. Same trap `timeframes` guards against — merge, never wholesale-swap.
+      colors: { ...CHART_DEFAULTS.header.colors, ...(parsed.header?.colors || {}) },
+    },
     overlays: Array.isArray(parsed.overlays)
       ? parsed.overlays.map((o, i) => ({ ...CHART_DEFAULTS.overlays[i], ...o }))
       : CHART_DEFAULTS.overlays.map(o => ({ ...o })),
@@ -288,4 +326,44 @@ export function mergeChartSettings(userSettings) {
     positionCalc: { ...CHART_DEFAULTS.positionCalc, ...(parsed.positionCalc || {}) },
     preset: parsed.preset || 'classic',
   }
+}
+
+// Canonical per-cell chart style options (multi-chart grid): [value, label].
+// gridLayouts derives its persisted-state whitelist from this list so the
+// picker and the sanitizer can never drift apart. 'hlc' is rendered via
+// OHLC_TYPES in StockChart; the older toolbar/settings pickers predate it.
+export const CHART_TYPE_OPTIONS = [
+  ['candles', 'Candles'], ['hollow', 'Hollow'], ['bars', 'Bars'],
+  ['hlc', 'HLC'], ['line', 'Line'], ['area', 'Area'],
+]
+
+// ─── Per-instance settings override (multi-chart grid cells) ─────────────────
+// Deep-merges a PARTIAL settings blob over an already-merged base (the user's
+// global chart_settings). Primitives replace; the section objects
+// mergeChartSettings treats as objects merge one level (watermark.lines and
+// per-indicator two); arrays replace wholesale. Precedence: CHART_DEFAULTS <
+// global blob < override. Callers must pass a STABLE object (useMemo) — it is
+// a memo dependency inside StockChart.
+const _OVERRIDE_SECTION_KEYS = [
+  'candles', 'bgGradient', 'grid', 'crosshair', 'volume',
+  'drawingDefaults', 'swingLabels', 'markers', 'positionCalc', 'header',
+]
+export function mergeSettingsOverride(base, partial) {
+  if (!partial) return base
+  const out = { ...base }
+  for (const [k, v] of Object.entries(partial)) {
+    if (v === undefined) continue
+    if (k === 'watermark' && v && typeof v === 'object') {
+      out.watermark = { ...base.watermark, ...v, lines: { ...base.watermark?.lines, ...(v.lines || {}) } }
+    } else if (k === 'indicators' && v && typeof v === 'object') {
+      const ind = { ...base.indicators }
+      for (const [ik, iv] of Object.entries(v)) ind[ik] = { ...(base.indicators?.[ik] || {}), ...(iv || {}) }
+      out.indicators = ind
+    } else if (_OVERRIDE_SECTION_KEYS.includes(k) && v && typeof v === 'object' && !Array.isArray(v)) {
+      out[k] = { ...(base[k] || {}), ...v }
+    } else {
+      out[k] = v
+    }
+  }
+  return out
 }

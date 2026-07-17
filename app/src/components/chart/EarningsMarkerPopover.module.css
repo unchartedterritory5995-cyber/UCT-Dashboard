@@ -1,0 +1,78 @@
+/* Earnings marker popover — OLED-black, matches the chart-settings modal look. */
+.pop {
+  position: fixed;
+  z-index: 9200;
+  width: 232px;
+  background: #0c0c0e;
+  border: 1px solid #26262a;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  padding: 10px 12px 12px;
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  color: #e6e6e8;
+  animation: earnPopIn 120ms ease-out;
+}
+@keyframes earnPopIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.title {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #c9a84c;      /* gold accent, matching the app */
+}
+.close {
+  background: transparent;
+  border: none;
+  color: #6c6c70;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.close:hover { color: #d4d4d6; background: #1a1a1d; }
+
+.dateRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #1c1c1f;
+}
+
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6c6c70;
+  margin: 9px 0 3px;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+.k {
+  font-size: 12px;
+  color: #a6a6ac;
+}
+.v {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e6e6e8;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

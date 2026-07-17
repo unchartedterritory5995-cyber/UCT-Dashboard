@@ -11,7 +11,7 @@ const TABS = [
   { key: 'markets', label: 'Markets', icon: 'markets', to: '/breadth',
     match: ['/breadth', '/options-flow', '/dark-pool', '/post-market', '/screener', '/patterns', '/calendar', '/catalysts'] },
   { key: 'charts', label: 'Charts', icon: 'chart', to: '/charts',
-    match: ['/charts', '/watchlists', '/theme-tracker', '/multi-chart'] },
+    match: ['/charts', '/watchlists', '/theme-tracker'] },
   { key: 'journal', label: 'Journal', icon: 'journal', to: '/journal', match: ['/journal'] },
 ]
 

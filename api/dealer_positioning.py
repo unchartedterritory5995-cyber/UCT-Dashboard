@@ -98,6 +98,13 @@ CREATE INDEX IF NOT EXISTS idx_dp_sym_date     ON dealer_positioning(symbol, sna
 def _conn():
     c = sqlite3.connect(DB_PATH, timeout=30.0)
     c.row_factory = sqlite3.Row
+    # contract_oi_snapshots moved to its own DB (2026-07-17); attach so this
+    # module's reads of it (compute_positioning_for_date, etc.) still resolve.
+    try:
+        from api.oi_snapshots import attach_oi_snapshots
+        attach_oi_snapshots(c)
+    except Exception:
+        pass
     try:
         yield c
         c.commit()

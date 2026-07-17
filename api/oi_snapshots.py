@@ -53,7 +53,21 @@ from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+FLOW_DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+# 2026-07-17 (Ravi's #1 structural fix): contract_oi_snapshots + oi_snapshot_runs
+# used to live INSIDE flow.db, so every OI write (5:30 cron AND the consumer's
+# own on-demand Schwab fetch every 20s) took the flow.db WRITE LOCK — and
+# FlowDB._conn's timeout=30 means a contended insert BLOCKS the writer thread
+# 30-93s before dropping a batch. Moving the tables to their OWN file removes
+# that contention by construction: OI writes never touch the tape's lock again.
+# Readers keep their SQL unchanged and call attach_oi_snapshots(conn) so the
+# unqualified table name resolves to the attached DB (the flow.db copies are
+# DROPped at migration, so resolution is unambiguous + a missed attach fails
+# LOUD, never silently reads stale OI).
+OI_DB_PATH = os.environ.get("OI_SNAPSHOTS_DB_PATH", "/data/oi_snapshots.db")
+DB_PATH = OI_DB_PATH  # oi_snapshots.py's own reads/writes go to the new file
+_ATTACH_ALIAS = "oidb"
+_migrated = False
 
 # How many days back to consider when computing "active contracts"
 DAYS_BACK_TO_SNAPSHOT = 30
@@ -190,10 +204,85 @@ def _conn():
 
 
 def init_db():
-    """Create the snapshot table. Idempotent — safe to call on every startup."""
+    """Create the snapshot tables in the OI DB + one-time migrate from flow.db.
+    Idempotent — safe to call on every startup."""
     with _conn() as c:
         c.executescript(SCHEMA)
-    logger.info("[oi-snapshot] DB initialized")
+    _migrate_from_flow_db_once()
+    logger.info("[oi-snapshot] DB initialized (path=%s)", OI_DB_PATH)
+
+
+def _migrate_from_flow_db_once() -> None:
+    """One-time move of contract_oi_snapshots + oi_snapshot_runs from flow.db
+    into the dedicated OI DB, then DROP the flow.db copies so readers can't
+    resolve a stale table. Safe/idempotent: if flow.db no longer has the tables
+    (already migrated, or fresh install), this no-ops. Never raises — a failed
+    migration leaves flow.db intact and readers keep working against it via the
+    attach fallback path in attach_oi_snapshots."""
+    global _migrated
+    if _migrated:
+        return
+    import os as _os
+    if not _os.path.exists(FLOW_DB_PATH) or FLOW_DB_PATH == OI_DB_PATH:
+        _migrated = True
+        return
+    try:
+        c = sqlite3.connect(OI_DB_PATH, timeout=60)
+        try:
+            c.execute("PRAGMA journal_mode=WAL")
+            c.execute("ATTACH DATABASE ? AS flowsrc", (FLOW_DB_PATH,))
+            has = c.execute(
+                "SELECT name FROM flowsrc.sqlite_master WHERE type='table' "
+                "AND name IN ('contract_oi_snapshots','oi_snapshot_runs')"
+            ).fetchall()
+            names = {r[0] for r in has}
+            moved = 0
+            if "contract_oi_snapshots" in names:
+                cur = c.execute(
+                    "INSERT OR IGNORE INTO contract_oi_snapshots "
+                    "(contract_key, snap_date, oi, source, created_at) "
+                    "SELECT contract_key, snap_date, oi, source, created_at "
+                    "FROM flowsrc.contract_oi_snapshots")
+                moved = cur.rowcount
+            if "oi_snapshot_runs" in names:
+                try:
+                    c.execute(
+                        "INSERT OR IGNORE INTO oi_snapshot_runs "
+                        "SELECT * FROM flowsrc.oi_snapshot_runs")
+                except Exception:
+                    pass  # runs table is diagnostic; snapshots are what matter
+            c.commit()  # release the INSERT transaction BEFORE detaching
+            c.execute("DETACH DATABASE flowsrc")
+        finally:
+            c.close()
+        # Drop the flow.db copies in a SEPARATE connection so the DROP takes
+        # flow.db's lock briefly ONCE (off-hours boot), not during the copy.
+        if names:
+            with sqlite3.connect(FLOW_DB_PATH, timeout=60) as fc:
+                fc.execute("PRAGMA busy_timeout=30000")
+                for t in ("contract_oi_snapshots", "oi_snapshot_runs"):
+                    if t in names:
+                        fc.execute(f"DROP TABLE IF EXISTS {t}")
+            logger.info("[oi-snapshot] migrated tables out of flow.db -> %s "
+                        "(%d snapshot rows); flow.db copies dropped",
+                        OI_DB_PATH, moved)
+        _migrated = True
+    except Exception as e:  # noqa: BLE001
+        logger.exception("[oi-snapshot] migration failed (flow.db copies kept "
+                         "as fallback): %s", e)
+
+
+def attach_oi_snapshots(conn) -> None:
+    """Attach the OI DB to a caller's (flow.db) connection so their existing
+    `... FROM contract_oi_snapshots` queries resolve to the moved table.
+    No-op-safe: if already attached or the file is missing, swallow. Callers
+    keep their SQL unchanged; unqualified name resolves to the attached DB
+    because the flow.db copy was dropped at migration."""
+    try:
+        conn.execute("ATTACH DATABASE ? AS " + _ATTACH_ALIAS, (OI_DB_PATH,))
+    except Exception as e:  # noqa: BLE001 — already attached / locked / missing
+        if "already in use" not in str(e).lower():
+            logger.debug("[oi-snapshot] attach skipped: %s", e)
 
 
 # ── Date helpers (BBS format: M/D/YYYY) ──────────────────────────────────
@@ -524,7 +613,15 @@ async def _fetch_oi_all_async(
     ).lower() in ("1", "true", "yes")
     unresolved_idx = [i for i, (_, oi) in enumerate(results) if oi is None]
     if unresolved_idx and not massive_disabled:
-        massive_batch = [contracts[i] for i in unresolved_idx]
+        # Flow-table CallPut is 'CALL'/'PUT' but the Massive module keys its
+        # chain index on 'C'/'P' letters AND builds contract_keys with the cp
+        # it was given — pass the normalized letter or nothing ever resolves
+        # and no resolved key would merge back (the 7/15-17 "fetched N tickers
+        # -> 0/198 contracts resolved" collapse).
+        massive_batch = [
+            (s, "C" if str(cp).upper() in ("C", "CALL") else "P", k, x)
+            for s, cp, k, x in (contracts[i] for i in unresolved_idx)
+        ]
         # Same size-scaled timeout logic as the Schwab call above: 12s
         # ceiling for small on-demand batches (hang protection), 60s
         # for cron chunks that span dozens of underlyings.
@@ -691,6 +788,25 @@ _STALE_OK_DAYS = 5   # how far back to walk for "stale-but-OK" snapshot match
 CHUNK_SIZE = 200
 
 
+def _in_market_hours() -> bool:
+    """True Mon-Fri 9:20 AM - 4:20 PM ET (options tape 9:30-4:15 + buffer).
+
+    The snapshot job runs ON THE FLOW-WORKER POD. Its Massive-fallback chain
+    parsing is heavy pure-Python CPU: on 2026-07-17 a re-kicked run that
+    overlapped the open GIL-starved the OPRA consumer's writer thread — the
+    tape fell into 4-5 min batch-flush cycles (rows captured but minutes
+    late) until the pod was redeployed. OI is as-of yesterday's close all
+    day, so there is never a reason to run during the session; the 5:30 AM
+    cron finishes ~7:50. This guard makes the job yield the pod to the tape.
+    """
+    from zoneinfo import ZoneInfo
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    if now_et.weekday() >= 5:
+        return False
+    mins = now_et.hour * 60 + now_et.minute
+    return 560 <= mins < 980  # 9:20 (560) .. 16:20 (980)
+
+
 def daily_snapshot_job() -> Dict:
     """Cron entry point. Runs once daily.
 
@@ -735,6 +851,27 @@ def daily_snapshot_job() -> Dict:
             chunk = contracts[chunk_start : chunk_start + CHUNK_SIZE]
             chunk_num = chunk_start // CHUNK_SIZE + 1
             total_chunks = (total + CHUNK_SIZE - 1) // CHUNK_SIZE
+
+            # Market-hours guard — the tape owns this pod during the session.
+            # Abort at the chunk boundary (partial progress is durable via
+            # per-chunk record_batch); re-kick after 4:20 PM ET to finish.
+            if _in_market_hours():
+                logger.warning(
+                    "[oi-snapshot] Market hours reached after chunk %d/%d — "
+                    "halting so the OPRA consumer keeps the pod. Re-kick "
+                    "POST /api/oi-snapshot/run after 4:20 PM ET to finish.",
+                    chunks_done, total_chunks,
+                )
+                summary = {
+                    "date": today_iso,
+                    "halted_market_hours": True,
+                    "chunks_done": chunks_done,
+                    "total_chunks": total_chunks,
+                    "successes": total_successes,
+                    "inserted": total_inserted,
+                }
+                finish_run(run_id, "completed", summary)
+                return summary
 
             # Cancellation check — if run was manually cancelled, bail out
             if _is_run_cancelled(run_id):

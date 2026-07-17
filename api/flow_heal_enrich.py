@@ -302,6 +302,11 @@ def run_oi_backfill(target_mdy: str, max_stale_days: int = None) -> dict:
         conn.commit()
 
     with sqlite3.connect(DB_PATH, timeout=30) as conn:
+        try:
+            from api.oi_snapshots import attach_oi_snapshots
+            attach_oi_snapshots(conn)
+        except Exception:
+            pass
         sym_rows = conn.execute(
             "SELECT DISTINCT Symbol FROM flow "
             "WHERE CreatedDate = ? AND (OI = '0' OR OI = '' OR OI IS NULL)",
