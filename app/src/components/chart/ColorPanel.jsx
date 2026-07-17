@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import styles from './ColorPanel.module.css'
 
 /**
@@ -93,6 +93,7 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
   const opRef = useRef(null)
   const opThumbRef = useRef(null)
   const opValRef = useRef(null)
+  const opDraggingRef = useRef(false)
   // Split the value into its RGB + opacity. Palette / hex / custom set the RGB (alpha
   // preserved); the opacity slider sets the alpha (RGB preserved).
   const { rgb: curRgb, a: curA } = useMemo(() => splitColor(value), [value])
@@ -128,22 +129,36 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
     if (opThumbRef.current) opThumbRef.current.style.left = `calc(7px + ${a} * (100% - 14px))`
     if (opValRef.current) opValRef.current.textContent = `${Math.round(a * 100)}%`
   }, [])
+  // Keep the thumb in sync with the value when NOT dragging (palette/hex/custom
+  // changes). During a drag the thumb is owned entirely by opDrag's DOM writes, so
+  // React never repositions it (which would fight the drag and read stale/quantized
+  // round-trip values — the "lags behind the mouse" artifact).
+  useLayoutEffect(() => { if (!opDraggingRef.current) paintAlpha(curA) }, [curA, paintAlpha])
   const opDrag = useCallback((e) => {
     e.preventDefault()
-    const a0 = posToAlpha(e.clientX)
-    let raf = 0, last = null, lastEmit = performance.now(), cur = a0
-    if (a0 != null) { paintAlpha(a0); emitAlpha(a0) }
-    const step = (t) => {
+    opDraggingRef.current = true
+    let raf = 0, last = null, cur = posToAlpha(e.clientX), lastEmit = 0, pending = false
+    // Emit the LATEST value on a macrotask (setTimeout 0), THROTTLED — so the heavy
+    // chart re-render never runs inside the rAF frame that paints the thumb. The
+    // thumb therefore moves at full frame rate; the chart just updates a bit behind.
+    const scheduleEmit = () => {
+      if (pending) return
+      pending = true
+      const wait = Math.max(0, 55 - (performance.now() - lastEmit))
+      setTimeout(() => { pending = false; lastEmit = performance.now(); if (cur != null) emitAlpha(cur) }, wait)
+    }
+    if (cur != null) { paintAlpha(cur); scheduleEmit() }
+    const step = () => {
       raf = 0; if (!last) return
       const a = posToAlpha(last.clientX); last = null
       if (a == null) return
-      cur = a; paintAlpha(a)
-      if (t - lastEmit > 40) { lastEmit = t; emitAlpha(a) }   // throttle the heavy update
+      cur = a; paintAlpha(a); scheduleEmit()   // paint now (cheap), emit later (heavy, throttled)
     }
     const move = (ev) => { last = ev; if (!raf) raf = requestAnimationFrame(step) }
     const up = () => {
       if (raf) cancelAnimationFrame(raf)
-      if (cur != null) emitAlpha(cur)                         // commit exact final value
+      opDraggingRef.current = false
+      if (cur != null) { paintAlpha(cur); emitAlpha(cur) }    // commit exact final value
       window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up)
     }
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
@@ -220,7 +235,8 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
         <div className={styles.opTrack} ref={opRef} onPointerDown={opDrag}>
           <div className={styles.opChecker} />
           <div className={styles.opFill} style={{ background: `linear-gradient(to right, ${curRgb}00, ${curRgb})` }} />
-          <div className={styles.opThumb} ref={opThumbRef} style={{ left: `calc(7px + ${curA} * (100% - 14px))` }} />
+          {/* left is written imperatively (paintAlpha) — never via React — so a drag is never fought by a re-render */}
+          <div className={styles.opThumb} ref={opThumbRef} />
         </div>
         <span className={styles.opVal} ref={opValRef}>{Math.round(curA * 100)}%</span>
       </div>
