@@ -43,7 +43,12 @@ _OPTION_LIFECYCLE = {
     "OPTIONEXERCISE": "option_exercise",
 }
 _CASH_TYPES = {"DIVIDEND", "INTEREST", "FEE", "REI", "CONTRIBUTION", "WITHDRAWAL",
-               "CASH", "STOCK_DIVIDEND"}
+               "CASH", "STOCK_DIVIDEND", "SWEEP_IN", "SWEEP_OUT"}
+# Share-moving non-trade activities: stock splits and securities journaled
+# between accounts (Schwab JRNLSEC). These change the share count WITHOUT
+# being trades — skipping them desyncs FIFO for the symbol (sells of
+# journaled/split shares reconstruct as phantom shorts with bogus P&L).
+_SHARE_ADJ_TYPES = {"SPLIT", "JRNLSEC"}
 
 
 # ── Field extraction helpers ────────────────────────────────────────────────
@@ -125,6 +130,8 @@ def classify(act: dict) -> str:
         return "option_trade" if has_option else "equity_trade"
     if typ in _CASH_TYPES:
         return "cash"
+    if typ in _SHARE_ADJ_TYPES:
+        return "share_adjustment"
     if "TRANSFER" in typ:
         return "transfer"
     return "unknown"
@@ -150,6 +157,34 @@ def to_equity_fill(act: dict, row: int) -> Fill | None:
     fee = _num(act.get("fee")) or 0.0
     return Fill(row=row, symbol=symbol, action=action,
                 shares=abs(units), price=price, date=date, fee=abs(fee))
+
+
+# ── Share adjustments (splits + share transfers/journals) ───────────────────
+
+def to_share_adjustment(act: dict, row: int) -> dict | None:
+    """Normalize a share-moving non-trade activity (SPLIT / JRNLSEC / a
+    TRANSFER that carries a symbol + units) into a flat record for the FIFO
+    layer: {row, symbol, kind: split|transfer, delta (signed shares), price
+    (per-share value if the broker reported one), date}. Returns None when it
+    doesn't describe an equity share movement (cash transfers, option-contract
+    journals, missing fields)."""
+    if act.get("option_symbol"):
+        return None  # option-contract journal/adjust — not handled here
+    typ = str(act.get("type") or "").strip().upper()
+    symbol = extract_symbol(act)
+    units = _num(act.get("units"))
+    date = normalize_date(act)
+    if not symbol or not units or date is None:
+        return None
+    price = _num(act.get("price"))
+    return {
+        "row": row,
+        "symbol": symbol,
+        "kind": "split" if typ == "SPLIT" else "transfer",
+        "delta": units,
+        "price": price if price and price > 0 else None,
+        "date": date,
+    }
 
 
 # ── Option events ───────────────────────────────────────────────────────────
@@ -239,6 +274,7 @@ def partition(activities: list[dict]) -> dict[str, Any]:
     option_events: list[dict] = []
     cash: list[dict] = []
     transfers: list[dict] = []
+    share_adjustments: list[dict] = []
     skipped: list[dict] = []
 
     for i, act in enumerate(activities, start=1):
@@ -260,8 +296,19 @@ def partition(activities: list[dict]) -> dict[str, Any]:
                 option_events.append(ev)
         elif kind == "cash":
             cash.append(act)
+        elif kind == "share_adjustment":
+            adj = to_share_adjustment(act, i)
+            if adj is None:
+                skipped.append({"row": i, "reason": "unparseable share adjustment", "id": act.get("id")})
+            else:
+                share_adjustments.append(adj)
         elif kind == "transfer":
+            # Stays in the cash-flow bucket (reconcile_cash_flows consumes it);
+            # a transfer that moves SHARES additionally feeds the FIFO layer.
             transfers.append(act)
+            adj = to_share_adjustment(act, i)
+            if adj is not None:
+                share_adjustments.append(adj)
         else:
             skipped.append({"row": i, "reason": f"unknown type {act.get('type')!r}", "id": act.get("id")})
 
@@ -270,5 +317,6 @@ def partition(activities: list[dict]) -> dict[str, Any]:
         "option_events": option_events,
         "cash": cash,
         "transfers": transfers,
+        "share_adjustments": share_adjustments,
         "skipped": skipped,
     }

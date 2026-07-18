@@ -128,3 +128,107 @@ def test_scale_out_short_multiple_trades():
     assert out["trades"][0]["shares"] == 40
     assert out["trades"][1]["shares"] == 60
     assert out["open_positions"] == []
+
+
+# ── Share adjustments: splits + transfers/journals (Schwab JRNLSEC) ─────────
+
+def _adj(row, kind, delta, date, symbol="NVDA", price=None):
+    return {"row": row, "symbol": symbol, "kind": kind, "delta": delta,
+            "price": price, "date": date}
+
+
+def _run_adj(fills, adjustments):
+    return reconstruct_trades(fills, allow_shorts=True, adjustments=adjustments)
+
+
+def test_forward_split_scales_lots_zero_pnl():
+    # Buy 100 @ $50, 10:1 split (+900 shares), sell 1000 @ $6.
+    out = _run_adj(
+        [_f(2, "Buy", 100, 50, D1), _f(4, "Sell", 1000, 6, D3)],
+        [_adj(3, "split", 900, D2)],
+    )
+    assert out["errors"] == []
+    t = out["trades"][0]
+    assert t["side"] == "Long" and t["shares"] == 1000
+    assert t["entryPrice"] == 5.0   # $50 basis ÷ 10
+    assert out["open_positions"] == []
+
+
+def test_reverse_split_scales_lots():
+    # Buy 1000 @ $1, 1:10 reverse split (-900), sell 100 @ $11.
+    out = _run_adj(
+        [_f(2, "Buy", 1000, 1, D1), _f(4, "Sell", 100, 11, D3)],
+        [_adj(3, "split", -900, D2)],
+    )
+    assert out["errors"] == []
+    t = out["trades"][0]
+    assert t["shares"] == 100 and t["entryPrice"] == 10.0
+    assert out["open_positions"] == []
+
+
+def test_transfer_out_removes_shares_without_trade():
+    # Buy 2000 @ $20, journal them all to another account → NO realized trade.
+    out = _run_adj(
+        [_f(2, "Buy", 2000, 20, D1)],
+        [_adj(3, "transfer", -2000, D2)],
+    )
+    assert out["errors"] == []
+    assert out["trades"] == []
+    assert out["open_positions"] == []
+
+
+def test_transfer_in_opens_lot_then_sell_is_long_not_short():
+    # 2000 shares journaled IN at $21 basis, sold at $22 → a LONG trade,
+    # not a phantom short (the pre-fix behavior).
+    out = _run_adj(
+        [_f(3, "Sell", 2000, 22, D2)],
+        [_adj(2, "transfer", 2000, D1, price=21.0)],
+    )
+    assert out["errors"] == []
+    t = out["trades"][0]
+    assert t["side"] == "Long" and t["entryPrice"] == 21.0 and t["exitPrice"] == 22
+    assert out["open_positions"] == []
+
+
+def test_same_day_transfer_in_before_sell():
+    # Date-only broker: transfer-in and the sell share a date; the incoming
+    # shares must land first.
+    out = _run_adj(
+        [_f(2, "Sell", 100, 30, D1)],
+        [_adj(9, "transfer", 100, D1, price=25.0)],
+    )
+    assert out["errors"] == []
+    assert out["trades"][0]["side"] == "Long"
+
+
+def test_same_day_buy_then_transfer_out():
+    # Shares bought and journaled away the same day — the buy lands first.
+    out = _run_adj(
+        [_f(2, "Buy", 500, 10, D1)],
+        [_adj(1, "transfer", -500, D1)],
+    )
+    assert out["errors"] == []
+    assert out["trades"] == [] and out["open_positions"] == []
+
+
+def test_transfer_in_without_basis_is_skipped_with_error():
+    out = _run_adj([], [_adj(2, "transfer", 100, D1)])
+    assert out["trades"] == [] and out["open_positions"] == []
+    assert len(out["errors"]) == 1
+
+
+def test_split_with_no_position_skipped():
+    out = _run_adj([], [_adj(2, "split", 900, D1)])
+    assert out["open_positions"] == []
+    assert len(out["errors"]) == 1
+
+
+def test_adjustments_do_not_touch_other_symbols():
+    out = _run_adj(
+        [_f(2, "Buy", 10, 100, D1, symbol="AAPL"),
+         _f(4, "Sell", 10, 110, D3, symbol="AAPL")],
+        [_adj(3, "transfer", -50, D2, symbol="TSLA")],
+    )
+    t = out["trades"][0]
+    assert t["symbol"] == "AAPL" and t["side"] == "Long"
+    assert len(out["errors"]) == 1  # TSLA transfer-out with nothing held

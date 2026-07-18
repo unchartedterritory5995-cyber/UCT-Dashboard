@@ -80,6 +80,24 @@ def _fingerprint(account_id: str, s: dict, ordinal: int) -> str:
     return "bkopt:" + hashlib.sha1(base.encode("utf-8")).hexdigest()
 
 
+def _same_day_rank(ev: dict) -> int:
+    """Tie-break for events sharing the same timestamp. Date-only brokers
+    (Schwab reports every activity at midnight) lose intraday order, so row
+    order is arbitrary — the explicit open/close labels are the only reliable
+    sequencing signal: opens must replay before closes or a day-traded round
+    trip strands the open AND fabricates a phantom lot from the close.
+    Lifecycle events (expiration/assignment/exercise) settle after the day's
+    trades."""
+    if ev.get("eventKind") != "option_trade":
+        return 3
+    oc = ev.get("openClose")
+    if oc == "open":
+        return 0
+    if oc == "close":
+        return 2
+    return 1  # unlabeled buy/sell — keep arrival order between the two
+
+
 def reconstruct_options(
     user_id: str,
     broker_account_id: str,
@@ -88,14 +106,17 @@ def reconstruct_options(
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Build + persist single-leg option strategies from option events."""
-    # Sort chronologically (None dates last), stable by row.
-    events = sorted(option_events, key=lambda e: (e.get("date") is None, e.get("date") or "", e.get("row", 0)))
+    # Sort chronologically (None dates last), opens-before-closes within a
+    # timestamp tie, stable by row.
+    events = sorted(option_events, key=lambda e: (
+        e.get("date") is None, e.get("date") or "", _same_day_rank(e), e.get("row", 0)))
 
     # Per-contract state: open lots (all same side) + side label.
     lots: dict[tuple, deque] = {}
     side_of: dict[tuple, str | None] = {}
 
     built: list[dict] = []  # strategy dicts ready to insert
+    orphan_closes = 0
 
     for ev in events:
         key = _contract_key(ev)
@@ -123,6 +144,14 @@ def reconstruct_options(
 
         side, oc = _resolve_side_openclose(ev, cur)
         if qty <= 0 or price is None:
+            continue
+
+        if oc == "close" and cur is None:
+            # Explicit close with no open position — the opening trade is
+            # outside the broker's history window (e.g. Schwab's ~4-year cap).
+            # Never fabricate a phantom lot from it; the P&L of a trade whose
+            # entry we can't see is unknowable.
+            orphan_closes += 1
             continue
 
         if cur is None or oc == "open":
@@ -154,7 +183,9 @@ def reconstruct_options(
             if lot["qty"] > 0:
                 open_built.append(_mk_open_strategy(key, s, lot))
 
-    return _persist(user_id, broker_account_id, j2_account_id, built + open_built, conn)
+    res = _persist(user_id, broker_account_id, j2_account_id, built + open_built, conn)
+    res["orphanCloses"] = orphan_closes
+    return res
 
 
 def _mk_strategy(ev, cur_side_label, lot, *, exit_price, exit_date, exit_fee, status) -> dict:

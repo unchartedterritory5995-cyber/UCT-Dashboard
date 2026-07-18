@@ -129,3 +129,58 @@ def test_partition_mixed_batch():
     assert len(out["cash"]) == 1
     assert len(out["transfers"]) == 1
     assert len(out["skipped"]) == 2  # the bad BUY + the non-object
+
+
+# ── Share adjustments (SPLIT / JRNLSEC / share TRANSFER) ────────────────────
+
+def _special(typ, ticker="FIVN", units=None, price=None, date="2026-04-01", aid="s1"):
+    act = {"id": aid, "type": typ, "trade_date": date,
+           "symbol": {"symbol": ticker}}
+    if units is not None:
+        act["units"] = units
+    if price is not None:
+        act["price"] = price
+    return act
+
+
+def test_classify_share_adjustment_types():
+    assert ad.classify(_special("SPLIT", units=900)) == "share_adjustment"
+    assert ad.classify(_special("JRNLSEC", units=-2000)) == "share_adjustment"
+    assert ad.classify(_special("TRANSFER", units=2000)) == "transfer"
+
+
+def test_to_share_adjustment_split():
+    adj = ad.to_share_adjustment(_special("SPLIT", units=900), 3)
+    assert adj["kind"] == "split" and adj["delta"] == 900
+    assert adj["symbol"] == "FIVN" and adj["price"] is None
+
+
+def test_to_share_adjustment_transfer_with_price():
+    adj = ad.to_share_adjustment(_special("JRNLSEC", units=2000, price=21.5), 4)
+    assert adj["kind"] == "transfer" and adj["delta"] == 2000 and adj["price"] == 21.5
+
+
+def test_to_share_adjustment_rejects_cash_and_options():
+    assert ad.to_share_adjustment(_special("TRANSFER"), 1) is None  # no units
+    act = _special("JRNLSEC", units=1)
+    act["option_symbol"] = {"ticker": "X"}
+    assert ad.to_share_adjustment(act, 1) is None
+
+
+def test_partition_share_adjustments_bucket():
+    acts = [
+        _special("SPLIT", units=900, aid="p1"),
+        _special("JRNLSEC", units=-2000, aid="p2"),
+        _special("TRANSFER", units=2000, price=21.0, aid="p3"),
+        _special("TRANSFER", aid="p4"),  # cash transfer — no units
+    ]
+    part = ad.partition(acts)
+    assert len(part["share_adjustments"]) == 3
+    # Share-bearing TRANSFER stays in the cash-flow bucket too.
+    assert len(part["transfers"]) == 2
+    assert part["skipped"] == []
+
+
+def test_sweeps_are_cash_not_unknown():
+    for typ in ("SWEEP_IN", "SWEEP_OUT"):
+        assert ad.classify({"type": typ, "amount": 5.0}) == "cash"
