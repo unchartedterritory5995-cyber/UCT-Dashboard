@@ -219,8 +219,18 @@ def _apply_adjustment(a: dict, lots: dict[str, deque[Lot]],
 
 
 def _reconstruct_with_shorts(fills: list[Fill], adjustments: list[dict] | None = None) -> dict:
-    stream: list[tuple] = [((f.date, 0, f.row), "fill", f) for f in fills]
-    stream += [((a["date"], _adjustment_rank(a), a["row"]), "adj", a)
+    # Same-TIMESTAMP tie-break: buys before sells. Date-only brokers (Schwab
+    # reports every fill at midnight) lose intraday order, so a flat-position
+    # same-day round trip would otherwise have arbitrary odds of replaying
+    # sell-first and booking a phantom SHORT. Buys-first keeps every long
+    # round trip labeled Long; a genuine intraday short still books identical
+    # P&L (entry/exit swap cancels). Full-timestamp brokers are unaffected
+    # (distinct timestamps never tie). Multi-day shorts are unaffected too —
+    # their open and cover are on different dates.
+    stream: list[tuple] = [
+        ((f.date, 0, 0 if f.action == "Buy" else 1, f.row), "fill", f) for f in fills
+    ]
+    stream += [((a["date"], _adjustment_rank(a), 0, a["row"]), "adj", a)
                for a in (adjustments or [])]
     stream.sort(key=lambda t: t[0])
 

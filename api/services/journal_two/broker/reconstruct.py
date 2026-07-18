@@ -69,9 +69,11 @@ def _daily_close_near(symbol: str, date_iso: str) -> float | None:
 
 
 def _resolve_transfer_basis(adjustments: list[dict], price_fn) -> None:
-    """Fill in a per-share basis for transfer-in adjustments that lack one."""
+    """Fill in a per-share price for transfer adjustments that lack one.
+    Transfers-IN need it as the FIFO lot basis; transfers-OUT need it so the
+    cash-flow ledger can value the outgoing shares as an external flow."""
     for a in adjustments:
-        if a["kind"] == "transfer" and a["delta"] > 0 and not a.get("price"):
+        if a["kind"] == "transfer" and not a.get("price"):
             p = price_fn(a["symbol"], a["date"])
             if p and p > 0:
                 a["price"] = p

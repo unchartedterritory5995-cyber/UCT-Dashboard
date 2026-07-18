@@ -477,8 +477,17 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             from api.services.journal_two.broker import snaptrade_adapter as _adapter
             from api.services.journal_two.broker import cashflow_reconstruct as _cf
             from api.services.journal_two.broker import historical_equity as _he
+            from api.services.journal_two.broker import reconstruct as _recon
             _part = _adapter.partition(all_acts)
-            _cf.reconcile_cash_flows(user_id, ba, _part["cash"] + _part["transfers"])
+            # Value share transfers (units × basis price) so they register as
+            # external flows — else TWR counts a journaled-in position as return.
+            _adjs = _part["share_adjustments"]
+            if _adjs:
+                _recon._resolve_transfer_basis(_adjs, _recon._daily_close_near)
+            _cf.reconcile_cash_flows(
+                user_id, ba, _part["cash"] + _part["transfers"],
+                share_adjustments=_adjs,
+            )
             _he.invalidate_cache(user_id)  # fresh holdings/cash → recompute curve
         except Exception:
             pass  # best-effort; never break the core sync

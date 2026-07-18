@@ -179,6 +179,7 @@ def to_share_adjustment(act: dict, row: int) -> dict | None:
     price = _num(act.get("price"))
     return {
         "row": row,
+        "externalId": act.get("id"),
         "symbol": symbol,
         "kind": "split" if typ == "SPLIT" else "transfer",
         "delta": units,

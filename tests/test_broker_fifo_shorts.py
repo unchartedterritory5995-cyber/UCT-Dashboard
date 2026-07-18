@@ -232,3 +232,35 @@ def test_adjustments_do_not_touch_other_symbols():
     t = out["trades"][0]
     assert t["symbol"] == "AAPL" and t["side"] == "Long"
     assert len(out["errors"]) == 1  # TSLA transfer-out with nothing held
+
+
+# ── Same-day tie-break: buys before sells (date-only brokers) ───────────────
+
+def test_same_day_flat_round_trip_is_long_regardless_of_row_order():
+    # Date-only broker: sell row sorts before the buy. Must book a LONG round
+    # trip, not a phantom short.
+    out = _run([_f(2, "Sell", 100, 12, D1), _f(3, "Buy", 100, 10, D1)])
+    assert out["errors"] == []
+    t = out["trades"][0]
+    assert t["side"] == "Long"
+    assert t["entryPrice"] == 10 and t["exitPrice"] == 12
+    assert out["open_positions"] == []
+
+
+def test_same_day_full_exit_with_readd_no_phantom_short():
+    # Held 100 from D1; on D2 sells 150 total while buying 50 more (scale
+    # patterns) — buys-first means no phantom short leg.
+    out = _run([
+        _f(2, "Buy", 100, 10, D1),
+        _f(3, "Sell", 150, 12, D2),
+        _f(4, "Buy", 50, 11, D2),
+    ])
+    assert out["errors"] == []
+    assert all(t["side"] == "Long" for t in out["trades"])
+    assert out["open_positions"] == []
+
+
+def test_multi_day_short_still_short():
+    # Genuine short held overnight is untouched by the tie-break.
+    out = _run([_f(2, "Sell", 100, 50, D1), _f(3, "Buy", 100, 40, D2)])
+    assert out["trades"][0]["side"] == "Short"
