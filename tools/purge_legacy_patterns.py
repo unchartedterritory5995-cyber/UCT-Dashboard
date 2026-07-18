@@ -47,29 +47,56 @@ def main() -> int:
     print(f"patterns.db detections: {n_new}")
 
     size_before = os.path.getsize(AUTH_DB)
-    conn = sqlite3.connect(AUTH_DB, timeout=30)
+    conn = sqlite3.connect(AUTH_DB, timeout=120)
     try:
         for t in LEGACY_TABLES:
             row = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (t,)
             ).fetchone()
             if not row:
-                print(f"  {t}: not present (already purged?)")
+                print(f"  {t}: not present (already purged?)", flush=True)
                 continue
-            n = conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-            print(f"  {t}: {n} rows")
-            if not dry:
+            if dry:
+                # COUNT(*) scans the whole table — minutes on the 15 GB
+                # detections table, which is exactly what outlived the
+                # railway-ssh websocket on the first run. Dry-run only.
+                n = conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+                print(f"  {t}: {n} rows", flush=True)
+            else:
+                print(f"  {t}: dropping…", flush=True)
+                t0 = time.monotonic()
                 conn.execute(f"DROP TABLE {t}")
                 conn.commit()
-                print(f"  {t}: DROPPED")
+                print(f"  {t}: DROPPED in {time.monotonic()-t0:.0f}s", flush=True)
         if dry:
             print(f"\nDRY RUN — auth.db is {size_before/1e9:.1f} GB. "
-                  f"Re-run with --yes to drop + VACUUM.")
+                  f"Re-run with --yes to drop + VACUUM.", flush=True)
             return 0
-        print("\nVACUUM (holds the write lock; reads unaffected)…")
+        # VACUUM on a background thread with a heartbeat so the ssh websocket
+        # (which killed the first synchronous run) never idles out.
+        print("\nVACUUM (holds the write lock; reads unaffected)…", flush=True)
         t0 = time.monotonic()
-        conn.execute("VACUUM")
-        print(f"VACUUM done in {time.monotonic()-t0:.0f}s")
+        result: list = []
+
+        def _vacuum():
+            vconn = sqlite3.connect(AUTH_DB, timeout=120)
+            try:
+                vconn.execute("VACUUM")
+                result.append("ok")
+            except Exception as e:  # noqa: BLE001
+                result.append(f"error: {e}")
+            finally:
+                vconn.close()
+
+        import threading
+        th = threading.Thread(target=_vacuum, daemon=True)
+        th.start()
+        while th.is_alive():
+            time.sleep(10)
+            print(f"  …vacuuming ({time.monotonic()-t0:.0f}s)", flush=True)
+        th.join()
+        print(f"VACUUM {result[0] if result else '??'} "
+              f"in {time.monotonic()-t0:.0f}s", flush=True)
     finally:
         conn.close()
     size_after = os.path.getsize(AUTH_DB)
