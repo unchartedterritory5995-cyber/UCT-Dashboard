@@ -293,13 +293,35 @@ def _flow_base_url() -> str:
     return f"http://127.0.0.1:{os.environ.get('PORT', '8000')}"
 
 
+def _parse_mdyyyy(s: str):
+    try:
+        m, d, y = (s or "").strip().split("/")
+        return (int(y), int(m), int(d))
+    except (ValueError, AttributeError):
+        return None
+
+
 def _summarize_flow_rows(sym: str, rows: list[dict], today: str) -> str:
-    """Pure aggregation of a ticker's flow CSV rows into one desk-context line."""
+    """Pure aggregation of a ticker's flow CSV rows into one desk-context line.
+
+    Uses today's prints when the session is live; otherwise (weekend/evening
+    with no rows yet) falls back to the LATEST session present and labels it
+    honestly — a weekend "what did the flow say on X" must still be grounded.
+    """
+    dates = {(row.get("CreatedDate") or "").strip() for row in rows}
+    if today in dates:
+        target, label = today, "today"
+    else:
+        parsed = sorted((p, s) for s in dates if (p := _parse_mdyyyy(s)))
+        if not parsed:
+            return ""
+        target = parsed[-1][1]
+        label = f"last session ({target})"
     n = 0
     total = call_p = put_p = ask_p = 0.0
     best: dict | None = None
     for row in rows:
-        if (row.get("CreatedDate") or "").strip() != today:
+        if (row.get("CreatedDate") or "").strip() != target:
             continue
         try:
             prem = float(row.get("Premium") or 0)
@@ -319,7 +341,7 @@ def _summarize_flow_rows(sym: str, rows: list[dict], today: str) -> str:
         return ""
     bias = ("call-heavy" if call_p > put_p * 1.5
             else "put-heavy" if put_p > call_p * 1.5 else "mixed")
-    text = (f"{sym} options flow today (UCT tape): {n} notable prints, "
+    text = (f"{sym} options flow {label} (UCT tape): {n} notable prints, "
             f"${total / 1e6:.1f}M premium — {bias} "
             f"(${call_p / 1e6:.1f}M calls / ${put_p / 1e6:.1f}M puts, "
             f"{ask_p / total * 100:.0f}% at ask)")

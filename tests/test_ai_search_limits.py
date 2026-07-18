@@ -269,8 +269,19 @@ def test_summarize_flow_rows_aggregates_today_only():
     assert "largest: CALL $200 exp 8/15/2026 $1.50M" in out
 
 
-def test_summarize_flow_rows_empty_day():
-    assert ai._summarize_flow_rows("NVDA", [{"CreatedDate": "7/17/2026", "Premium": "1"}], "7/18/2026") == ""
+def test_summarize_flow_rows_weekend_falls_back_to_last_session():
+    rows = [
+        {"CreatedDate": "7/16/2026", "Premium": "800000", "CallPut": "PUT", "Side": "A"},
+        {"CreatedDate": "7/17/2026", "Premium": "2000000", "CallPut": "CALL", "Side": "A",
+         "Strike": "205", "ExpirationDate": "9/19/2026"},
+    ]
+    out = ai._summarize_flow_rows("NVDA", rows, "7/18/2026")   # Saturday — no rows today
+    assert "options flow last session (7/17/2026)" in out
+    assert "1 notable prints" in out and "$2.0M premium" in out
+
+
+def test_summarize_flow_rows_no_rows_at_all():
+    assert ai._summarize_flow_rows("NVDA", [], "7/18/2026") == ""
 
 
 def test_flow_and_patterns_grounding_wiring(monkeypatch):
