@@ -85,7 +85,7 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     }
 
 
-def list_for_user(user_id: int) -> dict:
+def list_for_user(user_id) -> dict:
     """Return {'global': [...], 'mine': [...]} for the given user."""
     with contextlib.closing(_connect()) as c:
         g = c.execute(
@@ -107,12 +107,14 @@ def get(layout_id: int) -> Optional[dict]:
     return _row_to_dict(r) if r else None
 
 
-def upsert(scope: str, user_id: int, name: str, layout: dict,
+def upsert(scope: str, user_id, name: str, layout: dict,
            groups: Optional[dict], created_by: Optional[str]) -> dict:
     """Create or replace a layout by (scope, user_id, name). Returns the saved row."""
     if scope not in ("global", "user"):
         scope = "user"
-    uid = _GLOBAL_UID if scope == "global" else int(user_id)
+    # users.id is a UUID string — never coerce to int (int() here 500'd every
+    # user-scope save; global saves worked only because they use _GLOBAL_UID).
+    uid = _GLOBAL_UID if scope == "global" else user_id
     layout_json = json.dumps(layout)
     groups_json = json.dumps(groups) if groups else None
     now = int(time.time())
