@@ -72,33 +72,49 @@ def main() -> int:
             print(f"\nDRY RUN — auth.db is {size_before/1e9:.1f} GB. "
                   f"Re-run with --yes to drop + VACUUM.", flush=True)
             return 0
-        # VACUUM on a background thread with a heartbeat so the ssh websocket
-        # (which killed the first synchronous run) never idles out.
-        print("\nVACUUM (holds the write lock; reads unaffected)…", flush=True)
-        t0 = time.monotonic()
-        result: list = []
-
-        def _vacuum():
-            vconn = sqlite3.connect(AUTH_DB, timeout=120)
-            try:
-                vconn.execute("VACUUM")
-                result.append("ok")
-            except Exception as e:  # noqa: BLE001
-                result.append(f"error: {e}")
-            finally:
-                vconn.close()
-
-        import threading
-        th = threading.Thread(target=_vacuum, daemon=True)
-        th.start()
-        while th.is_alive():
-            time.sleep(10)
-            print(f"  …vacuuming ({time.monotonic()-t0:.0f}s)", flush=True)
-        th.join()
-        print(f"VACUUM {result[0] if result else '??'} "
-              f"in {time.monotonic()-t0:.0f}s", flush=True)
     finally:
         conn.close()
+
+    if dry:
+        return 0
+    # ALL mutations (drop + vacuum) run on a worker thread while the main
+    # thread heartbeats every 10s — the railway-ssh websocket kills silent
+    # sessions in ~60s, and BOTH the 15 GB drop and the VACUUM are silent
+    # for minutes (runs 1 and 2 both died this way).
+    import threading
+    t0 = time.monotonic()
+    progress: list = []
+
+    def _work():
+        wconn = sqlite3.connect(AUTH_DB, timeout=120)
+        try:
+            for t in LEGACY_TABLES:
+                row = wconn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    (t,)).fetchone()
+                if row:
+                    wconn.execute(f"DROP TABLE {t}")
+                    wconn.commit()
+                    progress.append(f"{t} dropped at {time.monotonic()-t0:.0f}s")
+            wconn.execute("VACUUM")
+            progress.append(f"vacuum ok at {time.monotonic()-t0:.0f}s")
+        except Exception as e:  # noqa: BLE001
+            progress.append(f"ERROR: {e}")
+        finally:
+            wconn.close()
+
+    th = threading.Thread(target=_work, daemon=True)
+    th.start()
+    seen = 0
+    while th.is_alive():
+        time.sleep(10)
+        while seen < len(progress):
+            print(f"  {progress[seen]}", flush=True)
+            seen += 1
+        print(f"  …working ({time.monotonic()-t0:.0f}s)", flush=True)
+    th.join()
+    for line in progress[seen:]:
+        print(f"  {line}", flush=True)
     size_after = os.path.getsize(AUTH_DB)
     print(f"auth.db: {size_before/1e9:.1f} GB -> {size_after/1e9:.1f} GB "
           f"(reclaimed {(size_before-size_after)/1e9:.1f} GB)")
