@@ -4381,8 +4381,11 @@ export default function StockChart({
           if (!bar || bar.close == null) return bar
           if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
           const NC = netColorsRef.current
-          if (NC.mode === 'openclose') return bar   // native close-vs-open coloring
+          // Sunrise's black inside-day candles are part of the theme's signature
+          // look, so they paint in EVERY color mode — checked before the openclose
+          // passthrough (below) which otherwise skips all per-bar painting.
           if (NC.insideBlack && _isInside(bar, prevBar)) return { ...bar, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
+          if (NC.mode === 'openclose') return bar   // native close-vs-open coloring
           // One color: every bar the same body/border/wick (shape still hollow on up).
           if (NC.mode === 'onecolor') {
             const up = bar.open != null ? bar.close >= bar.open : true
@@ -4453,8 +4456,13 @@ export default function StockChart({
     try {
       const NC = netColorsRef.current
       if (_ct === 'candles' || _ct === 'hollow') {
+        // Sunrise's TC2000 look = hollow up bodies, enforced at series creation
+        // (the `_bold` sunrise options). This live-apply runs every render and
+        // would clobber that with a solid NC.up in OPEN-CLOSE mode (where the
+        // per-bar wrapper passes through) — so the transparent up body must be
+        // kept for Sunrise here too, not just for the explicit 'hollow' type.
         candleSeriesRef.current.applyOptions({
-          upColor: (_ct === 'hollow') ? 'rgba(0,0,0,0)' : NC.up,
+          upColor: (_ct === 'hollow' || canvasTheme === 'sunrise') ? 'rgba(0,0,0,0)' : NC.up,
           downColor: NC.down,
           borderVisible: (_ct === 'hollow') ? true : (canvasTheme === 'sunrise' ? true : !!userCandleColors),
           borderUpColor: NC.borUp, borderDownColor: NC.borDown,
