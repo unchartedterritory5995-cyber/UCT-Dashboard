@@ -27,3 +27,12 @@ export async function fetchPeers(sym, { n = 8 } = {}) {
     return await r.json()
   } catch { return { seed, group_id: null, peers: [], source: 'none' } }
 }
+
+// Pin the group's ETF as cell 0 (deduped), bounded to the grid size. ETFs chart
+// via Massive on demand, so they're not cap_universe-filtered. Shared by every
+// group-fill site (picker, refresh, prev/next) so the pin can't drift.
+export function pinEtf(syms, etf, n) {
+  const list = Array.isArray(syms) ? syms : []
+  const filled = etf ? [etf, ...list.filter(s => s !== etf)] : list
+  return filled.slice(0, Math.max(1, n | 0))
+}

@@ -13,7 +13,7 @@ import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import useChartLayouts from '../../../hooks/useChartLayouts'
 import { LAYOUTS, GRID_MAX_CELLS, makeLayout } from './gridLayouts'
-import { fetchGroups, fetchGroupTop } from './groupsApi'
+import { fetchGroups, fetchGroupTop, pinEtf } from './groupsApi'
 import { neighborGroup } from './groupRecents'
 import GroupPicker from './GroupPicker'
 import wsStyles from '../ChartsWorkspace.module.css'
@@ -65,7 +65,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
     if (!nextId) return
     const n = mc.state.cells.length
     const { syms, etf } = await fetchGroupTop(nextId, { n, by: mc.state.group.by || 'today' })
-    const filled = etf ? [etf, ...(syms || []).filter(s => s !== etf)].slice(0, n) : (syms || [])
+    const filled = pinEtf(syms, etf, n)
     if (filled.length) mc.fillCells(filled, { id: nextId, by: mc.state.group.by || 'today', n })
   }
 
@@ -229,8 +229,9 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
           <button type="button" className={wsStyles.addMenuItem} onClick={async () => {
             const g = mc.state.group
             const n = mc.state.cells.length
-            const { syms } = await fetchGroupTop(g.id, { n, by: g.by || 'today' })
-            if (syms?.length) mc.fillCells(syms, { ...g, n })
+            const { syms, etf } = await fetchGroupTop(g.id, { n, by: g.by || 'today' })
+            const filled = pinEtf(syms, etf, n)
+            if (filled.length) mc.fillCells(filled, { ...g, n })
             onClose()
           }}>↻ Refresh group</button>
           <button type="button" className={wsStyles.addMenuItem} onClick={() => { mc.clearGroup(); onClose() }}>

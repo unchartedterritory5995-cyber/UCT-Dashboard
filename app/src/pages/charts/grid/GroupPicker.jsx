@@ -4,7 +4,7 @@
 // with its today's-move leaders (top-N for the CURRENT grid size; no resize).
 import { useEffect, useMemo, useState } from 'react'
 import { parseLayoutId } from './gridLayouts'
-import { fetchGroups, fetchGroupTop } from './groupsApi'
+import { fetchGroups, fetchGroupTop, pinEtf } from './groupsApi'
 import { pushRecent, getRecents } from './groupRecents'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
@@ -32,7 +32,7 @@ export default function GroupPicker({ mc, onClose }) {
     const n = parseLayoutId(mc.state.layout).cellCount
     if (mc.state.mode !== 'grid') mc.enterGrid(mc.state.layout)
     const { syms, etf } = await fetchGroupTop(g.id, { n, by: 'today' })
-    const filled = etf ? [etf, ...(syms || []).filter(s => s !== etf)].slice(0, n) : (syms || [])
+    const filled = pinEtf(syms, etf, n)
     if (filled.length) mc.fillCells(filled, { id: g.id, by: 'today', n })
     pushRecent(g.id)
     setBusy('')

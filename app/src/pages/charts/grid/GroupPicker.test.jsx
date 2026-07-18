@@ -2,13 +2,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-vi.mock('./groupsApi', () => ({
-  fetchGroups: vi.fn(async () => [
-    { id: 'space', name: 'Space', total: 6, chartable: 6 },
-    { id: 'memory_chips', name: 'Memory & HBM', total: 8, chartable: 8 },
-  ]),
-  fetchGroupTop: vi.fn(async () => ({ syms: ['RKLB', 'ASTS', 'LUNR', 'BKSY'], etf: 'UFO', total: 6, by: 'today', ranked_as_of: 'regular' })),
-}))
+vi.mock('./groupsApi', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual, // keep the real pinEtf — only the network fetchers are mocked
+    fetchGroups: vi.fn(async () => [
+      { id: 'space', name: 'Space', total: 6, chartable: 6 },
+      { id: 'memory_chips', name: 'Memory & HBM', total: 8, chartable: 8 },
+    ]),
+    fetchGroupTop: vi.fn(async () => ({ syms: ['RKLB', 'ASTS', 'LUNR', 'BKSY'], etf: 'UFO', total: 6, by: 'today', ranked_as_of: 'regular' })),
+  }
+})
 
 import GroupPicker from './GroupPicker'
 import { fetchGroupTop } from './groupsApi'
