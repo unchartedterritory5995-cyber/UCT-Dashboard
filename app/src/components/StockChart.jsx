@@ -4383,8 +4383,13 @@ export default function StockChart({
           const NC = netColorsRef.current
           // Sunrise's black inside-day candles are part of the theme's signature
           // look, so they paint in EVERY color mode — checked before the openclose
-          // passthrough (below) which otherwise skips all per-bar painting.
-          if (NC.insideBlack && _isInside(bar, prevBar)) return { ...bar, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
+          // passthrough (below) which otherwise skips all per-bar painting. The
+          // fill still follows close-vs-open (TC2000): an inside day that closed
+          // above its open is a HOLLOW black outline, below = filled black.
+          if (NC.insideBlack && _isInside(bar, prevBar)) {
+            const openUpIn = bar.open != null ? bar.close >= bar.open : true
+            return { ...bar, color: (NC.hollow && openUpIn) ? 'rgba(0,0,0,0)' : '#000000', borderColor: '#000000', wickColor: '#000000' }
+          }
           if (NC.mode === 'openclose') return bar   // native close-vs-open coloring
           // One color: every bar the same body/border/wick (shape still hollow on up).
           if (NC.mode === 'onecolor') {
@@ -4392,8 +4397,12 @@ export default function StockChart({
             const body = (NC.hollow && up) ? 'rgba(0,0,0,0)' : NC.one
             return { ...bar, color: body, borderColor: NC.one, wickColor: NC.one }
           }
-          // Direction drives green/red AND the hollow/filled shape. Net-change uses
-          // close-vs-prev-close; open-close uses close-vs-open.
+          // TC2000 hollow-candle semantics: COLOR and FILL are independent axes.
+          // Direction (net-change close-vs-prev-close, or close-vs-open in that
+          // mode) drives the green/red palette; close-vs-OPEN alone drives the
+          // hollow/filled body. So a green candle that closed below its open is
+          // FILLED green, and a red candle that closed above its open is HOLLOW
+          // red — all four combinations render.
           let up
           if (NC.mode === 'netchange') {
             if (prevClose == null) return bar   // first bar — no prior close to compare
@@ -4401,7 +4410,8 @@ export default function StockChart({
           } else {
             up = bar.open != null ? bar.close >= bar.open : true
           }
-          const body = (NC.hollow && up) ? 'rgba(0,0,0,0)' : (up ? NC.up : NC.down)
+          const openUp = bar.open != null ? bar.close >= bar.open : up
+          const body = (NC.hollow && openUp) ? 'rgba(0,0,0,0)' : (up ? NC.up : NC.down)
           return { ...bar, color: body, borderColor: (up ? NC.borUp : NC.borDown), wickColor: (up ? NC.wickUp : NC.wickDown) }
         }
         const _realSet = priceSeries.setData.bind(priceSeries)
