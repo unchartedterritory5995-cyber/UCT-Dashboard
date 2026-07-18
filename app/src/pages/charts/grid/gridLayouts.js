@@ -107,12 +107,17 @@ export function sanitizeState(raw) {
       tf: VALID_TFS.has(c?.tf) ? c.tf : 'D',
       chartType: VALID_CHART_TYPES.has(c?.chartType) ? c.chartType : null,
     }))
+  const group = sanitizeGroup(raw.group)
   return {
     layout: layout.id,
     cells: reconcileCells(cells, layout.cellCount),
     syncCrosshair: raw.syncCrosshair === true,
     syncTimeRange: raw.syncTimeRange === true,
-    groupsMode: raw.groupsMode === true,
-    group: sanitizeGroup(raw.group),
+    // A non-null group implies scanning is on — mirrors applyGridTemplate's
+    // `groupsMode: !!s.group` invariant so a board persisted with a group but
+    // no groupsMode key (pre-feature save) doesn't hydrate into a contradictory
+    // UI (badges/header on, scanning checkbox off).
+    groupsMode: raw.groupsMode === true || !!group,
+    group,
   }
 }

@@ -52,6 +52,20 @@ describe('fillCells', () => {
     expect(spy.tf).toBe('60')         // its own tf, not the output position's
     expect(spy.chartType).toBe('line')// per-cell Style preserved
   })
+
+  it('undo primitives: fillCells(syms,null) keeps prev group, clearGroup then drops it (first-seed undo path)', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.enterGrid('2x2'))
+    // simulate peer-fill having loaded a group:
+    act(() => result.current.fillCells(['RKLB', 'ASTS', 'LUNR', 'PL'], { id: 'space', by: 'today', n: 4, name: 'Space' }))
+    expect(result.current.state.group).not.toBeNull()
+    // Undo of a FIRST seed restores syms with a null-group snapshot:
+    act(() => result.current.fillCells(['QQQ', 'SPY', 'IWM', 'DIA'], null))
+    expect(result.current.state.group).not.toBeNull()   // fillCells alone CANNOT clear it (coalesces to prev) — this is the bug
+    act(() => result.current.clearGroup())               // the Undo handler's added guard
+    expect(result.current.state.group).toBeNull()        // group now dropped -> heat header/badges clear
+    expect(result.current.state.cells.map(c => c.sym)).toEqual(['QQQ', 'SPY', 'IWM', 'DIA'])
+  })
 })
 
 describe('syncTimeRange', () => {

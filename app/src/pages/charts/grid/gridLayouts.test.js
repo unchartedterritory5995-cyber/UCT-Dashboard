@@ -107,4 +107,14 @@ describe('gridLayouts', () => {
     expect(sanitizeState({ layout: '2x2', cells: [] }).groupsMode).toBe(false)
     expect(makeDefaultState().groupsMode).toBe(false)
   })
+
+  it('sanitizeState infers groupsMode from a restored group (group implies scanning)', () => {
+    const s = sanitizeState({ layout: '2x2', cells: [], group: { id: 'space', by: 'today', n: 4, name: 'Space' } })
+    expect(s.groupsMode).toBe(true)
+    // explicit groupsMode:false but a group present still scans (group is the stronger signal)
+    const s2 = sanitizeState({ layout: '2x2', cells: [], groupsMode: false, group: { id: 'space' } })
+    expect(s2.groupsMode).toBe(true)
+    // no group + no flag stays off
+    expect(sanitizeState({ layout: '2x2', cells: [] }).groupsMode).toBe(false)
+  })
 })

@@ -347,6 +347,7 @@ export default function MultiChartGrid({ mc }) {
             <button type="button" onClick={() => {
               // Restore the pre-fill board: re-fill with the snapshot's syms + group.
               mc.fillCells(undo.snapshot.cells.map(c => c.sym).filter(Boolean), undo.snapshot.group)
+              if (!undo.snapshot.group) mc.clearGroup()   // fillCells coalesces a falsy group to prev; force-clear when the snapshot had no group
               setUndo(null)
             }}>Undo</button>
           </div>
