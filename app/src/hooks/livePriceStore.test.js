@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { registerTickers, getSnapshot, subscribe, __resetForTest } from './livePriceStore'
+import { registerTickers, getSnapshot, subscribe, pollNow, __resetForTest } from './livePriceStore'
 
 const flush = async () => { for (let i = 0; i < 6; i++) await Promise.resolve() }
 
@@ -31,6 +31,38 @@ describe('livePriceStore', () => {
     await flush()
     expect(seen).toHaveBeenCalled()
     expect(getSnapshot().AAPL).toEqual({ price: 1 })
+  })
+
+  it('keeps last-good when a later poll returns a degraded entry (price<=0)', async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ AAPL: { price: 10, change_pct: 2.5 } }) }),
+    )
+    registerTickers(['AAPL'])
+    await flush()
+    expect(getSnapshot().AAPL).toEqual({ price: 10, change_pct: 2.5 })
+    // A degraded poll (Massive returned an empty/zero entry) must NOT blank it.
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ AAPL: { price: 0, change_pct: 0 } }) }),
+    )
+    pollNow()
+    await flush()
+    expect(getSnapshot().AAPL).toEqual({ price: 10, change_pct: 2.5 }) // unchanged
+  })
+
+  it('keeps last-good for a ticker omitted from a later poll', async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ AAPL: { price: 10 }, MSFT: { price: 20 } }) }),
+    )
+    registerTickers(['AAPL', 'MSFT'])
+    await flush()
+    // A later poll drops MSFT entirely (timeout / partial batch).
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ AAPL: { price: 11 } }) }),
+    )
+    pollNow()
+    await flush()
+    expect(getSnapshot().AAPL).toEqual({ price: 11 })   // updated
+    expect(getSnapshot().MSFT).toEqual({ price: 20 })   // preserved
   })
 
   it('ref-counts: prices clear only when the last subscriber unregisters', async () => {
