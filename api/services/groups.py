@@ -12,8 +12,10 @@ convert with to_taxonomy_sym() only for theme_db lookups.
 import json
 import logging
 import os
+import threading
 import time
 
+from api.services.cache import cache
 from api.services.ticker_meta import _TIER_RANK
 
 _logger = logging.getLogger(__name__)
@@ -23,6 +25,12 @@ _CAP_TTL = 3600.0
 
 _SIZES_CACHE = {"map": None, "at": 0.0}
 _SIZES_TTL = 3600.0
+
+_AI_PEERS_MODEL = os.environ.get("GROUPS_AI_PEERS_MODEL", "claude-haiku-4-5")
+_AI_PEERS_TTL = 6 * 3600.0            # peers of a ticker barely change — cache 6h
+_AI_PEERS_VERSION = "v1"              # bump to invalidate the whole AI-peer cache
+_AI_PEERS_TIMEOUT = float(os.environ.get("GROUPS_AI_PEERS_TIMEOUT", "6"))
+_AI_PEERS_SEM = threading.Semaphore(int(os.environ.get("GROUPS_AI_PEERS_CONCURRENCY", "3")))
 
 
 def normalize_sym(s: str) -> str:
@@ -242,6 +250,82 @@ _FACTOR_THEME_NAMES = {
 }
 
 
+def _ai_peer_raw(seed_hy: str, n: int, meta: dict) -> list:
+    """One grounded Haiku call → a list of candidate tickers (unvalidated).
+    Grounded on the seed's real company identity so the model reasons about a
+    named company, not a bare symbol. Bounded by a module semaphore + a client
+    timeout so a cold miss can't pin the web pod's shared threadpool. Returns []
+    on any error (caller keeps the seed solo)."""
+    name = meta.get("name") or ""
+    sector = meta.get("sector") or "unknown sector"
+    industry = meta.get("industry") or "unknown industry"
+    system = (
+        "You are a markets assistant. Given a company, list its closest US-listed "
+        "public-equity peers — same sector/industry, comparable business. Reply with "
+        "ONLY a JSON array of ticker symbols (e.g. [\"WDC\",\"STX\"]). No prose."
+    )
+    prompt = (
+        f"Company: {name} (ticker {seed_hy}). Sector: {sector}. Industry: {industry}.\n"
+        f"Return up to {n + 3} closest US-listed peer tickers as a JSON array, "
+        f"excluding {seed_hy} itself."
+    )
+    if not _AI_PEERS_SEM.acquire(timeout=_AI_PEERS_TIMEOUT):
+        return []
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client().with_options(timeout=_AI_PEERS_TIMEOUT)
+        msg = client.messages.create(
+            model=_AI_PEERS_MODEL, max_tokens=200,
+            system=system, messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join(getattr(b, "text", "") for b in msg.content)
+        start, end = text.find("["), text.rfind("]")
+        if start == -1 or end <= start:
+            return []
+        import json
+        arr = json.loads(text[start:end + 1])
+        return [str(t) for t in arr if t] if isinstance(arr, list) else []
+    except Exception:
+        return []
+
+
+def _ai_peers(seed_hy: str, n: int) -> list:
+    """Validated AI peers for a ticker NOT in the taxonomy. Grounds on
+    ticker_meta; refuses when the seed has no name (nothing to ground on).
+    Validates every returned ticker: in cap_universe, shares the seed's sector
+    or industry, not the seed. Cached on (SEED, n, version)."""
+    seed_hy = normalize_sym(seed_hy)
+    key = f"grp_ai_peers::{seed_hy}::{n}::{_AI_PEERS_VERSION}"
+    hit = cache.get(key)
+    if hit is not None:
+        return hit
+    from api.services import ticker_meta
+    meta = ticker_meta.get_ticker_meta(seed_hy) or {}
+    if not meta.get("name"):
+        cache.set(key, [], _AI_PEERS_TTL)     # cache the refusal too (cheap, avoids re-calling)
+        return []
+    seed_sector = (meta.get("sector") or "").strip().lower()
+    seed_industry = (meta.get("industry") or "").strip().lower()
+    cap = cap_universe_set()
+    out = []
+    seen = {seed_hy}
+    for raw in _ai_peer_raw(seed_hy, n, meta):
+        hy = normalize_sym(raw)
+        if hy in seen or hy not in cap:
+            continue
+        pm = ticker_meta.get_ticker_meta(hy) or {}
+        ps = (pm.get("sector") or "").strip().lower()
+        pi = (pm.get("industry") or "").strip().lower()
+        # Sector OR industry must match the seed (drops a real-but-unrelated ticker).
+        if (seed_sector and ps == seed_sector) or (seed_industry and pi == seed_industry):
+            seen.add(hy)
+            out.append(hy)
+        if len(out) >= n:
+            break
+    cache.set(key, out, _AI_PEERS_TTL)
+    return out
+
+
 def _themes_for_ticker(sym: str) -> list:
     from api.services import theme_db
     return theme_db.get_themes_for_ticker(to_taxonomy_sym(sym))
@@ -269,12 +353,14 @@ def resolve_primary_theme(sym: str):
 
 def resolve_peers(sym: str, n: int) -> dict:
     """Peers = the seed's primary theme's other chartable holdings, same
-    sub-theme floated to the top, ranked by today's move. v1: no AI fallback —
-    a taxonomy miss returns source='none' (caller keeps the seed solo)."""
+    sub-theme floated to the top, ranked by today's move. On taxonomy miss,
+    falls back to grounded-Haiku AI peer discovery (validated + cached)."""
     seed_hy = normalize_sym(sym)
     row = resolve_primary_theme(sym)
     if not row:
-        return {"seed": seed_hy, "group_id": None, "peers": [], "source": "none"}
+        ai = _ai_peers(seed_hy, n)
+        return {"seed": seed_hy, "group_id": None,
+                "peers": ai, "source": "ai" if ai else "none"}
 
     theme_id = row.get("theme_id")
     seed_sub = row.get("sub_theme_id")

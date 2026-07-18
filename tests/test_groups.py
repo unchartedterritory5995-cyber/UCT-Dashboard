@@ -206,3 +206,52 @@ def test_theme_size_uses_cached_map_not_list_groups(monkeypatch):
     assert groups._theme_size("semis") == 1
     assert groups._theme_size("missing") == 0
     assert calls["all_themes"] == 1          # cached: one taxonomy read for 3 lookups
+
+
+def test_ai_peers_validates_sector_match_and_dedups_seed(monkeypatch):
+    from api.services import ticker_meta
+    # Seed SNDK: SanDisk, Technology / Computer Storage.
+    metas = {
+        "SNDK": {"name": "SanDisk Corp", "sector": "Technology", "industry": "Computer Storage", "theme": None},
+        "WDC":  {"name": "Western Digital", "sector": "Technology", "industry": "Computer Storage", "theme": None},
+        "STX":  {"name": "Seagate", "sector": "Technology", "industry": "Computer Storage", "theme": None},
+        "AAPL": {"name": "Apple", "sector": "Technology", "industry": "Consumer Electronics", "theme": None},
+        "XYZZY": {"name": "Nope", "sector": "Energy", "industry": "Oil", "theme": None},
+    }
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta", lambda s: metas.get(groups.normalize_sym(s), {"name": None, "sector": None, "industry": None, "theme": None}))
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"SNDK", "WDC", "STX", "AAPL", "XYZZY"})
+    # Haiku returns: WDC (good), STX (good), SNDK (the seed — must dedup),
+    # XYZZY (wrong sector — must drop), FAKE (not in cap_universe — must drop).
+    monkeypatch.setattr(groups, "_ai_peer_raw", lambda seed, n, meta: ["WDC", "STX", "SNDK", "XYZZY", "FAKE"])
+    cache_store = {}
+    monkeypatch.setattr(groups.cache, "get", lambda k: cache_store.get(k))
+    monkeypatch.setattr(groups.cache, "set", lambda k, v, ttl: cache_store.__setitem__(k, v))
+    out = groups._ai_peers("SNDK", 5)
+    assert out == ["WDC", "STX"]        # seed + wrong-sector + non-chartable all dropped
+    # AAPL shares sector (Technology) but industry differs — sector match is enough,
+    # but the model didn't return it, so it's simply absent (validation is a filter).
+
+
+def test_ai_peers_refuses_when_seed_meta_name_is_null(monkeypatch):
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta", lambda s: {"name": None, "sector": None, "industry": None, "theme": None})
+    called = {"raw": 0}
+    monkeypatch.setattr(groups, "_ai_peer_raw", lambda *a: called.__setitem__("raw", called["raw"] + 1) or [])
+    monkeypatch.setattr(groups.cache, "get", lambda k: None)
+    monkeypatch.setattr(groups.cache, "set", lambda k, v, ttl: None)
+    assert groups._ai_peers("GHOST", 5) == []
+    assert called["raw"] == 0            # never grounds on a null-name seed
+
+
+def test_resolve_peers_uses_ai_on_taxonomy_miss(monkeypatch):
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)   # not in taxonomy
+    monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: ["WDC", "STX"])
+    out = groups.resolve_peers("SNDK", 5)
+    assert out == {"seed": "SNDK", "group_id": None, "peers": ["WDC", "STX"], "source": "ai"}
+
+
+def test_resolve_peers_none_when_ai_empty(monkeypatch):
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: [])
+    out = groups.resolve_peers("GHOST", 5)
+    assert out == {"seed": "GHOST", "group_id": None, "peers": [], "source": "none"}
