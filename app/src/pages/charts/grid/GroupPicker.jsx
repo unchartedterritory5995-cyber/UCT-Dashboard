@@ -33,7 +33,7 @@ export default function GroupPicker({ mc, onClose }) {
     if (mc.state.mode !== 'grid') mc.enterGrid(mc.state.layout)
     const { syms, etf } = await fetchGroupTop(g.id, { n, by: 'today' })
     const filled = pinEtf(syms, etf, n)
-    if (filled.length) mc.fillCells(filled, { id: g.id, by: 'today', n })
+    if (filled.length) mc.fillCells(filled, { id: g.id, by: 'today', n, name: g.name })
     pushRecent(g.id)
     setBusy('')
     onClose?.()

@@ -66,7 +66,8 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
     const n = mc.state.cells.length
     const { syms, etf } = await fetchGroupTop(nextId, { n, by: mc.state.group.by || 'today' })
     const filled = pinEtf(syms, etf, n)
-    if (filled.length) mc.fillCells(filled, { id: nextId, by: mc.state.group.by || 'today', n })
+    const nextName = list.find(x => x.id === nextId)?.name
+    if (filled.length) mc.fillCells(filled, { id: nextId, by: mc.state.group.by || 'today', n, name: nextName })
   }
 
   const handleSaveAs = async () => {

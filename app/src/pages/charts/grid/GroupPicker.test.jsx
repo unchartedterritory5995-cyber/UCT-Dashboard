@@ -33,7 +33,7 @@ describe('GroupPicker', () => {
     await waitFor(() => expect(fetchGroupTop).toHaveBeenCalledWith('space', { n: 4, by: 'today' }))
     expect(mc.fillCells).toHaveBeenCalledWith(
       ['UFO', 'RKLB', 'ASTS', 'LUNR'],
-      { id: 'space', by: 'today', n: 4 },
+      { id: 'space', by: 'today', n: 4, name: 'Space' },
     )
   })
 

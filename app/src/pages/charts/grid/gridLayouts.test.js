@@ -86,9 +86,13 @@ describe('gridLayouts', () => {
   })
 
   it('sanitizeState carries a valid group and drops a malformed one', () => {
-    const ok = sanitizeState({ layout: '3x3', cells: [], group: { id: 'space', by: 'today', n: 9 } })
-    expect(ok.group).toEqual({ id: 'space', by: 'today', n: 9 })
+    const ok = sanitizeState({ layout: '3x3', cells: [], group: { id: 'space', by: 'today', n: 9, name: 'Space' } })
+    expect(ok.group).toEqual({ id: 'space', by: 'today', n: 9, name: 'Space' })
     expect(ok.syncTimeRange).toBe(false)
+
+    // A blank/whitespace name is dropped (falls back to fetch/humanize downstream).
+    const noName = sanitizeState({ layout: '2x2', cells: [], group: { id: 'space', name: '  ' } })
+    expect(noName.group).toEqual({ id: 'space', by: 'today' })
 
     const bad = sanitizeState({ layout: '2x2', cells: [], group: { by: 'today' } }) // no id
     expect(bad.group).toBeNull()

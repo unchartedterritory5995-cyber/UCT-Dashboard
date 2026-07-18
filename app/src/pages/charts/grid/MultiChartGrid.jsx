@@ -30,6 +30,7 @@ import { fetchPeers, fetchGroupTop, fetchGroups } from './groupsApi'
 import { chartKeys, admittedSym } from './symAdmission'
 import { buildCellBadges } from './cellBadge'
 import GroupHeatHeader from './GroupHeatHeader'
+import { humanizeGroupId } from './groupLabel'
 import useLivePrices from '../../../hooks/useLivePrices'
 import styles from './MultiChartGrid.module.css'
 
@@ -286,7 +287,7 @@ export default function MultiChartGrid({ mc }) {
     <>
       {state.group && (
         <GroupHeatHeader
-          groupName={groupMeta.name || state.group.id}
+          groupName={state.group.name || groupMeta.name || humanizeGroupId(state.group.id)}
           total={groupMeta.total}
           shown={gridSyms.length}
           holdings={heatHoldings}

@@ -84,7 +84,11 @@ function sanitizeGroup(g) {
   if (!id) return null
   const by = g.by === 'rs' ? 'rs' : 'today'
   const n = Number.isFinite(g.n) ? Math.max(1, Math.min(GRID_MAX_CELLS, g.n | 0)) : null
-  return { id, by, ...(n ? { n } : {}) }
+  // Carry the curated display name so the heat header restores it instantly on
+  // reload (no fetchGroups round-trip that can lag or fail-empty and leave the
+  // raw snake_case id showing).
+  const name = typeof g.name === 'string' && g.name.trim() ? g.name.trim() : null
+  return { id, by, ...(n ? { n } : {}), ...(name ? { name } : {}) }
 }
 
 // Sanitize state hydrated from the multichart_state pref (or an old V1 blob).
