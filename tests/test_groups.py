@@ -257,6 +257,17 @@ def test_resolve_peers_none_when_ai_empty(monkeypatch):
     assert out == {"seed": "GHOST", "group_id": None, "peers": [], "source": "none"}
 
 
+def test_top_n_includes_group_etf(monkeypatch):
+    monkeypatch.setattr(groups, "_theme_holdings",
+                        lambda tid: [{"sym": "RKLB", "tier": "core", "rationale": "Launch"}])
+    monkeypatch.setattr(groups, "rank_holdings", lambda h, by="today", seed=None: ["RKLB"])
+    monkeypatch.setattr(groups, "_theme_etf",
+                        lambda tid: "UFO" if tid == "space" else None)
+    assert groups.top_n("space", 4, by="today")["etf"] == "UFO"
+    monkeypatch.setattr(groups, "_theme_etf", lambda tid: None)
+    assert groups.top_n("nustar", 4, by="today")["etf"] is None
+
+
 def test_ai_peer_raw_releases_semaphore_every_call(monkeypatch):
     # Each _ai_peer_raw call must return its semaphore permit — otherwise the
     # feature dead-locks after GROUPS_AI_PEERS_CONCURRENCY calls.

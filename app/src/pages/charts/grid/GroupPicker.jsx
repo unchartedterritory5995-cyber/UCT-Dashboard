@@ -25,8 +25,9 @@ export default function GroupPicker({ mc, onClose }) {
     setBusy(g.id)
     const n = parseLayoutId(mc.state.layout).cellCount
     if (mc.state.mode !== 'grid') mc.enterGrid(mc.state.layout)
-    const { syms } = await fetchGroupTop(g.id, { n, by: 'today' })
-    if (syms && syms.length) mc.fillCells(syms, { id: g.id, by: 'today', n })
+    const { syms, etf } = await fetchGroupTop(g.id, { n, by: 'today' })
+    const filled = etf ? [etf, ...(syms || []).filter(s => s !== etf)].slice(0, n) : (syms || [])
+    if (filled.length) mc.fillCells(filled, { id: g.id, by: 'today', n })
     setBusy('')
     onClose?.()
   }

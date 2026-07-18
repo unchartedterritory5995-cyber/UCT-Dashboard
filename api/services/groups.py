@@ -223,6 +223,19 @@ def _theme_holdings(theme_id: str) -> list:
     return theme_db.get_theme_holdings(theme_id)
 
 
+def _theme_etf(theme_id: str) -> str | None:
+    """The theme's ETF ticker (uppercased hyphen form), or None. ETFs chart via
+    Massive on demand, so they are NOT cap_universe-filtered."""
+    try:
+        for t in _get_all_themes().get("themes", []):
+            if t["id"] == theme_id:
+                etf = t.get("etf_ticker")
+                return normalize_sym(etf) if etf else None
+    except Exception:
+        pass
+    return None
+
+
 def top_n(theme_id: str, n: int, by: str = "today") -> dict:
     holdings = _theme_holdings(theme_id)
     ranked = rank_holdings(holdings, by=by)
@@ -238,6 +251,7 @@ def top_n(theme_id: str, n: int, by: str = "today") -> dict:
         "group_id": theme_id,
         "syms": top,
         "rows": rows,
+        "etf": _theme_etf(theme_id),
         "total": len(ranked),
         "by": "rs" if by == "rs" else "today",
         "ranked_as_of": _ranked_as_of(),

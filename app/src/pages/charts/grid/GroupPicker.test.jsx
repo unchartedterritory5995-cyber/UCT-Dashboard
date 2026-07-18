@@ -7,7 +7,7 @@ vi.mock('./groupsApi', () => ({
     { id: 'space', name: 'Space', total: 6, chartable: 6 },
     { id: 'memory_chips', name: 'Memory & HBM', total: 8, chartable: 8 },
   ]),
-  fetchGroupTop: vi.fn(async () => ({ syms: ['RKLB', 'ASTS', 'LUNR', 'BKSY'], total: 6, by: 'today', ranked_as_of: 'regular' })),
+  fetchGroupTop: vi.fn(async () => ({ syms: ['RKLB', 'ASTS', 'LUNR', 'BKSY'], etf: 'UFO', total: 6, by: 'today', ranked_as_of: 'regular' })),
 }))
 
 import GroupPicker from './GroupPicker'
@@ -28,7 +28,7 @@ describe('GroupPicker', () => {
     fireEvent.click(btn)
     await waitFor(() => expect(fetchGroupTop).toHaveBeenCalledWith('space', { n: 4, by: 'today' }))
     expect(mc.fillCells).toHaveBeenCalledWith(
-      ['RKLB', 'ASTS', 'LUNR', 'BKSY'],
+      ['UFO', 'RKLB', 'ASTS', 'LUNR'],
       { id: 'space', by: 'today', n: 4 },
     )
   })

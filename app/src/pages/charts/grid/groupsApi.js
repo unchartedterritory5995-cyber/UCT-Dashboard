@@ -14,9 +14,9 @@ export async function fetchGroups() {
 export async function fetchGroupTop(id, { n = 9, by = 'today' } = {}) {
   try {
     const r = await fetch(`/api/groups/${encodeURIComponent(id)}/top?n=${n}&by=${by}`)
-    if (!r.ok) return { syms: [], total: 0, by, ranked_as_of: 'unknown' }
+    if (!r.ok) return { syms: [], rows: [], etf: null, total: 0, by, ranked_as_of: 'unknown' }
     return await r.json()
-  } catch { return { syms: [], total: 0, by, ranked_as_of: 'unknown' } }
+  } catch { return { syms: [], rows: [], etf: null, total: 0, by, ranked_as_of: 'unknown' } }
 }
 
 export async function fetchPeers(sym, { n = 8 } = {}) {
