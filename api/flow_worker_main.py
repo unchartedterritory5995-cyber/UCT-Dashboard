@@ -269,7 +269,12 @@ def _start_flow_schedulers():
 
         try:
             from apscheduler.triggers.cron import CronTrigger
-            sched.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0),
+            from zoneinfo import ZoneInfo
+            # timezone EXPLICIT: pre-built CronTriggers default to server-local
+            # UTC, not the scheduler's ET -- unpinned this fired 4 PM ET.
+            sched.add_job(_nightly_flow_prune,
+                          trigger=CronTrigger(hour=20, minute=0,
+                                              timezone=ZoneInfo("America/New_York")),
                           id="flow_nightly_prune", max_instances=1,
                           replace_existing=True)
             n += 1

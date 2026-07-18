@@ -25,6 +25,12 @@ import GridChartCell from './GridChartCell'
 import useStaggeredMount from './useStaggeredMount'
 import { parseLayoutId } from './gridLayouts'
 import { createSpike, SPIKE_SYMS } from './gridSpike'
+import { makePeerFiller } from './peerFill'
+import { fetchPeers, fetchGroupTop, fetchGroups } from './groupsApi'
+import { chartKeys, admittedSym } from './symAdmission'
+import { buildCellBadges } from './cellBadge'
+import GroupHeatHeader from './GroupHeatHeader'
+import useLivePrices from '../../../hooks/useLivePrices'
 import styles from './MultiChartGrid.module.css'
 
 export default function MultiChartGrid({ mc }) {
@@ -61,6 +67,21 @@ export default function MultiChartGrid({ mc }) {
   const cellsRef = useRef(cells)
   cellsRef.current = cells
 
+  // ── Peer auto-fill (Groups mode): committing a ticker in any cell reseeds
+  // the whole grid with [seed, ...peers]. makePeerFiller's monotonic request
+  // id discards a stale response (fast second commit beats a slow first) and
+  // hands back an undo snapshot of the pre-fill board. ──
+  const [undo, setUndo] = useState(null)   // {label, snapshot} | null
+  const peerFiller = useMemo(
+    () => makePeerFiller({
+      fetchPeers,
+      fillCells: (syms, group) => { if (!spikeActive) mc.fillCells(syms, group) },
+      onUndoAvailable: setUndo,
+    }),
+    [mc.fillCells, spikeActive],   // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  useEffect(() => { if (!undo) return; const t = setTimeout(() => setUndo(null), 6000); return () => clearTimeout(t) }, [undo])
+
   // ── Maximize: one cell expands to cover the whole grid body (no remount —
   // the cell stays mounted and its wrapper is CSS-promoted over the grid, so
   // the chart just autoSizes up and back). ──
@@ -93,9 +114,29 @@ export default function MultiChartGrid({ mc }) {
     () => cells.map((_, i) => () => activeCellRef.current === i),
     [cells.length],   // eslint-disable-line react-hooks/exhaustive-deps
   )
+  const inGroupMode = !!state.group
   const onChangeFns = useMemo(
-    () => cells.map((_, i) => (next) => { if (!spikeActive) mc.updateCellAt(i, next) }),
-    [cells.length, mc.updateCellAt, spikeActive],   // eslint-disable-line react-hooks/exhaustive-deps
+    () => cells.map((_, i) => (next) => {
+      if (spikeActive) return
+      const cur = cellsRef.current[i]
+      // A real new-ticker commit changes the sym away from what's DISPLAYED
+      // (loadSym). A TF/style change carries the displayed sym unchanged.
+      const isNewSym = !!next?.sym && next.sym !== displayedSymRef.current[i]
+      if (isNewSym && inGroupMode) {
+        peerFiller.run(next.sym, {
+          n: cellsRef.current.length,
+          group: state.group,
+          snapshot: { cells: cellsRef.current, group: state.group },
+        })
+      } else if (isNewSym) {
+        mc.updateCellAt(i, next)                    // non-group manual ticker change
+      } else {
+        // TF / chart-Style change: merge the changed fields onto the REAL target
+        // cell — never overwrite its (possibly still-loading) sym with loadSym.
+        mc.updateCellAt(i, { ...cur, tf: next?.tf ?? cur?.tf, chartType: next?.chartType ?? cur?.chartType })
+      }
+    }),
+    [cells.length, mc.updateCellAt, spikeActive, inGroupMode, peerFiller, state.group],   // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   // ── Crosshair sync bus (ref-based; passed to cells only while Sync is on) ──
@@ -113,13 +154,36 @@ export default function MultiChartGrid({ mc }) {
     ? spikeRef.current.bus
     : (state.syncCrosshair ? busRef.current : null)
 
-  // ── Mount queue: only cells WITH a symbol consume slots ──
-  const chartIds = useMemo(() => cells.filter(c => c.sym).map(c => c.id), [cells])
-  const { mountedIds, release } = useStaggeredMount(chartIds, { limit: 3, slotTimeoutMs: 5000 })
+  // ── Mount queue: composite `${id}::${sym}` keys, not bare cell ids. A group
+  // switch reuses a cell's id (fillCells pools overlapping syms so the chart
+  // instance doesn't remount), but its SYM still changes — keying the queue
+  // on id alone would let that swap slip past the throttle and fire N
+  // simultaneous cold /api/bars fetches (the 2026-05-24 fetch-herd incident
+  // condition). Composite keys make a sym swap re-enter the throttle exactly
+  // like a fresh mount, while the DOM cell key below stays `cell.id` so React
+  // never tears down the chart instance. ──
+  const keys = useMemo(() => chartKeys(cells), [cells])
+  const { mountedIds, release } = useStaggeredMount(keys, { limit: 3, slotTimeoutMs: 5000 })
+
+  // Remember the last admitted sym per cell id so a not-yet-admitted swap
+  // keeps rendering the previous chart (no remount, no skeleton flash) until
+  // its own composite key clears the throttle.
+  // The sym each cell is currently DISPLAYING (loadSym) — distinct from the
+  // cell's target sym in state during a mount-admission swap. onChangeFns uses
+  // it to tell a real new-ticker commit (sym != displayed) from a TF/style
+  // change (sym == displayed), so a TF click mid-swap can't trigger a peer-fill.
+  const displayedSymRef = useRef({})
+  const prevSymRef = useRef({})
+  useEffect(() => {
+    for (const c of cells) {
+      if (c.sym && mountedIds.has(`${c.id}::${c.sym}`)) prevSymRef.current[c.id] = c.sym
+    }
+  }, [mountedIds, cells])
+
   const onBarsReadyFns = useMemo(
     () => cells.map((_, i) => () => {
-      const id = cellsRef.current[i]?.id
-      if (id) release(id)
+      const c = cellsRef.current[i]
+      if (c?.id && c?.sym) release(`${c.id}::${c.sym}`)
     }),
     [cells.length, release],   // eslint-disable-line react-hooks/exhaustive-deps
   )
@@ -131,7 +195,7 @@ export default function MultiChartGrid({ mc }) {
     const spike = spikeRef.current
     if (!spike) return
     for (const c of cells) {
-      if (c.sym && mountedIds.has(c.id)) spike.reportCellMount(c.id, c.sym)
+      if (c.sym && mountedIds.has(`${c.id}::${c.sym}`)) spike.reportCellMount(c.id, c.sym)
     }
   }, [mountedIds, cells])
 
@@ -155,6 +219,45 @@ export default function MultiChartGrid({ mc }) {
   }, [savedColors, setPref])
   const openSettings = useCallback(() => mc.setSettingsOpen(true), [mc.setSettingsOpen])   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Heat header (Groups mode): reads the SAME shared live-price pool the
+  // cells already poll via useLivePrices — no extra fetch. ──
+  const gridSyms = useMemo(() => cells.map(c => c.sym).filter(Boolean), [cells])
+  const { prices: livePrices } = useLivePrices(gridSyms)
+  const heatHoldings = useMemo(
+    () => gridSyms.map(s => ({ sym: s, changePct: livePrices?.[s]?.change_pct })),
+    [gridSyms, livePrices],
+  )
+
+  // ── Group meta (Groups mode): the current group's display name + universe
+  // total + per-sym {tier, rationale} for the cell badges. Fetched once
+  // whenever the group changes (this also restores badges on reload). Two
+  // fetches are fine — user-paced, not on any hot path. Both guarded by the
+  // effect's `live` flag so a fast group switch can't let a stale response
+  // land after a newer one. ──
+  const [groupMeta, setGroupMeta] = useState({})   // {name, total, metaBySym}
+  useEffect(() => {
+    const g = state.group
+    if (!g?.id) { setGroupMeta({}); return undefined }
+    let live = true
+    fetchGroupTop(g.id, { n: 16, by: g.by || 'today' }).then(res => {
+      if (!live) return
+      const metaBySym = {}
+      for (const r of (res.rows || [])) metaBySym[r.sym] = { tier: r.tier, rationale: r.rationale }
+      setGroupMeta(prev => ({ ...prev, total: res.total, metaBySym }))
+    })
+    fetchGroups().then(list => {
+      if (!live) return
+      const name = list.find(x => x.id === g.id)?.name
+      setGroupMeta(prev => ({ ...prev, name }))
+    })
+    return () => { live = false }
+  }, [state.group?.id, state.group?.by])
+
+  const cellBadges = useMemo(
+    () => buildCellBadges(cells, groupMeta.metaBySym || {}, livePrices),
+    [cells, groupMeta.metaBySym, livePrices],
+  )
+
   // Shared volume-pane proportion (cells read it, never write it).
   const volPanePct = (() => {
     const v = Number(prefs?.charts_vol_pane_pct)
@@ -170,9 +273,22 @@ export default function MultiChartGrid({ mc }) {
 
   return (
     <>
+      {state.group && (
+        <GroupHeatHeader
+          groupName={groupMeta.name || state.group.id}
+          total={groupMeta.total}
+          shown={gridSyms.length}
+          holdings={heatHoldings}
+        />
+      )}
       <div className={styles.gridBody} style={gridStyle}>
         {cells.map((cell, i) => {
-          const queued = hydrated && cell.sym && !mountedIds.has(cell.id)
+          // The sym to actually LOAD this render: the target once its own
+          // composite key clears the throttle, else the last-admitted sym
+          // (old chart keeps rendering, no remount), else null (first mount).
+          const { sym: loadSym, admitted } = admittedSym(cell, mountedIds, prevSymRef.current)
+          displayedSymRef.current[i] = loadSym
+          const queued = hydrated && cell.sym && !admitted && !loadSym   // first mount, nothing to show yet
           // Pre-hydration: render skeleton frames only — never mount default
           // cells that a late-arriving saved pref would swap out (double herd).
           if (!hydrated || queued) {
@@ -194,7 +310,9 @@ export default function MultiChartGrid({ mc }) {
               onFocusCapture={() => setActive(i)}
             >
               <GridChartCell
-                cell={cell}
+                cell={{ ...cell, sym: loadSym }}
+                badge={state.group ? cellBadges[i] : null}
+                rationale={state.group ? cellBadges[i]?.rationale : ''}
                 onChange={onChangeFns[i]}
                 crosshairBus={crosshairBus}
                 volPanePct={volPanePct}
@@ -209,6 +327,16 @@ export default function MultiChartGrid({ mc }) {
             </div>
           )
         })}
+        {undo && (
+          <div className={styles.undoToast} role="status">
+            <span>{undo.label}</span>
+            <button type="button" onClick={() => {
+              // Restore the pre-fill board: re-fill with the snapshot's syms + group.
+              mc.fillCells(undo.snapshot.cells.map(c => c.sym).filter(Boolean), undo.snapshot.group)
+              setUndo(null)
+            }}>Undo</button>
+          </div>
+        )}
       </div>
       <ChartSettingsModal
         open={mc.settingsOpen}

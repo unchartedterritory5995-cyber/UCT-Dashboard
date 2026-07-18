@@ -13,6 +13,8 @@ import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import useChartLayouts from '../../../hooks/useChartLayouts'
 import { LAYOUTS, GRID_MAX_CELLS, makeLayout } from './gridLayouts'
+import { fetchGroupTop } from './groupsApi'
+import GroupPicker from './GroupPicker'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
 
@@ -191,6 +193,25 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
             className={wsStyles.addMenuItem}
             onClick={() => { mc.exitGrid(); onClose() }}
           >← Back to workspace</button>
+        </>
+      )}
+
+      <div className={wsStyles.menuDivider} />
+      <GroupPicker mc={mc} onClose={onClose} />
+
+      {mc.state.group && (
+        <>
+          <div className={wsStyles.menuDivider} />
+          <button type="button" className={wsStyles.addMenuItem} onClick={async () => {
+            const g = mc.state.group
+            const n = mc.state.cells.length
+            const { syms } = await fetchGroupTop(g.id, { n, by: g.by || 'today' })
+            if (syms?.length) mc.fillCells(syms, { ...g, n })
+            onClose()
+          }}>↻ Refresh group</button>
+          <button type="button" className={wsStyles.addMenuItem} onClick={() => { mc.clearGroup(); onClose() }}>
+            Exit Groups
+          </button>
         </>
       )}
     </div>

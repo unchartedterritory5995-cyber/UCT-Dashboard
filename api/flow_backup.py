@@ -351,9 +351,11 @@ def register_jobs(scheduler) -> bool:
         logger.info("[flow-backup] disabled (FLOW_BACKUP_ENABLED != 1)")
         return False
     from apscheduler.triggers.cron import CronTrigger
+    from zoneinfo import ZoneInfo
     scheduler.add_job(
         backup_flow_db_to_r2,
-        CronTrigger(day_of_week="mon-sat", hour=2, minute=30),
+        CronTrigger(day_of_week="mon-sat", hour=2, minute=30,
+                    timezone=ZoneInfo("America/New_York")),
         id="flow_db_backup", max_instances=1, replace_existing=True)
     logger.info("[flow-backup] scheduled nightly 02:30 ET Mon-Sat (retain=%dd)", RETAIN_DAYS)
     return True

@@ -57,6 +57,8 @@ export function makeDefaultState() {
       { id: genId(), sym: 'DIA', tf: 'D' },
     ],
     syncCrosshair: false,
+    syncTimeRange: false,
+    group: null,
   }
 }
 
@@ -73,6 +75,17 @@ export function reconcileCells(cells, cellCount) {
 const VALID_TFS = new Set(['1', '5', '15', '30', '60', 'D', 'W', 'M'])
 // Derived from the canonical picker list so sanitizer and picker cannot drift.
 const VALID_CHART_TYPES = new Set(CHART_TYPE_OPTIONS.map(([code]) => code))
+
+// Validate a persisted group descriptor. Unknown => null (feature degrades to
+// a plain grid rather than restoring a bogus group).
+function sanitizeGroup(g) {
+  if (!g || typeof g !== 'object') return null
+  const id = typeof g.id === 'string' && g.id ? g.id : null
+  if (!id) return null
+  const by = g.by === 'rs' ? 'rs' : 'today'
+  const n = Number.isFinite(g.n) ? Math.max(1, Math.min(GRID_MAX_CELLS, g.n | 0)) : null
+  return { id, by, ...(n ? { n } : {}) }
+}
 
 // Sanitize state hydrated from the multichart_state pref (or an old V1 blob).
 // Never trust persisted shapes: bad tf → 'D', bad sym → empty cell, over-cap
@@ -93,5 +106,7 @@ export function sanitizeState(raw) {
     layout: layout.id,
     cells: reconcileCells(cells, layout.cellCount),
     syncCrosshair: raw.syncCrosshair === true,
+    syncTimeRange: raw.syncTimeRange === true,
+    group: sanitizeGroup(raw.group),
   }
 }

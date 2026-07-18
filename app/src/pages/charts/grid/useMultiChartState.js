@@ -105,6 +105,50 @@ export default function useMultiChartState() {
     apply(prev => ({ ...prev, cells: prev.cells.map((c, i) => (i === index ? nextCell : c)) }))
   }, [apply])
 
+  // Bulk fill (Groups mode). ONE apply() — never a loop of updateCellAt (that
+  // races the debounced save). Reuse a cell id when the target sym matches an
+  // existing cell's sym so overlapping charts don't remount; mint fresh ids
+  // only for genuinely-new syms. Fills the current grid size (layout.cellCount).
+  const fillCells = useCallback((syms, group = null) => {
+    apply(prev => {
+      const want = (Array.isArray(syms) ? syms : [])
+        .map(s => (typeof s === 'string' ? s.trim().toUpperCase() : null))
+        .filter(Boolean)
+      const layout = parseLayoutId(prev.layout)
+      // Always fill the CURRENT grid size: under-fill -> trailing empty cells
+      // (spec under-fill contract), over-fill -> extra syms dropped. Keeps
+      // cells.length === cellCount like every other mutator.
+      const count = layout.cellCount
+      // Pool of reusable prior CELLS by sym (each used once), so a matched sym
+      // keeps its id (no remount) AND its own tf + chart Style override.
+      const pool = new Map()
+      for (const c of prev.cells) {
+        if (c.sym && !pool.has(c.sym)) pool.set(c.sym, c)
+      }
+      const used = new Set()
+      const cells = []
+      for (let i = 0; i < count; i++) {
+        const sym = want[i] || null
+        const match = sym ? pool.get(sym) : null
+        if (match && !used.has(match.id)) {
+          used.add(match.id)
+          cells.push({ id: match.id, sym, tf: match.tf || 'D', chartType: match.chartType || null })
+        } else {
+          cells.push({ id: Math.random().toString(36).slice(2, 8), sym, tf: 'D', chartType: null })
+        }
+      }
+      return { ...prev, mode: 'grid', cells, group: group || prev.group || null }
+    })
+  }, [apply])
+
+  const setGroup = useCallback((group) => {
+    apply(prev => ({ ...prev, group: group || null }))
+  }, [apply])
+
+  const clearGroup = useCallback(() => {
+    apply(prev => ({ ...prev, group: null }))
+  }, [apply])
+
   const setSyncCrosshair = useCallback((on) => {
     apply(prev => ({ ...prev, syncCrosshair: !!on }))
   }, [apply])
@@ -123,5 +167,6 @@ export default function useMultiChartState() {
     state, hydrated,
     settingsOpen, setSettingsOpen,
     enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, applyGridTemplate,
+    fillCells, setGroup, clearGroup,
   }
 }
