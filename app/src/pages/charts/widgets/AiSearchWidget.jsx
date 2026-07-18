@@ -11,20 +11,29 @@ const EXAMPLES = [
 ]
 
 // AI icon — the Compass brand orb (sized wrapper; CompassOrb fills its container).
-function Spark({ size = 15 }) {
+// state='thinking' spins the bearing ring while a search is in flight.
+function Spark({ size = 15, state = 'idle' }) {
   return (
     <span style={{ width: size, height: size, display: 'inline-flex', flexShrink: 0 }} aria-hidden="true">
-      <CompassOrb />
+      <CompassOrb state={state} />
     </span>
   )
 }
 
+// Rotating status lines so a 5-10s Perplexity search never looks hung.
+const SEARCH_PHASES = [
+  'Searching the markets…',
+  'Reading sources…',
+  'Cross-checking the numbers…',
+  'Writing it up…',
+]
+
 // Splits inline text into: [Label]($TICKER) links, bare $TICKERS, **bold**, and ±pct%.
 // Everything else is plain text. Ticker/name links + bare cashtags render as gold
 // clickable buttons; percentages use the chart-matched gain/loss colors.
-const RICH_RE = /(\[[^\]]+\]\(\$[A-Za-z][A-Za-z.\-]{0,6}\)|\$[A-Z]{1,5}(?:\.[A-Z])?\b|\*\*[^*]+\*\*|[+-]\d+(?:\.\d+)?%)/g
+const RICH_RE = /(\[[^\]]+\]\(\$[A-Za-z][A-Za-z.\-]{0,6}\)|\$[A-Z]{1,5}(?:\.[A-Z])?\b|\*\*[^*]+\*\*|[+-]\d+(?:\.\d+)?%|\[\d{1,2}\])/g
 
-function renderRich(text, onTicker) {
+function renderRich(text, onTicker, cites) {
   const src = String(text || '')
   const parts = src.split(RICH_RE)
   return parts.map((p, i) => {
@@ -49,6 +58,19 @@ function renderRich(text, onTicker) {
         </button>
       )
     }
+    // [n] citation marker → superscript link to that source
+    m = /^\[(\d{1,2})\]$/.exec(p)
+    if (m) {
+      const n = parseInt(m[1], 10)
+      const src = Array.isArray(cites) ? cites[n - 1] : null
+      const url = typeof src === 'string' ? src : (src?.url || '')
+      if (url) {
+        return (
+          <a key={i} className={styles.cite} href={url} target="_blank" rel="noreferrer" title={url}>{n}</a>
+        )
+      }
+      return <span key={i}>{p}</span>
+    }
     // **bold**
     if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i}>{p.slice(2, -2)}</strong>
     // ±pct — chart-matched green/red (widget CSS overrides --gain/--loss to chart colors)
@@ -59,7 +81,7 @@ function renderRich(text, onTicker) {
   })
 }
 
-function AnswerBody({ text, onTicker }) {
+function AnswerBody({ text, onTicker, cites }) {
   const lines = String(text || '').split('\n')
   return (
     <>
@@ -71,7 +93,7 @@ function AnswerBody({ text, onTicker }) {
         return (
           <div key={i} className={bullet ? styles.bullet : styles.para}>
             {bullet && <span className={styles.dot}>•</span>}
-            <span>{renderRich(body, onTicker)}</span>
+            <span>{renderRich(body, onTicker, cites)}</span>
           </div>
         )
       })}
@@ -97,7 +119,18 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const [asked, setAsked] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [limitMsg, setLimitMsg] = useState(null)
+  const [phase, setPhase] = useState(0)
+  const [copied, setCopied] = useState(false)
   const inputRef = useRef(null)
+  const bodyRef = useRef(null)
+
+  // Rotate the loading status line so a long search reads as progress, not a hang.
+  useEffect(() => {
+    if (!loading) { setPhase(0); return undefined }
+    const t = setInterval(() => setPhase((p) => (p + 1) % SEARCH_PHASES.length), 2400)
+    return () => clearInterval(t)
+  }, [loading])
 
   // Auto-grow the ask box so a long question stays fully visible while typing
   // (caps at ~4 lines, then scrolls inside the box). Empty stays single-line —
@@ -110,10 +143,12 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     el.style.height = query ? `${Math.min(el.scrollHeight, 92)}px` : ''
   }, [query])
 
+  // The previous answer stays on screen (dimmed) while the next one loads —
+  // never blank the widget mid-read. `asked` only advances on success.
   const run = useCallback(async (q) => {
     const question = (q ?? query).trim()
     if (!question || loading) return
-    setLoading(true); setError(null); setAnswer(null); setCitations([]); setRelated([]); setAsked(question)
+    setLoading(true); setError(null); setLimitMsg(null)
     try {
       const r = await fetch('/api/ai-search', {
         method: 'POST',
@@ -122,11 +157,18 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         body: JSON.stringify({ query: question }),
       })
       const d = await r.json().catch(() => null)
+      if (r.status === 429) {
+        setLimitMsg(d?.detail || "You've hit today's research limit — it resets at midnight ET.")
+        return
+      }
       if (!r.ok) throw new Error(d?.detail || `Request failed (${r.status})`)
       if (!d || d.error) throw new Error(d?.error || 'No answer')
+      setAsked(question)
       setAnswer(d.answer || '')
       setCitations(Array.isArray(d.citations) ? d.citations : [])
       setRelated(Array.isArray(d.related_questions) ? d.related_questions.slice(0, 3) : [])
+      setCopied(false)
+      if (bodyRef.current) bodyRef.current.scrollTop = 0
     } catch (e) {
       setError(e.message || 'Something went wrong')
     } finally {
@@ -135,6 +177,16 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   }, [query, loading])
 
   const askFollowUp = (q) => { setQuery(q); run(q) }
+
+  const copyAnswer = () => {
+    // Strip the [Label]($TICKER) link syntax and bold markers for a clean paste.
+    const plain = String(answer || '')
+      .replace(/\[([^\]]+)\]\(\$[A-Za-z][A-Za-z.\-]{0,6}\)/g, '$1')
+      .replace(/\*\*/g, '')
+    navigator.clipboard?.writeText(plain)
+      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) })
+      .catch(() => { /* clipboard unavailable — button just doesn't confirm */ })
+  }
 
   // Register with the workspace AI bus so a chart's "AI search" action runs here,
   // and auto-run an initialQuery (used by the temporary popup). runRef keeps the
@@ -157,11 +209,12 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   return (
     <div className={styles.root}>
       <div className={styles.searchRow}>
-        <span className={styles.spark}><Spark /></span>
+        <span className={styles.spark}><Spark state={loading ? 'thinking' : 'idle'} /></span>
         <textarea
           ref={inputRef}
           className={styles.input}
           placeholder="Ask anything about the markets…"
+          aria-label="Ask anything about the markets"
           value={query}
           rows={1}
           onChange={(e) => setQuery(e.target.value)}
@@ -175,15 +228,16 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         </button>
       </div>
 
-      <div className={styles.body}>
+      <div className={styles.body} ref={bodyRef}>
         {loading && (
           <div className={styles.status}>
-            <span className={styles.spinner} /> Searching the markets…
+            <span className={styles.spinner} /> {SEARCH_PHASES[phase]}
           </div>
         )}
         {!loading && error && <div className={styles.error}>{error}</div>}
+        {!loading && limitMsg && <div className={styles.limit}>{limitMsg}</div>}
 
-        {!loading && !error && answer == null && (
+        {!loading && !error && !limitMsg && answer == null && (
           <div className={styles.empty}>
             <span className={styles.emptySpark}><Spark size={34} /></span>
             <div className={styles.emptyTitle}>Ask the markets anything</div>
@@ -196,10 +250,17 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
           </div>
         )}
 
-        {!loading && !error && answer != null && (
-          <div className={styles.answer}>
-            {asked && <div className={styles.asked}>{asked}</div>}
-            <div className={styles.answerText}><AnswerBody text={answer} onTicker={handleTicker} /></div>
+        {answer != null && (
+          <div className={`${styles.answer} ${loading ? styles.answerStale : ''}`}>
+            {asked && (
+              <div className={styles.asked}>
+                <span className={styles.askedText}>{asked}</span>
+                <button className={styles.copyBtn} onClick={copyAnswer} title="Copy answer text">
+                  {copied ? 'Copied ✓' : 'Copy'}
+                </button>
+              </div>
+            )}
+            <div className={styles.answerText}><AnswerBody text={answer} onTicker={handleTicker} cites={citations} /></div>
 
             {related.length > 0 && (
               <div className={styles.followups}>
@@ -232,6 +293,8 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
                 </div>
               </div>
             )}
+
+            <div className={styles.disclaimer}>AI-generated research — verify before trading.</div>
           </div>
         )}
       </div>
