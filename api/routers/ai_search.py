@@ -381,7 +381,7 @@ def _ctx_flow_ticker(sym: str) -> str:
 # Flow context is an HTTP hop — fire it only when the phrasing asks about flow.
 _FLOW_RE = re.compile(
     r"\b(options? flow|flow|sweeps?|unusual (options|activity)|whales?"
-    r"|call buying|put buying|smart money|big prints?|premium)\b", re.I)
+    r"|call buying|put buying|smart money|big prints?|options? premium)\b", re.I)
 
 
 def _ctx_movers() -> str:
@@ -444,7 +444,7 @@ def _ctx_news() -> str:
 _INTENT_SPECS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\b(movers?|gainers?|losers?|ripping|drilling|gapping|what'?s moving|biggest (moves?|movers?))\b", re.I), "_ctx_movers"),
     (re.compile(r"\b(breadth|internals|market (health|condition)|advance|decline|new (highs?|lows?)|exposure)\b", re.I), "_ctx_breadth"),
-    (re.compile(r"\b(earnings (today|tonight|this week)|who reports?|reporting (today|tonight|this week)|\bbmo\b|\bamc\b|beats?|misse?s?d?)\b", re.I), "_ctx_earnings"),
+    (re.compile(r"\b(earnings (today|tonight|this week)|who reports?|reporting (today|tonight|this week)|\bbmo\b|\bamc\b)\b", re.I), "_ctx_earnings"),
     (re.compile(r"\b(uct ?20|leadership (list|names|20)|(your|firm'?s) top (stocks|names|20))\b", re.I), "_ctx_uct20"),
     (re.compile(r"\b(setups?|scanner|candidates?|pullbacks?|remounts?|watch ?list ideas)\b", re.I), "_ctx_candidates"),
     (re.compile(r"\b(news|headlines?|tape|stories)\b", re.I), "_ctx_news"),
