@@ -100,3 +100,54 @@ def pass_rates(metrics_map: dict) -> dict:
         if dv is not None and dv >= DVOL_MIN:
             out["dvol"] += 1
     return out
+
+
+def _get_rows_cached(syms: tuple) -> dict:
+    key = frozenset(syms)
+    now = time.monotonic()
+    hit = _ROWS_CACHE.get(key)
+    if hit and (now - hit[0]) < _ROWS_TTL:
+        return hit[1]
+    try:
+        rows = snapshot_db.get_rows(list(syms))
+    except Exception:
+        rows = {}
+    _ROWS_CACHE[key] = (now, rows)
+    if len(_ROWS_CACHE) > 256:          # keep the cache tiny; fill-sets repeat
+        _ROWS_CACHE.clear()
+        _ROWS_CACHE[key] = (now, rows)
+    return rows
+
+
+def swing_metrics(syms: list, rs: dict, today: dict) -> dict:
+    """{sym: {rs_rank, dollar_vol, adr_pct, price}} for gating. Never raises.
+
+    price/$-vol are LIVE: current = screener_close * (1 + today_pct/100), with a
+    fallback to the close when there is no live pct. rs_rank comes from `rs`
+    (the rs_ranking cache) ONLY. A screener row older than _STALE_SECS is
+    treated as missing (guards a silently-stalled nightly build).
+    """
+    syms = [s for s in syms if s]
+    if not syms:
+        return {}
+    rows = _get_rows_cached(tuple(sorted(syms)))
+    now = time.time()
+    out = {}
+    for hy in syms:
+        row = rows.get(hy)
+        stale = bool(row) and row.get("built_at") is not None \
+            and (now - float(row["built_at"])) > _STALE_SECS
+        usable = row if (row and not stale) else None
+        prev_close = _num(usable.get("price")) if usable else None
+        avg_vol = _num(usable.get("avg_volume_30d")) if usable else None
+        adr = _num(usable.get("adr_pct")) if usable else None
+        pct = _num((today or {}).get(hy))
+        cur_price = (prev_close * (1 + pct / 100.0)) if (prev_close is not None and pct is not None) else prev_close
+        dvol = (cur_price * avg_vol) if (cur_price is not None and avg_vol is not None) else None
+        out[hy] = {
+            "rs_rank": ((rs or {}).get(hy) or {}).get("rs_rank"),
+            "dollar_vol": dvol,
+            "adr_pct": adr,
+            "price": cur_price,
+        }
+    return out
