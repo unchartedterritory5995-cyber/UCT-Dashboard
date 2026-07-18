@@ -255,6 +255,113 @@ def _ctx_tape(sym: str) -> str:
     return f"{sym} tape (UCT curated wires, last 8h): {lines}"
 
 
+def _ctx_patterns(sym: str) -> str:
+    """Active pattern-engine detections (entry/stop/target levels) — a local
+    patterns.db read via the same tool Compass uses."""
+    from api.services.voice_tool_impls import _find_patterns_on_ticker
+    res = _find_patterns_on_ticker(symbol=sym) or {}
+    if not (res.get("ok") and res.get("count")):
+        return ""
+    narr = (res.get("narration") or "").strip()
+    return f"{sym} active setups (UCT pattern engine): {narr[:400]}" if narr else ""
+
+
+# ── Options-flow grounding. flow.db lives on the FLOW-WORKER post-P5; the
+# per-ticker read is uncapped-but-tiny (indexed, tens of rows), fetched over
+# Railway private networking when the proxy is live (else self). Strict 2.5s
+# budget + 60s memo — a slow flow read must never slow an answer.
+_ET_FALLBACK = timezone(timedelta(hours=-5))
+
+
+def _et_day_mdyyyy() -> str:
+    """flow.db CreatedDate format: M/D/YYYY, no zero padding."""
+    try:
+        from zoneinfo import ZoneInfo
+        now = datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        now = datetime.now(_ET_FALLBACK)
+    return f"{now.month}/{now.day}/{now.year}"
+
+
+def _flow_base_url() -> str:
+    try:
+        from api import flow_proxy
+        if flow_proxy.PROXY_ENABLED and flow_proxy.WORKER_INTERNAL_URL:
+            return flow_proxy.WORKER_INTERNAL_URL
+    except Exception:
+        pass
+    return f"http://127.0.0.1:{os.environ.get('PORT', '8000')}"
+
+
+def _summarize_flow_rows(sym: str, rows: list[dict], today: str) -> str:
+    """Pure aggregation of a ticker's flow CSV rows into one desk-context line."""
+    n = 0
+    total = call_p = put_p = ask_p = 0.0
+    best: dict | None = None
+    for row in rows:
+        if (row.get("CreatedDate") or "").strip() != today:
+            continue
+        try:
+            prem = float(row.get("Premium") or 0)
+        except (TypeError, ValueError):
+            continue
+        n += 1
+        total += prem
+        if (row.get("CallPut") or "").strip().upper().startswith("C"):
+            call_p += prem
+        else:
+            put_p += prem
+        if (row.get("Side") or "").strip().upper().startswith("A"):
+            ask_p += prem
+        if best is None or prem > float(best.get("Premium") or 0):
+            best = row
+    if not n or total <= 0:
+        return ""
+    bias = ("call-heavy" if call_p > put_p * 1.5
+            else "put-heavy" if put_p > call_p * 1.5 else "mixed")
+    text = (f"{sym} options flow today (UCT tape): {n} notable prints, "
+            f"${total / 1e6:.1f}M premium — {bias} "
+            f"(${call_p / 1e6:.1f}M calls / ${put_p / 1e6:.1f}M puts, "
+            f"{ask_p / total * 100:.0f}% at ask)")
+    if best is not None:
+        try:
+            bp = float(best.get("Premium") or 0) / 1e6
+            text += (f"; largest: {best.get('CallPut', '?')} ${best.get('Strike', '?')} "
+                     f"exp {best.get('ExpirationDate', '?')} ${bp:.2f}M")
+        except (TypeError, ValueError):
+            pass
+    return text
+
+
+_flow_ctx_memo: dict = {}
+
+
+def _ctx_flow_ticker(sym: str) -> str:
+    import time as _time
+    hit = _flow_ctx_memo.get(sym)
+    if hit and _time.time() - hit[0] < 60:
+        return hit[1]
+    text = ""
+    try:
+        import csv as _csv
+        import io as _io
+        import httpx
+        r = httpx.get(f"{_flow_base_url()}/api/flow/ticker/{sym}", timeout=2.5)
+        if r.status_code == 200 and r.text:
+            rows = list(_csv.DictReader(_io.StringIO(r.text)))
+            text = _summarize_flow_rows(sym, rows, _et_day_mdyyyy())
+    except Exception:
+        text = ""
+    _flow_ctx_memo[sym] = (_time.time(), text)
+    return text
+
+
+# Flow context is an HTTP hop — fire it only when the phrasing asks about flow.
+_FLOW_RE = re.compile(
+    r"\b(options? flow|flow|sweeps?|unusual (options|activity)|whales?"
+    r"|call buying|put buying|smart money|big prints?|premium)\b", re.I)
+
+
 def _ctx_movers() -> str:
     from api.services.massive import get_movers
     m = get_movers() or {}
@@ -387,6 +494,21 @@ def _uct_context(query: str) -> tuple[str, str]:
                 parts.append(line)
         except Exception:
             pass
+    for s in syms[:2]:   # active setups — cheap local patterns.db read
+        try:
+            line = _ctx_patterns(s)
+            if line:
+                parts.append(line)
+        except Exception:
+            pass
+    if _FLOW_RE.search(query or ""):   # flow = HTTP hop to the flow-worker
+        for s in syms[:2]:
+            try:
+                line = _ctx_flow_ticker(s)
+                if line:
+                    parts.append(line)
+            except Exception:
+                pass
     salt_bits.extend(syms)
     this_mod = sys.modules[__name__]
     for rx, fn_name in _INTENT_SPECS:

@@ -253,6 +253,53 @@ def test_fresh_salt_buckets_hot_queries(monkeypatch):
     assert ai._fresh_salt("what was JPM's last earnings report like", "GREEN|JPM|2026-07-18") == "GREEN|JPM|2026-07-18"
 
 
+def test_summarize_flow_rows_aggregates_today_only():
+    rows = [
+        {"CreatedDate": "7/18/2026", "Premium": "1500000", "CallPut": "CALL", "Side": "A",
+         "Strike": "200", "ExpirationDate": "8/15/2026"},
+        {"CreatedDate": "7/18/2026", "Premium": "500000", "CallPut": "PUT", "Side": "B",
+         "Strike": "180", "ExpirationDate": "8/15/2026"},
+        {"CreatedDate": "7/17/2026", "Premium": "9000000", "CallPut": "CALL", "Side": "A",
+         "Strike": "190", "ExpirationDate": "8/15/2026"},   # yesterday — excluded
+    ]
+    out = ai._summarize_flow_rows("NVDA", rows, "7/18/2026")
+    assert "NVDA options flow today (UCT tape): 2 notable prints" in out
+    assert "$2.0M premium" in out and "call-heavy" in out
+    assert "$1.5M calls / $0.5M puts" in out and "75% at ask" in out
+    assert "largest: CALL $200 exp 8/15/2026 $1.50M" in out
+
+
+def test_summarize_flow_rows_empty_day():
+    assert ai._summarize_flow_rows("NVDA", [{"CreatedDate": "7/17/2026", "Premium": "1"}], "7/18/2026") == ""
+
+
+def test_flow_and_patterns_grounding_wiring(monkeypatch):
+    _reset_counters()
+    captured = {}
+
+    def fake(query, **kw):
+        captured.update(kw)
+        return {"answer": "x", "citations": [], "related_questions": [], "cached": False}
+
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend"})
+    monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 10.0, "direction": "up", "abs_pct": 1.0})
+    monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: "")
+    monkeypatch.setattr(ai, "_ctx_tape", lambda s: "")
+    monkeypatch.setattr(ai, "_ctx_patterns", lambda s: f"{s} active setups (UCT pattern engine): High Tight Flag (82% conf)")
+    monkeypatch.setattr(ai, "_ctx_flow_ticker", lambda s: f"{s} options flow today (UCT tape): 12 notable prints")
+    monkeypatch.setattr(ai, "_UNI", {"NVDA"})
+    c = _client()
+    # flow phrasing → patterns AND flow both ground
+    c.post("/api/ai-search", json={"query": "what is the options flow saying on NVDA"})
+    assert "NVDA active setups (UCT pattern engine)" in captured["system"]
+    assert "NVDA options flow today (UCT tape)" in captured["system"]
+    # non-flow phrasing → patterns yes, flow skipped (HTTP hop saved)
+    c.post("/api/ai-search", json={"query": "what do you think of NVDA here"})
+    assert "NVDA active setups (UCT pattern engine)" in captured["system"]
+    assert "options flow today" not in captured["system"]
+
+
 def test_scope_guard_present_in_widget_prompt():
     assert "SCOPE — HARD RULE" in ai._WIDGET_SYSTEM
     assert "exclusively for markets" in ai._WIDGET_SYSTEM
