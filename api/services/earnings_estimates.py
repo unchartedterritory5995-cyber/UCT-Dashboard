@@ -21,6 +21,74 @@ _INTEL_FAIL_TTL = 600  # 10 min — negative cache when ALL intel calls fail (42
 _MARKERS_CACHE_TTL = 43_200  # 12 hours (used by get_chart_markers)
 _TIMEOUT = 6  # seconds per Finnhub request
 
+# ── chart-markers persistent cache ───────────────────────────────────────────
+# The DEEP earnings history is immutable (past prints never change), so markers
+# are persisted to the /data volume and served effectively forever: they survive
+# redeploys (no cold re-fetch storm) and skip the every-12h refetch. A background
+# refresh runs at most once/day to pick up a newly-reported quarter (~4x/yr).
+import json as _json
+
+_MARKERS_REFRESH_SECONDS = 24 * 3600
+_MARKERS_DISK_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_markers")
+_markers_refresh_inflight: set[str] = set()
+_markers_refresh_lock = threading.Lock()
+
+
+def _markers_disk_path(ticker: str) -> str:
+    return os.path.join(_MARKERS_DISK_DIR, f"{ticker.upper()}.json")
+
+
+def _markers_disk_read(ticker: str):
+    """Return (data, saved_at_epoch) from the /data volume, or None."""
+    try:
+        with open(_markers_disk_path(ticker)) as f:
+            blob = _json.load(f)
+        data = blob.get("data")
+        if isinstance(data, dict) and "earnings" in data:
+            return data, float(blob.get("saved_at") or 0)
+    except (FileNotFoundError, ValueError, OSError):
+        pass
+    return None
+
+
+def _markers_disk_write(ticker: str, data: dict) -> None:
+    try:
+        os.makedirs(_MARKERS_DISK_DIR, exist_ok=True)
+        path = _markers_disk_path(ticker)
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            _json.dump({"data": data, "saved_at": _time.time()}, f)
+        os.replace(tmp, path)  # atomic
+    except OSError as e:
+        _logger.warning("chart_markers disk write failed for %s: %s", ticker, e)
+
+
+def _schedule_markers_refresh(ticker: str) -> None:
+    """Rebuild the markers blob in the background (deduped) and re-persist it, so a
+    newly-reported quarter is picked up without ever blocking a chart request."""
+    ticker = ticker.upper()
+    with _markers_refresh_lock:
+        if ticker in _markers_refresh_inflight:
+            return
+        _markers_refresh_inflight.add(ticker)
+
+    def _run():
+        try:
+            data = _build_chart_markers(ticker)
+            # Don't clobber a good disk copy with an empty result on a transient
+            # provider failure.
+            if data and (data.get("earnings") or data.get("splits") or data.get("dividends")):
+                cache.set(f"chart_markers_{ticker}", data, ttl=_MARKERS_CACHE_TTL)
+                _markers_disk_write(ticker, data)
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("chart_markers bg refresh failed for %s: %s", ticker, e)
+        finally:
+            with _markers_refresh_lock:
+                _markers_refresh_inflight.discard(ticker)
+
+    threading.Thread(target=_run, daemon=True, name=f"markers-refresh-{ticker}").start()
+
+
 # Finnhub free tier = 60 calls/min. When a 429 lands, EVERY caller funneling
 # through _fh_get backs off together for this long — without a shared cooldown
 # each enrichment/markers/next-report burst keeps hammering an already-exhausted
@@ -587,6 +655,27 @@ def get_chart_markers(ticker: str) -> dict:
     if cached is not None:
         return cached
 
+    # Disk layer — deep history is immutable, so serve the persisted copy
+    # effectively forever (survives redeploys; no 12h refetch). Stale-while-
+    # revalidate: serve instantly + background-refresh only if it has aged out.
+    disk = _markers_disk_read(ticker)
+    if disk is not None:
+        data, saved_at = disk
+        cache.set(cache_key, data, ttl=_MARKERS_CACHE_TTL)
+        if _time.time() - saved_at > _MARKERS_REFRESH_SECONDS:
+            _schedule_markers_refresh(ticker)
+        return data
+
+    result = _build_chart_markers(ticker)
+    cache.set(cache_key, result, ttl=_MARKERS_CACHE_TTL)
+    _markers_disk_write(ticker, result)
+    return result
+
+
+def _build_chart_markers(ticker: str) -> dict:
+    """Fetch + assemble the markers blob (earnings history + fiscal-quarter join +
+    splits + dividends). Wrapped by get_chart_markers' memory + disk cache layers.
+    Best-effort — each section is independently guarded and never raises."""
     result = {"earnings": [], "splits": [], "dividends": []}
 
     from datetime import date, timedelta
@@ -756,5 +845,4 @@ def get_chart_markers(ticker: str) -> dict:
     except Exception as exc:
         _logger.warning("get_chart_markers dividends failed for %s: %s", ticker, exc)
 
-    cache.set(cache_key, result, ttl=_MARKERS_CACHE_TTL)
     return result

@@ -17,6 +17,14 @@ from api.services.cache import cache
 
 def _fresh_cache(ticker: str = "TEST"):
     cache.invalidate(f"chart_markers_{ticker}")
+    # Deep-history markers are ALSO persisted to disk (survives redeploys) — clear
+    # that too so each test builds fresh from its mocked provider instead of a
+    # prior test's leftover disk copy.
+    import os as _os
+    try:
+        _os.remove(earnings_estimates._markers_disk_path(ticker))
+    except OSError:
+        pass
 
 
 def _today():
@@ -262,6 +270,36 @@ class TestGetChartMarkersCache:
         assert calls_after_first > 0
         # No additional upstream calls on the second invocation
         assert calls_after_second == calls_after_first
+
+
+class TestGetChartMarkersDiskPersistence:
+    """Deep history is immutable → persisted to disk and served WITHOUT a rebuild
+    even after the in-memory cache is cleared (e.g. a redeploy)."""
+
+    def test_serves_from_disk_after_memory_cleared(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(earnings_estimates, "_MARKERS_DISK_DIR", str(tmp_path))
+        _fresh_cache("DISKME")
+
+        calls = {"n": 0}
+
+        def fake_fh_get(path, params):
+            calls["n"] += 1
+            return [{"period": "2026-04-01", "actual": 1.0, "estimate": 0.9}] if path == "/stock/earnings" else []
+
+        with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
+             patch.object(earnings_estimates, "_fmp_get", return_value=None):
+            r1 = earnings_estimates.get_chart_markers("DISKME")
+            after_build = calls["n"]
+            # Clear ONLY memory (simulates a redeploy) — the disk copy must serve
+            # the next call with NO provider refetch.
+            cache.invalidate("chart_markers_DISKME")
+            r2 = earnings_estimates.get_chart_markers("DISKME")
+            after_disk = calls["n"]
+
+        assert r1 == r2
+        assert after_build > 0
+        assert after_disk == after_build   # disk-served: zero extra provider calls
+        assert len(r2["earnings"]) == 1
 
 
 # ─── Route-level tests ────────────────────────────────────────────────────────

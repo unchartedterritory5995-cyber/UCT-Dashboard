@@ -81,7 +81,13 @@ function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
 // the right-click "Reset view" so all three land on the exact same window.
 function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3 } = {}) {
   const visibleBars = (tf === 'D' && dailyDefaultBars) ? dailyDefaultBars : (DEFAULT_VISIBLE_BARS[tf] || 65)
-  const from = barsLen > visibleBars ? barsLen - visibleBars - leftBarPad : -leftBarPad
+  // Always size the window to `visibleBars` and anchor the newest candle at
+  // LAST_CANDLE_POS. For a SHORT-history ticker (IPO/new ETF like SPCX/DRAM,
+  // barsLen < visibleBars) `from` goes NEGATIVE → the few bars keep a normal
+  // candle width with blank space to their left, instead of being STRETCHED to
+  // fill the whole pane. Identical to before for normal tickers (barsLen >
+  // visibleBars). LWC renders logical indices < 0 as leading whitespace.
+  const from = barsLen - visibleBars - leftBarPad
   const hist = (barsLen - 1) - from
   const to = hist > 0 ? from + hist / LAST_CANDLE_POS : barsLen + rightPadBars
   return { from, to }
@@ -2723,14 +2729,37 @@ export default function StockChart({
   const earningsEvents = useMemo(() => {
     const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
     if (!cs.markers?.earnings || !markersData?.earnings || !isDailyWeekly || !filteredBars?.length) return []
-    const lowByDate = new Map()
-    for (const b of filteredBars) lowByDate.set(String(b.t), +b.l)
+    // Snap each earnings DATE to the bar whose PERIOD contains it. Daily bars are
+    // keyed by the exact day, but WEEKLY bars are keyed by the week's Friday and
+    // MONTHLY by the month — so an exact date-match only ever hit on daily (and by
+    // coincidence when a report happened to land on a Friday). Bucket both the
+    // bars and the earnings dates the same way, then look up the containing bar.
+    const tf = resolvedTf
+    const bucket = (dstr) => {
+      const s = String(dstr).slice(0, 10)
+      if (tf === 'W') {
+        const dt = new Date(`${s}T00:00:00Z`)
+        if (isNaN(dt.getTime())) return s
+        dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7)) // → Monday of its ISO week
+        return dt.toISOString().slice(0, 10)
+      }
+      if (tf === 'M') return s.slice(0, 7)   // YYYY-MM
+      return s                                // daily: the exact day
+    }
+    const barByBucket = new Map()
+    for (const b of filteredBars) barByBucket.set(bucket(b.t), b)
     const out = []
+    const seen = new Set()
     for (const e of markersData.earnings) {
       if (!e.date) continue
-      const low = lowByDate.get(String(e.date))
-      if (!Number.isFinite(low)) continue   // no matching bar (e.g. outside the loaded range)
-      out.push({ date: e.date, low, beat: e.beat, data: e })
+      const bar = barByBucket.get(bucket(e.date))
+      if (!bar) continue                      // no bar in that period (outside loaded range)
+      const low = +bar.l
+      if (!Number.isFinite(low) || seen.has(bar.t)) continue  // 1 badge/bar (≤1 report/period)
+      seen.add(bar.t)
+      // Position the badge at the BAR's time (not the raw report date, which isn't
+      // a weekly/monthly bar key); the popup still shows the real report date via `data`.
+      out.push({ date: bar.t, low, beat: e.beat, data: e })
     }
     return out
   }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
@@ -7761,11 +7790,20 @@ export default function StockChart({
       const cutoffMs = val === 'ytd'
         ? Date.UTC(d.getUTCFullYear(), 0, 1)
         : Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - val, d.getUTCDate())
-      let fromIdx = _bars.findIndex(b => _dateToMs(b.t) >= cutoffMs)
-      if (fromIdx < 0) fromIdx = 0
       const lastIdx = _bars.length - 1
-      if (lastIdx - fromIdx < 1) return
-      ts.setVisibleLogicalRange({ from: fromIdx, to: lastIdx + (rightPadBars || 3) })
+      const firstMs = _dateToMs(_bars[0].t)
+      if (!Number.isFinite(firstMs) || lastMs <= firstMs) return
+      // Anchor the LEFT edge to the cutoff DATE, not to the first bar. For a
+      // short-history ticker whose IPO is INSIDE the lookback (SPCX/DRAM on 3M,
+      // 6M, …) the cutoff sits before bar 0, so `from` goes negative → the bars
+      // keep their normal (period-appropriate) width with blank space to the
+      // left, instead of the whole IPO history being stretched across the pane.
+      // Window width = the lookback span converted to bars via the series' own
+      // bar density (timeframe-agnostic: works for D/W/M).
+      const msPerBar = (lastMs - firstMs) / lastIdx
+      const windowBars = msPerBar > 0 ? (lastMs - cutoffMs) / msPerBar : lastIdx
+      if (!(windowBars >= 1)) return
+      ts.setVisibleLogicalRange({ from: lastIdx - windowBars, to: lastIdx + (rightPadBars || 3) })
     } catch { /* noop */ }
   }
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
