@@ -13,7 +13,8 @@ import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import useChartLayouts from '../../../hooks/useChartLayouts'
 import { LAYOUTS, GRID_MAX_CELLS, makeLayout } from './gridLayouts'
-import { fetchGroupTop } from './groupsApi'
+import { fetchGroups, fetchGroupTop } from './groupsApi'
+import { neighborGroup } from './groupRecents'
 import GroupPicker from './GroupPicker'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
@@ -57,6 +58,16 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
   }
 
   const applyTemplate = (tpl) => { mc.applyGridTemplate(tpl); onClose() }
+
+  const stepGroup = async (dir) => {
+    const list = await fetchGroups()
+    const nextId = neighborGroup(list, mc.state.group.id, dir)
+    if (!nextId) return
+    const n = mc.state.cells.length
+    const { syms, etf } = await fetchGroupTop(nextId, { n, by: mc.state.group.by || 'today' })
+    const filled = etf ? [etf, ...(syms || []).filter(s => s !== etf)].slice(0, n) : (syms || [])
+    if (filled.length) mc.fillCells(filled, { id: nextId, by: mc.state.group.by || 'today', n })
+  }
 
   const handleSaveAs = async () => {
     const nm = saveName.trim()
@@ -211,6 +222,10 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
       {mc.state.group && (
         <>
           <div className={wsStyles.menuDivider} />
+          <div className={styles.nxmForm} style={{ justifyContent: 'space-between' }}>
+            <button type="button" className={wsStyles.toolbarBtn} onClick={() => stepGroup(-1)} aria-label="Previous group">‹ Prev</button>
+            <button type="button" className={wsStyles.toolbarBtn} onClick={() => stepGroup(1)} aria-label="Next group">Next ›</button>
+          </div>
           <button type="button" className={wsStyles.addMenuItem} onClick={async () => {
             const g = mc.state.group
             const n = mc.state.cells.length

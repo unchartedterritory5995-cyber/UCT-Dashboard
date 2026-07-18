@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { parseLayoutId } from './gridLayouts'
 import { fetchGroups, fetchGroupTop } from './groupsApi'
+import { pushRecent, getRecents } from './groupRecents'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
 
@@ -21,6 +22,11 @@ export default function GroupPicker({ mc, onClose }) {
     return groups.filter(g => (g.name || '').toLowerCase().includes(s))
   }, [groups, q])
 
+  const recents = useMemo(() => {
+    const byId = new Map(groups.map(g => [g.id, g]))
+    return getRecents().map(id => byId.get(id)).filter(Boolean)
+  }, [groups])
+
   const pick = async (g) => {
     setBusy(g.id)
     const n = parseLayoutId(mc.state.layout).cellCount
@@ -28,6 +34,7 @@ export default function GroupPicker({ mc, onClose }) {
     const { syms, etf } = await fetchGroupTop(g.id, { n, by: 'today' })
     const filled = etf ? [etf, ...(syms || []).filter(s => s !== etf)].slice(0, n) : (syms || [])
     if (filled.length) mc.fillCells(filled, { id: g.id, by: 'today', n })
+    pushRecent(g.id)
     setBusy('')
     onClose?.()
   }
@@ -42,6 +49,20 @@ export default function GroupPicker({ mc, onClose }) {
         onChange={e => setQ(e.target.value)}
         aria-label="Search groups"
       />
+      {!q.trim() && recents.length > 0 && (
+        <>
+          <div className={wsStyles.menuSection} style={{ padding: '4px 10px 0' }}>Recent</div>
+          <div className={styles.groupList}>
+            {recents.map(g => (
+              <button key={`r-${g.id}`} type="button" className={wsStyles.addMenuItem}
+                disabled={busy === g.id} onClick={() => pick(g)}>
+                <span style={{ flex: 1 }}>{g.name}</span>
+                <span className={styles.groupCount}>{g.chartable}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <div className={styles.groupList}>
         {shown.map(g => (
           <button

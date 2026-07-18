@@ -19,7 +19,7 @@ const mc = {
   fillCells: vi.fn(),
 }
 
-beforeEach(() => { mc.enterGrid.mockClear(); mc.fillCells.mockClear() })
+beforeEach(() => { mc.enterGrid.mockClear(); mc.fillCells.mockClear(); localStorage.clear() })
 
 describe('GroupPicker', () => {
   it('lists groups and fills the grid on click', async () => {
