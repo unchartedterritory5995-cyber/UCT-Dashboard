@@ -283,9 +283,11 @@ def register_jobs(scheduler) -> bool:
         logger.info("[j2-attach-backup] disabled (J2_ATTACHMENT_BACKUP_ENABLED != 1)")
         return False
     from apscheduler.triggers.cron import CronTrigger
+    from zoneinfo import ZoneInfo
     scheduler.add_job(
         backup_j2_attachments_to_r2,
-        CronTrigger(day_of_week="mon-sat", hour=2, minute=45),
+        CronTrigger(day_of_week="mon-sat", hour=2, minute=45,
+                    timezone=ZoneInfo("America/New_York")),
         id="j2_attachments_backup", max_instances=1, replace_existing=True)
     logger.info("[j2-attach-backup] scheduled 02:45 ET Mon-Sat (retain=%dd)", _retain_days())
     return True

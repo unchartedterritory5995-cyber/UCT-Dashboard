@@ -266,9 +266,11 @@ def register_jobs(scheduler) -> bool:
         logger.info("[j2-excursion] disabled (EXCURSION_ENGINE_ENABLED != 1)")
         return False
     from apscheduler.triggers.cron import CronTrigger
+    from zoneinfo import ZoneInfo
     scheduler.add_job(
         _nightly,
-        CronTrigger(day_of_week="mon-sat", hour=3, minute=10),
+        CronTrigger(day_of_week="mon-sat", hour=3, minute=10,
+                    timezone=ZoneInfo("America/New_York")),
         id="j2_excursion_backfill", max_instances=1, replace_existing=True,
     )
     logger.info("[j2-excursion] scheduled 03:10 ET Mon-Sat")

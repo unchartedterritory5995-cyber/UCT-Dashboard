@@ -7,6 +7,11 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+# APScheduler trap: a pre-built CronTrigger(...) resolves tzlocal (UTC on
+# Railway), NOT the scheduler's timezone -- every trigger below must carry
+# an explicit timezone or its "ET" schedule silently fires 4h early.
+_ET = ZoneInfo("America/New_York")
+
 # Process boot time -- exposed via /api/health so an operator can tell a
 # healthy long-lived pod (uptime climbs steadily) from a silently
 # restarting / idle-respawning one (uptime keeps resetting). The 12s
@@ -721,7 +726,7 @@ def register_screener_jobs(scheduler):
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
 
-    scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0),
+    scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
 
@@ -780,7 +785,7 @@ def register_pattern_vision_jobs(scheduler):
     # (was hourly, 24x/day → most runs happened overnight/weekends when charts
     # don't change). Scheduler TZ is America/New_York, so 9-16 = 9am-4pm ET.
     scheduler.add_job(_run,
-                      trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute=0),
+                      trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute=0, timezone=_ET),
                       id="pattern_vision_judge", max_instances=1,
                       replace_existing=True)
     return True
@@ -2135,7 +2140,7 @@ async def lifespan(app: FastAPI):
             from api.services import community_heartbeat
             _scheduler.add_job(
                 community_heartbeat.post_daily_heartbeat,
-                CronTrigger(day_of_week="mon-fri", hour=9, minute=20),
+                CronTrigger(day_of_week="mon-fri", hour=9, minute=20, timezone=_ET),
                 id="floor_daily_heartbeat", replace_existing=True, max_instances=1)
         except Exception as _e_hb:
             print(f"[startup] floor heartbeat job skip: {_e_hb}")
@@ -2147,18 +2152,18 @@ async def lifespan(app: FastAPI):
             from api.services import community_signals
             _scheduler.add_job(
                 community_signals.run_signal_cycle,
-                CronTrigger(day_of_week="mon-fri", hour="9-16", minute="0,30"),
+                CronTrigger(day_of_week="mon-fri", hour="9-16", minute="0,30", timezone=_ET),
                 id="floor_signal_cycle", replace_existing=True, max_instances=1)
             _scheduler.add_job(
                 community_signals.post_premarket_brief,
-                CronTrigger(day_of_week="mon-fri", hour=8, minute=45),
+                CronTrigger(day_of_week="mon-fri", hour=8, minute=45, timezone=_ET),
                 id="floor_premarket_brief", replace_existing=True, max_instances=1)
         except Exception as _e_sig:
             print(f"[startup] floor signal job skip: {_e_sig}")
 
-        _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
-        _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
-        _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50, timezone=_ET), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15, timezone=_ET), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45, timezone=_ET), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
 
         # Ticker-type sync (2026-07-09) — keep the Massive ETF/stock reference
         # (ticker_types table) fresh so the flow write path classifies new ETFs
@@ -2174,7 +2179,7 @@ async def lifespan(app: FastAPI):
                     ticker_types.refresh_class_sets()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[ticker_types] daily sync failed: %s", _e)
-            _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30),
+            _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                                id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
 
         # Broker Sync -- background incremental sync across all connected users.
@@ -2209,7 +2214,7 @@ async def lifespan(app: FastAPI):
             # Nightly full reconcile (corrections/voids outside the window).
             _scheduler.add_job(
                 _broker_sync_engine.run_nightly_reconcile_blocking,
-                trigger=CronTrigger(hour=2, minute=30),
+                trigger=CronTrigger(hour=2, minute=30, timezone=_ET),
                 id="broker_sync_nightly_reconcile", max_instances=1, replace_existing=True,
             )
             # Import warming — short full re-syncs after a connect until
@@ -2228,7 +2233,7 @@ async def lifespan(app: FastAPI):
             from api.services.journal_two.broker import fleet_monitor as _broker_fleet
             _scheduler.add_job(
                 _broker_fleet.run_fleet_check_blocking,
-                trigger=CronTrigger(minute=37),
+                trigger=CronTrigger(minute=37, timezone=_ET),
                 id="broker_fleet_monitor", max_instances=1, replace_existing=True,
             )
             # Synthetic canary — nightly end-to-end pipeline proof on the
@@ -2236,7 +2241,7 @@ async def lifespan(app: FastAPI):
             # BROKER_CANARY_USER_ID is set.
             _scheduler.add_job(
                 _broker_fleet.run_canary_sync_blocking,
-                trigger=CronTrigger(hour=3, minute=10),
+                trigger=CronTrigger(hour=3, minute=10, timezone=_ET),
                 id="broker_canary_sync", max_instances=1, replace_existing=True,
             )
             # Fidelity audit — nightly reconciliation of every synced account
@@ -2246,7 +2251,7 @@ async def lifespan(app: FastAPI):
             from api.services.journal_two.broker import fidelity_audit as _broker_fidelity
             _scheduler.add_job(
                 _broker_fidelity.run_fidelity_audits_blocking,
-                trigger=CronTrigger(hour=3, minute=40),
+                trigger=CronTrigger(hour=3, minute=40, timezone=_ET),
                 id="broker_fidelity_audit", max_instances=1, replace_existing=True,
             )
             print(f"[startup] Broker sync scheduler ON (tick {_bs_tick}m, per-account cadence "
@@ -2269,8 +2274,8 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[scheduler] COT daily catchup error: {e}")
 
-        _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0), id="cot_daily_catchup", max_instances=1, replace_existing=True)
-        _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0), id="session_cleanup", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0, timezone=_ET), id="cot_daily_catchup", max_instances=1, replace_existing=True)
+        _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0, timezone=_ET), id="session_cleanup", max_instances=1, replace_existing=True)
 
         # -- auth.db continuous backup to R2 (DARK, env-gated) ----------------
         # auth.db is the crown-jewel DB and web-local (single web pod volume).
@@ -2287,7 +2292,7 @@ async def lifespan(app: FastAPI):
             )
             _scheduler.add_job(
                 _authdb_backup.run_backup,
-                trigger=CronTrigger(hour=2, minute=55),
+                trigger=CronTrigger(hour=2, minute=55, timezone=_ET),
                 id="authdb_backup_nightly", max_instances=1, replace_existing=True,
             )
             print("[startup] auth.db R2 backup scheduler ON (every 6h + daily 2:55am ET)")
@@ -2319,21 +2324,21 @@ async def lifespan(app: FastAPI):
             from api.services.tweet_poller import poll_all_accounts as _tw_poll
             from api.services.tweet_cleanup import run_cleanup as _tw_cleanup
 
-            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/2"),
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/2", timezone=_ET),
                                id="tweet_poll_burst_premarket", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-58/2"),
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-58/2", timezone=_ET),
                                id="tweet_poll_burst_open", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-58/2"),
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-58/2", timezone=_ET),
                                id="tweet_poll_burst_close", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/2"),
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/2", timezone=_ET),
                                id="tweet_poll_burst_amc", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="10-15", minute="*/15"),
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="10-15", minute="*/15", timezone=_ET),
                                id="tweet_poll_regular_midday", max_instances=1, replace_existing=True)
             # Slow safety-net -- overlap with burst is intentional; since_id
             # makes duplicate fetches free.
-            _scheduler.add_job(_tw_poll, trigger=CronTrigger(minute="0"),
+            _scheduler.add_job(_tw_poll, trigger=CronTrigger(minute="0", timezone=_ET),
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0),
+            _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
             print("[scheduler] tweet poll jobs registered")
 
@@ -2342,13 +2347,13 @@ async def lifespan(app: FastAPI):
         # gated ON by default; set SUBSTACK_ENABLED=0 to disable.
         if os.environ.get("SUBSTACK_ENABLED", "1").lower() in ("1", "true", "yes"):
             from api.services.substack_poller import poll_all as _substack_poll
-            _scheduler.add_job(_substack_poll, trigger=CronTrigger(minute="7"),
+            _scheduler.add_job(_substack_poll, trigger=CronTrigger(minute="7", timezone=_ET),
                                id="substack_poll_hourly", max_instances=1, replace_existing=True)
             # Sunday-afternoon burst: posts usually drop ~2 PM ET on Sundays, so
             # poll every 10 min 1-5 PM ET that day -> a fresh article lands within
             # minutes (the hourly job above stays the off-schedule safety net).
             _scheduler.add_job(_substack_poll,
-                               trigger=CronTrigger(day_of_week="sun", hour="13-17", minute="*/10"),
+                               trigger=CronTrigger(day_of_week="sun", hour="13-17", minute="*/10", timezone=_ET),
                                id="substack_poll_sunday_burst", max_instances=1, replace_existing=True)
             print("[scheduler] substack poll job registered (hourly + Sunday burst)")
 
@@ -2387,15 +2392,15 @@ async def lifespan(app: FastAPI):
 
             # Drain the recording queue every 5 min (a recording usually finishes
             # processing on Zoom's side a few minutes after the webinar ends).
-            _scheduler.add_job(_dds_process, trigger=CronTrigger(minute="*/5"),
+            _scheduler.add_job(_dds_process, trigger=CronTrigger(minute="*/5", timezone=_ET),
                 id="desk_daily_session_process", max_instances=1, replace_existing=True)
             _scheduler.add_job(_dds_safety,
-                trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=0),
+                trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=0, timezone=_ET),
                 id="desk_daily_session_safety", max_instances=1, replace_existing=True)
             # Chapters/transcript + deferred Zoom-trash backfill (self-gated by
             # DESK_SESSION_CHAPTERS_ENABLED). Offset from the */5 drain so a fresh
             # publish gets its transcript pass a couple of minutes later.
-            _scheduler.add_job(_dds_insights, trigger=CronTrigger(minute="7/15"),
+            _scheduler.add_job(_dds_insights, trigger=CronTrigger(minute="7/15", timezone=_ET),
                 id="desk_session_insights", max_instances=1, replace_existing=True)
             print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
@@ -2415,7 +2420,7 @@ async def lifespan(app: FastAPI):
         if os.environ.get("RATINGS_PERCENTILE_ENABLED", "0").lower() in ("1", "true", "yes"):
             from api.services.research.ratings_universe import nightly_job as _ratings_pct_nightly
             _scheduler.add_job(_ratings_pct_nightly,
-                trigger=CronTrigger(hour=2, minute=30),
+                trigger=CronTrigger(hour=2, minute=30, timezone=_ET),
                 id="ratings_percentile_nightly", max_instances=1, replace_existing=True)
 
         # -- Earnings preview warm ------------------------------------------------
@@ -2433,12 +2438,12 @@ async def lifespan(app: FastAPI):
             # Pending previews: pre-market + through the day (new names + report-
             # date shifts). Skip-if-stable makes repeat runs near-free.
             _scheduler.add_job(_earn_warm,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="6,10,14,18", minute=20),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="6,10,14,18", minute=20, timezone=_ET),
                 id="earnings_preview_warm", max_instances=1, replace_existing=True)
             # Reported analyses: after the close, when AMC names print — so the
             # post-earnings read is instant, not a cold 24s wait for the first viewer.
             _scheduler.add_job(_earn_analysis_warm,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=35),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=35, timezone=_ET),
                 id="earnings_analysis_warm", max_instances=1, replace_existing=True)
 
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
@@ -2455,20 +2460,20 @@ async def lifespan(app: FastAPI):
 
             # Primary hunt ticks: 8:00 (deep — first of day), 8:30, 8:45 ET
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="8", minute="0,30,45"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="8", minute="0,30,45", timezone=_ET),
                 kwargs={"hunt": True},
                 id="catalyst_premarket_hunt", max_instances=1, replace_existing=True)
 
             # Early feed-only ticks keep the board warm for early birds:
             # 6:00, 6:30, 7:00, 7:30 ET
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="6-7", minute="0,30"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="6-7", minute="0,30", timezone=_ET),
                 kwargs={"hunt": False},
                 id="catalyst_premarket", max_instances=1, replace_existing=True)
 
             # Late pre-market feed-only ticks: 9:00 + 9:30 ET
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="0,30"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="0,30", timezone=_ET),
                 kwargs={"hunt": False},
                 id="catalyst_premarket_late", max_instances=1, replace_existing=True)
 
@@ -2478,7 +2483,7 @@ async def lifespan(app: FastAPI):
             # morning these are near-$0 but still re-stamp refreshed_at + catch
             # any late-breaking pre-open catalyst.
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="10,20"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="10,20", timezone=_ET),
                 kwargs={"hunt": False},
                 id="catalyst_preopen", max_instances=1, replace_existing=True)
 
@@ -2488,18 +2493,18 @@ async def lifespan(app: FastAPI):
             # 10min to 4:55). Anything that breaks after 5:00 PM is deliberately
             # left for the premarket sweeps to catch.
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="0,30"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="0,30", timezone=_ET),
                 kwargs={"hunt": True},
                 id="catalyst_amc_burst_hunt", max_instances=1, replace_existing=True)
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="5-25/5,35,45,55"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16", minute="5-25/5,35,45,55", timezone=_ET),
                 kwargs={"hunt": False},
                 id="catalyst_amc_burst", max_instances=1, replace_existing=True)
             # Final EOD hunt: 5:00 PM ET — catches the 4:30-5:00 AMC stragglers
             # (late reporters, post-close guidance) before the engine goes
             # quiet for the evening.
             _scheduler.add_job(_cat_refresh,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="17", minute="0"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="17", minute="0", timezone=_ET),
                 kwargs={"hunt": True},
                 id="catalyst_eod_final_hunt", max_instances=1, replace_existing=True)
 
@@ -2515,7 +2520,7 @@ async def lifespan(app: FastAPI):
                 coverage_audit.run_audit(
                     _d.datetime.now(_Z("America/New_York")).date().isoformat())
             _scheduler.add_job(_cat_audit,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="20", minute="15"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="20", minute="15", timezone=_ET),
                 id="catalyst_coverage_audit", max_instances=1, replace_existing=True)
 
             # Evidence-based auto-tune: once daily at 5:00 AM ET. Reviews recent
@@ -2529,7 +2534,7 @@ async def lifespan(app: FastAPI):
                 except Exception as _e:
                     print(f"[scheduler] catalyst autotune failed (non-fatal): {_e}")
             _scheduler.add_job(_cat_autotune,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="5", minute="0"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="5", minute="0", timezone=_ET),
                 id="catalyst_autotune", max_instances=1, replace_existing=True)
 
             # Premarket health check: 7:00, 8:00, 9:00 ET — distinguishes a
@@ -2544,7 +2549,7 @@ async def lifespan(app: FastAPI):
                 except Exception as _e:
                     print(f"[scheduler] catalyst health check failed (non-fatal): {_e}")
             _scheduler.add_job(_cat_health,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="7,8,9", minute="0"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour="7,8,9", minute="0", timezone=_ET),
                 id="catalyst_premarket_health", max_instances=1, replace_existing=True)
 
             print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + premarket health 7/8/9 AM ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
@@ -2556,7 +2561,7 @@ async def lifespan(app: FastAPI):
             from api.services.catalyst.digest import send_digest as _cat_digest
             _scheduler.add_job(
                 lambda: _cat_digest(),
-                trigger=CronTrigger(day_of_week="mon-fri", hour=8, minute=0),
+                trigger=CronTrigger(day_of_week="mon-fri", hour=8, minute=0, timezone=_ET),
                 id="catalyst_morning_digest", max_instances=1, replace_existing=True)
             print("[scheduler] catalyst morning digest registered (8 AM ET weekdays)")
 
@@ -2586,14 +2591,14 @@ async def lifespan(app: FastAPI):
 
             _scheduler.add_job(
                 _calendar_alert_job_evening,
-                trigger=CronTrigger(hour=18, minute=0),
+                trigger=CronTrigger(hour=18, minute=0, timezone=_ET),
                 id="calendar_alerts_evening",
                 max_instances=1,
                 replace_existing=True,
             )
             _scheduler.add_job(
                 _calendar_alert_job_morning,
-                trigger=CronTrigger(hour=7, minute=0),
+                trigger=CronTrigger(hour=7, minute=0, timezone=_ET),
                 id="calendar_alerts_morning",
                 max_instances=1,
                 replace_existing=True,
@@ -2623,16 +2628,16 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[churn] Error checking churn risk: {e}")
 
-        _scheduler.add_job(_check_churn_risk, trigger=CronTrigger(hour=9, minute=0), id="churn_risk_check", max_instances=1, replace_existing=True)
-        _scheduler.add_job(record_mrr_snapshot, trigger=CronTrigger(hour=23, minute=59), id="mrr_snapshot", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_check_churn_risk, trigger=CronTrigger(hour=9, minute=0, timezone=_ET), id="churn_risk_check", max_instances=1, replace_existing=True)
+        _scheduler.add_job(record_mrr_snapshot, trigger=CronTrigger(hour=23, minute=59, timezone=_ET), id="mrr_snapshot", max_instances=1, replace_existing=True)
         try:
             record_mrr_snapshot()
         except Exception as e:
             print(f"[startup] MRR snapshot error (non-fatal): {e}")
 
         from api.services.watchlist_digest import run_daily_digests, run_weekly_digests
-        _scheduler.add_job(run_daily_digests, trigger=CronTrigger(hour=17, minute=0), id="watchlist_daily_digest", max_instances=1, replace_existing=True)
-        _scheduler.add_job(run_weekly_digests, trigger=CronTrigger(day_of_week="fri", hour=17, minute=5), id="watchlist_weekly_digest", max_instances=1, replace_existing=True)
+        _scheduler.add_job(run_daily_digests, trigger=CronTrigger(hour=17, minute=0, timezone=_ET), id="watchlist_daily_digest", max_instances=1, replace_existing=True)
+        _scheduler.add_job(run_weekly_digests, trigger=CronTrigger(day_of_week="fri", hour=17, minute=5, timezone=_ET), id="watchlist_weekly_digest", max_instances=1, replace_existing=True)
 
         def _nightly_bar_refresh():
             try:
@@ -2642,7 +2647,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[scheduler] nightly bar refresh error: {e}")
 
-        _scheduler.add_job(_nightly_bar_refresh, trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15), id="bars_nightly_refresh", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_nightly_bar_refresh, trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=15, timezone=_ET), id="bars_nightly_refresh", max_instances=1, replace_existing=True)
 
         def _voice_window_scan(window: str):
             try:
@@ -2679,17 +2684,17 @@ async def lifespan(app: FastAPI):
 
         _add_compass_job(lambda: _voice_window_scan("premarket"),
                            trigger=CronTrigger(day_of_week="mon-fri",
-                                               hour="7-9", minute="*/15"),
+                                               hour="7-9", minute="*/15", timezone=_ET),
                            id="voice_proactive_premarket",
                            max_instances=1, replace_existing=True)
         _add_compass_job(lambda: _voice_window_scan("rth"),
                            trigger=CronTrigger(day_of_week="mon-fri",
-                                               hour="9-15", minute="*/30"),
+                                               hour="9-15", minute="*/30", timezone=_ET),
                            id="voice_proactive_scan",
                            max_instances=1, replace_existing=True)
         _add_compass_job(lambda: _voice_window_scan("after_hours"),
                            trigger=CronTrigger(day_of_week="mon-fri",
-                                               hour="16-20", minute="*/30"),
+                                               hour="16-20", minute="*/30", timezone=_ET),
                            id="voice_proactive_after_hours",
                            max_instances=1, replace_existing=True)
 
@@ -2713,7 +2718,7 @@ async def lifespan(app: FastAPI):
         # regime_snapshots ledger, so max_instances=1 must stay 1.
         _add_compass_job(_awareness_engine_scan,
                            trigger=CronTrigger(day_of_week="mon-fri",
-                                               hour="4-20", minute="*/20"),
+                                               hour="4-20", minute="*/20", timezone=_ET),
                            id="awareness_engine_scan",
                            max_instances=1, replace_existing=True)
 
@@ -2727,7 +2732,7 @@ async def lifespan(app: FastAPI):
                 print(f"[compass_daily_focus] outer error: {e}")
         _add_compass_job(_compass_daily_focus_run,
                            trigger=CronTrigger(day_of_week="mon-fri",
-                                               hour=7, minute=30),
+                                               hour=7, minute=30, timezone=_ET),
                            id="compass_daily_focus",
                            max_instances=1, replace_existing=True)
 
@@ -2751,7 +2756,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[voice_consolidate] outer error: {e}")
         _add_compass_job(_voice_nightly_consolidate,
-                           trigger=CronTrigger(hour=3, minute=30),
+                           trigger=CronTrigger(hour=3, minute=30, timezone=_ET),
                            id="voice_nightly_consolidate",
                            max_instances=1, replace_existing=True)
 
@@ -2764,7 +2769,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[scheduler] Flow DB prune error: {e}")
 
-        _scheduler.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0), id="flow_nightly_prune", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0, timezone=_ET), id="flow_nightly_prune", max_instances=1, replace_existing=True)
 
         # -- Daily OI snapshot for retroactive flow confirmation ----------
         # Captures Schwab live OI for every contract with flow in the past
@@ -2809,7 +2814,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] OI snapshot job registration failed: {e}")
 
-        _scheduler.add_job(_voice_cache_purge, trigger=CronTrigger(hour=3, minute=30), id="voice_audio_cache_purge", max_instances=1, replace_existing=True)
+        _scheduler.add_job(_voice_cache_purge, trigger=CronTrigger(hour=3, minute=30, timezone=_ET), id="voice_audio_cache_purge", max_instances=1, replace_existing=True)
 
         def _compass_eod_job():
             import os as _os
@@ -2857,7 +2862,7 @@ async def lifespan(app: FastAPI):
 
         _add_compass_job(
             _compass_eod_job,
-            trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=30),
+            trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=30, timezone=_ET),
             id="compass_eod_recap",
             max_instances=1,
             replace_existing=True,
@@ -2891,7 +2896,7 @@ async def lifespan(app: FastAPI):
 
         _add_compass_job(
             _compass_weekly_email_job,
-            trigger=CronTrigger(day_of_week="sun", hour=8, minute=0),
+            trigger=CronTrigger(day_of_week="sun", hour=8, minute=0, timezone=_ET),
             id="compass_weekly_email_digest",
             max_instances=1,
             replace_existing=True,
@@ -2913,7 +2918,7 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(
             _compass_health_email_job,
-            trigger=CronTrigger(day_of_week="mon", hour=13, minute=30),
+            trigger=CronTrigger(day_of_week="mon", hour=13, minute=30, timezone=_ET),
             id="compass_health_email",
             max_instances=1,
             replace_existing=True,
@@ -2990,7 +2995,7 @@ async def lifespan(app: FastAPI):
 
             _scheduler.add_job(
                 _fundamentals_warm_job,
-                trigger=CronTrigger(hour=5, minute=30),
+                trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                 id="fundamentals_warm",
                 max_instances=1,
                 replace_existing=True,
