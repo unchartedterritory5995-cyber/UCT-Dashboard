@@ -42,6 +42,8 @@ const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
 
 function GridChartCell({
   cell,               // {id, sym|null, tf} — controlled; sym null = empty slot
+  badge,              // {changePct, tier, rationale} | null — Groups mode scanner badge (Task 15)
+  rationale,          // static rationale string, mirrors badge.rationale — used as the badge's title tooltip
   onChange,           // (nextCell) => void — container merges + debounce-persists
   crosshairBus,       // {emit(sourceId,payload), subscribe(fn)} | null (null = sync off)
   volPanePct,         // shared charts_vol_pane_pct value (cells read, never write)
@@ -282,6 +284,20 @@ function GridChartCell({
               <span className={wsStyles.chartMetaLabel}>UCT Rating</span>
               <span className={wsStyles.chartMetaVal} style={{ color: ratingColor }}>{uctRating != null ? uctRating : '—'}</span>
             </span>
+            {badge && (
+              <span
+                className={styles.cellBadge}
+                title={rationale || undefined}
+                aria-label={`today ${badge.changePct ?? '—'}%, ${badge.tier || 'holding'}`}
+              >
+                {badge.tier && <span className={styles.cellBadgeTier}>{badge.tier[0].toUpperCase()}</span>}
+                {Number.isFinite(badge.changePct) && (
+                  <span style={{ color: badge.changePct >= 0 ? '#22c55e' : '#f87171' }}>
+                    {badge.changePct >= 0 ? '+' : ''}{badge.changePct.toFixed(1)}%
+                  </span>
+                )}
+              </span>
+            )}
           </div>
         )}
         {sym && (

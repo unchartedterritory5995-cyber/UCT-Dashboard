@@ -212,6 +212,14 @@
   border-radius: 1px;
 }
 
+/* Scanner badge on each group cell: tier chip + live today %. */
+.cellBadge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; flex: 0 0 auto; }
+.cellBadgeTier {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 3px; font-size: 9px; font-weight: 700;
+  color: var(--text-muted, #9aa4b2); border: 1px solid var(--border, #2a3340);
+}
+
 /* Groups picker (inside the Multi Charts menu). */
 .groupPicker { display: flex; flex-direction: column; max-width: 260px; }
 .groupList { max-height: 320px; overflow-y: auto; }

@@ -26,8 +26,9 @@ import useStaggeredMount from './useStaggeredMount'
 import { parseLayoutId } from './gridLayouts'
 import { createSpike, SPIKE_SYMS } from './gridSpike'
 import { makePeerFiller } from './peerFill'
-import { fetchPeers } from './groupsApi'
+import { fetchPeers, fetchGroupTop, fetchGroups } from './groupsApi'
 import { chartKeys, admittedSym } from './symAdmission'
+import { buildCellBadges } from './cellBadge'
 import GroupHeatHeader from './GroupHeatHeader'
 import useLivePrices from '../../../hooks/useLivePrices'
 import styles from './MultiChartGrid.module.css'
@@ -219,15 +220,42 @@ export default function MultiChartGrid({ mc }) {
   const openSettings = useCallback(() => mc.setSettingsOpen(true), [mc.setSettingsOpen])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Heat header (Groups mode): reads the SAME shared live-price pool the
-  // cells already poll via useLivePrices — no extra fetch. `groupName`/`total`
-  // use the simple id-only form for now; Task 15 wires the real group name +
-  // universe total (state.group only carries {id, by, n} today — sanitizeGroup
-  // drops anything else on reload). ──
+  // cells already poll via useLivePrices — no extra fetch. ──
   const gridSyms = useMemo(() => cells.map(c => c.sym).filter(Boolean), [cells])
   const { prices: livePrices } = useLivePrices(gridSyms)
   const heatHoldings = useMemo(
     () => gridSyms.map(s => ({ sym: s, changePct: livePrices?.[s]?.change_pct })),
     [gridSyms, livePrices],
+  )
+
+  // ── Group meta (Groups mode): the current group's display name + universe
+  // total + per-sym {tier, rationale} for the cell badges. Fetched once
+  // whenever the group changes (this also restores badges on reload). Two
+  // fetches are fine — user-paced, not on any hot path. Both guarded by the
+  // effect's `live` flag so a fast group switch can't let a stale response
+  // land after a newer one. ──
+  const [groupMeta, setGroupMeta] = useState({})   // {name, total, metaBySym}
+  useEffect(() => {
+    const g = state.group
+    if (!g?.id) { setGroupMeta({}); return undefined }
+    let live = true
+    fetchGroupTop(g.id, { n: 16, by: g.by || 'today' }).then(res => {
+      if (!live) return
+      const metaBySym = {}
+      for (const r of (res.rows || [])) metaBySym[r.sym] = { tier: r.tier, rationale: r.rationale }
+      setGroupMeta(prev => ({ ...prev, total: res.total, metaBySym }))
+    })
+    fetchGroups().then(list => {
+      if (!live) return
+      const name = list.find(x => x.id === g.id)?.name
+      setGroupMeta(prev => ({ ...prev, name }))
+    })
+    return () => { live = false }
+  }, [state.group?.id, state.group?.by])
+
+  const cellBadges = useMemo(
+    () => buildCellBadges(cells, groupMeta.metaBySym || {}, livePrices),
+    [cells, groupMeta.metaBySym, livePrices],
   )
 
   // Shared volume-pane proportion (cells read it, never write it).
@@ -247,8 +275,8 @@ export default function MultiChartGrid({ mc }) {
     <>
       {state.group && (
         <GroupHeatHeader
-          groupName={state.group.id}
-          total={undefined}
+          groupName={groupMeta.name || state.group.id}
+          total={groupMeta.total}
           shown={gridSyms.length}
           holdings={heatHoldings}
         />
@@ -283,6 +311,8 @@ export default function MultiChartGrid({ mc }) {
             >
               <GridChartCell
                 cell={{ ...cell, sym: loadSym }}
+                badge={state.group ? cellBadges[i] : null}
+                rationale={state.group ? cellBadges[i]?.rationale : ''}
                 onChange={onChangeFns[i]}
                 crosshairBus={crosshairBus}
                 volPanePct={volPanePct}
