@@ -162,7 +162,7 @@ export default function useMultiChartState() {
     const l = tpl?.layout
     if (!l || l.kind !== 'multichart') return
     apply(prev => {
-      const s = sanitizeState({ layout: l.layout, cells: l.cells, syncCrosshair: prev.syncCrosshair })
+      const s = sanitizeState({ layout: l.layout, cells: l.cells, syncCrosshair: prev.syncCrosshair, syncTimeRange: prev.syncTimeRange, group: l.group })
       return { mode: 'grid', ...s }
     })
   }, [apply])

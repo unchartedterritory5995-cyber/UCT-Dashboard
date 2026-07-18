@@ -71,6 +71,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
           widgets: [],
           layout: mc.state.layout,
           cells: mc.state.cells.map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null })),
+          group: mc.state.group || null,
         },
         groups: null,
         scope: isAdmin ? saveScope : 'user',

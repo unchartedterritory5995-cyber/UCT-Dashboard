@@ -64,3 +64,25 @@ describe('syncTimeRange', () => {
     expect(result.current.state.syncTimeRange).toBe(false)
   })
 })
+
+describe('applyGridTemplate group restore', () => {
+  it('restores the embedded group from a saved board', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.applyGridTemplate({
+      layout: { kind: 'multichart', layout: '2x2',
+                cells: [{ sym: 'XOP', tf: 'D' }, { sym: 'XLE', tf: 'D' }],
+                group: { id: 'oil_gas_ep', by: 'today', n: 4 } },
+    }))
+    expect(result.current.state.mode).toBe('grid')
+    expect(result.current.state.group).toEqual({ id: 'oil_gas_ep', by: 'today', n: 4 })
+    expect(result.current.state.cells.map(c => c.sym).slice(0, 2)).toEqual(['XOP', 'XLE'])
+  })
+
+  it('a board with no group restores as a plain grid (group null)', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.applyGridTemplate({
+      layout: { kind: 'multichart', layout: '2x2', cells: [{ sym: 'AAPL', tf: 'D' }] },
+    }))
+    expect(result.current.state.group).toBeNull()
+  })
+})
