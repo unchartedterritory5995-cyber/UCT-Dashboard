@@ -158,3 +158,66 @@ def test_inferred_open_close_without_explicit_flags(env):
     out = oro.reconstruct_options("u1", "ba1", env["j2"], evs)
     assert out["imported"] == 1
     assert _strategies()[0]["status"] == "closed"
+
+
+# ── Date-only brokers (Schwab): same-day ordering + orphan closes ──────────
+# Schwab activities via SnapTrade carry date-only trade_dates, so same-day
+# events arrive in arbitrary row order. Explicit open/close labels must win
+# over arrival order, and an explicit close with no open position must never
+# fabricate a phantom lot.
+
+def test_same_day_close_listed_before_open_still_pairs(env):
+    # Day-trade round trip where the close sorts BEFORE the open (row order
+    # is arbitrary for date-only activities) → must still produce ONE closed
+    # strategy, not a stranded open + phantom short.
+    close = _ev("option_trade", "sell", "close", 2, 5.0, "2026-04-01", aid="c")
+    close["row"] = 1
+    opn = _ev("option_trade", "buy", "open", 2, 3.0, "2026-04-01", aid="o")
+    opn["row"] = 2
+    out = oro.reconstruct_options("u1", "ba1", env["j2"], [close, opn])
+    assert out["imported"] == 1
+    rows = _strategies()
+    assert len(rows) == 1
+    s = rows[0]
+    assert s["status"] == "closed" and s["strategy_type"] == "long_call"
+    assert s["pnl_dollar"] == 400.0
+
+
+def test_same_day_short_round_trip_scrambled(env):
+    cover = _ev("option_trade", "buy", "close", 1, 0.5, "2026-04-01", cp="put", aid="c")
+    cover["row"] = 1
+    sto = _ev("option_trade", "sell", "open", 1, 2.0, "2026-04-01", cp="put", aid="o")
+    sto["row"] = 2
+    out = oro.reconstruct_options("u1", "ba1", env["j2"], [cover, sto])
+    assert out["imported"] == 1
+    s = _strategies()[0]
+    assert s["status"] == "closed" and s["strategy_type"] == "short_put"
+    assert s["pnl_dollar"] == 150.0
+
+
+def test_orphan_explicit_close_creates_no_phantom(env):
+    # The opening trade predates the broker's history window (Schwab caps at
+    # ~4 years) → the lone close must be skipped, not become a phantom short
+    # position that later gets marked expired at $0.
+    evs = [_ev("option_trade", "sell", "close", 3, 4.0, "2026-04-01")]
+    out = oro.reconstruct_options("u1", "ba1", env["j2"], evs)
+    assert out["imported"] == 0
+    assert out["orphanCloses"] == 1
+    assert _strategies() == []
+
+
+def test_same_day_round_trip_with_expiration_event(env):
+    # Contract traded and fully closed on expiration day; broker also emits a
+    # lifecycle event that day. Lifecycle must settle LAST → closed at the
+    # real exit price, nothing expired.
+    expi = _ev("option_expiration", None, None, 1, None, "2026-06-19", aid="e")
+    expi["row"] = 1
+    close = _ev("option_trade", "sell", "close", 1, 5.0, "2026-06-19", aid="c")
+    close["row"] = 2
+    opn = _ev("option_trade", "buy", "open", 1, 3.0, "2026-06-19", aid="o")
+    opn["row"] = 3
+    out = oro.reconstruct_options("u1", "ba1", env["j2"], [expi, close, opn])
+    assert out["imported"] == 1
+    s = _strategies()[0]
+    assert s["status"] == "closed"
+    assert s["net_exit"] == 500.0 and s["pnl_dollar"] == 200.0

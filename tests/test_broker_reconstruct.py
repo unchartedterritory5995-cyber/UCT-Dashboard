@@ -142,3 +142,51 @@ def test_option_events_collected_not_traded(env):
     assert out["imported"] == 0
     assert len(out["optionEvents"]) == 1  # handed to Phase 4
     assert _trades() == []
+
+
+# ── Share adjustments end-to-end (Schwab JRNLSEC / SPLIT) ───────────────────
+
+def test_journaled_out_shares_realize_no_trade(env):
+    # Sending account: buy 2000, journal them to a sibling account.
+    acts = [
+        _act("j1", "BUY", "FIVN", 2000, 20.0, "2026-04-01"),
+        _act("j2", "JRNLSEC", "FIVN", -2000, None, "2026-04-05"),
+    ]
+    out = reconstruct.reconstruct_account("u1", "ba1", env["acct_id"], acts, env["settings"])
+    assert out["imported"] == 0
+    assert out["shareAdjustments"] == 1
+    assert out["openPositions"] == []
+    assert _trades() == []
+
+
+def test_journaled_in_shares_sell_as_long(env):
+    # Receiving account: 2000 shares arrive via journal (no basis on the
+    # activity → resolved via the injected price fn), later sold. Pre-fix this
+    # reconstructed as a phantom SHORT.
+    acts = [
+        _act("j3", "JRNLSEC", "FIVN", 2000, None, "2026-04-05"),
+        _act("j4", "SELL", "FIVN", 2000, 22.0, "2026-04-20"),
+    ]
+    out = reconstruct.reconstruct_account(
+        "u1", "ba1", env["acct_id"], acts, env["settings"],
+        transfer_price_fn=lambda sym, d: 21.0,
+    )
+    assert out["imported"] == 1
+    rows = _trades()
+    assert rows[0]["side"] == "Long"
+    assert rows[0]["entry_price"] == 21.0 and rows[0]["exit_price"] == 22.0
+
+
+def test_split_end_to_end(env):
+    acts = [
+        _act("s1", "BUY", "CRCG", 900, 1.0, "2026-04-01"),
+        _act("s2", "SPLIT", "CRCG", -810, None, "2026-04-10"),  # 1:10 reverse
+        _act("s3", "SELL", "CRCG", 90, 11.0, "2026-04-20"),
+    ]
+    out = reconstruct.reconstruct_account("u1", "ba1", env["acct_id"], acts, env["settings"])
+    assert out["imported"] == 1
+    rows = _trades()
+    assert rows[0]["side"] == "Long"
+    assert rows[0]["shares"] == 90
+    assert rows[0]["entry_price"] == 10.0  # $1 basis × 10 after reverse split
+    assert out["openPositions"] == []

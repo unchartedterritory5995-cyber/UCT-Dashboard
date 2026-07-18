@@ -405,8 +405,18 @@ def status(user_id: str) -> dict[str, Any]:
         # Pin `warming` into the status contract explicitly so the Settings
         # panel sees the post-connect warming flag even if the connections
         # dict shape ever changes.
+        # Also carry the linked j2 account's display name (user-renamable —
+        # the "nickname" for this broker account) so the panel can show and
+        # edit it in place.
+        names = {
+            r["id"]: r["name"]
+            for r in conn.execute(
+                "SELECT id, name FROM j2_accounts WHERE user_id = ?", (user_id,)
+            ).fetchall()
+        }
         for ba in accounts:
             ba["warming"] = ba.get("warming", False)
+            ba["accountName"] = names.get(ba.get("j2AccountId"))
         dup_pending = conn.execute(
             "SELECT COUNT(*) AS n FROM j2_broker_dup_flags "
             "WHERE user_id = ? AND status = 'pending'",

@@ -49,6 +49,34 @@ def assign_external_ids(broker_account_id: str, trades: list[dict]) -> None:
         t["externalId"] = _fingerprint(broker_account_id, t, n)
 
 
+def _daily_close_near(symbol: str, date_iso: str) -> float | None:
+    """Best-effort split-adjusted daily close on/just before `date_iso` —
+    the basis estimate for a share transfer-in whose activity carries no
+    price (the true basis lives in the sending account's history). Never
+    raises; returns None when bars are unavailable (offline/tests)."""
+    try:
+        from datetime import date as _date, timedelta
+        from api.services import massive
+        d = _date.fromisoformat(date_iso[:10])
+        bars = massive.get_daily_agg(
+            symbol, (d - timedelta(days=7)).isoformat(), d.isoformat(),
+            adjusted=True, map_symbol=True,
+        )
+        closes = [b.get("c") for b in (bars or []) if b.get("c")]
+        return float(closes[-1]) if closes else None
+    except Exception:
+        return None
+
+
+def _resolve_transfer_basis(adjustments: list[dict], price_fn) -> None:
+    """Fill in a per-share basis for transfer-in adjustments that lack one."""
+    for a in adjustments:
+        if a["kind"] == "transfer" and a["delta"] > 0 and not a.get("price"):
+            p = price_fn(a["symbol"], a["date"])
+            if p and p > 0:
+                a["price"] = p
+
+
 def reconstruct_account(
     user_id: str,
     broker_account_id: str,
@@ -56,12 +84,18 @@ def reconstruct_account(
     activities: list[dict],
     settings: dict[str, Any],
     conn: sqlite3.Connection | None = None,
+    transfer_price_fn=None,
 ) -> dict[str, Any]:
     """Reconstruct + persist equity/short round-trip trades from this
     account's activities. Returns a summary including the leftover open
     positions and the option events (for later phases)."""
     part = adapter.partition(activities)
-    fifo_out = fifo.reconstruct_trades(part["equity_fills"], allow_shorts=True)
+    adjustments = part["share_adjustments"]
+    if adjustments:
+        _resolve_transfer_basis(adjustments, transfer_price_fn or _daily_close_near)
+    fifo_out = fifo.reconstruct_trades(
+        part["equity_fills"], allow_shorts=True, adjustments=adjustments
+    )
     trades = fifo_out["trades"]
     assign_external_ids(broker_account_id, trades)
 
@@ -100,6 +134,7 @@ def reconstruct_account(
         "optionsSkipped": opt_res["skipped"],
         "cashCount": len(part["cash"]),
         "transferCount": len(part["transfers"]),
+        "shareAdjustments": len(adjustments),
         "fifoErrors": fifo_out["errors"],
         "skippedActivities": part["skipped"],
     }

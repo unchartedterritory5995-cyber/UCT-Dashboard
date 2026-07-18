@@ -69,15 +69,25 @@ def _round_price(x: float) -> float:
     return round(x * 10000) / 10000
 
 
-def reconstruct_trades(fills: list[Fill], *, allow_shorts: bool = False) -> dict:
+def reconstruct_trades(fills: list[Fill], *, allow_shorts: bool = False,
+                       adjustments: list[dict] | None = None) -> dict:
     """Walk fills chronologically, emit one Trade per closed round-trip
     segment. Returns {trades: [...], errors: [...], open_positions: [...]}.
 
     `allow_shorts=False` preserves the original long-only contract (sells
     without a prior buy, or overselling, are errors). `allow_shorts=True`
-    enables the full signed-lot model (see module docstring)."""
+    enables the full signed-lot model (see module docstring).
+
+    `adjustments` (signed-lot mode only) are share movements that are NOT
+    trades — splits and share transfers/journals between accounts, as dicts
+    {row, symbol, kind: 'split'|'transfer', delta (signed shares), price
+    (per-share basis for a transfer-in, may be None), date}. A split scales
+    the open lots in place (share count × ratio, basis ÷ ratio — zero P&L).
+    A transfer-out removes shares at basis WITHOUT emitting a trade; a
+    transfer-in opens a lot at the given basis. Ignoring these desyncs the
+    share count and fabricates phantom shorts / bogus P&L for the symbol."""
     if allow_shorts:
-        return _reconstruct_with_shorts(fills)
+        return _reconstruct_with_shorts(fills, adjustments or [])
     return _reconstruct_long_only(fills)
 
 
@@ -143,8 +153,76 @@ def _reconstruct_long_only(fills: list[Fill]) -> dict:
 
 # ── Signed-lot model (broker sync; supports shorts + flips) ──────────────────
 
-def _reconstruct_with_shorts(fills: list[Fill]) -> dict:
-    sorted_fills = sorted(fills, key=lambda f: (f.date, f.row))
+def _adjustment_rank(a: dict) -> int:
+    """Same-date ordering for adjustments vs fills (fills rank 0). Splits and
+    incoming shares must land BEFORE the day's fills (a same-day sell of
+    split/journaled shares needs them present); outgoing shares leave AFTER
+    the day's fills (a same-day buy can be the source of the shares)."""
+    if a["kind"] == "split" or a["delta"] > 0:
+        return -1
+    return 1
+
+
+def _apply_adjustment(a: dict, lots: dict[str, deque[Lot]],
+                      side: dict[str, str | None], errors: list[dict]) -> None:
+    sym = a["symbol"]
+    q = lots.setdefault(sym, deque())
+    cur = side.setdefault(sym, None)
+    delta = a["delta"]
+
+    if a["kind"] == "split":
+        pos = sum(l.shares for l in q)
+        if cur is None or pos <= _EPS:
+            errors.append({"row": a["row"], "message": f"{sym} split with no open position — skipped"})
+            return
+        rel = delta if cur == "long" else -delta
+        new_pos = pos + rel
+        if new_pos <= _EPS:
+            errors.append({"row": a["row"], "message": f"{sym} split would zero or flip the position — skipped"})
+            return
+        ratio = new_pos / pos
+        for l in q:  # total lot cost is preserved: (shares×ratio) × (price÷ratio)
+            l.shares *= ratio
+            l.price /= ratio
+            l.fee_per_share /= ratio
+        return
+
+    # transfer / journal
+    if delta > 0:
+        if cur == "short":
+            errors.append({"row": a["row"], "message": f"{sym} share transfer-in against a short position — skipped"})
+            return
+        price = a.get("price")
+        if price is None or price <= 0:
+            errors.append({"row": a["row"], "message": f"{sym} share transfer-in with no basis price — skipped"})
+            return
+        q.append(Lot(shares=delta, price=price, date=a["date"], fee_per_share=0.0))
+        side[sym] = "long"
+        return
+
+    # delta < 0 — shares leave the account at basis; no P&L is realized.
+    if cur != "long" or not q:
+        errors.append({"row": a["row"], "message": f"{sym} share transfer-out with no held long shares — skipped"})
+        return
+    remaining = -delta
+    while remaining > _EPS and q:
+        lot = q[0]
+        take = min(lot.shares, remaining)
+        lot.shares -= take
+        remaining -= take
+        if lot.shares <= _EPS:
+            q.popleft()
+    if not q:
+        side[sym] = None
+    if remaining > _EPS:
+        errors.append({"row": a["row"], "message": f"{sym} share transfer-out exceeded held shares by {remaining:g}"})
+
+
+def _reconstruct_with_shorts(fills: list[Fill], adjustments: list[dict] | None = None) -> dict:
+    stream: list[tuple] = [((f.date, 0, f.row), "fill", f) for f in fills]
+    stream += [((a["date"], _adjustment_rank(a), a["row"]), "adj", a)
+               for a in (adjustments or [])]
+    stream.sort(key=lambda t: t[0])
 
     # Per-symbol state: a deque of open lots all on the same side.
     lots: dict[str, deque[Lot]] = {}
@@ -153,7 +231,11 @@ def _reconstruct_with_shorts(fills: list[Fill]) -> dict:
     trades: list[dict] = []
     errors: list[dict] = []
 
-    for f in sorted_fills:
+    for _, item_kind, item in stream:
+        if item_kind == "adj":
+            _apply_adjustment(item, lots, side, errors)
+            continue
+        f = item
         if f.shares <= 0:
             errors.append({"row": f.row, "message": f"shares must be > 0 (got {f.shares})"})
             continue
