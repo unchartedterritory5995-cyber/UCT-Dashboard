@@ -86,3 +86,31 @@ describe('applyGridTemplate group restore', () => {
     expect(result.current.state.group).toBeNull()
   })
 })
+
+describe('groupsMode', () => {
+  it('toggles on, and turning off clears the loaded group', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.enterGrid('2x2'))
+    act(() => result.current.setGroupsMode(true))
+    act(() => result.current.fillCells(['RKLB', 'ASTS'], { id: 'space', by: 'today', n: 4, name: 'Space' }))
+    expect(result.current.state.groupsMode).toBe(true)
+    expect(result.current.state.group).toEqual({ id: 'space', by: 'today', n: 4, name: 'Space' })
+    act(() => result.current.setGroupsMode(false))
+    expect(result.current.state.groupsMode).toBe(false)
+    expect(result.current.state.group).toBeNull()               // off clears the group
+    expect(result.current.state.cells.map(c => c.sym).slice(0, 2)).toEqual(['RKLB', 'ASTS'])  // cells stay
+  })
+
+  it('applyGridTemplate restores groupsMode from the board (group present -> on)', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.applyGridTemplate({
+      layout: { kind: 'multichart', layout: '2x2', cells: [{ sym: 'XOP', tf: 'D' }],
+                group: { id: 'oil_gas_ep', by: 'today', n: 4, name: 'Oil & Gas E&P' } },
+    }))
+    expect(result.current.state.groupsMode).toBe(true)
+    act(() => result.current.applyGridTemplate({
+      layout: { kind: 'multichart', layout: '2x2', cells: [{ sym: 'AAPL', tf: 'D' }] },  // no group
+    }))
+    expect(result.current.state.groupsMode).toBe(false)
+  })
+})
