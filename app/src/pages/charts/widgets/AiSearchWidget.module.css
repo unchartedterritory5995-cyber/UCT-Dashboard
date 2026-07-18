@@ -146,6 +146,11 @@
 }
 .answerText { font-size: 13px; line-height: 1.62; color: var(--text, #dfe4ea); }
 .para { margin: 0 0 8px; }
+.subhead {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.2px;
+  color: var(--text-bright, #f3f4f6);
+  margin: 10px 0 4px;
+}
 .bullet { display: flex; gap: 8px; margin: 0 0 6px; align-items: baseline; }
 .dot { color: var(--ut-gold, #c9a84c); flex-shrink: 0; line-height: 1.4; }
 .gap { height: 6px; }

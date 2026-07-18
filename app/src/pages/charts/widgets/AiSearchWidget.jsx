@@ -88,6 +88,14 @@ function AnswerBody({ text, onTicker, cites }) {
       {lines.map((ln, i) => {
         const t = ln.trim()
         if (!t) return <div key={i} className={styles.gap} />
+        // "## Section" markdown headers (Perplexity emits them on longer answers)
+        if (/^#{1,4}\s+/.test(t)) {
+          return (
+            <div key={i} className={styles.subhead}>
+              {renderRich(t.replace(/^#{1,4}\s+/, ''), onTicker, cites)}
+            </div>
+          )
+        }
         const bullet = /^[-*•]\s+/.test(t)
         const body = bullet ? t.replace(/^[-*•]\s+/, '') : t
         return (

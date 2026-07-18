@@ -72,6 +72,18 @@ describe('AiSearchWidget', () => {
     await waitFor(() => expect(container.querySelector('[class*="answerStale"]')).toBeFalsy())
   })
 
+  it('renders "## Section" markdown as a styled subhead without the hashes', async () => {
+    mockFetchOnce(200, { ...GOOD, answer: '## Main catalyst\n- Analyst upgrade cycle.' })
+    const { container } = render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByText('Main catalyst')).toBeTruthy())
+    const sub = container.querySelector('[class*="subhead"]')
+    expect(sub.textContent).toBe('Main catalyst')
+    expect(sub.textContent).not.toContain('#')
+  })
+
   it('copy strips ticker-link markdown before writing to the clipboard', async () => {
     mockFetchOnce(200, GOOD)
     const writeText = vi.fn().mockResolvedValue()
