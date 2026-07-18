@@ -130,6 +130,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const [limitMsg, setLimitMsg] = useState(null)
   const [phase, setPhase] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [pending, setPending] = useState(null)   // question in flight (shown in the body)
   const inputRef = useRef(null)
   const bodyRef = useRef(null)
 
@@ -151,12 +152,15 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     el.style.height = query ? `${Math.min(el.scrollHeight, 92)}px` : ''
   }, [query])
 
-  // The previous answer stays on screen (dimmed) while the next one loads —
-  // never blank the widget mid-read. `asked` only advances on success.
+  // Conversation flow: submitting moves the question OUT of the input (which
+  // clears for the next ask) and down into the body immediately, with the
+  // loading status beneath it. The previous answer stays on screen (dimmed)
+  // while the next one loads — never blank the widget mid-read. `asked` only
+  // advances on success; a failed ask puts the question back in the input.
   const run = useCallback(async (q) => {
     const question = (q ?? query).trim()
     if (!question || loading) return
-    setLoading(true); setError(null); setLimitMsg(null)
+    setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery('')
     try {
       const r = await fetch('/api/ai-search', {
         method: 'POST',
@@ -167,6 +171,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       const d = await r.json().catch(() => null)
       if (r.status === 429) {
         setLimitMsg(d?.detail || "You've hit today's research limit — it resets at midnight ET.")
+        setQuery(question)   // give the question back so it isn't lost
         return
       }
       if (!r.ok) throw new Error(d?.detail || `Request failed (${r.status})`)
@@ -179,12 +184,15 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       if (bodyRef.current) bodyRef.current.scrollTop = 0
     } catch (e) {
       setError(e.message || 'Something went wrong')
+      setQuery(question)   // restore for a one-keystroke retry
     } finally {
       setLoading(false)
+      setPending(null)
     }
   }, [query, loading])
 
-  const askFollowUp = (q) => { setQuery(q); run(q) }
+  // Follow-ups run directly — the input stays clear (conversation flow).
+  const askFollowUp = (q) => { run(q) }
 
   const copyAnswer = () => {
     // Strip the [Label]($TICKER) link syntax and bold markers for a clean paste.
@@ -203,7 +211,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   runRef.current = run
   useEffect(() => {
     if (!aiSearchBus?.subscribe) return undefined
-    return aiSearchBus.subscribe((q) => { setQuery(q); runRef.current(q) })
+    return aiSearchBus.subscribe((q) => { runRef.current(q) })
   }, [aiSearchBus])
   useEffect(() => {
     if (initialQuery) runRef.current(initialQuery)
@@ -238,9 +246,14 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
 
       <div className={styles.body} ref={bodyRef}>
         {loading && (
-          <div className={styles.status}>
-            <span className={styles.spinner} /> {SEARCH_PHASES[phase]}
-          </div>
+          <>
+            {pending && (
+              <div className={styles.asked}><span className={styles.askedText}>{pending}</span></div>
+            )}
+            <div className={styles.status}>
+              <span className={styles.spinner} /> {SEARCH_PHASES[phase]}
+            </div>
+          </>
         )}
         {!loading && error && <div className={styles.error}>{error}</div>}
         {!loading && limitMsg && <div className={styles.limit}>{limitMsg}</div>}
@@ -252,7 +265,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
             <div className={styles.emptySub}>Earnings recaps, sympathy plays, catalysts, comparables — cited, current.</div>
             <div className={styles.exampleWrap}>
               {EXAMPLES.map((ex) => (
-                <button key={ex} className={styles.example} onClick={() => { setQuery(ex); run(ex) }}>{ex}</button>
+                <button key={ex} className={styles.example} onClick={() => run(ex)}>{ex}</button>
               ))}
             </div>
           </div>
@@ -260,7 +273,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
 
         {answer != null && (
           <div className={`${styles.answer} ${loading ? styles.answerStale : ''}`}>
-            {asked && (
+            {asked && !loading && (
               <div className={styles.asked}>
                 <span className={styles.askedText}>{asked}</span>
                 <button className={styles.copyBtn} onClick={copyAnswer} title="Copy answer text">

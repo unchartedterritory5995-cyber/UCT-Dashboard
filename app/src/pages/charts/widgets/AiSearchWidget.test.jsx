@@ -33,8 +33,9 @@ describe('AiSearchWidget', () => {
     fireEvent.change(box, { target: { value: 'why is NVDA up' } })
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(screen.getByText(/The move is real/)).toBeTruthy())
-    // sticky header shows the asked question + copy affordance
+    // conversation flow: question moved down into the header, input cleared
     expect(container.querySelector('[class*="askedText"]').textContent).toBe('why is NVDA up')
+    expect(box.value).toBe('')
     expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy()
     // [1] became a superscript link to the source
     const cite = screen.getByRole('link', { name: '1' })
@@ -65,11 +66,24 @@ describe('AiSearchWidget', () => {
     global.fetch = vi.fn().mockReturnValue(new Promise((res) => { resolveFetch = res }))
     fireEvent.change(box, { target: { value: 'second question' } })
     fireEvent.keyDown(box, { key: 'Enter' })
-    // Old answer still on screen, marked stale; spinner status is up.
+    // New question dropped into the body immediately; input cleared;
+    // old answer still on screen, marked stale.
+    expect(container.querySelector('[class*="askedText"]').textContent).toBe('second question')
+    expect(box.value).toBe('')
     expect(screen.getByText(/The move is real/)).toBeTruthy()
     expect(container.querySelector('[class*="answerStale"]')).toBeTruthy()
     resolveFetch({ ok: true, status: 200, json: async () => GOOD })
     await waitFor(() => expect(container.querySelector('[class*="answerStale"]')).toBeFalsy())
+  })
+
+  it('a failed ask restores the question to the input for retry', async () => {
+    mockFetchOnce(500, { detail: 'boom' })
+    render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'my question' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByText('boom')).toBeTruthy())
+    expect(box.value).toBe('my question')
   })
 
   it('renders "## Section" markdown as a styled subhead without the hashes', async () => {
