@@ -117,15 +117,22 @@ export default function MultiChartGrid({ mc }) {
   const onChangeFns = useMemo(
     () => cells.map((_, i) => (next) => {
       if (spikeActive) return
-      if (inGroupMode && next?.sym && next.sym !== cellsRef.current[i]?.sym) {
-        const n = cellsRef.current.length
+      const cur = cellsRef.current[i]
+      // A real new-ticker commit changes the sym away from what's DISPLAYED
+      // (loadSym). A TF/style change carries the displayed sym unchanged.
+      const isNewSym = !!next?.sym && next.sym !== displayedSymRef.current[i]
+      if (isNewSym && inGroupMode) {
         peerFiller.run(next.sym, {
-          n,
+          n: cellsRef.current.length,
           group: state.group,
           snapshot: { cells: cellsRef.current, group: state.group },
         })
+      } else if (isNewSym) {
+        mc.updateCellAt(i, next)                    // non-group manual ticker change
       } else {
-        mc.updateCellAt(i, next)
+        // TF / chart-Style change: merge the changed fields onto the REAL target
+        // cell — never overwrite its (possibly still-loading) sym with loadSym.
+        mc.updateCellAt(i, { ...cur, tf: next?.tf ?? cur?.tf, chartType: next?.chartType ?? cur?.chartType })
       }
     }),
     [cells.length, mc.updateCellAt, spikeActive, inGroupMode, peerFiller, state.group],   // eslint-disable-line react-hooks/exhaustive-deps
@@ -160,6 +167,11 @@ export default function MultiChartGrid({ mc }) {
   // Remember the last admitted sym per cell id so a not-yet-admitted swap
   // keeps rendering the previous chart (no remount, no skeleton flash) until
   // its own composite key clears the throttle.
+  // The sym each cell is currently DISPLAYING (loadSym) — distinct from the
+  // cell's target sym in state during a mount-admission swap. onChangeFns uses
+  // it to tell a real new-ticker commit (sym != displayed) from a TF/style
+  // change (sym == displayed), so a TF click mid-swap can't trigger a peer-fill.
+  const displayedSymRef = useRef({})
   const prevSymRef = useRef({})
   useEffect(() => {
     for (const c of cells) {
@@ -247,6 +259,7 @@ export default function MultiChartGrid({ mc }) {
           // composite key clears the throttle, else the last-admitted sym
           // (old chart keeps rendering, no remount), else null (first mount).
           const { sym: loadSym, admitted } = admittedSym(cell, mountedIds, prevSymRef.current)
+          displayedSymRef.current[i] = loadSym
           const queued = hydrated && cell.sym && !admitted && !loadSym   // first mount, nothing to show yet
           // Pre-hydration: render skeleton frames only — never mount default
           // cells that a late-arriving saved pref would swap out (double herd).
