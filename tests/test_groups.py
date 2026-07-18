@@ -255,3 +255,26 @@ def test_resolve_peers_none_when_ai_empty(monkeypatch):
     monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: [])
     out = groups.resolve_peers("GHOST", 5)
     assert out == {"seed": "GHOST", "group_id": None, "peers": [], "source": "none"}
+
+
+def test_ai_peer_raw_releases_semaphore_every_call(monkeypatch):
+    # Each _ai_peer_raw call must return its semaphore permit — otherwise the
+    # feature dead-locks after GROUPS_AI_PEERS_CONCURRENCY calls.
+    class _Msgs:
+        def create(self, **k):
+            return type("M", (), {"content": [type("B", (), {"text": '["WDC","STX"]'})()]})()
+    class _Client:
+        messages = _Msgs()
+        def with_options(self, **k):
+            return self
+    import api.services.engine as eng
+    monkeypatch.setattr(eng, "_get_anthropic_client", lambda: _Client())
+    meta = {"name": "SanDisk", "sector": "Technology", "industry": "Computer Storage"}
+    # Call MORE times than there are permits — if the permit leaks, the 4th call
+    # blocks ~timeout then returns []; with the fix every call returns the peers.
+    for _ in range(6):
+        assert groups._ai_peer_raw("SNDK", 5, meta) == ["WDC", "STX"]
+    # A permit must still be free (all were released):
+    got = groups._AI_PEERS_SEM.acquire(blocking=False)
+    assert got is True
+    groups._AI_PEERS_SEM.release()

@@ -282,11 +282,12 @@ def _ai_peer_raw(seed_hy: str, n: int, meta: dict) -> list:
         start, end = text.find("["), text.rfind("]")
         if start == -1 or end <= start:
             return []
-        import json
         arr = json.loads(text[start:end + 1])
         return [str(t) for t in arr if t] if isinstance(arr, list) else []
     except Exception:
         return []
+    finally:
+        _AI_PEERS_SEM.release()
 
 
 def _ai_peers(seed_hy: str, n: int) -> list:
