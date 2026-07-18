@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import TileCard from '../../../components/TileCard'
+import UIcon from '../../../components/ui/UIcon'
 import { useAuth } from '../../../context/AuthContext'
 import BrokerImportingBanner from './BrokerImportingBanner'
 import useBrokerWarming from '../hooks/useBrokerWarming'
@@ -127,6 +128,33 @@ export default function BrokerConnectionsCard() {
       setError('Could not start the connection. Try again.')
       setBusy(false)
     }
+  }
+
+  // Nickname editing — the nickname IS the linked j2 account's name, so it
+  // follows the account everywhere (selector, comparison, analytics).
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
+
+  const saveNickname = async (acct) => {
+    const name = editName.trim()
+    setEditingId(null)
+    if (!name || name === (acct.accountName || '')) return
+    setError(null)
+    try {
+      const r = await fetch(`/api/j2/accounts/${acct.j2AccountId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}))
+        setError(typeof d.detail === 'string' ? d.detail : 'Could not rename the account.')
+      }
+    } catch {
+      setError('Could not rename the account.')
+    }
+    load()
   }
 
   const toggleSync = async (acct) => {
@@ -295,12 +323,43 @@ export default function BrokerConnectionsCard() {
             {accounts.map(a => (
               <div key={a.id} className={styles.acctRow}>
                 <div className={styles.acctMain}>
-                  <span className={styles.acctName}>
-                    {a.brokerageName || 'Brokerage'}{a.accountNumberMasked ? ` ${a.accountNumberMasked}` : ''}
-                    {a.accountType ? <span className={styles.acctType}> · {a.accountType}</span> : null}
-                    {a.isPaper ? <span className={styles.paperChip} title="Paper-trading (simulated) account">PAPER</span> : null}
-                  </span>
+                  {editingId === a.id ? (
+                    <input
+                      className={styles.nickInput}
+                      value={editName}
+                      autoFocus
+                      maxLength={60}
+                      aria-label="Account nickname"
+                      onChange={e => setEditName(e.target.value)}
+                      onBlur={() => saveNickname(a)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveNickname(a)
+                        if (e.key === 'Escape') setEditingId(null)
+                      }}
+                    />
+                  ) : (
+                    <span className={styles.acctName}>
+                      {a.accountName
+                        || `${a.brokerageName || 'Brokerage'}${a.accountNumberMasked ? ` ${a.accountNumberMasked}` : ''}`}
+                      {!a.accountName && a.accountType ? <span className={styles.acctType}> · {a.accountType}</span> : null}
+                      {a.isPaper ? <span className={styles.paperChip} title="Paper-trading (simulated) account">PAPER</span> : null}
+                      {a.j2AccountId && (
+                        <button
+                          type="button"
+                          className={styles.nickBtn}
+                          title="Rename this account"
+                          aria-label={`Rename ${a.accountName || a.brokerageName || 'account'}`}
+                          onClick={() => { setEditingId(a.id); setEditName(a.accountName || '') }}
+                        >
+                          <UIcon name="edit" size={12} />
+                        </button>
+                      )}
+                    </span>
+                  )}
                   <span className={styles.acctMeta}>
+                    {a.accountName
+                      ? `${a.brokerageName || 'Brokerage'}${a.accountNumberMasked ? ` ${a.accountNumberMasked}` : ''}${a.accountType ? ` · ${a.accountType}` : ''} · `
+                      : ''}
                     {a.status === 'broken'
                       ? <span className={styles.broken}>Reconnect needed</span>
                       : (a.lastSyncAt ? `Synced ${relTime(a.lastSyncAt)}` : 'Not synced yet')}

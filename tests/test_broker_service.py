@@ -219,3 +219,25 @@ async def test_status_shapes(env):
     assert len(st["accounts"]) == 1
     assert st["dupFlagsPending"] == 0
     assert st["snaptradeConfigured"] is True
+
+
+@pytest.mark.asyncio
+async def test_status_carries_renamable_account_name(env):
+    """Each broker account in /status carries the linked j2 account's display
+    name (the user-editable nickname) so the Settings panel can render+edit it."""
+    from api.services import auth_db
+    from api.services.journal_two.broker import service
+    await service.connect("u1")
+    await service.refresh_accounts("u1")
+    st = service.status("u1")
+    ba = st["accounts"][0]
+    assert ba["accountName"]  # auto-generated "Brokerage ••1234"-style name
+
+    # Rename the j2 account (what the PUT /accounts/{id} route does) → status
+    # reflects the nickname.
+    conn = auth_db.get_connection()
+    conn.execute("UPDATE j2_accounts SET name = ? WHERE id = ?",
+                 ("Day Trading", ba["j2AccountId"]))
+    conn.commit(); conn.close()
+    st2 = service.status("u1")
+    assert st2["accounts"][0]["accountName"] == "Day Trading"

@@ -100,3 +100,50 @@ describe('BrokerConnectionsCard — portal return path', () => {
     expect(await screen.findByText(/rejected the request/i)).toBeInTheDocument()
   })
 })
+
+describe('BrokerConnectionsCard — account nicknames (2026-07-17)', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/settings')
+    vi.restoreAllMocks()
+  })
+
+  const ACCT = {
+    id: 'ba1', j2AccountId: 'j2-1', brokerageName: 'Schwab',
+    accountNumberMasked: '••728', accountName: 'Schwab ••728',
+    status: 'active', syncEnabled: true, lastSyncAt: null, warming: false,
+  }
+
+  it('renders the nickname and saves a rename via PUT /api/j2/accounts/{id}', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    mockFetch([
+      ['/api/j2/broker/status', { body: { ...STATUS, accounts: [ACCT] } }],
+      ['/api/j2/accounts/j2-1', { body: {} }],
+    ])
+    render(<BrokerConnectionsCard />)
+    expect(await screen.findByText('Schwab ••728')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /rename schwab/i }))
+    const input = screen.getByLabelText('Account nickname')
+    fireEvent.change(input, { target: { value: 'Day Trading' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await vi.waitFor(() => {
+      const call = global.fetch.mock.calls.find(c =>
+        String(c[0]).includes('/api/j2/accounts/j2-1'))
+      expect(call).toBeTruthy()
+      expect(call[1].method).toBe('PUT')
+      expect(JSON.parse(call[1].body)).toEqual({ name: 'Day Trading' })
+    })
+  })
+
+  it('shows a custom nickname with the broker identity in the meta line', async () => {
+    mockFetch([
+      ['/api/j2/broker/status', {
+        body: { ...STATUS, accounts: [{ ...ACCT, accountName: 'Longs Book' }] },
+      }],
+    ])
+    render(<BrokerConnectionsCard />)
+    expect(await screen.findByText('Longs Book')).toBeInTheDocument()
+    expect(screen.getByText(/Schwab ••728/)).toBeInTheDocument()
+  })
+})

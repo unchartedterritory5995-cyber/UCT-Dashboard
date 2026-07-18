@@ -189,3 +189,33 @@
   .smallBtn { min-height: var(--tap-min, 44px); }
   .primary { min-height: var(--tap-min, 44px); }
 }
+
+.renameBtn {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  margin-left: 6px;
+  cursor: pointer;
+  color: var(--color-text-muted, #8a8f98);
+  opacity: 0;
+  vertical-align: -1px;
+}
+.row:hover .renameBtn,
+.renameBtn:focus-visible { opacity: 0.85; }
+.renameBtn:hover { opacity: 1; }
+
+.renameInput {
+  font-size: 14px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(201, 168, 76, 0.5);
+  border-radius: 4px;
+  color: inherit;
+  padding: 2px 6px;
+  max-width: 220px;
+}
+
+@media (max-width: 1024px) {
+  /* Touch: no hover — keep the rename affordance visible. */
+  .renameBtn { opacity: 0.7; }
+}

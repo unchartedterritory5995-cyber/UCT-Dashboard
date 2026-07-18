@@ -25,6 +25,27 @@ export default function AccountsTab({ onNewAccount }) {
 
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteConflict, setDeleteConflict] = useState(null)
+  const [renameId, setRenameId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [renameError, setRenameError] = useState(null)
+
+  const saveRename = async (account) => {
+    const name = renameValue.trim()
+    setRenameId(null)
+    if (!name || name === account.name) return
+    setRenameError(null)
+    const res = await fetch(`/api/j2/accounts/${account.id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setRenameError(typeof body.detail === 'string' ? body.detail : 'Could not rename the account.')
+    }
+    refresh()
+  }
 
   const tradeCountByAccount = {}
   const balanceByAccount = {}
@@ -80,6 +101,11 @@ export default function AccountsTab({ onNewAccount }) {
           Couldn't load accounts: {String(error.message || error)}
         </div>
       )}
+      {renameError && (
+        <div className={styles.errorBanner} role="alert">
+          {renameError}
+        </div>
+      )}
 
       <section className={styles.section}>
         <h3 className={styles.sectionHeader}><UIcon name="user" size={13} /> Your Accounts</h3>
@@ -94,7 +120,34 @@ export default function AccountsTab({ onNewAccount }) {
                   style={{ background: colorHex(a.color) }}
                 />
                 <div className={styles.identity}>
-                  <span className={styles.name}>{a.name}</span>
+                  {renameId === a.id ? (
+                    <input
+                      className={styles.renameInput}
+                      value={renameValue}
+                      autoFocus
+                      maxLength={60}
+                      aria-label={`Rename ${a.name}`}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={() => saveRename(a)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveRename(a)
+                        if (e.key === 'Escape') setRenameId(null)
+                      }}
+                    />
+                  ) : (
+                    <span className={styles.name}>
+                      {a.name}
+                      <button
+                        type="button"
+                        className={styles.renameBtn}
+                        title="Rename account"
+                        aria-label={`Rename ${a.name}`}
+                        onClick={() => { setRenameId(a.id); setRenameValue(a.name) }}
+                      >
+                        <UIcon name="edit" size={12} />
+                      </button>
+                    </span>
+                  )}
                   {a.broker && (
                     <span className={styles.broker}>{a.broker}</span>
                   )}
