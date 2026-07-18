@@ -60,6 +60,31 @@ def _post_discord(title: str, description: str) -> None:  # patchable seam
     _notif_discord(title, description)
 
 
+def _ops_line() -> str:
+    """SnapTrade spend/usage footer for the digest — keeps cost drift visible
+    long before the invoice does. Never raises."""
+    try:
+        conn = get_connection()
+        try:
+            users = conn.execute(
+                "SELECT COUNT(DISTINCT user_id) AS n FROM j2_broker_users"
+            ).fetchone()["n"]
+            et_midnight_utc = (datetime.now(ZoneInfo("America/New_York"))
+                               .replace(hour=0, minute=0, second=0, microsecond=0)
+                               .astimezone(timezone.utc).isoformat())
+            refreshes = conn.execute(
+                "SELECT COUNT(*) AS n FROM j2_broker_accounts "
+                "WHERE last_manual_refresh_at >= ?", (et_midnight_utc,)
+            ).fetchone()["n"]
+        finally:
+            conn.close()
+        est = max(0, users - 5) * 1.0 + refreshes * 0.05 * 21
+        return (f"— ops: {users} connected user(s), {refreshes} manual "
+                f"refresh(es) today, est ~${est:.2f}/mo")
+    except Exception:  # noqa: BLE001
+        return "— ops: (spend summary unavailable)"
+
+
 def _et_today() -> str:
     return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
 
@@ -172,6 +197,7 @@ async def run_fleet_check() -> dict[str, Any]:
                      for f in findings[:15]]
             if len(findings) > 15:
                 lines.append(f"…and {len(findings) - 15} more")
+            lines.append(_ops_line())
             try:
                 _post_discord(
                     f"Broker fleet check: {len(findings)} issue(s)",

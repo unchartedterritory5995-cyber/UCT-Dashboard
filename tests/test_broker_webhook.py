@@ -197,3 +197,53 @@ def test_legacy_secret_only_still_accepted(env):
     body = _fresh_body("ACCOUNT_HOLDINGS_UPDATED", webhookSecret=LEGACY_SECRET)
     r = env["client"].post("/api/j2/broker/webhook", json=body)
     assert r.status_code == 200
+
+
+# ── webhook queue ────────────────────────────────────────────────────────────
+
+def test_queued_sync_runs_and_retries_once(env, monkeypatch):
+    """Events are queued (never dropped); a failing sync retries once."""
+    broker_router._reset_webhook_queue_for_tests()
+    attempts = []
+
+    async def flaky_sync_all(user_id, *, refresh_first=False):
+        attempts.append(user_id)
+        if len(attempts) == 1:
+            raise RuntimeError("transient")
+    monkeypatch.setattr(broker_router, "broker_service_sync_all", flaky_sync_all)
+
+    async def _drain_sleep(_):  # collapse the 30s retry backoff
+        return None
+    import asyncio as _asyncio
+    real_sleep = _asyncio.sleep
+    monkeypatch.setattr(broker_router.asyncio, "sleep",
+                        lambda s: real_sleep(0))
+
+    r = _post(env["client"], _fresh_body("ACCOUNT_HOLDINGS_UPDATED"))
+    assert r.status_code == 200 and r.json().get("scheduled")
+
+    async def _wait():
+        q = broker_router._webhook_queue
+        for _ in range(200):
+            if broker_router._webhook_stats["processed"] >= 1:
+                return
+            await real_sleep(0.01)
+    _run_in_client_loop(env["client"], _wait)
+    assert len(attempts) == 2  # first failed, retry succeeded
+    assert broker_router._webhook_stats["retried"] == 1
+    broker_router._reset_webhook_queue_for_tests()
+
+
+def _run_in_client_loop(client, coro_fn):
+    """TestClient runs the app in its own portal loop; run followup coros
+    there via a raw asyncio runner (anyio portal not exposed) — simplest is
+    to poll from a fresh loop since queue state is threadsafe enough for
+    asserts after processing."""
+    import asyncio as _a
+    import time as _t
+    deadline = _t.monotonic() + 5
+    while _t.monotonic() < deadline:
+        if broker_router._webhook_stats["processed"] >= 1 \
+                or broker_router._webhook_stats["failed"] >= 1:
+            return
+        _t.sleep(0.02)

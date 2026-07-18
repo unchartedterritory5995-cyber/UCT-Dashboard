@@ -20,6 +20,7 @@ appear via holdings-as-truth after a refresh and in full on the daily sync.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -152,14 +153,17 @@ def order_to_provisional_activity(order: dict) -> dict | None:
     }
 
 
-async def poll_account(user_id: str, ba: dict) -> dict[str, Any]:
-    """One poll for one account: fetch recent orders, inject any new
-    executed equity fills, and re-reconstruct from the LOCAL ledger."""
+async def _fetch_orders(user_id: str, ba: dict) -> list[dict] | None:
+    """Network phase only — safe to run concurrently across accounts."""
     bu = connections.get_broker_user(user_id)
     if bu is None:
-        return {"skipped": "no identity"}
-    orders = await snap.get_recent_orders(
+        return None
+    return await snap.get_recent_orders(
         bu["snaptradeUserId"], bu["userSecret"], ba["snaptradeAccountId"])
+
+
+def _apply_orders(user_id: str, ba: dict, orders: list[dict]) -> dict[str, Any]:
+    """DB phase — serialized by the caller (auth.db single-writer)."""
     provisional = []
     for o in orders or []:
         if not isinstance(o, dict):
@@ -191,9 +195,22 @@ async def poll_account(user_id: str, ba: dict) -> dict[str, Any]:
     return {"orders": len(orders), "new": stored["new"]}
 
 
+async def poll_account(user_id: str, ba: dict) -> dict[str, Any]:
+    """One poll for one account: fetch recent orders, inject any new
+    executed equity fills, and re-reconstruct from the LOCAL ledger."""
+    orders = await _fetch_orders(user_id, ba)
+    if orders is None:
+        return {"skipped": "no identity"}
+    return _apply_orders(user_id, ba, orders)
+
+
+_FETCH_CONCURRENCY = 8
+
+
 async def poll_all_accounts() -> dict[str, Any]:
-    """Scheduler entry (every 5 min): poll each sync-enabled ACTIVE account
-    of each paid user, serially (auth.db single-writer + trivial rate load).
+    """Scheduler entry (every 5 min). Network fetches run CONCURRENTLY
+    (semaphore 8) so the sweep finishes within its tick even at hundreds of
+    accounts; DB writes stay strictly serial (auth.db single-writer).
     Never raises."""
     if not (_enabled() and snap.is_configured() and _in_market_window()):
         return {"skipped": True}
@@ -201,6 +218,7 @@ async def poll_all_accounts() -> dict[str, Any]:
     polled = new_total = errors = 0
     paid_cache: dict[str, bool] = {}
     try:
+        due = []
         for ba in connections.list_all_sync_enabled_accounts():
             if ba.get("status") != "active":
                 continue
@@ -208,14 +226,36 @@ async def poll_all_accounts() -> dict[str, Any]:
                 continue  # on-open check already covered this window
             if not _user_is_paid(ba["userId"], paid_cache):
                 continue
+            _budget_spend(ba["id"])
+            due.append(ba)
+
+        sem = asyncio.Semaphore(_FETCH_CONCURRENCY)
+
+        async def _fetch_one(acct: dict):
+            async with sem:
+                try:
+                    return await _fetch_orders(acct["userId"], acct)
+                except Exception:  # noqa: BLE001
+                    logger.warning("recent-orders fetch failed for %s",
+                                   acct["id"], exc_info=True)
+                    return "error"
+
+        fetched = await asyncio.gather(*(_fetch_one(a) for a in due)) if due else []
+
+        # Apply phase: serial, one account at a time.
+        for ba, orders in zip(due, fetched):
+            if orders == "error":
+                errors += 1
+                continue
+            if orders is None:
+                continue
             try:
-                _budget_spend(ba["id"])
-                out = await poll_account(ba["userId"], ba)
+                out = _apply_orders(ba["userId"], ba, orders)
                 polled += 1
                 new_total += int(out.get("new") or 0)
             except Exception:  # noqa: BLE001 — one account never blocks the rest
                 errors += 1
-                logger.warning("recent-orders poll failed for %s", ba["id"],
+                logger.warning("recent-orders apply failed for %s", ba["id"],
                                exc_info=True)
     except Exception:  # noqa: BLE001
         logger.exception("recent-orders sweep failed")

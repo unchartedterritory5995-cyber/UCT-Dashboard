@@ -219,7 +219,19 @@ def prune_provisional(
     def _day(v) -> str:
         return str(v or "")[:10]
 
-    covered = set()
+    def _day_close(a: str, b: str, tolerance_days: int = 2) -> bool:
+        """|a - b| <= tolerance in calendar days. Brokers disagree on whether
+        trade_date is execution or settlement day — an exact-day match would
+        miss and double-count the fill until the age cap (prod risk #1,
+        2026-07-17 hardening)."""
+        try:
+            da = datetime.fromisoformat(a).date()
+            db_ = datetime.fromisoformat(b).date()
+            return abs((da - db_).days) <= tolerance_days
+        except ValueError:
+            return a == b
+
+    covered: list[tuple[str, str, float, str]] = []
     for act in real_activities:
         if not isinstance(act, dict):
             continue
@@ -227,7 +239,7 @@ def prune_provisional(
             units = abs(float(act.get("units") or 0))
         except (TypeError, ValueError):
             units = 0.0
-        covered.add((
+        covered.append((
             (adapter.extract_symbol(act) or "").upper(),
             str(act.get("type") or "").upper(),
             round(units, 4),
@@ -259,11 +271,17 @@ def prune_provisional(
                 units = abs(float(act.get("units") or 0))
             except (TypeError, ValueError):
                 units = 0.0
-            key = ((adapter.extract_symbol(act) or "").upper(),
-                   str(act.get("type") or "").upper(),
-                   round(units, 4), _day(r["occurred_at"]))
+            sym = (adapter.extract_symbol(act) or "").upper()
+            typ = str(act.get("type") or "").upper()
+            u = round(units, 4)
+            day = _day(r["occurred_at"])
+            matched = any(
+                c_sym == sym and c_typ == typ and c_units == u
+                and _day_close(c_day, day)
+                for c_sym, c_typ, c_units, c_day in covered
+            )
             aged_out = (r["occurred_at"] or r["created_at"] or "") < cutoff
-            if key in covered or aged_out:
+            if matched or aged_out:
                 to_delete.append(r["id"])
         if to_delete:
             conn.execute("BEGIN")

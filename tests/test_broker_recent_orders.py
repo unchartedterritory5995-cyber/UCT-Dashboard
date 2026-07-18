@@ -232,3 +232,32 @@ async def test_on_open_check_outside_market_hours_skips(env, monkeypatch):
     recent_orders._reset_poll_budget_for_tests()
     out = await recent_orders.check_user_now("u1")
     assert out.get("skipped") is True
+
+
+def test_prune_provisional_matches_settlement_day_offset(env):
+    """Broker stamps the real transaction at T+1 (settlement) — prune must
+    still match the provisional fill from execution day (±2d tolerance)."""
+    ba_id = env["ba"]["id"]
+    exec_day = NOW.isoformat()
+    settle_day = (NOW + timedelta(days=1)).isoformat()
+    activities_store.store_activities("u1", ba_id, [
+        {"id": "intraday:x1", "type": "BUY", "units": 50, "price": 200,
+         "symbol": {"symbol": "AMD"}, "trade_date": exec_day},
+    ])
+    real = [{"id": "real-t1", "type": "BUY", "units": 50, "price": 200,
+             "symbol": {"symbol": "AMD"}, "trade_date": settle_day}]
+    activities_store.store_activities("u1", ba_id, real)
+    assert activities_store.prune_provisional("u1", ba_id, real) == 1
+
+
+def test_prune_provisional_does_not_match_distant_days(env):
+    ba_id = env["ba"]["id"]
+    activities_store.store_activities("u1", ba_id, [
+        {"id": "intraday:x2", "type": "BUY", "units": 50, "price": 200,
+         "symbol": {"symbol": "AMD"}, "trade_date": NOW.isoformat()},
+    ])
+    real = [{"id": "real-old", "type": "BUY", "units": 50, "price": 200,
+             "symbol": {"symbol": "AMD"},
+             "trade_date": (NOW - timedelta(days=10)).isoformat()}]
+    # 10 days apart -> NOT the same fill; provisional survives (until age cap).
+    assert activities_store.prune_provisional("u1", ba_id, real) == 0

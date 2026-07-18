@@ -252,13 +252,29 @@ def admin_stats(user: dict = Depends(require_admin)) -> dict[str, Any]:
             {"userId": r["user_id"], "brokerAccountId": r["broker_account_id"],
              "error": r["error"], "at": r["started_at"]} for r in errs
         ]
+        # Billed manual refreshes today (ET day) — the only per-call spend.
+        from datetime import datetime as _dt
+        from zoneinfo import ZoneInfo as _ZI
+        et_midnight_utc = (_dt.now(_ZI("America/New_York"))
+                           .replace(hour=0, minute=0, second=0, microsecond=0)
+                           .astimezone(_ZI("UTC")).isoformat())
+        refreshes_today = conn.execute(
+            "SELECT COUNT(*) AS n FROM j2_broker_accounts "
+            "WHERE last_manual_refresh_at >= ?", (et_midnight_utc,)
+        ).fetchone()["n"]
     finally:
         conn.close()
+    # PAYG Daily pricing (verified 7/17): 5 free connected users, then
+    # $1/user/mo; manual refresh ~$0.05/call. Refresh run-rate extrapolates
+    # today's count × 21 trading days.
+    billable_users = max(0, users - 5)
+    est_monthly = round(billable_users * 1.0 + refreshes_today * 0.05 * 21, 2)
     return {
         "connectedUsers": users,
         "syncEnabledAccounts": accts,
         "brokenAccounts": broken,
-        "estMonthlyCostUsd": round(users * 1.50, 2),
+        "manualRefreshesToday": refreshes_today,
+        "estMonthlyCostUsd": est_monthly,
         "recentErrors": recent_errors,
     }
 
@@ -407,9 +423,63 @@ async def disconnect(body: DisconnectBody, user: dict = Depends(_paid)) -> dict[
     return await broker_service.disconnect(user["id"], purge_trades=body.purgeTrades)
 
 
-# Keep references to fire-and-forget webhook sync tasks so they aren't GC'd.
-_webhook_tasks: set = set()
-_WEBHOOK_MAX_INFLIGHT = int(os.getenv("BROKER_WEBHOOK_MAX_INFLIGHT", "20"))
+# Webhook-driven syncs run through a bounded queue with a small worker pool
+# (was: fire-and-forget task set that silently DROPPED events past 20
+# in-flight — at 100+ accounts SnapTrade's nightly per-account webhook herd
+# lands in one window and dropped events meant members quietly missing their
+# overnight refresh until the daily sync). Queue full → degrade to delay via
+# 429 (SnapTrade retries with backoff), never silent loss. One in-queue
+# retry on sync failure.
+_WEBHOOK_CONCURRENCY = int(os.getenv("BROKER_WEBHOOK_CONCURRENCY", "4"))
+_WEBHOOK_QUEUE_MAX = int(os.getenv("BROKER_WEBHOOK_QUEUE_MAX", "500"))
+_webhook_queue: "asyncio.Queue | None" = None
+_webhook_workers: list = []
+_webhook_stats = {"processed": 0, "retried": 0, "failed": 0}
+
+
+def _reset_webhook_queue_for_tests() -> None:
+    global _webhook_queue, _webhook_workers
+    for w in _webhook_workers:
+        w.cancel()
+    _webhook_queue = None
+    _webhook_workers = []
+    _webhook_stats.update(processed=0, retried=0, failed=0)
+
+
+def _ensure_webhook_workers() -> "asyncio.Queue":
+    """Lazy-init the queue + workers on the running event loop (module import
+    happens before uvicorn's loop exists)."""
+    global _webhook_queue
+    if _webhook_queue is not None:
+        return _webhook_queue
+    _webhook_queue = asyncio.Queue(maxsize=_WEBHOOK_QUEUE_MAX)
+    for i in range(max(1, _WEBHOOK_CONCURRENCY)):
+        _webhook_workers.append(asyncio.create_task(_webhook_worker(i)))
+    return _webhook_queue
+
+
+async def _webhook_worker(worker_id: int) -> None:
+    import logging
+    log = logging.getLogger("broker_webhook")
+    while True:
+        job = await _webhook_queue.get()
+        user_id, refresh_first, attempt = job
+        try:
+            await broker_service_sync_all(user_id, refresh_first=refresh_first)
+            _webhook_stats["processed"] += 1
+        except Exception as e:  # noqa: BLE001
+            if attempt < 1:
+                _webhook_stats["retried"] += 1
+                await asyncio.sleep(30)
+                try:
+                    _webhook_queue.put_nowait((user_id, refresh_first, attempt + 1))
+                except asyncio.QueueFull:
+                    _webhook_stats["failed"] += 1
+            else:
+                _webhook_stats["failed"] += 1
+                log.warning("webhook sync failed twice for user %s: %s", user_id, e)
+        finally:
+            _webhook_queue.task_done()
 
 
 @router.post("/webhook")
@@ -462,23 +532,19 @@ async def webhook(request: Request) -> dict[str, Any]:
     }
     if event not in sync_events:
         return {"ok": True, "handled": handled} if handled else {"ok": True, "ignored": True}
-    if len(_webhook_tasks) >= _WEBHOOK_MAX_INFLIGHT:
-        return {"ok": True, "deferred": "busy"}
 
     # New-connection events must IMPORT the accounts first — a portal flow can
     # complete without the member's browser ever running the client-side
     # import (Webull incident 2026-07-15); this server-side path is the
     # browser-independent safety net.
     refresh_first = event in _REFRESH_EVENTS
-
-    async def _bg():
-        try:
-            await broker_service_sync_all(uct_user_id, refresh_first=refresh_first)
-        except Exception:
-            pass
-    task = asyncio.create_task(_bg())
-    _webhook_tasks.add(task)
-    task.add_done_callback(_webhook_tasks.discard)
+    queue = _ensure_webhook_workers()
+    try:
+        queue.put_nowait((str(uct_user_id), refresh_first, 0))
+    except asyncio.QueueFull:
+        # Backpressure: 429 makes SnapTrade redeliver with backoff — delay,
+        # never silent loss.
+        raise HTTPException(status_code=429, detail="Sync queue full; retry.")
     return {"ok": True, "scheduled": True}
 
 
