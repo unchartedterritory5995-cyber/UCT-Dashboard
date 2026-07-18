@@ -140,6 +140,17 @@ async def refresh_accounts(user: dict = Depends(_paid)) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="Brokerage service temporarily unavailable.")
 
 
+@router.post("/fills/check")
+async def fills_check(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Instant on-open fills check: polls the member's Recent Orders NOW
+    (shared 5-min per-account budget with the scheduler) so a trade they
+    just placed shows in the journal in seconds. Returns {newFills} — the
+    client refreshes its positions/trades views when > 0. Cheap no-op when
+    the budget was spent recently or the market is closed."""
+    from api.services.journal_two.broker import recent_orders
+    return await recent_orders.check_user_now(user["id"])
+
+
 @router.post("/sync")
 async def sync_now(
     user: dict = Depends(_paid), full: bool = False, force: bool = False,

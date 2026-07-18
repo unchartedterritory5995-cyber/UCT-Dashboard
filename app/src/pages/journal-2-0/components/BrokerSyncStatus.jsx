@@ -68,7 +68,9 @@ export default function BrokerSyncStatus({ onSynced }) {
             : 'not yet synced'}
       </span>
       <span className={styles.sep}>·</span>
-      <span className={styles.muted}>auto every 20m</span>
+      <span className={styles.muted} title="Fills appear within minutes during market hours (live order feed); full history reconciles automatically.">
+        live fills
+      </span>
       {!broken && holdingsAsOf && (
         <>
           <span className={styles.sep}>·</span>

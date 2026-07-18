@@ -27,6 +27,7 @@ import UIcon from '../../components/ui/UIcon'
 import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
 import useBrokerSync from './hooks/useBrokerSync'
+import useInstantFills from './hooks/useInstantFills'
 import { mapJ2TabToRoute } from './j2tabRedirect'
 import J2PriceProvider from './J2PriceProvider'
 import { runJ2LocalStorageMigrations } from './lib/localStorageMigrate'
@@ -82,6 +83,10 @@ export default function JournalLayout() {
   // Best-effort refresh of broker-synced trades when the journal opens
   // (server-side cooldown keeps it cheap; no-op if broker sync unconfigured).
   useBrokerSync()
+  // Instant fills: opening/focusing the journal polls Recent Orders NOW so a
+  // trade placed a minute ago is already here (budget-shared with the
+  // background sweep; market hours only).
+  useInstantFills({ enabled: isPaid })
   const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()

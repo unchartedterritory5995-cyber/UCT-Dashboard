@@ -195,3 +195,40 @@ async def test_sweep_gates(env, monkeypatch):
     monkeypatch.setattr(recent_orders, "_in_market_window", lambda *a: False)
     out = await recent_orders.poll_all_accounts()
     assert out.get("skipped") is True
+
+
+@pytest.mark.asyncio
+async def test_on_open_check_polls_within_budget(env, monkeypatch):
+    """Opening the journal polls NOW; the shared budget stops a re-poll (from
+    either the on-open path or the scheduler sweep) inside the 5-min window."""
+    monkeypatch.setattr(recent_orders, "_in_market_window", lambda *a: True)
+    recent_orders._reset_poll_budget_for_tests()
+    calls = []
+
+    def orders_fn(**kw):
+        calls.append(1)
+        return _Resp({"orders": [_order()]})
+    snap.configure(_Group(account_information=_Group(
+        get_user_account_recent_orders=orders_fn)))
+
+    out1 = await recent_orders.check_user_now("u1")
+    assert out1["checked"] == 1 and out1["newFills"] == 1
+    # Second open seconds later: budget spent → no second SnapTrade call.
+    out2 = await recent_orders.check_user_now("u1")
+    assert out2["checked"] == 0 and len(calls) == 1
+    # The scheduler sweep also respects the same budget.
+    monkeypatch.setattr(recent_orders, "_user_is_paid",
+                        lambda uid, cache: True, raising=False)
+    from api.services.journal_two.broker import sync as sync_mod
+    monkeypatch.setattr(sync_mod, "_user_is_paid", lambda uid, cache: True)
+    out3 = await recent_orders.poll_all_accounts()
+    assert out3.get("polled", 0) == 0 and len(calls) == 1
+    recent_orders._reset_poll_budget_for_tests()
+
+
+@pytest.mark.asyncio
+async def test_on_open_check_outside_market_hours_skips(env, monkeypatch):
+    monkeypatch.setattr(recent_orders, "_in_market_window", lambda *a: False)
+    recent_orders._reset_poll_budget_for_tests()
+    out = await recent_orders.check_user_now("u1")
+    assert out.get("skipped") is True

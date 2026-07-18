@@ -43,6 +43,29 @@ def _enabled() -> bool:
     return (os.getenv("BROKER_RECENT_ORDERS_ENABLED") or "1") == "1"
 
 
+# Shared per-account poll budget (contract: ≤1 poll / 5 min / account) —
+# consulted by BOTH the scheduler sweep and the on-open instant check so the
+# two paths can never double-spend. In-process; a redeploy costs at most one
+# early poll per account.
+_POLL_MIN_INTERVAL_SECONDS = 290.0
+_last_poll: dict[str, float] = {}
+
+
+def _reset_poll_budget_for_tests() -> None:
+    _last_poll.clear()
+
+
+def _budget_allows(account_id: str) -> bool:
+    import time as _time
+    return _time.monotonic() - _last_poll.get(account_id, -1e12) \
+        >= _POLL_MIN_INTERVAL_SECONDS
+
+
+def _budget_spend(account_id: str) -> None:
+    import time as _time
+    _last_poll[account_id] = _time.monotonic()
+
+
 def _in_market_window(now_et: datetime | None = None) -> bool:
     """Weekday 9:25–16:15 ET — regular session with a small buffer for
     opening/closing fills; the paid TRADE_DETECTION scheduler runs a similar
@@ -181,9 +204,12 @@ async def poll_all_accounts() -> dict[str, Any]:
         for ba in connections.list_all_sync_enabled_accounts():
             if ba.get("status") != "active":
                 continue
+            if not _budget_allows(ba["id"]):
+                continue  # on-open check already covered this window
             if not _user_is_paid(ba["userId"], paid_cache):
                 continue
             try:
+                _budget_spend(ba["id"])
                 out = await poll_account(ba["userId"], ba)
                 polled += 1
                 new_total += int(out.get("new") or 0)
@@ -194,6 +220,34 @@ async def poll_all_accounts() -> dict[str, Any]:
     except Exception:  # noqa: BLE001
         logger.exception("recent-orders sweep failed")
     return {"polled": polled, "newFills": new_total, "errors": errors}
+
+
+async def check_user_now(user_id: str) -> dict[str, Any]:
+    """Instant on-open check: the member just opened their journal — poll
+    their accounts' recent orders NOW (within the shared 5-min per-account
+    budget) so a fill they just made appears in seconds, not minutes.
+    User-action-driven, so it's the same compliance class as on-login
+    refresh. Never raises."""
+    if not (_enabled() and snap.is_configured() and _in_market_window()):
+        return {"checked": 0, "newFills": 0, "skipped": True}
+    checked = new_total = 0
+    try:
+        for ba in connections.list_broker_accounts(user_id):
+            if not ba.get("syncEnabled") or ba.get("status") != "active":
+                continue
+            if not _budget_allows(ba["id"]):
+                continue
+            try:
+                _budget_spend(ba["id"])
+                out = await poll_account(user_id, ba)
+                checked += 1
+                new_total += int(out.get("new") or 0)
+            except Exception:  # noqa: BLE001
+                logger.warning("on-open fills check failed for %s", ba["id"],
+                               exc_info=True)
+    except Exception:  # noqa: BLE001
+        logger.exception("on-open fills check failed")
+    return {"checked": checked, "newFills": new_total}
 
 
 def run_poll_blocking() -> None:
