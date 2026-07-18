@@ -1141,7 +1141,9 @@ export default function StockChart({
   // ── Chart event markers (earnings + splits + dividends) — /api/chart/markers ──
   const markersEnabled = cs.markers?.earnings || cs.markers?.splits || cs.markers?.dividends
   const { data: markersData } = useSWR(
-    markersEnabled && sym ? `/api/chart/markers/${encodeURIComponent(sym)}?days=730` : null,
+    // Request the full window so earnings markers load back to inception alongside
+    // the deep price history (backend caps + post-filters; badges cull off-screen).
+    markersEnabled && sym ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
     fetcher,
     {
       dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
@@ -7400,8 +7402,14 @@ export default function StockChart({
     const chart = chartRef.current
     if (!chart || !earningsEvents.length) { setEarningsPopup(null); return }
     const handler = (param) => {
-      if (!param || param.time == null) { return }
-      const hit = earningsEvents.find(m => String(m.date) === String(param.time))
+      if (!param || !param.point) return
+      // Prefer a pixel hit-test against the badge's actual pill (whole box is
+      // clickable); fall back to exact bar-time match if the primitive has no
+      // rects yet (e.g. first frame after a re-attach).
+      let hit = null
+      const hitTime = earnBadgeRef.current?.hitTest?.(param.point.x, param.point.y)
+      if (hitTime != null) hit = earningsEvents.find(m => String(m.date) === String(hitTime))
+      if (!hit && param.time != null) hit = earningsEvents.find(m => String(m.date) === String(param.time))
       if (!hit) return
       const rect = containerRef.current?.getBoundingClientRect()
       const px = rect && param.point ? rect.left + param.point.x + 12 : (rect?.left ?? 0) + 40

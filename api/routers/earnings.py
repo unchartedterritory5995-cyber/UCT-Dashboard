@@ -298,14 +298,16 @@ def chart_markers_endpoint(ticker: str, days: int = 730):
     """Earnings beat/miss history + stock splits + dividends for chart annotation.
 
     `days` filters output to events within the last N calendar days
-    (1 ≤ days ≤ 3650). The underlying fetch always pulls a 5-year window
-    so the per-ticker cache entry serves both short and long ranges; we
-    only post-filter the cached result here.
+    (1 ≤ days ≤ 36500). The underlying fetch pulls full available history
+    (earnings back to inception, splits ~45yr) so the per-ticker cache entry
+    serves both short and since-inception chart ranges; we only post-filter
+    the cached result here. Charts request a large window to load all markers
+    alongside the full price history.
     """
     from datetime import date, timedelta
     from api.services.earnings_estimates import get_chart_markers
 
-    days = max(1, min(int(days or 730), 3650))
+    days = max(1, min(int(days or 730), 36500))
     cutoff = (date.today() - timedelta(days=days)).isoformat()
 
     raw = get_chart_markers(ticker.upper()) or {}

@@ -138,3 +138,36 @@ def test_batch_rich_snapshots_existing_fields_intact():
     assert snap["change_pct"] == 1.5
     assert snap["day_open"] == 183.0
     assert snap["prev_close"] == 182.2
+
+
+# ── get_batch_snapshots — spurious-zero handling ────────────────────────────────
+# Massive returns todaysChangePerc == 0 pre-market / at the open / on weekends /
+# on stale batch entries even when a real move exists. Surfacing that literal 0
+# made the Theme Tracker flash every holding to 0.00% until the tape caught up.
+
+def test_batch_snapshots_recomputes_spurious_zero_and_omits_no_data():
+    client = _make_client()
+    payload = {
+        "status": "OK",
+        "tickers": [
+            # todaysChangePerc == 0 but closes show a real move → recompute from closes
+            {"ticker": "ORKA", "todaysChangePerc": 0,
+             "day": {"c": 92.7, "v": 0}, "prevDay": {"c": 83.04}},
+            # real non-zero change → trust todaysChangePerc verbatim
+            {"ticker": "AAPL", "todaysChangePerc": 1.5,
+             "day": {"c": 185.0, "v": 5e7}, "prevDay": {"c": 182.2}},
+            # genuinely flat WITH real day data → keep the honest 0.00
+            {"ticker": "FLAT", "todaysChangePerc": 0,
+             "day": {"c": 100.0, "v": 1e6}, "prevDay": {"c": 100.0}},
+            # no usable data (no day close, zero change) → omit so callers keep last
+            {"ticker": "DEAD", "todaysChangePerc": 0,
+             "day": {"c": 0, "v": 0}, "prevDay": {"c": 0}},
+        ],
+    }
+    with mock.patch.object(client, "_get", return_value=payload):
+        result = client.get_batch_snapshots(["ORKA", "AAPL", "FLAT", "DEAD"])
+
+    assert result["ORKA"] == round((92.7 - 83.04) / 83.04 * 100, 4)  # ~11.6329
+    assert result["AAPL"] == 1.5
+    assert result["FLAT"] == 0.0
+    assert "DEAD" not in result

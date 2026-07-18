@@ -134,6 +134,65 @@ class TestGetChartMarkersRevenue:
         assert e["revenue_surprise_pct"] is None
 
 
+class TestGetChartMarkersQuarter:
+    """Fiscal quarter/year is joined from FMP earning-call-transcript-dates by
+    report date — the accurate source. A calendar mapping is WRONG for off-cycle
+    fiscal years (MU's Aug year-end makes its Sep print fiscal Q4, not Q2)."""
+    def setup_method(self):
+        _fresh_cache("MU")
+
+    def test_quarter_joined_exact_and_nearest(self):
+        today = _today()
+        d1 = (today - timedelta(days=20)).isoformat()
+        d2 = (today - timedelta(days=110)).isoformat()
+        d2_call = (today - timedelta(days=108)).isoformat()  # call date 2d off report
+        fmp_earnings = [
+            {"date": d1, "epsActual": 1.18, "epsEstimated": 1.12,
+             "revenueActual": 7.75e9, "revenueEstimated": 7.65e9},
+            {"date": d2, "epsActual": 0.62, "epsEstimated": 0.48,
+             "revenueActual": 6.8e9, "revenueEstimated": 6.6e9},
+        ]
+        transcript_dates = [
+            # off-cycle: a Sep-ish print is fiscal Q4 (datetime string → sliced)
+            {"quarter": 4, "fiscalYear": 2024, "date": d1 + " 16:30:00"},
+            # 2 days off the report date → nearest-within-5-days still matches
+            {"quarter": 3, "fiscalYear": 2024, "date": d2_call},
+        ]
+
+        def fake_fmp_get(path, params, timeout=10):
+            if path == "/stable/earnings":
+                return fmp_earnings
+            if path == "/stable/earning-call-transcript-dates":
+                return transcript_dates
+            return None
+
+        with patch.object(earnings_estimates, "_fmp_get", side_effect=fake_fmp_get), \
+             patch.object(earnings_estimates, "_fh_get", return_value=None):
+            result = earnings_estimates.get_chart_markers("MU")
+
+        by_date = {e["date"]: e for e in result["earnings"]}
+        assert by_date[d1]["fiscal_quarter"] == 4 and by_date[d1]["fiscal_year"] == 2024
+        assert by_date[d2]["fiscal_quarter"] == 3 and by_date[d2]["fiscal_year"] == 2024
+
+    def test_quarter_omitted_when_no_transcript_match(self):
+        today = _today()
+        d1 = (today - timedelta(days=20)).isoformat()
+        fmp_earnings = [{"date": d1, "epsActual": 1.0, "epsEstimated": 0.9,
+                         "revenueActual": 1e9, "revenueEstimated": 1e9}]
+
+        def fake_fmp_get(path, params, timeout=10):
+            if path == "/stable/earnings":
+                return fmp_earnings
+            return []  # transcript-dates empty → no quarter, but marker still shows
+
+        with patch.object(earnings_estimates, "_fmp_get", side_effect=fake_fmp_get), \
+             patch.object(earnings_estimates, "_fh_get", return_value=None):
+            result = earnings_estimates.get_chart_markers("MU")
+
+        e = result["earnings"][0]
+        assert "fiscal_quarter" not in e and e["eps_actual"] == 1.0
+
+
 class TestGetChartMarkersResilience:
     def setup_method(self):
         _fresh_cache("FAILMIX")

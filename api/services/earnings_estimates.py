@@ -595,6 +595,9 @@ def get_chart_markers(ticker: str) -> dict:
     # single cache entry serve longer-range chart views too.
     from_date = (today - timedelta(days=365 * 5)).strftime("%Y-%m-%d")
     to_date   = today.strftime("%Y-%m-%d")
+    # Splits are rare AND highly relevant on a since-inception chart, so look back
+    # far (unlike dividends, which would clutter the chart with 100+ ex-dates).
+    splits_from_date = (today - timedelta(days=365 * 45)).strftime("%Y-%m-%d")
 
     # ── Earnings history (EPS + revenue) ──────────────────────────────────────
     # FMP `stable/earnings` is primary: it carries EPS AND revenue AND the report
@@ -604,7 +607,10 @@ def get_chart_markers(ticker: str) -> dict:
     # when FMP has nothing. Dedup by report date, preferring the estimate-bearing
     # row (FMP occasionally carries a consensus row + an alternate for one report).
     try:
-        fmp_rows = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 24})
+        # limit 400 ≈ full available history (FMP returns newest-first) so markers
+        # go back as far as the provider has data — matches the since-inception
+        # chart history. Future estimate rows (epsActual=None) are skipped below.
+        fmp_rows = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 400})
         best_by_date = {}
         if isinstance(fmp_rows, list):
             for q in fmp_rows:
@@ -657,9 +663,60 @@ def get_chart_markers(ticker: str) -> dict:
     except Exception as exc:
         _logger.warning("get_chart_markers earnings failed for %s: %s", ticker, exc)
 
-    # ── Stock splits (last 5 years) ──────────────────────────────────────────
+    # ── Accurate fiscal quarter/year per report ───────────────────────────────
+    # FMP `stable/earnings` carries NO fiscal period, and a calendar mapping is
+    # WRONG for off-cycle fiscal years (e.g. MU's Aug year-end: its Sep print is
+    # fiscal Q4, not the naive "Q2"). `earning-call-transcript-dates` carries the
+    # real {quarter, fiscalYear} keyed to the call/report date — join it to the
+    # markers by report date. Best-effort: markers still render (just without a
+    # quarter label) if this source is unavailable for the ticker.
+    if result["earnings"]:
+        try:
+            def _coerce_q(q):
+                if isinstance(q, (int, float)):
+                    return int(q)
+                s = str(q or "").upper().strip().lstrip("Q")
+                return int(s) if s.isdigit() else None
+
+            td = _fmp_get("/stable/earning-call-transcript-dates", {"symbol": ticker})
+            qmap = {}
+            if isinstance(td, list):
+                for t in td:
+                    ds = str(t.get("date") or "")[:10]
+                    q = _coerce_q(t.get("quarter"))
+                    fy = t.get("fiscalYear")
+                    if ds and q is not None and fy is not None:
+                        try:
+                            qmap[ds] = (q, int(fy))
+                        except (TypeError, ValueError):
+                            pass
+            if qmap:
+                q_dates = sorted(qmap)
+                for row in result["earnings"]:
+                    rd = row.get("date")
+                    if not rd:
+                        continue
+                    hit = qmap.get(rd)
+                    if hit is None:
+                        # Report date vs call date can differ by a day or two —
+                        # fall back to the nearest transcript date within 5 days.
+                        try:
+                            rdt = date.fromisoformat(rd)
+                            best_gap = 6
+                            for qd in q_dates:
+                                gap = abs((date.fromisoformat(qd) - rdt).days)
+                                if gap < best_gap:
+                                    best_gap, hit = gap, qmap[qd]
+                        except (ValueError, TypeError):
+                            hit = None
+                    if hit:
+                        row["fiscal_quarter"], row["fiscal_year"] = hit
+        except Exception as exc:
+            _logger.warning("get_chart_markers quarter-join failed for %s: %s", ticker, exc)
+
+    # ── Stock splits (deep — since-inception chart annotation) ────────────────
     try:
-        splits_raw = _fh_get("/stock/split", {"symbol": ticker, "from": from_date, "to": to_date})
+        splits_raw = _fh_get("/stock/split", {"symbol": ticker, "from": splits_from_date, "to": to_date})
         if isinstance(splits_raw, list):
             for s in splits_raw:
                 date_str = s.get("date")

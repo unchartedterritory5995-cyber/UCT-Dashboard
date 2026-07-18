@@ -26,6 +26,11 @@ export function createEarningsBadgePrimitive(initial) {
   let chart = null
   let series = null
   let requestUpdate = null
+  // Screen rects of the badges drawn last frame (media coords, same space as
+  // subscribeClick's param.point) → lets StockChart hit-test a click against the
+  // WHOLE pill instead of the exact reporting-bar time (which, zoomed out, is a
+  // sub-pixel target — the "must click dead-center of the E" complaint).
+  let lastHitRects = []
 
   function colorFor(beat) {
     if (beat === true) return opts.beatColor
@@ -61,6 +66,7 @@ export function createEarningsBadgePrimitive(initial) {
           // glides smoothly as the chart pans/zooms.
           const rowTop = mediaSize.height - ROW_BOTTOM - h
           const drawn = []
+          const hits = []
           for (const p of opts.points) {
             const x = ts.timeToCoordinate(p.time)
             if (x == null || x < 0 || x > mediaSize.width) continue
@@ -68,6 +74,7 @@ export function createEarningsBadgePrimitive(initial) {
             if (rect.x < 0 || rect.x + rect.w > mediaSize.width) continue
             if (intersects(rect, drawn)) continue
             drawn.push(rect)
+            hits.push({ x: rect.x, y: rect.y, w: rect.w, h: rect.h, time: p.time })
             // Pill
             ctx.fillStyle = colorFor(p.beat)
             ctx.beginPath()
@@ -78,6 +85,7 @@ export function createEarningsBadgePrimitive(initial) {
             ctx.fillStyle = GLYPH
             ctx.fillText('E', x, rect.y + rect.h / 2 + 0.5)
           }
+          lastHitRects = hits
           ctx.restore()
         })
       },
@@ -93,8 +101,21 @@ export function createEarningsBadgePrimitive(initial) {
 
   function redraw() { if (requestUpdate) requestUpdate() }
 
+  // Return the reporting-day time of the badge whose pill (grown by a few px of
+  // slop) contains the click point, or null. (px,py) are pane-media coords from
+  // chart.subscribeClick's param.point. The whole green box is clickable now.
+  function hitTest(px, py, padX = 3, padY = 4) {
+    if (!Number.isFinite(px) || !Number.isFinite(py)) return null
+    for (const r of lastHitRects) {
+      if (px >= r.x - padX && px <= r.x + r.w + padX &&
+          py >= r.y - padY && py <= r.y + r.h + padY) return r.time
+    }
+    return null
+  }
+
   return {
     primitive,
+    hitTest,
     setPoints(points) { opts.points = Array.isArray(points) ? points : []; redraw() },
     setOptions(patch) { opts = { ...opts, ...patch }; redraw() },
   }

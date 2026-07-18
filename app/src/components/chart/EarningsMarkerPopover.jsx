@@ -106,6 +106,11 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
   const revPctNum = data.revenue_surprise_pct != null ? +data.revenue_surprise_pct : null
   const revPctText = pctStr(revPctNum)
 
+  // Accurate fiscal quarter/year (joined server-side from FMP transcript dates).
+  // Absent for tickers/eras without that source → the label is simply omitted.
+  const fq = data.fiscal_quarter, fy = data.fiscal_year
+  const quarterLabel = (fq != null && fy != null) ? `(${fy} Q${fq})` : null
+
   // First paint renders off-screen (measure), then useLayoutEffect pins the real
   // position before the browser shows it — so there's no visible jump.
   const style = pos
@@ -115,7 +120,10 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
   return createPortal(
     <div ref={ref} className={styles.pop} style={style} role="dialog" aria-label={`${sym || ''} earnings`}>
       <div className={styles.head}>
-        <span className={styles.title}>{sym ? `${sym} · Earnings` : 'Earnings'}</span>
+        <div className={styles.titleWrap}>
+          <span className={styles.title}>{sym ? `${sym} · Earnings` : 'Earnings'}</span>
+          {quarterLabel && <span className={styles.quarter}>{quarterLabel}</span>}
+        </div>
         <button type="button" className={styles.close} onClick={onClose} aria-label="Close">✕</button>
       </div>
       <div className={styles.dateRow}>

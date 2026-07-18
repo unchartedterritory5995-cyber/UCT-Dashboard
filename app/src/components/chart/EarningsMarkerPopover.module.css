@@ -23,11 +23,24 @@
   justify-content: space-between;
   margin-bottom: 8px;
 }
+.titleWrap {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
 .title {
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #c9a84c;      /* gold accent, matching the app */
+}
+.quarter {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8a8a90;      /* dim subtitle — secondary to the gold title */
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .close {
   background: transparent;
