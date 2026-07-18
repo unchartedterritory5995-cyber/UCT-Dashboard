@@ -103,3 +103,60 @@ def test_store_sums_and_series(env):
     assert series == [("2026-05-01", 5000.0), ("2026-05-03", -1000.0)]
     flows = store.list_flows("u1", env["acct_id"])
     assert len(flows) == 3 and flows[0]["type"] == "deposit"
+
+
+# ── Share-transfer valuation (JRNLSEC / share TRANSFER → external flow) ─────
+
+def _share_adj(aid, delta, price, date="2026-05-01T00:00:00Z", kind="transfer"):
+    return {"row": 1, "externalId": aid, "symbol": "FIVN", "kind": kind,
+            "delta": delta, "price": price, "date": date}
+
+
+def test_share_transfer_in_valued_as_positive_external_flow(env):
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    from api.services.journal_two.broker import cashflow_store as store
+    r = cf.reconcile_cash_flows("u1", env["ba"], [],
+                                share_adjustments=[_share_adj("j1", 2000, 21.0)])
+    assert r["imported"] == 1
+    flows = store.list_flows("u1", env["acct_id"])
+    assert len(flows) == 1
+    f = flows[0]
+    assert f["type"] == "transfer" and f["isExternal"] is True
+    assert f["amount"] == 42000.0
+
+
+def test_share_transfer_out_valued_negative_and_split_ignored(env):
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    from api.services.journal_two.broker import cashflow_store as store
+    r = cf.reconcile_cash_flows("u1", env["ba"], [], share_adjustments=[
+        _share_adj("j2", -2000, 21.0),
+        _share_adj("s1", 900, 5.0, kind="split"),   # splits are NOT flows
+        _share_adj("j3", 100, None),                # unresolvable price → skip
+    ])
+    assert r["imported"] == 1
+    flows = store.list_flows("u1", env["acct_id"])
+    assert len(flows) == 1
+    assert flows[0]["amount"] == -42000.0
+
+
+def test_share_bearing_transfer_activity_not_double_counted(env):
+    # The raw TRANSFER activity (symbol+units, $0 amount) must NOT also map
+    # through to_cash_flow — only the valued share-transfer flow lands.
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    act = {"id": "t1", "type": "TRANSFER", "amount": 0.0,
+           "trade_date": "2026-05-01", "currency": "USD",
+           "symbol": {"symbol": "FIVN"}, "units": 2000}
+    assert cf.to_cash_flow(act, "ba1") is None
+    # A pure cash transfer (no symbol/units) still maps normally.
+    cash = {"id": "t2", "type": "TRANSFER", "amount": 5000.0,
+            "trade_date": "2026-05-01", "currency": "USD"}
+    flow = cf.to_cash_flow(cash, "ba1")
+    assert flow is not None and flow["amount"] == 5000.0
+
+
+def test_share_transfer_flow_idempotent_across_resyncs(env):
+    from api.services.journal_two.broker import cashflow_reconstruct as cf
+    adjs = [_share_adj("j1", 2000, 21.0)]
+    r1 = cf.reconcile_cash_flows("u1", env["ba"], [], share_adjustments=adjs)
+    r2 = cf.reconcile_cash_flows("u1", env["ba"], [], share_adjustments=adjs)
+    assert r1["imported"] == 1 and r2["imported"] == 0 and r2["pruned"] == 0
