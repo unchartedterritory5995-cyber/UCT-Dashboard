@@ -25,6 +25,8 @@ import GridChartCell from './GridChartCell'
 import useStaggeredMount from './useStaggeredMount'
 import { parseLayoutId } from './gridLayouts'
 import { createSpike, SPIKE_SYMS } from './gridSpike'
+import { makePeerFiller } from './peerFill'
+import { fetchPeers } from './groupsApi'
 import styles from './MultiChartGrid.module.css'
 
 export default function MultiChartGrid({ mc }) {
@@ -61,6 +63,21 @@ export default function MultiChartGrid({ mc }) {
   const cellsRef = useRef(cells)
   cellsRef.current = cells
 
+  // ── Peer auto-fill (Groups mode): committing a ticker in any cell reseeds
+  // the whole grid with [seed, ...peers]. makePeerFiller's monotonic request
+  // id discards a stale response (fast second commit beats a slow first) and
+  // hands back an undo snapshot of the pre-fill board. ──
+  const [undo, setUndo] = useState(null)   // {label, snapshot} | null
+  const peerFiller = useMemo(
+    () => makePeerFiller({
+      fetchPeers,
+      fillCells: (syms, group) => { if (!spikeActive) mc.fillCells(syms, group) },
+      onUndoAvailable: setUndo,
+    }),
+    [mc.fillCells, spikeActive],   // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  useEffect(() => { if (!undo) return; const t = setTimeout(() => setUndo(null), 6000); return () => clearTimeout(t) }, [undo])
+
   // ── Maximize: one cell expands to cover the whole grid body (no remount —
   // the cell stays mounted and its wrapper is CSS-promoted over the grid, so
   // the chart just autoSizes up and back). ──
@@ -93,9 +110,22 @@ export default function MultiChartGrid({ mc }) {
     () => cells.map((_, i) => () => activeCellRef.current === i),
     [cells.length],   // eslint-disable-line react-hooks/exhaustive-deps
   )
+  const inGroupMode = !!state.group
   const onChangeFns = useMemo(
-    () => cells.map((_, i) => (next) => { if (!spikeActive) mc.updateCellAt(i, next) }),
-    [cells.length, mc.updateCellAt, spikeActive],   // eslint-disable-line react-hooks/exhaustive-deps
+    () => cells.map((_, i) => (next) => {
+      if (spikeActive) return
+      if (inGroupMode && next?.sym && next.sym !== cellsRef.current[i]?.sym) {
+        const n = cellsRef.current.length
+        peerFiller.run(next.sym, {
+          n,
+          group: state.group,
+          snapshot: { cells: cellsRef.current, group: state.group },
+        })
+      } else {
+        mc.updateCellAt(i, next)
+      }
+    }),
+    [cells.length, mc.updateCellAt, spikeActive, inGroupMode, peerFiller, state.group],   // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   // ── Crosshair sync bus (ref-based; passed to cells only while Sync is on) ──
@@ -209,6 +239,16 @@ export default function MultiChartGrid({ mc }) {
             </div>
           )
         })}
+        {undo && (
+          <div className={styles.undoToast} role="status">
+            <span>{undo.label}</span>
+            <button type="button" onClick={() => {
+              // Restore the pre-fill board: re-fill with the snapshot's syms + group.
+              mc.fillCells(undo.snapshot.cells.map(c => c.sym).filter(Boolean), undo.snapshot.group)
+              setUndo(null)
+            }}>Undo</button>
+          </div>
+        )}
       </div>
       <ChartSettingsModal
         open={mc.settingsOpen}
