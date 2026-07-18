@@ -137,8 +137,8 @@ def test_auto_mode_escalation():
     # long questions → fast
     long_q = " ".join(["word"] * 20)
     assert ai._auto_mode(long_q, "lite") == "fast"
-    # simple factual → lite
-    assert ai._auto_mode("why is SMCI moving today", "lite") == "lite"
+    # default tier is sonar-pro ("fast") — owner call 2026-07-18
+    assert ai._auto_mode("why is SMCI moving today", "lite") == "fast"
 
 
 def test_reasoning_bills_two_units(monkeypatch):

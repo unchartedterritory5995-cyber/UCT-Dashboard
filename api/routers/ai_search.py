@@ -152,7 +152,9 @@ def _auto_mode(query: str, client_mode: str) -> str:
         return "reasoning"
     if _FAST_RE.search(q) or len(q.split()) > 18:
         return "fast"
-    return "lite"
+    # Default tier: sonar-pro (owner call 2026-07-18 — first-impression answer
+    # depth beats the ~2x per-query cost; revisit via usage stats if spend bites).
+    return "fast"
 
 
 def _billing_units(mode: str) -> int:
