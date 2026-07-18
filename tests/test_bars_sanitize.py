@@ -61,6 +61,25 @@ class TestListingCutoff:
         out = bs.sanitize_daily_bars("HALT", a + b, "D")
         assert len(out) == 60
 
+    def test_reuse_cut_without_metadata_on_price_jump(self, monkeypatch):
+        # SPCX-style: a sub-standalone (~70-day) gap with a big price jump (old
+        # ~$22 ETF → new ~$150 listing) is cut on the FIRST serve — no metadata,
+        # no ~1s pre-IPO flash.
+        monkeypatch.setattr(bs, "_meta_cached", lambda t: None)
+        old = _series(datetime.date(2026, 2, 2), 45, price=22.0)
+        new = _series(datetime.date(2026, 6, 12), 20, price=150.0)
+        out = bs.sanitize_daily_bars("SPCX", old + new, "D")
+        assert out[0]["t"] == "2026-06-12" and len(out) == 20
+
+    def test_halt_without_price_jump_not_cut_without_metadata(self, monkeypatch):
+        # Same-company halt: a ~70-day gap but the price resumes near where it left
+        # off (no big jump) and no listing metadata → NOT cut (don't chop a halt).
+        monkeypatch.setattr(bs, "_meta_cached", lambda t: None)
+        a = _series(datetime.date(2026, 2, 2), 45, price=22.0)
+        b = _series(datetime.date(2026, 6, 12), 20, price=24.0)  # ~1.1× — not reuse
+        out = bs.sanitize_daily_bars("HALT2", a + b, "D")
+        assert len(out) == 65
+
     def test_huge_gap_cut_without_metadata(self, monkeypatch):
         # Cold metadata (meta None) but an unmistakable multi-year gap ⇒ still cut.
         monkeypatch.setattr(bs, "_meta_cached", lambda t: None)

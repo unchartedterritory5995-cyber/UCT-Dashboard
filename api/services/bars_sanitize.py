@@ -61,6 +61,7 @@ _warm_lock = threading.Lock()
 _GAP_MIN_DAYS = 21            # a gap this big + a listing-date match ⇒ reuse
 _GAP_STANDALONE_DAYS = 150    # a gap this big ⇒ reuse even without listing metadata
 _GAP_ALIGN_TOL_DAYS = 12      # gap must resume within this many days of the listing
+_REUSE_PRICE_FACTOR = 4.0    # a gap WITH a ≥4× (or ≤¼×) price jump ⇒ reuse, no metadata
 _SPLIT_TOL = 0.15            # |observed/expected − 1| ≤ this ⇒ boundary is unadjusted
 _WICK = 1.40                 # a wick > body*this AND > neighbor*this is a lone spike
 
@@ -154,6 +155,20 @@ def _apply_listing_cutoff(bars: list[dict], meta: dict | None) -> list[dict]:
         prev_d = d
     if best_gap < _GAP_MIN_DAYS:
         return bars  # no reuse signature at all
+
+    # METADATA-FREE reuse detection: a gap WITH a large price discontinuity is a
+    # recycled ticker — the OLD security traded at a totally different scale than
+    # the new listing (SPCX: ~$22 SPAC ETF → ~$150 SpaceX; DRAM: ~$1 Dataram →
+    # ~$50 ETF). A legit multi-week HALT of the same company resumes near its
+    # pre-halt price, so it won't trip this. This cuts on the FIRST serve, before
+    # the ipoDate metadata warms — no ~1s pre-IPO flash. (A gap ≥ _GAP_MIN_DAYS
+    # rules out a reverse split, which is same-day.)
+    prev_c = bars[resume_idx - 1].get("c")
+    cur_c = bars[resume_idx].get("c")
+    if prev_c and cur_c and prev_c > 0:
+        ratio = cur_c / prev_c
+        if ratio >= _REUSE_PRICE_FACTOR or ratio <= 1.0 / _REUSE_PRICE_FACTOR:
+            return bars[resume_idx:]
 
     ipo = _pd((meta or {}).get("ipo"))
     resume_d = _pd(bars[resume_idx]["t"])
