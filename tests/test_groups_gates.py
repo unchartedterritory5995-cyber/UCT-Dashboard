@@ -101,3 +101,18 @@ def test_swing_metrics_never_raises_on_getrows_error(monkeypatch):
     g._ROWS_CACHE.clear()
     out = g.swing_metrics(["AAA"], rs={"AAA": {"rs_rank": 90}}, today={})
     assert out["AAA"]["price"] is None and out["AAA"]["rs_rank"] == 90
+
+
+def test_swing_metrics_failure_not_cached_retries(monkeypatch):
+    g._ROWS_CACHE.clear()
+    calls = {"n": 0}
+    def flaky(tks):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("db locked")   # first call fails
+        return {"AAA": {"price": 10.0, "avg_volume_30d": 5e6, "adr_pct": 5.0, "built_at": __import__("time").time()}}
+    monkeypatch.setattr(g.snapshot_db, "get_rows", flaky)
+    first = g.swing_metrics(["AAA"], rs={}, today={})
+    assert first["AAA"]["price"] is None            # failure -> unconfirmed
+    second = g.swing_metrics(["AAA"], rs={}, today={})
+    assert second["AAA"]["price"] == 10.0           # NOT cached as empty -> retried, now populated

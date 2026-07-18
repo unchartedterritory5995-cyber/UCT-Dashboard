@@ -111,7 +111,9 @@ def _get_rows_cached(syms: tuple) -> dict:
     try:
         rows = snapshot_db.get_rows(list(syms))
     except Exception:
-        rows = {}
+        _logger.warning("groups_gates: screener get_rows failed; gating this fill "
+                        "without liquidity data", exc_info=True)
+        return {}                      # do NOT cache a transient failure — retry next call
     _ROWS_CACHE[key] = (now, rows)
     if len(_ROWS_CACHE) > 256:          # keep the cache tiny; fill-sets repeat
         _ROWS_CACHE.clear()
@@ -127,7 +129,7 @@ def swing_metrics(syms: list, rs: dict, today: dict) -> dict:
     (the rs_ranking cache) ONLY. A screener row older than _STALE_SECS is
     treated as missing (guards a silently-stalled nightly build).
     """
-    syms = [s for s in syms if s]
+    syms = [s.upper() for s in syms if s]
     if not syms:
         return {}
     rows = _get_rows_cached(tuple(sorted(syms)))
