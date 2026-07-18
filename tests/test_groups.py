@@ -268,6 +268,62 @@ def test_top_n_includes_group_etf(monkeypatch):
     assert groups.top_n("nustar", 4, by="today")["etf"] is None
 
 
+from api.services import groups_gates
+
+
+def _mock_gate_env(monkeypatch, enabled, metrics):
+    monkeypatch.setattr(groups_gates, "gates_enabled", lambda: enabled)
+    monkeypatch.setattr(groups_gates, "swing_metrics", lambda syms, rs, today: metrics)
+
+
+def test_rank_holdings_flag_off_is_byte_identical(monkeypatch):
+    # Same fixture as test_rank_holdings_today_then_fallbacks — gates OFF must
+    # produce the identical order, and must NOT call swing_metrics.
+    holdings = [
+        {"sym": "AAA", "tier": "core"}, {"sym": "BBB", "tier": "core"},
+        {"sym": "CCC", "tier": "relevant"}, {"sym": "DDD", "tier": "peripheral"},
+    ]
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"AAA", "BBB", "CCC", "DDD"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {"AAA": 5.0})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {"BBB": {"rs_rank": 80, "returns": {"1m": 3.0}},
+                                                    "CCC": {"rs_rank": None, "returns": {"1m": 12.0}}})
+    def _boom(*a, **k):
+        raise AssertionError("swing_metrics must not run when gates are off")
+    monkeypatch.setattr(groups_gates, "gates_enabled", lambda: False)
+    monkeypatch.setattr(groups_gates, "swing_metrics", _boom)
+    assert groups.rank_holdings(holdings, by="today") == ["AAA", "BBB", "CCC", "DDD"]
+
+
+def test_rank_holdings_gated_liquidity_leads_and_fills(monkeypatch):
+    # LIQUID (band0) leads; ILLIQUID (band2) sinks to backfill; UNCONFIRMED
+    # (band1, e.g. fresh IPO) sits between. All names still present.
+    holdings = [
+        {"sym": "PENNY", "tier": "core"},   # confirmed illiquid, high today move
+        {"sym": "IPO", "tier": "core"},     # unconfirmed (no screener row)
+        {"sym": "LEAD", "tier": "core"},    # confirmed liquid + momentum
+    ]
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"PENNY", "IPO", "LEAD"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {"PENNY": 9.0, "LEAD": 1.0})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    _mock_gate_env(monkeypatch, True, {
+        "LEAD":  {"price": 50, "dollar_vol": 5e8, "rs_rank": 88, "adr_pct": 6},   # band0 mom2
+        "PENNY": {"price": 2.0, "dollar_vol": 1e6, "rs_rank": 90, "adr_pct": 9},  # band2
+        "IPO":   {"price": None, "dollar_vol": None, "rs_rank": None, "adr_pct": None},  # band1
+    })
+    assert groups.rank_holdings(holdings, by="today") == ["LEAD", "IPO", "PENNY"]
+
+
+def test_rank_holdings_scores_out_populated_only_when_on(monkeypatch):
+    holdings = [{"sym": "LEAD", "tier": "core"}]
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"LEAD"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    _mock_gate_env(monkeypatch, True, {"LEAD": {"price": 50, "dollar_vol": 5e8, "rs_rank": 88, "adr_pct": 6}})
+    scores = {}
+    groups.rank_holdings(holdings, by="today", scores_out=scores)
+    assert scores["LEAD"] == 4      # liq2 + mom2
+
+
 def test_ai_peer_raw_releases_semaphore_every_call(monkeypatch):
     # Each _ai_peer_raw call must return its semaphore permit — otherwise the
     # feature dead-locks after GROUPS_AI_PEERS_CONCURRENCY calls.

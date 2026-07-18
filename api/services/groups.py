@@ -168,11 +168,18 @@ def _rs_map() -> dict:
         return {}
 
 
-def rank_holdings(holdings: list, by: str = "today", seed: str = None) -> list:
+def rank_holdings(holdings: list, by: str = "today", seed: str = None,
+                  seed_sub: str = None, scores_out: dict = None) -> list:
     """Rank taxonomy holdings; return chartable hyphen syms best-first.
 
     holdings: [{sym, tier, sub_theme_id?}] in taxonomy (dot) form.
     Excludes the seed and non-chartable names. No-data names sort last.
+
+    When GROUPS_SWING_GATES_ENABLED, prepends swing-quality bands (a hard
+    liquidity prefilter + an RS/ADR momentum sub-score) to the existing order;
+    when off, the ordering is byte-identical to the pre-gate implementation.
+    seed_sub (peer-fill) floats same-sub-theme names within the liquid tier.
+    scores_out, if a dict, receives {sym: gate_score} for observability.
     """
     cap = cap_universe_set()
     seed_hy = normalize_sym(seed) if seed else None
@@ -205,7 +212,29 @@ def rank_holdings(holdings: list, by: str = "today", seed: str = None) -> list:
         # Band 3: no data — curated tier order, then taxonomy list position.
         return (len(order), tier)
 
-    cands.sort(key=lambda c: (bands(c[1], c[2]), c[0]))
+    from api.services import groups_gates
+    on = groups_gates.gates_enabled()
+    metrics = groups_gates.swing_metrics([hy for _, hy, _ in cands], rs, today) if on else {}
+    if on:
+        _logger.debug("groups swing-gate pass-rates: %s", groups_gates.pass_rates(metrics))
+        if scores_out is not None:
+            for _, hy, _ in cands:
+                scores_out[hy] = groups_gates.gate_score(metrics.get(hy))
+
+    def sort_key(c):
+        idx, hy, h = c
+        existing = bands(hy, h)
+        sub_band = 0 if (seed_sub and h.get("sub_theme_id") == seed_sub) else 1
+        if on:
+            liq, mom = groups_gates.gate_bands(metrics.get(hy))
+            if seed_sub is not None:
+                return (liq, sub_band, -mom, existing, idx)
+            return (liq, -mom, existing, idx)
+        if seed_sub is not None:
+            return (sub_band, existing, idx)
+        return (existing, idx)
+
+    cands.sort(key=sort_key)
     return [hy for _, hy, _ in cands]
 
 
