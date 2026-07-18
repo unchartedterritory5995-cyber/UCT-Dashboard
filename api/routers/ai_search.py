@@ -221,6 +221,17 @@ def _ctx_catalyst(sym: str) -> str:
     return f"{sym} catalyst (UCT board, today): {thesis[:240]}"
 
 
+def _ctx_tape(sym: str) -> str:
+    """Curated-wire tweets for a ticker — the freshest data in the app
+    (2-min poll cadence premarket). Perplexity's index can't compete here."""
+    from api.services import tweet_store
+    rows = tweet_store.tweets_for_ticker(sym, hours=8)[:2]
+    if not rows:
+        return ""
+    lines = " | ".join((r.get("text") or "").replace("\n", " ").strip()[:130] for r in rows)
+    return f"{sym} tape (UCT curated wires, last 8h): {lines}"
+
+
 def _ctx_movers() -> str:
     from api.services.massive import get_movers
     m = get_movers() or {}
@@ -287,7 +298,30 @@ _INTENT_SPECS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\b(news|headlines?|tape|stories)\b", re.I), "_ctx_news"),
 ]
 
-_CTX_BUDGET = 1600   # chars — keep grounding a supplement, not a payload
+_CTX_BUDGET = 2000   # chars — keep grounding a supplement, not a payload
+
+
+def _time_bucket() -> str:
+    """Freshness bucket for market-action queries: 5-min granularity during the
+    extended session (Mon-Fri 4:00-20:00 ET) so hot answers refresh fast; a
+    single 'off' bucket otherwise (nothing is moving — cache freely)."""
+    try:
+        from zoneinfo import ZoneInfo
+        now = datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        now = datetime.now(timezone.utc) + _ET_OFFSET_FALLBACK
+    if now.weekday() < 5 and 4 <= now.hour < 20:
+        return f"b{(now.hour * 60 + now.minute) // 5}"
+    return "off"
+
+
+def _fresh_salt(query: str, salt: str) -> str:
+    """'Today/moving'-shaped queries must not serve a 15-min-old cached answer
+    mid-session — bucket their cache so they refresh every ~5 minutes."""
+    if _auto_recency(query) != "day":
+        return salt
+    bucket = _time_bucket()
+    return f"{salt}|{bucket}" if salt else bucket
 
 
 def _uct_context(query: str) -> tuple[str, str]:
@@ -319,6 +353,13 @@ def _uct_context(query: str) -> tuple[str, str]:
             pass
         try:
             line = _ctx_catalyst(s)
+            if line:
+                parts.append(line)
+        except Exception:
+            pass
+    for s in syms[:2]:   # tape is verbose — first two symbols only
+        try:
+            line = _ctx_tape(s)
             if line:
                 parts.append(line)
         except Exception:
@@ -371,6 +412,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
     _check_limits(user_id)
     mode = _auto_mode(body.query, body.mode)
     system, salt = _grounded_system(body.query)
+    salt = _fresh_salt(body.query, salt)
     result = perplexity_search.web_search(
         body.query,
         max_tokens=700,
@@ -398,6 +440,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     _check_limits(user_id)
     mode = _auto_mode(body.query, body.mode)
     system, salt = _grounded_system(body.query)
+    salt = _fresh_salt(body.query, salt)
 
     async def gen():
         billed = False

@@ -224,6 +224,34 @@ def test_intent_routed_desk_feeds(monkeypatch):
     assert "Breadth (UCT)" not in captured["system"]
 
 
+def test_tape_injected_for_named_tickers(monkeypatch):
+    _reset_counters()
+    captured = {}
+
+    def fake(query, **kw):
+        captured.update(kw)
+        return {"answer": "x", "citations": [], "related_questions": [], "cached": False}
+
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend"})
+    monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 10.0, "direction": "up", "abs_pct": 1.0})
+    monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: "")
+    monkeypatch.setattr(ai, "_ctx_tape", lambda s: f"{s} tape (UCT curated wires, last 8h): guidance raised")
+    monkeypatch.setattr(ai, "_UNI", {"SMCI"})
+    r = _client().post("/api/ai-search", json={"query": "anything new on SMCI"})
+    assert r.status_code == 200
+    assert "SMCI tape (UCT curated wires" in captured["system"]
+
+
+def test_fresh_salt_buckets_hot_queries(monkeypatch):
+    monkeypatch.setattr(ai, "_time_bucket", lambda: "b101")
+    # day-recency query gets the bucket appended (with or without base salt)
+    assert ai._fresh_salt("why is SMCI moving today", "GREEN|SMCI|2026-07-18") == "GREEN|SMCI|2026-07-18|b101"
+    assert ai._fresh_salt("biggest premarket movers", "") == "b101"
+    # fundamentals stay unbucketed → long-lived cache
+    assert ai._fresh_salt("what was JPM's last earnings report like", "GREEN|JPM|2026-07-18") == "GREEN|JPM|2026-07-18"
+
+
 def test_scope_guard_present_in_widget_prompt():
     assert "SCOPE — HARD RULE" in ai._WIDGET_SYSTEM
     assert "exclusively for markets" in ai._WIDGET_SYSTEM
