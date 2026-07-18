@@ -115,7 +115,7 @@ export default function MultiChartGrid({ mc }) {
     () => cells.map((_, i) => () => activeCellRef.current === i),
     [cells.length],   // eslint-disable-line react-hooks/exhaustive-deps
   )
-  const inGroupMode = !!state.group
+  const inGroupMode = state.groupsMode
   const onChangeFns = useMemo(
     () => cells.map((_, i) => (next) => {
       if (spikeActive) return
@@ -325,6 +325,7 @@ export default function MultiChartGrid({ mc }) {
                 cell={{ ...cell, sym: loadSym }}
                 badge={state.group ? cellBadges[i] : null}
                 rationale={state.group ? cellBadges[i]?.rationale : ''}
+                scanning={state.groupsMode}
                 onChange={onChangeFns[i]}
                 crosshairBus={crosshairBus}
                 rangeBus={rangeBus}

@@ -44,6 +44,7 @@ function GridChartCell({
   cell,               // {id, sym|null, tf} — controlled; sym null = empty slot
   badge,              // {changePct, tier, rationale} | null — Groups mode scanner badge (Task 15)
   rationale,          // static rationale string, mirrors badge.rationale — used as the badge's title tooltip
+  scanning,           // bool — Groups Mode toggle is ON; empty cells show the scan-prompt copy
   onChange,           // (nextCell) => void — container merges + debounce-persists
   crosshairBus,       // {emit(sourceId,payload), subscribe(fn)} | null (null = sync off)
   rangeBus,           // {emit(sourceId,payload), subscribe(fn)} | null (null = sync off) — mirrors crosshairBus for visible time-range
@@ -425,7 +426,7 @@ function GridChartCell({
             onClick={() => searchRef.current?.openWith('')}
           >
             <span className={styles.cellEmptyPlus}>+</span>
-            Add ticker
+            {scanning ? 'Type a ticker → fill its group' : 'Add ticker'}
           </button>
         )}
         {flagToast && (
