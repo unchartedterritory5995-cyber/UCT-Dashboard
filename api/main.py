@@ -81,6 +81,7 @@ from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
 from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
+from api.routers import admin_purge as admin_purge_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
@@ -3402,6 +3403,7 @@ app.include_router(csv_ingest_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
+app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)
