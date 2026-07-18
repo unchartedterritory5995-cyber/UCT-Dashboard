@@ -186,3 +186,23 @@ def test_group_peers_endpoint(monkeypatch):
     r = client.get("/api/groups/peers?sym=RKLB&n=5")
     assert r.status_code == 200
     assert r.json()["source"] == "taxonomy"
+
+
+def test_theme_size_uses_cached_map_not_list_groups(monkeypatch):
+    # _theme_size must NOT route through list_groups(); it reads the cached
+    # _theme_sizes() map (one get_all_themes()), so the watermark hot path
+    # doesn't pay an uncached full-taxonomy scan per call.
+    groups._SIZES_CACHE["map"] = None
+    calls = {"all_themes": 0}
+    def fake_all():
+        calls["all_themes"] += 1
+        return {"themes": [{"id": "space", "holdings": [{"sym": "RKLB"}, {"sym": "ASTS"}]},
+                           {"id": "semis", "holdings": [{"sym": "NVDA"}]}]}
+    monkeypatch.setattr(groups, "_get_all_themes", fake_all)
+    def boom():
+        raise AssertionError("_theme_size must not call list_groups()")
+    monkeypatch.setattr(groups, "list_groups", boom)
+    assert groups._theme_size("space") == 2
+    assert groups._theme_size("semis") == 1
+    assert groups._theme_size("missing") == 0
+    assert calls["all_themes"] == 1          # cached: one taxonomy read for 3 lookups

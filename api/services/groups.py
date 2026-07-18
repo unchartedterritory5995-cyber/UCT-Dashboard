@@ -21,6 +21,9 @@ _logger = logging.getLogger(__name__)
 _CAP_CACHE = {"set": None, "at": 0.0}
 _CAP_TTL = 3600.0
 
+_SIZES_CACHE = {"map": None, "at": 0.0}
+_SIZES_TTL = 3600.0
+
 
 def normalize_sym(s: str) -> str:
     """App-canonical form for charting/search/cells: uppercase, dot->hyphen."""
@@ -66,6 +69,28 @@ def is_chartable(sym: str) -> bool:
 def _get_all_themes():
     from api.services import theme_db
     return theme_db.get_all_themes()
+
+
+def _theme_sizes() -> dict:
+    """{theme_id: holding_count} for every theme. Cached 1h — theme sizes only
+    change on a taxonomy reseed (deploy). Avoids routing a single size lookup
+    through list_groups() (which also computes chartable counts + rotation
+    order it doesn't need) and its uncached full-taxonomy read — this map backs
+    resolve_primary_theme, which is on the universal chart-watermark hot path."""
+    now = time.monotonic()
+    if _SIZES_CACHE["map"] is not None and (now - _SIZES_CACHE["at"]) < _SIZES_TTL:
+        return _SIZES_CACHE["map"]
+    out = {}
+    try:
+        data = _get_all_themes()
+        for t in data.get("themes", []):
+            out[t["id"]] = len(t.get("holdings") or [])
+    except Exception:
+        out = {}
+    if out:                       # only cache a real (non-empty) map
+        _SIZES_CACHE["map"] = out
+        _SIZES_CACHE["at"] = now
+    return out
 
 
 def _rotation_order():
@@ -223,10 +248,7 @@ def _themes_for_ticker(sym: str) -> list:
 
 
 def _theme_size(theme_id: str) -> int:
-    for r in list_groups():
-        if r["id"] == theme_id:
-            return r["total"]
-    return 0
+    return _theme_sizes().get(theme_id, 0)
 
 
 def resolve_primary_theme(sym: str):
