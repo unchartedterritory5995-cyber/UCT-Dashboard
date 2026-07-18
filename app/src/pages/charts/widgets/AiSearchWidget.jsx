@@ -134,6 +134,10 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const [streamText, setStreamText] = useState('')   // partial answer while streaming
   const inputRef = useRef(null)
   const bodyRef = useRef(null)
+  // Conversation memory: last few Q/A exchanges from this widget session,
+  // sent with each ask so follow-ups can resolve "it"/"that move". A ref —
+  // it never drives rendering. Cleared only by unmount.
+  const historyRef = useRef([])
 
   // Rotate the loading status line so a long search reads as progress, not a hang.
   useEffect(() => {
@@ -159,6 +163,10 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     setCitations(Array.isArray(d.citations) ? d.citations : [])
     setRelated(Array.isArray(d.related_questions) ? d.related_questions.slice(0, 3) : [])
     setCopied(false)
+    historyRef.current = [
+      ...historyRef.current.slice(-2),
+      { q: question, a: String(d.answer || '').slice(0, 1200) },
+    ]
     if (bodyRef.current) bodyRef.current.scrollTop = 0
   }, [])
 
@@ -170,7 +178,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: question }),
+      body: JSON.stringify({ query: question, history: historyRef.current }),
     })
     if (r.status === 429) {
       const d = await r.json().catch(() => null)
@@ -231,7 +239,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: question }),
+        body: JSON.stringify({ query: question, history: historyRef.current }),
       })
       const d = await r.json().catch(() => null)
       if (r.status === 429) {

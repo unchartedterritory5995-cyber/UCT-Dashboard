@@ -128,6 +128,26 @@ describe('AiSearchWidget', () => {
     expect(global.fetch.mock.calls[1][0]).toBe('/api/ai-search')
   })
 
+  it('sends conversation history on the next ask so follow-ups resolve references', async () => {
+    mockFetchOnce(200, GOOD)
+    render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'first question' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByText(/The move is real/)).toBeTruthy())
+    // first ask carried empty history
+    const firstBody = JSON.parse(global.fetch.mock.calls[0][1].body)
+    expect(firstBody.history).toEqual([])
+
+    fireEvent.change(box, { target: { value: 'how did it react?' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => {
+      const calls = global.fetch.mock.calls
+      const lastBody = JSON.parse(calls[calls.length - 1][1].body)
+      expect(lastBody.history).toEqual([{ q: 'first question', a: GOOD.answer }])
+    })
+  })
+
   it('a failed ask restores the question to the input for retry', async () => {
     mockFetchOnce(500, { detail: 'boom' })
     render(<AiSearchWidget />)

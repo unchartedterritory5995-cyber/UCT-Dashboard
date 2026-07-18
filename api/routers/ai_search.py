@@ -11,6 +11,7 @@ Counters are in-memory (reset on redeploy — lenient by design, never user-host
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -426,6 +427,31 @@ class AiSearchIn(BaseModel):
     # Cheapest tier by default while we test (base "sonar"). "fast" (sonar-pro) and
     # "reasoning" (sonar-reasoning-pro) are available but cost more — opt in later.
     mode: str = "lite"
+    # Conversation memory: prior {q, a} exchanges from THIS widget session so
+    # follow-ups can resolve references. Sanitized server-side; never persisted.
+    history: list | None = None
+
+
+def _clean_history(hist) -> list[dict]:
+    """Keep at most the last 3 well-formed exchanges, size-capped — the model
+    needs reference resolution, not a transcript."""
+    out: list[dict] = []
+    for h in (hist or [])[-3:]:
+        if not isinstance(h, dict):
+            continue
+        q = str(h.get("q") or "").strip()[:300]
+        a = str(h.get("a") or "").strip()[:1200]
+        if q and a:
+            out.append({"q": q, "a": a})
+    return out
+
+
+def _history_salt(salt: str, history: list[dict]) -> str:
+    """History changes the answer — give threaded asks their own cache lane."""
+    if not history:
+        return salt
+    digest = hashlib.md5(json.dumps(history, sort_keys=True).encode()).hexdigest()[:10]
+    return f"{salt}|h{digest}" if salt else f"h{digest}"
 
 
 @router.post("")
@@ -434,8 +460,9 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
     _check_limits(user_id)
     mode = _auto_mode(body.query, body.mode)
     _record_request(mode, stream=False)
+    history = _clean_history(body.history)
     system, salt = _grounded_system(body.query)
-    salt = _fresh_salt(body.query, salt)
+    salt = _history_salt(_fresh_salt(body.query, salt), history)
     result = perplexity_search.web_search(
         body.query,
         max_tokens=700,
@@ -445,6 +472,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
         recency=_auto_recency(body.query),
         related=True,   # Perplexity returns 3-4 related follow-up questions
         cache_salt=salt,
+        history=history,
     )
     # Cached answers cost nothing — only bill the quota for live searches.
     if result.get("cached"):
@@ -465,8 +493,9 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     _check_limits(user_id)
     mode = _auto_mode(body.query, body.mode)
     _record_request(mode, stream=True)
+    history = _clean_history(body.history)
     system, salt = _grounded_system(body.query)
-    salt = _fresh_salt(body.query, salt)
+    salt = _history_salt(_fresh_salt(body.query, salt), history)
 
     async def gen():
         billed = False
@@ -479,6 +508,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
             recency=_auto_recency(body.query),
             related=True,
             cache_salt=salt,
+            history=history,
         ):
             if ev.get("type") == "final" and not billed:
                 if ev.get("cached"):

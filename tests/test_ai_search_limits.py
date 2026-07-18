@@ -274,6 +274,46 @@ def test_auto_recency_heuristic():
     assert ai._auto_recency("Who are COHR's closest competitors by business line?") is None
 
 
+def test_clean_history_caps_and_filters():
+    raw = [
+        "not-a-dict",
+        {"q": "", "a": "orphan answer"},
+        {"q": "q1", "a": "a1"},
+        {"q": "q2", "a": "a2"},
+        {"q": "q3" * 400, "a": "a3" * 900},
+        {"q": "q4", "a": "a4"},
+    ]
+    out = ai._clean_history(raw)
+    # last 3 entries considered, malformed dropped, sizes capped
+    assert [h["q"][:2] for h in out] == ["q2", "q3", "q4"]
+    assert len(out[1]["q"]) == 300 and len(out[1]["a"]) == 1200
+
+
+def test_history_salt_separates_threads():
+    h = [{"q": "why is SMCI up", "a": "AI capex."}]
+    assert ai._history_salt("base", []) == "base"
+    salted = ai._history_salt("base", h)
+    assert salted.startswith("base|h") and salted != ai._history_salt("base", [{"q": "other", "a": "x"}])
+
+
+def test_history_threaded_to_search(monkeypatch):
+    _reset_counters()
+    captured = {}
+
+    def fake(query, **kw):
+        captured.update(kw)
+        return {"answer": "x", "citations": [], "related_questions": [], "cached": False}
+
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    r = _client().post("/api/ai-search", json={
+        "query": "how did the stock react?",
+        "history": [{"q": "What was JPM's last report like?", "a": "JPM beat on EPS."}],
+    })
+    assert r.status_code == 200
+    assert captured["history"] == [{"q": "What was JPM's last report like?", "a": "JPM beat on EPS."}]
+    assert "|h" in captured["cache_salt"] or captured["cache_salt"].startswith("h")
+
+
 def test_admin_stats_requires_admin(monkeypatch):
     _reset_counters()
     r = _client(role="user").get("/api/ai-search/admin/stats")

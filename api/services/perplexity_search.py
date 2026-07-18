@@ -94,6 +94,20 @@ def _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, 
     )
 
 
+def _build_messages(system_prompt: str, query: str, history: list | None = None) -> list[dict]:
+    """Chat-completions message list: system, then prior Q/A turns (so
+    follow-ups can resolve "it"/"that move"), then the new question."""
+    msgs = [{"role": "system", "content": system_prompt}]
+    for h in (history or []):
+        q = (h.get("q") or "").strip() if isinstance(h, dict) else ""
+        a = (h.get("a") or "").strip() if isinstance(h, dict) else ""
+        if q and a:
+            msgs.append({"role": "user", "content": q})
+            msgs.append({"role": "assistant", "content": a})
+    msgs.append({"role": "user", "content": query})
+    return msgs
+
+
 def web_search(
     query: str,
     max_tokens: int = 400,
@@ -104,6 +118,7 @@ def web_search(
     domains: list[str] | None = None,
     related: bool = False,
     cache_salt: str = "",
+    history: list | None = None,
 ) -> dict[str, Any]:
     """Synthesized web answer with citations.
 
@@ -152,10 +167,7 @@ def web_search(
     default_system = _DEEP_RESEARCH_SYSTEM if resolved_mode == "deep" else _DEFAULT_SYSTEM
     payload: dict[str, Any] = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system or default_system},
-            {"role": "user", "content": query},
-        ],
+        "messages": _build_messages(system or default_system, query, history),
         "max_tokens": max(50, min(3000, int(max_tokens or 400))),
     }
     if domains:
@@ -278,6 +290,7 @@ async def stream_search(
     recency: str | None = None,
     related: bool = False,
     cache_salt: str = "",
+    history: list | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Streaming twin of web_search().
 
@@ -315,10 +328,7 @@ async def stream_search(
     default_system = _DEEP_RESEARCH_SYSTEM if resolved_mode == "deep" else _DEFAULT_SYSTEM
     payload: dict[str, Any] = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system or default_system},
-            {"role": "user", "content": query},
-        ],
+        "messages": _build_messages(system or default_system, query, history),
         "max_tokens": max(50, min(3000, int(max_tokens or 400))),
         "stream": True,
     }

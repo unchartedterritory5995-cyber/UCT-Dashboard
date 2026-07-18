@@ -81,6 +81,23 @@ def test_stream_search_empty_answer_yields_error(monkeypatch):
     assert events[-1]["type"] == "error"
 
 
+def test_build_messages_threads_history():
+    msgs = pplx._build_messages("SYS", "and how did it react?", [
+        {"q": "What was JPM's report like?", "a": "JPM beat."},
+        {"q": "", "a": "orphan"},          # malformed → dropped
+        "garbage",                          # malformed → dropped
+    ])
+    assert [m["role"] for m in msgs] == ["system", "user", "assistant", "user"]
+    assert msgs[1]["content"] == "What was JPM's report like?"
+    assert msgs[2]["content"] == "JPM beat."
+    assert msgs[-1]["content"] == "and how did it react?"
+
+
+def test_build_messages_no_history():
+    msgs = pplx._build_messages("SYS", "q")
+    assert [m["role"] for m in msgs] == ["system", "user"]
+
+
 def test_cache_salt_separates_entries():
     base = pplx._cache_key("m", None, "finance", 700, True, "sys", "q")
     salted = pplx._cache_key("m", None, "finance", 700, True, "sys", "q", salt="GREEN|NVDA")
