@@ -2249,7 +2249,9 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(hour=3, minute=40),
                 id="broker_fidelity_audit", max_instances=1, replace_existing=True,
             )
-            print(f"[startup] Broker sync scheduler ON (every {_bs_interval}m, market-hours; nightly reconcile 2:30am ET; fleet monitor :37 hourly)")
+            print(f"[startup] Broker sync scheduler ON (tick {_bs_tick}m, per-account cadence "
+                  f"{_broker_sync_engine._default_interval_min()}m; recent-orders poll 5m mkt-hours; "
+                  "nightly reconcile 2:30am ET; fleet monitor :37 hourly)")
 
         def _cot_daily_catchup():
             try:
