@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services import perplexity_search
 
 router = APIRouter(prefix="/api/ai-search", tags=["ai-search"])
@@ -84,13 +84,33 @@ _usage_by_user: dict = {}
 _usage_global = 0
 
 
+def _fresh_stats() -> dict:
+    return {"requests": 0, "cache_hits": 0, "by_mode": {}, "stream": 0, "single": 0}
+
+
+_stats = _fresh_stats()
+
+
+def _record_request(mode: str, stream: bool) -> None:
+    with _usage_lock:
+        _stats["requests"] += 1
+        _stats["by_mode"][mode] = _stats["by_mode"].get(mode, 0) + 1
+        _stats["stream" if stream else "single"] += 1
+
+
+def _record_cache_hit() -> None:
+    with _usage_lock:
+        _stats["cache_hits"] += 1
+
+
 def _check_limits(user_id) -> None:
     """Raise 429 if the user or the whole app is over budget for today."""
-    global _usage_day, _usage_by_user, _usage_global
+    global _usage_day, _usage_by_user, _usage_global, _stats
     with _usage_lock:
         day = _et_day()
         if day != _usage_day:
             _usage_day, _usage_by_user, _usage_global = day, {}, 0
+            _stats = _fresh_stats()
         if _usage_global >= _global_daily_limit():
             raise HTTPException(
                 status_code=429,
@@ -413,6 +433,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
     user_id = user.get("id")
     _check_limits(user_id)
     mode = _auto_mode(body.query, body.mode)
+    _record_request(mode, stream=False)
     system, salt = _grounded_system(body.query)
     salt = _fresh_salt(body.query, salt)
     result = perplexity_search.web_search(
@@ -426,7 +447,9 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
         cache_salt=salt,
     )
     # Cached answers cost nothing — only bill the quota for live searches.
-    if not result.get("cached"):
+    if result.get("cached"):
+        _record_cache_hit()
+    else:
         _record_billed(user_id, _billing_units(mode))
     return result
 
@@ -441,6 +464,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     user_id = user.get("id")
     _check_limits(user_id)
     mode = _auto_mode(body.query, body.mode)
+    _record_request(mode, stream=True)
     system, salt = _grounded_system(body.query)
     salt = _fresh_salt(body.query, salt)
 
@@ -456,8 +480,11 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
             related=True,
             cache_salt=salt,
         ):
-            if ev.get("type") == "final" and not ev.get("cached") and not billed:
-                _record_billed(user_id, _billing_units(mode))
+            if ev.get("type") == "final" and not billed:
+                if ev.get("cached"):
+                    _record_cache_hit()
+                else:
+                    _record_billed(user_id, _billing_units(mode))
                 billed = True
             yield f"data: {json.dumps(ev)}\n\n"
 
@@ -466,3 +493,28 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+@router.get("/admin/stats")
+def ai_search_admin_stats(user: dict = Depends(require_admin)):
+    """Today's AI Search usage at a glance: burn vs caps, mode mix, cache hit
+    rate, top users by quota units. In-memory — resets at midnight ET and on
+    redeploy (same lifetime as the caps themselves)."""
+    with _usage_lock:
+        top = sorted(_usage_by_user.items(), key=lambda kv: -kv[1])[:15]
+        requests = _stats["requests"]
+        cache_hits = _stats["cache_hits"]
+        return {
+            "day_et": _usage_day or _et_day(),
+            "billed_units": _usage_global,
+            "global_limit": _global_daily_limit(),
+            "per_user_limit": _user_daily_limit(),
+            "active_users": len(_usage_by_user),
+            "requests": requests,
+            "cache_hits": cache_hits,
+            "cache_hit_rate": round(cache_hits / requests, 3) if requests else 0.0,
+            "by_mode": dict(_stats["by_mode"]),
+            "stream_requests": _stats["stream"],
+            "single_shot_requests": _stats["single"],
+            "top_users": [{"user_id": uid, "units": u} for uid, u in top],
+            "note": "in-memory since last deploy; resets daily (ET) and on redeploy",
+        }

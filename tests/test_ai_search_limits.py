@@ -5,10 +5,10 @@ import api.routers.ai_search as ai
 from api.middleware.auth_middleware import get_current_user
 
 
-def _client(user_id=1):
+def _client(user_id=1, role="user"):
     app = FastAPI()
     app.include_router(ai.router)
-    app.dependency_overrides[get_current_user] = lambda: {"id": user_id}
+    app.dependency_overrides[get_current_user] = lambda: {"id": user_id, "role": role}
     return TestClient(app)
 
 
@@ -16,6 +16,7 @@ def _reset_counters():
     ai._usage_day = ""
     ai._usage_by_user = {}
     ai._usage_global = 0
+    ai._stats = ai._fresh_stats()
 
 
 def _fake_search(cached=False):
@@ -271,6 +272,42 @@ def test_auto_recency_heuristic():
     assert ai._auto_recency("recent analyst upgrades on NVDA") == "week"
     assert ai._auto_recency("What was JPM's last earnings report like?") is None
     assert ai._auto_recency("Who are COHR's closest competitors by business line?") is None
+
+
+def test_admin_stats_requires_admin(monkeypatch):
+    _reset_counters()
+    r = _client(role="user").get("/api/ai-search/admin/stats")
+    assert r.status_code == 403
+
+
+def test_admin_stats_reports_usage(monkeypatch):
+    _reset_counters()
+    calls = {"n": 0}
+
+    def fake(query, **kw):
+        calls["n"] += 1
+        # second call pretends to be a cache hit
+        return {"answer": "x", "citations": [], "related_questions": [],
+                "cached": calls["n"] == 2}
+
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    c = _client(user_id=7)
+    assert c.post("/api/ai-search", json={"query": "why is SMCI moving today"}).status_code == 200
+    assert c.post("/api/ai-search", json={"query": "why is SMCI moving today"}).status_code == 200
+    assert c.post("/api/ai-search", json={"query": "full breakdown of NVDA's thesis"}).status_code == 200
+
+    r = _client(role="admin").get("/api/ai-search/admin/stats")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["requests"] == 3
+    assert d["cache_hits"] == 1
+    assert d["cache_hit_rate"] == round(1 / 3, 3)
+    # sonar-pro default (2 fast requests) + one reasoning escalation
+    assert d["by_mode"] == {"fast": 2, "reasoning": 1}
+    # billed: 1 fast (other was cached) + reasoning at 2 units = 3
+    assert d["billed_units"] == 3
+    assert d["top_users"] == [{"user_id": 7, "units": 3}]
+    assert d["single_shot_requests"] == 3 and d["stream_requests"] == 0
 
 
 def test_global_budget_429(monkeypatch):
