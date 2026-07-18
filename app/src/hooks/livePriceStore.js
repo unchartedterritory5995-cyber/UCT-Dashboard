@@ -69,7 +69,16 @@ async function _poll() {
         if (!nv || typeof nv !== 'object') continue
         const price = Number(nv.price)
         if (!Number.isFinite(price) || price <= 0) continue // degraded → keep last-good
-        merged[sym] = nv
+        const prev = merged[sym]
+        // Preserve the after-hours "Post" price if this poll momentarily dropped it
+        // while nothing actually traded (identical price) — Massive intermittently
+        // omits lastTrade on the weekend / after hours. A real new session MOVES the
+        // price, so this never pins a stale ext once regular trading resumes.
+        if (prev && nv.ext_price == null && prev.ext_price != null && price === Number(prev.price)) {
+          merged[sym] = { ...nv, ext_price: prev.ext_price, ext_session: prev.ext_session }
+        } else {
+          merged[sym] = nv
+        }
       }
       _prices = merged
       _emit()

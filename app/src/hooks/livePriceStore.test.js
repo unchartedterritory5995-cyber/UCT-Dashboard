@@ -65,6 +65,27 @@ describe('livePriceStore', () => {
     expect(getSnapshot().MSFT).toEqual({ price: 20 })   // preserved
   })
 
+  it('preserves the after-hours ext price when a static-price poll drops it', async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ AAPL: { price: 100, ext_price: 101, ext_session: 'post' } }) }),
+    )
+    registerTickers(['AAPL'])
+    await flush()
+    expect(getSnapshot().AAPL.ext_price).toBe(101)
+    // Poll momentarily drops ext but the price is UNCHANGED → keep the last-good ext.
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ AAPL: { price: 100, ext_price: null, ext_session: null } }) }),
+    )
+    pollNow(); await flush()
+    expect(getSnapshot().AAPL.ext_price).toBe(101)     // preserved
+    // A poll where the price actually MOVED + no ext → real new activity → ext clears.
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ AAPL: { price: 105, ext_price: null, ext_session: null } }) }),
+    )
+    pollNow(); await flush()
+    expect(getSnapshot().AAPL.ext_price == null).toBe(true)  // cleared
+  })
+
   it('ref-counts: prices clear only when the last subscriber unregisters', async () => {
     const unA = registerTickers(['AAPL'])
     const unB = registerTickers(['AAPL'])
