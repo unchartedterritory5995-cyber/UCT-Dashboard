@@ -111,10 +111,23 @@ def test_flow_questions(client, t, phrase):
 # ── Category: setups / patterns ──────────────────────────────────────────────
 @pytest.mark.parametrize("t", TICKERS[:10])
 def test_setup_questions(client, t):
+    # A per-ticker setup question gets that ticker's pattern-engine detections,
+    # but NOT the market-wide scanner-candidates feed (that fires on "scanner /
+    # candidates / pullbacks", not "setup on X") — refined 2026-07-18 audit.
     c = ask(client, f"Is there a setup on {t} right now?")
     assert f"[PATTERNS:{t}]" in c["system"]
-    assert "[CANDIDATES]" in c["system"]             # scanner feed on 'setup'
+    assert "[CANDIDATES]" not in c["system"]
     assert c["recency"] == "day"                     # "right now"
+
+
+@pytest.mark.parametrize("q", [
+    "Any scanner candidates today?",
+    "Best pullback setups on the scan right now?",
+    "Any trade candidates on the scanner?",
+])
+def test_scanner_questions_get_candidates_feed(client, q):
+    c = ask(client, q)
+    assert "[CANDIDATES]" in c["system"], q
 
 
 # ── Category: comparison / peers → sonar-pro ────────────────────────────────

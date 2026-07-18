@@ -85,12 +85,31 @@ def _resolve_mode(mode: str) -> str:
     return m if m in _MODELS else "fast"
 
 
+def _effective_max_tokens(resolved_mode: str, max_tokens: int) -> int:
+    """Reasoning models spend a large token budget inside <think> before the
+    answer; a small cap (e.g. 700) gets fully consumed by reasoning and leaves
+    an EMPTY answer after the think block is stripped. Floor reasoning at 2200
+    so the real answer always survives."""
+    base = max(50, min(3000, int(max_tokens or 400)))
+    if resolved_mode == "reasoning":
+        return max(base, 2200)
+    return base
+
+
 def _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query, salt="") -> str:
     # Shared by web_search AND stream_search so a streamed answer warms the
-    # cache for later single-shot calls (and vice versa).
+    # cache for later single-shot calls (and vice versa). The system prompt +
+    # query are HASHED IN FULL (not truncated) — truncating query[:300]/
+    # system[:40] let two different long questions (or two different
+    # desk-grounding blocks) collide on one cache entry and serve the wrong
+    # answer.
+    import hashlib
+    digest = hashlib.md5(
+        f"{system or ''}\x00{query.lower()}".encode("utf-8", "ignore")
+    ).hexdigest()
     return (
         f"pplx::{model}::{recency_filter or 'any'}::{domain_pack}::"
-        f"{max_tokens}::{int(related)}::{(system or '')[:40]}::{salt}::{query.lower()[:300]}"
+        f"{max_tokens}::{int(related)}::{salt}::{digest}"
     )
 
 
@@ -168,7 +187,7 @@ def web_search(
     payload: dict[str, Any] = {
         "model": model,
         "messages": _build_messages(system or default_system, query, history),
-        "max_tokens": max(50, min(3000, int(max_tokens or 400))),
+        "max_tokens": _effective_max_tokens(resolved_mode, max_tokens),
     }
     if domains:
         payload["search_domain_filter"] = domains[:20]
@@ -207,6 +226,13 @@ def web_search(
         return {"answer": "", "citations": [], "error": "unexpected response",
                 "mode": resolved_mode, "model": model}
 
+    # An empty answer (all-<think> that consumed the budget, or a blank
+    # completion) must NOT be cached for the full TTL — return an error so the
+    # caller can fall back, and don't poison the cache with 30 min of blank.
+    if not answer:
+        return {"answer": "", "citations": [], "error": "empty answer",
+                "mode": resolved_mode, "model": model}
+
     raw_citations = data.get("citations") or []
     if not isinstance(raw_citations, list):
         raw_citations = []
@@ -230,12 +256,15 @@ def web_search(
     return result
 
 
-_THINK_RE = __import__("re").compile(r"<think>[\s\S]*?</think>\s*")
+# Match a think block whether or not it is closed — an UNTERMINATED <think>
+# (model ran out of tokens mid-reasoning) must still be stripped, never leaked.
+_THINK_RE = __import__("re").compile(r"<think>[\s\S]*?(?:</think>\s*|\Z)")
 
 
 def _strip_think(text: str) -> str:
     """sonar-reasoning models prefix answers with a <think>…</think> block —
-    internal monologue that must never reach users."""
+    internal monologue that must never reach users. Also strips an unclosed
+    block (reasoning that consumed the whole token budget)."""
     return _THINK_RE.sub("", text or "").strip()
 
 
@@ -329,7 +358,7 @@ async def stream_search(
     payload: dict[str, Any] = {
         "model": model,
         "messages": _build_messages(system or default_system, query, history),
-        "max_tokens": max(50, min(3000, int(max_tokens or 400))),
+        "max_tokens": _effective_max_tokens(resolved_mode, max_tokens),
         "stream": True,
     }
     if domains:

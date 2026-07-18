@@ -174,12 +174,24 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   // arrive. Returns 'done' | 'limit' | null (null → caller falls back to the
   // single-shot endpoint).
   const tryStream = useCallback(async (question) => {
-    const r = await fetch('/api/ai-search/stream', {
+    // One retry on a transient 5xx (Railway/Cloudflare blip) before falling
+    // back to the single-shot endpoint — the audit saw ~4% transient 502s
+    // under load that succeeded immediately on retry.
+    let r = await fetch('/api/ai-search/stream', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: question, history: historyRef.current }),
     })
+    if (r.status >= 502 && r.status <= 504) {
+      await new Promise((res) => setTimeout(res, 400))
+      r = await fetch('/api/ai-search/stream', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: question, history: historyRef.current }),
+      })
+    }
     if (r.status === 429) {
       const d = await r.json().catch(() => null)
       setLimitMsg(d?.detail || "You've hit today's research limit — it resets at midnight ET.")
@@ -235,12 +247,17 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       if (outcome === 'limit') { setQuery(question); return }
       if (outcome === 'done') return
 
-      const r = await fetch('/api/ai-search', {
+      const singleShot = () => fetch('/api/ai-search', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: question, history: historyRef.current }),
       })
+      let r = await singleShot()
+      if (r.status >= 502 && r.status <= 504) {   // retry once on a transient blip
+        await new Promise((res) => setTimeout(res, 400))
+        r = await singleShot()
+      }
       const d = await r.json().catch(() => null)
       if (r.status === 429) {
         setLimitMsg(d?.detail || "You've hit today's research limit — it resets at midnight ET.")

@@ -104,14 +104,19 @@ def _record_cache_hit() -> None:
         _stats["cache_hits"] += 1
 
 
-def _check_limits(user_id) -> None:
-    """Raise 429 if the user or the whole app is over budget for today."""
+def _roll_day_locked() -> None:
+    """Reset counters at the ET day boundary. Caller must hold _usage_lock."""
     global _usage_day, _usage_by_user, _usage_global, _stats
+    day = _et_day()
+    if day != _usage_day:
+        _usage_day, _usage_by_user, _usage_global = day, {}, 0
+        _stats = _fresh_stats()
+
+
+def _check_limits(user_id) -> None:
+    """Raise 429 if the user or the whole app is already over budget."""
     with _usage_lock:
-        day = _et_day()
-        if day != _usage_day:
-            _usage_day, _usage_by_user, _usage_global = day, {}, 0
-            _stats = _fresh_stats()
+        _roll_day_locked()
         if _usage_global >= _global_daily_limit():
             raise HTTPException(
                 status_code=429,
@@ -124,29 +129,72 @@ def _check_limits(user_id) -> None:
             )
 
 
-def _record_billed(user_id, units: int = 1) -> None:
+def _reserve(user_id, units: int) -> None:
+    """ATOMIC check-and-reserve: verify AND increment under ONE lock hold so
+    concurrent requests can't all pass a separate gate and blow the cap
+    (check-then-act race). Reserved BEFORE the upstream call commits, so a
+    client that disconnects mid-stream is still billed for the Perplexity spend.
+    Raise 429 if the reservation would exceed either limit."""
     global _usage_global
     with _usage_lock:
+        _roll_day_locked()
+        if _usage_global + units > _global_daily_limit():
+            raise HTTPException(
+                status_code=429,
+                detail="AI research is cooling down for the day — try again tomorrow.",
+            )
+        if _usage_by_user.get(user_id, 0) + units > _user_daily_limit():
+            raise HTTPException(
+                status_code=429,
+                detail="You've hit today's research limit — it resets at midnight ET.",
+            )
         _usage_by_user[user_id] = _usage_by_user.get(user_id, 0) + units
         _usage_global += units
+
+
+def _refund(user_id, units: int) -> None:
+    """Give back a reservation when the search turned out free (cache hit) or
+    failed (error/empty) — never bill for a non-answer."""
+    global _usage_global
+    with _usage_lock:
+        _usage_by_user[user_id] = max(0, _usage_by_user.get(user_id, 0) - units)
+        _usage_global = max(0, _usage_global - units)
+
+
+def _record_billed(user_id, units: int = 1) -> None:
+    # Retained for back-compat; new paths use _reserve/_refund.
+    _reserve(user_id, units)
 
 
 # ── Auto-recency: "what's moving TODAY" questions should search today's web,
 # not last month's articles. Perplexity's recency filter does exactly that;
 # infer it from the phrasing so members never have to think about it.
 # Fundamental/history questions match nothing and stay unfiltered.
-_RECENCY_DAY_RE = re.compile(
+# Unambiguous "today" markers — always day-recency regardless of ticker.
+_RECENCY_DAY_EXPLICIT = re.compile(
     r"\b(today|tonight|right now|premarket|pre-market|after[- ]hours|this morning"
-    r"|moving|mover|movers|gapping|halted|why is|why did)\b", re.I)
+    r"|moving(?!\s+average)|\bmovers?\b|gapp(?:ed|ing)|gaps?\s+(?:up|down)|halted)\b",
+    re.I)
+# "why is/did … <price verb>" is day-hot ONLY when a real ticker is named —
+# "why did NVDA crash" (day) vs "why did the 1987 crash happen" (evergreen).
+_WHY_MOVE_RE = re.compile(
+    r"\bwhy (?:is|did|are|has)\b[^?.!]{0,40}?"
+    r"\b(?:up|down|moving|gapp|dropp|fall|spik|surg|tank|rally|rip|dump|crash|sink"
+    r"|jump|pop|slid|plung|soar|sell|rall|bounce|break)", re.I)
 _RECENCY_WEEK_RE = re.compile(
-    r"\b(this week|latest|recent|recently|past few days|upgrades?|downgrades?"
+    r"\b(this week|latest|recent|recently|past few days"
+    # up/downgrades only in a ticker/analyst context, not general education
+    r"|(?:up|down)grades?\b[^?.!]{0,30}?\b(?:on|for|to)\b|analyst|price target"
     r"|news on)\b", re.I)
 
 
 def _auto_recency(q: str) -> str | None:
-    if _RECENCY_DAY_RE.search(q or ""):
+    q = q or ""
+    if _RECENCY_DAY_EXPLICIT.search(q):
         return "day"
-    if _RECENCY_WEEK_RE.search(q or ""):
+    if _WHY_MOVE_RE.search(q) and _extract_tickers(q):
+        return "day"
+    if _RECENCY_WEEK_RE.search(q):
         return "week"
     return None
 
@@ -157,8 +205,9 @@ def _auto_recency(q: str) -> str | None:
 # genuinely long questions) → sonar-pro, everything else stays on base sonar.
 # Reasoning costs ~2x, so it bills 2 quota units.
 _REASONING_RE = re.compile(
-    r"\b(analy[sz]e|deep dive|in[- ]depth|bull case|bear case|thesis|valuation"
-    r"|dcf|detailed (analysis|breakdown)|full breakdown|pros and cons)\b", re.I)
+    r"\b(analy(?:s[ei]s|[sz]e|[sz]ing)|deep dive|in[- ]depth|bull case|bear case"
+    r"|thesis|valuation|dcf|detailed (analysis|breakdown)|full breakdown"
+    r"|(?:full |deep )?break ?down of|pros and cons)\b", re.I)
 _FAST_RE = re.compile(
     r"\b(compare|comparison|versus|vs\.?|competitors?|comparables?|peers?"
     r"|outlook|forecast|guidance|rank(ed|ing)?|which (names|stocks)"
@@ -193,8 +242,21 @@ _TICKER_STOP = {
     "FOR", "GET", "HAS", "HOW", "IPO", "LOW", "NEW", "NOW", "OUT", "PE", "SEC",
     "THE", "TOP", "USD", "WAS", "WHO", "WHY", "YES", "YOY", "HIGH", "WHAT",
     "WEEK", "GOOD", "BEST", "NEXT", "LAST", "MOVE", "NAME", "LIST",
+    # Options / trading jargon that collide with real cap_universe tickers and
+    # would inject the WRONG company as authoritative desk context:
+    "PM", "AM", "MA", "DTE", "OI", "DD", "ES", "DOW", "EOD", "ATH", "ATL",
+    "IV", "RSI", "MACD", "VWAP", "ADR", "RS", "PT", "EOW", "EOM", "YTD", "GEX",
+    "OTM", "ITM", "ATM", "COT", "FOMC", "CPI", "GDP", "PCE", "QE", "SI", "FA",
+    "TA", "EV", "TAM", "YOLO", "HODL", "FUD", "DCA", "PA",
 }
 _UNI: set | None = None
+# A stop-listed symbol that IS a real ticker (NOW=ServiceNow, LOW=Lowe's,
+# HAS=Hasbro, ALL=Allstate, DD=DuPont, PM=Philip Morris, MA=Mastercard …) can
+# still be a genuine mention — extract it only on a STRONG ticker-position cue.
+_STRONG_TICKER_CUE = re.compile(
+    r"(?:\b(?:is|why is|why did|about|on|buy|sell|short|long|thoughts on|hold|own"
+    r"|trading|chart|setup on|flow on|price of)\s+)([A-Z]{1,5})\b"
+    r"|\b([A-Z]{1,5})\s+(?:stock|shares|calls?|puts?|earnings|chart)\b")
 
 
 def _universe() -> set:
@@ -209,14 +271,34 @@ def _universe() -> set:
 
 
 def _extract_tickers(query: str) -> list[str]:
+    """Tickers named in the query, in document order (order matters — the
+    grounding caps at the first 2-3 symbols).
+
+    - $CASHTAG (incl. class shares $BRK.B / $BRK-B) is always trusted; the
+      trailing (?![A-Za-z]) makes $NVIDIA match nothing rather than a fragment.
+    - bare UPPERCASE must be in cap_universe and not a stopword; a stop-listed
+      symbol that IS a real ticker (NOW/LOW/HAS…) needs a strong position cue.
+    """
+    q = query or ""
+    strong = {(a or b).upper() for a, b in _STRONG_TICKER_CUE.findall(q)}
+    uni = _universe()
     out: list[str] = []
-    for cash, bare in re.findall(r"\$([A-Za-z]{1,5})|\b([A-Z]{2,5})\b", query or ""):
-        sym = (cash or bare).upper()
+    # One left-to-right pass over BOTH forms so order = mention order.
+    for m in re.finditer(r"\$([A-Za-z]{1,5}(?:[.\-][A-Za-z])?)(?![A-Za-z])|\b([A-Z]{2,5})\b", q):
+        cash, bare = m.group(1), m.group(2)
+        if cash:
+            sym = cash.upper().replace("-", ".")
+            if sym not in out:
+                out.append(sym)
+            continue
+        sym = bare.upper()
         if sym in out:
             continue
-        if cash:                      # explicit $CASHTAG — always trusted
-            out.append(sym)
-        elif sym not in _TICKER_STOP and sym in _universe():
+        if sym in _TICKER_STOP:
+            if sym in strong and sym in uni:
+                out.append(sym)
+            continue
+        if sym in uni:
             out.append(sym)
     return out
 
@@ -378,10 +460,13 @@ def _ctx_flow_ticker(sym: str) -> str:
     return text
 
 
-# Flow context is an HTTP hop — fire it only when the phrasing asks about flow.
+# Flow context is an HTTP hop — fire it only when the phrasing asks about OPTIONS
+# flow, never on 'cash flow' / 'free cash flow' / 'news flow' (bare 'flow' would).
 _FLOW_RE = re.compile(
-    r"\b(options? flow|flow|sweeps?|unusual (options|activity)|whales?"
-    r"|call buying|put buying|smart money|big prints?|options? premium)\b", re.I)
+    r"\b(options? flow|sweeps?|unusual (options|activity)|whales?"
+    r"|call buying|put buying|smart money|big (?:options? )?prints?|options? premium"
+    r"|(?<!cash )(?<!news )(?<!order )(?<!fund )flow\b(?=\s+(?:on|for|in|say|said|look|is|was|today|right)))",
+    re.I)
 
 
 def _ctx_movers() -> str:
@@ -441,13 +526,15 @@ def _ctx_news() -> str:
 
 
 # (regex, provider name) — resolved via getattr at call time so tests can patch.
+# Each anchored to market-LEVEL phrasing so single-stock questions naming a
+# collision ticker (AMC, BMO, NOW…) don't pull an unrelated market feed.
 _INTENT_SPECS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"\b(movers?|gainers?|losers?|ripping|drilling|gapping|what'?s moving|biggest (moves?|movers?))\b", re.I), "_ctx_movers"),
-    (re.compile(r"\b(breadth|internals|market (health|condition)|advance|decline|new (highs?|lows?)|exposure)\b", re.I), "_ctx_breadth"),
-    (re.compile(r"\b(earnings (today|tonight|this week)|who reports?|reporting (today|tonight|this week)|\bbmo\b|\bamc\b)\b", re.I), "_ctx_earnings"),
-    (re.compile(r"\b(uct ?20|leadership (list|names|20)|(your|firm'?s) top (stocks|names|20))\b", re.I), "_ctx_uct20"),
-    (re.compile(r"\b(setups?|scanner|candidates?|pullbacks?|remounts?|watch ?list ideas)\b", re.I), "_ctx_candidates"),
-    (re.compile(r"\b(news|headlines?|tape|stories)\b", re.I), "_ctx_news"),
+    (re.compile(r"\b(movers?|gainers?|losers?|ripping|what'?s moving|gapp(?:ing|ers?)|gaps? (?:up|down)|biggest (moves?|movers?|gainers?|losers?))\b", re.I), "_ctx_movers"),
+    (re.compile(r"\b(advance[- ]decline|advancers?|decliners?|market breadth|breadth|market internals|internals|new (highs?|lows?)|market (health|conditions?)|net exposure|market exposure)\b", re.I), "_ctx_breadth"),
+    (re.compile(r"\b(earnings (today|tonight|this week)|who(?:'?s| is| are)? reporting|who reports?|reporting (today|tonight|this week)|(?:reporting|earnings)\s+(?:bmo|amc)|\b(?:bmo|amc)\b(?=[^a-z]*\b(?:earnings|reports?|reporters?|tonight|today)\b))", re.I), "_ctx_earnings"),
+    (re.compile(r"\b(uct ?20|leadership (list|names|20)|(?:your|firm'?s|the firm'?s|uct) top (stocks|names|picks|ideas|20))\b", re.I), "_ctx_uct20"),
+    (re.compile(r"\b(scanner|(?:trade|long|buy|swing) candidates?|setups? (?:today|on watch|on the scan)|pullbacks?|remounts?|watch ?list ideas|on the scan)\b", re.I), "_ctx_candidates"),
+    (re.compile(r"\b(headlines?|the tape|top stories|market news|news (?:today|this morning|before the open))\b", re.I), "_ctx_news"),
 ]
 
 _CTX_BUDGET = 2000   # chars — keep grounding a supplement, not a payload
@@ -601,28 +688,36 @@ def _history_salt(salt: str, history: list[dict]) -> str:
 @router.post("")
 def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
     user_id = user.get("id")
-    _check_limits(user_id)
+    if not (body.query or "").strip():
+        raise HTTPException(status_code=422, detail="Empty question.")
     mode = _auto_mode(body.query, body.mode)
+    units = _billing_units(mode)
+    _reserve(user_id, units)   # atomic check-and-reserve BEFORE the upstream call
     _record_request(mode, stream=False)
     history = _clean_history(body.history)
     system, salt = _grounded_system(body.query)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
-    result = perplexity_search.web_search(
-        body.query,
-        max_tokens=700,
-        system=system,
-        mode=mode,
-        domain_pack="finance",
-        recency=_auto_recency(body.query),
-        related=True,   # Perplexity returns 3-4 related follow-up questions
-        cache_salt=salt,
-        history=history,
-    )
-    # Cached answers cost nothing — only bill the quota for live searches.
+
+    def _search(m):
+        return perplexity_search.web_search(
+            body.query, max_tokens=700, system=system, mode=m, domain_pack="finance",
+            recency=_auto_recency(body.query), related=True, cache_salt=salt, history=history,
+        )
+
+    result = _search(mode)
+    effective_units = units
+    # Reasoning came back empty (budget consumed by <think>) → fall back to
+    # sonar-pro so a member never sees a blank answer; bill the fast tier only.
+    if mode == "reasoning" and not result.get("answer"):
+        result = _search("fast")
+        effective_units = _billing_units("fast")
+    # Reconcile the reservation with what actually happened.
     if result.get("cached"):
-        _record_cache_hit()
-    else:
-        _record_billed(user_id, _billing_units(mode))
+        _refund(user_id, units); _record_cache_hit()
+    elif not result.get("answer") or result.get("error"):
+        _refund(user_id, units)   # never bill a failed/empty search
+    elif effective_units != units:
+        _refund(user_id, units - effective_units)   # keep only the fast unit
     return result
 
 
@@ -634,33 +729,50 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     opens). The path must stay in main.py's _is_gzip_exempt list or GZip
     buffers the whole stream and no tokens ever reach the client."""
     user_id = user.get("id")
-    _check_limits(user_id)
+    if not (body.query or "").strip():
+        raise HTTPException(status_code=422, detail="Empty question.")
     mode = _auto_mode(body.query, body.mode)
+    units = _billing_units(mode)
+    _reserve(user_id, units)   # reserve BEFORE opening the stream (bill even if client disconnects)
     _record_request(mode, stream=True)
     history = _clean_history(body.history)
     system, salt = _grounded_system(body.query)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
 
     async def gen():
-        billed = False
-        async for ev in perplexity_search.stream_search(
-            body.query,
-            max_tokens=700,
-            system=system,
-            mode=mode,
-            domain_pack="finance",
-            recency=_auto_recency(body.query),
-            related=True,
-            cache_salt=salt,
-            history=history,
-        ):
-            if ev.get("type") == "final" and not billed:
-                if ev.get("cached"):
-                    _record_cache_hit()
-                else:
-                    _record_billed(user_id, _billing_units(mode))
-                billed = True
-            yield f"data: {json.dumps(ev)}\n\n"
+        settled = False
+        got_answer = False
+        try:
+            async for ev in perplexity_search.stream_search(
+                body.query, max_tokens=700, system=system, mode=mode, domain_pack="finance",
+                recency=_auto_recency(body.query), related=True, cache_salt=salt, history=history,
+            ):
+                t = ev.get("type")
+                if t == "delta" and ev.get("text"):
+                    got_answer = True
+                if t == "final" and not settled:
+                    settled = True   # keep the reservation for a real answer
+                    if ev.get("cached"):
+                        _refund(user_id, units); _record_cache_hit()
+                elif t == "error" and not settled:
+                    settled = True
+                    _refund(user_id, units)   # upstream failed — give the reservation back
+                    # Reasoning tier failed/empty → one-shot fall back to sonar-pro so the
+                    # member gets a real answer instead of an error.
+                    if mode == "reasoning" and not got_answer:
+                        fb = perplexity_search.web_search(
+                            body.query, max_tokens=700, system=system, mode="fast",
+                            domain_pack="finance", recency=_auto_recency(body.query),
+                            related=True, cache_salt=salt, history=history)
+                        if fb.get("answer"):
+                            if not fb.get("cached"):
+                                _reserve(user_id, 1)
+                            yield f"data: {json.dumps({'type':'final', **fb})}\n\n"
+                            continue
+                yield f"data: {json.dumps(ev)}\n\n"
+        finally:
+            if not settled:
+                _refund(user_id, units)   # generator cancelled before any final/error
 
     return StreamingResponse(
         gen(),
