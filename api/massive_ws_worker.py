@@ -403,20 +403,46 @@ def _apply_reclassifications(updates: list) -> int:
 
 def _classify_side(trade_price: float, nbbo: tuple) -> str:
     """
-    Lee-Ready trade classification using NBBO.
+    Quote-rule (midpoint) trade classification using NBBO.
 
     nbbo: (bid, ask, ts_ms) tuple, or None if no quote data.
 
     Returns BBS-format Side string:
-        "AA": price strictly above ask (super aggressive buyer)
-        "A":  price at ask (aggressive buyer)
-        "B":  price at bid (aggressive seller)
-        "BB": price strictly below bid (super aggressive seller)
-        "":   price at mid (no clear aggressor) OR no NBBO available
+        "AA": price strictly above the ask   (super-aggressive buyer)
+        "A":  price in the upper half of the book, at or below ask (buyer)
+        "B":  price in the lower half of the book, at or above bid (seller)
+        "BB": price strictly below the bid   (super-aggressive seller)
+        "":   no usable NBBO, OR price exactly at the midpoint (see below)
 
-    Tolerance: 0.5 cent for "at" classification, since aggregated burst
-    avg prices may drift slightly from the NBBO quote due to multi-exchange
-    variance and the time between the trade and the most recent quote.
+    2026-07-18 — MIDPOINT SPLIT. Was a +/-0.5c touch rule: A/B only if the
+    fill was within half a cent of the quote, everything else "" (mid). On
+    penny-wide books that's fine; on wide books it dumped a third to two
+    thirds of prints into mid. Measured live mid-rate was 35-66%. BOTH
+    reference services we benchmark against classify by which half of the
+    NBBO the fill sits in and produce ~0% mid:
+      - BlackBox (BBS) 7/16 export: 0 mid across 48,830 prints.
+      - Unusual Whales, per their own doc: "at or closer to the bid -> BID;
+        at or closer to the ask -> ASK; exactly at MID -> MID."
+    On the AAPL 335P set this rule went 6/9 -> 9/9 vs the BBS reference and
+    removed all three spurious mids. The AA/BB extremes (fill beyond the
+    touch) are kept — they're the "super-aggressive" signal both services
+    surface and they don't depend on tolerance.
+
+    EXACT MIDPOINT returns "" (same as no-NBBO), NOT a "MID" token. Callers
+    test `if side:` and treat "" as "couldn't classify, leave the row as-is".
+    A literal "MID" would need matching handling in the JSX side parser
+    (OptionsFlow.jsx ~1227 only knows A/AA/B/BB), and exact float-equality at
+    the midpoint is vanishingly rare on real fills — so the residual case
+    isn't worth a new downstream token. The wide mid dead-zone this change
+    removes is gone regardless. To add a real MID bucket later, change it
+    here AND in the JSX parser together.
+
+    NOT handled here (needs condition codes, which live on RawTrade, not on
+    the aggregated event this sees): cross / modified-nullified / late trades,
+    which both services route to a NONE bucket. That is a separate change in
+    the aggregation path (thread RawTrade.conditions up to AggEvent, map the
+    cross/late OPRA codes to side_method="none"). Filed as follow-up so this
+    rule fix stays self-contained.
     """
     if not nbbo:
         return ""
@@ -424,15 +450,29 @@ def _classify_side(trade_price: float, nbbo: tuple) -> str:
     if bid <= 0 or ask <= 0 or ask < bid:
         return ""
     tol = 0.005
+    # Extremes first: a fill beyond the touch is unambiguous regardless of
+    # where the midpoint sits.
     if trade_price > ask + tol:
         return "AA"
-    if trade_price >= ask - tol:
-        return "A"
     if trade_price < bid - tol:
         return "BB"
-    if trade_price <= bid + tol:
+    # Everything inside [bid-tol, ask+tol] splits at the midpoint — the half
+    # of the book the fill is closer to. This is the change: no wide "mid"
+    # dead-zone, matching BBS and Unusual Whales.
+    mid = (bid + ask) / 2.0
+    if trade_price > mid:
+        return "A"
+    if trade_price < mid:
         return "B"
-    return ""  # mid-market
+    # Exactly at the midpoint. Returned "" (same as no-NBBO) rather than a
+    # "MID" token on purpose: the frontend side parser only knows A/AA/B/BB,
+    # so a literal "MID" would fall through unhandled, and exact float-equality
+    # at the midpoint is vanishingly rare on real fills (0 of the verified
+    # prints). The wide "mid dead-zone" this change was written to remove is
+    # gone regardless; this residual case isn't worth a new downstream token.
+    # If a true MID bucket is ever wanted, add it here AND in the JSX parser
+    # (OptionsFlow.jsx ~line 1227) together.
+    return ""
 
 
 def _reconstruct_occ_symbol(root: str, expiry, cp: str, strike: float) -> str:
