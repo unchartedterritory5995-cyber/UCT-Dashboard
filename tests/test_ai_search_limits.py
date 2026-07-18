@@ -124,6 +124,83 @@ def test_stream_respects_daily_cap(monkeypatch):
     assert c.post("/api/ai-search/stream", json={"query": "b"}).status_code == 429
 
 
+def test_auto_mode_escalation():
+    # explicit client mode is respected
+    assert ai._auto_mode("anything", "reasoning") == "reasoning"
+    assert ai._auto_mode("anything", "fast") == "fast"
+    # deep-analysis phrasing → reasoning
+    assert ai._auto_mode("Give me the bull case and bear case for NVDA", "lite") == "reasoning"
+    assert ai._auto_mode("analyze COHR's valuation", "lite") == "reasoning"
+    # comparison / list / outlook phrasing → fast
+    assert ai._auto_mode("compare AMD versus NVDA", "lite") == "fast"
+    assert ai._auto_mode("who are COHR's closest competitors", "lite") == "fast"
+    # long questions → fast
+    long_q = " ".join(["word"] * 20)
+    assert ai._auto_mode(long_q, "lite") == "fast"
+    # simple factual → lite
+    assert ai._auto_mode("why is SMCI moving today", "lite") == "lite"
+
+
+def test_reasoning_bills_two_units(monkeypatch):
+    _reset_counters()
+    captured = {}
+
+    def fake(query, **kw):
+        captured.update(kw)
+        return {"answer": "x", "citations": [], "related_questions": [], "cached": False}
+
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    r = _client().post("/api/ai-search", json={"query": "full breakdown of NVDA's thesis"})
+    assert r.status_code == 200
+    assert captured["mode"] == "reasoning"
+    assert ai._usage_global == 2
+
+
+def test_grounding_injects_desk_context(monkeypatch):
+    _reset_counters()
+    captured = {}
+
+    def fake(query, **kw):
+        captured.update(kw)
+        return {"answer": "x", "citations": [], "related_questions": [], "cached": False}
+
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend", "confidence": 0.8})
+    monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 743.2, "direction": "up", "abs_pct": 1.4})
+    monkeypatch.setattr(ai, "_UNI", {"NVDA", "SMCI"})
+    r = _client().post("/api/ai-search", json={"query": "what do you think of NVDA here"})
+    assert r.status_code == 200
+    assert "UCT DESK CONTEXT" in captured["system"]
+    assert "bull_trend" in captured["system"]
+    assert "NVDA: last $743.2" in captured["system"]
+    assert captured["cache_salt"] == "bull_trend|NVDA"
+
+
+def test_grounding_absent_without_signal(monkeypatch):
+    _reset_counters()
+    captured = {}
+
+    def fake(query, **kw):
+        captured.update(kw)
+        return {"answer": "x", "citations": [], "related_questions": [], "cached": False}
+
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    monkeypatch.setattr(ai, "_regime_provider", lambda: {})
+    monkeypatch.setattr(ai, "_UNI", set())
+    r = _client().post("/api/ai-search", json={"query": "what happened in the market"})
+    assert r.status_code == 200
+    assert "UCT DESK CONTEXT" not in captured["system"]
+    assert captured["cache_salt"] == ""
+
+
+def test_ticker_extraction_filters_noise(monkeypatch):
+    monkeypatch.setattr(ai, "_UNI", {"NVDA", "COHR", "ALL"})
+    # bare uppercase must be in universe and not a stopword; cashtags always pass
+    assert ai._extract_tickers("what do you think of NVDA and $smci") == ["NVDA", "SMCI"]
+    assert ai._extract_tickers("IS ALL OF THE MARKET UP") == []   # ALL is stopworded
+    assert ai._extract_tickers("why did COHR beat") == ["COHR"]
+
+
 def test_auto_recency_heuristic():
     assert ai._auto_recency("Why is SMCI moving today?") == "day"
     assert ai._auto_recency("biggest premarket movers") == "day"

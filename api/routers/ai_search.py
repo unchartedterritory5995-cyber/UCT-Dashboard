@@ -94,11 +94,11 @@ def _check_limits(user_id) -> None:
             )
 
 
-def _record_billed(user_id) -> None:
+def _record_billed(user_id, units: int = 1) -> None:
     global _usage_global
     with _usage_lock:
-        _usage_by_user[user_id] = _usage_by_user.get(user_id, 0) + 1
-        _usage_global += 1
+        _usage_by_user[user_id] = _usage_by_user.get(user_id, 0) + units
+        _usage_global += units
 
 
 # ── Auto-recency: "what's moving TODAY" questions should search today's web,
@@ -121,6 +121,126 @@ def _auto_recency(q: str) -> str | None:
     return None
 
 
+# ── Mode escalation: harder questions deserve a stronger model. An explicit
+# client mode ("fast"/"reasoning") is respected; otherwise route by phrasing —
+# deep-analysis asks → sonar-reasoning-pro, comparison/list/outlook asks (or
+# genuinely long questions) → sonar-pro, everything else stays on base sonar.
+# Reasoning costs ~2x, so it bills 2 quota units.
+_REASONING_RE = re.compile(
+    r"\b(analy[sz]e|deep dive|in[- ]depth|bull case|bear case|thesis|valuation"
+    r"|dcf|detailed (analysis|breakdown)|full breakdown|pros and cons)\b", re.I)
+_FAST_RE = re.compile(
+    r"\b(compare|comparison|versus|vs\.?|competitors?|comparables?|peers?"
+    r"|outlook|forecast|guidance|rank(ed|ing)?|which (names|stocks)"
+    r"|best .{0,20}(stocks|names|plays)|sympathy)\b", re.I)
+
+
+def _auto_mode(query: str, client_mode: str) -> str:
+    if client_mode in ("fast", "reasoning"):
+        return client_mode
+    q = query or ""
+    if _REASONING_RE.search(q):
+        return "reasoning"
+    if _FAST_RE.search(q) or len(q.split()) > 18:
+        return "fast"
+    return "lite"
+
+
+def _billing_units(mode: str) -> int:
+    return 2 if mode == "reasoning" else 1
+
+
+# ── UCT grounding: inject the desk's own numbers (regime + live quotes for
+# tickers named in the question) into the system prompt, so answers carry data
+# Perplexity can't see. Every piece is a cached internal read (regime 15-min,
+# snapshots 15s) — best-effort, never blocks or fails the search.
+_TICKER_STOP = {
+    "A", "I", "AI", "AN", "AT", "BE", "BY", "DO", "GO", "IF", "IN", "IS", "IT",
+    "ME", "MY", "NO", "OF", "OK", "ON", "OR", "SO", "TO", "UP", "US", "WE",
+    "ALL", "AND", "ANY", "ARE", "BIG", "CAN", "CEO", "CFO", "DID", "EPS", "ETF",
+    "FOR", "GET", "HAS", "HOW", "IPO", "LOW", "NEW", "NOW", "OUT", "PE", "SEC",
+    "THE", "TOP", "USD", "WAS", "WHO", "WHY", "YES", "YOY", "HIGH", "WHAT",
+    "WEEK", "GOOD", "BEST", "NEXT", "LAST", "MOVE", "NAME", "LIST",
+}
+_UNI: set | None = None
+
+
+def _universe() -> set:
+    global _UNI
+    if _UNI is None:
+        try:
+            from api.routers.ticker_search import _UNIVERSE
+            _UNI = set(_UNIVERSE)
+        except Exception:
+            _UNI = set()
+    return _UNI
+
+
+def _extract_tickers(query: str) -> list[str]:
+    out: list[str] = []
+    for cash, bare in re.findall(r"\$([A-Za-z]{1,5})|\b([A-Z]{2,5})\b", query or ""):
+        sym = (cash or bare).upper()
+        if sym in out:
+            continue
+        if cash:                      # explicit $CASHTAG — always trusted
+            out.append(sym)
+        elif sym not in _TICKER_STOP and sym in _universe():
+            out.append(sym)
+    return out
+
+
+def _regime_provider() -> dict:
+    from api.services.voice_tool_impls import _get_regime
+    return _get_regime() or {}
+
+
+def _quote_provider(sym: str) -> dict:
+    from api.services.voice_tool_impls import _get_quote
+    return _get_quote(sym) or {}
+
+
+def _uct_context(query: str) -> tuple[str, str]:
+    """Returns (context_text, cache_salt). Both empty when nothing useful."""
+    parts: list[str] = []
+    salt_bits: list[str] = []
+    try:
+        rg = _regime_provider()
+        label = rg.get("regime") or rg.get("label")
+        if label:
+            conf = rg.get("confidence")
+            parts.append(f"Market regime: {label}" + (f" (confidence {conf})" if conf else ""))
+            salt_bits.append(str(label))
+    except Exception:
+        pass
+    syms = _extract_tickers(query)[:2]
+    for s in syms:
+        try:
+            q = _quote_provider(s)
+            if q.get("last"):
+                parts.append(f"{s}: last ${q['last']}, {q.get('direction', 'flat')} {q.get('abs_pct', 0)}% today")
+        except Exception:
+            pass
+    salt_bits.extend(syms)
+    if not parts:
+        return "", ""
+    # Salt excludes the live price on purpose: a cached answer may carry a
+    # price up to one cache-TTL stale (same staleness class as the web data
+    # itself); salting on every tick would defeat the cache entirely.
+    return "; ".join(parts), "|".join(salt_bits)
+
+
+def _grounded_system(query: str) -> tuple[str, str]:
+    ctx, salt = _uct_context(query)
+    if not ctx:
+        return _WIDGET_SYSTEM, ""
+    return (
+        _WIDGET_SYSTEM
+        + "\n\nUCT DESK CONTEXT (internal desk data — authoritative for price, "
+          "percent move, and market regime; prefer these figures over web "
+          "sources and attribute them to 'UCT desk data'): " + ctx
+    ), salt
+
+
 class AiSearchIn(BaseModel):
     query: str
     # Cheapest tier by default while we test (base "sonar"). "fast" (sonar-pro) and
@@ -128,26 +248,25 @@ class AiSearchIn(BaseModel):
     mode: str = "lite"
 
 
-def _resolve_widget_mode(mode: str) -> str:
-    return mode if mode in ("lite", "fast", "reasoning") else "lite"
-
-
 @router.post("")
 def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
     user_id = user.get("id")
     _check_limits(user_id)
+    mode = _auto_mode(body.query, body.mode)
+    system, salt = _grounded_system(body.query)
     result = perplexity_search.web_search(
         body.query,
         max_tokens=700,
-        system=_WIDGET_SYSTEM,
-        mode=_resolve_widget_mode(body.mode),
+        system=system,
+        mode=mode,
         domain_pack="finance",
         recency=_auto_recency(body.query),
         related=True,   # Perplexity returns 3-4 related follow-up questions
+        cache_salt=salt,
     )
     # Cached answers cost nothing — only bill the quota for live searches.
     if not result.get("cached"):
-        _record_billed(user_id)
+        _record_billed(user_id, _billing_units(mode))
     return result
 
 
@@ -160,20 +279,23 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     buffers the whole stream and no tokens ever reach the client."""
     user_id = user.get("id")
     _check_limits(user_id)
+    mode = _auto_mode(body.query, body.mode)
+    system, salt = _grounded_system(body.query)
 
     async def gen():
         billed = False
         async for ev in perplexity_search.stream_search(
             body.query,
             max_tokens=700,
-            system=_WIDGET_SYSTEM,
-            mode=_resolve_widget_mode(body.mode),
+            system=system,
+            mode=mode,
             domain_pack="finance",
             recency=_auto_recency(body.query),
             related=True,
+            cache_salt=salt,
         ):
             if ev.get("type") == "final" and not ev.get("cached") and not billed:
-                _record_billed(user_id)
+                _record_billed(user_id, _billing_units(mode))
                 billed = True
             yield f"data: {json.dumps(ev)}\n\n"
 

@@ -85,12 +85,12 @@ def _resolve_mode(mode: str) -> str:
     return m if m in _MODELS else "fast"
 
 
-def _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query) -> str:
+def _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query, salt="") -> str:
     # Shared by web_search AND stream_search so a streamed answer warms the
     # cache for later single-shot calls (and vice versa).
     return (
         f"pplx::{model}::{recency_filter or 'any'}::{domain_pack}::"
-        f"{max_tokens}::{int(related)}::{(system or '')[:40]}::{query.lower()[:300]}"
+        f"{max_tokens}::{int(related)}::{(system or '')[:40]}::{salt}::{query.lower()[:300]}"
     )
 
 
@@ -103,6 +103,7 @@ def web_search(
     domain_pack: str = "general",
     domains: list[str] | None = None,
     related: bool = False,
+    cache_salt: str = "",
 ) -> dict[str, Any]:
     """Synthesized web answer with citations.
 
@@ -136,7 +137,7 @@ def web_search(
     recency_filter = recency if recency in _RECENCY_VALUES else None
 
     # Cache key incorporates everything that affects the answer
-    cache_key = _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query)
+    cache_key = _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query, cache_salt)
     cached = _SEARCH_CACHE.get(cache_key)
     if cached is not None:
         out = dict(cached)
@@ -187,7 +188,8 @@ def web_search(
                 "mode": resolved_mode, "model": model}
 
     try:
-        answer = data["choices"][0]["message"]["content"].strip()
+        # sonar-reasoning models prefix a <think> block — never user-facing.
+        answer = _strip_think(data["choices"][0]["message"]["content"])
     except (KeyError, IndexError, TypeError) as e:
         _log.warning("perplexity unexpected response shape: %s", e)
         return {"answer": "", "citations": [], "error": "unexpected response",
@@ -216,6 +218,56 @@ def web_search(
     return result
 
 
+_THINK_RE = __import__("re").compile(r"<think>[\s\S]*?</think>\s*")
+
+
+def _strip_think(text: str) -> str:
+    """sonar-reasoning models prefix answers with a <think>…</think> block —
+    internal monologue that must never reach users."""
+    return _THINK_RE.sub("", text or "").strip()
+
+
+class _ThinkFilter:
+    """Streaming twin of _strip_think: feed() raw deltas, get back only text
+    that is confirmed OUTSIDE think blocks (holds a small tail so tags split
+    across chunk boundaries can't leak). flush() releases the held tail."""
+
+    OPEN, CLOSE = "<think>", "</think>"
+
+    def __init__(self) -> None:
+        self._buf = ""
+        self._in_think = False
+
+    def feed(self, text: str) -> str:
+        self._buf += text
+        out: list[str] = []
+        while True:
+            if self._in_think:
+                i = self._buf.find(self.CLOSE)
+                if i < 0:
+                    # discard confirmed think content, keep a possible partial closer
+                    self._buf = self._buf[-(len(self.CLOSE) - 1):]
+                    return "".join(out)
+                self._buf = self._buf[i + len(self.CLOSE):].lstrip("\n")
+                self._in_think = False
+            else:
+                i = self._buf.find(self.OPEN)
+                if i < 0:
+                    safe = len(self._buf) - (len(self.OPEN) - 1)
+                    if safe > 0:
+                        out.append(self._buf[:safe])
+                        self._buf = self._buf[safe:]
+                    return "".join(out)
+                out.append(self._buf[:i])
+                self._buf = self._buf[i + len(self.OPEN):]
+                self._in_think = True
+
+    def flush(self) -> str:
+        out = "" if self._in_think else self._buf
+        self._buf = ""
+        return out
+
+
 async def stream_search(
     query: str,
     max_tokens: int = 400,
@@ -225,6 +277,7 @@ async def stream_search(
     domain_pack: str = "finance",
     recency: str | None = None,
     related: bool = False,
+    cache_salt: str = "",
 ) -> AsyncIterator[dict[str, Any]]:
     """Streaming twin of web_search().
 
@@ -246,7 +299,7 @@ async def stream_search(
         domains = _FINANCE_DOMAINS
     recency_filter = recency if recency in _RECENCY_VALUES else None
 
-    cache_key = _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query)
+    cache_key = _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query, cache_salt)
     cached = _SEARCH_CACHE.get(cache_key)
     if cached is not None:
         out = dict(cached)
@@ -279,6 +332,7 @@ async def stream_search(
     answer_parts: list[str] = []
     citations: list[str] = []
     related_questions: list[str] = []
+    think = _ThinkFilter()
     t0 = time.time()
     try:
         import httpx
@@ -319,13 +373,18 @@ async def stream_search(
                         delta = ""
                     if delta:
                         answer_parts.append(delta)
-                        yield {"type": "delta", "text": delta}
+                        visible = think.feed(delta)
+                        if visible:
+                            yield {"type": "delta", "text": visible}
     except Exception as e:  # timeout / network / protocol — caller falls back
         _log.warning("perplexity stream failed: %s", e)
         yield {"type": "error", "error": "stream failed"}
         return
 
-    answer = "".join(answer_parts).strip()
+    tail = think.flush()
+    if tail:
+        yield {"type": "delta", "text": tail}
+    answer = _strip_think("".join(answer_parts))
     if not answer:
         yield {"type": "error", "error": "no answer"}
         return

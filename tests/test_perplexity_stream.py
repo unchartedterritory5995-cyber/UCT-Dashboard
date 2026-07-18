@@ -57,7 +57,11 @@ def test_stream_search_parses_sse_and_caches(monkeypatch):
     ]
     monkeypatch.setitem(sys.modules, "httpx", _fake_httpx(lines))
     events = _collect(pplx.stream_search("nvda today TESTQ1", mode="lite", related=True))
-    assert [e["type"] for e in events] == ["delta", "delta", "final"]
+    # chunk boundaries are an implementation detail (the think-filter may hold
+    # back a small tail) — assert the concatenated text and the event ordering.
+    assert events[-1]["type"] == "final"
+    deltas = "".join(e["text"] for e in events[:-1] if e["type"] == "delta")
+    assert deltas == "NVDA is up 4%."
     final = events[-1]
     assert final["answer"] == "NVDA is up 4%."
     assert final["citations"] == ["https://a.com/x"]
@@ -75,3 +79,48 @@ def test_stream_search_empty_answer_yields_error(monkeypatch):
     monkeypatch.setitem(sys.modules, "httpx", _fake_httpx(["data: [DONE]"]))
     events = _collect(pplx.stream_search("empty TESTQ2", mode="lite"))
     assert events[-1]["type"] == "error"
+
+
+def test_cache_salt_separates_entries():
+    base = pplx._cache_key("m", None, "finance", 700, True, "sys", "q")
+    salted = pplx._cache_key("m", None, "finance", 700, True, "sys", "q", salt="GREEN|NVDA")
+    assert base != salted
+
+
+def test_think_filter_strips_across_chunk_boundaries():
+    f = pplx._ThinkFilter()
+    out = ""
+    # tags split across chunks — nothing inside <think> may leak
+    for chunk in ["<th", "ink>secret reasoning", " continues</thi", "nk>The real", " answer[1]."]:
+        out += f.feed(chunk)
+    out += f.flush()
+    assert out == "The real answer[1]."
+    assert "secret" not in out
+
+
+def test_think_filter_passthrough_without_tags():
+    f = pplx._ThinkFilter()
+    out = f.feed("Plain answer ") + f.feed("with no tags.") + f.flush()
+    assert out == "Plain answer with no tags."
+
+
+def test_strip_think_final():
+    assert pplx._strip_think("<think>internal</think>\nAnswer.") == "Answer."
+    assert pplx._strip_think("Answer.") == "Answer."
+
+
+def test_stream_search_filters_think_from_reasoning_stream(monkeypatch):
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "test-key")
+    lines = [
+        'data: {"choices":[{"delta":{"content":"<think>let me reason"}}]}',
+        'data: {"choices":[{"delta":{"content":" about this</think>NVDA "}}]}',
+        'data: {"choices":[{"delta":{"content":"is up."}}]}',
+        "data: [DONE]",
+    ]
+    monkeypatch.setitem(sys.modules, "httpx", _fake_httpx(lines))
+    events = _collect(pplx.stream_search("reasoning TESTQ3", mode="lite"))
+    deltas = "".join(e["text"] for e in events if e["type"] == "delta")
+    assert "reason" not in deltas
+    assert "NVDA is up." in deltas
+    assert events[-1]["type"] == "final"
+    assert events[-1]["answer"] == "NVDA is up."
