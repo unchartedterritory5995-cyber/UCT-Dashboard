@@ -58,6 +58,7 @@ export function makeDefaultState() {
     ],
     syncCrosshair: false,
     syncTimeRange: false,
+    groupsMode: false,
     group: null,
   }
 }
@@ -111,6 +112,7 @@ export function sanitizeState(raw) {
     cells: reconcileCells(cells, layout.cellCount),
     syncCrosshair: raw.syncCrosshair === true,
     syncTimeRange: raw.syncTimeRange === true,
+    groupsMode: raw.groupsMode === true,
     group: sanitizeGroup(raw.group),
   }
 }

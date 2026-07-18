@@ -100,4 +100,11 @@ describe('gridLayouts', () => {
     const none = sanitizeState({ layout: '2x2', cells: [] })
     expect(none.group).toBeNull()
   })
+
+  it('sanitizeState carries groupsMode; defaults false', () => {
+    expect(sanitizeState({ layout: '2x2', cells: [], groupsMode: true }).groupsMode).toBe(true)
+    expect(sanitizeState({ layout: '2x2', cells: [], groupsMode: 'yes' }).groupsMode).toBe(false)
+    expect(sanitizeState({ layout: '2x2', cells: [] }).groupsMode).toBe(false)
+    expect(makeDefaultState().groupsMode).toBe(false)
+  })
 })
