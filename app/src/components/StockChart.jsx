@@ -6869,7 +6869,7 @@ export default function StockChart({
     // Clear on the next frame — mirrors the crosshair applier's rAF release, so
     // the subscribeVisibleTimeRangeChange fired by setVisibleRange is swallowed.
     const raf = requestAnimationFrame(() => { applyingExternalRangeRef.current = false })
-    return () => cancelAnimationFrame(raf)
+    return () => { cancelAnimationFrame(raf); applyingExternalRangeRef.current = false }
   }, [externalTimeRange])
 
   // ── Multi-chart sync: render external crosshair from parent (Task 5 Step 5) ──
