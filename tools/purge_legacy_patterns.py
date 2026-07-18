@@ -63,11 +63,12 @@ def main() -> int:
                 n = conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
                 print(f"  {t}: {n} rows", flush=True)
             else:
-                print(f"  {t}: dropping…", flush=True)
-                t0 = time.monotonic()
-                conn.execute(f"DROP TABLE {t}")
-                conn.commit()
-                print(f"  {t}: DROPPED in {time.monotonic()-t0:.0f}s", flush=True)
+                # Presence report ONLY — the actual DROP happens on the
+                # heartbeated worker thread below. A synchronous DROP here is
+                # silent for 10+ minutes on the 15 GB table, the railway-ssh
+                # websocket dies, and the transaction rolls back (runs 1-4
+                # ALL died at exactly this line).
+                print(f"  {t}: present — will drop on the worker thread", flush=True)
         if dry:
             print(f"\nDRY RUN — auth.db is {size_before/1e9:.1f} GB. "
                   f"Re-run with --yes to drop + VACUUM.", flush=True)
