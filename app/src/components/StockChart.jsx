@@ -35,6 +35,7 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
+import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
 // Beyond this, a Massive bar tick is considered stale and the legend falls back
 // to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
 const LIVE_TICK_FRESH_MS = 6000
@@ -1584,6 +1585,14 @@ export default function StockChart({
   // True while we're applying an externally-synced crosshair, so the resulting
   // (point-less) crosshair event doesn't echo a clear back to the sync bus.
   const applyingExternalRef = useRef(false)
+  // Same pattern as applyingExternalRef, but for the time-range sync bus
+  // (Task 3 of Groups phase 3): true while WE are applying an externally-synced
+  // visible range, so the resulting subscribeVisibleTimeRangeChange event
+  // doesn't echo a re-broadcast back to the bus. lastAppliedRangeRef feeds the
+  // epsilon gate (shouldApplyRange) so near-identical ranges from a chart with
+  // different bar spacing don't cause the bus to oscillate forever.
+  const applyingExternalRangeRef = useRef(false)
+  const lastAppliedRangeRef = useRef(null)
   // Refs mirror rapidly-changing values so the crosshair handler can read
   // current data without forcing a tear-down+resubscribe on every tick.
   // Without this, useRealtimeBars updates → bars change → indicatorData
@@ -6831,7 +6840,11 @@ export default function StockChart({
     if (!chartRef.current || typeof onTimeRangeChange !== 'function') return
     const ts = chartRef.current.timeScale()
     const handler = (range) => {
-      if (range) onTimeRangeChange({ from: range.from, to: range.to })
+      // Bail while WE are applying an external range — otherwise setVisibleRange
+      // below re-fires this handler and the bus oscillates across every chart.
+      if (range && !applyingExternalRangeRef.current) {
+        onTimeRangeChange({ from: range.from, to: range.to })
+      }
     }
     try { ts.subscribeVisibleTimeRangeChange(handler) } catch { return }
     return () => {
@@ -6844,12 +6857,19 @@ export default function StockChart({
   // setVisibleRange will throw if the range falls outside the loaded data.
   useEffect(() => {
     if (!chartRef.current || !externalTimeRange) return
+    if (!shouldApplyRange(externalTimeRange, lastAppliedRangeRef.current)) return
+    applyingExternalRangeRef.current = true
     try {
       chartRef.current.timeScale().setVisibleRange({
         from: externalTimeRange.from,
         to: externalTimeRange.to,
       })
+      lastAppliedRangeRef.current = { from: externalTimeRange.from, to: externalTimeRange.to }
     } catch {}
+    // Clear on the next frame — mirrors the crosshair applier's rAF release, so
+    // the subscribeVisibleTimeRangeChange fired by setVisibleRange is swallowed.
+    const raf = requestAnimationFrame(() => { applyingExternalRangeRef.current = false })
+    return () => cancelAnimationFrame(raf)
   }, [externalTimeRange])
 
   // ── Multi-chart sync: render external crosshair from parent (Task 5 Step 5) ──
