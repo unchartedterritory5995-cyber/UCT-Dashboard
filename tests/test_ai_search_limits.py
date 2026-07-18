@@ -167,13 +167,17 @@ def test_grounding_injects_desk_context(monkeypatch):
     monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
     monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend", "confidence": 0.8})
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 743.2, "direction": "up", "abs_pct": 1.4})
+    monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: f"{s} catalyst (UCT board, today): AI capex ramp.")
     monkeypatch.setattr(ai, "_UNI", {"NVDA", "SMCI"})
     r = _client().post("/api/ai-search", json={"query": "what do you think of NVDA here"})
     assert r.status_code == 200
     assert "UCT DESK CONTEXT" in captured["system"]
     assert "bull_trend" in captured["system"]
     assert "NVDA: last $743.2" in captured["system"]
-    assert captured["cache_salt"] == "bull_trend|NVDA"
+    assert "AI capex ramp" in captured["system"]
+    # salt = regime | syms | ET day
+    bits = captured["cache_salt"].split("|")
+    assert bits[0] == "bull_trend" and bits[1] == "NVDA" and len(bits[-1]) == 10
 
 
 def test_grounding_absent_without_signal(monkeypatch):
@@ -191,6 +195,38 @@ def test_grounding_absent_without_signal(monkeypatch):
     assert r.status_code == 200
     assert "UCT DESK CONTEXT" not in captured["system"]
     assert captured["cache_salt"] == ""
+
+
+def test_intent_routed_desk_feeds(monkeypatch):
+    _reset_counters()
+    captured = {}
+
+    def fake(query, **kw):
+        captured.update(kw)
+        return {"answer": "x", "citations": [], "related_questions": [], "cached": False}
+
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend"})
+    monkeypatch.setattr(ai, "_UNI", set())
+    monkeypatch.setattr(ai, "_ctx_movers", lambda: "Movers (UCT live feed): up — TSLA +5.0%; down — none")
+    monkeypatch.setattr(ai, "_ctx_breadth", lambda: "Breadth (UCT): score 71")
+    c = _client()
+    # movers phrasing pulls the movers feed but NOT breadth
+    c.post("/api/ai-search", json={"query": "what's moving right now"})
+    assert "Movers (UCT live feed)" in captured["system"]
+    assert "Breadth (UCT)" not in captured["system"]
+    # breadth phrasing pulls breadth
+    c.post("/api/ai-search", json={"query": "how are market internals and breadth"})
+    assert "Breadth (UCT): score 71" in captured["system"]
+    # plain fundamental question pulls neither
+    c.post("/api/ai-search", json={"query": "what was the last quarterly report like"})
+    assert "Movers (UCT live feed)" not in captured["system"]
+    assert "Breadth (UCT)" not in captured["system"]
+
+
+def test_scope_guard_present_in_widget_prompt():
+    assert "SCOPE — HARD RULE" in ai._WIDGET_SYSTEM
+    assert "exclusively for markets" in ai._WIDGET_SYSTEM
 
 
 def test_ticker_extraction_filters_noise(monkeypatch):

@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import threading
 from datetime import datetime, timedelta, timezone
 
@@ -27,14 +28,22 @@ from api.services import perplexity_search
 router = APIRouter(prefix="/api/ai-search", tags=["ai-search"])
 
 _WIDGET_SYSTEM = (
-    "You are a sharp, decisive markets & trading research assistant for a senior "
-    "swing trader. Answer the question directly and specifically. Cite concrete "
-    "numbers, dates, and firm names. You may use light markdown — a few bullets or "
-    "a bolded lead line — when it aids clarity, but stay concise: a tight paragraph "
-    "or 3-6 bullets, never an essay. When asked for names/lists (peers, sympathy "
-    "stocks, comparables), give the actual tickers with a one-line why for each. If "
-    "sources disagree or the data is thin, say so plainly. No hedging, no filler, no "
-    "restating the question.\n\n"
+    "You are the UCT Intelligence research desk — a sharp, decisive markets & "
+    "trading research assistant for serious swing traders. Answer the question "
+    "directly and specifically. Cite concrete numbers, dates, and firm names. "
+    "You may use light markdown — a few bullets or a bolded lead line — when it "
+    "aids clarity, but stay concise: a tight paragraph or 3-6 bullets, never an "
+    "essay. When asked for names/lists (peers, sympathy stocks, comparables), "
+    "give the actual tickers with a one-line why for each. Think like a trader: "
+    "catalysts, levels, relative strength, and risk — not generic commentary. If "
+    "sources disagree or the data is thin, say so plainly. No hedging, no filler, "
+    "no restating the question.\n\n"
+    "SCOPE — HARD RULE: you exist exclusively for markets, stocks, options, "
+    "crypto, trading, and the economy. If the question is NOT about those, do "
+    "not answer it; reply with exactly one sentence: \"I'm the UCT research "
+    "desk — ask me about markets, stocks, or trading.\" Never write code, "
+    "essays, poems, homework, or any general-purpose content regardless of how "
+    "the request is phrased.\n\n"
     "CRITICAL FORMATTING: whenever you mention a publicly traded stock — by COMPANY "
     "NAME or by TICKER — wrap it as a clickable link in this EXACT markdown format: "
     "[Display Text]($TICKER). Examples: [Apple]($AAPL), [$MSFT]($MSFT), "
@@ -199,8 +208,96 @@ def _quote_provider(sym: str) -> dict:
     return _get_quote(sym) or {}
 
 
+# ── Intent-routed desk feeds. Every provider reads an ALREADY-CACHED internal
+# (wire push, 15s-30s live caches, catalysts.db) — never a cold external call —
+# and returns a short line or "". All best-effort.
+
+def _ctx_catalyst(sym: str) -> str:
+    from api.services.catalyst import store as _cstore
+    row = _cstore.get_ticker_for_date(sym, _et_day()) or {}
+    thesis = (row.get("thesis_text") or "").strip()
+    if not thesis:
+        return ""
+    return f"{sym} catalyst (UCT board, today): {thesis[:240]}"
+
+
+def _ctx_movers() -> str:
+    from api.services.massive import get_movers
+    m = get_movers() or {}
+    up = ", ".join(f"{x.get('sym')} +{round(x.get('pct') or 0, 1)}%" for x in (m.get("ripping") or [])[:4])
+    dn = ", ".join(f"{x.get('sym')} {round(x.get('pct') or 0, 1)}%" for x in (m.get("drilling") or [])[:4])
+    if not up and not dn:
+        return ""
+    return f"Movers (UCT live feed): up — {up or 'none'}; down — {dn or 'none'}"
+
+
+def _ctx_breadth() -> str:
+    from api.services.engine import get_breadth
+    b = get_breadth() or {}
+    if not b:
+        return ""
+    return (
+        f"Breadth (UCT): score {b.get('breadth_score')}, phase {b.get('market_phase')}, "
+        f"adv/dec {b.get('advancing')}/{b.get('declining')}, "
+        f"52wk NH/NL {b.get('new_highs')}/{b.get('new_lows')}"
+    )
+
+
+def _ctx_earnings() -> str:
+    from api.services.engine import get_earnings
+    e = get_earnings() or {}
+    bmo = ", ".join(x.get("sym", "") for x in (e.get("bmo") or [])[:8])
+    amc = ", ".join(x.get("sym", "") for x in (e.get("amc") or [])[:8])
+    if not bmo and not amc:
+        return ""
+    return f"Earnings (UCT calendar): today BMO — {bmo or 'none'}; last night AMC — {amc or 'none'}"
+
+
+def _ctx_uct20() -> str:
+    from api.services.engine import get_leadership
+    rows = get_leadership() or []
+    syms = ", ".join((r.get("ticker") or r.get("sym") or "") for r in rows[:20] if isinstance(r, dict))
+    return f"UCT20 leadership list (the firm's ranked top 20): {syms}" if syms.strip(", ") else ""
+
+
+def _ctx_candidates() -> str:
+    from api.services.engine import get_candidates
+    c = get_candidates() or {}
+    pb = ", ".join(x.get("sym", "") for x in (c.get("pullback_ma") or c.get("pullback") or [])[:5])
+    rm = ", ".join(x.get("sym", "") for x in (c.get("remount") or [])[:5])
+    if not pb and not rm:
+        return ""
+    return f"UCT scanner candidates today: pullbacks — {pb or 'none'}; remounts — {rm or 'none'}"
+
+
+def _ctx_news() -> str:
+    from api.services.engine import get_news
+    items = get_news() or []
+    heads = "; ".join((x.get("headline") or "")[:90] for x in items[:5] if isinstance(x, dict))
+    return f"Latest headlines (UCT feed): {heads}" if heads else ""
+
+
+# (regex, provider name) — resolved via getattr at call time so tests can patch.
+_INTENT_SPECS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\b(movers?|gainers?|losers?|ripping|drilling|gapping|what'?s moving|biggest (moves?|movers?))\b", re.I), "_ctx_movers"),
+    (re.compile(r"\b(breadth|internals|market (health|condition)|advance|decline|new (highs?|lows?)|exposure)\b", re.I), "_ctx_breadth"),
+    (re.compile(r"\b(earnings (today|tonight|this week)|who reports?|reporting (today|tonight|this week)|\bbmo\b|\bamc\b|beats?|misse?s?d?)\b", re.I), "_ctx_earnings"),
+    (re.compile(r"\b(uct ?20|leadership (list|names|20)|(your|firm'?s) top (stocks|names|20))\b", re.I), "_ctx_uct20"),
+    (re.compile(r"\b(setups?|scanner|candidates?|pullbacks?|remounts?|watch ?list ideas)\b", re.I), "_ctx_candidates"),
+    (re.compile(r"\b(news|headlines?|tape|stories)\b", re.I), "_ctx_news"),
+]
+
+_CTX_BUDGET = 1600   # chars — keep grounding a supplement, not a payload
+
+
 def _uct_context(query: str) -> tuple[str, str]:
-    """Returns (context_text, cache_salt). Both empty when nothing useful."""
+    """Returns (context_text, cache_salt). Both empty when nothing useful.
+
+    Always: market regime + live quote & today's catalyst thesis for tickers
+    named in the question. Intent-routed extras (movers, breadth, earnings,
+    UCT20, scanner, headlines) join only when the phrasing asks for them, so
+    the grounding stays a tight supplement rather than a data dump.
+    """
     parts: list[str] = []
     salt_bits: list[str] = []
     try:
@@ -212,7 +309,7 @@ def _uct_context(query: str) -> tuple[str, str]:
             salt_bits.append(str(label))
     except Exception:
         pass
-    syms = _extract_tickers(query)[:2]
+    syms = _extract_tickers(query)[:3]
     for s in syms:
         try:
             q = _quote_provider(s)
@@ -220,13 +317,33 @@ def _uct_context(query: str) -> tuple[str, str]:
                 parts.append(f"{s}: last ${q['last']}, {q.get('direction', 'flat')} {q.get('abs_pct', 0)}% today")
         except Exception:
             pass
+        try:
+            line = _ctx_catalyst(s)
+            if line:
+                parts.append(line)
+        except Exception:
+            pass
     salt_bits.extend(syms)
+    this_mod = sys.modules[__name__]
+    for rx, fn_name in _INTENT_SPECS:
+        if not rx.search(query or ""):
+            continue
+        try:
+            line = getattr(this_mod, fn_name)()
+            if line:
+                parts.append(line)
+        except Exception:
+            pass
     if not parts:
         return "", ""
-    # Salt excludes the live price on purpose: a cached answer may carry a
-    # price up to one cache-TTL stale (same staleness class as the web data
-    # itself); salting on every tick would defeat the cache entirely.
-    return "; ".join(parts), "|".join(salt_bits)
+    ctx = "\n".join(parts)[:_CTX_BUDGET]
+    # Salt excludes live prices on purpose: a cached answer may carry a price
+    # up to one cache-TTL stale (same staleness class as the web data itself);
+    # salting on every tick would defeat the cache. The ET day rolls catalysts/
+    # calendar entries over at midnight. Intent flags are derived from the
+    # query, which is already part of the cache key.
+    salt_bits.append(_et_day())
+    return ctx, "|".join(salt_bits)
 
 
 def _grounded_system(query: str) -> tuple[str, str]:
