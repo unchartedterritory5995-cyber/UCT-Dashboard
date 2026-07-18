@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import useChartLayouts from '../../../hooks/useChartLayouts'
 import { LAYOUTS, GRID_MAX_CELLS, makeLayout } from './gridLayouts'
+import GroupPicker from './GroupPicker'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
 
@@ -193,6 +194,9 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
           >← Back to workspace</button>
         </>
       )}
+
+      <div className={wsStyles.menuDivider} />
+      <GroupPicker mc={mc} onClose={onClose} />
     </div>
   )
 }
