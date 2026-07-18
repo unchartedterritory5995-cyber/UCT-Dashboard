@@ -116,3 +116,13 @@ def test_swing_metrics_failure_not_cached_retries(monkeypatch):
     assert first["AAA"]["price"] is None            # failure -> unconfirmed
     second = g.swing_metrics(["AAA"], rs={}, today={})
     assert second["AAA"]["price"] == 10.0           # NOT cached as empty -> retried, now populated
+
+
+def test_swing_metrics_nonnumeric_built_at_no_raise(monkeypatch):
+    monkeypatch.setattr(g.snapshot_db, "get_rows", lambda tks: {
+        "BAD": {"price": 10.0, "avg_volume_30d": 5e6, "adr_pct": 5.0, "built_at": "oops"},
+    })
+    g._ROWS_CACHE.clear()
+    out = g.swing_metrics(["BAD"], rs={}, today={})   # must NOT raise
+    assert out["BAD"]["price"] == 10.0                # unparseable built_at ignored -> row still used
+    assert out["BAD"]["adr_pct"] == 5.0

@@ -216,7 +216,8 @@ def rank_holdings(holdings: list, by: str = "today", seed: str = None,
     on = groups_gates.gates_enabled()
     metrics = groups_gates.swing_metrics([hy for _, hy, _ in cands], rs, today) if on else {}
     if on:
-        _logger.debug("groups swing-gate pass-rates: %s", groups_gates.pass_rates(metrics))
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug("groups swing-gate pass-rates: %s", groups_gates.pass_rates(metrics))
         if scores_out is not None:
             for _, hy, _ in cands:
                 scores_out[hy] = groups_gates.gate_score(metrics.get(hy))

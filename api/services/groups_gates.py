@@ -137,8 +137,8 @@ def swing_metrics(syms: list, rs: dict, today: dict) -> dict:
     out = {}
     for hy in syms:
         row = rows.get(hy)
-        stale = bool(row) and row.get("built_at") is not None \
-            and (now - float(row["built_at"])) > _STALE_SECS
+        bat = _num(row.get("built_at")) if row else None
+        stale = bat is not None and (now - bat) > _STALE_SECS
         usable = row if (row and not stale) else None
         prev_close = _num(usable.get("price")) if usable else None
         avg_vol = _num(usable.get("avg_volume_30d")) if usable else None
