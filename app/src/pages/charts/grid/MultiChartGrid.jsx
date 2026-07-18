@@ -154,6 +154,17 @@ export default function MultiChartGrid({ mc }) {
     ? spikeRef.current.bus
     : (state.syncCrosshair ? busRef.current : null)
 
+  // ── Time-range sync bus (mirrors the crosshair bus above) ──
+  const rangeBusRef = useRef(null)
+  if (!rangeBusRef.current) {
+    const listeners = new Set()
+    rangeBusRef.current = {
+      emit: (sourceId, payload) => listeners.forEach((fn) => fn({ sourceId, payload })),
+      subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn) },
+    }
+  }
+  const rangeBus = spikeActive ? null : (state.syncTimeRange ? rangeBusRef.current : null)
+
   // ── Mount queue: composite `${id}::${sym}` keys, not bare cell ids. A group
   // switch reuses a cell's id (fillCells pools overlapping syms so the chart
   // instance doesn't remount), but its SYM still changes — keying the queue
@@ -315,6 +326,7 @@ export default function MultiChartGrid({ mc }) {
                 rationale={state.group ? cellBadges[i]?.rationale : ''}
                 onChange={onChangeFns[i]}
                 crosshairBus={crosshairBus}
+                rangeBus={rangeBus}
                 volPanePct={volPanePct}
                 isActive={isActiveFns[i]}
                 dailyDefaultBars={maxId === cell.id ? 126 : dailyDefaultBars}

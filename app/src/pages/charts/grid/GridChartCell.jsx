@@ -46,6 +46,7 @@ function GridChartCell({
   rationale,          // static rationale string, mirrors badge.rationale — used as the badge's title tooltip
   onChange,           // (nextCell) => void — container merges + debounce-persists
   crosshairBus,       // {emit(sourceId,payload), subscribe(fn)} | null (null = sync off)
+  rangeBus,           // {emit(sourceId,payload), subscribe(fn)} | null (null = sync off) — mirrors crosshairBus for visible time-range
   volPanePct,         // shared charts_vol_pane_pct value (cells read, never write)
   isActive,           // () => boolean — active-cell gate for StockChart hotkeys
   dailyDefaultBars,   // container passes 90 on dense grids (>9 cells), else 126
@@ -124,6 +125,20 @@ function GridChartCell({
   // an applied external crosshair when the prop BECOMES null, so without this
   // every non-hovered cell keeps a frozen crosshair line.
   useEffect(() => { if (!crosshairBus) setExternalCrosshair(null) }, [crosshairBus])
+
+  // ── Time-range sync (mirrors the crosshair ref-bus; echo-guarded in StockChart) ──
+  const [externalTimeRange, setExternalTimeRange] = useState(null)
+  const reportRange = useCallback((payload) => {
+    rangeBus?.emit(cellIdRef.current, payload)
+  }, [rangeBus])
+  useEffect(() => {
+    if (!rangeBus || !sym) return undefined
+    return rangeBus.subscribe(({ sourceId, payload }) => {
+      if (sourceId !== cellIdRef.current) setExternalTimeRange(payload)
+    })
+  }, [rangeBus, sym])
+  useEffect(() => { setExternalTimeRange(null) }, [sym])
+  useEffect(() => { if (!rangeBus) setExternalTimeRange(null) }, [rangeBus])
 
   const handleSymbolChange = useCallback((s) => {
     if (!s) return
@@ -355,6 +370,8 @@ function GridChartCell({
             onBarContextMenu={handleBarContextMenu}
             onCrosshairMove={crosshairBus ? reportCrosshair : null}
             externalCrosshair={externalCrosshair}
+            onTimeRangeChange={rangeBus ? reportRange : null}
+            externalTimeRange={externalTimeRange}
             /* Grid lite profile — the workspace chart look without the
                speculative warms, patterns, or per-instance hotkey ownership.
                hideReplay/hidePatterns/hideCompare are inert today (the toolbar
