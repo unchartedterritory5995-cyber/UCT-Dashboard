@@ -133,6 +133,14 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
         />
         Sync crosshair across charts
       </label>
+      <label className={wsStyles.menuCheck}>
+        <input
+          type="checkbox"
+          checked={mc.state.syncTimeRange}
+          onChange={e => mc.setSyncTimeRange(e.target.checked)}
+        />
+        Sync time range across charts
+      </label>
       {inGrid && (
         <button
           type="button"

@@ -153,6 +153,10 @@ export default function useMultiChartState() {
     apply(prev => ({ ...prev, syncCrosshair: !!on }))
   }, [apply])
 
+  const setSyncTimeRange = useCallback((on) => {
+    apply(prev => ({ ...prev, syncTimeRange: !!on }))
+  }, [apply])
+
   // Apply a saved multichart template ({kind:'multichart', layout, cells}).
   const applyGridTemplate = useCallback((tpl) => {
     const l = tpl?.layout
@@ -166,7 +170,7 @@ export default function useMultiChartState() {
   return {
     state, hydrated,
     settingsOpen, setSettingsOpen,
-    enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, applyGridTemplate,
+    enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, setSyncTimeRange, applyGridTemplate,
     fillCells, setGroup, clearGroup,
   }
 }

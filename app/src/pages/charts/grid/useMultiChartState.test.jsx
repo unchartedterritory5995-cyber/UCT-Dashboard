@@ -53,3 +53,14 @@ describe('fillCells', () => {
     expect(spy.chartType).toBe('line')// per-cell Style preserved
   })
 })
+
+describe('syncTimeRange', () => {
+  it('toggles and exposes syncTimeRange', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    expect(result.current.state.syncTimeRange).toBe(false)
+    act(() => result.current.setSyncTimeRange(true))
+    expect(result.current.state.syncTimeRange).toBe(true)
+    act(() => result.current.setSyncTimeRange(false))
+    expect(result.current.state.syncTimeRange).toBe(false)
+  })
+})
