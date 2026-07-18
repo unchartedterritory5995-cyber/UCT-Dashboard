@@ -21,6 +21,7 @@ const mc = {
   state: { layout: '2x2', mode: 'grid' },
   enterGrid: vi.fn(),
   fillCells: vi.fn(),
+  setGroupsMode: vi.fn(),
 }
 
 beforeEach(() => { mc.enterGrid.mockClear(); mc.fillCells.mockClear(); localStorage.clear() })

@@ -154,6 +154,14 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
         />
         Sync time range across charts
       </label>
+      <label className={wsStyles.menuCheck}>
+        <input
+          type="checkbox"
+          checked={mc.state.groupsMode}
+          onChange={e => mc.setGroupsMode(e.target.checked)}
+        />
+        Groups Mode (type a ticker to fill its group)
+      </label>
       {inGrid && (
         <button
           type="button"
@@ -235,7 +243,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
             if (filled.length) mc.fillCells(filled, { ...g, n })
             onClose()
           }}>↻ Refresh group</button>
-          <button type="button" className={wsStyles.addMenuItem} onClick={() => { mc.clearGroup(); onClose() }}>
+          <button type="button" className={wsStyles.addMenuItem} onClick={() => { mc.setGroupsMode(false); onClose() }}>
             Exit Groups
           </button>
         </>
