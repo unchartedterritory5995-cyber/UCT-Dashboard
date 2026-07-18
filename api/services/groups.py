@@ -267,14 +267,16 @@ def _theme_etf(theme_id: str) -> str | None:
 
 def top_n(theme_id: str, n: int, by: str = "today") -> dict:
     holdings = _theme_holdings(theme_id)
-    ranked = rank_holdings(holdings, by=by)
+    scores = {}
+    ranked = rank_holdings(holdings, by=by, scores_out=scores)
     top = ranked[: max(1, int(n))]
-    # Per-sym tier + rationale for the cell badges (keyed hyphen).
+    # Per-sym tier + rationale + gate score for the cell badges / observability.
     meta = {normalize_sym(h.get("sym", "")): h for h in holdings}
     rows = [{
         "sym": s,
         "tier": (meta.get(s) or {}).get("tier"),
         "rationale": (meta.get(s) or {}).get("rationale") or "",
+        "gate_score": scores.get(s),
     } for s in top]
     return {
         "group_id": theme_id,
@@ -409,11 +411,9 @@ def resolve_peers(sym: str, n: int) -> dict:
     theme_id = row.get("theme_id")
     seed_sub = row.get("sub_theme_id")
     holdings = _theme_holdings(theme_id)
-    ranked = rank_holdings(holdings, by="today", seed=seed_hy)  # chartable, seed-excluded
-
-    sub_by_sym = {normalize_sym(h.get("sym", "")): h.get("sub_theme_id") for h in holdings}
-    # Stable float: same-sub-theme names first, preserving the ranked order within each group.
-    ranked.sort(key=lambda hy: 0 if (seed_sub and sub_by_sym.get(hy) == seed_sub) else 1)
+    # sub-theme float now lives in rank_holdings (seed_sub) so it composes with
+    # the swing gate in one pass — liquidity floor first, then sub-theme, then momentum.
+    ranked = rank_holdings(holdings, by="today", seed=seed_hy, seed_sub=seed_sub)
 
     return {
         "seed": seed_hy,

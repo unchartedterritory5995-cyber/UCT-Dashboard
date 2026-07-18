@@ -93,10 +93,11 @@ def test_top_n_returns_rows_with_tier_and_rationale(monkeypatch):
                                      {"sym": "ASTS", "tier": "core", "rationale": "Sats"}])
     import api.services.theme_db as tdb
     monkeypatch.setattr(tdb, "get_theme_holdings", groups._theme_holdings)
-    monkeypatch.setattr(groups, "rank_holdings", lambda h, by="today", seed=None: ["RKLB", "ASTS"])
+    monkeypatch.setattr(groups, "rank_holdings",
+                        lambda h, by="today", seed=None, seed_sub=None, scores_out=None: ["RKLB", "ASTS"])
     out = groups.top_n("space", 2, by="today")
     assert out["syms"] == ["RKLB", "ASTS"]
-    assert out["rows"][0] == {"sym": "RKLB", "tier": "core", "rationale": "Launch"}
+    assert out["rows"][0] == {"sym": "RKLB", "tier": "core", "rationale": "Launch", "gate_score": None}
 
 
 def test_resolve_primary_theme_prefers_core_over_smaller_relevant(monkeypatch):
@@ -141,6 +142,33 @@ def test_resolve_peers_sub_theme_first_then_widen(monkeypatch):
     assert out["source"] == "taxonomy"
     assert out["peers"][0] == "LUNR"      # same sub-theme floats to top
     assert "RKLB" not in out["peers"]     # seed excluded
+
+
+def test_resolve_peers_liquidity_floor_beats_sub_theme_when_gated(monkeypatch):
+    # Gated: a confirmed-liquid DIFFERENT-sub-theme peer outranks an illiquid
+    # SAME-sub-theme peer (liquidity floor is the hard prefilter); within the
+    # liquid tier, same-sub-theme still leads.
+    seed_row = {"theme_id": "space", "theme_name": "Space", "tier": "core", "sub_theme_id": "launch"}
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: seed_row)
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"RKLB", "SAMEILLIQ", "DIFFLIQ", "SAMELIQ"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    holdings = [
+        {"sym": "RKLB", "tier": "core", "sub_theme_id": "launch"},          # seed (excluded)
+        {"sym": "SAMEILLIQ", "tier": "core", "sub_theme_id": "launch"},     # same sub, illiquid
+        {"sym": "DIFFLIQ", "tier": "core", "sub_theme_id": "satellites"},   # diff sub, liquid
+        {"sym": "SAMELIQ", "tier": "core", "sub_theme_id": "launch"},       # same sub, liquid
+    ]
+    monkeypatch.setattr(groups, "_theme_holdings", lambda tid: holdings)
+    _mock_gate_env(monkeypatch, True, {
+        "SAMEILLIQ": {"price": 2.0, "dollar_vol": 1e6, "rs_rank": 90, "adr_pct": 9},   # band2
+        "DIFFLIQ":   {"price": 40, "dollar_vol": 5e8, "rs_rank": 80, "adr_pct": 6},    # band0
+        "SAMELIQ":   {"price": 30, "dollar_vol": 5e8, "rs_rank": 80, "adr_pct": 6},    # band0
+    })
+    peers = groups.resolve_peers("RKLB", 3)["peers"]
+    assert peers[0] == "SAMELIQ"     # liquid + same sub-theme -> top
+    assert peers[1] == "DIFFLIQ"     # liquid, different sub-theme
+    assert peers[2] == "SAMEILLIQ"   # same sub-theme but illiquid -> backfill last
 
 
 def test_ticker_meta_primary_theme_matches_resolver(monkeypatch):
@@ -260,7 +288,8 @@ def test_resolve_peers_none_when_ai_empty(monkeypatch):
 def test_top_n_includes_group_etf(monkeypatch):
     monkeypatch.setattr(groups, "_theme_holdings",
                         lambda tid: [{"sym": "RKLB", "tier": "core", "rationale": "Launch"}])
-    monkeypatch.setattr(groups, "rank_holdings", lambda h, by="today", seed=None: ["RKLB"])
+    monkeypatch.setattr(groups, "rank_holdings",
+                        lambda h, by="today", seed=None, seed_sub=None, scores_out=None: ["RKLB"])
     monkeypatch.setattr(groups, "_theme_etf",
                         lambda tid: "UFO" if tid == "space" else None)
     assert groups.top_n("space", 4, by="today")["etf"] == "UFO"
