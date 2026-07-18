@@ -3190,6 +3190,7 @@ def _is_gzip_exempt(path: str) -> bool:
         path.startswith("/api/stream")
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
+        or path == "/api/ai-search/stream"               # AI Search token stream
         or path.startswith("/assets/")
     )
 

@@ -2,12 +2,28 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import AiSearchWidget from './AiSearchWidget'
 
+// Plain JSON mock — has no .body stream, so run() falls back to the
+// single-shot endpoint (which this same mock also serves).
 function mockFetchOnce(status, body) {
   global.fetch = vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
     json: async () => body,
   })
+}
+
+function sseBody(events) {
+  const enc = new TextEncoder()
+  return new ReadableStream({
+    start(c) {
+      for (const ev of events) c.enqueue(enc.encode(`data: ${JSON.stringify(ev)}\n\n`))
+      c.close()
+    },
+  })
+}
+
+function mockStreamFetch(events) {
+  global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, body: sseBody(events) })
 }
 
 const GOOD = {
@@ -74,6 +90,42 @@ describe('AiSearchWidget', () => {
     expect(container.querySelector('[class*="answerStale"]')).toBeTruthy()
     resolveFetch({ ok: true, status: 200, json: async () => GOOD })
     await waitFor(() => expect(container.querySelector('[class*="answerStale"]')).toBeFalsy())
+  })
+
+  it('streams: deltas render progressively, final applies citations', async () => {
+    mockStreamFetch([
+      { type: 'delta', text: 'SMCI is ' },
+      { type: 'delta', text: 'ripping on AI capex[1].' },
+      { type: 'final', answer: 'SMCI is ripping on AI capex[1].', citations: ['https://reuters.com/x'], related_questions: [] },
+    ])
+    render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'why is SMCI moving' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByText(/ripping on AI capex/)).toBeTruthy())
+    // final state: [1] became a source link, only the stream endpoint was hit
+    const cite = screen.getByRole('link', { name: '1' })
+    expect(cite.getAttribute('href')).toBe('https://reuters.com/x')
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/ai-search/stream')
+  })
+
+  it('falls back to the single-shot endpoint when the stream errors', async () => {
+    let call = 0
+    global.fetch = vi.fn().mockImplementation(() => {
+      call += 1
+      if (call === 1) {
+        return Promise.resolve({ ok: true, status: 200, body: sseBody([{ type: 'error', error: 'stream failed' }]) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => GOOD })
+    })
+    render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByText(/The move is real/)).toBeTruthy())
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/ai-search/stream')
+    expect(global.fetch.mock.calls[1][0]).toBe('/api/ai-search')
   })
 
   it('a failed ask restores the question to the input for retry', async () => {

@@ -11,10 +11,11 @@ exposes and which dramatically improve answer quality for market questions.
 Shares PERPLEXITY_API_KEY with the morning-wire pipeline.
 """
 
+import json
 import logging
 import os
 import time
-from typing import Any
+from typing import Any, AsyncIterator
 
 import requests
 
@@ -84,6 +85,15 @@ def _resolve_mode(mode: str) -> str:
     return m if m in _MODELS else "fast"
 
 
+def _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query) -> str:
+    # Shared by web_search AND stream_search so a streamed answer warms the
+    # cache for later single-shot calls (and vice versa).
+    return (
+        f"pplx::{model}::{recency_filter or 'any'}::{domain_pack}::"
+        f"{max_tokens}::{int(related)}::{(system or '')[:40]}::{query.lower()[:300]}"
+    )
+
+
 def web_search(
     query: str,
     max_tokens: int = 400,
@@ -126,10 +136,7 @@ def web_search(
     recency_filter = recency if recency in _RECENCY_VALUES else None
 
     # Cache key incorporates everything that affects the answer
-    cache_key = (
-        f"pplx::{model}::{recency_filter or 'any'}::{domain_pack}::"
-        f"{max_tokens}::{int(related)}::{(system or '')[:40]}::{query.lower()[:300]}"
-    )
+    cache_key = _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query)
     cached = _SEARCH_CACHE.get(cache_key)
     if cached is not None:
         out = dict(cached)
@@ -207,3 +214,132 @@ def web_search(
     }
     _SEARCH_CACHE.set(cache_key, dict(result), ttl)
     return result
+
+
+async def stream_search(
+    query: str,
+    max_tokens: int = 400,
+    system: str | None = None,
+    mode: str = "fast",
+    domains: list[str] | None = None,
+    domain_pack: str = "finance",
+    recency: str | None = None,
+    related: bool = False,
+) -> AsyncIterator[dict[str, Any]]:
+    """Streaming twin of web_search().
+
+    Async generator yielding ``{"type": "delta", "text": str}`` as tokens
+    arrive, then one ``{"type": "final", **result}`` where result is shaped
+    exactly like web_search()'s return. A cache hit yields just the final
+    event. Failures yield ``{"type": "error", "error": str}`` and stop —
+    callers fall back to web_search().
+
+    Fully async (httpx) — never pins an anyio threadpool worker while the
+    answer streams, so it is safe on the single shared event loop.
+    """
+    resolved_mode = _resolve_mode(mode)
+    model = _MODELS[resolved_mode]
+    timeout = _TIMEOUTS[resolved_mode]
+    ttl = _CACHE_TTL[resolved_mode]
+
+    if domains is None and domain_pack == "finance":
+        domains = _FINANCE_DOMAINS
+    recency_filter = recency if recency in _RECENCY_VALUES else None
+
+    cache_key = _cache_key(model, recency_filter, domain_pack, max_tokens, related, system, query)
+    cached = _SEARCH_CACHE.get(cache_key)
+    if cached is not None:
+        out = dict(cached)
+        out["cached"] = True
+        yield {"type": "final", **out}
+        return
+
+    api_key = os.environ.get("PERPLEXITY_API_KEY", "").strip()
+    if not api_key:
+        yield {"type": "error", "error": "PERPLEXITY_API_KEY not set"}
+        return
+
+    default_system = _DEEP_RESEARCH_SYSTEM if resolved_mode == "deep" else _DEFAULT_SYSTEM
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system or default_system},
+            {"role": "user", "content": query},
+        ],
+        "max_tokens": max(50, min(3000, int(max_tokens or 400))),
+        "stream": True,
+    }
+    if domains:
+        payload["search_domain_filter"] = domains[:20]
+    if recency_filter:
+        payload["search_recency_filter"] = recency_filter
+    if related:
+        payload["return_related_questions"] = True
+
+    answer_parts: list[str] = []
+    citations: list[str] = []
+    related_questions: list[str] = []
+    t0 = time.time()
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream(
+                "POST",
+                _BASE,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            ) as r:
+                if r.status_code != 200:
+                    _log.warning("perplexity stream HTTP %s", r.status_code)
+                    yield {"type": "error", "error": f"request failed ({r.status_code})"}
+                    return
+                async for line in r.aiter_lines():
+                    if not line or not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        obj = json.loads(data)
+                    except ValueError:
+                        continue
+                    # citations / related_questions ride on chunks (usually the last)
+                    if isinstance(obj.get("citations"), list):
+                        citations = [str(c) for c in obj["citations"] if c][:10]
+                    rq = obj.get("related_questions")
+                    if isinstance(rq, list):
+                        related_questions = [str(q).strip() for q in rq if q and str(q).strip()][:4]
+                    try:
+                        delta = obj["choices"][0]["delta"].get("content") or ""
+                    except (KeyError, IndexError, TypeError, AttributeError):
+                        delta = ""
+                    if delta:
+                        answer_parts.append(delta)
+                        yield {"type": "delta", "text": delta}
+    except Exception as e:  # timeout / network / protocol — caller falls back
+        _log.warning("perplexity stream failed: %s", e)
+        yield {"type": "error", "error": "stream failed"}
+        return
+
+    answer = "".join(answer_parts).strip()
+    if not answer:
+        yield {"type": "error", "error": "no answer"}
+        return
+
+    result = {
+        "answer": answer,
+        "citations": citations,
+        "related_questions": related_questions,
+        "model": model,
+        "mode": resolved_mode,
+        "domain_pack": domain_pack,
+        "recency": recency_filter,
+        "elapsed_ms": int((time.time() - t0) * 1000),
+        "cached": False,
+    }
+    _SEARCH_CACHE.set(cache_key, dict(result), ttl)
+    yield {"type": "final", **result}

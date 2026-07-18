@@ -131,6 +131,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const [phase, setPhase] = useState(0)
   const [copied, setCopied] = useState(false)
   const [pending, setPending] = useState(null)   // question in flight (shown in the body)
+  const [streamText, setStreamText] = useState('')   // partial answer while streaming
   const inputRef = useRef(null)
   const bodyRef = useRef(null)
 
@@ -152,16 +153,80 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     el.style.height = query ? `${Math.min(el.scrollHeight, 92)}px` : ''
   }, [query])
 
+  const applyFinal = useCallback((question, d) => {
+    setAsked(question)
+    setAnswer(d.answer || '')
+    setCitations(Array.isArray(d.citations) ? d.citations : [])
+    setRelated(Array.isArray(d.related_questions) ? d.related_questions.slice(0, 3) : [])
+    setCopied(false)
+    if (bodyRef.current) bodyRef.current.scrollTop = 0
+  }, [])
+
+  // Streaming path: POST /api/ai-search/stream and render tokens as they
+  // arrive. Returns 'done' | 'limit' | null (null → caller falls back to the
+  // single-shot endpoint).
+  const tryStream = useCallback(async (question) => {
+    const r = await fetch('/api/ai-search/stream', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: question }),
+    })
+    if (r.status === 429) {
+      const d = await r.json().catch(() => null)
+      setLimitMsg(d?.detail || "You've hit today's research limit — it resets at midnight ET.")
+      return 'limit'
+    }
+    if (!r.ok || !r.body?.getReader) return null
+    const reader = r.body.getReader()
+    const dec = new TextDecoder()
+    let buf = ''
+    let text = ''
+    let final = null
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += dec.decode(value, { stream: true })
+      let idx
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const block = buf.slice(0, idx); buf = buf.slice(idx + 2)
+        const line = block.split('\n').find((l) => l.startsWith('data:'))
+        if (!line) continue
+        let ev
+        try { ev = JSON.parse(line.slice(5)) } catch { continue }
+        if (ev.type === 'delta' && ev.text) {
+          text += ev.text
+          setStreamText(text)
+        } else if (ev.type === 'final') {
+          final = ev
+        } else if (ev.type === 'error') {
+          return null   // backend says fall back
+        }
+      }
+    }
+    if (!final || final.error) return null
+    applyFinal(question, final)
+    return 'done'
+  }, [applyFinal])
+
   // Conversation flow: submitting moves the question OUT of the input (which
   // clears for the next ask) and down into the body immediately, with the
-  // loading status beneath it. The previous answer stays on screen (dimmed)
-  // while the next one loads — never blank the widget mid-read. `asked` only
-  // advances on success; a failed ask puts the question back in the input.
+  // answer streaming in beneath it. The previous answer stays on screen
+  // (dimmed) until the new one starts rendering — never blank the widget
+  // mid-read. `asked` only advances on success; a failed ask puts the
+  // question back in the input.
   const run = useCallback(async (q) => {
     const question = (q ?? query).trim()
     if (!question || loading) return
-    setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery('')
+    setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery(''); setStreamText('')
     try {
+      let outcome = null
+      try {
+        outcome = await tryStream(question)
+      } catch { outcome = null }   // network/parse hiccup → single-shot fallback
+      if (outcome === 'limit') { setQuery(question); return }
+      if (outcome === 'done') return
+
       const r = await fetch('/api/ai-search', {
         method: 'POST',
         credentials: 'include',
@@ -176,20 +241,16 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       }
       if (!r.ok) throw new Error(d?.detail || `Request failed (${r.status})`)
       if (!d || d.error) throw new Error(d?.error || 'No answer')
-      setAsked(question)
-      setAnswer(d.answer || '')
-      setCitations(Array.isArray(d.citations) ? d.citations : [])
-      setRelated(Array.isArray(d.related_questions) ? d.related_questions.slice(0, 3) : [])
-      setCopied(false)
-      if (bodyRef.current) bodyRef.current.scrollTop = 0
+      applyFinal(question, d)
     } catch (e) {
       setError(e.message || 'Something went wrong')
       setQuery(question)   // restore for a one-keystroke retry
     } finally {
       setLoading(false)
       setPending(null)
+      setStreamText('')
     }
-  }, [query, loading])
+  }, [query, loading, tryStream, applyFinal])
 
   // Follow-ups run directly — the input stays clear (conversation flow).
   const askFollowUp = (q) => { run(q) }
@@ -250,9 +311,15 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
             {pending && (
               <div className={styles.asked}><span className={styles.askedText}>{pending}</span></div>
             )}
-            <div className={styles.status}>
-              <span className={styles.spinner} /> {SEARCH_PHASES[phase]}
-            </div>
+            {streamText ? (
+              <div className={styles.answerText}>
+                <AnswerBody text={streamText} onTicker={handleTicker} cites={[]} />
+              </div>
+            ) : (
+              <div className={styles.status}>
+                <span className={styles.spinner} /> {SEARCH_PHASES[phase]}
+              </div>
+            )}
           </>
         )}
         {!loading && error && <div className={styles.error}>{error}</div>}
@@ -271,7 +338,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
           </div>
         )}
 
-        {answer != null && (
+        {answer != null && !(loading && streamText) && (
           <div className={`${styles.answer} ${loading ? styles.answerStale : ''}`}>
             {asked && !loading && (
               <div className={styles.asked}>

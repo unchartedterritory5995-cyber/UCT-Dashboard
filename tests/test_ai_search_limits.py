@@ -71,6 +71,67 @@ def test_cached_answers_do_not_count(monkeypatch):
     assert ai._usage_global == 0
 
 
+def _fake_stream(events):
+    async def fake(query, **kw):
+        for ev in events:
+            yield ev
+    return fake
+
+
+def _read_sse(resp):
+    out = []
+    for block in resp.text.split("\n\n"):
+        block = block.strip()
+        if block.startswith("data:"):
+            import json
+            out.append(json.loads(block[5:]))
+    return out
+
+
+def test_stream_emits_deltas_then_final_and_bills_once(monkeypatch):
+    _reset_counters()
+    monkeypatch.setattr(ai.perplexity_search, "stream_search", _fake_stream([
+        {"type": "delta", "text": "Hel"},
+        {"type": "delta", "text": "lo"},
+        {"type": "final", "answer": "Hello", "citations": [], "related_questions": [], "cached": False},
+    ]))
+    r = _client().post("/api/ai-search/stream", json={"query": "hi"})
+    assert r.status_code == 200
+    events = _read_sse(r)
+    assert [e["type"] for e in events] == ["delta", "delta", "final"]
+    assert events[-1]["answer"] == "Hello"
+    assert ai._usage_global == 1
+
+
+def test_stream_cached_final_is_free(monkeypatch):
+    _reset_counters()
+    monkeypatch.setattr(ai.perplexity_search, "stream_search", _fake_stream([
+        {"type": "final", "answer": "Hello", "citations": [], "related_questions": [], "cached": True},
+    ]))
+    r = _client().post("/api/ai-search/stream", json={"query": "hi"})
+    assert r.status_code == 200
+    assert ai._usage_global == 0
+
+
+def test_stream_respects_daily_cap(monkeypatch):
+    _reset_counters()
+    monkeypatch.setattr(ai.perplexity_search, "stream_search", _fake_stream([
+        {"type": "final", "answer": "x", "citations": [], "related_questions": [], "cached": False},
+    ]))
+    monkeypatch.setenv("AI_SEARCH_DAILY_LIMIT", "1")
+    c = _client()
+    assert c.post("/api/ai-search/stream", json={"query": "a"}).status_code == 200
+    assert c.post("/api/ai-search/stream", json={"query": "b"}).status_code == 429
+
+
+def test_auto_recency_heuristic():
+    assert ai._auto_recency("Why is SMCI moving today?") == "day"
+    assert ai._auto_recency("biggest premarket movers") == "day"
+    assert ai._auto_recency("recent analyst upgrades on NVDA") == "week"
+    assert ai._auto_recency("What was JPM's last earnings report like?") is None
+    assert ai._auto_recency("Who are COHR's closest competitors by business line?") is None
+
+
 def test_global_budget_429(monkeypatch):
     _reset_counters()
     monkeypatch.setattr(ai.perplexity_search, "web_search", _fake_search())
