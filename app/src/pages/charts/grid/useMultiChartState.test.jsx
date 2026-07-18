@@ -40,4 +40,16 @@ describe('fillCells', () => {
     expect(cells).toHaveLength(4)                       // == cellCount, not 2
     expect(cells.map(c => c.sym)).toEqual(['RKLB', 'ASTS', null, null])
   })
+
+  it('carries tf + chartType of an overlapping sym (no per-cell settings loss)', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.enterGrid('2x2'))
+    const spyId = result.current.state.cells[1].id   // default 2x2 = QQQ,SPY,IWM,DIA
+    act(() => result.current.updateCellAt(1, { id: spyId, sym: 'SPY', tf: '60', chartType: 'line' }))
+    act(() => result.current.fillCells(['SPY', 'RKLB', 'ASTS', 'LUNR'], { id: 'x', by: 'today', n: 4 }))
+    const spy = result.current.state.cells.find(c => c.sym === 'SPY')
+    expect(spy.id).toBe(spyId)        // reused (no remount)
+    expect(spy.tf).toBe('60')         // its own tf, not the output position's
+    expect(spy.chartType).toBe('line')// per-cell Style preserved
+  })
 })

@@ -119,22 +119,23 @@ export default function useMultiChartState() {
       // (spec under-fill contract), over-fill -> extra syms dropped. Keeps
       // cells.length === cellCount like every other mutator.
       const count = layout.cellCount
-      // Pool of reusable {id} by sym, from the current cells (each id once).
+      // Pool of reusable prior CELLS by sym (each used once), so a matched sym
+      // keeps its id (no remount) AND its own tf + chart Style override.
       const pool = new Map()
       for (const c of prev.cells) {
-        if (c.sym && !pool.has(c.sym)) pool.set(c.sym, c.id)
+        if (c.sym && !pool.has(c.sym)) pool.set(c.sym, c)
       }
       const used = new Set()
       const cells = []
       for (let i = 0; i < count; i++) {
         const sym = want[i] || null
-        let id
-        if (sym && pool.has(sym) && !used.has(pool.get(sym))) {
-          id = pool.get(sym); used.add(id)
+        const match = sym ? pool.get(sym) : null
+        if (match && !used.has(match.id)) {
+          used.add(match.id)
+          cells.push({ id: match.id, sym, tf: match.tf || 'D', chartType: match.chartType || null })
         } else {
-          id = Math.random().toString(36).slice(2, 8)
+          cells.push({ id: Math.random().toString(36).slice(2, 8), sym, tf: 'D', chartType: null })
         }
-        cells.push({ id, sym, tf: prev.cells[i]?.tf || 'D' })
       }
       return { ...prev, mode: 'grid', cells, group: group || prev.group || null }
     })
