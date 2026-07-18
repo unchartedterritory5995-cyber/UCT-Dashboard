@@ -1623,7 +1623,7 @@ async def lifespan(app: FastAPI):
                         _rows = _pbs.get_bars(sym, tf, _bc)
                         if not _rows:
                             return
-                        _pl = {"ticker": sym, "tf": tf, "bars": _fmt_sqlite_bars(_rows, tf)}
+                        _pl = {"ticker": sym, "tf": tf, "bars": _fmt_sqlite_bars(_rows, tf, sym)}
                         _pcache.set(f"bars_{sym}_{tf}_{_bc}", _pl, ttl=_CACHE_TTL.get(tf, 300))
                         _pw += 1
                     except Exception:
