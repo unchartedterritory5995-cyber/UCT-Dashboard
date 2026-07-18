@@ -9,6 +9,9 @@ export function makePeerFiller({ fetchPeers, fillCells, onUndoAvailable }) {
   async function run(seedSym, { n = 8, group = null, snapshot = null } = {}) {
     const mine = ++gen
     const seed = (seedSym || '').toUpperCase()
+    // Seed appears instantly (the peer fetch — especially a cold AI resolve —
+    // can take 1-2s; the trader sees their ticker immediately, peers stream in).
+    fillCells([seed], group || null)
     const res = await fetchPeers(seed, { n: Math.max(1, n - 1) })
     if (mine !== gen) return                     // a newer commit superseded this one
     const peers = (res && Array.isArray(res.peers)) ? res.peers : []
