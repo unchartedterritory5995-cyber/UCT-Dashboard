@@ -21,3 +21,10 @@ def test_rejected_keys(tmp_path):
     lg.record("space", "BAD", "add", "reject")
     lg.record("space", "GOOD", "add", "approve")
     assert lg.rejected_keys() == {("space", "BAD", "add")}
+
+
+def test_record_rejects_bad_decision(tmp_path):
+    import pytest
+    lg = Ledger(str(tmp_path / "l.db"))
+    with pytest.raises(ValueError):
+        lg.record("t", "X", "add", "rejected")   # typo -> must raise, not silently store
