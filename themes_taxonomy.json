@@ -1,5 +1,5 @@
 {
-  "version": "4.13.0+f9715077",
+  "version": "4.14.0+3af07bf6",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -13232,6 +13232,302 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Caris Life Sciences, precision oncology, IPO Jun 2025"
+        }
+      ]
+    },
+    {
+      "id": "ai_gpu_chips",
+      "name": "AI / GPU Chips",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 19,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "NVDA",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AMD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AVGO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MRVL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ARM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "QCOM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TSM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ALAB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SMCI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AMBA",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "analog_power_semis",
+      "name": "Analog & Power Semis",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 20,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "ADI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TXN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MCHP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ON",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NXPI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MPWR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SWKS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "QRVO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "WOLF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DIOD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ALGM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "POWI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SLAB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "LSCC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "data_center_reits",
+      "name": "Data Center REITs",
+      "sector_id": "real_estate_utilities",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 4,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "EQIX",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DLR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "IRM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AMT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CCI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SBAC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "gene_editing_cell_therapy",
+      "name": "Gene Editing & Cell Therapy",
+      "sector_id": "innovation",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 38,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "CRSP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NTLA",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BEAM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "EDIT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ALLO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "VERV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "FATE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SGMO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRBU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DTIL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
         }
       ]
     }
