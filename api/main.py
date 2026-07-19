@@ -1903,9 +1903,9 @@ async def lifespan(app: FastAPI):
             print(f"[deep-cache] Build failed: {e}")
     threading.Thread(target=_build_deep_cache, daemon=True, name="deep-cache-builder").start()
 
-    from api.services.theme_db import init_theme_tables, seed_from_json
+    from api.services.theme_db import init_theme_tables, seed_from_json_safe
     init_theme_tables()
-    seed_from_json()
+    seed_from_json_safe()
 
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()

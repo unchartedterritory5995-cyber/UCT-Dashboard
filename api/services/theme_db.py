@@ -131,6 +131,17 @@ def seed_from_json():
         conn.close()
 
 
+def seed_from_json_safe() -> bool:
+    """Boot-safe wrapper: never raises. A malformed taxonomy leaves the theme
+    tables as-is (possibly empty) and logs, instead of crashing app startup."""
+    try:
+        return seed_from_json()
+    except Exception as e:
+        _logger.error("[themes] seed_from_json failed — themes not reseeded: %s",
+                      e, exc_info=True)
+        return False
+
+
 def get_all_themes():
     """Return all themes with their holdings grouped by sector."""
     conn = get_connection()
