@@ -6,7 +6,7 @@ options snapshot endpoint. Designed to be a drop-in alternative or a
 fallback when Schwab fails.
 
 Architecture:
-  - One HTTP call per UNDERLYING ticker (Massive's chain endpoint returns
+  - One HTTP call per UNDERLYING ticker (Massive's snapshot endpoint returns
     OI for all strikes/expirations on that underlying in one response).
     For a typical batch of 50-200 contracts, this is 5-20 calls instead
     of 50-200 individual Schwab calls.
@@ -18,10 +18,13 @@ Architecture:
   - Error handling: returns None for unresolved contracts; caller treats
     as "Schwab miss" and falls through.
 
-ASSUMPTIONS (verify against current Massive docs before deploy):
+CONFIRMED against Massive (2026-07-19):
   1. Endpoint: https://api.massive.com/v3/snapshot/options/{ticker}
-  2. Auth: Bearer token via Authorization header using MASSIVE_API_KEY
-  3. Response shape:
+  2. Auth: `?apiKey=<MASSIVE_API_KEY>` QUERY PARAM (NOT a Bearer header — the
+     Bearer form is rejected and was the cause of the 7/15-17 "0/198 resolved"
+     collapse). Matches the on-demand quote fetch in massive_ws_worker.py and
+     the verified snapshot curl (FROG 8/21 $80C → open_interest 8004).
+  3. Response shape (per-contract objects under `results`):
      {
        "status": "OK",
        "results": [
@@ -39,18 +42,25 @@ ASSUMPTIONS (verify against current Massive docs before deploy):
        ],
        "next_url": "..." (optional, for pagination)
      }
-  4. Pagination: GET next_url with same auth, response has same shape
+     The single-contract route (.../{ticker}/{occ}) returns `results` as a
+     single OBJECT; this module accepts either an array or a single object.
+  4. Pagination: GET next_url with apiKey re-appended (Massive's next_url
+     carries the cursor but NOT the key).
 
-If Massive's actual API differs (different paths, field names, auth
-style), only the parsing functions need to change. The orchestration
-logic is correct regardless.
+HTTP: STDLIB urllib only, run via asyncio.to_thread — httpx is NOT installed
+in the flow-worker container (same reason the on-demand quote fetch is stdlib),
+so importing it here silently returned all-None whenever oi_fetch_manager
+called this on the worker.
 
 Drop-in interface match with Schwab module:
   _fetch_oi_all_async(batch) -> List[Tuple[contract_key, oi_or_None]]
 """
 import asyncio
+import json as _json
 import logging
 import os
+import urllib.parse
+import urllib.request
 from collections import defaultdict
 from datetime import datetime
 from typing import Iterable
@@ -81,10 +91,25 @@ MASSIVE_PAGE_LIMIT = int(os.environ.get("MASSIVE_OI_PAGE_LIMIT", "250"))
 # covers SPY/QQQ-sized chains. For most tickers we finish in 3-8 pages.
 MAX_PAGES = int(os.environ.get("MASSIVE_OI_MAX_PAGES", "40"))
 
+# Real UA to avoid Cloudflare's 1010 block on urllib's default agent (same
+# guard the Discord POST + on-demand quote paths use).
+_UCT_UA = "UCT-Massive/1.0 (+https://uctintelligence.com)"
+
 # Per-underlying response cache (within a single function call). Avoids
 # refetching the same chain if multiple contracts on the same ticker
 # appear in the batch.
 _PER_CALL_CACHE: dict = {}
+
+
+def _with_key(url: str) -> str:
+    """Append apiKey as a query param — Massive/Polygon auth. Matches the
+    verified snapshot curl and the worker's on-demand /v3/quotes fetch; the
+    Bearer-header form is rejected. Applied to the initial URL AND every
+    next_url (the cursor URL does not carry the key)."""
+    if not MASSIVE_API_KEY:
+        return url
+    sep = "&" if ("?" in url) else "?"
+    return f"{url}{sep}apiKey={urllib.parse.quote(MASSIVE_API_KEY)}"
 
 
 def _contract_key(sym: str, cp_letter: str, strike, exp_mdy: str) -> str:
@@ -93,8 +118,28 @@ def _contract_key(sym: str, cp_letter: str, strike, exp_mdy: str) -> str:
 
     Format: 'TICKER|C/P|float_strike|M/D/YYYY'
     Example: 'QCOM|C|192.5|8/7/2026'
+
+    NOTE: exp_mdy is kept verbatim (not canonicalized) so the returned key
+    is byte-identical to the Schwab module's make_key() and merges back
+    correctly in oi_snapshots._fetch_oi_all_async. Only the internal chain
+    LOOKUP canonicalizes the date (see _canon_mdy).
     """
     return f"{sym}|{cp_letter}|{float(strike)}|{exp_mdy}"
+
+
+def _canon_mdy(s: str) -> str:
+    """Canonical 'M/D/YYYY' (no leading zeros) from 'M/D/YYYY' or 'MM/DD/YYYY'.
+    Used to make the chain lookup leading-zero-proof. '' if unparseable."""
+    try:
+        parts = str(s).strip().split("/")
+        if len(parts) == 3:
+            m, d, y = int(parts[0]), int(parts[1]), int(parts[2])
+            if y < 100:
+                y += 2000
+            return f"{m}/{d}/{y}"
+    except (ValueError, TypeError):
+        pass
+    return ""
 
 
 def _parse_iso_date_to_mdy(iso_date: str) -> str:
@@ -106,14 +151,21 @@ def _parse_iso_date_to_mdy(iso_date: str) -> str:
         return ""
 
 
-def _build_index_from_response(results: list) -> dict:
-    """Index a Massive chain response by (cp_letter, float_strike, M/D/YYYY).
+def _build_index_from_response(results, index: dict) -> None:
+    """Index a Massive snapshot response into `index`, mapping
+    (cp_letter, float_strike, canonical M/D/YYYY) -> OI int.
 
-    Returns a dict mapping that tuple to OI int. Contracts without OI
-    or with unparseable details are skipped.
+    Accepts `results` as a list of contract objects OR a single contract
+    object (the single-contract route returns the latter). Contracts without
+    OI, with OI<=0, or with unparseable details are skipped.
     """
-    index = {}
+    if isinstance(results, dict):
+        results = [results]
+    elif not results:
+        return
     for item in results:
+        if not isinstance(item, dict):
+            continue
         details = item.get("details") or {}
         oi = item.get("open_interest")
         if oi is None:
@@ -127,7 +179,6 @@ def _build_index_from_response(results: list) -> dict:
             # but we let the consumer interpret. Schwab module also
             # filters out 0; matching that for consistency.
             continue
-        # Determine cp_letter
         ctype = (details.get("contract_type") or "").lower()
         if ctype == "call":
             cp_letter = "C"
@@ -135,7 +186,6 @@ def _build_index_from_response(results: list) -> dict:
             cp_letter = "P"
         else:
             continue
-        # Strike
         strike = details.get("strike_price")
         if strike is None:
             continue
@@ -143,73 +193,52 @@ def _build_index_from_response(results: list) -> dict:
             strike_f = float(strike)
         except (ValueError, TypeError):
             continue
-        # Expiration (M/D/YYYY)
-        exp_iso = details.get("expiration_date") or ""
-        exp_mdy = _parse_iso_date_to_mdy(exp_iso)
+        exp_mdy = _canon_mdy(_parse_iso_date_to_mdy(details.get("expiration_date") or ""))
         if not exp_mdy:
             continue
         index[(cp_letter, strike_f, exp_mdy)] = oi_int
-    return index
 
 
-async def _fetch_chain_for_ticker(client, ticker: str) -> dict:
-    """Fetch full chain snapshot for one underlying ticker.
-
-    Returns dict mapping (cp_letter, float_strike, M/D/YYYY) -> oi_int.
-    Follows pagination if next_url is present.
-    On any error, returns empty dict (caller treats as 'unresolved').
-    """
+def _fetch_chain_blocking(ticker: str) -> dict:
+    """Blocking (run via asyncio.to_thread) full-chain snapshot for one
+    underlying. Returns {(cp_letter, float_strike, 'M/D/YYYY'): oi_int}.
+    Follows next_url pagination. Empty dict on any error (caller treats as
+    'unresolved'). Stdlib urllib only — no httpx dependency."""
     if ticker in _PER_CALL_CACHE:
         return _PER_CALL_CACHE[ticker]
 
-    headers = {}
-    if MASSIVE_API_KEY:
-        headers["Authorization"] = f"Bearer {MASSIVE_API_KEY}"
-
-    # Use ?limit=250 to get 25x more per page than Massive's default of 10.
-    # Without this, full chain fetches require 50+ pages and almost never
-    # complete within the 12s timeout for liquid tickers.
-    url = (f"{MASSIVE_REST_BASE}/v3/snapshot/options/{ticker}"
-           f"?limit={MASSIVE_PAGE_LIMIT}")
+    url = _with_key(f"{MASSIVE_REST_BASE}/v3/snapshot/options/{ticker}"
+                    f"?limit={MASSIVE_PAGE_LIMIT}")
     combined: dict = {}
     page = 0
     total_results_seen = 0
 
     while url and page < MAX_PAGES:
         try:
-            resp = await client.get(url, headers=headers,
-                                    timeout=HTTP_TIMEOUT_SEC)
+            req = urllib.request.Request(url, headers={"User-Agent": _UCT_UA})
+            with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_SEC) as resp:
+                status = getattr(resp, "status", 200)
+                if status != 200:
+                    logger.warning("[massive-oi] %s page %d status=%d",
+                                   ticker, page, status)
+                    break
+                data = _json.loads(resp.read().decode("utf-8"))
         except Exception as e:
             logger.warning("[massive-oi] %s page %d request failed: %s",
                            ticker, page, e)
             break
 
-        if resp.status_code != 200:
-            logger.warning("[massive-oi] %s page %d status=%d",
-                           ticker, page, resp.status_code)
-            break
+        results = data.get("results")
+        n = len(results) if isinstance(results, list) else (1 if results else 0)
+        total_results_seen += n
+        _build_index_from_response(results, combined)
 
-        try:
-            data = resp.json()
-        except Exception as e:
-            logger.warning("[massive-oi] %s page %d JSON parse failed: %s",
-                           ticker, page, e)
-            break
-
-        results = data.get("results") or []
-        total_results_seen += len(results)
-        if results:
-            combined.update(_build_index_from_response(results))
-
-        # Follow pagination if present
+        # Follow pagination if present (re-append apiKey — the cursor URL
+        # carries the marker but not the key).
         next_url = data.get("next_url")
         if next_url:
-            # Massive's next_url is sometimes relative, sometimes absolute.
-            # Either way it carries the cursor; append our auth via header.
-            if next_url.startswith("http"):
-                url = next_url
-            else:
-                url = f"{MASSIVE_REST_BASE}{next_url}"
+            base = next_url if next_url.startswith("http") else f"{MASSIVE_REST_BASE}{next_url}"
+            url = _with_key(base)
             page += 1
         else:
             url = None
@@ -240,41 +269,43 @@ async def _fetch_oi_all_async(batch: Iterable[tuple]) -> list:
         the returned contract_keys both use the single letter."""
         return "C" if str(cp).upper() in ("C", "CALL") else "P"
 
-    # Group batch by underlying ticker
-    by_ticker: dict = defaultdict(list)
+    # Materialize so we can iterate twice (ticker grouping, then matching)
+    # even if a generator was passed.
+    batch = list(batch)
+
+    # Unique underlyings to fetch (skip adjusted/when-issued symbols ending
+    # in a digit — Massive may 404 on those).
+    tickers = []
+    seen = set()
     for entry in batch:
         try:
             sym, cp_letter, strike, exp_mdy = entry
         except (ValueError, TypeError):
             continue
         if not sym or sym[-1].isdigit():
-            # Skip adjusted/when-issued symbols — Massive may 404
             continue
-        by_ticker[sym].append((_norm_cp(cp_letter), strike, exp_mdy))
+        if sym not in seen:
+            seen.add(sym)
+            tickers.append(sym)
 
-    if not by_ticker:
+    if not tickers:
         return []
 
-    try:
-        import httpx
-    except ImportError:
-        logger.warning("[massive-oi] httpx not installed; cannot fetch")
-        return [(_contract_key(*e), None) for e in batch]
-
-    # Bounded concurrency for chain fetches
+    # Bounded-concurrency chain fetches, each blocking urllib call off the
+    # event loop via a thread.
     sem = asyncio.Semaphore(MAX_CONCURRENCY)
 
-    async def _fetch_one(client, ticker):
+    async def _fetch_one(ticker):
         async with sem:
-            return ticker, await _fetch_chain_for_ticker(client, ticker)
+            idx = await asyncio.to_thread(_fetch_chain_blocking, ticker)
+            return ticker, idx
 
-    async with httpx.AsyncClient() as client:
-        tasks = [_fetch_one(client, t) for t in by_ticker.keys()]
-        chain_results = await asyncio.gather(*tasks, return_exceptions=False)
-
+    chain_results = await asyncio.gather(
+        *[_fetch_one(t) for t in tickers], return_exceptions=False
+    )
     chains_by_ticker = {t: idx for t, idx in chain_results}
 
-    # Now match each requested contract to its OI
+    # Match each requested contract to its OI.
     results = []
     for entry in batch:
         try:
@@ -289,17 +320,18 @@ async def _fetch_oi_all_async(batch: Iterable[tuple]) -> list:
         except (ValueError, TypeError):
             results.append((ck, None))
             continue
-        lookup_key = (cp_letter, strike_f, exp_mdy)
+        lookup_key = (cp_letter, strike_f, _canon_mdy(exp_mdy))
         oi = chain_idx.get(lookup_key)
         results.append((ck, oi))
 
-    # Log diagnostic summary
     resolved = sum(1 for _, oi in results if oi is not None and oi > 0)
-    total = len(results)
-    tickers = len(by_ticker)
     logger.info(
         "[massive-oi] fetched %d tickers -> %d/%d contracts resolved",
-        tickers, resolved, total
+        len(tickers), resolved, len(results)
     )
-
     return results
+
+
+def _fetch_oi_all(contracts: Iterable[tuple]) -> list:
+    """Synchronous wrapper (parity with the Schwab module's _fetch_oi_all)."""
+    return asyncio.run(_fetch_oi_all_async(contracts))
