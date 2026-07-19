@@ -1,5 +1,7 @@
 """Local data loading + canonical symbol helpers for the curation pipeline."""
 import json
+import os
+import tempfile
 
 from api.services.groups import normalize_sym as _norm, to_taxonomy_sym as _dot
 
@@ -20,9 +22,20 @@ def load_taxonomy(path: str) -> dict:
 
 
 def save_taxonomy(path: str, data: dict) -> None:
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-        f.write("\n")
+    """Atomic write: serialize to a temp file in the same dir, then os.replace."""
+    d = os.path.dirname(os.path.abspath(path)) or "."
+    fd, tmp = tempfile.mkstemp(dir=d, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def cap_universe_set(path: str) -> set:

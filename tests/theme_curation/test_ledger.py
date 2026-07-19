@@ -7,6 +7,7 @@ def test_record_and_readback(tmp_path):
     lg.record("space", "RKLB", "add", "approve", {"tier": "core"})
     assert lg.is_decided("space", "RKLB", "add") is True
     assert lg.get("space", "RKLB", "add")["decision"] == "approve"
+    assert lg.get("space", "RKLB", "add")["fields"] == {"tier": "core"}
 
 
 def test_last_write_wins(tmp_path):

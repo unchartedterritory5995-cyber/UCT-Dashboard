@@ -26,3 +26,12 @@ def test_load_save_roundtrip(tmp_path):
     data = {"version": "1.0.0", "themes": []}
     loaders.save_taxonomy(str(p), data)
     assert loaders.load_taxonomy(str(p)) == data
+
+
+def test_save_taxonomy_overwrites_atomically(tmp_path):
+    p = tmp_path / "t.json"
+    loaders.save_taxonomy(str(p), {"version": "1.0.0", "themes": []})
+    loaders.save_taxonomy(str(p), {"version": "2.0.0", "themes": [{"id": "x"}]})
+    assert loaders.load_taxonomy(str(p)) == {"version": "2.0.0", "themes": [{"id": "x"}]}
+    # no leftover temp files in the dir
+    assert not any(f.name.endswith(".tmp") for f in tmp_path.iterdir())
