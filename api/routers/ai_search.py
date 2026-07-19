@@ -487,6 +487,87 @@ _FLOW_RE = re.compile(
     re.I)
 
 
+# ── Per-ticker fundamentals / analyst / insider — cached internal reads that
+# ground the answer with the desk's OWN numbers instead of web guesses. Each is
+# intent-gated (below) so a plain price/flow question doesn't pay for them, and
+# each is best-effort (never raises, never blocks the answer).
+
+def _ctx_fundamentals(sym: str) -> str:
+    from api.services.fundamentals import get_fundamentals
+    f = get_fundamentals(sym) or {}
+    if f.get("error") or not (f.get("market_cap") or f.get("pe_forward") or f.get("next_earnings")):
+        return ""
+    bits = []
+    if f.get("market_cap"):
+        bits.append(f"mkt cap {f['market_cap']}")
+    if f.get("pe_forward") is not None:
+        bits.append(f"fwd P/E {f['pe_forward']}")
+    if f.get("pe_trailing") is not None:
+        bits.append(f"P/E {f['pe_trailing']}")
+    if f.get("peg") is not None:
+        bits.append(f"PEG {f['peg']}")
+    if f.get("profit_margin_pct") is not None:
+        bits.append(f"net margin {f['profit_margin_pct']}%")
+    if f.get("revenue_growth_pct") is not None:
+        bits.append(f"rev growth {f['revenue_growth_pct']}%")
+    if f.get("dividend_yield_pct"):
+        bits.append(f"div yield {f['dividend_yield_pct']}%")
+    if f.get("next_earnings"):
+        bits.append(f"next earnings {f['next_earnings']}")
+    return f"{sym} fundamentals (UCT data): " + ", ".join(bits) if bits else ""
+
+
+def _ctx_analyst(sym: str) -> str:
+    from api.services.analyst_intel import get_analyst_intel
+    a = get_analyst_intel(sym) or {}
+    cons = a.get("consensus") or {}
+    pt = a.get("price_target") or {}
+    parts = []
+    if cons.get("rating"):
+        parts.append(f"consensus {cons['rating']}" + (f" ({cons.get('count')} analysts)" if cons.get("count") else ""))
+    if pt.get("avg"):
+        seg = f"avg PT ${pt['avg']}"
+        if pt.get("upside_pct") is not None:
+            seg += f" ({pt['upside_pct']:+.0f}% vs spot)"
+        parts.append(seg)
+    acts = a.get("recent_actions") or []
+    if acts:
+        top = acts[0]
+        parts.append(f"latest: {top.get('firm', '?')} {top.get('action', '')} {top.get('to_grade', '') or ''}".strip())
+    return f"{sym} analyst view (UCT data): " + "; ".join(parts) if parts else ""
+
+
+def _ctx_insider(sym: str) -> str:
+    from api.services.insider import get_insider_activity
+    rows = get_insider_activity(sym) or []
+    if not rows:
+        return ""
+    buys = [r for r in rows if (r.get("type") or "").lower() == "buy"][:2]
+    sells = [r for r in rows if (r.get("type") or "").lower() == "sell"][:1]
+    seg = []
+    for r in buys:
+        seg.append(f"BUY {r.get('name', '?')} ${round((r.get('amount') or 0) / 1e6, 2)}M ({r.get('date', '')})")
+    for r in sells:
+        seg.append(f"SELL {r.get('name', '?')} ${round((r.get('amount') or 0) / 1e6, 2)}M")
+    return f"{sym} insider activity (UCT data, last ~90d): " + "; ".join(seg) if seg else ""
+
+
+# Intent gates — tight, anchored so single-stock price/flow questions don't fire them.
+_FUNDAMENTALS_RE = re.compile(
+    r"\b(valuation|market ?cap|mkt ?cap|p/?e\b|pe ratio|forward p/?e|peg\b|price[- ]to[- ]"
+    r"|ev/|multiple|fundamentals?|profit margins?|net margin|gross margin|operating margin"
+    r"|revenue growth|earnings growth|balance sheet|free cash flow|fcf\b|dividend|yield|payout"
+    r"|how (?:big|large|much bigger)|worth|bigger by (?:market )?cap"
+    r"|when (?:does|do|is|will).{0,20}\breport|next earnings|report (?:next|date)|earnings date)\b", re.I)
+_ANALYST_RE = re.compile(
+    r"\b(analysts?|price targets?|\bpts?\b(?= |$)|upgrade[sd]?|downgrade[sd]?|ratings?"
+    r"|overweight|underweight|buy rating|consensus|street (?:says|view|target|estimate)"
+    r"|sell[- ]side|wall street (?:target|expect))\b", re.I)
+_INSIDER_RE = re.compile(
+    r"\b(insider|insiders|form 4|c-suite|(?:ceo|cfo|ceo'?s|executives?|management)"
+    r".{0,30}?\b(?:buy|buying|bought|sell|selling|sold|purchase)|cluster buy)\b", re.I)
+
+
 def _ctx_movers() -> str:
     from api.services.massive import get_movers
     m = get_movers() or {}
@@ -555,7 +636,7 @@ _INTENT_SPECS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\b(headlines?|the tape|top stories|market news|news (?:today|this morning|before the open))\b", re.I), "_ctx_news"),
 ]
 
-_CTX_BUDGET = 2000   # chars — keep grounding a supplement, not a payload
+_CTX_BUDGET = 2600   # chars — keep grounding a supplement, not a payload
 
 
 def _time_bucket() -> str:
@@ -632,6 +713,26 @@ def _uct_context(query: str) -> tuple[str, str]:
         for s in syms[:2]:
             try:
                 line = _ctx_flow_ticker(s)
+                if line:
+                    parts.append(line)
+            except Exception:
+                pass
+    # Per-ticker fundamentals / analyst / insider — intent-gated cached reads.
+    # Resolve each fn by NAME off the live module so a test/patch is honored.
+    _this = sys.modules[__name__]
+    q = query or ""
+    _perticker = []
+    if _FUNDAMENTALS_RE.search(q):
+        _perticker.append("_ctx_fundamentals")
+    if _ANALYST_RE.search(q):
+        _perticker.append("_ctx_analyst")
+    if _INSIDER_RE.search(q):
+        _perticker.append("_ctx_insider")
+    for fn_name in _perticker:
+        fn = getattr(_this, fn_name)
+        for s in syms[:2]:
+            try:
+                line = fn(s)
                 if line:
                     parts.append(line)
             except Exception:

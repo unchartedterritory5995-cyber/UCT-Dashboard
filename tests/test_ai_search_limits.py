@@ -99,7 +99,9 @@ def test_stream_emits_deltas_then_final_and_bills_once(monkeypatch):
     r = _client().post("/api/ai-search/stream", json={"query": "hi"})
     assert r.status_code == 200
     events = _read_sse(r)
-    assert [e["type"] for e in events] == ["delta", "delta", "final"]
+    # a `meta` tier event now precedes the deltas
+    assert events[0]["type"] == "meta"
+    assert [e["type"] for e in events[1:]] == ["delta", "delta", "final"]
     assert events[-1]["answer"] == "Hello"
     assert ai._usage_global == 1
 
