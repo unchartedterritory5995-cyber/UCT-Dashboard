@@ -1560,13 +1560,26 @@ export default function StockChart({
     // IS yesterday, so there we prefer the live feed's OFFICIAL prev_close to
     // match the theme tracker / brokers exactly. `c` is the live price.
     const feedPrev = (lp && Number.isFinite(lp.prev_close) && lp.prev_close > 0) ? lp.prev_close : null
+    const feedPct = (lp && Number.isFinite(lp.change_pct)) ? lp.change_pct : null
+    const feedChg = (lp && Number.isFinite(lp.change)) ? lp.change : null
     const prevBar = bars.length >= 2 ? bars[bars.length - 2] : null
     const prevBarClose = (prevBar && prevBar.c != null) ? prevBar.c : null
     const prevClose = (resolvedTfRef.current === 'D')
       ? (feedPrev ?? prevBarClose)
       : (prevBarClose ?? feedPrev)
-    const change = prevClose != null ? c - prevClose : c - o
-    const changePct = (prevClose != null && prevClose) ? (change / prevClose) * 100 : (o ? (change / o) * 100 : 0)
+    // DAILY: trust the feed's SERVER-computed today % (change_pct / change) — the
+    // regular-session move vs the official prev close. Deriving it from
+    // (livePrice − prevClose) reads 0.00% whenever the streamed live price sits at
+    // the reference (weekends / after-hours, where the live price IS the last
+    // close) — the recurring "goes to 0.00%" bug. Other TFs stay bar-vs-prior-bar.
+    let change, changePct
+    if (resolvedTfRef.current === 'D' && feedPct != null) {
+      changePct = feedPct
+      change = feedChg != null ? feedChg : (prevClose != null ? c - prevClose : c - o)
+    } else {
+      change = prevClose != null ? c - prevClose : c - o
+      changePct = (prevClose != null && prevClose) ? (change / prevClose) * 100 : (o ? (change / o) * 100 : 0)
+    }
     const ovData = overlayDataRef.current || []
     const rovs = resolvedOverlaysRef.current || []
     const overlays = rovs.map((ov, i) => {

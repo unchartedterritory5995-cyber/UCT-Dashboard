@@ -26,10 +26,23 @@ export default function ChartDayGain({ sym, upOverride = null, downOverride = nu
   // freshest-wins across the two feeds so a gap in either never freezes the gain
   const livePx = pickFreshPrice(barHdr[sym], rtHdr[sym])
   const prevClose = rtHdr[sym]?.prev_close ?? null
-  const gainAbs = (livePx != null && prevClose != null && prevClose !== 0) ? (livePx - prevClose) : null
-  if (gainAbs == null) return null
-  const gainPct = (gainAbs / prevClose) * 100
-  const gainUp = gainAbs >= 0
+  // Prefer the feed's SERVER-computed today % (change_pct / change). Deriving the
+  // gain from (livePx − prevClose) reads 0.00% on weekends / after-hours, where
+  // the live price sits at the reference close — the recurring "goes to 0.00%"
+  // bug. Fall back to the subtraction only when the feed lacks a change_pct.
+  const feedPct = rtHdr[sym]?.change_pct
+  const feedChg = rtHdr[sym]?.change
+  let gainAbs, gainPct
+  if (feedPct != null && Number.isFinite(feedPct)) {
+    gainPct = feedPct
+    gainAbs = (feedChg != null && Number.isFinite(feedChg)) ? feedChg
+      : (prevClose != null && prevClose !== 0 ? (prevClose * feedPct) / 100 : null)
+  } else if (livePx != null && prevClose != null && prevClose !== 0) {
+    gainAbs = livePx - prevClose
+    gainPct = (gainAbs / prevClose) * 100
+  }
+  if (gainAbs == null || gainPct == null) return null
+  const gainUp = gainPct >= 0
   return (
     <span className={styles.chartDayGain} style={{ color: gainUp ? upColor : downColor }}>
       {gainUp ? '+' : ''}{gainAbs.toFixed(2)} ({gainUp ? '+' : ''}{gainPct.toFixed(2)}%)
