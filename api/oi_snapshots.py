@@ -365,6 +365,36 @@ def get_status(days: int = 7) -> List[Dict]:
 
 
 # ── Write ops ────────────────────────────────────────────────────────────
+def get_latest_oi_batch(contract_keys: "Iterable[str]") -> dict:
+    """Latest snapshot OI per contract_key -> {contract_key: (oi, snap_date)}.
+
+    Used to backfill a live broker quote when it returns 0 OI (outside RTH, and
+    because OI is a once-daily OCC figure the live quote is the wrong source
+    anyway). Reads the OI DB via _conn(). Missing contracts are simply absent
+    from the returned dict.
+    """
+    keys = [k for k in dict.fromkeys(contract_keys) if k]  # dedup, drop falsy
+    if not keys:
+        return {}
+    placeholders = ",".join(["?"] * len(keys))
+    out = {}
+    with _conn() as c:
+        cur = c.execute(
+            f"""SELECT s.contract_key, s.oi, s.snap_date
+                FROM contract_oi_snapshots s
+                JOIN (
+                    SELECT contract_key, MAX(snap_date) AS md
+                    FROM contract_oi_snapshots
+                    WHERE contract_key IN ({placeholders})
+                    GROUP BY contract_key
+                ) m ON s.contract_key = m.contract_key AND s.snap_date = m.md""",
+            keys,
+        )
+        for ck, oi, sd in cur.fetchall():
+            out[ck] = (oi, sd)
+    return out
+
+
 def record_batch(snapshots: Iterable[Tuple[str, int, str]], snap_date: str) -> int:
     """Insert a batch of (contract_key, oi, source) tuples for the given date.
     Upserts: if (contract_key, snap_date) already exists, OI is updated.
