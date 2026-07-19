@@ -50,3 +50,19 @@ def test_bump_version_changes_on_content_and_is_stable():
     tax["themes"][0]["holdings"].append({"sym": "ZZ"})
     v3 = A.bump_version(tax)
     assert v3.split("+")[1] != v1.split("+")[1]
+
+
+def test_apply_tolerates_sym_less_sibling():
+    tax = {"version": "1.0.0", "sectors": [{"id": "s", "name": "S"}],
+           "themes": [{"id": "space", "name": "Space", "sector_id": "s", "sub_themes": [],
+                       "holdings": [{"sym": "RKLB"}, {"tier": "core"}]}]}   # sibling lacks sym
+    from tools.theme_curation.proposals import Proposal
+    out, rej = A.apply_proposals(tax, [Proposal("space", "drop", "RKLB", 1)], {"RKLB"})   # must not KeyError
+    syms = [h.get("sym") for h in out["themes"][0]["holdings"]]
+    assert "RKLB" not in syms and None in syms   # RKLB dropped, sym-less sibling preserved
+
+
+def test_validate_rejects_unknown_action():
+    from tools.theme_curation.proposals import Proposal
+    theme = {"id": "space", "name": "Space", "sector_id": "s", "sub_themes": [], "holdings": [{"sym": "RKLB"}]}
+    assert A.validate_proposal(Proposal("space", "frobnicate", "RKLB", 1), theme, {"RKLB"})   # returns a reason

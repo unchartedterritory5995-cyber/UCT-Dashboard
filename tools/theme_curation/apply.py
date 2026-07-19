@@ -20,6 +20,8 @@ def validate_proposal(p, theme, cap_set):
     cur = set(loaders.holding_syms(theme))
     subs = _sub_ids(theme)
     f = p.fields
+    if p.action not in {"add", "drop", "remap", "retier"}:
+        return f"unknown action {p.action!r}"
     if p.action == "drop":
         if p.sym not in cur:
             return f"drop {p.sym}: not a current member"
@@ -68,7 +70,7 @@ def apply_proposals(taxonomy, approved, cap_set):
             continue
         H = theme["holdings"]
         if p.action == "drop":
-            theme["holdings"] = [h for h in H if loaders.norm(h["sym"]) != p.sym]
+            theme["holdings"] = [h for h in H if loaders.norm(h.get("sym", "")) != p.sym]
         elif p.action == "add":
             theme["holdings"].append({
                 "sym": loaders.to_dot(p.sym), "tier": p.fields.get("tier", "relevant"),
@@ -77,7 +79,7 @@ def apply_proposals(taxonomy, approved, cap_set):
         elif p.action == "remap":
             old = _find(H, p.sym)
             new_sym = p.fields["new_sym"]
-            theme["holdings"] = [h for h in H if loaders.norm(h["sym"]) != p.sym]
+            theme["holdings"] = [h for h in H if loaders.norm(h.get("sym", "")) != p.sym]
             existing = _find(theme["holdings"], new_sym)
             if existing is None:      # append (inherit old's fields unless overridden)
                 theme["holdings"].append({
