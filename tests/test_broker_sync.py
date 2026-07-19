@@ -312,3 +312,14 @@ def test_locked_retry_has_a_longer_tail():
     # Three retries (four attempts) with a patient tail — a big concurrent
     # backfill can hold auth.db past a ~4s total budget.
     assert sync._LOCKED_RETRY_DELAYS == (1.0, 3.0, 8.0)
+
+
+@pytest.mark.asyncio
+async def test_sync_all_skips_broken_accounts(env):
+    """A broken account (needs reconnect) must not be synced — every attempt
+    is a guaranteed 401, and SnapTrade webhooks dead connections daily (prod
+    noise: one 401/day from a stale test account). Reconnect flips status to
+    active first, so nothing legitimate is skipped."""
+    connections.set_status("u1", env["ba_id"], "broken", error="dead")
+    out = await sync.sync_all_for_user("u1")
+    assert out[env["ba_id"]] == {"skipped": True, "reason": "broken"}

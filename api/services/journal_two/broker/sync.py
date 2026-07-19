@@ -180,6 +180,14 @@ async def sync_all_for_user(user_id: str, *, full: bool = False,
         if not ba["syncEnabled"]:
             results[ba["id"]] = {"skipped": True, "reason": "sync disabled"}
             continue
+        if ba["status"] != "active":
+            # broken = needs reconnect (sync is a guaranteed auth failure —
+            # SnapTrade keeps webhooking dead connections daily, which was
+            # logging a 401 per day per broken account); disabled = removed
+            # at SnapTrade. CONNECTION_FIXED / reconnect flips status back to
+            # active before any sync runs, so nothing legitimate is skipped.
+            results[ba["id"]] = {"skipped": True, "reason": ba["status"]}
+            continue
         try:
             results[ba["id"]] = await sync_account(
                 user_id, ba["id"], full=full, cooldown_seconds=cooldown_seconds)
