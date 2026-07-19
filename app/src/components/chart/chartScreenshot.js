@@ -104,6 +104,7 @@ export async function composeScreenshot(chart, opts = {}) {
   const {
     sym, tf, price, changePct, companyName,
     container, crosshairData, volPos,
+    bgColor = '#0e0f0d', swingLabels, swingStyle,
   } = opts;
 
   // LWC's takeScreenshot() = ONLY the chart canvases (candles, axes, MAs, volume
@@ -130,11 +131,12 @@ export async function composeScreenshot(chart, opts = {}) {
   const ctx = out.getContext('2d');
   const FONT = '"Instrument Sans", -apple-system, sans-serif';
 
-  // Background + header/footer strips
-  ctx.fillStyle = '#0a0a0a';
+  // Fill EVERYTHING with the chart's own background. The LWC canvas is
+  // transparent (its bg is the container's CSS color), so painting the whole
+  // output with bgColor makes the header/footer blend seamlessly with the chart
+  // area instead of the old darker strips.
+  ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, totalW, totalH);
-  ctx.fillStyle = '#0e0f0d';
-  ctx.fillRect(0, 0, totalW, HEADER_H);
 
   // ── Chart canvas (toolbar-free) ──
   ctx.drawImage(chartCanvas, 0, HEADER_H);
@@ -177,6 +179,35 @@ export async function composeScreenshot(chart, opts = {}) {
     if (crosshairData.dollarVol != null) chip('$ Vol', _fmtNotional(crosshairData.dollarVol));
     if (crosshairData.volAvg != null && crosshairData.volMaPeriod) {
       chip(`Avg ${crosshairData.volMaPeriod}D`, _fmtVol(crosshairData.volAvg));
+    }
+  }
+
+  // ── Redraw swing-high/low price labels (a top-zOrder primitive takeScreenshot
+  //    misses). Mirrors swingLabelsPrimitive: box above a high / below a low. ──
+  if (Array.isArray(swingLabels) && swingLabels.length) {
+    const st = swingStyle || {};
+    const fpx = px(st.fontPx || 11);
+    const GAP = px(10), PADX = px(3), PADY = px(2);
+    ctx.font = `600 ${fpx}px ${FONT}`;
+    ctx.textAlign = 'center';
+    for (const s of swingLabels) {
+      const x = px(s.x);
+      const y = px(s.y) + HEADER_H;
+      const isHigh = s.type === 'high';
+      const ty = isHigh ? y - GAP : y + GAP;
+      const w = ctx.measureText(s.label).width;
+      if (st.showBg !== false) {
+        ctx.fillStyle = st.bg || '#1a1c17';
+        const boxY = isHigh ? ty - fpx : ty;
+        const rx = x - w / 2 - PADX, ry = boxY - PADY, rw = w + PADX * 2, rh = fpx + PADY * 2;
+        if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, px(3)); ctx.fill(); }
+        else ctx.fillRect(rx, ry, rw, rh);
+      }
+      ctx.textBaseline = isHigh ? 'bottom' : 'top';
+      ctx.fillStyle = st.tintByType
+        ? (isHigh ? (st.upColor || '#4ade80') : (st.downColor || '#f87171'))
+        : (st.color || '#d4d0c4');
+      ctx.fillText(s.label, x, ty);
     }
   }
 
@@ -228,9 +259,7 @@ export async function composeScreenshot(chart, opts = {}) {
   ctx.fillStyle = '#c9a84c';
   ctx.fillText(brandText, gx, hy);
 
-  // ── Footer ──
-  ctx.fillStyle = '#0e0f0d';
-  ctx.fillRect(0, HEADER_H + ch, totalW, FOOTER_H);
+  // ── Footer (bg already painted with bgColor) ──
   ctx.fillStyle = '#8f897a';
   ctx.font = `${px(11)}px ${FONT}`;
   ctx.textBaseline = 'middle';

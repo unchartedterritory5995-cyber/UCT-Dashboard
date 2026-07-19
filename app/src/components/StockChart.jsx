@@ -1290,6 +1290,7 @@ export default function StockChart({
   const sessionShadeAttachedRef = useRef(false)
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
   const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
+  const swingPointsRef = useRef([])       // latest swing pivots — redrawn into the PNG screenshot
   const earnBadgeRef = useRef(null)       // earnings "E" badge series primitive controller
   const earnBadgeAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const tickerMeta = useTickerMeta(sym)
@@ -1907,16 +1908,37 @@ export default function StockChart({
       const r = el.getBoundingClientRect()
       return { x: r.left - contRect.left, y: r.top - contRect.top }
     }
+    // Swing labels are a top-zOrder LWC primitive that takeScreenshot() doesn't
+    // capture, so pre-compute their pixel positions here and let the compositor
+    // redraw them (mirrors swingLabelsPrimitive).
+    const ts = chartRef.current?.timeScale?.()
+    const series = candleSeriesRef.current
+    const sl = cs.swingLabels || {}
+    const swingLabels = (ts && series ? (swingPointsRef.current || []) : []).map((p) => {
+      const x = ts.timeToCoordinate(p.time)
+      const y = series.priceToCoordinate?.(p.price)
+      return (x != null && y != null) ? { x, y, label: Number(p.price).toFixed(2), type: p.type } : null
+    }).filter(Boolean)
+    // Effective chart background so the header/footer blend with the canvas.
+    const bgColor = canvasTheme === 'sunrise'
+      ? '#eaf1fa'
+      : (userCanvas && cs.bgMode === 'gradient')
+        ? (cs.bgGradient?.top || MB_BG)
+        : ((userCanvas || !boldCandles) ? (cs.background || MB_BG) : MB_BG)
     return {
       sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
       companyName: watermarkMeta?.name || tickerMeta?.name || null,
       container: cont,
       crosshairData,
-      timeLabel: crosshairData ? formatLegendTime(crosshairData.time) : '',
-      legendPos: relPos(legendRef.current),
       volPos: relPos(volLegendRef.current),
+      bgColor,
+      swingLabels,
+      swingStyle: {
+        color: sl.color, tintByType: sl.tintByType, upColor: sl.upColor,
+        downColor: sl.downColor, showBg: sl.showBg, bg: sl.bg, fontPx: sl.fontPx,
+      },
     }
-  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData])
+  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles])
 
   const handleDownload = useCallback(async () => {
     if (!chartRef.current) return
@@ -3080,6 +3102,7 @@ export default function StockChart({
     () => swingLabelsOn ? detectSwingPivots(ohlcData, sensitivityToParams(swingSensitivity, resolvedTf)) : [],
     [swingLabelsOn, swingSensitivity, resolvedTf, ohlcData]
   )
+  swingPointsRef.current = swingPoints  // expose to the (later-defined) screenshot builder
   // Gold-tinted copy with the highlighted bar(s) (Model Book: the focused
   // setup's day, or — with "show all" on — every setup's day) painted gold.
   // Kept separate from ohlcData so updateChart's normal setData path (and every
