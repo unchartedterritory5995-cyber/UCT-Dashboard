@@ -246,19 +246,19 @@ export async function composeScreenshot(chart, opts = {}) {
   const compass = await loadCompass();
   const brandFont = `800 ${px(16)}px ${FONT}`;
   ctx.font = brandFont;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
   const brandText = 'UCT INTELLIGENCE';
   const brandW = ctx.measureText(brandText).width;
   const logoH = px(22);
   const logoW = compass ? logoH * (compass.width / compass.height) : 0;
-  const gap = compass ? px(12) : 0;
-  const groupW = logoW + gap + brandW;
-  let gx = (totalW - groupW) / 2;
-  if (compass) { ctx.drawImage(compass, gx, hy - logoH / 2, logoW, logoH); gx += logoW + gap; }
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.font = brandFont;
+  const gap = compass ? px(10) : 0;
+  // ANCHOR the TEXT on the canvas midline (matches the centered watermark); the
+  // compass hangs off to its LEFT and does not shift the text's centering.
+  const textX = (totalW - brandW) / 2;
+  if (compass) ctx.drawImage(compass, textX - gap - logoW, hy - logoH / 2, logoW, logoH);
   ctx.fillStyle = '#c9a84c';
-  ctx.fillText(brandText, gx, hy);
+  ctx.fillText(brandText, textX, hy);
 
   // ── Footer (bg already painted with bgColor) ──
   ctx.fillStyle = '#8f897a';
