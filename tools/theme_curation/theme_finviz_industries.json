@@ -272,5 +272,78 @@
     "Communication Equipment",
     "Electronic Components",
     "Scientific & Technical Instruments"
+  ],
+  "staples": [
+    "Packaged Foods",
+    "Household & Personal Products",
+    "Beverages - Non-Alcoholic",
+    "Confectioners",
+    "Food Distribution"
+  ],
+  "discretionary": [
+    "Travel Services",
+    "Auto Manufacturers",
+    "Restaurants",
+    "Specialty Retail",
+    "Apparel Retail"
+  ],
+  "retail": [
+    "Discount Stores",
+    "Specialty Retail",
+    "Apparel Retail",
+    "Department Stores"
+  ],
+  "airlines": [
+    "Airlines"
+  ],
+  "leisure": [
+    "Travel Services",
+    "Resorts & Casinos",
+    "Lodging",
+    "Leisure"
+  ],
+  "homebuilders": [
+    "Residential Construction",
+    "Real Estate - Development"
+  ],
+  "ecommerce": [
+    "Internet Retail",
+    "Specialty Retail"
+  ],
+  "streaming": [
+    "Entertainment",
+    "Internet Content & Information"
+  ],
+  "restaurants": [
+    "Restaurants"
+  ],
+  "apparel": [
+    "Apparel Manufacturing",
+    "Footwear & Accessories",
+    "Apparel Retail"
+  ],
+  "education": [
+    "Education & Training Services"
+  ],
+  "sports_betting": [
+    "Gambling",
+    "Resorts & Casinos"
+  ],
+  "luxury": [
+    "Luxury Goods",
+    "Footwear & Accessories",
+    "Apparel Manufacturing"
+  ],
+  "pet_economy": [
+    "Packaged Foods",
+    "Specialty Retail"
+  ],
+  "travel": [
+    "Travel Services",
+    "Lodging",
+    "Airlines"
+  ],
+  "cannabis": [
+    "Drug Manufacturers - Specialty & Generic"
   ]
 }

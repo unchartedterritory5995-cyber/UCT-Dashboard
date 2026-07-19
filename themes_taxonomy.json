@@ -1,5 +1,5 @@
 {
-  "version": "4.9.0+e2ba4d20",
+  "version": "4.10.0+285f11c0",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -7249,13 +7249,13 @@
         },
         {
           "sym": "PM",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "tobacco_alcohol",
           "rationale": "Global tobacco and IQOS heated products"
         },
         {
           "sym": "MO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "tobacco_alcohol",
           "rationale": "US tobacco market leader (Marlboro)"
         },
@@ -7297,7 +7297,7 @@
         },
         {
           "sym": "BG",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Bunge Global grain processing food ingredients"
         },
@@ -7327,7 +7327,7 @@
         },
         {
           "sym": "ADM",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Archer-Daniels-Midland grain and food processing"
         },
@@ -7360,6 +7360,30 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Post Holdings cereal eggs and protein brands"
+        },
+        {
+          "sym": "TAP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CHD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -7516,6 +7540,30 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Carnival Corp cruise leisure and travel"
+        },
+        {
+          "sym": "MELI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DASH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MAR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -7579,7 +7627,7 @@
         },
         {
           "sym": "KR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "grocery",
           "rationale": "Largest US supermarket chain by revenue"
         },
@@ -7609,7 +7657,7 @@
         },
         {
           "sym": "BBY",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": "specialty_retail",
           "rationale": "Consumer electronics specialty retailer"
         },
@@ -7636,12 +7684,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Macys Inc department store chain nationwide"
-        },
-        {
-          "sym": "JWN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Nordstrom upscale department store retailer"
         },
         {
           "sym": "SFM",
@@ -7672,6 +7714,66 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Albertsons Companies grocery retail chain"
+        },
+        {
+          "sym": "LOW",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AMZN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TSCO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LULU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ANF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AEO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "URBN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BBWI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "VSCO",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -7722,7 +7824,7 @@
         },
         {
           "sym": "SKYW",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Regional airline operating for major carriers"
         },
@@ -7758,7 +7860,7 @@
         },
         {
           "sym": "PAC",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Grupo Aeromexico Mexican flag carrier ADR"
         },
@@ -7776,7 +7878,7 @@
         },
         {
           "sym": "SNCY",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Sun Country Airlines leisure focused carrier"
         },
@@ -7883,18 +7985,6 @@
           "rationale": "Peer-to-peer accommodation platform"
         },
         {
-          "sym": "SIX",
-          "tier": "relevant",
-          "sub_theme_id": "entertainment",
-          "rationale": "Six Flags theme parks and entertainment"
-        },
-        {
-          "sym": "SEAS",
-          "tier": "relevant",
-          "sub_theme_id": "entertainment",
-          "rationale": "SeaWorld theme parks and marine attractions"
-        },
-        {
           "sym": "NCLH",
           "tier": "relevant",
           "sub_theme_id": "travel_hotels",
@@ -7941,6 +8031,60 @@
           "tier": "relevant",
           "sub_theme_id": "entertainment",
           "rationale": "Brinker International Chilis dining restaurants"
+        },
+        {
+          "sym": "PRKS",
+          "tier": "relevant",
+          "sub_theme_id": "entertainment",
+          "rationale": "rename"
+        },
+        {
+          "sym": "VIK",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "EXPE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TNL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TRIP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "VAC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MSGE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LTH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OSW",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -7979,7 +8123,7 @@
         },
         {
           "sym": "TOL",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Luxury homebuilder at premium price points"
         },
@@ -8003,7 +8147,7 @@
         },
         {
           "sym": "MHO",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "M/I Homes, Midwest and Southeast builder"
         },
@@ -8038,26 +8182,20 @@
           "rationale": "Skyline Champion manufactured housing builder"
         },
         {
-          "sym": "MDC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "MDC Holdings Richmond American homebuilder"
-        },
-        {
           "sym": "CVCO",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Cavco Industries manufactured and modular homes"
         },
         {
           "sym": "BZH",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Beazer Homes entry-level and move-up builder"
         },
         {
           "sym": "LEGH",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Legacy Housing manufactured home builder"
         },
@@ -8069,7 +8207,7 @@
         },
         {
           "sym": "HOV",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Hovnanian Enterprises multi-market homebuilder"
         }
@@ -8110,7 +8248,7 @@
         },
         {
           "sym": "MELI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Latin America dominant e-commerce platform"
         },
@@ -8181,12 +8319,6 @@
           "rationale": "Wix website builder with e-commerce capabilities"
         },
         {
-          "sym": "DADA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Dada Nexus Chinese on-demand delivery platform"
-        },
-        {
           "sym": "VTEX",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -8212,15 +8344,21 @@
         },
         {
           "sym": "CVNA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Carvana online used car e-commerce platform"
         },
         {
-          "sym": "OSTK",
+          "sym": "CART",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Overstock.com online home furnishing retailer"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "RVLV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -8277,15 +8415,9 @@
         },
         {
           "sym": "FUBO",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Live sports-focused streaming platform"
-        },
-        {
-          "sym": "WMG",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Warner Music Group music streaming royalty beneficiary"
+          "rationale": "Live sports-focused streaming platform"
         },
         {
           "sym": "SIRI",
@@ -8294,20 +8426,14 @@
           "rationale": "SiriusXM satellite radio and streaming platform"
         },
         {
-          "sym": "LYV",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Live Nation live streaming and virtual concerts"
-        },
-        {
           "sym": "IQ",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "iQIYI Chinese streaming video platform"
         },
         {
           "sym": "TME",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Tencent Music Chinese music streaming leader"
         },
@@ -8318,28 +8444,16 @@
           "rationale": "Amazon Prime Video and Twitch streaming"
         },
         {
-          "sym": "AAPL",
+          "sym": "GOOGL",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Apple TV Plus streaming original content"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "NWSA",
-          "tier": "peripheral",
+          "sym": "PSKY",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "News Corp Fox Nation and Tubi streaming"
-        },
-        {
-          "sym": "BIDU",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Baidu Chinese video streaming iQIYI parent"
-        },
-        {
-          "sym": "MTCH",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Match Group video-based dating and streaming"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -10967,19 +11081,19 @@
         },
         {
           "sym": "QSR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Multi-brand QSR operator including Burger King and Tim Hortons"
         },
         {
           "sym": "DRI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Full-service restaurant operator including Olive Garden"
         },
         {
           "sym": "TXRH",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Casual dining steakhouse chain with strong unit economics"
         },
@@ -10991,7 +11105,7 @@
         },
         {
           "sym": "CAVA",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Fast-growing Mediterranean fast-casual restaurant chain"
         },
@@ -11036,6 +11150,12 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Mexican-inspired QSR chain with value positioning"
+        },
+        {
+          "sym": "YUMC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 17
@@ -11073,12 +11193,6 @@
           "rationale": "Premium athletic apparel and athleisure leader"
         },
         {
-          "sym": "SKX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Comfort footwear brand with global distribution"
-        },
-        {
           "sym": "CROX",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -11110,7 +11224,7 @@
         },
         {
           "sym": "UAA",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Performance athletic wear brand in turnaround mode"
         },
@@ -11127,16 +11241,58 @@
           "rationale": "Premium outerwear and lifestyle apparel brand"
         },
         {
-          "sym": "HBI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Basic apparel and innerwear manufacturer"
-        },
-        {
           "sym": "COLM",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Outdoor apparel and footwear company"
+        },
+        {
+          "sym": "LEVI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "GAP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ANF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AEO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "URBN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "KTB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "GIL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "VSCO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 18
@@ -11418,7 +11574,7 @@
         },
         {
           "sym": "LOPE",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Education services and university support platform"
         },
@@ -11436,13 +11592,13 @@
         },
         {
           "sym": "COUR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Online education platform partnering with top universities"
         },
         {
           "sym": "APEI",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Online postsecondary education provider"
         },
@@ -11454,15 +11610,39 @@
         },
         {
           "sym": "LAUR",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Latin American private education network operator"
         },
         {
           "sym": "UTI",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Technical education and training for automotive and trades"
+        },
+        {
+          "sym": "EDU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TAL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LINC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "KLC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 25
@@ -11489,7 +11669,7 @@
         },
         {
           "sym": "PENN",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Regional casino operator with ESPN Bet online sportsbook"
         },
@@ -11507,7 +11687,7 @@
         },
         {
           "sym": "RSI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Technology-driven online sports betting operator"
         },
@@ -11524,16 +11704,16 @@
           "rationale": "Omnichannel gaming and entertainment company"
         },
         {
-          "sym": "EVRI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Gaming equipment and fintech solutions provider"
-        },
-        {
           "sym": "CHDN",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Horse racing and historical racing machine gaming operator"
+        },
+        {
+          "sym": "SRAD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 26
@@ -11554,7 +11734,7 @@
         },
         {
           "sym": "RH",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Luxury home furnishings and lifestyle brand"
         },
@@ -11577,12 +11757,6 @@
           "rationale": "Premium luxury lifestyle and fashion brand"
         },
         {
-          "sym": "BURL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Off-price retailer with luxury brand access"
-        },
-        {
           "sym": "BIRK",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -11595,16 +11769,10 @@
           "rationale": "Prestige beauty and luxury skincare portfolio"
         },
         {
-          "sym": "MOV",
-          "tier": "peripheral",
+          "sym": "REAL",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Luxury watch brand with premium positioning"
-        },
-        {
-          "sym": "FOSL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Fashion lifestyle accessories and watch brands"
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 27
@@ -11737,10 +11905,10 @@
           "rationale": "Garden and pet products manufacturer and distributor"
         },
         {
-          "sym": "PET",
-          "tier": "peripheral",
+          "sym": "ELAN",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Pet health and wellness products and technology company"
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 29
@@ -11790,22 +11958,10 @@
           "rationale": "Largest online travel platform in China"
         },
         {
-          "sym": "DESP",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Latin American online travel agency leader"
-        },
-        {
           "sym": "SABR",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Travel technology platform for airlines and hotels"
-        },
-        {
-          "sym": "LNW",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Travel and leisure gaming technology provider"
         },
         {
           "sym": "TRVG",
@@ -11814,16 +11970,76 @@
           "rationale": "Hotel price comparison and metasearch platform"
         },
         {
-          "sym": "OWW",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Leisure travel and destination experience company"
-        },
-        {
           "sym": "TNL",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Vacation ownership and travel membership company"
+        },
+        {
+          "sym": "DAL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "UAL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MAR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HLT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LUV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "RCL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CCL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NCLH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "VIK",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HGV",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 30
@@ -11957,13 +12173,13 @@
         },
         {
           "sym": "CRON",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Cannabis company backed by Altria with global operations"
         },
         {
           "sym": "SNDL",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Cannabis and liquor retail operator in Canada"
         },
@@ -11981,19 +12197,19 @@
         },
         {
           "sym": "IIPR",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Cannabis-focused REIT providing sale-leaseback financing"
         },
         {
           "sym": "HYFM",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Hydroponics and controlled environment grow equipment"
         },
         {
           "sym": "GRWG",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Cannabis cultivation supplies and hydroponics retailer"
         }
