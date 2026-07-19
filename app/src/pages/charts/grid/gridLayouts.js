@@ -89,7 +89,16 @@ function sanitizeGroup(g) {
   // reload (no fetchGroups round-trip that can lag or fail-empty and leave the
   // raw snake_case id showing).
   const name = typeof g.name === 'string' && g.name.trim() ? g.name.trim() : null
-  return { id, by, ...(n ? { n } : {}), ...(name ? { name } : {}) }
+  // Carry the multi-membership switcher list (the seed's other groups) so the
+  // "also in: […]" chips survive a reload, not just the in-session fill.
+  const alsoIn = Array.isArray(g.alsoIn)
+    ? g.alsoIn
+        .filter(x => x && typeof x.id === 'string' && x.id && typeof x.name === 'string' && x.name)
+        .map(x => ({ id: x.id, name: x.name }))
+        .slice(0, 8)
+    : []
+  return { id, by, ...(n ? { n } : {}), ...(name ? { name } : {}),
+           ...(alsoIn.length ? { alsoIn } : {}) }
 }
 
 // Sanitize state hydrated from the multichart_state pref (or an old V1 blob).

@@ -26,7 +26,7 @@ import useStaggeredMount from './useStaggeredMount'
 import { parseLayoutId } from './gridLayouts'
 import { createSpike, SPIKE_SYMS } from './gridSpike'
 import { makePeerFiller } from './peerFill'
-import { fetchPeers, fetchGroupTop, fetchGroups } from './groupsApi'
+import { fetchPeers, fetchGroupTop, fetchGroups, pinEtf } from './groupsApi'
 import { chartKeys, admittedSym } from './symAdmission'
 import { buildCellBadges } from './cellBadge'
 import GroupHeatHeader from './GroupHeatHeader'
@@ -286,6 +286,21 @@ export default function MultiChartGrid({ mc }) {
     gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
   }
 
+  // Multi-membership switcher: re-fill the grid with one of the seed's other
+  // groups, swapping the current group INTO the switcher list so you can flip back.
+  const handleSwitchGroup = useCallback(async (groupId, groupName) => {
+    if (spikeActive) return
+    const g = state.group
+    const n = cells.length
+    const { syms, etf } = await fetchGroupTop(groupId, { n, by: 'today' })
+    const filled = pinEtf(syms, etf, n)
+    if (!filled.length) return
+    const curName = (g && (g.name || groupMeta.name)) || (g && g.id) || null
+    const others = (g?.alsoIn || []).filter(x => x.id !== groupId)
+    const newAlsoIn = (g?.id && curName) ? [{ id: g.id, name: curName }, ...others] : others
+    mc.fillCells(filled, { id: groupId, name: groupName, by: 'today', n, alsoIn: newAlsoIn, seed: g?.seed })
+  }, [state.group, cells.length, groupMeta.name, mc, spikeActive])
+
   return (
     <>
       {state.group && (
@@ -294,6 +309,8 @@ export default function MultiChartGrid({ mc }) {
           total={groupMeta.total}
           shown={gridSyms.length}
           holdings={heatHoldings}
+          alsoIn={state.group.alsoIn}
+          onSwitch={handleSwitchGroup}
         />
       )}
       <div className={styles.gridBody} style={gridStyle}>
