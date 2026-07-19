@@ -1,5 +1,5 @@
 {
-  "version": "4.5.0+d83c5967",
+  "version": "4.6.0+723be8da",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -5181,12 +5181,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Woodward aerospace and defense fuel systems"
-        },
-        {
-          "sym": "HEICO",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "HEICO. Already HEI. Different share class?"
         }
       ]
     },
@@ -5254,12 +5248,6 @@
           "rationale": "Cyber, digital modernization for defense"
         },
         {
-          "sym": "ACHR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "eVTOL aircraft with DoD contract potential"
-        },
-        {
           "sym": "RCAT",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -5296,12 +5284,6 @@
           "rationale": "Science Applications defense IT and analytics"
         },
         {
-          "sym": "ASGN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "ASGN Incorporated IT services for defense agencies"
-        },
-        {
           "sym": "OSIS",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -5324,24 +5306,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Coda Octopus underwater defense imaging sonar"
-        },
-        {
-          "sym": "LMT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Lockheed, autonomous programs"
-        },
-        {
-          "sym": "NOC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Northrop, Global Hawk"
-        },
-        {
-          "sym": "JOBY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Joby, eVTOL defense"
         }
       ]
     },
@@ -5399,13 +5363,13 @@
         },
         {
           "sym": "MMM",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "industrial_conglomerates",
           "rationale": "Diversified industrial manufacturer (3M)"
         },
         {
           "sym": "EMR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "industrial_machinery",
           "rationale": "Industrial automation and climate technologies"
         },
@@ -5446,12 +5410,6 @@
           "rationale": "Global logistics and freight transportation"
         },
         {
-          "sym": "SHW",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Sherwin-Williams industrial coatings leader"
-        },
-        {
           "sym": "ROK",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -5462,12 +5420,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Dover Corp diversified industrial manufacturer"
-        },
-        {
-          "sym": "GPC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Genuine Parts industrial distribution network"
         },
         {
           "sym": "ROL",
@@ -5546,6 +5498,42 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "A.O. Smith, water heaters"
+        },
+        {
+          "sym": "OTIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "XYL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WAB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PCAR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CTAS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -5597,13 +5585,13 @@
         },
         {
           "sym": "EME",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "eng_construction",
           "rationale": "Electrical and mechanical construction services"
         },
         {
           "sym": "URI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "heavy_equipment",
           "rationale": "Largest equipment rental company in North America"
         },
@@ -5654,12 +5642,6 @@
           "tier": "relevant",
           "sub_theme_id": "eng_construction",
           "rationale": "Sterling Infrastructure heavy civil construction"
-        },
-        {
-          "sym": "SUM",
-          "tier": "relevant",
-          "sub_theme_id": "building_materials",
-          "rationale": "Summit Materials aggregates and cement"
         },
         {
           "sym": "EXP",
@@ -5806,7 +5788,7 @@
         },
         {
           "sym": "PWR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Electrical contractor for industrial facilities"
         },
@@ -5853,12 +5835,6 @@
           "rationale": "Granite Construction industrial infrastructure"
         },
         {
-          "sym": "SUM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Summit Materials cement for factory construction"
-        },
-        {
           "sym": "IESC",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -5881,6 +5857,42 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Jacobs Solutions engineering US infrastructure"
+        },
+        {
+          "sym": "CMI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ITW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HUBB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CMC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LECO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HON",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -10302,49 +10314,49 @@
         },
         {
           "sym": "XPO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "XPO Logistics, LTL freight transportation"
         },
         {
           "sym": "JBHT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "J.B. Hunt, intermodal and trucking leader"
         },
         {
           "sym": "SAIA",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Saia Inc, LTL carrier with national expansion"
         },
         {
           "sym": "KNX",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Knight-Swift, largest US truckload carrier"
         },
         {
           "sym": "CHRW",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "C.H. Robinson, largest US freight brokerage"
         },
         {
           "sym": "EXPD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Expeditors International, global freight forwarding"
         },
         {
           "sym": "CP",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Canadian Pacific Kansas City transcontinental rail"
         },
         {
           "sym": "CNI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Canadian National Railway North American network"
         },
@@ -10395,6 +10407,36 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Matson shipping and logistics Pacific routes"
+        },
+        {
+          "sym": "ARCB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "FWRD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MRTN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HTLD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CVLG",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -11377,7 +11419,7 @@
         },
         {
           "sym": "CWST",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Vertically integrated solid waste services company"
         },
@@ -11389,39 +11431,27 @@
         },
         {
           "sym": "GFL",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "North American environmental services and waste management"
-        },
-        {
-          "sym": "ECOL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Hazardous waste treatment and disposal services"
-        },
-        {
-          "sym": "SRCL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Information destruction and compliance waste services"
-        },
-        {
-          "sym": "US",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Microsurgical waste and environmental solutions provider"
-        },
-        {
-          "sym": "ATKR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Electrical and infrastructure products for waste facilities"
         },
         {
           "sym": "MEG",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Environmental services and waste remediation company"
+        },
+        {
+          "sym": "WCN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NVRI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 23

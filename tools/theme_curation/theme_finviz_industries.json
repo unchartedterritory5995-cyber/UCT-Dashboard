@@ -72,5 +72,50 @@
     "Electrical Equipment & Parts",
     "Specialty Chemicals",
     "Specialty Industrial Machinery"
+  ],
+  "defense": [
+    "Aerospace & Defense",
+    "Information Technology Services",
+    "Scientific & Technical Instruments"
+  ],
+  "defense_tech": [
+    "Aerospace & Defense",
+    "Information Technology Services",
+    "Software - Infrastructure",
+    "Electronic Components",
+    "Scientific & Technical Instruments"
+  ],
+  "industrials": [
+    "Specialty Industrial Machinery",
+    "Building Products & Equipment",
+    "Conglomerates",
+    "Industrial Distribution",
+    "Electrical Equipment & Parts"
+  ],
+  "infrastructure": [
+    "Engineering & Construction",
+    "Building Materials",
+    "Building Products & Equipment",
+    "Farm & Heavy Construction Machinery",
+    "Steel"
+  ],
+  "industrial_reshoring": [
+    "Engineering & Construction",
+    "Specialty Industrial Machinery",
+    "Steel",
+    "Building Materials"
+  ],
+  "shipping": [
+    "Marine Shipping",
+    "Oil & Gas Midstream"
+  ],
+  "transportation": [
+    "Integrated Freight & Logistics",
+    "Railroads",
+    "Trucking"
+  ],
+  "waste_management": [
+    "Waste Management",
+    "Environmental & Waste Services"
   ]
 }
