@@ -8242,6 +8242,35 @@ export default function OptionsFlowDashboard() {
               // still show their full totals. Falls back to the capped TICKER_DB
               // entry while the fetch is in flight or if it returned nothing.
               const _uncapped = (searchFull && searchFull.sym === selectedTicker.s && searchFull.data) ? searchFull.data : null;
+              // DAY-FILTER FIX (2026-07-18): searchFull is fetched once as the
+              // ticker's full loaded history (scoped to availableDates, not to the
+              // selected range) and its effect doesn't depend on dateFilter — so
+              // the 1d/5d/All selector never narrowed it, and Search showed all
+              // days regardless of selection (every other tab reads the
+              // day-filtered D). Fix: apply the SAME range logic D uses to
+              // _uncapped.all_directional here, at render, so the selector applies
+              // without re-fetching. Trade date field is t.Dt (M/D/YYYY).
+              const _scopeAllDirectional = (rows) => {
+                if (!rows) return rows;
+                if (dateFrom && dateTo) {
+                  const _f = isoToDate(dateFrom);
+                  const _t = isoToDate(dateTo); _t.setHours(23,59,59);
+                  return rows.filter(t => { if(!t.Dt) return false; const d = mdyToDate(t.Dt.trim()); return d >= _f && d <= _t; });
+                }
+                if (dateFilter === "All") return rows;
+                if (dateFilter.startsWith("Last")) {
+                  const n = parseInt(dateFilter.replace("Last",""))||3;
+                  const recent = new Set(availableDates.slice(-n));
+                  return rows.filter(t => t.Dt && recent.has(t.Dt.trim()));
+                }
+                return rows.filter(t => t.Dt && t.Dt.trim() === dateFilter);
+              };
+              // Non-mutating: derive the scoped rows into a local; never write
+              // back onto _uncapped (it's searchFull.data, i.e. React state —
+              // mutating it would compound the filter across renders).
+              const _uncappedAllDir = _uncapped
+                ? _scopeAllDirectional(_uncapped.all_directional || [])
+                : null;
               const tk = (_uncapped && _uncapped.TICKER_DB && _uncapped.TICKER_DB.find(t => t.s === selectedTicker.s))
                 || (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s)
                 || selectedTicker;
@@ -8264,7 +8293,7 @@ export default function OptionsFlowDashboard() {
               // they help; here they'd inflate the totals ~3x because Massive
               // lacks BID-side classification (so rescue attribution is
               // trivially one-directional per CP).
-              const ccAll = (_uncapped ? (_uncapped.all_directional||[]) : (D.all_directional||[])).filter(t => t.S===tk.s && !t._rescueDerived);
+              const ccAll = (_uncappedAllDir !== null ? _uncappedAllDir : (D.all_directional||[])).filter(t => t.S===tk.s && !t._rescueDerived);
               const ccTrades = ccAll.filter(dteF);
               // Raw totals — clean-classified directional flow only.
               let ccB=0, ccR=0;
