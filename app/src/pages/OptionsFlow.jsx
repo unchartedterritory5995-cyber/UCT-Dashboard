@@ -6708,7 +6708,6 @@ export default function OptionsFlowDashboard() {
           const tkMap = {};
           filtered.forEach(t => {
             if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set(), _trades:[] };
-            tkMap[t.S]._trades.push(t);
             // 7/9: Upgrade mktcap when a real value shows up. Same fix as
             // line 5168 — prevents gap-fill rows (mktcap=0 by design) from
             // locking a ticker into "Unknown" band. This is the exact source
@@ -6717,6 +6716,7 @@ export default function OptionsFlowDashboard() {
             // and if seen first, AAPL entered tkMap as Unknown → matchesLBCap
             // let it through the Mid-Small filter.
             else if (!tkMap[t.S].mktcap && t.mktcap) tkMap[t.S].mktcap = t.mktcap;
+            tkMap[t.S]._trades.push(t);  // still-open feed (2026-07-18) — after the if/else chain
             const tk = tkMap[t.S];
             if (t.D==="BULL") tk.bull += t.P;
             if (t.D==="BEAR") tk.bear += t.P;
