@@ -2652,6 +2652,139 @@ _UCT_LOGO_URL = os.getenv(
 ).strip()
 
 
+# ── Earnings-date lookup for embeds (2026-07-19) ─────────────────────────
+# The router is a SEPARATE process from the flow-worker (principle #1: its
+# module state is invisible here), so it keeps its OWN calendar cache rather
+# than reading the worker's _ER_DATE_CACHE. Same source: /api/calendar, paged
+# via ?week=<Monday>. Refreshed in a BACKGROUND THREAD (never blocks the push
+# path); on failure the prior cache is kept and the earnings line is omitted.
+_ER_CAL_BASE = os.getenv("UCT_PUBLIC_BASE", "https://uctintelligence.com").rstrip("/")
+_ER_CAL_ENABLED = os.getenv("MASSIVE_EARNINGS_CAL_ENABLED", "1") == "1"
+_ER_CAL_WEEKS_AHEAD = int(os.getenv("MASSIVE_EARNINGS_CAL_WEEKS_AHEAD", "2"))
+_ER_CAL_TTL = 6 * 60 * 60
+_ER_CAL_MIN_RETRY = 5 * 60          # after a failed refresh, wait ≥5 min before retrying
+_ER_CAL_UA = "UCT-Massive/1.0 (+https://uctintelligence.com)"
+_ER_CAL: dict = {}                  # {sym: 'YYYY-MM-DD'}
+_ER_CAL_AT: float = 0.0
+_ER_CAL_TRIED: float = 0.0
+_ER_CAL_REFRESHING = False
+
+
+def _er_cal_do_refresh():
+    """Background-thread fetch of current week + next N Mondays. Never raises."""
+    global _ER_CAL, _ER_CAL_AT, _ER_CAL_REFRESHING
+    try:
+        import urllib.request
+        from datetime import datetime as _dt, timedelta as _td
+
+        def _get(url):
+            req = urllib.request.Request(url, headers={"User-Agent": _ER_CAL_UA})
+            with urllib.request.urlopen(req, timeout=6.0) as resp:
+                if resp.status != 200:
+                    return None
+                return json.loads(resp.read().decode("utf-8"))
+
+        def _flatten(payload, acc):
+            days = (payload or {}).get("days") or {}
+            if not isinstance(days, dict):
+                return
+            for date_str, day in days.items():
+                if not isinstance(day, dict):
+                    continue
+                for bucket in ("bmo", "amc", "tbd"):
+                    for e in day.get(bucket) or []:
+                        if not isinstance(e, dict):
+                            continue
+                        s = (e.get("sym") or "").upper().strip()
+                        if not s:
+                            continue
+                        prev = acc.get(s)
+                        if prev is None or date_str < prev:
+                            acc[s] = date_str
+
+        out = {}
+        base = _get(f"{_ER_CAL_BASE}/api/calendar")
+        if not base:
+            return
+        _flatten(base, out)
+        ws = str(base.get("week_start") or "")[:10]
+        try:
+            monday = _dt.strptime(ws, "%Y-%m-%d")
+        except (TypeError, ValueError):
+            monday = None
+        if monday is not None:
+            for k in range(1, max(0, _ER_CAL_WEEKS_AHEAD) + 1):
+                wk = (monday + _td(days=7 * k)).strftime("%Y-%m-%d")
+                try:
+                    p = _get(f"{_ER_CAL_BASE}/api/calendar?week={wk}")
+                except Exception:
+                    p = None
+                if p:
+                    _flatten(p, out)
+        if out:
+            _ER_CAL = out
+            _ER_CAL_AT = time.time()
+    except Exception:
+        pass
+    finally:
+        _ER_CAL_REFRESHING = False
+
+
+def _er_cal_maybe_refresh():
+    """Kick a background refresh if the cache is stale. Non-blocking; guarded so
+    a failing fetch doesn't hammer the endpoint and only one refresh runs."""
+    global _ER_CAL_TRIED, _ER_CAL_REFRESHING
+    if not _ER_CAL_ENABLED or _ER_CAL_REFRESHING:
+        return
+    now = time.time()
+    if (now - _ER_CAL_AT) < _ER_CAL_TTL:
+        return
+    if (now - _ER_CAL_TRIED) < _ER_CAL_MIN_RETRY:
+        return
+    _ER_CAL_TRIED = now
+    _ER_CAL_REFRESHING = True
+    threading.Thread(target=_er_cal_do_refresh, daemon=True).start()
+
+
+def _parse_mdy(s):
+    """'M/D/YYYY' → date, else None."""
+    try:
+        p = str(s).strip().split("/")
+        if len(p) == 3:
+            return date(int(p[2]), int(p[0]), int(p[1]))
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
+def _earnings_line(ticker: str, exp) -> str:
+    """Date-aware earnings line for the embed, or None. Uses the router's own
+    calendar cache. 'held through earnings' when the option expiration clears
+    the earnings date (the short-DTE-into-earnings signal). Renders nothing when
+    earnings are past or unknown. ET here is the file's fixed EDT(−4); date-only
+    so DST is immaterial except within an hour of midnight ET."""
+    if not ticker:
+        return None
+    _er_cal_maybe_refresh()
+    d = _ER_CAL.get(str(ticker).upper().strip())
+    if not d:
+        return None
+    try:
+        ed = datetime.strptime(d, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+    days_to = (ed - datetime.now(ET).date()).days
+    if days_to < 0:
+        return None  # already reported — say nothing (fixes the MU stale flag)
+    exp_d = _parse_mdy(exp)
+    held = exp_d is not None and exp_d > ed
+    horizon = "today" if days_to == 0 else ("tomorrow" if days_to == 1 else f"in {days_to} days")
+    line = f"⚠️ Earnings {ed.month}/{ed.day} ({horizon})"
+    if held:
+        line += "  ·  📌 held through earnings"
+    return line
+
+
 def _fmt_money_m(n) -> str:
     try:
         n = float(n or 0)
@@ -2841,6 +2974,12 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
 
     # Compose: badge line(s), then metric groups separated by a BLANK line for
     # readable spacing. All in the description → identical on desktop and mobile.
+    # Earnings proximity (2026-07-19) — date-aware, self-clearing. Nothing when
+    # earnings are past or unknown; "held through earnings" when the expiration
+    # clears the report date (the short-DTE-into-earnings signal).
+    _er_line = _earnings_line(ticker, exp)
+    if _er_line:
+        lines.append(_er_line)
     lines = [ln for ln in lines if ln]
     desc_parts = []
     if badges:
