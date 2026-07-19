@@ -8242,16 +8242,18 @@ export default function OptionsFlowDashboard() {
               // still show their full totals. Falls back to the capped TICKER_DB
               // entry while the fetch is in flight or if it returned nothing.
               const _uncapped = (searchFull && searchFull.sym === selectedTicker.s && searchFull.data) ? searchFull.data : null;
-              // DAY-FILTER FIX (2026-07-18): searchFull is fetched once as the
-              // ticker's full loaded history (scoped to availableDates, not to the
-              // selected range) and its effect doesn't depend on dateFilter — so
-              // the 1d/5d/All selector never narrowed it, and Search showed all
-              // days regardless of selection (every other tab reads the
-              // day-filtered D). Fix: apply the SAME range logic D uses to
-              // _uncapped.all_directional here, at render, so the selector applies
-              // without re-fetching. Trade date field is t.Dt (M/D/YYYY).
+              // DAY-FILTER FIX (2026-07-18, v2): searchFull is a SEPARATE
+              // per-ticker fetch (uncapped) with its own rows and its own dates —
+              // it can contain dates the main parsedRows set doesn't. So the
+              // Last-N case must derive the recent-N dates FROM THESE ROWS, not
+              // from the main dataset's availableDates. The v1 fix filtered
+              // against availableDates.slice(-n), which — when the two sets didn't
+              // fully overlap or hadn't format-aligned yet — dropped EVERY row and
+              // showed NEUTRAL / $0 (the intermittent zero-out). Self-contained
+              // scoping removes that cross-dataset race entirely. Trade date is
+              // t.Dt (M/D/YYYY), same format as r.date.
               const _scopeAllDirectional = (rows) => {
-                if (!rows) return rows;
+                if (!rows || !rows.length) return rows;
                 if (dateFrom && dateTo) {
                   const _f = isoToDate(dateFrom);
                   const _t = isoToDate(dateTo); _t.setHours(23,59,59);
@@ -8260,7 +8262,11 @@ export default function OptionsFlowDashboard() {
                 if (dateFilter === "All") return rows;
                 if (dateFilter.startsWith("Last")) {
                   const n = parseInt(dateFilter.replace("Last",""))||3;
-                  const recent = new Set(availableDates.slice(-n));
+                  // recent-N dates computed from THESE rows, chronologically —
+                  // never from the main dataset (which may not contain them).
+                  const uniq = [...new Set(rows.map(t => t.Dt && t.Dt.trim()).filter(Boolean))]
+                    .sort((a,b) => mdyToDate(a) - mdyToDate(b));
+                  const recent = new Set(uniq.slice(-n));
                   return rows.filter(t => t.Dt && recent.has(t.Dt.trim()));
                 }
                 return rows.filter(t => t.Dt && t.Dt.trim() === dateFilter);
