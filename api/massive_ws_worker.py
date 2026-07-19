@@ -1328,6 +1328,89 @@ def _nbbo_at(sym: str, ts_ns: int) -> tuple | None:
 _ER_CACHE: dict = {}            # {symbol: ('T'|'F', fetched_at_ts)}
 _ER_TTL_SEC = 6 * 60 * 60       # refresh ER flag every 6 hours
 
+# ── Earnings-date enrichment (2026-07-19) ────────────────────────────────
+# Replaces the date-less BBS ER boolean (which never cleared — MU showed a
+# PAST earnings) with a real earnings DATE from UCT's own /api/calendar.
+# Week-bucketed JSON: {week_start, week_end, days:{ "YYYY-MM-DD":
+# {bmo:[{sym,...}], amc:[...], tbd:[...]} }}. Week paging via ?week=<Monday-ISO>
+# (the frontend's param). We fetch current week (bare) + the next two Mondays
+# for a ≥14-day horizon and flatten to {sym: earliest-date}.
+#
+# HOT-PATH SAFETY: _load_er_flags runs INSIDE the consumer classify path, so it
+# must never do network I/O. The fetch lives in the background
+# earnings_date_manager task (like spot_fetch_manager); _load_er_flags is a pure
+# read of _ER_DATE_CACHE. Stdlib urllib only (httpx is not installed here — same
+# reason the on-demand quote fetch uses urllib), real UA to avoid Cloudflare 1010.
+EARNINGS_CAL_ENABLED = os.environ.get("MASSIVE_EARNINGS_CAL_ENABLED", "1") == "1"
+EARNINGS_CAL_BASE = os.environ.get("UCT_PUBLIC_BASE", "https://uctintelligence.com").rstrip("/")
+EARNINGS_CAL_WEEKS_AHEAD = int(os.environ.get("MASSIVE_EARNINGS_CAL_WEEKS_AHEAD", "2"))
+EARNINGS_CAL_TTL_SEC = 6 * 60 * 60      # refresh the calendar every 6 h
+ER_SOON_DAYS = 14                        # earnings within N days → ER='T'
+_UCT_UA = "UCT-Massive/1.0 (+https://uctintelligence.com)"
+
+_ER_DATE_CACHE: dict = {}                # {symbol: 'YYYY-MM-DD'} earliest upcoming earnings
+_ER_DATE_CACHE_AT: float = 0.0           # last successful full refresh (epoch); 0 = never
+
+
+def _flatten_earnings_days(payload: dict, out: dict) -> None:
+    """Merge one /api/calendar week response into out={sym: 'YYYY-MM-DD'},
+    keeping the EARLIEST date per symbol. The day KEY is the authoritative
+    earnings date; date_moved is metadata and is ignored."""
+    days = (payload or {}).get("days") or {}
+    if not isinstance(days, dict):
+        return
+    for date_str, day in days.items():
+        if not isinstance(day, dict):
+            continue
+        for bucket in ("bmo", "amc", "tbd"):
+            for entry in day.get(bucket) or []:
+                if not isinstance(entry, dict):
+                    continue
+                sym = (entry.get("sym") or "").upper().strip()
+                if not sym:
+                    continue
+                prev = out.get(sym)
+                if prev is None or date_str < prev:
+                    out[sym] = date_str
+
+
+def _fetch_earnings_calendar_blocking() -> dict:
+    """Blocking (run via asyncio.to_thread): current week + next N Mondays →
+    {sym: 'YYYY-MM-DD'}. Anchors subsequent weeks to the bare endpoint's OWN
+    week_start so weekend/holiday roll-forward stays aligned with the backend.
+    Returns {} on any failure (caller keeps the prior cache)."""
+    import urllib.request
+    import json as _json
+    from datetime import datetime as _dt, timedelta as _td
+
+    def _get(url):
+        req = urllib.request.Request(url, headers={"User-Agent": _UCT_UA})
+        with urllib.request.urlopen(req, timeout=8.0) as resp:
+            if resp.status != 200:
+                return None
+            return _json.loads(resp.read().decode("utf-8"))
+
+    out: dict = {}
+    base = _get(f"{EARNINGS_CAL_BASE}/api/calendar")
+    if not base:
+        return {}
+    _flatten_earnings_days(base, out)
+    week_start = str(base.get("week_start") or "")[:10]
+    try:
+        monday = _dt.strptime(week_start, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        monday = None
+    if monday is not None:
+        for k in range(1, max(0, EARNINGS_CAL_WEEKS_AHEAD) + 1):
+            wk = (monday + _td(days=7 * k)).strftime("%Y-%m-%d")
+            try:
+                payload = _get(f"{EARNINGS_CAL_BASE}/api/calendar?week={wk}")
+            except Exception:
+                payload = None
+            if payload:
+                _flatten_earnings_days(payload, out)
+    return out
+
 
 def _tape_spool(msg) -> None:
     """Raw-frame spool hook for the receive loop. Lazy-bound + total —
@@ -1351,6 +1434,41 @@ _META_TTL_SEC = 24 * 60 * 60    # metadata moves on earnings timescales
 
 
 def _load_er_flags(symbols: list) -> dict:
+    """ER (earnings-soon) flag per symbol as {symbol: 'T'|'F'}.
+
+    Rewritten 2026-07-19: 'T' now means "earnings within ER_SOON_DAYS days",
+    derived from a real earnings DATE (see _ER_DATE_CACHE / earnings_date_manager),
+    NOT the old date-less BBS boolean that never cleared. Self-correcting — a
+    ticker flips back to 'F' the day after it reports.
+
+    Pure cache read; NO network here (runs inside the consumer classify path).
+    If the calendar cache has never populated (cold boot before the first fetch,
+    or a calendar outage), fall back to the legacy FlowDB read so we never go
+    darker than the pre-fix behavior.
+    """
+    if not symbols:
+        return {}
+    if not _ER_DATE_CACHE_AT:
+        return _load_er_flags_legacy(symbols)   # calendar not fetched yet → floor
+    today = datetime.now(ET).date()
+    out = {}
+    for sym in symbols:
+        if not sym:
+            continue
+        er = 'F'
+        d = _ER_DATE_CACHE.get(sym)
+        if d:
+            try:
+                ed = datetime.strptime(d, "%Y-%m-%d").date()
+                if 0 <= (ed - today).days <= ER_SOON_DAYS:
+                    er = 'T'
+            except (TypeError, ValueError):
+                er = 'F'
+        out[sym] = er
+    return out
+
+
+def _load_er_flags_legacy(symbols: list) -> dict:
     """Phase 2g: look up ER flag per symbol from recent FlowDB rows.
 
     Returns {symbol: 'T'|'F'}. Cached for 6 hours per symbol since earnings
@@ -2859,6 +2977,40 @@ async def _run_session(ws):
             if done:
                 await write_queue.put(done)
 
+    async def earnings_date_manager():
+        """Refresh the earnings-date calendar every EARNINGS_CAL_TTL_SEC.
+
+        Fetches UCT's own /api/calendar (current + next N weeks) OFF the consumer
+        loop, flattens to {sym: date}, and swaps it into _ER_DATE_CACHE. On
+        failure the previous cache is kept (never cleared). Mirrors
+        spot_fetch_manager's lifecycle so teardown stays within the join budget.
+        """
+        global _ER_DATE_CACHE, _ER_DATE_CACHE_AT
+        if not EARNINGS_CAL_ENABLED:
+            return
+        first = True
+        while not stop_event.is_set():
+            if not first:
+                try:
+                    await asyncio.wait_for(stop_event.wait(),
+                                           timeout=EARNINGS_CAL_TTL_SEC)
+                    break  # stop_event fired during the wait
+                except asyncio.TimeoutError:
+                    pass
+            first = False
+            try:
+                fresh = await asyncio.to_thread(_fetch_earnings_calendar_blocking)
+                if fresh:
+                    _ER_DATE_CACHE = fresh
+                    _ER_DATE_CACHE_AT = time.time()
+                    _state["earnings_cal_syms"] = len(fresh)
+                    _state["earnings_cal_fetches"] = _state.get("earnings_cal_fetches", 0) + 1
+                    logger.info("[massive-ws] earnings calendar: %d symbols cached", len(fresh))
+                else:
+                    logger.debug("[massive-ws] earnings calendar fetch empty; keeping prior cache")
+            except Exception as e:
+                logger.debug("[massive-ws] earnings calendar fetch failed: %s", e)
+
     flusher_task = asyncio.create_task(flusher())
     writer_task = asyncio.create_task(writer())
     q_mgr_task = asyncio.create_task(q_subscription_manager())
@@ -2868,6 +3020,7 @@ async def _run_session(ws):
     q_log_flusher_task = asyncio.create_task(q_pool_log_flusher())
     reclassify_task = asyncio.create_task(reclassify_manager())
     ondemand_quote_task = asyncio.create_task(ondemand_quote_manager())
+    earnings_date_task = asyncio.create_task(earnings_date_manager())
 
     try:
         async for msg in ws:
@@ -3016,6 +3169,11 @@ async def _run_session(ws):
             # blank by the final flush, same as pre-fix.
             ondemand_quote_task.cancel()
             await ondemand_quote_task
+        except (Exception, asyncio.CancelledError):
+            pass
+        try:
+            earnings_date_task.cancel()
+            await earnings_date_task
         except (Exception, asyncio.CancelledError):
             pass
         # Final flush so we don't lose the last few seconds on disconnect
