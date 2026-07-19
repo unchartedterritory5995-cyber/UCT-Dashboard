@@ -167,13 +167,15 @@ def _cmd_review(args) -> int:
     from tools.theme_curation.proposals import Proposal
     import os, json, glob
     lg = Ledger(args.ledger)
-    hi, lo = [], []
+    allp = []
     for art in glob.glob(os.path.join(args.proposals_dir, "*.json")):
         with open(art, encoding="utf-8") as f:
             arts = json.load(f)
-        for d in arts.get("proposals", []):
-            p = Proposal(**d)
-            (hi if p.confidence >= args.threshold else lo).append(p)
+        allp.extend(Proposal(**d) for d in arts.get("proposals", []))
+    # High-confidence -> batch doc; low-confidence AND rename-class DROPs -> interactive
+    # (a rename-cited DROP like FI must never auto-batch even at high confidence).
+    hi, lo = review_doc.route_for_review(allp, args.threshold)
+    forced = sum(1 for p in allp if p.confidence >= args.threshold and review_doc.is_rename_drop(p))
     os.makedirs(args.review_dir, exist_ok=True)
     review_path = os.path.join(args.review_dir, "review.md")
     if os.path.exists(review_path) and not args.regenerate:
@@ -182,7 +184,8 @@ def _cmd_review(args) -> int:
         with open(review_path, "w", encoding="utf-8") as f:
             f.write(review_doc.write_review_md(hi))
     review_cli.review_interactive(lo, lg)                 # writes ledger as it goes
-    print(f"batch doc: {len(hi)} proposal(s); interactive: {len(lo)}")
+    print(f"batch doc: {len(hi)} proposal(s); interactive: {len(lo)}"
+          + (f" ({forced} rename-class DROP(s) forced to interactive)" if forced else ""))
     return 0
 
 

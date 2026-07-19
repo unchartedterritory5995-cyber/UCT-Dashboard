@@ -30,3 +30,27 @@ def test_real_marker_missing_checkbox_raises():
     bad = "<!-- CURATION id=t::X::add -->\n(the checkbox line was deleted)\n<!-- CURATION id=t::Y::drop -->\n- [x] APPROVE\n"
     with pytest.raises(ValueError):
         R.parse_review_md(bad)
+
+
+def test_is_rename_drop_only_flags_rename_cited_drops():
+    assert R.is_rename_drop(Proposal("fin", "drop", "FI", 0.9, {"reason": "duplicate of FISV (rebranded)"}))
+    assert R.is_rename_drop(Proposal("fin", "drop", "SQ", 0.9, {"reason": "ticker changed to XYZ"}))
+    # a plain off-theme DROP is NOT rename-class — it may batch normally
+    assert not R.is_rename_drop(Proposal("fin", "drop", "OLO", 0.9, {"reason": "restaurant SaaS, tangential"}))
+    # only DROPs are ever rename-class; an ADD/REMAP with a rename word is unaffected
+    assert not R.is_rename_drop(Proposal("fin", "remap", "SQ", 0.9, {"reason": "renamed", "new_sym": "XYZ"}))
+
+
+def test_route_forces_rename_drops_to_interactive():
+    props = [
+        Proposal("fin", "drop", "FI", 0.90, {"reason": "duplicate of FISV rebranded"}),  # rename DROP
+        Proposal("fin", "drop", "OLO", 0.90, {"reason": "off-theme restaurant SaaS"}),   # plain DROP
+        Proposal("fin", "add", "INTU", 0.95, {"tier": "relevant"}),                      # high-conf ADD
+        Proposal("fin", "add", "ADP", 0.50, {"tier": "peripheral"}),                     # low-conf
+    ]
+    batch, interactive = R.route_for_review(props, 0.85)
+    bpids = {p.sym for p in batch}
+    ipids = {p.sym for p in interactive}
+    assert "FI" in ipids and "FI" not in bpids     # rename DROP forced to interactive despite 0.90
+    assert {"OLO", "INTU"} <= bpids                 # plain high-conf still batch
+    assert "ADP" in ipids                           # low-conf interactive as usual
