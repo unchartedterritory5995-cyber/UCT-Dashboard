@@ -1,5 +1,5 @@
 {
-  "version": "4.11.0+a65dd2fe",
+  "version": "4.12.0+d3495814",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -9290,25 +9290,25 @@
         },
         {
           "sym": "BIDU",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "china_tech",
           "rationale": "Chinese search engine and AI platform"
         },
         {
           "sym": "NIO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "china_ev",
           "rationale": "Premium Chinese EV maker with battery swap"
         },
         {
           "sym": "LI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "china_ev",
           "rationale": "Extended-range EV SUV maker gaining share"
         },
         {
           "sym": "XPEV",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "china_ev",
           "rationale": "Smart EV with advanced driver assistance"
         },
@@ -9379,12 +9379,6 @@
           "rationale": "iQIYI Chinese video streaming platform"
         },
         {
-          "sym": "DADA",
-          "tier": "peripheral",
-          "sub_theme_id": "china_consumer",
-          "rationale": "Dada Nexus Chinese on-demand delivery"
-        },
-        {
           "sym": "KC",
           "tier": "relevant",
           "sub_theme_id": "china_consumer",
@@ -9395,6 +9389,12 @@
           "tier": "peripheral",
           "sub_theme_id": "china_tech",
           "rationale": "GDS Holdings Chinese data center operator"
+        },
+        {
+          "sym": "YUMC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -9427,13 +9427,13 @@
         },
         {
           "sym": "WIT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Wipro, Indian IT services and consulting"
         },
         {
           "sym": "SIFY",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Indian data center and cloud services"
         },
@@ -9444,40 +9444,16 @@
           "rationale": "Dr. Reddy's, Indian generic pharma company"
         },
         {
-          "sym": "TTM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Tata Motors, Indian auto with Jaguar Land Rover"
-        },
-        {
           "sym": "MMYT",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "MakeMyTrip, India online travel booking leader"
         },
         {
-          "sym": "WNS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "WNS Holdings Indian IT outsourcing services"
-        },
-        {
           "sym": "YTRA",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Yatra Online Indian corporate travel platform"
-        },
-        {
-          "sym": "AZRE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Azure Power Global Indian solar energy producer"
-        },
-        {
-          "sym": "VEDL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Vedanta Ltd Indian mining and metals conglomerate"
         },
         {
           "sym": "EXLS",
@@ -9522,13 +9498,13 @@
         },
         {
           "sym": "BBD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bradesco, major Brazilian universal bank"
         },
         {
           "sym": "ABEV",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Ambev, largest Latin American brewer"
         },
@@ -9552,7 +9528,7 @@
         },
         {
           "sym": "PAGS",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "PagSeguro, Brazilian digital payments"
         },
@@ -9606,7 +9582,7 @@
         },
         {
           "sym": "VTEX",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "VTEX Brazilian e-commerce platform"
         },
@@ -9624,13 +9600,13 @@
         },
         {
           "sym": "AFYA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Afya Limited Brazilian medical education company"
         },
         {
           "sym": "MELI",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "MercadoLibre LatAm e-commerce Argentina operations"
         }
@@ -9849,24 +9825,6 @@
           "rationale": "AU Optronics Taiwan flat panel display ADR"
         },
         {
-          "sym": "SPIL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Siliconware Precision chip packaging Taiwan ADR"
-        },
-        {
-          "sym": "AAOI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Applied Optoelectronics fiber optic Taiwan operations"
-        },
-        {
-          "sym": "EMKR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "EMCORE fiber optics with Taiwan manufacturing"
-        },
-        {
           "sym": "LEDS",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -9891,19 +9849,19 @@
         },
         {
           "sym": "PKX",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "POSCO Holdings, Korean steelmaker and battery materials"
         },
         {
           "sym": "KB",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "KB Financial Group, Korea largest bank"
         },
         {
           "sym": "SHG",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Shinhan Financial, major Korean bank"
         },
@@ -9939,25 +9897,19 @@
         },
         {
           "sym": "SSNLF",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Samsung Electronics largest Korean tech company"
         },
         {
           "sym": "HYMLF",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Hyundai Motor Korean auto manufacturer"
         },
         {
-          "sym": "HNHPF",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hana Financial Korean bank OTC ADR"
-        },
-        {
           "sym": "LGCLF",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "LG Chem Korean battery and chemicals OTC"
         },
