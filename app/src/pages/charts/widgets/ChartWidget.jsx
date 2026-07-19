@@ -518,6 +518,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           volumeLastValue
           volumeMa={50}
           hidePriceLine
+          /* Charts workspace is a clean charting surface — never overlay the
+             viewer's Journal 2.0 / connected-brokerage BUY/SELL trade markers
+             (or entry/stop lines) here. Those belong on the Journal tab. */
+          hideJournalOverlay
           /* Watermark opacity is user-controllable via Chart Settings → Canvas.
              The settings default (0.07, the global faint default) is treated as
              "unset" → the workspace's strong 0.82; any value the user picks wins.

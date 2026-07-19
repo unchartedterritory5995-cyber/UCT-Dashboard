@@ -153,20 +153,32 @@ export default function useMultiChartState() {
     apply(prev => ({ ...prev, syncCrosshair: !!on }))
   }, [apply])
 
+  const setSyncTimeRange = useCallback((on) => {
+    apply(prev => ({ ...prev, syncTimeRange: !!on }))
+  }, [apply])
+
+  const setGroupsMode = useCallback((on) => {
+    // The toggle IS the scanning gate. Turning it OFF also clears the loaded
+    // group so the heat header + badges drop and the grid becomes plain manual
+    // (the charts themselves stay — you keep what you were looking at).
+    apply(prev => ({ ...prev, groupsMode: !!on, ...(!on ? { group: null } : {}) }))
+  }, [apply])
+
   // Apply a saved multichart template ({kind:'multichart', layout, cells}).
   const applyGridTemplate = useCallback((tpl) => {
     const l = tpl?.layout
     if (!l || l.kind !== 'multichart') return
     apply(prev => {
-      const s = sanitizeState({ layout: l.layout, cells: l.cells, syncCrosshair: prev.syncCrosshair })
-      return { mode: 'grid', ...s }
+      const s = sanitizeState({ layout: l.layout, cells: l.cells, syncCrosshair: prev.syncCrosshair, syncTimeRange: prev.syncTimeRange, group: l.group })
+      // A saved Group board comes back in scanning mode; a plain saved grid does not.
+      return { mode: 'grid', ...s, groupsMode: !!s.group }
     })
   }, [apply])
 
   return {
     state, hydrated,
     settingsOpen, setSettingsOpen,
-    enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, applyGridTemplate,
+    enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, setSyncTimeRange, setGroupsMode, applyGridTemplate,
     fillCells, setGroup, clearGroup,
   }
 }

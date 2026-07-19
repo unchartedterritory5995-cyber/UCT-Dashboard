@@ -35,6 +35,7 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
+import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
 // Beyond this, a Massive bar tick is considered stale and the legend falls back
 // to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
 const LIVE_TICK_FRESH_MS = 6000
@@ -80,7 +81,13 @@ function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
 // the right-click "Reset view" so all three land on the exact same window.
 function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3 } = {}) {
   const visibleBars = (tf === 'D' && dailyDefaultBars) ? dailyDefaultBars : (DEFAULT_VISIBLE_BARS[tf] || 65)
-  const from = barsLen > visibleBars ? barsLen - visibleBars - leftBarPad : -leftBarPad
+  // Always size the window to `visibleBars` and anchor the newest candle at
+  // LAST_CANDLE_POS. For a SHORT-history ticker (IPO/new ETF like SPCX/DRAM,
+  // barsLen < visibleBars) `from` goes NEGATIVE → the few bars keep a normal
+  // candle width with blank space to their left, instead of being STRETCHED to
+  // fill the whole pane. Identical to before for normal tickers (barsLen >
+  // visibleBars). LWC renders logical indices < 0 as leading whitespace.
+  const from = barsLen - visibleBars - leftBarPad
   const hist = (barsLen - 1) - from
   const to = hist > 0 ? from + hist / LAST_CANDLE_POS : barsLen + rightPadBars
   return { from, to }
@@ -1140,7 +1147,9 @@ export default function StockChart({
   // ── Chart event markers (earnings + splits + dividends) — /api/chart/markers ──
   const markersEnabled = cs.markers?.earnings || cs.markers?.splits || cs.markers?.dividends
   const { data: markersData } = useSWR(
-    markersEnabled && sym ? `/api/chart/markers/${encodeURIComponent(sym)}?days=730` : null,
+    // Request the full window so earnings markers load back to inception alongside
+    // the deep price history (backend caps + post-filters; badges cull off-screen).
+    markersEnabled && sym ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
     fetcher,
     {
       dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
@@ -1281,6 +1290,7 @@ export default function StockChart({
   const sessionShadeAttachedRef = useRef(false)
   const swingCtrlRef = useRef(null)       // swing-label series primitive controller
   const swingAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
+  const swingPointsRef = useRef([])       // latest swing pivots — redrawn into the PNG screenshot
   const earnBadgeRef = useRef(null)       // earnings "E" badge series primitive controller
   const earnBadgeAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const tickerMeta = useTickerMeta(sym)
@@ -1401,6 +1411,7 @@ export default function StockChart({
   const volMaSeriesRef = useRef(null)  // 50-MA line on the volume pane
   const volMaDataRef = useRef([])      // latest volMaData (avg-volume series) for the crosshair legend
   const volLegendRef = useRef(null)    // volume-pane top-left legend ($ vol + avg vol) — positioned live
+  const legendRef = useRef(null)       // main OHLC/MA legend — captured into the PNG screenshot
   // Volume-pane height % last APPLIED via setStretchFactor. Gate re-applies on it
   // so a 30s data poll can't reset the pane and fight a user's separator drag; the
   // drag sampler compares the live pane % against it to detect a user resize.
@@ -1551,13 +1562,26 @@ export default function StockChart({
     // IS yesterday, so there we prefer the live feed's OFFICIAL prev_close to
     // match the theme tracker / brokers exactly. `c` is the live price.
     const feedPrev = (lp && Number.isFinite(lp.prev_close) && lp.prev_close > 0) ? lp.prev_close : null
+    const feedPct = (lp && Number.isFinite(lp.change_pct)) ? lp.change_pct : null
+    const feedChg = (lp && Number.isFinite(lp.change)) ? lp.change : null
     const prevBar = bars.length >= 2 ? bars[bars.length - 2] : null
     const prevBarClose = (prevBar && prevBar.c != null) ? prevBar.c : null
     const prevClose = (resolvedTfRef.current === 'D')
       ? (feedPrev ?? prevBarClose)
       : (prevBarClose ?? feedPrev)
-    const change = prevClose != null ? c - prevClose : c - o
-    const changePct = (prevClose != null && prevClose) ? (change / prevClose) * 100 : (o ? (change / o) * 100 : 0)
+    // DAILY: trust the feed's SERVER-computed today % (change_pct / change) — the
+    // regular-session move vs the official prev close. Deriving it from
+    // (livePrice − prevClose) reads 0.00% whenever the streamed live price sits at
+    // the reference (weekends / after-hours, where the live price IS the last
+    // close) — the recurring "goes to 0.00%" bug. Other TFs stay bar-vs-prior-bar.
+    let change, changePct
+    if (resolvedTfRef.current === 'D' && feedPct != null) {
+      changePct = feedPct
+      change = feedChg != null ? feedChg : (prevClose != null ? c - prevClose : c - o)
+    } else {
+      change = prevClose != null ? c - prevClose : c - o
+      changePct = (prevClose != null && prevClose) ? (change / prevClose) * 100 : (o ? (change / o) * 100 : 0)
+    }
     const ovData = overlayDataRef.current || []
     const rovs = resolvedOverlaysRef.current || []
     const overlays = rovs.map((ov, i) => {
@@ -1584,6 +1608,14 @@ export default function StockChart({
   // True while we're applying an externally-synced crosshair, so the resulting
   // (point-less) crosshair event doesn't echo a clear back to the sync bus.
   const applyingExternalRef = useRef(false)
+  // Same pattern as applyingExternalRef, but for the time-range sync bus
+  // (Task 3 of Groups phase 3): true while WE are applying an externally-synced
+  // visible range, so the resulting subscribeVisibleTimeRangeChange event
+  // doesn't echo a re-broadcast back to the bus. lastAppliedRangeRef feeds the
+  // epsilon gate (shouldApplyRange) so near-identical ranges from a chart with
+  // different bar spacing don't cause the bus to oscillate forever.
+  const applyingExternalRangeRef = useRef(false)
+  const lastAppliedRangeRef = useRef(null)
   // Refs mirror rapidly-changing values so the crosshair handler can read
   // current data without forcing a tear-down+resubscribe on every tick.
   // Without this, useRealtimeBars updates → bars change → indicatorData
@@ -1865,31 +1897,77 @@ export default function StockChart({
   const lastPriceRef = useRef(null)
   const lastChangePctRef = useRef(null)
 
+  // Assemble the branded-screenshot options: header data + the container (so the
+  // compositor can grab the drawing/callout overlay canvases) + the live legend
+  // element positions so the OHLC/MA + $Vol legends get redrawn into the PNG.
+  const buildScreenshotOpts = useCallback(() => {
+    const cont = containerRef.current
+    const contRect = cont?.getBoundingClientRect()
+    const relPos = (el) => {
+      if (!el || !contRect) return null
+      const r = el.getBoundingClientRect()
+      return { x: r.left - contRect.left, y: r.top - contRect.top }
+    }
+    // Swing labels are a top-zOrder LWC primitive that takeScreenshot() doesn't
+    // capture, so pre-compute their pixel positions here and let the compositor
+    // redraw them (mirrors swingLabelsPrimitive).
+    const ts = chartRef.current?.timeScale?.()
+    const series = candleSeriesRef.current
+    const sl = cs.swingLabels || {}
+    const swingLabels = (ts && series ? (swingPointsRef.current || []) : []).map((p) => {
+      const x = ts.timeToCoordinate(p.time)
+      const y = series.priceToCoordinate?.(p.price)
+      return (x != null && y != null) ? { x, y, label: Number(p.price).toFixed(2), type: p.type } : null
+    }).filter(Boolean)
+    // Effective chart background so the header/footer blend with the canvas.
+    const bgColor = canvasTheme === 'sunrise'
+      ? '#eaf1fa'
+      : (userCanvas && cs.bgMode === 'gradient')
+        ? (cs.bgGradient?.top || MB_BG)
+        : ((userCanvas || !boldCandles) ? (cs.background || MB_BG) : MB_BG)
+    return {
+      sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
+      companyName: watermarkMeta?.name || tickerMeta?.name || null,
+      container: cont,
+      crosshairData,
+      volPos: relPos(volLegendRef.current),
+      bgColor,
+      textColor: themeColors.textColor,   // price-scale text color → header blends with it
+      swingLabels,
+      swingStyle: {
+        color: sl.color, tintByType: sl.tintByType, upColor: sl.upColor, downColor: sl.downColor,
+        // Mirror the live primitive EXACTLY (swingLabelsPrimitive setOptions):
+        // showBg is keyed off `bgEnabled`, and the box color defaults to the chart
+        // background — an invisible plate that hides candles behind the label,
+        // NOT a visible box.
+        showBg: sl.bgEnabled !== false,
+        bg: sl.bg || bgColor,
+        fontPx: sl.fontPx,
+      },
+    }
+  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles, themeColors])
+
   const handleDownload = useCallback(async () => {
     if (!chartRef.current) return
     try {
-      const blob = await composeScreenshot(chartRef.current, {
-        sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
-      })
+      const blob = await composeScreenshot(chartRef.current, buildScreenshotOpts())
       const filename = `${sym || 'chart'}-${resolvedTf}-${new Date().toISOString().slice(0, 10)}.png`
       downloadBlob(blob, filename)
     } catch (err) {
       console.warn('Screenshot failed:', err)
     }
-  }, [sym, resolvedTf])
+  }, [sym, resolvedTf, buildScreenshotOpts])
 
   const handleCopyImage = useCallback(async () => {
     if (!chartRef.current) return false
     try {
-      const blob = await composeScreenshot(chartRef.current, {
-        sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
-      })
+      const blob = await composeScreenshot(chartRef.current, buildScreenshotOpts())
       return await copyBlobToClipboard(blob)
     } catch (err) {
       console.warn('Copy failed:', err)
       return false
     }
-  }, [sym, resolvedTf])
+  }, [buildScreenshotOpts])
 
   const handleCopyShareUrl = useCallback(() => {
     const state = {
@@ -2712,14 +2790,37 @@ export default function StockChart({
   const earningsEvents = useMemo(() => {
     const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
     if (!cs.markers?.earnings || !markersData?.earnings || !isDailyWeekly || !filteredBars?.length) return []
-    const lowByDate = new Map()
-    for (const b of filteredBars) lowByDate.set(String(b.t), +b.l)
+    // Snap each earnings DATE to the bar whose PERIOD contains it. Daily bars are
+    // keyed by the exact day, but WEEKLY bars are keyed by the week's Friday and
+    // MONTHLY by the month — so an exact date-match only ever hit on daily (and by
+    // coincidence when a report happened to land on a Friday). Bucket both the
+    // bars and the earnings dates the same way, then look up the containing bar.
+    const tf = resolvedTf
+    const bucket = (dstr) => {
+      const s = String(dstr).slice(0, 10)
+      if (tf === 'W') {
+        const dt = new Date(`${s}T00:00:00Z`)
+        if (isNaN(dt.getTime())) return s
+        dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7)) // → Monday of its ISO week
+        return dt.toISOString().slice(0, 10)
+      }
+      if (tf === 'M') return s.slice(0, 7)   // YYYY-MM
+      return s                                // daily: the exact day
+    }
+    const barByBucket = new Map()
+    for (const b of filteredBars) barByBucket.set(bucket(b.t), b)
     const out = []
+    const seen = new Set()
     for (const e of markersData.earnings) {
       if (!e.date) continue
-      const low = lowByDate.get(String(e.date))
-      if (!Number.isFinite(low)) continue   // no matching bar (e.g. outside the loaded range)
-      out.push({ date: e.date, low, beat: e.beat, data: e })
+      const bar = barByBucket.get(bucket(e.date))
+      if (!bar) continue                      // no bar in that period (outside loaded range)
+      const low = +bar.l
+      if (!Number.isFinite(low) || seen.has(bar.t)) continue  // 1 badge/bar (≤1 report/period)
+      seen.add(bar.t)
+      // Position the badge at the BAR's time (not the raw report date, which isn't
+      // a weekly/monthly bar key); the popup still shows the real report date via `data`.
+      out.push({ date: bar.t, low, beat: e.beat, data: e })
     }
     return out
   }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
@@ -3008,6 +3109,7 @@ export default function StockChart({
     () => swingLabelsOn ? detectSwingPivots(ohlcData, sensitivityToParams(swingSensitivity, resolvedTf)) : [],
     [swingLabelsOn, swingSensitivity, resolvedTf, ohlcData]
   )
+  swingPointsRef.current = swingPoints  // expose to the (later-defined) screenshot builder
   // Gold-tinted copy with the highlighted bar(s) (Model Book: the focused
   // setup's day, or — with "show all" on — every setup's day) painted gold.
   // Kept separate from ohlcData so updateChart's normal setData path (and every
@@ -4381,16 +4483,28 @@ export default function StockChart({
           if (!bar || bar.close == null) return bar
           if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
           const NC = netColorsRef.current
+          // Sunrise's black inside-day candles are part of the theme's signature
+          // look, so they paint in EVERY color mode — checked before the openclose
+          // passthrough (below) which otherwise skips all per-bar painting. The
+          // fill still follows close-vs-open (TC2000): an inside day that closed
+          // above its open is a HOLLOW black outline, below = filled black.
+          if (NC.insideBlack && _isInside(bar, prevBar)) {
+            const openUpIn = bar.open != null ? bar.close >= bar.open : true
+            return { ...bar, color: (NC.hollow && openUpIn) ? 'rgba(0,0,0,0)' : '#000000', borderColor: '#000000', wickColor: '#000000' }
+          }
           if (NC.mode === 'openclose') return bar   // native close-vs-open coloring
-          if (NC.insideBlack && _isInside(bar, prevBar)) return { ...bar, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
           // One color: every bar the same body/border/wick (shape still hollow on up).
           if (NC.mode === 'onecolor') {
             const up = bar.open != null ? bar.close >= bar.open : true
             const body = (NC.hollow && up) ? 'rgba(0,0,0,0)' : NC.one
             return { ...bar, color: body, borderColor: NC.one, wickColor: NC.one }
           }
-          // Direction drives green/red AND the hollow/filled shape. Net-change uses
-          // close-vs-prev-close; open-close uses close-vs-open.
+          // TC2000 hollow-candle semantics: COLOR and FILL are independent axes.
+          // Direction (net-change close-vs-prev-close, or close-vs-open in that
+          // mode) drives the green/red palette; close-vs-OPEN alone drives the
+          // hollow/filled body. So a green candle that closed below its open is
+          // FILLED green, and a red candle that closed above its open is HOLLOW
+          // red — all four combinations render.
           let up
           if (NC.mode === 'netchange') {
             if (prevClose == null) return bar   // first bar — no prior close to compare
@@ -4398,7 +4512,8 @@ export default function StockChart({
           } else {
             up = bar.open != null ? bar.close >= bar.open : true
           }
-          const body = (NC.hollow && up) ? 'rgba(0,0,0,0)' : (up ? NC.up : NC.down)
+          const openUp = bar.open != null ? bar.close >= bar.open : up
+          const body = (NC.hollow && openUp) ? 'rgba(0,0,0,0)' : (up ? NC.up : NC.down)
           return { ...bar, color: body, borderColor: (up ? NC.borUp : NC.borDown), wickColor: (up ? NC.wickUp : NC.wickDown) }
         }
         const _realSet = priceSeries.setData.bind(priceSeries)
@@ -4453,8 +4568,13 @@ export default function StockChart({
     try {
       const NC = netColorsRef.current
       if (_ct === 'candles' || _ct === 'hollow') {
+        // Sunrise's TC2000 look = hollow up bodies, enforced at series creation
+        // (the `_bold` sunrise options). This live-apply runs every render and
+        // would clobber that with a solid NC.up in OPEN-CLOSE mode (where the
+        // per-bar wrapper passes through) — so the transparent up body must be
+        // kept for Sunrise here too, not just for the explicit 'hollow' type.
         candleSeriesRef.current.applyOptions({
-          upColor: (_ct === 'hollow') ? 'rgba(0,0,0,0)' : NC.up,
+          upColor: (_ct === 'hollow' || canvasTheme === 'sunrise') ? 'rgba(0,0,0,0)' : NC.up,
           downColor: NC.down,
           borderVisible: (_ct === 'hollow') ? true : (canvasTheme === 'sunrise' ? true : !!userCandleColors),
           borderUpColor: NC.borUp, borderDownColor: NC.borDown,
@@ -4704,7 +4824,11 @@ export default function StockChart({
       if (volSeparatePane) {
         // Own pane: small top margin so bars don't kiss the divider; size the
         // pane to ~22% of the chart via stretch factors (main pane gets the rest).
-        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.12, bottom: 0 } })
+        // autoScale keeps the bars fitted to the SAME slice of the pane on every
+        // ticker/timeframe (a dragged volume axis otherwise pins a fixed range that
+        // makes a lower-volume name's bars tiny) — re-applied each pass so an
+        // accidental axis drag always snaps back to a consistent auto-fit.
+        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, autoScale: true, scaleMargins: { top: 0.12, bottom: 0 } })
         try {
           // Stretch factors are relative. Address panes by their series' own
           // pane object (getPane) rather than raw index, so an index-comparison
@@ -4729,7 +4853,7 @@ export default function StockChart({
         } catch {}
       } else {
         const volMargins = paneMargins.volume || { top: 0.82, bottom: 0 }
-        volumeSeriesRef.current.priceScale().applyOptions({ scaleMargins: volMargins })
+        volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
       }
       _applyData(volumeSeriesRef.current, volData)
 
@@ -6813,7 +6937,11 @@ export default function StockChart({
     if (!chartRef.current || typeof onTimeRangeChange !== 'function') return
     const ts = chartRef.current.timeScale()
     const handler = (range) => {
-      if (range) onTimeRangeChange({ from: range.from, to: range.to })
+      // Bail while WE are applying an external range — otherwise setVisibleRange
+      // below re-fires this handler and the bus oscillates across every chart.
+      if (range && !applyingExternalRangeRef.current) {
+        onTimeRangeChange({ from: range.from, to: range.to })
+      }
     }
     try { ts.subscribeVisibleTimeRangeChange(handler) } catch { return }
     return () => {
@@ -6826,12 +6954,19 @@ export default function StockChart({
   // setVisibleRange will throw if the range falls outside the loaded data.
   useEffect(() => {
     if (!chartRef.current || !externalTimeRange) return
+    if (!shouldApplyRange(externalTimeRange, lastAppliedRangeRef.current)) return
+    applyingExternalRangeRef.current = true
     try {
       chartRef.current.timeScale().setVisibleRange({
         from: externalTimeRange.from,
         to: externalTimeRange.to,
       })
+      lastAppliedRangeRef.current = { from: externalTimeRange.from, to: externalTimeRange.to }
     } catch {}
+    // Clear on the next frame — mirrors the crosshair applier's rAF release, so
+    // the subscribeVisibleTimeRangeChange fired by setVisibleRange is swallowed.
+    const raf = requestAnimationFrame(() => { applyingExternalRangeRef.current = false })
+    return () => { cancelAnimationFrame(raf); applyingExternalRangeRef.current = false }
   }, [externalTimeRange])
 
   // ── Multi-chart sync: render external crosshair from parent (Task 5 Step 5) ──
@@ -7362,8 +7497,14 @@ export default function StockChart({
     const chart = chartRef.current
     if (!chart || !earningsEvents.length) { setEarningsPopup(null); return }
     const handler = (param) => {
-      if (!param || param.time == null) { return }
-      const hit = earningsEvents.find(m => String(m.date) === String(param.time))
+      if (!param || !param.point) return
+      // Prefer a pixel hit-test against the badge's actual pill (whole box is
+      // clickable); fall back to exact bar-time match if the primitive has no
+      // rects yet (e.g. first frame after a re-attach).
+      let hit = null
+      const hitTime = earnBadgeRef.current?.hitTest?.(param.point.x, param.point.y)
+      if (hitTime != null) hit = earningsEvents.find(m => String(m.date) === String(hitTime))
+      if (!hit && param.time != null) hit = earningsEvents.find(m => String(m.date) === String(param.time))
       if (!hit) return
       const rect = containerRef.current?.getBoundingClientRect()
       const px = rect && param.point ? rect.left + param.point.x + 12 : (rect?.left ?? 0) + 40
@@ -7715,11 +7856,20 @@ export default function StockChart({
       const cutoffMs = val === 'ytd'
         ? Date.UTC(d.getUTCFullYear(), 0, 1)
         : Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - val, d.getUTCDate())
-      let fromIdx = _bars.findIndex(b => _dateToMs(b.t) >= cutoffMs)
-      if (fromIdx < 0) fromIdx = 0
       const lastIdx = _bars.length - 1
-      if (lastIdx - fromIdx < 1) return
-      ts.setVisibleLogicalRange({ from: fromIdx, to: lastIdx + (rightPadBars || 3) })
+      const firstMs = _dateToMs(_bars[0].t)
+      if (!Number.isFinite(firstMs) || lastMs <= firstMs) return
+      // Anchor the LEFT edge to the cutoff DATE, not to the first bar. For a
+      // short-history ticker whose IPO is INSIDE the lookback (SPCX/DRAM on 3M,
+      // 6M, …) the cutoff sits before bar 0, so `from` goes negative → the bars
+      // keep their normal (period-appropriate) width with blank space to the
+      // left, instead of the whole IPO history being stretched across the pane.
+      // Window width = the lookback span converted to bars via the series' own
+      // bar density (timeframe-agnostic: works for D/W/M).
+      const msPerBar = (lastMs - firstMs) / lastIdx
+      const windowBars = msPerBar > 0 ? (lastMs - cutoffMs) / msPerBar : lastIdx
+      if (!(windowBars >= 1)) return
+      ts.setVisibleLogicalRange({ from: lastIdx - windowBars, to: lastIdx + (rightPadBars || 3) })
     } catch { /* noop */ }
   }
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
@@ -7991,6 +8141,7 @@ export default function StockChart({
         const legBase = legendColor ? { color: legendColor } : undefined
         return (
         <div
+          ref={legendRef}
           className={`${styles.legend}${verticalLegend ? ' ' + styles.legendVertical : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it. */
           style={overlayBounds ? { top: overlayBounds.top + 6 } : undefined}

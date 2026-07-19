@@ -2652,6 +2652,139 @@ _UCT_LOGO_URL = os.getenv(
 ).strip()
 
 
+# ── Earnings-date lookup for embeds (2026-07-19) ─────────────────────────
+# The router is a SEPARATE process from the flow-worker (principle #1: its
+# module state is invisible here), so it keeps its OWN calendar cache rather
+# than reading the worker's _ER_DATE_CACHE. Same source: /api/calendar, paged
+# via ?week=<Monday>. Refreshed in a BACKGROUND THREAD (never blocks the push
+# path); on failure the prior cache is kept and the earnings line is omitted.
+_ER_CAL_BASE = os.getenv("UCT_PUBLIC_BASE", "https://uctintelligence.com").rstrip("/")
+_ER_CAL_ENABLED = os.getenv("MASSIVE_EARNINGS_CAL_ENABLED", "1") == "1"
+_ER_CAL_WEEKS_AHEAD = int(os.getenv("MASSIVE_EARNINGS_CAL_WEEKS_AHEAD", "2"))
+_ER_CAL_TTL = 6 * 60 * 60
+_ER_CAL_MIN_RETRY = 5 * 60          # after a failed refresh, wait ≥5 min before retrying
+_ER_CAL_UA = "UCT-Massive/1.0 (+https://uctintelligence.com)"
+_ER_CAL: dict = {}                  # {sym: 'YYYY-MM-DD'}
+_ER_CAL_AT: float = 0.0
+_ER_CAL_TRIED: float = 0.0
+_ER_CAL_REFRESHING = False
+
+
+def _er_cal_do_refresh():
+    """Background-thread fetch of current week + next N Mondays. Never raises."""
+    global _ER_CAL, _ER_CAL_AT, _ER_CAL_REFRESHING
+    try:
+        import urllib.request
+        from datetime import datetime as _dt, timedelta as _td
+
+        def _get(url):
+            req = urllib.request.Request(url, headers={"User-Agent": _ER_CAL_UA})
+            with urllib.request.urlopen(req, timeout=6.0) as resp:
+                if resp.status != 200:
+                    return None
+                return json.loads(resp.read().decode("utf-8"))
+
+        def _flatten(payload, acc):
+            days = (payload or {}).get("days") or {}
+            if not isinstance(days, dict):
+                return
+            for date_str, day in days.items():
+                if not isinstance(day, dict):
+                    continue
+                for bucket in ("bmo", "amc", "tbd"):
+                    for e in day.get(bucket) or []:
+                        if not isinstance(e, dict):
+                            continue
+                        s = (e.get("sym") or "").upper().strip()
+                        if not s:
+                            continue
+                        prev = acc.get(s)
+                        if prev is None or date_str < prev:
+                            acc[s] = date_str
+
+        out = {}
+        base = _get(f"{_ER_CAL_BASE}/api/calendar")
+        if not base:
+            return
+        _flatten(base, out)
+        ws = str(base.get("week_start") or "")[:10]
+        try:
+            monday = _dt.strptime(ws, "%Y-%m-%d")
+        except (TypeError, ValueError):
+            monday = None
+        if monday is not None:
+            for k in range(1, max(0, _ER_CAL_WEEKS_AHEAD) + 1):
+                wk = (monday + _td(days=7 * k)).strftime("%Y-%m-%d")
+                try:
+                    p = _get(f"{_ER_CAL_BASE}/api/calendar?week={wk}")
+                except Exception:
+                    p = None
+                if p:
+                    _flatten(p, out)
+        if out:
+            _ER_CAL = out
+            _ER_CAL_AT = time.time()
+    except Exception:
+        pass
+    finally:
+        _ER_CAL_REFRESHING = False
+
+
+def _er_cal_maybe_refresh():
+    """Kick a background refresh if the cache is stale. Non-blocking; guarded so
+    a failing fetch doesn't hammer the endpoint and only one refresh runs."""
+    global _ER_CAL_TRIED, _ER_CAL_REFRESHING
+    if not _ER_CAL_ENABLED or _ER_CAL_REFRESHING:
+        return
+    now = time.time()
+    if (now - _ER_CAL_AT) < _ER_CAL_TTL:
+        return
+    if (now - _ER_CAL_TRIED) < _ER_CAL_MIN_RETRY:
+        return
+    _ER_CAL_TRIED = now
+    _ER_CAL_REFRESHING = True
+    threading.Thread(target=_er_cal_do_refresh, daemon=True).start()
+
+
+def _parse_mdy(s):
+    """'M/D/YYYY' → date, else None."""
+    try:
+        p = str(s).strip().split("/")
+        if len(p) == 3:
+            return date(int(p[2]), int(p[0]), int(p[1]))
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
+def _earnings_line(ticker: str, exp) -> str:
+    """Date-aware earnings line for the embed, or None. Uses the router's own
+    calendar cache. 'held through earnings' when the option expiration clears
+    the earnings date (the short-DTE-into-earnings signal). Renders nothing when
+    earnings are past or unknown. ET here is the file's fixed EDT(−4); date-only
+    so DST is immaterial except within an hour of midnight ET."""
+    if not ticker:
+        return None
+    _er_cal_maybe_refresh()
+    d = _ER_CAL.get(str(ticker).upper().strip())
+    if not d:
+        return None
+    try:
+        ed = datetime.strptime(d, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+    days_to = (ed - datetime.now(ET).date()).days
+    if days_to < 0:
+        return None  # already reported — say nothing (fixes the MU stale flag)
+    exp_d = _parse_mdy(exp)
+    held = exp_d is not None and exp_d > ed
+    horizon = "today" if days_to == 0 else ("tomorrow" if days_to == 1 else f"in {days_to} days")
+    line = f"⚠️ Earnings {ed.month}/{ed.day} ({horizon})"
+    if held:
+        line += "  ·  📌 held through earnings"
+    return line
+
+
 def _fmt_money_m(n) -> str:
     try:
         n = float(n or 0)
@@ -2765,7 +2898,10 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         if vol_group:
             lines.append("📊 " + "\n".join(vol_group))
         if ramp:
-            lines.append(f"📈 Daily build:  {ramp}")
+            # Ramp is the per-day HIT COUNT growing across sessions (e.g.
+            # 37 → 45 → 108 hits). "Daily build" alone didn't say what was
+            # building; label it as hits/day so the number is self-explaining.
+            lines.append(f"📈 Hits by day:  {ramp}")
         default_name = "UCT Accumulation"
     else:
         prem = alert.get("alertPremium") or 0
@@ -2819,18 +2955,31 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         _ts_label = None
 
     grade = alert.get("accumulation_grade") if mode == "accumulation" else alert.get("grade")
+    # Label the timestamp so it can't be mistaken for Discord's post time. For an
+    # accumulation the ts is the most recent qualifying hit ("Last hit"); for a
+    # single print it's the execution time ("Filled"). Without the label, a card
+    # posted at 9:31 AM ET showing "Yesterday at 3:59 PM" read like a
+    # contradiction — two unlabeled times 17h apart.
+    _ts_prefix = "Last hit" if mode == "accumulation" else "Filled"
+    _ts_display = f"{_ts_prefix}: {_ts_label}" if _ts_label else None
     if grade and grade != "D":
         rocket = " 🚀" if grade in ("A+", "A") else ""
         conv = f"🏆 Conviction **{grade}**{rocket}"
-        if _ts_label:
-            conv += f"  ·  🕐 {_ts_label}"
+        if _ts_display:
+            conv += f"  ·  🕐 {_ts_display}"
         lines.append(conv)
-    elif _ts_label:
+    elif _ts_display:
         # No conviction line (grade D/blank) — still surface the time on its own line.
-        lines.append(f"🕐 {_ts_label}")
+        lines.append(f"🕐 {_ts_display}")
 
     # Compose: badge line(s), then metric groups separated by a BLANK line for
     # readable spacing. All in the description → identical on desktop and mobile.
+    # Earnings proximity (2026-07-19) — date-aware, self-clearing. Nothing when
+    # earnings are past or unknown; "held through earnings" when the expiration
+    # clears the report date (the short-DTE-into-earnings signal).
+    _er_line = _earnings_line(ticker, exp)
+    if _er_line:
+        lines.append(_er_line)
     lines = [ln for ln in lines if ln]
     desc_parts = []
     if badges:
@@ -3061,6 +3210,43 @@ def _push_window_ok(alert: dict, mode: str, cfg: dict) -> bool:
     """
     if cfg.get("market_hours_only", True) and not _in_market_hours():
         return False
+
+    # SAME-SESSION GATE (2026-07-18): an accumulation may auto-push ONLY if its
+    # most recent qualifying hit (last_ts) is from the CURRENT trading session.
+    #
+    # THE BUG: accumulation = YELLOW = cumulative vol > OI. Contracts that
+    # accumulated into yesterday's close but didn't fire before 16:00 sit in
+    # flow.db still-unclaimed. At the next open the first scan finds them and
+    # blasts them out — the SNDK/AAPL/MU cards stamped 9:31 AM ET whose events
+    # were "Yesterday at 3:5x PM". That's a stale re-push with no new info.
+    #
+    # WHY NOT just drop the contract for the day: the next-day flow on that SAME
+    # contract is the signal that tells you whether they're ADDING or TAKING
+    # PROFIT. So we must NOT blacklist the contract — we only block firing on a
+    # PRIOR-SESSION event. The moment the contract prints again today, last_ts
+    # advances into today's session and it fires on that fresh event — which is
+    # exactly the add/distribute follow-through worth alerting.
+    #
+    # So this gates on the EVENT TIME, not the contract. Prior-session last_ts →
+    # mark-only (never fire). Today's-session last_ts → fires. A missing
+    # timestamp ABSTAINS (doesn't block) — a data gap isn't evidence of
+    # staleness. Config: accum_same_session_only (default True); set False to
+    # restore the old always-fire behavior.
+    if mode == "accumulation" and cfg.get("accum_same_session_only", True):
+        _lt = alert.get("last_ts") or alert.get("timestamp")
+        if _lt:
+            try:
+                _hit = datetime.fromtimestamp(float(_lt), tz=ET)
+                _now = datetime.now(ET)
+                # Session open for the CURRENT calendar day in ET. Before 9:30 the
+                # "current session" is still today's upcoming open, so a hit from
+                # yesterday is correctly prior-session. (No holiday calendar; a
+                # holiday simply has no flow to fire.)
+                _session_open = _now.replace(hour=9, minute=30, second=0, microsecond=0)
+                if _hit < _session_open:
+                    return False   # prior-session event — mark-only, don't re-blast
+            except (TypeError, ValueError, OSError):
+                pass  # unparseable ts → abstain (don't block on a data gap)
 
     max_age = (cfg.get("accum_max_age_sec", 0) if mode == "accumulation"
                else cfg.get("max_alert_age_sec", 600))
@@ -4057,13 +4243,6 @@ async def enrich_oi(
 
     try:
         with sqlite3.connect(DB_PATH, timeout=10) as conn:
-            # contract_oi_snapshots moved to its own DB (2026-07-17) — attach so
-            # the OI-enrich queries below resolve it.
-            try:
-                from api.oi_snapshots import attach_oi_snapshots
-                attach_oi_snapshots(conn)
-            except Exception:
-                pass
             # ── Step 1: Detect stored key format from a small probe set.
             # Reuses confirmation-map's proven approach — try up to 20 probe
             # contracts, use the first variant that hits, then commit to that

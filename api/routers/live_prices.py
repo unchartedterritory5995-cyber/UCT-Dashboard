@@ -56,6 +56,13 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     # would otherwise pin up to 6 workers for 25s each and, under a post-deploy cold
     # herd, exhaust the 64-worker pool (the launch-day 524 class). 5s caps that.
     data = client._get(url, timeout=5.0)
+
+    def _f(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
     out: dict = {}
     for t in data.get("tickers", []):
         ticker = t.get("ticker", "")
@@ -68,6 +75,25 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         price = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
         volume = int(day.get("v") or 0)
 
+        # The day % must be the REGULAR-SESSION move — day close vs prev close, the
+        # exact thing the chart's close-vs-prev-close legend shows. Massive's
+        # todaysChangePerc is based on the LAST TRADE (incl. after-hours), so after
+        # the close it MIS-STATES the regular % (TWST: 2.93% vs the real 2.87%) AND
+        # intermittently returns a stale 0. So ALWAYS derive from the closes when we
+        # have them; a genuinely flat name still has day_c == prev_c → an honest 0.
+        day_c = _f(day.get("c"))
+        prev_c = _f(prev_day.get("c"))
+        if day_c and prev_c and prev_c != 0:
+            chg_pct = (day_c - prev_c) / prev_c * 100.0
+            chg_abs = day_c - prev_c
+        else:
+            chg_pct = _f(t.get("todaysChangePerc"))
+            chg_abs = _f(t.get("todaysChange"))
+            # No day close AND no real change → too degraded to trust. OMIT the
+            # ticker so callers keep their last-good value instead of a 0.00% blank.
+            if chg_pct is None or chg_pct == 0.0:
+                continue
+
         ext_price = None
         ext_session = None
         if session != "regular":
@@ -78,10 +104,10 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
 
         out[ticker] = {
             "price": round(float(price), 2),
-            # `or 0.0` (not a .get default): the API can return explicit null
-            # for halted/new listings — float(None) would kill the WHOLE batch.
-            "change_pct": round(float(t.get("todaysChangePerc") or 0.0), 4),
-            "change": round(float(t.get("todaysChange") or 0.0), 4),
+            # Recomputed above from day/prev close when Massive's field is a
+            # spurious 0 — never a raw passthrough that flashes charts to 0.00%.
+            "change_pct": round(chg_pct, 4) if chg_pct is not None else 0.0,
+            "change": round(chg_abs, 4) if chg_abs is not None else 0.0,
             "volume": volume,
             "day_open": round(float(day.get("o") or 0), 2),
             "day_high": round(float(day.get("h") or 0), 2),

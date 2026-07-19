@@ -46,6 +46,7 @@ from api.darkpool_aggregator import (
 import gzip
 import io
 import json
+import threading
 
 router = APIRouter(prefix="/api/darkpool", tags=["darkpool"])
 
@@ -61,6 +62,16 @@ _DARKPOOL_CACHE_HEADERS = {
 # ~240MB worst case — fits comfortably in a Railway dyno.
 _RESPONSE_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
 _RESPONSE_CACHE_MAX = 8
+# Single-flight: bound concurrent CSV builds to 1 per process. Without this the
+# docstring's promise ("only the first request rebuilds; the rest serve from
+# RAM") is false — every cache MISS builds independently. Unlike flow_router,
+# the version key here is total_rows (not a 60s time bucket), so a populated
+# entry stays valid until the next upload/prune; the herd window is therefore
+# narrow but SHARP — right after an upload clears the cache, concurrent hits on
+# a 60-90d window each allocate a full multi-hundred-MB build at once (this
+# module's own header records that OOM-killing the Railway worker). Mirrors
+# flow_router._BUILD_LOCK and live_massive_router._day_stats_lock.
+_BUILD_LOCK = threading.Lock()
 
 
 def _current_version() -> int:
@@ -93,7 +104,12 @@ def _build_gzipped_csv(days) -> bytes:
 
 def _get_cached_or_build(days) -> bytes:
     """Return gzipped CSV bytes for (days,), using the in-memory cache when
-    version matches. LRU eviction at _RESPONSE_CACHE_MAX entries."""
+    version matches. LRU eviction at _RESPONSE_CACHE_MAX entries.
+
+    Single-flight + stale-serve (2026-07-18): only ONE build runs at a time per
+    process. Concurrent callers serve the previous payload if one exists rather
+    than launching their own build; the first-ever caller for a key (nothing
+    stale to serve) blocks on the lock and re-checks the cache on acquire."""
     version = _current_version()
     key = (days,)
     cached = _RESPONSE_CACHE.get(key)
@@ -101,11 +117,25 @@ def _get_cached_or_build(days) -> bytes:
         _RESPONSE_CACHE.move_to_end(key)  # touch — most recently used
         return cached[1]
 
-    payload = _build_gzipped_csv(days)
-    if len(_RESPONSE_CACHE) >= _RESPONSE_CACHE_MAX:
-        _RESPONSE_CACHE.popitem(last=False)  # evict LRU
-    _RESPONSE_CACHE[key] = (version, payload)
-    return payload
+    def _store(payload):
+        if key not in _RESPONSE_CACHE and len(_RESPONSE_CACHE) >= _RESPONSE_CACHE_MAX:
+            _RESPONSE_CACHE.popitem(last=False)  # evict LRU
+        _RESPONSE_CACHE[key] = (version, payload)
+        _RESPONSE_CACHE.move_to_end(key)
+        return payload
+
+    if not _BUILD_LOCK.acquire(blocking=False):
+        if cached:
+            return cached[1]        # serve stale rather than queue behind the build
+        with _BUILD_LOCK:           # first-ever for this key: must build once
+            c2 = _RESPONSE_CACHE.get(key)
+            if c2 and c2[0] == _current_version():
+                return c2[1]
+            return _store(_build_gzipped_csv(days))
+    try:
+        return _store(_build_gzipped_csv(days))
+    finally:
+        _BUILD_LOCK.release()
 
 
 def _serve_csv(days, request: Request):

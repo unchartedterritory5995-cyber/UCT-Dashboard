@@ -1,6 +1,6 @@
 {
-  "version": "4.2.0",
-  "generated_at": "2026-04-14",
+  "version": "4.15.0+22795f2a",
+  "generated_at": "2026-07-19",
   "sectors": [
     {
       "id": "technology",
@@ -356,12 +356,6 @@
           "rationale": "Instruments and subsystems for chip manufacturing"
         },
         {
-          "sym": "COHR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Laser and photonics for semiconductor processes"
-        },
-        {
           "sym": "CAMT",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -369,33 +363,15 @@
         },
         {
           "sym": "FORM",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Probe card testing solutions for wafers"
         },
         {
           "sym": "UCTT",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Precision parts and modules for fab tools"
-        },
-        {
-          "sym": "AMKR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Outsourced semiconductor packaging and test"
-        },
-        {
-          "sym": "SNPS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Synopsys chip design EDA software tools"
-        },
-        {
-          "sym": "CDNS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cadence Design electronic design automation"
         },
         {
           "sym": "AEHR",
@@ -404,26 +380,8 @@
           "rationale": "Aehr Test semiconductor burn-in testing"
         },
         {
-          "sym": "BRKS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Brooks Automation wafer handling cryogenics"
-        },
-        {
-          "sym": "IPGP",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "IPG Photonics fiber lasers chip manufacturing"
-        },
-        {
-          "sym": "AMBA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Ambarella AI vision SoC for semiconductor test"
-        },
-        {
           "sym": "PLAB",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Photronics photomask for chip manufacturing"
         },
@@ -434,10 +392,10 @@
           "rationale": "Veeco Instruments semiconductor deposition equip"
         },
         {
-          "sym": "OLED",
+          "sym": "NVMI",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Universal Display OLED technology and materials"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -594,12 +552,6 @@
           "rationale": "Braze customer engagement marketing platform"
         },
         {
-          "sym": "SMAR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Smartsheet work management collaboration software"
-        },
-        {
           "sym": "FROG",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -654,22 +606,10 @@
           "rationale": "Manhattan Associates supply chain management software"
         },
         {
-          "sym": "AYX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Self-service data analytics and automation platform"
-        },
-        {
           "sym": "DT",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Software intelligence and observability analytics platform"
-        },
-        {
-          "sym": "NEWR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Full-stack application performance observability"
         },
         {
           "sym": "FRSH",
@@ -682,6 +622,60 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "DevSecOps platform with code analytics and insights"
+        },
+        {
+          "sym": "CDNS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SNPS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "FTNT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SAP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SHOP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PTC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TYL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ZM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SSNC",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -733,7 +727,7 @@
         },
         {
           "sym": "NET",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "cloud_infra",
           "rationale": "Edge cloud and CDN infrastructure leader"
         },
@@ -769,13 +763,13 @@
         },
         {
           "sym": "TWLO",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "cloud_platforms",
           "rationale": "Cloud communications APIs and CPaaS"
         },
         {
           "sym": "ZS",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "cloud_infra",
           "rationale": "Cloud-native security platform"
         },
@@ -810,34 +804,40 @@
           "rationale": "Dynatrace AI-powered cloud observability platform"
         },
         {
-          "sym": "NEWR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "New Relic cloud observability and monitoring"
-        },
-        {
           "sym": "SMCI",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Super Micro Computer AI cloud server infrastructure"
         },
         {
-          "sym": "PATH",
-          "tier": "relevant",
+          "sym": "CRM",
+          "tier": "core",
           "sub_theme_id": null,
-          "rationale": "UiPath cloud-based RPA and automation platform"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "FTNT",
-          "tier": "relevant",
+          "sym": "NOW",
+          "tier": "core",
           "sub_theme_id": null,
-          "rationale": "Fortinet cloud-delivered network security"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "PANW",
+          "sym": "WDAY",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Palo Alto Networks cloud security platform"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TEAM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ADBE",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -978,12 +978,6 @@
           "rationale": "F5 web application firewall and security"
         },
         {
-          "sym": "SWI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SolarWinds IT monitoring and security software"
-        },
-        {
           "sym": "AKAM",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -994,12 +988,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "OneSpan digital identity and security platform"
-        },
-        {
-          "sym": "SCWX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SecureWorks managed security services. Check."
         }
       ]
     },
@@ -1138,12 +1126,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Upstart AI lending credit decisioning platform"
-        },
-        {
-          "sym": "EXAI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Exscientia AI-driven drug discovery platform"
         },
         {
           "sym": "S",
@@ -1446,7 +1428,7 @@
         },
         {
           "sym": "GOOGL",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "YouTube is second-largest social platform"
         },
@@ -1458,39 +1440,21 @@
         },
         {
           "sym": "BMBL",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Women-first dating and social app"
         },
         {
           "sym": "YELP",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Local business review and social recommendation platform"
         },
         {
-          "sym": "IAC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Internet conglomerate with social media properties"
-        },
-        {
-          "sym": "SPOT",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Social audio playlists and podcast community features"
-        },
-        {
           "sym": "WB",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Weibo Chinese microblogging social media platform"
-        },
-        {
-          "sym": "PUBM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Programmatic ad tech powering social media monetization"
         },
         {
           "sym": "BILI",
@@ -1499,46 +1463,10 @@
           "rationale": "Bilibili Chinese video social community platform"
         },
         {
-          "sym": "FUTU",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Futu Holdings social trading community platform"
-        },
-        {
-          "sym": "NTES",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "NetEase gaming and social community platform"
-        },
-        {
-          "sym": "TWLO",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Twilio communications powering social apps"
-        },
-        {
-          "sym": "ZM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Zoom social video communication platform"
-        },
-        {
-          "sym": "RBLX",
+          "sym": "MOMO",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Roblox social gaming metaverse platform"
-        },
-        {
-          "sym": "SE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Sea Limited social gaming community"
-        },
-        {
-          "sym": "TME",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Tencent Music social music sharing platform"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -1566,7 +1494,7 @@
       "holdings": [
         {
           "sym": "MSFT",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "game_platforms",
           "rationale": "Xbox, Activision Blizzard, Game Pass ecosystem"
         },
@@ -1590,13 +1518,13 @@
         },
         {
           "sym": "NVDA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "game_hardware",
           "rationale": "GeForce GPUs power PC gaming"
         },
         {
           "sym": "AMD",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "game_hardware",
           "rationale": "Radeon GPUs and console APUs (PS5, Xbox)"
         },
@@ -1608,7 +1536,7 @@
         },
         {
           "sym": "CRSR",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": "game_hardware",
           "rationale": "Gaming peripherals and streaming gear"
         },
@@ -1650,13 +1578,13 @@
         },
         {
           "sym": "SONY",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "game_platforms",
           "rationale": "PlayStation console and gaming software ecosystem"
         },
         {
           "sym": "GRVY",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": "game_publishers",
           "rationale": "Gravity Korean MMORPG game publisher"
         },
@@ -1683,6 +1611,12 @@
           "tier": "peripheral",
           "sub_theme_id": "game_platforms",
           "rationale": "DoubleDown Interactive social casino games"
+        },
+        {
+          "sym": "GME",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -1814,12 +1748,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Cadence EDA tools for quantum circuit design"
-        },
-        {
-          "sym": "BRKS",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Brooks cryogenics for quantum computer cooling"
         }
       ]
     },
@@ -1858,12 +1786,6 @@
           "rationale": "Second-largest global payment network"
         },
         {
-          "sym": "SQ",
-          "tier": "core",
-          "sub_theme_id": "digital_banking",
-          "rationale": "Square merchant payments and Cash App banking"
-        },
-        {
           "sym": "PYPL",
           "tier": "core",
           "sub_theme_id": "payments",
@@ -1883,19 +1805,19 @@
         },
         {
           "sym": "SOFI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "digital_banking",
           "rationale": "Digital banking, lending, and investing platform"
         },
         {
           "sym": "COIN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "trading_platforms",
           "rationale": "Largest US crypto exchange"
         },
         {
           "sym": "HOOD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "trading_platforms",
           "rationale": "Commission-free stock and crypto trading"
         },
@@ -1913,7 +1835,7 @@
         },
         {
           "sym": "NU",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "digital_banking",
           "rationale": "Latin America largest digital bank"
         },
@@ -1978,12 +1900,6 @@
           "rationale": "Flywire cross-border payment solutions"
         },
         {
-          "sym": "OLO",
-          "tier": "relevant",
-          "sub_theme_id": "payments",
-          "rationale": "Olo restaurant digital ordering platform"
-        },
-        {
           "sym": "FIS",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -1996,16 +1912,22 @@
           "rationale": "Payments and financial technology infrastructure"
         },
         {
-          "sym": "WU",
+          "sym": "AXP",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Cross-border money transfer and payments services"
+          "rationale": "card network/payments franchise"
         },
         {
-          "sym": "EVTC",
-          "tier": "peripheral",
+          "sym": "INTU",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Payment technology for Latin America and Caribbean"
+          "rationale": "QuickBooks/Credit Karma fintech software"
+        },
+        {
+          "sym": "XYZ",
+          "tier": "core",
+          "sub_theme_id": "digital_banking",
+          "rationale": "Block rebranded SQ -> XYZ"
         }
       ]
     },
@@ -2035,12 +1957,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Leading crypto exchange, new asset class enabler"
-        },
-        {
-          "sym": "SQ",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Disrupting banking with Cash App ecosystem"
         },
         {
           "sym": "SHOP",
@@ -2155,6 +2071,30 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Planet Labs disrupting geospatial intelligence"
+        },
+        {
+          "sym": "XYZ",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "rename"
+        },
+        {
+          "sym": "NVDA",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ISRG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "UBER",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -2289,12 +2229,6 @@
           "rationale": "Myriad Genetics hereditary cancer genomic testing"
         },
         {
-          "sym": "NVTA",
-          "tier": "relevant",
-          "sub_theme_id": "sequencing",
-          "rationale": "Invitae genetic testing and diagnostics platform"
-        },
-        {
           "sym": "DTIL",
           "tier": "relevant",
           "sub_theme_id": "gene_editing",
@@ -2374,7 +2308,7 @@
         },
         {
           "sym": "QCOM",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "self_driving",
           "rationale": "Snapdragon Ride autonomous driving platform"
         },
@@ -2445,12 +2379,6 @@
           "rationale": "Cognex machine vision for robot guidance"
         },
         {
-          "sym": "BRKS",
-          "tier": "relevant",
-          "sub_theme_id": "industrial_robots",
-          "rationale": "Brooks Automation semiconductor robotics"
-        },
-        {
           "sym": "NOVT",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -2479,6 +2407,42 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Life science automation and genomics robotics solutions"
+        },
+        {
+          "sym": "SYM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "KTOS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HSAI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PATH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AMBA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ZBRA",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -2512,25 +2476,25 @@
         },
         {
           "sym": "LMT",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "space_defense",
           "rationale": "Major space systems and satellite contractor"
         },
         {
           "sym": "NOC",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "space_defense",
           "rationale": "Space launch vehicles and satellite systems"
         },
         {
           "sym": "BA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "launch",
           "rationale": "Starliner crew capsule and SLS rocket stages"
         },
         {
           "sym": "RTX",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "space_defense",
           "rationale": "Space sensors, satellite systems, and propulsion"
         },
@@ -2548,19 +2512,19 @@
         },
         {
           "sym": "LUNR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "space_defense",
           "rationale": "Lunar landing and navigation services"
         },
         {
           "sym": "RDW",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": "satellites",
           "rationale": "Space structures and deployable systems"
         },
         {
           "sym": "ASTS",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "satellites",
           "rationale": "AST SpaceMobile space-based cellular broadband"
         },
@@ -2583,34 +2547,22 @@
           "rationale": "Viasat satellite broadband internet services"
         },
         {
-          "sym": "GILT",
-          "tier": "relevant",
-          "sub_theme_id": "satellites",
-          "rationale": "Gilat Satellite Networks VSAT ground equipment"
-        },
-        {
           "sym": "SPIR",
           "tier": "relevant",
           "sub_theme_id": "satellites",
           "rationale": "Spire Global space-based data analytics provider"
         },
         {
-          "sym": "KTOS",
+          "sym": "VOYG",
           "tier": "relevant",
-          "sub_theme_id": "space_defense",
-          "rationale": "Kratos drone and space launch systems"
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "U",
-          "tier": "relevant",
-          "sub_theme_id": "satellites",
-          "rationale": "Unity Software simulation for space missions"
-        },
-        {
-          "sym": "GD",
-          "tier": "relevant",
-          "sub_theme_id": "space_defense",
-          "rationale": "General Dynamics GDIT space ground systems"
+          "sym": "FLY",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -2661,12 +2613,6 @@
           "rationale": "Largest US residential solar installer"
         },
         {
-          "sym": "NOVA",
-          "tier": "relevant",
-          "sub_theme_id": "solar_install",
-          "rationale": "Residential solar and storage installer"
-        },
-        {
           "sym": "CSIQ",
           "tier": "relevant",
           "sub_theme_id": "solar_manufacturing",
@@ -2697,64 +2643,10 @@
           "rationale": "Daqo New Energy polysilicon for solar wafers"
         },
         {
-          "sym": "MAXN",
+          "sym": "NXT",
           "tier": "relevant",
-          "sub_theme_id": "solar_manufacturing",
-          "rationale": "Maxeon Solar high-efficiency panel technology"
-        },
-        {
-          "sym": "HASI",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_install",
-          "rationale": "Clean energy project financing for solar"
-        },
-        {
-          "sym": "NEP",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_install",
-          "rationale": "NextEra Energy Partners solar project portfolio"
-        },
-        {
-          "sym": "FLNC",
-          "tier": "relevant",
-          "sub_theme_id": "solar_inverters",
-          "rationale": "Fluence Energy battery storage paired with solar"
-        },
-        {
-          "sym": "STEM",
-          "tier": "relevant",
-          "sub_theme_id": "solar_inverters",
-          "rationale": "Stem AI energy optimization for solar storage"
-        },
-        {
-          "sym": "RNW",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_manufacturing",
-          "rationale": "ReNew Energy Indian solar developer"
-        },
-        {
-          "sym": "TPIC",
-          "tier": "relevant",
-          "sub_theme_id": "solar_manufacturing",
-          "rationale": "TPI Composites wind and solar composite blades"
-        },
-        {
-          "sym": "AES",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_install",
-          "rationale": "AES Corp solar generation and storage utility"
-        },
-        {
-          "sym": "NEE",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_install",
-          "rationale": "NextEra Energy worlds largest solar operator"
-        },
-        {
-          "sym": "GE",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_inverters",
-          "rationale": "GE Vernova inverters for utility solar"
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -2809,12 +2701,6 @@
           "tier": "relevant",
           "sub_theme_id": "hydrogen",
           "rationale": "Solid-oxide fuel cells for distributed power"
-        },
-        {
-          "sym": "GE",
-          "tier": "relevant",
-          "sub_theme_id": "wind",
-          "rationale": "GE Vernova wind turbines and grid solutions"
         },
         {
           "sym": "AES",
@@ -2883,18 +2769,6 @@
           "rationale": "AI-powered clean energy storage optimization"
         },
         {
-          "sym": "NOVA",
-          "tier": "relevant",
-          "sub_theme_id": "solar",
-          "rationale": "Sunnova residential clean energy services"
-        },
-        {
-          "sym": "MAXN",
-          "tier": "peripheral",
-          "sub_theme_id": "solar",
-          "rationale": "Maxeon high-efficiency solar panel technology"
-        },
-        {
           "sym": "HASI",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -2908,7 +2782,7 @@
         },
         {
           "sym": "VST",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Vistra Energy nuclear clean baseload generation"
         },
@@ -2932,9 +2806,21 @@
         },
         {
           "sym": "CLNE",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Renewable natural gas for transportation decarbonization"
+        },
+        {
+          "sym": "BEP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "GEV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -2986,7 +2872,7 @@
         },
         {
           "sym": "MP",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "battery_materials",
           "rationale": "US rare earth mine supplying EV battery chain"
         },
@@ -3007,18 +2893,6 @@
           "tier": "peripheral",
           "sub_theme_id": "battery_tech",
           "rationale": "Clean battery cell manufacturing startup"
-        },
-        {
-          "sym": "PLL",
-          "tier": "relevant",
-          "sub_theme_id": "lithium_mining",
-          "rationale": "Piedmont Lithium US spodumene lithium project"
-        },
-        {
-          "sym": "FREYR",
-          "tier": "relevant",
-          "sub_theme_id": "battery_tech",
-          "rationale": "FREYR Battery clean battery cell manufacturer"
         },
         {
           "sym": "SLDP",
@@ -3057,18 +2931,6 @@
           "rationale": "Nano One Materials battery cathode tech"
         },
         {
-          "sym": "CHPT",
-          "tier": "relevant",
-          "sub_theme_id": "battery_tech",
-          "rationale": "ChargePoint EV charging battery demand driver"
-        },
-        {
-          "sym": "PLUG",
-          "tier": "relevant",
-          "sub_theme_id": "battery_tech",
-          "rationale": "Plug Power hydrogen fuel cells and storage"
-        },
-        {
           "sym": "GWH",
           "tier": "relevant",
           "sub_theme_id": "battery_tech",
@@ -3079,6 +2941,12 @@
           "tier": "relevant",
           "sub_theme_id": "battery_tech",
           "rationale": "Amprius Technologies silicon anode batteries"
+        },
+        {
+          "sym": "SES",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -3118,7 +2986,7 @@
         },
         {
           "sym": "LCID",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "ev_oem",
           "rationale": "Luxury EV sedan and SUV manufacturer"
         },
@@ -3136,19 +3004,19 @@
         },
         {
           "sym": "LI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "ev_oem",
           "rationale": "Chinese extended-range EV SUV maker"
         },
         {
           "sym": "NIO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "ev_oem",
           "rationale": "Chinese premium EV maker with battery swap"
         },
         {
           "sym": "XPEV",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "ev_oem",
           "rationale": "Chinese smart EV maker with ADAS focus"
         },
@@ -3171,28 +3039,10 @@
           "rationale": "EV electrical architecture and connectors"
         },
         {
-          "sym": "JOBY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Joby Aviation eVTOL electric air taxi developer"
-        },
-        {
-          "sym": "PCAR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "PACCAR electric Kenworth and Peterbilt commercial trucks"
-        },
-        {
           "sym": "BWA",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "BorgWarner EV drivetrain and motor components"
-        },
-        {
-          "sym": "INVZ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Innoviz lidar for EV autonomous driving"
         },
         {
           "sym": "MBLY",
@@ -3418,7 +3268,7 @@
         },
         {
           "sym": "POWL",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "grid_equipment",
           "rationale": "Switchgear and power distribution equipment"
         },
@@ -3430,27 +3280,15 @@
         },
         {
           "sym": "ITRI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "grid_software",
           "rationale": "Smart grid meters and IoT solutions"
-        },
-        {
-          "sym": "TSLA",
-          "tier": "relevant",
-          "sub_theme_id": "energy_storage",
-          "rationale": "Megapack utility-scale battery storage systems"
         },
         {
           "sym": "GNRC",
           "tier": "relevant",
           "sub_theme_id": "energy_storage",
           "rationale": "Home standby generators and energy storage"
-        },
-        {
-          "sym": "NEE",
-          "tier": "relevant",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "NextEra Energy grid-scale renewables integration"
         },
         {
           "sym": "AES",
@@ -3465,40 +3303,10 @@
           "rationale": "Fluence Energy grid battery storage systems"
         },
         {
-          "sym": "SEDG",
-          "tier": "peripheral",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "SolarEdge grid-tied inverter technology"
-        },
-        {
-          "sym": "ARRY",
-          "tier": "peripheral",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "Array Technologies solar tracker grid-scale"
-        },
-        {
           "sym": "STEM",
           "tier": "relevant",
           "sub_theme_id": "grid_software",
           "rationale": "Stem AI-powered grid energy optimization"
-        },
-        {
-          "sym": "BLDP",
-          "tier": "peripheral",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "Ballard Power fuel cells for grid backup"
-        },
-        {
-          "sym": "NOVA",
-          "tier": "peripheral",
-          "sub_theme_id": "energy_storage",
-          "rationale": "Sunnova distributed energy grid services"
-        },
-        {
-          "sym": "PLUG",
-          "tier": "relevant",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "Plug Power hydrogen for grid energy storage"
         },
         {
           "sym": "SO",
@@ -3531,28 +3339,10 @@
           "rationale": "Eos Energy, zinc batteries"
         },
         {
-          "sym": "ENPH",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Enphase, inverters+battery"
-        },
-        {
-          "sym": "QS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "QuantumScape, solid-state"
-        },
-        {
           "sym": "ENVX",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Enovix, silicon anode cells"
-        },
-        {
-          "sym": "ALB",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Albemarle, lithium supplier"
         }
       ]
     },
@@ -3702,7 +3492,7 @@
         },
         {
           "sym": "DINO",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "HF Sinclair refining and renewable fuels"
         },
@@ -3717,6 +3507,18 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "NGL Energy Partners midstream and water"
+        },
+        {
+          "sym": "EPD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "top-tier midstream MLP"
+        },
+        {
+          "sym": "ENB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "major North American midstream/pipeline"
         }
       ]
     },
@@ -3770,12 +3572,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Appalachia and Permian natural gas and oil"
-        },
-        {
-          "sym": "MRO",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Multi-basin US E&P operator"
         },
         {
           "sym": "CHRD",
@@ -3850,16 +3646,22 @@
           "rationale": "Berry Corp heavy oil producer California"
         },
         {
-          "sym": "SBOW",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SilverBow Resources South Texas E&P producer"
-        },
-        {
           "sym": "GPOR",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Gulfport Energy Appalachian natural gas producer"
+        },
+        {
+          "sym": "EQT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "largest US natural gas pure-play E&P"
+        },
+        {
+          "sym": "MUR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "independent E&P"
         }
       ]
     },
@@ -3909,12 +3711,6 @@
           "rationale": "International completions and artificial lift"
         },
         {
-          "sym": "CHX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Drilling fluids and pressure pumping services"
-        },
-        {
           "sym": "HP",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -3952,7 +3748,7 @@
         },
         {
           "sym": "CLB",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Core Laboratories reservoir characterization"
         },
@@ -3975,12 +3771,6 @@
           "rationale": "ProPetro Holding pressure pumping Permian Basin"
         },
         {
-          "sym": "DRQ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Dril-Quip subsea wellhead equipment manufacturer"
-        },
-        {
           "sym": "TDW",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -3997,6 +3787,42 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Helix Energy Solutions subsea well intervention"
+        },
+        {
+          "sym": "RIG",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Transocean offshore drilling contractor"
+        },
+        {
+          "sym": "NE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Noble Corp offshore driller"
+        },
+        {
+          "sym": "VAL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Valaris offshore drilling"
+        },
+        {
+          "sym": "OIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Oil States oilfield equipment"
+        },
+        {
+          "sym": "AESI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Atlas Energy frac sand/proppant logistics"
+        },
+        {
+          "sym": "USAC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "USA Compression gas compression services"
         }
       ]
     },
@@ -4143,12 +3969,6 @@
           "rationale": "Hess Midstream natural gas processing transport"
         },
         {
-          "sym": "CCLP",
-          "tier": "peripheral",
-          "sub_theme_id": "gas_pipelines",
-          "rationale": "CSI Compressco natural gas compression services"
-        },
-        {
           "sym": "NFG",
           "tier": "relevant",
           "sub_theme_id": "gas_producers",
@@ -4185,13 +4005,13 @@
         },
         {
           "sym": "RGLD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Gold royalty and streaming company"
         },
         {
           "sym": "AU",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "AngloGold Ashanti, global gold miner"
         },
@@ -4215,13 +4035,13 @@
         },
         {
           "sym": "NEM",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "World largest gold producer royalty counterparty"
         },
         {
           "sym": "AEM",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Agnico Eagle top gold miner royalty grantor"
         },
@@ -4233,19 +4053,19 @@
         },
         {
           "sym": "KGC",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Kinross Gold major miner and royalty grantor"
         },
         {
           "sym": "AGI",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Alamos Gold mid-tier Canadian gold miner"
         },
         {
           "sym": "GFI",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Gold Fields South African gold mining operations"
         },
@@ -4281,7 +4101,7 @@
         },
         {
           "sym": "CDE",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Coeur Mining US gold producer royalty counterparty"
         },
@@ -4317,9 +4137,21 @@
         },
         {
           "sym": "HL",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Hecla Mining silver and gold producer"
+        },
+        {
+          "sym": "EQX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OGC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -4358,13 +4190,13 @@
         },
         {
           "sym": "AG",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "First Majestic Silver, primary silver miner"
         },
         {
           "sym": "EXK",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Endeavour Silver, Mexican silver operations"
         },
@@ -4393,12 +4225,6 @@
           "rationale": "MAG Silver Juanicipio high-grade silver mine Mexico"
         },
         {
-          "sym": "SILV",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SilverCrest Metals Las Chispas silver-gold mine"
-        },
-        {
           "sym": "MUX",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -4417,22 +4243,10 @@
           "rationale": "Americas Gold and Silver Corp producing miner"
         },
         {
-          "sym": "AUY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Yamana Gold with silver production exposure"
-        },
-        {
           "sym": "OR",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Osisko Gold Royalties with silver stream income"
-        },
-        {
-          "sym": "GATO",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Gatos Silver high-grade silver mine Mexico"
         },
         {
           "sym": "FR",
@@ -4445,6 +4259,18 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Triple Flag silver streaming income"
+        },
+        {
+          "sym": "PSLV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BVN",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -4471,7 +4297,7 @@
         },
         {
           "sym": "TECK",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Canadian copper and zinc diversified miner"
         },
@@ -4483,7 +4309,7 @@
         },
         {
           "sym": "ERO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Ero Copper, Brazilian copper mining operations"
         },
@@ -4513,37 +4339,13 @@
         },
         {
           "sym": "NEXA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Nexa Resources zinc and copper producer Americas"
         },
         {
-          "sym": "AA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Alcoa aluminum with copper by-product exposure"
-        },
-        {
-          "sym": "ARIS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Aris Mining copper-gold assets in Colombia"
-        },
-        {
-          "sym": "CENX",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Century Aluminum with copper-related operations"
-        },
-        {
-          "sym": "NUE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Nucor diversified metals with copper distribution"
-        },
-        {
           "sym": "IVPAF",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Ivanhoe Mines Kamoa-Kakula copper DRC ADR"
         },
@@ -4552,18 +4354,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "First Quantum Minerals copper producer Zambia"
-        },
-        {
-          "sym": "PKX",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "POSCO with copper by-product processing"
-        },
-        {
-          "sym": "SID",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "CSN Mineracao iron and copper mining Brazil"
         },
         {
           "sym": "GLNCY",
@@ -4590,7 +4380,7 @@
         },
         {
           "sym": "UUUU",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "US rare earth and uranium producer"
         },
@@ -4607,28 +4397,10 @@
           "rationale": "USA Rare Earth, US mine-to-magnet rare earth manufacturer"
         },
         {
-          "sym": "TMC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "The Metals Company, deep-sea polymetallic nodule mining"
-        },
-        {
-          "sym": "AMSC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Superconductor tech relying on rare earth magnets"
-        },
-        {
           "sym": "VHI",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Valhi Inc specialty metals and titanium operations"
-        },
-        {
-          "sym": "HEES",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "H&E Equipment with rare earth mining equipment"
         },
         {
           "sym": "LYC",
@@ -4637,58 +4409,22 @@
           "rationale": "Lynas Corp OTC ADR rare earth processing"
         },
         {
-          "sym": "GWH",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "ESS Inc energy storage using rare earth materials"
-        },
-        {
           "sym": "PCRFY",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Panasonic EV batteries needing RE magnets OTC"
         },
         {
-          "sym": "HON",
-          "tier": "peripheral",
+          "sym": "NB",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Honeywell quantum and RE magnet applications"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "APD",
-          "tier": "peripheral",
+          "sym": "CRML",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Air Products specialty gases for RE processing"
-        },
-        {
-          "sym": "BWA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "BorgWarner EV motors needing RE permanent magnets"
-        },
-        {
-          "sym": "TER",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Teradyne test equipment for RE magnet applications"
-        },
-        {
-          "sym": "EMR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Emerson Electric motors using RE magnet technology"
-        },
-        {
-          "sym": "ROK",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Rockwell Automation servos using RE permanent magnets"
-        },
-        {
-          "sym": "ETN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Eaton electric motors requiring RE magnet materials"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -4736,7 +4472,7 @@
         },
         {
           "sym": "ATI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "specialty_metals",
           "rationale": "Specialty alloys for aerospace and defense"
         },
@@ -4748,27 +4484,15 @@
         },
         {
           "sym": "CRS",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "specialty_metals",
           "rationale": "Specialty alloy steel for aerospace and medical"
         },
         {
           "sym": "CMC",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": "steel_producers",
           "rationale": "Rebar and merchant steel producer"
-        },
-        {
-          "sym": "TMST",
-          "tier": "peripheral",
-          "sub_theme_id": "steel_producers",
-          "rationale": "Steel tubular products manufacturer"
-        },
-        {
-          "sym": "X",
-          "tier": "relevant",
-          "sub_theme_id": "steel_producers",
-          "rationale": "United States Steel legacy integrated steelmaker"
         },
         {
           "sym": "TX",
@@ -4781,18 +4505,6 @@
           "tier": "relevant",
           "sub_theme_id": "steel_producers",
           "rationale": "Gerdau Brazilian long steel and specialty producer"
-        },
-        {
-          "sym": "HAYN",
-          "tier": "relevant",
-          "sub_theme_id": "specialty_metals",
-          "rationale": "Haynes International high-temp nickel alloys"
-        },
-        {
-          "sym": "MATV",
-          "tier": "peripheral",
-          "sub_theme_id": "specialty_metals",
-          "rationale": "Mativ Holdings specialty materials filtration"
         },
         {
           "sym": "SID",
@@ -4835,6 +4547,18 @@
           "tier": "relevant",
           "sub_theme_id": "steel_producers",
           "rationale": "Rio Tinto iron ore for steel production"
+        },
+        {
+          "sym": "MT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -4892,7 +4616,7 @@
         },
         {
           "sym": "CTVA",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "crop_inputs",
           "rationale": "Seed and crop protection technology leader"
         },
@@ -4913,12 +4637,6 @@
           "tier": "relevant",
           "sub_theme_id": "ag_equipment",
           "rationale": "Fendt and Massey Ferguson farm equipment"
-        },
-        {
-          "sym": "CNHI",
-          "tier": "relevant",
-          "sub_theme_id": "ag_equipment",
-          "rationale": "Case IH and New Holland farm equipment"
         },
         {
           "sym": "SMG",
@@ -4957,12 +4675,6 @@
           "rationale": "Adecoagro South American crop and dairy producer"
         },
         {
-          "sym": "HAIN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hain Celestial organic natural food products"
-        },
-        {
           "sym": "DAR",
           "tier": "relevant",
           "sub_theme_id": "grain_processing",
@@ -4987,16 +4699,22 @@
           "rationale": "Gladstone Land farmland REIT and agriculture"
         },
         {
-          "sym": "IBA",
-          "tier": "relevant",
-          "sub_theme_id": "crop_inputs",
-          "rationale": "Industrias Bachoco Mexican poultry producer"
-        },
-        {
           "sym": "AVD",
           "tier": "relevant",
           "sub_theme_id": "crop_inputs",
           "rationale": "American Vanguard specialty crop chemicals"
+        },
+        {
+          "sym": "CVGW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CNH",
+          "tier": "core",
+          "sub_theme_id": "ag_equipment",
+          "rationale": "rename"
         }
       ]
     },
@@ -5319,12 +5037,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Woodward aerospace and defense fuel systems"
-        },
-        {
-          "sym": "HEICO",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "HEICO. Already HEI. Different share class?"
         }
       ]
     },
@@ -5392,12 +5104,6 @@
           "rationale": "Cyber, digital modernization for defense"
         },
         {
-          "sym": "ACHR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "eVTOL aircraft with DoD contract potential"
-        },
-        {
           "sym": "RCAT",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -5434,12 +5140,6 @@
           "rationale": "Science Applications defense IT and analytics"
         },
         {
-          "sym": "ASGN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "ASGN Incorporated IT services for defense agencies"
-        },
-        {
           "sym": "OSIS",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -5462,24 +5162,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Coda Octopus underwater defense imaging sonar"
-        },
-        {
-          "sym": "LMT",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Lockheed, autonomous programs"
-        },
-        {
-          "sym": "NOC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Northrop, Global Hawk"
-        },
-        {
-          "sym": "JOBY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Joby, eVTOL defense"
         }
       ]
     },
@@ -5537,13 +5219,13 @@
         },
         {
           "sym": "MMM",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "industrial_conglomerates",
           "rationale": "Diversified industrial manufacturer (3M)"
         },
         {
           "sym": "EMR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "industrial_machinery",
           "rationale": "Industrial automation and climate technologies"
         },
@@ -5584,12 +5266,6 @@
           "rationale": "Global logistics and freight transportation"
         },
         {
-          "sym": "SHW",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Sherwin-Williams industrial coatings leader"
-        },
-        {
           "sym": "ROK",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -5600,12 +5276,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Dover Corp diversified industrial manufacturer"
-        },
-        {
-          "sym": "GPC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Genuine Parts industrial distribution network"
         },
         {
           "sym": "ROL",
@@ -5684,6 +5354,42 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "A.O. Smith, water heaters"
+        },
+        {
+          "sym": "OTIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "XYL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WAB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PCAR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CTAS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -5735,13 +5441,13 @@
         },
         {
           "sym": "EME",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "eng_construction",
           "rationale": "Electrical and mechanical construction services"
         },
         {
           "sym": "URI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "heavy_equipment",
           "rationale": "Largest equipment rental company in North America"
         },
@@ -5792,12 +5498,6 @@
           "tier": "relevant",
           "sub_theme_id": "eng_construction",
           "rationale": "Sterling Infrastructure heavy civil construction"
-        },
-        {
-          "sym": "SUM",
-          "tier": "relevant",
-          "sub_theme_id": "building_materials",
-          "rationale": "Summit Materials aggregates and cement"
         },
         {
           "sym": "EXP",
@@ -5944,7 +5644,7 @@
         },
         {
           "sym": "PWR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Electrical contractor for industrial facilities"
         },
@@ -5991,12 +5691,6 @@
           "rationale": "Granite Construction industrial infrastructure"
         },
         {
-          "sym": "SUM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Summit Materials cement for factory construction"
-        },
-        {
           "sym": "IESC",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -6019,6 +5713,42 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Jacobs Solutions engineering US infrastructure"
+        },
+        {
+          "sym": "CMI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ITW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HUBB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CMC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LECO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HON",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -6452,18 +6182,6 @@
           "rationale": "Truist Financial Southeast regional bank"
         },
         {
-          "sym": "ALLY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Ally Financial digital banking auto lending"
-        },
-        {
-          "sym": "NYCB",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "New York Community Bancorp multifamily lender"
-        },
-        {
           "sym": "WBS",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -6498,6 +6216,24 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "UMB Financial Kansas City regional bank"
+        },
+        {
+          "sym": "USB",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PNC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "FLG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "rename"
         }
       ]
     },
@@ -6672,6 +6408,18 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "American Financial Group specialty insurance"
+        },
+        {
+          "sym": "PRU",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LNC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -6747,19 +6495,19 @@
         },
         {
           "sym": "ELV",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "managed_care",
           "rationale": "Major US health insurer (Elevance)"
         },
         {
           "sym": "CI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "managed_care",
           "rationale": "Cigna health insurance and Express Scripts PBM"
         },
         {
           "sym": "HCA",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "healthcare_services",
           "rationale": "Largest US for-profit hospital operator"
         },
@@ -6825,7 +6573,7 @@
         },
         {
           "sym": "IDXX",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "IDEXX veterinary diagnostics market leader"
         },
@@ -6846,6 +6594,60 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Centene Medicaid managed care leader"
+        },
+        {
+          "sym": "CVS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HUM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MOH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BIIB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DVA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "UHS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ENSG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "EHC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PACS",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -6903,13 +6705,13 @@
         },
         {
           "sym": "CRSP",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "gene_cell_therapy",
           "rationale": "First FDA-approved CRISPR gene therapy"
         },
         {
           "sym": "ALNY",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "gene_cell_therapy",
           "rationale": "RNAi therapeutics leader with approved drugs"
         },
@@ -6918,12 +6720,6 @@
           "tier": "relevant",
           "sub_theme_id": "clinical_stage",
           "rationale": "Rare disease enzyme replacement therapies"
-        },
-        {
-          "sym": "EXAS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cancer screening via liquid biopsy and genomics"
         },
         {
           "sym": "IONS",
@@ -7014,6 +6810,24 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Krystal Biotech gene therapy dermatology focus"
+        },
+        {
+          "sym": "INCY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "JAZZ",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "UTHR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -7164,24 +6978,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Stevanato Group drug delivery glass vials devices"
-        },
-        {
-          "sym": "SILK",
-          "tier": "peripheral",
-          "sub_theme_id": "cardio_devices",
-          "rationale": "Silk Road Medical carotid stent devices"
-        },
-        {
-          "sym": "AXNX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Axonics sacral neuromodulation devices"
-        },
-        {
-          "sym": "NARI",
-          "tier": "relevant",
-          "sub_theme_id": "cardio_devices",
-          "rationale": "Inari Medical venous thromboembolism devices"
         }
       ]
     },
@@ -7374,12 +7170,6 @@
           "rationale": "Bioprocessing equipment for biologic manufacturing"
         },
         {
-          "sym": "IQV",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "CRO running GLP-1 clinical trials"
-        },
-        {
           "sym": "STE",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -7393,7 +7183,7 @@
         },
         {
           "sym": "RGEN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Repligen bioprocessing equipment GLP-1 production"
         },
@@ -7402,12 +7192,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Mettler-Toledo precision instruments pharma mfg"
-        },
-        {
-          "sym": "PKI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "PerkinElmer life science tools drug development"
         },
         {
           "sym": "A",
@@ -7434,12 +7218,6 @@
           "rationale": "Teleflex medical devices drug delivery systems"
         },
         {
-          "sym": "HOLX",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hologic medical device technology platform"
-        },
-        {
           "sym": "TECH",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -7452,16 +7230,16 @@
           "rationale": "Bio-Rad Laboratories life science instruments"
         },
         {
-          "sym": "LH",
+          "sym": "AMRX",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Labcorp clinical trial testing for GLP-1 studies"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "DGX",
-          "tier": "peripheral",
+          "sym": "RVTY",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Quest Diagnostics lab testing for obesity trials"
+          "rationale": "rename"
         }
       ]
     },
@@ -7519,13 +7297,13 @@
         },
         {
           "sym": "PM",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "tobacco_alcohol",
           "rationale": "Global tobacco and IQOS heated products"
         },
         {
           "sym": "MO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "tobacco_alcohol",
           "rationale": "US tobacco market leader (Marlboro)"
         },
@@ -7567,7 +7345,7 @@
         },
         {
           "sym": "BG",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Bunge Global grain processing food ingredients"
         },
@@ -7597,7 +7375,7 @@
         },
         {
           "sym": "ADM",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Archer-Daniels-Midland grain and food processing"
         },
@@ -7630,6 +7408,30 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Post Holdings cereal eggs and protein brands"
+        },
+        {
+          "sym": "TAP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CHD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -7786,6 +7588,30 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Carnival Corp cruise leisure and travel"
+        },
+        {
+          "sym": "MELI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DASH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MAR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -7849,7 +7675,7 @@
         },
         {
           "sym": "KR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "grocery",
           "rationale": "Largest US supermarket chain by revenue"
         },
@@ -7879,7 +7705,7 @@
         },
         {
           "sym": "BBY",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": "specialty_retail",
           "rationale": "Consumer electronics specialty retailer"
         },
@@ -7906,12 +7732,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Macys Inc department store chain nationwide"
-        },
-        {
-          "sym": "JWN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Nordstrom upscale department store retailer"
         },
         {
           "sym": "SFM",
@@ -7942,6 +7762,66 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Albertsons Companies grocery retail chain"
+        },
+        {
+          "sym": "LOW",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AMZN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TSCO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LULU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ANF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AEO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "URBN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BBWI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "VSCO",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -7992,7 +7872,7 @@
         },
         {
           "sym": "SKYW",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Regional airline operating for major carriers"
         },
@@ -8028,7 +7908,7 @@
         },
         {
           "sym": "PAC",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Grupo Aeromexico Mexican flag carrier ADR"
         },
@@ -8046,7 +7926,7 @@
         },
         {
           "sym": "SNCY",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Sun Country Airlines leisure focused carrier"
         },
@@ -8153,18 +8033,6 @@
           "rationale": "Peer-to-peer accommodation platform"
         },
         {
-          "sym": "SIX",
-          "tier": "relevant",
-          "sub_theme_id": "entertainment",
-          "rationale": "Six Flags theme parks and entertainment"
-        },
-        {
-          "sym": "SEAS",
-          "tier": "relevant",
-          "sub_theme_id": "entertainment",
-          "rationale": "SeaWorld theme parks and marine attractions"
-        },
-        {
           "sym": "NCLH",
           "tier": "relevant",
           "sub_theme_id": "travel_hotels",
@@ -8211,6 +8079,60 @@
           "tier": "relevant",
           "sub_theme_id": "entertainment",
           "rationale": "Brinker International Chilis dining restaurants"
+        },
+        {
+          "sym": "PRKS",
+          "tier": "relevant",
+          "sub_theme_id": "entertainment",
+          "rationale": "rename"
+        },
+        {
+          "sym": "VIK",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "EXPE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TNL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TRIP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "VAC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MSGE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LTH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OSW",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -8249,7 +8171,7 @@
         },
         {
           "sym": "TOL",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Luxury homebuilder at premium price points"
         },
@@ -8273,7 +8195,7 @@
         },
         {
           "sym": "MHO",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "M/I Homes, Midwest and Southeast builder"
         },
@@ -8308,26 +8230,20 @@
           "rationale": "Skyline Champion manufactured housing builder"
         },
         {
-          "sym": "MDC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "MDC Holdings Richmond American homebuilder"
-        },
-        {
           "sym": "CVCO",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Cavco Industries manufactured and modular homes"
         },
         {
           "sym": "BZH",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Beazer Homes entry-level and move-up builder"
         },
         {
           "sym": "LEGH",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Legacy Housing manufactured home builder"
         },
@@ -8339,7 +8255,7 @@
         },
         {
           "sym": "HOV",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Hovnanian Enterprises multi-market homebuilder"
         }
@@ -8380,7 +8296,7 @@
         },
         {
           "sym": "MELI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Latin America dominant e-commerce platform"
         },
@@ -8451,12 +8367,6 @@
           "rationale": "Wix website builder with e-commerce capabilities"
         },
         {
-          "sym": "DADA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Dada Nexus Chinese on-demand delivery platform"
-        },
-        {
           "sym": "VTEX",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -8482,15 +8392,21 @@
         },
         {
           "sym": "CVNA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Carvana online used car e-commerce platform"
         },
         {
-          "sym": "OSTK",
+          "sym": "CART",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Overstock.com online home furnishing retailer"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "RVLV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -8547,15 +8463,9 @@
         },
         {
           "sym": "FUBO",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Live sports-focused streaming platform"
-        },
-        {
-          "sym": "WMG",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Warner Music Group music streaming royalty beneficiary"
+          "rationale": "Live sports-focused streaming platform"
         },
         {
           "sym": "SIRI",
@@ -8564,20 +8474,14 @@
           "rationale": "SiriusXM satellite radio and streaming platform"
         },
         {
-          "sym": "LYV",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Live Nation live streaming and virtual concerts"
-        },
-        {
           "sym": "IQ",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "iQIYI Chinese streaming video platform"
         },
         {
           "sym": "TME",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Tencent Music Chinese music streaming leader"
         },
@@ -8588,28 +8492,16 @@
           "rationale": "Amazon Prime Video and Twitch streaming"
         },
         {
-          "sym": "AAPL",
+          "sym": "GOOGL",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Apple TV Plus streaming original content"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "NWSA",
-          "tier": "peripheral",
+          "sym": "PSKY",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "News Corp Fox Nation and Tubi streaming"
-        },
-        {
-          "sym": "BIDU",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Baidu Chinese video streaming iQIYI parent"
-        },
-        {
-          "sym": "MTCH",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Match Group video-based dating and streaming"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -8766,6 +8658,114 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Host Hotels and Resorts lodging REIT"
+        },
+        {
+          "sym": "SBAC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "REG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NNN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "FR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "REXR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "EGP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "COLD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NSA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OHI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "IRM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SBRA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "IIPR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NLY",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AGNC",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "STWD",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BXMT",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "RITM",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -8968,7 +8968,7 @@
         },
         {
           "sym": "NNE",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Nuclear micro-reactors targeting AI data centers"
         },
@@ -8985,38 +8985,20 @@
           "rationale": "Electrical contractor building data center connections"
         },
         {
-          "sym": "GNRC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Backup generators for data center facilities"
-        },
-        {
-          "sym": "NEE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Clean energy PPAs for data center operators"
-        },
-        {
-          "sym": "FLNC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Fluence Energy battery for DC backup power"
-        },
-        {
           "sym": "ANET",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Arista Networks networking fabric data centers"
         },
         {
           "sym": "SO",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Southern Company nuclear gas power DC loads"
         },
         {
           "sym": "AEP",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "AEP utility power serving data center markets"
         },
@@ -9028,15 +9010,9 @@
         },
         {
           "sym": "DUK",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Duke Energy utility serving data center markets"
-        },
-        {
-          "sym": "WEC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "WEC Energy gas and electric serving DC regions"
         },
         {
           "sym": "AME",
@@ -9051,16 +9027,34 @@
           "rationale": "NRG Energy power generation for data centers"
         },
         {
-          "sym": "PRIM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Primoris electrical contractor DC power hookups"
-        },
-        {
           "sym": "EMR",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Emerson power management for data center cooling"
+        },
+        {
+          "sym": "XEL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CCJ",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PPL",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SRE",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -9093,43 +9087,43 @@
         },
         {
           "sym": "IREN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner pivoting to AI/HPC hosting"
         },
         {
           "sym": "CIFR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner with custom ASIC chip program"
         },
         {
           "sym": "BITF",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Canadian Bitcoin miner with hydro power"
         },
         {
           "sym": "HUT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner expanding into AI data centers"
         },
         {
           "sym": "BTDR",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitdeer Bitcoin mining and ASIC hardware"
         },
         {
           "sym": "WULF",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner with adjacent HPC business"
         },
         {
           "sym": "CORZ",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Core Scientific Bitcoin miner AI data center host"
         },
@@ -9147,33 +9141,15 @@
         },
         {
           "sym": "GREE",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Greenidge Generation natural gas-powered BTC mining"
         },
         {
-          "sym": "MIGI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Mawson Infrastructure Bitcoin mining data centers"
-        },
-        {
-          "sym": "SMLR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Semler Scientific pivot to BTC treasury"
-        },
-        {
           "sym": "HIVE",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "HIVE Digital Technologies Bitcoin and AI mining"
-        },
-        {
-          "sym": "NILE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "BitNile Holdings Bitcoin mining operations"
         },
         {
           "sym": "DMGGF",
@@ -9183,15 +9159,9 @@
         },
         {
           "sym": "APLD",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Applied Digital next-gen data center BTC mining"
-        },
-        {
-          "sym": "BTCM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "BIT Mining limited Bitcoin and crypto mining"
         }
       ]
     },
@@ -9224,21 +9194,15 @@
         },
         {
           "sym": "RIOT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner holding BTC reserves"
         },
         {
           "sym": "CLSK",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner with growing BTC treasury"
-        },
-        {
-          "sym": "SQ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Bitcoin buying via Cash App, BTC on balance sheet"
         },
         {
           "sym": "HOOD",
@@ -9290,15 +9254,9 @@
         },
         {
           "sym": "GLXY",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Galaxy Digital Bitcoin investment management"
-        },
-        {
-          "sym": "SMLR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Semler Scientific BTC treasury company"
         },
         {
           "sym": "ARBK",
@@ -9308,63 +9266,33 @@
         },
         {
           "sym": "GBTC",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Grayscale Bitcoin Trust largest BTC fund"
         },
         {
           "sym": "IBIT",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "iShares Bitcoin Trust largest spot BTC ETF"
         },
         {
           "sym": "CME",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "CME Group Bitcoin and crypto futures exchange"
         },
         {
           "sym": "PYPL",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Crypto buying and PYUSD stablecoin"
         },
         {
-          "sym": "V",
+          "sym": "XYZ",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Blockchain settlement and crypto-linked cards"
-        },
-        {
-          "sym": "MA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Crypto card programs and blockchain experiments"
-        },
-        {
-          "sym": "IBM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Enterprise blockchain solutions (Hyperledger)"
-        },
-        {
-          "sym": "AFRM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Affirm exploring blockchain payment settlement"
-        },
-        {
-          "sym": "DKNG",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "DraftKings blockchain for sports betting NFTs"
-        },
-        {
-          "sym": "GPN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Global Payments blockchain settlement exploration"
+          "rationale": "rename"
         }
       ]
     },
@@ -9416,25 +9344,25 @@
         },
         {
           "sym": "BIDU",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "china_tech",
           "rationale": "Chinese search engine and AI platform"
         },
         {
           "sym": "NIO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "china_ev",
           "rationale": "Premium Chinese EV maker with battery swap"
         },
         {
           "sym": "LI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "china_ev",
           "rationale": "Extended-range EV SUV maker gaining share"
         },
         {
           "sym": "XPEV",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "china_ev",
           "rationale": "Smart EV with advanced driver assistance"
         },
@@ -9505,12 +9433,6 @@
           "rationale": "iQIYI Chinese video streaming platform"
         },
         {
-          "sym": "DADA",
-          "tier": "peripheral",
-          "sub_theme_id": "china_consumer",
-          "rationale": "Dada Nexus Chinese on-demand delivery"
-        },
-        {
           "sym": "KC",
           "tier": "relevant",
           "sub_theme_id": "china_consumer",
@@ -9521,6 +9443,12 @@
           "tier": "peripheral",
           "sub_theme_id": "china_tech",
           "rationale": "GDS Holdings Chinese data center operator"
+        },
+        {
+          "sym": "YUMC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -9553,13 +9481,13 @@
         },
         {
           "sym": "WIT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Wipro, Indian IT services and consulting"
         },
         {
           "sym": "SIFY",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Indian data center and cloud services"
         },
@@ -9570,40 +9498,16 @@
           "rationale": "Dr. Reddy's, Indian generic pharma company"
         },
         {
-          "sym": "TTM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Tata Motors, Indian auto with Jaguar Land Rover"
-        },
-        {
           "sym": "MMYT",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "MakeMyTrip, India online travel booking leader"
         },
         {
-          "sym": "WNS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "WNS Holdings Indian IT outsourcing services"
-        },
-        {
           "sym": "YTRA",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Yatra Online Indian corporate travel platform"
-        },
-        {
-          "sym": "AZRE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Azure Power Global Indian solar energy producer"
-        },
-        {
-          "sym": "VEDL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Vedanta Ltd Indian mining and metals conglomerate"
         },
         {
           "sym": "EXLS",
@@ -9648,13 +9552,13 @@
         },
         {
           "sym": "BBD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bradesco, major Brazilian universal bank"
         },
         {
           "sym": "ABEV",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Ambev, largest Latin American brewer"
         },
@@ -9678,7 +9582,7 @@
         },
         {
           "sym": "PAGS",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "PagSeguro, Brazilian digital payments"
         },
@@ -9732,7 +9636,7 @@
         },
         {
           "sym": "VTEX",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "VTEX Brazilian e-commerce platform"
         },
@@ -9750,13 +9654,13 @@
         },
         {
           "sym": "AFYA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Afya Limited Brazilian medical education company"
         },
         {
           "sym": "MELI",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "MercadoLibre LatAm e-commerce Argentina operations"
         }
@@ -9975,24 +9879,6 @@
           "rationale": "AU Optronics Taiwan flat panel display ADR"
         },
         {
-          "sym": "SPIL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Siliconware Precision chip packaging Taiwan ADR"
-        },
-        {
-          "sym": "AAOI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Applied Optoelectronics fiber optic Taiwan operations"
-        },
-        {
-          "sym": "EMKR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "EMCORE fiber optics with Taiwan manufacturing"
-        },
-        {
           "sym": "LEDS",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -10017,19 +9903,19 @@
         },
         {
           "sym": "PKX",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "POSCO Holdings, Korean steelmaker and battery materials"
         },
         {
           "sym": "KB",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "KB Financial Group, Korea largest bank"
         },
         {
           "sym": "SHG",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Shinhan Financial, major Korean bank"
         },
@@ -10065,25 +9951,19 @@
         },
         {
           "sym": "SSNLF",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Samsung Electronics largest Korean tech company"
         },
         {
           "sym": "HYMLF",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Hyundai Motor Korean auto manufacturer"
         },
         {
-          "sym": "HNHPF",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hana Financial Korean bank OTC ADR"
-        },
-        {
           "sym": "LGCLF",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "LG Chem Korean battery and chemicals OTC"
         },
@@ -10440,49 +10320,49 @@
         },
         {
           "sym": "XPO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "XPO Logistics, LTL freight transportation"
         },
         {
           "sym": "JBHT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "J.B. Hunt, intermodal and trucking leader"
         },
         {
           "sym": "SAIA",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Saia Inc, LTL carrier with national expansion"
         },
         {
           "sym": "KNX",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Knight-Swift, largest US truckload carrier"
         },
         {
           "sym": "CHRW",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "C.H. Robinson, largest US freight brokerage"
         },
         {
           "sym": "EXPD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Expeditors International, global freight forwarding"
         },
         {
           "sym": "CP",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Canadian Pacific Kansas City transcontinental rail"
         },
         {
           "sym": "CNI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Canadian National Railway North American network"
         },
@@ -10533,6 +10413,36 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Matson shipping and logistics Pacific routes"
+        },
+        {
+          "sym": "ARCB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "FWRD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MRTN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HTLD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CVLG",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -10595,7 +10505,7 @@
         },
         {
           "sym": "CHTR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Charter Communications cable broadband provider"
         },
@@ -10604,12 +10514,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Comcast largest US cable and broadband operator"
-        },
-        {
-          "sym": "FYBR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Frontier Communications fiber broadband buildout"
         },
         {
           "sym": "AMT",
@@ -10654,12 +10558,6 @@
           "rationale": "Vodafone Group global telecom carrier ADR"
         },
         {
-          "sym": "WOW",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "WideOpenWest regional fiber broadband provider"
-        },
-        {
           "sym": "ATUS",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -10701,7 +10599,7 @@
         },
         {
           "sym": "APD",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Global industrial gases and specialty chemicals leader"
         },
@@ -10731,25 +10629,25 @@
         },
         {
           "sym": "EMN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Specialty additives and functional products manufacturer"
         },
         {
           "sym": "CE",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Global chemical and specialty materials company"
         },
         {
           "sym": "AVNT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Specialty polymer formulations and color solutions provider"
         },
         {
           "sym": "HUN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Differentiated organic chemical products manufacturer"
         },
@@ -10761,7 +10659,7 @@
         },
         {
           "sym": "CC",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "TiO2 and performance additives specialty producer"
         },
@@ -10773,31 +10671,31 @@
         },
         {
           "sym": "RPM",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Specialty coatings sealants and building materials"
         },
         {
           "sym": "FUL",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Global adhesives and specialty chemicals producer"
         },
         {
           "sym": "ASH",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Specialty additives and performance materials company"
         },
         {
           "sym": "AXTA",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Vehicle refinish and industrial coatings specialist"
         },
         {
           "sym": "CBT",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Carbon black and specialty chemicals manufacturer"
         },
@@ -10806,6 +10704,36 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Multi-use maintenance product and specialty chemicals maker"
+        },
+        {
+          "sym": "IFF",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BCPC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SXT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ESI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ALB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 13
@@ -10838,13 +10766,13 @@
         },
         {
           "sym": "DV",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Digital media measurement and analytics platform"
         },
         {
           "sym": "PUBM",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Sell-side cloud infrastructure for digital advertising"
         },
@@ -10861,28 +10789,58 @@
           "rationale": "AI-powered marketing and advertising cloud platform"
         },
         {
-          "sym": "RAMP",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Identity resolution and data connectivity for marketers"
-        },
-        {
           "sym": "TBLA",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Content discovery and native advertising platform"
         },
         {
-          "sym": "QNST",
-          "tier": "peripheral",
+          "sym": "APP",
+          "tier": "core",
           "sub_theme_id": null,
-          "rationale": "Performance marketing in financial services and education"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "CARG",
-          "tier": "peripheral",
+          "sym": "GOOGL",
+          "tier": "core",
           "sub_theme_id": null,
-          "rationale": "Digital auto marketplace with advertising revenue model"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "META",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OMC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WPP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SNAP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "STGW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AMZN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 14
@@ -10900,12 +10858,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Dominant enterprise networking and infrastructure provider"
-        },
-        {
-          "sym": "JNPR",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "High-performance networking and security solutions"
         },
         {
           "sym": "ANET",
@@ -10933,7 +10885,7 @@
         },
         {
           "sym": "CIEN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Optical and packet networking equipment specialist"
         },
@@ -10981,7 +10933,7 @@
         },
         {
           "sym": "AVGO",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Broadcom, networking ASICs"
         },
@@ -10999,7 +10951,7 @@
         },
         {
           "sym": "GLW",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Corning, fiber optic infra"
         },
@@ -11008,6 +10960,24 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Marvell, custom silicon/DPUs"
+        },
+        {
+          "sym": "HPE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "EXTR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "COHR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 15
@@ -11028,7 +10998,7 @@
         },
         {
           "sym": "IBM",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Enterprise hybrid cloud and AI consulting services"
         },
@@ -11052,63 +11022,57 @@
         },
         {
           "sym": "DXC",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Enterprise IT modernization and managed services"
         },
         {
           "sym": "LDOS",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Defense and government IT solutions provider"
         },
         {
           "sym": "SAIC",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Government IT services and technology integrator"
         },
         {
           "sym": "KD",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "IT infrastructure services and digital workspace solutions"
         },
         {
           "sym": "GIB",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "IT and business consulting services firm"
         },
         {
           "sym": "WIT",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "India-based global IT services and consulting"
         },
         {
           "sym": "INFY",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Digital services and consulting company from India"
         },
         {
           "sym": "TASK",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Digital outsourcing and AI training data services"
         },
         {
           "sym": "EXLS",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Analytics and business process outsourcing services"
-        },
-        {
-          "sym": "WNS",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Business process management and analytics services"
         }
       ],
       "display_order": 16
@@ -11153,19 +11117,19 @@
         },
         {
           "sym": "QSR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Multi-brand QSR operator including Burger King and Tim Hortons"
         },
         {
           "sym": "DRI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Full-service restaurant operator including Olive Garden"
         },
         {
           "sym": "TXRH",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Casual dining steakhouse chain with strong unit economics"
         },
@@ -11177,7 +11141,7 @@
         },
         {
           "sym": "CAVA",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Fast-growing Mediterranean fast-casual restaurant chain"
         },
@@ -11222,6 +11186,12 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Mexican-inspired QSR chain with value positioning"
+        },
+        {
+          "sym": "YUMC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 17
@@ -11259,12 +11229,6 @@
           "rationale": "Premium athletic apparel and athleisure leader"
         },
         {
-          "sym": "SKX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Comfort footwear brand with global distribution"
-        },
-        {
           "sym": "CROX",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -11296,7 +11260,7 @@
         },
         {
           "sym": "UAA",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Performance athletic wear brand in turnaround mode"
         },
@@ -11313,16 +11277,58 @@
           "rationale": "Premium outerwear and lifestyle apparel brand"
         },
         {
-          "sym": "HBI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Basic apparel and innerwear manufacturer"
-        },
-        {
           "sym": "COLM",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Outdoor apparel and footwear company"
+        },
+        {
+          "sym": "LEVI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "GAP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ANF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AEO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "URBN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "KTB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "GIL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "VSCO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 18
@@ -11361,33 +11367,39 @@
         },
         {
           "sym": "CNC",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Medicaid and government-sponsored managed care provider"
         },
         {
           "sym": "MOH",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Medicaid and Medicare managed care organization"
         },
         {
           "sym": "OSCR",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Technology-driven individual health insurance platform"
         },
         {
           "sym": "CLOV",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Medicare Advantage insurer with AI-driven clinical tools"
         },
         {
           "sym": "ALHC",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Home health and hospice managed care services"
+        },
+        {
+          "sym": "CVS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 20
@@ -11432,25 +11444,25 @@
         },
         {
           "sym": "BMY",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Oncology and cardiovascular pharmaceutical company"
         },
         {
           "sym": "AZN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Global pharma with oncology and rare disease focus"
         },
         {
           "sym": "NVO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Diabetes and obesity pharmaceutical leader with GLP-1 drugs"
         },
         {
           "sym": "ZTS",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Leading animal health pharmaceutical company"
         },
@@ -11462,19 +11474,19 @@
         },
         {
           "sym": "TEVA",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Major generic pharmaceuticals manufacturer"
         },
         {
           "sym": "JAZZ",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Specialty pharma focused on neuroscience and oncology"
         },
         {
           "sym": "NBIX",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Neuroscience-focused biopharmaceutical company"
         },
@@ -11486,9 +11498,27 @@
         },
         {
           "sym": "OGN",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Womens health and biosimilar pharmaceutical company"
+        },
+        {
+          "sym": "AMGN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "GILD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NVS",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 21
@@ -11515,7 +11545,7 @@
         },
         {
           "sym": "CWST",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Vertically integrated solid waste services company"
         },
@@ -11527,39 +11557,27 @@
         },
         {
           "sym": "GFL",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "North American environmental services and waste management"
-        },
-        {
-          "sym": "ECOL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Hazardous waste treatment and disposal services"
-        },
-        {
-          "sym": "SRCL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Information destruction and compliance waste services"
-        },
-        {
-          "sym": "US",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Microsurgical waste and environmental solutions provider"
-        },
-        {
-          "sym": "ATKR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Electrical and infrastructure products for waste facilities"
         },
         {
           "sym": "MEG",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Environmental services and waste remediation company"
+        },
+        {
+          "sym": "WCN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NVRI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 23
@@ -11592,7 +11610,7 @@
         },
         {
           "sym": "LOPE",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Education services and university support platform"
         },
@@ -11610,13 +11628,13 @@
         },
         {
           "sym": "COUR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Online education platform partnering with top universities"
         },
         {
           "sym": "APEI",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Online postsecondary education provider"
         },
@@ -11628,15 +11646,39 @@
         },
         {
           "sym": "LAUR",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Latin American private education network operator"
         },
         {
           "sym": "UTI",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Technical education and training for automotive and trades"
+        },
+        {
+          "sym": "EDU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TAL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LINC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "KLC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 25
@@ -11663,7 +11705,7 @@
         },
         {
           "sym": "PENN",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Regional casino operator with ESPN Bet online sportsbook"
         },
@@ -11681,7 +11723,7 @@
         },
         {
           "sym": "RSI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Technology-driven online sports betting operator"
         },
@@ -11698,16 +11740,16 @@
           "rationale": "Omnichannel gaming and entertainment company"
         },
         {
-          "sym": "EVRI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Gaming equipment and fintech solutions provider"
-        },
-        {
           "sym": "CHDN",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Horse racing and historical racing machine gaming operator"
+        },
+        {
+          "sym": "SRAD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 26
@@ -11728,7 +11770,7 @@
         },
         {
           "sym": "RH",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Luxury home furnishings and lifestyle brand"
         },
@@ -11751,12 +11793,6 @@
           "rationale": "Premium luxury lifestyle and fashion brand"
         },
         {
-          "sym": "BURL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Off-price retailer with luxury brand access"
-        },
-        {
           "sym": "BIRK",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -11769,16 +11805,10 @@
           "rationale": "Prestige beauty and luxury skincare portfolio"
         },
         {
-          "sym": "MOV",
-          "tier": "peripheral",
+          "sym": "REAL",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Luxury watch brand with premium positioning"
-        },
-        {
-          "sym": "FOSL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Fashion lifestyle accessories and watch brands"
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 27
@@ -11811,7 +11841,7 @@
         },
         {
           "sym": "COMP",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "AI-driven real estate technology for homebuying"
         },
@@ -11823,21 +11853,15 @@
         },
         {
           "sym": "CSGP",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Commercial real estate data and analytics platform"
         },
         {
           "sym": "OPEN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "iBuyer platform using technology for instant home offers"
-        },
-        {
-          "sym": "HASI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Climate-positive real asset investment and financing"
         },
         {
           "sym": "RMAX",
@@ -11847,15 +11871,33 @@
         },
         {
           "sym": "FTHM",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Technology-driven cloud real estate brokerage"
         },
         {
-          "sym": "DCGO",
+          "sym": "APPF",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PRCH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CBRE",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "Digital real estate closing and title technology platform"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "JLL",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 28
@@ -11911,10 +11953,10 @@
           "rationale": "Garden and pet products manufacturer and distributor"
         },
         {
-          "sym": "PET",
-          "tier": "peripheral",
+          "sym": "ELAN",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Pet health and wellness products and technology company"
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 29
@@ -11964,22 +12006,10 @@
           "rationale": "Largest online travel platform in China"
         },
         {
-          "sym": "DESP",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Latin American online travel agency leader"
-        },
-        {
           "sym": "SABR",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Travel technology platform for airlines and hotels"
-        },
-        {
-          "sym": "LNW",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Travel and leisure gaming technology provider"
         },
         {
           "sym": "TRVG",
@@ -11988,16 +12018,76 @@
           "rationale": "Hotel price comparison and metasearch platform"
         },
         {
-          "sym": "OWW",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Leisure travel and destination experience company"
-        },
-        {
           "sym": "TNL",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Vacation ownership and travel membership company"
+        },
+        {
+          "sym": "DAL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "UAL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MAR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HLT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LUV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "RCL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CCL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NCLH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "VIK",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HGV",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 30
@@ -12023,56 +12113,44 @@
           "rationale": "Global industrial packaging and pulp producer"
         },
         {
-          "sym": "BLL",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Leading aluminum beverage can packaging manufacturer"
-        },
-        {
           "sym": "CCK",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Metal and glass container packaging company"
         },
         {
           "sym": "SLGN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Metal and plastic container packaging manufacturer"
         },
         {
-          "sym": "BERY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Plastic packaging solutions for consumer and industrial markets"
-        },
-        {
           "sym": "SEE",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Food and protective packaging solutions provider"
         },
         {
           "sym": "ATR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Premium beauty and pharma packaging solutions"
         },
         {
           "sym": "SON",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Diversified industrial and consumer packaging company"
         },
         {
           "sym": "GPK",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Fiber-based consumer packaging solutions provider"
         },
         {
           "sym": "AMCR",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Global flexible and rigid packaging solutions company"
         },
@@ -12087,6 +12165,36 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Corrugated packaging and paper products producer"
+        },
+        {
+          "sym": "GEF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AVY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "REYN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BALL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "rename"
         }
       ],
       "display_order": 31
@@ -12113,13 +12221,13 @@
         },
         {
           "sym": "CRON",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Cannabis company backed by Altria with global operations"
         },
         {
           "sym": "SNDL",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Cannabis and liquor retail operator in Canada"
         },
@@ -12137,19 +12245,19 @@
         },
         {
           "sym": "IIPR",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Cannabis-focused REIT providing sale-leaseback financing"
         },
         {
           "sym": "HYFM",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Hydroponics and controlled environment grow equipment"
         },
         {
           "sym": "GRWG",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Cannabis cultivation supplies and hydroponics retailer"
         }
@@ -12253,6 +12361,18 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Food and beverage giant with 50+ year dividend growth"
+        },
+        {
+          "sym": "LOW",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WMT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 33
@@ -12278,22 +12398,10 @@
           "rationale": "Movie theater chain with iconic retail investor base"
         },
         {
-          "sym": "SOFI",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Digital finance platform popular with retail traders"
-        },
-        {
           "sym": "PLTR",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Data analytics company with strong retail investor sentiment"
-        },
-        {
-          "sym": "RIVN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "EV startup with high retail investor interest"
         },
         {
           "sym": "IONQ",
@@ -12303,13 +12411,13 @@
         },
         {
           "sym": "RGTI",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Quantum computing play popular on retail platforms"
         },
         {
           "sym": "HOOD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Retail trading platform itself reflecting meme culture"
         },
@@ -12336,6 +12444,30 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Bitcoin treasury company driving retail meme sentiment"
+        },
+        {
+          "sym": "OPEN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BYND",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "KSS",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DNUT",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 34
@@ -12367,34 +12499,22 @@
           "rationale": "Technology-driven health insurance platform"
         },
         {
-          "sym": "KNSL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Specialty surplus lines insurer with tech-forward underwriting"
-        },
-        {
-          "sym": "RYAN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Technology-enabled specialty insurance distribution"
-        },
-        {
-          "sym": "ACGL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Specialty insurance and reinsurance with analytics focus"
-        },
-        {
           "sym": "HIPO",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "AI-powered homeowner insurance platform"
         },
         {
-          "sym": "EQ",
-          "tier": "peripheral",
+          "sym": "HCI",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Earthquake parametric insurance technology provider"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CLOV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 35
@@ -12444,18 +12564,6 @@
           "rationale": "Satellite imagery and geospatial analytics platform"
         },
         {
-          "sym": "IREN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Bitcoin mining and high-performance computing small-cap"
-        },
-        {
-          "sym": "SMCI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "AI server and rack solutions with high growth trajectory"
-        },
-        {
           "sym": "CRDO",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -12478,6 +12586,24 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Superconducting quantum computing processor developer"
+        },
+        {
+          "sym": "EOSE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OSCR",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AGX",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 37
@@ -12516,7 +12642,7 @@
         },
         {
           "sym": "HWM",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Aerospace precision-engineered components and fasteners"
         },
@@ -12539,22 +12665,10 @@
           "rationale": "Regional jet and defense aircraft manufacturer from Brazil"
         },
         {
-          "sym": "TGI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Aerospace maintenance and repair services provider"
-        },
-        {
           "sym": "KTOS",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Unmanned aerial systems and satellite communications"
-        },
-        {
-          "sym": "AXON",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Public safety technology with drone and autonomous systems"
         },
         {
           "sym": "LHX",
@@ -12564,7 +12678,7 @@
         },
         {
           "sym": "CW",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Aerospace and industrial motion control technology"
         }
@@ -12610,40 +12724,16 @@
           "rationale": "Healthcare SaaS for patient intake and digital workflows"
         },
         {
-          "sym": "ACCD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "AI-driven health navigation and care delivery platform"
-        },
-        {
           "sym": "NFRX",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "AI-powered clinical decision support for nephrologists"
         },
         {
-          "sym": "MDXH",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Digital health platform for behavioral health management"
-        },
-        {
           "sym": "LFST",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Connected health devices and digital health solutions"
-        },
-        {
-          "sym": "CERT",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Clinical trial technology and decentralized trial platform"
-        },
-        {
-          "sym": "ABBV",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "AbbVie, Botox/Juvederm"
         },
         {
           "sym": "EOLS",
@@ -12659,7 +12749,7 @@
         },
         {
           "sym": "SKIN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Beauty Health, HydraFacial"
         },
@@ -12670,10 +12760,22 @@
           "rationale": "Estee Lauder, premium skincare"
         },
         {
-          "sym": "SYK",
+          "sym": "DXCM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OSCR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NUS",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "Stryker, surgical equipment"
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 40
@@ -12713,7 +12815,7 @@
         },
         {
           "sym": "APD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Air Products, world largest hydrogen producer by volume"
         },
@@ -12725,15 +12827,9 @@
         },
         {
           "sym": "CLNE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Clean Energy Fuels, RNG and hydrogen fueling stations"
-        },
-        {
-          "sym": "NEE",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "NextEra Energy, green hydrogen projects in renewables portfolio"
+          "rationale": "Clean Energy Fuels, RNG and hydrogen fueling stations"
         },
         {
           "sym": "GE",
@@ -12743,9 +12839,15 @@
         },
         {
           "sym": "CMI",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Cummins, electrolyzer and fuel cell technology via Accelera"
+        },
+        {
+          "sym": "GTLS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -12759,40 +12861,16 @@
       "sub_themes": [],
       "holdings": [
         {
-          "sym": "UNH",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "UnitedHealth, largest US health insurer serving Medicare/senior market"
-        },
-        {
-          "sym": "HCA",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "HCA Healthcare, largest US hospital operator"
-        },
-        {
           "sym": "ENSG",
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Ensign Group, skilled nursing and assisted living facilities"
         },
         {
-          "sym": "ACHC",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Acadia Healthcare, behavioral health facilities"
-        },
-        {
-          "sym": "THC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Tenet Healthcare, hospitals and ambulatory surgery centers"
-        },
-        {
           "sym": "DVA",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "DaVita, largest US dialysis provider \u00e2\u20ac\u201d aging kidney disease population"
+          "rationale": "DaVita, largest US dialysis provider â€” aging kidney disease population"
         },
         {
           "sym": "BKD",
@@ -12802,19 +12880,13 @@
         },
         {
           "sym": "ADUS",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Addus HomeCare, home health and personal care services"
         },
         {
-          "sym": "AMED",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Amedisys, home health and hospice services"
-        },
-        {
           "sym": "NHC",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "National HealthCare, long-term care facilities"
         },
@@ -12838,7 +12910,7 @@
         },
         {
           "sym": "ZBH",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Zimmer Biomet, knee and hip replacements for aging joints"
         }
@@ -12866,18 +12938,6 @@
           "rationale": "Stratasys, FDM and PolyJet 3D printing technology"
         },
         {
-          "sym": "DM",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Desktop Metal, metal and ceramic 3D printing systems"
-        },
-        {
-          "sym": "MKFG",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Markforged, industrial composite and metal 3D printers"
-        },
-        {
           "sym": "NNDM",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -12890,16 +12950,16 @@
           "rationale": "Xometry, on-demand manufacturing marketplace including 3D printing"
         },
         {
-          "sym": "MTD",
-          "tier": "peripheral",
+          "sym": "MTLS",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Mettler-Toledo, precision instruments used in additive manufacturing QC"
+          "rationale": "pure-play additive manufacturing"
         },
         {
-          "sym": "HON",
-          "tier": "peripheral",
+          "sym": "HPQ",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Honeywell, additive manufacturing for aerospace components"
+          "rationale": "HP Multi Jet Fusion industrial 3D printing"
         }
       ]
     },
@@ -12920,51 +12980,21 @@
         },
         {
           "sym": "WDC",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Western Digital, NAND flash and HDD"
         },
         {
-          "sym": "STX",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Seagate, mass capacity HDD leader"
-        },
-        {
-          "sym": "NTAP",
+          "sym": "SNDK",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "NetApp, enterprise data storage"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "PSTG",
+          "sym": "AVGO",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Pure Storage, all-flash arrays"
-        },
-        {
-          "sym": "SMCI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Supermicro, AI servers with HBM"
-        },
-        {
-          "sym": "NTNX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Nutanix, hyperconverged storage"
-        },
-        {
-          "sym": "DELL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Dell, enterprise storage"
-        },
-        {
-          "sym": "HPE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "HPE, storage solutions"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -12991,7 +13021,7 @@
         },
         {
           "sym": "GLW",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Corning, fiber optic cable"
         },
@@ -13009,15 +13039,9 @@
         },
         {
           "sym": "AAOI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Applied Optoelectronics, transceivers"
-        },
-        {
-          "sym": "PI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Impinj, RFID/IoT optical sensing"
         },
         {
           "sym": "CIEN",
@@ -13026,10 +13050,28 @@
           "rationale": "Ciena, optical networking"
         },
         {
-          "sym": "CALX",
+          "sym": "IPGP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MKSI",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Calix, fiber broadband optical"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LASR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -13067,28 +13109,10 @@
           "rationale": "Charles River, preclinical CRO"
         },
         {
-          "sym": "TMO",
+          "sym": "LH",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Thermo Fisher, pharma services"
-        },
-        {
-          "sym": "DHR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Danaher, life science tools"
-        },
-        {
-          "sym": "A",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Agilent, analytical instruments"
-        },
-        {
-          "sym": "WST",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "West Pharma, drug delivery"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -13208,6 +13232,846 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Caris Life Sciences, precision oncology, IPO Jun 2025"
+        }
+      ]
+    },
+    {
+      "id": "ai_gpu_chips",
+      "name": "AI / GPU Chips",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 19,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "NVDA",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AMD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AVGO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MRVL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ARM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "QCOM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TSM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ALAB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SMCI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AMBA",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "analog_power_semis",
+      "name": "Analog & Power Semis",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 20,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "ADI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TXN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MCHP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ON",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NXPI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MPWR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SWKS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "QRVO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "WOLF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DIOD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ALGM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "POWI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SLAB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "LSCC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "data_center_reits",
+      "name": "Data Center REITs",
+      "sector_id": "real_estate_utilities",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 4,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "EQIX",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DLR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "IRM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AMT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CCI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SBAC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "gene_editing_cell_therapy",
+      "name": "Gene Editing & Cell Therapy",
+      "sector_id": "innovation",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 38,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "CRSP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NTLA",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BEAM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "EDIT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ALLO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "VERV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "FATE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SGMO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRBU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DTIL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "ai_infrastructure",
+      "name": "AI Infrastructure",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 21,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "NVDA",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AVGO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ANET",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "VRT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MRVL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SMCI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DELL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ALAB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NBIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRWV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MU",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "WDC",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "ai_applications",
+      "name": "AI Applications",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 22,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "PLTR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "APP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TEM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BBAI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SOUN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PATH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DUOL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRM",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NOW",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "vertical_saas",
+      "name": "Vertical SaaS",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 23,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "VEEV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TYL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TOST",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PCTY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PAYC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "GWRE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "APPF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PCOR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "WK",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BSY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "infra_software",
+      "name": "Infrastructure Software",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 24,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "DDOG",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SNOW",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NET",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MDB",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "GTLB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ESTC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "FROG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "S",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "radiopharmaceuticals",
+      "name": "Radiopharmaceuticals",
+      "sector_id": "healthcare",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 42,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "LNTH",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NVS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "LLY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BMY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "uranium_miners",
+      "name": "Uranium Miners",
+      "sector_id": "clean_energy",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 30,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "CCJ",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "UEC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "UUUU",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NXE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DNN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "LEU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "UROY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "URG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "mortgage_reits",
+      "name": "Mortgage REITs",
+      "sector_id": "real_estate_utilities",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 5,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "NLY",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AGNC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "STWD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "RITM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BXMT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CIM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TWO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ARI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "LADR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MFA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PMT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "healthcare_reits",
+      "name": "Healthcare REITs",
+      "sector_id": "real_estate_utilities",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 6,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "WELL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "VTR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "OHI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DOC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "HR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SBRA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CTRE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NHI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AHR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
         }
       ]
     }

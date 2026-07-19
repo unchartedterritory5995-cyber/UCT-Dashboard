@@ -12,8 +12,10 @@ convert with to_taxonomy_sym() only for theme_db lookups.
 import json
 import logging
 import os
+import threading
 import time
 
+from api.services.cache import cache
 from api.services.ticker_meta import _TIER_RANK
 
 _logger = logging.getLogger(__name__)
@@ -23,6 +25,12 @@ _CAP_TTL = 3600.0
 
 _SIZES_CACHE = {"map": None, "at": 0.0}
 _SIZES_TTL = 3600.0
+
+_AI_PEERS_MODEL = os.environ.get("GROUPS_AI_PEERS_MODEL", "claude-haiku-4-5")
+_AI_PEERS_TTL = 6 * 3600.0            # peers of a ticker barely change — cache 6h
+_AI_PEERS_VERSION = "v1"              # bump to invalidate the whole AI-peer cache
+_AI_PEERS_TIMEOUT = float(os.environ.get("GROUPS_AI_PEERS_TIMEOUT", "6"))
+_AI_PEERS_SEM = threading.Semaphore(int(os.environ.get("GROUPS_AI_PEERS_CONCURRENCY", "3")))
 
 
 def normalize_sym(s: str) -> str:
@@ -160,11 +168,18 @@ def _rs_map() -> dict:
         return {}
 
 
-def rank_holdings(holdings: list, by: str = "today", seed: str = None) -> list:
+def rank_holdings(holdings: list, by: str = "today", seed: str = None,
+                  seed_sub: str = None, scores_out: dict = None) -> list:
     """Rank taxonomy holdings; return chartable hyphen syms best-first.
 
     holdings: [{sym, tier, sub_theme_id?}] in taxonomy (dot) form.
     Excludes the seed and non-chartable names. No-data names sort last.
+
+    When GROUPS_SWING_GATES_ENABLED, prepends swing-quality bands (a hard
+    liquidity prefilter + an RS/ADR momentum sub-score) to the existing order;
+    when off, the ordering is byte-identical to the pre-gate implementation.
+    seed_sub (peer-fill) floats same-sub-theme names within the liquid tier.
+    scores_out, if a dict, receives {sym: gate_score} for observability.
     """
     cap = cap_universe_set()
     seed_hy = normalize_sym(seed) if seed else None
@@ -197,7 +212,30 @@ def rank_holdings(holdings: list, by: str = "today", seed: str = None) -> list:
         # Band 3: no data — curated tier order, then taxonomy list position.
         return (len(order), tier)
 
-    cands.sort(key=lambda c: (bands(c[1], c[2]), c[0]))
+    from api.services import groups_gates
+    on = groups_gates.gates_enabled()
+    metrics = groups_gates.swing_metrics([hy for _, hy, _ in cands], rs, today) if on else {}
+    if on:
+        if _logger.isEnabledFor(logging.DEBUG):
+            _logger.debug("groups swing-gate pass-rates: %s", groups_gates.pass_rates(metrics))
+        if scores_out is not None:
+            for _, hy, _ in cands:
+                scores_out[hy] = groups_gates.gate_score(metrics.get(hy))
+
+    def sort_key(c):
+        idx, hy, h = c
+        existing = bands(hy, h)
+        sub_band = 0 if (seed_sub and h.get("sub_theme_id") == seed_sub) else 1
+        if on:
+            liq, mom = groups_gates.gate_bands(metrics.get(hy))
+            if seed_sub is not None:
+                return (liq, sub_band, -mom, existing, idx)
+            return (liq, -mom, existing, idx)
+        if seed_sub is not None:
+            return (sub_band, existing, idx)
+        return (existing, idx)
+
+    cands.sort(key=sort_key)
     return [hy for _, hy, _ in cands]
 
 
@@ -215,21 +253,37 @@ def _theme_holdings(theme_id: str) -> list:
     return theme_db.get_theme_holdings(theme_id)
 
 
+def _theme_etf(theme_id: str) -> str | None:
+    """The theme's ETF ticker (uppercased hyphen form), or None. ETFs chart via
+    Massive on demand, so they are NOT cap_universe-filtered."""
+    try:
+        for t in _get_all_themes().get("themes", []):
+            if t["id"] == theme_id:
+                etf = t.get("etf_ticker")
+                return normalize_sym(etf) if etf else None
+    except Exception:
+        pass
+    return None
+
+
 def top_n(theme_id: str, n: int, by: str = "today") -> dict:
     holdings = _theme_holdings(theme_id)
-    ranked = rank_holdings(holdings, by=by)
+    scores = {}
+    ranked = rank_holdings(holdings, by=by, scores_out=scores)
     top = ranked[: max(1, int(n))]
-    # Per-sym tier + rationale for the cell badges (keyed hyphen).
+    # Per-sym tier + rationale + gate score for the cell badges / observability.
     meta = {normalize_sym(h.get("sym", "")): h for h in holdings}
     rows = [{
         "sym": s,
         "tier": (meta.get(s) or {}).get("tier"),
         "rationale": (meta.get(s) or {}).get("rationale") or "",
+        "gate_score": scores.get(s),
     } for s in top]
     return {
         "group_id": theme_id,
         "syms": top,
         "rows": rows,
+        "etf": _theme_etf(theme_id),
         "total": len(ranked),
         "by": "rs" if by == "rs" else "today",
         "ranked_as_of": _ranked_as_of(),
@@ -240,6 +294,83 @@ def top_n(theme_id: str, n: int, by: str = "today") -> dict:
 _FACTOR_THEME_NAMES = {
     "meme & retail", "small cap growth", "dividend aristocrats",
 }
+
+
+def _ai_peer_raw(seed_hy: str, n: int, meta: dict) -> list:
+    """One grounded Haiku call → a list of candidate tickers (unvalidated).
+    Grounded on the seed's real company identity so the model reasons about a
+    named company, not a bare symbol. Bounded by a module semaphore + a client
+    timeout so a cold miss can't pin the web pod's shared threadpool. Returns []
+    on any error (caller keeps the seed solo)."""
+    name = meta.get("name") or ""
+    sector = meta.get("sector") or "unknown sector"
+    industry = meta.get("industry") or "unknown industry"
+    system = (
+        "You are a markets assistant. Given a company, list its closest US-listed "
+        "public-equity peers — same sector/industry, comparable business. Reply with "
+        "ONLY a JSON array of ticker symbols (e.g. [\"WDC\",\"STX\"]). No prose."
+    )
+    prompt = (
+        f"Company: {name} (ticker {seed_hy}). Sector: {sector}. Industry: {industry}.\n"
+        f"Return up to {n + 3} closest US-listed peer tickers as a JSON array, "
+        f"excluding {seed_hy} itself."
+    )
+    if not _AI_PEERS_SEM.acquire(timeout=_AI_PEERS_TIMEOUT):
+        return []
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client().with_options(timeout=_AI_PEERS_TIMEOUT)
+        msg = client.messages.create(
+            model=_AI_PEERS_MODEL, max_tokens=200,
+            system=system, messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join(getattr(b, "text", "") for b in msg.content)
+        start, end = text.find("["), text.rfind("]")
+        if start == -1 or end <= start:
+            return []
+        arr = json.loads(text[start:end + 1])
+        return [str(t) for t in arr if t] if isinstance(arr, list) else []
+    except Exception:
+        return []
+    finally:
+        _AI_PEERS_SEM.release()
+
+
+def _ai_peers(seed_hy: str, n: int) -> list:
+    """Validated AI peers for a ticker NOT in the taxonomy. Grounds on
+    ticker_meta; refuses when the seed has no name (nothing to ground on).
+    Validates every returned ticker: in cap_universe, shares the seed's sector
+    or industry, not the seed. Cached on (SEED, n, version)."""
+    seed_hy = normalize_sym(seed_hy)
+    key = f"grp_ai_peers::{seed_hy}::{n}::{_AI_PEERS_VERSION}"
+    hit = cache.get(key)
+    if hit is not None:
+        return hit
+    from api.services import ticker_meta
+    meta = ticker_meta.get_ticker_meta(seed_hy) or {}
+    if not meta.get("name"):
+        cache.set(key, [], _AI_PEERS_TTL)     # cache the refusal too (cheap, avoids re-calling)
+        return []
+    seed_sector = (meta.get("sector") or "").strip().lower()
+    seed_industry = (meta.get("industry") or "").strip().lower()
+    cap = cap_universe_set()
+    out = []
+    seen = {seed_hy}
+    for raw in _ai_peer_raw(seed_hy, n, meta):
+        hy = normalize_sym(raw)
+        if hy in seen or hy not in cap:
+            continue
+        pm = ticker_meta.get_ticker_meta(hy) or {}
+        ps = (pm.get("sector") or "").strip().lower()
+        pi = (pm.get("industry") or "").strip().lower()
+        # Sector OR industry must match the seed (drops a real-but-unrelated ticker).
+        if (seed_sector and ps == seed_sector) or (seed_industry and pi == seed_industry):
+            seen.add(hy)
+            out.append(hy)
+        if len(out) >= n:
+            break
+    cache.set(key, out, _AI_PEERS_TTL)
+    return out
 
 
 def _themes_for_ticker(sym: str) -> list:
@@ -267,26 +398,64 @@ def resolve_primary_theme(sym: str):
     return rows[0]
 
 
+def _industry_peers(seed_hy: str, n: int) -> dict | None:
+    """Orphan fallback: a stock in no theme groups with its Finviz-industry
+    cohort (a real peer set — an orphan regional bank fills with regional banks).
+    Chartable cap_universe members of the seed's industry, ranked by the same
+    swing gate as theme peers. None => no industry / no cohort (caller tries AI)."""
+    try:
+        from api.services import industry_map
+        ind = (industry_map.get_industries([seed_hy]) or {}).get(seed_hy)
+        if not ind:
+            return None
+        cap = cap_universe_set()
+        cohort = [normalize_sym(t) for t in industry_map.tickers_in_industry(ind)]
+        cohort = [t for t in dict.fromkeys(cohort) if t in cap and t != seed_hy]
+        if not cohort:
+            return None
+        holdings = [{"sym": t, "tier": "relevant", "sub_theme_id": None} for t in cohort]
+        ranked = rank_holdings(holdings, by="today", seed=seed_hy)
+        return {"industry": ind, "peers": ranked[: max(1, int(n))]}
+    except Exception:
+        return None   # industry map hiccup => caller falls through to AI peers
+
+
 def resolve_peers(sym: str, n: int) -> dict:
     """Peers = the seed's primary theme's other chartable holdings, same
-    sub-theme floated to the top, ranked by today's move. v1: no AI fallback —
-    a taxonomy miss returns source='none' (caller keeps the seed solo)."""
+    sub-theme floated to the top, ranked by today's move. On a taxonomy miss,
+    falls back to the seed's INDUSTRY cohort, then to grounded-Haiku AI peers."""
     seed_hy = normalize_sym(sym)
     row = resolve_primary_theme(sym)
     if not row:
-        return {"seed": seed_hy, "group_id": None, "peers": [], "source": "none"}
+        ind = _industry_peers(seed_hy, n)
+        if ind and ind.get("peers"):
+            return {"seed": seed_hy, "group_id": f"industry:{ind['industry']}",
+                    "group_name": ind["industry"], "peers": ind["peers"], "source": "industry"}
+        ai = _ai_peers(seed_hy, n)
+        return {"seed": seed_hy, "group_id": None,
+                "peers": ai, "source": "ai" if ai else "none"}
 
     theme_id = row.get("theme_id")
     seed_sub = row.get("sub_theme_id")
     holdings = _theme_holdings(theme_id)
-    ranked = rank_holdings(holdings, by="today", seed=seed_hy)  # chartable, seed-excluded
+    # sub-theme float now lives in rank_holdings (seed_sub) so it composes with
+    # the swing gate in one pass — liquidity floor first, then sub-theme, then momentum.
+    ranked = rank_holdings(holdings, by="today", seed=seed_hy, seed_sub=seed_sub)
 
-    sub_by_sym = {normalize_sym(h.get("sym", "")): h.get("sub_theme_id") for h in holdings}
-    # Stable float: same-sub-theme names first, preserving the ranked order within each group.
-    ranked.sort(key=lambda hy: 0 if (seed_sub and sub_by_sym.get(hy) == seed_sub) else 1)
+    # Multi-membership switcher: the seed's OTHER (non-factor) theme memberships,
+    # so the UI can offer "also in: [groups]" to flip which group fills the grid.
+    # Defensive — a theme-DB hiccup must never break the peer fill.
+    try:
+        also_in = [{"id": r.get("theme_id"), "name": r.get("theme_name")}
+                   for r in _themes_for_ticker(sym)
+                   if r.get("theme_id") and r.get("theme_id") != theme_id
+                   and (r.get("theme_name") or "").strip().lower() not in _FACTOR_THEME_NAMES]
+    except Exception:
+        also_in = []
 
     return {
         "seed": seed_hy,
+        "also_in": also_in,
         "group_id": theme_id,
         "peers": ranked[: max(1, int(n))],
         "source": "taxonomy",

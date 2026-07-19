@@ -2119,6 +2119,11 @@ export default function OptionsFlowDashboard() {
   // adds from same-day churn. Backed by /api/oi/confirmation-map which
   // reads contract_oi_snapshots table.
   const [oiConfirmedOnly, setOiConfirmedOnly] = useState(false);
+  // Leaderboard "Still-open flow" toggle (2026-07-18): when on (and live OI is
+  // fetched), the Top Bullish/Bearish tables show still-open premium instead of
+  // raw — so you can see whether the leading flow of the last X days is still
+  // open or already closed out. Mirrors the Search tab's still-open toggle.
+  const [lbStillOpenOnly, setLbStillOpenOnly] = useState(false);
   const [oiConfirmWindow, setOiConfirmWindow] = useState(5); // days after trade
   const [oiConfirmMap, setOiConfirmMap] = useState({}); // key = "sym|cp|K|exp"
   const [oiConfirmLoading, setOiConfirmLoading] = useState(false);
@@ -2393,15 +2398,21 @@ export default function OptionsFlowDashboard() {
         if (cancelled) return;
         if (!text) { setSearchFull({ sym, data: null }); return; }
         const rows = parseCSV(text);
-        const dateSet = new Set(availableDates);
-        const scoped = availableDates.length
-          ? rows.filter(r => r.date && dateSet.has(r.date.trim()))
-          : rows;
-        setSearchFull({ sym, data: scoped.length ? processFlowData(scoped) : null });
+        // ZERO-OUT FIX (2026-07-18): do NOT scope to availableDates here, and do
+        // NOT depend on it. This is the uncapped per-ticker fetch — it returns
+        // the ticker's FULL history, which legitimately includes dates the main
+        // parsedRows range doesn't. Filtering against availableDates (a) dropped
+        // rows the Search tab is specifically here to show, and (b) re-ran this
+        // whole fetch every time the live delta-merge bumped availableDates a few
+        // seconds after load — and that re-fetch scoped to a now-shifted date set
+        // that matched nothing, so the cards rendered correctly then collapsed to
+        // $0 / NEUTRAL. The render-time _scopeAllDirectional (in the Search block)
+        // applies the SELECTED day range; this effect just supplies full history.
+        setSearchFull({ sym, data: rows.length ? processFlowData(rows) : null });
       })
       .catch(() => { if (!cancelled) setSearchFull({ sym, data: null }); });
     return () => { cancelled = true; };
-  }, [selectedTicker, dataMode, availableDates]);
+  }, [selectedTicker, dataMode]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
@@ -4070,7 +4081,69 @@ export default function OptionsFlowDashboard() {
     return priceCache[k] || null;
   }
 
-  // ─── Fetch contract history + live quote on hover ───────────────────
+  // ─── Still-open premium attribution (shared by Search + Leaderboard) ────────
+  // Given a set of directional trades, returns how much of the bull/bear premium
+  // is STILL OPEN today (position not yet closed out), using live OI.
+  //
+  // Method (identical to the Search tab's inline computation, extracted here so
+  // Leaderboard reuses the EXACT same logic — no drift): group trades by
+  // contract, ΔOI = liveOI − earliestOI, openFraction = clamp(0,1, ΔOI/V_total),
+  // weight each trade's premium by that fraction. openFraction=1 → full retention
+  // (all volume net-added to OI); 0 → all closed since. We track priced vs total
+  // so callers can show an honest "% of priced" coverage figure — a contract with
+  // no fetched live OI contributes to total but not to the still-open numerator,
+  // so using total as denominator would understate retention.
+  function computeStillOpen(trades) {
+    let bullOpen = 0, bearOpen = 0;
+    let pricedBull = 0, pricedBear = 0;
+    let contractsPriced = 0, contractsTotal = 0;
+    const byCt = {};
+    (trades || []).forEach(t => {
+      const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+      if (!byCt[k]) byCt[k] = { trades:[], V_total:0, minOI:Infinity };
+      byCt[k].trades.push(t);
+      byCt[k].V_total += (t.V||0);
+      if ((t.OI||0) > 0) byCt[k].minOI = Math.min(byCt[k].minOI, t.OI);
+    });
+    Object.entries(byCt).forEach(([k, g]) => {
+      const [s, cp, kK, e] = k.split("|");
+      // EXPIRATION GUARD (2026-07-18, goal 2): an expired contract is closed by
+      // definition — it contributes ZERO still-open premium, today, with no
+      // buffer, and is excluded from the universe entirely (not counted in
+      // contractsTotal, so it doesn't dilute the "% of priced" coverage figure).
+      // flow.db's prune_expired only removes rows after a 1–7 day buffer (storage
+      // hygiene, not still-open correctness), so a contract that expired in the
+      // last few days is still in the data and would otherwise be counted as
+      // "open" off a stale live-OI reading. Still-open must be exact: past expiry
+      // as of now → skip. (e is M/D/YYYY, same as t.Dt.)
+      if (e) {
+        const _exp = mdyToDate(e);
+        if (_exp && !isNaN(_exp)) {
+          const _today = new Date(); _today.setHours(0,0,0,0);
+          if (_exp < _today) return;   // expired → excluded from still-open
+        }
+      }
+      contractsTotal++;
+      const px = getPrice(s, cp, parseFloat(kK), e);
+      if (!px || !px.oi || g.minOI === Infinity || g.V_total <= 0) return;
+      contractsPriced++;
+      g.trades.forEach(t => {
+        if (t.D==="BULL") pricedBull += (t.P||0);
+        else if (t.D==="BEAR") pricedBear += (t.P||0);
+      });
+      const deltaOI = px.oi - g.minOI;
+      const openFrac = Math.max(0, Math.min(1, deltaOI / g.V_total));
+      g.trades.forEach(t => {
+        if (t.D==="BULL") bullOpen += (t.P||0) * openFrac;
+        else if (t.D==="BEAR") bearOpen += (t.P||0) * openFrac;
+      });
+    });
+    return {
+      bullOpen, bearOpen, pricedBull, pricedBear,
+      contractsPriced, contractsTotal,
+      computable: contractsPriced > 0,
+    };
+  }
   // ─── OI Confirmation fetch ────────────────────────────────────────────────
   // Given the current ticker + trades in Search, build a per-contract list
   // (with earliest trade date per contract), POST to the backend, cache
@@ -6650,7 +6723,7 @@ export default function OptionsFlowDashboard() {
           const priorDates = new Set(allDates.slice(0, -5));
           const tkMap = {};
           filtered.forEach(t => {
-            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
+            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set(), _trades:[] };
             // 7/9: Upgrade mktcap when a real value shows up. Same fix as
             // line 5168 — prevents gap-fill rows (mktcap=0 by design) from
             // locking a ticker into "Unknown" band. This is the exact source
@@ -6659,6 +6732,7 @@ export default function OptionsFlowDashboard() {
             // and if seen first, AAPL entered tkMap as Unknown → matchesLBCap
             // let it through the Mid-Small filter.
             else if (!tkMap[t.S].mktcap && t.mktcap) tkMap[t.S].mktcap = t.mktcap;
+            tkMap[t.S]._trades.push(t);  // still-open feed (2026-07-18) — after the if/else chain
             const tk = tkMap[t.S];
             if (t.D==="BULL") tk.bull += t.P;
             if (t.D==="BEAR") tk.bear += t.P;
@@ -6734,7 +6808,32 @@ export default function OptionsFlowDashboard() {
               tk.momentum = tk.recentPrem > 0 ? "accel" : "steady";
             }
           });
+          // STILL-OPEN OVERLAY (2026-07-18): when the Leaderboard "Still-open
+          // flow" toggle is on AND live OI has been fetched, replace each
+          // ticker's raw bull/bear premium with the STILL-OPEN premium (position
+          // not yet closed), using the exact same attribution as the Search tab
+          // (computeStillOpen). Tickers whose contracts have no fetched live OI
+          // fall through to 0 open premium — honest, since we can't confirm
+          // they're still open. Raw values are preserved on _bullRaw/_bearRaw so
+          // the toggle is reversible in display and nothing downstream that needs
+          // raw is broken. Off (or before OI fetch) → untouched, identical to
+          // today.
+          if (lbStillOpenOnly) {
+            Object.values(tkMap).forEach(tk => {
+              const so = computeStillOpen(tk._trades);
+              tk._bullRaw = tk.bull; tk._bearRaw = tk.bear;
+              tk._stillOpenComputable = so.computable;
+              tk.bull = Math.round(so.bullOpen);
+              tk.bear = Math.round(so.bearOpen);
+              const _tot = tk.bull + tk.bear;
+              tk.bullPct = _tot > 0 ? Math.round(tk.bull / _tot * 100) : 50;
+            });
+          }
           let allTickers = Object.values(tkMap);
+          // When still-open is on, drop tickers with zero still-open flow (their
+          // positions all closed, or no live OI to confirm) — the leaderboard
+          // should show what's ACTUALLY still open, not stale closed flow.
+          if (lbStillOpenOnly) allTickers = allTickers.filter(t => (t.bull + t.bear) > 0);
           // Conviction % filter
           if (cPct === "90bull") allTickers = allTickers.filter(t => t.bullPct >= 90);
           else if (cPct === "80bull") allTickers = allTickers.filter(t => t.bullPct >= 80);
@@ -7030,6 +7129,29 @@ export default function OptionsFlowDashboard() {
                               title="Fetch live OI + prices from Schwab for every Top Contract on this leaderboard. Once complete, ΔOI badges show whether each position is being built (green) or faded (red)."
                             >
                               {fetchLoading ? "Fetching…" : `⚡ Fetch Live OI (${contracts.length})`}
+                            </button>
+                          );
+                        })()}
+                        {/* Still-open flow toggle (2026-07-18): placed next to
+                            Fetch Live OI because it operates on the fetched OI —
+                            shows still-open premium (position not yet closed)
+                            instead of raw. Disabled until OI is fetched. */}
+                        {(() => {
+                          const oiReady = Object.keys(priceCache).length > 0;
+                          return (
+                            <button
+                              onClick={()=> oiReady && setLbStillOpenOnly(v=>!v)}
+                              disabled={!oiReady}
+                              title={oiReady
+                                ? "Show still-open flow only — filters each ticker's bull/bear premium to positions still open today (Live OI ≥ entry). Reveals whether the leading flow is still on or already closed out."
+                                : "Fetch Live OI first, then this filters the leaderboard to still-open flow."}
+                              style={{ padding:"4px 12px", borderRadius:6,
+                                border:"1px solid "+(lbStillOpenOnly?P.bu:P.bd),
+                                cursor:oiReady?"pointer":"not-allowed", fontSize:9, fontWeight:700, fontFamily:"inherit",
+                                background:lbStillOpenOnly?P.bu+"22":"transparent",
+                                color:lbStillOpenOnly?P.bu:(oiReady?P.mt:"#555"),
+                                letterSpacing:0.5, opacity:oiReady?1:0.6 }}>
+                              {lbStillOpenOnly ? "✓ Still-open" : "Still-open"}
                             </button>
                           );
                         })()}
@@ -8242,6 +8364,41 @@ export default function OptionsFlowDashboard() {
               // still show their full totals. Falls back to the capped TICKER_DB
               // entry while the fetch is in flight or if it returned nothing.
               const _uncapped = (searchFull && searchFull.sym === selectedTicker.s && searchFull.data) ? searchFull.data : null;
+              // DAY-FILTER FIX (2026-07-18, v2): searchFull is a SEPARATE
+              // per-ticker fetch (uncapped) with its own rows and its own dates —
+              // it can contain dates the main parsedRows set doesn't. So the
+              // Last-N case must derive the recent-N dates FROM THESE ROWS, not
+              // from the main dataset's availableDates. The v1 fix filtered
+              // against availableDates.slice(-n), which — when the two sets didn't
+              // fully overlap or hadn't format-aligned yet — dropped EVERY row and
+              // showed NEUTRAL / $0 (the intermittent zero-out). Self-contained
+              // scoping removes that cross-dataset race entirely. Trade date is
+              // t.Dt (M/D/YYYY), same format as r.date.
+              const _scopeAllDirectional = (rows) => {
+                if (!rows || !rows.length) return rows;
+                if (dateFrom && dateTo) {
+                  const _f = isoToDate(dateFrom);
+                  const _t = isoToDate(dateTo); _t.setHours(23,59,59);
+                  return rows.filter(t => { if(!t.Dt) return false; const d = mdyToDate(t.Dt.trim()); return d >= _f && d <= _t; });
+                }
+                if (dateFilter === "All") return rows;
+                if (dateFilter.startsWith("Last")) {
+                  const n = parseInt(dateFilter.replace("Last",""))||3;
+                  // recent-N dates computed from THESE rows, chronologically —
+                  // never from the main dataset (which may not contain them).
+                  const uniq = [...new Set(rows.map(t => t.Dt && t.Dt.trim()).filter(Boolean))]
+                    .sort((a,b) => mdyToDate(a) - mdyToDate(b));
+                  const recent = new Set(uniq.slice(-n));
+                  return rows.filter(t => t.Dt && recent.has(t.Dt.trim()));
+                }
+                return rows.filter(t => t.Dt && t.Dt.trim() === dateFilter);
+              };
+              // Non-mutating: derive the scoped rows into a local; never write
+              // back onto _uncapped (it's searchFull.data, i.e. React state —
+              // mutating it would compound the filter across renders).
+              const _uncappedAllDir = _uncapped
+                ? _scopeAllDirectional(_uncapped.all_directional || [])
+                : null;
               const tk = (_uncapped && _uncapped.TICKER_DB && _uncapped.TICKER_DB.find(t => t.s === selectedTicker.s))
                 || (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s)
                 || selectedTicker;
@@ -8264,7 +8421,7 @@ export default function OptionsFlowDashboard() {
               // they help; here they'd inflate the totals ~3x because Massive
               // lacks BID-side classification (so rescue attribution is
               // trivially one-directional per CP).
-              const ccAll = (_uncapped ? (_uncapped.all_directional||[]) : (D.all_directional||[])).filter(t => t.S===tk.s && !t._rescueDerived);
+              const ccAll = (_uncappedAllDir !== null ? _uncappedAllDir : (D.all_directional||[])).filter(t => t.S===tk.s && !t._rescueDerived);
               const ccTrades = ccAll.filter(dteF);
               // Raw totals — clean-classified directional flow only.
               let ccB=0, ccR=0;

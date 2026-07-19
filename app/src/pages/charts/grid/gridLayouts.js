@@ -58,6 +58,7 @@ export function makeDefaultState() {
     ],
     syncCrosshair: false,
     syncTimeRange: false,
+    groupsMode: false,
     group: null,
   }
 }
@@ -84,7 +85,20 @@ function sanitizeGroup(g) {
   if (!id) return null
   const by = g.by === 'rs' ? 'rs' : 'today'
   const n = Number.isFinite(g.n) ? Math.max(1, Math.min(GRID_MAX_CELLS, g.n | 0)) : null
-  return { id, by, ...(n ? { n } : {}) }
+  // Carry the curated display name so the heat header restores it instantly on
+  // reload (no fetchGroups round-trip that can lag or fail-empty and leave the
+  // raw snake_case id showing).
+  const name = typeof g.name === 'string' && g.name.trim() ? g.name.trim() : null
+  // Carry the multi-membership switcher list (the seed's other groups) so the
+  // "also in: […]" chips survive a reload, not just the in-session fill.
+  const alsoIn = Array.isArray(g.alsoIn)
+    ? g.alsoIn
+        .filter(x => x && typeof x.id === 'string' && x.id && typeof x.name === 'string' && x.name)
+        .map(x => ({ id: x.id, name: x.name }))
+        .slice(0, 8)
+    : []
+  return { id, by, ...(n ? { n } : {}), ...(name ? { name } : {}),
+           ...(alsoIn.length ? { alsoIn } : {}) }
 }
 
 // Sanitize state hydrated from the multichart_state pref (or an old V1 blob).
@@ -102,11 +116,17 @@ export function sanitizeState(raw) {
       tf: VALID_TFS.has(c?.tf) ? c.tf : 'D',
       chartType: VALID_CHART_TYPES.has(c?.chartType) ? c.chartType : null,
     }))
+  const group = sanitizeGroup(raw.group)
   return {
     layout: layout.id,
     cells: reconcileCells(cells, layout.cellCount),
     syncCrosshair: raw.syncCrosshair === true,
     syncTimeRange: raw.syncTimeRange === true,
-    group: sanitizeGroup(raw.group),
+    // A non-null group implies scanning is on — mirrors applyGridTemplate's
+    // `groupsMode: !!s.group` invariant so a board persisted with a group but
+    // no groupsMode key (pre-feature save) doesn't hydrate into a contradictory
+    // UI (badges/header on, scanning checkbox off).
+    groupsMode: raw.groupsMode === true || !!group,
+    group,
   }
 }

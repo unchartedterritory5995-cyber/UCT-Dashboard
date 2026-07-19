@@ -66,17 +66,20 @@ function groupReturn(theme, periodKey) {
 // ref_prices. Falls back to the server-computed return when live data is absent.
 function liveReturn(h, periodKey, prices) {
   const px = prices?.[h.sym]
+  // 1d ("today"): TRUST the feed's server-computed change_pct — the regular-session
+  // move vs the OFFICIAL prev close. Deriving it from (livePrice − ref) reads 0.00%
+  // whenever the live price sits at the reference (weekends / after-hours, where the
+  // streamed price is Friday's close and the ref is also a close) — that was the
+  // recurring "goes to 0.00%" bug. Other periods derive from the live price + the
+  // backend's per-period ref close (there is no per-period change_pct from the feed).
+  if (periodKey === '1d' && px?.change_pct != null) return px.change_pct
   const live = px?.price
-  // 1d ("today") uses the live feed's OFFICIAL prev_close — the exact reference
-  // brokers and the chart legend use — so the two never disagree. Other periods
-  // use the backend's per-period reference close.
   const ref = periodKey === '1d'
     ? (px?.prev_close ?? h.ref_prices?.['1d'])
     : h.ref_prices?.[periodKey]
   if (live != null && Number.isFinite(live) && ref != null && ref !== 0) {
     return ((live - ref) / ref) * 100
   }
-  if (periodKey === '1d' && px?.change_pct != null) return px.change_pct  // feed's today %
   return h.returns?.[periodKey] ?? null
 }
 

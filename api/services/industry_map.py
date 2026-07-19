@@ -299,6 +299,21 @@ def get_industries(tickers: list[str]) -> dict[str, Optional[str]]:
     return out
 
 
+def tickers_in_industry(industry: str) -> list[str]:
+    """Reverse lookup: every mapped ticker in a Finviz industry. Powers the
+    Groups orphan fallback — a stock in no theme groups with its industry cohort.
+    Returns [] for a blank/unknown industry. Read-only, instant (persisted map)."""
+    if not industry:
+        return []
+    _ensure_init()
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT ticker FROM industry_map WHERE industry = ? ORDER BY ticker",
+            (industry,),
+        ).fetchall()
+    return [row["ticker"] for row in rows]
+
+
 def _cap_universe_path() -> str:
     here = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
     if os.path.exists(here):

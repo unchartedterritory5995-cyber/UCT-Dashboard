@@ -21,6 +21,74 @@ _INTEL_FAIL_TTL = 600  # 10 min — negative cache when ALL intel calls fail (42
 _MARKERS_CACHE_TTL = 43_200  # 12 hours (used by get_chart_markers)
 _TIMEOUT = 6  # seconds per Finnhub request
 
+# ── chart-markers persistent cache ───────────────────────────────────────────
+# The DEEP earnings history is immutable (past prints never change), so markers
+# are persisted to the /data volume and served effectively forever: they survive
+# redeploys (no cold re-fetch storm) and skip the every-12h refetch. A background
+# refresh runs at most once/day to pick up a newly-reported quarter (~4x/yr).
+import json as _json
+
+_MARKERS_REFRESH_SECONDS = 24 * 3600
+_MARKERS_DISK_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_markers")
+_markers_refresh_inflight: set[str] = set()
+_markers_refresh_lock = threading.Lock()
+
+
+def _markers_disk_path(ticker: str) -> str:
+    return os.path.join(_MARKERS_DISK_DIR, f"{ticker.upper()}.json")
+
+
+def _markers_disk_read(ticker: str):
+    """Return (data, saved_at_epoch) from the /data volume, or None."""
+    try:
+        with open(_markers_disk_path(ticker)) as f:
+            blob = _json.load(f)
+        data = blob.get("data")
+        if isinstance(data, dict) and "earnings" in data:
+            return data, float(blob.get("saved_at") or 0)
+    except (FileNotFoundError, ValueError, OSError):
+        pass
+    return None
+
+
+def _markers_disk_write(ticker: str, data: dict) -> None:
+    try:
+        os.makedirs(_MARKERS_DISK_DIR, exist_ok=True)
+        path = _markers_disk_path(ticker)
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            _json.dump({"data": data, "saved_at": _time.time()}, f)
+        os.replace(tmp, path)  # atomic
+    except OSError as e:
+        _logger.warning("chart_markers disk write failed for %s: %s", ticker, e)
+
+
+def _schedule_markers_refresh(ticker: str) -> None:
+    """Rebuild the markers blob in the background (deduped) and re-persist it, so a
+    newly-reported quarter is picked up without ever blocking a chart request."""
+    ticker = ticker.upper()
+    with _markers_refresh_lock:
+        if ticker in _markers_refresh_inflight:
+            return
+        _markers_refresh_inflight.add(ticker)
+
+    def _run():
+        try:
+            data = _build_chart_markers(ticker)
+            # Don't clobber a good disk copy with an empty result on a transient
+            # provider failure.
+            if data and (data.get("earnings") or data.get("splits") or data.get("dividends")):
+                cache.set(f"chart_markers_{ticker}", data, ttl=_MARKERS_CACHE_TTL)
+                _markers_disk_write(ticker, data)
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("chart_markers bg refresh failed for %s: %s", ticker, e)
+        finally:
+            with _markers_refresh_lock:
+                _markers_refresh_inflight.discard(ticker)
+
+    threading.Thread(target=_run, daemon=True, name=f"markers-refresh-{ticker}").start()
+
+
 # Finnhub free tier = 60 calls/min. When a 429 lands, EVERY caller funneling
 # through _fh_get backs off together for this long — without a shared cooldown
 # each enrichment/markers/next-report burst keeps hammering an already-exhausted
@@ -587,6 +655,27 @@ def get_chart_markers(ticker: str) -> dict:
     if cached is not None:
         return cached
 
+    # Disk layer — deep history is immutable, so serve the persisted copy
+    # effectively forever (survives redeploys; no 12h refetch). Stale-while-
+    # revalidate: serve instantly + background-refresh only if it has aged out.
+    disk = _markers_disk_read(ticker)
+    if disk is not None:
+        data, saved_at = disk
+        cache.set(cache_key, data, ttl=_MARKERS_CACHE_TTL)
+        if _time.time() - saved_at > _MARKERS_REFRESH_SECONDS:
+            _schedule_markers_refresh(ticker)
+        return data
+
+    result = _build_chart_markers(ticker)
+    cache.set(cache_key, result, ttl=_MARKERS_CACHE_TTL)
+    _markers_disk_write(ticker, result)
+    return result
+
+
+def _build_chart_markers(ticker: str) -> dict:
+    """Fetch + assemble the markers blob (earnings history + fiscal-quarter join +
+    splits + dividends). Wrapped by get_chart_markers' memory + disk cache layers.
+    Best-effort — each section is independently guarded and never raises."""
     result = {"earnings": [], "splits": [], "dividends": []}
 
     from datetime import date, timedelta
@@ -595,6 +684,9 @@ def get_chart_markers(ticker: str) -> dict:
     # single cache entry serve longer-range chart views too.
     from_date = (today - timedelta(days=365 * 5)).strftime("%Y-%m-%d")
     to_date   = today.strftime("%Y-%m-%d")
+    # Splits are rare AND highly relevant on a since-inception chart, so look back
+    # far (unlike dividends, which would clutter the chart with 100+ ex-dates).
+    splits_from_date = (today - timedelta(days=365 * 45)).strftime("%Y-%m-%d")
 
     # ── Earnings history (EPS + revenue) ──────────────────────────────────────
     # FMP `stable/earnings` is primary: it carries EPS AND revenue AND the report
@@ -604,7 +696,10 @@ def get_chart_markers(ticker: str) -> dict:
     # when FMP has nothing. Dedup by report date, preferring the estimate-bearing
     # row (FMP occasionally carries a consensus row + an alternate for one report).
     try:
-        fmp_rows = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 24})
+        # limit 400 ≈ full available history (FMP returns newest-first) so markers
+        # go back as far as the provider has data — matches the since-inception
+        # chart history. Future estimate rows (epsActual=None) are skipped below.
+        fmp_rows = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 400})
         best_by_date = {}
         if isinstance(fmp_rows, list):
             for q in fmp_rows:
@@ -657,9 +752,60 @@ def get_chart_markers(ticker: str) -> dict:
     except Exception as exc:
         _logger.warning("get_chart_markers earnings failed for %s: %s", ticker, exc)
 
-    # ── Stock splits (last 5 years) ──────────────────────────────────────────
+    # ── Accurate fiscal quarter/year per report ───────────────────────────────
+    # FMP `stable/earnings` carries NO fiscal period, and a calendar mapping is
+    # WRONG for off-cycle fiscal years (e.g. MU's Aug year-end: its Sep print is
+    # fiscal Q4, not the naive "Q2"). `earning-call-transcript-dates` carries the
+    # real {quarter, fiscalYear} keyed to the call/report date — join it to the
+    # markers by report date. Best-effort: markers still render (just without a
+    # quarter label) if this source is unavailable for the ticker.
+    if result["earnings"]:
+        try:
+            def _coerce_q(q):
+                if isinstance(q, (int, float)):
+                    return int(q)
+                s = str(q or "").upper().strip().lstrip("Q")
+                return int(s) if s.isdigit() else None
+
+            td = _fmp_get("/stable/earning-call-transcript-dates", {"symbol": ticker})
+            qmap = {}
+            if isinstance(td, list):
+                for t in td:
+                    ds = str(t.get("date") or "")[:10]
+                    q = _coerce_q(t.get("quarter"))
+                    fy = t.get("fiscalYear")
+                    if ds and q is not None and fy is not None:
+                        try:
+                            qmap[ds] = (q, int(fy))
+                        except (TypeError, ValueError):
+                            pass
+            if qmap:
+                q_dates = sorted(qmap)
+                for row in result["earnings"]:
+                    rd = row.get("date")
+                    if not rd:
+                        continue
+                    hit = qmap.get(rd)
+                    if hit is None:
+                        # Report date vs call date can differ by a day or two —
+                        # fall back to the nearest transcript date within 5 days.
+                        try:
+                            rdt = date.fromisoformat(rd)
+                            best_gap = 6
+                            for qd in q_dates:
+                                gap = abs((date.fromisoformat(qd) - rdt).days)
+                                if gap < best_gap:
+                                    best_gap, hit = gap, qmap[qd]
+                        except (ValueError, TypeError):
+                            hit = None
+                    if hit:
+                        row["fiscal_quarter"], row["fiscal_year"] = hit
+        except Exception as exc:
+            _logger.warning("get_chart_markers quarter-join failed for %s: %s", ticker, exc)
+
+    # ── Stock splits (deep — since-inception chart annotation) ────────────────
     try:
-        splits_raw = _fh_get("/stock/split", {"symbol": ticker, "from": from_date, "to": to_date})
+        splits_raw = _fh_get("/stock/split", {"symbol": ticker, "from": splits_from_date, "to": to_date})
         if isinstance(splits_raw, list):
             for s in splits_raw:
                 date_str = s.get("date")
@@ -699,5 +845,4 @@ def get_chart_markers(ticker: str) -> dict:
     except Exception as exc:
         _logger.warning("get_chart_markers dividends failed for %s: %s", ticker, exc)
 
-    cache.set(cache_key, result, ttl=_MARKERS_CACHE_TTL)
     return result

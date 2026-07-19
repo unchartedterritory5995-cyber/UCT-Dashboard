@@ -4,7 +4,8 @@
 // with its today's-move leaders (top-N for the CURRENT grid size; no resize).
 import { useEffect, useMemo, useState } from 'react'
 import { parseLayoutId } from './gridLayouts'
-import { fetchGroups, fetchGroupTop } from './groupsApi'
+import { fetchGroups, fetchGroupTop, pinEtf } from './groupsApi'
+import { pushRecent, getRecents } from './groupRecents'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
 
@@ -21,12 +22,20 @@ export default function GroupPicker({ mc, onClose }) {
     return groups.filter(g => (g.name || '').toLowerCase().includes(s))
   }, [groups, q])
 
+  const recents = useMemo(() => {
+    const byId = new Map(groups.map(g => [g.id, g]))
+    return getRecents().map(id => byId.get(id)).filter(Boolean)
+  }, [groups])
+
   const pick = async (g) => {
     setBusy(g.id)
     const n = parseLayoutId(mc.state.layout).cellCount
     if (mc.state.mode !== 'grid') mc.enterGrid(mc.state.layout)
-    const { syms } = await fetchGroupTop(g.id, { n, by: 'today' })
-    if (syms && syms.length) mc.fillCells(syms, { id: g.id, by: 'today', n })
+    mc.setGroupsMode(true)
+    const { syms, etf } = await fetchGroupTop(g.id, { n, by: 'today' })
+    const filled = pinEtf(syms, etf, n)
+    if (filled.length) mc.fillCells(filled, { id: g.id, by: 'today', n, name: g.name })
+    pushRecent(g.id)
     setBusy('')
     onClose?.()
   }
@@ -41,6 +50,20 @@ export default function GroupPicker({ mc, onClose }) {
         onChange={e => setQ(e.target.value)}
         aria-label="Search groups"
       />
+      {!q.trim() && recents.length > 0 && (
+        <>
+          <div className={wsStyles.menuSection} style={{ padding: '4px 10px 0' }}>Recent</div>
+          <div className={styles.groupList}>
+            {recents.map(g => (
+              <button key={`r-${g.id}`} type="button" className={wsStyles.addMenuItem}
+                disabled={busy === g.id} onClick={() => pick(g)}>
+                <span style={{ flex: 1 }}>{g.name}</span>
+                <span className={styles.groupCount}>{g.chartable}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <div className={styles.groupList}>
         {shown.map(g => (
           <button

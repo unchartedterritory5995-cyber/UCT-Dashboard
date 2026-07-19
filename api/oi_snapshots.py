@@ -365,6 +365,36 @@ def get_status(days: int = 7) -> List[Dict]:
 
 
 # ── Write ops ────────────────────────────────────────────────────────────
+def get_latest_oi_batch(contract_keys: "Iterable[str]") -> dict:
+    """Latest snapshot OI per contract_key -> {contract_key: (oi, snap_date)}.
+
+    Used to backfill a live broker quote when it returns 0 OI (outside RTH, and
+    because OI is a once-daily OCC figure the live quote is the wrong source
+    anyway). Reads the OI DB via _conn(). Missing contracts are simply absent
+    from the returned dict.
+    """
+    keys = [k for k in dict.fromkeys(contract_keys) if k]  # dedup, drop falsy
+    if not keys:
+        return {}
+    placeholders = ",".join(["?"] * len(keys))
+    out = {}
+    with _conn() as c:
+        cur = c.execute(
+            f"""SELECT s.contract_key, s.oi, s.snap_date
+                FROM contract_oi_snapshots s
+                JOIN (
+                    SELECT contract_key, MAX(snap_date) AS md
+                    FROM contract_oi_snapshots
+                    WHERE contract_key IN ({placeholders})
+                    GROUP BY contract_key
+                ) m ON s.contract_key = m.contract_key AND s.snap_date = m.md""",
+            keys,
+        )
+        for ck, oi, sd in cur.fetchall():
+            out[ck] = (oi, sd)
+    return out
+
+
 def record_batch(snapshots: Iterable[Tuple[str, int, str]], snap_date: str) -> int:
     """Insert a batch of (contract_key, oi, source) tuples for the given date.
     Upserts: if (contract_key, snap_date) already exists, OI is updated.
@@ -415,8 +445,15 @@ def get_distinct_contracts(
     """
     cutoff = date.today() - timedelta(days=days_back)
     src_placeholders = ",".join(["?"] * len(SOURCES))
-    with _conn() as c:
-        cur = c.execute(
+    # The flow table lives in flow.db. The 2026-07-17 migration moved ONLY the
+    # OI tables (contract_oi_snapshots, oi_snapshot_runs) into OI_DB_PATH and
+    # repointed _conn()/DB_PATH there -- so _conn() can no longer see the flow
+    # table ("no such table: flow", the instant hard-fail seen on runs 42/43).
+    # Read the contract universe directly from flow.db (read-only); OI writes
+    # still go to the OI DB via _conn()/record_batch.
+    fconn = sqlite3.connect(FLOW_DB_PATH, timeout=30)
+    try:
+        cur = fconn.execute(
             f"SELECT DISTINCT CreatedDate FROM flow WHERE source IN ({src_placeholders})",
             tuple(SOURCES),
         )
@@ -432,7 +469,7 @@ def get_distinct_contracts(
             return []
 
         placeholders = ",".join(["?"] * len(in_range))
-        cur = c.execute(
+        cur = fconn.execute(
             f"""SELECT Symbol, CallPut, Strike, ExpirationDate, COUNT(*) AS n_trades
                 FROM flow
                 WHERE source IN ({src_placeholders}) AND CreatedDate IN ({placeholders})
@@ -445,32 +482,35 @@ def get_distinct_contracts(
                 ORDER BY Symbol""",
             list(SOURCES) + in_range + [min_trade_count],
         )
+        rows = cur.fetchall()
+    finally:
+        fconn.close()
 
-        contracts = []
-        skipped_adjusted = 0
-        skipped_malformed = 0
-        for sym, cp, strike, exp, n in cur.fetchall():
-            # Skip adjusted/when-issued symbols (end in digit). Schwab can't
-            # quote them — they always 400.
-            if sym and sym[-1].isdigit():
-                skipped_adjusted += 1
-                continue
-            try:
-                strike_f = float(strike)
-                if _parse_mdy(exp) is None:
-                    skipped_malformed += 1
-                    continue
-                contracts.append((sym, cp, strike_f, exp))
-            except (ValueError, TypeError):
+    contracts = []
+    skipped_adjusted = 0
+    skipped_malformed = 0
+    for sym, cp, strike, exp, n in rows:
+        # Skip adjusted/when-issued symbols (end in digit). Schwab can't
+        # quote them — they always 400.
+        if sym and sym[-1].isdigit():
+            skipped_adjusted += 1
+            continue
+        try:
+            strike_f = float(strike)
+            if _parse_mdy(exp) is None:
                 skipped_malformed += 1
                 continue
+            contracts.append((sym, cp, strike_f, exp))
+        except (ValueError, TypeError):
+            skipped_malformed += 1
+            continue
 
-        logger.info(
-            f"[oi-snapshot] Filtered {len(contracts)} contracts "
-            f"(min_trades={min_trade_count}, skipped {skipped_adjusted} adjusted, "
-            f"{skipped_malformed} malformed)"
-        )
-        return contracts
+    logger.info(
+        f"[oi-snapshot] Filtered {len(contracts)} contracts "
+        f"(min_trades={min_trade_count}, skipped {skipped_adjusted} adjusted, "
+        f"{skipped_malformed} malformed)"
+    )
+    return contracts
 
 
 # ── Schwab fetch (direct in-process call, no HTTP loopback) ──────────────
@@ -540,22 +580,34 @@ async def _fetch_oi_all_async(
     # If it does time out, we fall through to Massive fallback below;
     # the watchdog in massive_ws_worker.py is the second line of defense
     # for the WS event loop itself.
+    # Massive-primary when the market is closed (2026-07-19). Schwab option
+    # openInterest is 0 outside RTH (verified), so at the 5:30 AM cron every
+    # contract "misses" and routes to Massive anyway -- the Schwab call is pure
+    # overhead there and was the source of the 7/6 timeout collapse
+    # (failures: 37782, inserted: 0). During RTH Schwab OI is valid, so it stays
+    # first then and the live oi_fetch_manager path is unchanged.
     schwab_timeout = 15.0 if len(payload) <= 10 else 90.0
     response = None
-    try:
-        response = await asyncio.wait_for(
-            options_quotes_batch(payload), timeout=schwab_timeout
+    if _in_market_hours():
+        try:
+            response = await asyncio.wait_for(
+                options_quotes_batch(payload), timeout=schwab_timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[oi-snapshot] Schwab batch call timed out (>%.0fs, %d contracts) — "
+                "falling through to Massive fallback.",
+                schwab_timeout, len(payload),
+            )
+            response = None
+        except Exception as e:
+            logger.exception(f"[oi-snapshot] Schwab batch call failed: {e}")
+            response = None
+    else:
+        logger.info(
+            "[oi-snapshot] market closed — skipping Schwab (OI=0 off-RTH), "
+            "going Massive-primary for %d contracts.", len(payload),
         )
-    except asyncio.TimeoutError:
-        logger.warning(
-            "[oi-snapshot] Schwab batch call timed out (>%.0fs, %d contracts) — "
-            "falling through to Massive fallback.",
-            schwab_timeout, len(payload),
-        )
-        response = None
-    except Exception as e:
-        logger.exception(f"[oi-snapshot] Schwab batch call failed: {e}")
-        response = None
 
     # Build results from Schwab response (or all-None if Schwab failed).
     # The Massive fallback block below handles either case — it fills in

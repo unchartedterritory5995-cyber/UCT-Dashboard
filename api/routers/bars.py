@@ -9,7 +9,7 @@ import threading as _threading
 import time as _time
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -383,6 +383,55 @@ def audit_bars_endpoint(
     from api.services.audit import audit_ticker
     result = audit_ticker(ticker, tf, bars)
     return result.to_dict()
+
+
+@router.post("/api/admin/ticker-liveness")
+def ticker_liveness_endpoint(request: Request, payload: dict = Body(...)):
+    """Return {sym: bool} — is each ticker still trading, per Massive?
+
+    The reliable liveness oracle for the theme-curation tool: it splits a theme
+    holding that is absent from cap_universe into 'delisted' (drop/remap) vs
+    'live but cap_universe just lacks it' (add to cap_universe). Local data
+    sources (Finnhub /quote, yfinance, Finviz) are unreliable at scale — Massive
+    is the dashboard's authoritative feed but its key is Railway-only, so this
+    thin endpoint exposes the check.
+
+    A ticker is 'live' when a FRESH daily-aggregates fetch (Massive, no cache)
+    over the last ~12 calendar days returns at least one bar — i.e. it actually
+    traded recently. Genuinely delisted names have no bars in a recent window
+    (their data ends at the delisting date). The snapshot/quote endpoints were
+    tried first and proved unreliable (they return data for only a subset of
+    live large-caps), so the direct aggregates check is used instead.
+
+    Body: {"tickers": ["AAPL", "AYX", ...]} (app/hyphen form).
+    Returns: {"live": {"AAPL": true, "AYX": false, ...}, "checked": N}.
+    Auth: Bearer PUSH_SECRET. Read-only, but Massive calls aren't free, so gated.
+    """
+    _check_admin_auth(request)
+    syms = payload.get("tickers") if isinstance(payload, dict) else None
+    if not isinstance(syms, list):
+        raise HTTPException(status_code=400, detail='body must be {"tickers": [...]}')
+    from concurrent.futures import ThreadPoolExecutor
+    from datetime import datetime, timedelta
+    from api.services import massive
+    uniq = list(dict.fromkeys(s.upper() for s in syms if isinstance(s, str) and s))
+    to_d = datetime.utcnow().date()
+    from_d = (to_d - timedelta(days=12)).isoformat()
+    to_s = to_d.isoformat()
+
+    def _recent_bars(sym: str) -> bool:
+        try:
+            # get_agg_bars applies to_polygon_symbol internally + fetches fresh
+            return bool(massive.get_agg_bars(sym, from_d, to_s))
+        except Exception:
+            return False
+
+    live: dict[str, bool] = {}
+    if uniq:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for sym, is_live in zip(uniq, ex.map(_recent_bars, uniq)):
+                live[sym] = bool(is_live)
+    return {"live": live, "checked": len(uniq)}
 
 
 @router.post("/api/admin/refresh-bars-all")

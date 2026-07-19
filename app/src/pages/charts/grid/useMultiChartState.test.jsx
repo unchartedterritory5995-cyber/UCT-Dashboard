@@ -52,4 +52,79 @@ describe('fillCells', () => {
     expect(spy.tf).toBe('60')         // its own tf, not the output position's
     expect(spy.chartType).toBe('line')// per-cell Style preserved
   })
+
+  it('undo primitives: fillCells(syms,null) keeps prev group, clearGroup then drops it (first-seed undo path)', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.enterGrid('2x2'))
+    // simulate peer-fill having loaded a group:
+    act(() => result.current.fillCells(['RKLB', 'ASTS', 'LUNR', 'PL'], { id: 'space', by: 'today', n: 4, name: 'Space' }))
+    expect(result.current.state.group).not.toBeNull()
+    // Undo of a FIRST seed restores syms with a null-group snapshot:
+    act(() => result.current.fillCells(['QQQ', 'SPY', 'IWM', 'DIA'], null))
+    expect(result.current.state.group).not.toBeNull()   // fillCells alone CANNOT clear it (coalesces to prev) — this is the bug
+    act(() => result.current.clearGroup())               // the Undo handler's added guard
+    expect(result.current.state.group).toBeNull()        // group now dropped -> heat header/badges clear
+    expect(result.current.state.cells.map(c => c.sym)).toEqual(['QQQ', 'SPY', 'IWM', 'DIA'])
+  })
+})
+
+describe('syncTimeRange', () => {
+  it('toggles and exposes syncTimeRange', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    expect(result.current.state.syncTimeRange).toBe(false)
+    act(() => result.current.setSyncTimeRange(true))
+    expect(result.current.state.syncTimeRange).toBe(true)
+    act(() => result.current.setSyncTimeRange(false))
+    expect(result.current.state.syncTimeRange).toBe(false)
+  })
+})
+
+describe('applyGridTemplate group restore', () => {
+  it('restores the embedded group from a saved board', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.applyGridTemplate({
+      layout: { kind: 'multichart', layout: '2x2',
+                cells: [{ sym: 'XOP', tf: 'D' }, { sym: 'XLE', tf: 'D' }],
+                group: { id: 'oil_gas_ep', by: 'today', n: 4 } },
+    }))
+    expect(result.current.state.mode).toBe('grid')
+    expect(result.current.state.group).toEqual({ id: 'oil_gas_ep', by: 'today', n: 4 })
+    expect(result.current.state.cells.map(c => c.sym).slice(0, 2)).toEqual(['XOP', 'XLE'])
+  })
+
+  it('a board with no group restores as a plain grid (group null)', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.applyGridTemplate({
+      layout: { kind: 'multichart', layout: '2x2', cells: [{ sym: 'AAPL', tf: 'D' }] },
+    }))
+    expect(result.current.state.group).toBeNull()
+  })
+})
+
+describe('groupsMode', () => {
+  it('toggles on, and turning off clears the loaded group', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.enterGrid('2x2'))
+    act(() => result.current.setGroupsMode(true))
+    act(() => result.current.fillCells(['RKLB', 'ASTS'], { id: 'space', by: 'today', n: 4, name: 'Space' }))
+    expect(result.current.state.groupsMode).toBe(true)
+    expect(result.current.state.group).toEqual({ id: 'space', by: 'today', n: 4, name: 'Space' })
+    act(() => result.current.setGroupsMode(false))
+    expect(result.current.state.groupsMode).toBe(false)
+    expect(result.current.state.group).toBeNull()               // off clears the group
+    expect(result.current.state.cells.map(c => c.sym).slice(0, 2)).toEqual(['RKLB', 'ASTS'])  // cells stay
+  })
+
+  it('applyGridTemplate restores groupsMode from the board (group present -> on)', () => {
+    const { result } = renderHook(() => useMultiChartState())
+    act(() => result.current.applyGridTemplate({
+      layout: { kind: 'multichart', layout: '2x2', cells: [{ sym: 'XOP', tf: 'D' }],
+                group: { id: 'oil_gas_ep', by: 'today', n: 4, name: 'Oil & Gas E&P' } },
+    }))
+    expect(result.current.state.groupsMode).toBe(true)
+    act(() => result.current.applyGridTemplate({
+      layout: { kind: 'multichart', layout: '2x2', cells: [{ sym: 'AAPL', tf: 'D' }] },  // no group
+    }))
+    expect(result.current.state.groupsMode).toBe(false)
+  })
 })

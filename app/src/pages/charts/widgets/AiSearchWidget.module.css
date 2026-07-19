@@ -106,12 +106,51 @@
 
 /* ── Answer ── */
 .answer { display: flex; flex-direction: column; }
+/* Previous answer stays readable (dimmed) while the next search runs. */
+.answerStale { opacity: 0.45; pointer-events: none; }
 .asked {
+  display: flex; align-items: baseline; gap: 8px;
   font-size: 12px; font-weight: 600; color: var(--ut-gold, #c9a84c);
   margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border, #1f2937);
+  /* Pin the question while a long answer scrolls under it (offsets cancel the
+     body's 12px top padding). */
+  position: sticky; top: -12px; margin-top: -12px; padding-top: 12px;
+  background: var(--bg, #0b0f14); z-index: 2;
+}
+.askedText { flex: 1; min-width: 0; }
+.copyBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border, #262f3b);
+  color: var(--text-muted, #9ca3af);
+  border-radius: 5px; font-size: 10.5px; font-weight: 600;
+  padding: 2px 8px; cursor: pointer; font-family: inherit;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.copyBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+/* [n] citation markers inside the answer — superscript links to the source. */
+.cite {
+  font-size: 9.5px; font-weight: 700; vertical-align: super; line-height: 1;
+  color: var(--ut-gold, #c9a84c); text-decoration: none; margin: 0 1px;
+}
+.cite:hover { text-decoration: underline; }
+/* Daily-limit notice — informational gold, not an error red. */
+.limit {
+  color: var(--ut-gold, #c9a84c); font-size: 12.5px;
+  background: rgba(201, 168, 76, 0.08); border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
+}
+.disclaimer {
+  margin-top: 12px; font-size: 10px; letter-spacing: 0.2px;
+  color: var(--text-muted, #6b7280); opacity: 0.75;
 }
 .answerText { font-size: 13px; line-height: 1.62; color: var(--text, #dfe4ea); }
 .para { margin: 0 0 8px; }
+.subhead {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.2px;
+  color: var(--text-bright, #f3f4f6);
+  margin: 10px 0 4px;
+}
 .bullet { display: flex; gap: 8px; margin: 0 0 6px; align-items: baseline; }
 .dot { color: var(--ut-gold, #c9a84c); flex-shrink: 0; line-height: 1.4; }
 .gap { height: 6px; }

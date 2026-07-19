@@ -11,7 +11,7 @@
   min-height: 0;
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 2px;   /* near-gapless, TC2000-tight — was 6px */
   overflow: hidden;
   position: relative;   /* anchor for a maximized cell's inset:0 overlay */
 }
@@ -81,7 +81,7 @@
   position: relative;
   background: var(--bg-surface, #0d1117);
   border: 1px solid var(--border, #2a3340);
-  border-radius: var(--radius-md, 6px);
+  border-radius: 3px;   /* tighter than --radius-md so cells read as a dense grid */
   /* Query container so the header's meta + session blocks can collapse by CELL
      width (not viewport) — dense grids (3x3/4x4) get just name + TF bar + gear;
      roomy grids (2x2) get the full primary-chart header. inline-size only, so
@@ -177,6 +177,32 @@
   font-size: 12px;
 }
 
+/* Compact layout-preset picker: the 7 presets as a 4-col icon grid instead of
+   7 full-width stacked rows — the biggest declutter of the Multi Charts menu. */
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px 10px 6px;
+}
+.presetBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 2px;
+  background: transparent;
+  border: 1px solid var(--border, #2a3340);
+  border-radius: 4px;
+  color: var(--text-muted, #9aa4b2);
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 120ms, border-color 120ms;
+}
+.presetBtn:hover { color: var(--text-bright, #e5e9f0); border-color: var(--ut-gold, #c9a84c); }
+.presetBtnActive { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+.presetLabel { font-size: 9px; line-height: 1; white-space: nowrap; }
+
 /* Custom N×M form row inside the Multi Charts dropdown. */
 .nxmForm {
   display: flex;
@@ -197,11 +223,10 @@
 }
 .nxmX { color: var(--text-muted, #6b7280); font-size: 11px; }
 
-/* Mini grid-shape icon for preset rows. */
+/* Mini grid-shape icon for the compact preset buttons. */
 .layoutIcon {
   display: inline-grid;
   gap: 1.5px;
-  margin-right: 8px;
   flex: 0 0 auto;
 }
 .layoutIconCell {
@@ -241,7 +266,7 @@
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    gap: 8px;
+    gap: 3px;
   }
   .cellOuter {
     flex: 0 0 auto;

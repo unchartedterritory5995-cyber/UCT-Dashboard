@@ -1,0 +1,20 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  /* The widget draws its own chrome — the page is just a full-height frame
+     with a hairline border on desktop widths. */
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  border-left: 1px solid var(--border, #1f2937);
+  border-right: 1px solid var(--border, #1f2937);
+}
+
+@media (max-width: 640px) {
+  .page {
+    max-width: none;
+    border: none;
+  }
+}

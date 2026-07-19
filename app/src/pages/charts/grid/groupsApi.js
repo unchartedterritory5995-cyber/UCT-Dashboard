@@ -14,9 +14,9 @@ export async function fetchGroups() {
 export async function fetchGroupTop(id, { n = 9, by = 'today' } = {}) {
   try {
     const r = await fetch(`/api/groups/${encodeURIComponent(id)}/top?n=${n}&by=${by}`)
-    if (!r.ok) return { syms: [], total: 0, by, ranked_as_of: 'unknown' }
+    if (!r.ok) return { syms: [], rows: [], etf: null, total: 0, by, ranked_as_of: 'unknown' }
     return await r.json()
-  } catch { return { syms: [], total: 0, by, ranked_as_of: 'unknown' } }
+  } catch { return { syms: [], rows: [], etf: null, total: 0, by, ranked_as_of: 'unknown' } }
 }
 
 export async function fetchPeers(sym, { n = 8 } = {}) {
@@ -26,4 +26,13 @@ export async function fetchPeers(sym, { n = 8 } = {}) {
     if (!r.ok) return { seed, group_id: null, peers: [], source: 'none' }
     return await r.json()
   } catch { return { seed, group_id: null, peers: [], source: 'none' } }
+}
+
+// Pin the group's ETF as cell 0 (deduped), bounded to the grid size. ETFs chart
+// via Massive on demand, so they're not cap_universe-filtered. Shared by every
+// group-fill site (picker, refresh, prev/next) so the pin can't drift.
+export function pinEtf(syms, etf, n) {
+  const list = Array.isArray(syms) ? syms : []
+  const filled = etf ? [etf, ...list.filter(s => s !== etf)] : list
+  return filled.slice(0, Math.max(1, n | 0))
 }

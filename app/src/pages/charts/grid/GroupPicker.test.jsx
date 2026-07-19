@@ -2,13 +2,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-vi.mock('./groupsApi', () => ({
-  fetchGroups: vi.fn(async () => [
-    { id: 'space', name: 'Space', total: 6, chartable: 6 },
-    { id: 'memory_chips', name: 'Memory & HBM', total: 8, chartable: 8 },
-  ]),
-  fetchGroupTop: vi.fn(async () => ({ syms: ['RKLB', 'ASTS', 'LUNR', 'BKSY'], total: 6, by: 'today', ranked_as_of: 'regular' })),
-}))
+vi.mock('./groupsApi', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual, // keep the real pinEtf — only the network fetchers are mocked
+    fetchGroups: vi.fn(async () => [
+      { id: 'space', name: 'Space', total: 6, chartable: 6 },
+      { id: 'memory_chips', name: 'Memory & HBM', total: 8, chartable: 8 },
+    ]),
+    fetchGroupTop: vi.fn(async () => ({ syms: ['RKLB', 'ASTS', 'LUNR', 'BKSY'], etf: 'UFO', total: 6, by: 'today', ranked_as_of: 'regular' })),
+  }
+})
 
 import GroupPicker from './GroupPicker'
 import { fetchGroupTop } from './groupsApi'
@@ -17,9 +21,10 @@ const mc = {
   state: { layout: '2x2', mode: 'grid' },
   enterGrid: vi.fn(),
   fillCells: vi.fn(),
+  setGroupsMode: vi.fn(),
 }
 
-beforeEach(() => { mc.enterGrid.mockClear(); mc.fillCells.mockClear() })
+beforeEach(() => { mc.enterGrid.mockClear(); mc.fillCells.mockClear(); localStorage.clear() })
 
 describe('GroupPicker', () => {
   it('lists groups and fills the grid on click', async () => {
@@ -28,8 +33,8 @@ describe('GroupPicker', () => {
     fireEvent.click(btn)
     await waitFor(() => expect(fetchGroupTop).toHaveBeenCalledWith('space', { n: 4, by: 'today' }))
     expect(mc.fillCells).toHaveBeenCalledWith(
-      ['RKLB', 'ASTS', 'LUNR', 'BKSY'],
-      { id: 'space', by: 'today', n: 4 },
+      ['UFO', 'RKLB', 'ASTS', 'LUNR'],
+      { id: 'space', by: 'today', n: 4, name: 'Space' },
     )
   })
 

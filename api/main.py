@@ -81,6 +81,7 @@ from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
 from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
+from api.routers import admin_purge as admin_purge_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import catalysts as catalysts_router
@@ -1622,7 +1623,7 @@ async def lifespan(app: FastAPI):
                         _rows = _pbs.get_bars(sym, tf, _bc)
                         if not _rows:
                             return
-                        _pl = {"ticker": sym, "tf": tf, "bars": _fmt_sqlite_bars(_rows, tf)}
+                        _pl = {"ticker": sym, "tf": tf, "bars": _fmt_sqlite_bars(_rows, tf, sym)}
                         _pcache.set(f"bars_{sym}_{tf}_{_bc}", _pl, ttl=_CACHE_TTL.get(tf, 300))
                         _pw += 1
                     except Exception:
@@ -1902,9 +1903,9 @@ async def lifespan(app: FastAPI):
             print(f"[deep-cache] Build failed: {e}")
     threading.Thread(target=_build_deep_cache, daemon=True, name="deep-cache-builder").start()
 
-    from api.services.theme_db import init_theme_tables, seed_from_json
+    from api.services.theme_db import init_theme_tables, seed_from_json_safe
     init_theme_tables()
-    seed_from_json()
+    seed_from_json_safe()
 
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
@@ -3190,6 +3191,7 @@ def _is_gzip_exempt(path: str) -> bool:
         path.startswith("/api/stream")
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
+        or path == "/api/ai-search/stream"               # AI Search token stream
         or path.startswith("/assets/")
     )
 
@@ -3401,6 +3403,7 @@ app.include_router(csv_ingest_router)
 app.include_router(darkpool_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
+app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
 app.include_router(catalysts_router.router)

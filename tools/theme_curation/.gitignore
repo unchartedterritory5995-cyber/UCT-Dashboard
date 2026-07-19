@@ -1,0 +1,8 @@
+# Owner-run curation outputs (regenerated each run — not source).
+# The refreshed themes_taxonomy.json is the durable deliverable; these are scratch.
+audit.md
+proposals/
+review/
+*.db
+*.db-wal
+*.db-shm

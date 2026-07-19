@@ -293,6 +293,20 @@ FAST_PATH_ENABLED = os.environ.get("MASSIVE_FAST_PATH_ENABLED", "1") == "1"
 # Well above MIN_PREMIUM ($10K) so only genuine institutional first-prints wake
 # the manager early -- a busy open shouldn't fast-path everything.
 FAST_PATH_PREMIUM = float(os.environ.get("MASSIVE_FAST_PATH_PREMIUM", "50000"))
+# On-demand REST quote fetch (2026-07-18): the 950-slot Q pool is saturated all
+# session (every 'sub' logs pool_size_after=950, contracts evict within ~5s), so
+# a big print on a contract that isn't currently pooled classifies blank — 77% of
+# $500K+ SWEEP/BLOCK prints on 7/17 went sideless vs BBS's 5%. The tick-test that
+# used to backfill was removed 7/16 (it manufactured direction). Fix: when a big
+# print classifies blank, fetch its real NBBO from the REST /v3/quotes endpoint
+# (the same per-exchange feed the WS carries) and classify before the event is
+# written. The alert engine reads from flow.db downstream of the writer, so a
+# ~150ms-delayed write = a ~150ms-delayed but CORRECTLY-SIDED alert. Fail-safe:
+# any error/timeout leaves the event blank exactly as today — never worse.
+ONDEMAND_QUOTE_ENABLED = os.environ.get("MASSIVE_ONDEMAND_QUOTE_ENABLED", "1") == "1"
+ONDEMAND_QUOTE_PREMIUM = float(os.environ.get("MASSIVE_ONDEMAND_QUOTE_PREMIUM", "500000"))
+_ondemand_quote_queue: list = []   # events tagged blank+big, awaiting a REST NBBO fetch
+_ondemand_quote_event = None       # asyncio.Event, created per-session in _run_session
 # How often the reclassification re-pass runs. Short enough to recover within
 # the NBBO lag window (a few seconds after fast-path subscribe fills NBBO).
 RECLASSIFY_INTERVAL_SEC = float(os.environ.get("MASSIVE_RECLASSIFY_INTERVAL", "3.0"))
@@ -403,20 +417,46 @@ def _apply_reclassifications(updates: list) -> int:
 
 def _classify_side(trade_price: float, nbbo: tuple) -> str:
     """
-    Lee-Ready trade classification using NBBO.
+    Quote-rule (midpoint) trade classification using NBBO.
 
     nbbo: (bid, ask, ts_ms) tuple, or None if no quote data.
 
     Returns BBS-format Side string:
-        "AA": price strictly above ask (super aggressive buyer)
-        "A":  price at ask (aggressive buyer)
-        "B":  price at bid (aggressive seller)
-        "BB": price strictly below bid (super aggressive seller)
-        "":   price at mid (no clear aggressor) OR no NBBO available
+        "AA": price strictly above the ask   (super-aggressive buyer)
+        "A":  price in the upper half of the book, at or below ask (buyer)
+        "B":  price in the lower half of the book, at or above bid (seller)
+        "BB": price strictly below the bid   (super-aggressive seller)
+        "":   no usable NBBO, OR price exactly at the midpoint (see below)
 
-    Tolerance: 0.5 cent for "at" classification, since aggregated burst
-    avg prices may drift slightly from the NBBO quote due to multi-exchange
-    variance and the time between the trade and the most recent quote.
+    2026-07-18 — MIDPOINT SPLIT. Was a +/-0.5c touch rule: A/B only if the
+    fill was within half a cent of the quote, everything else "" (mid). On
+    penny-wide books that's fine; on wide books it dumped a third to two
+    thirds of prints into mid. Measured live mid-rate was 35-66%. BOTH
+    reference services we benchmark against classify by which half of the
+    NBBO the fill sits in and produce ~0% mid:
+      - BlackBox (BBS) 7/16 export: 0 mid across 48,830 prints.
+      - Unusual Whales, per their own doc: "at or closer to the bid -> BID;
+        at or closer to the ask -> ASK; exactly at MID -> MID."
+    On the AAPL 335P set this rule went 6/9 -> 9/9 vs the BBS reference and
+    removed all three spurious mids. The AA/BB extremes (fill beyond the
+    touch) are kept — they're the "super-aggressive" signal both services
+    surface and they don't depend on tolerance.
+
+    EXACT MIDPOINT returns "" (same as no-NBBO), NOT a "MID" token. Callers
+    test `if side:` and treat "" as "couldn't classify, leave the row as-is".
+    A literal "MID" would need matching handling in the JSX side parser
+    (OptionsFlow.jsx ~1227 only knows A/AA/B/BB), and exact float-equality at
+    the midpoint is vanishingly rare on real fills — so the residual case
+    isn't worth a new downstream token. The wide mid dead-zone this change
+    removes is gone regardless. To add a real MID bucket later, change it
+    here AND in the JSX parser together.
+
+    NOT handled here (needs condition codes, which live on RawTrade, not on
+    the aggregated event this sees): cross / modified-nullified / late trades,
+    which both services route to a NONE bucket. That is a separate change in
+    the aggregation path (thread RawTrade.conditions up to AggEvent, map the
+    cross/late OPRA codes to side_method="none"). Filed as follow-up so this
+    rule fix stays self-contained.
     """
     if not nbbo:
         return ""
@@ -424,15 +464,29 @@ def _classify_side(trade_price: float, nbbo: tuple) -> str:
     if bid <= 0 or ask <= 0 or ask < bid:
         return ""
     tol = 0.005
+    # Extremes first: a fill beyond the touch is unambiguous regardless of
+    # where the midpoint sits.
     if trade_price > ask + tol:
         return "AA"
-    if trade_price >= ask - tol:
-        return "A"
     if trade_price < bid - tol:
         return "BB"
-    if trade_price <= bid + tol:
+    # Everything inside [bid-tol, ask+tol] splits at the midpoint — the half
+    # of the book the fill is closer to. This is the change: no wide "mid"
+    # dead-zone, matching BBS and Unusual Whales.
+    mid = (bid + ask) / 2.0
+    if trade_price > mid:
+        return "A"
+    if trade_price < mid:
         return "B"
-    return ""  # mid-market
+    # Exactly at the midpoint. Returned "" (same as no-NBBO) rather than a
+    # "MID" token on purpose: the frontend side parser only knows A/AA/B/BB,
+    # so a literal "MID" would fall through unhandled, and exact float-equality
+    # at the midpoint is vanishingly rare on real fills (0 of the verified
+    # prints). The wide "mid dead-zone" this change was written to remove is
+    # gone regardless; this residual case isn't worth a new downstream token.
+    # If a true MID bucket is ever wanted, add it here AND in the JSX parser
+    # (OptionsFlow.jsx ~line 1227) together.
+    return ""
 
 
 def _reconstruct_occ_symbol(root: str, expiry, cp: str, strike: float) -> str:
@@ -914,6 +968,15 @@ def _classify_events_side(events: list) -> None:
             no_signal += 1
             if not nbbo and len(sample_misses) < 5:
                 sample_misses.append(sym)
+            # On-demand quote tag (2026-07-18): a big print with no usable NBBO
+            # is exactly the 77%-blank case. Flag it so the flusher diverts it to
+            # the REST-fetch task instead of writing it blank. Only genuinely
+            # large prints qualify, to bound REST volume. side_method stays
+            # "none" until/unless the fetch succeeds.
+            if (ONDEMAND_QUOTE_ENABLED
+                    and (evt.type_ in ("SWEEP", "BLOCK"))
+                    and float(evt.premium or 0) >= ONDEMAND_QUOTE_PREMIUM):
+                evt.side_method = "ondemand-pending"
 
         # Phase 2i: tick cache (_TICK_TEST_CACHE) is no longer updated here
         # because we use _RAW_T_HISTORY (raw print history) for tick test.
@@ -1265,6 +1328,89 @@ def _nbbo_at(sym: str, ts_ns: int) -> tuple | None:
 _ER_CACHE: dict = {}            # {symbol: ('T'|'F', fetched_at_ts)}
 _ER_TTL_SEC = 6 * 60 * 60       # refresh ER flag every 6 hours
 
+# ── Earnings-date enrichment (2026-07-19) ────────────────────────────────
+# Replaces the date-less BBS ER boolean (which never cleared — MU showed a
+# PAST earnings) with a real earnings DATE from UCT's own /api/calendar.
+# Week-bucketed JSON: {week_start, week_end, days:{ "YYYY-MM-DD":
+# {bmo:[{sym,...}], amc:[...], tbd:[...]} }}. Week paging via ?week=<Monday-ISO>
+# (the frontend's param). We fetch current week (bare) + the next two Mondays
+# for a ≥14-day horizon and flatten to {sym: earliest-date}.
+#
+# HOT-PATH SAFETY: _load_er_flags runs INSIDE the consumer classify path, so it
+# must never do network I/O. The fetch lives in the background
+# earnings_date_manager task (like spot_fetch_manager); _load_er_flags is a pure
+# read of _ER_DATE_CACHE. Stdlib urllib only (httpx is not installed here — same
+# reason the on-demand quote fetch uses urllib), real UA to avoid Cloudflare 1010.
+EARNINGS_CAL_ENABLED = os.environ.get("MASSIVE_EARNINGS_CAL_ENABLED", "1") == "1"
+EARNINGS_CAL_BASE = os.environ.get("UCT_PUBLIC_BASE", "https://uctintelligence.com").rstrip("/")
+EARNINGS_CAL_WEEKS_AHEAD = int(os.environ.get("MASSIVE_EARNINGS_CAL_WEEKS_AHEAD", "2"))
+EARNINGS_CAL_TTL_SEC = 6 * 60 * 60      # refresh the calendar every 6 h
+ER_SOON_DAYS = 14                        # earnings within N days → ER='T'
+_UCT_UA = "UCT-Massive/1.0 (+https://uctintelligence.com)"
+
+_ER_DATE_CACHE: dict = {}                # {symbol: 'YYYY-MM-DD'} earliest upcoming earnings
+_ER_DATE_CACHE_AT: float = 0.0           # last successful full refresh (epoch); 0 = never
+
+
+def _flatten_earnings_days(payload: dict, out: dict) -> None:
+    """Merge one /api/calendar week response into out={sym: 'YYYY-MM-DD'},
+    keeping the EARLIEST date per symbol. The day KEY is the authoritative
+    earnings date; date_moved is metadata and is ignored."""
+    days = (payload or {}).get("days") or {}
+    if not isinstance(days, dict):
+        return
+    for date_str, day in days.items():
+        if not isinstance(day, dict):
+            continue
+        for bucket in ("bmo", "amc", "tbd"):
+            for entry in day.get(bucket) or []:
+                if not isinstance(entry, dict):
+                    continue
+                sym = (entry.get("sym") or "").upper().strip()
+                if not sym:
+                    continue
+                prev = out.get(sym)
+                if prev is None or date_str < prev:
+                    out[sym] = date_str
+
+
+def _fetch_earnings_calendar_blocking() -> dict:
+    """Blocking (run via asyncio.to_thread): current week + next N Mondays →
+    {sym: 'YYYY-MM-DD'}. Anchors subsequent weeks to the bare endpoint's OWN
+    week_start so weekend/holiday roll-forward stays aligned with the backend.
+    Returns {} on any failure (caller keeps the prior cache)."""
+    import urllib.request
+    import json as _json
+    from datetime import datetime as _dt, timedelta as _td
+
+    def _get(url):
+        req = urllib.request.Request(url, headers={"User-Agent": _UCT_UA})
+        with urllib.request.urlopen(req, timeout=8.0) as resp:
+            if resp.status != 200:
+                return None
+            return _json.loads(resp.read().decode("utf-8"))
+
+    out: dict = {}
+    base = _get(f"{EARNINGS_CAL_BASE}/api/calendar")
+    if not base:
+        return {}
+    _flatten_earnings_days(base, out)
+    week_start = str(base.get("week_start") or "")[:10]
+    try:
+        monday = _dt.strptime(week_start, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        monday = None
+    if monday is not None:
+        for k in range(1, max(0, EARNINGS_CAL_WEEKS_AHEAD) + 1):
+            wk = (monday + _td(days=7 * k)).strftime("%Y-%m-%d")
+            try:
+                payload = _get(f"{EARNINGS_CAL_BASE}/api/calendar?week={wk}")
+            except Exception:
+                payload = None
+            if payload:
+                _flatten_earnings_days(payload, out)
+    return out
+
 
 def _tape_spool(msg) -> None:
     """Raw-frame spool hook for the receive loop. Lazy-bound + total —
@@ -1288,6 +1434,41 @@ _META_TTL_SEC = 24 * 60 * 60    # metadata moves on earnings timescales
 
 
 def _load_er_flags(symbols: list) -> dict:
+    """ER (earnings-soon) flag per symbol as {symbol: 'T'|'F'}.
+
+    Rewritten 2026-07-19: 'T' now means "earnings within ER_SOON_DAYS days",
+    derived from a real earnings DATE (see _ER_DATE_CACHE / earnings_date_manager),
+    NOT the old date-less BBS boolean that never cleared. Self-correcting — a
+    ticker flips back to 'F' the day after it reports.
+
+    Pure cache read; NO network here (runs inside the consumer classify path).
+    If the calendar cache has never populated (cold boot before the first fetch,
+    or a calendar outage), fall back to the legacy FlowDB read so we never go
+    darker than the pre-fix behavior.
+    """
+    if not symbols:
+        return {}
+    if not _ER_DATE_CACHE_AT:
+        return _load_er_flags_legacy(symbols)   # calendar not fetched yet → floor
+    today = datetime.now(ET).date()
+    out = {}
+    for sym in symbols:
+        if not sym:
+            continue
+        er = 'F'
+        d = _ER_DATE_CACHE.get(sym)
+        if d:
+            try:
+                ed = datetime.strptime(d, "%Y-%m-%d").date()
+                if 0 <= (ed - today).days <= ER_SOON_DAYS:
+                    er = 'T'
+            except (TypeError, ValueError):
+                er = 'F'
+        out[sym] = er
+    return out
+
+
+def _load_er_flags_legacy(symbols: list) -> dict:
     """Phase 2g: look up ER flag per symbol from recent FlowDB rows.
 
     Returns {symbol: 'T'|'F'}. Cached for 6 hours per symbol since earnings
@@ -1953,6 +2134,10 @@ async def _run_session(ws):
     # session so _queue_q_subscriptions_for_events can wake q_subscription_manager
     # the moment a big new contract needs NBBO. (Set-then-clear; loop-owned.)
     _fast_path_event = asyncio.Event()
+    # On-demand quote fetch (2026-07-18): the flusher sets this after diverting
+    # big blank prints, waking ondemand_quote_manager to fetch their NBBO now.
+    global _ondemand_quote_event
+    _ondemand_quote_event = asyncio.Event()
 
     # Phase 2c: clear NBBO/subscription state on each session. These don't
     # survive disconnects -- we rebuild over the first few minutes of trading
@@ -2127,6 +2312,17 @@ async def _run_session(ws):
                 # Phase 2c: queue Q subscriptions for any newly-active contracts
                 # so future events on these contracts get classified
                 _queue_q_subscriptions_for_events(events)
+                # On-demand quote fetch (2026-07-18): pull out big blank prints
+                # tagged by _classify_events_side and hand them to the fetch task,
+                # which REST-fetches NBBO, classifies, and enqueues them to the
+                # writer itself. Everything else flows to the writer immediately —
+                # only the tagged whales take the ~150ms detour.
+                if ONDEMAND_QUOTE_ENABLED:
+                    pending = [e for e in events if e.side_method == "ondemand-pending"]
+                    if pending:
+                        events = [e for e in events if e.side_method != "ondemand-pending"]
+                        _ondemand_quote_queue.extend(pending)
+                        _ondemand_quote_event.set()
                 # 2026-07-07: hand the write batch to the background writer
                 # instead of doing it here. The enrichment+insert (5 DB passes +
                 # hundreds of rows) is too slow to run inline at the open
@@ -2685,6 +2881,136 @@ async def _run_session(ws):
                 except Exception as e:
                     logger.warning("[massive-ws] reclassify apply failed: %s", e)
 
+    async def ondemand_quote_manager():
+        """On-demand REST quote fetch (2026-07-18) for big blank prints.
+
+        Woken by the flusher via _ondemand_quote_event whenever a $500K+
+        SWEEP/BLOCK classified blank (no fresh NBBO — the saturated-Q-pool case).
+        For each, fetch the real NBBO at the print's timestamp from REST
+        /v3/quotes, classify with the same midpoint rule, and enqueue the
+        now-sided event to the writer. Alerts read from flow.db downstream, so a
+        classified write here = a correctly-sided alert ~150ms later.
+
+        Fail-safe: on ANY error/timeout the event is written with its existing
+        (blank) side — identical to pre-fix behavior, never worse. Runs OFF the
+        consumer recv loop (its own task, like oi_fetch_manager) so the REST
+        latency never stalls the WS keepalive.
+        """
+        base = "https://api.massive.com/v3/quotes"
+        while not stop_event.is_set():
+            trigger = asyncio.ensure_future(_ondemand_quote_event.wait())
+            stopper = asyncio.ensure_future(stop_event.wait())
+            try:
+                await asyncio.wait({trigger, stopper}, timeout=2.0,
+                                   return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                for t in (trigger, stopper):
+                    if not t.done():
+                        t.cancel()
+            if stop_event.is_set():
+                break
+            _ondemand_quote_event.clear()
+            if not _ondemand_quote_queue:
+                continue
+            batch = _ondemand_quote_queue[:]
+            _ondemand_quote_queue.clear()
+
+            def _fetch_one_blocking(evt):
+                # Runs in a thread (asyncio.to_thread) so the blocking urllib
+                # call never touches the consumer loop. Stdlib only — no httpx /
+                # aiohttp dependency (the container's python lacks httpx; curl to
+                # api.massive.com returns 200, so the network path is fine).
+                import urllib.request, json as _json
+                try:
+                    sym = _reconstruct_occ_symbol(evt.root, evt.expiry,
+                                                  evt.cp, evt.strike)
+                    ts_ns = evt.first_ts_ns
+                    url = (f"{base}/{sym}?timestamp.lte={ts_ns}"
+                           f"&order=desc&limit=1&sort=timestamp"
+                           f"&apiKey={MASSIVE_API_KEY}")
+                    with urllib.request.urlopen(url, timeout=2.0) as resp:
+                        if resp.status != 200:
+                            return evt
+                        payload = _json.loads(resp.read().decode("utf-8"))
+                    results = payload.get("results") or []
+                    if not results:
+                        return evt
+                    q = results[0]
+                    bid = float(q.get("bid_price", 0) or 0)
+                    ask = float(q.get("ask_price", 0) or 0)
+                    q_ts_ns = int(q.get("sip_timestamp", 0) or 0)
+                    # staleness guard — same window the live path uses
+                    if q_ts_ns and (ts_ns - q_ts_ns) > NBBO_STALENESS_NS:
+                        return evt
+                    side = _classify_side(evt.avg_price,
+                                          (bid, ask, q_ts_ns // 1_000_000))
+                    if side:
+                        evt.side = side
+                        evt.side_method = "ondemand-nbbo"
+                    else:
+                        # NBBO existed but trade was mid — a real empty; mark it
+                        # so it isn't retried and isn't presumed a side downstream.
+                        evt.side_method = "ondemand-mid"
+                    return evt
+                except Exception:
+                    return evt  # fail-safe: leave blank, write as-is
+
+            resolved = 0
+            try:
+                # Fan out the blocking fetches across threads, bounded. Each
+                # urllib call has its own 2s timeout; the whole batch is capped so
+                # a slow venue can't stall the queue drain.
+                tasks = [asyncio.to_thread(_fetch_one_blocking, e) for e in batch]
+                done = await asyncio.gather(*tasks, return_exceptions=False)
+                resolved = sum(1 for e in done if e.side_method == "ondemand-nbbo")
+            except Exception as e:
+                logger.debug("[massive-ws] on-demand quote batch failed: %s", e)
+                done = batch  # write them all blank — never drop
+
+            # Clear the transient "ondemand-pending" tag on anything that didn't
+            # resolve, so a blank side isn't mistaken for a pending state.
+            for e in done:
+                if e.side_method == "ondemand-pending":
+                    e.side_method = "none"
+            _state["ondemand_quote_fetches"] = _state.get("ondemand_quote_fetches", 0) + len(batch)
+            _state["ondemand_quote_resolved"] = _state.get("ondemand_quote_resolved", 0) + resolved
+            if done:
+                await write_queue.put(done)
+
+    async def earnings_date_manager():
+        """Refresh the earnings-date calendar every EARNINGS_CAL_TTL_SEC.
+
+        Fetches UCT's own /api/calendar (current + next N weeks) OFF the consumer
+        loop, flattens to {sym: date}, and swaps it into _ER_DATE_CACHE. On
+        failure the previous cache is kept (never cleared). Mirrors
+        spot_fetch_manager's lifecycle so teardown stays within the join budget.
+        """
+        global _ER_DATE_CACHE, _ER_DATE_CACHE_AT
+        if not EARNINGS_CAL_ENABLED:
+            return
+        first = True
+        while not stop_event.is_set():
+            if not first:
+                try:
+                    await asyncio.wait_for(stop_event.wait(),
+                                           timeout=EARNINGS_CAL_TTL_SEC)
+                    break  # stop_event fired during the wait
+                except asyncio.TimeoutError:
+                    pass
+            first = False
+            try:
+                fresh = await asyncio.to_thread(_fetch_earnings_calendar_blocking)
+                if fresh:
+                    _ER_DATE_CACHE = fresh
+                    _ER_DATE_CACHE_AT = time.time()
+                    _state["earnings_cal_syms"] = len(fresh)
+                    _state["earnings_cal_fetches"] = _state.get("earnings_cal_fetches", 0) + 1
+                    logger.info("[massive-ws] earnings calendar: %d symbols cached", len(fresh))
+                else:
+                    logger.debug("[massive-ws] earnings calendar fetch empty; keeping prior cache")
+            except Exception as e:
+                logger.debug("[massive-ws] earnings calendar fetch failed: %s", e)
+
     flusher_task = asyncio.create_task(flusher())
     writer_task = asyncio.create_task(writer())
     q_mgr_task = asyncio.create_task(q_subscription_manager())
@@ -2693,6 +3019,8 @@ async def _run_session(ws):
     watchdog_task = asyncio.create_task(stale_connection_watchdog())
     q_log_flusher_task = asyncio.create_task(q_pool_log_flusher())
     reclassify_task = asyncio.create_task(reclassify_manager())
+    ondemand_quote_task = asyncio.create_task(ondemand_quote_manager())
+    earnings_date_task = asyncio.create_task(earnings_date_manager())
 
     try:
         async for msg in ws:
@@ -2833,6 +3161,19 @@ async def _run_session(ws):
             # cancel to bound teardown (any un-applied recoveries are best-effort).
             reclassify_task.cancel()
             await reclassify_task
+        except (Exception, asyncio.CancelledError):
+            pass
+        try:
+            # On-demand quote fetch: cancel to bound teardown. Any pending big
+            # blank prints in the queue are best-effort — they'll be written
+            # blank by the final flush, same as pre-fix.
+            ondemand_quote_task.cancel()
+            await ondemand_quote_task
+        except (Exception, asyncio.CancelledError):
+            pass
+        try:
+            earnings_date_task.cancel()
+            await earnings_date_task
         except (Exception, asyncio.CancelledError):
             pass
         # Final flush so we don't lose the last few seconds on disconnect

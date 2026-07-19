@@ -26,10 +26,11 @@ import useStaggeredMount from './useStaggeredMount'
 import { parseLayoutId } from './gridLayouts'
 import { createSpike, SPIKE_SYMS } from './gridSpike'
 import { makePeerFiller } from './peerFill'
-import { fetchPeers, fetchGroupTop, fetchGroups } from './groupsApi'
+import { fetchPeers, fetchGroupTop, fetchGroups, pinEtf } from './groupsApi'
 import { chartKeys, admittedSym } from './symAdmission'
 import { buildCellBadges } from './cellBadge'
 import GroupHeatHeader from './GroupHeatHeader'
+import { humanizeGroupId } from './groupLabel'
 import useLivePrices from '../../../hooks/useLivePrices'
 import styles from './MultiChartGrid.module.css'
 
@@ -114,7 +115,7 @@ export default function MultiChartGrid({ mc }) {
     () => cells.map((_, i) => () => activeCellRef.current === i),
     [cells.length],   // eslint-disable-line react-hooks/exhaustive-deps
   )
-  const inGroupMode = !!state.group
+  const inGroupMode = state.groupsMode
   const onChangeFns = useMemo(
     () => cells.map((_, i) => (next) => {
       if (spikeActive) return
@@ -153,6 +154,17 @@ export default function MultiChartGrid({ mc }) {
   const crosshairBus = spikeActive
     ? spikeRef.current.bus
     : (state.syncCrosshair ? busRef.current : null)
+
+  // ── Time-range sync bus (mirrors the crosshair bus above) ──
+  const rangeBusRef = useRef(null)
+  if (!rangeBusRef.current) {
+    const listeners = new Set()
+    rangeBusRef.current = {
+      emit: (sourceId, payload) => listeners.forEach((fn) => fn({ sourceId, payload })),
+      subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn) },
+    }
+  }
+  const rangeBus = spikeActive ? null : (state.syncTimeRange ? rangeBusRef.current : null)
 
   // ── Mount queue: composite `${id}::${sym}` keys, not bare cell ids. A group
   // switch reuses a cell's id (fillCells pools overlapping syms so the chart
@@ -258,10 +270,13 @@ export default function MultiChartGrid({ mc }) {
     [cells, groupMeta.metaBySym, livePrices],
   )
 
-  // Shared volume-pane proportion (cells read it, never write it).
+  // Grid cells LOCK the volume pane low — these are mini-charts where a tall
+  // volume pane eats the price action. Decoupled from the shared workspace
+  // pref (which the primary chart honors up to 45%): grid is hard-capped at
+  // 10% so no shared setting can make grid volume dominate the cell.
   const volPanePct = (() => {
     const v = Number(prefs?.charts_vol_pane_pct)
-    return Number.isFinite(v) && v >= 5 && v <= 60 ? v : 12
+    return Number.isFinite(v) && v >= 5 ? Math.min(v, 10) : 9
   })()
   const dailyDefaultBars = cells.length > 9 ? 90 : 126
   const canvasTheme = chartsTheme === 'sunrise' ? 'sunrise' : null
@@ -271,14 +286,31 @@ export default function MultiChartGrid({ mc }) {
     gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
   }
 
+  // Multi-membership switcher: re-fill the grid with one of the seed's other
+  // groups, swapping the current group INTO the switcher list so you can flip back.
+  const handleSwitchGroup = useCallback(async (groupId, groupName) => {
+    if (spikeActive) return
+    const g = state.group
+    const n = cells.length
+    const { syms, etf } = await fetchGroupTop(groupId, { n, by: 'today' })
+    const filled = pinEtf(syms, etf, n)
+    if (!filled.length) return
+    const curName = (g && (g.name || groupMeta.name)) || (g && g.id) || null
+    const others = (g?.alsoIn || []).filter(x => x.id !== groupId)
+    const newAlsoIn = (g?.id && curName) ? [{ id: g.id, name: curName }, ...others] : others
+    mc.fillCells(filled, { id: groupId, name: groupName, by: 'today', n, alsoIn: newAlsoIn, seed: g?.seed })
+  }, [state.group, cells.length, groupMeta.name, mc, spikeActive])
+
   return (
     <>
       {state.group && (
         <GroupHeatHeader
-          groupName={groupMeta.name || state.group.id}
+          groupName={state.group.name || groupMeta.name || humanizeGroupId(state.group.id)}
           total={groupMeta.total}
           shown={gridSyms.length}
           holdings={heatHoldings}
+          alsoIn={state.group.alsoIn}
+          onSwitch={handleSwitchGroup}
         />
       )}
       <div className={styles.gridBody} style={gridStyle}>
@@ -313,8 +345,10 @@ export default function MultiChartGrid({ mc }) {
                 cell={{ ...cell, sym: loadSym }}
                 badge={state.group ? cellBadges[i] : null}
                 rationale={state.group ? cellBadges[i]?.rationale : ''}
+                scanning={state.groupsMode}
                 onChange={onChangeFns[i]}
                 crosshairBus={crosshairBus}
+                rangeBus={rangeBus}
                 volPanePct={volPanePct}
                 isActive={isActiveFns[i]}
                 dailyDefaultBars={maxId === cell.id ? 126 : dailyDefaultBars}
@@ -333,6 +367,7 @@ export default function MultiChartGrid({ mc }) {
             <button type="button" onClick={() => {
               // Restore the pre-fill board: re-fill with the snapshot's syms + group.
               mc.fillCells(undo.snapshot.cells.map(c => c.sym).filter(Boolean), undo.snapshot.group)
+              if (!undo.snapshot.group) mc.clearGroup()   // fillCells coalesces a falsy group to prev; force-clear when the snapshot had no group
               setUndo(null)
             }}>Undo</button>
           </div>

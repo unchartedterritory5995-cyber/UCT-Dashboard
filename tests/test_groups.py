@@ -93,10 +93,11 @@ def test_top_n_returns_rows_with_tier_and_rationale(monkeypatch):
                                      {"sym": "ASTS", "tier": "core", "rationale": "Sats"}])
     import api.services.theme_db as tdb
     monkeypatch.setattr(tdb, "get_theme_holdings", groups._theme_holdings)
-    monkeypatch.setattr(groups, "rank_holdings", lambda h, by="today", seed=None: ["RKLB", "ASTS"])
+    monkeypatch.setattr(groups, "rank_holdings",
+                        lambda h, by="today", seed=None, seed_sub=None, scores_out=None: ["RKLB", "ASTS"])
     out = groups.top_n("space", 2, by="today")
     assert out["syms"] == ["RKLB", "ASTS"]
-    assert out["rows"][0] == {"sym": "RKLB", "tier": "core", "rationale": "Launch"}
+    assert out["rows"][0] == {"sym": "RKLB", "tier": "core", "rationale": "Launch", "gate_score": None}
 
 
 def test_resolve_primary_theme_prefers_core_over_smaller_relevant(monkeypatch):
@@ -141,6 +142,33 @@ def test_resolve_peers_sub_theme_first_then_widen(monkeypatch):
     assert out["source"] == "taxonomy"
     assert out["peers"][0] == "LUNR"      # same sub-theme floats to top
     assert "RKLB" not in out["peers"]     # seed excluded
+
+
+def test_resolve_peers_liquidity_floor_beats_sub_theme_when_gated(monkeypatch):
+    # Gated: a confirmed-liquid DIFFERENT-sub-theme peer outranks an illiquid
+    # SAME-sub-theme peer (liquidity floor is the hard prefilter); within the
+    # liquid tier, same-sub-theme still leads.
+    seed_row = {"theme_id": "space", "theme_name": "Space", "tier": "core", "sub_theme_id": "launch"}
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: seed_row)
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"RKLB", "SAMEILLIQ", "DIFFLIQ", "SAMELIQ"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    holdings = [
+        {"sym": "RKLB", "tier": "core", "sub_theme_id": "launch"},          # seed (excluded)
+        {"sym": "SAMEILLIQ", "tier": "core", "sub_theme_id": "launch"},     # same sub, illiquid
+        {"sym": "DIFFLIQ", "tier": "core", "sub_theme_id": "satellites"},   # diff sub, liquid
+        {"sym": "SAMELIQ", "tier": "core", "sub_theme_id": "launch"},       # same sub, liquid
+    ]
+    monkeypatch.setattr(groups, "_theme_holdings", lambda tid: holdings)
+    _mock_gate_env(monkeypatch, True, {
+        "SAMEILLIQ": {"price": 2.0, "dollar_vol": 1e6, "rs_rank": 90, "adr_pct": 9},   # band2
+        "DIFFLIQ":   {"price": 40, "dollar_vol": 5e8, "rs_rank": 80, "adr_pct": 6},    # band0
+        "SAMELIQ":   {"price": 30, "dollar_vol": 5e8, "rs_rank": 80, "adr_pct": 6},    # band0
+    })
+    peers = groups.resolve_peers("RKLB", 3)["peers"]
+    assert peers[0] == "SAMELIQ"     # liquid + same sub-theme -> top
+    assert peers[1] == "DIFFLIQ"     # liquid, different sub-theme
+    assert peers[2] == "SAMEILLIQ"   # same sub-theme but illiquid -> backfill last
 
 
 def test_ticker_meta_primary_theme_matches_resolver(monkeypatch):
@@ -206,3 +234,177 @@ def test_theme_size_uses_cached_map_not_list_groups(monkeypatch):
     assert groups._theme_size("semis") == 1
     assert groups._theme_size("missing") == 0
     assert calls["all_themes"] == 1          # cached: one taxonomy read for 3 lookups
+
+
+def test_ai_peers_validates_sector_match_and_dedups_seed(monkeypatch):
+    from api.services import ticker_meta
+    # Seed SNDK: SanDisk, Technology / Computer Storage.
+    metas = {
+        "SNDK": {"name": "SanDisk Corp", "sector": "Technology", "industry": "Computer Storage", "theme": None},
+        "WDC":  {"name": "Western Digital", "sector": "Technology", "industry": "Computer Storage", "theme": None},
+        "STX":  {"name": "Seagate", "sector": "Technology", "industry": "Computer Storage", "theme": None},
+        "AAPL": {"name": "Apple", "sector": "Technology", "industry": "Consumer Electronics", "theme": None},
+        "XYZZY": {"name": "Nope", "sector": "Energy", "industry": "Oil", "theme": None},
+    }
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta", lambda s: metas.get(groups.normalize_sym(s), {"name": None, "sector": None, "industry": None, "theme": None}))
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"SNDK", "WDC", "STX", "AAPL", "XYZZY"})
+    # Haiku returns: WDC (good), STX (good), SNDK (the seed — must dedup),
+    # XYZZY (wrong sector — must drop), FAKE (not in cap_universe — must drop).
+    monkeypatch.setattr(groups, "_ai_peer_raw", lambda seed, n, meta: ["WDC", "STX", "SNDK", "XYZZY", "FAKE"])
+    cache_store = {}
+    monkeypatch.setattr(groups.cache, "get", lambda k: cache_store.get(k))
+    monkeypatch.setattr(groups.cache, "set", lambda k, v, ttl: cache_store.__setitem__(k, v))
+    out = groups._ai_peers("SNDK", 5)
+    assert out == ["WDC", "STX"]        # seed + wrong-sector + non-chartable all dropped
+    # AAPL shares sector (Technology) but industry differs — sector match is enough,
+    # but the model didn't return it, so it's simply absent (validation is a filter).
+
+
+def test_ai_peers_refuses_when_seed_meta_name_is_null(monkeypatch):
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta", lambda s: {"name": None, "sector": None, "industry": None, "theme": None})
+    called = {"raw": 0}
+    monkeypatch.setattr(groups, "_ai_peer_raw", lambda *a: called.__setitem__("raw", called["raw"] + 1) or [])
+    monkeypatch.setattr(groups.cache, "get", lambda k: None)
+    monkeypatch.setattr(groups.cache, "set", lambda k, v, ttl: None)
+    assert groups._ai_peers("GHOST", 5) == []
+    assert called["raw"] == 0            # never grounds on a null-name seed
+
+
+def test_resolve_peers_uses_ai_on_taxonomy_miss(monkeypatch):
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)   # not in taxonomy
+    monkeypatch.setattr(groups, "_industry_peers", lambda seed, n: None)   # no industry cohort
+    monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: ["WDC", "STX"])
+    out = groups.resolve_peers("SNDK", 5)
+    assert out == {"seed": "SNDK", "group_id": None, "peers": ["WDC", "STX"], "source": "ai"}
+
+
+def test_resolve_peers_industry_fallback_before_ai(monkeypatch):
+    # Orphan (no theme) → industry cohort peers, NOT the AI fallback.
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    monkeypatch.setattr(groups, "_industry_peers",
+                        lambda seed, n: {"industry": "Banks - Regional", "peers": ["PNC", "USB"]})
+    monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: ["SHOULD_NOT_USE"])
+    out = groups.resolve_peers("ORPHANBK", 5)
+    assert out["source"] == "industry"
+    assert out["peers"] == ["PNC", "USB"]
+    assert out["group_id"] == "industry:Banks - Regional"
+    assert out["group_name"] == "Banks - Regional"
+
+
+def test_resolve_peers_none_when_ai_empty(monkeypatch):
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    monkeypatch.setattr(groups, "_industry_peers", lambda seed, n: None)
+    monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: [])
+    out = groups.resolve_peers("GHOST", 5)
+    assert out == {"seed": "GHOST", "group_id": None, "peers": [], "source": "none"}
+
+
+def test_resolve_peers_also_in_lists_other_memberships(monkeypatch):
+    # A multi-membership seed exposes its OTHER groups so the UI can offer a switcher.
+    seed_row = {"theme_id": "ai_gpu_chips", "theme_name": "AI / GPU Chips", "tier": "core", "sub_theme_id": None}
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: seed_row)
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"NVDA", "AMD", "AVGO"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    monkeypatch.setattr(groups, "_theme_holdings",
+                        lambda tid: [{"sym": "NVDA", "tier": "core", "sub_theme_id": None},
+                                     {"sym": "AMD", "tier": "core", "sub_theme_id": None}])
+    monkeypatch.setattr(groups, "_themes_for_ticker", lambda s: [
+        {"theme_id": "ai_gpu_chips", "theme_name": "AI / GPU Chips"},          # the primary — excluded
+        {"theme_id": "semiconductors", "theme_name": "Semiconductors"},
+        {"theme_id": "artificial_intelligence", "theme_name": "Artificial Intelligence"},
+    ])
+    out = groups.resolve_peers("NVDA", 3)
+    assert {g["id"] for g in out["also_in"]} == {"semiconductors", "artificial_intelligence"}
+
+
+def test_top_n_includes_group_etf(monkeypatch):
+    monkeypatch.setattr(groups, "_theme_holdings",
+                        lambda tid: [{"sym": "RKLB", "tier": "core", "rationale": "Launch"}])
+    monkeypatch.setattr(groups, "rank_holdings",
+                        lambda h, by="today", seed=None, seed_sub=None, scores_out=None: ["RKLB"])
+    monkeypatch.setattr(groups, "_theme_etf",
+                        lambda tid: "UFO" if tid == "space" else None)
+    assert groups.top_n("space", 4, by="today")["etf"] == "UFO"
+    monkeypatch.setattr(groups, "_theme_etf", lambda tid: None)
+    assert groups.top_n("nustar", 4, by="today")["etf"] is None
+
+
+from api.services import groups_gates
+
+
+def _mock_gate_env(monkeypatch, enabled, metrics):
+    monkeypatch.setattr(groups_gates, "gates_enabled", lambda: enabled)
+    monkeypatch.setattr(groups_gates, "swing_metrics", lambda syms, rs, today: metrics)
+
+
+def test_rank_holdings_flag_off_is_byte_identical(monkeypatch):
+    # Same fixture as test_rank_holdings_today_then_fallbacks — gates OFF must
+    # produce the identical order, and must NOT call swing_metrics.
+    holdings = [
+        {"sym": "AAA", "tier": "core"}, {"sym": "BBB", "tier": "core"},
+        {"sym": "CCC", "tier": "relevant"}, {"sym": "DDD", "tier": "peripheral"},
+    ]
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"AAA", "BBB", "CCC", "DDD"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {"AAA": 5.0})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {"BBB": {"rs_rank": 80, "returns": {"1m": 3.0}},
+                                                    "CCC": {"rs_rank": None, "returns": {"1m": 12.0}}})
+    def _boom(*a, **k):
+        raise AssertionError("swing_metrics must not run when gates are off")
+    monkeypatch.setattr(groups_gates, "gates_enabled", lambda: False)
+    monkeypatch.setattr(groups_gates, "swing_metrics", _boom)
+    assert groups.rank_holdings(holdings, by="today") == ["AAA", "BBB", "CCC", "DDD"]
+
+
+def test_rank_holdings_gated_liquidity_leads_and_fills(monkeypatch):
+    # LIQUID (band0) leads; ILLIQUID (band2) sinks to backfill; UNCONFIRMED
+    # (band1, e.g. fresh IPO) sits between. All names still present.
+    holdings = [
+        {"sym": "PENNY", "tier": "core"},   # confirmed illiquid, high today move
+        {"sym": "IPO", "tier": "core"},     # unconfirmed (no screener row)
+        {"sym": "LEAD", "tier": "core"},    # confirmed liquid + momentum
+    ]
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"PENNY", "IPO", "LEAD"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {"PENNY": 9.0, "LEAD": 1.0})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    _mock_gate_env(monkeypatch, True, {
+        "LEAD":  {"price": 50, "dollar_vol": 5e8, "rs_rank": 88, "adr_pct": 6},   # band0 mom2
+        "PENNY": {"price": 2.0, "dollar_vol": 1e6, "rs_rank": 90, "adr_pct": 9},  # band2
+        "IPO":   {"price": None, "dollar_vol": None, "rs_rank": None, "adr_pct": None},  # band1
+    })
+    assert groups.rank_holdings(holdings, by="today") == ["LEAD", "IPO", "PENNY"]
+
+
+def test_rank_holdings_scores_out_populated_only_when_on(monkeypatch):
+    holdings = [{"sym": "LEAD", "tier": "core"}]
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"LEAD"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    _mock_gate_env(monkeypatch, True, {"LEAD": {"price": 50, "dollar_vol": 5e8, "rs_rank": 88, "adr_pct": 6}})
+    scores = {}
+    groups.rank_holdings(holdings, by="today", scores_out=scores)
+    assert scores["LEAD"] == 4      # liq2 + mom2
+
+
+def test_ai_peer_raw_releases_semaphore_every_call(monkeypatch):
+    # Each _ai_peer_raw call must return its semaphore permit — otherwise the
+    # feature dead-locks after GROUPS_AI_PEERS_CONCURRENCY calls.
+    class _Msgs:
+        def create(self, **k):
+            return type("M", (), {"content": [type("B", (), {"text": '["WDC","STX"]'})()]})()
+    class _Client:
+        messages = _Msgs()
+        def with_options(self, **k):
+            return self
+    import api.services.engine as eng
+    monkeypatch.setattr(eng, "_get_anthropic_client", lambda: _Client())
+    meta = {"name": "SanDisk", "sector": "Technology", "industry": "Computer Storage"}
+    # Call MORE times than there are permits — if the permit leaks, the 4th call
+    # blocks ~timeout then returns []; with the fix every call returns the peers.
+    for _ in range(6):
+        assert groups._ai_peer_raw("SNDK", 5, meta) == ["WDC", "STX"]
+    # A permit must still be free (all were released):
+    got = groups._AI_PEERS_SEM.acquire(blocking=False)
+    assert got is True
+    groups._AI_PEERS_SEM.release()

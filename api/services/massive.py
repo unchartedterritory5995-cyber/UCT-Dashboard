@@ -173,11 +173,34 @@ class _MassiveRestClient:
             data = self._get(url)
         except Exception:
             return {}
+
+        def _f(v):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
         result = {}
         for t in data.get("tickers", []):
             ticker = t.get("ticker", "")
-            if ticker:
-                result[ticker] = round(float(t.get("todaysChangePerc", 0.0)), 4)
+            if not ticker:
+                continue
+            day_c = _f((t.get("day") or {}).get("c"))
+            prev_c = _f((t.get("prevDay") or {}).get("c"))
+            chg = _f(t.get("todaysChangePerc"))
+            # ALWAYS derive the % from day close vs prev close when we have both —
+            # the REGULAR-session move (matches the chart's close-vs-prev legend).
+            # Massive's todaysChangePerc is LAST-TRADE-based (incl. after-hours), so
+            # after the close it over/under-states the regular % (TWST 2.93% vs the
+            # real 2.87%) AND intermittently comes back a stale 0 → Theme Tracker
+            # flashes to 0.00%. A genuinely flat stock still has day_c == prev_c → 0.
+            if day_c and prev_c:
+                result[ticker] = round((day_c - prev_c) / prev_c * 100.0, 4)
+            elif chg is not None and chg != 0.0:
+                result[ticker] = round(chg, 4)
+            # else: no day close to compute from AND change is 0/missing → no data
+            # yet → OMIT the ticker so callers keep their last-known value instead
+            # of overwriting it with a spurious 0.00%.
         return result
 
     def get_batch_rich_snapshots(self, tickers: list[str]) -> dict[str, dict]:

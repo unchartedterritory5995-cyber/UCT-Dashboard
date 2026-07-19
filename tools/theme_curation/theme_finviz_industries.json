@@ -1,0 +1,429 @@
+{
+  "fintech": [
+    "Software - Infrastructure",
+    "Software - Application",
+    "Credit Services",
+    "Information Technology Services",
+    "Financial Data & Stock Exchanges",
+    "Capital Markets",
+    "Banks - Regional"
+  ],
+  "additive_manufacturing": [
+    "Computer Hardware"
+  ],
+  "aerospace": [
+    "Aerospace & Defense"
+  ],
+  "energy_broad": [
+    "Oil & Gas E&P",
+    "Oil & Gas Midstream",
+    "Oil & Gas Refining & Marketing",
+    "Oil & Gas Equipment & Services",
+    "Oil & Gas Integrated",
+    "Oil & Gas Drilling"
+  ],
+  "oil_gas_ep": [
+    "Oil & Gas E&P",
+    "Oil & Gas Integrated",
+    "Oil & Gas Refining & Marketing"
+  ],
+  "oil_services": [
+    "Oil & Gas Equipment & Services",
+    "Oil & Gas Drilling"
+  ],
+  "natural_gas": [
+    "Oil & Gas Midstream",
+    "Oil & Gas E&P",
+    "Oil & Gas Integrated",
+    "Oil & Gas Equipment & Services"
+  ],
+  "solar": [
+    "Solar",
+    "Utilities - Renewable"
+  ],
+  "clean_energy_broad": [
+    "Solar",
+    "Utilities - Renewable",
+    "Utilities - Independent Power Producers",
+    "Electrical Equipment & Parts",
+    "Utilities - Diversified"
+  ],
+  "lithium_battery": [
+    "Electrical Equipment & Parts",
+    "Specialty Chemicals",
+    "Other Industrial Metals & Mining",
+    "Auto Parts"
+  ],
+  "evs": [
+    "Auto Manufacturers",
+    "Auto Parts"
+  ],
+  "nuclear": [
+    "Uranium",
+    "Utilities - Regulated Electric",
+    "Utilities - Independent Power Producers"
+  ],
+  "grid_modernization": [
+    "Electrical Equipment & Parts",
+    "Utilities - Regulated Electric",
+    "Specialty Industrial Machinery"
+  ],
+  "hydrogen": [
+    "Electrical Equipment & Parts",
+    "Specialty Chemicals",
+    "Specialty Industrial Machinery"
+  ],
+  "defense": [
+    "Aerospace & Defense",
+    "Information Technology Services",
+    "Scientific & Technical Instruments"
+  ],
+  "defense_tech": [
+    "Aerospace & Defense",
+    "Information Technology Services",
+    "Software - Infrastructure",
+    "Electronic Components",
+    "Scientific & Technical Instruments"
+  ],
+  "industrials": [
+    "Specialty Industrial Machinery",
+    "Building Products & Equipment",
+    "Conglomerates",
+    "Industrial Distribution",
+    "Electrical Equipment & Parts"
+  ],
+  "infrastructure": [
+    "Engineering & Construction",
+    "Building Materials",
+    "Building Products & Equipment",
+    "Farm & Heavy Construction Machinery",
+    "Steel"
+  ],
+  "industrial_reshoring": [
+    "Engineering & Construction",
+    "Specialty Industrial Machinery",
+    "Steel",
+    "Building Materials"
+  ],
+  "shipping": [
+    "Marine Shipping",
+    "Oil & Gas Midstream"
+  ],
+  "transportation": [
+    "Integrated Freight & Logistics",
+    "Railroads",
+    "Trucking"
+  ],
+  "waste_management": [
+    "Waste Management",
+    "Environmental & Waste Services"
+  ],
+  "gold_precious": [
+    "Gold",
+    "Other Precious Metals & Mining"
+  ],
+  "silver": [
+    "Silver",
+    "Other Precious Metals & Mining",
+    "Gold"
+  ],
+  "copper": [
+    "Copper",
+    "Other Industrial Metals & Mining",
+    "Aluminum"
+  ],
+  "rare_earth": [
+    "Other Industrial Metals & Mining",
+    "Specialty Industrial Machinery",
+    "Chemicals"
+  ],
+  "steel_metals": [
+    "Steel",
+    "Metal Fabrication",
+    "Aluminum",
+    "Other Industrial Metals & Mining"
+  ],
+  "agribusiness": [
+    "Farm Products",
+    "Agricultural Inputs",
+    "Farm & Heavy Construction Machinery",
+    "Food Distribution"
+  ],
+  "water": [
+    "Utilities - Regulated Water",
+    "Specialty Industrial Machinery",
+    "Building Products & Equipment"
+  ],
+  "specialty_chemicals": [
+    "Specialty Chemicals",
+    "Chemicals"
+  ],
+  "packaging": [
+    "Packaging & Containers"
+  ],
+  "healthcare_broad": [
+    "Drug Manufacturers - General",
+    "Healthcare Plans",
+    "Diagnostics & Research",
+    "Biotechnology",
+    "Medical Devices"
+  ],
+  "biotech": [
+    "Biotechnology",
+    "Drug Manufacturers - General"
+  ],
+  "med_devices": [
+    "Medical Devices",
+    "Medical Instruments & Supplies"
+  ],
+  "glp1": [
+    "Drug Manufacturers - General",
+    "Biotechnology"
+  ],
+  "glp1_supply_chain": [
+    "Diagnostics & Research",
+    "Medical Instruments & Supplies",
+    "Medical Devices"
+  ],
+  "managed_care": [
+    "Healthcare Plans"
+  ],
+  "pharmaceuticals": [
+    "Drug Manufacturers - General",
+    "Drug Manufacturers - Specialty & Generic"
+  ],
+  "digital_health_aesthetics": [
+    "Health Information Services",
+    "Medical Devices",
+    "Medical Care Facilities"
+  ],
+  "aging_longevity": [
+    "Medical Care Facilities",
+    "Medical Devices"
+  ],
+  "cro": [
+    "Diagnostics & Research"
+  ],
+  "semiconductors": [
+    "Semiconductors",
+    "Semiconductor Equipment & Materials"
+  ],
+  "semiconductor_equipment": [
+    "Semiconductor Equipment & Materials",
+    "Scientific & Technical Instruments"
+  ],
+  "software": [
+    "Software - Application",
+    "Software - Infrastructure"
+  ],
+  "cloud_computing": [
+    "Software - Infrastructure",
+    "Software - Application"
+  ],
+  "cybersecurity": [
+    "Software - Infrastructure",
+    "Information Technology Services"
+  ],
+  "artificial_intelligence": [
+    "Software - Application",
+    "Software - Infrastructure",
+    "Semiconductors",
+    "Internet Content & Information"
+  ],
+  "data_centers": [
+    "Software - Infrastructure",
+    "REIT - Specialty",
+    "Computer Hardware",
+    "Building Products & Equipment"
+  ],
+  "social_media": [
+    "Internet Content & Information",
+    "Electronic Gaming & Multimedia"
+  ],
+  "video_games": [
+    "Electronic Gaming & Multimedia"
+  ],
+  "quantum_computing": [
+    "Computer Hardware",
+    "Semiconductor Equipment & Materials",
+    "Semiconductors",
+    "Software - Infrastructure"
+  ],
+  "telecom": [
+    "Telecom Services"
+  ],
+  "advertising": [
+    "Advertising Agencies",
+    "Internet Content & Information"
+  ],
+  "networking_interconnect": [
+    "Communication Equipment",
+    "Semiconductors",
+    "Electronic Components"
+  ],
+  "it_services": [
+    "Information Technology Services"
+  ],
+  "memory_chips": [
+    "Computer Hardware",
+    "Semiconductors"
+  ],
+  "photonics_optics": [
+    "Communication Equipment",
+    "Electronic Components",
+    "Scientific & Technical Instruments"
+  ],
+  "staples": [
+    "Packaged Foods",
+    "Household & Personal Products",
+    "Beverages - Non-Alcoholic",
+    "Confectioners",
+    "Food Distribution"
+  ],
+  "discretionary": [
+    "Travel Services",
+    "Auto Manufacturers",
+    "Restaurants",
+    "Specialty Retail",
+    "Apparel Retail"
+  ],
+  "retail": [
+    "Discount Stores",
+    "Specialty Retail",
+    "Apparel Retail",
+    "Department Stores"
+  ],
+  "airlines": [
+    "Airlines"
+  ],
+  "leisure": [
+    "Travel Services",
+    "Resorts & Casinos",
+    "Lodging",
+    "Leisure"
+  ],
+  "homebuilders": [
+    "Residential Construction",
+    "Real Estate - Development"
+  ],
+  "ecommerce": [
+    "Internet Retail",
+    "Specialty Retail"
+  ],
+  "streaming": [
+    "Entertainment",
+    "Internet Content & Information"
+  ],
+  "restaurants": [
+    "Restaurants"
+  ],
+  "apparel": [
+    "Apparel Manufacturing",
+    "Footwear & Accessories",
+    "Apparel Retail"
+  ],
+  "education": [
+    "Education & Training Services"
+  ],
+  "sports_betting": [
+    "Gambling",
+    "Resorts & Casinos"
+  ],
+  "luxury": [
+    "Luxury Goods",
+    "Footwear & Accessories",
+    "Apparel Manufacturing"
+  ],
+  "pet_economy": [
+    "Packaged Foods",
+    "Specialty Retail"
+  ],
+  "travel": [
+    "Travel Services",
+    "Lodging",
+    "Airlines"
+  ],
+  "cannabis": [
+    "Drug Manufacturers - Specialty & Generic"
+  ],
+  "disruptive_innovation": null,
+  "genomics": [
+    "Diagnostics & Research",
+    "Biotechnology"
+  ],
+  "autonomous_robotics": [
+    "Specialty Industrial Machinery",
+    "Aerospace & Defense",
+    "Auto Manufacturers"
+  ],
+  "space": [
+    "Aerospace & Defense",
+    "Communication Equipment",
+    "Telecom Services"
+  ],
+  "meme_retail": null,
+  "small_cap_growth": null,
+  "recent_ipos": null,
+  "china": null,
+  "india": null,
+  "brazil": null,
+  "japan": null,
+  "taiwan": null,
+  "south_korea": null,
+  "europe": null,
+  "emerging_markets": null,
+  "financials_broad": [
+    "Banks - Diversified",
+    "Asset Management",
+    "Financial Data & Stock Exchanges",
+    "Capital Markets",
+    "Credit Services"
+  ],
+  "regional_banks": [
+    "Banks - Regional"
+  ],
+  "insurance": [
+    "Insurance - Property & Casualty",
+    "Insurance - Life",
+    "Insurance - Diversified",
+    "Insurance - Specialty",
+    "Insurance - Reinsurance",
+    "Insurance Brokers"
+  ],
+  "dividend_aristocrats": null,
+  "insurtech": [
+    "Insurance - Property & Casualty",
+    "Insurance - Specialty",
+    "Software - Application"
+  ],
+  "reits": [
+    "REIT - Industrial",
+    "REIT - Specialty",
+    "REIT - Residential",
+    "REIT - Retail",
+    "REIT - Healthcare Facilities",
+    "REIT - Office",
+    "REIT - Mortgage",
+    "REIT - Hotel & Motel",
+    "REIT - Diversified"
+  ],
+  "utilities": [
+    "Utilities - Regulated Electric",
+    "Utilities - Independent Power Producers",
+    "Utilities - Diversified",
+    "Utilities - Regulated Gas",
+    "Utilities - Renewable"
+  ],
+  "data_center_power": [
+    "Specialty Industrial Machinery",
+    "Utilities - Regulated Electric",
+    "Utilities - Independent Power Producers",
+    "Electrical Equipment & Parts"
+  ],
+  "proptech": [
+    "Real Estate Services",
+    "Internet Content & Information"
+  ],
+  "bitcoin_miners": null,
+  "bitcoin_crypto": null
+}

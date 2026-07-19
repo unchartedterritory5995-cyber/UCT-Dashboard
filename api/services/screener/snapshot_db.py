@@ -111,6 +111,24 @@ def get_row(ticker: str) -> dict | None:
         return dict(r) if r else None
 
 
+def get_rows(tickers: list) -> dict:
+    """Batch fetch: {ticker: row-dict} for the given tickers, one connection.
+    Tickers are uppercased to match the stored PK; misses are simply absent."""
+    tks = [t.upper() for t in tickers if t]
+    if not tks:
+        return {}
+    out = {}
+    with connect() as conn:
+        # SQLite's variable limit is 999; theme fill-sets are <=50, chunk to be safe.
+        for i in range(0, len(tks), 900):
+            chunk = tks[i:i + 900]
+            ph = ", ".join("?" for _ in chunk)
+            for r in conn.execute(
+                    f"SELECT * FROM screener_rows WHERE ticker IN ({ph})", chunk):
+                out[r["ticker"]] = dict(r)
+    return out
+
+
 def count_rows() -> int:
     with connect() as conn:
         return conn.execute("SELECT COUNT(*) FROM screener_rows").fetchone()[0]

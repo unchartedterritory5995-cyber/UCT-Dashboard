@@ -487,8 +487,16 @@ def _is_cold_stale_daily(tf: str, last_ts: int | None, now=None) -> bool:
         return False
 
 
-def _fmt_sqlite_bars(rows: list[tuple], tf: str) -> list[dict]:
+def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
+
+    When `ticker` is supplied and tf is D/W/M, the assembled bars are passed
+    through `bars_sanitize.sanitize_daily_bars` — a serve-time, source-agnostic
+    normalization that drops recycled-ticker pre-listing history, self-heals
+    provider split-adjustment gaps, and clamps lone bad-print wicks. It is
+    best-effort (never raises) and reads corporate-action metadata from cache
+    only (no blocking network on the serve path). Callers that don't pass a
+    ticker (e.g. the bg warm loop / tests) get the raw formatted bars.
 
     Serve-time defense-in-depth (2026-06-13): drop garbage bars — any with a
     null OHLC field or a non-positive price — so a chart NEVER receives one no
@@ -524,6 +532,12 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str) -> list[dict]:
         else:
             t_val = ts
         out.append({"t": t_val, "o": o, "h": h, "l": l, "c": c, "v": v})
+    if ticker and date_tf and out:
+        try:
+            from api.services.bars_sanitize import sanitize_daily_bars
+            out = sanitize_daily_bars(ticker, out, tf)
+        except Exception:
+            pass  # best-effort: never let normalization blank a chart
     return out
 
 
@@ -1614,7 +1628,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
         # Degenerate since (parse failure / 0): preserve the old bounded window
         # rather than returning the entire history unbounded.
         new_rows = _sqlite.get_bars(ticker_up, tf, bars)
-    delta = _fmt_sqlite_bars(new_rows, tf) if new_rows else []
+    delta = _fmt_sqlite_bars(new_rows, tf, ticker_up) if new_rows else []
 
     # Invalidate the full cache so the next non-delta request picks up fresh data
     cache.invalidate(cache_key)
@@ -1949,7 +1963,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # which is < bars for stocks shorter-lived than the request) — serve
         # immediately, no API call.
         _mark_serve("sqlite")
-        payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf)}
+        payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
         cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
         return JSONResponse(
             content=payload,
@@ -2019,7 +2033,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
                     payload = {
                         "ticker": ticker_up, "tf": tf,
-                        "bars": _fmt_sqlite_bars(fresh_rows or stored_rows, tf),
+                        "bars": _fmt_sqlite_bars(fresh_rows or stored_rows, tf, ticker_up),
                     }
                     if payload["bars"]:
                         cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
@@ -2076,7 +2090,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     _sd_rows = _sqlite.get_bars(ticker_up, tf, bars)
                     payload = {
                         "ticker": ticker_up, "tf": tf,
-                        "bars": _fmt_sqlite_bars(_sd_rows or stored_rows, tf),
+                        "bars": _fmt_sqlite_bars(_sd_rows or stored_rows, tf, ticker_up),
                     }
                     if payload["bars"]:
                         cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
@@ -2107,7 +2121,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # Stale-while-revalidate: SQLite has data but it needs updating.
         # Serve the stale data immediately (no spinner) and refresh in the background.
         # The browser's SWR will revalidate after a short TTL and pick up fresh data.
-        stale_payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf)}
+        stale_payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
         cache.set(cache_key, stale_payload, ttl=12)  # short TTL so next poll gets fresh
 
         with _inflight_lock:
@@ -2165,7 +2179,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         fresh_rows = _sqlite.get_bars(_sym, _tf, _bars)
                         fresh_payload = {
                             "ticker": _sym, "tf": _tf,
-                            "bars": _fmt_sqlite_bars(fresh_rows or _stored, _tf),
+                            "bars": _fmt_sqlite_bars(fresh_rows or _stored, _tf, _sym),
                         }
                         # Only cache with the full TF TTL when the bg fetch
                         # actually advanced the data. When `new` is empty, the
@@ -2246,7 +2260,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                 headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
             )
         # Fetcher may have failed — return stale SQLite data or empty
-        stale = _fmt_sqlite_bars(stored_rows, tf) if stored_rows else []
+        stale = _fmt_sqlite_bars(stored_rows, tf, ticker_up) if stored_rows else []
         return JSONResponse(
             content={"ticker": ticker_up, "tf": tf, "bars": stale},
             headers={"Cache-Control": "public, max-age=5"},
@@ -2279,11 +2293,11 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
 
                 # Read fresh rows from SQLite (includes the new bars)
                 fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
-                result_bars = _fmt_sqlite_bars(fresh_rows or stored_rows, tf)
+                result_bars = _fmt_sqlite_bars(fresh_rows or stored_rows, tf, ticker_up)
 
             except Exception as e:
                 _logger.warning(f"[bars] delta failed {ticker_up} tf={tf}: {e}")
-                result_bars = _fmt_sqlite_bars(stored_rows, tf)
+                result_bars = _fmt_sqlite_bars(stored_rows, tf, ticker_up)
 
         else:
             # ── Full fetch: first time we see this ticker/tf ──────────────────
@@ -2312,6 +2326,15 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                 # fetched bars in SQLite above (so future larger requests don't
                 # have to refetch), but the caller only needs `bars` count back.
                 result_bars = raw[-bars:] if raw else []
+                # First-fetch path serves `raw` directly (not via _fmt_sqlite_bars),
+                # so normalize D/W/M here too — this is the deep-history load where
+                # recycled-ticker / split-gap issues first surface.
+                if date_tf and result_bars:
+                    try:
+                        from api.services.bars_sanitize import sanitize_daily_bars
+                        result_bars = sanitize_daily_bars(ticker_up, result_bars, tf)
+                    except Exception:
+                        pass
 
             except Exception as e:
                 import traceback as _tb

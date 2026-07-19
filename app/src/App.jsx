@@ -31,6 +31,7 @@ const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
 const Calendar = lazy(() => import('./pages/Calendar'))
 const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
 const Screener = lazy(() => import('./pages/Screener'))
+const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const LiveFlow = lazy(() => import('./pages/LiveFlow'))
 const LiveFlowMassive = lazy(() => import('./pages/LiveFlowMassive'))
@@ -211,6 +212,7 @@ export default function App() {
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
+                <Route path="/ai-search" element={<AiSearchPage />} />
                 <Route path="/options-flow" element={<OptionsFlow />} />
                 {/* Live Flow pages render inside the app shell (left nav) so users
                     can navigate back out — same as every other section. */}

@@ -73,6 +73,31 @@ describe('pooled useRealtimePrices', () => {
     expect(openInstances()).toHaveLength(0)
   })
 
+  it('REST change_pct wins over the stream (a stream 0 must not blank the %)', async () => {
+    vi.useFakeTimers()
+    const { default: useLivePrices } = await import('./useLivePrices')
+    useLivePrices.mockReturnValue({
+      prices: { AAPL: { price: 100, change_pct: 5.2, change: 4.9, prev_close: 95 } },
+      isLoading: false,
+    })
+    const { default: useRealtimePrices } = await import('./useRealtimePrices')
+    const mgr = await import('../lib/priceStreamManager')
+
+    const a = renderHook(() => useRealtimePrices(['AAPL']))
+    act(() => { vi.advanceTimersByTime(mgr.REBUILD_DEBOUNCE_MS + 10) })
+    const es = openInstances()[0]
+    act(() => {
+      es.emitOpen()
+      es.emitMessage({ AAPL: { price: 100.5, change_pct: 0, change: 0 } }) // spurious stream 0
+    })
+
+    const px = a.result.current.prices.AAPL
+    expect(px.price).toBe(100.5)     // stream drives the live price
+    expect(px.change_pct).toBe(5.2)  // …but REST's change_pct WINS (not the stream's 0)
+    expect(px.change).toBe(4.9)
+    a.unmount()
+  })
+
   it('an empty-ticker hook never registers with the pool and never re-renders on publishes', async () => {
     vi.useFakeTimers()
     const { default: useRealtimePrices } = await import('./useRealtimePrices')

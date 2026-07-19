@@ -42,14 +42,15 @@ describe('barsBackfill', () => {
   })
 
   it('fullBarsFor: deep per-timeframe history targets', () => {
-    // Daily reaches IPO for any US equity; W/M decades; intraday multi-year.
-    expect(fullBarsFor('D')).toBe(20000)
+    // Daily reaches ~50yr (matches deep_history_warm _DEEP_TARGET['D']);
+    // W/M decades; intraday multi-year.
+    expect(fullBarsFor('D')).toBe(12500)
     expect(fullBarsFor('W')).toBe(4000)
     expect(fullBarsFor('M')).toBe(1200)
-    expect(fullBarsFor('60')).toBe(22000)
-    expect(fullBarsFor('30')).toBe(28000)
-    expect(fullBarsFor('15')).toBe(26000)
-    expect(fullBarsFor('5')).toBe(26000)
+    expect(fullBarsFor('60')).toBe(32000)
+    expect(fullBarsFor('30')).toBe(32000)
+    expect(fullBarsFor('15')).toBe(30000)
+    expect(fullBarsFor('5')).toBe(30000)
     expect(fullBarsFor('1')).toBe(20000)
     // Every target must exceed the shallow first-paint window and stay within
     // the API's 60000-bar ceiling.

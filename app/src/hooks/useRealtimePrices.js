@@ -53,7 +53,17 @@ function usePooledRealtimePrices(tickers = []) {
   const mergedPrices = useMemo(() => {
     const result = {}
     for (const sym of tickerSet) {
-      const merged = { ...polledPrices[sym], ...snap.prices[sym] }
+      const rest = polledPrices[sym]
+      const merged = { ...rest, ...snap.prices[sym] }
+      // change_pct / change come from REST (server-recomputed: regular-session move
+      // vs prev close). The SSE stream's change_pct can be a STALE prior-session
+      // value or a spurious 0 (its prev_close isn't seeded when there are no live
+      // trades, e.g. weekends/after-hours). Letting it override REST is what made
+      // the header + theme % flash to 0.00%. REST wins; stream still drives price.
+      if (rest) {
+        if (rest.change_pct != null) merged.change_pct = rest.change_pct
+        if (rest.change != null) merged.change = rest.change
+      }
       if (merged.price != null || merged.day_open != null) result[sym] = merged
     }
     return result
@@ -236,7 +246,15 @@ function useLegacyRealtimePrices(tickers = []) {
   const mergedPrices = useMemo(() => {
     const result = {}
     for (const sym of tickerSet) {
-      const merged = { ...polledPrices[sym], ...streamPrices[sym] }
+      const rest = polledPrices[sym]
+      const merged = { ...rest, ...streamPrices[sym] }
+      // change_pct / change come from REST — the SSE stream's value can be a stale
+      // prior-session number or a spurious 0 (unseeded prev_close on weekends /
+      // after-hours), and overriding REST is what flashed the % to 0.00%.
+      if (rest) {
+        if (rest.change_pct != null) merged.change_pct = rest.change_pct
+        if (rest.change != null) merged.change = rest.change
+      }
       if (merged.price != null || merged.day_open != null) result[sym] = merged
     }
     return result

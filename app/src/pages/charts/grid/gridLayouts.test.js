@@ -86,14 +86,35 @@ describe('gridLayouts', () => {
   })
 
   it('sanitizeState carries a valid group and drops a malformed one', () => {
-    const ok = sanitizeState({ layout: '3x3', cells: [], group: { id: 'space', by: 'today', n: 9 } })
-    expect(ok.group).toEqual({ id: 'space', by: 'today', n: 9 })
+    const ok = sanitizeState({ layout: '3x3', cells: [], group: { id: 'space', by: 'today', n: 9, name: 'Space' } })
+    expect(ok.group).toEqual({ id: 'space', by: 'today', n: 9, name: 'Space' })
     expect(ok.syncTimeRange).toBe(false)
+
+    // A blank/whitespace name is dropped (falls back to fetch/humanize downstream).
+    const noName = sanitizeState({ layout: '2x2', cells: [], group: { id: 'space', name: '  ' } })
+    expect(noName.group).toEqual({ id: 'space', by: 'today' })
 
     const bad = sanitizeState({ layout: '2x2', cells: [], group: { by: 'today' } }) // no id
     expect(bad.group).toBeNull()
 
     const none = sanitizeState({ layout: '2x2', cells: [] })
     expect(none.group).toBeNull()
+  })
+
+  it('sanitizeState carries groupsMode; defaults false', () => {
+    expect(sanitizeState({ layout: '2x2', cells: [], groupsMode: true }).groupsMode).toBe(true)
+    expect(sanitizeState({ layout: '2x2', cells: [], groupsMode: 'yes' }).groupsMode).toBe(false)
+    expect(sanitizeState({ layout: '2x2', cells: [] }).groupsMode).toBe(false)
+    expect(makeDefaultState().groupsMode).toBe(false)
+  })
+
+  it('sanitizeState infers groupsMode from a restored group (group implies scanning)', () => {
+    const s = sanitizeState({ layout: '2x2', cells: [], group: { id: 'space', by: 'today', n: 4, name: 'Space' } })
+    expect(s.groupsMode).toBe(true)
+    // explicit groupsMode:false but a group present still scans (group is the stronger signal)
+    const s2 = sanitizeState({ layout: '2x2', cells: [], groupsMode: false, group: { id: 'space' } })
+    expect(s2.groupsMode).toBe(true)
+    // no group + no flag stays off
+    expect(sanitizeState({ layout: '2x2', cells: [] }).groupsMode).toBe(false)
   })
 })

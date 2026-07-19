@@ -18,7 +18,8 @@ export default function MobileChartFallback() {
 
   return (
     <div style={{ width: '100%', height: '100%' }}>
-      <StockChart sym={sym} onSymbolChange={setSym} />
+      {/* Charts section stays clean — no Journal 2.0 / brokerage trade markers. */}
+      <StockChart sym={sym} onSymbolChange={setSym} hideJournalOverlay />
     </div>
   )
 }

@@ -13,7 +13,8 @@ import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import useChartLayouts from '../../../hooks/useChartLayouts'
 import { LAYOUTS, GRID_MAX_CELLS, makeLayout } from './gridLayouts'
-import { fetchGroupTop } from './groupsApi'
+import { fetchGroups, fetchGroupTop, pinEtf } from './groupsApi'
+import { neighborGroup } from './groupRecents'
 import GroupPicker from './GroupPicker'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
@@ -58,6 +59,17 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
 
   const applyTemplate = (tpl) => { mc.applyGridTemplate(tpl); onClose() }
 
+  const stepGroup = async (dir) => {
+    const list = await fetchGroups()
+    const nextId = neighborGroup(list, mc.state.group.id, dir)
+    if (!nextId) return
+    const n = mc.state.cells.length
+    const { syms, etf } = await fetchGroupTop(nextId, { n, by: mc.state.group.by || 'today' })
+    const filled = pinEtf(syms, etf, n)
+    const nextName = list.find(x => x.id === nextId)?.name
+    if (filled.length) mc.fillCells(filled, { id: nextId, by: mc.state.group.by || 'today', n, name: nextName })
+  }
+
   const handleSaveAs = async () => {
     const nm = saveName.trim()
     if (!nm) { setSaveErr('Name required'); return }
@@ -71,6 +83,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
           widgets: [],
           layout: mc.state.layout,
           cells: mc.state.cells.map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null })),
+          group: mc.state.group || null,
         },
         groups: null,
         scope: isAdmin ? saveScope : 'user',
@@ -93,19 +106,22 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
       }}
     >
       <div className={wsStyles.menuSection}>Layout</div>
-      {LAYOUTS.map(l => (
-        <button
-          key={l.id}
-          type="button"
-          className={wsStyles.addMenuItem}
-          style={inGrid && mc.state.layout === l.id ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-          onClick={() => pickPreset(l.id)}
-        >
-          <LayoutIcon rows={l.rows} cols={l.cols} />
-          {l.label}
-        </button>
-      ))}
+      <div className={styles.presetGrid}>
+        {LAYOUTS.map(l => (
+          <button
+            key={l.id}
+            type="button"
+            className={`${styles.presetBtn} ${inGrid && mc.state.layout === l.id ? styles.presetBtnActive : ''}`}
+            onClick={() => pickPreset(l.id)}
+            title={l.label}
+          >
+            <LayoutIcon rows={l.rows} cols={l.cols} />
+            <span className={styles.presetLabel}>{l.label}</span>
+          </button>
+        ))}
+      </div>
       <div className={styles.nxmForm}>
+        <span className={styles.nxmX} style={{ marginRight: 2 }}>Custom</span>
         <input
           className={styles.nxmInput}
           type="number" min="1" max="4"
@@ -132,6 +148,22 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
           onChange={e => mc.setSyncCrosshair(e.target.checked)}
         />
         Sync crosshair across charts
+      </label>
+      <label className={wsStyles.menuCheck}>
+        <input
+          type="checkbox"
+          checked={mc.state.syncTimeRange}
+          onChange={e => mc.setSyncTimeRange(e.target.checked)}
+        />
+        Sync time range across charts
+      </label>
+      <label className={wsStyles.menuCheck}>
+        <input
+          type="checkbox"
+          checked={mc.state.groupsMode}
+          onChange={e => mc.setGroupsMode(e.target.checked)}
+        />
+        Groups Mode (type a ticker to fill its group)
       </label>
       {inGrid && (
         <button
@@ -202,14 +234,19 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
       {mc.state.group && (
         <>
           <div className={wsStyles.menuDivider} />
+          <div className={styles.nxmForm} style={{ justifyContent: 'space-between' }}>
+            <button type="button" className={wsStyles.toolbarBtn} onClick={() => stepGroup(-1)} aria-label="Previous group">‹ Prev</button>
+            <button type="button" className={wsStyles.toolbarBtn} onClick={() => stepGroup(1)} aria-label="Next group">Next ›</button>
+          </div>
           <button type="button" className={wsStyles.addMenuItem} onClick={async () => {
             const g = mc.state.group
             const n = mc.state.cells.length
-            const { syms } = await fetchGroupTop(g.id, { n, by: g.by || 'today' })
-            if (syms?.length) mc.fillCells(syms, { ...g, n })
+            const { syms, etf } = await fetchGroupTop(g.id, { n, by: g.by || 'today' })
+            const filled = pinEtf(syms, etf, n)
+            if (filled.length) mc.fillCells(filled, { ...g, n })
             onClose()
           }}>↻ Refresh group</button>
-          <button type="button" className={wsStyles.addMenuItem} onClick={() => { mc.clearGroup(); onClose() }}>
+          <button type="button" className={wsStyles.addMenuItem} onClick={() => { mc.setGroupsMode(false); onClose() }}>
             Exit Groups
           </button>
         </>
