@@ -398,13 +398,39 @@ def resolve_primary_theme(sym: str):
     return rows[0]
 
 
+def _industry_peers(seed_hy: str, n: int) -> dict | None:
+    """Orphan fallback: a stock in no theme groups with its Finviz-industry
+    cohort (a real peer set — an orphan regional bank fills with regional banks).
+    Chartable cap_universe members of the seed's industry, ranked by the same
+    swing gate as theme peers. None => no industry / no cohort (caller tries AI)."""
+    try:
+        from api.services import industry_map
+        ind = (industry_map.get_industries([seed_hy]) or {}).get(seed_hy)
+        if not ind:
+            return None
+        cap = cap_universe_set()
+        cohort = [normalize_sym(t) for t in industry_map.tickers_in_industry(ind)]
+        cohort = [t for t in dict.fromkeys(cohort) if t in cap and t != seed_hy]
+        if not cohort:
+            return None
+        holdings = [{"sym": t, "tier": "relevant", "sub_theme_id": None} for t in cohort]
+        ranked = rank_holdings(holdings, by="today", seed=seed_hy)
+        return {"industry": ind, "peers": ranked[: max(1, int(n))]}
+    except Exception:
+        return None   # industry map hiccup => caller falls through to AI peers
+
+
 def resolve_peers(sym: str, n: int) -> dict:
     """Peers = the seed's primary theme's other chartable holdings, same
-    sub-theme floated to the top, ranked by today's move. On taxonomy miss,
-    falls back to grounded-Haiku AI peer discovery (validated + cached)."""
+    sub-theme floated to the top, ranked by today's move. On a taxonomy miss,
+    falls back to the seed's INDUSTRY cohort, then to grounded-Haiku AI peers."""
     seed_hy = normalize_sym(sym)
     row = resolve_primary_theme(sym)
     if not row:
+        ind = _industry_peers(seed_hy, n)
+        if ind and ind.get("peers"):
+            return {"seed": seed_hy, "group_id": f"industry:{ind['industry']}",
+                    "group_name": ind["industry"], "peers": ind["peers"], "source": "industry"}
         ai = _ai_peers(seed_hy, n)
         return {"seed": seed_hy, "group_id": None,
                 "peers": ai, "source": "ai" if ai else "none"}
@@ -416,8 +442,20 @@ def resolve_peers(sym: str, n: int) -> dict:
     # the swing gate in one pass — liquidity floor first, then sub-theme, then momentum.
     ranked = rank_holdings(holdings, by="today", seed=seed_hy, seed_sub=seed_sub)
 
+    # Multi-membership switcher: the seed's OTHER (non-factor) theme memberships,
+    # so the UI can offer "also in: [groups]" to flip which group fills the grid.
+    # Defensive — a theme-DB hiccup must never break the peer fill.
+    try:
+        also_in = [{"id": r.get("theme_id"), "name": r.get("theme_name")}
+                   for r in _themes_for_ticker(sym)
+                   if r.get("theme_id") and r.get("theme_id") != theme_id
+                   and (r.get("theme_name") or "").strip().lower() not in _FACTOR_THEME_NAMES]
+    except Exception:
+        also_in = []
+
     return {
         "seed": seed_hy,
+        "also_in": also_in,
         "group_id": theme_id,
         "peers": ranked[: max(1, int(n))],
         "source": "taxonomy",

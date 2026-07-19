@@ -273,16 +273,50 @@ def test_ai_peers_refuses_when_seed_meta_name_is_null(monkeypatch):
 
 def test_resolve_peers_uses_ai_on_taxonomy_miss(monkeypatch):
     monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)   # not in taxonomy
+    monkeypatch.setattr(groups, "_industry_peers", lambda seed, n: None)   # no industry cohort
     monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: ["WDC", "STX"])
     out = groups.resolve_peers("SNDK", 5)
     assert out == {"seed": "SNDK", "group_id": None, "peers": ["WDC", "STX"], "source": "ai"}
 
 
+def test_resolve_peers_industry_fallback_before_ai(monkeypatch):
+    # Orphan (no theme) → industry cohort peers, NOT the AI fallback.
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    monkeypatch.setattr(groups, "_industry_peers",
+                        lambda seed, n: {"industry": "Banks - Regional", "peers": ["PNC", "USB"]})
+    monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: ["SHOULD_NOT_USE"])
+    out = groups.resolve_peers("ORPHANBK", 5)
+    assert out["source"] == "industry"
+    assert out["peers"] == ["PNC", "USB"]
+    assert out["group_id"] == "industry:Banks - Regional"
+    assert out["group_name"] == "Banks - Regional"
+
+
 def test_resolve_peers_none_when_ai_empty(monkeypatch):
     monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    monkeypatch.setattr(groups, "_industry_peers", lambda seed, n: None)
     monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: [])
     out = groups.resolve_peers("GHOST", 5)
     assert out == {"seed": "GHOST", "group_id": None, "peers": [], "source": "none"}
+
+
+def test_resolve_peers_also_in_lists_other_memberships(monkeypatch):
+    # A multi-membership seed exposes its OTHER groups so the UI can offer a switcher.
+    seed_row = {"theme_id": "ai_gpu_chips", "theme_name": "AI / GPU Chips", "tier": "core", "sub_theme_id": None}
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: seed_row)
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"NVDA", "AMD", "AVGO"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    monkeypatch.setattr(groups, "_theme_holdings",
+                        lambda tid: [{"sym": "NVDA", "tier": "core", "sub_theme_id": None},
+                                     {"sym": "AMD", "tier": "core", "sub_theme_id": None}])
+    monkeypatch.setattr(groups, "_themes_for_ticker", lambda s: [
+        {"theme_id": "ai_gpu_chips", "theme_name": "AI / GPU Chips"},          # the primary — excluded
+        {"theme_id": "semiconductors", "theme_name": "Semiconductors"},
+        {"theme_id": "artificial_intelligence", "theme_name": "Artificial Intelligence"},
+    ])
+    out = groups.resolve_peers("NVDA", 3)
+    assert {g["id"] for g in out["also_in"]} == {"semiconductors", "artificial_intelligence"}
 
 
 def test_top_n_includes_group_etf(monkeypatch):
