@@ -1,5 +1,5 @@
 {
-  "version": "4.8.0+5b43d1f1",
+  "version": "4.9.0+e2ba4d20",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -356,12 +356,6 @@
           "rationale": "Instruments and subsystems for chip manufacturing"
         },
         {
-          "sym": "COHR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Laser and photonics for semiconductor processes"
-        },
-        {
           "sym": "CAMT",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -369,33 +363,15 @@
         },
         {
           "sym": "FORM",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Probe card testing solutions for wafers"
         },
         {
           "sym": "UCTT",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Precision parts and modules for fab tools"
-        },
-        {
-          "sym": "AMKR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Outsourced semiconductor packaging and test"
-        },
-        {
-          "sym": "SNPS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Synopsys chip design EDA software tools"
-        },
-        {
-          "sym": "CDNS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cadence Design electronic design automation"
         },
         {
           "sym": "AEHR",
@@ -404,26 +380,8 @@
           "rationale": "Aehr Test semiconductor burn-in testing"
         },
         {
-          "sym": "BRKS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Brooks Automation wafer handling cryogenics"
-        },
-        {
-          "sym": "IPGP",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "IPG Photonics fiber lasers chip manufacturing"
-        },
-        {
-          "sym": "AMBA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Ambarella AI vision SoC for semiconductor test"
-        },
-        {
           "sym": "PLAB",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Photronics photomask for chip manufacturing"
         },
@@ -434,10 +392,10 @@
           "rationale": "Veeco Instruments semiconductor deposition equip"
         },
         {
-          "sym": "OLED",
+          "sym": "NVMI",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Universal Display OLED technology and materials"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -594,12 +552,6 @@
           "rationale": "Braze customer engagement marketing platform"
         },
         {
-          "sym": "SMAR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Smartsheet work management collaboration software"
-        },
-        {
           "sym": "FROG",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -654,22 +606,10 @@
           "rationale": "Manhattan Associates supply chain management software"
         },
         {
-          "sym": "AYX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Self-service data analytics and automation platform"
-        },
-        {
           "sym": "DT",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Software intelligence and observability analytics platform"
-        },
-        {
-          "sym": "NEWR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Full-stack application performance observability"
         },
         {
           "sym": "FRSH",
@@ -682,6 +622,60 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "DevSecOps platform with code analytics and insights"
+        },
+        {
+          "sym": "CDNS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SNPS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "FTNT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SAP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SHOP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PTC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TYL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ZM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SSNC",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -733,7 +727,7 @@
         },
         {
           "sym": "NET",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "cloud_infra",
           "rationale": "Edge cloud and CDN infrastructure leader"
         },
@@ -769,13 +763,13 @@
         },
         {
           "sym": "TWLO",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "cloud_platforms",
           "rationale": "Cloud communications APIs and CPaaS"
         },
         {
           "sym": "ZS",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "cloud_infra",
           "rationale": "Cloud-native security platform"
         },
@@ -810,34 +804,40 @@
           "rationale": "Dynatrace AI-powered cloud observability platform"
         },
         {
-          "sym": "NEWR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "New Relic cloud observability and monitoring"
-        },
-        {
           "sym": "SMCI",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Super Micro Computer AI cloud server infrastructure"
         },
         {
-          "sym": "PATH",
-          "tier": "relevant",
+          "sym": "CRM",
+          "tier": "core",
           "sub_theme_id": null,
-          "rationale": "UiPath cloud-based RPA and automation platform"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "FTNT",
-          "tier": "relevant",
+          "sym": "NOW",
+          "tier": "core",
           "sub_theme_id": null,
-          "rationale": "Fortinet cloud-delivered network security"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "PANW",
+          "sym": "WDAY",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Palo Alto Networks cloud security platform"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "TEAM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ADBE",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -978,12 +978,6 @@
           "rationale": "F5 web application firewall and security"
         },
         {
-          "sym": "SWI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SolarWinds IT monitoring and security software"
-        },
-        {
           "sym": "AKAM",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -994,12 +988,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "OneSpan digital identity and security platform"
-        },
-        {
-          "sym": "SCWX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SecureWorks managed security services. Check."
         }
       ]
     },
@@ -1138,12 +1126,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Upstart AI lending credit decisioning platform"
-        },
-        {
-          "sym": "EXAI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Exscientia AI-driven drug discovery platform"
         },
         {
           "sym": "S",
@@ -1446,7 +1428,7 @@
         },
         {
           "sym": "GOOGL",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "YouTube is second-largest social platform"
         },
@@ -1458,39 +1440,21 @@
         },
         {
           "sym": "BMBL",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Women-first dating and social app"
         },
         {
           "sym": "YELP",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Local business review and social recommendation platform"
         },
         {
-          "sym": "IAC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Internet conglomerate with social media properties"
-        },
-        {
-          "sym": "SPOT",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Social audio playlists and podcast community features"
-        },
-        {
           "sym": "WB",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Weibo Chinese microblogging social media platform"
-        },
-        {
-          "sym": "PUBM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Programmatic ad tech powering social media monetization"
         },
         {
           "sym": "BILI",
@@ -1499,46 +1463,10 @@
           "rationale": "Bilibili Chinese video social community platform"
         },
         {
-          "sym": "FUTU",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Futu Holdings social trading community platform"
-        },
-        {
-          "sym": "NTES",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "NetEase gaming and social community platform"
-        },
-        {
-          "sym": "TWLO",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Twilio communications powering social apps"
-        },
-        {
-          "sym": "ZM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Zoom social video communication platform"
-        },
-        {
-          "sym": "RBLX",
+          "sym": "MOMO",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Roblox social gaming metaverse platform"
-        },
-        {
-          "sym": "SE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Sea Limited social gaming community"
-        },
-        {
-          "sym": "TME",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Tencent Music social music sharing platform"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -1566,7 +1494,7 @@
       "holdings": [
         {
           "sym": "MSFT",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "game_platforms",
           "rationale": "Xbox, Activision Blizzard, Game Pass ecosystem"
         },
@@ -1590,13 +1518,13 @@
         },
         {
           "sym": "NVDA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "game_hardware",
           "rationale": "GeForce GPUs power PC gaming"
         },
         {
           "sym": "AMD",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "game_hardware",
           "rationale": "Radeon GPUs and console APUs (PS5, Xbox)"
         },
@@ -1608,7 +1536,7 @@
         },
         {
           "sym": "CRSR",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": "game_hardware",
           "rationale": "Gaming peripherals and streaming gear"
         },
@@ -1650,13 +1578,13 @@
         },
         {
           "sym": "SONY",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "game_platforms",
           "rationale": "PlayStation console and gaming software ecosystem"
         },
         {
           "sym": "GRVY",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": "game_publishers",
           "rationale": "Gravity Korean MMORPG game publisher"
         },
@@ -1683,6 +1611,12 @@
           "tier": "peripheral",
           "sub_theme_id": "game_platforms",
           "rationale": "DoubleDown Interactive social casino games"
+        },
+        {
+          "sym": "GME",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -1814,12 +1748,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Cadence EDA tools for quantum circuit design"
-        },
-        {
-          "sym": "BRKS",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Brooks cryogenics for quantum computer cooling"
         }
       ]
     },
@@ -10427,7 +10355,7 @@
         },
         {
           "sym": "CHTR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Charter Communications cable broadband provider"
         },
@@ -10436,12 +10364,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Comcast largest US cable and broadband operator"
-        },
-        {
-          "sym": "FYBR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Frontier Communications fiber broadband buildout"
         },
         {
           "sym": "AMT",
@@ -10484,12 +10406,6 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Vodafone Group global telecom carrier ADR"
-        },
-        {
-          "sym": "WOW",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "WideOpenWest regional fiber broadband provider"
         },
         {
           "sym": "ATUS",
@@ -10700,13 +10616,13 @@
         },
         {
           "sym": "DV",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Digital media measurement and analytics platform"
         },
         {
           "sym": "PUBM",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Sell-side cloud infrastructure for digital advertising"
         },
@@ -10723,28 +10639,58 @@
           "rationale": "AI-powered marketing and advertising cloud platform"
         },
         {
-          "sym": "RAMP",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Identity resolution and data connectivity for marketers"
-        },
-        {
           "sym": "TBLA",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Content discovery and native advertising platform"
         },
         {
-          "sym": "QNST",
-          "tier": "peripheral",
+          "sym": "APP",
+          "tier": "core",
           "sub_theme_id": null,
-          "rationale": "Performance marketing in financial services and education"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "CARG",
-          "tier": "peripheral",
+          "sym": "GOOGL",
+          "tier": "core",
           "sub_theme_id": null,
-          "rationale": "Digital auto marketplace with advertising revenue model"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "META",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OMC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WPP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SNAP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "STGW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AMZN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 14
@@ -10762,12 +10708,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Dominant enterprise networking and infrastructure provider"
-        },
-        {
-          "sym": "JNPR",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "High-performance networking and security solutions"
         },
         {
           "sym": "ANET",
@@ -10795,7 +10735,7 @@
         },
         {
           "sym": "CIEN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Optical and packet networking equipment specialist"
         },
@@ -10843,7 +10783,7 @@
         },
         {
           "sym": "AVGO",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Broadcom, networking ASICs"
         },
@@ -10861,7 +10801,7 @@
         },
         {
           "sym": "GLW",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Corning, fiber optic infra"
         },
@@ -10870,6 +10810,24 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Marvell, custom silicon/DPUs"
+        },
+        {
+          "sym": "HPE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "EXTR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "COHR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 15
@@ -10890,7 +10848,7 @@
         },
         {
           "sym": "IBM",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Enterprise hybrid cloud and AI consulting services"
         },
@@ -10914,63 +10872,57 @@
         },
         {
           "sym": "DXC",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Enterprise IT modernization and managed services"
         },
         {
           "sym": "LDOS",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Defense and government IT solutions provider"
         },
         {
           "sym": "SAIC",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Government IT services and technology integrator"
         },
         {
           "sym": "KD",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "IT infrastructure services and digital workspace solutions"
         },
         {
           "sym": "GIB",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "IT and business consulting services firm"
         },
         {
           "sym": "WIT",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "India-based global IT services and consulting"
         },
         {
           "sym": "INFY",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Digital services and consulting company from India"
         },
         {
           "sym": "TASK",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Digital outsourcing and AI training data services"
         },
         {
           "sym": "EXLS",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Analytics and business process outsourcing services"
-        },
-        {
-          "sym": "WNS",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Business process management and analytics services"
         }
       ],
       "display_order": 16
@@ -12746,51 +12698,21 @@
         },
         {
           "sym": "WDC",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Western Digital, NAND flash and HDD"
         },
         {
-          "sym": "STX",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Seagate, mass capacity HDD leader"
-        },
-        {
-          "sym": "NTAP",
+          "sym": "SNDK",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "NetApp, enterprise data storage"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "PSTG",
+          "sym": "AVGO",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Pure Storage, all-flash arrays"
-        },
-        {
-          "sym": "SMCI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Supermicro, AI servers with HBM"
-        },
-        {
-          "sym": "NTNX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Nutanix, hyperconverged storage"
-        },
-        {
-          "sym": "DELL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Dell, enterprise storage"
-        },
-        {
-          "sym": "HPE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "HPE, storage solutions"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -12817,7 +12739,7 @@
         },
         {
           "sym": "GLW",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Corning, fiber optic cable"
         },
@@ -12835,15 +12757,9 @@
         },
         {
           "sym": "AAOI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Applied Optoelectronics, transceivers"
-        },
-        {
-          "sym": "PI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Impinj, RFID/IoT optical sensing"
         },
         {
           "sym": "CIEN",
@@ -12852,10 +12768,28 @@
           "rationale": "Ciena, optical networking"
         },
         {
-          "sym": "CALX",
+          "sym": "IPGP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MKSI",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Calix, fiber broadband optical"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LASR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },

@@ -203,5 +203,74 @@
   ],
   "cro": [
     "Diagnostics & Research"
+  ],
+  "semiconductors": [
+    "Semiconductors",
+    "Semiconductor Equipment & Materials"
+  ],
+  "semiconductor_equipment": [
+    "Semiconductor Equipment & Materials",
+    "Scientific & Technical Instruments"
+  ],
+  "software": [
+    "Software - Application",
+    "Software - Infrastructure"
+  ],
+  "cloud_computing": [
+    "Software - Infrastructure",
+    "Software - Application"
+  ],
+  "cybersecurity": [
+    "Software - Infrastructure",
+    "Information Technology Services"
+  ],
+  "artificial_intelligence": [
+    "Software - Application",
+    "Software - Infrastructure",
+    "Semiconductors",
+    "Internet Content & Information"
+  ],
+  "data_centers": [
+    "Software - Infrastructure",
+    "REIT - Specialty",
+    "Computer Hardware",
+    "Building Products & Equipment"
+  ],
+  "social_media": [
+    "Internet Content & Information",
+    "Electronic Gaming & Multimedia"
+  ],
+  "video_games": [
+    "Electronic Gaming & Multimedia"
+  ],
+  "quantum_computing": [
+    "Computer Hardware",
+    "Semiconductor Equipment & Materials",
+    "Semiconductors",
+    "Software - Infrastructure"
+  ],
+  "telecom": [
+    "Telecom Services"
+  ],
+  "advertising": [
+    "Advertising Agencies",
+    "Internet Content & Information"
+  ],
+  "networking_interconnect": [
+    "Communication Equipment",
+    "Semiconductors",
+    "Electronic Components"
+  ],
+  "it_services": [
+    "Information Technology Services"
+  ],
+  "memory_chips": [
+    "Computer Hardware",
+    "Semiconductors"
+  ],
+  "photonics_optics": [
+    "Communication Equipment",
+    "Electronic Components",
+    "Scientific & Technical Instruments"
   ]
 }
