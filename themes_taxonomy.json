@@ -1,6 +1,6 @@
 {
-  "version": "4.2.0",
-  "generated_at": "2026-04-14",
+  "version": "4.3.0+c09f9e38",
+  "generated_at": "2026-07-19",
   "sectors": [
     {
       "id": "technology",
@@ -1858,12 +1858,6 @@
           "rationale": "Second-largest global payment network"
         },
         {
-          "sym": "SQ",
-          "tier": "core",
-          "sub_theme_id": "digital_banking",
-          "rationale": "Square merchant payments and Cash App banking"
-        },
-        {
           "sym": "PYPL",
           "tier": "core",
           "sub_theme_id": "payments",
@@ -1883,19 +1877,19 @@
         },
         {
           "sym": "SOFI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "digital_banking",
           "rationale": "Digital banking, lending, and investing platform"
         },
         {
           "sym": "COIN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "trading_platforms",
           "rationale": "Largest US crypto exchange"
         },
         {
           "sym": "HOOD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "trading_platforms",
           "rationale": "Commission-free stock and crypto trading"
         },
@@ -1913,7 +1907,7 @@
         },
         {
           "sym": "NU",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "digital_banking",
           "rationale": "Latin America largest digital bank"
         },
@@ -1978,12 +1972,6 @@
           "rationale": "Flywire cross-border payment solutions"
         },
         {
-          "sym": "OLO",
-          "tier": "relevant",
-          "sub_theme_id": "payments",
-          "rationale": "Olo restaurant digital ordering platform"
-        },
-        {
           "sym": "FIS",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -1996,16 +1984,22 @@
           "rationale": "Payments and financial technology infrastructure"
         },
         {
-          "sym": "WU",
+          "sym": "AXP",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Cross-border money transfer and payments services"
+          "rationale": "card network/payments franchise"
         },
         {
-          "sym": "EVTC",
-          "tier": "peripheral",
+          "sym": "INTU",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Payment technology for Latin America and Caribbean"
+          "rationale": "QuickBooks/Credit Karma fintech software"
+        },
+        {
+          "sym": "XYZ",
+          "tier": "core",
+          "sub_theme_id": "digital_banking",
+          "rationale": "Block rebranded SQ -> XYZ"
         }
       ]
     },
@@ -12516,7 +12510,7 @@
         },
         {
           "sym": "HWM",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Aerospace precision-engineered components and fasteners"
         },
@@ -12539,22 +12533,10 @@
           "rationale": "Regional jet and defense aircraft manufacturer from Brazil"
         },
         {
-          "sym": "TGI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Aerospace maintenance and repair services provider"
-        },
-        {
           "sym": "KTOS",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Unmanned aerial systems and satellite communications"
-        },
-        {
-          "sym": "AXON",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Public safety technology with drone and autonomous systems"
         },
         {
           "sym": "LHX",
@@ -12564,7 +12546,7 @@
         },
         {
           "sym": "CW",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Aerospace and industrial motion control technology"
         }
@@ -12792,7 +12774,7 @@
           "sym": "DVA",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "DaVita, largest US dialysis provider \u00e2\u20ac\u201d aging kidney disease population"
+          "rationale": "DaVita, largest US dialysis provider â€” aging kidney disease population"
         },
         {
           "sym": "BKD",
@@ -12866,18 +12848,6 @@
           "rationale": "Stratasys, FDM and PolyJet 3D printing technology"
         },
         {
-          "sym": "DM",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Desktop Metal, metal and ceramic 3D printing systems"
-        },
-        {
-          "sym": "MKFG",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Markforged, industrial composite and metal 3D printers"
-        },
-        {
           "sym": "NNDM",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -12890,16 +12860,16 @@
           "rationale": "Xometry, on-demand manufacturing marketplace including 3D printing"
         },
         {
-          "sym": "MTD",
-          "tier": "peripheral",
+          "sym": "MTLS",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Mettler-Toledo, precision instruments used in additive manufacturing QC"
+          "rationale": "pure-play additive manufacturing"
         },
         {
-          "sym": "HON",
-          "tier": "peripheral",
+          "sym": "HPQ",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Honeywell, additive manufacturing for aerospace components"
+          "rationale": "HP Multi Jet Fusion industrial 3D printing"
         }
       ]
     },
