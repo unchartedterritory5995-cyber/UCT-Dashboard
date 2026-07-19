@@ -106,19 +106,22 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
       }}
     >
       <div className={wsStyles.menuSection}>Layout</div>
-      {LAYOUTS.map(l => (
-        <button
-          key={l.id}
-          type="button"
-          className={wsStyles.addMenuItem}
-          style={inGrid && mc.state.layout === l.id ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-          onClick={() => pickPreset(l.id)}
-        >
-          <LayoutIcon rows={l.rows} cols={l.cols} />
-          {l.label}
-        </button>
-      ))}
+      <div className={styles.presetGrid}>
+        {LAYOUTS.map(l => (
+          <button
+            key={l.id}
+            type="button"
+            className={`${styles.presetBtn} ${inGrid && mc.state.layout === l.id ? styles.presetBtnActive : ''}`}
+            onClick={() => pickPreset(l.id)}
+            title={l.label}
+          >
+            <LayoutIcon rows={l.rows} cols={l.cols} />
+            <span className={styles.presetLabel}>{l.label}</span>
+          </button>
+        ))}
+      </div>
       <div className={styles.nxmForm}>
+        <span className={styles.nxmX} style={{ marginRight: 2 }}>Custom</span>
         <input
           className={styles.nxmInput}
           type="number" min="1" max="4"

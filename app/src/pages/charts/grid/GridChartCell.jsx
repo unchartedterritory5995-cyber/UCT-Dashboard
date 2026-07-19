@@ -411,7 +411,7 @@ function GridChartCell({
             rightPadBars={6}
             dailyDefaultBars={dailyDefaultBars || 126}
             volumeSeparatePane
-            volumePaneHeightPct={volPanePct ?? 12}
+            volumePaneHeightPct={volPanePct ?? 9}
             priceScaleTopMargin={0.12}
             priceScaleBottomMargin={0.10}
             canvasTheme={canvasTheme}

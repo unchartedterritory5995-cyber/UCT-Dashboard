@@ -270,10 +270,13 @@ export default function MultiChartGrid({ mc }) {
     [cells, groupMeta.metaBySym, livePrices],
   )
 
-  // Shared volume-pane proportion (cells read it, never write it).
+  // Grid cells LOCK the volume pane low — these are mini-charts where a tall
+  // volume pane eats the price action. Decoupled from the shared workspace
+  // pref (which the primary chart honors up to 45%): grid is hard-capped at
+  // 10% so no shared setting can make grid volume dominate the cell.
   const volPanePct = (() => {
     const v = Number(prefs?.charts_vol_pane_pct)
-    return Number.isFinite(v) && v >= 5 && v <= 60 ? v : 12
+    return Number.isFinite(v) && v >= 5 ? Math.min(v, 10) : 9
   })()
   const dailyDefaultBars = cells.length > 9 ? 90 : 126
   const canvasTheme = chartsTheme === 'sunrise' ? 'sunrise' : null
