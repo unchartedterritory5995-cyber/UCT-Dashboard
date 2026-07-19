@@ -2393,15 +2393,21 @@ export default function OptionsFlowDashboard() {
         if (cancelled) return;
         if (!text) { setSearchFull({ sym, data: null }); return; }
         const rows = parseCSV(text);
-        const dateSet = new Set(availableDates);
-        const scoped = availableDates.length
-          ? rows.filter(r => r.date && dateSet.has(r.date.trim()))
-          : rows;
-        setSearchFull({ sym, data: scoped.length ? processFlowData(scoped) : null });
+        // ZERO-OUT FIX (2026-07-18): do NOT scope to availableDates here, and do
+        // NOT depend on it. This is the uncapped per-ticker fetch — it returns
+        // the ticker's FULL history, which legitimately includes dates the main
+        // parsedRows range doesn't. Filtering against availableDates (a) dropped
+        // rows the Search tab is specifically here to show, and (b) re-ran this
+        // whole fetch every time the live delta-merge bumped availableDates a few
+        // seconds after load — and that re-fetch scoped to a now-shifted date set
+        // that matched nothing, so the cards rendered correctly then collapsed to
+        // $0 / NEUTRAL. The render-time _scopeAllDirectional (in the Search block)
+        // applies the SELECTED day range; this effect just supplies full history.
+        setSearchFull({ sym, data: rows.length ? processFlowData(rows) : null });
       })
       .catch(() => { if (!cancelled) setSearchFull({ sym, data: null }); });
     return () => { cancelled = true; };
-  }, [selectedTicker, dataMode, availableDates]);
+  }, [selectedTicker, dataMode]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
