@@ -2797,7 +2797,12 @@ async def _run_session(ws):
             batch = _ondemand_quote_queue[:]
             _ondemand_quote_queue.clear()
 
-            async def fetch_and_classify(client, evt):
+            def _fetch_one_blocking(evt):
+                # Runs in a thread (asyncio.to_thread) so the blocking urllib
+                # call never touches the consumer loop. Stdlib only — no httpx /
+                # aiohttp dependency (the container's python lacks httpx; curl to
+                # api.massive.com returns 200, so the network path is fine).
+                import urllib.request, json as _json
                 try:
                     sym = _reconstruct_occ_symbol(evt.root, evt.expiry,
                                                   evt.cp, evt.strike)
@@ -2805,10 +2810,11 @@ async def _run_session(ws):
                     url = (f"{base}/{sym}?timestamp.lte={ts_ns}"
                            f"&order=desc&limit=1&sort=timestamp"
                            f"&apiKey={MASSIVE_API_KEY}")
-                    r = await client.get(url)
-                    if r.status_code != 200:
-                        return evt
-                    results = r.json().get("results") or []
+                    with urllib.request.urlopen(url, timeout=2.0) as resp:
+                        if resp.status != 200:
+                            return evt
+                        payload = _json.loads(resp.read().decode("utf-8"))
+                    results = payload.get("results") or []
                     if not results:
                         return evt
                     q = results[0]
@@ -2833,10 +2839,11 @@ async def _run_session(ws):
 
             resolved = 0
             try:
-                import httpx
-                async with httpx.AsyncClient(timeout=2.0) as client:
-                    tasks = [fetch_and_classify(client, e) for e in batch]
-                    done = await asyncio.gather(*tasks, return_exceptions=False)
+                # Fan out the blocking fetches across threads, bounded. Each
+                # urllib call has its own 2s timeout; the whole batch is capped so
+                # a slow venue can't stall the queue drain.
+                tasks = [asyncio.to_thread(_fetch_one_blocking, e) for e in batch]
+                done = await asyncio.gather(*tasks, return_exceptions=False)
                 resolved = sum(1 for e in done if e.side_method == "ondemand-nbbo")
             except Exception as e:
                 logger.debug("[massive-ws] on-demand quote batch failed: %s", e)
