@@ -132,6 +132,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const [copied, setCopied] = useState(false)
   const [pending, setPending] = useState(null)   // question in flight (shown in the body)
   const [streamText, setStreamText] = useState('')   // partial answer while streaming
+  const [deep, setDeep] = useState(false)   // reasoning tier — longer silent think phase
   const inputRef = useRef(null)
   const bodyRef = useRef(null)
   // Conversation memory: last few Q/A exchanges from this widget session,
@@ -214,7 +215,11 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         if (!line) continue
         let ev
         try { ev = JSON.parse(line.slice(5)) } catch { continue }
-        if (ev.type === 'delta' && ev.text) {
+        if (ev.type === 'meta') {
+          // reasoning tier goes silent through its (stripped) think phase —
+          // tell the member it's a deeper pass so the wait doesn't read as hung.
+          if (ev.mode === 'reasoning') setDeep(true)
+        } else if (ev.type === 'delta' && ev.text) {
           text += ev.text
           setStreamText(text)
         } else if (ev.type === 'final') {
@@ -238,7 +243,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const run = useCallback(async (q) => {
     const question = (q ?? query).trim()
     if (!question || loading) return
-    setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery(''); setStreamText('')
+    setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery(''); setStreamText(''); setDeep(false)
     try {
       let outcome = null
       try {
@@ -342,7 +347,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
               </div>
             ) : (
               <div className={styles.status}>
-                <span className={styles.spinner} /> {SEARCH_PHASES[phase]}
+                <span className={styles.spinner} /> {deep ? 'Reasoning through this — a deeper pass, ~20-30s…' : SEARCH_PHASES[phase]}
               </div>
             )}
           </>

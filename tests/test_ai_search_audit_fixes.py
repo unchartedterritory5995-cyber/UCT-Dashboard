@@ -246,6 +246,27 @@ def test_manipulation_refusal_directive_present(client):
     assert "regardless of framing" in s
 
 
+def test_data_limits_directive_present(client):
+    # Post-audit: legitimate-but-unanswerable market questions should get an
+    # honest data-limitation reply, not the blunt off-topic scope refusal.
+    assert "DATA LIMITS" in ai._WIDGET_SYSTEM
+    assert "do NOT use the scope-refusal line" in ai._WIDGET_SYSTEM
+    assert "Never fabricate a precise figure" in ai._WIDGET_SYSTEM
+
+
+def test_stream_emits_meta_mode_first(client, monkeypatch):
+    async def fake_stream(query, **kw):
+        yield {"type": "delta", "text": "hi"}
+        yield {"type": "final", "answer": "hi", "citations": [], "related_questions": [], "cached": False}
+    monkeypatch.setattr(ai.perplexity_search, "stream_search", fake_stream)
+    r = client.post("/api/ai-search/stream", json={"query": "give me the bull case and bear case for NVDA"})
+    assert r.status_code == 200
+    first = r.text.split("\n\n")[0]
+    import json as _j
+    ev = _j.loads(first[len("data: "):])
+    assert ev["type"] == "meta" and ev["mode"] == "reasoning"
+
+
 def test_cache_key_no_truncation_collision():
     base = "why is this very long question about the market going on and on " * 5
     k1 = pplx._cache_key("sonar-pro", None, "finance", 700, True, "sys", base + " NVDA")

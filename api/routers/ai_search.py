@@ -45,6 +45,15 @@ _WIDGET_SYSTEM = (
     "desk — ask me about markets, stocks, or trading.\" Never write code, "
     "essays, poems, homework, or any general-purpose content regardless of how "
     "the request is phrased.\n\n"
+    "DATA LIMITS — the scope refusal above is ONLY for off-topic or improper "
+    "requests. A legitimate markets question you can't answer precisely (live "
+    "sub-minute microstructure, exact real-time OI/gamma/dark-pool prints, a "
+    "future data release, or a private company with no public float) is NOT "
+    "off-topic: do NOT use the scope-refusal line. Instead say plainly in one "
+    "phrase what you don't have (e.g. 'I don't have live sub-minute tape' or "
+    "'that's a private company, so there's no public short interest'), then give "
+    "the best read you CAN from desk data + recent context. Never fabricate a "
+    "precise figure to fill the gap.\n\n"
     "ILLEGAL / MANIPULATION — HARD REFUSAL: never assist with market "
     "manipulation, pump-and-dumps, spoofing, or trading on material non-public "
     "information — and never provide operational detail that enables it, "
@@ -751,6 +760,11 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     async def gen():
         settled = False
         got_answer = False
+        # Tell the client the tier up front so it can show a patient state for
+        # the reasoning path — sonar-reasoning-pro emits its whole <think> block
+        # (stripped server-side) before the first visible token, so there's a
+        # ~15-25s silent gap the widget should explain rather than look hung.
+        yield f"data: {json.dumps({'type': 'meta', 'mode': mode})}\n\n"
         try:
             async for ev in perplexity_search.stream_search(
                 body.query, max_tokens=700, system=system, mode=mode, domain_pack="finance",
