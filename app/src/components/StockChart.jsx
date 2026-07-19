@@ -4824,7 +4824,11 @@ export default function StockChart({
       if (volSeparatePane) {
         // Own pane: small top margin so bars don't kiss the divider; size the
         // pane to ~22% of the chart via stretch factors (main pane gets the rest).
-        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, scaleMargins: { top: 0.12, bottom: 0 } })
+        // autoScale keeps the bars fitted to the SAME slice of the pane on every
+        // ticker/timeframe (a dragged volume axis otherwise pins a fixed range that
+        // makes a lower-volume name's bars tiny) — re-applied each pass so an
+        // accidental axis drag always snaps back to a consistent auto-fit.
+        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, autoScale: true, scaleMargins: { top: 0.12, bottom: 0 } })
         try {
           // Stretch factors are relative. Address panes by their series' own
           // pane object (getPane) rather than raw index, so an index-comparison
@@ -4849,7 +4853,7 @@ export default function StockChart({
         } catch {}
       } else {
         const volMargins = paneMargins.volume || { top: 0.82, bottom: 0 }
-        volumeSeriesRef.current.priceScale().applyOptions({ scaleMargins: volMargins })
+        volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
       }
       _applyData(volumeSeriesRef.current, volData)
 
