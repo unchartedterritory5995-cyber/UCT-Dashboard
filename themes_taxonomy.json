@@ -1,5 +1,5 @@
 {
-  "version": "4.3.0+c09f9e38",
+  "version": "4.4.0+8668abcb",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -3696,7 +3696,7 @@
         },
         {
           "sym": "DINO",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "HF Sinclair refining and renewable fuels"
         },
@@ -3711,6 +3711,18 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "NGL Energy Partners midstream and water"
+        },
+        {
+          "sym": "EPD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "top-tier midstream MLP"
+        },
+        {
+          "sym": "ENB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "major North American midstream/pipeline"
         }
       ]
     },
@@ -3764,12 +3776,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Appalachia and Permian natural gas and oil"
-        },
-        {
-          "sym": "MRO",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Multi-basin US E&P operator"
         },
         {
           "sym": "CHRD",
@@ -3844,16 +3850,22 @@
           "rationale": "Berry Corp heavy oil producer California"
         },
         {
-          "sym": "SBOW",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SilverBow Resources South Texas E&P producer"
-        },
-        {
           "sym": "GPOR",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Gulfport Energy Appalachian natural gas producer"
+        },
+        {
+          "sym": "EQT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "largest US natural gas pure-play E&P"
+        },
+        {
+          "sym": "MUR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "independent E&P"
         }
       ]
     },
@@ -3903,12 +3915,6 @@
           "rationale": "International completions and artificial lift"
         },
         {
-          "sym": "CHX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Drilling fluids and pressure pumping services"
-        },
-        {
           "sym": "HP",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -3946,7 +3952,7 @@
         },
         {
           "sym": "CLB",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Core Laboratories reservoir characterization"
         },
@@ -3969,12 +3975,6 @@
           "rationale": "ProPetro Holding pressure pumping Permian Basin"
         },
         {
-          "sym": "DRQ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Dril-Quip subsea wellhead equipment manufacturer"
-        },
-        {
           "sym": "TDW",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -3991,6 +3991,42 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Helix Energy Solutions subsea well intervention"
+        },
+        {
+          "sym": "RIG",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Transocean offshore drilling contractor"
+        },
+        {
+          "sym": "NE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Noble Corp offshore driller"
+        },
+        {
+          "sym": "VAL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Valaris offshore drilling"
+        },
+        {
+          "sym": "OIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Oil States oilfield equipment"
+        },
+        {
+          "sym": "AESI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Atlas Energy frac sand/proppant logistics"
+        },
+        {
+          "sym": "USAC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "USA Compression gas compression services"
         }
       ]
     },
@@ -4135,12 +4171,6 @@
           "tier": "relevant",
           "sub_theme_id": "gas_pipelines",
           "rationale": "Hess Midstream natural gas processing transport"
-        },
-        {
-          "sym": "CCLP",
-          "tier": "peripheral",
-          "sub_theme_id": "gas_pipelines",
-          "rationale": "CSI Compressco natural gas compression services"
         },
         {
           "sym": "NFG",
