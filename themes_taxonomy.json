@@ -1,5 +1,5 @@
 {
-  "version": "4.7.0+b7320d7c",
+  "version": "4.8.0+5b43d1f1",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -6519,19 +6519,19 @@
         },
         {
           "sym": "ELV",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "managed_care",
           "rationale": "Major US health insurer (Elevance)"
         },
         {
           "sym": "CI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "managed_care",
           "rationale": "Cigna health insurance and Express Scripts PBM"
         },
         {
           "sym": "HCA",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "healthcare_services",
           "rationale": "Largest US for-profit hospital operator"
         },
@@ -6597,7 +6597,7 @@
         },
         {
           "sym": "IDXX",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "IDEXX veterinary diagnostics market leader"
         },
@@ -6618,6 +6618,60 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Centene Medicaid managed care leader"
+        },
+        {
+          "sym": "CVS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HUM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "MOH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BIIB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DVA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "UHS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ENSG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "EHC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PACS",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -6675,13 +6729,13 @@
         },
         {
           "sym": "CRSP",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "gene_cell_therapy",
           "rationale": "First FDA-approved CRISPR gene therapy"
         },
         {
           "sym": "ALNY",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "gene_cell_therapy",
           "rationale": "RNAi therapeutics leader with approved drugs"
         },
@@ -6690,12 +6744,6 @@
           "tier": "relevant",
           "sub_theme_id": "clinical_stage",
           "rationale": "Rare disease enzyme replacement therapies"
-        },
-        {
-          "sym": "EXAS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cancer screening via liquid biopsy and genomics"
         },
         {
           "sym": "IONS",
@@ -6786,6 +6834,24 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Krystal Biotech gene therapy dermatology focus"
+        },
+        {
+          "sym": "INCY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "JAZZ",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "UTHR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -6936,24 +7002,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Stevanato Group drug delivery glass vials devices"
-        },
-        {
-          "sym": "SILK",
-          "tier": "peripheral",
-          "sub_theme_id": "cardio_devices",
-          "rationale": "Silk Road Medical carotid stent devices"
-        },
-        {
-          "sym": "AXNX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Axonics sacral neuromodulation devices"
-        },
-        {
-          "sym": "NARI",
-          "tier": "relevant",
-          "sub_theme_id": "cardio_devices",
-          "rationale": "Inari Medical venous thromboembolism devices"
         }
       ]
     },
@@ -7146,12 +7194,6 @@
           "rationale": "Bioprocessing equipment for biologic manufacturing"
         },
         {
-          "sym": "IQV",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "CRO running GLP-1 clinical trials"
-        },
-        {
           "sym": "STE",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -7165,7 +7207,7 @@
         },
         {
           "sym": "RGEN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Repligen bioprocessing equipment GLP-1 production"
         },
@@ -7174,12 +7216,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Mettler-Toledo precision instruments pharma mfg"
-        },
-        {
-          "sym": "PKI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "PerkinElmer life science tools drug development"
         },
         {
           "sym": "A",
@@ -7206,12 +7242,6 @@
           "rationale": "Teleflex medical devices drug delivery systems"
         },
         {
-          "sym": "HOLX",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hologic medical device technology platform"
-        },
-        {
           "sym": "TECH",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -7224,16 +7254,16 @@
           "rationale": "Bio-Rad Laboratories life science instruments"
         },
         {
-          "sym": "LH",
+          "sym": "AMRX",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Labcorp clinical trial testing for GLP-1 studies"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "DGX",
-          "tier": "peripheral",
+          "sym": "RVTY",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Quest Diagnostics lab testing for obesity trials"
+          "rationale": "rename"
         }
       ]
     },
@@ -11193,33 +11223,39 @@
         },
         {
           "sym": "CNC",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Medicaid and government-sponsored managed care provider"
         },
         {
           "sym": "MOH",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Medicaid and Medicare managed care organization"
         },
         {
           "sym": "OSCR",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Technology-driven individual health insurance platform"
         },
         {
           "sym": "CLOV",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Medicare Advantage insurer with AI-driven clinical tools"
         },
         {
           "sym": "ALHC",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Home health and hospice managed care services"
+        },
+        {
+          "sym": "CVS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 20
@@ -11264,25 +11300,25 @@
         },
         {
           "sym": "BMY",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Oncology and cardiovascular pharmaceutical company"
         },
         {
           "sym": "AZN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Global pharma with oncology and rare disease focus"
         },
         {
           "sym": "NVO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Diabetes and obesity pharmaceutical leader with GLP-1 drugs"
         },
         {
           "sym": "ZTS",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Leading animal health pharmaceutical company"
         },
@@ -11294,19 +11330,19 @@
         },
         {
           "sym": "TEVA",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Major generic pharmaceuticals manufacturer"
         },
         {
           "sym": "JAZZ",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Specialty pharma focused on neuroscience and oncology"
         },
         {
           "sym": "NBIX",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Neuroscience-focused biopharmaceutical company"
         },
@@ -11318,9 +11354,27 @@
         },
         {
           "sym": "OGN",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Womens health and biosimilar pharmaceutical company"
+        },
+        {
+          "sym": "AMGN",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "GILD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NVS",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 21
@@ -12436,40 +12490,16 @@
           "rationale": "Healthcare SaaS for patient intake and digital workflows"
         },
         {
-          "sym": "ACCD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "AI-driven health navigation and care delivery platform"
-        },
-        {
           "sym": "NFRX",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "AI-powered clinical decision support for nephrologists"
         },
         {
-          "sym": "MDXH",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Digital health platform for behavioral health management"
-        },
-        {
           "sym": "LFST",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Connected health devices and digital health solutions"
-        },
-        {
-          "sym": "CERT",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Clinical trial technology and decentralized trial platform"
-        },
-        {
-          "sym": "ABBV",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "AbbVie, Botox/Juvederm"
         },
         {
           "sym": "EOLS",
@@ -12485,7 +12515,7 @@
         },
         {
           "sym": "SKIN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Beauty Health, HydraFacial"
         },
@@ -12496,10 +12526,22 @@
           "rationale": "Estee Lauder, premium skincare"
         },
         {
-          "sym": "SYK",
+          "sym": "DXCM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OSCR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NUS",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "Stryker, surgical equipment"
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 40
@@ -12585,34 +12627,10 @@
       "sub_themes": [],
       "holdings": [
         {
-          "sym": "UNH",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "UnitedHealth, largest US health insurer serving Medicare/senior market"
-        },
-        {
-          "sym": "HCA",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "HCA Healthcare, largest US hospital operator"
-        },
-        {
           "sym": "ENSG",
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Ensign Group, skilled nursing and assisted living facilities"
-        },
-        {
-          "sym": "ACHC",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Acadia Healthcare, behavioral health facilities"
-        },
-        {
-          "sym": "THC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Tenet Healthcare, hospitals and ambulatory surgery centers"
         },
         {
           "sym": "DVA",
@@ -12628,19 +12646,13 @@
         },
         {
           "sym": "ADUS",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Addus HomeCare, home health and personal care services"
         },
         {
-          "sym": "AMED",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Amedisys, home health and hospice services"
-        },
-        {
           "sym": "NHC",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "National HealthCare, long-term care facilities"
         },
@@ -12664,7 +12676,7 @@
         },
         {
           "sym": "ZBH",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Zimmer Biomet, knee and hip replacements for aging joints"
         }
@@ -12881,28 +12893,10 @@
           "rationale": "Charles River, preclinical CRO"
         },
         {
-          "sym": "TMO",
+          "sym": "LH",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Thermo Fisher, pharma services"
-        },
-        {
-          "sym": "DHR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Danaher, life science tools"
-        },
-        {
-          "sym": "A",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Agilent, analytical instruments"
-        },
-        {
-          "sym": "WST",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "West Pharma, drug delivery"
+          "rationale": "owner-reviewed add"
         }
       ]
     },

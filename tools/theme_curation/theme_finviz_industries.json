@@ -160,5 +160,48 @@
   ],
   "packaging": [
     "Packaging & Containers"
+  ],
+  "healthcare_broad": [
+    "Drug Manufacturers - General",
+    "Healthcare Plans",
+    "Diagnostics & Research",
+    "Biotechnology",
+    "Medical Devices"
+  ],
+  "biotech": [
+    "Biotechnology",
+    "Drug Manufacturers - General"
+  ],
+  "med_devices": [
+    "Medical Devices",
+    "Medical Instruments & Supplies"
+  ],
+  "glp1": [
+    "Drug Manufacturers - General",
+    "Biotechnology"
+  ],
+  "glp1_supply_chain": [
+    "Diagnostics & Research",
+    "Medical Instruments & Supplies",
+    "Medical Devices"
+  ],
+  "managed_care": [
+    "Healthcare Plans"
+  ],
+  "pharmaceuticals": [
+    "Drug Manufacturers - General",
+    "Drug Manufacturers - Specialty & Generic"
+  ],
+  "digital_health_aesthetics": [
+    "Health Information Services",
+    "Medical Devices",
+    "Medical Care Facilities"
+  ],
+  "aging_longevity": [
+    "Medical Care Facilities",
+    "Medical Devices"
+  ],
+  "cro": [
+    "Diagnostics & Research"
   ]
 }
