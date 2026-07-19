@@ -415,8 +415,15 @@ def get_distinct_contracts(
     """
     cutoff = date.today() - timedelta(days=days_back)
     src_placeholders = ",".join(["?"] * len(SOURCES))
-    with _conn() as c:
-        cur = c.execute(
+    # The flow table lives in flow.db. The 2026-07-17 migration moved ONLY the
+    # OI tables (contract_oi_snapshots, oi_snapshot_runs) into OI_DB_PATH and
+    # repointed _conn()/DB_PATH there -- so _conn() can no longer see the flow
+    # table ("no such table: flow", the instant hard-fail seen on runs 42/43).
+    # Read the contract universe directly from flow.db (read-only); OI writes
+    # still go to the OI DB via _conn()/record_batch.
+    fconn = sqlite3.connect(FLOW_DB_PATH, timeout=30)
+    try:
+        cur = fconn.execute(
             f"SELECT DISTINCT CreatedDate FROM flow WHERE source IN ({src_placeholders})",
             tuple(SOURCES),
         )
@@ -432,7 +439,7 @@ def get_distinct_contracts(
             return []
 
         placeholders = ",".join(["?"] * len(in_range))
-        cur = c.execute(
+        cur = fconn.execute(
             f"""SELECT Symbol, CallPut, Strike, ExpirationDate, COUNT(*) AS n_trades
                 FROM flow
                 WHERE source IN ({src_placeholders}) AND CreatedDate IN ({placeholders})
@@ -445,32 +452,35 @@ def get_distinct_contracts(
                 ORDER BY Symbol""",
             list(SOURCES) + in_range + [min_trade_count],
         )
+        rows = cur.fetchall()
+    finally:
+        fconn.close()
 
-        contracts = []
-        skipped_adjusted = 0
-        skipped_malformed = 0
-        for sym, cp, strike, exp, n in cur.fetchall():
-            # Skip adjusted/when-issued symbols (end in digit). Schwab can't
-            # quote them — they always 400.
-            if sym and sym[-1].isdigit():
-                skipped_adjusted += 1
-                continue
-            try:
-                strike_f = float(strike)
-                if _parse_mdy(exp) is None:
-                    skipped_malformed += 1
-                    continue
-                contracts.append((sym, cp, strike_f, exp))
-            except (ValueError, TypeError):
+    contracts = []
+    skipped_adjusted = 0
+    skipped_malformed = 0
+    for sym, cp, strike, exp, n in rows:
+        # Skip adjusted/when-issued symbols (end in digit). Schwab can't
+        # quote them — they always 400.
+        if sym and sym[-1].isdigit():
+            skipped_adjusted += 1
+            continue
+        try:
+            strike_f = float(strike)
+            if _parse_mdy(exp) is None:
                 skipped_malformed += 1
                 continue
+            contracts.append((sym, cp, strike_f, exp))
+        except (ValueError, TypeError):
+            skipped_malformed += 1
+            continue
 
-        logger.info(
-            f"[oi-snapshot] Filtered {len(contracts)} contracts "
-            f"(min_trades={min_trade_count}, skipped {skipped_adjusted} adjusted, "
-            f"{skipped_malformed} malformed)"
-        )
-        return contracts
+    logger.info(
+        f"[oi-snapshot] Filtered {len(contracts)} contracts "
+        f"(min_trades={min_trade_count}, skipped {skipped_adjusted} adjusted, "
+        f"{skipped_malformed} malformed)"
+    )
+    return contracts
 
 
 # ── Schwab fetch (direct in-process call, no HTTP loopback) ──────────────
@@ -542,7 +552,7 @@ async def _fetch_oi_all_async(
     # for the WS event loop itself.
     # Massive-primary when the market is closed (2026-07-19). Schwab option
     # openInterest is 0 outside RTH (verified), so at the 5:30 AM cron every
-    # contract "misses" and routes to Massive anyway — the Schwab call is pure
+    # contract "misses" and routes to Massive anyway -- the Schwab call is pure
     # overhead there and was the source of the 7/6 timeout collapse
     # (failures: 37782, inserted: 0). During RTH Schwab OI is valid, so it stays
     # first then and the live oi_fetch_manager path is unchanged.
