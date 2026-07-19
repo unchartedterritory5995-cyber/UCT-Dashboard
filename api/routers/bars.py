@@ -9,7 +9,7 @@ import threading as _threading
 import time as _time
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -383,6 +383,54 @@ def audit_bars_endpoint(
     from api.services.audit import audit_ticker
     result = audit_ticker(ticker, tf, bars)
     return result.to_dict()
+
+
+@router.post("/api/admin/ticker-liveness")
+def ticker_liveness_endpoint(request: Request, payload: dict = Body(...)):
+    """Return {sym: bool} — is each ticker still trading, per Massive?
+
+    The reliable liveness oracle for the theme-curation tool: it splits a theme
+    holding that is absent from cap_universe into 'delisted' (drop/remap) vs
+    'live but cap_universe just lacks it' (add to cap_universe). Local data
+    sources (Finnhub /quote, yfinance, Finviz) are unreliable at scale — Massive
+    is the dashboard's authoritative feed but its key is Railway-only, so this
+    thin endpoint exposes the check.
+
+    A ticker is 'live' when Massive's rich snapshot returns it with price > 0
+    (day close, last trade, or — weekend-safe — prev-day close). Genuinely
+    delisted names are absent from the current-market snapshot entirely.
+
+    Body: {"tickers": ["AAPL", "AYX", ...]} (app/hyphen form).
+    Returns: {"live": {"AAPL": true, "AYX": false, ...}, "checked": N}.
+    Auth: Bearer PUSH_SECRET. Read-only, but Massive calls aren't free, so gated.
+    """
+    _check_admin_auth(request)
+    syms = payload.get("tickers") if isinstance(payload, dict) else None
+    if not isinstance(syms, list):
+        raise HTTPException(status_code=400, detail='body must be {"tickers": [...]}')
+    from api.services import massive
+    uniq = list(dict.fromkeys(s.upper() for s in syms if isinstance(s, str) and s))
+    live: dict[str, bool] = {s: False for s in uniq}
+    client = massive._get_client()
+    BATCH = 100
+    for i in range(0, len(uniq), BATCH):
+        window = uniq[i:i + BATCH]
+        to_app = {massive.to_polygon_symbol(s): s for s in window}   # massive(dot) -> app
+        try:
+            snap = client.get_batch_rich_snapshots(list(to_app)) or {}
+        except Exception:
+            continue
+        for msym, row in snap.items():
+            app = to_app.get(str(msym).upper())
+            if not app:
+                continue
+            price = (row or {}).get("price")
+            try:
+                if price and float(price) > 0:
+                    live[app] = True
+            except (TypeError, ValueError):
+                pass
+    return {"live": live, "checked": len(uniq)}
 
 
 @router.post("/api/admin/refresh-bars-all")
