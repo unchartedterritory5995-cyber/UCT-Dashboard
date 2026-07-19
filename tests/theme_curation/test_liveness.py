@@ -33,3 +33,35 @@ def test_live_syms_dedups_and_uppercases():
 
 def test_live_syms_empty_input():
     assert liveness.live_syms([]) == set()
+
+
+def test_prefers_endpoint_when_configured(monkeypatch):
+    # With CURATION_LIVENESS_URL + PUSH_SECRET set, live_syms must use the Massive
+    # endpoint (reliable) and NOT fall through to Finnhub.
+    calls = {}
+
+    class _Resp:
+        def raise_for_status(self): pass
+        def json(self): return {"live": {"MMC": True, "CYBR": True, "AYX": False}}
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        calls["url"] = url
+        calls["tickers"] = json["tickers"]
+        assert headers["Authorization"] == "Bearer sek"
+        return _Resp()
+
+    monkeypatch.setenv("CURATION_LIVENESS_URL", "https://x/api/admin/ticker-liveness")
+    monkeypatch.setenv("PUSH_SECRET", "sek")
+    monkeypatch.setattr(liveness.requests, "post", fake_post)
+    live = liveness.live_syms(["MMC", "CYBR", "AYX"])
+    assert live == {"MMC", "CYBR"}                 # endpoint verdict, Finnhub never called
+    assert calls["url"].endswith("/api/admin/ticker-liveness")
+
+
+def test_endpoint_batch_error_is_conservative(monkeypatch):
+    def boom(url, json=None, headers=None, timeout=None):
+        raise RuntimeError("network down")
+    monkeypatch.setenv("CURATION_LIVENESS_URL", "https://x")
+    monkeypatch.setenv("PUSH_SECRET", "sek")
+    monkeypatch.setattr(liveness.requests, "post", boom)
+    assert liveness.live_syms(["MMC"]) == set()    # endpoint error => nothing marked live

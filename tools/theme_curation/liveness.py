@@ -25,7 +25,28 @@ import requests
 
 _QUOTE = "https://finnhub.io/api/v1/quote"
 _TIMEOUT = 8
-_SLEEP = 0.12       # politeness between per-ticker quote calls (default source only)
+_SLEEP = 0.12       # politeness between per-ticker quote calls (Finnhub fallback only)
+_ENDPOINT_BATCH = 100
+_UA = {"User-Agent": "Mozilla/5.0 (curation-liveness)"}   # Cloudflare 1010-blocks bare UAs
+
+
+def _live_via_endpoint(uniq, url, secret) -> set:
+    """Reliable path: the deployed dashboard's Massive-backed /api/admin/ticker-liveness.
+    Batched POSTs; a batch that errors leaves its names 'not live' (conservative)."""
+    live = set()
+    for i in range(0, len(uniq), _ENDPOINT_BATCH):
+        chunk = uniq[i:i + _ENDPOINT_BATCH]
+        try:
+            r = requests.post(url, json={"tickers": chunk},
+                              headers={**_UA, "Authorization": f"Bearer {secret}"},
+                              timeout=30)
+            r.raise_for_status()
+            for sym, is_live in (r.json().get("live") or {}).items():
+                if is_live:
+                    live.add(sym.upper())
+        except Exception:
+            continue
+    return live
 
 
 def _finnhub_price(sym: str):
@@ -54,9 +75,15 @@ def live_syms(syms, quote_fn=None) -> set:
     if not uniq:
         return set()
     if quote_fn is None:
+        # Prefer the reliable Massive-backed endpoint if configured; Finnhub /quote is a
+        # fallback and is UNRELIABLE at scale (returns 0 for many live large-caps).
+        url = os.environ.get("CURATION_LIVENESS_URL")
+        secret = os.environ.get("PUSH_SECRET")
+        if url and secret:
+            return _live_via_endpoint(uniq, url, secret)
         if not os.environ.get("FINNHUB_API_KEY"):
-            raise RuntimeError("FINNHUB_API_KEY not set — the liveness split needs it "
-                               "(or pass --no-liveness for an offline run).")
+            raise RuntimeError("liveness needs CURATION_LIVENESS_URL+PUSH_SECRET (reliable) "
+                               "or FINNHUB_API_KEY (fallback) — or pass --no-liveness.")
         quote_fn = _finnhub_price
     live = set()
     for i, s in enumerate(uniq):
