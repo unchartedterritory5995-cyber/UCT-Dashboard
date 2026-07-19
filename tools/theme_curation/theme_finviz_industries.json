@@ -371,5 +371,59 @@
   "taiwan": null,
   "south_korea": null,
   "europe": null,
-  "emerging_markets": null
+  "emerging_markets": null,
+  "financials_broad": [
+    "Banks - Diversified",
+    "Asset Management",
+    "Financial Data & Stock Exchanges",
+    "Capital Markets",
+    "Credit Services"
+  ],
+  "regional_banks": [
+    "Banks - Regional"
+  ],
+  "insurance": [
+    "Insurance - Property & Casualty",
+    "Insurance - Life",
+    "Insurance - Diversified",
+    "Insurance - Specialty",
+    "Insurance - Reinsurance",
+    "Insurance Brokers"
+  ],
+  "dividend_aristocrats": null,
+  "insurtech": [
+    "Insurance - Property & Casualty",
+    "Insurance - Specialty",
+    "Software - Application"
+  ],
+  "reits": [
+    "REIT - Industrial",
+    "REIT - Specialty",
+    "REIT - Residential",
+    "REIT - Retail",
+    "REIT - Healthcare Facilities",
+    "REIT - Office",
+    "REIT - Mortgage",
+    "REIT - Hotel & Motel",
+    "REIT - Diversified"
+  ],
+  "utilities": [
+    "Utilities - Regulated Electric",
+    "Utilities - Independent Power Producers",
+    "Utilities - Diversified",
+    "Utilities - Regulated Gas",
+    "Utilities - Renewable"
+  ],
+  "data_center_power": [
+    "Specialty Industrial Machinery",
+    "Utilities - Regulated Electric",
+    "Utilities - Independent Power Producers",
+    "Electrical Equipment & Parts"
+  ],
+  "proptech": [
+    "Real Estate Services",
+    "Internet Content & Information"
+  ],
+  "bitcoin_miners": null,
+  "bitcoin_crypto": null
 }

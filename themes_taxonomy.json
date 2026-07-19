@@ -1,5 +1,5 @@
 {
-  "version": "4.12.0+d3495814",
+  "version": "4.13.0+f9715077",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -6182,18 +6182,6 @@
           "rationale": "Truist Financial Southeast regional bank"
         },
         {
-          "sym": "ALLY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Ally Financial digital banking auto lending"
-        },
-        {
-          "sym": "NYCB",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "New York Community Bancorp multifamily lender"
-        },
-        {
           "sym": "WBS",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -6228,6 +6216,24 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "UMB Financial Kansas City regional bank"
+        },
+        {
+          "sym": "USB",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PNC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "FLG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "rename"
         }
       ]
     },
@@ -6402,6 +6408,18 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "American Financial Group specialty insurance"
+        },
+        {
+          "sym": "PRU",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "LNC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -8640,6 +8658,114 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Host Hotels and Resorts lodging REIT"
+        },
+        {
+          "sym": "SBAC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "REG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NNN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "FR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "REXR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "EGP",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "COLD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NSA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OHI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "IRM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SBRA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "IIPR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "NLY",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AGNC",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "STWD",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BXMT",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "RITM",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -8842,7 +8968,7 @@
         },
         {
           "sym": "NNE",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Nuclear micro-reactors targeting AI data centers"
         },
@@ -8859,38 +8985,20 @@
           "rationale": "Electrical contractor building data center connections"
         },
         {
-          "sym": "GNRC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Backup generators for data center facilities"
-        },
-        {
-          "sym": "NEE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Clean energy PPAs for data center operators"
-        },
-        {
-          "sym": "FLNC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Fluence Energy battery for DC backup power"
-        },
-        {
           "sym": "ANET",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Arista Networks networking fabric data centers"
         },
         {
           "sym": "SO",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Southern Company nuclear gas power DC loads"
         },
         {
           "sym": "AEP",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "AEP utility power serving data center markets"
         },
@@ -8902,15 +9010,9 @@
         },
         {
           "sym": "DUK",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Duke Energy utility serving data center markets"
-        },
-        {
-          "sym": "WEC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "WEC Energy gas and electric serving DC regions"
         },
         {
           "sym": "AME",
@@ -8925,16 +9027,34 @@
           "rationale": "NRG Energy power generation for data centers"
         },
         {
-          "sym": "PRIM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Primoris electrical contractor DC power hookups"
-        },
-        {
           "sym": "EMR",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Emerson power management for data center cooling"
+        },
+        {
+          "sym": "XEL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CCJ",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PPL",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SRE",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -8967,43 +9087,43 @@
         },
         {
           "sym": "IREN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner pivoting to AI/HPC hosting"
         },
         {
           "sym": "CIFR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner with custom ASIC chip program"
         },
         {
           "sym": "BITF",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Canadian Bitcoin miner with hydro power"
         },
         {
           "sym": "HUT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner expanding into AI data centers"
         },
         {
           "sym": "BTDR",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitdeer Bitcoin mining and ASIC hardware"
         },
         {
           "sym": "WULF",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner with adjacent HPC business"
         },
         {
           "sym": "CORZ",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Core Scientific Bitcoin miner AI data center host"
         },
@@ -9021,33 +9141,15 @@
         },
         {
           "sym": "GREE",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Greenidge Generation natural gas-powered BTC mining"
         },
         {
-          "sym": "MIGI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Mawson Infrastructure Bitcoin mining data centers"
-        },
-        {
-          "sym": "SMLR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Semler Scientific pivot to BTC treasury"
-        },
-        {
           "sym": "HIVE",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "HIVE Digital Technologies Bitcoin and AI mining"
-        },
-        {
-          "sym": "NILE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "BitNile Holdings Bitcoin mining operations"
         },
         {
           "sym": "DMGGF",
@@ -9057,15 +9159,9 @@
         },
         {
           "sym": "APLD",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Applied Digital next-gen data center BTC mining"
-        },
-        {
-          "sym": "BTCM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "BIT Mining limited Bitcoin and crypto mining"
         }
       ]
     },
@@ -9098,21 +9194,15 @@
         },
         {
           "sym": "RIOT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner holding BTC reserves"
         },
         {
           "sym": "CLSK",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Bitcoin miner with growing BTC treasury"
-        },
-        {
-          "sym": "SQ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Bitcoin buying via Cash App, BTC on balance sheet"
         },
         {
           "sym": "HOOD",
@@ -9164,15 +9254,9 @@
         },
         {
           "sym": "GLXY",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Galaxy Digital Bitcoin investment management"
-        },
-        {
-          "sym": "SMLR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Semler Scientific BTC treasury company"
         },
         {
           "sym": "ARBK",
@@ -9182,63 +9266,33 @@
         },
         {
           "sym": "GBTC",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Grayscale Bitcoin Trust largest BTC fund"
         },
         {
           "sym": "IBIT",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "iShares Bitcoin Trust largest spot BTC ETF"
         },
         {
           "sym": "CME",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "CME Group Bitcoin and crypto futures exchange"
         },
         {
           "sym": "PYPL",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Crypto buying and PYUSD stablecoin"
         },
         {
-          "sym": "V",
+          "sym": "XYZ",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Blockchain settlement and crypto-linked cards"
-        },
-        {
-          "sym": "MA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Crypto card programs and blockchain experiments"
-        },
-        {
-          "sym": "IBM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Enterprise blockchain solutions (Hyperledger)"
-        },
-        {
-          "sym": "AFRM",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Affirm exploring blockchain payment settlement"
-        },
-        {
-          "sym": "DKNG",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "DraftKings blockchain for sports betting NFTs"
-        },
-        {
-          "sym": "GPN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Global Payments blockchain settlement exploration"
+          "rationale": "rename"
         }
       ]
     },
@@ -11787,7 +11841,7 @@
         },
         {
           "sym": "COMP",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "AI-driven real estate technology for homebuying"
         },
@@ -11799,21 +11853,15 @@
         },
         {
           "sym": "CSGP",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Commercial real estate data and analytics platform"
         },
         {
           "sym": "OPEN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "iBuyer platform using technology for instant home offers"
-        },
-        {
-          "sym": "HASI",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Climate-positive real asset investment and financing"
         },
         {
           "sym": "RMAX",
@@ -11823,15 +11871,33 @@
         },
         {
           "sym": "FTHM",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Technology-driven cloud real estate brokerage"
         },
         {
-          "sym": "DCGO",
+          "sym": "APPF",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PRCH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CBRE",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "Digital real estate closing and title technology platform"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "JLL",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 28
@@ -12295,6 +12361,18 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Food and beverage giant with 50+ year dividend growth"
+        },
+        {
+          "sym": "LOW",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WMT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 33
@@ -12421,34 +12499,22 @@
           "rationale": "Technology-driven health insurance platform"
         },
         {
-          "sym": "KNSL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Specialty surplus lines insurer with tech-forward underwriting"
-        },
-        {
-          "sym": "RYAN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Technology-enabled specialty insurance distribution"
-        },
-        {
-          "sym": "ACGL",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Specialty insurance and reinsurance with analytics focus"
-        },
-        {
           "sym": "HIPO",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "AI-powered homeowner insurance platform"
         },
         {
-          "sym": "EQ",
-          "tier": "peripheral",
+          "sym": "HCI",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Earthquake parametric insurance technology provider"
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CLOV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 35
