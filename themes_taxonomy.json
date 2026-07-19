@@ -1,5 +1,5 @@
 {
-  "version": "4.4.0+8668abcb",
+  "version": "4.5.0+d83c5967",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -2655,12 +2655,6 @@
           "rationale": "Largest US residential solar installer"
         },
         {
-          "sym": "NOVA",
-          "tier": "relevant",
-          "sub_theme_id": "solar_install",
-          "rationale": "Residential solar and storage installer"
-        },
-        {
           "sym": "CSIQ",
           "tier": "relevant",
           "sub_theme_id": "solar_manufacturing",
@@ -2691,64 +2685,10 @@
           "rationale": "Daqo New Energy polysilicon for solar wafers"
         },
         {
-          "sym": "MAXN",
+          "sym": "NXT",
           "tier": "relevant",
-          "sub_theme_id": "solar_manufacturing",
-          "rationale": "Maxeon Solar high-efficiency panel technology"
-        },
-        {
-          "sym": "HASI",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_install",
-          "rationale": "Clean energy project financing for solar"
-        },
-        {
-          "sym": "NEP",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_install",
-          "rationale": "NextEra Energy Partners solar project portfolio"
-        },
-        {
-          "sym": "FLNC",
-          "tier": "relevant",
-          "sub_theme_id": "solar_inverters",
-          "rationale": "Fluence Energy battery storage paired with solar"
-        },
-        {
-          "sym": "STEM",
-          "tier": "relevant",
-          "sub_theme_id": "solar_inverters",
-          "rationale": "Stem AI energy optimization for solar storage"
-        },
-        {
-          "sym": "RNW",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_manufacturing",
-          "rationale": "ReNew Energy Indian solar developer"
-        },
-        {
-          "sym": "TPIC",
-          "tier": "relevant",
-          "sub_theme_id": "solar_manufacturing",
-          "rationale": "TPI Composites wind and solar composite blades"
-        },
-        {
-          "sym": "AES",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_install",
-          "rationale": "AES Corp solar generation and storage utility"
-        },
-        {
-          "sym": "NEE",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_install",
-          "rationale": "NextEra Energy worlds largest solar operator"
-        },
-        {
-          "sym": "GE",
-          "tier": "peripheral",
-          "sub_theme_id": "solar_inverters",
-          "rationale": "GE Vernova inverters for utility solar"
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -2803,12 +2743,6 @@
           "tier": "relevant",
           "sub_theme_id": "hydrogen",
           "rationale": "Solid-oxide fuel cells for distributed power"
-        },
-        {
-          "sym": "GE",
-          "tier": "relevant",
-          "sub_theme_id": "wind",
-          "rationale": "GE Vernova wind turbines and grid solutions"
         },
         {
           "sym": "AES",
@@ -2877,18 +2811,6 @@
           "rationale": "AI-powered clean energy storage optimization"
         },
         {
-          "sym": "NOVA",
-          "tier": "relevant",
-          "sub_theme_id": "solar",
-          "rationale": "Sunnova residential clean energy services"
-        },
-        {
-          "sym": "MAXN",
-          "tier": "peripheral",
-          "sub_theme_id": "solar",
-          "rationale": "Maxeon high-efficiency solar panel technology"
-        },
-        {
           "sym": "HASI",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -2902,7 +2824,7 @@
         },
         {
           "sym": "VST",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Vistra Energy nuclear clean baseload generation"
         },
@@ -2926,9 +2848,21 @@
         },
         {
           "sym": "CLNE",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Renewable natural gas for transportation decarbonization"
+        },
+        {
+          "sym": "BEP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "GEV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -2980,7 +2914,7 @@
         },
         {
           "sym": "MP",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "battery_materials",
           "rationale": "US rare earth mine supplying EV battery chain"
         },
@@ -3001,18 +2935,6 @@
           "tier": "peripheral",
           "sub_theme_id": "battery_tech",
           "rationale": "Clean battery cell manufacturing startup"
-        },
-        {
-          "sym": "PLL",
-          "tier": "relevant",
-          "sub_theme_id": "lithium_mining",
-          "rationale": "Piedmont Lithium US spodumene lithium project"
-        },
-        {
-          "sym": "FREYR",
-          "tier": "relevant",
-          "sub_theme_id": "battery_tech",
-          "rationale": "FREYR Battery clean battery cell manufacturer"
         },
         {
           "sym": "SLDP",
@@ -3051,18 +2973,6 @@
           "rationale": "Nano One Materials battery cathode tech"
         },
         {
-          "sym": "CHPT",
-          "tier": "relevant",
-          "sub_theme_id": "battery_tech",
-          "rationale": "ChargePoint EV charging battery demand driver"
-        },
-        {
-          "sym": "PLUG",
-          "tier": "relevant",
-          "sub_theme_id": "battery_tech",
-          "rationale": "Plug Power hydrogen fuel cells and storage"
-        },
-        {
           "sym": "GWH",
           "tier": "relevant",
           "sub_theme_id": "battery_tech",
@@ -3073,6 +2983,12 @@
           "tier": "relevant",
           "sub_theme_id": "battery_tech",
           "rationale": "Amprius Technologies silicon anode batteries"
+        },
+        {
+          "sym": "SES",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -3112,7 +3028,7 @@
         },
         {
           "sym": "LCID",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "ev_oem",
           "rationale": "Luxury EV sedan and SUV manufacturer"
         },
@@ -3130,19 +3046,19 @@
         },
         {
           "sym": "LI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "ev_oem",
           "rationale": "Chinese extended-range EV SUV maker"
         },
         {
           "sym": "NIO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "ev_oem",
           "rationale": "Chinese premium EV maker with battery swap"
         },
         {
           "sym": "XPEV",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "ev_oem",
           "rationale": "Chinese smart EV maker with ADAS focus"
         },
@@ -3165,28 +3081,10 @@
           "rationale": "EV electrical architecture and connectors"
         },
         {
-          "sym": "JOBY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Joby Aviation eVTOL electric air taxi developer"
-        },
-        {
-          "sym": "PCAR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "PACCAR electric Kenworth and Peterbilt commercial trucks"
-        },
-        {
           "sym": "BWA",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "BorgWarner EV drivetrain and motor components"
-        },
-        {
-          "sym": "INVZ",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Innoviz lidar for EV autonomous driving"
         },
         {
           "sym": "MBLY",
@@ -3412,7 +3310,7 @@
         },
         {
           "sym": "POWL",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "grid_equipment",
           "rationale": "Switchgear and power distribution equipment"
         },
@@ -3424,27 +3322,15 @@
         },
         {
           "sym": "ITRI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "grid_software",
           "rationale": "Smart grid meters and IoT solutions"
-        },
-        {
-          "sym": "TSLA",
-          "tier": "relevant",
-          "sub_theme_id": "energy_storage",
-          "rationale": "Megapack utility-scale battery storage systems"
         },
         {
           "sym": "GNRC",
           "tier": "relevant",
           "sub_theme_id": "energy_storage",
           "rationale": "Home standby generators and energy storage"
-        },
-        {
-          "sym": "NEE",
-          "tier": "relevant",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "NextEra Energy grid-scale renewables integration"
         },
         {
           "sym": "AES",
@@ -3459,40 +3345,10 @@
           "rationale": "Fluence Energy grid battery storage systems"
         },
         {
-          "sym": "SEDG",
-          "tier": "peripheral",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "SolarEdge grid-tied inverter technology"
-        },
-        {
-          "sym": "ARRY",
-          "tier": "peripheral",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "Array Technologies solar tracker grid-scale"
-        },
-        {
           "sym": "STEM",
           "tier": "relevant",
           "sub_theme_id": "grid_software",
           "rationale": "Stem AI-powered grid energy optimization"
-        },
-        {
-          "sym": "BLDP",
-          "tier": "peripheral",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "Ballard Power fuel cells for grid backup"
-        },
-        {
-          "sym": "NOVA",
-          "tier": "peripheral",
-          "sub_theme_id": "energy_storage",
-          "rationale": "Sunnova distributed energy grid services"
-        },
-        {
-          "sym": "PLUG",
-          "tier": "relevant",
-          "sub_theme_id": "grid_equipment",
-          "rationale": "Plug Power hydrogen for grid energy storage"
         },
         {
           "sym": "SO",
@@ -3525,28 +3381,10 @@
           "rationale": "Eos Energy, zinc batteries"
         },
         {
-          "sym": "ENPH",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Enphase, inverters+battery"
-        },
-        {
-          "sym": "QS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "QuantumScape, solid-state"
-        },
-        {
           "sym": "ENVX",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Enovix, silicon anode cells"
-        },
-        {
-          "sym": "ALB",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Albemarle, lithium supplier"
         }
       ]
     },
@@ -12725,7 +12563,7 @@
         },
         {
           "sym": "APD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Air Products, world largest hydrogen producer by volume"
         },
@@ -12737,15 +12575,9 @@
         },
         {
           "sym": "CLNE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Clean Energy Fuels, RNG and hydrogen fueling stations"
-        },
-        {
-          "sym": "NEE",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "NextEra Energy, green hydrogen projects in renewables portfolio"
+          "rationale": "Clean Energy Fuels, RNG and hydrogen fueling stations"
         },
         {
           "sym": "GE",
@@ -12755,9 +12587,15 @@
         },
         {
           "sym": "CMI",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Cummins, electrolyzer and fuel cell technology via Accelera"
+        },
+        {
+          "sym": "GTLS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },

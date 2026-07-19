@@ -36,5 +36,41 @@
     "Oil & Gas E&P",
     "Oil & Gas Integrated",
     "Oil & Gas Equipment & Services"
+  ],
+  "solar": [
+    "Solar",
+    "Utilities - Renewable"
+  ],
+  "clean_energy_broad": [
+    "Solar",
+    "Utilities - Renewable",
+    "Utilities - Independent Power Producers",
+    "Electrical Equipment & Parts",
+    "Utilities - Diversified"
+  ],
+  "lithium_battery": [
+    "Electrical Equipment & Parts",
+    "Specialty Chemicals",
+    "Other Industrial Metals & Mining",
+    "Auto Parts"
+  ],
+  "evs": [
+    "Auto Manufacturers",
+    "Auto Parts"
+  ],
+  "nuclear": [
+    "Uranium",
+    "Utilities - Regulated Electric",
+    "Utilities - Independent Power Producers"
+  ],
+  "grid_modernization": [
+    "Electrical Equipment & Parts",
+    "Utilities - Regulated Electric",
+    "Specialty Industrial Machinery"
+  ],
+  "hydrogen": [
+    "Electrical Equipment & Parts",
+    "Specialty Chemicals",
+    "Specialty Industrial Machinery"
   ]
 }
