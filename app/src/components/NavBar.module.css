@@ -28,6 +28,11 @@
 .brand {
   display: flex;
   align-items: center;
+  /* Center the logo + name block in the column. Without this the expanded nav's
+     align-items:flex-start pins it to the left edge (logo jammed against the
+     screen with dead space to the right); align-self:center overrides that for
+     the brand only, so it sits centered in both the 60px and 200px widths. */
+  align-self: center;
   margin-bottom: 24px;
   text-decoration: none;
   cursor: pointer;
