@@ -19,13 +19,20 @@ def _client():
     return _get_anthropic_client()
 
 
-def _prompt(theme: dict, candidates: list, corrob: dict, current_syms: list) -> str:
+def _prompt(theme: dict, candidates: list, corrob: dict, current_syms: list, audit_flags: dict) -> str:
     subs = [s.get("id") for s in theme.get("sub_themes", [])]
     cand_lines = [f"{c} (finviz_match={corrob.get(c, False)})" for c in candidates]
+    af = audit_flags or {}
+    # dead (not chartable) + dups are DROP/REMAP grounding; 'thin' is deliberately NEVER rendered.
+    flagged = sorted(set(af.get("dead", []) or []) | set(af.get("dups", []) or []))
+    flagged_line = (
+        f"FLAGGED (not chartable / duplicate — propose DROP or REMAP): {', '.join(flagged)}\n"
+        if flagged else "")
     return (
         f"{_RUBRIC}\n\nTHEME: {theme['name']} (id={theme['id']})\n"
         f"Valid sub_theme_id values: {subs or 'none'}\n"
         f"CURRENT holdings: {', '.join(current_syms) or 'none'}\n"
+        f"{flagged_line}"
         f"CANDIDATE tickers (from web search; finviz_match = industry corroborated): "
         f"{', '.join(cand_lines) or 'none'}\n\n"
         "Return ONLY JSON: {\"proposals\":[{\"action\":\"add|drop|remap|retier\","
@@ -35,8 +42,8 @@ def _prompt(theme: dict, candidates: list, corrob: dict, current_syms: list) -> 
 
 
 def propose_theme(theme, candidates, corrob, current_syms, audit_flags, model, cap_set=None):
-    # NOTE: audit_flags['thin'] is deliberately NOT passed into the prompt.
-    prompt = _prompt(theme, candidates, corrob, current_syms)
+    # NOTE: audit_flags['dead']/['dups'] ground the prompt; ['thin'] is deliberately NOT passed.
+    prompt = _prompt(theme, candidates, corrob, current_syms, audit_flags)
     resp = _client().messages.create(
         model=model, max_tokens=2000,
         messages=[{"role": "user", "content": prompt}])

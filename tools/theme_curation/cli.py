@@ -1,5 +1,6 @@
 """Curation pipeline CLI."""
 import argparse
+import os
 import subprocess
 import sys
 
@@ -12,20 +13,37 @@ def is_git_clean(path: str) -> bool:
     return out == ""
 
 
-def load_approved(ledger_path: str, review_dir: str):
-    """Assemble approved Proposals from the ledger + parsed review docs. Owner-run;
-    monkeypatched in tests."""
+def load_approved(ledger_path, review_dir, proposals_dir):
+    """Approved Proposals from BOTH the ledger (interactive) AND owner-edited batch
+    review docs (parsed; fields recovered from the proposals-dir artifacts by pid)."""
+    import json as _j, glob, os, sqlite3
     from tools.theme_curation.ledger import Ledger
-    from tools.theme_curation.proposals import Proposal
-    lg = Ledger(ledger_path)
-    import sqlite3
+    from tools.theme_curation.proposals import Proposal, pid
+    from tools.theme_curation.review_doc import parse_review_md
+    Ledger(ledger_path)                       # ensure the decisions table exists
+    out, seen = [], set()
+    def _add(p):
+        k = pid(p)
+        if k not in seen:
+            seen.add(k); out.append(p)
     con = sqlite3.connect(ledger_path); con.row_factory = sqlite3.Row
-    props = []
-    import json as _j
-    for r in con.execute("SELECT * FROM decisions WHERE decision='approve'"):
-        props.append(Proposal(r["theme_id"], r["action"], r["sym"], 1.0,
-                              _j.loads(r["fields"] or "{}")))
-    return props
+    try:
+        for r in con.execute("SELECT * FROM decisions WHERE decision='approve'"):
+            _add(Proposal(r["theme_id"], r["action"], r["sym"], 1.0, _j.loads(r["fields"] or "{}")))
+    finally:
+        con.close()
+    by_pid = {}
+    for art in glob.glob(os.path.join(proposals_dir, "*.json")):
+        with open(art, encoding="utf-8") as f:
+            for d in _j.load(f).get("proposals", []):
+                p = Proposal(**d); by_pid[pid(p)] = p
+    for doc in sorted(glob.glob(os.path.join(review_dir, "*.md"))):
+        with open(doc, encoding="utf-8") as f:
+            decisions = parse_review_md(f.read())   # HARD-FAILS on an unparseable block (safety)
+        for pid_str, approved in decisions.items():
+            if approved and pid_str in by_pid:
+                _add(by_pid[pid_str])
+    return out
 
 
 def _cmd_apply(args) -> int:
@@ -34,7 +52,7 @@ def _cmd_apply(args) -> int:
               "(commit/stash first, or pass --force).")
         return 2
     tax = loaders.load_taxonomy(args.taxonomy)
-    approved = load_approved(args.ledger, args.review_dir)
+    approved = load_approved(args.ledger, args.review_dir, args.proposals_dir)
     new_tax, rejects = A.apply_proposals(tax, approved, loaders.cap_universe_set(args.cap))
     for r in rejects:
         print(f"  rejected: {r}")
@@ -48,7 +66,10 @@ def _cmd_apply(args) -> int:
     before = _json.dumps(tax, indent=2, ensure_ascii=False, sort_keys=True).splitlines()
     after = _json.dumps(new_tax, indent=2, ensure_ascii=False, sort_keys=True).splitlines()
     diff = list(difflib.unified_diff(before, after, "current", "proposed", lineterm=""))
-    print("\n".join(diff) if diff else "(no content change)")
+    if not diff:
+        print("(no content change) — nothing to apply.")
+        return 0
+    print("\n".join(diff))
     print(f"\n{len(approved) - len(rejects)} change(s) staged.")
     if not args.confirm:
         print("dry run — re-run with --confirm to write and bump the version.")
@@ -74,11 +95,13 @@ def _cmd_audit(args) -> int:
 
 def _cmd_discover(args) -> int:
     # Owner-run orchestration over the tested primitives (network — not unit-tested).
-    from tools.theme_curation import discover, corroborate, propose
+    from datetime import date
+    from tools.theme_curation import discover, corroborate, propose, audit
     from tools.theme_curation.ledger import Ledger
     corroborate.ensure_industry_map()                    # hard-fails without FINVIZ_API_KEY
     tax = loaders.load_taxonomy(args.taxonomy)
     cap = loaders.cap_universe_set(args.cap)
+    aud = audit.audit_taxonomy(tax, cap, loaders.ipo_dates(), date.today().toordinal())
     tind = corroborate.load_theme_industries(args.industries)
     lg = Ledger(args.ledger)
     import os, json
@@ -91,8 +114,9 @@ def _cmd_discover(args) -> int:
         disc = discover.discover(t["name"], args.run_id, confirm=(expected is None))
         cands = [c for c in disc["tickers"] if c in cap]
         corrob = corroborate.corroborate(cands, expected)
+        flags = aud["themes"].get(t["id"], {"dead": [], "dups": []})
         res = propose.propose_theme(t, cands, corrob, loaders.holding_syms(t),
-                                    {"dead": [], "thin": False}, args.model, cap_set=cap)
+                                    flags, args.model, cap_set=cap)
         kept = propose.suppress_rejected(res["proposals"], lg)
         with open(art, "w", encoding="utf-8") as f:
             json.dump({"theme_id": t["id"], "error": disc["error"],
@@ -110,12 +134,18 @@ def _cmd_review(args) -> int:
     lg = Ledger(args.ledger)
     hi, lo = [], []
     for art in glob.glob(os.path.join(args.proposals_dir, "*.json")):
-        for d in json.load(open(art, encoding="utf-8")).get("proposals", []):
+        with open(art, encoding="utf-8") as f:
+            arts = json.load(f)
+        for d in arts.get("proposals", []):
             p = Proposal(**d)
             (hi if p.confidence >= args.threshold else lo).append(p)
     os.makedirs(args.review_dir, exist_ok=True)
-    with open(os.path.join(args.review_dir, "review.md"), "w", encoding="utf-8") as f:
-        f.write(review_doc.write_review_md(hi))
+    review_path = os.path.join(args.review_dir, "review.md")
+    if os.path.exists(review_path) and not args.regenerate:
+        print(f"{review_path} exists — edit it (or pass --regenerate to rewrite).")
+    else:
+        with open(review_path, "w", encoding="utf-8") as f:
+            f.write(review_doc.write_review_md(hi))
     review_cli.review_interactive(lo, lg)                 # writes ledger as it goes
     print(f"batch doc: {len(hi)} proposal(s); interactive: {len(lo)}")
     return 0
@@ -146,7 +176,7 @@ def main(argv=None) -> int:
     d.add_argument("--ledger", default="tools/theme_curation/curation_ledger.db")
     d.add_argument("--proposals-dir", default="tools/theme_curation/proposals")
     d.add_argument("--run-id", required=True)
-    d.add_argument("--model", default="claude-opus-4-8")
+    d.add_argument("--model", default=os.environ.get("TAXONOMY_LLM_MODEL", "claude-opus-4-8"))
     d.add_argument("--resume", action="store_true")
 
     r = sub.add_parser("review")
@@ -154,6 +184,7 @@ def main(argv=None) -> int:
     r.add_argument("--review-dir", default="tools/theme_curation/review")
     r.add_argument("--ledger", default="tools/theme_curation/curation_ledger.db")
     r.add_argument("--threshold", type=float, default=0.85)
+    r.add_argument("--regenerate", action="store_true")
 
     sub.add_parser("bootstrap-finviz")
 
@@ -162,6 +193,7 @@ def main(argv=None) -> int:
     ap_apply.add_argument("--cap", default="api/data/cap_universe.json")
     ap_apply.add_argument("--ledger", default="tools/theme_curation/curation_ledger.db")
     ap_apply.add_argument("--review-dir", default="tools/theme_curation/review")
+    ap_apply.add_argument("--proposals-dir", default="tools/theme_curation/proposals")
     ap_apply.add_argument("--confirm", action="store_true")
     ap_apply.add_argument("--force", action="store_true")
 

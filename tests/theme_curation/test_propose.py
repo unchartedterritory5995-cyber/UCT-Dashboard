@@ -22,6 +22,23 @@ def test_thin_flag_excluded_from_prompt(monkeypatch):
     assert "thin" not in captured["prompt"].lower()
 
 
+def test_dead_reaches_prompt_thin_does_not(monkeypatch):
+    captured = {}
+    class _Msg:
+        def create(self, **kw):
+            captured["prompt"] = kw["messages"][0]["content"]
+            class R:
+                content = [type("B", (), {"text": '{"proposals": []}'})()]
+            return R()
+    class _Client:
+        messages = _Msg()
+    monkeypatch.setattr(propose, "_client", lambda: _Client())
+    theme = {"id": "t", "name": "Sparse Theme", "sub_themes": [], "holdings": []}
+    propose.propose_theme(theme, [], {}, [], {"thin": True, "dead": ["DEADCO"], "dups": []}, "m")
+    p = captured["prompt"]
+    assert "DEADCO" in p and "thin" not in p.lower()
+
+
 def test_suppress_rejected(tmp_path):
     lg = Ledger(str(tmp_path / "l.db"))
     lg.record("t", "BAD", "add", "reject")

@@ -66,3 +66,14 @@ def test_validate_rejects_unknown_action():
     from tools.theme_curation.proposals import Proposal
     theme = {"id": "space", "name": "Space", "sector_id": "s", "sub_themes": [], "holdings": [{"sym": "RKLB"}]}
     assert A.validate_proposal(Proposal("space", "frobnicate", "RKLB", 1), theme, {"RKLB"})   # returns a reason
+
+
+def test_apply_remap_into_existing_merges_no_dup():
+    tax = {"version": "1.0.0", "sectors": [{"id": "s", "name": "S"}],
+           "themes": [{"id": "t", "name": "T", "sector_id": "s", "sub_themes": [],
+                       "holdings": [{"sym": "OLD", "tier": "core"}, {"sym": "NEW", "tier": "relevant"}]}]}
+    from tools.theme_curation.proposals import Proposal
+    out, rej = A.apply_proposals(tax, [Proposal("t", "remap", "OLD", 1,
+                {"new_sym": "NEW", "tier": "relevant", "sub_theme_id": None, "rationale": ""})], {"OLD", "NEW"})
+    syms = [h["sym"] for h in out["themes"][0]["holdings"]]
+    assert syms.count("NEW") == 1 and "OLD" not in syms and rej == []
