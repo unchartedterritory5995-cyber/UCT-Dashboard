@@ -1,5 +1,5 @@
 {
-  "version": "4.15.0+22795f2a",
+  "version": "4.16.0+39359f8e",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -1132,12 +1132,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "SentinelOne AI-powered cybersecurity platform"
-        },
-        {
-          "sym": "GOOG",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Google DeepMind Gemini AI research"
         },
         {
           "sym": "HUBS",
@@ -2729,19 +2723,19 @@
         {
           "sym": "SEDG",
           "tier": "relevant",
-          "sub_theme_id": "solar",
+          "sub_theme_id": null,
           "rationale": "String inverters for solar energy systems"
         },
         {
           "sym": "RUN",
           "tier": "relevant",
-          "sub_theme_id": "solar",
+          "sub_theme_id": null,
           "rationale": "Largest US residential solar installer"
         },
         {
           "sym": "DQ",
           "tier": "peripheral",
-          "sub_theme_id": "solar",
+          "sub_theme_id": null,
           "rationale": "Polysilicon feedstock for solar cell manufacturing"
         },
         {
@@ -2753,13 +2747,13 @@
         {
           "sym": "CSIQ",
           "tier": "relevant",
-          "sub_theme_id": "solar",
+          "sub_theme_id": null,
           "rationale": "Canadian Solar module manufacturer developer"
         },
         {
           "sym": "JKS",
           "tier": "relevant",
-          "sub_theme_id": "solar",
+          "sub_theme_id": null,
           "rationale": "JinkoSolar leading global solar module maker"
         },
         {
@@ -13442,21 +13436,9 @@
         },
         {
           "sym": "AMT",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "new-theme seed"
-        },
-        {
-          "sym": "CCI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "new-theme seed"
-        },
-        {
-          "sym": "SBAC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "new-theme seed"
+          "rationale": "CoreSite data-center portfolio; towers are the main business"
         }
       ]
     },
@@ -13849,6 +13831,12 @@
           "rationale": "new-theme seed"
         },
         {
+          "sym": "TLX",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "Telix Pharmaceuticals — radiopharma pure-play (Illuccix)"
+        },
+        {
           "sym": "NVS",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -13856,15 +13844,21 @@
         },
         {
           "sym": "LLY",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "new-theme seed"
+          "rationale": "diversified megacap; radioligand is one franchise"
         },
         {
           "sym": "BMY",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "diversified megacap; radioligand is one franchise"
+        },
+        {
+          "sym": "ASPI",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "new-theme seed"
+          "rationale": "ASP Isotopes — medical isotope enrichment"
         }
       ]
     },

@@ -97,7 +97,10 @@ def _build_tier1() -> list[str]:
     # Theme ETFs from taxonomy DB
     try:
         from api.services.theme_db import get_all_themes
-        for th in get_all_themes():
+        # get_all_themes() returns {"sectors": [...], "themes": [...]} — iterating
+        # the dict yields string keys, whose .get raised and was swallowed below,
+        # making this tier-1 theme-ETF prewarm a silent no-op (mega-review finding).
+        for th in get_all_themes().get("themes", []):
             _add(th.get("etf_ticker") or th.get("ticker") or "")
     except Exception:
         pass
