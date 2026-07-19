@@ -1,5 +1,5 @@
 {
-  "version": "4.14.0+3af07bf6",
+  "version": "4.15.0+22795f2a",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -13525,6 +13525,550 @@
         },
         {
           "sym": "DTIL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "ai_infrastructure",
+      "name": "AI Infrastructure",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 21,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "NVDA",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AVGO",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ANET",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "VRT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MRVL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SMCI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DELL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRDO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ALAB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NBIS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRWV",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MU",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "WDC",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "ai_applications",
+      "name": "AI Applications",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 22,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "PLTR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "APP",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TEM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BBAI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SOUN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PATH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DUOL",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CRM",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NOW",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "vertical_saas",
+      "name": "Vertical SaaS",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 23,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "VEEV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TYL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TOST",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PCTY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PAYC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "GWRE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "APPF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PCOR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "WK",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BSY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "infra_software",
+      "name": "Infrastructure Software",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 24,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "DDOG",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SNOW",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NET",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MDB",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "GTLB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ESTC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "FROG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "S",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PD",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "radiopharmaceuticals",
+      "name": "Radiopharmaceuticals",
+      "sector_id": "healthcare",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 42,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "LNTH",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NVS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "LLY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BMY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "uranium_miners",
+      "name": "Uranium Miners",
+      "sector_id": "clean_energy",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 30,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "CCJ",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "UEC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "UUUU",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NXE",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DNN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "LEU",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "UROY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "URG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "mortgage_reits",
+      "name": "Mortgage REITs",
+      "sector_id": "real_estate_utilities",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 5,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "NLY",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AGNC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "STWD",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "RITM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "BXMT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CIM",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "TWO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "ARI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "LADR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "MFA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "PMT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        }
+      ]
+    },
+    {
+      "id": "healthcare_reits",
+      "name": "Healthcare REITs",
+      "sector_id": "real_estate_utilities",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 6,
+      "sub_themes": [],
+      "holdings": [
+        {
+          "sym": "WELL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "VTR",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "OHI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "DOC",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "HR",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "SBRA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "CTRE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "NHI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "new-theme seed"
+        },
+        {
+          "sym": "AHR",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "new-theme seed"
