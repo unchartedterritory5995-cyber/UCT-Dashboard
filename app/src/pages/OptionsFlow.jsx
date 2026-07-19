@@ -2119,6 +2119,11 @@ export default function OptionsFlowDashboard() {
   // adds from same-day churn. Backed by /api/oi/confirmation-map which
   // reads contract_oi_snapshots table.
   const [oiConfirmedOnly, setOiConfirmedOnly] = useState(false);
+  // Leaderboard "Still-open flow" toggle (2026-07-18): when on (and live OI is
+  // fetched), the Top Bullish/Bearish tables show still-open premium instead of
+  // raw — so you can see whether the leading flow of the last X days is still
+  // open or already closed out. Mirrors the Search tab's still-open toggle.
+  const [lbStillOpenOnly, setLbStillOpenOnly] = useState(false);
   const [oiConfirmWindow, setOiConfirmWindow] = useState(5); // days after trade
   const [oiConfirmMap, setOiConfirmMap] = useState({}); // key = "sym|cp|K|exp"
   const [oiConfirmLoading, setOiConfirmLoading] = useState(false);
@@ -4076,7 +4081,53 @@ export default function OptionsFlowDashboard() {
     return priceCache[k] || null;
   }
 
-  // ─── Fetch contract history + live quote on hover ───────────────────
+  // ─── Still-open premium attribution (shared by Search + Leaderboard) ────────
+  // Given a set of directional trades, returns how much of the bull/bear premium
+  // is STILL OPEN today (position not yet closed out), using live OI.
+  //
+  // Method (identical to the Search tab's inline computation, extracted here so
+  // Leaderboard reuses the EXACT same logic — no drift): group trades by
+  // contract, ΔOI = liveOI − earliestOI, openFraction = clamp(0,1, ΔOI/V_total),
+  // weight each trade's premium by that fraction. openFraction=1 → full retention
+  // (all volume net-added to OI); 0 → all closed since. We track priced vs total
+  // so callers can show an honest "% of priced" coverage figure — a contract with
+  // no fetched live OI contributes to total but not to the still-open numerator,
+  // so using total as denominator would understate retention.
+  function computeStillOpen(trades) {
+    let bullOpen = 0, bearOpen = 0;
+    let pricedBull = 0, pricedBear = 0;
+    let contractsPriced = 0, contractsTotal = 0;
+    const byCt = {};
+    (trades || []).forEach(t => {
+      const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
+      if (!byCt[k]) byCt[k] = { trades:[], V_total:0, minOI:Infinity };
+      byCt[k].trades.push(t);
+      byCt[k].V_total += (t.V||0);
+      if ((t.OI||0) > 0) byCt[k].minOI = Math.min(byCt[k].minOI, t.OI);
+    });
+    Object.entries(byCt).forEach(([k, g]) => {
+      contractsTotal++;
+      const [s, cp, kK, e] = k.split("|");
+      const px = getPrice(s, cp, parseFloat(kK), e);
+      if (!px || !px.oi || g.minOI === Infinity || g.V_total <= 0) return;
+      contractsPriced++;
+      g.trades.forEach(t => {
+        if (t.D==="BULL") pricedBull += (t.P||0);
+        else if (t.D==="BEAR") pricedBear += (t.P||0);
+      });
+      const deltaOI = px.oi - g.minOI;
+      const openFrac = Math.max(0, Math.min(1, deltaOI / g.V_total));
+      g.trades.forEach(t => {
+        if (t.D==="BULL") bullOpen += (t.P||0) * openFrac;
+        else if (t.D==="BEAR") bearOpen += (t.P||0) * openFrac;
+      });
+    });
+    return {
+      bullOpen, bearOpen, pricedBull, pricedBear,
+      contractsPriced, contractsTotal,
+      computable: contractsPriced > 0,
+    };
+  }
   // ─── OI Confirmation fetch ────────────────────────────────────────────────
   // Given the current ticker + trades in Search, build a per-contract list
   // (with earliest trade date per contract), POST to the backend, cache
@@ -6656,7 +6707,8 @@ export default function OptionsFlowDashboard() {
           const priorDates = new Set(allDates.slice(0, -5));
           const tkMap = {};
           filtered.forEach(t => {
-            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set() };
+            if (!tkMap[t.S]) tkMap[t.S] = { sym:t.S, bull:0, bear:0, n:0, mktcap:t.mktcap||0, contracts:{}, recentPrem:0, priorPrem:0, er:false, sector:t.sector||"", uoa:false, dates:new Set(), _trades:[] };
+            tkMap[t.S]._trades.push(t);
             // 7/9: Upgrade mktcap when a real value shows up. Same fix as
             // line 5168 — prevents gap-fill rows (mktcap=0 by design) from
             // locking a ticker into "Unknown" band. This is the exact source
@@ -6740,7 +6792,32 @@ export default function OptionsFlowDashboard() {
               tk.momentum = tk.recentPrem > 0 ? "accel" : "steady";
             }
           });
+          // STILL-OPEN OVERLAY (2026-07-18): when the Leaderboard "Still-open
+          // flow" toggle is on AND live OI has been fetched, replace each
+          // ticker's raw bull/bear premium with the STILL-OPEN premium (position
+          // not yet closed), using the exact same attribution as the Search tab
+          // (computeStillOpen). Tickers whose contracts have no fetched live OI
+          // fall through to 0 open premium — honest, since we can't confirm
+          // they're still open. Raw values are preserved on _bullRaw/_bearRaw so
+          // the toggle is reversible in display and nothing downstream that needs
+          // raw is broken. Off (or before OI fetch) → untouched, identical to
+          // today.
+          if (lbStillOpenOnly) {
+            Object.values(tkMap).forEach(tk => {
+              const so = computeStillOpen(tk._trades);
+              tk._bullRaw = tk.bull; tk._bearRaw = tk.bear;
+              tk._stillOpenComputable = so.computable;
+              tk.bull = Math.round(so.bullOpen);
+              tk.bear = Math.round(so.bearOpen);
+              const _tot = tk.bull + tk.bear;
+              tk.bullPct = _tot > 0 ? Math.round(tk.bull / _tot * 100) : 50;
+            });
+          }
           let allTickers = Object.values(tkMap);
+          // When still-open is on, drop tickers with zero still-open flow (their
+          // positions all closed, or no live OI to confirm) — the leaderboard
+          // should show what's ACTUALLY still open, not stale closed flow.
+          if (lbStillOpenOnly) allTickers = allTickers.filter(t => (t.bull + t.bear) > 0);
           // Conviction % filter
           if (cPct === "90bull") allTickers = allTickers.filter(t => t.bullPct >= 90);
           else if (cPct === "80bull") allTickers = allTickers.filter(t => t.bullPct >= 80);
@@ -6907,6 +6984,32 @@ export default function OptionsFlowDashboard() {
                   const active=cAct===d.k;
                   return <button key={d.k} onClick={()=>setConvictionActivity(cAct===d.k?"All":d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?P.ye:P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?P.ye+"22":"transparent", color:active?P.ye:P.mt }}>{d.l}</button>;
                 })}
+                {/* Still-open flow toggle (2026-07-18): shows still-open premium
+                    (position not yet closed) instead of raw, using live OI.
+                    Disabled until live OI is fetched via "Fetch Live OI" — same
+                    dependency as the Search tab's still-open toggle. */}
+                {(() => {
+                  const oiReady = Object.keys(priceCache).length > 0;
+                  return (
+                    <>
+                      <span style={{ width:1, height:16, background:P.bd }}/>
+                      <button
+                        onClick={()=> oiReady && setLbStillOpenOnly(v=>!v)}
+                        disabled={!oiReady}
+                        title={oiReady
+                          ? "Show still-open flow only — filters each ticker's bull/bear premium to positions still open today (Live OI ≥ entry). Reveals whether the leading flow is still on or already closed."
+                          : "Fetch Live OI first (⚡ button in Flow Pulse), then this filters the leaderboard to still-open flow."}
+                        style={{ padding:"4px 10px", borderRadius:16,
+                          border:"1.5px solid "+(lbStillOpenOnly?P.bu:P.bd),
+                          cursor:oiReady?"pointer":"not-allowed", fontSize:9, fontWeight:700, fontFamily:"inherit",
+                          background:lbStillOpenOnly?P.bu+"22":"transparent",
+                          color:lbStillOpenOnly?P.bu:(oiReady?P.mt:"#555"),
+                          opacity:oiReady?1:0.6 }}>
+                        {lbStillOpenOnly ? "✓ Still-open flow" : "Still-open flow"}
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
               {/* Flow Pulse — bull/bear bar + narrative summary */}
               {(() => {
