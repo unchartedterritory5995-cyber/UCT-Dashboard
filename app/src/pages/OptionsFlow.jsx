@@ -4106,8 +4106,24 @@ export default function OptionsFlowDashboard() {
       if ((t.OI||0) > 0) byCt[k].minOI = Math.min(byCt[k].minOI, t.OI);
     });
     Object.entries(byCt).forEach(([k, g]) => {
-      contractsTotal++;
       const [s, cp, kK, e] = k.split("|");
+      // EXPIRATION GUARD (2026-07-18, goal 2): an expired contract is closed by
+      // definition — it contributes ZERO still-open premium, today, with no
+      // buffer, and is excluded from the universe entirely (not counted in
+      // contractsTotal, so it doesn't dilute the "% of priced" coverage figure).
+      // flow.db's prune_expired only removes rows after a 1–7 day buffer (storage
+      // hygiene, not still-open correctness), so a contract that expired in the
+      // last few days is still in the data and would otherwise be counted as
+      // "open" off a stale live-OI reading. Still-open must be exact: past expiry
+      // as of now → skip. (e is M/D/YYYY, same as t.Dt.)
+      if (e) {
+        const _exp = mdyToDate(e);
+        if (_exp && !isNaN(_exp)) {
+          const _today = new Date(); _today.setHours(0,0,0,0);
+          if (_exp < _today) return;   // expired → excluded from still-open
+        }
+      }
+      contractsTotal++;
       const px = getPrice(s, cp, parseFloat(kK), e);
       if (!px || !px.oi || g.minOI === Infinity || g.V_total <= 0) return;
       contractsPriced++;
@@ -6984,32 +7000,6 @@ export default function OptionsFlowDashboard() {
                   const active=cAct===d.k;
                   return <button key={d.k} onClick={()=>setConvictionActivity(cAct===d.k?"All":d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?P.ye:P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?P.ye+"22":"transparent", color:active?P.ye:P.mt }}>{d.l}</button>;
                 })}
-                {/* Still-open flow toggle (2026-07-18): shows still-open premium
-                    (position not yet closed) instead of raw, using live OI.
-                    Disabled until live OI is fetched via "Fetch Live OI" — same
-                    dependency as the Search tab's still-open toggle. */}
-                {(() => {
-                  const oiReady = Object.keys(priceCache).length > 0;
-                  return (
-                    <>
-                      <span style={{ width:1, height:16, background:P.bd }}/>
-                      <button
-                        onClick={()=> oiReady && setLbStillOpenOnly(v=>!v)}
-                        disabled={!oiReady}
-                        title={oiReady
-                          ? "Show still-open flow only — filters each ticker's bull/bear premium to positions still open today (Live OI ≥ entry). Reveals whether the leading flow is still on or already closed."
-                          : "Fetch Live OI first (⚡ button in Flow Pulse), then this filters the leaderboard to still-open flow."}
-                        style={{ padding:"4px 10px", borderRadius:16,
-                          border:"1.5px solid "+(lbStillOpenOnly?P.bu:P.bd),
-                          cursor:oiReady?"pointer":"not-allowed", fontSize:9, fontWeight:700, fontFamily:"inherit",
-                          background:lbStillOpenOnly?P.bu+"22":"transparent",
-                          color:lbStillOpenOnly?P.bu:(oiReady?P.mt:"#555"),
-                          opacity:oiReady?1:0.6 }}>
-                        {lbStillOpenOnly ? "✓ Still-open flow" : "Still-open flow"}
-                      </button>
-                    </>
-                  );
-                })()}
               </div>
               {/* Flow Pulse — bull/bear bar + narrative summary */}
               {(() => {
@@ -7139,6 +7129,29 @@ export default function OptionsFlowDashboard() {
                               title="Fetch live OI + prices from Schwab for every Top Contract on this leaderboard. Once complete, ΔOI badges show whether each position is being built (green) or faded (red)."
                             >
                               {fetchLoading ? "Fetching…" : `⚡ Fetch Live OI (${contracts.length})`}
+                            </button>
+                          );
+                        })()}
+                        {/* Still-open flow toggle (2026-07-18): placed next to
+                            Fetch Live OI because it operates on the fetched OI —
+                            shows still-open premium (position not yet closed)
+                            instead of raw. Disabled until OI is fetched. */}
+                        {(() => {
+                          const oiReady = Object.keys(priceCache).length > 0;
+                          return (
+                            <button
+                              onClick={()=> oiReady && setLbStillOpenOnly(v=>!v)}
+                              disabled={!oiReady}
+                              title={oiReady
+                                ? "Show still-open flow only — filters each ticker's bull/bear premium to positions still open today (Live OI ≥ entry). Reveals whether the leading flow is still on or already closed out."
+                                : "Fetch Live OI first, then this filters the leaderboard to still-open flow."}
+                              style={{ padding:"4px 12px", borderRadius:6,
+                                border:"1px solid "+(lbStillOpenOnly?P.bu:P.bd),
+                                cursor:oiReady?"pointer":"not-allowed", fontSize:9, fontWeight:700, fontFamily:"inherit",
+                                background:lbStillOpenOnly?P.bu+"22":"transparent",
+                                color:lbStillOpenOnly?P.bu:(oiReady?P.mt:"#555"),
+                                letterSpacing:0.5, opacity:oiReady?1:0.6 }}>
+                              {lbStillOpenOnly ? "✓ Still-open" : "Still-open"}
                             </button>
                           );
                         })()}
