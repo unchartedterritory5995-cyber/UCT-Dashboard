@@ -1934,8 +1934,14 @@ export default function StockChart({
       bgColor,
       swingLabels,
       swingStyle: {
-        color: sl.color, tintByType: sl.tintByType, upColor: sl.upColor,
-        downColor: sl.downColor, showBg: sl.showBg, bg: sl.bg, fontPx: sl.fontPx,
+        color: sl.color, tintByType: sl.tintByType, upColor: sl.upColor, downColor: sl.downColor,
+        // Mirror the live primitive EXACTLY (swingLabelsPrimitive setOptions):
+        // showBg is keyed off `bgEnabled`, and the box color defaults to the chart
+        // background — an invisible plate that hides candles behind the label,
+        // NOT a visible box.
+        showBg: sl.bgEnabled !== false,
+        bg: sl.bg || bgColor,
+        fontPx: sl.fontPx,
       },
     }
   }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles])

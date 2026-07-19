@@ -196,8 +196,8 @@ export async function composeScreenshot(chart, opts = {}) {
       const isHigh = s.type === 'high';
       const ty = isHigh ? y - GAP : y + GAP;
       const w = ctx.measureText(s.label).width;
-      if (st.showBg !== false) {
-        ctx.fillStyle = st.bg || '#1a1c17';
+      if (st.showBg) {
+        ctx.fillStyle = st.bg || bgColor;  // plate = chart bg (hides candles, blends), like the live chart
         const boxY = isHigh ? ty - fpx : ty;
         const rx = x - w / 2 - PADX, ry = boxY - PADY, rw = w + PADX * 2, rh = fpx + PADY * 2;
         if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, px(3)); ctx.fill(); }
