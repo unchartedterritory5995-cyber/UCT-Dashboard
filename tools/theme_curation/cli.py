@@ -94,8 +94,16 @@ def _cmd_audit(args) -> int:
     from datetime import date
     from tools.theme_curation import audit
     tax = loaders.load_taxonomy(args.taxonomy)
-    result = audit.audit_taxonomy(tax, loaders.cap_universe_set(args.cap),
-                                  loaders.ipo_dates(), date.today().toordinal())
+    cap = loaders.cap_universe_set(args.cap)
+    live = None
+    if args.check_live:
+        from tools.theme_curation import liveness
+        dead = audit.dead_syms(tax, cap)
+        live = liveness.live_syms(dead)
+        print(f"liveness: {len(live)}/{len(dead)} not-in-cap holdings still trade "
+              f"(cap_universe gap); {len(dead) - len(live)} look delisted.")
+    result = audit.audit_taxonomy(tax, cap, loaders.ipo_dates(),
+                                  date.today().toordinal(), live=live)
     md = audit.write_audit_md(result, tax)
     with open(args.out, "w", encoding="utf-8") as f:
         f.write(md)
@@ -106,20 +114,30 @@ def _cmd_audit(args) -> int:
 def _cmd_discover(args) -> int:
     # Owner-run orchestration over the tested primitives (network — not unit-tested).
     from datetime import date
-    from tools.theme_curation import discover, corroborate, propose, audit
+    from tools.theme_curation import discover, corroborate, propose, audit, liveness
     from tools.theme_curation.ledger import Ledger
-    corroborate.ensure_industry_map()                    # hard-fails without FINVIZ_API_KEY
     tax = loaders.load_taxonomy(args.taxonomy)
     cap = loaders.cap_universe_set(args.cap)
-    aud = audit.audit_taxonomy(tax, cap, loaders.ipo_dates(), date.today().toordinal())
-    tind = corroborate.load_theme_industries(args.industries)
-    lg = Ledger(args.ledger)
-    import os, json
-    os.makedirs(args.proposals_dir, exist_ok=True)
     themes = _select_themes(tax["themes"], args.sector, args.theme)
     if (args.sector or args.theme) and not themes:
         print(f"no themes match sector={args.sector!r} theme={args.theme!r}")
         return 1
+    corroborate.ensure_industry_map()                    # hard-fails without FINVIZ_API_KEY
+    # Liveness-split the SELECTED themes' dead names so the DROP/REMAP prompt is grounded
+    # on genuinely-gone names only — a live-but-off-cap ticker (FI, PAYO…) must not be
+    # pushed toward a drop. Skippable (--no-liveness) for an offline dry run.
+    live = None
+    if not args.no_liveness:
+        sel_dead = {s for t in themes for s in loaders.holding_syms(t) if s not in cap}
+        live = liveness.live_syms(sel_dead)
+        print(f"liveness: {len(live)}/{len(sel_dead)} not-in-cap holdings still trade "
+              f"(kept out of DROP/REMAP grounding).")
+    aud = audit.audit_taxonomy(tax, cap, loaders.ipo_dates(),
+                               date.today().toordinal(), live=live)
+    tind = corroborate.load_theme_industries(args.industries)
+    lg = Ledger(args.ledger)
+    import os, json
+    os.makedirs(args.proposals_dir, exist_ok=True)
     print(f"discovering {len(themes)} theme(s)"
           + (f" in sector {args.sector}" if args.sector else "")
           + (f" (theme {args.theme})" if args.theme else "") + " …")
@@ -185,6 +203,9 @@ def main(argv=None) -> int:
     a.add_argument("--taxonomy", default="themes_taxonomy.json")
     a.add_argument("--cap", default="api/data/cap_universe.json")
     a.add_argument("--out", default="tools/theme_curation/audit.md")
+    a.add_argument("--check-live", action="store_true",
+                   help="ask Massive which not-in-cap holdings still trade; "
+                        "split delisted (drop/remap) from cap_universe gaps (network)")
 
     d = sub.add_parser("discover")
     d.add_argument("--taxonomy", default="themes_taxonomy.json")
@@ -197,6 +218,9 @@ def main(argv=None) -> int:
     d.add_argument("--resume", action="store_true")
     d.add_argument("--sector", default=None, help="limit to one sector_id (e.g. traditional_energy)")
     d.add_argument("--theme", default=None, help="limit to one theme id")
+    d.add_argument("--no-liveness", action="store_true",
+                   help="skip the Massive liveness split (offline/dry-run); all "
+                        "not-in-cap holdings are then treated as delisted grounding")
 
     r = sub.add_parser("review")
     r.add_argument("--proposals-dir", default="tools/theme_curation/proposals")

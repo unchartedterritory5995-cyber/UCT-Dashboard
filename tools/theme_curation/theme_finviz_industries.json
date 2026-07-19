@@ -1,0 +1,17 @@
+{
+  "fintech": [
+    "Software - Infrastructure",
+    "Software - Application",
+    "Credit Services",
+    "Information Technology Services",
+    "Financial Data & Stock Exchanges",
+    "Capital Markets",
+    "Banks - Regional"
+  ],
+  "additive_manufacturing": [
+    "Computer Hardware"
+  ],
+  "aerospace": [
+    "Aerospace & Defense"
+  ]
+}
