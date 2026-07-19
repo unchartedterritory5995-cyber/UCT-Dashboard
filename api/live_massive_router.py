@@ -3072,28 +3072,42 @@ def _push_window_ok(alert: dict, mode: str, cfg: dict) -> bool:
     if cfg.get("market_hours_only", True) and not _in_market_hours():
         return False
 
-    # OPEN WARMUP (2026-07-18): accumulation pushes are suppressed for the first
-    # N minutes after the 9:30 ET open. WHY: accumulation = YELLOW = cumulative
-    # volume > OI. At the open the day's volume floods in and dozens of contracts
-    # cross their (prior-day) OI within minutes, so they all qualify at once and
-    # the scan fires a burst of "Accumulation" alerts that isn't real-time
-    # accumulation — it's the opening volume mechanically tripping the OI line
-    # (made worse by the worker going live / any boot replay catching up). The
-    # existing gates miss it: market_hours_only passes (it IS market hours), and
-    # accum_max_age_sec defaults to 0 (off, because a genuine multi-day
-    # accumulator's last event can be days old). This gate is accumulation-only
-    # and time-boxed; single-print alerts (Alpha Gold / Grade A / Size) are
-    # unaffected and still fire from the first second. Config:
-    #   accum_open_warmup_min (default 15) — minutes after 9:30 ET to suppress;
-    #   set 0 to disable.
-    if mode == "accumulation":
-        warmup_min = cfg.get("accum_open_warmup_min", 15)
-        if warmup_min:
-            now_et = datetime.now(ET)
-            if now_et.weekday() < 5:
-                mins_since_open = (now_et.hour * 60 + now_et.minute) - _MARKET_OPEN_ET_MIN
-                if 0 <= mins_since_open < warmup_min:
-                    return False
+    # SAME-SESSION GATE (2026-07-18): an accumulation may auto-push ONLY if its
+    # most recent qualifying hit (last_ts) is from the CURRENT trading session.
+    #
+    # THE BUG: accumulation = YELLOW = cumulative vol > OI. Contracts that
+    # accumulated into yesterday's close but didn't fire before 16:00 sit in
+    # flow.db still-unclaimed. At the next open the first scan finds them and
+    # blasts them out — the SNDK/AAPL/MU cards stamped 9:31 AM ET whose events
+    # were "Yesterday at 3:5x PM". That's a stale re-push with no new info.
+    #
+    # WHY NOT just drop the contract for the day: the next-day flow on that SAME
+    # contract is the signal that tells you whether they're ADDING or TAKING
+    # PROFIT. So we must NOT blacklist the contract — we only block firing on a
+    # PRIOR-SESSION event. The moment the contract prints again today, last_ts
+    # advances into today's session and it fires on that fresh event — which is
+    # exactly the add/distribute follow-through worth alerting.
+    #
+    # So this gates on the EVENT TIME, not the contract. Prior-session last_ts →
+    # mark-only (never fire). Today's-session last_ts → fires. A missing
+    # timestamp ABSTAINS (doesn't block) — a data gap isn't evidence of
+    # staleness. Config: accum_same_session_only (default True); set False to
+    # restore the old always-fire behavior.
+    if mode == "accumulation" and cfg.get("accum_same_session_only", True):
+        _lt = alert.get("last_ts") or alert.get("timestamp")
+        if _lt:
+            try:
+                _hit = datetime.fromtimestamp(float(_lt), tz=ET)
+                _now = datetime.now(ET)
+                # Session open for the CURRENT calendar day in ET. Before 9:30 the
+                # "current session" is still today's upcoming open, so a hit from
+                # yesterday is correctly prior-session. (No holiday calendar; a
+                # holiday simply has no flow to fire.)
+                _session_open = _now.replace(hour=9, minute=30, second=0, microsecond=0)
+                if _hit < _session_open:
+                    return False   # prior-session event — mark-only, don't re-blast
+            except (TypeError, ValueError, OSError):
+                pass  # unparseable ts → abstain (don't block on a data gap)
 
     max_age = (cfg.get("accum_max_age_sec", 0) if mode == "accumulation"
                else cfg.get("max_alert_age_sec", 600))
