@@ -396,9 +396,12 @@ def ticker_liveness_endpoint(request: Request, payload: dict = Body(...)):
     is the dashboard's authoritative feed but its key is Railway-only, so this
     thin endpoint exposes the check.
 
-    A ticker is 'live' when Massive's rich snapshot returns it with price > 0
-    (day close, last trade, or — weekend-safe — prev-day close). Genuinely
-    delisted names are absent from the current-market snapshot entirely.
+    A ticker is 'live' when a FRESH daily-aggregates fetch (Massive, no cache)
+    over the last ~12 calendar days returns at least one bar — i.e. it actually
+    traded recently. Genuinely delisted names have no bars in a recent window
+    (their data ends at the delisting date). The snapshot/quote endpoints were
+    tried first and proved unreliable (they return data for only a subset of
+    live large-caps), so the direct aggregates check is used instead.
 
     Body: {"tickers": ["AAPL", "AYX", ...]} (app/hyphen form).
     Returns: {"live": {"AAPL": true, "AYX": false, ...}, "checked": N}.
@@ -408,28 +411,26 @@ def ticker_liveness_endpoint(request: Request, payload: dict = Body(...)):
     syms = payload.get("tickers") if isinstance(payload, dict) else None
     if not isinstance(syms, list):
         raise HTTPException(status_code=400, detail='body must be {"tickers": [...]}')
+    from concurrent.futures import ThreadPoolExecutor
+    from datetime import datetime, timedelta
     from api.services import massive
     uniq = list(dict.fromkeys(s.upper() for s in syms if isinstance(s, str) and s))
-    live: dict[str, bool] = {s: False for s in uniq}
-    client = massive._get_client()
-    BATCH = 100
-    for i in range(0, len(uniq), BATCH):
-        window = uniq[i:i + BATCH]
-        to_app = {massive.to_polygon_symbol(s): s for s in window}   # massive(dot) -> app
+    to_d = datetime.utcnow().date()
+    from_d = (to_d - timedelta(days=12)).isoformat()
+    to_s = to_d.isoformat()
+
+    def _recent_bars(sym: str) -> bool:
         try:
-            snap = client.get_batch_rich_snapshots(list(to_app)) or {}
+            # get_agg_bars applies to_polygon_symbol internally + fetches fresh
+            return bool(massive.get_agg_bars(sym, from_d, to_s))
         except Exception:
-            continue
-        for msym, row in snap.items():
-            app = to_app.get(str(msym).upper())
-            if not app:
-                continue
-            price = (row or {}).get("price")
-            try:
-                if price and float(price) > 0:
-                    live[app] = True
-            except (TypeError, ValueError):
-                pass
+            return False
+
+    live: dict[str, bool] = {}
+    if uniq:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for sym, is_live in zip(uniq, ex.map(_recent_bars, uniq)):
+                live[sym] = bool(is_live)
     return {"live": live, "checked": len(uniq)}
 
 
