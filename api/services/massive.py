@@ -188,15 +188,14 @@ class _MassiveRestClient:
             day_c = _f((t.get("day") or {}).get("c"))
             prev_c = _f((t.get("prevDay") or {}).get("c"))
             chg = _f(t.get("todaysChangePerc"))
-            # Derive the % move from the day close vs prev close whenever we have
-            # both — it's the reliable source across pre-market, the open, weekends,
-            # and stale/partial batch entries, where Massive frequently reports
-            # todaysChangePerc == 0 (or omits it) even though a real move exists.
-            # This is what stops the Theme Tracker flashing every holding to 0.00%
-            # (a genuinely flat stock still has day_c == prev_c → a real 0.00).
+            # ALWAYS derive the % from day close vs prev close when we have both —
+            # the REGULAR-session move (matches the chart's close-vs-prev legend).
+            # Massive's todaysChangePerc is LAST-TRADE-based (incl. after-hours), so
+            # after the close it over/under-states the regular % (TWST 2.93% vs the
+            # real 2.87%) AND intermittently comes back a stale 0 → Theme Tracker
+            # flashes to 0.00%. A genuinely flat stock still has day_c == prev_c → 0.
             if day_c and prev_c:
-                result[ticker] = (round((day_c - prev_c) / prev_c * 100.0, 4)
-                                  if (chg is None or chg == 0.0) else round(chg, 4))
+                result[ticker] = round((day_c - prev_c) / prev_c * 100.0, 4)
             elif chg is not None and chg != 0.0:
                 result[ticker] = round(chg, 4)
             # else: no day close to compute from AND change is 0/missing → no data

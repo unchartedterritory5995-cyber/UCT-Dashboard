@@ -66,6 +66,9 @@ def test_change_pct_genuine_flat_stays_zero():
     assert out["MU"]["change_pct"] == 0.0    # day_c == prev_c → an honest flat
 
 
-def test_change_pct_trusts_real_nonzero():
+def test_change_pct_always_regular_session_from_closes():
+    # Even with a real nonzero todaysChangePerc (1.0), the REGULAR-session move
+    # (day close vs prev close) wins — todaysChangePerc is last-trade-based (incl.
+    # after-hours) so it mis-states the day %. day_c=10.0, prev_c=9.5 → 5.2632%.
     out = lp._fetch_snapshots(_FakeClient(10.0), ["AAPL"], "regular")
-    assert out["AAPL"]["change_pct"] == 1.0  # todaysChangePerc trusted verbatim
+    assert out["AAPL"]["change_pct"] == round((10.0 - 9.5) / 9.5 * 100, 4)

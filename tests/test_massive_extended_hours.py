@@ -153,7 +153,8 @@ def test_batch_snapshots_recomputes_spurious_zero_and_omits_no_data():
             # todaysChangePerc == 0 but closes show a real move → recompute from closes
             {"ticker": "ORKA", "todaysChangePerc": 0,
              "day": {"c": 92.7, "v": 0}, "prevDay": {"c": 83.04}},
-            # real non-zero change → trust todaysChangePerc verbatim
+            # real non-zero todaysChangePerc, but the REGULAR move (day.c vs prev.c)
+            # still wins — todaysChangePerc is last-trade-based (incl. after-hours).
             {"ticker": "AAPL", "todaysChangePerc": 1.5,
              "day": {"c": 185.0, "v": 5e7}, "prevDay": {"c": 182.2}},
             # genuinely flat WITH real day data → keep the honest 0.00
@@ -167,7 +168,7 @@ def test_batch_snapshots_recomputes_spurious_zero_and_omits_no_data():
     with mock.patch.object(client, "_get", return_value=payload):
         result = client.get_batch_snapshots(["ORKA", "AAPL", "FLAT", "DEAD"])
 
-    assert result["ORKA"] == round((92.7 - 83.04) / 83.04 * 100, 4)  # ~11.6329
-    assert result["AAPL"] == 1.5
+    assert result["ORKA"] == round((92.7 - 83.04) / 83.04 * 100, 4)   # ~11.6329
+    assert result["AAPL"] == round((185.0 - 182.2) / 182.2 * 100, 4)  # ~1.5368, not 1.5
     assert result["FLAT"] == 0.0
     assert "DEAD" not in result

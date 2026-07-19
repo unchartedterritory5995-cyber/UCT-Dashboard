@@ -75,19 +75,24 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         price = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
         volume = int(day.get("v") or 0)
 
-        # Massive returns todaysChangePerc/Change == 0 (or null) pre-market, at the
-        # open, on weekends, and on stale/partial batch entries — even when a real
-        # move exists. Surfacing that literal 0 makes every consumer (chart header,
-        # crosshair, theme rows) flash to 0.00% until the tape catches up. Recompute
-        # from the day close vs prev close in that case; a genuinely flat name still
-        # has day_c == prev_c → an honest 0.00.
+        # The day % must be the REGULAR-SESSION move — day close vs prev close, the
+        # exact thing the chart's close-vs-prev-close legend shows. Massive's
+        # todaysChangePerc is based on the LAST TRADE (incl. after-hours), so after
+        # the close it MIS-STATES the regular % (TWST: 2.93% vs the real 2.87%) AND
+        # intermittently returns a stale 0. So ALWAYS derive from the closes when we
+        # have them; a genuinely flat name still has day_c == prev_c → an honest 0.
         day_c = _f(day.get("c"))
         prev_c = _f(prev_day.get("c"))
-        chg_pct = _f(t.get("todaysChangePerc"))
-        chg_abs = _f(t.get("todaysChange"))
-        if day_c and prev_c and (chg_pct is None or chg_pct == 0.0):
+        if day_c and prev_c and prev_c != 0:
             chg_pct = (day_c - prev_c) / prev_c * 100.0
             chg_abs = day_c - prev_c
+        else:
+            chg_pct = _f(t.get("todaysChangePerc"))
+            chg_abs = _f(t.get("todaysChange"))
+            # No day close AND no real change → too degraded to trust. OMIT the
+            # ticker so callers keep their last-good value instead of a 0.00% blank.
+            if chg_pct is None or chg_pct == 0.0:
+                continue
 
         ext_price = None
         ext_session = None
