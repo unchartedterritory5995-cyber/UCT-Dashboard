@@ -13,5 +13,28 @@
   ],
   "aerospace": [
     "Aerospace & Defense"
+  ],
+  "energy_broad": [
+    "Oil & Gas E&P",
+    "Oil & Gas Midstream",
+    "Oil & Gas Refining & Marketing",
+    "Oil & Gas Equipment & Services",
+    "Oil & Gas Integrated",
+    "Oil & Gas Drilling"
+  ],
+  "oil_gas_ep": [
+    "Oil & Gas E&P",
+    "Oil & Gas Integrated",
+    "Oil & Gas Refining & Marketing"
+  ],
+  "oil_services": [
+    "Oil & Gas Equipment & Services",
+    "Oil & Gas Drilling"
+  ],
+  "natural_gas": [
+    "Oil & Gas Midstream",
+    "Oil & Gas E&P",
+    "Oil & Gas Integrated",
+    "Oil & Gas Equipment & Services"
   ]
 }
