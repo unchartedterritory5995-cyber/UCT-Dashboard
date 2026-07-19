@@ -104,7 +104,7 @@ export async function composeScreenshot(chart, opts = {}) {
   const {
     sym, tf, price, changePct, companyName,
     container, crosshairData, volPos,
-    bgColor = '#0e0f0d', swingLabels, swingStyle,
+    bgColor = '#0e0f0d', textColor = '#a8a290', swingLabels, swingStyle,
   } = opts;
 
   // LWC's takeScreenshot() = ONLY the chart canvases (candles, axes, MAs, volume
@@ -217,22 +217,23 @@ export async function composeScreenshot(chart, opts = {}) {
   let hx = px(14);
   const hy = HEADER_H / 2;
   const TICKER_PX = 15;
-  ctx.font = `800 ${px(TICKER_PX)}px ${FONT}`;
-  ctx.fillStyle = '#c9a84c';
+  // Ticker / company / tf / price all use the price-scale text color + app font,
+  // so the header blends with the axis + swing labels (sizes unchanged). Only the
+  // change % keeps its up/down color.
+  ctx.font = `700 ${px(TICKER_PX)}px ${FONT}`;
+  ctx.fillStyle = textColor;
   ctx.fillText(sym || '', hx, hy);
   hx += ctx.measureText(sym || '').width + px(8);
   if (companyName) {
-    // Same size + same gold as the ticker (per request).
-    ctx.font = `700 ${px(TICKER_PX)}px ${FONT}`;
-    ctx.fillStyle = '#c9a84c';
+    ctx.font = `600 ${px(TICKER_PX)}px ${FONT}`;
+    ctx.fillStyle = textColor;
     ctx.fillText(`(${companyName})`, hx, hy);
     hx += ctx.measureText(`(${companyName})`).width + px(12);
   }
-  ctx.font = `700 ${px(12)}px ${FONT}`;
-  ctx.fillStyle = '#a8a290';
+  ctx.font = `600 ${px(12)}px ${FONT}`;
+  ctx.fillStyle = textColor;
   if (tf) { ctx.fillText(tf, hx, hy); hx += ctx.measureText(tf).width + px(10); }
   if (Number.isFinite(price)) {
-    ctx.fillStyle = '#e6e6e8';
     const p = `$${price.toFixed(2)}`;
     ctx.fillText(p, hx, hy); hx += ctx.measureText(p).width + px(10);
   }

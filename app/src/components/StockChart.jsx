@@ -1932,6 +1932,7 @@ export default function StockChart({
       crosshairData,
       volPos: relPos(volLegendRef.current),
       bgColor,
+      textColor: themeColors.textColor,   // price-scale text color → header blends with it
       swingLabels,
       swingStyle: {
         color: sl.color, tintByType: sl.tintByType, upColor: sl.upColor, downColor: sl.downColor,
@@ -1944,7 +1945,7 @@ export default function StockChart({
         fontPx: sl.fontPx,
       },
     }
-  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles])
+  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles, themeColors])
 
   const handleDownload = useCallback(async () => {
     if (!chartRef.current) return
