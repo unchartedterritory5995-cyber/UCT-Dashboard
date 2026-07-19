@@ -540,22 +540,34 @@ async def _fetch_oi_all_async(
     # If it does time out, we fall through to Massive fallback below;
     # the watchdog in massive_ws_worker.py is the second line of defense
     # for the WS event loop itself.
+    # Massive-primary when the market is closed (2026-07-19). Schwab option
+    # openInterest is 0 outside RTH (verified), so at the 5:30 AM cron every
+    # contract "misses" and routes to Massive anyway — the Schwab call is pure
+    # overhead there and was the source of the 7/6 timeout collapse
+    # (failures: 37782, inserted: 0). During RTH Schwab OI is valid, so it stays
+    # first then and the live oi_fetch_manager path is unchanged.
     schwab_timeout = 15.0 if len(payload) <= 10 else 90.0
     response = None
-    try:
-        response = await asyncio.wait_for(
-            options_quotes_batch(payload), timeout=schwab_timeout
+    if _in_market_hours():
+        try:
+            response = await asyncio.wait_for(
+                options_quotes_batch(payload), timeout=schwab_timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[oi-snapshot] Schwab batch call timed out (>%.0fs, %d contracts) — "
+                "falling through to Massive fallback.",
+                schwab_timeout, len(payload),
+            )
+            response = None
+        except Exception as e:
+            logger.exception(f"[oi-snapshot] Schwab batch call failed: {e}")
+            response = None
+    else:
+        logger.info(
+            "[oi-snapshot] market closed — skipping Schwab (OI=0 off-RTH), "
+            "going Massive-primary for %d contracts.", len(payload),
         )
-    except asyncio.TimeoutError:
-        logger.warning(
-            "[oi-snapshot] Schwab batch call timed out (>%.0fs, %d contracts) — "
-            "falling through to Massive fallback.",
-            schwab_timeout, len(payload),
-        )
-        response = None
-    except Exception as e:
-        logger.exception(f"[oi-snapshot] Schwab batch call failed: {e}")
-        response = None
 
     # Build results from Schwab response (or all-None if Schwab failed).
     # The Massive fallback block below handles either case — it fills in
