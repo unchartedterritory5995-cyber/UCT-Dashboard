@@ -1,5 +1,5 @@
 {
-  "version": "4.10.0+285f11c0",
+  "version": "4.11.0+a65dd2fe",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -1959,12 +1959,6 @@
           "rationale": "Leading crypto exchange, new asset class enabler"
         },
         {
-          "sym": "SQ",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Disrupting banking with Cash App ecosystem"
-        },
-        {
           "sym": "SHOP",
           "tier": "core",
           "sub_theme_id": null,
@@ -2077,6 +2071,30 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Planet Labs disrupting geospatial intelligence"
+        },
+        {
+          "sym": "XYZ",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "rename"
+        },
+        {
+          "sym": "NVDA",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ISRG",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "UBER",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -2211,12 +2229,6 @@
           "rationale": "Myriad Genetics hereditary cancer genomic testing"
         },
         {
-          "sym": "NVTA",
-          "tier": "relevant",
-          "sub_theme_id": "sequencing",
-          "rationale": "Invitae genetic testing and diagnostics platform"
-        },
-        {
           "sym": "DTIL",
           "tier": "relevant",
           "sub_theme_id": "gene_editing",
@@ -2296,7 +2308,7 @@
         },
         {
           "sym": "QCOM",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "self_driving",
           "rationale": "Snapdragon Ride autonomous driving platform"
         },
@@ -2367,12 +2379,6 @@
           "rationale": "Cognex machine vision for robot guidance"
         },
         {
-          "sym": "BRKS",
-          "tier": "relevant",
-          "sub_theme_id": "industrial_robots",
-          "rationale": "Brooks Automation semiconductor robotics"
-        },
-        {
           "sym": "NOVT",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -2401,6 +2407,42 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Life science automation and genomics robotics solutions"
+        },
+        {
+          "sym": "SYM",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "KTOS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "HSAI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "PATH",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AMBA",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ZBRA",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -2434,25 +2476,25 @@
         },
         {
           "sym": "LMT",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "space_defense",
           "rationale": "Major space systems and satellite contractor"
         },
         {
           "sym": "NOC",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": "space_defense",
           "rationale": "Space launch vehicles and satellite systems"
         },
         {
           "sym": "BA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "launch",
           "rationale": "Starliner crew capsule and SLS rocket stages"
         },
         {
           "sym": "RTX",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": "space_defense",
           "rationale": "Space sensors, satellite systems, and propulsion"
         },
@@ -2470,19 +2512,19 @@
         },
         {
           "sym": "LUNR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "space_defense",
           "rationale": "Lunar landing and navigation services"
         },
         {
           "sym": "RDW",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": "satellites",
           "rationale": "Space structures and deployable systems"
         },
         {
           "sym": "ASTS",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "satellites",
           "rationale": "AST SpaceMobile space-based cellular broadband"
         },
@@ -2505,34 +2547,22 @@
           "rationale": "Viasat satellite broadband internet services"
         },
         {
-          "sym": "GILT",
-          "tier": "relevant",
-          "sub_theme_id": "satellites",
-          "rationale": "Gilat Satellite Networks VSAT ground equipment"
-        },
-        {
           "sym": "SPIR",
           "tier": "relevant",
           "sub_theme_id": "satellites",
           "rationale": "Spire Global space-based data analytics provider"
         },
         {
-          "sym": "KTOS",
+          "sym": "VOYG",
           "tier": "relevant",
-          "sub_theme_id": "space_defense",
-          "rationale": "Kratos drone and space launch systems"
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "U",
-          "tier": "relevant",
-          "sub_theme_id": "satellites",
-          "rationale": "Unity Software simulation for space missions"
-        },
-        {
-          "sym": "GD",
-          "tier": "relevant",
-          "sub_theme_id": "space_defense",
-          "rationale": "General Dynamics GDIT space ground systems"
+          "sym": "FLY",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -12338,22 +12368,10 @@
           "rationale": "Movie theater chain with iconic retail investor base"
         },
         {
-          "sym": "SOFI",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Digital finance platform popular with retail traders"
-        },
-        {
           "sym": "PLTR",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Data analytics company with strong retail investor sentiment"
-        },
-        {
-          "sym": "RIVN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "EV startup with high retail investor interest"
         },
         {
           "sym": "IONQ",
@@ -12363,13 +12381,13 @@
         },
         {
           "sym": "RGTI",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Quantum computing play popular on retail platforms"
         },
         {
           "sym": "HOOD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Retail trading platform itself reflecting meme culture"
         },
@@ -12396,6 +12414,30 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Bitcoin treasury company driving retail meme sentiment"
+        },
+        {
+          "sym": "OPEN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BYND",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "KSS",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "DNUT",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 34
@@ -12504,18 +12546,6 @@
           "rationale": "Satellite imagery and geospatial analytics platform"
         },
         {
-          "sym": "IREN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Bitcoin mining and high-performance computing small-cap"
-        },
-        {
-          "sym": "SMCI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "AI server and rack solutions with high growth trajectory"
-        },
-        {
           "sym": "CRDO",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -12538,6 +12568,24 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Superconducting quantum computing processor developer"
+        },
+        {
+          "sym": "EOSE",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OSCR",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AGX",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 37

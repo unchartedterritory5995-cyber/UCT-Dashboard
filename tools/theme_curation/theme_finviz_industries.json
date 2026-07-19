@@ -345,5 +345,23 @@
   ],
   "cannabis": [
     "Drug Manufacturers - Specialty & Generic"
-  ]
+  ],
+  "disruptive_innovation": null,
+  "genomics": [
+    "Diagnostics & Research",
+    "Biotechnology"
+  ],
+  "autonomous_robotics": [
+    "Specialty Industrial Machinery",
+    "Aerospace & Defense",
+    "Auto Manufacturers"
+  ],
+  "space": [
+    "Aerospace & Defense",
+    "Communication Equipment",
+    "Telecom Services"
+  ],
+  "meme_retail": null,
+  "small_cap_growth": null,
+  "recent_ipos": null
 }
