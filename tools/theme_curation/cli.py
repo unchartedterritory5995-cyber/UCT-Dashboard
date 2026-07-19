@@ -46,6 +46,16 @@ def load_approved(ledger_path, review_dir, proposals_dir):
     return out
 
 
+def _select_themes(themes, sector=None, theme=None):
+    """Filter the theme list for a bounded discover run (one sector or one theme)."""
+    out = themes
+    if sector:
+        out = [t for t in out if t.get("sector_id") == sector]
+    if theme:
+        out = [t for t in out if t["id"] == theme]
+    return out
+
+
 def _cmd_apply(args) -> int:
     if not is_git_clean(args.taxonomy) and not args.force:
         print("refusing to apply: git tree for the taxonomy is not clean "
@@ -106,7 +116,14 @@ def _cmd_discover(args) -> int:
     lg = Ledger(args.ledger)
     import os, json
     os.makedirs(args.proposals_dir, exist_ok=True)
-    for t in tax["themes"]:
+    themes = _select_themes(tax["themes"], args.sector, args.theme)
+    if (args.sector or args.theme) and not themes:
+        print(f"no themes match sector={args.sector!r} theme={args.theme!r}")
+        return 1
+    print(f"discovering {len(themes)} theme(s)"
+          + (f" in sector {args.sector}" if args.sector else "")
+          + (f" (theme {args.theme})" if args.theme else "") + " …")
+    for t in themes:
         art = os.path.join(args.proposals_dir, f"{t['id']}.json")
         if args.resume and os.path.exists(art):
             continue
@@ -178,6 +195,8 @@ def main(argv=None) -> int:
     d.add_argument("--run-id", required=True)
     d.add_argument("--model", default=os.environ.get("TAXONOMY_LLM_MODEL", "claude-opus-4-8"))
     d.add_argument("--resume", action="store_true")
+    d.add_argument("--sector", default=None, help="limit to one sector_id (e.g. traditional_energy)")
+    d.add_argument("--theme", default=None, help="limit to one theme id")
 
     r = sub.add_parser("review")
     r.add_argument("--proposals-dir", default="tools/theme_curation/proposals")
@@ -210,3 +229,7 @@ def main(argv=None) -> int:
         ap.print_usage()
         return 1
     return h(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

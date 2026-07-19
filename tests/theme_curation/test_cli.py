@@ -1,5 +1,11 @@
 # tests/theme_curation/test_cli.py
+import os
+import subprocess
+import sys
+
 from tools.theme_curation import cli
+
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def test_apply_refuses_dirty_tree(monkeypatch, tmp_path, capsys):
@@ -39,6 +45,34 @@ def test_audit_command_writes_file(tmp_path):
     rc = cli.main(["audit", "--taxonomy", str(tax), "--cap", str(cap), "--out", str(outp)])
     assert rc == 0
     assert "DEADCO" in outp.read_text(encoding="utf-8")   # dead flagged in the written report
+
+
+def test_select_themes_filters_by_sector_and_theme():
+    themes = [
+        {"id": "solar", "sector_id": "clean_energy"},
+        {"id": "nuclear", "sector_id": "clean_energy"},
+        {"id": "software", "sector_id": "technology"},
+    ]
+    assert {t["id"] for t in cli._select_themes(themes, sector="clean_energy")} == {"solar", "nuclear"}
+    assert [t["id"] for t in cli._select_themes(themes, theme="software")] == ["software"]
+    assert cli._select_themes(themes, sector="does_not_exist") == []
+    assert len(cli._select_themes(themes)) == 3    # no filter = all
+
+
+def test_module_is_runnable_via_dash_m(tmp_path):
+    # Locks the `if __name__ == "__main__"` entry — tests call main() directly, so a
+    # missing guard makes `python -m ...cli` a silent no-op (exit 0, nothing done).
+    tax = tmp_path / "t.json"
+    tax.write_text('{"version":"1.0.0","sectors":[],"themes":['
+                   '{"id":"space","name":"Space","sector_id":"s","holdings":[{"sym":"DEADCO"}]}]}',
+                   encoding="utf-8")
+    cap = tmp_path / "cap.json"; cap.write_text('["RKLB"]', encoding="utf-8")
+    outp = tmp_path / "audit.md"
+    r = subprocess.run([sys.executable, "-m", "tools.theme_curation.cli", "audit",
+                        "--taxonomy", str(tax), "--cap", str(cap), "--out", str(outp)],
+                       cwd=_REPO_ROOT, capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert outp.exists() and "DEADCO" in outp.read_text(encoding="utf-8")
 
 
 def test_load_approved_reads_doc_and_ledger(tmp_path):
