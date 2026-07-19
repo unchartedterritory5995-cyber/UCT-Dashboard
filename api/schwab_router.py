@@ -79,6 +79,24 @@ async def options_quote(
     """Fetch current price for a single option contract."""
     result = await schwab.get_option_quote(symbol, strike, expDate, cp)
     return result
+def _snapshot_key(c: dict):
+    """Build the contract_oi_snapshots key (TICKER|C/P|float_strike|M/D/YYYY)
+    from an options-quotes request dict {symbol, cp, strike, expDate(ISO)}.
+    Returns None if the contract can't be keyed."""
+    try:
+        sym = str(c.get("symbol") or "").upper().strip()
+        cpx = str(c.get("cp") or "").upper().strip()
+        cp = "C" if cpx.startswith("C") else ("P" if cpx.startswith("P") else "")
+        if not sym or not cp:
+            return None
+        strike_f = float(c.get("strike"))
+        y, m, d = str(c.get("expDate") or "").strip().split("-")
+        exp_mdy = f"{int(m)}/{int(d)}/{int(y)}"
+        return f"{sym}|{cp}|{strike_f}|{exp_mdy}"
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
 @router.post("/options-quotes")
 async def options_quotes_batch(contracts: list[dict]):
     """
@@ -111,6 +129,44 @@ async def options_quotes_batch(contracts: list[dict]):
                     logger.info("[UW fallback] Recovered %d/%d failed contracts", recovered, len(failed_indices))
             except Exception as e:
                 logger.warning("[UW fallback] Error: %s", e)
+
+    # ── Snapshot-OI backfill (2026-07-19) ──────────────────────────────────
+    # Broker openInterest is 0 outside RTH, and OI is a once-daily OCC figure
+    # anyway, so when a priced quote comes back with OI 0/missing, fill it from
+    # the latest daily snapshot in contract_oi_snapshots (Massive-sourced).
+    # Tagged oi_estimated so the UI can flag it. Never fails the request.
+    try:
+        need = {}  # contract_key -> [result indices]
+        for i, c in enumerate(contracts):
+            r = results[i] if i < len(results) else None
+            if not isinstance(r, dict) or r.get("error"):
+                continue
+            oi = r.get("openInterest")
+            if oi and oi > 0:
+                continue
+            ck = _snapshot_key(c)
+            if ck:
+                need.setdefault(ck, []).append(i)
+        if need:
+            from api.oi_snapshots import get_latest_oi_batch
+            latest = get_latest_oi_batch(list(need.keys()))
+            filled = 0
+            for ck, idxs in need.items():
+                hit = latest.get(ck)
+                if not hit:
+                    continue
+                oi_val, snap_date = hit
+                if oi_val and oi_val > 0:
+                    for i in idxs:
+                        results[i]["openInterest"] = oi_val
+                        results[i]["oi_estimated"] = True
+                        results[i]["oi_snap_date"] = snap_date
+                        filled += 1
+            if filled:
+                logger.info("[options-quotes] backfilled OI from snapshot for %d contracts", filled)
+    except Exception as e:
+        logger.warning("[options-quotes] snapshot OI backfill skipped: %s", e)
+
     return {"quotes": results}
 @router.get("/market-summary")
 async def market_summary():
