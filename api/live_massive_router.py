@@ -2765,7 +2765,10 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         if vol_group:
             lines.append("📊 " + "\n".join(vol_group))
         if ramp:
-            lines.append(f"📈 Daily build:  {ramp}")
+            # Ramp is the per-day HIT COUNT growing across sessions (e.g.
+            # 37 → 45 → 108 hits). "Daily build" alone didn't say what was
+            # building; label it as hits/day so the number is self-explaining.
+            lines.append(f"📈 Hits by day:  {ramp}")
         default_name = "UCT Accumulation"
     else:
         prem = alert.get("alertPremium") or 0
@@ -2819,15 +2822,22 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         _ts_label = None
 
     grade = alert.get("accumulation_grade") if mode == "accumulation" else alert.get("grade")
+    # Label the timestamp so it can't be mistaken for Discord's post time. For an
+    # accumulation the ts is the most recent qualifying hit ("Last hit"); for a
+    # single print it's the execution time ("Filled"). Without the label, a card
+    # posted at 9:31 AM ET showing "Yesterday at 3:59 PM" read like a
+    # contradiction — two unlabeled times 17h apart.
+    _ts_prefix = "Last hit" if mode == "accumulation" else "Filled"
+    _ts_display = f"{_ts_prefix}: {_ts_label}" if _ts_label else None
     if grade and grade != "D":
         rocket = " 🚀" if grade in ("A+", "A") else ""
         conv = f"🏆 Conviction **{grade}**{rocket}"
-        if _ts_label:
-            conv += f"  ·  🕐 {_ts_label}"
+        if _ts_display:
+            conv += f"  ·  🕐 {_ts_display}"
         lines.append(conv)
-    elif _ts_label:
+    elif _ts_display:
         # No conviction line (grade D/blank) — still surface the time on its own line.
-        lines.append(f"🕐 {_ts_label}")
+        lines.append(f"🕐 {_ts_display}")
 
     # Compose: badge line(s), then metric groups separated by a BLANK line for
     # readable spacing. All in the description → identical on desktop and mobile.
@@ -3061,6 +3071,29 @@ def _push_window_ok(alert: dict, mode: str, cfg: dict) -> bool:
     """
     if cfg.get("market_hours_only", True) and not _in_market_hours():
         return False
+
+    # OPEN WARMUP (2026-07-18): accumulation pushes are suppressed for the first
+    # N minutes after the 9:30 ET open. WHY: accumulation = YELLOW = cumulative
+    # volume > OI. At the open the day's volume floods in and dozens of contracts
+    # cross their (prior-day) OI within minutes, so they all qualify at once and
+    # the scan fires a burst of "Accumulation" alerts that isn't real-time
+    # accumulation — it's the opening volume mechanically tripping the OI line
+    # (made worse by the worker going live / any boot replay catching up). The
+    # existing gates miss it: market_hours_only passes (it IS market hours), and
+    # accum_max_age_sec defaults to 0 (off, because a genuine multi-day
+    # accumulator's last event can be days old). This gate is accumulation-only
+    # and time-boxed; single-print alerts (Alpha Gold / Grade A / Size) are
+    # unaffected and still fire from the first second. Config:
+    #   accum_open_warmup_min (default 15) — minutes after 9:30 ET to suppress;
+    #   set 0 to disable.
+    if mode == "accumulation":
+        warmup_min = cfg.get("accum_open_warmup_min", 15)
+        if warmup_min:
+            now_et = datetime.now(ET)
+            if now_et.weekday() < 5:
+                mins_since_open = (now_et.hour * 60 + now_et.minute) - _MARKET_OPEN_ET_MIN
+                if 0 <= mins_since_open < warmup_min:
+                    return False
 
     max_age = (cfg.get("accum_max_age_sec", 0) if mode == "accumulation"
                else cfg.get("max_alert_age_sec", 600))
@@ -4057,13 +4090,6 @@ async def enrich_oi(
 
     try:
         with sqlite3.connect(DB_PATH, timeout=10) as conn:
-            # contract_oi_snapshots moved to its own DB (2026-07-17) — attach so
-            # the OI-enrich queries below resolve it.
-            try:
-                from api.oi_snapshots import attach_oi_snapshots
-                attach_oi_snapshots(conn)
-            except Exception:
-                pass
             # ── Step 1: Detect stored key format from a small probe set.
             # Reuses confirmation-map's proven approach — try up to 20 probe
             # contracts, use the first variant that hits, then commit to that
