@@ -117,5 +117,48 @@
   "waste_management": [
     "Waste Management",
     "Environmental & Waste Services"
+  ],
+  "gold_precious": [
+    "Gold",
+    "Other Precious Metals & Mining"
+  ],
+  "silver": [
+    "Silver",
+    "Other Precious Metals & Mining",
+    "Gold"
+  ],
+  "copper": [
+    "Copper",
+    "Other Industrial Metals & Mining",
+    "Aluminum"
+  ],
+  "rare_earth": [
+    "Other Industrial Metals & Mining",
+    "Specialty Industrial Machinery",
+    "Chemicals"
+  ],
+  "steel_metals": [
+    "Steel",
+    "Metal Fabrication",
+    "Aluminum",
+    "Other Industrial Metals & Mining"
+  ],
+  "agribusiness": [
+    "Farm Products",
+    "Agricultural Inputs",
+    "Farm & Heavy Construction Machinery",
+    "Food Distribution"
+  ],
+  "water": [
+    "Utilities - Regulated Water",
+    "Specialty Industrial Machinery",
+    "Building Products & Equipment"
+  ],
+  "specialty_chemicals": [
+    "Specialty Chemicals",
+    "Chemicals"
+  ],
+  "packaging": [
+    "Packaging & Containers"
   ]
 }

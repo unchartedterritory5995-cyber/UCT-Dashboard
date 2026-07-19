@@ -1,5 +1,5 @@
 {
-  "version": "4.6.0+723be8da",
+  "version": "4.7.0+b7320d7c",
   "generated_at": "2026-07-19",
   "sectors": [
     {
@@ -4047,13 +4047,13 @@
         },
         {
           "sym": "RGLD",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Gold royalty and streaming company"
         },
         {
           "sym": "AU",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "AngloGold Ashanti, global gold miner"
         },
@@ -4077,13 +4077,13 @@
         },
         {
           "sym": "NEM",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "World largest gold producer royalty counterparty"
         },
         {
           "sym": "AEM",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Agnico Eagle top gold miner royalty grantor"
         },
@@ -4095,19 +4095,19 @@
         },
         {
           "sym": "KGC",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Kinross Gold major miner and royalty grantor"
         },
         {
           "sym": "AGI",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Alamos Gold mid-tier Canadian gold miner"
         },
         {
           "sym": "GFI",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Gold Fields South African gold mining operations"
         },
@@ -4143,7 +4143,7 @@
         },
         {
           "sym": "CDE",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Coeur Mining US gold producer royalty counterparty"
         },
@@ -4179,9 +4179,21 @@
         },
         {
           "sym": "HL",
-          "tier": "peripheral",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Hecla Mining silver and gold producer"
+        },
+        {
+          "sym": "EQX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OGC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -4220,13 +4232,13 @@
         },
         {
           "sym": "AG",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "First Majestic Silver, primary silver miner"
         },
         {
           "sym": "EXK",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Endeavour Silver, Mexican silver operations"
         },
@@ -4255,12 +4267,6 @@
           "rationale": "MAG Silver Juanicipio high-grade silver mine Mexico"
         },
         {
-          "sym": "SILV",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "SilverCrest Metals Las Chispas silver-gold mine"
-        },
-        {
           "sym": "MUX",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -4279,22 +4285,10 @@
           "rationale": "Americas Gold and Silver Corp producing miner"
         },
         {
-          "sym": "AUY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Yamana Gold with silver production exposure"
-        },
-        {
           "sym": "OR",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Osisko Gold Royalties with silver stream income"
-        },
-        {
-          "sym": "GATO",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Gatos Silver high-grade silver mine Mexico"
         },
         {
           "sym": "FR",
@@ -4307,6 +4301,18 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Triple Flag silver streaming income"
+        },
+        {
+          "sym": "PSLV",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BVN",
+          "tier": "peripheral",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -4333,7 +4339,7 @@
         },
         {
           "sym": "TECK",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Canadian copper and zinc diversified miner"
         },
@@ -4345,7 +4351,7 @@
         },
         {
           "sym": "ERO",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Ero Copper, Brazilian copper mining operations"
         },
@@ -4375,37 +4381,13 @@
         },
         {
           "sym": "NEXA",
-          "tier": "relevant",
+          "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Nexa Resources zinc and copper producer Americas"
         },
         {
-          "sym": "AA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Alcoa aluminum with copper by-product exposure"
-        },
-        {
-          "sym": "ARIS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Aris Mining copper-gold assets in Colombia"
-        },
-        {
-          "sym": "CENX",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Century Aluminum with copper-related operations"
-        },
-        {
-          "sym": "NUE",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Nucor diversified metals with copper distribution"
-        },
-        {
           "sym": "IVPAF",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Ivanhoe Mines Kamoa-Kakula copper DRC ADR"
         },
@@ -4414,18 +4396,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "First Quantum Minerals copper producer Zambia"
-        },
-        {
-          "sym": "PKX",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "POSCO with copper by-product processing"
-        },
-        {
-          "sym": "SID",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "CSN Mineracao iron and copper mining Brazil"
         },
         {
           "sym": "GLNCY",
@@ -4452,7 +4422,7 @@
         },
         {
           "sym": "UUUU",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "US rare earth and uranium producer"
         },
@@ -4469,28 +4439,10 @@
           "rationale": "USA Rare Earth, US mine-to-magnet rare earth manufacturer"
         },
         {
-          "sym": "TMC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "The Metals Company, deep-sea polymetallic nodule mining"
-        },
-        {
-          "sym": "AMSC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Superconductor tech relying on rare earth magnets"
-        },
-        {
           "sym": "VHI",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Valhi Inc specialty metals and titanium operations"
-        },
-        {
-          "sym": "HEES",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "H&E Equipment with rare earth mining equipment"
         },
         {
           "sym": "LYC",
@@ -4499,58 +4451,22 @@
           "rationale": "Lynas Corp OTC ADR rare earth processing"
         },
         {
-          "sym": "GWH",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "ESS Inc energy storage using rare earth materials"
-        },
-        {
           "sym": "PCRFY",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Panasonic EV batteries needing RE magnets OTC"
         },
         {
-          "sym": "HON",
-          "tier": "peripheral",
+          "sym": "NB",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Honeywell quantum and RE magnet applications"
+          "rationale": "owner-reviewed add"
         },
         {
-          "sym": "APD",
-          "tier": "peripheral",
+          "sym": "CRML",
+          "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Air Products specialty gases for RE processing"
-        },
-        {
-          "sym": "BWA",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "BorgWarner EV motors needing RE permanent magnets"
-        },
-        {
-          "sym": "TER",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Teradyne test equipment for RE magnet applications"
-        },
-        {
-          "sym": "EMR",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Emerson Electric motors using RE magnet technology"
-        },
-        {
-          "sym": "ROK",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Rockwell Automation servos using RE permanent magnets"
-        },
-        {
-          "sym": "ETN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Eaton electric motors requiring RE magnet materials"
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -4598,7 +4514,7 @@
         },
         {
           "sym": "ATI",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "specialty_metals",
           "rationale": "Specialty alloys for aerospace and defense"
         },
@@ -4610,27 +4526,15 @@
         },
         {
           "sym": "CRS",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "specialty_metals",
           "rationale": "Specialty alloy steel for aerospace and medical"
         },
         {
           "sym": "CMC",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": "steel_producers",
           "rationale": "Rebar and merchant steel producer"
-        },
-        {
-          "sym": "TMST",
-          "tier": "peripheral",
-          "sub_theme_id": "steel_producers",
-          "rationale": "Steel tubular products manufacturer"
-        },
-        {
-          "sym": "X",
-          "tier": "relevant",
-          "sub_theme_id": "steel_producers",
-          "rationale": "United States Steel legacy integrated steelmaker"
         },
         {
           "sym": "TX",
@@ -4643,18 +4547,6 @@
           "tier": "relevant",
           "sub_theme_id": "steel_producers",
           "rationale": "Gerdau Brazilian long steel and specialty producer"
-        },
-        {
-          "sym": "HAYN",
-          "tier": "relevant",
-          "sub_theme_id": "specialty_metals",
-          "rationale": "Haynes International high-temp nickel alloys"
-        },
-        {
-          "sym": "MATV",
-          "tier": "peripheral",
-          "sub_theme_id": "specialty_metals",
-          "rationale": "Mativ Holdings specialty materials filtration"
         },
         {
           "sym": "SID",
@@ -4697,6 +4589,18 @@
           "tier": "relevant",
           "sub_theme_id": "steel_producers",
           "rationale": "Rio Tinto iron ore for steel production"
+        },
+        {
+          "sym": "MT",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "WS",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ]
     },
@@ -4754,7 +4658,7 @@
         },
         {
           "sym": "CTVA",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": "crop_inputs",
           "rationale": "Seed and crop protection technology leader"
         },
@@ -4775,12 +4679,6 @@
           "tier": "relevant",
           "sub_theme_id": "ag_equipment",
           "rationale": "Fendt and Massey Ferguson farm equipment"
-        },
-        {
-          "sym": "CNHI",
-          "tier": "relevant",
-          "sub_theme_id": "ag_equipment",
-          "rationale": "Case IH and New Holland farm equipment"
         },
         {
           "sym": "SMG",
@@ -4819,12 +4717,6 @@
           "rationale": "Adecoagro South American crop and dairy producer"
         },
         {
-          "sym": "HAIN",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hain Celestial organic natural food products"
-        },
-        {
           "sym": "DAR",
           "tier": "relevant",
           "sub_theme_id": "grain_processing",
@@ -4849,16 +4741,22 @@
           "rationale": "Gladstone Land farmland REIT and agriculture"
         },
         {
-          "sym": "IBA",
-          "tier": "relevant",
-          "sub_theme_id": "crop_inputs",
-          "rationale": "Industrias Bachoco Mexican poultry producer"
-        },
-        {
           "sym": "AVD",
           "tier": "relevant",
           "sub_theme_id": "crop_inputs",
           "rationale": "American Vanguard specialty crop chemicals"
+        },
+        {
+          "sym": "CVGW",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "CNH",
+          "tier": "core",
+          "sub_theme_id": "ag_equipment",
+          "rationale": "rename"
         }
       ]
     },
@@ -10605,7 +10503,7 @@
         },
         {
           "sym": "APD",
-          "tier": "core",
+          "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Global industrial gases and specialty chemicals leader"
         },
@@ -10635,25 +10533,25 @@
         },
         {
           "sym": "EMN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Specialty additives and functional products manufacturer"
         },
         {
           "sym": "CE",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Global chemical and specialty materials company"
         },
         {
           "sym": "AVNT",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Specialty polymer formulations and color solutions provider"
         },
         {
           "sym": "HUN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Differentiated organic chemical products manufacturer"
         },
@@ -10665,7 +10563,7 @@
         },
         {
           "sym": "CC",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "TiO2 and performance additives specialty producer"
         },
@@ -10677,31 +10575,31 @@
         },
         {
           "sym": "RPM",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Specialty coatings sealants and building materials"
         },
         {
           "sym": "FUL",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Global adhesives and specialty chemicals producer"
         },
         {
           "sym": "ASH",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Specialty additives and performance materials company"
         },
         {
           "sym": "AXTA",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Vehicle refinish and industrial coatings specialist"
         },
         {
           "sym": "CBT",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Carbon black and specialty chemicals manufacturer"
         },
@@ -10710,6 +10608,36 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Multi-use maintenance product and specialty chemicals maker"
+        },
+        {
+          "sym": "IFF",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BCPC",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SXT",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ESI",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "ALB",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
         }
       ],
       "display_order": 13
@@ -11915,56 +11843,44 @@
           "rationale": "Global industrial packaging and pulp producer"
         },
         {
-          "sym": "BLL",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Leading aluminum beverage can packaging manufacturer"
-        },
-        {
           "sym": "CCK",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Metal and glass container packaging company"
         },
         {
           "sym": "SLGN",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Metal and plastic container packaging manufacturer"
         },
         {
-          "sym": "BERY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Plastic packaging solutions for consumer and industrial markets"
-        },
-        {
           "sym": "SEE",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Food and protective packaging solutions provider"
         },
         {
           "sym": "ATR",
-          "tier": "relevant",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Premium beauty and pharma packaging solutions"
         },
         {
           "sym": "SON",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Diversified industrial and consumer packaging company"
         },
         {
           "sym": "GPK",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Fiber-based consumer packaging solutions provider"
         },
         {
           "sym": "AMCR",
-          "tier": "peripheral",
+          "tier": "core",
           "sub_theme_id": null,
           "rationale": "Global flexible and rigid packaging solutions company"
         },
@@ -11979,6 +11895,36 @@
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Corrugated packaging and paper products producer"
+        },
+        {
+          "sym": "GEF",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "OI",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "AVY",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "REYN",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "BALL",
+          "tier": "core",
+          "sub_theme_id": null,
+          "rationale": "rename"
         }
       ],
       "display_order": 31
