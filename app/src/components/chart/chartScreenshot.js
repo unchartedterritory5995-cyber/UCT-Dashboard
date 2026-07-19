@@ -1,4 +1,37 @@
 // app/src/components/chart/chartScreenshot.js
+import compassSrc from '../intro/assets/compass-mark.png';
+
+// Load the compass mark once (cached promise). Resolves null on failure so a
+// missing asset never blocks the screenshot.
+let _compassPromise = null;
+function loadCompass() {
+  if (!_compassPromise) {
+    _compassPromise = new Promise((resolve) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = () => resolve(null);
+      im.src = compassSrc;
+    });
+  }
+  return _compassPromise;
+}
+
+// Compact formatters for the redrawn legend / volume text.
+function _fmtNum(v) {
+  return (v != null && Number.isFinite(+v)) ? (+v).toFixed(2) : '—';
+}
+function _fmtVol(v) {
+  if (v == null || !Number.isFinite(+v)) return '—';
+  const n = Math.abs(+v);
+  if (n >= 1e9) return `${(+v / 1e9).toFixed(2)}B`;
+  if (n >= 1e6) return `${(+v / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(+v / 1e3).toFixed(1)}K`;
+  return `${+v}`;
+}
+function _fmtNotional(v) {
+  if (v == null || !Number.isFinite(+v)) return '—';
+  return '$' + _fmtVol(v);
+}
 
 
 /**
@@ -68,13 +101,26 @@ export function urlToChartState(encoded) {
  */
 export async function composeScreenshot(chart, opts = {}) {
   if (!chart) throw new Error('No chart instance');
-  // takeScreenshot returns an HTMLCanvasElement in v5, ImageData-like in older
+  const {
+    sym, tf, price, changePct, companyName,
+    container, crosshairData, timeLabel, legendPos, volPos,
+  } = opts;
+
+  // LWC's takeScreenshot() = ONLY the chart canvases (candles, axes, MAs, volume
+  // bars, watermark). It never includes the DOM toolbar, the drawing-overlay
+  // canvas, or the DOM legend/vol text — so those are composited/redrawn below.
   const chartCanvas = chart.takeScreenshot();
   const cw = chartCanvas.width || chartCanvas.canvas?.width || 1200;
   const ch = chartCanvas.height || chartCanvas.canvas?.height || 600;
 
-  const HEADER_H = 40;
-  const FOOTER_H = 20;
+  // Everything is in DEVICE pixels (takeScreenshot is DPR-scaled). S maps CSS px
+  // → device px, so overlays/text line up regardless of the display's DPR.
+  const contRect = container?.getBoundingClientRect?.();
+  const S = (contRect && contRect.width) ? cw / contRect.width : 1;
+  const px = (n) => n * S;
+
+  const HEADER_H = Math.round(px(70));
+  const FOOTER_H = Math.round(px(24));
   const totalW = cw;
   const totalH = HEADER_H + ch + FOOTER_H;
 
@@ -82,49 +128,144 @@ export async function composeScreenshot(chart, opts = {}) {
   out.width = totalW;
   out.height = totalH;
   const ctx = out.getContext('2d');
+  const FONT = '"Instrument Sans", -apple-system, sans-serif';
 
-  // Background
+  // Background + header/footer strips
   ctx.fillStyle = '#0a0a0a';
   ctx.fillRect(0, 0, totalW, totalH);
-
-  // Header
-  ctx.fillStyle = '#161616';
+  ctx.fillStyle = '#0e0f0d';
   ctx.fillRect(0, 0, totalW, HEADER_H);
-  ctx.fillStyle = '#c9a84c';  // UCT gold
-  ctx.font = 'bold 18px "Instrument Sans", -apple-system, sans-serif';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(opts.sym || '', 16, HEADER_H / 2);
-  ctx.fillStyle = '#888';
-  ctx.font = '14px sans-serif';
-  ctx.fillText(opts.tf || '', 100, HEADER_H / 2);
-  if (Number.isFinite(opts.price)) {
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px sans-serif';
-    ctx.fillText(`$${opts.price.toFixed(2)}`, 160, HEADER_H / 2);
-  }
-  if (Number.isFinite(opts.changePct)) {
-    ctx.fillStyle = opts.changePct >= 0 ? '#22c55e' : '#ef4444';
-    ctx.fillText(`${opts.changePct >= 0 ? '+' : ''}${opts.changePct.toFixed(2)}%`, 240, HEADER_H / 2);
-  }
-  // UCT brand on right
-  ctx.fillStyle = '#c9a84c';
-  ctx.font = 'bold 12px "Instrument Sans", -apple-system, sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText('UCT INTELLIGENCE', totalW - 16, HEADER_H / 2);
-  ctx.textAlign = 'left';
 
-  // Chart canvas
+  // ── Chart canvas (toolbar-free) ──
   ctx.drawImage(chartCanvas, 0, HEADER_H);
 
-  // Footer
-  ctx.fillStyle = '#161616';
-  ctx.fillRect(0, HEADER_H + ch, totalW, FOOTER_H);
-  ctx.fillStyle = '#666';
-  ctx.font = '10px sans-serif';
+  // ── Composite the OVERLAY canvases (drawings / callouts / patterns) ──
+  // Every <canvas> in the container that is NOT part of LWC's own widget, mapped
+  // from its CSS bounds into the device-pixel chart space.
+  if (container) {
+    try {
+      const lwcEl = container.querySelector('.tv-lightweight-charts');
+      for (const cvs of container.querySelectorAll('canvas')) {
+        if (!cvs.width || !cvs.height) continue;
+        if (lwcEl && lwcEl.contains(cvs)) continue;  // skip the base chart canvases
+        const r = cvs.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        ctx.drawImage(
+          cvs,
+          px(r.left - contRect.left), px(r.top - contRect.top) + HEADER_H,
+          px(r.width), px(r.height),
+        );
+      }
+    } catch { /* overlays are best-effort */ }
+  }
+
+  // ── Redraw the OHLC/MA legend (DOM text → canvas) at its on-screen spot ──
+  if (crosshairData) {
+    const lx = px((legendPos?.x ?? 12)) + px(4);
+    let ly = px((legendPos?.y ?? 8)) + HEADER_H + px(12);
+    const lh = px(17);
+    const setF = (size, weight = '600') => { ctx.font = `${weight} ${px(size)}px ${FONT}`; };
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    setF(12, '700');
+    ctx.fillStyle = '#c9c3b0';
+    ctx.fillText(String(timeLabel ?? ''), lx, ly); ly += lh;
+    const chgNum = parseFloat(crosshairData.change);
+    ctx.fillStyle = Number.isFinite(chgNum) && chgNum >= 0 ? '#1ae51a' : '#c41f2d';
+    setF(12, '700');
+    ctx.fillText(`${chgNum >= 0 ? '+' : ''}${crosshairData.change} (${crosshairData.changePct}%)`, lx, ly); ly += lh;
+    setF(12);
+    const row = (label, val, color) => {
+      ctx.fillStyle = color || '#8f897a';
+      ctx.fillText(label, lx, ly);
+      ctx.fillStyle = color || '#c9c3b0';
+      ctx.fillText(val, lx + px(56), ly);
+      ly += lh;
+    };
+    row('Open', _fmtNum(crosshairData.open));
+    row('High', _fmtNum(crosshairData.high));
+    row('Low', _fmtNum(crosshairData.low));
+    row('Close', _fmtNum(crosshairData.close));
+    if (crosshairData.volume != null) row('Vol', _fmtVol(crosshairData.volume));
+    for (const ov of (crosshairData.overlays || [])) {
+      row(ov.label, _fmtNum(ov.value), ov.color);
+    }
+  }
+
+  // ── Redraw the $Vol / Avg-vol legend on the volume pane ──
+  if (crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null)) {
+    let vx = px((volPos?.x ?? 12));
+    const vy = px((volPos?.y ?? (contRect ? contRect.height * 0.78 : 500))) + HEADER_H + px(12);
+    ctx.textAlign = 'left';
+    ctx.font = `600 ${px(12)}px ${FONT}`;
+    const chip = (label, val) => {
+      ctx.fillStyle = '#8f897a'; ctx.fillText(label, vx, vy);
+      vx += ctx.measureText(label).width + px(4);
+      ctx.fillStyle = '#c9c3b0'; ctx.fillText(val, vx, vy);
+      vx += ctx.measureText(val).width + px(14);
+    };
+    if (crosshairData.dollarVol != null) chip('$ Vol', _fmtNotional(crosshairData.dollarVol));
+    if (crosshairData.volAvg != null && crosshairData.volMaPeriod) {
+      chip(`Avg ${crosshairData.volMaPeriod}D`, _fmtVol(crosshairData.volAvg));
+    }
+  }
+
+  // ── Header: left = ticker (company) · tf · price · change ──
   ctx.textBaseline = 'middle';
-  ctx.fillText(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC', 16, HEADER_H + ch + FOOTER_H / 2);
+  ctx.textAlign = 'left';
+  let hx = px(20);
+  const hy = HEADER_H / 2;
+  ctx.font = `800 ${px(24)}px ${FONT}`;
+  ctx.fillStyle = '#c9a84c';
+  ctx.fillText(sym || '', hx, hy);
+  hx += ctx.measureText(sym || '').width + px(10);
+  if (companyName) {
+    ctx.font = `600 ${px(15)}px ${FONT}`;
+    ctx.fillStyle = '#8f897a';
+    ctx.fillText(`(${companyName})`, hx, hy);
+    hx += ctx.measureText(`(${companyName})`).width + px(16);
+  }
+  ctx.font = `700 ${px(19)}px ${FONT}`;
+  ctx.fillStyle = '#a8a290';
+  if (tf) { ctx.fillText(tf, hx, hy); hx += ctx.measureText(tf).width + px(14); }
+  if (Number.isFinite(price)) {
+    ctx.fillStyle = '#e6e6e8';
+    const p = `$${price.toFixed(2)}`;
+    ctx.fillText(p, hx, hy); hx += ctx.measureText(p).width + px(14);
+  }
+  if (Number.isFinite(changePct)) {
+    ctx.fillStyle = changePct >= 0 ? '#1ae51a' : '#c41f2d';
+    ctx.fillText(`${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`, hx, hy);
+  }
+
+  // ── Header: center = compass + UCT INTELLIGENCE ──
+  const compass = await loadCompass();
+  const brandFont = `800 ${px(26)}px ${FONT}`;
+  ctx.font = brandFont;
+  const brandText = 'UCT INTELLIGENCE';
+  const brandW = ctx.measureText(brandText).width;
+  const logoH = px(40);
+  const logoW = compass ? logoH * (compass.width / compass.height) : 0;
+  const gap = compass ? px(12) : 0;
+  const groupW = logoW + gap + brandW;
+  let gx = (totalW - groupW) / 2;
+  if (compass) { ctx.drawImage(compass, gx, hy - logoH / 2, logoW, logoH); gx += logoW + gap; }
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = brandFont;
+  ctx.fillStyle = '#c9a84c';
+  ctx.fillText(brandText, gx, hy);
+
+  // ── Footer ──
+  ctx.fillStyle = '#0e0f0d';
+  ctx.fillRect(0, HEADER_H + ch, totalW, FOOTER_H);
+  ctx.fillStyle = '#8f897a';
+  ctx.font = `${px(11)}px ${FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC', px(16), HEADER_H + ch + FOOTER_H / 2);
   ctx.textAlign = 'right';
-  ctx.fillText('uctintelligence.com', totalW - 16, HEADER_H + ch + FOOTER_H / 2);
+  ctx.fillText('uctintelligence.com', totalW - px(16), HEADER_H + ch + FOOTER_H / 2);
   ctx.textAlign = 'left';
 
   return new Promise((resolve, reject) => {

@@ -1410,6 +1410,7 @@ export default function StockChart({
   const volMaSeriesRef = useRef(null)  // 50-MA line on the volume pane
   const volMaDataRef = useRef([])      // latest volMaData (avg-volume series) for the crosshair legend
   const volLegendRef = useRef(null)    // volume-pane top-left legend ($ vol + avg vol) — positioned live
+  const legendRef = useRef(null)       // main OHLC/MA legend — captured into the PNG screenshot
   // Volume-pane height % last APPLIED via setStretchFactor. Gate re-applies on it
   // so a 30s data poll can't reset the pane and fight a user's separator drag; the
   // drag sampler compares the live pane % against it to detect a user resize.
@@ -1895,31 +1896,49 @@ export default function StockChart({
   const lastPriceRef = useRef(null)
   const lastChangePctRef = useRef(null)
 
+  // Assemble the branded-screenshot options: header data + the container (so the
+  // compositor can grab the drawing/callout overlay canvases) + the live legend
+  // element positions so the OHLC/MA + $Vol legends get redrawn into the PNG.
+  const buildScreenshotOpts = useCallback(() => {
+    const cont = containerRef.current
+    const contRect = cont?.getBoundingClientRect()
+    const relPos = (el) => {
+      if (!el || !contRect) return null
+      const r = el.getBoundingClientRect()
+      return { x: r.left - contRect.left, y: r.top - contRect.top }
+    }
+    return {
+      sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
+      companyName: watermarkMeta?.name || tickerMeta?.name || null,
+      container: cont,
+      crosshairData,
+      timeLabel: crosshairData ? formatLegendTime(crosshairData.time) : '',
+      legendPos: relPos(legendRef.current),
+      volPos: relPos(volLegendRef.current),
+    }
+  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData])
+
   const handleDownload = useCallback(async () => {
     if (!chartRef.current) return
     try {
-      const blob = await composeScreenshot(chartRef.current, {
-        sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
-      })
+      const blob = await composeScreenshot(chartRef.current, buildScreenshotOpts())
       const filename = `${sym || 'chart'}-${resolvedTf}-${new Date().toISOString().slice(0, 10)}.png`
       downloadBlob(blob, filename)
     } catch (err) {
       console.warn('Screenshot failed:', err)
     }
-  }, [sym, resolvedTf])
+  }, [sym, resolvedTf, buildScreenshotOpts])
 
   const handleCopyImage = useCallback(async () => {
     if (!chartRef.current) return false
     try {
-      const blob = await composeScreenshot(chartRef.current, {
-        sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
-      })
+      const blob = await composeScreenshot(chartRef.current, buildScreenshotOpts())
       return await copyBlobToClipboard(blob)
     } catch (err) {
       console.warn('Copy failed:', err)
       return false
     }
-  }, [sym, resolvedTf])
+  }, [buildScreenshotOpts])
 
   const handleCopyShareUrl = useCallback(() => {
     const state = {
@@ -8088,6 +8107,7 @@ export default function StockChart({
         const legBase = legendColor ? { color: legendColor } : undefined
         return (
         <div
+          ref={legendRef}
           className={`${styles.legend}${verticalLegend ? ' ' + styles.legendVertical : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it. */
           style={overlayBounds ? { top: overlayBounds.top + 6 } : undefined}
