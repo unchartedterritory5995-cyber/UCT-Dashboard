@@ -293,6 +293,20 @@ FAST_PATH_ENABLED = os.environ.get("MASSIVE_FAST_PATH_ENABLED", "1") == "1"
 # Well above MIN_PREMIUM ($10K) so only genuine institutional first-prints wake
 # the manager early -- a busy open shouldn't fast-path everything.
 FAST_PATH_PREMIUM = float(os.environ.get("MASSIVE_FAST_PATH_PREMIUM", "50000"))
+# On-demand REST quote fetch (2026-07-18): the 950-slot Q pool is saturated all
+# session (every 'sub' logs pool_size_after=950, contracts evict within ~5s), so
+# a big print on a contract that isn't currently pooled classifies blank — 77% of
+# $500K+ SWEEP/BLOCK prints on 7/17 went sideless vs BBS's 5%. The tick-test that
+# used to backfill was removed 7/16 (it manufactured direction). Fix: when a big
+# print classifies blank, fetch its real NBBO from the REST /v3/quotes endpoint
+# (the same per-exchange feed the WS carries) and classify before the event is
+# written. The alert engine reads from flow.db downstream of the writer, so a
+# ~150ms-delayed write = a ~150ms-delayed but CORRECTLY-SIDED alert. Fail-safe:
+# any error/timeout leaves the event blank exactly as today — never worse.
+ONDEMAND_QUOTE_ENABLED = os.environ.get("MASSIVE_ONDEMAND_QUOTE_ENABLED", "1") == "1"
+ONDEMAND_QUOTE_PREMIUM = float(os.environ.get("MASSIVE_ONDEMAND_QUOTE_PREMIUM", "500000"))
+_ondemand_quote_queue: list = []   # events tagged blank+big, awaiting a REST NBBO fetch
+_ondemand_quote_event = None       # asyncio.Event, created per-session in _run_session
 # How often the reclassification re-pass runs. Short enough to recover within
 # the NBBO lag window (a few seconds after fast-path subscribe fills NBBO).
 RECLASSIFY_INTERVAL_SEC = float(os.environ.get("MASSIVE_RECLASSIFY_INTERVAL", "3.0"))
@@ -954,6 +968,15 @@ def _classify_events_side(events: list) -> None:
             no_signal += 1
             if not nbbo and len(sample_misses) < 5:
                 sample_misses.append(sym)
+            # On-demand quote tag (2026-07-18): a big print with no usable NBBO
+            # is exactly the 77%-blank case. Flag it so the flusher diverts it to
+            # the REST-fetch task instead of writing it blank. Only genuinely
+            # large prints qualify, to bound REST volume. side_method stays
+            # "none" until/unless the fetch succeeds.
+            if (ONDEMAND_QUOTE_ENABLED
+                    and (evt.type_ in ("SWEEP", "BLOCK"))
+                    and float(evt.premium or 0) >= ONDEMAND_QUOTE_PREMIUM):
+                evt.side_method = "ondemand-pending"
 
         # Phase 2i: tick cache (_TICK_TEST_CACHE) is no longer updated here
         # because we use _RAW_T_HISTORY (raw print history) for tick test.
@@ -1993,6 +2016,10 @@ async def _run_session(ws):
     # session so _queue_q_subscriptions_for_events can wake q_subscription_manager
     # the moment a big new contract needs NBBO. (Set-then-clear; loop-owned.)
     _fast_path_event = asyncio.Event()
+    # On-demand quote fetch (2026-07-18): the flusher sets this after diverting
+    # big blank prints, waking ondemand_quote_manager to fetch their NBBO now.
+    global _ondemand_quote_event
+    _ondemand_quote_event = asyncio.Event()
 
     # Phase 2c: clear NBBO/subscription state on each session. These don't
     # survive disconnects -- we rebuild over the first few minutes of trading
@@ -2167,6 +2194,17 @@ async def _run_session(ws):
                 # Phase 2c: queue Q subscriptions for any newly-active contracts
                 # so future events on these contracts get classified
                 _queue_q_subscriptions_for_events(events)
+                # On-demand quote fetch (2026-07-18): pull out big blank prints
+                # tagged by _classify_events_side and hand them to the fetch task,
+                # which REST-fetches NBBO, classifies, and enqueues them to the
+                # writer itself. Everything else flows to the writer immediately —
+                # only the tagged whales take the ~150ms detour.
+                if ONDEMAND_QUOTE_ENABLED:
+                    pending = [e for e in events if e.side_method == "ondemand-pending"]
+                    if pending:
+                        events = [e for e in events if e.side_method != "ondemand-pending"]
+                        _ondemand_quote_queue.extend(pending)
+                        _ondemand_quote_event.set()
                 # 2026-07-07: hand the write batch to the background writer
                 # instead of doing it here. The enrichment+insert (5 DB passes +
                 # hundreds of rows) is too slow to run inline at the open
@@ -2725,6 +2763,95 @@ async def _run_session(ws):
                 except Exception as e:
                     logger.warning("[massive-ws] reclassify apply failed: %s", e)
 
+    async def ondemand_quote_manager():
+        """On-demand REST quote fetch (2026-07-18) for big blank prints.
+
+        Woken by the flusher via _ondemand_quote_event whenever a $500K+
+        SWEEP/BLOCK classified blank (no fresh NBBO — the saturated-Q-pool case).
+        For each, fetch the real NBBO at the print's timestamp from REST
+        /v3/quotes, classify with the same midpoint rule, and enqueue the
+        now-sided event to the writer. Alerts read from flow.db downstream, so a
+        classified write here = a correctly-sided alert ~150ms later.
+
+        Fail-safe: on ANY error/timeout the event is written with its existing
+        (blank) side — identical to pre-fix behavior, never worse. Runs OFF the
+        consumer recv loop (its own task, like oi_fetch_manager) so the REST
+        latency never stalls the WS keepalive.
+        """
+        base = "https://api.massive.com/v3/quotes"
+        while not stop_event.is_set():
+            trigger = asyncio.ensure_future(_ondemand_quote_event.wait())
+            stopper = asyncio.ensure_future(stop_event.wait())
+            try:
+                await asyncio.wait({trigger, stopper}, timeout=2.0,
+                                   return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                for t in (trigger, stopper):
+                    if not t.done():
+                        t.cancel()
+            if stop_event.is_set():
+                break
+            _ondemand_quote_event.clear()
+            if not _ondemand_quote_queue:
+                continue
+            batch = _ondemand_quote_queue[:]
+            _ondemand_quote_queue.clear()
+
+            async def fetch_and_classify(client, evt):
+                try:
+                    sym = _reconstruct_occ_symbol(evt.root, evt.expiry,
+                                                  evt.cp, evt.strike)
+                    ts_ns = evt.first_ts_ns
+                    url = (f"{base}/{sym}?timestamp.lte={ts_ns}"
+                           f"&order=desc&limit=1&sort=timestamp"
+                           f"&apiKey={MASSIVE_API_KEY}")
+                    r = await client.get(url)
+                    if r.status_code != 200:
+                        return evt
+                    results = r.json().get("results") or []
+                    if not results:
+                        return evt
+                    q = results[0]
+                    bid = float(q.get("bid_price", 0) or 0)
+                    ask = float(q.get("ask_price", 0) or 0)
+                    q_ts_ns = int(q.get("sip_timestamp", 0) or 0)
+                    # staleness guard — same window the live path uses
+                    if q_ts_ns and (ts_ns - q_ts_ns) > NBBO_STALENESS_NS:
+                        return evt
+                    side = _classify_side(evt.avg_price,
+                                          (bid, ask, q_ts_ns // 1_000_000))
+                    if side:
+                        evt.side = side
+                        evt.side_method = "ondemand-nbbo"
+                    else:
+                        # NBBO existed but trade was mid — a real empty; mark it
+                        # so it isn't retried and isn't presumed a side downstream.
+                        evt.side_method = "ondemand-mid"
+                    return evt
+                except Exception:
+                    return evt  # fail-safe: leave blank, write as-is
+
+            resolved = 0
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=2.0) as client:
+                    tasks = [fetch_and_classify(client, e) for e in batch]
+                    done = await asyncio.gather(*tasks, return_exceptions=False)
+                resolved = sum(1 for e in done if e.side_method == "ondemand-nbbo")
+            except Exception as e:
+                logger.debug("[massive-ws] on-demand quote batch failed: %s", e)
+                done = batch  # write them all blank — never drop
+
+            # Clear the transient "ondemand-pending" tag on anything that didn't
+            # resolve, so a blank side isn't mistaken for a pending state.
+            for e in done:
+                if e.side_method == "ondemand-pending":
+                    e.side_method = "none"
+            _state["ondemand_quote_fetches"] = _state.get("ondemand_quote_fetches", 0) + len(batch)
+            _state["ondemand_quote_resolved"] = _state.get("ondemand_quote_resolved", 0) + resolved
+            if done:
+                await write_queue.put(done)
+
     flusher_task = asyncio.create_task(flusher())
     writer_task = asyncio.create_task(writer())
     q_mgr_task = asyncio.create_task(q_subscription_manager())
@@ -2733,6 +2860,7 @@ async def _run_session(ws):
     watchdog_task = asyncio.create_task(stale_connection_watchdog())
     q_log_flusher_task = asyncio.create_task(q_pool_log_flusher())
     reclassify_task = asyncio.create_task(reclassify_manager())
+    ondemand_quote_task = asyncio.create_task(ondemand_quote_manager())
 
     try:
         async for msg in ws:
@@ -2873,6 +3001,14 @@ async def _run_session(ws):
             # cancel to bound teardown (any un-applied recoveries are best-effort).
             reclassify_task.cancel()
             await reclassify_task
+        except (Exception, asyncio.CancelledError):
+            pass
+        try:
+            # On-demand quote fetch: cancel to bound teardown. Any pending big
+            # blank prints in the queue are best-effort — they'll be written
+            # blank by the final flush, same as pre-fix.
+            ondemand_quote_task.cancel()
+            await ondemand_quote_task
         except (Exception, asyncio.CancelledError):
             pass
         # Final flush so we don't lose the last few seconds on disconnect
