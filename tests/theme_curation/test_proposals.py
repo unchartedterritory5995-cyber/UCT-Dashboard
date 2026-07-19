@@ -1,3 +1,5 @@
+import pytest
+
 from tools.theme_curation import proposals as P
 
 
@@ -25,3 +27,8 @@ def test_remap_new_sym_must_be_chartable():
     raw = {"proposals": [{"action": "remap", "sym": "OLD", "new_sym": "GONE", "confidence": 0.9}]}
     props, rejects = P.parse_llm_proposals("t", raw, {"OLD"})   # GONE not in cap
     assert props == [] and len(rejects) == 1
+
+
+def test_pid_rejects_whitespace():
+    with pytest.raises(ValueError):
+        P.pid(P.Proposal("t", "add", "A B", 0.5))   # whitespace would break the marker regex

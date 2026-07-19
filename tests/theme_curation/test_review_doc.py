@@ -18,3 +18,15 @@ def test_parse_hard_fails_on_broken_block():
     bad = "<!-- CURATION id=space::X::add -->\n(no checkbox line here)\n"
     with pytest.raises(ValueError):
         R.parse_review_md(bad)
+
+
+def test_header_marker_not_treated_as_block():
+    md = R.write_review_md([Proposal("t", "add", "AAA", 0.9, {"tier": "core"})])
+    # the instructional header contains a bare "<!-- CURATION -->" with no id= — must not become a phantom block
+    assert R.parse_review_md(md) == {"t::AAA::add": False}
+
+
+def test_real_marker_missing_checkbox_raises():
+    bad = "<!-- CURATION id=t::X::add -->\n(the checkbox line was deleted)\n<!-- CURATION id=t::Y::drop -->\n- [x] APPROVE\n"
+    with pytest.raises(ValueError):
+        R.parse_review_md(bad)

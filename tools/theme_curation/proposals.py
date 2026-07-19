@@ -21,7 +21,10 @@ class Proposal:
 
 
 def pid(p: Proposal) -> str:
-    return f"{p.theme_id}::{p.sym}::{p.action}"
+    s = f"{p.theme_id}::{p.sym}::{p.action}"
+    if any(c.isspace() for c in s):
+        raise ValueError(f"pid components must be whitespace-free: {s!r}")
+    return s
 
 
 def parse_llm_proposals(theme_id: str, raw: dict, cap_set: set):

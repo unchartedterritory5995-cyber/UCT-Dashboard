@@ -21,21 +21,12 @@ def write_review_md(props) -> str:
 
 def parse_review_md(text: str) -> dict:
     out = {}
-    blocks = text.split("<!-- CURATION")
-    for b in blocks[1:]:
-        m = _MARK.search("<!-- CURATION" + b)
-        if not m:
-            # No valid `id=<pid>` marker => this is prose that merely mentions the
-            # comment token (e.g. the writer's own "Do NOT delete the
-            # `<!-- CURATION -->` marker lines" instruction), NOT a proposal block.
-            # A real proposal marker always carries id=<pid>, so this can never
-            # skip an actual decision.
-            continue
-        box = _BOX.search(b)
+    marks = list(_MARK.finditer(text))
+    for i, m in enumerate(marks):
+        start = m.end()
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
+        box = _BOX.search(text[start:end])
         if not box:
-            # A real marker block that we cannot parse (missing checkbox) HARD-FAILS
-            # -- never default-to-approved, never silently skip. This is the safety
-            # gate before the destructive reseed.
-            raise ValueError(f"unparseable review block: {b[:80]!r}")
+            raise ValueError(f"CURATION marker {m.group(1)!r} has no APPROVE checkbox")
         out[m.group(1)] = box.group(1).lower() == "x"
     return out
