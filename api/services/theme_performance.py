@@ -315,16 +315,7 @@ def _run_computation() -> None:
                 # — including the frontend's average-the-holdings fallback and a
                 # live-snapshot outage — inherits the engine-invariant number
                 # instead of recomputing a diluted mean over engine members.
-                owner_syms_hy = {_to_hyphen(s) for s in union_syms
-                                 if members.get(_to_hyphen(s), "owner") != "engine"}
-                gr = {}
-                for period in null_returns:
-                    per_sym = {_to_hyphen(s): returns_map.get(s, {}).get(period)
-                               for s in union_syms
-                               if returns_map.get(s, {}).get(period) is not None}
-                    v = _owner_only_mean(per_sym, owner_syms_hy)
-                    if v is not None:
-                        gr[period] = v
+                gr = _owner_group_return(union_syms, returns_map, members, _ALL_PERIODS)
                 if gr:
                     theme_obj["group_return"] = gr
             themes_out.append(theme_obj)
@@ -371,6 +362,25 @@ def _owner_only_mean(per_sym_returns: dict, owner_syms: set):
     None when no owner member has a value."""
     vals = [v for s, v in per_sym_returns.items() if s in owner_syms and v is not None]
     return round(sum(vals) / len(vals), 2) if vals else None
+
+
+def _owner_group_return(union_syms, returns_map: dict, members: dict, periods) -> dict:
+    """The §4b base-result group_return: per-period owner-only mean over a theme's
+    union holdings. `members` maps hyphen sym -> source STRING ('owner'|'engine');
+    a sym absent from `members` (a wire-only holding) counts as owner. Extracted
+    from _run_computation so the byte-identical invariance is unit-testable:
+    adding engine members must NOT change the result."""
+    owner_syms_hy = {_to_hyphen(s) for s in union_syms
+                     if members.get(_to_hyphen(s), "owner") != "engine"}
+    gr = {}
+    for period in periods:
+        per_sym = {_to_hyphen(s): returns_map.get(s, {}).get(period)
+                   for s in union_syms
+                   if returns_map.get(s, {}).get(period) is not None}
+        v = _owner_only_mean(per_sym, owner_syms_hy)
+        if v is not None:
+            gr[period] = v
+    return gr
 
 
 def _theme_owner_syms(theme: dict) -> set:
@@ -517,6 +527,14 @@ def _enrich_with_taxonomy(result: dict) -> dict:
                     h["tier"] = m.get("tier", "relevant")
                     h["sub_theme_id"] = m.get("sub_theme_id")
                     h["source"] = m.get("source", "owner")
+            # I-3: drop ENGINE members that left the merged read (co-movement
+            # auto-drop / admin rollback) but still linger in the wire-derived
+            # base result — otherwise a dropped name lingers in Theme Tracker
+            # (with its engine dot) until the next wire push (up to ~1 day).
+            # Owner/wire holdings (source owner-or-absent) are never removed.
+            holdings[:] = [h for h in holdings
+                           if h.get("source") != "engine"
+                           or _to_hyphen(h.get("sym")) in members]
             # Merged members the wire snapshot doesn't carry yet — appended in
             # the same holding shape; priced on the next recompute.
             have = {_to_hyphen(h.get("sym")) for h in holdings}

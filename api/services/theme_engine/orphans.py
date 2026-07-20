@@ -41,6 +41,16 @@ def _industry_cohort(sym_hy):
     return {t.upper().replace(".", "-") for t in industry_map.tickers_in_industry(ind)}
 
 
+def _industry_of(sym_hy):
+    """The sym's Finviz industry string (grounding input for _adjudicate). None
+    on miss. Its own module-level fn so tests can patch it without live lookups."""
+    try:
+        from api.services import industry_map
+        return (industry_map.get_industries([sym_hy]) or {}).get(sym_hy)
+    except Exception:
+        return None
+
+
 def _industry_matches_theme(sym_hy, theme_id):
     """Finviz-industry corroboration against tools/theme_curation/theme_finviz_industries.json."""
     try:
@@ -126,7 +136,8 @@ def _adjudicate(ctx):
         f"You classify one US stock into the single best-fit trading THEME, or NONE.\n"
         f"Stock: {ctx['sym']} | Finviz industry: {ctx.get('industry') or 'unknown'} | RS rank: {ctx.get('rs_rank')}\n"
         f"Candidate themes with current member tickers:\n{cands}\n"
-        f"Rules: pick a theme ONLY if the stock's business/market story is material to it and it fits "
+        f"Rules: choose theme_id ONLY from the candidate ids listed above, or null — never any other theme. "
+        f"Pick a theme ONLY if the stock's business/market story is material to it and it fits "
         f"alongside the members shown. tier must be 'relevant' or 'peripheral' (peripheral default). "
         f"If nothing fits, theme_id null. Respond with ONLY JSON: "
         f'{{"theme_id": "..."|null, "tier": "relevant"|"peripheral", "confidence": 0.0-1.0, "rationale": "<=140 chars"}}')
@@ -172,6 +183,13 @@ def run_orphan_batch(batch=None, dry_run=None) -> dict:
     cost_capped = False
     theme_adds = {}
     failed = 0
+    # Compute the RS map ONCE per run (not per orphan) — it's a ~3,685-ticker
+    # cache read (review I-1: grounding was hardcoded None).
+    try:
+        from api.services.groups import _rs_map
+        _rs = _rs_map()
+    except Exception:
+        _rs = {}
     try:
         # NOTE: the batch bound is `examined >= batch` below; the slice merely
         # caps the candidate list materialized per run.
@@ -189,8 +207,14 @@ def run_orphan_batch(batch=None, dry_run=None) -> dict:
             # next run); everything is per-row autocommit so state stays sane.
             try:
                 cands = _candidates_for(sym)
+                # I-1: actually GROUND the adjudication — the prompt template has
+                # industry + RS slots that were being fed hardcoded None, so the
+                # model classified on candidate rosters alone. Fill them.
+                _rs_item = _rs.get(sym) or {}
                 verdict = _adjudicate({"sym": sym, "run_id": run_id,
-                                       "industry": None, "rs_rank": None, "candidates": cands})
+                                       "industry": _industry_of(sym),
+                                       "rs_rank": _rs_item.get("rs_rank"),
+                                       "candidates": cands})
                 # Sanitize LLM-controlled fields before they touch gates or SQL:
                 tid = verdict.get("theme_id")
                 tid = tid if isinstance(tid, str) and tid.strip() else None
@@ -202,8 +226,14 @@ def run_orphan_batch(batch=None, dry_run=None) -> dict:
                 # Gate extracted to passes_add_gate (Task 6) — shared with Loop 2.
                 ok = (passes_add_gate(sym, tid, conf, cmin=cmin, cliq=cliq)
                       and theme_adds.get(tid, 0) < max_per_theme)
-                if ok and not dry:
-                    store.upsert_add(tid, sym, tier, None, conf, str(verdict.get("rationale") or ""), run_id)
+                if ok:
+                    # I-2: dry-run records the would-add as decision='add' (still
+                    # NO overlay write) + counts it, so the hand-check artifact
+                    # (/status + engine_decisions) can distinguish would-adds from
+                    # genuine below-gate skips. The activation runbook's
+                    # clear-decisions step wipes the ledger before go-live.
+                    if not dry:
+                        store.upsert_add(tid, sym, tier, None, conf, str(verdict.get("rationale") or ""), run_id)
                     store.record_decision(sym, "add", tid, conf, run_id)
                     theme_adds[tid] = theme_adds.get(tid, 0) + 1
                     counts["added"] += 1

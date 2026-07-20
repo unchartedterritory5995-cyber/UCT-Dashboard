@@ -97,3 +97,43 @@ def test_post_engine_run_calls_all_invalidators(monkeypatch):
     monkeypatch.setattr(theme_index, "invalidate_cache", lambda: called.append("index"))
     invalidate.post_engine_run()
     assert called == ["groups", "perf", "index"]
+
+
+def test_owner_group_return_byte_identical_after_engine_insert():
+    # Review I-5(a) / spec §4b: adding engine members must NOT move the theme
+    # number. Exercises the extracted STAMP site (_owner_group_return), the exact
+    # helper _run_computation bakes into the base result.
+    import api.services.theme_performance as tp
+    owner_syms = ["NVDA", "AMD", "AVGO"]
+    returns_map = {s: {"1d": 2.0, "1w": 5.0} for s in owner_syms}
+    members_owner = {s: "owner" for s in owner_syms}
+    gr_before = tp._owner_group_return(owner_syms, returns_map, members_owner, ("1d", "1w"))
+
+    # Now add 20 engine members with WILD returns
+    eng = [f"ENG{i}" for i in range(20)]
+    union = owner_syms + eng
+    returns_map2 = dict(returns_map)
+    for s in eng:
+        returns_map2[s] = {"1d": -99.0, "1w": 250.0}
+    members2 = dict(members_owner)
+    for s in eng:
+        members2[s] = "engine"
+    gr_after = tp._owner_group_return(union, returns_map2, members2, ("1d", "1w"))
+
+    assert gr_before == {"1d": 2.0, "1w": 5.0}
+    assert gr_after == gr_before                      # engine members moved nothing
+
+
+def test_rotation_heat_maps_curated_only_theme_by_id(monkeypatch):
+    # Review I-4: a hot etf_ticker=null theme is keyed in the rotation signal by
+    # its theme id (not an ETF), so heat ordering must resolve it by id.
+    import api.services.theme_engine.improve as imp
+    from api.services import theme_db, theme_performance
+    monkeypatch.setattr(theme_db, "get_all_themes", lambda: {"themes": [
+        {"id": "uranium_miners", "name": "Uranium Miners", "etf_ticker": None},
+        {"id": "semis", "name": "Semis", "etf_ticker": "SMH"}]})
+    monkeypatch.setattr(theme_performance, "compute_rotation_signals", lambda: {
+        "rotating_in": [{"ticker": "uranium_miners"}],   # keyed by ID (no ETF)
+        "rankings": {"SMH": {"ticker": "SMH", "1w_rank": 40.0}}})
+    heat = imp._rotation_heat()
+    assert heat[0] == "uranium_miners"                 # id-keyed hot theme resolved

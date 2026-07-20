@@ -50,6 +50,11 @@ def _rotation_heat():
             tk = (t.get("etf_ticker") or "").strip().upper()
             if tk:
                 by_ticker.setdefault(tk, t["id"])
+            # I-4: the 48 curated-only (etf_ticker=null) themes are keyed in the
+            # rotation signal by their theme ID (the wire key = etf_ticker or id).
+            # Without this, a hot no-ETF theme (GLP1, uranium_miners…) could never
+            # be heat-prioritized and waited ~7 weeks for the alpha tail.
+            by_ticker.setdefault(t["id"].strip().upper(), t["id"])
         out, seen = [], set()
 
         def add(ticker):
@@ -178,11 +183,13 @@ def _apply_theme_verdict(run_id, theme_id, verdict, dry) -> dict:
                 continue
             if not _passes_add_gate(sym, theme_id, conf):
                 continue
+            # I-2: count the would-be action even in dry mode (preview) — only
+            # the overlay WRITE is dry-gated.
             if not dry:
                 store.upsert_add(theme_id, sym, tier, None, conf,
                                  str(a.get("rationale") or ""), run_id)
                 store.record_decision(sym, "add", theme_id, conf, run_id)
-                counts["added"] += 1
+            counts["added"] += 1
         except Exception as e:
             counts["failed"] += 1
             _logger.warning("improve add %s failed (verdict continues): %s", theme_id, e)
@@ -194,11 +201,12 @@ def _apply_theme_verdict(run_id, theme_id, verdict, dry) -> dict:
             row = engine_rows.get(sym) if sym else None
             if not row or new_tier not in _TIERS or row.get("tier") == new_tier:
                 continue
+            # The guard above already confirms a genuine tier change → count it
+            # (dry previews it; live applies it).
             if not dry:
-                res = store.upsert_add(theme_id, sym, new_tier, row.get("sub_theme_id"),
-                                       row.get("confidence"), row.get("rationale") or "", run_id)
-                if res == "retiered":
-                    counts["retiered"] += 1
+                store.upsert_add(theme_id, sym, new_tier, row.get("sub_theme_id"),
+                                 row.get("confidence"), row.get("rationale") or "", run_id)
+            counts["retiered"] += 1
         except Exception as e:
             counts["failed"] += 1
             _logger.warning("improve retier %s failed (verdict continues): %s", theme_id, e)
@@ -208,7 +216,9 @@ def _apply_theme_verdict(run_id, theme_id, verdict, dry) -> dict:
             sym = _hy(s) if isinstance(s, str) else None
             if not sym or sym not in engine_rows:
                 continue
-            if not dry and store.drop(theme_id, sym, run_id):
+            if dry:
+                counts["dropped"] += 1            # preview
+            elif store.drop(theme_id, sym, run_id):
                 counts["dropped"] += 1
         except Exception as e:
             counts["failed"] += 1
@@ -222,7 +232,7 @@ def _apply_theme_verdict(run_id, theme_id, verdict, dry) -> dict:
             if not dry:
                 store.suppress_propose(theme_id, sym,
                                        str(c.get("reason") or "")[:300], run_id)
-                counts["suppressed"] += 1
+            counts["suppressed"] += 1
         except Exception as e:
             counts["failed"] += 1
             _logger.warning("improve concern %s failed (verdict continues): %s", theme_id, e)
