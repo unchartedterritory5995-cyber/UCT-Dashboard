@@ -135,7 +135,10 @@ def _candidates_for(sym_hy):
 
 def run_orphan_batch(batch=None, dry_run=None) -> dict:
     batch = int(batch if batch is not None else _env_f("THEME_ENGINE_ORPHAN_BATCH", 200))
-    dry = bool(int(os.environ.get("THEME_ENGINE_DRY_RUN", "0"))) if dry_run is None else bool(dry_run)
+    # Tolerant env parse (review Minor 5): "1"/"true"/"yes" enable; anything else
+    # (incl. garbage) is off — a misconfig must never crash the nightly job.
+    dry = (os.environ.get("THEME_ENGINE_DRY_RUN", "0").strip().lower()
+           in ("1", "true", "yes")) if dry_run is None else bool(dry_run)
     cap = _env_f("THEME_ENGINE_DAILY_COST_CAP", 5.0)
     cmin = _env_f("THEME_ENGINE_CONFIDENCE_MIN", 0.75)
     cliq = _env_f("THEME_ENGINE_CONFIDENCE_LIQUID", 0.85)
@@ -144,38 +147,56 @@ def run_orphan_batch(batch=None, dry_run=None) -> dict:
     counts = {"examined": 0, "added": 0, "skipped": 0}
     cost_capped = False
     theme_adds = {}
+    failed = 0
     try:
-        for sym in _orphan_candidates_ordered()[: batch * 2]:   # headroom for skips
+        # NOTE: the batch bound is `examined >= batch` below; the slice merely
+        # caps the candidate list materialized per run.
+        for sym in _orphan_candidates_ordered()[: batch * 2]:
             if counts["examined"] >= batch:
                 break
             if store.day_cost_usd() >= cap:
                 cost_capped = True
                 break
             counts["examined"] += 1
-            cands = _candidates_for(sym)
-            verdict = _adjudicate({"sym": sym, "run_id": run_id,
-                                   "industry": None, "rs_rank": None, "candidates": cands})
-            tid = verdict.get("theme_id")
-            conf = float(verdict.get("confidence") or 0.0)
-            tier = verdict.get("tier") if verdict.get("tier") in ("relevant", "peripheral") else "peripheral"
-            liquid = _is_liquid(sym)
-            gate = cliq if liquid else cmin
-            roster = _theme_roster(tid) if tid else set()
-            cohort = _industry_cohort(sym)
-            corroborated = bool(tid) and (_industry_matches_theme(sym, tid) or len(roster & cohort) >= 2)
-            beats_incumbent = (not cohort) or len(roster & cohort) >= 2 or _industry_matches_theme(sym, tid or "")
-            ok = (bool(tid) and _theme_exists(tid) and _in_cap(sym) and conf >= gate
-                  and (corroborated if liquid else True) and beats_incumbent
-                  and theme_adds.get(tid, 0) < max_per_theme
-                  and sym.replace("-", ".") not in {s.replace("-", ".") for s in _theme_roster(tid)})
-            if ok and not dry:
-                store.upsert_add(tid, sym, tier, None, conf, verdict.get("rationale") or "", run_id)
-                store.record_decision(sym, "add", tid, conf, run_id)
-                theme_adds[tid] = theme_adds.get(tid, 0) + 1
-                counts["added"] += 1
-            else:
-                store.record_decision(sym, "none" if not tid else "below_gate", tid, conf, run_id)
-                counts["skipped"] += 1
+            # Per-orphan failure isolation (review Important #1): one bad LLM
+            # response or a helper-DB hiccup must never kill the batch — and a
+            # DETERMINISTIC bad response would otherwise re-kill every nightly
+            # run at the same sym. Failed syms get NO decision row (retried
+            # next run); everything is per-row autocommit so state stays sane.
+            try:
+                cands = _candidates_for(sym)
+                verdict = _adjudicate({"sym": sym, "run_id": run_id,
+                                       "industry": None, "rs_rank": None, "candidates": cands})
+                # Sanitize LLM-controlled fields before they touch gates or SQL:
+                tid = verdict.get("theme_id")
+                tid = tid if isinstance(tid, str) and tid.strip() else None
+                try:
+                    conf = max(0.0, min(1.0, float(verdict.get("confidence") or 0.0)))
+                except (TypeError, ValueError):
+                    conf = 0.0
+                tier = verdict.get("tier") if verdict.get("tier") in ("relevant", "peripheral") else "peripheral"
+                liquid = _is_liquid(sym)
+                gate = cliq if liquid else cmin
+                roster = _theme_roster(tid) if tid else set()
+                cohort = _industry_cohort(sym)
+                corroborated = bool(tid) and (_industry_matches_theme(sym, tid) or len(roster & cohort) >= 2)
+                beats_incumbent = (not cohort) or len(roster & cohort) >= 2 or _industry_matches_theme(sym, tid or "")
+                ok = (bool(tid) and _theme_exists(tid) and _in_cap(sym) and conf >= gate
+                      and (corroborated if liquid else True) and beats_incumbent
+                      and theme_adds.get(tid, 0) < max_per_theme
+                      and sym.replace("-", ".") not in {s.replace("-", ".") for s in roster})
+                if ok and not dry:
+                    store.upsert_add(tid, sym, tier, None, conf, str(verdict.get("rationale") or ""), run_id)
+                    store.record_decision(sym, "add", tid, conf, run_id)
+                    theme_adds[tid] = theme_adds.get(tid, 0) + 1
+                    counts["added"] += 1
+                else:
+                    store.record_decision(sym, "none" if not tid else "below_gate", tid, conf, run_id)
+                    counts["skipped"] += 1
+            except Exception as e:
+                failed += 1
+                _logger.warning("orphan %s failed (batch continues): %s", sym, e)
+                continue
     except Exception as e:
         store.finish_run(run_id, error=str(e), **counts)
         raise
