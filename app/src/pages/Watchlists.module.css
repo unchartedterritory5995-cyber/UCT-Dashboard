@@ -135,6 +135,9 @@
 }
 .gridHead .hSym,
 .gridHead .hCol { cursor: pointer; user-select: none; }
+/* The flag header cell is empty, so it would collapse to 0 height and its right
+   gridline (left of Symbol) would vanish. Give it the same height as the label cells. */
+.gridHead .hFlag { min-height: 15px; }
 .gridHead .hSym:hover,
 .gridHead .hCol:hover { color: var(--text-bright); }
 /* Active sort column — faint gold. */
