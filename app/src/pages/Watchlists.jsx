@@ -33,6 +33,9 @@ const OPTIONAL_COLS = [  // hideable via right-click
 // rounding and misalign). A trailing minmax(0,1fr) filler absorbs any leftover width.
 const COL_META = { flag: { def: 30, min: 16 }, sym: { def: 96, min: 56 }, price: { def: 62, min: 44 }, vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 } }
 const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
+// [full label, abbreviation] + the min column width to still show the full word.
+const COL_LABELS = { flag: ['', ''], sym: ['Symbol', 'Sym'], price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'] }
+const COL_FULL_MINW = { sym: 62, price: 46, vol: 60, chg: 80 }
 const WL_COLS_LS = 'uct.watchlist.cols'
 const COL_PRESETS = {
   'Price View': new Set(),
@@ -635,10 +638,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     onDrop: (e) => { e.preventDefault(); moveColumn(dragColRef.current, key); dragColRef.current = null },
     onDragEnd: () => { dragColRef.current = null },
   })
+  const labelFor = (key) => {
+    const [full, abbr] = COL_LABELS[key] || [key, key]
+    return colWidth(key) >= (COL_FULL_MINW[key] ?? 0) ? full : abbr
+  }
   const renderHeaderCell = (key) => {
     if (key === 'flag') return <span key="flag" className={styles.hFlag} {...headerDragProps('flag')} />
     const active = colSort?.key === key
-    const label = key === 'sym' ? 'Sym' : (OPTIONAL_COLS.find(c => c.key === key)?.label || key)
+    const label = labelFor(key)
     return (
       <span
         key={key}

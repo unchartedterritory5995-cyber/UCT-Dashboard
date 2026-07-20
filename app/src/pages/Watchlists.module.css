@@ -103,7 +103,7 @@
 .gridHead {
   display: grid;
   grid-template-columns: var(--wl-grid);
-  align-items: center;
+  align-items: stretch;   /* header cells full height so their gridlines meet the horizontal line */
   padding: 0 8px;
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
@@ -116,7 +116,11 @@
 }
 .gridHead > span {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* label centered in its column (vertically + horizontally) */
   padding: 0 7px;
+  border-right: 1px solid rgba(255, 255, 255, 0.11);   /* gridline on every column's right */
   /* Labels match the ticker symbol EXACTLY (font, size, weight, color). */
   font-family: var(--font-sans);
   font-size: 11px;
@@ -124,13 +128,12 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-bright);
-  text-align: center;   /* label centered above its column */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .gridHead .hSym,
-.gridHead .hCol { border-left: 1px solid rgba(255, 255, 255, 0.11); cursor: pointer; user-select: none; }
+.gridHead .hCol { cursor: pointer; user-select: none; }
 .gridHead .hSym:hover,
 .gridHead .hCol:hover { color: var(--text-bright); }
 /* Active sort column — faint gold. */
@@ -183,16 +186,17 @@
 .listRow {
   display: grid;
   grid-template-columns: var(--wl-grid);
-  align-items: center;
+  align-items: stretch;   /* cells fill the row height so vertical gridlines meet the horizontal ones */
   padding: 5px 8px;
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.11);  /* horizontal gridline */
   transition: background 0.1s;
   position: relative;
 }
-/* Cell padding + vertical gridlines between columns. */
-.listRow > * { padding: 0 7px; }
-.symCell, .priceCell, .volCell, .changeCell { border-left: 1px solid rgba(255, 255, 255, 0.11); }
+/* Vertical gridlines on the RIGHT of every column (so the LAST column gets one too),
+   full-height (align-items:stretch) → they connect to the horizontal lines = one grid.
+   Data cells get text padding; the flag column gets none so its star centers cleanly. */
+.symCell, .priceCell, .volCell, .changeCell { border-right: 1px solid rgba(255, 255, 255, 0.11); padding: 0 7px; }
 
 /* Flag star (leftmost column) — filled = in Flagged list; click toggles flag. */
 .flagStar {
@@ -203,6 +207,7 @@
   min-width: 0;
   background: transparent;
   border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.11);   /* flag|sym gridline */
   cursor: pointer;
   color: rgba(255, 255, 255, 0.22);
   padding: 0;
@@ -211,10 +216,12 @@
 .flagStarActive { color: var(--ut-gold); }
 
 /* Ticker symbols anchor LEFT (they read better left-aligned); all other columns center. */
-.symCell { display: inline-flex; align-items: center; justify-content: flex-start; min-width: 0; overflow: hidden; }
-.gridHead .hSym { text-align: left; }
+.symCell { display: flex; align-items: center; justify-content: flex-start; min-width: 0; overflow: hidden; }
 
 .priceCell, .volCell, .changeCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* vertically + horizontally centered in the full-height cell */
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
