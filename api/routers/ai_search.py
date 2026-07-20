@@ -774,8 +774,10 @@ def _grounded_system(query: str) -> tuple[str, str]:
 
 class AiSearchIn(BaseModel):
     query: str
-    # Cheapest tier by default while we test (base "sonar"). "fast" (sonar-pro) and
-    # "reasoning" (sonar-reasoning-pro) are available but cost more — opt in later.
+    # The widget sends no mode, so this default flows through _auto_mode, which
+    # routes by phrasing: most asks -> sonar-pro ("fast"), deep-analysis phrasing
+    # -> sonar-reasoning-pro. A client may pin "fast"/"reasoning" to force a tier.
+    # (Base sonar "lite" is only reached if _auto_mode is bypassed.)
     mode: str = "lite"
     # Conversation memory: prior {q, a} exchanges from THIS widget session so
     # follow-ups can resolve references. Sanitized server-side; never persisted.

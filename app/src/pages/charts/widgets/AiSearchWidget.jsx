@@ -148,6 +148,11 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   // sent with each ask so follow-ups can resolve "it"/"that move". A ref —
   // it never drives rendering. Cleared only by unmount.
   const historyRef = useRef([])
+  // In-flight AbortController so a member can Stop a long (reasoning) search;
+  // stoppedRef distinguishes a user cancel from a network error so we don't fall
+  // back to the single-shot endpoint after an intentional stop.
+  const abortRef = useRef(null)
+  const stoppedRef = useRef(false)
 
   // Rotate the loading status line so a long search reads as progress, not a hang.
   useEffect(() => {
@@ -183,7 +188,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   // Streaming path: POST /api/ai-search/stream and render tokens as they
   // arrive. Returns 'done' | 'limit' | null (null → caller falls back to the
   // single-shot endpoint).
-  const tryStream = useCallback(async (question) => {
+  const tryStream = useCallback(async (question, signal) => {
     // One retry on a transient 5xx (Railway/Cloudflare blip) before falling
     // back to the single-shot endpoint — the audit saw ~4% transient 502s
     // under load that succeeded immediately on retry.
@@ -192,6 +197,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: question, history: historyRef.current }),
+      signal,
     })
     if (r.status >= 502 && r.status <= 504) {
       await new Promise((res) => setTimeout(res, 400))
@@ -200,6 +206,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: question, history: historyRef.current }),
+        signal,
       })
     }
     if (r.status === 429) {
@@ -252,24 +259,35 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const run = useCallback(async (q) => {
     const question = (q ?? query).trim()
     if (!question || loading) return
+    stoppedRef.current = false
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
     setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery(''); setStreamText(''); setDeep(false)
     try {
       let outcome = null
       try {
-        outcome = await tryStream(question)
-      } catch { outcome = null }   // network/parse hiccup → single-shot fallback
+        outcome = await tryStream(question, ctrl.signal)
+      } catch (e) {
+        // A user-pressed Stop aborts the fetch — restore the question, don't
+        // fall back to single-shot (the member wanted to cancel).
+        if (stoppedRef.current || e?.name === 'AbortError') { setQuery(question); return }
+        outcome = null   // network/parse hiccup → single-shot fallback
+      }
       if (outcome === 'limit') { setQuery(question); return }
       if (outcome === 'done') return
+      if (stoppedRef.current) { setQuery(question); return }
 
       const singleShot = () => fetch('/api/ai-search', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: question, history: historyRef.current }),
+        signal: ctrl.signal,
       })
       let r = await singleShot()
       if (r.status >= 502 && r.status <= 504) {   // retry once on a transient blip
         await new Promise((res) => setTimeout(res, 400))
+        if (stoppedRef.current) { setQuery(question); return }
         r = await singleShot()
       }
       const d = await r.json().catch(() => null)
@@ -282,14 +300,23 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       if (!d || d.error) throw new Error(d?.error || 'No answer')
       applyFinal(question, d)
     } catch (e) {
+      if (stoppedRef.current || e?.name === 'AbortError') { setQuery(question); return }
       setError(e.message || 'Something went wrong')
       setQuery(question)   // restore for a one-keystroke retry
     } finally {
       setLoading(false)
       setPending(null)
       setStreamText('')
+      abortRef.current = null
     }
   }, [query, loading, tryStream, applyFinal])
+
+  // Stop the in-flight search (long reasoning passes especially). Marks the
+  // cancel so run() restores the question instead of falling back or erroring.
+  const stop = useCallback(() => {
+    stoppedRef.current = true
+    try { abortRef.current?.abort() } catch { /* already settled */ }
+  }, [])
 
   // Follow-ups run directly — the input stays clear (conversation flow).
   const askFollowUp = (q) => { run(q) }
@@ -339,9 +366,13 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         {query && !loading && (
           <button className={styles.clearBtn} title="Clear" onClick={() => { setQuery(''); inputRef.current?.focus() }}>✕</button>
         )}
-        <button className={styles.askBtn} onClick={() => run()} disabled={loading || !query.trim()}>
-          {loading ? <span className={styles.spinner} /> : 'Ask'}
-        </button>
+        {loading ? (
+          <button className={styles.stopBtn} onClick={stop} title="Stop this search" aria-label="Stop search">
+            <span className={styles.stopSquare} aria-hidden="true" />Stop
+          </button>
+        ) : (
+          <button className={styles.askBtn} onClick={() => run()} disabled={!query.trim()}>Ask</button>
+        )}
       </div>
 
       <div className={styles.body} ref={bodyRef}>

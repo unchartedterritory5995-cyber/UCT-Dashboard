@@ -170,6 +170,40 @@ describe('AiSearchWidget', () => {
     expect(sub.textContent).not.toContain('#')
   })
 
+  it('renders a ticker / % nested inside a **bold** lead line, not raw markdown', async () => {
+    // The system prompt asks for a bolded lead line with bolded tickers, so this
+    // is the most common answer shape — renderRich must recurse into the bold.
+    mockFetchOnce(200, { ...GOOD, answer: '**[Nvidia]($NVDA) is the cleaner setup; up +2.1% today.**' })
+    render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'compare' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    // The bolded ticker becomes a clickable button…
+    const btn = await waitFor(() => screen.getByRole('button', { name: 'Nvidia' }))
+    expect(btn).toBeTruthy()
+    // …and the raw [Nvidia]($NVDA) markdown must NOT leak as visible text.
+    expect(screen.queryByText(/\(\$NVDA\)/)).toBeFalsy()
+  })
+
+  it('shows a Stop control while in flight; cancelling restores the question', async () => {
+    // fetch that only settles when its AbortSignal fires (mirrors a slow search).
+    global.fetch = vi.fn((_url, opts) => new Promise((_res, reject) => {
+      opts?.signal?.addEventListener('abort', () =>
+        reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))
+    }))
+    render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'a slow question' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    // While loading the Ask button is replaced by Stop.
+    const stopBtn = await waitFor(() => screen.getByRole('button', { name: /stop/i }))
+    expect(screen.queryByRole('button', { name: 'Ask' })).toBeFalsy()
+    fireEvent.click(stopBtn)
+    // Cancel restores the question (no error, no single-shot fallback) and Ask returns.
+    await waitFor(() => expect(box.value).toBe('a slow question'))
+    expect(screen.getByRole('button', { name: 'Ask' })).toBeTruthy()
+  })
+
   it('copy strips ticker-link markdown before writing to the clipboard', async () => {
     mockFetchOnce(200, GOOD)
     const writeText = vi.fn().mockResolvedValue()

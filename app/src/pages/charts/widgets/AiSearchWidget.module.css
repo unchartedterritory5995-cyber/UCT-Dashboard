@@ -63,6 +63,23 @@
 }
 .askBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.26); color: #f0d888; }
 .askBtn:disabled { opacity: 0.5; cursor: default; }
+/* Stop — replaces Ask while a search is in flight (cancel a long reasoning pass). */
+.stopBtn {
+  flex-shrink: 0;
+  background: rgba(196, 31, 45, 0.14);
+  border: 1px solid rgba(196, 31, 45, 0.5);
+  color: #e88;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  min-width: 46px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.stopBtn:hover { background: rgba(196, 31, 45, 0.24); color: #f2a9a9; }
+.stopSquare { width: 8px; height: 8px; border-radius: 1.5px; background: currentColor; }
 
 /* ── Body (scrolls) ── */
 .body {
