@@ -173,6 +173,15 @@ export function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = 
   for (const tf of tfs) prefetchBarsToIDB(list, tf)
 }
 
+// Multi-Chart grid warm: like prefetchListAllTimeframes but covers ALL 8 TFs
+// (SCAN_WARM_TFS omits W/M/1). Rides the SAME bounded (3-concurrent) idle-deferred
+// IDB queue, so 16 cells × 8 TFs = 128 jobs drain ≤3 at a time — a strict subset
+// of the watchlist warm's envelope. Already-warm (sym,tf) pairs skip their fetch.
+export const GRID_WARM_TFS = ['D', '5', '60', '30', '15', 'W', 'M', '1']
+export function prefetchGridWarm(tickers) {
+  prefetchListAllTimeframes(tickers, { tfs: GRID_WARM_TFS })
+}
+
 // Warm a list of tickers' bars into IndexedDB for instant, refresh-proof loads.
 export function prefetchBarsToIDB(tickers, tf = 'D') {
   if (!tickers?.length) return
