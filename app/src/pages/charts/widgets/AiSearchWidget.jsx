@@ -3,11 +3,16 @@ import { useWorkspace } from '../WorkspaceContext'
 import CompassOrb from '../../../components/voice/CompassOrb'
 import styles from './AiSearchWidget.module.css'
 
+// Spread across the tool's real range so the first impression isn't "it only
+// tells me why a stock moved": live movers, head-to-head compare, setup/levels
+// (patterns grounding), an earnings recap, a sympathy list, and market breadth.
 const EXAMPLES = [
-  "What was JPM's last earnings report like?",
-  'Best sympathy stocks for NBIS?',
   'Why is SMCI moving today?',
-  'Recent analyst upgrades on NVDA',
+  'Compare NVDA vs AMD as swing setups',
+  'Is TSLA extended or setting up here?',
+  "What was JPM's last earnings like?",
+  'Best sympathy stocks for NBIS',
+  "How's market breadth today?",
 ]
 
 // AI icon — the Compass brand orb (sized wrapper; CompassOrb fills its container).
@@ -71,8 +76,12 @@ function renderRich(text, onTicker, cites) {
       }
       return <span key={i}>{p}</span>
     }
-    // **bold**
-    if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i}>{p.slice(2, -2)}</strong>
+    // **bold** — recurse so tickers / ±pct / [n] cites nested INSIDE a bold span
+    // still render as links/colors instead of leaking raw [Label]($SYM) markdown.
+    // The system prompt asks for a bolded lead line with bolded tickers, so this
+    // is the most common answer shape. Inner text has no '*' (RICH_RE's [^*]+),
+    // so the recursion can't re-enter this branch.
+    if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={i}>{renderRich(p.slice(2, -2), onTicker, cites)}</strong>
     // ±pct — chart-matched green/red (widget CSS overrides --gain/--loss to chart colors)
     if (/^[+-]\d+(?:\.\d+)?%$/.test(p)) {
       return <span key={i} style={{ color: p[0] === '-' ? 'var(--loss)' : 'var(--gain)', fontWeight: 600 }}>{p}</span>

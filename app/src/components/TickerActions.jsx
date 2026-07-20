@@ -2,6 +2,7 @@
 // Right-click (desktop) or long-press (touch) → color tagging, flag toggle,
 // add to watchlist, set price alert. On touch it renders as a bottom-sheet.
 import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
@@ -68,6 +69,7 @@ export function useTickerActions() {
 }
 
 export default function TickerActionsMenu({ menu, onClose, lists, mutateLists }) {
+  const navigate = useNavigate()
   const { toggle: toggleFlag, isFlagged } = useFlagged()
   const { tagColors: TAG_COLORS } = useTagColors()
   const { getTag, setTag, removeTag } = useTickerTags()
@@ -96,7 +98,20 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
 
   const body = (
     <>
-      {/* Flag */}
+      {/* Ask AI — makes AI Search reachable from EVERY ticker surface in the app.
+          Deep-links to the standalone page with a grounded, day-recency question
+          (regime + live quote + catalyst + patterns all fire on the ticker). */}
+        <button
+          className={styles.item}
+          onClick={() => {
+            navigate(`/ai-search?q=${encodeURIComponent(`What's the setup and catalyst on ${sym} right now?`)}`)
+            onClose()
+          }}
+        >
+          <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {sym}
+        </button>
+
+        {/* Flag */}
         <button className={styles.item} onClick={() => { toggleFlag(sym); onClose() }}>
           <UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{flagged ? 'Unflag' : 'Flag'}
         </button>

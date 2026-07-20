@@ -588,7 +588,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             )}
             {ctxMenu.bar && (
               <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
-                <UIcon name="sparkle" size={14} className={styles.chartCtxIcon} />AI search this bar
+                <UIcon name="compass" size={14} className={styles.chartCtxIcon} />AI search this bar
               </button>
             )}
           </div>
