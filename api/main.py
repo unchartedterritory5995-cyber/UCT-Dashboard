@@ -584,20 +584,28 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             # read never stalls the WS writer. See _recent_cache in
             # live_massive_router. Runs FIRST (before the dashboard warms) so the
             # tape is hot in seconds, not behind everything else.
-            from api.live_massive_router import recent_massive_alerts, day_stats
-            recent_massive_alerts(limit=10000, min_grade="D", target_date=None,
-                                  sort_by="recent", tier=None, curated=False)
+            # NOTE: when FLOW_READS_PROXY_ENABLED=1 (prod), /recent is served by
+            # the flow-worker, so THIS (web) cache is bypassed — the authoritative
+            # warm runs in flow_worker_main._start_recent_cache_warmer. This warm
+            # still matters when the proxy is off (local / fallback). Use
+            # warm_recent (SYNCHRONOUS fill) because recent_massive_alerts now
+            # returns a non-blocking "warming" stub on a cold key.
+            from api.live_massive_router import warm_recent, day_stats
+            warm_recent(limit=10000, min_grade="D", target_date=None,
+                        sort_by="recent", tier=None, curated=False)
             day_stats(target_date=None, exclude_algo=False)
 
         def _flow_tape_curated():
-            # Curated (the Discord feed) scans the whole day (~100K rows) — heavy,
-            # so pre-warm it LAST, after the critical ALL FLOW warm, so it never
-            # delays the tape users see first. Curated is a less-frequent, opt-in
-            # mode; one cold load there is acceptable, and the snapshot cache
-            # covers every subsequent read.
-            from api.live_massive_router import recent_massive_alerts
-            recent_massive_alerts(limit=5000, min_grade="D", target_date=None,
-                                  sort_by="recent", tier=None, curated=True)
+            # Curated scans the whole day (~80K rows) — heavy, so pre-warm it LAST.
+            # NOTE (2026-07-20): curated is the DEFAULT view (LiveFlowMassive.jsx
+            # defaults curated ON), NOT an opt-in mode — the prior "opt-in, one
+            # cold load acceptable" assumption was wrong and left the default view
+            # cold. Also: limit MUST equal the frontend's default (10000). The old
+            # limit=5000 warmed a DIFFERENT cache key (key includes limit), so the
+            # user's exact request never hit a warm entry.
+            from api.live_massive_router import warm_recent
+            warm_recent(limit=10000, min_grade="D", target_date=None,
+                        sort_by="recent", tier=None, curated=True)
 
         _warm("flow-tape", _flow_tape_critical)   # FIRST — the tape is the priority surface
         _warm("movers", _movers)

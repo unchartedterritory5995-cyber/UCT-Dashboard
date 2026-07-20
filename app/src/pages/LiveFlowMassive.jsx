@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, Fragment } from "react";
+import { useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 
 /**
@@ -1583,14 +1583,14 @@ function DateRail({ targetDate, onDateChange }) {
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────
-function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
+function Header({ status, loadPending, warming, workerLive,
+                  sortBy, onSortChange, minGrade, onMinGradeChange,
                   rowLimit, onRowLimitChange,
                   hideAlgo, onHideAlgoChange,
                   curated, onCuratedChange,
                   tickerFilter, contractFilter, onClearFilters,
                   targetDate, onDateChange, onOiFetch, oiFetchState,
                   nullOICount }) {
-  const connected = status?.connected;
   const lastEvent = status?.last_event_at;
   const returned = status?.returned;
   return (
@@ -1606,11 +1606,17 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
         </span>
         <span style={{
           padding: "2px 8px", borderRadius: 3, fontSize: 11,
-          background: connected ? P.bu : P.be, color: P.wh,
+          background: loadPending ? P.bd : (workerLive ? P.bu : P.be),
+          color: P.wh,
         }}>
-          {connected ? "● WORKER LIVE" : "○ WORKER IDLE"}
+          {loadPending
+            ? "◌ LOADING…"
+            : (workerLive ? "● WORKER LIVE" : "○ WORKER IDLE")}
         </span>
-        {lastEvent && (
+        {!loadPending && warming && (
+          <span style={{ color: P.dm, fontSize: 11 }}>syncing…</span>
+        )}
+        {!loadPending && lastEvent && (
           <span style={{ color: P.dm, fontSize: 11 }}>
             last event: {new Date(lastEvent).toLocaleTimeString()}
           </span>
@@ -2719,6 +2725,18 @@ export default function LiveFlowMassive() {
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
+  // Loading vs empty (2026-07-20): distinguish "still fetching the first
+  // snapshot" from "loaded, genuinely empty / worker idle" so the page never
+  // flashes a false "Worker idle" during the initial cold /recent fill.
+  // `dataArrived` flips true on the first real (non-warming) response; `warming`
+  // tracks the backend's cold-cache "filling in the background" stub.
+  const [dataArrived, setDataArrived] = useState(false);
+  const [warming, setWarming] = useState(false);
+  // Safety net: if the first snapshot never arrives (a persistent background
+  // fill failure would keep returning warming stubs forever), escalate the
+  // loading copy after a generous window so the user isn't stuck staring at a
+  // silent spinner. A legit cold curated fill is <~120s, so 150s = "wrong".
+  const [loadSlow, setLoadSlow] = useState(false);
   const [filters, setFilters] = useState(loadFilters);
   const [sortBy, setSortBy] = useState(() =>
     localStorage.getItem(LS_KEY_SORT) || "recent"
@@ -3067,6 +3085,18 @@ export default function LiveFlowMassive() {
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
         if (cancelled) return;
+        // Cold-cache "warming" stub — the backend is filling the snapshot in the
+        // background (worker just (re)started or new trading day). Keep whatever
+        // tape is already on screen (NEVER blank it), show the loading indicator,
+        // and let the next poll pick up the real snapshot. Only status + the
+        // warming flag update here.
+        if (d.warming) {
+          setWarming(true);
+          if (d.status) setStatus(d.status);
+          setError(null);
+          return;  // finally-block reschedules the poll
+        }
+        setWarming(false);
         const incoming = d.alerts || [];
         // Track which IDs are new since last poll for flash animation
         const newIds = new Set();
@@ -3081,6 +3111,7 @@ export default function LiveFlowMassive() {
         // values survive the poll refresh (fix for OI-disappears-after-5s bug).
         setAlerts(applyOiEnrichment(incoming));
         setStatus(d.status);
+        setDataArrived(true);
         setError(null);
       } catch (e) {
         if (e?.name === "AbortError") return;
@@ -3146,6 +3177,10 @@ export default function LiveFlowMassive() {
           (!isolatedTier || (a._tierKey || "algo") === isolatedTier)
       );
       if (!fresh.length) return;
+      // Live prints arriving means we're loaded + connected — clear the initial
+      // loading/warming state even if the first /recent poll hasn't returned yet.
+      setDataArrived(true);
+      setWarming(false);
       setAlerts((prev) => {
         const seen = new Set(prev.map((a) => a.id));
         const add = fresh.filter((a) => !seen.has(a.id));
@@ -3674,6 +3709,28 @@ export default function LiveFlowMassive() {
     }
   };
 
+  // ── Header liveness/loading (2026-07-20) ──────────────────────────────────
+  // firstLoadPending: no real snapshot yet (initial cold fill / warming stub)
+  // and no error → the header shows "LOADING", never the false "Worker idle".
+  const firstLoadPending = !dataArrived && !error;
+  // Data-derived liveness backstop: the backend liveness probe can freeze
+  // last_event_at (a replayed old-dated row with a high id poisons it), so also
+  // treat the tape as LIVE when the newest alert on screen is recent.
+  // `timestamp` is unix SECONDS. Defense-in-depth — right even if status lies.
+  const newestEventTs = useMemo(() => {
+    let m = 0;
+    for (const a of alerts) { const t = Number(a?.timestamp) || 0; if (t > m) m = t; }
+    return m;
+  }, [alerts]);
+  const workerLive = !!(status?.connected) ||
+    (newestEventTs > 0 && (Date.now() / 1000 - newestEventTs) < 180);
+  // Escalate the loading copy if the first snapshot is taking abnormally long.
+  useEffect(() => {
+    if (!firstLoadPending) { setLoadSlow(false); return; }
+    const t = setTimeout(() => setLoadSlow(true), 150000);
+    return () => clearTimeout(t);
+  }, [firstLoadPending]);
+
   return (
     <div style={{
       background: P.bg, color: P.wh, minHeight: "100vh",
@@ -3689,6 +3746,9 @@ export default function LiveFlowMassive() {
 
       <Header
         status={status}
+        loadPending={firstLoadPending}
+        warming={warming}
+        workerLive={workerLive}
         sortBy={sortBy}
         onSortChange={setSortBy}
         minGrade={minGrade}
@@ -3873,11 +3933,15 @@ export default function LiveFlowMassive() {
           padding: 30, textAlign: "center", color: P.dm,
           background: P.cd, borderRadius: 4, marginTop: 20,
         }}>
-          {alerts.length === 0
-            ? (status?.connected
-                ? "Waiting for live flow… (markets may be closed, or no Y/M conviction yet today)"
-                : "Worker idle. Check /api/massive/status or try ?date=6/26/2026 to view historical data.")
-            : `No alerts match your filters. (${alerts.length} total alerts hidden)`}
+          {firstLoadPending
+            ? (loadSlow
+                ? "Still loading — the tape is taking unusually long. Try refreshing (Ctrl+Shift+R)."
+                : "Loading today's flow…")
+            : (alerts.length === 0
+                ? (workerLive
+                    ? "Waiting for live flow… (markets may be closed, or no conviction prints yet today)"
+                    : "No flow for today yet — markets may be closed, or nothing has cleared the conviction filter. Use History or ?date=M/D/YYYY to view a past session.")
+                : `No alerts match your filters. (${alerts.length} total alerts hidden)`)}
         </div>
       )}
 

@@ -40,6 +40,7 @@ import time
 import re
 import json
 import threading
+import logging
 
 router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 
@@ -1373,29 +1374,51 @@ def _get_worker_status() -> dict:
     try:
         conn = sqlite3.connect(DB_PATH, timeout=5)
         try:
+            # Liveness = recency of the newest row for TODAY (ET), across all
+            # sources. Two robustness fixes vs the old
+            # `WHERE source='stocks' ORDER BY id DESC LIMIT 1`:
+            #   1. Scope to today's CreatedDate. A spool-replay / heal can
+            #      re-insert an OLD-dated row with a fresh (high) autoincrement
+            #      id; the old query then returned that stale-dated row and froze
+            #      last_event_at (observed stuck at "7/17" for days), so
+            #      `connected` read False all day even while the tape was live.
+            #      Filtering to today makes a replayed old row un-poisonable.
+            #   2. Drop the source filter so index/ETF-only activity still
+            #      registers as "live" (equity prints can lag intraday).
+            today = _today_mdyyyy()
             cur = conn.execute("""
                 SELECT id, CreatedDate, CreatedTime
                   FROM flow
-                 WHERE source = 'stocks'
+                 WHERE CreatedDate = ?
                  ORDER BY id DESC LIMIT 1
-            """)
+            """, (today,))
             row = cur.fetchone()
+            # GLOBAL max id (across ALL dates), separate from the today-scoped
+            # liveness row above. This is liveflow_monitor's PRIMARY staleness
+            # oracle (max_id delta between polls) and it MUST NOT go None just
+            # because there are no rows for TODAY yet (pre-open) — else a consumer
+            # that's dead AT the open (process up, HTTP 200, zero today-rows) is
+            # misclassified BLIND_DB instead of WORKER_DOWN. MAX(id) on the rowid
+            # PK is O(1). `connected`/`last_event_at` still derive from today's
+            # newest row so a replayed old-dated row can't poison them.
+            gmax = conn.execute("SELECT MAX(id) FROM flow").fetchone()
+            global_max_id = gmax[0] if gmax else None
         finally:
             conn.close()
         if not row:
             return {
                 "connected": False, "source": "massive",
                 "last_event_at": None, "last_event_age_sec": None,
-                "max_id": None,
-                "note": "No rows in FlowDB yet — worker has not written any data.",
+                "max_id": global_max_id,
+                "note": "No rows for today yet — no live flow ingested.",
             }
-        max_id, created_date, created_time = row
+        _today_id, created_date, created_time = row
         latest_ts = _ts_from_row(created_date, created_time)
         if not latest_ts:
             return {
                 "connected": False, "source": "massive",
                 "last_event_at": None, "last_event_age_sec": None,
-                "max_id": max_id,
+                "max_id": global_max_id,
                 "note": "Latest FlowDB row has unparseable timestamp.",
             }
         now = time.time()
@@ -1406,7 +1429,7 @@ def _get_worker_status() -> dict:
             "source": "massive",
             "last_event_at": datetime.fromtimestamp(latest_ts, tz=timezone.utc).isoformat(),
             "last_event_age_sec": round(age, 1),
-            "max_id": max_id,
+            "max_id": global_max_id,
             "stale_threshold_sec": _STALE_THRESHOLD_SEC,
         }
     except Exception as e:
@@ -1484,6 +1507,14 @@ _recent_cache: dict = {}          # key -> (computed_at_unix, payload)
 _recent_cache_locks: dict = {}    # key -> threading.Lock
 _recent_cache_guard = threading.Lock()
 _RECENT_CACHE_TTL = float(os.environ.get("MASSIVE_RECENT_CACHE_TTL", "15"))
+# Global cap on CONCURRENT heavy /recent computes. Single-flight caps one fill
+# per KEY, but a burst of distinct cold keys (many users with different params
+# right after a flow-worker restart) could otherwise spawn N unbounded daemon
+# threads each running an 80K-row curated scan and starve the WS writer. This
+# bounds the herd; excess fills queue (off the request path — the request still
+# gets an instant warming stub).
+_recent_fill_sem = threading.Semaphore(
+    int(os.environ.get("MASSIVE_RECENT_FILL_CONCURRENCY", "2")))
 
 
 def _recent_lock_for(key):
@@ -1493,6 +1524,77 @@ def _recent_lock_for(key):
             lk = threading.Lock()
             _recent_cache_locks[key] = lk
         return lk
+
+
+def _warming_stub(today: str) -> dict:
+    """Fast, non-blocking response for a COLD /recent cache key. Real worker
+    status + an empty alert list + warming=True. The page shows a 'loading'
+    state and keeps polling; a single-flight background fill (below) populates
+    the cache within one cycle. This is what turns the first curated scan after
+    a flow-worker (re)start / new-day rollover from a 10-120s HANG into an
+    instant paint — the proxied flow-worker's _recent_cache starts cold and is
+    otherwise only filled by the first (blocked) user request."""
+    st = _get_worker_status()
+    st["warming"] = True
+    st["query_date"] = today
+    return {"status": st, "alerts": [], "warming": True}
+
+
+def _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated):
+    """Heavy compute → cache store, bounded by the global fill semaphore so at
+    most MASSIVE_RECENT_FILL_CONCURRENCY curated scans run at once."""
+    with _recent_fill_sem:
+        payload = _compute_recent(today, limit, min_grade, sort_by, tier, curated)
+        _recent_cache[ck] = (time.time(), payload)
+    return payload
+
+
+def _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock):
+    """Fill OFF the request path, then release the single-flight `lock`. The
+    caller MUST have already acquired `lock` non-blocking. Guarantees no user
+    request ever blocks on the heavy scan (single-flight preserved: only the
+    lock holder fills). If the thread can't even START, the lock is released
+    here so the key can never be permanently wedged (all future requests would
+    otherwise get the warming stub / stale forever)."""
+    def _run():
+        try:
+            _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated)
+        except Exception:
+            logging.getLogger(__name__).exception("[massive] background /recent fill failed")
+        finally:
+            try:
+                lock.release()
+            except Exception:
+                pass
+    try:
+        threading.Thread(target=_run, daemon=True, name="massive-recent-fill").start()
+    except Exception:
+        try:
+            lock.release()
+        except Exception:
+            pass
+        logging.getLogger(__name__).exception("[massive] could not spawn /recent fill thread")
+
+
+def warm_recent(*, limit, min_grade, sort_by, tier, curated, target_date=None):
+    """Synchronously fill a /recent key, PARTICIPATING in the per-key single-flight
+    lock so the warmer never double-computes a key a request-path fill is already
+    building (that would run two 80K scans at once and hammer the WS writer).
+    Skips (returns n=None) when a fill already holds the key's lock — that fill
+    will populate the cache. Bounded by the global fill semaphore. Used by the
+    boot / flow-worker warmers (recent_massive_alerts() itself no longer blocks —
+    it returns a warming stub on a cold key — so warmers must call THIS).
+    Returns (cache_key, n_alerts | None)."""
+    today = target_date or _today_mdyyyy()
+    ck = (today, limit, min_grade, sort_by, tier, curated)
+    lock = _recent_lock_for(ck)
+    if not lock.acquire(blocking=False):
+        return ck, None  # a request-path fill is already computing this key
+    try:
+        payload = _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated)
+        return ck, len(payload.get("alerts") or [])
+    finally:
+        lock.release()
 
 
 @router.get("/recent")
@@ -1527,25 +1629,32 @@ def recent_massive_alerts(
     _log_startup_if_new()
 
     # Snapshot cache (single-flight + serve-stale) — see _recent_cache above.
+    # NEVER block a user request on the heavy scan:
+    #   • fresh entry            → return instantly
+    #   • stale entry            → serve it NOW, refresh in ONE background thread
+    #   • cold key (nothing yet) → return a fast "warming" stub, fill in background
+    # Before 2026-07-20 the cold path did `lock.acquire(blocking=True)` and hung
+    # the FIRST caller per key for the full 10-120s curated scan — the "1-2 min
+    # to load on login" symptom, made chronic because the proxied flow-worker's
+    # cache is never boot-warmed (only the web service warms, and reads proxy to
+    # the worker). A background warmer (flow_worker_main) now keeps these keys
+    # hot; this stub covers the brief window before the first fill lands.
     ck = (today, limit, min_grade, sort_by, tier, curated)
     now = time.time()
     hit = _recent_cache.get(ck)
     if hit is not None and now - hit[0] < _RECENT_CACHE_TTL:
         return hit[1]                              # fresh
-    # Stale or missing. Become the single refresher; if we already hold a stale
-    # value, DON'T block — serve it while another request refreshes.
     lock = _recent_lock_for(ck)
-    if not lock.acquire(blocking=(hit is None)):
-        return hit[1]                              # stale served; refresh in flight
-    try:
-        hit = _recent_cache.get(ck)
-        if hit is not None and time.time() - hit[0] < _RECENT_CACHE_TTL:
-            return hit[1]                          # filled while we waited on the lock
-        payload = _compute_recent(today, limit, min_grade, sort_by, tier, curated)
-        _recent_cache[ck] = (time.time(), payload)
-        return payload
-    finally:
-        lock.release()
+    if hit is not None:
+        # Stale value in hand — serve it immediately; kick a background refresh
+        # if nobody else already holds the single-flight lock.
+        if lock.acquire(blocking=False):
+            _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock)
+        return hit[1]
+    # Cold key — never seen. Return a warming stub now; fill in the background.
+    if lock.acquire(blocking=False):
+        _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock)
+    return _warming_stub(today)
 
 
 def _compute_recent(today, limit, min_grade, sort_by, tier, curated):

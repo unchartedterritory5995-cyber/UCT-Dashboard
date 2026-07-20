@@ -357,11 +357,70 @@ def _start_flow_schedulers():
         return None
 
 
+def _start_recent_cache_warmer():
+    """Keep the /recent snapshot cache HOT in THIS (flow-worker) process — the one
+    that actually serves proxied /api/live/massive/recent. Without it the cache is
+    cold on every restart and at each new trading day, so the FIRST user per key
+    eats the full curated 80K-row scan (10-120s) = the "1-2 min to load on login"
+    symptom. (The web service's dashboard warmer fills WEB's cache, which the flow
+    read-proxy bypasses — so the warm MUST happen here.)
+
+    Warms the EXACT default keys LiveFlowMassive.jsx requests: curated ON *and*
+    OFF, limit=10000, min_grade=D, sort_by=recent, tier=None. Recomputes only on
+    a fresh boot, a new trading day, or when new rows arrived (max_id moved) — it
+    idles (zero load) when the tape is quiet. Gated by MASSIVE_RECENT_WARM_ENABLED
+    (default on); cadence MASSIVE_RECENT_WARM_INTERVAL (default 25s)."""
+    if os.environ.get("MASSIVE_RECENT_WARM_ENABLED", "1") != "1":
+        log.info("[recent-warmer] disabled (MASSIVE_RECENT_WARM_ENABLED!=1)")
+        return
+    interval = int(os.environ.get("MASSIVE_RECENT_WARM_INTERVAL", "25"))
+    KEYS = [
+        # curated first: it's the DEFAULT view and the expensive one.
+        dict(limit=10000, min_grade="D", sort_by="recent", tier=None, curated=True),
+        dict(limit=10000, min_grade="D", sort_by="recent", tier=None, curated=False),
+    ]
+
+    # Re-warm floor: the warmer's ONLY job is to keep the key non-COLD (present).
+    # Freshness for actual viewers comes from the serve-stale background refresh
+    # (user traffic) + the SSE stream, so we do NOT re-warm on every new print —
+    # that would recompute both 80K scans every cycle all session with zero
+    # viewers and compete with the WS writer. We only re-warm on boot / new day /
+    # if the entry drifts older than this floor (a cheap freshness guarantee when
+    # there is genuinely no traffic). Default 120s.
+    stale_floor = int(os.environ.get("MASSIVE_RECENT_WARM_STALE", "120"))
+
+    def _loop():
+        from api import live_massive_router as lmr
+        # small settle so flow.db + indexes exist (mirrors _ensure_flow_indexes)
+        time.sleep(int(os.environ.get("MASSIVE_RECENT_WARM_DELAY", "8")))
+        last_day = None
+        while True:
+            try:
+                today = lmr._today_mdyyyy()
+                ck = (today, 10000, "D", "recent", None, True)  # the costly key
+                cached = lmr._recent_cache.get(ck)
+                age = (time.time() - cached[0]) if cached else None
+                if cached is None or today != last_day or (age is not None and age > stale_floor):
+                    for k in KEYS:
+                        try:
+                            lmr.warm_recent(**k)  # single-flight; skips if a fill holds the lock
+                        except Exception:
+                            log.exception("[recent-warmer] warm failed: %s", k)
+                    last_day = today
+            except Exception:
+                log.exception("[recent-warmer] loop error")
+            time.sleep(interval)
+
+    threading.Thread(target=_loop, daemon=True, name="recent-warmer").start()
+    log.info("[recent-warmer] armed (interval=%ss)", interval)
+
+
 def main():
     # This pod OWNS the consumer + flow.db and serves the flow routers.
     os.environ.setdefault("WORKER_SERVES_FLOW", "1")
     log.info("[startup] flow-worker: consumer + flow routers only (no bars prewarm)")
     _start_consumer()
+    _start_recent_cache_warmer()  # keep /recent snapshot cache hot (cold-load fix)
     _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
     app = _build_app()
     port = int(os.environ.get("PORT", "8080"))
