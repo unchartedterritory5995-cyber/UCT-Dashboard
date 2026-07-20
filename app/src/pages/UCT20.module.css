@@ -24,6 +24,15 @@
   border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
   margin-top: 20px; padding-top: 12px; font-style: italic;
 }
+.tableFootnote {
+  font-size: 10.5px; line-height: 1.5; color: var(--text-muted);
+  font-style: italic; margin: 10px 2px 0; opacity: 0.85;
+}
+.row:focus-visible {
+  outline: 1px solid var(--ut-gold);
+  outline-offset: -1px;
+  border-radius: 4px;
+}
 .heading { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--ut-gold); letter-spacing: 4px; text-transform: uppercase; }
 
 /* ── Table (shared grid across header + rows) ─────────────────────────────── */
@@ -235,7 +244,11 @@
 @media (max-width: 640px) {
   .page { padding: 12px 10px; }
   .heading { font-size: 18px; letter-spacing: 2px; }
-  .table { --cols: 24px minmax(0, 1fr) 66px 58px 64px 54px 18px; gap: 8px; }
+  /* Slimmer fixed columns + tighter gap: 242px fixed + 36px gaps leaves the
+     ticker cell real room on 360px phones (badges were colliding with PRICE,
+     RATING and the caret were clipped — review-panel finding) */
+  .table { --cols: 20px minmax(0, 1fr) 58px 50px 56px 44px 14px; gap: 6px; }
+  .headerRow, .row { gap: 6px; }
   .row { padding: 13px 2px; min-height: var(--tap-min, 44px); box-sizing: border-box; }
   .headerRow { padding: 4px 2px 8px; font-size: 10px; }
   .cTag, .cRs, .cDays, .companyName { display: none; }

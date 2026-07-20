@@ -22,8 +22,13 @@
 }
 .sectionSub {
   font-family: var(--font-sans);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
+}
+.simNote {
+  font-family: var(--font-sans);
+  font-size: 11px; line-height: 1.5; color: var(--text-muted);
+  font-style: italic; margin: 2px 0 12px; opacity: 0.85;
 }
 
 /* ── Performance header ── */
@@ -210,7 +215,7 @@
 }
 @media (max-width: 640px) {
   .wrap { padding: 14px 10px 8px; }
-  .sectionSub { font-size: 8px; }
+  .sectionSub { font-size: 10px; }
   .perfPct { font-size: 13px; }
   .perfAlpha { font-size: 11px; }
   .perfHeader { gap: 8px; }

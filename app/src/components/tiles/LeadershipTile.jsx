@@ -71,7 +71,7 @@ export default function LeadershipTile() {
                     )}
                     {cap && <span className={styles.cap}>{cap}</span>}
                     {score != null && (
-                      <span className={styles.score}>RS {score.toFixed ? score.toFixed(1) : score}</span>
+                      <span className={styles.score}>RATING {score.toFixed ? score.toFixed(1) : score}</span>
                     )}
                     {thesis && (
                       <span className={styles.caret}>{expanded ? '▾' : '▸'}</span>

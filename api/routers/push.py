@@ -49,7 +49,8 @@ def push_wire_data(
         leadership = payload.get("leadership", [])
         holdings = [e["sym"] for e in leadership if isinstance(e, dict) and "sym" in e]
         if holdings:
-            record_composition(holdings)
+            # Date from the payload (ET trading date), never the server clock
+            record_composition(holdings, date_str=payload.get("date"))
     except Exception:
         pass
 

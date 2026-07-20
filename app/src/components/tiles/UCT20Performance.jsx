@@ -239,8 +239,17 @@ export default function UCT20Performance() {
     <div className={styles.wrap}>
       <div className={styles.sectionHeader}>
         <span className={styles.sectionTitle}>UCT 20 PORTFOLIO TRACKER</span>
-        <span className={styles.sectionSub}>$50K equal-weight · -6% hard stop · buys/sells at market open</span>
+        <span className={styles.sectionSub}>
+          Simulated $50K equal-weight list-follower · buys/sells at market open · no stops
+          {data?.tracking_since ? ` · tracking since ${data.tracking_since}` : ''}
+          {data?.as_of ? ` · as of ${data.as_of}` : ''}
+        </span>
       </div>
+      <p className={styles.simNote}>
+        Simulation, not a real account — it mechanically follows the published list at
+        real market prices so the record is exactly what following the list would have
+        produced. Tracking restarted Jun 22, 2026 after a data-integrity repair.
+      </p>
 
       {isLoading && <SkeletonChart height={200} />}
       {!isLoading && !hasData && (

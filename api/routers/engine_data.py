@@ -7,32 +7,41 @@ from api.services.cache import cache as _cache
 router = APIRouter()
 
 
-def _leadership_status(stocks, wire_date_str):
-    """Classify freshness of the leadership payload.
+def _expected_wire_date():
+    """The most recent ET trading day whose wire run should have landed.
 
-    - "no_data" when no stocks and no wire timestamp
-    - "fresh" when the wire push is < 26h old
-    - "stale" when the wire push is older
+    The wire lands ~7:35 AM ET on weekdays; give it until 9:30 AM ET before
+    expecting today's list. Weekends expect Friday's list. (Holiday-naive:
+    a market holiday shows as one calendar day of 'stale' — acceptable.)
+    """
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo("America/New_York"))
+    d = now.date()
+    if now.weekday() < 5 and (now.hour, now.minute) < (9, 30):
+        d = d - timedelta(days=1)
+    while d.weekday() >= 5:          # roll weekend back to Friday
+        d = d - timedelta(days=1)
+    return d
+
+
+def _leadership_status(stocks, wire_date_str):
+    """Classify freshness of the leadership payload against the trading
+    calendar (the old 26-hour rule cried stale every weekend).
+
+    - "no_data" — no stocks and no wire timestamp
+    - "fresh"   — the list is from the last expected trading-day run
+    - "stale"   — a trading-day run was missed
     """
     if not stocks and not wire_date_str:
         return "no_data"
     if not wire_date_str:
         return "stale" if not stocks else "fresh"
     try:
-        # wire_data["date"] is typically an ISO date (YYYY-MM-DD) recorded ET morning
-        if "T" in wire_date_str:
-            dt = datetime.fromisoformat(wire_date_str.replace("Z", "+00:00"))
-        else:
-            dt = datetime.fromisoformat(wire_date_str).replace(tzinfo=timezone.utc)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        age_hours = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+        wire_d = datetime.fromisoformat(str(wire_date_str)[:10]).date()
     except (ValueError, TypeError):
-        # Unparseable timestamp — treat as stale if we have any stocks, else no_data
         return "fresh" if stocks else "no_data"
-    if age_hours < 26:
-        return "fresh"
-    return "stale"
+    return "fresh" if wire_d >= _expected_wire_date() else "stale"
 
 
 @router.get("/api/breadth")
@@ -101,10 +110,17 @@ def leadership():
         wire_date = wire.get("date") or wire.get("generated_at") or None
         status = _leadership_status(stocks, wire_date)
 
+        # Publish-gate status from the engine: a "held" run serves the last
+        # known-good list — surface that honestly instead of implying fresh.
+        meta = wire.get("leadership_meta") or {}
+        if isinstance(meta, dict) and meta.get("status") in ("held", "degraded"):
+            status = meta["status"]
+
         return {
             "stocks": stocks,
             "last_updated": wire_date,
             "status": status,
+            "meta": meta if isinstance(meta, dict) else {},
         }
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))

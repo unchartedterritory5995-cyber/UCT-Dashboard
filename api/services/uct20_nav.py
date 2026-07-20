@@ -26,7 +26,11 @@ from typing import Optional
 from api.services.massive import get_agg_bars
 
 _COMPOSITIONS_FILE = "/data/uct20_compositions.json"
-_MAX_HISTORY_DAYS = 420  # ~14 months, matches theme_performance bar window
+_MAX_HISTORY_DAYS = 420   # ~14 months, matches theme_performance bar window
+# The compositions LEDGER is the only surviving record of the published list
+# per date (it rebuilt the corrupted portfolio history on 2026-07-15) — it is
+# a few KB and must NOT be trimmed on the bar window.
+_LEDGER_RETENTION_DAYS = 3650
 
 
 # ── Composition storage ───────────────────────────────────────────────────────
@@ -53,22 +57,32 @@ def _save_compositions(compositions: list[dict]) -> None:
         pass
 
 
-def record_composition(holdings: list[str]) -> None:
+def record_composition(holdings: list[str], date_str: str | None = None) -> None:
     """
     Record today's UCT20 holdings. Call this on every wire push.
     Deduplicates by date — one entry per calendar day (re-pushes overwrite).
+
+    date_str: the ET trading date from the wire payload itself. The old
+    server-clock date.today() ran in UTC, so evening pushes recorded under
+    the NEXT day and produced weekend phantom entries in the ledger (this
+    file is also the portfolio's disaster-recovery source of record).
     """
     if not holdings:
         return
-    today = date.today().isoformat()
+    if date_str and len(str(date_str)) >= 10:
+        today = str(date_str)[:10]
+    else:
+        from zoneinfo import ZoneInfo
+        from datetime import datetime as _dt
+        today = _dt.now(ZoneInfo("America/New_York")).date().isoformat()
     compositions = _load_compositions()
 
     # Overwrite any existing entry for today (idempotent re-push)
     compositions = [c for c in compositions if c.get("date") != today]
     compositions.append({"date": today, "holdings": list(holdings)})
 
-    # Trim to rolling window
-    cutoff = (date.today() - timedelta(days=_MAX_HISTORY_DAYS)).isoformat()
+    # Trim only truly ancient entries — see _LEDGER_RETENTION_DAYS note
+    cutoff = (date.today() - timedelta(days=_LEDGER_RETENTION_DAYS)).isoformat()
     compositions = [c for c in compositions if c.get("date", "") >= cutoff]
     compositions.sort(key=lambda c: c["date"])
 

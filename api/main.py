@@ -733,6 +733,47 @@ def register_screener_jobs(scheduler):
                       replace_existing=True)
 
 
+def register_wire_watchdog_job(scheduler):
+    """Server-side missed-run watchdog for the morning wire (review-panel fix).
+
+    The wire runs on the owner's laptop — if the machine is off/asleep on a
+    trading day, NOTHING alerts (the engine's own publish gate only fires when
+    the engine RUNS). This job runs on Railway at 9:05 AM ET on weekdays: if
+    the served wire_data still carries a pre-today date, fire a Discord ops
+    alert. Disable with WIRE_WATCHDOG_ENABLED=0.
+    """
+    import os
+    if os.environ.get("WIRE_WATCHDOG_ENABLED", "1") != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+
+    def _check():
+        try:
+            from api.routers.engine_data import _expected_wire_date
+            from api.services.engine import _load_wire_data
+            from api.services.alerts import add_alert
+            wire = _load_wire_data() or {}
+            wire_date = str(wire.get("date") or "")[:10]
+            expected = _expected_wire_date().isoformat()
+            if wire_date < expected:
+                add_alert(
+                    alert_type="wire_missed",
+                    severity="critical",         # critical => Discord webhook fires
+                    title="Morning wire MISSED its run",
+                    message=(f"UCT20/wire payload is dated {wire_date or 'unknown'} but a "
+                             f"{expected} run was expected — the engine laptop is likely "
+                             f"off/asleep. Members are seeing yesterday's list."),
+                )
+        except Exception as e:
+            print(f"[scheduler] wire watchdog error: {e}")
+
+    scheduler.add_job(_check,
+                      trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=5, timezone=_ET),
+                      id="wire_freshness_watchdog", max_instances=1,
+                      replace_existing=True)
+    return True
+
+
 def _resolve_active_set_for_patterns() -> list[str]:
     """Active set for the vision judge: the curated leader_universe (same active
     set the pattern scan prioritizes), falling back to the head of cap_universe.
@@ -2313,6 +2354,7 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            register_wire_watchdog_job(_scheduler)
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")
 

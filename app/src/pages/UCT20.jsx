@@ -36,19 +36,26 @@ const ER_BADGE_MAX_DAYS = 7   // show the row badge inside this window
 const ER_SOON_DAYS      = 3   // red styling: binary risk a breakout buyer inherits
 
 function earningsInfo(item) {
-  const days = num(item.days_to_earnings)
-  if (days == null || days < 0) return null
   const session = item.earnings_session === 'BMO' || item.earnings_session === 'AMC'
     ? item.earnings_session : null
+  // Recompute days client-side from the report date — the shipped
+  // days_to_earnings is frozen at wire-build time and decays over weekends
+  // (review-panel finding). The shipped value is only a fallback.
+  let days = null
   let dateLabel = null
   if (typeof item.earnings_date === 'string' && item.earnings_date.length >= 10) {
     const d = new Date(`${item.earnings_date}T12:00:00`)
-    if (!Number.isNaN(d.getTime()))
+    if (!Number.isNaN(d.getTime())) {
       dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      const today = new Date(); today.setHours(12, 0, 0, 0)
+      days = Math.round((d - today) / 86400000)
+    }
   }
+  if (days == null) days = num(item.days_to_earnings)
+  if (days == null || days < 0) return null
   return {
     days,
-    badge: days === 0 ? 'ER TODAY' : `ER ${days}D`,
+    badge: (days === 0 ? 'ER TODAY' : `ER ${days}D`) + (session ? ` · ${session}` : ''),
     soon: days <= ER_SOON_DAYS,
     detail: [dateLabel, session].filter(Boolean).join(' · ') + (dateLabel ? ` (${days === 0 ? 'today' : `${days}d`})` : ''),
   }
@@ -146,8 +153,17 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
 
   return (
     <div className={`${styles.card} ${expanded ? styles.cardOpen : ''}`}>
-      {/* Collapsed row — aligned grid */}
-      <div className={styles.row} onClick={onToggle}>
+      {/* Collapsed row — aligned grid; keyboard-drivable (Enter/Space toggles) */}
+      <div
+        className={styles.row}
+        onClick={onToggle}
+        tabIndex={0}
+        role="button"
+        aria-expanded={expanded}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() }
+        }}
+      >
         <span className={styles.rank}>{rank}</span>
         <span className={`${styles.cTag} ${styles.tagCell}`}>
           <span className={`${styles.tag} ${tag.cls}`}>{tag.label}</span>
@@ -268,24 +284,37 @@ function MethodologySheet({ open, onClose }) {
           Stocks within 4% of their 52-week high earn the largest bonus; stocks far
           below their highs are penalized. Names in the market&rsquo;s leading sectors and
           leading industry groups get a small boost — but only when the stock itself
-          is already strong. Heavy short interest, biotech binary risk, and an
-          earnings report inside 3 days each apply a haircut.
+          is already strong. Score penalties apply for heavy short interest, biotech
+          binary risk, an earnings report inside 3 days, and a confirmed break below
+          the 50-day moving average (a broken chart cannot ride its reputation).
         </p>
 
         <h3 className={styles.methodH}>4 · Stability</h3>
         <p className={styles.methodP}>
           Proven leaders get a small tenure bonus so the list turns over 1–3 names a
-          day instead of churning, and a separate 13-week momentum screen lets young
-          leaders — recent IPOs, fresh breakouts — compete with the established names.
-          In a weakening tape (S&amp;P below its 50- or 200-day average) all scores are
-          marked down.
+          day instead of churning — but only while their trend is intact. A separate
+          13-week momentum screen lets young leaders — recent IPOs, fresh breakouts —
+          compete with the established names. When the overall market weakens
+          (S&amp;P below its 50- or 200-day average) all scores are marked down.
         </p>
 
-        <h3 className={styles.methodH}>5 · Integrity</h3>
+        <h3 className={styles.methodH}>5 · The tracking portfolio</h3>
         <p className={styles.methodP}>
-          The data feed is validated before every publish, and if a morning run ever
-          produces a degraded list, yesterday&rsquo;s known-good list is served instead of a
-          broken one. The ER badge flags names reporting earnings within 7 days.
+          The performance tracker below the list is a simulated $50,000 portfolio that
+          simply follows the published list: equal-weight slots, buy at the market open
+          when a name joins, sell at the open when it drops out. No stop-losses and no
+          discretion — every fill is the real market price, so the record is exactly
+          what following the list would have produced. Tracking began June 22, 2026
+          after a data-integrity repair; earlier history could not be verified and is
+          deliberately excluded.
+        </p>
+
+        <h3 className={styles.methodH}>6 · Integrity</h3>
+        <p className={styles.methodP}>
+          The data feed is validated before every publish. If a morning run fails its
+          quality checks, the last verified list is served — clearly labeled — instead
+          of a broken one, and the team is alerted. The ER badge flags names reporting
+          earnings within 7 days.
         </p>
 
         <p className={styles.methodDisclaimer}>
@@ -389,9 +418,17 @@ export default function UCT20() {
         </button>
       </div>
       <MethodologySheet open={showMethodology} onClose={() => setShowMethodology(false)} />
+      {leadershipStatus === 'held' && stocks.length > 0 && (
+        <div className={styles.staleBanner}>
+          This morning&rsquo;s rebuild didn&rsquo;t pass its quality checks, so you&rsquo;re seeing the
+          last verified list{leadershipUpdated ? ` (from ${leadershipUpdated})` : ''}. The team has
+          been alerted — it will refresh automatically once a clean run completes.
+        </div>
+      )}
       {leadershipStatus === 'stale' && stocks.length > 0 && (
         <div className={styles.staleBanner}>
-          Last updated: {leadershipUpdated || 'unknown'} — data may be older than 26 hours. Refreshing soon.
+          This list is from {leadershipUpdated || 'a previous session'} — a scheduled morning
+          rebuild appears to have been missed. It will catch up on the next run.
         </div>
       )}
       <TileCard title="UCT 20 — Current Top Stocks">
@@ -419,13 +456,13 @@ export default function UCT20() {
           <div className={styles.table}>
             <div className={styles.headerRow}>
               <span className={styles.rank}>#</span>
-              <span className={`${styles.cTag} ${styles.alignL}`}>SETUP</span>
+              <span className={`${styles.cTag} ${styles.alignL}`} title="Deterministic trend posture computed from EMA structure, RS, and distance from the 52-week high">TREND</span>
               <span className={styles.alignL}>TICKER</span>
               <span className={styles.alignR}>PRICE</span>
               <span className={styles.alignR}>CHG</span>
-              <span className={`${styles.cRs} ${styles.alignC}`}>RS</span>
-              <span className={`${styles.cDays} ${styles.alignR}`}>DAYS</span>
-              <span className={styles.alignR}>SINCE+</span>
+              <span className={`${styles.cRs} ${styles.alignC}`} title="Relative strength vs the S&P 500 (percentile)">RS</span>
+              <span className={`${styles.cDays} ${styles.alignR}`} title="Days held in the tracking portfolio">DAYS</span>
+              <span className={styles.alignR} title="Return since the name was added to the list">SINCE ADD</span>
               <span className={styles.alignR}>RATING</span>
               <span />
             </div>
@@ -450,6 +487,10 @@ export default function UCT20() {
             })}
           </div>
         )}
+        <p className={styles.tableFootnote}>
+          Systematic momentum ranking for research and education — not investment advice
+          or a recommendation to buy any security.
+        </p>
         <UCT20Performance />
         <UCT20Backtest />
       </TileCard>
