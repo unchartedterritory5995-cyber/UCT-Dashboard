@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences from '../../hooks/usePreferences'
+import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
@@ -412,9 +412,19 @@ export default function ChartsWorkspace() {
     if (!tpl?.layout?.widgets) return
     // Switch the ARRANGEMENT only — keep whatever tickers are currently loaded in
     // each color group. A template must not swap the stock you're looking at.
-    const normalized = parseLayout(tpl.layout) || tpl.layout
-    setLayout(normalized)
-    setPref('charts_workspace_layout', JSON.stringify(normalized))
+    // parseLayout keeps extra fields (`...parsed`), so pull chartSettings OUT of
+    // the board layout — it belongs in the chart_settings pref, not the
+    // charts_workspace_layout arrangement blob.
+    const { chartSettings, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
+    setLayout(boardLayout)
+    setPref('charts_workspace_layout', JSON.stringify(boardLayout))
+    // Restore the chart settings the template was saved with, if it has them.
+    // Arrangement-only / older templates carry none → leave the current settings
+    // untouched (never silently reset to default; only "UCT Default" applies the
+    // frozen default settings).
+    if (chartSettings) {
+      setPref('chart_settings', chartSettings)
+    }
     setOpenMenuOpen(false)
     flashSaved()
   }, [setPref, flashSaved])
@@ -478,15 +488,25 @@ export default function ChartsWorkspace() {
     const nm = saveAsName.trim()
     if (!nm) { setSaveErr('Name required'); return }
     try {
-      // Templates store the ARRANGEMENT only — never the tickers, so opening one
-      // never swaps the stock you're viewing.
-      await saveLayout({ name: nm, layout, groups: null, scope: isAdmin ? saveAsScope : 'user' })
+      // Templates store the arrangement + the current CHART SETTINGS (so opening
+      // one restores the exact chart look you saved) — but NEVER the tickers, so
+      // opening a template never swaps the stock you're viewing. chartSettings is
+      // nested in the layout blob (backend persists it as layout_json);
+      // applyTemplate restores it. The frozen default settings are applied ONLY by
+      // "UCT Default".
+      const chartSettings = parsePref(prefs?.chart_settings, null)
+      await saveLayout({
+        name: nm,
+        layout: { ...layout, chartSettings },
+        groups: null,
+        scope: isAdmin ? saveAsScope : 'user',
+      })
       setSaveAsName(''); setSaveErr(''); setSaveMenuOpen(false)
       flashSaved()
     } catch (e) {
       setSaveErr(e.message || 'Save failed')
     }
-  }, [saveAsName, layout, isAdmin, saveAsScope, saveLayout, flashSaved])
+  }, [saveAsName, layout, prefs?.chart_settings, isAdmin, saveAsScope, saveLayout, flashSaved])
 
   const handleDeleteTemplate = useCallback(async (id) => {
     try { await deleteLayout(id) } catch { /* surfaced by SWR revalidate */ }

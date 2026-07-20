@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
@@ -32,6 +32,13 @@ const setPref = vi.fn()
 let mockPrefs = {}
 vi.mock('../../hooks/usePreferences', () => ({
   default: () => ({ prefs: mockPrefs, setPref, loading: false }),
+  // Named export used by ChartsWorkspace to read chart_settings when saving a
+  // template — mirror the real parse-defensively implementation.
+  parsePref: (raw, fallback) => {
+    if (raw == null) return fallback
+    if (typeof raw !== 'string') return raw
+    try { return JSON.parse(raw) } catch { return fallback }
+  },
 }))
 
 // Mock useMediaQuery — default desktop (false); individual tests override.
@@ -48,13 +55,13 @@ vi.mock('../../context/AuthContext', () => ({
 
 // Mock useChartLayouts — named layout templates (prebuilt + personal). The
 // "default template applies on first visit" behavior gates on isLoading.
-let mockLayouts = { global: [], mine: [], isLoading: false }
+let mockLayouts = { global: [], mine: [], isLoading: false, saveLayout: vi.fn(async () => ({})) }
 vi.mock('../../hooks/useChartLayouts', () => ({
   default: () => ({
     global: mockLayouts.global,
     mine: mockLayouts.mine,
     isLoading: mockLayouts.isLoading,
-    saveLayout: async () => ({}),
+    saveLayout: (...args) => mockLayouts.saveLayout(...args),
     deleteLayout: async () => {},
     refresh: () => {},
   }),
@@ -75,7 +82,7 @@ beforeEach(() => {
   mockPrefs = {}
   mqMatches = false
   mockUser = { id: 1, role: 'user' }
-  mockLayouts = { global: [], mine: [], isLoading: false }
+  mockLayouts = { global: [], mine: [], isLoading: false, saveLayout: vi.fn(async () => ({})) }
   vi.useFakeTimers()
 })
 
@@ -117,6 +124,46 @@ test('clicking "UCT Default" applies the frozen layout AND writes the frozen cha
     ([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'),
   )
   expect(chartSettingsSave).toBeTruthy()
+})
+
+test('Save-as-template captures the current chart settings into the saved template', () => {
+  const cs = { chartType: 'candles', header: { titleMode: 'both' }, theme: 'dark' }
+  mockPrefs = { chart_settings: JSON.stringify(cs) }
+  renderWS()
+  fireEvent.click(screen.getByRole('button', { name: /save layout/i }))
+  fireEvent.change(screen.getByPlaceholderText(/template name/i), { target: { value: 'My Setup' } })
+  fireEvent.click(screen.getByRole('button', { name: /^Save template$/ }))
+  expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)
+  const payload = mockLayouts.saveLayout.mock.calls[0][0]
+  expect(payload.name).toBe('My Setup')
+  expect(payload.layout.chartSettings).toEqual(cs)  // chart settings snapshotted in
+  expect(payload.groups).toBeNull()                 // tickers never baked in
+})
+
+test('opening a My-layouts template restores its saved chart settings (not leaked into the layout blob)', () => {
+  const cs = { chartType: 'bars', header: { titleMode: 'company' }, theme: 'dark' }
+  mockLayouts.mine = [{
+    id: 42,
+    name: 'My Setup',
+    layout: {
+      widgets: [{ id: 's1', type: 'scanner', color: 'C', x: 0, y: 0, w: 8, h: 10, opts: {} }],
+      cols: 24,
+      chartSettings: cs,
+    },
+  }]
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  act(() => { screen.getByRole('button', { name: /^My Setup$/ }).click() })
+  // Arrangement applied.
+  expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
+  // Saved chart settings restored.
+  const csCall = setPref.mock.calls.find(([k]) => k === 'chart_settings')
+  expect(csCall).toBeTruthy()
+  expect(csCall[1]).toEqual(cs)
+  // chartSettings must NOT leak into the workspace-layout arrangement blob.
+  const layoutCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_workspace_layout')
+  expect(JSON.parse(layoutCall[1])).not.toHaveProperty('chartSettings')
 })
 
 test('first visit prefers a prebuilt template named "chart" over the starter fallback', () => {
