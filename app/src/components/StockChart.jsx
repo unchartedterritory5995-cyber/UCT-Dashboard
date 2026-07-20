@@ -4008,6 +4008,13 @@ export default function StockChart({
     try {
       _cfgSig = JSON.stringify({
         sym, resolvedTf, chartType: cs.chartType, showVolume,
+        // canvasTheme (workspace theme toggle, e.g. Sunset↔Default) recolors the
+        // candles + volume AND recreates the price series via _priceStyleKey below.
+        // It is NOT part of `cs`, so without it here a theme-only flip keeps an
+        // identical signature → plan 'noop' → the recreated series never gets its
+        // setData (candles vanish) and volume keeps the old theme's colors until a
+        // ticker change. Including it forces a full repaint on every theme switch.
+        canvasTheme,
         cs, adjustTime, vwapOverride, hideWatermark, hidePriceLine, leftBarPad,
         modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles,
         watermark, watermarkOpacity,
