@@ -91,9 +91,10 @@ export default function AuthGuard() {
     return <Navigate to={FREE_HOME} replace />
   }
 
-  // Allow settings page always (so they can manage billing / subscribe)
-  if (location.pathname === '/settings') {
-    return <Outlet />
+  // Settings is paid/admin-only too (2026-07-19). Free users upgrade via
+  // the public /subscribe page instead of the Settings billing card.
+  if (location.pathname === '/settings' && !isPaid) {
+    return <Navigate to={FREE_HOME} replace />
   }
 
   // /research/* is paid-only but renders its OWN paywall teaser (not a hard

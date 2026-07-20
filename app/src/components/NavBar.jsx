@@ -148,17 +148,30 @@ export default function NavBar() {
             <span className={styles.label}>Admin</span>
           </NavLink>
         )}
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
-          }
-          title="Settings"
-          aria-label="Settings"
-        >
-          <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold /></span>
-          <span className={styles.label}>Settings</span>
-        </NavLink>
+        {showAll ? (
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
+            }
+            title="Settings"
+            aria-label="Settings"
+          >
+            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold /></span>
+            <span className={styles.label}>Settings</span>
+          </NavLink>
+        ) : (
+          <Link
+            to="/subscribe"
+            className={`${styles.item} ${styles.locked}`}
+            title="Settings — unlock with Pro"
+            aria-label="Settings — unlock with Pro"
+          >
+            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold /></span>
+            <span className={styles.label}>Settings</span>
+            <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
+          </Link>
+        )}
         <a
           href={WEBSITE_URL}
           target="_blank"

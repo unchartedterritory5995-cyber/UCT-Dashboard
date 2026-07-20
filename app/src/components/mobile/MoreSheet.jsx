@@ -170,12 +170,13 @@ export default function MoreSheet({ open, onClose }) {
           )}
           <button
             type="button"
-            className={`${styles.item} ${isActive('/settings') ? styles.active : ''}`}
-            onClick={() => go('/settings')}
+            className={`${styles.item} ${isActive('/settings') ? styles.active : ''} ${!showAll ? styles.locked : ''}`}
+            aria-label={!showAll ? 'Settings — unlock with Pro' : undefined}
+            onClick={() => go(showAll ? '/settings' : '/subscribe')}
           >
             <span className={styles.icon} aria-hidden="true"><UIcon name="gear" size={20} /></span>
             <span className={styles.itemLabel}>Settings</span>
-            <span className={styles.chev} aria-hidden="true"><UIcon name="chevronRight" size={16} /></span>
+            <span className={styles.chev} aria-hidden="true"><UIcon name={showAll ? 'chevronRight' : 'lock'} size={16} /></span>
           </button>
           <a
             href={WEBSITE_URL}

@@ -15,6 +15,8 @@ test('free tier: Morning Wire links to its page, everything else is locked to up
   expect(screen.getByRole('link', { name: /^charts — unlock with pro$/i })).toHaveAttribute('href', '/subscribe')
   expect(screen.getByRole('link', { name: /model book/i })).toHaveAttribute('href', '/subscribe')
   expect(screen.getByRole('link', { name: /calendar/i })).toHaveAttribute('href', '/subscribe')
+  // Settings is paid-only too (2026-07-19) — locked to upgrade for free users
+  expect(screen.getByRole('link', { name: /settings — unlock with pro/i })).toHaveAttribute('href', '/subscribe')
 })
 
 test('active link has active class', () => {
