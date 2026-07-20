@@ -652,9 +652,7 @@ export default function ChartsWorkspace() {
                 {/* UCT Default — the LOCKED canonical layout (frozen shell +
                     chart settings, UCT_DEFAULT_LAYOUT / _CHART_SETTINGS_JSON).
                     Applying loads the frozen state into the working board and
-                    never writes back, so no in-app edit can mutate the default.
-                    (The 'sunrise' / TSDR theme option is temporarily hidden — theme
-                    code kept intact, see charts-layout-presets-snapshot.) */}
+                    never writes back, so no in-app edit can mutate the default. */}
                 <div className={styles.menuRow}>
                   <button
                     type="button"
@@ -662,6 +660,20 @@ export default function ChartsWorkspace() {
                     style={{ flex: 1 }}
                     onClick={applyUctDefault}
                   >UCT Default</button>
+                </div>
+                {/* TSDR — Sunset (formerly "Sunrise"): the light sky-gradient theme.
+                    Re-added as a THEME toggle for now (internal chartsTheme key is
+                    still 'sunrise' — the CSS/StockChart look; only the label changed).
+                    ✓ shows when active. Pending: an owner "manual override" to
+                    capture a tweaked version into a LOCKED prebuilt template like
+                    UCT Default. See charts-layout-presets-snapshot. */}
+                <div className={styles.menuRow}>
+                  <button
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={{ flex: 1, ...(chartsTheme === 'sunrise' ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
+                    onClick={() => { setChartsTheme('sunrise'); setOpenMenuOpen(false) }}
+                  >{chartsTheme === 'sunrise' ? '✓ ' : ''}TSDR — Sunset</button>
                 </div>
                 {wsGlobalLayouts.map(t => (
                   <div key={`g${t.id}`} className={styles.menuRow}>
