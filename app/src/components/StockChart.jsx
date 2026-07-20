@@ -2398,11 +2398,13 @@ export default function StockChart({
   // fallback) and end up overlapping anyway. Sequential = backend sees exactly
   // 1 prefetch in flight per chart at a time.
   //
-  // Order: fast / common TFs first (D, W, M, 60, 30) so most TF switches are
-  // already instant by the time the slow intraday TFs (15, 5, 1) get fetched.
+  // Order: the COMMONLY-clicked TFs first — Daily then 5min (the two the user
+  // scans on) so those switches are instant, then the rest of intraday, then the
+  // rarely-clicked W/M/1. (5min used to be 7th → clicking it before the chain
+  // reached it was a cold fetch = the "only 5min lags" report.)
   useEffect(() => {
     if (!sym || !backgroundWarm) return
-    const ORDER = ['D', 'W', 'M', '60', '30', '15', '5', '1']
+    const ORDER = ['D', '5', '60', '30', '15', 'W', 'M', '1']
     const tfs   = ORDER.filter(t => t !== resolvedTf)
     let cancelled = false
 

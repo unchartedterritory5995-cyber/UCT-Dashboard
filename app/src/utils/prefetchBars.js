@@ -26,7 +26,9 @@ const BAR_COUNTS = {
   30: FIRST_PAINT_BARS, 60: FIRST_PAINT_BARS,
   D: FIRST_PAINT_BARS, W: FIRST_PAINT_BARS, M: FIRST_PAINT_BARS,
 }
-const ALL_TFS = ['D', 'W', 'M', '60', '30', '15', '5', '1']
+// Common TFs first (Daily, 5min) so those switches warm first; 5min was last-ish
+// before, making "click 5min" a cold fetch while other TFs were already warm.
+const ALL_TFS = ['D', '5', '60', '30', '15', 'W', 'M', '1']
 
 // ── Shared bounded/deferred prefetch queue ───────────────────────────────────
 const _queue = []
@@ -162,7 +164,7 @@ function _idbKickSoon() {
 // bounded (3-concurrent) idle-deferred IDB queue, so it never competes with the
 // chart the user is actively loading, and already-warm (sym,tf) pairs skip their
 // fetch. Capped so a huge watchlist can't flood the queue.
-const SCAN_WARM_TFS = ['D', '60', '30', '15', '5']
+const SCAN_WARM_TFS = ['D', '5', '60', '30', '15']
 const SCAN_WARM_CAP = 100
 export function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {
   if (!tickers?.length) return
