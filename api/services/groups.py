@@ -80,11 +80,15 @@ def _get_all_themes():
 
 
 def _theme_sizes() -> dict:
-    """{theme_id: holding_count} for every theme. Cached 1h — theme sizes only
-    change on a taxonomy reseed (deploy). Avoids routing a single size lookup
-    through list_groups() (which also computes chartable counts + rotation
-    order it doesn't need) and its uncached full-taxonomy read — this map backs
-    resolve_primary_theme, which is on the universal chart-watermark hot path."""
+    """{theme_id: OWNER holding_count} for every theme. Cached 1h — owner sizes
+    only change on a taxonomy reseed (deploy) or an explicit invalidate_sizes().
+    ENGINE-INVARIANT: engine-added holdings are EXCLUDED from the count (absent
+    source = owner, counted — backward compatible), so a background engine add
+    can never change which theme resolve_primary_theme picks. Avoids routing a
+    single size lookup through list_groups() (which also computes chartable
+    counts + rotation order it doesn't need) and its uncached full-taxonomy
+    read — this map backs resolve_primary_theme, which is on the universal
+    chart-watermark hot path."""
     now = time.monotonic()
     if _SIZES_CACHE["map"] is not None and (now - _SIZES_CACHE["at"]) < _SIZES_TTL:
         return _SIZES_CACHE["map"]
@@ -92,13 +96,21 @@ def _theme_sizes() -> dict:
     try:
         data = _get_all_themes()
         for t in data.get("themes", []):
-            out[t["id"]] = len(t.get("holdings") or [])
+            out[t["id"]] = sum(1 for h in (t.get("holdings") or []) if h.get("source") != "engine")
     except Exception:
         out = {}
     if out:                       # only cache a real (non-empty) map
         _SIZES_CACHE["map"] = out
         _SIZES_CACHE["at"] = now
     return out
+
+
+def invalidate_sizes():
+    """Drop the theme-size cache. Called by theme_db.invalidate_caches() when
+    membership changes (taxonomy reseed / engine overlay swap) so size-based
+    primary-theme resolution re-reads fresh counts on the next lookup."""
+    _SIZES_CACHE["map"] = None
+    _SIZES_CACHE["at"] = 0.0
 
 
 def _rotation_order():
@@ -277,13 +289,14 @@ def top_n(theme_id: str, n: int, by: str = "today") -> dict:
     scores = {}
     ranked = rank_holdings(holdings, by=by, scores_out=scores)
     top = ranked[: max(1, int(n))]
-    # Per-sym tier + rationale + gate score for the cell badges / observability.
+    # Per-sym tier + rationale + source + gate score for the cell badges / observability.
     meta = {normalize_sym(h.get("sym", "")): h for h in holdings}
     rows = [{
         "sym": s,
         "tier": (meta.get(s) or {}).get("tier"),
         "rationale": (meta.get(s) or {}).get("rationale") or "",
         "gate_score": scores.get(s),
+        "source": (meta.get(s) or {}).get("source", "owner"),
     } for s in top]
     return {
         "group_id": theme_id,
@@ -390,13 +403,17 @@ def _theme_size(theme_id: str) -> int:
 
 def resolve_primary_theme(sym: str):
     """The membership row whose theme the seed should take peers from, or None.
-    Smallest theme where the seed ranks highest by tier; factor buckets excluded.
-    Shared with ticker_meta so the displayed theme and filled peers agree."""
+    OWNER memberships always outrank engine ones (an engine 'relevant' row must
+    never beat ANY owner membership — keypress fills stay engine-invariant);
+    within a source, smallest theme where the seed ranks highest by tier; factor
+    buckets excluded. Shared with ticker_meta so the displayed theme and filled
+    peers agree."""
     rows = [r for r in _themes_for_ticker(sym)
             if (r.get("theme_name") or "").strip().lower() not in _FACTOR_THEME_NAMES]
     if not rows:
         return None
     rows.sort(key=lambda r: (
+        0 if r.get("source", "owner") == "owner" else 1,
         _TIER_RANK.get(r.get("tier"), 99),
         _theme_size(r.get("theme_id")),
         r.get("theme_id") or "",
@@ -511,6 +528,13 @@ def resolve_peers(sym: str, n: int) -> dict:
     except Exception:
         also_in = []
 
+    # Per-sym membership source for the cell dot (T8): map each ranked sym back
+    # to its holding's source. First occurrence wins, mirroring rank_holdings'
+    # dedupe; absent source = owner (backward compatible). Peers stay bare syms.
+    src_by_sym = {}
+    for h in holdings:
+        src_by_sym.setdefault(normalize_sym(h.get("sym", "")), h.get("source", "owner"))
+
     return {
         "seed": seed_hy,
         "also_in": also_in,
@@ -519,5 +543,6 @@ def resolve_peers(sym: str, n: int) -> dict:
         # PREVIOUS group's name on a taxonomy fill (verified mislabel bug).
         "group_name": row.get("theme_name"),
         "peers": ranked[: max(1, int(n))],
+        "sources": {s: src_by_sym.get(s, "owner") for s in ranked},
         "source": "taxonomy",
     }

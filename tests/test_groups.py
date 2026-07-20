@@ -97,7 +97,9 @@ def test_top_n_returns_rows_with_tier_and_rationale(monkeypatch):
                         lambda h, by="today", seed=None, seed_sub=None, scores_out=None: ["RKLB", "ASTS"])
     out = groups.top_n("space", 2, by="today")
     assert out["syms"] == ["RKLB", "ASTS"]
-    assert out["rows"][0] == {"sym": "RKLB", "tier": "core", "rationale": "Launch", "gate_score": None}
+    # Absent source on a holding = owner (backward compatible, Task 3).
+    assert out["rows"][0] == {"sym": "RKLB", "tier": "core", "rationale": "Launch",
+                              "gate_score": None, "source": "owner"}
 
 
 def test_resolve_primary_theme_prefers_core_over_smaller_relevant(monkeypatch):
