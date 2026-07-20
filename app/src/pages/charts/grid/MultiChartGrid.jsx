@@ -438,6 +438,7 @@ export default function MultiChartGrid({ mc }) {
                 onBarsReady={onBarsReadyFns[i]}
                 isMaximized={maxId === cell.id}
                 onToggleMaximize={onToggleMaxFns[i]}
+                deepWarm={gridWarmEnabled && (activeIdx === i || maxId === cell.id)}
               />
             </div>
           )
