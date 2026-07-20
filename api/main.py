@@ -660,6 +660,28 @@ def _start_industry_map_background(delay_seconds: int = 75) -> None:
     threading.Thread(target=_delayed, daemon=True, name="industry-map-warmer").start()
 
 
+def _start_darkpool_prewarm_background(delay_seconds: int = 60) -> None:
+    """Prewarm the dark-pool aggregation cache on boot so the first visitor lands
+    on a warm 90d window (the page default) instead of paying the multi-million-
+    row rebuild.
+
+    Usually a no-op: the aggregation is disk-cached on the /data volume and
+    survives redeploys, so this only rebuilds when the cache is genuinely cold
+    (a data upload that didn't run the prebuild, or a fresh volume). Delayed so
+    it doesn't compete with the bar warmers at boot.
+    """
+    import threading
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        try:
+            from api.darkpool_aggregator import prewarm_if_cold
+            prewarm_if_cold()
+        except Exception:
+            logging.getLogger(__name__).exception("[startup] darkpool prewarm failed")
+    threading.Thread(target=_delayed, daemon=True, name="darkpool-prewarm-warmer").start()
+
+
 def _thread_groups() -> dict:
     """Normalized thread-name histogram. Shared by /api/health/threads and
     the burst watchdog below -- see the endpoint docstring for the rules."""
@@ -1181,6 +1203,12 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] industry-map prewarm scheduled (~75s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule industry-map prewarm")
+
+    try:
+        _start_darkpool_prewarm_background()
+        logging.getLogger(__name__).info("[startup] darkpool prewarm scheduled (~60s after boot)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule darkpool prewarm")
 
     # One-shot backfill of company NAMES for disk-cached ticker-meta entries that
     # the old partial-yfinance bug poisoned with name=None (sector/industry present
