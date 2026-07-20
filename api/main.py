@@ -89,6 +89,7 @@ from api.routers import wire_feedback as wire_feedback_router
 from api.routers import modelbook as modelbook_router
 from api.routers import charts_layouts as charts_layouts_router
 from api.routers import theme_index as theme_index_router
+from api.routers import theme_engine as theme_engine_router
 from api.routers import ai_search as ai_search_router
 from api.routers import user_playbook as user_playbook_router
 from api.routers import education as education_router
@@ -1987,6 +1988,19 @@ async def lifespan(app: FastAPI):
     init_theme_tables()
     seed_from_json_safe()
 
+    # Theme Membership Engine — overlay tables + crash recovery. Guarded: the
+    # engine is additive and must never block boot. abort_stale_runs closes
+    # engine_runs rows left open >3h by a mid-run deploy/crash so /status and
+    # the nightly job never see a phantom "still running" run.
+    try:
+        from api.services.theme_engine import store as theme_engine_store
+        theme_engine_store.init_engine_tables()
+        _stale = theme_engine_store.abort_stale_runs(3)
+        if _stale:
+            print(f"[startup] theme-engine: aborted {_stale} stale run(s)")
+    except Exception as e:
+        print(f"[startup] theme-engine init failed (non-fatal): {e}")
+
     from api.services.theme_performance import load_persisted_on_startup
     load_persisted_on_startup()
 
@@ -3085,6 +3099,58 @@ async def lifespan(app: FastAPI):
             )
             print("[startup] Fundamentals warm scheduled -- daily at 5:30 AM ET")
 
+        # -- Theme Membership Engine (nightly orphan sweep + weekly improve) --
+        # Gated: no THEME_ENGINE_ENABLED=1, no jobs — the engine ships inert.
+        # See api/routers/theme_engine.py for the activation runbook (incl. the
+        # MANDATORY clear-decisions step between validation dry-run and go-live).
+        if os.environ.get("THEME_ENGINE_ENABLED") == "1":
+            def _theme_engine_orphans_job():
+                try:
+                    from api.services.theme_engine import orphans as _te_orphans
+                    res = _te_orphans.run_orphan_batch()
+                    print(f"[scheduler] theme-engine orphan batch: {res}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"[scheduler] theme-engine orphan batch error: {e}")
+
+            def _theme_engine_improve_job():
+                from api.services.theme_engine import improve as _te_improve
+                try:
+                    res = _te_improve.run_improve()
+                    print(f"[scheduler] theme-engine improve: {res}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"[scheduler] theme-engine improve error: {e}")
+                try:
+                    audit = _te_improve.comovement_audit()
+                    print(f"[scheduler] theme-engine comovement audit: {audit}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"[scheduler] theme-engine comovement audit error: {e}")
+                # Weekly report -> Discord (guarded; _send_webhook never raises).
+                try:
+                    from api.services.discord_notify import _send_webhook
+                    _send_webhook({
+                        "title": "🧬 Theme Engine — Weekly Report",
+                        "description": _te_improve.weekly_report_text()[:4000],
+                        "color": 0xC9A84C,  # UCT gold
+                    })
+                except Exception as e:  # noqa: BLE001
+                    print(f"[scheduler] theme-engine weekly report post error: {e}")
+
+            _scheduler.add_job(
+                _theme_engine_orphans_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=23, minute=0, timezone=_ET),
+                id="theme_engine_orphans",
+                max_instances=1,
+                replace_existing=True,
+            )
+            _scheduler.add_job(
+                _theme_engine_improve_job,
+                trigger=CronTrigger(day_of_week="sat", hour=10, minute=0, timezone=_ET),
+                id="theme_engine_improve",
+                max_instances=1,
+                replace_existing=True,
+            )
+            print("[startup] Theme engine scheduled -- orphans Mon-Fri 11 PM ET; improve Sat 10 AM ET")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
@@ -3492,6 +3558,7 @@ app.include_router(wire_feedback_router.router)
 app.include_router(modelbook_router.router)
 app.include_router(charts_layouts_router.router)
 app.include_router(theme_index_router.router)
+app.include_router(theme_engine_router.router)  # Theme Membership Engine admin ops
 app.include_router(ai_search_router.router)
 app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
