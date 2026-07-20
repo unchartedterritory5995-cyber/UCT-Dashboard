@@ -604,6 +604,12 @@
   padding: 6px;
   position: relative;
 }
+/* Merged view: drop the outer padding so the blended board fills to the very
+   edge (no dead black border). Kept in sync with BODY_PAD→0 in ChartsWorkspace.jsx
+   so the ResizeObserver row-height math matches — else the grid clips. */
+.workspaceBodyMerged {
+  padding: 0;
+}
 
 /* Widget body becomes the container-query root for its embedded child page —
    container queries inside Watchlists / ThemeTrackerPage / Screener

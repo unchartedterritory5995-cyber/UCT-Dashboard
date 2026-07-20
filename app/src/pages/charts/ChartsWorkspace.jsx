@@ -217,7 +217,11 @@ export default function ChartsWorkspace() {
     const el = bodyRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
     const measure = () => {
-      const h = el.clientHeight - BODY_PAD * 2
+      // Merged view removes the body padding (below) so the blended surface fills
+      // to the outer edge — the row-height math must drop it too, or the grid
+      // overflows/clips by the padding it no longer has.
+      const bodyPad = merged ? 0 : BODY_PAD
+      const h = el.clientHeight - bodyPad * 2
       const available = h - gridGap * (FIXED_ROWS - 1)
       const rh = Math.max(12, Math.floor(available / FIXED_ROWS))
       setRowHeight(rh)
@@ -226,7 +230,7 @@ export default function ChartsWorkspace() {
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [gridGap])
+  }, [gridGap, merged])
 
   // Layout state — seed from prefs or default.
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
@@ -830,7 +834,7 @@ export default function ChartsWorkspace() {
             </button>
           )}
         </header>
-        <main className={styles.workspaceBody} ref={bodyRef}>
+        <main className={`${styles.workspaceBody} ${merged ? styles.workspaceBodyMerged : ''}`} ref={bodyRef}>
           {gridMode ? (
             <MultiChartGrid mc={mc} />
           ) : (
