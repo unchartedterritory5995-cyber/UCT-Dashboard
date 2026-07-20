@@ -108,7 +108,7 @@ function GlobalVoiceGate() {
 function PublicOnly({ children }) {
   const { user, isPaid, loading } = useAuth()
   if (loading) return null
-  if (user) return <Navigate to={isPaid ? '/dashboard' : '/breadth'} replace />
+  if (user) return <Navigate to={isPaid ? '/dashboard' : '/morning-wire'} replace />
   return children
 }
 

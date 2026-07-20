@@ -15,9 +15,9 @@ export default function Login() {
   const [code, setCode] = useState('')
 
   const finishLogin = (data) => {
-    // Dashboard is paid-only; free users land on their first free page.
+    // Dashboard is paid-only; free users land on Morning Wire (the only free page).
     const paid = data?.user?.role === 'admin' || ['pro', 'premium', 'lifetime'].includes(data?.plan)
-    navigate(paid ? '/dashboard' : '/breadth', { replace: true })
+    navigate(paid ? '/dashboard' : '/morning-wire', { replace: true })
   }
 
   const handleSubmit = async (e) => {

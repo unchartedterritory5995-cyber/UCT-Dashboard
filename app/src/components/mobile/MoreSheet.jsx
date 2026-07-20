@@ -57,7 +57,7 @@ const NAV_SECTIONS = [
 ]
 
 // Keep in sync with FREE_PAGES in AuthGuard.jsx + NavBar.jsx.
-const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/live-massive', '/flow-scoreboard', '/journal', '/model-book', '/ai-search']
+const FREE_PAGES = ['/morning-wire']
 const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
 export default function MoreSheet({ open, onClose }) {

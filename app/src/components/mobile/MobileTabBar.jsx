@@ -4,21 +4,24 @@ import UIcon from '../ui/UIcon'
 import styles from './MobileTabBar.module.css'
 
 // 4 routed tabs + a "More" button. `match` = path prefixes that light the tab.
-// `paidOnly` tabs are hidden for free users (Home → /dashboard is paid-only).
+// `paidOnly` tabs are hidden for free users; `freeOnly` tabs are hidden for
+// paid users (free tier only gets Morning Wire, so it needs its own tab).
 // `icon` = a UIcon name (branded line-icon set) — never raw emoji.
 const TABS = [
   { key: 'home', label: 'Home', icon: 'dashboard', to: '/dashboard', match: ['/dashboard'], paidOnly: true },
+  { key: 'wire', label: 'Wire', icon: 'wire', to: '/morning-wire', match: ['/morning-wire'], freeOnly: true },
   { key: 'markets', label: 'Markets', icon: 'markets', to: '/breadth',
-    match: ['/breadth', '/options-flow', '/dark-pool', '/post-market', '/screener', '/patterns', '/calendar', '/catalysts'] },
+    match: ['/breadth', '/options-flow', '/dark-pool', '/post-market', '/screener', '/patterns', '/calendar', '/catalysts'],
+    paidOnly: true },
   { key: 'charts', label: 'Charts', icon: 'chart', to: '/charts',
-    match: ['/charts', '/watchlists', '/theme-tracker'] },
-  { key: 'journal', label: 'Journal', icon: 'journal', to: '/journal', match: ['/journal'] },
+    match: ['/charts', '/watchlists', '/theme-tracker'], paidOnly: true },
+  { key: 'journal', label: 'Journal', icon: 'journal', to: '/journal', match: ['/journal'], paidOnly: true },
 ]
 
 export default function MobileTabBar({ onMore }) {
   const { pathname } = useLocation()
   const isPaid = useIsPaid()
-  const tabs = TABS.filter((t) => isPaid || !t.paidOnly)
+  const tabs = TABS.filter((t) => (isPaid ? !t.freeOnly : !t.paidOnly))
   const matchesMore = !tabs.some((t) => t.match.some((p) => pathname.startsWith(p)))
 
   return (

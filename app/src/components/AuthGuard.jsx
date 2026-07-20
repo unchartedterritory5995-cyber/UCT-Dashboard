@@ -79,13 +79,12 @@ export default function AuthGuard() {
     return <Navigate to="/verify-pending" replace />
   }
 
-  // Free tier: these pages are accessible without a paid plan. Matches the
-  // Historical free-tier pages (Dashboard + Breadth
-  // + Charts + Options Flow + Journal) plus the free Model Book library.
+  // Free tier: ONLY Morning Wire is accessible without a paid plan (owner
+  // decision 2026-07-19 — everything else is behind the paywall).
   // Keep in sync with FREE_PAGES in NavBar.jsx + MoreSheet.jsx.
-  const FREE_PAGES = ['/dashboard', '/breadth', '/charts', '/options-flow', '/live-massive', '/flow-scoreboard', '/journal', '/model-book', '/ai-search']
+  const FREE_PAGES = ['/morning-wire']
   // Where to bounce a non-paid user who hits a locked page. MUST be a free page.
-  const FREE_HOME = '/dashboard'
+  const FREE_HOME = '/morning-wire'
 
   // Admin-only pages
   if (location.pathname.startsWith('/admin') && user.role !== 'admin') {
@@ -104,15 +103,13 @@ export default function AuthGuard() {
     return <Outlet />
   }
 
-  // Live Flow pages (promoted 2026-07-06, roadmap T1-1 — the ingest rail is
-  // deploy-survival hardened + gap-self-healing, so the tape is production
-  // grade). /live-massive is in FREE_PAGES + nav ("Live Flow"); packaging
-  // may re-gate cadence for free users later (roadmap T2-5).
-  //
+  // Live Flow pages (promoted 2026-07-06, roadmap T1-1).
   // /live-massive: Massive OPRA full-tape feed via FlowDB (canonical)
   // /live-flow:    Bullflow SSE alert feed (URL-only pending T2-6 merge)
+  // 2026-07-19: no longer free — paid/admin only, falls through to the
+  // standard isPaid gate below.
   if (location.pathname === '/live-flow' || location.pathname === '/live-massive') {
-    return <Outlet />
+    return isPaid ? <Outlet /> : <Navigate to={FREE_HOME} replace />
   }
 
   const isFreePage = FREE_PAGES.some(p => location.pathname.startsWith(p))
