@@ -113,7 +113,12 @@ def _run_computation_and_capture(MOCK_WIRE, FAKE_BARS):
     with patch("api.services.theme_performance._load_wire_data", return_value=MOCK_WIRE), \
          patch("api.services.theme_performance.get_agg_bars", return_value=FAKE_BARS), \
          patch("api.services.theme_performance._save_to_disk"), \
+         patch.object(tp.theme_db, "get_all_themes",
+                      return_value={"themes": [], "sectors": []}), \
          patch("api.services.theme_performance.cache") as mock_cache:
+        # Task 4: _run_computation unions wire holdings with the merged
+        # theme-DB membership — pin the taxonomy empty so a machine-local
+        # seeded auth.db can't leak extra holdings into the shape asserts.
         # Snapshot the call count before our sync run so we ignore any
         # late-arriving writes from a different code path.
         before = len(mock_cache.set.call_args_list)

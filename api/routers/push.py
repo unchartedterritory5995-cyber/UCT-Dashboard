@@ -1,9 +1,19 @@
 # api/routers/push.py
 import os
 import json
+import logging
 from fastapi import APIRouter, HTTPException, Header
 from typing import Optional
 from api.services.cache import cache
+
+logger = logging.getLogger(__name__)
+
+# Guarded — accepting wire data must never depend on the alerts module
+# (early boot, stripped deploys).
+try:
+    from api.services import chart_health_alerts
+except Exception:  # pragma: no cover
+    chart_health_alerts = None
 
 router = APIRouter()
 
@@ -13,6 +23,60 @@ INVALIDATE_KEYS = [
 ]
 
 PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"
+
+
+def _taxonomy_version_stored():
+    """The dashboard's seeded taxonomy version — user_preferences row
+    ('system', 'theme_seed_version'), written by theme_db.seed_from_json().
+    None when the DB / table / row is unavailable (never raises)."""
+    try:
+        from api.services.auth_db import get_connection
+        conn = get_connection()
+        try:
+            row = conn.execute(
+                "SELECT pref_value FROM user_preferences "
+                "WHERE user_id = 'system' AND pref_key = 'theme_seed_version'"
+            ).fetchone()
+            return row["pref_value"] if row else None
+        finally:
+            conn.close()
+    except Exception:
+        return None
+
+
+def _check_taxonomy_handshake(payload: dict) -> None:
+    """Wire ↔ dashboard taxonomy version handshake.
+
+    MORNING-WIRE SIDE (the one-line change is applied to the morning-wire repo
+    in Task 7's ops step — do NOT touch that repo from the dashboard): where
+    morning_wire_engine.py assembles `_wire_data`, add
+
+        _wire_data["taxonomy_version"] = _TAX_VERSION
+
+    (_TAX_VERSION = the `version` field of the themes_taxonomy.json the engine
+    loaded for that run.) Until that ships, payloads carry no
+    `taxonomy_version` and this check is a no-op.
+
+    A mismatch means the wire ran against a different taxonomy than the one
+    this dashboard has seeded (stale deploy on either side) — theme joins can
+    misalign until both sides carry the same version. Log + emit a throttled
+    health alert; NEVER block the push.
+    """
+    wire_v = (payload or {}).get("taxonomy_version")
+    if not wire_v:
+        return
+    db_v = _taxonomy_version_stored()
+    if not db_v or wire_v == db_v:
+        return
+    logger.warning("[push] taxonomy version mismatch: wire=%s dashboard=%s", wire_v, db_v)
+    try:
+        if chart_health_alerts is not None:
+            chart_health_alerts.emit(
+                "taxonomy_version_mismatch", "warning",
+                message=f"wire taxonomy {wire_v} != dashboard {db_v}",
+            )
+    except Exception:
+        pass
 
 
 @router.post("/api/push")
@@ -34,6 +98,13 @@ def push_wire_data(
         cache.invalidate(key)
 
     cache.set("wire_data", payload, ttl=82800)  # 23 hours
+
+    # Taxonomy handshake — warn when the wire ran on a different taxonomy
+    # version than this dashboard has seeded (never blocks the push).
+    try:
+        _check_taxonomy_handshake(payload)
+    except Exception:
+        pass
 
     # Persist to Railway volume so data survives redeploys
     try:

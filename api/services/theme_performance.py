@@ -25,10 +25,17 @@ from typing import Optional
 from api.services.cache import cache
 from api.services.engine import _load_wire_data
 from api.services.massive import get_agg_bars
+from api.services import theme_db
 
 import re
 
 _logger = logging.getLogger(__name__)
+
+
+def _to_hyphen(s: str | None) -> str:
+    """App-canonical sym form (BRK.B -> BRK-B) — matches wire/cap_universe/bars.
+    The taxonomy DB stores dot class-shares; normalize at every join point."""
+    return (s or "").strip().upper().replace(".", "-")
 
 # A real equity/ETF symbol: 1-5 uppercase letters, optional single class suffix
 # (e.g. BRK.B). Curated-only themes carry their theme *id* in the `ticker` field
@@ -206,13 +213,43 @@ def _run_computation() -> None:
         from_date = (today - timedelta(days=_BAR_DAYS)).strftime("%Y-%m-%d")
         to_date = today.strftime("%Y-%m-%d")
 
-        # Deduplicated symbol list
+        # ── Merged-membership union (Theme Membership Engine) ────────────────
+        # The taxonomy DB (owner rows + engine overlay, merged read) is the
+        # membership authority; the wire snapshot can lag it. Union each
+        # theme's wire holdings with the merged DB member syms so DB-only
+        # members get priced in this same pass. A cold/absent DB degrades to
+        # wire-only. db_members: wire theme key -> {hyphen sym: source}.
+        db_members: dict[str, dict[str, str]] = {}
+        try:
+            tax = theme_db.get_all_themes()
+            by_key: dict[str, dict] = {}
+            for t in tax.get("themes", []):
+                by_key[t["id"]] = t              # curated-only wire keys ARE the theme id
+                if t.get("etf_ticker"):
+                    by_key.setdefault(t["etf_ticker"], t)
+                if t.get("name"):
+                    by_key.setdefault(t["name"], t)
+            for etf_key, theme_data in raw_themes.items():
+                if not isinstance(theme_data, dict) or etf_key in _EXCLUDED or etf_key == "UCT20":
+                    continue          # UCT20 is leadership-based, not a taxonomy theme
+                t = by_key.get(etf_key) or by_key.get(theme_data.get("name", ""))
+                if not t:
+                    continue
+                db_members[etf_key] = {
+                    _to_hyphen(m.get("sym")): m.get("source", "owner")
+                    for m in t.get("holdings", []) if m.get("sym")
+                }
+        except Exception as e:
+            _logger.debug("[theme-perf] merged-membership union skipped (cold DB): %s", e)
+
+        # Deduplicated symbol list (wire syms ∪ merged DB member syms)
         all_syms: set[str] = set()
         for etf_key, theme_data in raw_themes.items():
             if not isinstance(theme_data, dict) or etf_key in _EXCLUDED:
                 continue
             for sym in _resolve_holdings(etf_key, theme_data, wire):
                 all_syms.add(sym)
+            all_syms.update(db_members.get(etf_key, ()))
 
         # Fetch in parallel with conservative worker count
         returns_map: dict[str, dict] = {}
@@ -245,6 +282,9 @@ def _run_computation() -> None:
             if not isinstance(theme_data, dict) or etf_ticker in _EXCLUDED:
                 continue
             syms = _resolve_holdings(etf_ticker, theme_data, wire)
+            members = db_members.get(etf_ticker, {})
+            have = {_to_hyphen(s) for s in syms}
+            union_syms = list(syms) + [s for s in members if s not in have]
             theme_obj = {
                 "name": theme_data.get("name", etf_ticker),
                 "ticker": etf_ticker,
@@ -254,10 +294,15 @@ def _run_computation() -> None:
                         "sym": sym,
                         "name": sym,
                         "weight_pct": 0.0,
+                        # Membership source: engine-overlay members keep their
+                        # individual return rows but NEVER move the theme
+                        # aggregate (_owner_only_mean, spec §4b). Wire syms not
+                        # in the DB stay owner (counted).
+                        "source": members.get(_to_hyphen(sym), "owner"),
                         "returns": returns_map.get(sym, null_returns.copy()),
                         "ref_prices": refs_map.get(sym, null_returns.copy()),
                     }
-                    for sym in syms
+                    for sym in union_syms
                 ],
             }
             # UCT20: override group return with NAV-based values so past
@@ -301,6 +346,25 @@ def _fetch_live_1d_map(syms: list[str]) -> dict[str, float]:
 _ALL_PERIODS = ("1d", "1w", "1m", "3m", "1y", "ytd")
 
 
+def _owner_only_mean(per_sym_returns: dict, owner_syms: set):
+    """Mean of the OWNER members' returns only — engine-overlay members keep
+    their individual rows but never move the theme number (spec §4b).
+    per_sym_returns and owner_syms must use the same sym form (hyphen upper).
+    None when no owner member has a value."""
+    vals = [v for s, v in per_sym_returns.items() if s in owner_syms and v is not None]
+    return round(sum(vals) / len(vals), 2) if vals else None
+
+
+def _theme_owner_syms(theme: dict) -> set:
+    """Owner basket for a theme's aggregates: holdings whose membership source
+    is not 'engine' (absent source = owner — old persisted data stays fully
+    counted), plus the `_owner_syms` stash when enrichment already ran."""
+    owner = {h["sym"] for h in theme.get("holdings", [])
+             if h.get("sym") and h.get("source", "owner") != "engine"}
+    owner.update(theme.get("_owner_syms") or ())
+    return owner
+
+
 def _apply_live_returns(result: dict) -> dict:
     """Recompute all period returns using real-time price + stored ref prices.
 
@@ -328,7 +392,7 @@ def _apply_live_returns(result: dict) -> dict:
     themes_out = []
     for theme in themes:
         holdings_out = []
-        live_by_period: dict[str, list[float]] = {p: [] for p in _ALL_PERIODS}
+        live_by_period: dict[str, dict[str, float]] = {p: {} for p in _ALL_PERIODS}
 
         for h in theme.get("holdings", []):
             # live is todaysChangePerc (a %, e.g. 1.5 means +1.5%) — NOT a dollar price
@@ -353,27 +417,33 @@ def _apply_live_returns(result: dict) -> dict:
                         val = old_returns.get(period)
                     new_returns[period] = val
                     if val is not None:
-                        live_by_period[period].append(float(val))
+                        live_by_period[period][h["sym"]] = float(val)
                 holdings_out.append({**h, "returns": new_returns})
             else:
                 holdings_out.append(h)
                 for period in _ALL_PERIODS:
                     v = h.get("returns", {}).get(period)
                     if v is not None:
-                        live_by_period[period].append(float(v))
+                        live_by_period[period][h["sym"]] = float(v)
 
+        # Theme aggregate = OWNER basket only (spec §4b): engine-overlay
+        # members keep their individual return rows above but never move the
+        # theme number. Absent source (old persisted data) counts as owner.
+        owner_syms = _theme_owner_syms(theme)
         new_theme = {**theme, "holdings": holdings_out}
         gr = dict(theme.get("group_return") or {})
         if theme.get("ticker") == "UCT20":
             # 1d: live average of current holdings (best intraday approximation)
             # 1w/1m/3m/1y/ytd: keep NAV values — composition-aware, includes
             # stocks that have already rotated out of the list
-            if live_by_period["1d"]:
-                gr["1d"] = round(sum(live_by_period["1d"]) / len(live_by_period["1d"]), 2)
+            v = _owner_only_mean(live_by_period["1d"], owner_syms)
+            if v is not None:
+                gr["1d"] = v
         else:
-            for period, vals in live_by_period.items():
-                if vals:
-                    gr[period] = round(sum(vals) / len(vals), 2)
+            for period, per_sym in live_by_period.items():
+                v = _owner_only_mean(per_sym, owner_syms)
+                if v is not None:
+                    gr[period] = v
         if gr:
             new_theme["group_return"] = gr
 
@@ -385,20 +455,34 @@ def _apply_live_returns(result: dict) -> dict:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def _enrich_with_taxonomy(result: dict) -> dict:
-    """Add sector, tier, and sub-theme metadata from the theme taxonomy DB."""
+    """Add sector, tier, sub-theme + membership-source metadata from the theme
+    taxonomy DB (merged owner + engine-overlay read), and append merged members
+    the wire snapshot doesn't carry yet (they render with null returns until
+    the next recompute prices them).
+
+    Join order: theme id FIRST — curated-only themes carry their theme id as
+    the wire ticker, and the id survives DB-side renames — then name and
+    etf_ticker (setdefault, so they can never clobber an id entry).
+    Also stashes per-theme `_owner_syms` (hyphen form, source != 'engine') for
+    the owner-only group aggregates (spec §4b)."""
     try:
-        from api.services.theme_db import get_all_themes
-        taxonomy = get_all_themes()
+        taxonomy = theme_db.get_all_themes()
         theme_lookup = {}
         for t in taxonomy.get("themes", []):
-            theme_lookup[t["name"]] = t
+            theme_lookup[t["id"]] = t              # id first — beats name drift
+        for t in taxonomy.get("themes", []):
+            theme_lookup.setdefault(t["name"], t)
             if t.get("etf_ticker"):
-                theme_lookup[t["etf_ticker"]] = t
+                theme_lookup.setdefault(t["etf_ticker"], t)
         sector_lookup = {s["id"]: s["name"] for s in taxonomy.get("sectors", [])}
+        # Member maps keyed by HYPHEN sym — wire holdings use hyphen form, the
+        # taxonomy stores dot class-shares (BRK.B).
         member_lookup = {}
         for t in taxonomy.get("themes", []):
-            member_lookup[t["id"]] = {m["sym"]: m for m in t.get("holdings", [])}
+            member_lookup[t["id"]] = {_to_hyphen(m["sym"]): m
+                                      for m in t.get("holdings", []) if m.get("sym")}
 
+        null_returns = {k: None for k in _ALL_PERIODS}
         for theme in result.get("themes", []):
             tax = theme_lookup.get(theme.get("ticker")) or theme_lookup.get(theme.get("name"))
             if not tax:
@@ -408,11 +492,33 @@ def _enrich_with_taxonomy(result: dict) -> dict:
             theme["sub_themes"] = tax.get("sub_themes", [])
             theme["theme_id"] = tax.get("id", "")
             members = member_lookup.get(tax["id"], {})
-            for h in theme.get("holdings", []):
-                m = members.get(h.get("sym"))
+            holdings = theme.setdefault("holdings", [])
+            for h in holdings:
+                m = members.get(_to_hyphen(h.get("sym")))
                 if m:
                     h["tier"] = m.get("tier", "relevant")
                     h["sub_theme_id"] = m.get("sub_theme_id")
+                    h["source"] = m.get("source", "owner")
+            # Merged members the wire snapshot doesn't carry yet — appended in
+            # the same holding shape; priced on the next recompute.
+            have = {_to_hyphen(h.get("sym")) for h in holdings}
+            for hy, m in members.items():
+                if hy in have:
+                    continue
+                holdings.append({
+                    "sym": hy,
+                    "name": hy,
+                    "weight_pct": 0.0,
+                    "returns": null_returns.copy(),
+                    "ref_prices": null_returns.copy(),
+                    "tier": m.get("tier", "relevant"),
+                    "sub_theme_id": m.get("sub_theme_id"),
+                    "source": m.get("source", "owner"),
+                })
+            # Owner basket for the group aggregates (JSON-safe list; consumed
+            # as a membership set by the _owner_only_mean call sites).
+            theme["_owner_syms"] = sorted(
+                hy for hy, m in members.items() if m.get("source", "owner") != "engine")
     except Exception as e:
         _logger.warning("[themes] Taxonomy enrichment failed: %s", e)
     return result
@@ -482,14 +588,17 @@ def compute_rotation_signals() -> dict:
     theme_returns: dict[str, dict] = {}
     for t in themes:
         gr = t.get("group_return") or {}
+        # Fallback averages use the OWNER basket only (spec §4b) — an
+        # engine-overlay member must not move a theme's rotation rank either.
+        owner_syms = _theme_owner_syms(t)
         avg_fallback = {}
         for p in RANK_PERIODS:
             if gr.get(p) is not None:
                 avg_fallback[p] = gr[p]
             else:
-                vals = [h["returns"][p] for h in t.get("holdings", [])
-                        if h.get("returns", {}).get(p) is not None]
-                avg_fallback[p] = (sum(vals) / len(vals)) if vals else None
+                per_sym = {h["sym"]: h["returns"].get(p) for h in t.get("holdings", [])
+                           if h.get("sym") and h.get("returns", {}).get(p) is not None}
+                avg_fallback[p] = _owner_only_mean(per_sym, owner_syms)
         theme_returns[t["ticker"]] = avg_fallback
 
     # Percentile rank per period (0 = worst, 100 = best)
@@ -549,6 +658,17 @@ def compute_rotation_signals() -> dict:
     }
     cache.set(_ROTATION_CACHE_KEY, result, ttl=_ROTATION_CACHE_TTL)
     return result
+
+
+def invalidate_memory_cache() -> None:
+    """Drop the derived in-memory caches so overlay membership changes surface
+    on the next read (theme_engine.invalidate.post_engine_run hook). The base
+    computed-returns cache + disk persist stay — they re-enrich against the
+    fresh merged membership on the next overlay rebuild; newly-added members
+    appear immediately (null returns) and price on the next recompute."""
+    cache.invalidate(_OVERLAID_KEY)
+    cache.invalidate(_ROTATION_CACHE_KEY)
+    cache.invalidate(_LIVE_1D_KEY)
 
 
 def trigger_recompute() -> None:

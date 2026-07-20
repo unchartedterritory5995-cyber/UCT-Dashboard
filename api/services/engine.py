@@ -30,6 +30,7 @@ State file keys (morning_wire_state.json):
 """
 import sys
 import os
+import re
 import json
 import copy
 import pathlib
@@ -382,6 +383,30 @@ def _normalize_exposure(raw: dict) -> dict:
 
 # ─── Themes ───────────────────────────────────────────────────────────────────
 
+# Curated-only themes carry their theme *id* (lowercase snake, e.g.
+# "ai_gpu_chips", "mortgage_reits") as the wire key instead of a real ETF
+# ticker. Snapshotting those against Massive is pure noise (they read as
+# delisted tickers) — filter them out of every live-quote batch.
+_PSEUDO_TICKER_RE = re.compile(r"[a-z0-9_]+")
+
+
+def _snapshot_real_etfs(keys):
+    """Batch-snapshot only the REAL ETF tickers among the wire theme keys —
+    curated-only pseudo-tickers (lowercase snake theme ids) are skipped.
+    Returns the snapshot map ({} when nothing real to quote).
+
+    get_etf_snapshots resolves through module globals first so tests can patch
+    it on this module; otherwise falls back to the lazy massive import (the
+    module-level circular-import guard used across engine.py)."""
+    real = [k for k in (keys or []) if not _PSEUDO_TICKER_RE.fullmatch(k or "")]
+    if not real:
+        return {}
+    snap_fn = globals().get("get_etf_snapshots")
+    if snap_fn is None:
+        from api.services.massive import get_etf_snapshots as snap_fn
+    return snap_fn(real) or {}
+
+
 def get_themes(period: str = "1W") -> dict:
     # ── Today: live intraday via Massive batch snapshot ───────────────────────
     if period == "Today":
@@ -394,14 +419,18 @@ def get_themes(period: str = "1W") -> dict:
         wire_themes = wire.get("themes", {}) if wire else {}
         tickers = list(wire_themes.keys()) if wire_themes else []
 
-        from api.services.massive import get_etf_snapshots
-        snap = get_etf_snapshots(tickers) if tickers else {}
+        snap = _snapshot_real_etfs(tickers)
 
         synthetic = {}
         for ticker, data in wire_themes.items():
             if not isinstance(data, dict):
                 continue
-            synthetic[ticker] = {**data, "Today": snap.get(ticker, 0.0)}
+            if _PSEUDO_TICKER_RE.fullmatch(ticker or ""):
+                # Curated-only theme — no live ETF to quote. Renderers already
+                # handle a missing Today value.
+                synthetic[ticker] = {**data, "Today": None}
+            else:
+                synthetic[ticker] = {**data, "Today": snap.get(ticker, 0.0)}
 
         result = _normalize_themes(synthetic, "Today")
         cache.set(cache_key, result, ttl=30)

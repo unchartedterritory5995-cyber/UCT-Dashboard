@@ -52,9 +52,31 @@ def _et_date_str(t_ms: int) -> str:
     return datetime.fromtimestamp(t_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
 
 
+def _merged_db_syms(etf_key: str, td: dict) -> list[str]:
+    """The theme's merged (owner + engine-overlay) member syms from theme_db,
+    hyphen-normalized. [] when the theme isn't in the taxonomy. Raises on a
+    cold/absent DB — the caller degrades to wire holdings."""
+    from api.services import theme_db
+    tid = None
+    want = _slugify(td.get("name") or "")
+    for t in theme_db.get_all_themes().get("themes", []):
+        if (t["id"] == etf_key or (t.get("etf_ticker") or "") == etf_key
+                or _slugify(t.get("name") or "") == want):
+            tid = t["id"]
+            break
+    if not tid:
+        return []
+    return [(h.get("sym") or "").strip().upper().replace(".", "-")
+            for h in theme_db.get_theme_holdings(tid) if h.get("sym")]
+
+
 def resolve_theme(slug: str) -> Optional[tuple[str, dict, list[str]]]:
     """Find a theme by slug (slugified name) or etf_key. Returns
-    (etf_key, theme_data, holdings) or None."""
+    (etf_key, theme_data, holdings) or None.
+
+    Holdings prefer the merged theme_db membership (owner + engine overlay —
+    the membership authority) over the wire snapshot; a cold/absent DB or a
+    theme not in the taxonomy (e.g. UCT20) degrades to wire holdings."""
     wire = _load_wire_data() or {}
     raw_themes = wire.get("themes", {}) or {}
     if not isinstance(raw_themes, dict):
@@ -65,8 +87,21 @@ def resolve_theme(slug: str) -> Optional[tuple[str, dict, list[str]]]:
             continue
         if _slugify(td.get("name", "")) == want or _slugify(etf_key) == want:
             holdings = _resolve_holdings(etf_key, td, wire)[:_MAX_HOLDINGS]
+            try:
+                db_syms = _merged_db_syms(etf_key, td)
+                if db_syms:
+                    holdings = db_syms[:_MAX_HOLDINGS]
+            except Exception:
+                pass  # cold DB — wire-only basket still serves
             return etf_key, td, holdings
     return None
+
+
+def invalidate_cache() -> None:
+    """Drop every cached theme-index series (theme_engine.invalidate hook) so
+    overlay membership changes rebuild the synthetic index with the merged
+    basket on the next request."""
+    cache.delete_prefix("theme_index::")
 
 
 def _compute_index_bars(holdings_bars: dict[str, list[dict]]) -> list[dict]:

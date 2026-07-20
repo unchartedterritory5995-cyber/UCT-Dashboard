@@ -114,21 +114,33 @@ def invalidate_sizes():
 
 
 def _rotation_order():
-    """theme_name (lower) -> rank index, hottest first (highest 1-week rank
-    percentile from theme-rotation). {} when the rotation cache is cold /
-    unavailable, so list_groups() falls back to name order."""
+    """{key -> rank index, hottest first (highest 1-week rank percentile from
+    theme-rotation)}. Each ranking row is keyed BOTH by its wire ticker
+    (etf-ticker-or-theme-id — exactly what compute_rotation_signals keys
+    rankings by) AND by its lowercased theme name, so list_groups() can look
+    up etf_ticker/id first and only fall back to name — a wire↔DB name drift
+    can no longer silently sink a theme to the cold bottom. {} when the
+    rotation cache is cold / unavailable (falls back to name order)."""
     try:
         from api.services import theme_performance
         sig = theme_performance.compute_rotation_signals()
         rankings = (sig or {}).get("rankings") or {}
         rows = []
-        for entry in rankings.values():
+        for wire_tk, entry in rankings.items():
             nm = (entry.get("name") or "").strip().lower()
+            tk = entry.get("ticker") or wire_tk or nm
+            if tk or nm:
+                rows.append((entry.get("1w_rank"), tk, nm))
+        # Hottest first: highest 1w_rank; None ranks sink last; key for ties.
+        rows.sort(key=lambda r: (-(r[0]) if r[0] is not None else float("inf"),
+                                 str(r[1] or r[2] or "")))
+        order = {}
+        for i, (_, tk, nm) in enumerate(rows):
+            if tk:
+                order.setdefault(tk, i)
             if nm:
-                rows.append((entry.get("1w_rank"), nm))
-        # Hottest first: highest 1w_rank; None ranks sink last; name for ties.
-        rows.sort(key=lambda r: (-(r[0]) if r[0] is not None else float("inf"), r[1]))
-        return {nm: i for i, (_, nm) in enumerate(rows)}
+                order.setdefault(nm, i)
+        return order
     except Exception:
         return {}
 
@@ -153,8 +165,17 @@ def list_groups() -> list:
         })
     # Hot themes first (rotation rank); themes not in the signal sink to the
     # bottom in stable name order — cold cache => plain alphabetical.
+    # Lookup order mirrors _rotation_order's dual keys: the wire ticker
+    # (etf_ticker or theme id) is authoritative, name is the drift fallback.
     big = len(rows) + 1
-    rows.sort(key=lambda r: (order.get((r["name"] or "").strip().lower(), big), r["name"]))
+
+    def _rank(r):
+        v = order.get(r.get("etf_ticker") or r["id"])
+        if v is None:
+            v = order.get((r["name"] or "").strip().lower(), big)
+        return v
+
+    rows.sort(key=lambda r: (_rank(r), r["name"]))
     return rows
 
 
