@@ -651,7 +651,17 @@ def _empty_result():
 # ── File cache + auto-prebuild ──────────────────────────────────────────
 
 CACHE_DIR = os.path.join(os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "/data"), "darkpool_cache")
+# Bump this whenever the aggregation LOGIC changes. The disk cache is keyed by
+# _db_signature() (data), which does NOT change on a code deploy — so without
+# a code version an old (possibly buggy) cached result keeps being served until
+# the next data upload. Prefixing the sig with AGG_CODE_VERSION makes every
+# window auto-rebuild on the first request after a logic change ships.
+AGG_CODE_VERSION = "2"
 COMMON_WINDOWS = [1, 5, 20, 60, 90]  # plus "all"
+# Build order: the page default (90d — DarkPool.jsx fetchDays=90) FIRST, so
+# the first visitor after a rebuild lands on a warm default window instead of
+# waiting for it near the end; then descending, then "all".
+PREBUILD_ORDER = [90, 60, 20, 5, 1]
 
 
 def _cache_path(days):
@@ -678,32 +688,68 @@ def _db_signature():
         return None
 
 
+# Single-flight per window: concurrent cold-cache callers for the same window
+# coalesce onto ONE build instead of each allocating a full multi-hundred-MB
+# aggregation (herd protection, mirrors the /data router's build lock).
+_agg_build_locks = {}
+_agg_build_locks_guard = threading.Lock()
+
+
+def _agg_lock_for(key):
+    with _agg_build_locks_guard:
+        lk = _agg_build_locks.get(key)
+        if lk is None:
+            lk = threading.Lock()
+            _agg_build_locks[key] = lk
+        return lk
+
+
+def _cache_sig():
+    """Cache signature = code version + DB signature. The code-version prefix
+    means a logic change (AGG_CODE_VERSION bump) invalidates every window on the
+    next request, even when the underlying data (and thus _db_signature) is
+    unchanged."""
+    db = _db_signature()
+    return None if db is None else f"{AGG_CODE_VERSION}:{db}"
+
+
 def get_aggregated(days=None, all_data=False):
-    """Return aggregated dict — from cache when DB signature matches,
-    otherwise compute fresh and write back to cache."""
+    """Return aggregated dict — from cache when DB signature matches, otherwise
+    compute fresh and write back to cache. Single-flight per window so a herd on
+    a cold window builds once rather than N times."""
     cache_key_days = None if all_data else days
     cache_file = _cache_path(cache_key_days)
-    sig = _db_signature()
+    sig = _cache_sig()
 
-    if os.path.exists(cache_file):
+    def _read_if_fresh():
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    cached = json.load(f)
+                if cached.get("_sig") == sig:
+                    return cached["payload"]
+            except Exception as e:
+                print(f"[darkpool_agg] cache read failed {cache_file}: {e}")
+        return None
+
+    hit = _read_if_fresh()
+    if hit is not None:
+        return hit
+
+    with _agg_lock_for(cache_key_days):
+        hit = _read_if_fresh()  # another thread may have built it while we waited
+        if hit is not None:
+            return hit
+        result = aggregate(days=days, all_data=all_data)
         try:
-            with open(cache_file, "r", encoding="utf-8") as f:
-                cached = json.load(f)
-            if cached.get("_sig") == sig:
-                return cached["payload"]
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            tmp = cache_file + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"_sig": sig, "payload": result}, f)
+            os.replace(tmp, cache_file)
         except Exception as e:
-            print(f"[darkpool_agg] cache read failed {cache_file}: {e}")
-
-    result = aggregate(days=days, all_data=all_data)
-    try:
-        os.makedirs(CACHE_DIR, exist_ok=True)
-        tmp = cache_file + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"_sig": sig, "payload": result}, f)
-        os.replace(tmp, cache_file)
-    except Exception as e:
-        print(f"[darkpool_agg] cache write failed {cache_file}: {e}")
-    return result
+            print(f"[darkpool_agg] cache write failed {cache_file}: {e}")
+        return result
 
 
 def invalidate_cache():
@@ -738,8 +784,8 @@ def prebuild_all_windows():
     try:
         # Invalidate first so the fresh aggregates land in cache slots
         invalidate_cache()
-        print(f"[darkpool_agg] prebuild start: {COMMON_WINDOWS} + all")
-        for n in COMMON_WINDOWS:
+        print(f"[darkpool_agg] prebuild start (default-first): {PREBUILD_ORDER} + all")
+        for n in PREBUILD_ORDER:
             try:
                 get_aggregated(days=n)
             except Exception as e:
@@ -762,3 +808,46 @@ def prebuild_all_windows_background():
         daemon=True,
         name="darkpool-prebuild",
     ).start()
+
+
+def _is_warm(days):
+    """True if the on-disk cache for this window exists AND matches the current
+    DB signature (no rebuild needed)."""
+    cf = _cache_path(days)
+    if not os.path.exists(cf):
+        return False
+    try:
+        with open(cf, "r", encoding="utf-8") as f:
+            cached = json.load(f)
+        return cached.get("_sig") == _cache_sig()
+    except Exception:
+        return False
+
+
+def prewarm_if_cold():
+    """Boot-time prewarm. No-op when the common windows are already warm on disk
+    (the usual case after a redeploy — the /data cache survives). When a window
+    is cold (e.g. a data upload that didn't run the prebuild, or a fresh volume),
+    rebuild ONLY the cold windows in a background thread, page-default (90d)
+    first, WITHOUT invalidating the warm ones."""
+    if _db_signature() is None:
+        return  # DB not ready yet
+    cold = [d for d in COMMON_WINDOWS if not _is_warm(d)]
+    if not _is_warm(None):
+        cold.append(None)  # the "all" window
+    if not cold:
+        print("[darkpool_agg] prewarm: cache already warm — skip")
+        return
+    print(f"[darkpool_agg] prewarm: cold windows {cold} — building in background")
+
+    def _run():
+        # page default (90d) first, then descending windows, then "all"
+        order = sorted(cold, key=lambda d: (d is None, d != 90, -(d or 0)))
+        for d in order:
+            try:
+                get_aggregated(all_data=True) if d is None else get_aggregated(days=d)
+            except Exception as e:
+                print(f"[darkpool_agg] prewarm d{d} FAILED: {e}")
+        print("[darkpool_agg] prewarm complete")
+
+    threading.Thread(target=_run, daemon=True, name="darkpool-prewarm").start()
