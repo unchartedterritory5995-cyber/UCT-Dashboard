@@ -24,6 +24,8 @@ def _conn():
     return contextlib.closing(get_connection())
 
 def _exec_retry(sql, params=(), tries=3):
+    """Single-statement autocommit with lock retry. NOTE: returns a cursor whose
+    connection is CLOSED — .rowcount is valid (cached), .fetch*() is not."""
     for i in range(tries):
         try:
             with _conn() as c:
@@ -80,10 +82,18 @@ def start_run(kind: str) -> str:
     _exec_retry("INSERT INTO engine_runs (run_id, kind) VALUES (?,?)", (run_id, kind))
     return run_id
 
+_FINISH_COLS = {"examined", "added", "retiered", "dropped", "skipped", "cost_usd", "error"}
+
 def finish_run(run_id: str, **counts):
     # Task-5 note (pre-approved deviation): drop None values so a caller passing
     # e.g. dropped=None can never render "dropped=?" with a NULL bind.
     counts = {k: v for k, v in counts.items() if v is not None}
+    # Column allowlist (review Important #1): the f-string interpolates KEYS into
+    # SQL against auth.db — keys must never be attacker-influencable, so reject
+    # anything outside the fixed engine_runs count columns outright.
+    bad = set(counts) - _FINISH_COLS
+    if bad:
+        raise ValueError(f"finish_run: disallowed columns {sorted(bad)}")
     cols = ", ".join(f"{k}=?" for k in counts)
     _exec_retry(f"UPDATE engine_runs SET finished_at=datetime('now'){', ' + cols if cols else ''} WHERE run_id=?",
                 (*counts.values(), run_id))
@@ -103,8 +113,18 @@ def log_cost(run_id: str, model: str, input_tokens: int, output_tokens: int) -> 
     return cost
 
 def day_cost_usd() -> float:
+    """Today's engine spend, with 'today' = the ET calendar day (house convention;
+    review Important #2 — a UTC boundary would refresh the daily cap mid-evening
+    ET, allowing ~2x the intended spend in one trading day). `at` is stored UTC,
+    so we pass the UTC instant of ET midnight computed in Python."""
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+    et_midnight = datetime.now(ZoneInfo("America/New_York")).replace(
+        hour=0, minute=0, second=0, microsecond=0)
+    cutoff_utc = et_midnight.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     with _conn() as c:
-        row = c.execute("SELECT COALESCE(SUM(cost_usd),0) FROM engine_cost_log WHERE at >= date('now')").fetchone()
+        row = c.execute("SELECT COALESCE(SUM(cost_usd),0) FROM engine_cost_log WHERE at >= ?",
+                        (cutoff_utc,)).fetchone()
     return float(row[0] or 0.0)
 
 def _event(run_id, theme_id, sym_dot, event, old_tier=None, new_tier=None):
@@ -208,7 +228,9 @@ def reset_audit_low(theme_id, sym_hy):
 
 def rollback_run(run_id: str) -> dict:
     """Inverse-replay the run's events, newest first. add->delete; retier->restore
-    old_tier; drop->reinsert at old_tier (confidence NULL, rationale marks restore)."""
+    old_tier; drop->reinsert at old_tier (confidence NULL, rationale marks restore).
+    Callers roll back NEWEST run first (an older-run rollback can remove rows a
+    newer run re-tiered). suppress events are NOT inverted (spec scope)."""
     with _conn() as c:
         events = c.execute("SELECT * FROM engine_membership_events WHERE run_id=? ORDER BY id DESC", (run_id,)).fetchall()
     undone = {"add": 0, "retier": 0, "drop": 0}
