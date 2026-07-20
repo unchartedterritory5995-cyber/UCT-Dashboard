@@ -2116,26 +2116,55 @@ async def lifespan(app: FastAPI):
     # -- Darkpool DB: auto-seed from static CSV if available ----------------
     def _darkpool_db_seed_background():
         try:
+            import hashlib
             from api import darkpool_db
             _stats = darkpool_db.get_stats()
             _public_dir = os.path.join(os.path.dirname(__file__), "..", "app", "public")
             _dp_csv = os.path.join(_public_dir, "Darkpool-data.csv")
+            # Persist the last-merged CSV content hash on the /data volume so a
+            # plain code deploy (identical CSV) SKIPS the merge entirely and never
+            # touches the live table. Content hash — not mtime — because the file
+            # is rewritten on every git checkout, so mtime always looks "changed".
+            _sig_path = os.path.join(
+                os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "/data"), "darkpool_csv.sha")
 
-            if _stats["total_rows"] == 0:
-                if os.path.exists(_dp_csv):
-                    with open(_dp_csv, "r", encoding="utf-8-sig") as _f:
-                        _result = darkpool_db.insert_csv_rows(_f.read())
-                    print(f"[startup] Darkpool DB seeded: {_result['inserted']:,} new rows from Darkpool-data.csv ({_result['total']:,} total in file)")
-                else:
-                    print(f"[startup] Darkpool DB: no Darkpool-data.csv found at {_dp_csv}")
+            def _csv_sha(path):
+                _h = hashlib.sha256()
+                with open(path, "rb") as _b:
+                    for _chunk in iter(lambda: _b.read(1 << 20), b""):
+                        _h.update(_chunk)
+                return _h.hexdigest()
+
+            def _read_sig():
+                try:
+                    with open(_sig_path, "r") as _s:
+                        return _s.read().strip()
+                except Exception:
+                    return None
+
+            if not os.path.exists(_dp_csv):
+                print(f"[startup] Darkpool DB: no Darkpool-data.csv found at {_dp_csv}")
             else:
-                if os.path.exists(_dp_csv):
+                _sha = _csv_sha(_dp_csv)
+                if _stats["total_rows"] > 0 and _sha == _read_sig():
+                    # DB already holds this exact CSV — skip so a code deploy can't
+                    # re-parse, re-insert, or re-import anything. Only a genuinely
+                    # changed CSV (new hash) re-merges; the insert-guard keeps
+                    # NULL/<=0-notional junk out on that merge.
+                    print(f"[startup] Darkpool DB: {_stats['total_rows']:,} rows, "
+                          f"{_stats['trading_days']} days -- CSV unchanged, skip seed")
+                else:
                     with open(_dp_csv, "r", encoding="utf-8-sig") as _f:
                         _result = darkpool_db.insert_csv_rows(_f.read())
-                    if _result["inserted"] > 0:
-                        print(f"[startup] Darkpool DB: +{_result['inserted']:,} new rows, {_result['duplicates']:,} dupes skipped")
-                    else:
-                        print(f"[startup] Darkpool DB: {_stats['total_rows']:,} rows, {_stats['trading_days']} days -- up to date")
+                    try:
+                        with open(_sig_path, "w") as _s:
+                            _s.write(_sha)
+                    except Exception as _we:
+                        print(f"[startup] Darkpool DB: could not write CSV sig: {_we}")
+                    _skipped = _result.get("skipped_invalid", 0)
+                    print(f"[startup] Darkpool DB seeded/merged: +{_result['inserted']:,} new, "
+                          f"{_result['duplicates']:,} dupes, {_skipped:,} skipped-invalid "
+                          f"({_result['total']:,} in file)")
 
             # Auto-prune to 120 trading days (matches darkpool retention policy)
             _pruned = darkpool_db.prune_old_data(keep_days=120)
