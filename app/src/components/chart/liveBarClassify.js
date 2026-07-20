@@ -33,11 +33,24 @@ export function classifyLiveBar({ tf, last, live, tickSec, nowSec }) {
   if (!last || last.time == null) return { kind: 'skip' }
   const isDWM = DWM.has(tf)
 
-  // ── Intraday: purely timestamp-driven (unchanged behavior) ──────────────
+  // ── Intraday: timestamp-driven ──────────────────────────────────────────
   if (!isDWM) {
     if (tickSec) {
       const barTime = computeBarTime(tf, tickSec)
       if (barTime !== last.time && barTime > last.time) return { kind: 'new', time: barTime }
+      return { kind: 'update' }
+    }
+    // REST floor: the tick has NO timestamp, so we can't confirm which bucket it
+    // belongs to. Blindly folding it into `last` is only safe when `last` IS the
+    // current bucket. If `now` is already PAST last's bucket, the chart is
+    // missing candles (e.g. a stale intraday cache after a fast scan) — folding
+    // the live price onto that stale bar fuses the whole gap into ONE giant
+    // candle (the MSFT 5m artifact). SKIP instead; the 30s delta poll / push
+    // feed fills the gap with real bars. (We don't CREATE a bar from nowSec —
+    // an off-hours straggler could land on a non-trading bucket.)
+    if (typeof nowSec === 'number') {
+      const curBar = computeBarTime(tf, nowSec)
+      if (curBar != null && curBar > last.time) return { kind: 'skip' }
     }
     return { kind: 'update' }
   }

@@ -19,10 +19,25 @@ describe('classifyLiveBar — intraday (timestamp-driven, unchanged)', () => {
     expect(d.kind).toBe('update')
   })
 
-  it('update (never new) when the tick has no timestamp', () => {
+  it('update (never new) when the tick has no timestamp AND no nowSec', () => {
     const last = { time: computeBarTime('5', MON_1400_ET), close: 7.0 }
     const d = classifyLiveBar({ tf: '5', last, live: {}, tickSec: undefined })
     expect(d.kind).toBe('update')
+  })
+
+  it('no-timestamp tick folds into last when last IS the current bucket', () => {
+    // REST floor (no tickSec) but the last bar is the current 5m bucket → update.
+    const last = { time: computeBarTime('5', MON_1400_ET), close: 7.0 }
+    const d = classifyLiveBar({ tf: '5', last, live: {}, tickSec: undefined, nowSec: MON_1400_ET + 30 })
+    expect(d.kind).toBe('update')
+  })
+
+  it('SKIP a no-timestamp tick when now is past the stale last bucket (no giant candle)', () => {
+    // last bar is ~90 min stale; a REST tick (no timestamp) must NOT fold the
+    // current price onto it (that fuses the whole gap into one giant candle).
+    const last = { time: computeBarTime('5', MON_1400_ET), close: 390 }
+    const d = classifyLiveBar({ tf: '5', last, live: {}, tickSec: undefined, nowSec: MON_1400_ET + 90 * 60 })
+    expect(d.kind).toBe('skip')
   })
 })
 
