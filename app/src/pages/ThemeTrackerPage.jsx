@@ -11,7 +11,7 @@ import useThemeIndexBars from '../hooks/useThemeIndexBars'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
-import { prefetchBar, prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent } from '../utils/prefetchBars'
+import { prefetchBar, prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes } from '../utils/prefetchBars'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
@@ -297,6 +297,10 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         // that's the default chart TF a click lands on.
         prefetchBarsToIDB(syms, chartPeriod)
         if (chartPeriod !== 'D') prefetchBarsToIDB(syms, 'D')
+        // Warm the whole group across ALL scan timeframes (intraday too) into
+        // durable IDB so scrolling this theme is instant on 5m/30m/1h, not just
+        // daily. Bounded/idle-deferred — never competes with the active chart.
+        prefetchListAllTimeframes(syms)
       }
       return ticker                      // opening a new one closes the previous
     })

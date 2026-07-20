@@ -151,6 +151,26 @@ function _idbKickSoon() {
   else _idbKick = setTimeout(go, 1000)
 }
 
+// Warm a WHOLE list across every timeframe users scan, into durable IDB, so
+// scrolling the list is instant on ANY timeframe — not just the pre-warmed daily.
+//
+// Why this exists: daily scans smooth because D/W/M are warm in IDB, but intraday
+// TFs (60/30/15/5) were fetched on-DEMAND per ticker switch → the "lag on 5min/
+// hourly" while scanning. The backend worker already caches 60/30/15 for the
+// active set (watchlists / theme holdings), so warming those into the browser is
+// mostly fast cache-hits; 5m is the only cold one. Everything rides the SAME
+// bounded (3-concurrent) idle-deferred IDB queue, so it never competes with the
+// chart the user is actively loading, and already-warm (sym,tf) pairs skip their
+// fetch. Capped so a huge watchlist can't flood the queue.
+const SCAN_WARM_TFS = ['D', '60', '30', '15', '5']
+const SCAN_WARM_CAP = 100
+export function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {
+  if (!tickers?.length) return
+  const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+  if (!list.length) return
+  for (const tf of tfs) prefetchBarsToIDB(list, tf)
+}
+
 // Warm a list of tickers' bars into IndexedDB for instant, refresh-proof loads.
 export function prefetchBarsToIDB(tickers, tf = 'D') {
   if (!tickers?.length) return

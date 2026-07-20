@@ -12,7 +12,7 @@ import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import useTagColors from '../hooks/useTagColors'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
-import { prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent } from '../utils/prefetchBars'
+import { prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes } from '../utils/prefetchBars'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
@@ -384,6 +384,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   const { prices } = useRealtimePrices(allTickers)
   const { perfData } = useWatchlistPerformance(visiblePerf.size > 0 ? allTickers : [])
+
+  // Pre-warm EVERY visible ticker across all scan timeframes (into durable IDB)
+  // so arrowing/scrolling the list is instant on intraday TFs (5m/30m/1h), not
+  // just the pre-warmed daily. Debounced + bounded (the shared IDB queue idles
+  // behind the active chart); already-warm pairs skip. Runs once the list settles.
+  useEffect(() => {
+    if (!allTickers.length) return
+    const t = setTimeout(() => prefetchListAllTimeframes(allTickers), 1200)
+    return () => clearTimeout(t)
+  }, [allTickers])
 
   // Moved here from earlier in the file — depends on `prices` and `perfData`,
   // which are declared above. Putting it earlier hits a TDZ on those consts
