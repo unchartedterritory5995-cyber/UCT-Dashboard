@@ -214,7 +214,13 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
   )
 }
 
-export default function ThemeTrackerPage({ embedded = false }) {
+export default function ThemeTrackerPage({ embedded = false, activeRef = null, widgetKey = null }) {
+  // Arrow-key nav is LOCKED to whichever list widget you last clicked (theme
+  // tracker vs a Watchlist widget), via a single shared activeRef in the charts
+  // workspace. Claiming it on click means arrows keep scanning THIS list until
+  // you click into another — they never jump to the watchlist just from hover.
+  const isActiveWidget = () => !activeRef || activeRef.current == null || activeRef.current === widgetKey
+  const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
   const [activeTab, setActiveTab] = useState('Today')  // always open on Today (not persisted → resets every load)
   const { data, isLoading } = useMobileSWR('/api/theme-performance', fetcher, {
     // 10s so the theme %s stay near-live and the leaderboard re-sorts in order.
@@ -311,6 +317,7 @@ export default function ThemeTrackerPage({ embedded = false }) {
   }, [hubSym])  // intentionally do NOT depend on selectedSym (avoid feedback loop)
 
   function handleSelect(sym, name, themeTicker) {
+    markActiveWidget()   // clicking a name locks arrow-nav to this list widget
     setSelectedSym(sym)
     setSelectedNavKey(themeTicker ? `${themeTicker}::${sym}` : null)
     setHubSym(sym)
@@ -428,6 +435,8 @@ export default function ThemeTrackerPage({ embedded = false }) {
 
   const handleKeyDown = useCallback((e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    // Another list widget owns the arrows (user last clicked it) — don't fight it.
+    if (activeRef && activeRef.current != null && activeRef.current !== widgetKey) return
     // Don't hijack arrows while user is typing in the search input,
     // any inline editor, etc.
     const tgt = e.target
@@ -443,6 +452,8 @@ export default function ThemeTrackerPage({ embedded = false }) {
     // widget's arrow handler (e.g., a Watchlist widget on the same page).
     if (idx < 0 && selectedSym) return
     e.preventDefault()
+    e.stopImmediatePropagation()   // this widget owns the arrow — don't double-handle
+    markActiveWidget()             // keep the lock here as you keep scanning
     const nextIdx = idx < 0
       ? (e.key === 'ArrowDown' ? 0 : allStocks.length - 1)
       : (e.key === 'ArrowDown'
@@ -461,7 +472,7 @@ export default function ThemeTrackerPage({ embedded = false }) {
     setTimeout(() => {
       rowRefs.current[stock.key]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }, 30)
-  }, [allStocks, selectedSym, selectedNavKey, setHubSym])
+  }, [allStocks, selectedSym, selectedNavKey, setHubSym, activeRef, widgetKey])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -503,7 +514,11 @@ export default function ThemeTrackerPage({ embedded = false }) {
   }, [selectedSym, isFlagged, toggleFlag])
 
   return (
-    <div className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}>
+    <div
+      className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}
+      onPointerDown={markActiveWidget}
+      onFocusCapture={markActiveWidget}
+    >
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
 

@@ -994,7 +994,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }
 
   return (
-    <div ref={pageRef} className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`} onPointerEnter={markActiveWidget} onFocusCapture={markActiveWidget}>
+    <div ref={pageRef} className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`} onPointerDown={markActiveWidget} onFocusCapture={markActiveWidget}>
 
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
