@@ -52,6 +52,79 @@ function changePctClass(val) {
   return ''
 }
 
+function fmtVol(v) {
+  if (v == null || !Number.isFinite(v)) return '—'
+  if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B'
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
+  if (v >= 1e3) return (v / 1e3).toFixed(v >= 1e5 ? 0 : 1) + 'K'
+  return String(v)
+}
+
+// Memoized columnar ticker row: Flag(star) | Symbol(logo) | Price | Volume | % Change.
+// PERF: this is the single hottest render path — with 4 watchlist widgets × ~150 rows,
+// a naive re-render on every arrow-key selection change reconciles ~600 rows per keypress
+// and makes fast scanning lag. React.memo + all-primitive props + stable callbacks means a
+// selection change only re-renders the TWO rows whose `selected` flipped (see WatchlistWidget
+// setSym stability + the stable onRow* callbacks + memoized orderedKeys in the parent).
+const WatchRow = React.memo(function WatchRow({
+  sym, name, price, changePct, volume, flagged, selected, orderedKeys,
+  isOwner, itemId, notes, wlId, noteOpen, alertOn,
+  onSelect, onToggleFlag, onIntent, onToggleNote, onSetAlert, onCtx, onRemove,
+}) {
+  const cellFor = (key) => {
+    if (key === 'flag') return (
+      <button
+        key="flag"
+        className={`${styles.flagStar}${flagged ? ' ' + styles.flagStarActive : ''}`}
+        onClick={e => { e.stopPropagation(); onToggleFlag(sym) }}
+        title={flagged ? 'Remove from Flagged' : 'Add to Flagged (Shift+F)'}
+      >{flagged ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
+    )
+    if (key === 'sym') return (
+      <span key="sym" className={styles.symCell} onContextMenu={wlId ? (e => onCtx(e, sym, wlId, isOwner)) : undefined}>
+        <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={16} round /></span>
+        <span className={styles.rowSym}>{sym}</span>
+      </span>
+    )
+    if (key === 'price') return <span key="price" className={styles.priceCell}>{price != null ? price.toFixed(2) : '—'}</span>
+    if (key === 'vol') return <span key="vol" className={styles.volCell}>{fmtVol(volume)}</span>
+    if (key === 'chg') return (
+      <span key="chg" className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
+        {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
+      </span>
+    )
+    return null
+  }
+  return (
+    <div
+      data-watch-sym={sym}
+      className={`${styles.listRow} ${styles.wlRow}${selected ? ' ' + styles.listRowSelected : ''}`}
+      onClick={() => onSelect(sym)}
+      onPointerEnter={() => onIntent(sym)}
+      onFocus={() => onIntent(sym)}
+    >
+      {orderedKeys.map(cellFor)}
+      {isOwner && (
+        <div className={styles.rowActions} onClick={e => e.stopPropagation()}>
+          <button
+            className={`${styles.noteBtn}${noteOpen ? ' ' + styles.noteBtnActive : ''}`}
+            onClick={() => onToggleNote(itemId, notes)}
+            title="Notes"
+          ><UIcon name="edit" size={12} /></button>
+          <button
+            className={`${styles.alertBtn}${alertOn ? ' ' + styles.alertBtnActive : ''}`}
+            onClick={e => onSetAlert(sym, e)}
+            title="Set price alert"
+          ><UIcon name="bell" size={12} /></button>
+          {onRemove && (
+            <button className={styles.removeBtn} onClick={e => onRemove(e, wlId, itemId)} title="Remove from this list">×</button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+})
+
 function AddItemRow({ onAdd }) {
   const [sym, setSym] = useState('')
   return (
@@ -565,11 +638,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }
   // Columns in the user's chosen ORDER; flag + sym always shown, price/vol/chg unless hidden.
   const colOrder = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
-  const orderedKeys = (() => {
-    const ks = colOrder.filter(k => (k === 'flag' || k === 'sym') || !colHidden[k])
+  // Memoized so its reference is stable across selection-change re-renders (WatchRow is
+  // React.memo — a new array here would break row memoization on every keypress).
+  const orderedKeys = useMemo(() => {
+    const hidden = colCfg.hidden || {}
+    const order = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
+    const ks = order.filter(k => (k === 'flag' || k === 'sym') || !hidden[k])
     DEFAULT_COL_ORDER.forEach(k => { if ((k === 'flag' || k === 'sym') && !ks.includes(k)) ks.unshift(k) })  // never lose flag/sym
     return ks
-  })()
+  }, [colCfg])
   const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
   const gridTemplate = [...orderedKeys.map(k => `${colWidth(k)}px`), 'minmax(0, 1fr)'].join(' ')
 
@@ -679,78 +756,54 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     </div>
   )
 
-  // Compact volume: 24.0M / 205K / 1.2B.
-  const fmtVol = (v) => {
-    if (v == null || !Number.isFinite(v)) return '—'
-    if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B'
-    if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
-    if (v >= 1e3) return (v / 1e3).toFixed(v >= 1e5 ? 0 : 1) + 'K'
-    return String(v)
-  }
+  // ── Stable per-row callbacks (see WatchRow). Each is referentially stable across
+  // selection-change re-renders so React.memo keeps the untouched rows from re-rendering.
+  // Handlers that read mutable render state reach it through a ref, so the callback identity
+  // never changes even as the underlying value does. ──
+  const rowStateRef = useRef({})
+  rowStateRef.current = { setHubSym, toggleFlag, toggleNote, hasAlert, handleRemoveItem, setCtxMenu, myLists, communityLists }
+  const onRowSelect = useCallback((sym) => { setSelectedSym(sym); rowStateRef.current.setHubSym(sym) }, [])
+  const onRowFlag = useCallback((sym) => rowStateRef.current.toggleFlag(sym), [])
+  const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, 'D'), [])
+  const onRowNote = useCallback((itemId, notes) => rowStateRef.current.toggleNote(itemId, notes), [])
+  const onRowAlert = useCallback((sym, e) => { setAlertPopover({ sym, x: e.clientX, y: e.clientY }); setAlertPrice(''); setAlertDir('above') }, [])
+  const onRowCtx = useCallback((e, sym, wlId, isOwner) => {
+    e.preventDefault(); e.stopPropagation()
+    const wl = (rowStateRef.current.myLists || []).find(l => l.id === wlId)
+      || (rowStateRef.current.communityLists || []).find(l => l.id === wlId)
+    rowStateRef.current.setCtxMenu({ x: e.clientX, y: e.clientY, id: wlId, isOwner, symbols: (wl?.items || []).map(i => i.sym), sym })
+  }, [])
+  const onRowRemove = useCallback((e, wlId, itemId) => { e.stopPropagation(); rowStateRef.current.handleRemoveItem(wlId, itemId) }, [])
 
-  // Shared columnar ticker row: Flag(star) | Symbol(logo) | Price | Volume | % Change.
-  // The star reflects + toggles Flagged-list membership. Owner rows reveal notes +
-  // alert icons on hover (overlaid at the right). name/isOwner/notes are optional.
-  function renderTickerRow({ sym, name = null, isOwner = false, itemId = null, notes = null, onCtx = null, onRemove = null }) {
+  // Thin wrapper: compute this row's primitive props + hand it the stable callbacks.
+  // `wlId` (owner watchlist rows only) enables the right-click context menu + remove button.
+  function renderTickerRow({ sym, name = null, isOwner = false, itemId = null, notes = null, wlId = null }) {
     const q = prices[sym]
-    const price = q?.price ?? null
-    const changePct = q?.change_pct ?? null
-    const volume = q?.volume ?? null
-    const flg = isFlagged(sym)
-    const selected = selectedSym === sym
-    // One cell per key, rendered in the user's column order.
-    const cellFor = (key) => {
-      if (key === 'flag') return (
-        <button
-          key="flag"
-          className={`${styles.flagStar}${flg ? ' ' + styles.flagStarActive : ''}`}
-          onClick={e => { e.stopPropagation(); toggleFlag(sym) }}
-          title={flg ? 'Remove from Flagged' : 'Add to Flagged (Shift+F)'}
-        >{flg ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
-      )
-      if (key === 'sym') return (
-        <span key="sym" className={styles.symCell} onContextMenu={onCtx || undefined}>
-          <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={16} round /></span>
-          <span className={styles.rowSym}>{sym}</span>
-        </span>
-      )
-      if (key === 'price') return <span key="price" className={styles.priceCell}>{price != null ? price.toFixed(2) : '—'}</span>
-      if (key === 'vol') return <span key="vol" className={styles.volCell}>{fmtVol(volume)}</span>
-      if (key === 'chg') return (
-        <span key="chg" className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
-          {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
-        </span>
-      )
-      return null
-    }
     return (
-      <div
+      <WatchRow
         key={sym}
-        data-watch-sym={sym}
-        className={`${styles.listRow} ${styles.wlRow}${selected ? ' ' + styles.listRowSelected : ''}`}
-        onClick={() => { setSelectedSym(sym); setHubSym(sym) }}
-        onPointerEnter={() => prefetchBarOnIntent(sym, 'D')}
-        onFocus={() => prefetchBarOnIntent(sym, 'D')}
-      >
-        {orderedKeys.map(cellFor)}
-        {isOwner && (
-          <div className={styles.rowActions} onClick={e => e.stopPropagation()}>
-            <button
-              className={`${styles.noteBtn}${expandedNote === itemId ? ' ' + styles.noteBtnActive : ''}`}
-              onClick={() => toggleNote(itemId, notes)}
-              title="Notes"
-            ><UIcon name="edit" size={12} /></button>
-            <button
-              className={`${styles.alertBtn}${hasAlert(sym) ? ' ' + styles.alertBtnActive : ''}`}
-              onClick={e => { setAlertPopover({ sym, x: e.clientX, y: e.clientY }); setAlertPrice(''); setAlertDir('above') }}
-              title="Set price alert"
-            ><UIcon name="bell" size={12} /></button>
-            {onRemove && (
-              <button className={styles.removeBtn} onClick={onRemove} title="Remove from this list">×</button>
-            )}
-          </div>
-        )}
-      </div>
+        sym={sym}
+        name={name}
+        price={q?.price ?? null}
+        changePct={q?.change_pct ?? null}
+        volume={q?.volume ?? null}
+        flagged={isFlagged(sym)}
+        selected={selectedSym === sym}
+        orderedKeys={orderedKeys}
+        isOwner={isOwner}
+        itemId={itemId}
+        notes={notes}
+        wlId={wlId}
+        noteOpen={isOwner && expandedNote === itemId}
+        alertOn={isOwner && hasAlert(sym)}
+        onSelect={onRowSelect}
+        onToggleFlag={onRowFlag}
+        onIntent={onRowIntent}
+        onToggleNote={onRowNote}
+        onSetAlert={onRowAlert}
+        onCtx={onRowCtx}
+        onRemove={isOwner ? onRowRemove : null}
+      />
     )
   }
 
@@ -830,8 +883,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                     isOwner,
                     itemId: item.id,
                     notes: item.notes,
-                    onCtx: e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY, id: wl.id, isOwner, symbols: items.map(i => i.sym), sym: item.sym }) },
-                    onRemove: isOwner ? (e => { e.stopPropagation(); handleRemoveItem(wl.id, item.id) }) : null,
+                    wlId: wl.id,
                   })}
                   {expandedNote === item.id && (
                     <div className={styles.noteRow}>
