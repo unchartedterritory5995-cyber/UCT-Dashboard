@@ -71,6 +71,30 @@ def _is_liquid(sym_hy):
         return True
 
 
+def passes_add_gate(sym_hy, theme_id, conf, cmin=None, cliq=None):
+    """Shared add gate for Loop 1 (orphans) and Loop 2 (improve) — Task 6
+    extracted this VERBATIM from run_orphan_batch's inline checks so both loops
+    admit members under identical rules: liquidity-scaled confidence bar,
+    corroboration required for liquid names, beat-the-incumbent cohort check,
+    theme existence, cap-universe membership, not-already-rostered. The per-run
+    max-adds-per-theme budget stays with the callers (it is run state, not a
+    property of the sym). Reads gate helpers via module globals so tests
+    patching orphans._is_liquid etc. keep working."""
+    if not theme_id:
+        return False
+    cmin = _env_f("THEME_ENGINE_CONFIDENCE_MIN", 0.75) if cmin is None else cmin
+    cliq = _env_f("THEME_ENGINE_CONFIDENCE_LIQUID", 0.85) if cliq is None else cliq
+    liquid = _is_liquid(sym_hy)
+    gate = cliq if liquid else cmin
+    roster = _theme_roster(theme_id)
+    cohort = _industry_cohort(sym_hy)
+    corroborated = _industry_matches_theme(sym_hy, theme_id) or len(roster & cohort) >= 2
+    beats_incumbent = (not cohort) or len(roster & cohort) >= 2 or _industry_matches_theme(sym_hy, theme_id)
+    return (_theme_exists(theme_id) and _in_cap(sym_hy) and conf >= gate
+            and (corroborated if liquid else True) and beats_incumbent
+            and sym_hy.replace("-", ".") not in {s.replace("-", ".") for s in roster})
+
+
 def _orphan_candidates_ordered():
     """cap_universe − merged-theme members − recent decisions, liquid/high-RS first."""
     from api.services import theme_db
@@ -175,16 +199,9 @@ def run_orphan_batch(batch=None, dry_run=None) -> dict:
                 except (TypeError, ValueError):
                     conf = 0.0
                 tier = verdict.get("tier") if verdict.get("tier") in ("relevant", "peripheral") else "peripheral"
-                liquid = _is_liquid(sym)
-                gate = cliq if liquid else cmin
-                roster = _theme_roster(tid) if tid else set()
-                cohort = _industry_cohort(sym)
-                corroborated = bool(tid) and (_industry_matches_theme(sym, tid) or len(roster & cohort) >= 2)
-                beats_incumbent = (not cohort) or len(roster & cohort) >= 2 or _industry_matches_theme(sym, tid or "")
-                ok = (bool(tid) and _theme_exists(tid) and _in_cap(sym) and conf >= gate
-                      and (corroborated if liquid else True) and beats_incumbent
-                      and theme_adds.get(tid, 0) < max_per_theme
-                      and sym.replace("-", ".") not in {s.replace("-", ".") for s in roster})
+                # Gate extracted to passes_add_gate (Task 6) — shared with Loop 2.
+                ok = (passes_add_gate(sym, tid, conf, cmin=cmin, cliq=cliq)
+                      and theme_adds.get(tid, 0) < max_per_theme)
                 if ok and not dry:
                     store.upsert_add(tid, sym, tier, None, conf, str(verdict.get("rationale") or ""), run_id)
                     store.record_decision(sym, "add", tid, conf, run_id)
