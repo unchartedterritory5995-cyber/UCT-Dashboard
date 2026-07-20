@@ -109,6 +109,20 @@ export default function MultiChartGrid({ mc }) {
   useEffect(() => {
     if (maxId && !cells.some(c => c.id === maxId)) setMaxId(null)
   }, [cells, maxId])
+  // Escape restores a maximized cell (mega-review: maximize was mouse-only with
+  // no keyboard exit). Ignore when typing in the symbol search / a field so a
+  // ticker-search Escape still just closes the dropdown.
+  useEffect(() => {
+    if (!maxId) return undefined
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      setMaxId(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [maxId])
 
   // ── Active-cell tracking (hover-sticky, seeded to cell 0, focus-aware) ──
   const activeCellRef = useRef(0)

@@ -326,28 +326,37 @@ export default function ThemeTrackerPage({ embedded = false }) {
     })
   }, [data, activeKey, sortDir])
 
-  const filteredThemes = useMemo(() => {
-    if (!search.trim()) return sortedThemes
-    const q = search.trim().toLowerCase()
-    return sortedThemes.filter(theme =>
-      theme.name.toLowerCase().includes(q) ||
-      theme.ticker.toLowerCase().includes(q) ||
-      (theme.sector || '').toLowerCase().includes(q) ||
-      theme.holdings.some(h => h.sym.toLowerCase().includes(q))
-    )
-  }, [sortedThemes, search])
-
-  // While searching, open the FIRST theme that has a matching holding (accordion
-  // stays single-open).
+  // Debounce the query (mega-review: at 111 themes / ~2,050 holdings, filtering
+  // + auto-open on every keystroke made the accordion jumpy). 180ms settle.
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   useEffect(() => {
-    if (!search.trim() || !sortedThemes.length) return
-    const q = search.trim().toLowerCase()
-    const match = sortedThemes.find(theme =>
-      theme.name.toLowerCase().includes(q) ||
-      theme.ticker.toLowerCase().includes(q) ||
-      theme.holdings.some(h => h.sym.toLowerCase().includes(q)))
+    const t = setTimeout(() => setDebouncedSearch(search), 180)
+    return () => clearTimeout(t)
+  }, [search])
+
+  // Shared matcher: name/ticker/sector match on any length; the expensive
+  // per-holding substring scan is gated to queries ≥ 2 chars so a single char
+  // ("a") doesn't pull in every theme via some random holding (mega-review: noisy).
+  const themeMatches = useCallback((theme, q) =>
+    theme.name.toLowerCase().includes(q) ||
+    theme.ticker.toLowerCase().includes(q) ||
+    (theme.sector || '').toLowerCase().includes(q) ||
+    (q.length >= 2 && theme.holdings.some(h => h.sym.toLowerCase().includes(q))),
+  [])
+
+  const filteredThemes = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase()
+    if (!q) return sortedThemes
+    return sortedThemes.filter(theme => themeMatches(theme, q))
+  }, [sortedThemes, debouncedSearch, themeMatches])
+
+  // While searching, open the FIRST matching theme (accordion stays single-open).
+  useEffect(() => {
+    const q = debouncedSearch.trim().toLowerCase()
+    if (!q || !sortedThemes.length) return
+    const match = sortedThemes.find(theme => themeMatches(theme, q))
     if (match) setOpenTheme(match.ticker)
-  }, [search, sortedThemes])
+  }, [debouncedSearch, sortedThemes, themeMatches])
 
   // First theme open BY DEFAULT — on initial load and whenever the period
   // changes (each period sorts differently, so its "first" theme differs). Does
