@@ -276,16 +276,15 @@ export default function MultiChartGrid({ mc }) {
   // change that leaves the sym set unchanged never re-warms. Flag: default ON,
   // set VITE_GRID_WARM_ENABLED='0' to disable. ──
   const gridWarmEnabled = import.meta.env.VITE_GRID_WARM_ENABLED !== '0'
-  const gridWarmerRef = useRef(null)
-  if (!gridWarmerRef.current) gridWarmerRef.current = makeGridWarmer({ warm: prefetchGridWarm })
+  const [gridWarmer] = useState(() => makeGridWarmer({ warm: prefetchGridWarm }))
   // First-paint settled = every non-empty cell's composite key has been admitted
   // by the mount queue (its cold paint is done / in its last ≤3 wave). Recomputes
   // as slots free (mountedIds is state), so this flips true when the grid drains.
   const firstPaintSettled = cells.every(c => !c.sym || mountedIds.has(`${c.id}::${c.sym}`))
   useEffect(() => {
     if (!gridWarmEnabled) return
-    gridWarmerRef.current.maybeWarm(gridSyms, hydrated && firstPaintSettled)
-  }, [gridWarmEnabled, gridSyms, hydrated, firstPaintSettled])
+    gridWarmer.maybeWarm(gridSyms, hydrated && firstPaintSettled)
+  }, [gridWarmer, gridWarmEnabled, gridSyms, hydrated, firstPaintSettled])
 
   // ── Group meta (Groups mode): the current group's display name + universe
   // total + per-sym {tier, rationale} for the cell badges. Fetched once
