@@ -94,11 +94,22 @@
 .listRow {
   display: flex;
   align-items: center;
-  padding: 9px 14px;
+  padding: 6px 12px;   /* tighter, matches Theme Tracker row density */
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   transition: background 0.1s;
-  gap: 6px;
+  gap: 5px;
+}
+
+/* Round company logo before the ticker — mirrors Theme Tracker's .stockLogo. */
+.rowLogo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
+  flex-shrink: 0;
 }
 
 .listRow:hover {
@@ -112,10 +123,10 @@
 }
 
 .rowSym {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ut-cream);
+  font-family: var(--font-sans);   /* match Theme Tracker (.sym) — sans, brighter, lighter weight */
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-bright);
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }
@@ -133,21 +144,27 @@
 }
 
 .rowPrice {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
-  color: var(--text);
+  color: var(--text-muted);
 }
 
 .rowChange {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   min-width: 48px;
   text-align: right;
 }
 
-.gain { color: var(--gain); }
-.loss { color: var(--loss); }
+/* Match Theme Tracker's exact up/down percent colors (hard hex, not the app tokens). */
+.gain { color: #1ae51a; }
+.loss { color: #ff3b47; }
+/* Sunrise/Sunset light theme uses darker green/red so it reads on the bright canvas. */
+:global([data-charts-theme='sunrise']) .gain { color: #0a5c22; }
+:global([data-charts-theme='sunrise']) .loss { color: #7d1620; }
 
 .removeBtn {
   background: none;
@@ -342,6 +359,40 @@
   border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
   flex-shrink: 0;
+}
+
+/* Single-list pick mode header: back button + the chosen list's name. */
+.pickHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+.pickBackBtn {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #8c8674);
+  background: transparent;
+  border: 1px solid var(--border, #1f2937);
+  border-radius: 5px;
+  padding: 3px 9px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.pickBackBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); background: rgba(201, 168, 76, 0.08); }
+.pickTitle {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-bright, #e0dac8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tabBtn {

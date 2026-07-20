@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
+import CompanyLogo from '../components/CompanyLogo'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -54,13 +55,34 @@ function AddItemRow({ onAdd }) {
   )
 }
 
-export default function Watchlists({ embedded = false }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null }) {
   const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)
   const { sym: hubSym, setSym: setHubSym } = useChartsSym()
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
   }, [hubSym]) // intentionally do NOT depend on selectedSym (avoid feedback loop)
+
+  // Single-list "pick" mode (widget scoped to one chosen list): force the right
+  // tab + force the picked group expanded so it opens straight to the tickers.
+  useEffect(() => {
+    if (!pickList) return
+    setActiveTab(pickList.startsWith('community:') ? 'community' : 'mine')
+    let key = null
+    if (pickList === 'flagged') key = 'flagged'
+    else if (pickList.startsWith('user:')) key = pickList.slice(5)
+    else if (pickList.startsWith('community:')) key = pickList.slice(10)
+    else if (pickList.startsWith('tag:')) key = pickList
+    if (key != null) {
+      setExpandedLists(prev => {
+        const n = new Set(prev)
+        n.add(key)
+        const num = Number(key)
+        if (!Number.isNaN(num)) n.add(num)   // list ids may be numeric
+        return n
+      })
+    }
+  }, [pickList])
   const [chartPeriod, setChartPeriod] = useState('D')
   const [flagToast, setFlagToast] = useState(null)
   const [expandedLists, setExpandedLists] = useState(new Set())
@@ -580,6 +602,7 @@ export default function Watchlists({ embedded = false }) {
                     {getTag(item.sym) && (
                       <span className={styles.tagDot} style={{ background: TAG_BY_KEY[getTag(item.sym)]?.hex }} title={TAG_BY_KEY[getTag(item.sym)]?.label} />
                     )}
+                    <span className={styles.rowLogo}><CompanyLogo sym={item.sym} name={item.name} size={16} round /></span>
                     <span
                       className={styles.rowSym}
                       onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY, id: wl.id, isOwner, symbols: items.map(i => i.sym), sym: item.sym }) }}
@@ -715,6 +738,7 @@ export default function Watchlists({ embedded = false }) {
                   {getTag(sym) && (
                     <span className={styles.tagDot} style={{ background: TAG_BY_KEY[getTag(sym)]?.hex }} title={TAG_BY_KEY[getTag(sym)]?.label} />
                   )}
+                  <span className={styles.rowLogo}><CompanyLogo sym={sym} size={16} round /></span>
                   <span className={styles.rowSym}>{sym}</span>
                   <div className={styles.rowRight}>
                     {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
@@ -748,19 +772,28 @@ export default function Watchlists({ embedded = false }) {
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
 
-        {/* Tab bar — 2 tabs */}
-        <div className={styles.tabBar}>
-          <button
-            className={`${styles.tabBtn}${activeTab === 'mine' ? ' ' + styles.tabBtnActive : ''}`}
-            onClick={() => setActiveTab('mine')}
-          >My Lists</button>
-          <button
-            className={`${styles.tabBtn}${activeTab === 'community' ? ' ' + styles.tabBtnActive : ''}`}
-            onClick={() => setActiveTab('community')}
-          >Community</button>
-        </div>
+        {/* Pick mode (widget scoped to one list) shows a back header instead of the
+            My Lists / Community tabs. */}
+        {pickList ? (
+          <div className={styles.pickHeader}>
+            <button className={styles.pickBackBtn} onClick={() => onExitPick?.()} title="Choose a different list">‹ Lists</button>
+            <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
+          </div>
+        ) : (
+          <div className={styles.tabBar}>
+            <button
+              className={`${styles.tabBtn}${activeTab === 'mine' ? ' ' + styles.tabBtnActive : ''}`}
+              onClick={() => setActiveTab('mine')}
+            >My Lists</button>
+            <button
+              className={`${styles.tabBtn}${activeTab === 'community' ? ' ' + styles.tabBtnActive : ''}`}
+              onClick={() => setActiveTab('community')}
+            >Community</button>
+          </div>
+        )}
 
-        {/* Sub-header */}
+        {/* Sub-header (hidden in single-list pick mode) */}
+        {!pickList && (
         <div className={styles.listHeader}>
           {activeTab === 'mine' && (
             <>
@@ -792,6 +825,7 @@ export default function Watchlists({ embedded = false }) {
             <span className={styles.listMeta}>{communityLists?.length ?? 0} shared lists</span>
           )}
         </div>
+        )}
 
         {/* Body */}
         <div className={styles.listBody}>
@@ -799,8 +833,8 @@ export default function Watchlists({ embedded = false }) {
           {/* ── My Lists tab — Flagged pinned at top + tag groups + user lists ── */}
           {activeTab === 'mine' && (
             <>
-              {renderFlaggedGroup()}
-              {TAG_COLORS.map(tc => {
+              {(!pickList || pickList === 'flagged') && renderFlaggedGroup()}
+              {!pickList && TAG_COLORS.map(tc => {
                 const syms = Object.entries(tags).filter(([, c]) => c === tc.key).map(([s]) => s)
                 if (!syms.length) return null
                 const open = expandedLists.has(`tag:${tc.key}`)
@@ -835,6 +869,7 @@ export default function Watchlists({ embedded = false }) {
                               onPointerEnter={() => prefetchBarOnIntent(sym, 'D')}
                               onFocus={() => prefetchBarOnIntent(sym, 'D')}
                             >
+                              <span className={styles.rowLogo}><CompanyLogo sym={sym} size={16} round /></span>
                               <span className={styles.rowSym}>{sym}</span>
                               <div className={styles.rowRight}>
                                 {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
@@ -862,12 +897,20 @@ export default function Watchlists({ embedded = false }) {
                 )
               })}
               {!myLists ? (
-                <div className={styles.loading}>Loading…</div>
-              ) : myLists.length === 0 ? (
-                <div className={styles.wlEmpty} style={{ padding: '12px 8px', opacity: 0.5 }}>
-                  No custom lists yet. Create one above.
-                </div>
-              ) : myLists.map(wl => renderWatchlistGroup(wl, true))}
+                (!pickList || pickList.startsWith('user:')) && <div className={styles.loading}>Loading…</div>
+              ) : (() => {
+                const shown = pickList
+                  ? myLists.filter(wl => pickList === `user:${wl.id}`)
+                  : myLists
+                if (!pickList && myLists.length === 0) {
+                  return (
+                    <div className={styles.wlEmpty} style={{ padding: '12px 8px', opacity: 0.5 }}>
+                      No custom lists yet. Create one above.
+                    </div>
+                  )
+                }
+                return shown.map(wl => renderWatchlistGroup(wl, true))
+              })()}
             </>
           )}
 
@@ -875,7 +918,7 @@ export default function Watchlists({ embedded = false }) {
           {activeTab === 'community' && (
             <>
               {/* Community tag lists */}
-              {communityTags.map((ct, i) => {
+              {!pickList && communityTags.map((ct, i) => {
                 const tagKey = `pub:${ct.user_id}:${ct.color}`
                 const open = expandedLists.has(tagKey)
                 const tc = TAG_BY_KEY[ct.color]
@@ -897,6 +940,7 @@ export default function Watchlists({ embedded = false }) {
                           const changePct = q?.change_pct ?? null
                           return (
                             <div key={sym} data-watch-sym={sym} className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`} onClick={() => { setSelectedSym(sym); setHubSym(sym); }}>
+                              <span className={styles.rowLogo}><CompanyLogo sym={sym} size={16} round /></span>
                               <span className={styles.rowSym}>{sym}</span>
                               <div className={styles.rowRight}>
                                 {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
@@ -921,7 +965,10 @@ export default function Watchlists({ embedded = false }) {
                 <div className={styles.emptyList}>
                   <div className={styles.emptyText}>No community lists shared yet.</div>
                 </div>
-              ) : communityLists.map(wl => renderWatchlistGroup(wl, false))}
+              ) : (pickList
+                  ? communityLists.filter(wl => pickList === `community:${wl.id}`)
+                  : communityLists
+                ).map(wl => renderWatchlistGroup(wl, false))}
             </>
           )}
         </div>
