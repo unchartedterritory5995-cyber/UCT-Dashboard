@@ -24,6 +24,21 @@
   border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
   margin-top: 20px; padding-top: 12px; font-style: italic;
 }
+/* ── Context strip: exposure · sector mix · today's changes ──────────────── */
+.contextStrip {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  padding: 2px 2px 10px;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.ctxItem { white-space: nowrap; }
+.ctxAmber { color: #fbbf24; }
+
+/* ── Sortable headers ─────────────────────────────────────────────────────── */
+.sortHead { cursor: pointer; user-select: none; }
+.sortHead:hover { color: var(--ut-gold); }
+.sortActive { color: var(--ut-gold); }
+
 .tableFootnote {
   font-size: 10.5px; line-height: 1.5; color: var(--text-muted);
   font-style: italic; margin: 10px 2px 0; opacity: 0.85;

@@ -332,8 +332,11 @@ export default function UCT20() {
   const { data: portData } = useSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 3600000 })
   const { data: insiderFeed } = useSWR('/api/insider/feed', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
   const { data: rsRankings } = useMobileSWR('/api/rs-rankings', fetcher, { refreshInterval: 3600000, marketHoursOnly: true })
+  const { data: breadthData } = useSWR('/api/breadth', fetcher, { refreshInterval: 3600000, revalidateOnFocus: false })
   const [expandedIdx, setExpandedIdx] = useState(null)
   const [showMethodology, setShowMethodology] = useState(false)
+  const [sort, setSort] = useState(null)          // {key, dir: 1|-1} | null = rank order
+  const [copied, setCopied] = useState(false)
 
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/leadership'),
@@ -387,6 +390,79 @@ export default function UCT20() {
     return dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null
   }, [posMap])
 
+  // Today's list changes — entries/exits booked on the current wire date
+  const wireDate = typeof leadershipUpdated === 'string' ? leadershipUpdated.slice(0, 10) : null
+  const listChanges = useMemo(() => {
+    if (!wireDate) return { added: [], dropped: [] }
+    const added = (portData?.open_positions ?? [])
+      .filter(p => p.entry_date === wireDate).map(p => p.symbol)
+    const dropped = [...new Set((portData?.trades ?? [])
+      .filter(t => t.exit_date === wireDate).map(t => t.symbol))]
+    return { added, dropped }
+  }, [portData, wireDate])
+
+  // Sector rollup — concentration at a glance (max 10/sector enforced engine-side)
+  const sectorMix = useMemo(() => {
+    const counts = {}
+    for (const s of stocks) {
+      const sec = (s.sector || 'Other').split(' ')[0].replace('Technology', 'Tech')
+      counts[sec] = (counts[sec] || 0) + 1
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])
+  }, [stocks])
+
+  const exposure = breadthData?.exposure
+
+  // Rank is assigned pre-sort so sorting never changes a stock's published rank
+  const ranked = useMemo(() => stocks.map((item, i) => ({ item, rank: i + 1 })), [stocks])
+  const sortedRows = useMemo(() => {
+    if (!sort) return ranked
+    const acc = {
+      price:  r => num(r.item.price),
+      chg:    r => num(r.item.change),
+      rs:     r => num(r.item.rs),
+      rating: r => num(r.item.score),
+      days:   r => posMap[r.item.ticker ?? r.item.sym ?? r.item.symbol]?.days_held ?? null,
+      since:  r => posMap[r.item.ticker ?? r.item.sym ?? r.item.symbol]?.pct_return ?? null,
+    }[sort.key]
+    if (!acc) return ranked
+    return [...ranked].sort((a, b) => {
+      const va = acc(a), vb = acc(b)
+      if (va == null && vb == null) return a.rank - b.rank
+      if (va == null) return 1                       // blanks sink last
+      if (vb == null) return -1
+      return (va - vb) * sort.dir || a.rank - b.rank
+    })
+  }, [ranked, sort, posMap])
+
+  const toggleSort = useCallback(key => {
+    setSort(prev => prev?.key === key
+      ? (prev.dir === -1 ? { key, dir: 1 } : null)   // desc → asc → reset
+      : { key, dir: -1 })
+  }, [])
+
+  const copyTickers = useCallback(() => {
+    const syms = stocks.map(s => s.ticker ?? s.sym ?? s.symbol).filter(Boolean).join(', ')
+    navigator.clipboard?.writeText(syms).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    }).catch(() => {})
+  }, [stocks])
+
+  const SortHead = ({ k, label, className, title }) => (
+    <span
+      className={`${className} ${styles.sortHead} ${sort?.key === k ? styles.sortActive : ''}`}
+      title={title}
+      role="button"
+      tabIndex={0}
+      aria-sort={sort?.key === k ? (sort.dir === -1 ? 'descending' : 'ascending') : 'none'}
+      onClick={() => toggleSort(k)}
+      onKeyDown={e => { if (e.key === 'Enter') toggleSort(k) }}
+    >
+      {label}{sort?.key === k ? (sort.dir === -1 ? ' ▼' : ' ▲') : ''}
+    </span>
+  )
+
   function toggle(i) {
     setExpandedIdx(prev => prev === i ? null : i)
   }
@@ -412,6 +488,9 @@ export default function UCT20() {
         >
           Read all picks
         </ReadAloudButton>
+        <button className={styles.methodBtn} onClick={copyTickers} disabled={!stocks.length}>
+          {copied ? 'Copied ✓' : 'Copy tickers'}
+        </button>
         <button className={styles.methodBtn} onClick={() => setShowMethodology(true)}>
           <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
           How it&rsquo;s built
@@ -453,30 +532,56 @@ export default function UCT20() {
             )}
           </div>
         ) : (
-          <div className={styles.table}>
+          <>
+            <div className={styles.contextStrip}>
+              {exposure?.score != null && (
+                <span
+                  className={`${styles.ctxItem} ${exposure.score >= 70 ? styles.gain : exposure.score >= 50 ? styles.ctxAmber : styles.loss}`}
+                  title={exposure.note || 'Recommended market exposure from the UCT regime model'}
+                >
+                  UCT EXPOSURE {exposure.score}%
+                </span>
+              )}
+              {sectorMix.length > 0 && (
+                <span className={styles.ctxItem} title="Sector concentration of the current 20 (max 10 per sector)">
+                  {sectorMix.map(([s, n]) => `${s} ${n}`).join(' · ')}
+                </span>
+              )}
+              {(listChanges.added.length > 0 || listChanges.dropped.length > 0) && (
+                <span className={styles.ctxItem} title="Names added to / dropped from the list on the latest rebuild">
+                  Today:{listChanges.added.map(s => ` +${s}`).join('')}{listChanges.dropped.map(s => ` −${s}`).join('')}
+                </span>
+              )}
+            </div>
+            <div className={styles.table}>
             <div className={styles.headerRow}>
-              <span className={styles.rank}>#</span>
+              <span
+                className={`${styles.rank} ${styles.sortHead}`}
+                title="Reset to rank order" role="button" tabIndex={0}
+                onClick={() => setSort(null)}
+                onKeyDown={e => { if (e.key === 'Enter') setSort(null) }}
+              >#</span>
               <span className={`${styles.cTag} ${styles.alignL}`} title="Deterministic trend posture computed from EMA structure, RS, and distance from the 52-week high">TREND</span>
               <span className={styles.alignL}>TICKER</span>
-              <span className={styles.alignR}>PRICE</span>
-              <span className={styles.alignR}>CHG</span>
-              <span className={`${styles.cRs} ${styles.alignC}`} title="Relative strength vs the S&P 500 (percentile)">RS</span>
-              <span className={`${styles.cDays} ${styles.alignR}`} title="Days held in the tracking portfolio">DAYS</span>
-              <span className={styles.alignR} title="Return since the name was added to the list">SINCE ADD</span>
-              <span className={styles.alignR}>RATING</span>
+              <SortHead k="price" label="PRICE" className={styles.alignR} />
+              <SortHead k="chg" label="CHG" className={styles.alignR} />
+              <SortHead k="rs" label="RS" className={`${styles.cRs} ${styles.alignC}`} title="Relative strength vs the S&P 500 (percentile)" />
+              <SortHead k="days" label="DAYS" className={`${styles.cDays} ${styles.alignR}`} title="Days held in the tracking portfolio" />
+              <SortHead k="since" label="SINCE ADD" className={styles.alignR} title="Return since the name was added to the list" />
+              <SortHead k="rating" label="RATING" className={styles.alignR} />
               <span />
             </div>
-            {stocks.map((item, i) => {
+            {sortedRows.map(({ item, rank }) => {
               const sym = item.ticker ?? item.sym ?? item.symbol
               const posData = posMap[sym] ?? null
               const isNew = posData?.entry_date != null && posData.entry_date === latestEntry
               return (
                 <StockCard
-                  key={sym ?? i}
+                  key={sym ?? rank}
                   item={item}
-                  rank={i + 1}
-                  expanded={expandedIdx === i}
-                  onToggle={() => toggle(i)}
+                  rank={rank}
+                  expanded={expandedIdx === rank}
+                  onToggle={() => toggle(rank)}
                   posData={posData}
                   isNew={isNew}
                   liveData={prices[sym] ?? null}
@@ -485,7 +590,8 @@ export default function UCT20() {
                 />
               )
             })}
-          </div>
+            </div>
+          </>
         )}
         <p className={styles.tableFootnote}>
           Systematic momentum ranking for research and education — not investment advice
