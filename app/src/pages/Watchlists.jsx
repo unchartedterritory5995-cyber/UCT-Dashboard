@@ -805,18 +805,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           return (
           <div className={styles.wlItems}>
             {wl.description && <div className={styles.wlDesc}>{wl.description}</div>}
-            {items.length > 0 && (
-              <div className={styles.colHeaderRow}>
-                <input className={styles.filterInput} placeholder="Filter..." value={filterText} onChange={e => setFilterText(e.target.value)} onClick={e => e.stopPropagation()} />
-                <span className={styles.colH} onClick={() => handleSort('sym')}>Sym{sortIndicator('sym')}</span>
-                <span className={styles.colH} onClick={() => handleSort('price')}>Price{sortIndicator('price')}</span>
-                <span className={styles.colH} onClick={() => handleSort('change')}>Chg%{sortIndicator('change')}</span>
-                {PERF_COLS.filter(([k]) => visiblePerf.has(k)).map(([k, label]) => (
-                  <span key={k} className={styles.colH} onClick={() => handleSort(k)}>{label}{sortIndicator(k)}</span>
-                ))}
-                {sortBy && <button className={styles.resetSortBtn} onClick={() => setSortBy(null)}>Reset</button>}
-              </div>
-            )}
+            {/* Old per-list filter/sort header removed — the global column header now
+                drives columns + sorting so every watchlist uses the same format. */}
             {sortedItems.length === 0 && <div className={styles.wlEmpty}>{items.length === 0 ? 'No symbols yet.' : 'No matches.'}</div>}
             {sortedItems.map(item => {
               const q = prices[item.sym]
