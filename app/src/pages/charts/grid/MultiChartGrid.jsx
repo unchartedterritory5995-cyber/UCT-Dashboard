@@ -26,6 +26,8 @@ import useStaggeredMount from './useStaggeredMount'
 import { parseLayoutId } from './gridLayouts'
 import { createSpike, SPIKE_SYMS } from './gridSpike'
 import { makePeerFiller } from './peerFill'
+import { makeGridWarmer } from './gridWarm'
+import { prefetchGridWarm } from '../../../utils/prefetchBars'
 import { fetchPeers, fetchGroupTop, fetchGroups, pinEtf } from './groupsApi'
 import { chartKeys, admittedSym } from './symAdmission'
 import { buildCellBadges } from './cellBadge'
@@ -266,6 +268,24 @@ export default function MultiChartGrid({ mc }) {
     () => gridSyms.map(s => ({ sym: s, changePct: livePrices?.[s]?.change_pct })),
     [gridSyms, livePrices],
   )
+
+  // ── Chart-parity warming (herd-safe): once the grid is hydrated AND its
+  // initial mount-queue paint has settled, warm every cell's every timeframe
+  // into IDB through the bounded prefetch queue, so any cell's TF-switch paints
+  // instantly. gridWarm dedupes by sym-set content, so a TF/Style/undo/layout
+  // change that leaves the sym set unchanged never re-warms. Flag: default ON,
+  // set VITE_GRID_WARM_ENABLED='0' to disable. ──
+  const gridWarmEnabled = import.meta.env.VITE_GRID_WARM_ENABLED !== '0'
+  const gridWarmerRef = useRef(null)
+  if (!gridWarmerRef.current) gridWarmerRef.current = makeGridWarmer({ warm: prefetchGridWarm })
+  // First-paint settled = every non-empty cell's composite key has been admitted
+  // by the mount queue (its cold paint is done / in its last ≤3 wave). Recomputes
+  // as slots free (mountedIds is state), so this flips true when the grid drains.
+  const firstPaintSettled = cells.every(c => !c.sym || mountedIds.has(`${c.id}::${c.sym}`))
+  useEffect(() => {
+    if (!gridWarmEnabled) return
+    gridWarmerRef.current.maybeWarm(gridSyms, hydrated && firstPaintSettled)
+  }, [gridWarmEnabled, gridSyms, hydrated, firstPaintSettled])
 
   // ── Group meta (Groups mode): the current group's display name + universe
   // total + per-sym {tier, rationale} for the cell badges. Fetched once
