@@ -56,6 +56,7 @@ function GridChartCell({
   onBarsReady,        // () => void — releases this cell's mount-queue slot
   isMaximized,        // this cell is expanded to fill the whole grid body
   onToggleMaximize,   // () => void — expand/restore this cell
+  deepWarm,           // bool — this cell is the active/maximized one; pre-load full history for instant scroll-back (StockChart deepWarm)
 }) {
   const sym = cell.sym
 
@@ -387,6 +388,7 @@ function GridChartCell({
             hideCountdown
             disablePatterns
             backgroundWarm={false}
+            deepWarm={deepWarm}
             onBarsReady={onBarsReady}
             hotkeysActive={isActive}
             boldCandles
