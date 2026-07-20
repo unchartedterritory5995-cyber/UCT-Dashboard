@@ -223,7 +223,14 @@ export default function ChartsWorkspace() {
       const bodyPad = merged ? 0 : BODY_PAD
       const h = el.clientHeight - bodyPad * 2
       const available = h - gridGap * (FIXED_ROWS - 1)
-      const rh = Math.max(12, Math.floor(available / FIXED_ROWS))
+      // 20 rows rarely tile an arbitrary pixel height evenly. Unmerged we floor
+      // (the leftover hides in the dark margins). MERGED there are no margins, so
+      // flooring left a dead black strip at the bottom — round UP so the grid
+      // fills to the edge; the ≤(FIXED_ROWS-1)px excess is absorbed by the body's
+      // overflow:hidden (no scrollbar — the viewport-lock still holds).
+      const rh = merged
+        ? Math.max(12, Math.ceil(available / FIXED_ROWS))
+        : Math.max(12, Math.floor(available / FIXED_ROWS))
       setRowHeight(rh)
     }
     measure()
