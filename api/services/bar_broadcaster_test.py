@@ -352,3 +352,68 @@ async def test_push_aggregate_T_throttle_drops_within_window(bb):
         q1.get_nowait()
         count += 1
     assert count == 1, f"Expected 1 SSE frame within throttle window, got {count}"
+
+
+# ── Quote-feed interest + get_last_price (live-price SSE source) ──────────────
+
+@pytest.mark.asyncio
+async def test_add_interest_triggers_first_subscribe_once(bb):
+    """Interest fires the upstream subscribe exactly once per symbol (refcounted)."""
+    fired = []
+    bb._on_first_subscribe = lambda s: fired.append(s)
+    bb.add_interest(["AAPL", "aapl"])  # two refs (case-normalized) — one subscribe
+    assert fired == ["AAPL"]
+
+
+@pytest.mark.asyncio
+async def test_get_last_price_reads_developing_bar_from_T_ticks(bb):
+    """A quote consumer (interest only, no queue) reads the live tick price."""
+    bb.add_interest(["AAPL"])
+    assert bb.get_last_price("AAPL") is None  # no tick yet
+    bb.push_aggregate("AAPL", {"t": 1746468601234, "p": 150.25, "s": 100}, "T")
+    lp = bb.get_last_price("AAPL")
+    assert lp["price"] == 150.25
+    bb._last_emit_ms.clear()
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "p": 151.10, "s": 50}, "T")
+    assert bb.get_last_price("AAPL")["price"] == 151.10  # ticks with each trade
+
+
+@pytest.mark.asyncio
+async def test_remove_interest_refcounts_and_unsubscribes_at_zero(bb):
+    """Last interest release (with no chart subscriber) unsubscribes + clears partial."""
+    gone = []
+    bb._on_last_unsubscribe = lambda s: gone.append(s)
+    bb.add_interest(["AAPL"])
+    bb.add_interest(["AAPL"])  # refcount = 2
+    bb.push_aggregate("AAPL", {"t": 1746468601234, "p": 150.25, "s": 100}, "T")
+    bb.remove_interest(["AAPL"])
+    assert gone == []                       # still one ref outstanding
+    assert bb.get_last_price("AAPL") is not None
+    bb.remove_interest(["AAPL"])
+    assert gone == ["AAPL"]                  # fully released → upstream unsubscribe
+    assert bb.get_last_price("AAPL") is None  # partial cleared
+
+
+@pytest.mark.asyncio
+async def test_chart_subscriber_keeps_symbol_wanted_despite_interest_release(bb):
+    """A live chart (queue subscriber) must keep the symbol subscribed upstream
+    even after the quote feed drops its interest — no premature unsubscribe."""
+    gone = []
+    bb._on_last_unsubscribe = lambda s: gone.append(s)
+    q = bb.subscribe("AAPL", "1")   # chart
+    bb.add_interest(["AAPL"])       # quote feed
+    bb.remove_interest(["AAPL"])    # quote feed leaves
+    assert gone == []               # chart still needs it
+    bb.unsubscribe("AAPL", "1", q)  # chart leaves too
+    assert gone == ["AAPL"]
+
+
+@pytest.mark.asyncio
+async def test_interest_does_not_create_subscriber_queue(bb):
+    """Interest must NOT dispatch ticks into a queue (it only keeps the partial
+    alive) — otherwise every watched symbol would load the request loop."""
+    bb.add_interest(["AAPL"])
+    # No subscriber pair exists for AAPL despite an incoming tick.
+    bb.push_aggregate("AAPL", {"t": 1746468601234, "p": 150.25, "s": 100}, "T")
+    assert not bb._symbol_has_any_subscriber("AAPL")
+    assert bb.get_status()["quote_interest_symbols"] == 1

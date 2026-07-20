@@ -106,8 +106,23 @@ async def stream_prices(
     # Cap to MAX_SSE_TICKERS to prevent subscription bloat
     ticker_list = ticker_list[:MAX_SSE_TICKERS]
 
-    # Subscribe these tickers to the WebSocket stream
+    # Subscribe these tickers to the Finnhub WebSocket stream (fallback source).
     subscribe_tickers(ticker_list)
+
+    # ALSO register interest on the MASSIVE feed (the same sub-second feed that
+    # drives the candle). Finnhub's free tier trickles trades out (a given ticker
+    # can go minutes between updates), so watchlist/theme/header quotes looked
+    # frozen; Massive delivers tick-by-tick. We read its developing bar directly
+    # (get_last_price) below — interest keeps the symbol subscribed upstream
+    # WITHOUT a per-tick queue on the request loop. Best-effort: if the bars feed
+    # is disabled/uninitialized we silently fall back to Finnhub-only.
+    _bb = None
+    try:
+        from api.services.bar_broadcaster import get_broadcaster
+        _bb = get_broadcaster()
+        _bb.add_interest(ticker_list)
+    except Exception:
+        _bb = None
 
     async def event_generator():
         last_prices = {}  # {sym: price} — only compare price field to avoid unnecessary pushes
@@ -130,8 +145,23 @@ async def stream_prices(
                 if await request.is_disconnected():
                     break
 
-                # Get latest prices for requested tickers
+                # Get latest prices for requested tickers (Finnhub store — fallback).
                 current = get_realtime_prices(ticker_list)
+
+                # Overlay the MASSIVE live price where we have a fresh tick — it's
+                # the same sub-second feed powering the candle, vs Finnhub's
+                # throttled trickle. Only the `price` is overlaid; the client
+                # recomputes the day % from this price + the REST prev close.
+                if _bb is not None:
+                    for sym in ticker_list:
+                        mp = _bb.get_last_price(sym)
+                        if mp and mp.get("price") is not None:
+                            entry = current.get(sym)
+                            if entry is None:
+                                entry = {}
+                                current[sym] = entry
+                            entry["price"] = mp["price"]
+                            entry["updated_at"] = int(time.time())
 
                 # Only send if any ticker's price actually changed
                 prices_now = {s: d.get("price") for s, d in current.items()} if current else {}
@@ -189,6 +219,11 @@ async def stream_prices(
             # Clean up subscriptions when client disconnects so _subscribed
             # doesn't grow unbounded as users navigate between pages.
             unsubscribe_tickers(ticker_list)
+            if _bb is not None:
+                try:
+                    _bb.remove_interest(ticker_list)
+                except Exception:
+                    pass
 
     return StreamingResponse(
         event_generator(),

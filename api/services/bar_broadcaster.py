@@ -60,6 +60,14 @@ class BarBroadcaster:
         self._am_partials: dict[tuple[str, str], dict] = {}  # (sym, tf) -> AM-only partial
         # C1: store (queue, loop) tuples so _emit can use call_soon_threadsafe
         self._subscribers: dict[tuple[str, str], set[tuple[asyncio.Queue, asyncio.AbstractEventLoop]]] = {}
+        # Quote-feed INTEREST refcount (per symbol). The live-price SSE
+        # (/api/stream/prices) needs Massive ticks for watchlist/theme/header
+        # symbols, but it reads the developing bar directly (get_last_price) and
+        # must NOT create a per-(sym,tf) subscriber queue — that would dispatch a
+        # throttled tick into the request event loop for every watched symbol
+        # (the 524 surface). Interest keeps the symbol subscribed upstream + its
+        # partial alive, WITHOUT any queue dispatch.
+        self._interest: dict[str, int] = {}
         self._lock = threading.Lock()
         self._on_first_subscribe = on_first_subscribe or (lambda sym: None)
         self._on_last_unsubscribe = on_last_unsubscribe or (lambda sym: None)
@@ -80,7 +88,7 @@ class BarBroadcaster:
         loop = asyncio.get_running_loop()
         key = (sym, tf)
         with self._lock:
-            had_any = self._symbol_has_any_subscriber(sym)
+            had_any = self._symbol_wanted(sym)
             self._subscribers.setdefault(key, set()).add((q, loop))
         if not had_any:
             try:
@@ -101,7 +109,7 @@ class BarBroadcaster:
                     subs.discard(match)
                     if not subs:
                         self._subscribers.pop(key, None)
-            still_any = self._symbol_has_any_subscriber(sym)
+            still_any = self._symbol_wanted(sym)
         if not still_any:
             # I1: clean up partial state — no subscribers watching anymore
             with self._lock:
@@ -115,6 +123,69 @@ class BarBroadcaster:
 
     def _symbol_has_any_subscriber(self, sym: str) -> bool:
         return any(s == sym for (s, _tf) in self._subscribers.keys())
+
+    def _symbol_wanted(self, sym: str) -> bool:
+        """A symbol must stay subscribed upstream while ANY chart is streaming it
+        (a subscriber queue) OR the quote feed holds interest in it."""
+        return self._interest.get(sym, 0) > 0 or self._symbol_has_any_subscriber(sym)
+
+    # ── Quote-feed interest (no queues; keeps the partial alive for get_last_price) ──
+
+    def add_interest(self, symbols) -> None:
+        """Register live-price interest in symbols (refcounted). Triggers the
+        upstream Massive subscription (via on_first_subscribe) so tick-by-tick
+        trades start flowing into the developing bar, readable via get_last_price."""
+        for raw in symbols:
+            sym = str(raw).upper()
+            if not sym:
+                continue
+            with self._lock:
+                was_wanted = self._symbol_wanted(sym)
+                self._interest[sym] = self._interest.get(sym, 0) + 1
+            if not was_wanted:
+                try:
+                    self._on_first_subscribe(sym)
+                except Exception as e:
+                    _logger.warning("[bar_broadcaster] on_first_subscribe(%s) failed: %s", sym, e)
+
+    def remove_interest(self, symbols) -> None:
+        """Release live-price interest. When a symbol has no interest AND no chart
+        subscriber left, unsubscribe it upstream and drop its partials."""
+        for raw in symbols:
+            sym = str(raw).upper()
+            if not sym:
+                continue
+            with self._lock:
+                cur = self._interest.get(sym, 0)
+                if cur <= 1:
+                    self._interest.pop(sym, None)
+                else:
+                    self._interest[sym] = cur - 1
+                still = self._symbol_wanted(sym)
+                if not still:
+                    for tf_to_clear in ("1",) + ROLLUP_TFS:
+                        self._partials.pop((sym, tf_to_clear), None)
+                        self._am_partials.pop((sym, tf_to_clear), None)
+            if not still:
+                try:
+                    self._on_last_unsubscribe(sym)
+                except Exception as e:
+                    _logger.warning("[bar_broadcaster] on_last_unsubscribe(%s) failed: %s", sym, e)
+
+    def get_last_price(self, sym: str) -> Optional[dict]:
+        """Latest Massive-derived live price for a symbol, or None if no tick yet.
+
+        Reads the developing 1-min partial (updated tick-by-tick by T events).
+        Returns {"price", "ts"} — `price` is the last trade, `ts` the bar bucket.
+        The frontend recomputes the day % from this live price + the REST prev
+        close, so we only need the price here (day volume stays REST-owned)."""
+        p = self._partials.get((sym.upper(), "1"))
+        if not p:
+            return None
+        c = p.get("c")
+        if c is None:
+            return None
+        return {"price": c, "ts": p.get("t")}
 
     # ── Inbound from bar_stream ──
 
@@ -302,6 +373,7 @@ class BarBroadcaster:
         with self._lock:
             return {
                 "subscriber_pairs": len(self._subscribers),
+                "quote_interest_symbols": len(self._interest),
                 "tracked_partials": len(self._partials),
                 "symbols": sorted({s for (s, _) in self._subscribers.keys()}),
                 "bars_emitted_total": _bars_emitted_total,
