@@ -186,14 +186,13 @@ test('New Layout wipes the board to empty and persists the blank state', () => {
   )
 })
 
-test('Open-layout dropdown contains the Multi Chart flyout row', () => {
+test('Multi Chart is a top-level toolbar dropdown that opens the MultiChartMenu', () => {
   renderWS()
-  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
-  const row = screen.getByRole('button', { name: /Multi Chart/ })
-  expect(row).toBeInTheDocument()
-  // The flyout (MultiChartMenu) opens from the row.
+  // Multi Chart moved OUT of the Open-layout menu into its own header button.
+  const btn = screen.getByRole('button', { name: /Multi Chart/ })
+  expect(btn).toBeInTheDocument()
   expect(screen.queryByTestId('multichart-menu')).not.toBeInTheDocument()
-  act(() => { row.click() })
+  act(() => { btn.click() })
   expect(screen.getByTestId('multichart-menu')).toBeInTheDocument()
 })
 
@@ -206,6 +205,8 @@ test('grid mode renders MultiChartGrid when multichart_state has mode:"grid"', (
   expect(screen.queryByRole('button', { name: /\+ add widget/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /save layout/i })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Workspace' })).toBeInTheDocument()
-  // The Open-layout dropdown (host of the Multi Chart flyout) stays available.
+  // Open layout + Multi Chart stay available in grid mode (both are the entry
+  // points that persist across modes).
   expect(screen.getByRole('button', { name: /open layout/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /Multi Chart/ })).toBeInTheDocument()
 })

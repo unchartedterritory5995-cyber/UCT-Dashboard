@@ -540,8 +540,11 @@ export default function ChartsWorkspace() {
                 <div className={styles.menuSection}>Prebuilt</div>
                 {/* Chart theme presets, listed among the prebuilt layouts. These
                     recolor the whole workspace (charts + all widgets) rather than
-                    swap the widget arrangement; the active one shows a ✓. */}
-                {[['default', 'Default'], ['sunrise', 'TSDR — Sunrise']].map(([val, label]) => (
+                    swap the widget arrangement; the active one shows a ✓. The
+                    'sunrise' (TSDR — Sunrise) option is temporarily hidden here
+                    (theme code kept intact — see charts-layout-presets-snapshot);
+                    re-add ['sunrise', 'TSDR — Sunrise'] to the map to restore it. */}
+                {[['default', 'UCT Default']].map(([val, label]) => (
                   <div key={`theme-${val}`} className={styles.menuRow}>
                     <button
                       type="button"
@@ -551,30 +554,6 @@ export default function ChartsWorkspace() {
                     >{chartsTheme === val ? '✓ ' : ''}{label}</button>
                   </div>
                 ))}
-                {/* Multi Chart — a layout option, not a header tab. Hover or
-                    click opens the grid-selection flyout beside this menu.
-                    The flyout is a DOM child of this row, so the parent
-                    dropdown's onMouseLeave doesn't fire while it's hovered. */}
-                <div
-                  className={styles.menuRow}
-                  style={{ position: 'relative' }}
-                  onMouseEnter={() => setMcMenuOpen(true)}
-                  onMouseLeave={() => setMcMenuOpen(false)}
-                >
-                  <button
-                    type="button"
-                    className={styles.addMenuItem}
-                    style={{ flex: 1, ...(gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : {}) }}
-                    onClick={() => setMcMenuOpen(o => !o)}
-                  >{gridMode ? '✓ ' : ''}▦ Multi Chart ▸</button>
-                  {mcMenuOpen && (
-                    <MultiChartMenu
-                      mc={mc}
-                      flyout
-                      onClose={() => { setMcMenuOpen(false); setOpenMenuOpen(false) }}
-                    />
-                  )}
-                </div>
                 {wsGlobalLayouts.map(t => (
                   <div key={`g${t.id}`} className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
@@ -637,6 +616,26 @@ export default function ChartsWorkspace() {
             )}
           </div>
           )}
+
+          {/* Multi Chart — its own top-level dropdown (moved out of Open layout).
+              Visible in BOTH modes: it's the grid-mode entry point AND hosts the
+              layout presets / N×M / sync toggles / saved grids / "Back to
+              workspace" once in grid mode. Same MultiChartMenu, now anchored
+              below this button instead of flying out beside the Open menu. */}
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              onClick={() => { setMcMenuOpen(o => !o); setOpenMenuOpen(false); setAddMenuOpen(false); setSaveMenuOpen(false) }}
+            >{gridMode ? '✓ ' : ''}▦ Multi Chart ▾</button>
+            {mcMenuOpen && (
+              <MultiChartMenu
+                mc={mc}
+                onClose={() => setMcMenuOpen(false)}
+              />
+            )}
+          </div>
 
           {gridMode && (
             <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
