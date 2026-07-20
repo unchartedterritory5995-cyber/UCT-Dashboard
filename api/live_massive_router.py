@@ -2757,12 +2757,12 @@ def _parse_mdy(s):
     return None
 
 
-def _earnings_line(ticker: str, exp) -> str:
+def _earnings_line(ticker: str, exp=None) -> str:
     """Date-aware earnings line for the embed, or None. Uses the router's own
-    calendar cache. 'held through earnings' when the option expiration clears
-    the earnings date (the short-DTE-into-earnings signal). Renders nothing when
-    earnings are past or unknown. ET here is the file's fixed EDT(−4); date-only
-    so DST is immaterial except within an hour of midnight ET."""
+    calendar cache. Renders nothing when earnings are past or unknown. ET here
+    is the file's fixed EDT(−4); date-only so DST is immaterial except within an
+    hour of midnight ET. (`exp` is accepted for call-site compatibility but
+    unused — the held-through-earnings note was removed 2026-07-20.)"""
     if not ticker:
         return None
     _er_cal_maybe_refresh()
@@ -2776,13 +2776,8 @@ def _earnings_line(ticker: str, exp) -> str:
     days_to = (ed - datetime.now(ET).date()).days
     if days_to < 0:
         return None  # already reported — say nothing (fixes the MU stale flag)
-    exp_d = _parse_mdy(exp)
-    held = exp_d is not None and exp_d > ed
     horizon = "today" if days_to == 0 else ("tomorrow" if days_to == 1 else f"in {days_to} days")
-    line = f"⚠️ Earnings {ed.month}/{ed.day} ({horizon})"
-    if held:
-        line += "  ·  📌 held through earnings"
-    return line
+    return f"⚠️ Earnings {ed.month}/{ed.day} ({horizon})"
 
 
 def _fmt_money_m(n) -> str:
@@ -2975,8 +2970,7 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
     # Compose: badge line(s), then metric groups separated by a BLANK line for
     # readable spacing. All in the description → identical on desktop and mobile.
     # Earnings proximity (2026-07-19) — date-aware, self-clearing. Nothing when
-    # earnings are past or unknown; "held through earnings" when the expiration
-    # clears the report date (the short-DTE-into-earnings signal).
+    # earnings are past or unknown.
     _er_line = _earnings_line(ticker, exp)
     if _er_line:
         lines.append(_er_line)
