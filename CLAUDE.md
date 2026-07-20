@@ -1403,6 +1403,15 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 - **Non-blocking compute**: memory cache → disk → `{status: "computing"}`
 - **Workers**: `_MAX_WORKERS = 2` (reduced for Railway 512MB scalability)
 
+### Theme Membership Engine (self-improving overlay · flag-gated `THEME_ENGINE_ENABLED=1` · LIVE 2026-07-20)
+Autonomous AI overlay that absorbs orphan stocks (in no theme) and refines memberships as stories/RS develop. **`themes_taxonomy.json` is the inviolable owner baseline — the engine NEVER edits it.** Files: `api/services/theme_engine/` (store/orphans/improve/comovement/invalidate), `api/routers/theme_engine.py`, crons in `main.py`.
+- **Writes ONLY to `engine_memberships`** (+ `engine_decisions`/`engine_membership_events`/`engine_runs`/`engine_cost_log`) in **auth.db** — a separate overlay. It physically cannot touch `theme_memberships`.
+- **Merge lives inside `theme_db`'s 3 read fns** (`get_all_themes`/`get_themes_for_ticker`/`get_theme_holdings`): SQL UNION owner+engine, **owner-precedence** (owner row wins on conflict via `NOT EXISTS`), dangling-theme + suppression filters, and a `source` tag (`'owner'`|`'engine'`) on every row. ⚠️ **Aggregates are owner-only** — `groups.py` `_theme_size`/`resolve_primary_theme` and `theme_performance` §4b returns must NEVER count engine rows (they'd move sizes/returns off the owner's honest baseline).
+- **Loops** (gated by the flag): Loop 1 orphans **Mon–Fri 11 PM ET** (`orphans.run_orphan_batch` — 1 grounded `claude-opus-4-8` call/orphan, visibility-scaled write gate + beat-incumbent test, 35d decision-memory re-eval, **$5/day ET-day cost cap**); Loop 2 self-improve + 30d co-movement audit **Sat 10 AM ET** (`improve.run_improve`).
+- **Notifications → admin Discord** (`DISCORD_WEBHOOK_URL`, same channel as signups): DAILY digest after each nightly run (`orphans.daily_report_text` — absorbed names by theme + counts + spend) + WEEKLY report Sat (`improve.weekly_report_text`).
+- **Ops** (`api/routers/theme_engine.py`, all `require_admin`): `GET /api/theme-engine/status` (run ledger + day cost), `POST .../rollback/{run_id}` (inverse-event replay), `.../dry-run`, `.../suppress/dismiss`, `.../clear-decisions` (**MANDATORY between a validation dry-run and go-live** — see router docstring).
+- **Provenance in UI**: dim dot on engine-sourced Multi-Chart grid cell badges + Theme Tracker holding chips. The engine overlay survives version-gated taxonomy reseeds (separate tables).
+
 ### Real-Time Streaming
 - **WebSocket**: `wss://socket.polygon.io/stocks` via `MASSIVE_API_KEY`
 - **Channels**: `T.*` (tick-by-tick trades) + `AM.*` (per-minute aggregates)
