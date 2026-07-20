@@ -169,7 +169,13 @@ class _MassiveRestClient:
     _SNAPSHOT_BATCH = 200
 
     def get_batch_snapshots(self, tickers: list[str]) -> dict[str, float]:
-        """Return regular-session % change for a batch of tickers (chunked)."""
+        """Return regular-session % change for a batch of tickers.
+
+        Chunked under the endpoint's ticker cap AND fetched in PARALLEL — the
+        Theme Tracker sends ~2,050 holdings = ~11 chunks; sequential fetches were
+        ~1s each (~10s total), which stalled the theme-performance rebuild and
+        froze the tab on load. Parallel collapses that to ~one round-trip.
+        """
         if not tickers:
             return {}
 
@@ -180,38 +186,49 @@ class _MassiveRestClient:
                 return None
 
         uniq = list(dict.fromkeys(t.upper() for t in tickers))
-        result: dict[str, float] = {}
-        for i in range(0, len(uniq), self._SNAPSHOT_BATCH):
-            chunk = uniq[i:i + self._SNAPSHOT_BATCH]
+        chunks = [uniq[i:i + self._SNAPSHOT_BATCH]
+                  for i in range(0, len(uniq), self._SNAPSHOT_BATCH)]
+
+        def _fetch_chunk(chunk):
             url = (
                 f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
                 f"?tickers={','.join(chunk)}&apiKey={self._api_key}"
             )
             try:
-                data = self._get(url)
+                return self._get(url).get("tickers", []) or []
             except Exception:
-                continue  # one bad chunk must not wipe the others
+                return []  # one bad chunk must not wipe the others
 
-            for t in data.get("tickers", []):
-                ticker = t.get("ticker", "")
-                if not ticker:
-                    continue
-                day_c = _f((t.get("day") or {}).get("c"))
-                prev_c = _f((t.get("prevDay") or {}).get("c"))
-                chg = _f(t.get("todaysChangePerc"))
-                # ALWAYS derive the % from day close vs prev close when we have both —
-                # the REGULAR-session move (matches the chart's close-vs-prev legend).
-                # Massive's todaysChangePerc is LAST-TRADE-based (incl. after-hours), so
-                # after the close it over/under-states the regular % (TWST 2.93% vs the
-                # real 2.87%) AND intermittently comes back a stale 0 → Theme Tracker
-                # flashes to 0.00%. A genuinely flat stock still has day_c == prev_c → 0.
-                if day_c and prev_c:
-                    result[ticker] = round((day_c - prev_c) / prev_c * 100.0, 4)
-                elif chg is not None and chg != 0.0:
-                    result[ticker] = round(chg, 4)
-                # else: no day close to compute from AND change is 0/missing → no data
-                # yet → OMIT the ticker so callers keep their last-known value instead
-                # of overwriting it with a spurious 0.00%.
+        rows: list = []
+        if len(chunks) <= 1:
+            rows = _fetch_chunk(chunks[0]) if chunks else []
+        else:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=min(6, len(chunks))) as ex:
+                for chunk_rows in ex.map(_fetch_chunk, chunks):
+                    rows.extend(chunk_rows)
+
+        result: dict[str, float] = {}
+        for t in rows:
+            ticker = t.get("ticker", "")
+            if not ticker:
+                continue
+            day_c = _f((t.get("day") or {}).get("c"))
+            prev_c = _f((t.get("prevDay") or {}).get("c"))
+            chg = _f(t.get("todaysChangePerc"))
+            # ALWAYS derive the % from day close vs prev close when we have both —
+            # the REGULAR-session move (matches the chart's close-vs-prev legend).
+            # Massive's todaysChangePerc is LAST-TRADE-based (incl. after-hours), so
+            # after the close it over/under-states the regular % (TWST 2.93% vs the
+            # real 2.87%) AND intermittently comes back a stale 0 → Theme Tracker
+            # flashes to 0.00%. A genuinely flat stock still has day_c == prev_c → 0.
+            if day_c and prev_c:
+                result[ticker] = round((day_c - prev_c) / prev_c * 100.0, 4)
+            elif chg is not None and chg != 0.0:
+                result[ticker] = round(chg, 4)
+            # else: no day close to compute from AND change is 0/missing → no data
+            # yet → OMIT the ticker so callers keep their last-known value instead
+            # of overwriting it with a spurious 0.00%.
         return result
 
     def get_batch_rich_snapshots(self, tickers: list[str]) -> dict[str, dict]:
