@@ -60,6 +60,7 @@ describe('pooled useRealtimePrices', () => {
     act(() => {
       es.emitOpen()
       es.emitMessage({ AAPL: { price: 111 }, MSFT: { price: 222 } })
+      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
     })
 
     expect(a.result.current.prices.AAPL.price).toBe(111)
@@ -90,6 +91,7 @@ describe('pooled useRealtimePrices', () => {
     act(() => {
       es.emitOpen()
       es.emitMessage({ AAPL: { price: 100.5, change_pct: 0, change: 0 } }) // spurious stream 0
+      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
     })
 
     const px = a.result.current.prices.AAPL
@@ -119,6 +121,7 @@ describe('pooled useRealtimePrices', () => {
     act(() => {
       es.emitOpen()
       es.emitMessage({ AAPL: { price: 102, change_pct: 7.4, change: 7 } }) // after-hours pop
+      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
     })
 
     const px = a.result.current.prices.AAPL
@@ -147,6 +150,7 @@ describe('pooled useRealtimePrices', () => {
       es.emitOpen()
       es.emitMessage({ AAPL: { price: 42 } })
       es.emitMessage({ AAPL: { price: 43 } })
+      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
     })
     expect(active.result.current.prices.AAPL.price).toBe(43)
     expect(idleRenders).toBe(rendersBefore)   // idle consumer untouched by publishes
@@ -170,6 +174,7 @@ describe('pooled useRealtimePrices', () => {
       for (const fn of es.listeners['stale'] || []) {
         fn({ data: JSON.stringify({ sym: 'AAPL' }) })
       }
+      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
     })
     expect(a.result.current.staleSymbols.has('AAPL')).toBe(true)
     expect(b.result.current.staleSymbols.size).toBe(0)

@@ -38,11 +38,34 @@ function _allConnected() {
   return _buckets.length > 0 && _buckets.every(b => b.connected)
 }
 
-function _publish() {
+// Coalesce re-render notifications to a ~2x/sec HEARTBEAT. Updating the whole app
+// (watchlist, theme tracker, header %, chart legend source) on EVERY tick is visual
+// churn + a re-render storm across many rows; a calm 500ms cadence looks less chaotic
+// AND is lighter. The snapshot is refreshed IMMEDIATELY so getSnapshot() (and a
+// freshly-mounting consumer) always reads current data — only the notify (re-render)
+// is throttled: leading edge fires at once, then at most once per 500ms window.
+const PUBLISH_THROTTLE_MS = 500
+let _throttleTimer = null
+let _pendingPublish = false
+
+function _refreshSnapshot() {
   _snapshot = { prices: _streamPrices, staleSymbols: _staleSymbols, connected: _allConnected() }
+}
+
+function _notifyListeners() {
   for (const sub of _subscribers.values()) {
     try { sub.listener() } catch { /* one bad listener never breaks fanout */ }
   }
+}
+
+function _publish() {
+  _refreshSnapshot()
+  if (_throttleTimer) { _pendingPublish = true; return }
+  _notifyListeners()
+  _throttleTimer = setTimeout(() => {
+    _throttleTimer = null
+    if (_pendingPublish) { _pendingPublish = false; _refreshSnapshot(); _notifyListeners() }
+  }, PUBLISH_THROTTLE_MS)
 }
 
 export function getSnapshot() {
@@ -242,6 +265,8 @@ if (typeof document !== 'undefined') {
 export function _resetForTests() {
   if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null }
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
+  if (_throttleTimer) { clearTimeout(_throttleTimer); _throttleTimer = null }
+  _pendingPublish = false
   for (const b of _buckets) _teardownBucket(b)
   _buckets = []
   _subscribers.clear()
