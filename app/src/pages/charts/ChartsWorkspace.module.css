@@ -600,7 +600,14 @@
 
 .workspaceBody {
   flex: 1; min-height: 0; min-width: 0;
-  overflow: hidden;  /* viewport-locked — widgets stay within visible area */
+  /* viewport-locked — widgets stay within the visible area. Use `clip` (not
+     `hidden`): both clip the merged view's ceil-rounded overflow, but `hidden` is
+     still a SCROLLABLE container, so focusing the ticker-search input (or any
+     scrollIntoView) let the browser scroll the board and shove the chart tops up
+     under the header. `clip` is not a scroll container, so it can't shift.
+     `overflow:hidden` first as a fallback for browsers without `clip`. */
+  overflow: hidden;
+  overflow: clip;
   padding: 6px;
   position: relative;
 }
