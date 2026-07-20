@@ -335,3 +335,105 @@ async def _fetch_oi_all_async(batch: Iterable[tuple]) -> list:
 def _fetch_oi_all(contracts: Iterable[tuple]) -> list:
     """Synchronous wrapper (parity with the Schwab module's _fetch_oi_all)."""
     return asyncio.run(_fetch_oi_all_async(contracts))
+
+
+# ── Live single-contract FIELDS fallback for /options-quotes (2026-07-20) ────
+# When Schwab AND UW leave a contract without a usable price (far-dated /
+# illiquid LEAPS with no live NBBO), the router fills Now/OI/underlying from
+# Massive's real-time options snapshot. Uses the SINGLE-contract endpoint
+# (/v3/snapshot/options/{underlying}/{occ}) — one small call per missing
+# contract, concurrent — rather than pulling the whole chain. Live prices, so
+# NOT cached. Stdlib urllib + apiKey, same as the OI path.
+
+def _num(x):
+    try:
+        v = float(x)
+        return v if v == v else None  # drop NaN
+    except (ValueError, TypeError):
+        return None
+
+
+def _occ_symbol(sym, cp_letter, strike, exp_mdy):
+    """Build the OCC/Polygon options ticker, e.g. O:CRCL270115C00150000."""
+    try:
+        m_, d_, y_ = [int(x) for x in str(exp_mdy).split("/")]
+        strike_int = int(round(float(strike) * 1000))
+        return f"O:{str(sym).upper().strip()}{y_ % 100:02d}{m_:02d}{d_:02d}{cp_letter}{strike_int:08d}"
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def _fields_from_result(item):
+    """Extract the field bundle the router needs from one snapshot result."""
+    if not isinstance(item, dict):
+        return None
+    lq = item.get("last_quote") or {}
+    lt = item.get("last_trade") or {}
+    ua = item.get("underlying_asset") or {}
+    gk = item.get("greeks") or {}
+    mid = _num(lq.get("midpoint"))
+    if mid is None:
+        bid, ask = _num(lq.get("bid")), _num(lq.get("ask"))
+        if bid and ask and bid > 0 and ask > 0:
+            mid = (bid + ask) / 2.0
+    oi = item.get("open_interest")
+    try:
+        oi = int(oi) if oi not in (None, "") else None
+    except (ValueError, TypeError):
+        oi = None
+    return {
+        "oi": oi,
+        "mid": mid,
+        "last": _num(lt.get("price")),
+        "underlying": _num(ua.get("price")),
+        "iv": _num(item.get("implied_volatility")),
+        "delta": _num(gk.get("delta")),
+        "gamma": _num(gk.get("gamma")),
+        "theta": _num(gk.get("theta")),
+    }
+
+
+def _fetch_contract_fields_blocking(underlying, occ):
+    """Blocking single-contract snapshot fetch → field bundle, or None."""
+    url = _with_key(f"{MASSIVE_REST_BASE}/v3/snapshot/options/{underlying}/{occ}")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": _UCT_UA})
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_SEC) as resp:
+            if getattr(resp, "status", 200) != 200:
+                return None
+            data = _json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        logger.warning("[massive-fields] %s failed: %s", occ, e)
+        return None
+    return _fields_from_result((data or {}).get("results"))
+
+
+async def _fetch_fields_all_async(batch):
+    """Live Massive fallback. batch = iterable of (sym, cp, strike, exp_mdy).
+    Returns {contract_key: fields_dict|None}. One concurrent single-contract
+    snapshot per requested contract."""
+    def _norm_cp(cp):
+        return "C" if str(cp).upper() in ("C", "CALL") else "P"
+
+    sem = asyncio.Semaphore(MAX_CONCURRENCY)
+
+    async def _one(underlying, occ):
+        async with sem:
+            return await asyncio.to_thread(_fetch_contract_fields_blocking, underlying, occ)
+
+    keys, tasks = [], []
+    for entry in list(batch):
+        try:
+            sym, cp, strike, exp = entry
+        except (ValueError, TypeError):
+            continue
+        cpl = _norm_cp(cp)
+        sym = str(sym).upper().strip()
+        occ = _occ_symbol(sym, cpl, strike, exp)
+        if not occ:
+            continue
+        keys.append(_contract_key(sym, cpl, strike, exp))
+        tasks.append(_one(sym, occ))
+
+    results = await asyncio.gather(*tasks) if tasks else []
+    return {k: v for k, v in zip(keys, results)}
