@@ -2,7 +2,35 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import CompassOrb from '../../../components/voice/CompassOrb'
 import VoiceInputButton from '../../journal-2-0/components/VoiceInputButton'
+import ShareToFloor from '../../../components/community/ShareToFloor'
 import styles from './AiSearchWidget.module.css'
+
+// Saved answers persist per-browser so a member can reopen a good answer later.
+const SAVED_KEY = 'uct.aisearch.saved'
+const loadSaved = () => {
+  try { const a = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'); return Array.isArray(a) ? a : [] }
+  catch { return [] }
+}
+const persistSaved = (list) => {
+  try { localStorage.setItem(SAVED_KEY, JSON.stringify(list.slice(0, 30))) } catch { /* quota/full — non-fatal */ }
+}
+
+// Plain-text answer (link syntax + bold stripped) for copy / Floor-share teasers.
+const plainAnswer = (a) => String(a || '')
+  .replace(/\[([^\]]+)\]\(\$[A-Za-z][A-Za-z.\-]{0,6}\)/g, '$1')
+  .replace(/\*\*/g, '')
+
+// Tickers mentioned in an answer (link form + bare cashtag), first few, deduped.
+const extractTickers = (text) => {
+  const out = []
+  const re = /\[[^\]]+\]\(\$([A-Za-z][A-Za-z.\-]{0,6})\)|\$([A-Z]{1,5}(?:\.[A-Z])?)\b/g
+  let m
+  while ((m = re.exec(String(text || '')))) {
+    const t = (m[1] || m[2] || '').toUpperCase()
+    if (t && !out.includes(t)) out.push(t)
+  }
+  return out.slice(0, 6)
+}
 
 // Spread across the tool's real range so the first impression isn't "it only
 // tells me why a stock moved": live movers, head-to-head compare, setup/levels
@@ -121,17 +149,28 @@ function AnswerBody({ text, onTicker, cites }) {
 
 // One completed Q/A turn in the conversation thread. Follow-ups + the compliance
 // line render only on the latest turn (isLast) so a long thread stays clean.
-function Exchange({ entry, isLast, onTicker, onCopy, copied, onFollow }) {
+function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, onFollow }) {
   return (
     <div className={styles.exchange}>
       <div className={styles.qLabel}>
         <span className={styles.askedText}>{entry.q}</span>
-        <button className={styles.copyBtn} onClick={() => onCopy(entry)} title="Copy answer text">
-          {copied ? 'Copied ✓' : 'Copy'}
-        </button>
       </div>
       <div className={styles.answerText}>
         <AnswerBody text={entry.answer} onTicker={onTicker} cites={entry.citations} />
+      </div>
+
+      <div className={styles.answerActions}>
+        <button className={styles.actionBtn} onClick={() => onCopy(entry)} title="Copy answer text">
+          {copied ? 'Copied ✓' : 'Copy'}
+        </button>
+        <button className={styles.actionBtn} onClick={() => onSave(entry)} title="Save this answer (reopen it later)">
+          {isSaved ? 'Saved ✓' : 'Save'}
+        </button>
+        <ShareToFloor
+          compact
+          label="Share"
+          card={{ kind: 'ai', q: entry.q, a: plainAnswer(entry.answer), tickers: extractTickers(entry.answer) }}
+        />
       </div>
 
       {isLast && entry.related?.length > 0 && (
@@ -190,6 +229,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const [limitMsg, setLimitMsg] = useState(null)
   const [phase, setPhase] = useState(0)
   const [copiedId, setCopiedId] = useState(null)
+  const [saved, setSaved] = useState(loadSaved)   // answers pinned to localStorage
   const [pending, setPending] = useState(null)   // question in flight (shown at the tail)
   const [streamText, setStreamText] = useState('')   // partial answer while streaming
   const [deep, setDeep] = useState(false)   // reasoning tier — longer silent think phase
@@ -392,6 +432,27 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       .catch(() => { /* clipboard unavailable — button just doesn't confirm */ })
   }, [])
 
+  // Save / unsave an answer to localStorage (keyed by question) so a member can
+  // reopen it in a later session; restore drops the saved turn back into the thread.
+  const toggleSave = useCallback((entry) => {
+    setSaved((prev) => {
+      const exists = prev.some((s) => s.q === entry.q)
+      const next = exists
+        ? prev.filter((s) => s.q !== entry.q)
+        : [{ q: entry.q, answer: entry.answer, citations: entry.citations || [], related: entry.related || [] }, ...prev].slice(0, 30)
+      persistSaved(next)
+      return next
+    })
+  }, [])
+  const restoreSaved = useCallback((item) => {
+    const entry = { id: ++idRef.current, q: item.q, answer: item.answer || '', citations: item.citations || [], related: item.related || [] }
+    threadRef.current = [...threadRef.current, entry]
+    setThread(threadRef.current)
+  }, [])
+  const removeSaved = useCallback((item) => {
+    setSaved((prev) => { const next = prev.filter((s) => s.q !== item.q); persistSaved(next); return next })
+  }, [])
+
   // Register with the workspace AI bus so a chart's "AI search" action runs here,
   // and auto-run an initialQuery (used by the temp popup + /ai-search?q= deep-link).
   // runRef keeps the subscription stable while always calling the latest run.
@@ -459,6 +520,19 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
                 <button key={ex} className={styles.example} onClick={() => run(ex)}>{ex}</button>
               ))}
             </div>
+            {saved.length > 0 && (
+              <div className={styles.savedWrap}>
+                <span className={styles.savedLabel}>Saved answers</span>
+                <div className={styles.savedList}>
+                  {saved.map((s) => (
+                    <div key={s.q} className={styles.savedRow}>
+                      <button className={styles.savedItem} onClick={() => restoreSaved(s)} title="Reopen this answer">{s.q}</button>
+                      <button className={styles.savedDel} onClick={() => removeSaved(s)} title="Remove from saved">✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -470,6 +544,8 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
             onTicker={handleTicker}
             onCopy={copyExchange}
             copied={copiedId === entry.id}
+            onSave={toggleSave}
+            isSaved={saved.some((s) => s.q === entry.q)}
             onFollow={askFollowUp}
           />
         ))}

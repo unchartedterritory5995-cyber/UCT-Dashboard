@@ -192,3 +192,25 @@ def test_unknown_card_kind():
     from api.services import community_cards
     with pytest.raises(ValueError):
         community_cards.build_card("evil", {}, user_id="u1", load_trade=_fake_trade)
+
+
+def test_ai_card_sanitizes_and_bounds():
+    from api.services import community_cards
+    card = community_cards.build_card(
+        "ai",
+        {"kind": "ai", "q": "Compare NVDA vs AMD",
+         "a": "NVDA is the cleaner setup.\x07 AMD is higher-beta." + "x" * 2000,
+         "tickers": ["nvda", "amd", "not a ticker", "XOM"]},
+        user_id="u1", load_trade=_fake_trade)
+    assert card["kind"] == "ai"
+    assert card["q"] == "Compare NVDA vs AMD"
+    assert "\x07" not in card["a"]            # control chars stripped
+    assert len(card["a"]) <= 900             # answer bounded
+    assert card["tickers"] == ["NVDA", "AMD", "XOM"]   # invalid dropped, upper-cased
+
+
+def test_ai_card_requires_q_and_a():
+    from api.services import community_cards
+    with pytest.raises(ValueError):
+        community_cards.build_card("ai", {"kind": "ai", "q": "only a question"},
+                                   user_id="u1", load_trade=_fake_trade)

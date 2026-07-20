@@ -170,6 +170,20 @@ function PollCard({ card, onVote }) {
   )
 }
 
+function AiCard({ card }) {
+  return (
+    <div className={styles.card} data-kind="ai">
+      <div className={styles.cardHead}>
+        <UIcon name="compass" size={14} />
+        <span className={styles.cardMuted}>AI Research</span>
+        {(card.tickers || []).slice(0, 4).map((t) => <TickerBadge key={t} ticker={t} />)}
+      </div>
+      <div className={styles.aiCardQ}>{card.q}</div>
+      <div className={styles.aiCardA}>{card.a}</div>
+    </div>
+  )
+}
+
 export default function CardRenderer({ card, onVote, onImIn, onOutcome, canMark }) {
   if (!card || !card.kind) return null
   if (card.kind === 'chart') return <ChartCard card={card} />
@@ -177,5 +191,6 @@ export default function CardRenderer({ card, onVote, onImIn, onOutcome, canMark 
   if (card.kind === 'flow') return <FlowCard card={card} />
   if (card.kind === 'poll') return <PollCard card={card} onVote={onVote} />
   if (card.kind === 'idea') return <IdeaCard card={card} onImIn={onImIn} onOutcome={onOutcome} canMark={canMark} />
+  if (card.kind === 'ai') return <AiCard card={card} />
   return null
 }

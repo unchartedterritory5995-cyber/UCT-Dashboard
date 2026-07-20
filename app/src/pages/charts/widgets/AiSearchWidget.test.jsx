@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+// ShareToFloor fetches /api/community/status on mount — stub it so it doesn't
+// add fetch calls the assertions don't expect.
+vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => null }))
 import AiSearchWidget from './AiSearchWidget'
 
 // Plain JSON mock — has no .body stream, so run() falls back to the
@@ -204,6 +207,23 @@ describe('AiSearchWidget', () => {
     // Cancel restores the question (no error, no single-shot fallback) and Ask returns.
     await waitFor(() => expect(box.value).toBe('a slow question'))
     expect(screen.getByRole('button', { name: 'Ask' })).toBeTruthy()
+  })
+
+  it('Save persists an answer that reappears under Saved on a fresh mount', async () => {
+    localStorage.clear()
+    mockFetchOnce(200, GOOD)
+    const { unmount } = render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'why is NVDA up' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    const saveBtn = await waitFor(() => screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(saveBtn)
+    expect(screen.getByRole('button', { name: 'Saved ✓' })).toBeTruthy()
+    unmount()
+    // Fresh mount (empty thread) → the saved question shows in the recall list.
+    render(<AiSearchWidget />)
+    expect(screen.getByRole('button', { name: 'why is NVDA up' })).toBeTruthy()
+    localStorage.clear()
   })
 
   it('copy strips ticker-link markdown before writing to the clipboard', async () => {

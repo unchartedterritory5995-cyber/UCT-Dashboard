@@ -154,6 +154,41 @@
   transition: color 0.12s ease, border-color 0.12s ease;
 }
 .copyBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+
+/* Per-answer action row: Copy · Save · Share to Floor */
+.answerActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.actionBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border, #262f3b);
+  color: var(--text-muted, #9ca3af);
+  border-radius: 5px; font-size: 10.5px; font-weight: 600;
+  padding: 3px 9px; cursor: pointer; font-family: inherit;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.actionBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+
+/* Saved answers (empty-state recall list) */
+.savedWrap { margin-top: 16px; width: 100%; max-width: 460px; }
+.savedLabel {
+  display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-muted, #6b7280); margin-bottom: 7px; text-align: left;
+}
+.savedList { display: flex; flex-direction: column; gap: 5px; }
+.savedRow { display: flex; align-items: center; gap: 6px; }
+.savedItem {
+  flex: 1; min-width: 0; text-align: left;
+  background: var(--bg-elevated, #141a22); border: 1px solid var(--border, #262f3b);
+  color: var(--text, #dfe4ea); border-radius: 6px; padding: 6px 10px;
+  font-size: 11.5px; cursor: pointer; font-family: inherit;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.savedItem:hover { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); }
+.savedDel {
+  background: transparent; border: none; color: var(--text-muted, #6b7280);
+  cursor: pointer; font-size: 11px; padding: 2px 4px; flex-shrink: 0;
+}
+.savedDel:hover { color: var(--loss, #c41f2d); }
 /* [n] citation markers inside the answer — superscript links to the source. */
 .cite {
   font-size: 9.5px; font-weight: 700; vertical-align: super; line-height: 1;

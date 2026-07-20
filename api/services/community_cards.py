@@ -46,6 +46,14 @@ def _str(v, n=64):
     return (str(v)[:n]) if v is not None else None
 
 
+def _clean_text(v, n):
+    """Multi-line free text for an AI card: drop control chars (keep newlines),
+    trim, truncate. Unlike other cards the content is the user's OWN visible
+    answer text (no server-side redaction to enforce), just sanitized + bounded."""
+    s = "".join(c for c in str(v or "") if c == "\n" or ord(c) >= 0x20).strip()
+    return s[:n] if s else None
+
+
 def build_card(kind: str, ref: dict, *, user_id: str, load_trade) -> dict:
     """Build a card_json dict from a client reference.
 
@@ -147,5 +155,25 @@ def build_card(kind: str, ref: dict, *, user_id: str, load_trade) -> dict:
             "options": [{"key": f"o{i}", "label": _str(o, 60) or f"Option {i + 1}"}
                         for i, o in enumerate(opts[:5])],
         }
+
+    if kind == "ai":
+        # Share an AI Search answer to the floor. The client sends the question +
+        # a plain-text answer teaser it already displayed; server sanitizes + caps.
+        q = _clean_text(ref.get("q"), 200)
+        a = _clean_text(ref.get("a"), 900)
+        if not (q and a):
+            raise ValueError("ai card needs q + a")
+        card = {"kind": "ai", "q": q, "a": a}
+        raw = ref.get("tickers")
+        if isinstance(raw, list):
+            syms = []
+            for t in raw[:6]:
+                try:
+                    syms.append(_ticker(t))
+                except ValueError:
+                    pass
+            if syms:
+                card["tickers"] = syms
+        return card
 
     raise ValueError("unknown card kind")
