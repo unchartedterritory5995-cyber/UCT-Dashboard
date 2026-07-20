@@ -32,6 +32,36 @@
   color: var(--ut-gold, #c9a84c);
   text-transform: uppercase;
 }
+.headRight { display: inline-flex; align-items: center; gap: 6px; }
+.resetBtn {
+  background: transparent;
+  border: 1px solid var(--border, #2a3340);
+  color: var(--text-muted, #8b8674);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.resetBtn:hover { color: var(--text-bright, #e0dac8); border-color: rgba(201, 168, 76, 0.45); }
+
+/* Color swatch — opens the shared ColorPanel (same as Chart Settings). */
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: border-color 0.12s, transform 0.1s;
+}
+.swatch:hover { border-color: rgba(255, 255, 255, 0.4); transform: scale(1.08); }
+.swatchActive { border-color: var(--ut-gold, #c9a84c); box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.25); }
+
 .close {
   background: none;
   border: none;
@@ -135,21 +165,3 @@
   transition: transform 0.15s ease;
 }
 .toggleOn .knob { transform: translateX(16px); background: #1ae51a; }
-
-.foot {
-  padding: 8px 11px;
-  border-top: 1px solid var(--border, #2a3340);
-}
-.resetBtn {
-  width: 100%;
-  background: transparent;
-  border: 1px solid var(--border, #2a3340);
-  border-radius: 5px;
-  color: var(--text-muted, #8b8674);
-  font-family: inherit;
-  font-size: 10.5px;
-  letter-spacing: 0.4px;
-  padding: 6px;
-  cursor: pointer;
-}
-.resetBtn:hover { color: var(--text-bright, #e0dac8); border-color: rgba(201, 168, 76, 0.4); }

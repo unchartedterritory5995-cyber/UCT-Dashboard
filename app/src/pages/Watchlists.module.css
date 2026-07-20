@@ -1399,13 +1399,13 @@
 .tickFlash { font-weight: 800; }
 .tickUp   { animation: wlTickUp 0.48s ease-out; }
 .tickDown { animation: wlTickDown 0.48s ease-out; }
-/* Tint colors are user-set HEX (Watchlist Settings), applied at ~28% via color-mix. */
+/* Tint colors are user-set 8-digit hex (Watchlist Settings — color + opacity). */
 @keyframes wlTickUp {
-  0%   { background: color-mix(in srgb, var(--wl-tint-up, #1ae51a) 28%, transparent); }
+  0%   { background: var(--wl-tint-up, #1ae51a47); }
   100% { background: transparent; }
 }
 @keyframes wlTickDown {
-  0%   { background: color-mix(in srgb, var(--wl-tint-down, #c41f2d) 28%, transparent); }
+  0%   { background: var(--wl-tint-down, #c41f2d47); }
   100% { background: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {

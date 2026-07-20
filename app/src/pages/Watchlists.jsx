@@ -1068,7 +1068,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           onChange={patchSettings}
           onReset={resetSettings}
           onClose={() => setSettingsOpen(false)}
-          anchorEl={settingsBtnRef.current}
+          gearEl={settingsBtnRef.current}
+          hostEl={pageRef.current}
         />
       )}
 
