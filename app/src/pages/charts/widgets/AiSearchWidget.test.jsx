@@ -69,7 +69,7 @@ describe('AiSearchWidget', () => {
     await waitFor(() => expect(screen.getByText(/research limit/i)).toBeTruthy())
   })
 
-  it('keeps the previous answer visible (dimmed) while the next search loads', async () => {
+  it('keeps prior turns in the thread while the next search loads', async () => {
     mockFetchOnce(200, GOOD)
     const { container } = render(<AiSearchWidget />)
     const box = screen.getByLabelText('Ask anything about the markets')
@@ -77,19 +77,21 @@ describe('AiSearchWidget', () => {
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(screen.getByText(/The move is real/)).toBeTruthy())
 
-    // Second ask: leave the fetch pending so loading state is observable.
+    // Second ask: leave the fetch pending so the loading turn is observable.
     let resolveFetch
     global.fetch = vi.fn().mockReturnValue(new Promise((res) => { resolveFetch = res }))
     fireEvent.change(box, { target: { value: 'second question' } })
     fireEvent.keyDown(box, { key: 'Enter' })
-    // New question dropped into the body immediately; input cleared;
-    // old answer still on screen, marked stale.
-    expect(container.querySelector('[class*="askedText"]').textContent).toBe('second question')
+    // Both questions are on screen (the thread grows), the first answer stays
+    // visible, and the input clears for the next ask.
+    const qs = [...container.querySelectorAll('[class*="askedText"]')].map((n) => n.textContent)
+    expect(qs).toContain('first question')
+    expect(qs).toContain('second question')
     expect(box.value).toBe('')
     expect(screen.getByText(/The move is real/)).toBeTruthy()
-    expect(container.querySelector('[class*="answerStale"]')).toBeTruthy()
     resolveFetch({ ok: true, status: 200, json: async () => GOOD })
-    await waitFor(() => expect(container.querySelector('[class*="answerStale"]')).toBeFalsy())
+    // Second answer lands → now two answers in the thread.
+    await waitFor(() => expect(screen.getAllByText(/The move is real/).length).toBeGreaterThanOrEqual(2))
   })
 
   it('streams: deltas render progressively, final applies citations', async () => {

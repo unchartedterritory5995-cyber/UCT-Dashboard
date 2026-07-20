@@ -118,6 +118,56 @@ function AnswerBody({ text, onTicker, cites }) {
   )
 }
 
+// One completed Q/A turn in the conversation thread. Follow-ups + the compliance
+// line render only on the latest turn (isLast) so a long thread stays clean.
+function Exchange({ entry, isLast, onTicker, onCopy, copied, onFollow }) {
+  return (
+    <div className={styles.exchange}>
+      <div className={styles.qLabel}>
+        <span className={styles.askedText}>{entry.q}</span>
+        <button className={styles.copyBtn} onClick={() => onCopy(entry)} title="Copy answer text">
+          {copied ? 'Copied ✓' : 'Copy'}
+        </button>
+      </div>
+      <div className={styles.answerText}>
+        <AnswerBody text={entry.answer} onTicker={onTicker} cites={entry.citations} />
+      </div>
+
+      {isLast && entry.related?.length > 0 && (
+        <div className={styles.followups}>
+          <span className={styles.followLabel}>Follow-ups</span>
+          <div className={styles.followList}>
+            {entry.related.map((q) => (
+              <button key={q} className={styles.follow} onClick={() => onFollow(q)}>
+                <span className={styles.followArrow}>↳</span>{q}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {entry.citations?.length > 0 && (
+        <div className={styles.citations}>
+          <span className={styles.citLabel}>Sources</span>
+          <div className={styles.citList}>
+            {entry.citations.map((c, i) => {
+              const url = typeof c === 'string' ? c : (c?.url || '')
+              if (!url) return null
+              let host = url
+              try { host = new URL(url).hostname.replace(/^www\./, '') } catch { /* keep raw */ }
+              return (
+                <a key={i} className={styles.cit} href={url} target="_blank" rel="noreferrer" title={url}>
+                  <span className={styles.citNum}>{i + 1}</span>{host}
+                </a>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AiSearchWidget({ initialQuery = null, color = null, onTicker = null }) {
   const { aiSearchBus, setGroupSym } = useWorkspace()
 
@@ -130,23 +180,26 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   }, [onTicker, color, setGroupSym])
 
   const [query, setQuery] = useState('')
-  const [answer, setAnswer] = useState(null)
-  const [citations, setCitations] = useState([])
-  const [related, setRelated] = useState([])
-  const [asked, setAsked] = useState('')
+  // Conversation thread: every completed {id, q, answer, citations, related}
+  // exchange this session, oldest → newest. The widget shows the whole thread so
+  // a member can scroll back through the conversation, not just the last answer.
+  const [thread, setThread] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [limitMsg, setLimitMsg] = useState(null)
   const [phase, setPhase] = useState(0)
-  const [copied, setCopied] = useState(false)
-  const [pending, setPending] = useState(null)   // question in flight (shown in the body)
+  const [copiedId, setCopiedId] = useState(null)
+  const [pending, setPending] = useState(null)   // question in flight (shown at the tail)
   const [streamText, setStreamText] = useState('')   // partial answer while streaming
   const [deep, setDeep] = useState(false)   // reasoning tier — longer silent think phase
   const inputRef = useRef(null)
   const bodyRef = useRef(null)
-  // Conversation memory: last few Q/A exchanges from this widget session,
-  // sent with each ask so follow-ups can resolve "it"/"that move". A ref —
-  // it never drives rendering. Cleared only by unmount.
+  // threadRef mirrors `thread` so run()/tryStream (stable callbacks) always read
+  // the current turns without stale closures; idRef gives each turn a stable key.
+  const threadRef = useRef([])
+  const idRef = useRef(0)
+  // Conversation memory sent with each ask (derived from threadRef at send time)
+  // so follow-ups can resolve "it"/"that move". Never drives rendering.
   const historyRef = useRef([])
   // In-flight AbortController so a member can Stop a long (reasoning) search;
   // stoppedRef distinguishes a user cancel from a network error so we don't fall
@@ -161,6 +214,11 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     return () => clearInterval(t)
   }, [loading])
 
+  // Chat-style autoscroll: follow the newest turn while it streams in.
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight
+  }, [pending, streamText, thread])
+
   // Auto-grow the ask box so a long question stays fully visible while typing
   // (caps at ~4 lines, then scrolls inside the box). Empty stays single-line —
   // Chrome counts the WRAPPED placeholder in scrollHeight, which would balloon
@@ -173,16 +231,16 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   }, [query])
 
   const applyFinal = useCallback((question, d) => {
-    setAsked(question)
-    setAnswer(d.answer || '')
-    setCitations(Array.isArray(d.citations) ? d.citations : [])
-    setRelated(Array.isArray(d.related_questions) ? d.related_questions.slice(0, 3) : [])
-    setCopied(false)
-    historyRef.current = [
-      ...historyRef.current.slice(-2),
-      { q: question, a: String(d.answer || '').slice(0, 1200) },
-    ]
-    if (bodyRef.current) bodyRef.current.scrollTop = 0
+    const entry = {
+      id: ++idRef.current,
+      q: question,
+      answer: d.answer || '',
+      citations: Array.isArray(d.citations) ? d.citations : [],
+      related: Array.isArray(d.related_questions) ? d.related_questions.slice(0, 3) : [],
+    }
+    threadRef.current = [...threadRef.current, entry]
+    setThread(threadRef.current)
+    setCopiedId(null)
   }, [])
 
   // Streaming path: POST /api/ai-search/stream and render tokens as they
@@ -250,15 +308,17 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     return 'done'
   }, [applyFinal])
 
-  // Conversation flow: submitting moves the question OUT of the input (which
-  // clears for the next ask) and down into the body immediately, with the
-  // answer streaming in beneath it. The previous answer stays on screen
-  // (dimmed) until the new one starts rendering — never blank the widget
-  // mid-read. `asked` only advances on success; a failed ask puts the
-  // question back in the input.
+  // Submitting appends a new turn to the thread: the question shows at the tail
+  // with the answer streaming beneath it, the input clears for the next ask, and
+  // every earlier turn stays on screen (scroll back through the conversation).
+  // `pending`/`streamText` render the in-flight turn; a failed ask restores the
+  // question to the input.
   const run = useCallback(async (q) => {
     const question = (q ?? query).trim()
     if (!question || loading) return
+    // Conversation memory = the last 3 completed turns (reference resolution,
+    // not a full transcript). Sent with both the stream and single-shot calls.
+    historyRef.current = threadRef.current.slice(-3).map((e) => ({ q: e.q, a: String(e.answer || '').slice(0, 1200) }))
     stoppedRef.current = false
     const ctrl = new AbortController()
     abortRef.current = ctrl
@@ -321,19 +381,19 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   // Follow-ups run directly — the input stays clear (conversation flow).
   const askFollowUp = (q) => { run(q) }
 
-  const copyAnswer = () => {
+  const copyExchange = useCallback((entry) => {
     // Strip the [Label]($TICKER) link syntax and bold markers for a clean paste.
-    const plain = String(answer || '')
+    const plain = String(entry?.answer || '')
       .replace(/\[([^\]]+)\]\(\$[A-Za-z][A-Za-z.\-]{0,6}\)/g, '$1')
       .replace(/\*\*/g, '')
     navigator.clipboard?.writeText(plain)
-      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) })
+      .then(() => { setCopiedId(entry.id); setTimeout(() => setCopiedId(null), 1600) })
       .catch(() => { /* clipboard unavailable — button just doesn't confirm */ })
-  }
+  }, [])
 
   // Register with the workspace AI bus so a chart's "AI search" action runs here,
-  // and auto-run an initialQuery (used by the temporary popup). runRef keeps the
-  // subscription stable while always calling the latest run.
+  // and auto-run an initialQuery (used by the temp popup + /ai-search?q= deep-link).
+  // runRef keeps the subscription stable while always calling the latest run.
   const runRef = useRef(run)
   runRef.current = run
   useEffect(() => {
@@ -348,6 +408,8 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); run() }
   }
+
+  const empty = thread.length === 0 && !loading && !error && !limitMsg
 
   return (
     <div className={styles.root}>
@@ -376,26 +438,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       </div>
 
       <div className={styles.body} ref={bodyRef}>
-        {loading && (
-          <>
-            {pending && (
-              <div className={styles.asked}><span className={styles.askedText}>{pending}</span></div>
-            )}
-            {streamText ? (
-              <div className={styles.answerText}>
-                <AnswerBody text={streamText} onTicker={handleTicker} cites={[]} />
-              </div>
-            ) : (
-              <div className={styles.status}>
-                <span className={styles.spinner} /> {deep ? 'Reasoning through this — a deeper pass, ~20-30s…' : SEARCH_PHASES[phase]}
-              </div>
-            )}
-          </>
-        )}
-        {!loading && error && <div className={styles.error}>{error}</div>}
-        {!loading && limitMsg && <div className={styles.limit}>{limitMsg}</div>}
-
-        {!loading && !error && !limitMsg && answer == null && (
+        {empty && (
           <div className={styles.empty}>
             <span className={styles.emptySpark}><Spark size={34} /></span>
             <div className={styles.emptyTitle}>Ask the markets anything</div>
@@ -408,52 +451,40 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
           </div>
         )}
 
-        {answer != null && !(loading && streamText) && (
-          <div className={`${styles.answer} ${loading ? styles.answerStale : ''}`}>
-            {asked && !loading && (
-              <div className={styles.asked}>
-                <span className={styles.askedText}>{asked}</span>
-                <button className={styles.copyBtn} onClick={copyAnswer} title="Copy answer text">
-                  {copied ? 'Copied ✓' : 'Copy'}
-                </button>
+        {thread.map((entry, i) => (
+          <Exchange
+            key={entry.id}
+            entry={entry}
+            isLast={i === thread.length - 1 && !loading}
+            onTicker={handleTicker}
+            onCopy={copyExchange}
+            copied={copiedId === entry.id}
+            onFollow={askFollowUp}
+          />
+        ))}
+
+        {loading && (
+          <div className={styles.exchange}>
+            {pending && (
+              <div className={styles.qLabel}><span className={styles.askedText}>{pending}</span></div>
+            )}
+            {streamText ? (
+              <div className={styles.answerText}>
+                <AnswerBody text={streamText} onTicker={handleTicker} cites={[]} />
+              </div>
+            ) : (
+              <div className={styles.status}>
+                <span className={styles.spinner} /> {deep ? 'Reasoning through this — a deeper pass, ~20-30s…' : SEARCH_PHASES[phase]}
               </div>
             )}
-            <div className={styles.answerText}><AnswerBody text={answer} onTicker={handleTicker} cites={citations} /></div>
-
-            {related.length > 0 && (
-              <div className={styles.followups}>
-                <span className={styles.followLabel}>Follow-ups</span>
-                <div className={styles.followList}>
-                  {related.map((q) => (
-                    <button key={q} className={styles.follow} onClick={() => askFollowUp(q)}>
-                      <span className={styles.followArrow}>↳</span>{q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {citations.length > 0 && (
-              <div className={styles.citations}>
-                <span className={styles.citLabel}>Sources</span>
-                <div className={styles.citList}>
-                  {citations.map((c, i) => {
-                    const url = typeof c === 'string' ? c : (c?.url || '')
-                    if (!url) return null
-                    let host = url
-                    try { host = new URL(url).hostname.replace(/^www\./, '') } catch { /* keep raw */ }
-                    return (
-                      <a key={i} className={styles.cit} href={url} target="_blank" rel="noreferrer" title={url}>
-                        <span className={styles.citNum}>{i + 1}</span>{host}
-                      </a>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className={styles.disclaimer}>AI-generated research — verify before trading.</div>
           </div>
+        )}
+
+        {!loading && error && <div className={styles.error}>{error}</div>}
+        {!loading && limitMsg && <div className={styles.limit}>{limitMsg}</div>}
+
+        {thread.length > 0 && (
+          <div className={styles.disclaimer}>AI-generated research — verify before trading.</div>
         )}
       </div>
     </div>

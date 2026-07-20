@@ -125,6 +125,15 @@
 .answer { display: flex; flex-direction: column; }
 /* Previous answer stays readable (dimmed) while the next search runs. */
 .answerStale { opacity: 0.45; pointer-events: none; }
+
+/* ── Conversation thread turns ── */
+.exchange { display: flex; flex-direction: column; }
+.exchange + .exchange { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border, #1f2937); }
+.qLabel {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: 12px; font-weight: 600; color: var(--ut-gold, #c9a84c);
+  margin-bottom: 10px;
+}
 .asked {
   display: flex; align-items: baseline; gap: 8px;
   font-size: 12px; font-weight: 600; color: var(--ut-gold, #c9a84c);
