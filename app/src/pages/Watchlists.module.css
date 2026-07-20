@@ -109,13 +109,13 @@
 .colHeaderRow > span {
   position: relative;
   padding: 0 7px;
-  /* Labels share the EXACT font/size/color/brightness of the Price + Volume cells. */
+  /* Labels match the ticker symbol EXACTLY (font, size, weight, color). */
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--text);
+  letter-spacing: 0.5px;
+  color: var(--text-bright);
   text-align: center;   /* label centered above its column */
   white-space: nowrap;
   overflow: hidden;
@@ -205,15 +205,15 @@
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
-  font-weight: 600;
   text-align: right;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Price + Volume share the header labels' exact color/brightness. */
-.priceCell, .volCell { color: var(--text); }
-.changeCell { font-weight: 600; }
+/* Price + Volume match the ticker symbol EXACTLY (font, size, weight, color). */
+.priceCell, .volCell { color: var(--text-bright); font-weight: 600; }
+/* % Change matches Theme Tracker's .ret EXACTLY — normal weight (400), not bold. */
+.changeCell { font-weight: 400; }
 
 /* Notes + alert actions — revealed on row hover, overlaid at the right edge so the
    default view stays clean columns. */
@@ -538,7 +538,7 @@
    group's own accordion header (the redundant second row); drop the group indent
    so the star hugs the left edge; and don't box the items separately. */
 .pickMode .wlHeader { display: none; }
-.pickMode .wlRow { padding-left: 4px; }   /* single-list: star hugs the left edge */
+.pickMode .wlRow { padding-left: 8px; }   /* keep aligned with the header gridlines */
 .pickMode .wlItems { background: transparent; border-top: none; }
 
 .tabBtn {
@@ -1173,7 +1173,9 @@
 }
 
 .wlRow {
-  padding-left: 16px;   /* small group indent; the grid columns carry the layout now */
+  /* Same left padding as the column header so the vertical gridlines line up
+     perfectly from the header down through every row. */
+  padding-left: 8px;
 }
 
 .wlDesc {

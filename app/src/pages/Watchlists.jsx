@@ -581,8 +581,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       ? mul * String(a).localeCompare(String(b))
       : mul * (num(a) - num(b)))
   }
-  const sortArrow = (key) => (colSort?.key === key ? (colSort.dir === 'asc' ? ' ▲' : ' ▼') : '')
-
   // Column header (Flag · Sym · Price · Volume · % Change): click a label to sort,
   // right-click to hide/show columns, drag a gridline to resize.
   const columnHeader = (
@@ -591,7 +589,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       <span
         className={`${styles.hSym}${colSort?.key === 'sym' ? ' ' + styles.hSortActive : ''}`}
         onClick={() => handleColSort('sym')}
-      >Sym{sortArrow('sym')}</span>
+      >Sym</span>
       {visibleOptional.map(c => (
         <span
           key={c.key}
@@ -599,7 +597,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           onClick={() => handleColSort(c.key)}
         >
           <span className={styles.colResize} onMouseDown={e => startColResize(e, c.key)} onClick={e => e.stopPropagation()} />
-          {c.label}{sortArrow(c.key)}
+          {c.label}
         </span>
       ))}
     </div>
