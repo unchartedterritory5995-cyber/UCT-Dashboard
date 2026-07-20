@@ -60,6 +60,29 @@ function fmtVol(v) {
   return String(v)
 }
 
+// Flash a quick bold (+ optional up/down background tint) whenever a cell's value
+// ticks — mirrors ThemeTrackerPage's ReturnCell so the watchlist feels as "live"
+// as the theme tracker. `tint` adds the green/red background flash (the % column);
+// price/volume flash bold only. No flash on first paint (prevRef seeds to value).
+const FlashCell = React.memo(function FlashCell({ value, display, className, tint = false }) {
+  const [dir, setDir] = useState(null)
+  const prevRef = useRef(value)
+  useEffect(() => {
+    const p = prevRef.current
+    if (value != null && p != null && value !== p) {
+      setDir(value > p ? 'up' : 'down')
+      prevRef.current = value
+      const id = setTimeout(() => setDir(null), 480)
+      return () => clearTimeout(id)
+    }
+    prevRef.current = value
+  }, [value])
+  const flash = dir
+    ? `${styles.tickFlash}${tint ? ' ' + (dir === 'up' ? styles.tickUp : styles.tickDown) : ''}`
+    : ''
+  return <span className={`${className}${flash ? ' ' + flash : ''}`}>{display}</span>
+})
+
 // Memoized columnar ticker row: Flag(star) | Symbol(logo) | Price | Volume | % Change.
 // PERF: this is the single hottest render path — with 4 watchlist widgets × ~150 rows,
 // a naive re-render on every arrow-key selection change reconciles ~600 rows per keypress
@@ -86,12 +109,17 @@ const WatchRow = React.memo(function WatchRow({
         <span className={styles.rowSym}>{sym}</span>
       </span>
     )
-    if (key === 'price') return <span key="price" className={styles.priceCell}>{price != null ? price.toFixed(2) : '—'}</span>
-    if (key === 'vol') return <span key="vol" className={styles.volCell}>{fmtVol(volume)}</span>
+    if (key === 'price') return (
+      <FlashCell key="price" value={price} className={styles.priceCell}
+        display={price != null ? price.toFixed(2) : '—'} />
+    )
+    if (key === 'vol') return (
+      <FlashCell key="vol" value={volume} className={styles.volCell} display={fmtVol(volume)} />
+    )
     if (key === 'chg') return (
-      <span key="chg" className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
-        {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
-      </span>
+      <FlashCell key="chg" value={changePct} tint
+        className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}
+        display={changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'} />
     )
     return null
   }

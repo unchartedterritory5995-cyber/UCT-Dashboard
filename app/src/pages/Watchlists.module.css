@@ -1385,3 +1385,20 @@
   .leftPanel { max-height: 38vh; }
   .chartPeriodBtn { padding: 3px 7px; font-size: 9px; }
 }
+
+/* ── Live tick flash ── quick bold (+ green/red bg tint on the % column) each
+   time a cell's value updates, mirroring the Theme Tracker's ReturnCell. */
+.tickFlash { font-weight: 800; }
+.tickUp   { animation: wlTickUp 0.48s ease-out; border-radius: 3px; }
+.tickDown { animation: wlTickDown 0.48s ease-out; border-radius: 3px; }
+@keyframes wlTickUp {
+  0%   { background: rgba(26, 229, 26, 0.28); }
+  100% { background: transparent; }
+}
+@keyframes wlTickDown {
+  0%   { background: rgba(196, 31, 45, 0.28); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tickUp, .tickDown { animation: none; }
+}
