@@ -372,17 +372,44 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         ) : (
           <ChartDayGain sym={sym} upOverride={hdrColors.dayChangeUp || null} downOverride={hdrColors.dayChangeDown || null} />
         ))}
-        {/* Chart settings — opens the centered settings modal. Sits at the top-right
-            of the header, directly above the market clock. */}
-        <button
-          type="button"
-          className={styles.chartSettingsBtn}
-          onClick={() => setSettingsOpen(true)}
-          title="Chart settings"
-          aria-label="Chart settings"
-        >
-          <UIcon name="gear" size={15} />
-        </button>
+        {/* Session toggle (Regular Hours / Include Post-Market or Extended) + the
+            live market clock — moved up onto the ticker row, right-aligned. */}
+        <div className={styles.headerTopRight}>
+          {isDWMtf && (
+            <div className={styles.sessionToggle} role="group" aria-label="Chart session view">
+              <button
+                type="button"
+                className={`${styles.sessionBtn} ${sessionView === 'regular' ? styles.sessionBtnActive : ''}`}
+                onClick={() => setSessionView('regular')}
+                title="Regular trading hours only"
+              >Regular Hours</button>
+              <button
+                type="button"
+                className={`${styles.sessionBtn} ${sessionView === 'extended' ? styles.sessionBtnActive : ''}`}
+                onClick={() => { if (extEnabled) setSessionView('extended') }}
+                disabled={!extEnabled}
+                title={extEnabled ? extLabel : 'Available during pre-market and post-market'}
+              >{extLabel}</button>
+            </div>
+          )}
+          {!isDWMtf && (
+            <div className={styles.sessionToggle} role="group" aria-label="Chart extended hours">
+              <button
+                type="button"
+                className={`${styles.sessionBtn} ${!extHoursOn ? styles.sessionBtnActive : ''}`}
+                onClick={() => setExtHours(false)}
+                title="Regular session only (9:30–4:00 ET), overnight gaps"
+              >Regular Hours</button>
+              <button
+                type="button"
+                className={`${styles.sessionBtn} ${extHoursOn ? styles.sessionBtnActive : ''}`}
+                onClick={() => setExtHours(true)}
+                title="Include pre-market + post-market bars"
+              >Extended Hours</button>
+            </div>
+          )}
+          <ChartMarketClock />
+        </div>
       </div>
       <div className={styles.tfBar}>
         {visibleTfs.map(([code, label]) => (
@@ -436,40 +463,16 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           </div>
         )}
         <div className={styles.tfBarRight}>
-          {isDWMtf && (
-            <div className={styles.sessionToggle} role="group" aria-label="Chart session view">
-              <button
-                type="button"
-                className={`${styles.sessionBtn} ${sessionView === 'regular' ? styles.sessionBtnActive : ''}`}
-                onClick={() => setSessionView('regular')}
-                title="Regular trading hours only"
-              >Regular Hours</button>
-              <button
-                type="button"
-                className={`${styles.sessionBtn} ${sessionView === 'extended' ? styles.sessionBtnActive : ''}`}
-                onClick={() => { if (extEnabled) setSessionView('extended') }}
-                disabled={!extEnabled}
-                title={extEnabled ? extLabel : 'Available during pre-market and post-market'}
-              >{extLabel}</button>
-            </div>
-          )}
-          {!isDWMtf && (
-            <div className={styles.sessionToggle} role="group" aria-label="Chart extended hours">
-              <button
-                type="button"
-                className={`${styles.sessionBtn} ${!extHoursOn ? styles.sessionBtnActive : ''}`}
-                onClick={() => setExtHours(false)}
-                title="Regular session only (9:30–4:00 ET), overnight gaps"
-              >Regular Hours</button>
-              <button
-                type="button"
-                className={`${styles.sessionBtn} ${extHoursOn ? styles.sessionBtnActive : ''}`}
-                onClick={() => setExtHours(true)}
-                title="Include pre-market + post-market bars"
-              >Extended Hours</button>
-            </div>
-          )}
-          <ChartMarketClock />
+          {/* Chart settings gear — moved down next to Share to the Floor. */}
+          <button
+            type="button"
+            className={styles.chartSettingsBtn}
+            onClick={() => setSettingsOpen(true)}
+            title="Chart settings"
+            aria-label="Chart settings"
+          >
+            <UIcon name="gear" size={15} />
+          </button>
           <ShareToFloor card={{ kind: 'chart', ticker: sym, tf }} compact />
         </div>
       </div>

@@ -221,12 +221,21 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Right side of the TF bar: session toggle + live market clock + share ── */
+/* ── Right side of the TF bar: chart-settings gear + share to the floor ── */
 .tfBarRight {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+/* ── Right side of the TOP (ticker) row: session toggle + live market clock ── */
+.headerTopRight {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;   /* keep the toggle + clock intact; a long company name clips before these do */
 }
 
 /* "Regular Hours / Include pre-market" segmented control — sits just left of the
