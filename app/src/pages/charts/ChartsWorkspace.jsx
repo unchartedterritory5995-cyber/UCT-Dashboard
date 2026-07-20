@@ -198,6 +198,14 @@ export default function ChartsWorkspace() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
 
+  // "Merge widgets": lock the board in place (no move / resize / delete / color
+  // edits), drop every widget border + header bar, and tighten the inter-widget gap
+  // to a thin 1px seam so the widgets blend together TC2000-style. Persisted so the
+  // merged view survives reloads until the user unmerges.
+  const merged = parsePref(prefs?.charts_merged, false) === true
+  const gridGap = merged ? 1 : MARGIN_Y
+  const toggleMerged = useCallback(() => setPref('charts_merged', JSON.stringify(!merged)), [merged, setPref])
+
   // Viewport-locked sizing: measure the workspace body and divide its height
   // by FIXED_ROWS so the grid always fills the visible area exactly. The page
   // itself never scrolls — widget max size = visible chart area.
@@ -208,7 +216,7 @@ export default function ChartsWorkspace() {
     if (!el || typeof ResizeObserver === 'undefined') return
     const measure = () => {
       const h = el.clientHeight - BODY_PAD * 2
-      const available = h - MARGIN_Y * (FIXED_ROWS - 1)
+      const available = h - gridGap * (FIXED_ROWS - 1)
       const rh = Math.max(12, Math.floor(available / FIXED_ROWS))
       setRowHeight(rh)
     }
@@ -216,7 +224,7 @@ export default function ChartsWorkspace() {
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [gridGap])
 
   // Layout state — seed from prefs or default.
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
@@ -800,6 +808,20 @@ export default function ChartsWorkspace() {
             )}
           </div>
 
+          {/* Merge widgets — locks the board, removes borders/headers, blends all
+              widgets seamlessly with a thin seam. Workspace mode only. */}
+          {!gridMode && (
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              onClick={toggleMerged}
+              title={merged
+                ? 'Unlock the board and restore widget borders'
+                : 'Lock the board in place, remove all borders, and blend every widget together'}
+            >{merged ? '⧉ Unmerge widgets' : '⧉ Merge widgets'}</button>
+          )}
+
           {gridMode && (
             <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
               Workspace
@@ -820,8 +842,10 @@ export default function ChartsWorkspace() {
             isBounded={true}
             onLayoutChange={handleLayoutChange}
             draggableHandle=".charts-widget-drag-handle"
+            isDraggable={!merged}
+            isResizable={!merged}
             compactType="vertical"
-            margin={[6, MARGIN_Y]}
+            margin={[gridGap, gridGap]}
             resizeHandles={['nw', 'ne', 'sw', 'se']}
             /* Position grid items with top/left, NOT transform: translate().
                RGL's default CSS-transform positioning composites each widget's
@@ -845,6 +869,7 @@ export default function ChartsWorkspace() {
                   <WidgetHost
                     widget={w}
                     headerAtBottom={hasAbove}
+                    merged={merged}
                     onRemove={() => handleRemoveWidget(w.id)}
                     onColorChange={(c) => handleColorChange(w.id, c)}
                     onOptsChange={(opts) => handleOptsChange(w.id, opts)}

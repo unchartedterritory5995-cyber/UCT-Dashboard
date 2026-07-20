@@ -28,7 +28,7 @@ function WidgetBody({ widget, onOptsChange }) {
   }
 }
 
-export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, headerAtBottom = false }) {
+export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, headerAtBottom = false, merged = false }) {
   const header = (
     <WidgetHeader
       label={TYPE_LABEL[widget.type] || widget.type}
@@ -43,11 +43,14 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       <WidgetBody widget={widget} onOptsChange={onOptsChange} />
     </div>
   )
-  // When another widget sits directly above this one, drop the drag/close bar to the
-  // BOTTOM so the two widgets blend together at the seam (no header in the middle).
+  // Merged view: no border, no header bar — the widgets blend into one seamless board.
+  // Otherwise, when another widget sits directly above this one, drop the drag/close bar
+  // to the BOTTOM so the two widgets blend together at the seam (no header in the middle).
   return (
-    <div className={styles.widget}>
-      {headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>}
+    <div className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}`}>
+      {merged
+        ? body
+        : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
     </div>
   )
 }
