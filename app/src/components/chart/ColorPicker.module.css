@@ -29,10 +29,8 @@
 }
 
 .popup {
-  position: absolute;
-  left: 0;
-  top: 30px;
-  z-index: 20;
+  position: fixed;   /* portaled to body; left/top set inline, edge-aware */
+  z-index: 5000;
   background: #1a1c17;
   border: 1px solid #2e3127;
   border-radius: 6px;

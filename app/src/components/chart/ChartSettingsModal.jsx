@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
+import { CHART_DEFAULTS } from './chartDefaults'
 import styles from './ChartSettingsModal.module.css'
 
 /**
@@ -132,8 +133,24 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const [activeTarget, setActiveTarget] = useState(null) // { target, label }
   const [panelPos, setPanelPos] = useState(null)
   const [pos, setPos] = useState(null) // dragged modal position {left, top}; null = centered
+  const [confirmReset, setConfirmReset] = useState(false)
+  const resetTimerRef = useRef(null)
 
-  useEffect(() => { if (!open) setPos(null) }, [open]) // re-center on each open
+  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false) } }, [open]) // re-center on each open
+
+  // Restore all chart settings to defaults. Two-click confirm (button shows
+  // "Confirm?" for a moment) so an accidental tap can't wipe custom colors.
+  const handleReset = () => {
+    if (confirmReset) {
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current)
+      setConfirmReset(false)
+      onChange?.(JSON.parse(JSON.stringify(CHART_DEFAULTS)))
+    } else {
+      setConfirmReset(true)
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current)
+      resetTimerRef.current = setTimeout(() => setConfirmReset(false), 2600)
+    }
+  }
 
   // Drag the modal by its header (like a floating tool window). Stays open while
   // dragging; clicking the ✕ or outside still closes it.
@@ -329,7 +346,16 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       >
         <div className={styles.header} onPointerDown={startDrag} style={{ cursor: 'move' }}>
           <span className={styles.title}>Chart Settings</span>
-          <button type="button" data-modal-close className={styles.close} onClick={onClose} aria-label="Close" style={{ cursor: 'pointer' }}>✕</button>
+          <div className={styles.headerRight} onPointerDown={e => e.stopPropagation()}>
+            <button
+              type="button"
+              className={`${styles.resetBtn}${confirmReset ? ' ' + styles.resetBtnConfirm : ''}`}
+              onClick={handleReset}
+              title="Restore all chart settings to defaults"
+              style={{ cursor: 'pointer' }}
+            >{confirmReset ? 'Confirm?' : '↺ Restore Defaults'}</button>
+            <button type="button" data-modal-close className={styles.close} onClick={onClose} aria-label="Close" style={{ cursor: 'pointer' }}>✕</button>
+          </div>
         </div>
 
         <div className={styles.tabs} role="tablist">

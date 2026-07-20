@@ -1,5 +1,9 @@
-// app/src/components/chart/ColorPicker.jsx — Reusable color picker with swatches + hex input
-import { useState, useRef, useEffect } from 'react'
+// app/src/components/chart/ColorPicker.jsx — Reusable color picker with swatches + hex input.
+// The popup is PORTALED to <body> and fixed-positioned from the swatch, edge-aware
+// (flips left/up near a viewport edge) so it can't clip off-screen or be cut off by a
+// scrollable settings panel's overflow.
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import styles from './ColorPicker.module.css'
 
 const SWATCHES = [
@@ -9,17 +13,42 @@ const SWATCHES = [
   '#26a69a', '#00c853', '#ff1744', '#131722',
 ]
 
+const POPUP_W = 160
+const POPUP_H = 132
+
 export default function ColorPicker({ value, onChange, label }) {
   const [open, setOpen] = useState(false)
   const [hex, setHex] = useState(value || '#c9a84c')
-  const ref = useRef(null)
+  const [pos, setPos] = useState(null)
+  const swatchRef = useRef(null)
+  const popupRef = useRef(null)
 
   useEffect(() => { setHex(value || '#c9a84c') }, [value])
+
+  // Position the portaled popup from the swatch, flipping to stay on-screen.
+  useLayoutEffect(() => {
+    if (!open || !swatchRef.current) return
+    const place = () => {
+      const r = swatchRef.current.getBoundingClientRect()
+      let left = r.left
+      if (left + POPUP_W > window.innerWidth - 8) left = r.right - POPUP_W  // right-align near right edge
+      left = Math.max(8, left)
+      let top = r.bottom + 6
+      if (top + POPUP_H > window.innerHeight - 8) top = r.top - POPUP_H - 6   // flip up near bottom
+      top = Math.max(8, top)
+      setPos({ left: Math.round(left), top: Math.round(top) })
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+      if (swatchRef.current && swatchRef.current.contains(e.target)) return
+      if (popupRef.current && popupRef.current.contains(e.target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -42,16 +71,22 @@ export default function ColorPicker({ value, onChange, label }) {
   }
 
   return (
-    <div ref={ref} className={styles.wrap}>
+    <div className={styles.wrap}>
       {label && <span className={styles.label}>{label}</span>}
       <button
+        ref={swatchRef}
         className={styles.swatch}
         style={{ background: value }}
         onClick={() => setOpen(!open)}
         title={value}
       />
-      {open && (
-        <div className={styles.popup}>
+      {open && createPortal((
+        <div
+          ref={popupRef}
+          className={styles.popup}
+          style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}
+          onClick={e => e.stopPropagation()}
+        >
           <div className={styles.grid}>
             {SWATCHES.map(c => (
               <button
@@ -75,7 +110,7 @@ export default function ColorPicker({ value, onChange, label }) {
             <button className={styles.hexOk} onClick={commitHex}>OK</button>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   )
 }
