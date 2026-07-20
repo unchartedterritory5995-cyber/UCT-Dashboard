@@ -118,8 +118,10 @@
 
 .listRowSelected {
   background: rgba(201, 168, 76, 0.08) !important;
-  border-left: 2px solid var(--ut-gold);
-  padding-left: 12px;
+  /* Gold bar drawn as an INSET SHADOW, not a border — box-shadow doesn't take up
+     layout space, so selecting a row keeps the gold tint + bar but the logo/ticker
+     never shift left/right (the old border-left + padding-left nudged them). */
+  box-shadow: inset 2px 0 0 0 var(--ut-gold);
 }
 
 .rowSym {
@@ -361,8 +363,9 @@
   flex-shrink: 0;
 }
 
-/* Single-list pick mode header: back button + the chosen list's name. */
+/* Single-list pick mode header: back button (left) + centered list name + share (right). */
 .pickHeader {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -386,14 +389,27 @@
 }
 .pickBackBtn:hover { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); background: rgba(201, 168, 76, 0.08); }
 .pickTitle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;          /* centered across the whole row */
+  padding: 0 70px;             /* symmetric clearance so it never overlaps back/share */
+  pointer-events: none;        /* clicks fall through to the back + share buttons */
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-bright, #e0dac8);
+  color: var(--ut-gold, #c9a84c);   /* Theme-Tracker gold */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Single-list pick mode: the pick header already names the list, so hide the
+   group's own accordion header (the redundant second row); drop the group indent
+   so the star hugs the left edge; and don't box the items separately. */
+.pickMode .wlHeader { display: none; }
+.pickMode .wlRow { padding-left: 10px; }
+.pickMode .wlItems { background: transparent; border-top: none; }
 
 .tabBtn {
   flex: 1;

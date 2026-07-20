@@ -3,7 +3,9 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--bg, #0b0f14);
+  /* Match the Watchlist widget's row background (--bg-surface) so the AI Search
+     panel reads the same as the other list widgets. */
+  background: var(--bg-surface, #1a1c17);
   color: var(--text, #e5e7eb);
   /* Match the chart's vivid green/red so ± percentages in AI answers (colored by
      HighlightThesis via --gain/--loss) read the same as the candles. */

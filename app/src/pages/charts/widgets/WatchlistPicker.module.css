@@ -17,7 +17,7 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: var(--text-heading, #f0ead8);
+  color: var(--ut-gold, #c9a84c);   /* match the gold used in Theme Tracker */
   margin-bottom: 8px;
 }
 .searchWrap {
@@ -99,7 +99,7 @@
   min-width: 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-bright, #e0dac8);
+  color: var(--ut-gold, #c9a84c);   /* watchlist names in Theme-Tracker gold */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

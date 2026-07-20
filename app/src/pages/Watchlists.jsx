@@ -374,19 +374,27 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       // will respond. Avoids both widgets fighting over the arrow press.
       if (idx < 0 && selectedSym) return
       e.preventDefault()
+      // This widget owns the arrow now — stop other window keydown listeners
+      // (e.g. the Theme Tracker, which shares the color group) from ALSO grabbing
+      // the selection when we run off the end of the list.
+      e.stopImmediatePropagation()
+      const len = visibleSymsFlat.length
       let next
       if (idx < 0) {
         // No selection at all yet — start at top (ArrowDown) or bottom (ArrowUp)
-        next = e.key === 'ArrowDown' ? 0 : visibleSymsFlat.length - 1
+        next = e.key === 'ArrowDown' ? 0 : len - 1
       } else {
+        // WRAP at the ends instead of clamping: off the bottom → back to the top,
+        // off the top → back to the bottom. Keeps the selection inside THIS list so
+        // it never jumps to a stock in another widget (the Theme Tracker) at the ends.
         next = e.key === 'ArrowDown'
-          ? Math.min(idx + 1, visibleSymsFlat.length - 1)
-          : Math.max(idx - 1, 0)
+          ? (idx + 1) % len
+          : (idx - 1 + len) % len
       }
       const nextSym = visibleSymsFlat[next]
-      if (nextSym && nextSym !== selectedSym) {
-        setSelectedSym(nextSym)
-        setHubSym(nextSym)
+      if (nextSym) {
+        if (nextSym !== selectedSym) setSelectedSym(nextSym)
+        setHubSym(nextSym)   // always re-assert so this widget wins the color group
       }
     }
     if (e.shiftKey && e.key === 'F' && selectedSym && flagged.includes(selectedSym)) {
@@ -778,6 +786,27 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <div className={styles.pickHeader}>
             <button className={styles.pickBackBtn} onClick={() => onExitPick?.()} title="Choose a different list">‹ Lists</button>
             <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
+            {/* Share/lock toggle moved up from the (now hidden) group header, right-aligned. */}
+            {pickList === 'flagged' && user && (
+              <button
+                className={`${styles.wlActionBtn}${isShared ? ' ' + styles.wlActionBtnActive : ''}`}
+                style={{ marginLeft: 'auto' }}
+                onClick={toggleShare}
+                title={isShared ? 'Make Private' : 'Share with community'}
+              >{isShared ? <UIcon name="unlock" size={13} /> : <UIcon name="lock" size={13} />}</button>
+            )}
+            {pickList.startsWith('user:') && (() => {
+              const pwl = (myLists || []).find(w => `user:${w.id}` === pickList)
+              if (!pwl) return null
+              return (
+                <button
+                  className={`${styles.wlActionBtn}${pwl.is_public ? ' ' + styles.wlActionBtnActive : ''}`}
+                  style={{ marginLeft: 'auto' }}
+                  onClick={() => handleTogglePublic(pwl)}
+                  title={pwl.is_public ? 'Make Private' : 'Share with community'}
+                >{pwl.is_public ? <UIcon name="unlock" size={13} /> : <UIcon name="lock" size={13} />}</button>
+              )
+            })()}
           </div>
         ) : (
           <div className={styles.tabBar}>
@@ -828,7 +857,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         )}
 
         {/* Body */}
-        <div className={styles.listBody}>
+        <div className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}`}>
 
           {/* ── My Lists tab — Flagged pinned at top + tag groups + user lists ── */}
           {activeTab === 'mine' && (

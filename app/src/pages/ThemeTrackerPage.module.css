@@ -137,6 +137,9 @@
   flex-direction: column;
   border-right: 1px solid var(--border);
   overflow: hidden;
+  /* Match the Watchlist widget's row background (its .leftPanel uses --bg-surface),
+     so the area behind the theme tickers reads the same across both widgets. */
+  background: var(--bg-surface);
 }
 
 /* Sticky column header */
