@@ -28,18 +28,26 @@ function WidgetBody({ widget, onOptsChange }) {
   }
 }
 
-export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange }) {
+export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, headerAtBottom = false }) {
+  const header = (
+    <WidgetHeader
+      label={TYPE_LABEL[widget.type] || widget.type}
+      color={widget.color}
+      onColorChange={onColorChange}
+      onRemove={onRemove}
+      atBottom={headerAtBottom}
+    />
+  )
+  const body = (
+    <div className={styles.widgetBody}>
+      <WidgetBody widget={widget} onOptsChange={onOptsChange} />
+    </div>
+  )
+  // When another widget sits directly above this one, drop the drag/close bar to the
+  // BOTTOM so the two widgets blend together at the seam (no header in the middle).
   return (
     <div className={styles.widget}>
-      <WidgetHeader
-        label={TYPE_LABEL[widget.type] || widget.type}
-        color={widget.color}
-        onColorChange={onColorChange}
-        onRemove={onRemove}
-      />
-      <div className={styles.widgetBody}>
-        <WidgetBody widget={widget} onOptsChange={onOptsChange} />
-      </div>
+      {headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>}
     </div>
   )
 }

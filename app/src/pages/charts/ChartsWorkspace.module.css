@@ -11,6 +11,9 @@
   text-transform: uppercase;
   letter-spacing: 1px;
 }
+/* Header dropped to the BOTTOM of a widget (one sits directly below another): the
+   divider goes on top so it reads as the seam between the two widgets. */
+.widgetHeaderBottom { border-bottom: none; border-top: 1px solid var(--border, #1f2937); }
 
 .dragGrip { color: var(--text-muted, #4b5563); font-size: 13px; cursor: move; user-select: none; }
 /* The color-cycle dot is intentionally a compact 10×10 marker; the mobile audit

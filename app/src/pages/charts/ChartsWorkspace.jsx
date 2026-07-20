@@ -820,16 +820,27 @@ export default function ChartsWorkspace() {
                canvas on the root layer so it paints crisp (matches Setup Library). */
             useCSSTransforms={false}
           >
-            {layout.widgets.map(w => (
-              <div key={w.id}>
-                <WidgetHost
-                  widget={w}
-                  onRemove={() => handleRemoveWidget(w.id)}
-                  onColorChange={(c) => handleColorChange(w.id, c)}
-                  onOptsChange={(opts) => handleOptsChange(w.id, opts)}
-                />
-              </div>
-            ))}
+            {layout.widgets.map(w => {
+              // Another widget sits DIRECTLY above this one (its bottom edge touches
+              // this widget's top edge and their columns overlap) → drop this widget's
+              // header to the bottom so the two blend at the seam.
+              const hasAbove = layout.widgets.some(o =>
+                o.id !== w.id
+                && (o.y + o.h) === w.y
+                && o.x < w.x + w.w && w.x < o.x + o.w,
+              )
+              return (
+                <div key={w.id}>
+                  <WidgetHost
+                    widget={w}
+                    headerAtBottom={hasAbove}
+                    onRemove={() => handleRemoveWidget(w.id)}
+                    onColorChange={(c) => handleColorChange(w.id, c)}
+                    onOptsChange={(opts) => handleOptsChange(w.id, opts)}
+                  />
+                </div>
+              )
+            })}
           </ResponsiveGridLayout>
           )}
         </main>
