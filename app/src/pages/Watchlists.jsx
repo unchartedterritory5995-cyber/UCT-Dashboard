@@ -31,7 +31,7 @@ const OPTIONAL_COLS = [  // hideable via right-click
 // Every real column is a FIXED px width (incl. Sym) so its gridlines sit at the same
 // x in the header and every row (a flexible column would drift with scrollbar/subpixel
 // rounding and misalign). A trailing minmax(0,1fr) filler absorbs any leftover width.
-const COL_META = { sym: { def: 96, min: 56 }, price: { def: 62, min: 44 }, vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 } }
+const COL_META = { flag: { def: 30, min: 16 }, sym: { def: 96, min: 56 }, price: { def: 62, min: 44 }, vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 } }
 const WL_COLS_LS = 'uct.watchlist.cols'
 const COL_PRESETS = {
   'Price View': new Set(),
@@ -379,31 +379,38 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
 
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      if (!visibleSymsFlat.length) return
-      const idx = selectedSym ? visibleSymsFlat.indexOf(selectedSym) : -1
+      // Derive the order straight from the DOM (the actual on-screen order) so arrow
+      // nav ALWAYS matches the displayed rows — including any active column sort.
+      // Falls back to visibleSymsFlat if the DOM isn't reachable.
+      let flat = []
+      const root = pageRef.current
+      if (root) {
+        const seen = new Set()
+        root.querySelectorAll('[data-watch-sym]').forEach(el => {
+          const s = el.getAttribute('data-watch-sym')
+          if (s && !seen.has(s)) { seen.add(s); flat.push(s) }
+        })
+      }
+      if (!flat.length) flat = visibleSymsFlat
+      if (!flat.length) return
+      const idx = selectedSym ? flat.indexOf(selectedSym) : -1
       // If selection is set but not in THIS widget's list, don't navigate —
-      // another widget (Themes, etc.) owns the selection and its own handler
-      // will respond. Avoids both widgets fighting over the arrow press.
+      // another widget (Themes, etc.) owns the selection and its own handler responds.
       if (idx < 0 && selectedSym) return
       e.preventDefault()
       // This widget owns the arrow now — stop other window keydown listeners
       // (e.g. the Theme Tracker, which shares the color group) from ALSO grabbing
       // the selection when we run off the end of the list.
       e.stopImmediatePropagation()
-      const len = visibleSymsFlat.length
+      const len = flat.length
       let next
       if (idx < 0) {
-        // No selection at all yet — start at top (ArrowDown) or bottom (ArrowUp)
         next = e.key === 'ArrowDown' ? 0 : len - 1
       } else {
-        // WRAP at the ends instead of clamping: off the bottom → back to the top,
-        // off the top → back to the bottom. Keeps the selection inside THIS list so
-        // it never jumps to a stock in another widget (the Theme Tracker) at the ends.
-        next = e.key === 'ArrowDown'
-          ? (idx + 1) % len
-          : (idx - 1 + len) % len
+        // WRAP at the ends: off the bottom → top, off the top → bottom.
+        next = e.key === 'ArrowDown' ? (idx + 1) % len : (idx - 1 + len) % len
       }
-      const nextSym = visibleSymsFlat[next]
+      const nextSym = flat[next]
       if (nextSym) {
         if (nextSym !== selectedSym) setSelectedSym(nextSym)
         setHubSym(nextSym)   // always re-assert so this widget wins the color group
@@ -535,6 +542,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [])
   const [liveResize, setLiveResize] = useState(null)   // {key,width} during a drag
   const [colMenu, setColMenu] = useState(null)         // {x,y} right-click menu
+  const resizingRef = useRef(false)                    // suppress the header sort-click after a drag
   const colHidden = colCfg.hidden || {}
   const colSort = colCfg.sort || null                  // {key, dir} | null
   const colWidth = (k) => {
@@ -542,14 +550,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return colCfg.widths?.[k] ?? COL_META[k]?.def
   }
   const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
-  // 26px flag + fixed Sym + each visible fixed column + a flexible filler (absorbs slack).
-  const gridTemplate = ['26px', `${colWidth('sym')}px`, ...visibleOptional.map(c => `${colWidth(c.key)}px`), 'minmax(0, 1fr)'].join(' ')
+  // Flag + Sym + each visible fixed column + a flexible filler (absorbs the slack).
+  const gridTemplate = [`${colWidth('flag')}px`, `${colWidth('sym')}px`, ...visibleOptional.map(c => `${colWidth(c.key)}px`), 'minmax(0, 1fr)'].join(' ')
 
-  // Drag the gridline on a column's RIGHT edge to resize it (right = wider). Sym +
-  // Price/Vol/%Chg are all resizable; the trailing filler absorbs the difference so
-  // resizing one column never shifts the others.
+  // Drag a gridline (an independent divider overlaid on the header, NOT tied to a
+  // header cell — so dragging never sorts/selects the column) to resize the column to
+  // its LEFT. Every column (Flag included) is resizable; the filler absorbs the change.
   const startColResize = (e, key) => {
     e.preventDefault(); e.stopPropagation()
+    resizingRef.current = true
     const startX = e.clientX
     const startW = colWidth(key)
     const min = COL_META[key]?.min || 40
@@ -561,19 +570,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const w = calc(ev)
       setLiveResize(null)
       saveColCfg({ ...colCfg, widths: { ...(colCfg.widths || {}), [key]: w } })
+      setTimeout(() => { resizingRef.current = false }, 0)   // let the trailing click be swallowed first
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
   const toggleColHidden = (key) => saveColCfg({ ...colCfg, hidden: { ...colHidden, [key]: !colHidden[key] } })
   const handleColSort = (key) => {
+    if (resizingRef.current) return   // a drag just ended — don't treat the trailing click as a sort
     const next = (!colSort || colSort.key !== key)
       ? { key, dir: key === 'sym' ? 'asc' : 'desc' }   // first click: sym A→Z, numbers high→low
       : { key, dir: colSort.dir === 'asc' ? 'desc' : 'asc' }
     saveColCfg({ ...colCfg, sort: next })
   }
-  // Sort an array of symbols by the active column (used by every list render).
-  const applyColSort = (syms) => {
+  // Sort an array of symbols by the active column (used by every list render + arrow nav).
+  const applyColSort = useCallback((syms) => {
     if (!colSort) return syms
     const { key, dir } = colSort
     const mul = dir === 'asc' ? 1 : -1
@@ -587,28 +598,38 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return [...syms].sort((a, b) => key === 'sym'
       ? mul * String(a).localeCompare(String(b))
       : mul * (num(a) - num(b)))
-  }
-  // Column header (Flag · Sym · Price · Volume · % Change): click a label to sort,
-  // right-click to hide/show columns, drag a gridline to resize.
+  }, [colSort, prices])
+
+  // Column header. Labels click to sort / right-click to hide-show. Gridlines are
+  // SEPARATE draggable dividers overlaid on the header (positioned at each column
+  // boundary), so dragging a gridline only resizes — never sorts/selects a column.
+  const _gridDividers = (() => {
+    const keys = ['flag', 'sym', ...visibleOptional.map(c => c.key)]
+    let acc = 8  // header padding-left
+    return keys.map(key => { acc += colWidth(key); return { key, x: acc } })
+  })()
   const columnHeader = (
     <div className={styles.gridHead} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
       <span className={styles.hFlag} />
       <span
         className={`${styles.hSym}${colSort?.key === 'sym' ? ' ' + styles.hSortActive : ''}`}
         onClick={() => handleColSort('sym')}
-      >
-        Sym
-        <span className={styles.colResize} onMouseDown={e => startColResize(e, 'sym')} onClick={e => e.stopPropagation()} />
-      </span>
+      >Sym</span>
       {visibleOptional.map(c => (
         <span
           key={c.key}
           className={`${styles.hCol}${colSort?.key === c.key ? ' ' + styles.hSortActive : ''}`}
           onClick={() => handleColSort(c.key)}
-        >
-          <span className={styles.colResize} onMouseDown={e => startColResize(e, c.key)} onClick={e => e.stopPropagation()} />
-          {c.label}
-        </span>
+        >{c.label}</span>
+      ))}
+      {_gridDividers.map(d => (
+        <i
+          key={`div-${d.key}`}
+          className={styles.gridDivider}
+          style={{ left: `${d.x}px` }}
+          onMouseDown={e => startColResize(e, d.key)}
+          title="Drag to resize column"
+        />
       ))}
     </div>
   )

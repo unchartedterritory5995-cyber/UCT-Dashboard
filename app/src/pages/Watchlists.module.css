@@ -135,17 +135,18 @@
 .gridHead .hSortActive,
 .gridHead .hSortActive:hover { color: var(--ut-gold, #c9a84c); }
 
-/* Drag handle sitting on a column's RIGHT gridline — drag to resize that column. */
-.colResize {
+/* Independent gridline dividers overlaid on the header, centered on each column
+   boundary. Dragging one only resizes — it's not part of a sortable cell. */
+.gridDivider {
   position: absolute;
-  right: -3px;
   top: 0;
   bottom: 0;
-  width: 7px;
+  width: 9px;
+  margin-left: -4px;   /* straddle the gridline */
   cursor: col-resize;
-  z-index: 2;
+  z-index: 5;
 }
-.colResize:hover { background: rgba(201, 168, 76, 0.35); }
+.gridDivider:hover { background: rgba(255, 255, 255, 0.10); }   /* subtle + neutral, no gold */
 
 /* Column right-click menu (hide/show columns) */
 .colMenu {
@@ -196,22 +197,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  justify-self: center;   /* center the star within the flag column */
   background: transparent;
   border: none;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.22);
-  padding: 0 4px;
+  padding: 0;
 }
 .flagStar:hover { color: var(--ut-gold); }
 .flagStarActive { color: var(--ut-gold); }
 
-.symCell { display: inline-flex; align-items: center; min-width: 0; overflow: hidden; }
+.symCell { display: inline-flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; }
 
 .priceCell, .volCell, .changeCell {
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
-  text-align: right;
+  text-align: center;   /* centered in-column, like the headers */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
