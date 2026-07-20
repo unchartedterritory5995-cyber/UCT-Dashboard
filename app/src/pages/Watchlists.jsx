@@ -1,6 +1,5 @@
 // app/src/pages/Watchlists.jsx
-import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
@@ -121,37 +120,6 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
     </span>
   )
 })
-
-// Small portaled menu to ADD a data column (Market Cap / Next Earnings / UCT Rating),
-// anchored under the + button in the flag-column header.
-function AddColumnMenu({ anchorEl, items, onPick, onClose }) {
-  const ref = useRef(null)
-  const [pos, setPos] = useState(null)
-  useLayoutEffect(() => {
-    if (!anchorEl) return
-    const r = anchorEl.getBoundingClientRect()
-    let left = r.left
-    if (left + 150 > window.innerWidth - 8) left = window.innerWidth - 158
-    setPos({ top: Math.round(r.bottom + 4), left: Math.round(Math.max(8, left)) })
-  }, [anchorEl])
-  useEffect(() => {
-    const onDown = (e) => {
-      if (ref.current && ref.current.contains(e.target)) return
-      if (anchorEl && anchorEl.contains(e.target)) return
-      onClose?.()
-    }
-    document.addEventListener('mousedown', onDown, true)
-    return () => document.removeEventListener('mousedown', onDown, true)
-  }, [anchorEl, onClose])
-  return createPortal((
-    <div ref={ref} className={styles.addColMenu} style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}>
-      <div className={styles.addColHead}>Add column</div>
-      {items.map(it => (
-        <button key={it.key} type="button" className={styles.addColItem} onClick={() => onPick(it.key)}>{it.label}</button>
-      ))}
-    </div>
-  ), document.body)
-}
 
 // Memoized columnar ticker row: Flag(star) | Symbol(logo) | Price | Volume | % Change.
 // PERF: this is the single hottest render path — with 4 watchlist widgets × ~150 rows,
@@ -835,19 +803,18 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const extraVisible = orderedKeys.some(k => EXTRA_KEYS.has(k))
   const { metaData } = useWatchlistMeta(extraVisible ? allTickers : [])
 
-  // + button (flag-header) → add a data column. Appends to the column order (goes on
-  // the RIGHT); the grid below shrinks the columns to fit the widget.
-  const [addColOpen, setAddColOpen] = useState(false)
-  const addColBtnRef = useRef(null)
-  const availableExtras = EXTRA_COLS.filter(c => !orderedKeys.includes(c.key))
-  const addColumn = useCallback((key) => {
+  // Extra data columns (Market Cap / Next Earnings / UCT Rating) toggle on/off from the
+  // right-click COLUMNS menu. Checking one APPENDS it to the RIGHT of the column order
+  // (the grid below shrinks the others to fit); unchecking removes it.
+  const toggleExtraCol = useCallback((key) => {
     const curOrder = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
-    if (!curOrder.includes(key)) {
+    if (curOrder.includes(key)) {
+      saveColCfg({ ...colCfg, order: curOrder.filter(k => k !== key) })
+    } else {
       const nextHidden = { ...(colCfg.hidden || {}) }
       delete nextHidden[key]
       saveColCfg({ ...colCfg, order: [...curOrder, key], hidden: nextHidden })
     }
-    setAddColOpen(false)
   }, [colCfg, saveColCfg])
 
   // Drag a header column onto another to reorder the columns.
@@ -936,18 +903,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }
   const renderHeaderCell = (key) => {
     if (key === 'flag') return (
-      <span key="flag" className={styles.hFlag} {...headerDragProps('flag')}>
-        {availableExtras.length > 0 && (
-          <button
-            ref={addColBtnRef}
-            type="button"
-            className={styles.addColBtn}
-            onPointerDown={e => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); setAddColOpen(o => !o) }}
-            title="Add a column"
-          >+</button>
-        )}
-      </span>
+      <span key="flag" className={styles.hFlag} {...headerDragProps('flag')} />
     )
     const active = colSort?.key === key
     const label = labelFor(key)
@@ -1199,14 +1155,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           onClose={() => setSettingsOpen(false)}
           gearEl={settingsBtnRef.current}
           hostEl={pageRef.current}
-        />
-      )}
-      {addColOpen && availableExtras.length > 0 && (
-        <AddColumnMenu
-          anchorEl={addColBtnRef.current}
-          items={availableExtras}
-          onPick={addColumn}
-          onClose={() => setAddColOpen(false)}
         />
       )}
 
@@ -1494,11 +1442,18 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       {colMenu && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 2999 }} onClick={() => setColMenu(null)} onContextMenu={e => { e.preventDefault(); setColMenu(null) }} />
-          <div className={styles.colMenu} style={{ left: Math.min(colMenu.x, window.innerWidth - 170), top: Math.min(colMenu.y, window.innerHeight - 180) }}>
+          <div className={styles.colMenu} style={{ left: Math.min(colMenu.x, window.innerWidth - 170), top: Math.min(colMenu.y, window.innerHeight - 260) }}>
             <div style={{ padding: '4px 10px 6px', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>Columns</div>
             {OPTIONAL_COLS.map(c => (
               <button key={c.key} type="button" className={styles.colMenuItem} onClick={() => toggleColHidden(c.key)}>
                 <span className={styles.colMenuCheck}>{!colHidden[c.key] ? <UIcon name="check" size={11} /> : null}</span>
+                {c.label}
+              </button>
+            ))}
+            <div className={styles.colMenuDivider} />
+            {EXTRA_COLS.map(c => (
+              <button key={c.key} type="button" className={styles.colMenuItem} onClick={() => toggleExtraCol(c.key)}>
+                <span className={styles.colMenuCheck}>{orderedKeys.includes(c.key) ? <UIcon name="check" size={11} /> : null}</span>
                 {c.label}
               </button>
             ))}

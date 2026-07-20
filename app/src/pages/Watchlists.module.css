@@ -43,9 +43,8 @@
   flex-direction: column;
   border-right: 1px solid var(--border);
   /* --wl-bg = the user's Watchlist Settings canvas (solid or gradient); falls back
-     to --bg-surface, the exact black behind the Theme Tracker symbols/% (its
-     .leftPanel), so an unset watchlist reads identically to the theme tracker. */
-  background: var(--wl-bg, var(--bg-surface));
+     to --bg, the main chart canvas (the dark near-black), when unset. */
+  background: var(--wl-bg, var(--bg));
   overflow: hidden;
 }
 

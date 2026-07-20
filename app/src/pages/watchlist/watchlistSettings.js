@@ -13,7 +13,7 @@ export const WATCHLIST_DEFAULTS = {
   // Canvas — solid or a top→bottom gradient (like the chart's). Default = solid at the
   // current watchlist surface color, so the default look is unchanged.
   bgMode: 'solid',         // 'solid' | 'gradient'
-  bg: '#1a1c17',           // solid canvas = --bg-surface = the black behind the Theme Tracker symbols/% (its .leftPanel)
+  bg: '#0e0f0d',           // solid canvas = --bg = the main chart canvas (the dark near-black); #1a1c17/#22251e read grey/green
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },  // matches CHART_DEFAULTS.bgGradient
 
   // Column text colors (default to --text-bright #e0dac8, the current look).
@@ -36,12 +36,12 @@ export const WATCHLIST_DEFAULTS = {
   showLogos: true,
 }
 
-// Prior default canvas colors that shipped WRONG — #22251e read green/grey and #0e0f0d
-// read too dark (darker than the Theme Tracker). A stored blob equal to one of these was
-// never a deliberate user choice (it's an old default baked in), so migrate it to the
-// CURRENT default (#1a1c17 = the Theme Tracker ticker background). Corrects testers
-// without making them hit Reset. Do NOT list #1a1c17 here — it IS the current default.
-const LEGACY_DEFAULT_BG = new Set(['#22251e', '#0e0f0d'])
+// Prior default canvas colors that shipped WRONG — both #22251e and #1a1c17 read
+// grey/green (too light). A stored blob equal to one of these was never a deliberate
+// user choice (it's an old default baked in), so migrate it to the CURRENT default
+// (#0e0f0d = the main chart canvas). Corrects testers without making them hit Reset.
+// Do NOT list #0e0f0d here — it IS the current default.
+const LEGACY_DEFAULT_BG = new Set(['#22251e', '#1a1c17'])
 
 /** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */
 export function mergeWatchlistSettings(saved) {
