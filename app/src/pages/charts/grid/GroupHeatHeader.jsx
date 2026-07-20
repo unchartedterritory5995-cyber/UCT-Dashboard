@@ -67,4 +67,5 @@ const switchChipStyle = {
 const heaterStyle = {
   display: 'flex', alignItems: 'center', gap: 12, padding: '4px 10px',
   fontSize: 12, borderBottom: '1px solid var(--border, #2a3340)',
+  flexWrap: 'wrap', rowGap: 4,   // also-in chips wrap on narrow widths instead of overflowing
 }

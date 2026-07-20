@@ -563,6 +563,9 @@ export default function ChartsWorkspace() {
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
   const mc = useMultiChartState()
   const [mcMenuOpen, setMcMenuOpen] = useState(false)
+  // (Flyout grace-timer machinery removed: Multi Chart is now its own header
+  // button with a plain click-toggled dropdown — the hover flyout it guarded
+  // no longer exists, which structurally fixes mega-review #10/#16.)
   // ?gridspike=N (admin-only) forces grid mode for the perf harness.
   const gridSpikeRequested = isAdmin && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).has('gridspike')
@@ -580,8 +583,22 @@ export default function ChartsWorkspace() {
     return (
       <WorkspaceContext.Provider value={workspaceValue}>
         {gridMode ? (
-          <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%' }}>
-            <MultiChartGrid mc={mc} />
+          <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Phone toolbar: grid mode persists from desktop, and without an
+                exit control a phone user is TRAPPED in it (mega-review #15 —
+                the desktop entry flyout doesn't exist on phone). */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderBottom: '1px solid var(--border, #2a3340)', flex: '0 0 auto' }}>
+              <span style={{ fontSize: 12, color: 'var(--ut-gold, #c9a84c)', fontWeight: 600 }}>▦ Multi Chart</span>
+              <button
+                type="button"
+                className={styles.toolbarBtn}
+                style={{ marginLeft: 'auto' }}
+                onClick={() => mc.exitGrid()}
+              >Exit Multi Chart</button>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <MultiChartGrid mc={mc} />
+            </div>
           </div>
         ) : (
           <MobileWorkspace

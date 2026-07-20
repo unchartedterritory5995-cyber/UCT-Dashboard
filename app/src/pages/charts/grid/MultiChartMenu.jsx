@@ -100,9 +100,16 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
       className={wsStyles.addMenu}
       style={{
         minWidth: 240,
-        // Flyout: open BESIDE the hosting "Multi Chart ▸" row of the Open-layout
-        // dropdown instead of below a header button.
-        ...(flyout ? { left: '100%', top: -6, marginLeft: 4 } : {}),
+        // Viewport-bounded: on laptops the full menu (layouts + groups + save)
+        // is taller than the screen — without a scroll, Save grid / Back to
+        // workspace / Exit Groups fall off-screen (mega-review #11).
+        maxHeight: flyout ? 'calc(100vh - 220px)' : 'calc(100vh - 160px)',
+        overflowY: 'auto',
+        // Flyout: open BESIDE the hosting "Multi Chart ▸" row, CONTIGUOUS with
+        // it — a marginLeft gap meant the pointer crossed dead space and the
+        // row's mouseleave killed the flyout mid-reach (mega-review #16). The
+        // border supplies the visual separation the margin used to.
+        ...(flyout ? { left: '100%', top: -6, marginLeft: 0 } : {}),
       }}
     >
       <div className={wsStyles.menuSection}>Layout</div>

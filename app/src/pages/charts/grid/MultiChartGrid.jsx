@@ -302,7 +302,11 @@ export default function MultiChartGrid({ mc }) {
   }, [state.group, cells.length, groupMeta.name, mc, spikeActive])
 
   return (
-    <>
+    // Flex column: the grid takes exactly the space remaining under the heat
+    // header at ANY header height (including wrapped also-in chips). With the
+    // old height:100% gridBody, the header's height pushed the grid past the
+    // container and clipped the bottom row (mega-review #9).
+    <div className={styles.gridWrap}>
       {state.group && (
         <GroupHeatHeader
           groupName={state.group.name || groupMeta.name || humanizeGroupId(state.group.id)}
@@ -381,6 +385,6 @@ export default function MultiChartGrid({ mc }) {
         savedColors={savedColors}
         onSaveColor={saveColor}
       />
-    </>
+    </div>
   )
 }

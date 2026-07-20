@@ -6,8 +6,19 @@
    translate() positioning blurs canvases under fractional Windows display
    scaling (why the workspace passes useCSSTransforms={false} to RGL). */
 
-.gridBody {
+/* Flex column host: heat header (auto height, chips may wrap) + grid (rest).
+   Replaces the old fragment+height:100% pair that pushed the grid past the
+   container by exactly the header's height, clipping the bottom row. */
+.gridWrap {
   height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gridBody {
+  flex: 1;
   min-height: 0;
   min-width: 0;
   display: grid;
