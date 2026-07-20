@@ -13,7 +13,7 @@ import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import useChartLayouts from '../../../hooks/useChartLayouts'
 import { LAYOUTS, GRID_MAX_CELLS, makeLayout } from './gridLayouts'
-import { fetchGroups, fetchGroupTop, pinEtf } from './groupsApi'
+import { fetchGroups, fetchGroupTop, fetchPeers, pinEtf } from './groupsApi'
 import { neighborGroup } from './groupRecents'
 import GroupPicker from './GroupPicker'
 import wsStyles from '../ChartsWorkspace.module.css'
@@ -42,32 +42,52 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
 
   const [rows, setRows] = useState(3)
   const [cols, setCols] = useState(3)
+  const [nxmErr, setNxmErr] = useState('')
+  const [groupErr, setGroupErr] = useState('')
   const [saveName, setSaveName] = useState('')
   const [saveScope, setSaveScope] = useState('user')
   const [saveErr, setSaveErr] = useState('')
 
   const inGrid = mc.state.mode === 'grid'
+  // Industry cohorts (orphan fallback) aren't themes: they have no Prev/Next
+  // neighbors in the theme list and no /top endpoint to refresh from.
+  const isIndustryGroup = String(mc.state.group?.id || '').startsWith('industry:')
 
   const pickPreset = (id) => { mc.enterGrid(id); onClose() }
 
   const applyCustom = () => {
-    const l = makeLayout(rows, cols)
-    if (l.cellCount > GRID_MAX_CELLS) return
-    mc.applyCustomLayout(rows, cols)
+    const r = Math.max(1, parseInt(rows, 10) || 0)
+    const c = Math.max(1, parseInt(cols, 10) || 0)
+    // Cap by TOTAL cells, not per-dimension: ultrawide 2×6 / 1×8 boards are
+    // legal (mega-review — the old max-4-per-dimension made them impossible).
+    if (r * c > GRID_MAX_CELLS) {
+      setNxmErr(`Max ${GRID_MAX_CELLS} charts (${r}×${c} = ${r * c}) — try 2×6, 2×8, or 4×4`)
+      return
+    }
+    setNxmErr('')
+    mc.applyCustomLayout(r, c)
     onClose()
   }
 
   const applyTemplate = (tpl) => { mc.applyGridTemplate(tpl); onClose() }
 
   const stepGroup = async (dir) => {
-    const list = await fetchGroups()
-    const nextId = neighborGroup(list, mc.state.group.id, dir)
-    if (!nextId) return
-    const n = mc.state.cells.length
-    const { syms, etf } = await fetchGroupTop(nextId, { n, by: mc.state.group.by || 'today' })
-    const filled = pinEtf(syms, etf, n)
-    const nextName = list.find(x => x.id === nextId)?.name
-    if (filled.length) mc.fillCells(filled, { id: nextId, by: mc.state.group.by || 'today', n, name: nextName })
+    // Never silent: every path either fills or explains (mega-review).
+    setGroupErr('')
+    if (isIndustryGroup) { setGroupErr('Industry cohorts have no Prev/Next — pick a group below'); return }
+    try {
+      const list = await fetchGroups()
+      const nextId = neighborGroup(list, mc.state.group.id, dir)
+      if (!nextId) { setGroupErr('No neighboring group'); return }
+      const n = mc.state.cells.length
+      const { syms, etf } = await fetchGroupTop(nextId, { n, by: mc.state.group.by || 'today' })
+      const filled = pinEtf(syms, etf, n)
+      const nextName = list.find(x => x.id === nextId)?.name
+      if (!filled.length) { setGroupErr(`${nextName || 'That group'} has no chartable names`); return }
+      mc.fillCells(filled, { id: nextId, by: mc.state.group.by || 'today', n, name: nextName })
+    } catch {
+      setGroupErr('Group fetch failed — try again')
+    }
   }
 
   const handleSaveAs = async () => {
@@ -131,21 +151,22 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
         <span className={styles.nxmX} style={{ marginRight: 2 }}>Custom</span>
         <input
           className={styles.nxmInput}
-          type="number" min="1" max="4"
+          type="number" min="1" max="8"
           value={rows}
-          onChange={e => setRows(e.target.value)}
+          onChange={e => { setRows(e.target.value); setNxmErr('') }}
           aria-label="Rows"
         />
         <span className={styles.nxmX}>×</span>
         <input
           className={styles.nxmInput}
-          type="number" min="1" max="4"
+          type="number" min="1" max="8"
           value={cols}
-          onChange={e => setCols(e.target.value)}
+          onChange={e => { setCols(e.target.value); setNxmErr('') }}
           aria-label="Columns"
         />
         <button type="button" className={wsStyles.toolbarBtn} onClick={applyCustom}>Apply</button>
       </div>
+      {nxmErr && <div className={wsStyles.menuErr}>{nxmErr}</div>}
 
       <div className={wsStyles.menuDivider} />
       <label className={wsStyles.menuCheck}>
@@ -241,18 +262,38 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
       {mc.state.group && (
         <>
           <div className={wsStyles.menuDivider} />
-          <div className={styles.nxmForm} style={{ justifyContent: 'space-between' }}>
-            <button type="button" className={wsStyles.toolbarBtn} onClick={() => stepGroup(-1)} aria-label="Previous group">‹ Prev</button>
-            <button type="button" className={wsStyles.toolbarBtn} onClick={() => stepGroup(1)} aria-label="Next group">Next ›</button>
-          </div>
+          {!isIndustryGroup && (
+            <div className={styles.nxmForm} style={{ justifyContent: 'space-between' }}>
+              <button type="button" className={wsStyles.toolbarBtn} onClick={() => stepGroup(-1)} aria-label="Previous group">‹ Prev</button>
+              <button type="button" className={wsStyles.toolbarBtn} onClick={() => stepGroup(1)} aria-label="Next group">Next ›</button>
+            </div>
+          )}
           <button type="button" className={wsStyles.addMenuItem} onClick={async () => {
+            setGroupErr('')
             const g = mc.state.group
             const n = mc.state.cells.length
-            const { syms, etf } = await fetchGroupTop(g.id, { n, by: g.by || 'today' })
-            const filled = pinEtf(syms, etf, n)
-            if (filled.length) mc.fillCells(filled, { ...g, n })
-            onClose()
+            try {
+              if (isIndustryGroup) {
+                // Industry cohorts have no /top endpoint — re-resolve from the
+                // seed (same call that built the cohort; 60s server cache).
+                if (!g.seed) { setGroupErr('Nothing to refresh — type a ticker'); return }
+                const res = await fetchPeers(g.seed, { n: Math.max(1, n - 1) })
+                const syms = [g.seed, ...((res && res.peers) || [])].slice(0, n)
+                if (syms.length <= 1) { setGroupErr('No cohort right now'); return }
+                mc.fillCells(syms, { ...g, n })
+                onClose()
+                return
+              }
+              const { syms, etf } = await fetchGroupTop(g.id, { n, by: g.by || 'today' })
+              const filled = pinEtf(syms, etf, n)
+              if (!filled.length) { setGroupErr('Group has no chartable names right now'); return }
+              mc.fillCells(filled, { ...g, n })
+              onClose()
+            } catch {
+              setGroupErr('Refresh failed — try again')
+            }
           }}>↻ Refresh group</button>
+          {groupErr && <div className={wsStyles.menuErr}>{groupErr}</div>}
           <button type="button" className={wsStyles.addMenuItem} onClick={() => { mc.setGroupsMode(false); onClose() }}>
             Exit Groups
           </button>

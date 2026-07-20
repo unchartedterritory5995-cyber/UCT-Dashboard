@@ -134,10 +134,35 @@ export default function useMultiChartState() {
           used.add(match.id)
           cells.push({ id: match.id, sym, tf: match.tf || 'D', chartType: match.chartType || null })
         } else {
-          cells.push({ id: Math.random().toString(36).slice(2, 8), sym, tf: 'D', chartType: null })
+          // Positional tf/style retention (mega-review #13): a NEW sym landing
+          // in slot i inherits slot i's previous timeframe + chart style — a
+          // board set to 65m/hollow stays 65m/hollow across group refills
+          // instead of snapping every cell back to Daily.
+          const at = prev.cells[i]
+          cells.push({
+            id: Math.random().toString(36).slice(2, 8), sym,
+            tf: at?.tf || 'D', chartType: at?.chartType || null,
+          })
         }
       }
       return { ...prev, mode: 'grid', cells, group: group || prev.group || null }
+    })
+  }, [apply])
+
+  // Verbatim board restore (Undo): unlike fillCells (which rebuilds cells from
+  // bare syms — discarding per-cell tf + chart style), this reapplies the exact
+  // snapshot cells, preserving id/sym/tf/chartType AND empty positions, and
+  // sets the group verbatim (null clears it — no falsy-coalesce like fillCells).
+  const restoreCells = useCallback((cellsIn, group = null) => {
+    apply(prev => {
+      const layout = parseLayoutId(prev.layout)
+      const restored = (Array.isArray(cellsIn) ? cellsIn : []).map(c => ({
+        id: typeof c?.id === 'string' && c.id ? c.id : Math.random().toString(36).slice(2, 8),
+        sym: c?.sym || null,
+        tf: c?.tf || 'D',
+        chartType: c?.chartType || null,
+      }))
+      return { ...prev, mode: 'grid', cells: reconcileCells(restored, layout.cellCount), group: group || null }
     })
   }, [apply])
 
@@ -179,6 +204,6 @@ export default function useMultiChartState() {
     state, hydrated,
     settingsOpen, setSettingsOpen,
     enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, setSyncTimeRange, setGroupsMode, applyGridTemplate,
-    fillCells, setGroup, clearGroup,
+    fillCells, restoreCells, setGroup, clearGroup,
   }
 }

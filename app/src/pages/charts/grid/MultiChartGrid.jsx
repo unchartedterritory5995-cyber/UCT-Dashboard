@@ -73,15 +73,26 @@ export default function MultiChartGrid({ mc }) {
   // id discards a stale response (fast second commit beats a slow first) and
   // hands back an undo snapshot of the pre-fill board. ──
   const [undo, setUndo] = useState(null)   // {label, snapshot} | null
+  // Transient action feedback — group actions must never fail silently
+  // (mega-review: empty fills, dead chips, failed fetches gave zero feedback).
+  const [notice, setNotice] = useState(null)
+  useEffect(() => { if (!notice) return undefined; const t = setTimeout(() => setNotice(null), 3000); return () => clearTimeout(t) }, [notice])
+  // ONE fill sequence shared by typed peer-fills AND the also-in group switcher,
+  // so a slow response from either source can never clobber a newer fill.
+  const fillSeqRef = useRef({ n: 0 })
   const peerFiller = useMemo(
     () => makePeerFiller({
       fetchPeers,
       fillCells: (syms, group) => { if (!spikeActive) mc.fillCells(syms, group) },
+      updateCellAt: (i, cell) => { if (!spikeActive) mc.updateCellAt(i, cell) },
+      clearGroup: () => { if (!spikeActive) mc.clearGroup() },
       onUndoAvailable: setUndo,
+      onNotice: setNotice,
+      seq: fillSeqRef.current,
     }),
-    [mc.fillCells, spikeActive],   // eslint-disable-line react-hooks/exhaustive-deps
+    [mc.fillCells, mc.updateCellAt, mc.clearGroup, spikeActive],   // eslint-disable-line react-hooks/exhaustive-deps
   )
-  useEffect(() => { if (!undo) return; const t = setTimeout(() => setUndo(null), 6000); return () => clearTimeout(t) }, [undo])
+  useEffect(() => { if (!undo) return; const t = setTimeout(() => setUndo(null), 10000); return () => clearTimeout(t) }, [undo])
 
   // ── Maximize: one cell expands to cover the whole grid body (no remount —
   // the cell stays mounted and its wrapper is CSS-promoted over the grid, so
@@ -126,6 +137,8 @@ export default function MultiChartGrid({ mc }) {
       if (isNewSym && inGroupMode) {
         peerFiller.run(next.sym, {
           n: cellsRef.current.length,
+          cellIndex: i,
+          cellNext: next,
           group: state.group,
           snapshot: { cells: cellsRef.current, group: state.group },
         })
@@ -250,20 +263,27 @@ export default function MultiChartGrid({ mc }) {
   useEffect(() => {
     const g = state.group
     if (!g?.id) { setGroupMeta({}); return undefined }
+    // Industry cohorts (orphan fallback, id "industry:<Finviz name>") are not
+    // themes: /api/groups/{id}/top would 404 and there's no theme row to name.
+    // Use the group's own carried name and skip the theme fetches entirely.
+    if (String(g.id).startsWith('industry:')) {
+      setGroupMeta({ name: g.name || String(g.id).slice('industry:'.length), total: null, metaBySym: {} })
+      return undefined
+    }
     let live = true
     fetchGroupTop(g.id, { n: 16, by: g.by || 'today' }).then(res => {
       if (!live) return
       const metaBySym = {}
       for (const r of (res.rows || [])) metaBySym[r.sym] = { tier: r.tier, rationale: r.rationale }
       setGroupMeta(prev => ({ ...prev, total: res.total, metaBySym }))
-    })
+    }).catch(() => { /* header degrades to name-only; never an unhandled rejection */ })
     fetchGroups().then(list => {
       if (!live) return
       const name = list.find(x => x.id === g.id)?.name
       setGroupMeta(prev => ({ ...prev, name }))
-    })
+    }).catch(() => { /* keep whatever name the group state carries */ })
     return () => { live = false }
-  }, [state.group?.id, state.group?.by])
+  }, [state.group?.id, state.group?.by, state.group?.name])
 
   const cellBadges = useMemo(
     () => buildCellBadges(cells, groupMeta.metaBySym || {}, livePrices),
@@ -287,14 +307,22 @@ export default function MultiChartGrid({ mc }) {
   }
 
   // Multi-membership switcher: re-fill the grid with one of the seed's other
-  // groups, swapping the current group INTO the switcher list so you can flip back.
+  // groups, swapping the current group INTO the switcher list so you can flip
+  // back. Participates in the shared fill sequence (a stale switch response
+  // must never clobber a newer typed fill) and never fails silently.
   const handleSwitchGroup = useCallback(async (groupId, groupName) => {
     if (spikeActive) return
+    const mine = ++fillSeqRef.current.n
     const g = state.group
     const n = cells.length
-    const { syms, etf } = await fetchGroupTop(groupId, { n, by: 'today' })
-    const filled = pinEtf(syms, etf, n)
-    if (!filled.length) return
+    let res = null
+    try {
+      res = await fetchGroupTop(groupId, { n, by: 'today' })
+    } catch { res = null }
+    if (mine !== fillSeqRef.current.n) return    // superseded by a newer fill
+    if (!res) { setNotice(`Couldn't load ${groupName} — kept your board`); return }
+    const filled = pinEtf(res.syms, res.etf, n)
+    if (!filled.length) { setNotice(`${groupName} has no chartable names right now`); return }
     const curName = (g && (g.name || groupMeta.name)) || (g && g.id) || null
     const others = (g?.alsoIn || []).filter(x => x.id !== groupId)
     const newAlsoIn = (g?.id && curName) ? [{ id: g.id, name: curName }, ...others] : others
@@ -369,11 +397,17 @@ export default function MultiChartGrid({ mc }) {
           <div className={styles.undoToast} role="status">
             <span>{undo.label}</span>
             <button type="button" onClick={() => {
-              // Restore the pre-fill board: re-fill with the snapshot's syms + group.
-              mc.fillCells(undo.snapshot.cells.map(c => c.sym).filter(Boolean), undo.snapshot.group)
-              if (!undo.snapshot.group) mc.clearGroup()   // fillCells coalesces a falsy group to prev; force-clear when the snapshot had no group
+              // Verbatim restore: cells with their tf + chart styles + empty
+              // positions, group exactly as it was (mega-review #12 — the old
+              // sym-only refill silently reset every timeframe/style to Daily).
+              mc.restoreCells(undo.snapshot.cells, undo.snapshot.group)
               setUndo(null)
             }}>Undo</button>
+          </div>
+        )}
+        {notice && !undo && (
+          <div className={styles.undoToast} role="status">
+            <span>{notice}</span>
           </div>
         )}
       </div>

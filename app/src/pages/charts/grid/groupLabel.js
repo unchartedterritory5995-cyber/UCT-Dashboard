@@ -6,6 +6,10 @@
 
 export function humanizeGroupId(id) {
   if (typeof id !== 'string' || !id) return ''
+  // Industry cohort ids ("industry:Banks - Regional") carry a display-ready
+  // Finviz industry name after the prefix — return it verbatim (the generic
+  // split would mangle its spacing/hyphens).
+  if (id.startsWith('industry:')) return id.slice('industry:'.length)
   return id
     .split(/[_\s-]+/)
     .filter(Boolean)

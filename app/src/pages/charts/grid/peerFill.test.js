@@ -6,56 +6,89 @@ describe('makePeerFiller', () => {
   it('discards a stale (out-of-order) peer response', async () => {
     let resolveAAPL, resolveMSFT
     const fetchPeers = vi.fn((sym) => {
-      if (sym === 'AAPL') return new Promise(r => { resolveAAPL = () => r({ seed: 'AAPL', peers: ['A1', 'A2'], source: 'taxonomy' }) })
-      return new Promise(r => { resolveMSFT = () => r({ seed: 'MSFT', peers: ['M1', 'M2'], source: 'taxonomy' }) })
+      if (sym === 'AAPL') return new Promise(r => { resolveAAPL = () => r({ seed: 'AAPL', group_id: 'a', group_name: 'A', peers: ['A1', 'A2'], source: 'taxonomy' }) })
+      return new Promise(r => { resolveMSFT = () => r({ seed: 'MSFT', group_id: 'b', group_name: 'B', peers: ['M1', 'M2'], source: 'taxonomy' }) })
     })
     const fillCells = vi.fn()
-    const filler = makePeerFiller({ fetchPeers, fillCells, onUndoAvailable: () => {} })
+    const updateCellAt = vi.fn()
+    const filler = makePeerFiller({ fetchPeers, fillCells, updateCellAt, onUndoAvailable: () => {} })
 
-    const p1 = filler.run('AAPL', { n: 3, group: { id: 'a' }, snapshot: {} })
-    const p2 = filler.run('MSFT', { n: 3, group: { id: 'b' }, snapshot: {} })
+    const p1 = filler.run('AAPL', { n: 3, cellIndex: 0, cellNext: { id: 'c0', sym: 'AAPL', tf: 'D' }, snapshot: {} })
+    const p2 = filler.run('MSFT', { n: 3, cellIndex: 1, cellNext: { id: 'c1', sym: 'MSFT', tf: 'D' }, snapshot: {} })
     resolveMSFT()      // newer request resolves first
     await p2
     resolveAAPL()      // older request resolves late -> MUST be ignored
     await p1
 
-    // Each run fills its seed immediately (not latch-gated); only the MSFT peer fill lands (AAPL's is discarded).
-    expect(fillCells).toHaveBeenCalledTimes(3)
-    expect(fillCells).toHaveBeenNthCalledWith(1, ['AAPL'], { id: 'a' })   // AAPL seed immediate
-    expect(fillCells).toHaveBeenNthCalledWith(2, ['MSFT'], { id: 'b' })   // MSFT seed immediate
-    expect(fillCells).toHaveBeenNthCalledWith(3, ['MSFT', 'M1', 'M2'], { id: 'b' })  // MSFT peer fill
+    // Optimistic seeds land in their OWN cells only (never a board wipe):
+    expect(updateCellAt).toHaveBeenNthCalledWith(1, 0, { id: 'c0', sym: 'AAPL', tf: 'D' })
+    expect(updateCellAt).toHaveBeenNthCalledWith(2, 1, { id: 'c1', sym: 'MSFT', tf: 'D' })
+    // Only the MSFT (newest) peer fill lands; AAPL's stale response is discarded.
+    expect(fillCells).toHaveBeenCalledTimes(1)
+    expect(fillCells).toHaveBeenCalledWith(['MSFT', 'M1', 'M2'],
+      { id: 'b', name: 'B', by: 'today', n: 3, seed: 'MSFT', alsoIn: [] })
   })
 
-  it('keeps the seed solo when the taxonomy has no group', async () => {
-    const fetchPeers = vi.fn(async () => ({ seed: 'SNDK', peers: [], source: 'none' }))
+  it('never wipes the board on a groupless seed: seed stays in its cell, group clears, notice fires', async () => {
+    const fetchPeers = vi.fn(async () => ({ seed: 'ZZZQ', peers: [], source: 'none' }))
     const fillCells = vi.fn()
-    const filler = makePeerFiller({ fetchPeers, fillCells, onUndoAvailable: () => {} })
-    await filler.run('SNDK', { n: 3, group: null, snapshot: {} })
-    expect(fillCells).toHaveBeenCalledWith(['SNDK'], null)
+    const updateCellAt = vi.fn()
+    const clearGroup = vi.fn()
+    const onNotice = vi.fn()
+    const filler = makePeerFiller({ fetchPeers, fillCells, updateCellAt, clearGroup, onNotice, onUndoAvailable: () => {} })
+    await filler.run('ZZZQ', { n: 3, cellIndex: 2, cellNext: { id: 'c2', sym: 'ZZZQ', tf: '65' }, snapshot: {} })
+    expect(updateCellAt).toHaveBeenCalledWith(2, { id: 'c2', sym: 'ZZZQ', tf: '65' })
+    expect(fillCells).not.toHaveBeenCalled()          // the rest of the board is UNTOUCHED
+    expect(clearGroup).toHaveBeenCalled()             // stale header/chips dropped
+    expect(onNotice).toHaveBeenCalledWith(expect.stringContaining('ZZZQ'))
   })
 
-  it('fills the seed immediately, then the full set when peers resolve', async () => {
-    let resolve
-    const fetchPeers = vi.fn(() => new Promise(r => { resolve = () => r({ seed: 'SNDK', peers: ['WDC', 'STX'], source: 'ai' }) }))
+  it('AI peers fill without a group (and clear the previous group)', async () => {
+    const fetchPeers = vi.fn(async () => ({ seed: 'ORFN', peers: ['P1', 'P2'], source: 'ai', group_id: null }))
+    const fillCells = vi.fn()
+    const clearGroup = vi.fn()
+    const filler = makePeerFiller({ fetchPeers, fillCells, clearGroup, onUndoAvailable: () => {} })
+    await filler.run('ORFN', { n: 3, snapshot: {} })
+    expect(fillCells).toHaveBeenCalledWith(['ORFN', 'P1', 'P2'], null)
+    expect(clearGroup).toHaveBeenCalled()
+  })
+
+  it('taxonomy fill carries group name + alsoIn for the switcher', async () => {
+    const fetchPeers = vi.fn(async () => ({
+      seed: 'NVDA', group_id: 'ai_gpu_chips', group_name: 'AI / GPU Chips',
+      also_in: [{ id: 'semiconductors', name: 'Semiconductors' }],
+      peers: ['AMD', 'AVGO'], source: 'taxonomy',
+    }))
     const fillCells = vi.fn()
     const filler = makePeerFiller({ fetchPeers, fillCells, onUndoAvailable: () => {} })
-    const p = filler.run('SNDK', { n: 3, group: null, snapshot: {} })
-    // Seed-solo fill happens synchronously, before the fetch resolves:
-    expect(fillCells).toHaveBeenNthCalledWith(1, ['SNDK'], null)
-    resolve()
+    await filler.run('NVDA', { n: 3, snapshot: {} })
+    expect(fillCells).toHaveBeenCalledWith(['NVDA', 'AMD', 'AVGO'], {
+      id: 'ai_gpu_chips', name: 'AI / GPU Chips', by: 'today', n: 3, seed: 'NVDA',
+      alsoIn: [{ id: 'semiconductors', name: 'Semiconductors' }],
+    })
+  })
+
+  it('a fetch failure keeps the board and notifies instead of throwing', async () => {
+    const fetchPeers = vi.fn(async () => { throw new Error('network') })
+    const fillCells = vi.fn()
+    const clearGroup = vi.fn()
+    const onNotice = vi.fn()
+    const filler = makePeerFiller({ fetchPeers, fillCells, clearGroup, onNotice, onUndoAvailable: () => {} })
+    await filler.run('AAPL', { n: 3, snapshot: {} })
+    expect(fillCells).not.toHaveBeenCalled()
+    expect(onNotice).toHaveBeenCalled()
+  })
+
+  it('shares an external fill sequence so another fill source supersedes it', async () => {
+    let resolveFetch
+    const fetchPeers = vi.fn(() => new Promise(r => { resolveFetch = () => r({ seed: 'AAPL', group_id: 'a', peers: ['A1'], source: 'taxonomy' }) }))
+    const fillCells = vi.fn()
+    const seq = { n: 0 }
+    const filler = makePeerFiller({ fetchPeers, fillCells, seq, onUndoAvailable: () => {} })
+    const p = filler.run('AAPL', { n: 2, snapshot: {} })
+    seq.n += 1              // an external fill (the also-in switcher) took over
+    resolveFetch()
     await p
-    expect(fillCells).toHaveBeenNthCalledWith(2, ['SNDK', 'WDC', 'STX'], null)
-  })
-
-  it('a superseded run does not fill the seed either', async () => {
-    const fetchPeers = vi.fn(() => new Promise(() => {}))   // never resolves
-    const fillCells = vi.fn()
-    const filler = makePeerFiller({ fetchPeers, fillCells, onUndoAvailable: () => {} })
-    filler.run('AAPL', { n: 3, group: null, snapshot: {} })   // gen 1: fills [AAPL]
-    filler.run('MSFT', { n: 3, group: null, snapshot: {} })   // gen 2: fills [MSFT]
-    // Each run fills its own seed immediately; both are the latest at their moment.
-    expect(fillCells).toHaveBeenNthCalledWith(1, ['AAPL'], null)
-    expect(fillCells).toHaveBeenNthCalledWith(2, ['MSFT'], null)
-    expect(fillCells).toHaveBeenCalledTimes(2)   // neither fetch resolved → no peer fills
+    expect(fillCells).not.toHaveBeenCalled()   // stale typed fill discarded
   })
 })
