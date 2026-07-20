@@ -184,10 +184,16 @@ def rank_holdings(holdings: list, by: str = "today", seed: str = None,
     cap = cap_universe_set()
     seed_hy = normalize_sym(seed) if seed else None
     cands = []
+    seen = set()
     for idx, h in enumerate(holdings):
         hy = normalize_sym(h.get("sym", ""))
-        if not hy or hy not in cap or hy == seed_hy:
+        if not hy or hy in seen or hy not in cap or hy == seed_hy:
             continue
+        # Defensive dedupe (first occurrence wins): a duplicate holdings row
+        # (overlay drift, same sym under two sub-themes) must never become two
+        # identical grid cells. theme_db's UNIQUE(theme_id, sym) currently
+        # prevents dups, but the grid contract must not depend on it surviving.
+        seen.add(hy)
         cands.append((idx, hy, h))
     if not cands:
         return []
@@ -398,24 +404,76 @@ def resolve_primary_theme(sym: str):
     return rows[0]
 
 
+# Finviz catch-all pseudo-industries — NOT peer sets. A broad ETF's "industry"
+# is 'Exchange Traded Fund' (SPY's cohort = GLD/HYG/SLV/TAN...), SPACs are
+# 'Shell Companies', CEFs are 'Closed-End Fund - *'. Grouping by these fills
+# the grid with an unrelated grab-bag, so _industry_peers refuses them and the
+# caller falls through to grounded AI peers (usually seed-stays-solo — strictly
+# better than confidently wrong peers). Compared lowercased + stripped.
+_NON_PEER_INDUSTRIES = {
+    "exchange traded fund",
+    "shell companies",
+    "closed-end fund - debt",
+    "closed-end fund - equity",
+    "closed-end fund - foreign",
+}
+
+_INDUSTRY_COHORT_MAX = 60     # pre-trim big cohorts (Biotechnology ~268 in-cap)
+_INDUSTRY_RANK_TTL = 60.0     # ranked-cohort reuse across typed commits
+
+
+def _industry_cohort_ranked(ind: str) -> list:
+    """Ranked chartable cohort for a Finviz industry, briefly cached.
+
+    Ranking fires one live Massive batch snapshot (_today_map) + swing metrics
+    over the cohort on the REQUEST path, so this (a) caches the ranked list per
+    industry for _INDUSTRY_RANK_TTL — repeated typed commits reuse it — and
+    (b) pre-trims oversized cohorts to the top _INDUSTRY_COHORT_MAX by the
+    already-cached RS map before the snapshot call, keeping the batch bounded
+    (~60 tickers, on par with a theme fill, vs Biotechnology's ~268). The cache
+    is seed-agnostic; the caller excludes the seed from the returned list."""
+    key = f"grp_ind_rank::{(ind or '').strip().lower()}"
+    hit = cache.get(key)
+    if hit is not None:
+        return hit
+    from api.services import industry_map
+    cap = cap_universe_set()
+    cohort = [normalize_sym(t) for t in industry_map.tickers_in_industry(ind)]
+    cohort = [t for t in dict.fromkeys(cohort) if t in cap]
+    if len(cohort) > _INDUSTRY_COHORT_MAX:
+        rs = _rs_map()
+
+        def _rs_key(t):
+            r = (rs.get(t) or {}).get("rs_rank")
+            try:
+                return -float(r) if r is not None else float("inf")
+            except (TypeError, ValueError):
+                return float("inf")
+
+        # Stable sort: no-RS names keep alphabetical order, sink last.
+        cohort = sorted(cohort, key=_rs_key)[:_INDUSTRY_COHORT_MAX]
+    holdings = [{"sym": t, "tier": "relevant", "sub_theme_id": None} for t in cohort]
+    ranked = rank_holdings(holdings, by="today")
+    cache.set(key, ranked, _INDUSTRY_RANK_TTL)
+    return ranked
+
+
 def _industry_peers(seed_hy: str, n: int) -> dict | None:
     """Orphan fallback: a stock in no theme groups with its Finviz-industry
     cohort (a real peer set — an orphan regional bank fills with regional banks).
     Chartable cap_universe members of the seed's industry, ranked by the same
-    swing gate as theme peers. None => no industry / no cohort (caller tries AI)."""
+    swing gate as theme peers. None => no industry / catch-all pseudo-industry
+    (_NON_PEER_INDUSTRIES) / no cohort (caller tries AI)."""
     try:
         from api.services import industry_map
         ind = (industry_map.get_industries([seed_hy]) or {}).get(seed_hy)
-        if not ind:
+        if not ind or ind.strip().lower() in _NON_PEER_INDUSTRIES:
             return None
-        cap = cap_universe_set()
-        cohort = [normalize_sym(t) for t in industry_map.tickers_in_industry(ind)]
-        cohort = [t for t in dict.fromkeys(cohort) if t in cap and t != seed_hy]
-        if not cohort:
+        ranked = _industry_cohort_ranked(ind)
+        peers = [t for t in ranked if t != seed_hy][: max(1, int(n))]
+        if not peers:
             return None
-        holdings = [{"sym": t, "tier": "relevant", "sub_theme_id": None} for t in cohort]
-        ranked = rank_holdings(holdings, by="today", seed=seed_hy)
-        return {"industry": ind, "peers": ranked[: max(1, int(n))]}
+        return {"industry": ind, "peers": peers}
     except Exception:
         return None   # industry map hiccup => caller falls through to AI peers
 
@@ -457,6 +515,9 @@ def resolve_peers(sym: str, n: int) -> dict:
         "seed": seed_hy,
         "also_in": also_in,
         "group_id": theme_id,
+        # The theme's display name — without it the frontend header inherits the
+        # PREVIOUS group's name on a taxonomy fill (verified mislabel bug).
+        "group_name": row.get("theme_name"),
         "peers": ranked[: max(1, int(n))],
         "source": "taxonomy",
     }

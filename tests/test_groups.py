@@ -387,6 +387,111 @@ def test_rank_holdings_scores_out_populated_only_when_on(monkeypatch):
     assert scores["LEAD"] == 4      # liq2 + mom2
 
 
+# ── Verified-review fixes (2026-07-19) ──────────────────────────────────────
+
+
+def test_industry_peers_blocklists_catch_all_pseudo_industries(monkeypatch):
+    # Broad-ETF / SPAC / closed-end-fund Finviz buckets are NOT peer sets —
+    # _industry_peers must return None (caller falls through to grounded AI
+    # peers) instead of filling the grid with a GLD/HYG/SLV grab-bag.
+    from api.services import industry_map
+    called = {"cohort": 0}
+    monkeypatch.setattr(industry_map, "tickers_in_industry",
+                        lambda ind: called.__setitem__("cohort", called["cohort"] + 1) or ["GLD", "HYG"])
+    for bad in ["Exchange Traded Fund", "exchange traded fund", " Exchange Traded Fund ",
+                "Shell Companies", "Closed-End Fund - Debt",
+                "Closed-End Fund - Equity", "Closed-End Fund - Foreign"]:
+        monkeypatch.setattr(industry_map, "get_industries",
+                            lambda syms, _b=bad: {s: _b for s in syms})
+        assert groups._industry_peers("SPY", 5) is None
+    assert called["cohort"] == 0    # blocked industries never even build a cohort
+
+
+def test_resolve_peers_etf_seed_falls_through_to_ai(monkeypatch):
+    # SPY (a default grid cell) is in no theme; its Finviz industry is the
+    # 'Exchange Traded Fund' catch-all — resolve_peers must skip the industry
+    # branch entirely and land on the AI path (seed stays solo when AI is empty).
+    from api.services import industry_map
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    monkeypatch.setattr(industry_map, "get_industries",
+                        lambda syms: {s: "Exchange Traded Fund" for s in syms})
+    monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: [])
+    out = groups.resolve_peers("SPY", 5)
+    assert out["source"] == "none"
+    assert out["peers"] == []
+    assert out["group_id"] is None
+
+
+def test_resolve_peers_taxonomy_includes_group_name(monkeypatch):
+    # The taxonomy branch must carry the theme's display name — without it the
+    # frontend header inherits the PREVIOUS group's name (verified mislabel bug).
+    seed_row = {"theme_id": "space", "theme_name": "Space", "tier": "core", "sub_theme_id": None}
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: seed_row)
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"RKLB", "ASTS"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    monkeypatch.setattr(groups, "_theme_holdings",
+                        lambda tid: [{"sym": "RKLB", "tier": "core"},
+                                     {"sym": "ASTS", "tier": "core"}])
+    monkeypatch.setattr(groups, "_themes_for_ticker", lambda s: [])
+    out = groups.resolve_peers("RKLB", 3)
+    assert out["source"] == "taxonomy"
+    assert out["group_id"] == "space"
+    assert out["group_name"] == "Space"
+
+
+def test_rank_holdings_dedupes_duplicate_syms(monkeypatch):
+    # Grid contract: one cell per sym. A duplicate holdings row (overlay drift,
+    # same sym in two sub-themes) must never yield the same sym twice.
+    holdings = [
+        {"sym": "AAA", "tier": "core"},
+        {"sym": "BBB", "tier": "core"},
+        {"sym": "AAA", "tier": "relevant"},     # dup — dropped
+        {"sym": "aaa", "tier": "core"},         # dup after normalize — dropped
+    ]
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"AAA", "BBB"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {"AAA": 5.0, "BBB": 1.0})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    _mock_gate_env(monkeypatch, False, {})
+    assert groups.rank_holdings(holdings, by="today") == ["AAA", "BBB"]
+
+
+def test_industry_peers_cohort_bounded_and_cached(monkeypatch):
+    # A big real industry (Biotechnology ~268 in-cap) must NOT fire a full-cohort
+    # Massive batch on every typed commit: the snapshot sees at most
+    # _INDUSTRY_COHORT_MAX names (pre-trimmed by cached RS), and a second commit
+    # within the TTL reuses the cached ranking (zero extra snapshots).
+    from api.services import industry_map
+    cohort = [f"T{i:03d}" for i in range(200)]
+    monkeypatch.setattr(industry_map, "get_industries",
+                        lambda syms: {s: "Biotechnology" for s in syms})
+    monkeypatch.setattr(industry_map, "tickers_in_industry", lambda ind: cohort)
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: set(cohort))
+    # RS: T000 best, descending; the last 100 names have no RS at all.
+    monkeypatch.setattr(groups, "_rs_map",
+                        lambda: {f"T{i:03d}": {"rs_rank": 100 - i} for i in range(100)})
+    calls = {"today": 0, "sizes": []}
+    def fake_today(syms):
+        calls["today"] += 1
+        calls["sizes"].append(len(syms))
+        return {}
+    monkeypatch.setattr(groups, "_today_map", fake_today)
+    _mock_gate_env(monkeypatch, False, {})
+    store = {}
+    monkeypatch.setattr(groups.cache, "get", lambda k: store.get(k))
+    monkeypatch.setattr(groups.cache, "set", lambda k, v, ttl: store.__setitem__(k, v))
+    out1 = groups._industry_peers("ORPHANBIO", 5)
+    assert out1["industry"] == "Biotechnology"
+    assert len(out1["peers"]) == 5
+    assert calls["today"] == 1
+    assert calls["sizes"][0] <= groups._INDUSTRY_COHORT_MAX     # bounded batch
+    assert out1["peers"][0] == "T000"          # top-RS names survive the pre-trim
+    out2 = groups._industry_peers("T000", 5)   # different seed, same industry
+    assert calls["today"] == 1                 # cache hit — no second snapshot
+    assert "T000" not in out2["peers"]         # seed still excluded post-cache
+    assert len(out2["peers"]) == 5
+
+
 def test_ai_peer_raw_releases_semaphore_every_call(monkeypatch):
     # Each _ai_peer_raw call must return its semaphore permit — otherwise the
     # feature dead-locks after GROUPS_AI_PEERS_CONCURRENCY calls.
