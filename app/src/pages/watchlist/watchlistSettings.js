@@ -10,10 +10,10 @@
 export const WATCHLIST_SETTINGS_KEY = 'watchlist_settings'
 
 export const WATCHLIST_DEFAULTS = {
-  // Canvas. 'default' inherits the widget background (today's look); 'solid'/'gradient'
-  // let the user match their chart canvas. Gradient is top→bottom like the chart's.
-  bgMode: 'default',       // 'default' | 'solid' | 'gradient'
-  bg: '#0e0f0d',           // solid canvas (matches --bg)
+  // Canvas — solid or a top→bottom gradient (like the chart's). Default = solid at the
+  // current watchlist surface color, so the default look is unchanged.
+  bgMode: 'solid',         // 'solid' | 'gradient'
+  bg: '#1a1c17',           // solid canvas (matches --bg-surface, today's look)
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },  // matches CHART_DEFAULTS.bgGradient
 
   // Column text colors (default to --text-bright #e0dac8, the current look).

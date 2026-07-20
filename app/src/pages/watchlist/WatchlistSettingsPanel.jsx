@@ -34,7 +34,6 @@ function Toggle({ on, onClick, label }) {
 }
 
 const BG_MODES = [
-  { key: 'default', label: 'Default' },
   { key: 'solid', label: 'Solid' },
   { key: 'gradient', label: 'Gradient' },
 ]
