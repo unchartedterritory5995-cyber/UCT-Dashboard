@@ -309,6 +309,24 @@ def _run_computation() -> None:
             # holdings that rotated out still contribute their return
             if etf_ticker == "UCT20" and uct20_nav_returns:
                 theme_obj["group_return"] = uct20_nav_returns
+            else:
+                # §4b structural stamp (Task-4 review Important #1): bake an
+                # OWNER-ONLY group_return into the base result so every consumer
+                # — including the frontend's average-the-holdings fallback and a
+                # live-snapshot outage — inherits the engine-invariant number
+                # instead of recomputing a diluted mean over engine members.
+                owner_syms_hy = {_to_hyphen(s) for s in union_syms
+                                 if members.get(_to_hyphen(s), "owner") != "engine"}
+                gr = {}
+                for period in null_returns:
+                    per_sym = {_to_hyphen(s): returns_map.get(s, {}).get(period)
+                               for s in union_syms
+                               if returns_map.get(s, {}).get(period) is not None}
+                    v = _owner_only_mean(per_sym, owner_syms_hy)
+                    if v is not None:
+                        gr[period] = v
+                if gr:
+                    theme_obj["group_return"] = gr
             themes_out.append(theme_obj)
 
         result = {

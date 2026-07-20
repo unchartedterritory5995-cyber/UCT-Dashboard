@@ -15,7 +15,11 @@ const PERIOD_KEY = { Today: '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y'
 function groupReturn(theme, key) {
   const gr = theme.group_return?.[key]
   if (gr != null) return gr
-  const vals = (theme.holdings || []).map(h => h.returns?.[key]).filter(v => v != null)
+  // Owner rows only (§4b): engine-overlay members never move the theme number.
+  const vals = (theme.holdings || [])
+    .filter(h => h.source !== 'engine')
+    .map(h => h.returns?.[key])
+    .filter(v => v != null)
   if (!vals.length) return null
   return vals.reduce((a, b) => a + b, 0) / vals.length
 }

@@ -50,7 +50,12 @@ function themeSlug(name) {
 }
 
 function avgReturn(holdings, periodKey) {
-  const vals = holdings.map(h => h.returns?.[periodKey]).filter(v => v != null)
+  // Owner rows only (§4b): engine-overlay members never move the theme number,
+  // even on this fallback path (server outage / missing group_return).
+  const vals = holdings
+    .filter(h => h.source !== 'engine')
+    .map(h => h.returns?.[periodKey])
+    .filter(v => v != null)
   if (vals.length === 0) return null
   return vals.reduce((a, b) => a + b, 0) / vals.length
 }
