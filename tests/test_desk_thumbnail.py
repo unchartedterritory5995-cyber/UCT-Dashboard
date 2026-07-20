@@ -101,6 +101,44 @@ def test_live_trading_still_classic():
     assert t._resolve_theme(None, "LIVE TRADING SESSION").layout == "classic"
 
 
+def test_zen_eyebrow_routes_to_zen():
+    assert t._resolve_theme(None, "WORKSHOP WITH ZEN").layout == "zen"
+    assert t._resolve_theme(None, "Zen Workshop").layout == "zen"
+
+
+def test_zen_word_boundary_avoids_false_friends():
+    # "zen" routes only as a whole word — substrings must NOT hijack the card.
+    assert t._resolve_theme(None, "CITIZEN INSIGHTS").layout == "classic"
+    assert t._resolve_theme(None, "ZENITH REVIEW").layout == "classic"
+
+
+def test_zen_variant_override_routes_to_zen():
+    assert t._resolve_theme("zen", "LIVE TRADING SESSION").layout == "zen"
+
+
+def test_zen_render_returns_jpeg_1280x720_under_2mb():
+    data = t.render_session_thumbnail("July 20, 2026", eyebrow_label="WORKSHOP WITH ZEN")
+    assert data[:2] == b"\xff\xd8"                      # JPEG magic
+    img = Image.open(io.BytesIO(data))
+    assert img.size == (1280, 720)
+    assert len(data) < 2 * 1024 * 1024
+
+
+def test_zen_missing_asset_falls_back_to_classic(monkeypatch, tmp_path):
+    # A missing/corrupt Zen mark must never break a publish — it falls back to
+    # the deterministic classic branded card (mirrors the plate fallback).
+    monkeypatch.setattr(t, "_ZEN_LOGO", str(tmp_path / "nope.png"))
+    data = t.render_session_thumbnail("July 20, 2026", eyebrow_label="WORKSHOP WITH ZEN")
+    classic = t.render_session_thumbnail("July 20, 2026", eyebrow_label="WORKSHOP WITH ZEN",
+                                         variant="default")
+    assert data == classic
+
+
+def test_zen_smoke_and_long_name():
+    _smoke("WORKSHOP WITH ZEN")
+    _smoke("WORKSHOP WITH ZEN AND FRIENDS EXTRA LONG BONUS DEEP DIVE MARATHON")
+
+
 def _fake_plate(path, size=(1280, 720)):
     Image.new("RGB", size, (10, 30, 60)).save(path, "PNG")
 

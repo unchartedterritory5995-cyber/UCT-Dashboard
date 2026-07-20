@@ -32,6 +32,7 @@ from __future__ import annotations
 import io
 import os
 import random
+import re
 import zlib
 from typing import NamedTuple
 
@@ -109,6 +110,22 @@ _CHARTMASTER_THEME = Theme(
     layout="plate",
 )
 
+# "Workshop with Zen" — a serene "balance" card built around Zen's own yin-yang
+# bull/bear mark (his X avatar, bundled as zen-logo.png). Deep twilight-teal
+# calm gradient; the mark is the glowing hero inside a gold moon-ring with zen
+# water-ripples, UCT compass co-brand above, gold date plaque below. Zen
+# workshops only — keyed off "zen" in the eyebrow, mirrors the ChartMaster
+# plate idiom (a bespoke per-host card, not a general system).
+_ZEN_THEME = Theme(
+    bg_top=(16, 32, 42),
+    bg_bottom=(5, 9, 13),
+    wordmark=(224, 232, 236),
+    eyebrow=_GOLD,
+    date=(244, 238, 220),
+    tagline=(150, 168, 176),
+    layout="zen",
+)
+
 _THEMES = {
     "default": _DEFAULT_THEME,
     "live": _DEFAULT_THEME,
@@ -116,6 +133,7 @@ _THEMES = {
     "emerald": _EMERALD_THEME,
     "evening": _EVENING_THEME,
     "chartmaster": _CHARTMASTER_THEME,
+    "zen": _ZEN_THEME,
 }
 
 
@@ -125,6 +143,10 @@ def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
     low = (eyebrow_label or "").lower()
     if "chartmaster" in low.replace(" ", ""):
         return _CHARTMASTER_THEME
+    # "zen" as a whole word (avoid citizen/zenith/frozen false matches) — the
+    # Zen workshop card. Matches "WORKSHOP WITH ZEN" and any "… Zen …" name.
+    if re.search(r"\bzen\b", low):
+        return _ZEN_THEME
     if "evening" in low:
         return _EVENING_THEME
     if "thought" in low:
@@ -934,6 +956,136 @@ def _render_plate(theme: Theme, date_text: str, eyebrow_label: str) -> Image.Ima
     return img.convert("RGB")
 
 
+# ---------------------------------------------------------------------------
+# Zen (Workshop with Zen) — serene balance card built on Zen's yin-yang mark
+# ---------------------------------------------------------------------------
+
+_ZEN_LOGO = os.path.join(_ASSETS, "zen-logo.png")
+_ZEN_DESCRIPTOR = "THEMATIC SWING TRADER"   # Zen's Desk role — baked in (Zen-only card)
+_ZEN_RIPPLE = (206, 176, 100)               # faint water-ripple gold
+
+
+def _zen_logo_disc(d: int) -> Image.Image:
+    """Zen's yin-yang bull/bear mark as a clean circular 'moon': resize the
+    square avatar to d×d, mask it to a disc (trims the black corners), and
+    duotone it so BOTH halves read on a dark card — the bear (dark) half lifts
+    to a cool slate, the bull (light) half to warm ivory. Falls back to the raw
+    masked avatar if anything about the asset is off (never breaks a publish)."""
+    src = Image.open(_ZEN_LOGO).convert("RGBA").resize((d, d), Image.LANCZOS)
+    mask = Image.new("L", (d, d), 0)
+    ImageDraw.Draw(mask).ellipse([1, 1, d - 2, d - 2], fill=255)
+    try:
+        import numpy as np
+        lum = np.asarray(src.convert("L")).astype(np.float32) / 255.0
+        dark = np.array((58, 72, 92), np.float32)      # bear half -> cool slate
+        light = np.array((248, 242, 226), np.float32)   # bull half -> warm ivory
+        rgb = (dark + (light - dark) * lum[:, :, None]).clip(0, 255).astype("uint8")
+        disc = Image.fromarray(rgb, "RGB").convert("RGBA")
+    except Exception:
+        disc = src
+    disc.putalpha(mask)
+    return disc
+
+
+def _render_zen(theme: Theme, date_text: str, eyebrow_label: str, *,
+                seed: int = 7) -> Image.Image:
+    """Serene, symmetric 'balance' card: Zen's yin-yang mark glowing at center
+    inside a gold moon-ring with concentric water-ripples over a twilight-teal
+    calm gradient; UCT compass + wordmark co-brand above, the show name as a
+    gold serif hero, his role, and a gold date plaque below. Rendered at 2x and
+    downscaled (super-sampled) for crisp edges, finished with a whisper of grain.
+    `seed` only nudges the grain — this is a formal, still design (no structural
+    per-episode variation, matching the editorial card's restraint)."""
+    S = 2
+    W, H = _W * S, _H * S
+    size = (W, H)
+
+    def s(v):
+        return int(round(v * S))
+
+    # Build the mark FIRST — if the asset is missing/corrupt, never break a
+    # publish: fall back to the classic branded card (mirrors _render_plate).
+    # Seed matches what render_session_thumbnail derives, so the fallback is a
+    # deterministic classic render for this exact (date, name) pair.
+    d = s(298)
+    try:
+        disc = _zen_logo_disc(d)
+    except Exception:
+        return _render_classic(_DEFAULT_THEME, date_text, eyebrow_label, seed=seed)
+
+    img = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGBA")
+    cx = W // 2
+    logo_cy = s(296)
+
+    # Backlight — a cool wash + a warm gold core behind the mark (depth).
+    img = Image.alpha_composite(img, _radial(cx, logo_cy, s(320), (66, 118, 148), 46, size))
+    img = Image.alpha_composite(img, _radial(cx, logo_cy, s(200), _GOLD, 44, size))
+
+    # Zen water-ripples — faint concentric gold rings emanating from the mark
+    # (a stone dropped in still water; also markets rippling outward).
+    ripple = Image.new("RGBA", size, (0, 0, 0, 0))
+    rd = ImageDraw.Draw(ripple)
+    for i, r in enumerate((s(184), s(232), s(282), s(334))):
+        a = max(0, 44 - i * 9)
+        rd.ellipse([cx - r, logo_cy - r, cx + r, logo_cy + r],
+                   outline=(*_ZEN_RIPPLE, a), width=max(1, s(1)))
+    img = Image.alpha_composite(img, ripple.filter(ImageFilter.GaussianBlur(s(0.6))))
+
+    # The mark + its soft outer glow.
+    glow = Image.new("RGBA", size, (0, 0, 0, 0))
+    glow.paste(disc, (cx - d // 2, logo_cy - d // 2), disc)
+    img = Image.alpha_composite(img, glow.filter(ImageFilter.GaussianBlur(s(15))))
+
+    # Gold moon-ring hugging the disc (double stroke), then the crisp mark.
+    ring = ImageDraw.Draw(img)
+    rr = d // 2 + s(7)
+    ring.ellipse([cx - rr, logo_cy - rr, cx + rr, logo_cy + rr],
+                 outline=(*_GOLD_HI, 255), width=s(3))
+    rr2 = rr + s(7)
+    ring.ellipse([cx - rr2, logo_cy - rr2, cx + rr2, logo_cy + rr2],
+                 outline=(*_ZEN_RIPPLE, 150), width=s(1))
+    img.paste(disc, (cx - d // 2, logo_cy - d // 2), disc)
+
+    # Brand kit — compass + wordmark, centered above the mark.
+    mark = _compass(s(56))
+    if mark is not None:
+        img.alpha_composite(mark, (cx - s(28), s(40)))
+    _shadow_center(img, cx, s(106), _WORDMARK,
+                   _font("DejaVuSans-Bold.ttf", 23 * S), theme.wordmark, 7 * S)
+
+    # Hero — the show name (eyebrow_label), metallic-gold serif, auto-fit.
+    draw = ImageDraw.Draw(img)
+    head = (eyebrow_label or "WORKSHOP WITH ZEN").strip(" -—·")
+    hf, head = _fit_tracked(draw, head, "DejaVuSerif-Bold.ttf",
+                            58 * S, 34 * S, s(_W - 180), 0)
+    _gold_center(img, cx, s(466), head, hf)
+
+    # His role, small gold tracked eyebrow beneath the hero.
+    _shadow_center(img, cx, s(540), _ZEN_DESCRIPTOR,
+                   _font("DejaVuSans-Bold.ttf", 18 * S), theme.eyebrow, 6 * S)
+
+    # Date plaque — the Evening/plate pill idiom, on its own layer so the
+    # translucent fill blends over the glow beneath it.
+    df = _font("DejaVuSans-Bold.ttf", 29 * S)
+    dt = date_text.upper()
+    dw = _tracked_w(draw, dt, df, 3 * S)
+    pill_cy = s(600)
+    pill = Image.new("RGBA", size, (0, 0, 0, 0))
+    ImageDraw.Draw(pill).rounded_rectangle(
+        [cx - dw / 2 - s(22), pill_cy - s(26), cx + dw / 2 + s(22), pill_cy + s(26)],
+        radius=s(26), fill=(0, 0, 0, 140), outline=(*_GOLD_HI, 255), width=s(2))
+    img.alpha_composite(pill)
+    _draw_tracked_center(ImageDraw.Draw(img), cx, pill_cy - s(16), dt, df, theme.date, 3 * S)
+
+    # Tagline, foot.
+    _shadow_center(img, cx, s(668), _TAGLINE,
+                   _font("DejaVuSans.ttf", 20 * S), theme.tagline, 0)
+
+    img = Image.alpha_composite(img, _vignette(0.5, size))
+    out = img.convert("RGB").resize(_SIZE, Image.LANCZOS)
+    return _grain(out, alpha=4.0, seed=7 + seed)
+
+
 def render_session_thumbnail(
     date_text: str,
     eyebrow_label: str = "LIVE TRADING SESSION",
@@ -948,6 +1100,8 @@ def render_session_thumbnail(
         img = _render_editorial(theme, date_text, eyebrow_label, seed=seed)
     elif theme.layout == "plate":
         img = _render_plate(theme, date_text, eyebrow_label)
+    elif theme.layout == "zen":
+        img = _render_zen(theme, date_text, eyebrow_label, seed=seed)
     else:
         img = _render_classic(theme, date_text, eyebrow_label, seed=seed)
     buf = io.BytesIO()
