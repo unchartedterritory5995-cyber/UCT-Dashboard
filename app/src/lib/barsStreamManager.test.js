@@ -43,9 +43,11 @@ describe('barsStreamManager', () => {
     const es = MockES.instances[0]
     es._open()
     es._emit('bar', { sym: 'MSFT', tf: '5', bar: { t: 1, o: 1, h: 1, l: 1, c: 1, v: 1 } })
+    bars._flushBars()   // 500ms dispatch throttle — flush now
     expect(msft.length).toBe(1)
     expect(aapl.length).toBe(0)   // <-- AAPL must NOT get MSFT's OHLC
     es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 2, o: 2, h: 2, l: 2, c: 2, v: 2 } })
+    bars._flushBars()
     expect(aapl.length).toBe(1)
     expect(msft.length).toBe(1)
   })
@@ -57,6 +59,7 @@ describe('barsStreamManager', () => {
     flush()
     MockES.instances[0]._open()
     MockES.instances[0]._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, c: 1 } })
+    bars._flushBars()   // 500ms dispatch throttle — flush now
     expect(five.length).toBe(1)
     expect(one.length).toBe(0)
   })

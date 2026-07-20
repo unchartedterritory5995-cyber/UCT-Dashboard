@@ -43,6 +43,29 @@ const _keyState = new Map()     // 'SYM:TF' -> { everDelivered:boolean, lastBarA
 let _rebuildTimer = null
 let _watchdogTimer = null
 
+// Coalesce developing-bar dispatch to a ~2x/sec heartbeat (matches the price feed's
+// PUBLISH_THROTTLE_MS) so the candle + price label tick on the same calm cadence as
+// the quotes instead of repainting on every sub-second update — TC2000-style. A
+// bucket BOUNDARY (a new bar time for a key) flushes that key's prior-bucket final
+// bar IMMEDIATELY, so a bar's closing value is never coalesced away.
+const BAR_THROTTLE_MS = 500
+const _pendingBar = new Map()   // key -> latest bar event awaiting the heartbeat flush
+let _barThrottleTimer = null
+
+function _dispatchBar(key, data) {
+  for (const sub of _subscribers.values()) {
+    if (sub.key === key && sub.onBar) { try { sub.onBar(data) } catch { /* never break on a bad listener */ } }
+  }
+}
+
+function _flushPendingBars() {
+  _barThrottleTimer = null
+  if (_pendingBar.size === 0) return
+  const pending = [..._pendingBar.entries()]
+  _pendingBar.clear()
+  for (const [key, data] of pending) _dispatchBar(key, data)
+}
+
 function _killed() {
   try {
     return typeof localStorage !== 'undefined' && localStorage.getItem('uct.barsPool.disabled') === '1'
@@ -206,11 +229,17 @@ function _connectBucket(bucket) {
       ks.lastBarAt = Date.now()
       if (data.bar && data.bar.t != null) ks.lastBarT = data.bar.t
       _keyState.set(key, ks)
-      // KEYED DISPATCH — only subscribers for this exact (sym,tf), never a global fan-out.
-      for (const sub of _subscribers.values()) {
-        if (sub.key !== key) continue
-        if (sub.onBar) { try { sub.onBar(data) } catch { /* ignore */ } }
+      // THROTTLED keyed dispatch (see _pendingBar): coalesce to ~2x/sec so the candle
+      // ticks on the same calm heartbeat as the quotes — but flush the PRIOR bucket's
+      // final bar immediately on a boundary so no close is coalesced away. Only
+      // subscribers for this exact (sym,tf), never a global fan-out.
+      const _pend = _pendingBar.get(key)
+      if (_pend && _pend.bar && data.bar && _pend.bar.t !== data.bar.t) {
+        _pendingBar.delete(key)
+        _dispatchBar(key, _pend)
       }
+      _pendingBar.set(key, data)
+      if (!_barThrottleTimer) _barThrottleTimer = setTimeout(_flushPendingBars, BAR_THROTTLE_MS)
       if (!wasDelivering) _notifyStatusForKey(key)  // first bar → status flip
     } catch { /* malformed frame */ }
   })
@@ -270,6 +299,8 @@ if (typeof document !== 'undefined') {
 export function _resetForTests() {
   if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null }
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
+  if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null }
+  _pendingBar.clear()
   for (const b of _buckets) _teardownBucket(b)
   _buckets = []
   _subscribers.clear()
@@ -279,3 +310,5 @@ export function _resetForTests() {
 
 export function _getBuckets() { return _buckets }
 export function _flushRebuild() { if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null } _rebuild() }
+// Test hook: dispatch any bars buffered by the 500ms throttle right now.
+export function _flushBars() { if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null } _flushPendingBars() }
