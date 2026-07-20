@@ -164,7 +164,11 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
             <span className={styles.stockLabel}>
               <span className={styles.stockLogo}><UIcon name="equity" size={13} /></span>
               <span className={styles.sym} style={{ fontWeight: 700 }}>{theme.name} Index</span>
-              <span className={styles.indexBadge}>ETF</span>
+              {/* The row is always the equal-weight SYNTHETIC index ($IDX). Only
+                  label it "ETF" when the theme is actually ETF-backed — the 48
+                  curated-only themes (incl. all 12 new narrow ones) have no ETF,
+                  so "ETF" there was misleading (mega-review). */}
+              <span className={styles.indexBadge}>{theme.etf_name ? 'ETF' : 'INDEX'}</span>
             </span>
             <ReturnCell value={groupLive} baseClass={`${styles.ret} ${retClass(groupLive, styles)}`} />
           </div>
