@@ -236,7 +236,7 @@
   text-overflow: ellipsis;
 }
 /* Price + Volume match the ticker symbol EXACTLY (font, size, weight, color). */
-.priceCell, .volCell { color: var(--text-bright); font-weight: 600; }
+.priceCell, .volCell { color: var(--text-bright); font-weight: 400; }   /* match the % change weight */
 /* % Change matches Theme Tracker's .ret EXACTLY — normal weight (400), not bold. */
 .changeCell { font-weight: 400; }
 
@@ -280,9 +280,9 @@
 }
 
 .rowSym {
-  font-family: var(--font-sans);   /* match Theme Tracker (.sym) — sans, brighter, lighter weight */
+  font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;   /* match the % change value weight (thin), not the headers */
   color: var(--text-bright);
   letter-spacing: 0.5px;
   flex-shrink: 0;
