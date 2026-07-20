@@ -1061,6 +1061,13 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   // have visual weight. Non-directional tiers (algo) keep neutral coloring.
   const DIR_BULL = "#6BAA85";   // brighter green than P.bu
   const DIR_BEAR = "#C26A6A";   // brighter red than P.be
+  // Alpha Gold directional accent (approved 7/20): the gold row keeps its
+  // identity; a green/red LEFT EDGE + tinted ★ and Bull/Bear word encode
+  // direction, so the top tier reads at a glance without blending into the
+  // Bull/Bear tiers. Brighter than DIR_* so it pops against the gold body.
+  const EDGE_BULL = "#35d07f";
+  const EDGE_BEAR = "#f0544c";
+  const alphaAccent = dirIsBull ? EDGE_BULL : dirIsBear ? EDGE_BEAR : null;
   const DIR_BULL_TINT = `${DIR_BULL}0E`;  // ≈5% opacity background tint
   const DIR_BEAR_TINT = `${DIR_BEAR}0E`;
   const dirColor = dirIsBull ? DIR_BULL : dirIsBear ? DIR_BEAR : P.wh;
@@ -1077,7 +1084,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   // Background tint: gold for alpha, subtle green/red for bull/bear,
   // standard dark for everything else.
   const rowBg = isAlpha ? `${P.ac}0E` : (dirTint || P.cd);
-  const rowBorder = isAlpha ? `5px solid ${P.ac}` : `3px solid ${meta.color}`;
+  const rowBorder = isAlpha ? `5px solid ${alphaAccent || P.ac}` : `3px solid ${meta.color}`;
   const fontSize = isAlpha ? 14 : 13;
   const secondaryFontSize = 12;
   // ONE color for the whole row so the tape is scannable at a glance:
@@ -1094,7 +1101,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   const rowColor = isAlpha ? P.ac : (_underOI ? DIM_WHITE : dirColor);
   const tickerColor = rowColor;
   const tickerWeight = isAlpha ? 700 : 600;
-  const strikeColor = rowColor;
+  const strikeColor = isAlpha ? (alphaAccent || rowColor) : rowColor;  // Alpha Gold strike carries direction color too
   const strikeWeight = isAlpha ? 700 : (isSize ? 700 : 600);
   const premColor = rowColor;
   const premWeight = isAlpha ? 700 : 600;
@@ -1274,7 +1281,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
             textTransform: "uppercase", flexShrink: 0,
             cursor: "pointer",
           }}>
-          {isAlpha && "★ "}{meta.label}
+          {isAlpha && <span style={{ color: alphaAccent || P.bg }}>{"★ "}</span>}{meta.label}
         </span>
         <span
           onClick={() => onClickTier && onClickTier(tier)}
@@ -1285,7 +1292,10 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             cursor: "pointer",
           }}>
-          {alert.alertName}
+          {isAlpha && alphaAccent
+            ? (<>{(alert.alertName || "").replace(/\s+(Bull|Bear)\s*$/, "")}{" "}
+                <span style={{ color: alphaAccent, fontWeight: 700 }}>{dirIsBull ? "Bull" : "Bear"}</span></>)
+            : alert.alertName}
         </span>
       </span>
 
@@ -3381,6 +3391,20 @@ export default function LiveFlowMassive() {
   })();
   const _tierOf = (a) => _alphaDemote.get(a.id) || a._tierKey || "algo";
 
+  // Runner-up Alpha Gold prints (all but a ticker's best) RENDER as their
+  // demoted tier — Bull/Bear label + color — so "one Alpha Gold per ticker"
+  // holds in EVERY view (All, ticker search, Bull/Bear), not only the Alpha
+  // Gold filter. Display-only remap; grade / premium / side etc. are untouched.
+  const _displayAlert = (a) => {
+    const dt = _alphaDemote.get(a.id);
+    if (!dt) return a;
+    const name = dt === "bearish" ? "UCT Bearish"
+               : dt === "bullish" ? "UCT Bullish"
+               : dt === "size"    ? "UCT Size"
+               : (a.alertName || "");
+    return { ...a, _tierKey: dt, alertName: name };
+  };
+
   const _colValue = (a, key) => {
     switch (key) {
       case "time":      return a.timestamp || 0;
@@ -3832,7 +3856,7 @@ export default function LiveFlowMassive() {
         return (
           <AlertRow
             key={a.id}
-            alert={a}
+            alert={_displayAlert(a)}
             isNew={newIdsRef.current.has(a.id)}
             hitCount={ck ? (hitCounts[ck] || 1) : 1}
             currentSpot={quotes[a.ticker]}
