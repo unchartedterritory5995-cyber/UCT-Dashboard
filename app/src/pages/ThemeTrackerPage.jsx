@@ -217,8 +217,14 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
 export default function ThemeTrackerPage({ embedded = false }) {
   const [activeTab, setActiveTab] = useState('Today')  // always open on Today (not persisted → resets every load)
   const { data, isLoading } = useMobileSWR('/api/theme-performance', fetcher, {
-    refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 30_000,
-    dedupingInterval: 10_000,
+    // 10s so the theme %s stay near-live and the leaderboard re-sorts in order.
+    // (The server overlay is cached at the same 10s window — see _LIVE_1D_TTL —
+    // so this polls no faster than the data actually refreshes.) Theme %s are
+    // aggregates of up to ~2,050 holdings; we can't stream them tick-by-tick
+    // like the watchlist (that would fan out the single-process SSE backend),
+    // so a short server-refresh window is the live-enough, safe approach.
+    refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 10_000,
+    dedupingInterval: 8_000,
     revalidateOnFocus: false,
   })
   const isComputing = data?.status === 'computing'

@@ -55,7 +55,7 @@ _CACHE_TTL = 900          # 15 min in-memory cache
 _ROTATION_CACHE_KEY = "theme_rotation"
 _ROTATION_CACHE_TTL = 900  # 15 min rotation signals cache
 _LIVE_1D_KEY = "theme_live_1d_map"
-_LIVE_1D_TTL = 30         # 30s live intraday overlay
+_LIVE_1D_TTL = 10         # 10s live intraday overlay (theme %s re-sort ~live)
 # Fully overlaid + taxonomy-enriched response, memoized for the live-overlay
 # window. The live-1d map only refreshes every _LIVE_1D_TTL seconds, so the
 # enriched output is byte-identical within that window — caching it avoids
