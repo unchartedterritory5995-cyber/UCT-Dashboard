@@ -92,7 +92,7 @@
 
 /* ── List rows ── */
 /* ── Columnar watchlist: Flag(star) · Symbol · Price · Volume · % Change ── */
-.listBody { --wl-grid: 26px minmax(0, 1fr) 62px 56px 66px; }
+.listBody { --wl-grid: 26px 96px 62px 56px 68px minmax(0, 1fr); }
 
 .colHeaderRow {
   display: grid;
@@ -129,10 +129,10 @@
 .colHeaderRow .hSortActive,
 .colHeaderRow .hSortActive:hover { color: var(--ut-gold, #c9a84c); }
 
-/* Drag handle sitting on a column's LEFT gridline — drag to resize that column. */
+/* Drag handle sitting on a column's RIGHT gridline — drag to resize that column. */
 .colResize {
   position: absolute;
-  left: -3px;
+  right: -3px;
   top: 0;
   bottom: 0;
   width: 7px;
@@ -199,7 +199,7 @@
 .flagStar:hover { color: var(--ut-gold); }
 .flagStarActive { color: var(--ut-gold); }
 
-.symCell { display: inline-flex; align-items: center; min-width: 0; }
+.symCell { display: inline-flex; align-items: center; min-width: 0; overflow: hidden; }
 
 .priceCell, .volCell, .changeCell {
   font-family: var(--font-sans);

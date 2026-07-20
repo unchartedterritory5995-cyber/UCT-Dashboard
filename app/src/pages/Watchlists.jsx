@@ -23,11 +23,15 @@ const PERIODS = [['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'],
 const PERF_COLS = [['1d', '1D'], ['1w', '1W'], ['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD']]
 // Configurable columns (right-click a header to hide/show, drag a gridline to resize).
 // Flag + Sym are fixed (star + identity). Persisted per-user in localStorage.
-const OPTIONAL_COLS = [
+const OPTIONAL_COLS = [  // hideable via right-click
   { key: 'price', label: 'Price', def: 62, min: 44 },
   { key: 'vol', label: 'Vol', def: 56, min: 40 },
   { key: 'chg', label: '% Chg', def: 68, min: 50 },
 ]
+// Every real column is a FIXED px width (incl. Sym) so its gridlines sit at the same
+// x in the header and every row (a flexible column would drift with scrollbar/subpixel
+// rounding and misalign). A trailing minmax(0,1fr) filler absorbs any leftover width.
+const COL_META = { sym: { def: 96, min: 56 }, price: { def: 62, min: 44 }, vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 } }
 const WL_COLS_LS = 'uct.watchlist.cols'
 const COL_PRESETS = {
   'Price View': new Set(),
@@ -535,18 +539,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const colSort = colCfg.sort || null                  // {key, dir} | null
   const colWidth = (k) => {
     if (liveResize?.key === k) return liveResize.width
-    return colCfg.widths?.[k] ?? OPTIONAL_COLS.find(c => c.key === k)?.def
+    return colCfg.widths?.[k] ?? COL_META[k]?.def
   }
   const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
-  const gridTemplate = ['26px', 'minmax(0,1fr)', ...visibleOptional.map(c => `${colWidth(c.key)}px`)].join(' ')
+  // 26px flag + fixed Sym + each visible fixed column + a flexible filler (absorbs slack).
+  const gridTemplate = ['26px', `${colWidth('sym')}px`, ...visibleOptional.map(c => `${colWidth(c.key)}px`), 'minmax(0, 1fr)'].join(' ')
 
-  // Drag a header gridline (handle on the column's LEFT edge) to resize that column.
+  // Drag the gridline on a column's RIGHT edge to resize it (right = wider). Sym +
+  // Price/Vol/%Chg are all resizable; the trailing filler absorbs the difference so
+  // resizing one column never shifts the others.
   const startColResize = (e, key) => {
     e.preventDefault(); e.stopPropagation()
     const startX = e.clientX
     const startW = colWidth(key)
-    const min = OPTIONAL_COLS.find(c => c.key === key)?.min || 40
-    const calc = (ev) => Math.max(min, Math.round(startW - (ev.clientX - startX)))
+    const min = COL_META[key]?.min || 40
+    const calc = (ev) => Math.max(min, Math.round(startW + (ev.clientX - startX)))
     const onMove = (ev) => setLiveResize({ key, width: calc(ev) })
     const onUp = (ev) => {
       window.removeEventListener('mousemove', onMove)
@@ -589,7 +596,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       <span
         className={`${styles.hSym}${colSort?.key === 'sym' ? ' ' + styles.hSortActive : ''}`}
         onClick={() => handleColSort('sym')}
-      >Sym</span>
+      >
+        Sym
+        <span className={styles.colResize} onMouseDown={e => startColResize(e, 'sym')} onClick={e => e.stopPropagation()} />
+      </span>
       {visibleOptional.map(c => (
         <span
           key={c.key}
