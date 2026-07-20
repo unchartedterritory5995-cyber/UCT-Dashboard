@@ -1141,6 +1141,17 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule industry-map prewarm")
 
+    # One-shot backfill of company NAMES for disk-cached ticker-meta entries that
+    # the old partial-yfinance bug poisoned with name=None (sector/industry present
+    # but no name → missing company name in the chart header + watermark). Self-
+    # gates on a flag file + spawns its own rate-limited daemon thread.
+    try:
+        from api.services import ticker_meta as _ticker_meta
+        _ticker_meta.heal_nameless_names()
+        logging.getLogger(__name__).info("[startup] ticker-meta name-heal scheduled (one-shot)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule ticker-meta name-heal")
+
     try:
         _start_deploy_smoke_background()
         logging.getLogger(__name__).info("[startup] deploy smoke audit scheduled")

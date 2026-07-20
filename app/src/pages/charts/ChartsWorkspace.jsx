@@ -56,6 +56,33 @@ const STARTER_LAYOUT = {
   cols: GRID_COLS,
 }
 
+// ── LOCKED "UCT Default" template ──────────────────────────────────────────
+// The canonical starting workspace, FROZEN in code. Clicking "UCT Default" under
+// Open Layout loads these constants into the working board; applying never writes
+// back to them, so nothing a user does in the app can mutate the default — only a
+// code edit here can. To officially update the default, re-capture the owner's
+// live layout + chart_settings and replace the two constants below.
+//
+// Option A (owner decision 2026-07-19): the layout SHELL (widget positions/sizes/
+// types) + ALL chart settings are baked in; tickers/theme CONTENT load live/
+// personal each time (color groups are left untouched on apply).
+const UCT_DEFAULT_LAYOUT = {
+  widgets: [
+    { id: 'uctd-themes',       type: 'themes',       color: 'A', x: 0,  y: 0,  w: 3,  h: 20, opts: {} },
+    { id: 'uctd-chart',        type: 'chart',        color: 'A', x: 3,  y: 0,  w: 17, h: 17, opts: {} },
+    { id: 'uctd-fundamentals', type: 'fundamentals', color: 'A', x: 3,  y: 17, w: 17, h: 3,  opts: {} },
+    { id: 'uctd-watchlist',    type: 'watchlist',    color: 'A', x: 20, y: 0,  w: 4,  h: 11, opts: {} },
+    { id: 'uctd-aisearch',     type: 'aisearch',     color: 'A', x: 20, y: 11, w: 4,  h: 9,  opts: {} },
+  ],
+  cols: GRID_COLS,
+}
+
+// The exact chart_settings that are PART of the frozen default (captured from the
+// owner's live workspace). JSON.parse keeps it byte-faithful; it's the full blob
+// so applying it fully defines the chart look (header shows ticker + company via
+// titleMode 'both'). Parsed fresh so the frozen source is never mutated in place.
+const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#c9a84c","nextEarnings":"#6dc9c0","uctRating":"#1ae51a"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"rgba(0,200,83,0.3)","downColor":"rgba(255,23,68,0.3)","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"rsi":{"enabled":false,"period":14,"color":"#7b68ee"},"macd":{"enabled":false,"fastPeriod":12,"slowPeriod":26,"signalPeriod":9,"macdColor":"#2196F3","signalColor":"#FF9800"},"bb":{"enabled":false,"period":20,"stdDev":2,"color":"rgba(156,39,176,0.85)"},"vwap":{"enabled":false,"color":"#26C6DA"},"stoch":{"enabled":false,"kPeriod":14,"dPeriod":3,"kColor":"#FF6B6B","dColor":"#4ECDC4"},"atr":{"enabled":false,"period":14,"color":"#FFA726"},"sar":{"enabled":false,"step":0.02,"maxStep":0.2,"color":"#ffeb3b"},"ichimoku":{"enabled":false,"tenkanColor":"#26C6DA","kijunColor":"#EF5350","spanAColor":"rgba(76,175,80,0.2)","spanBColor":"rgba(239,83,80,0.2)","chikouColor":"rgba(255,235,59,0.7)"},"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"},"mfi":{"enabled":false,"period":14,"color":"#c084fc"},"cci":{"enabled":false,"period":20,"color":"#fbbf24"},"williamsR":{"enabled":false,"period":14,"color":"#60a5fa"},"adx":{"enabled":false,"period":14,"adxColor":"#e5e7eb","plusDIColor":"#22c55e","minusDIColor":"#ef4444"},"obv":{"enabled":false,"color":"#9ca3af"},"donchian":{"enabled":false,"period":20,"color":"rgba(96,165,250,0.5)"}},"swingLabels":{"enabled":true,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
+
 // Widths/minW are in 24-col units (2 units = one old column). themes minW is 2
 // so the widget can still go narrow, but the reachable middle size (3 units = 1.5
 // old cols) is the "in between" the too-thin and the good size.
@@ -392,15 +419,33 @@ export default function ChartsWorkspace() {
     flashSaved()
   }, [setPref, flashSaved])
 
-  // The "default" layout = the "chart" preset (prebuilt preferred, then personal),
-  // falling back to the classic Starter arrangement if that preset doesn't exist.
+  // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
+  // chart_settings + the default theme. Everything is loaded FROM the in-code
+  // constants and written to the working prefs; the constants are never written
+  // back, so this is the immutable restore point — any edits the user made are
+  // wiped by re-opening it. Color-group tickers are left as-is (Option A: content
+  // loads live/personal, only the shell + settings are frozen).
+  const applyUctDefault = useCallback(() => {
+    const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
+    setLayout(normalized)
+    setPref('charts_workspace_layout', JSON.stringify(normalized))
+    // Restore the exact chart settings baked into the default (parsed fresh each
+    // apply so the frozen constant is never mutated).
+    setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+    setChartsTheme('default')
+    setOpenMenuOpen(false)
+    flashSaved()
+  }, [setPref, setChartsTheme, flashSaved])
+
+  // The "default" layout (new users / no saved layout) = the frozen UCT Default
+  // arrangement. (A DB "chart" prebuilt template, if one is ever added, still wins.)
   const resolveDefaultLayout = useCallback(() => {
     const byName = (arr) => arr.find(t => (t.name || '').trim().toLowerCase() === 'chart')
     const tpl = byName(globalLayouts) || byName(myLayouts)
     if (tpl?.layout?.widgets?.length) {
       return { layout: parseLayout(tpl.layout) || tpl.layout, groups: tpl.groups || null }
     }
-    return { layout: parseLayout(STARTER_LAYOUT) || STARTER_LAYOUT, groups: null }
+    return { layout: parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT, groups: null }
   }, [globalLayouts, myLayouts])
 
   // New users (no saved layout) open on the default; returning users keep their
@@ -538,22 +583,20 @@ export default function ChartsWorkspace() {
             {openMenuOpen && (
               <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => setOpenMenuOpen(false)}>
                 <div className={styles.menuSection}>Prebuilt</div>
-                {/* Chart theme presets, listed among the prebuilt layouts. These
-                    recolor the whole workspace (charts + all widgets) rather than
-                    swap the widget arrangement; the active one shows a ✓. The
-                    'sunrise' (TSDR — Sunrise) option is temporarily hidden here
-                    (theme code kept intact — see charts-layout-presets-snapshot);
-                    re-add ['sunrise', 'TSDR — Sunrise'] to the map to restore it. */}
-                {[['default', 'UCT Default']].map(([val, label]) => (
-                  <div key={`theme-${val}`} className={styles.menuRow}>
-                    <button
-                      type="button"
-                      className={styles.addMenuItem}
-                      style={{ flex: 1, ...(chartsTheme === val ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
-                      onClick={() => { setChartsTheme(val); setOpenMenuOpen(false) }}
-                    >{chartsTheme === val ? '✓ ' : ''}{label}</button>
-                  </div>
-                ))}
+                {/* UCT Default — the LOCKED canonical layout (frozen shell +
+                    chart settings, UCT_DEFAULT_LAYOUT / _CHART_SETTINGS_JSON).
+                    Applying loads the frozen state into the working board and
+                    never writes back, so no in-app edit can mutate the default.
+                    (The 'sunrise' / TSDR theme option is temporarily hidden — theme
+                    code kept intact, see charts-layout-presets-snapshot.) */}
+                <div className={styles.menuRow}>
+                  <button
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={{ flex: 1 }}
+                    onClick={applyUctDefault}
+                  >UCT Default</button>
+                </div>
                 {wsGlobalLayouts.map(t => (
                   <div key={`g${t.id}`} className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>

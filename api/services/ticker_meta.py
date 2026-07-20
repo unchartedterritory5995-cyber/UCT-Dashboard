@@ -100,12 +100,25 @@ def _base_meta(ticker: str) -> dict:
         _logger.info("ticker_meta yfinance failed for %s: %s — trying Finnhub", ticker, e)
         data = {"name": None, "sector": None, "industry": None}
 
-    if not any(data.values()):  # yfinance raised OR returned a silent empty .info
+    # Fall back to Finnhub whenever the NAME is still missing — NOT only when the
+    # whole payload is empty. yfinance's .info is flaky and often returns a PARTIAL
+    # response (GICS sector/industry present but longName/shortName absent); the
+    # old `not any(data.values())` gate saw the sector/industry and skipped the
+    # fallback, permanently caching name=None. That was the "some tickers show no
+    # company name in the header/watermark" bug (424 of ~4,060 tickers — every one
+    # of them had sector+industry but a null name). Merge field-by-field so
+    # yfinance's accurate GICS sector/industry are KEPT and only the missing name
+    # (and industry, if blank) are taken from Finnhub.
+    if not data.get("name"):
         try:
-            data = _from_finnhub(ticker)
+            fh = _from_finnhub(ticker)
+            data = {
+                "name": data.get("name") or fh.get("name"),
+                "sector": data.get("sector") or fh.get("sector"),
+                "industry": data.get("industry") or fh.get("industry"),
+            }
         except Exception as e2:
             _logger.warning("ticker_meta Finnhub failed for %s: %s", ticker, e2)
-            data = {"name": None, "sector": None, "industry": None}
 
     if any(data.values()):
         _mem.set(key, data, ttl=_TTL)
@@ -140,3 +153,67 @@ def get_ticker_meta(ticker: str) -> dict:
     (yfinance → Finnhub); theme is the live UCT-taxonomy primary theme."""
     base = _base_meta(ticker)
     return {**base, "theme": _primary_theme(ticker)}
+
+
+_HEAL_FLAG = os.path.join(os.environ.get("DATA_DIR", "/data"), ".ticker_meta_name_heal_v1")
+
+
+def heal_nameless_names() -> None:
+    """One-shot: backfill the company NAME for disk-cached entries poisoned by the
+    old partial-yfinance bug (sector/industry present but name=None). The 24h disk
+    cache means those entries keep serving name=None until they expire, so the
+    _base_meta fix alone wouldn't fix them promptly — this rewrites them now.
+
+    Fetches JUST the name from Finnhub (cheap), keeps the existing GICS
+    sector/industry, and rewrites in place. Rate-limited to ~55/min (under the
+    Finnhub free-tier 60/min), best-effort per ticker, runs in a background
+    daemon, flag-gated so it runs once. Safe no-op without a Finnhub key."""
+    import glob
+    import threading
+
+    if os.path.exists(_HEAL_FLAG):
+        return
+    if not _fh_key():
+        return
+
+    def _run():
+        healed = 0
+        scanned = 0
+        try:
+            files = glob.glob(os.path.join(_CACHE_DIR, "*.json"))
+        except Exception:
+            files = []
+        for p in files:
+            try:
+                with open(p, "r", encoding="utf-8") as fh:
+                    j = json.load(fh)
+            except Exception:
+                continue
+            if j.get("name"):
+                continue  # already has a name — nothing to heal
+            ticker = os.path.basename(p)[:-5]
+            scanned += 1
+            try:
+                fhd = _from_finnhub(ticker)
+            except Exception:
+                time.sleep(1.2)
+                continue
+            nm = fhd.get("name")
+            if nm:
+                merged = {
+                    "name": nm,
+                    "sector": j.get("sector") or fhd.get("sector"),
+                    "industry": j.get("industry") or fhd.get("industry"),
+                }
+                _disk_put(ticker, merged)
+                _mem.set(f"tmeta_{ticker}", merged, ttl=_TTL)
+                healed += 1
+            time.sleep(1.1)
+        try:
+            with open(_HEAL_FLAG, "w", encoding="utf-8") as fh:
+                fh.write(str(int(time.time())))
+        except Exception:
+            pass
+        _logger.info("ticker_meta name-heal complete: scanned=%d healed=%d", scanned, healed)
+
+    threading.Thread(target=_run, name="ticker-meta-name-heal", daemon=True).start()

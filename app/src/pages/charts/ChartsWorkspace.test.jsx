@@ -91,13 +91,32 @@ test('renders the workspace header buttons', () => {
   expect(screen.getByRole('button', { name: /save layout/i })).toBeInTheDocument()
 })
 
-test('first visit (no saved layout) applies the classic starter arrangement once prefs + templates settle', () => {
+test('first visit (no saved layout) applies the frozen UCT Default arrangement once prefs + templates settle', () => {
   renderWS()
-  // No "chart" template exists → falls back to STARTER_LAYOUT: watchlist + chart + themes.
+  // No "chart" template exists → falls back to UCT_DEFAULT_LAYOUT: themes + chart +
+  // fundamentals + watchlist + aisearch (no scanner).
   expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
   expect(screen.getByTestId('body-themes')).toBeInTheDocument()
+  expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
+  expect(screen.getByTestId('body-aisearch')).toBeInTheDocument()
   expect(screen.queryByTestId('body-scanner')).not.toBeInTheDocument()
+})
+
+test('clicking "UCT Default" applies the frozen layout AND writes the frozen chart settings', () => {
+  // Start from a corrupted/empty board, then open the locked default.
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+  // Frozen arrangement is on the board.
+  expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+  expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
+  // The frozen chart_settings blob is persisted (header titleMode 'both').
+  const chartSettingsSave = setPref.mock.calls.find(
+    ([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'),
+  )
+  expect(chartSettingsSave).toBeTruthy()
 })
 
 test('first visit prefers a prebuilt template named "chart" over the starter fallback', () => {

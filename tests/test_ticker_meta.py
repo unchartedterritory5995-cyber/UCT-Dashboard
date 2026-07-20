@@ -86,6 +86,30 @@ def test_yfinance_empty_info_falls_back_to_finnhub():
     assert out == {"name": "SPDR S&P 500 ETF", "sector": None, "industry": "ETF", "theme": None}
 
 
+def test_partial_yfinance_missing_name_backfills_name_from_finnhub():
+    """THE BUG: yfinance returns a PARTIAL .info — GICS sector/industry present but
+    no longName/shortName. The old `not any(data.values())` gate skipped the
+    Finnhub fallback (sector/industry made it truthy), caching name=None. Now the
+    fallback fires whenever the NAME is missing, and merges field-by-field so
+    yfinance's accurate GICS sector/industry are KEPT and only the name is filled
+    from Finnhub (whose coarser 'Technology' industry must NOT overwrite 'Semiconductors')."""
+    ticker_meta._mem.clear()
+    with patch.object(ticker_meta, "_disk_get", return_value=None), \
+         patch.object(ticker_meta, "_disk_put") as DP, \
+         patch.object(ticker_meta, "_primary_theme", return_value=None), \
+         patch("yfinance.Ticker") as YF, \
+         patch.object(ticker_meta, "_fh_key", return_value="k"), \
+         patch("api.services.ticker_meta.requests.get") as RG:
+        # yfinance: sector/industry but NO name (the flaky partial payload)
+        YF.return_value.info = {"sector": "Technology", "industry": "Semiconductors"}
+        RG.return_value.raise_for_status = lambda: None
+        RG.return_value.json = lambda: {"name": "Micron Technology Inc", "finnhubIndustry": "Technology"}
+        out = ticker_meta.get_ticker_meta("MU")
+    assert out == {"name": "Micron Technology Inc", "sector": "Technology", "industry": "Semiconductors", "theme": None}
+    # Cached WITH the name now (not the poisoned name=None), GICS industry preserved.
+    DP.assert_called_once_with("MU", {"name": "Micron Technology Inc", "sector": "Technology", "industry": "Semiconductors"})
+
+
 def test_primary_theme_attached_to_result():
     ticker_meta._mem.clear()
     ticker_meta._mem.set("tmeta_SEDG", {"name": "SolarEdge Technologies, Inc.", "sector": "Technology", "industry": "Solar"}, ttl=999)
