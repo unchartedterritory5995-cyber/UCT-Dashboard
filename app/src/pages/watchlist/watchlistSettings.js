@@ -1,0 +1,66 @@
+// Watchlist appearance settings — the model behind the ⚙ Watchlist Settings panel.
+// Mirrors the chart-settings idea (usePreferences-backed, deep-merged over defaults,
+// applied as CSS variables) but is its own thing: canvas/background (solid or the
+// same top→bottom gradient the charts use), per-column text colors, % up/down colors,
+// the tick-flash tint (on/off + up/down colors), and company logos on/off.
+//
+// Stored server-side under the `watchlist_settings` preference so it follows the user
+// across devices, exactly like `chart_settings`.
+
+export const WATCHLIST_SETTINGS_KEY = 'watchlist_settings'
+
+export const WATCHLIST_DEFAULTS = {
+  // Canvas. 'default' inherits the widget background (today's look); 'solid'/'gradient'
+  // let the user match their chart canvas. Gradient is top→bottom like the chart's.
+  bgMode: 'default',       // 'default' | 'solid' | 'gradient'
+  bg: '#0e0f0d',           // solid canvas (matches --bg)
+  bgGradient: { top: '#16233b', bottom: '#0e0f0d' },  // matches CHART_DEFAULTS.bgGradient
+
+  // Column text colors (default to --text-bright #e0dac8, the current look).
+  symColor: '#e0dac8',
+  priceColor: '#e0dac8',
+  volColor: '#e0dac8',
+
+  // % change colors (default = the current green/red).
+  upColor: '#1ae51a',
+  downColor: '#ff3b47',
+
+  // Tick-flash background tint on the % column (the little box that pulses on each
+  // update). Colors are HEX; the CSS applies them at ~28% via color-mix.
+  tintEnabled: true,
+  tintUp: '#1ae51a',
+  tintDown: '#c41f2d',
+
+  // Company logos before the ticker in the Symbol column.
+  showLogos: true,
+}
+
+/** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */
+export function mergeWatchlistSettings(saved) {
+  const s = (saved && typeof saved === 'object') ? saved : {}
+  return {
+    ...WATCHLIST_DEFAULTS,
+    ...s,
+    bgGradient: { ...WATCHLIST_DEFAULTS.bgGradient, ...(s.bgGradient || {}) },
+  }
+}
+
+/** Build the inline CSS-variable style object applied to the watchlist root.
+ *  Cells/rows read these with fallbacks, so an unset var keeps today's look. */
+export function watchlistStyleVars(s) {
+  const vars = {
+    '--wl-sym': s.symColor,
+    '--wl-price': s.priceColor,
+    '--wl-vol': s.volColor,
+    '--wl-up': s.upColor,
+    '--wl-down': s.downColor,
+    '--wl-tint-up': s.tintUp,
+    '--wl-tint-down': s.tintDown,
+  }
+  if (s.bgMode === 'solid') {
+    vars['--wl-bg'] = s.bg
+  } else if (s.bgMode === 'gradient') {
+    vars['--wl-bg'] = `linear-gradient(to bottom, ${s.bgGradient.top} 0%, ${s.bgGradient.bottom} 100%)`
+  }
+  return vars
+}

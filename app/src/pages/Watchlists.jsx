@@ -17,6 +17,9 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
+import usePreferences, { parsePref } from '../hooks/usePreferences'
+import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
+import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars } from './watchlist/watchlistSettings'
 
 const fetcher = url => fetch(url).then(r => r.json())
 const PERIODS = [['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']]
@@ -97,6 +100,7 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
 // setSym stability + the stable onRow* callbacks + memoized orderedKeys in the parent).
 const WatchRow = React.memo(function WatchRow({
   sym, name, price, changePct, volume, flagged, selected, orderedKeys,
+  showLogos = true, tintEnabled = true,
   isOwner, itemId, notes, wlId, noteOpen, alertOn,
   onSelect, onToggleFlag, onIntent, onToggleNote, onSetAlert, onCtx, onRemove,
 }) {
@@ -111,7 +115,7 @@ const WatchRow = React.memo(function WatchRow({
     )
     if (key === 'sym') return (
       <span key="sym" className={styles.symCell} onContextMenu={wlId ? (e => onCtx(e, sym, wlId, isOwner)) : undefined}>
-        <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={16} round /></span>
+        {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={16} round /></span>}
         <span className={styles.rowSym}>{sym}</span>
       </span>
     )
@@ -123,7 +127,7 @@ const WatchRow = React.memo(function WatchRow({
       <FlashCell key="vol" value={volume} className={styles.volCell} display={fmtVol(volume)} />
     )
     if (key === 'chg') return (
-      <FlashCell key="chg" value={changePct} tint
+      <FlashCell key="chg" value={changePct} tint={tintEnabled}
         className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}
         display={changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'} />
     )
@@ -182,6 +186,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // This widget is "active" (owns arrow keys + its own scroll) when hovered/focused.
   const isActiveWidget = () => !activeRef || activeRef.current == null || activeRef.current === widgetKey
   const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
+
+  // ── Watchlist appearance settings (⚙ panel) ────────────────────────────────
+  const { prefs, setPref } = usePreferences()
+  const wlSettings = useMemo(
+    () => mergeWatchlistSettings(parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)),
+    [prefs],
+  )
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsBtnRef = useRef(null)
+  const patchSettings = useCallback((patch) => {
+    setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify({ ...wlSettings, ...patch }))
+  }, [wlSettings, setPref])
+  const resetSettings = useCallback(() => {
+    setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(WATCHLIST_DEFAULTS))
+  }, [setPref])
+  const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
+
   const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)
   const { sym: hubSym, setSym: setHubSym } = useChartsSym()
@@ -862,6 +883,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}
+        showLogos={wlSettings.showLogos}
+        tintEnabled={wlSettings.tintEnabled}
         isOwner={isOwner}
         itemId={itemId}
         notes={notes}
@@ -1038,7 +1061,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }
 
   return (
-    <div ref={pageRef} className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`} onPointerDown={markActiveWidget} onFocusCapture={markActiveWidget}>
+    <div ref={pageRef} className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`} style={wlStyle} onPointerDown={markActiveWidget} onFocusCapture={markActiveWidget}>
+      {settingsOpen && (
+        <WatchlistSettingsPanel
+          settings={wlSettings}
+          onChange={patchSettings}
+          onReset={resetSettings}
+          onClose={() => setSettingsOpen(false)}
+          anchorEl={settingsBtnRef.current}
+        />
+      )}
 
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
@@ -1049,27 +1081,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <div className={styles.pickHeader}>
             <button className={styles.pickBackBtn} onClick={() => onExitPick?.()} title="Choose a different list">‹ Lists</button>
             <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
-            {/* Share/lock toggle moved up from the (now hidden) group header, right-aligned. */}
-            {pickList === 'flagged' && user && (
-              <button
-                className={`${styles.wlActionBtn}${isShared ? ' ' + styles.wlActionBtnActive : ''}`}
-                style={{ marginLeft: 'auto' }}
-                onClick={toggleShare}
-                title={isShared ? 'Make Private' : 'Share with community'}
-              >{isShared ? <UIcon name="unlock" size={13} /> : <UIcon name="lock" size={13} />}</button>
-            )}
-            {pickList.startsWith('user:') && (() => {
-              const pwl = (myLists || []).find(w => `user:${w.id}` === pickList)
-              if (!pwl) return null
-              return (
-                <button
-                  className={`${styles.wlActionBtn}${pwl.is_public ? ' ' + styles.wlActionBtnActive : ''}`}
-                  style={{ marginLeft: 'auto' }}
-                  onClick={() => handleTogglePublic(pwl)}
-                  title={pwl.is_public ? 'Make Private' : 'Share with community'}
-                >{pwl.is_public ? <UIcon name="unlock" size={13} /> : <UIcon name="lock" size={13} />}</button>
-              )
-            })()}
+            {/* ⚙ Watchlist settings (replaced the share/lock toggle here for now). */}
+            <button
+              ref={settingsBtnRef}
+              className={`${styles.wlActionBtn}${settingsOpen ? ' ' + styles.wlActionBtnActive : ''}`}
+              style={{ marginLeft: 'auto' }}
+              onClick={() => setSettingsOpen(o => !o)}
+              title="Watchlist settings"
+            ><UIcon name="gear" size={14} /></button>
           </div>
         ) : (
           <div className={styles.tabBar}>

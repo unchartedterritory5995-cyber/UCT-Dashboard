@@ -42,7 +42,9 @@
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
-  background: var(--bg-surface);
+  /* --wl-bg = the user's Watchlist Settings canvas (solid or gradient); falls back
+     to the default surface when unset. */
+  background: var(--wl-bg, var(--bg-surface));
   overflow: hidden;
 }
 
@@ -234,8 +236,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Price + Volume match the ticker symbol EXACTLY (font, size, weight, color). */
-.priceCell, .volCell { color: var(--text-bright); font-weight: 600; }
+/* Price + Volume match the ticker symbol EXACTLY (font, size, weight, color) —
+   each recolorable via Watchlist Settings (--wl-price / --wl-vol). */
+.priceCell, .volCell { font-weight: 600; }
+.priceCell { color: var(--wl-price, var(--text-bright)); }
+.volCell { color: var(--wl-vol, var(--text-bright)); }
 /* % Change matches Theme Tracker's .ret EXACTLY — normal weight (400), not bold. */
 .changeCell { font-weight: 400; }   /* only the % change is thin; everything else is 600 */
 
@@ -282,7 +287,7 @@
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-bright);
+  color: var(--wl-sym, var(--text-bright));
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }
@@ -316,8 +321,8 @@
 }
 
 /* Match Theme Tracker's exact up/down percent colors (hard hex, not the app tokens). */
-.gain { color: #1ae51a; }
-.loss { color: #ff3b47; }
+.gain { color: var(--wl-up, #1ae51a); }
+.loss { color: var(--wl-down, #ff3b47); }
 /* Sunrise/Sunset light theme uses darker green/red so it reads on the bright canvas. */
 :global([data-charts-theme='sunrise']) .gain { color: #0a5c22; }
 :global([data-charts-theme='sunrise']) .loss { color: #7d1620; }
@@ -1394,12 +1399,13 @@
 .tickFlash { font-weight: 800; }
 .tickUp   { animation: wlTickUp 0.48s ease-out; }
 .tickDown { animation: wlTickDown 0.48s ease-out; }
+/* Tint colors are user-set HEX (Watchlist Settings), applied at ~28% via color-mix. */
 @keyframes wlTickUp {
-  0%   { background: rgba(26, 229, 26, 0.28); }
+  0%   { background: color-mix(in srgb, var(--wl-tint-up, #1ae51a) 28%, transparent); }
   100% { background: transparent; }
 }
 @keyframes wlTickDown {
-  0%   { background: rgba(196, 31, 45, 0.28); }
+  0%   { background: color-mix(in srgb, var(--wl-tint-down, #c41f2d) 28%, transparent); }
   100% { background: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
