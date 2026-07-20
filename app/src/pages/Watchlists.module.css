@@ -43,8 +43,8 @@
   flex-direction: column;
   border-right: 1px solid var(--border);
   /* --wl-bg = the user's Watchlist Settings canvas (solid or gradient); falls back
-     to the default surface when unset. */
-  background: var(--wl-bg, var(--bg-surface));
+     to the dark chart/theme-tracker canvas (--bg) when unset. */
+  background: var(--wl-bg, var(--bg));
   overflow: hidden;
 }
 
