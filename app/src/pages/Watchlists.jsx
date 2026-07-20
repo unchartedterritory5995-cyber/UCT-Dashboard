@@ -32,6 +32,7 @@ const OPTIONAL_COLS = [  // hideable via right-click
 // x in the header and every row (a flexible column would drift with scrollbar/subpixel
 // rounding and misalign). A trailing minmax(0,1fr) filler absorbs any leftover width.
 const COL_META = { flag: { def: 30, min: 16 }, sym: { def: 96, min: 56 }, price: { def: 62, min: 44 }, vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 } }
+const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 const WL_COLS_LS = 'uct.watchlist.cols'
 const COL_PRESETS = {
   'Price View': new Set(),
@@ -542,16 +543,36 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [])
   const [liveResize, setLiveResize] = useState(null)   // {key,width} during a drag
   const [colMenu, setColMenu] = useState(null)         // {x,y} right-click menu
-  const resizingRef = useRef(false)                    // suppress the header sort-click after a drag
+  const resizingRef = useRef(false)                    // suppress the header sort-click after a resize
+  const dragColRef = useRef(null)                      // key of the header column being drag-reordered
   const colHidden = colCfg.hidden || {}
   const colSort = colCfg.sort || null                  // {key, dir} | null
   const colWidth = (k) => {
     if (liveResize?.key === k) return liveResize.width
     return colCfg.widths?.[k] ?? COL_META[k]?.def
   }
+  // Columns in the user's chosen ORDER; flag + sym always shown, price/vol/chg unless hidden.
+  const colOrder = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
+  const orderedKeys = (() => {
+    const ks = colOrder.filter(k => (k === 'flag' || k === 'sym') || !colHidden[k])
+    DEFAULT_COL_ORDER.forEach(k => { if ((k === 'flag' || k === 'sym') && !ks.includes(k)) ks.unshift(k) })  // never lose flag/sym
+    return ks
+  })()
   const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
-  // Flag + Sym + each visible fixed column + a flexible filler (absorbs the slack).
-  const gridTemplate = [`${colWidth('flag')}px`, `${colWidth('sym')}px`, ...visibleOptional.map(c => `${colWidth(c.key)}px`), 'minmax(0, 1fr)'].join(' ')
+  const gridTemplate = [...orderedKeys.map(k => `${colWidth(k)}px`), 'minmax(0, 1fr)'].join(' ')
+
+  // Drag a header column onto another to reorder the columns.
+  const moveColumn = (fromKey, toKey) => {
+    if (!fromKey || fromKey === toKey) return
+    const order = [...colOrder]
+    DEFAULT_COL_ORDER.forEach(k => { if (!order.includes(k)) order.push(k) })
+    const from = order.indexOf(fromKey)
+    const to = order.indexOf(toKey)
+    if (from < 0 || to < 0) return
+    order.splice(from, 1)
+    order.splice(to, 0, fromKey)
+    saveColCfg({ ...colCfg, order })
+  }
 
   // Drag a gridline (an independent divider overlaid on the header, NOT tied to a
   // header cell — so dragging never sorts/selects the column) to resize the column to
@@ -604,24 +625,32 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // SEPARATE draggable dividers overlaid on the header (positioned at each column
   // boundary), so dragging a gridline only resizes — never sorts/selects a column.
   const _gridDividers = (() => {
-    const keys = ['flag', 'sym', ...visibleOptional.map(c => c.key)]
     let acc = 8  // header padding-left
-    return keys.map(key => { acc += colWidth(key); return { key, x: acc } })
+    return orderedKeys.map(key => { acc += colWidth(key); return { key, x: acc } })
   })()
+  const headerDragProps = (key) => ({
+    draggable: true,
+    onDragStart: (e) => { e.dataTransfer.effectAllowed = 'move'; dragColRef.current = key },
+    onDragOver: (e) => { e.preventDefault() },
+    onDrop: (e) => { e.preventDefault(); moveColumn(dragColRef.current, key); dragColRef.current = null },
+    onDragEnd: () => { dragColRef.current = null },
+  })
+  const renderHeaderCell = (key) => {
+    if (key === 'flag') return <span key="flag" className={styles.hFlag} {...headerDragProps('flag')} />
+    const active = colSort?.key === key
+    const label = key === 'sym' ? 'Sym' : (OPTIONAL_COLS.find(c => c.key === key)?.label || key)
+    return (
+      <span
+        key={key}
+        className={`${key === 'sym' ? styles.hSym : styles.hCol}${active ? ' ' + styles.hSortActive : ''}`}
+        onClick={() => handleColSort(key)}
+        {...headerDragProps(key)}
+      >{label}</span>
+    )
+  }
   const columnHeader = (
     <div className={styles.gridHead} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
-      <span className={styles.hFlag} />
-      <span
-        className={`${styles.hSym}${colSort?.key === 'sym' ? ' ' + styles.hSortActive : ''}`}
-        onClick={() => handleColSort('sym')}
-      >Sym</span>
-      {visibleOptional.map(c => (
-        <span
-          key={c.key}
-          className={`${styles.hCol}${colSort?.key === c.key ? ' ' + styles.hSortActive : ''}`}
-          onClick={() => handleColSort(c.key)}
-        >{c.label}</span>
-      ))}
+      {orderedKeys.map(renderHeaderCell)}
       {_gridDividers.map(d => (
         <i
           key={`div-${d.key}`}
@@ -653,6 +682,31 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const volume = q?.volume ?? null
     const flg = isFlagged(sym)
     const selected = selectedSym === sym
+    // One cell per key, rendered in the user's column order.
+    const cellFor = (key) => {
+      if (key === 'flag') return (
+        <button
+          key="flag"
+          className={`${styles.flagStar}${flg ? ' ' + styles.flagStarActive : ''}`}
+          onClick={e => { e.stopPropagation(); toggleFlag(sym) }}
+          title={flg ? 'Remove from Flagged' : 'Add to Flagged (Shift+F)'}
+        >{flg ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
+      )
+      if (key === 'sym') return (
+        <span key="sym" className={styles.symCell} onContextMenu={onCtx || undefined}>
+          <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={16} round /></span>
+          <span className={styles.rowSym}>{sym}</span>
+        </span>
+      )
+      if (key === 'price') return <span key="price" className={styles.priceCell}>{price != null ? price.toFixed(2) : '—'}</span>
+      if (key === 'vol') return <span key="vol" className={styles.volCell}>{fmtVol(volume)}</span>
+      if (key === 'chg') return (
+        <span key="chg" className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
+          {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
+        </span>
+      )
+      return null
+    }
     return (
       <div
         key={sym}
@@ -662,22 +716,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         onPointerEnter={() => prefetchBarOnIntent(sym, 'D')}
         onFocus={() => prefetchBarOnIntent(sym, 'D')}
       >
-        <button
-          className={`${styles.flagStar}${flg ? ' ' + styles.flagStarActive : ''}`}
-          onClick={e => { e.stopPropagation(); toggleFlag(sym) }}
-          title={flg ? 'Remove from Flagged' : 'Add to Flagged (Shift+F)'}
-        >{flg ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
-        <span className={styles.symCell} onContextMenu={onCtx || undefined}>
-          <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={16} round /></span>
-          <span className={styles.rowSym}>{sym}</span>
-        </span>
-        {!colHidden.price && <span className={styles.priceCell}>{price != null ? price.toFixed(2) : '—'}</span>}
-        {!colHidden.vol && <span className={styles.volCell}>{fmtVol(volume)}</span>}
-        {!colHidden.chg && (
-          <span className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
-            {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
-          </span>
-        )}
+        {orderedKeys.map(cellFor)}
         {isOwner && (
           <div className={styles.rowActions} onClick={e => e.stopPropagation()}>
             <button
