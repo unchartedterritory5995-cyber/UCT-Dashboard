@@ -4,7 +4,9 @@ from __future__ import annotations
 import logging
 import threading
 
-from fastapi import APIRouter, Depends
+from concurrent.futures import ThreadPoolExecutor
+
+from fastapi import APIRouter, Body, Depends
 
 from api.middleware.auth_middleware import require_admin
 from api.services.research.financials import get_financials
@@ -51,6 +53,37 @@ def research_ratings(sym: str):
     except Exception as exc:
         _logger.warning("research ratings failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "composite": None, "components": {}, "checkup": [], "method": None}
+
+
+@router.post("/api/research/snapshot-batch")
+def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
+    """Compact snapshot (market cap / next earnings / UCT rating) for a BATCH of
+    tickers — powers the Watchlist's optional Market Cap / Next Earnings / UCT Rating
+    columns. Bounded parallel over get_snapshot (each internally cached), capped at 100.
+    Only the three fields the columns need, to keep the payload small.
+    """
+    syms = list(dict.fromkeys(
+        (t or "").upper().strip() for t in (tickers or []) if t and t.strip()
+    ))[:100]
+    if not syms:
+        return {}
+
+    def _one(sym):
+        try:
+            s = get_snapshot(sym)
+            return sym, {
+                "market_cap": (s.get("metrics") or {}).get("market_cap"),
+                "next_earnings": s.get("next_earnings"),
+                "composite": s.get("composite"),
+            }
+        except Exception:
+            return sym, {"market_cap": None, "next_earnings": None, "composite": None}
+
+    out: dict[str, dict] = {}
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        for sym, val in ex.map(_one, syms):
+            out[sym] = val
+    return out
 
 
 @router.get("/api/research/snapshot/{sym}")

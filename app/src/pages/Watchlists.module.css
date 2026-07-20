@@ -202,7 +202,14 @@
 /* Vertical gridlines on the RIGHT of every column (so the LAST column gets one too),
    full-height (align-items:stretch) → they connect to the horizontal lines = one grid.
    Data cells get text padding; the flag column gets none so its star centers cleanly. */
-.symCell, .priceCell, .volCell, .changeCell { border-right: 1px solid rgba(255, 255, 255, 0.11); padding: 0 7px; }
+.symCell, .priceCell, .volCell, .changeCell, .metaCell { border-right: 1px solid rgba(255, 255, 255, 0.11); padding: 0 7px; }
+/* Market Cap / Next Earnings / UCT Rating cells — same layout as Price/Volume. */
+.metaCell {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  color: var(--wl-price, var(--text-bright));
+  white-space: nowrap; overflow: hidden;
+}
 
 /* Flag star (leftmost column) — filled = in Flagged list; click toggles flag. */
 .flagStar {
@@ -1411,3 +1418,39 @@
 @media (prefers-reduced-motion: reduce) {
   .tickUp, .tickDown { animation: none; }
 }
+
+/* ── Add-column (+) button in the flag header + its menu ── */
+.hFlag { display: flex; align-items: center; justify-content: center; }
+.addColBtn {
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 13px; line-height: 1;
+  cursor: pointer; padding: 0;
+}
+.addColBtn:hover { color: var(--ut-gold); border-color: rgba(201, 168, 76, 0.5); }
+.addColMenu {
+  position: fixed;
+  z-index: 4200;
+  min-width: 150px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  font-family: var(--font-sans);
+}
+.addColHead {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text-muted); padding: 4px 8px 5px;
+}
+.addColItem {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: none;
+  color: var(--text); font-family: inherit; font-size: 11.5px;
+  padding: 6px 8px; border-radius: 4px; cursor: pointer;
+}
+.addColItem:hover { background: rgba(201, 168, 76, 0.14); color: var(--ut-gold); }

@@ -13,7 +13,7 @@ export const WATCHLIST_DEFAULTS = {
   // Canvas — solid or a top→bottom gradient (like the chart's). Default = solid at the
   // current watchlist surface color, so the default look is unchanged.
   bgMode: 'solid',         // 'solid' | 'gradient'
-  bg: '#1a1c17',           // solid canvas (matches --bg-surface, today's look)
+  bg: '#22251e',           // solid canvas (matches --bg-elevated = the Theme Tracker canvas)
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },  // matches CHART_DEFAULTS.bgGradient
 
   // Column text colors (default to --text-bright #e0dac8, the current look).

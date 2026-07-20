@@ -1,5 +1,6 @@
 // app/src/pages/Watchlists.jsx
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
@@ -7,6 +8,7 @@ import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
+import useWatchlistMeta from '../hooks/useWatchlistMeta'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import useTagColors from '../hooks/useTagColors'
@@ -34,11 +36,39 @@ const OPTIONAL_COLS = [  // hideable via right-click
 // Every real column is a FIXED px width (incl. Sym) so its gridlines sit at the same
 // x in the header and every row (a flexible column would drift with scrollbar/subpixel
 // rounding and misalign). A trailing minmax(0,1fr) filler absorbs any leftover width.
-const COL_META = { flag: { def: 30, min: 16 }, sym: { def: 96, min: 56 }, price: { def: 62, min: 44 }, vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 } }
+const COL_META = {
+  flag: { def: 30, min: 16 }, sym: { def: 96, min: 56 }, price: { def: 62, min: 44 },
+  vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 },
+  // Optional data columns (added via the + button).
+  mcap: { def: 82, min: 56 }, earn: { def: 92, min: 62 }, rating: { def: 78, min: 54 },
+}
 const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation] + the min column width to still show the full word.
-const COL_LABELS = { flag: ['', ''], sym: ['Symbol', 'Sym'], price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'] }
-const COL_FULL_MINW = { sym: 62, price: 46, vol: 60, chg: 80 }
+const COL_LABELS = {
+  flag: ['', ''], sym: ['Symbol', 'Sym'], price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'],
+  mcap: ['Market Cap', 'Mkt Cap'], earn: ['Next Earnings', 'Earn'], rating: ['UCT Rating', 'UCT'],
+}
+const COL_FULL_MINW = { sym: 62, price: 46, vol: 60, chg: 80, mcap: 78, earn: 108, rating: 82 }
+// Extra data columns the user can ADD via the + button (not shown by default).
+const EXTRA_COLS = [
+  { key: 'mcap', label: 'Market Cap' },
+  { key: 'earn', label: 'Next Earnings' },
+  { key: 'rating', label: 'UCT Rating' },
+]
+const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
+
+// ISO date → compact M/D for the Next Earnings column.
+function fmtEarn(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '')
+  return m ? `${+m[2]}/${+m[3]}` : '—'
+}
+// UCT rating (1–99) → tier color: high = green, mid = gold, low = red.
+function ratingColor(r) {
+  if (r == null || !Number.isFinite(r)) return undefined
+  if (r >= 70) return '#1ae51a'
+  if (r >= 40) return '#c9a84c'
+  return '#ff3b47'
+}
 const WL_COLS_LS = 'uct.watchlist.cols'
 const COL_PRESETS = {
   'Price View': new Set(),
@@ -92,6 +122,37 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
   )
 })
 
+// Small portaled menu to ADD a data column (Market Cap / Next Earnings / UCT Rating),
+// anchored under the + button in the flag-column header.
+function AddColumnMenu({ anchorEl, items, onPick, onClose }) {
+  const ref = useRef(null)
+  const [pos, setPos] = useState(null)
+  useLayoutEffect(() => {
+    if (!anchorEl) return
+    const r = anchorEl.getBoundingClientRect()
+    let left = r.left
+    if (left + 150 > window.innerWidth - 8) left = window.innerWidth - 158
+    setPos({ top: Math.round(r.bottom + 4), left: Math.round(Math.max(8, left)) })
+  }, [anchorEl])
+  useEffect(() => {
+    const onDown = (e) => {
+      if (ref.current && ref.current.contains(e.target)) return
+      if (anchorEl && anchorEl.contains(e.target)) return
+      onClose?.()
+    }
+    document.addEventListener('mousedown', onDown, true)
+    return () => document.removeEventListener('mousedown', onDown, true)
+  }, [anchorEl, onClose])
+  return createPortal((
+    <div ref={ref} className={styles.addColMenu} style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}>
+      <div className={styles.addColHead}>Add column</div>
+      {items.map(it => (
+        <button key={it.key} type="button" className={styles.addColItem} onClick={() => onPick(it.key)}>{it.label}</button>
+      ))}
+    </div>
+  ), document.body)
+}
+
 // Memoized columnar ticker row: Flag(star) | Symbol(logo) | Price | Volume | % Change.
 // PERF: this is the single hottest render path — with 4 watchlist widgets × ~150 rows,
 // a naive re-render on every arrow-key selection change reconciles ~600 rows per keypress
@@ -100,7 +161,7 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
 // setSym stability + the stable onRow* callbacks + memoized orderedKeys in the parent).
 const WatchRow = React.memo(function WatchRow({
   sym, name, price, changePct, volume, flagged, selected, orderedKeys,
-  showLogos = true, tintEnabled = true,
+  showLogos = true, tintEnabled = true, mcap = null, earn = null, rating = null,
   isOwner, itemId, notes, wlId, noteOpen, alertOn,
   onSelect, onToggleFlag, onIntent, onToggleNote, onSetAlert, onCtx, onRemove,
 }) {
@@ -130,6 +191,13 @@ const WatchRow = React.memo(function WatchRow({
       <FlashCell key="chg" value={changePct} tint={tintEnabled}
         className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}
         display={changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'} />
+    )
+    if (key === 'mcap') return <span key="mcap" className={styles.metaCell}>{mcap || '—'}</span>
+    if (key === 'earn') return <span key="earn" className={styles.metaCell}>{fmtEarn(earn)}</span>
+    if (key === 'rating') return (
+      <span key="rating" className={styles.metaCell} style={{ color: ratingColor(rating), fontWeight: 600 }}>
+        {Number.isFinite(rating) ? rating : '—'}
+      </span>
     )
     return null
   }
@@ -735,7 +803,52 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return ks
   }, [colCfg])
   const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
-  const gridTemplate = [...orderedKeys.map(k => `${colWidth(k)}px`), 'minmax(0, 1fr)'].join(' ')
+  // Measured content width of the list (excludes the vertical scrollbar) — drives the
+  // shrink-to-fit below so an ADDED column squeezes the others in rather than overflow.
+  const listBodyRef = useRef(null)
+  const [bodyW, setBodyW] = useState(0)
+  useEffect(() => {
+    const el = listBodyRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver(() => setBodyW(el.clientWidth))
+    ro.observe(el)
+    setBodyW(el.clientWidth)
+    return () => ro.disconnect()
+  }, [])
+  // Fixed-px columns (so header + row gridlines line up), SCALED DOWN to fit the widget
+  // when their total exceeds the available width; a trailing filler absorbs any slack.
+  const gridTemplate = useMemo(() => {
+    const widths = orderedKeys.map(k => colWidth(k))
+    const total = widths.reduce((a, b) => a + b, 0)
+    const avail = bodyW - 2
+    const scale = (bodyW > 0 && total > avail) ? Math.max(0.35, avail / total) : 1
+    const cols = orderedKeys.map((k, i) => {
+      const w = scale < 1 ? Math.max(COL_META[k]?.min ?? 20, Math.floor(widths[i] * scale)) : widths[i]
+      return `${w}px`
+    })
+    return [...cols, 'minmax(0, 1fr)'].join(' ')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderedKeys, colCfg, bodyW, liveResize])
+
+  // Optional Market Cap / Next Earnings / UCT Rating columns — fetched only when at
+  // least one is actually shown (fundamentals are heavy per ticker).
+  const extraVisible = orderedKeys.some(k => EXTRA_KEYS.has(k))
+  const { metaData } = useWatchlistMeta(extraVisible ? allTickers : [])
+
+  // + button (flag-header) → add a data column. Appends to the column order (goes on
+  // the RIGHT); the grid below shrinks the columns to fit the widget.
+  const [addColOpen, setAddColOpen] = useState(false)
+  const addColBtnRef = useRef(null)
+  const availableExtras = EXTRA_COLS.filter(c => !orderedKeys.includes(c.key))
+  const addColumn = useCallback((key) => {
+    const curOrder = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
+    if (!curOrder.includes(key)) {
+      const nextHidden = { ...(colCfg.hidden || {}) }
+      delete nextHidden[key]
+      saveColCfg({ ...colCfg, order: [...curOrder, key], hidden: nextHidden })
+    }
+    setAddColOpen(false)
+  }, [colCfg, saveColCfg])
 
   // Drag a header column onto another to reorder the columns.
   const moveColumn = (fromKey, toKey) => {
@@ -822,7 +935,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return colWidth(key) >= (COL_FULL_MINW[key] ?? 0) ? full : abbr
   }
   const renderHeaderCell = (key) => {
-    if (key === 'flag') return <span key="flag" className={styles.hFlag} {...headerDragProps('flag')} />
+    if (key === 'flag') return (
+      <span key="flag" className={styles.hFlag} {...headerDragProps('flag')}>
+        {availableExtras.length > 0 && (
+          <button
+            ref={addColBtnRef}
+            type="button"
+            className={styles.addColBtn}
+            onPointerDown={e => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); setAddColOpen(o => !o) }}
+            title="Add a column"
+          >+</button>
+        )}
+      </span>
+    )
     const active = colSort?.key === key
     const label = labelFor(key)
     return (
@@ -885,6 +1011,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         orderedKeys={orderedKeys}
         showLogos={wlSettings.showLogos}
         tintEnabled={wlSettings.tintEnabled}
+        mcap={metaData[sym]?.market_cap ?? null}
+        earn={metaData[sym]?.next_earnings ?? null}
+        rating={metaData[sym]?.composite ?? null}
         isOwner={isOwner}
         itemId={itemId}
         notes={notes}
@@ -1072,6 +1201,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           hostEl={pageRef.current}
         />
       )}
+      {addColOpen && availableExtras.length > 0 && (
+        <AddColumnMenu
+          anchorEl={addColBtnRef.current}
+          items={availableExtras}
+          onPick={addColumn}
+          onClose={() => setAddColOpen(false)}
+        />
+      )}
 
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
@@ -1140,7 +1277,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         )}
 
         {/* Body */}
-        <div className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}`} style={{ '--wl-grid': gridTemplate }}>
+        <div ref={listBodyRef} className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}`} style={{ '--wl-grid': gridTemplate }}>
 
           {columnHeader}
 
