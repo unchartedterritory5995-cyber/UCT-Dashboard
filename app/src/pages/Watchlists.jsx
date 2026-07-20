@@ -632,6 +632,28 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const dragColRef = useRef(null)                      // key of the header column being drag-reordered
   const colHidden = colCfg.hidden || {}
   const colSort = colCfg.sort || null                  // {key, dir} | null
+
+  // ── Sort-order freeze ──────────────────────────────────────────────────────
+  // When sorting by a live column (% Chg / Price / Volume) the rows would jump
+  // around every tick as quotes update — annoying. Instead we sort against a
+  // SNAPSHOT of the prices taken at SORT time and keep that row order stable;
+  // live values still update in place. Clicking a sort column re-ranks (the
+  // header doubles as a "re-sort" button). Consumed by applyColSort below.
+  const pricesRef = useRef(prices)
+  useEffect(() => { pricesRef.current = prices }, [prices])
+  const [sortBasis, setSortBasis] = useState(null)
+  // Re-snapshot on every explicit sort — colSort changes on each header click.
+  useEffect(() => {
+    const p = pricesRef.current
+    setSortBasis(p && Object.keys(p).length ? { ...p } : null)
+  }, [colSort])   // eslint-disable-line react-hooks/exhaustive-deps
+  // Initial fill: capture once when live prices first arrive so a saved/default
+  // sort still orders correctly on load without then re-shuffling every tick.
+  useEffect(() => {
+    if (sortBasis == null && colSort && prices && Object.keys(prices).length) {
+      setSortBasis({ ...prices })
+    }
+  }, [prices, sortBasis, colSort])
   const colWidth = (k) => {
     if (liveResize?.key === k) return liveResize.width
     return colCfg.widths?.[k] ?? COL_META[k]?.def
@@ -698,8 +720,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (!colSort) return syms
     const { key, dir } = colSort
     const mul = dir === 'asc' ? 1 : -1
+    // Sort against the frozen snapshot (captured at sort time), NOT live prices —
+    // so ticking quotes don't constantly reshuffle rows. `sym` sorts are already
+    // price-independent. Fall back to live prices only until the first snapshot
+    // lands (initial load). New syms absent from the snapshot sink to the bottom
+    // until the next explicit re-sort.
+    const basis = (key === 'sym') ? null : (sortBasis || prices)
     const num = (s) => {
-      const q = prices[s]
+      const q = basis?.[s]
       if (key === 'price') return q?.price ?? -Infinity
       if (key === 'vol') return q?.volume ?? -Infinity
       if (key === 'chg') return q?.change_pct ?? -Infinity
@@ -708,7 +736,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return [...syms].sort((a, b) => key === 'sym'
       ? mul * String(a).localeCompare(String(b))
       : mul * (num(a) - num(b)))
-  }, [colSort, prices])
+  }, [colSort, sortBasis, prices])
 
   // Column header. Labels click to sort / right-click to hide-show. Gridlines are
   // SEPARATE draggable dividers overlaid on the header (positioned at each column
