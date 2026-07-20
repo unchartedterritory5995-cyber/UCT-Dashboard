@@ -2255,9 +2255,19 @@ export default function StockChart({
   // series meanwhile (brief spinner beats a wrong chart). 23h errs toward
   // full-fetch; only cost is one larger payload for already-fresh weekend
   // data — correctness over bandwidth.
+  // Threshold is tf-proportional (was a flat 23h). 23h only caught a MISSING
+  // SESSION, but an INTRA-session stale cache (missing the last ~30-120 min, e.g.
+  // a prewarmed 5m entry that aged, or a stale-cache revisit) slipped through as
+  // a DELTA — and the initial delta on load races/drops (the "missing candles
+  // until the next 30s poll" stall), leaving a gap that a live bar fuses into one
+  // giant candle. A large gap now forces a full (no-`since`) refetch that REPLACES
+  // the data (bypasses the flaky delta-merge) so it fills in ~300ms, not 30s.
+  // Small gaps (≤ a few bars) still delta — cheap, and classifyLiveBar's guard
+  // prevents any fuse meanwhile.
+  const _tfSecStale = Math.max(60, (Number(resolvedTf) || 5) * 60)
   const idbStaleIntraday = isIntraday
     && typeof idbSinceRef.current === 'number'
-    && (Date.now() / 1000 - idbSinceRef.current) > 23 * 3600
+    && (Date.now() / 1000 - idbSinceRef.current) > Math.max(6 * _tfSecStale, 20 * 60)
   let _sinceParam = null
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
@@ -2421,9 +2431,10 @@ export default function StockChart({
           // response replaces it, or this stale copy gets rendered later
           // with a fused live-price spike. Mirrors idbStaleIntraday.
           const _et = entry?.lastT
+          const _tfSecEntry = Math.max(60, (Number(tf) || 5) * 60)
           const entryStaleIntraday = !['D', 'W', 'M'].includes(tf)
             && typeof _et === 'number'
-            && (Date.now() / 1000 - _et) > 23 * 3600
+            && (Date.now() / 1000 - _et) > Math.max(6 * _tfSecEntry, 20 * 60)
           // Skip if IDB has fresh data (D/W: 24 h; intraday: 4 h) — but
           // never skip a stale intraday entry just because it was saved
           // recently (savedAt tracks write time, not bar freshness).
