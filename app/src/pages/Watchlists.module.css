@@ -88,10 +88,10 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  /* Reserve the scrollbar gutter ALWAYS so the sticky column header and the
-     scrolling rows have identical content width — otherwise the scrollbar shrinks
-     the rows' grid but not the header's, drifting every gridline. */
-  scrollbar-gutter: stable;
+  /* No scrollbar-gutter reserve: the scrollbar (and its gutter) only appears when the
+     list is long enough to scroll. On a short list the rows — and the selected-row
+     gold tint — extend to the widget's right edge. The header + rows stay aligned
+     because both live inside this same scroll container. */
 }
 
 /* ── List rows ── */
