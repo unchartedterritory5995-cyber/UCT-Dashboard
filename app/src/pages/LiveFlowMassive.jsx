@@ -1062,12 +1062,10 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   const DIR_BULL = "#6BAA85";   // brighter green than P.bu
   const DIR_BEAR = "#C26A6A";   // brighter red than P.be
   // Alpha Gold directional accent (approved 7/20): the gold row keeps its
-  // identity; a green/red LEFT EDGE + tinted ★ and Bull/Bear word encode
-  // direction, so the top tier reads at a glance without blending into the
-  // Bull/Bear tiers. Brighter than DIR_* so it pops against the gold body.
-  const EDGE_BULL = "#35d07f";
-  const EDGE_BEAR = "#f0544c";
-  const alphaAccent = dirIsBull ? EDGE_BULL : dirIsBear ? EDGE_BEAR : null;
+  // identity; a green/red LEFT EDGE + tinted ★, Bull/Bear word, and strike
+  // encode direction. Uses the SAME DIR_BULL/DIR_BEAR shade as every other
+  // bull/bear alert so Alpha Gold matches the rest of the feed (matched 7/20).
+  const alphaAccent = dirIsBull ? DIR_BULL : dirIsBear ? DIR_BEAR : null;
   const DIR_BULL_TINT = `${DIR_BULL}0E`;  // ≈5% opacity background tint
   const DIR_BEAR_TINT = `${DIR_BEAR}0E`;
   const dirColor = dirIsBull ? DIR_BULL : dirIsBear ? DIR_BEAR : P.wh;
