@@ -591,7 +591,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Column header (Flag · Sym · Price · Volume · % Change): click a label to sort,
   // right-click to hide/show columns, drag a gridline to resize.
   const columnHeader = (
-    <div className={styles.colHeaderRow} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
+    <div className={styles.gridHead} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
       <span className={styles.hFlag} />
       <span
         className={`${styles.hSym}${colSort?.key === 'sym' ? ' ' + styles.hSortActive : ''}`}

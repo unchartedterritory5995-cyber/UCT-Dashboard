@@ -88,13 +88,19 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Reserve the scrollbar gutter ALWAYS so the sticky column header and the
+     scrolling rows have identical content width — otherwise the scrollbar shrinks
+     the rows' grid but not the header's, drifting every gridline. */
+  scrollbar-gutter: stable;
 }
 
 /* ── List rows ── */
 /* ── Columnar watchlist: Flag(star) · Symbol · Price · Volume · % Change ── */
 .listBody { --wl-grid: 26px 96px 62px 56px 68px minmax(0, 1fr); }
 
-.colHeaderRow {
+/* NOTE: distinct class name — the OLD per-list sort header also uses .colHeaderRow
+   (display:flex) later in this file and would otherwise override this grid header. */
+.gridHead {
   display: grid;
   grid-template-columns: var(--wl-grid);
   align-items: center;
@@ -106,7 +112,7 @@
   z-index: 3;
   flex-shrink: 0;
 }
-.colHeaderRow > span {
+.gridHead > span {
   position: relative;
   padding: 0 7px;
   /* Labels match the ticker symbol EXACTLY (font, size, weight, color). */
@@ -121,13 +127,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.colHeaderRow .hSym,
-.colHeaderRow .hCol { border-left: 1px solid rgba(255, 255, 255, 0.11); cursor: pointer; user-select: none; }
-.colHeaderRow .hSym:hover,
-.colHeaderRow .hCol:hover { color: var(--text-bright); }
+.gridHead .hSym,
+.gridHead .hCol { border-left: 1px solid rgba(255, 255, 255, 0.11); cursor: pointer; user-select: none; }
+.gridHead .hSym:hover,
+.gridHead .hCol:hover { color: var(--text-bright); }
 /* Active sort column — faint gold. */
-.colHeaderRow .hSortActive,
-.colHeaderRow .hSortActive:hover { color: var(--ut-gold, #c9a84c); }
+.gridHead .hSortActive,
+.gridHead .hSortActive:hover { color: var(--ut-gold, #c9a84c); }
 
 /* Drag handle sitting on a column's RIGHT gridline — drag to resize that column. */
 .colResize {
