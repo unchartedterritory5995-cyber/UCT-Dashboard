@@ -379,6 +379,24 @@ async def test_get_last_price_reads_developing_bar_from_T_ticks(bb):
 
 
 @pytest.mark.asyncio
+async def test_get_last_price_includes_live_day_volume_from_av(bb):
+    """Cumulative day volume (Massive `av` on A/AM events) rides get_last_price."""
+    bb.add_interest(["AAPL"])
+    bb.push_aggregate("AAPL", {"t": 1746468601234, "p": 150.25, "s": 100}, "T")
+    assert bb.get_last_price("AAPL")["volume"] is None   # no aggregate yet
+    # A per-second aggregate carries av = today's accumulated volume
+    bb.push_aggregate("AAPL", {"t": 1746468601000, "o": 150.2, "h": 150.3,
+                               "l": 150.1, "c": 150.25, "v": 500, "av": 42000}, "A")
+    lp = bb.get_last_price("AAPL")
+    assert lp["price"] == 150.25   # price still from the last trade tick
+    assert lp["volume"] == 42000   # day volume from av
+    # av grows through the session
+    bb.push_aggregate("AAPL", {"t": 1746468602000, "o": 150.25, "h": 150.4,
+                               "l": 150.2, "c": 150.35, "v": 300, "av": 42300}, "A")
+    assert bb.get_last_price("AAPL")["volume"] == 42300
+
+
+@pytest.mark.asyncio
 async def test_remove_interest_refcounts_and_unsubscribes_at_zero(bb):
     """Last interest release (with no chart subscriber) unsubscribes + clears partial."""
     gone = []

@@ -111,6 +111,10 @@ def parse_aggregate_event(raw: dict) -> Optional[dict]:
             "l": raw["l"],
             "c": raw["c"],
             "v": raw["v"],
+            # av = today's ACCUMULATED (cumulative day) volume — authoritative,
+            # unlike summing T-tick sizes (which drifts on reconnects). Carried so
+            # the quote feed can serve a live-ticking Volume column. May be absent.
+            "av": raw.get("av"),
         },
         "kind": ev,  # "AM" or "A"
     }

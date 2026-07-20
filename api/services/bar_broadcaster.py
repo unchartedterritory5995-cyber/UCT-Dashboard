@@ -68,6 +68,10 @@ class BarBroadcaster:
         # (the 524 surface). Interest keeps the symbol subscribed upstream + its
         # partial alive, WITHOUT any queue dispatch.
         self._interest: dict[str, int] = {}
+        # Latest ACCUMULATED day volume per symbol (Massive `av` on AM/A aggregate
+        # events) — a live-ticking source for the quote feed's Volume column,
+        # served via get_last_price. Lock-free (atomic int assignment / read).
+        self._day_volume: dict[str, int] = {}
         self._lock = threading.Lock()
         self._on_first_subscribe = on_first_subscribe or (lambda sym: None)
         self._on_last_unsubscribe = on_last_unsubscribe or (lambda sym: None)
@@ -116,6 +120,7 @@ class BarBroadcaster:
                 for tf_to_clear in ("1",) + ROLLUP_TFS:
                     self._partials.pop((sym, tf_to_clear), None)
                     self._am_partials.pop((sym, tf_to_clear), None)
+                self._day_volume.pop(sym, None)
             try:
                 self._on_last_unsubscribe(sym)
             except Exception as e:
@@ -166,6 +171,7 @@ class BarBroadcaster:
                     for tf_to_clear in ("1",) + ROLLUP_TFS:
                         self._partials.pop((sym, tf_to_clear), None)
                         self._am_partials.pop((sym, tf_to_clear), None)
+                    self._day_volume.pop(sym, None)
             if not still:
                 try:
                     self._on_last_unsubscribe(sym)
@@ -173,19 +179,21 @@ class BarBroadcaster:
                     _logger.warning("[bar_broadcaster] on_last_unsubscribe(%s) failed: %s", sym, e)
 
     def get_last_price(self, sym: str) -> Optional[dict]:
-        """Latest Massive-derived live price for a symbol, or None if no tick yet.
+        """Latest Massive-derived live quote for a symbol, or None if no tick yet.
 
-        Reads the developing 1-min partial (updated tick-by-tick by T events).
-        Returns {"price", "ts"} — `price` is the last trade, `ts` the bar bucket.
-        The frontend recomputes the day % from this live price + the REST prev
-        close, so we only need the price here (day volume stays REST-owned)."""
-        p = self._partials.get((sym.upper(), "1"))
+        Reads the developing 1-min partial (updated tick-by-tick by T events) for
+        the live `price`, and the cumulative day `volume` (Massive `av`, updated
+        ~1 Hz by A events). The frontend recomputes the day % from the live price
+        + the REST prev close; `volume` overlays the 15s REST value so the Volume
+        column ticks live too. `volume` may be None until the first A event."""
+        su = sym.upper()
+        p = self._partials.get((su, "1"))
         if not p:
             return None
         c = p.get("c")
         if c is None:
             return None
-        return {"price": c, "ts": p.get("t")}
+        return {"price": c, "ts": p.get("t"), "volume": self._day_volume.get(su)}
 
     # ── Inbound from bar_stream ──
 
@@ -268,8 +276,16 @@ class BarBroadcaster:
                 self._emit(sym, tf, emit_bar, throttle=True)
             return
 
-        # AM / A aggregate path — payload is a bar dict {t, o, h, l, c, v}
+        # AM / A aggregate path — payload is a bar dict {t, o, h, l, c, v, av?}
         bar = payload
+        # Record the authoritative cumulative day volume for the quote feed's live
+        # Volume column (atomic assignment; get_last_price reads it lock-free).
+        av = bar.get("av")
+        if av is not None:
+            try:
+                self._day_volume[sym] = int(av)
+            except (TypeError, ValueError):
+                pass
         throttle = (kind != "AM")  # AM always emits; A is throttled
         # 1-min: pass-through
         self._emit(sym, "1", bar, throttle=throttle)

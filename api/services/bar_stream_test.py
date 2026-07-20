@@ -19,12 +19,14 @@ def test_parse_am_event_extracts_ohlcv_and_symbol():
     raw = {
         "ev": "AM", "sym": "AAPL",
         "o": 150.10, "h": 150.55, "l": 149.95, "c": 150.40,
-        "v": 12500, "s": 1746468600000, "e": 1746468660000,
+        "v": 12500, "av": 987654, "s": 1746468600000, "e": 1746468660000,
     }
     out = parse_am_event(raw)
     assert out == {
         "sym": "AAPL",
-        "bar": {"t": 1746468600000, "o": 150.10, "h": 150.55, "l": 149.95, "c": 150.40, "v": 12500},
+        # av = cumulative day volume (carried for the live Volume column).
+        "bar": {"t": 1746468600000, "o": 150.10, "h": 150.55, "l": 149.95,
+                "c": 150.40, "v": 12500, "av": 987654},
     }
 
 
@@ -196,7 +198,8 @@ def test_parse_aggregate_event_T_extracts_p_s_t():
     }
     out = parse_aggregate_event(raw)
     assert out is not None
-    assert out["trade"] == {"t": 1746468601234, "p": 150.25, "s": 100}
+    # `c` (SIP sale-condition codes) is carried through, None when the feed omits it.
+    assert out["trade"] == {"t": 1746468601234, "p": 150.25, "s": 100, "c": None}
 
 
 def test_parse_aggregate_event_T_returns_none_on_missing_fields():

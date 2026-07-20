@@ -161,10 +161,19 @@ async def stream_prices(
                                 entry = {}
                                 current[sym] = entry
                             entry["price"] = mp["price"]
+                            # Live cumulative day volume (Massive `av`) overlays the
+                            # 15s REST value so the Volume column ticks too.
+                            if mp.get("volume") is not None:
+                                entry["volume"] = mp["volume"]
                             entry["updated_at"] = int(time.time())
 
-                # Only send if any ticker's price actually changed
-                prices_now = {s: d.get("price") for s, d in current.items()} if current else {}
+                # Only send if any ticker's price OR live volume actually changed
+                # (volume is included so the Volume column still ticks on a trade
+                # that prints at the same price).
+                prices_now = (
+                    {s: (d.get("price"), d.get("volume")) for s, d in current.items()}
+                    if current else {}
+                )
                 if prices_now != last_prices and current:
                     last_prices = prices_now
                     yield f"data: {json.dumps(current)}\n\n"
