@@ -812,6 +812,56 @@ def admin_reset_password_by_id(user_id: str, user: dict = Depends(get_current_us
         conn.close()
 
 
+def _cascade_delete_user(conn, user_id: str) -> None:
+    """Delete a user and EVERY row referencing them, across all tables.
+
+    The auth.db has grown to 38+ tables with a foreign key to users(id)
+    (voice_*, journal/j2_*, ticker_tags, watchlist_alerts, trading_accounts,
+    referrals.referred_user_id, …). Because every connection runs with
+    PRAGMA foreign_keys=ON, a single leftover child row (even one ticker tag)
+    makes the final `DELETE FROM users` raise "FOREIGN KEY constraint failed"
+    → HTTP 500 → the admin panel shows "Delete failed". The hand-maintained
+    table list below silently fell ~24 tables behind, so any user who had
+    tagged a ticker / used voice / set an alert became undeletable.
+
+    Rather than keep chasing the schema, discover the referencing tables at
+    runtime via PRAGMA and clear them. FK enforcement is turned off for the
+    scope of the wipe (safe: get_connection() hands out a private connection)
+    so deletion order and chain depth can never trip a constraint. Orphaned
+    grandchildren that FK to tickets/watchlists rather than to users directly
+    are swept afterward.
+
+    Call the broker-sync GDPR purge BEFORE this (it does an external SnapTrade
+    revoke that needs the rows present); this then clears whatever remains.
+    """
+    conn.commit()  # close any implicit txn so the PRAGMA actually takes effect
+    conn.execute("PRAGMA foreign_keys=OFF")
+    try:
+        tables = [r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+        for t in tables:
+            if t == "users":
+                continue
+            ref_cols = {fk[3] for fk in conn.execute(f'PRAGMA foreign_key_list("{t}")').fetchall()
+                        if fk[2] == "users"}
+            for col in ref_cols:
+                conn.execute(f'DELETE FROM "{t}" WHERE "{col}" = ?', (user_id,))
+        # Grandchildren that reference tickets/watchlists (not users) — now orphaned.
+        for orphan_sql in (
+            "DELETE FROM ticket_messages    WHERE ticket_id    NOT IN (SELECT id FROM support_tickets)",
+            "DELETE FROM ticket_attachments WHERE ticket_id    NOT IN (SELECT id FROM support_tickets)",
+            "DELETE FROM watchlist_items    WHERE watchlist_id NOT IN (SELECT id FROM watchlists)",
+        ):
+            try:
+                conn.execute(orphan_sql)
+            except Exception:
+                pass  # table may not exist in older schemas
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.execute("PRAGMA foreign_keys=ON")
+
+
 @router.delete("/admin/users/{user_id}")
 def admin_delete_user_by_id(user_id: str, user: dict = Depends(get_current_user)):
     """Admin-only: delete a user by ID."""
@@ -824,33 +874,15 @@ def admin_delete_user_by_id(user_id: str, user: dict = Depends(get_current_user)
         row = conn.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="User not found")
-        conn.execute("DELETE FROM activity_log WHERE user_id = ?", (user_id,))
-        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
-        conn.execute("DELETE FROM subscriptions WHERE user_id = ?", (user_id,))
-        conn.execute("DELETE FROM email_verifications WHERE user_id = ?", (user_id,))
-        conn.execute("DELETE FROM password_resets WHERE user_id = ?", (user_id,))
-        conn.execute("DELETE FROM journal_entries WHERE user_id = ?", (user_id,))
-        conn.execute("DELETE FROM admin_notes WHERE user_id = ?", (user_id,))
-        conn.execute("DELETE FROM page_views WHERE user_id = ?", (user_id,))
-        conn.execute("DELETE FROM referrals WHERE referrer_user_id = ?", (user_id,))
-        # Support tickets + messages (cascade via FK, but explicit for safety)
-        tk_ids = [r["id"] for r in conn.execute("SELECT id FROM support_tickets WHERE user_id = ?", (user_id,)).fetchall()]
-        for tk_id in tk_ids:
-            conn.execute("DELETE FROM ticket_messages WHERE ticket_id = ?", (tk_id,))
-        conn.execute("DELETE FROM support_tickets WHERE user_id = ?", (user_id,))
-        wl_ids = [r["id"] for r in conn.execute("SELECT id FROM watchlists WHERE user_id = ?", (user_id,)).fetchall()]
-        for wl_id in wl_ids:
-            conn.execute("DELETE FROM watchlist_items WHERE watchlist_id = ?", (wl_id,))
-        conn.execute("DELETE FROM watchlists WHERE user_id = ?", (user_id,))
         # Broker-sync cascade (GDPR/CCPA): purge encrypted credentials + data,
-        # best-effort revoke at SnapTrade.
+        # best-effort revoke at SnapTrade — run first so the external revoke
+        # sees the rows before the full wipe removes them.
         try:
             from api.services.journal_two.broker import service as _broker_service
             _broker_service.purge_on_account_deletion(user_id, conn)
         except Exception as _e:
             print(f"[admin-delete] broker purge failed (non-fatal): {_e}")
-        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        conn.commit()
+        _cascade_delete_user(conn, user_id)
         return {"ok": True, "user_id": user_id, "deleted": True}
     finally:
         conn.close()
@@ -896,34 +928,14 @@ def admin_delete_user(req: DeleteUserRequest, user: dict = Depends(get_current_u
         # Prevent self-deletion
         if target_id == user["id"]:
             raise HTTPException(status_code=400, detail="Cannot delete your own account")
-        # Cascade delete all related data
-        conn.execute("DELETE FROM activity_log WHERE user_id = ?", (target_id,))
-        conn.execute("DELETE FROM sessions WHERE user_id = ?", (target_id,))
-        conn.execute("DELETE FROM subscriptions WHERE user_id = ?", (target_id,))
-        conn.execute("DELETE FROM email_verifications WHERE user_id = ?", (target_id,))
-        conn.execute("DELETE FROM password_resets WHERE user_id = ?", (target_id,))
-        conn.execute("DELETE FROM journal_entries WHERE user_id = ?", (target_id,))
-        conn.execute("DELETE FROM admin_notes WHERE user_id = ?", (target_id,))
-        conn.execute("DELETE FROM page_views WHERE user_id = ?", (target_id,))
-        conn.execute("DELETE FROM referrals WHERE referrer_user_id = ?", (target_id,))
-        # Support tickets + messages
-        tk_ids = [r["id"] for r in conn.execute("SELECT id FROM support_tickets WHERE user_id = ?", (target_id,)).fetchall()]
-        for tk_id in tk_ids:
-            conn.execute("DELETE FROM ticket_messages WHERE ticket_id = ?", (tk_id,))
-        conn.execute("DELETE FROM support_tickets WHERE user_id = ?", (target_id,))
-        # Watchlist items via watchlist IDs
-        wl_ids = [r["id"] for r in conn.execute("SELECT id FROM watchlists WHERE user_id = ?", (target_id,)).fetchall()]
-        for wl_id in wl_ids:
-            conn.execute("DELETE FROM watchlist_items WHERE watchlist_id = ?", (wl_id,))
-        conn.execute("DELETE FROM watchlists WHERE user_id = ?", (target_id,))
-        # Broker-sync cascade (GDPR/CCPA).
+        # Broker-sync cascade (GDPR/CCPA) first (external SnapTrade revoke needs
+        # the rows present), then wipe every users(id)-referencing table.
         try:
             from api.services.journal_two.broker import service as _broker_service
             _broker_service.purge_on_account_deletion(target_id, conn)
         except Exception as _e:
             print(f"[delete-user] broker purge failed (non-fatal): {_e}")
-        conn.execute("DELETE FROM users WHERE id = ?", (target_id,))
-        conn.commit()
+        _cascade_delete_user(conn, target_id)
         return {"ok": True, "email": req.email, "deleted": True}
     finally:
         conn.close()
