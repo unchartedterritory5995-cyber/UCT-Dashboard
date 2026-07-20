@@ -1203,7 +1203,7 @@ function buildCharts(cc) {
 
 
 // ─── Data Processing ───────────────────────────────────────────────────────────
-function processFlowData(rows) {
+function processFlowData(rows, erSoonSet) {
   const rawTrades = rows.map(r => {
     const typeRaw = (r.type || "").toUpperCase().trim();
     const isML = typeRaw === "ML/" || typeRaw.startsWith("ML/");
@@ -1287,7 +1287,9 @@ function processFlowData(rows) {
       E:expStr, expiry, Si:side, Co:color, DTE:dte, Dt:dt,
       D:direction, OI:oi, IV:iv, Spot:spot, isML, confirmed,
       mktcap, sector, uoa, isDeep, pctFromSpot,
-      er:(r.er||"").toUpperCase().trim() === "T",
+      er:(erSoonSet instanceof Set)
+        ? erSoonSet.has((r.ticker||"").toUpperCase().trim())
+        : ((r.er||"").toUpperCase().trim() === "T"),
       stocketf:(r.stocketf||"").toUpperCase().trim(),
       time:(r.time||"").trim()
     };
@@ -2229,6 +2231,50 @@ export default function OptionsFlowDashboard() {
   useEffect(() => { setContractChartTf('D'); }, [selectedItem?.sym, selectedItem?.cp, selectedItem?.K, selectedItem?.exp]);
   const [priceCache, setPriceCache] = useState({}); // key: "SYM|CP|STRIKE|EXP" -> { mark, bid, ask, last, delta, theta, iv }
   const [earningsCache, setEarningsCache] = useState({});
+
+  // ── Calendar-driven ER set (replaces the stale row `er` boolean) ─────────
+  // The flow-row `er` flag is a date-less BBS boolean that never clears (MU
+  // shows ER months after reporting). Gate every ER badge on the live earnings
+  // calendar: a ticker is "ER" only if it reports within 14 days. null until
+  // loaded -> falls back to the row flag, so behavior only ever improves.
+  const [erSoonSet, setErSoonSet] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const flatten = (p, out) => {
+          for (const [dateStr, day] of Object.entries((p && p.days) || {})) {
+            if (!day) continue;
+            for (const b of ["bmo", "amc", "tbd"])
+              for (const e of (day[b] || [])) {
+                const s = ((e && e.sym) || "").toUpperCase().trim();
+                if (s && (!(s in out) || dateStr < out[s])) out[s] = dateStr;
+              }
+          }
+        };
+        const base = await fetch("/api/calendar").then(r => r.ok ? r.json() : null);
+        if (!base) return;
+        const map = {}; flatten(base, map);
+        const ws = (base.week_start || "").slice(0, 10);
+        for (let k = 1; k <= 2 && ws; k++) {
+          const nm = new Date(ws + "T00:00:00Z"); nm.setUTCDate(nm.getUTCDate() + 7 * k);
+          const p = await fetch(`/api/calendar?week=${nm.toISOString().slice(0, 10)}`)
+            .then(r => r.ok ? r.json() : null).catch(() => null);
+          if (p) flatten(p, map);
+        }
+        const now = new Date();
+        const t0 = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+        const soon = new Set();
+        for (const [sym, d] of Object.entries(map)) {
+          const [y, m, dd] = d.split("-").map(Number);
+          const days = Math.round((Date.UTC(y, m - 1, dd) - t0) / 86400000);
+          if (days >= 0 && days <= 14) soon.add(sym);
+        }
+        if (!cancelled) setErSoonSet(soon);
+      } catch (e) { /* keep null -> row-flag fallback */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [marketIndices, setMarketIndices] = useState(null);
   const [marketNarrative, setMarketNarrative] = useState(null);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
@@ -2408,11 +2454,11 @@ export default function OptionsFlowDashboard() {
         // that matched nothing, so the cards rendered correctly then collapsed to
         // $0 / NEUTRAL. The render-time _scopeAllDirectional (in the Search block)
         // applies the SELECTED day range; this effect just supplies full history.
-        setSearchFull({ sym, data: rows.length ? processFlowData(rows) : null });
+        setSearchFull({ sym, data: rows.length ? processFlowData(rows, erSoonSet) : null });
       })
       .catch(() => { if (!cancelled) setSearchFull({ sym, data: null }); });
     return () => { cancelled = true; };
-  }, [selectedTicker, dataMode]);
+  }, [selectedTicker, dataMode, erSoonSet]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
@@ -2459,7 +2505,7 @@ export default function OptionsFlowDashboard() {
       }
       if (filtered.length === 0) { setD(null); return; }
       try {
-        const data = processFlowData(filtered);
+        const data = processFlowData(filtered, erSoonSet);
         const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
         console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${filtered.length} rows)`);
         _processedOnce.current = true;
@@ -2488,7 +2534,7 @@ export default function OptionsFlowDashboard() {
       return () => clearTimeout(id);
     }
     run();
-  }, [parsedRows, dateFilter, dateFrom, dateTo, loadedFetchDays, fetchDays]);
+  }, [parsedRows, dateFilter, dateFrom, dateTo, loadedFetchDays, fetchDays, erSoonSet]);
 
   useEffect(() => {
     // Fetch on mount and whenever csvFile changes (range/mode). csvFile is now
