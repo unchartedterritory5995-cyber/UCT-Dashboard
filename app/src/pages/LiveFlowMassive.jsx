@@ -3020,6 +3020,9 @@ export default function LiveFlowMassive() {
   const [sseNonce, setSseNonce] = useState(0);
   const [reconcileNonce, setReconcileNonce] = useState(0);
   const lastSseContactRef = useRef(Date.now());
+  // Refocus catch-up throttle (2026-07-20): coalesce the paired
+  // visibilitychange+focus events into a single sync per return-to-tab.
+  const lastForegroundSyncRef = useRef(0);
   // Feed-gap transparency: the day's detected downtime windows so users SEE
   // missed-flow windows instead of silently missing lines.
   const [gapInfo, setGapInfo] = useState(null);
@@ -3172,6 +3175,38 @@ export default function LiveFlowMassive() {
       }
     };
   }, [curated, minGrade, sortBy, filters, sseNonce]);
+
+  // ── Return-to-tab catch-up (2026-07-20) ───────────────────────────────────
+  // Browsers throttle/freeze setInterval+setTimeout in a hidden/backgrounded
+  // tab, so the 20s poll, the 30s SSE reconcile, AND the 40s half-dead-stream
+  // watchdog all stop firing while you're away — the tape then sits frozen
+  // ("15 min behind" on return) until a timer eventually wakes. Fix: the instant
+  // the tab becomes visible / focused / back online, force an immediate
+  // authoritative /recent catch-up (reconcileNonce) AND reconnect the stream
+  // (sseNonce), so it snaps current on return instead of waiting on a throttled
+  // timer. Coalesced to one sync per 1.5s so the paired visibilitychange+focus
+  // burst doesn't double-fetch. Purely additive — the setters' existing effects
+  // do the work; a sseNonce bump is a harmless no-op when SSE is off/curated.
+  useEffect(() => {
+    const syncNow = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      const now = Date.now();
+      if (now - lastForegroundSyncRef.current < 1500) return;
+      lastForegroundSyncRef.current = now;
+      lastSseContactRef.current = now;   // fresh stall window for the reconnect
+      setReconcileNonce((n) => n + 1);   // immediate authoritative /recent catch-up
+      setSseNonce((n) => n + 1);         // heal a silently half-dead EventSource
+    };
+    const onVis = () => { if (document.visibilityState === "visible") syncNow(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", syncNow);
+    window.addEventListener("online", syncNow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", syncNow);
+      window.removeEventListener("online", syncNow);
+    };
+  }, []);
 
   // Feed-gap surfacing (2026-07-09): fetch the day's detected downtime windows
   // so users SEE missed-flow windows ("9:36–9:53 · backfilling overnight")
