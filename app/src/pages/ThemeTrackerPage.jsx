@@ -20,6 +20,10 @@ import useRealtimeBarPrices, { pickFreshPrice } from '../hooks/useRealtimeBarPri
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
+// localStorage key holding the last /api/theme-performance response, used to
+// paint the tab instantly on load before the fresh (632KB) fetch returns.
+const THEME_PERF_CACHE_KEY = 'uct.themePerf.v1'
+
 function RotationBadge({ delta }) {
   if (delta == null) return null
   if (delta >= 20) return <span className={styles.rotBadgeIn}>IN {delta > 0 ? '+' : ''}{delta.toFixed(0)}</span>
@@ -222,6 +226,17 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const isActiveWidget = () => !activeRef || activeRef.current == null || activeRef.current === widgetKey
   const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
   const [activeTab, setActiveTab] = useState('Today')  // always open on Today (not persisted → resets every load)
+  // Instant paint: seed SWR from the LAST cached response so the tab renders
+  // immediately on refresh (like the chart's IDB cache) instead of showing a ~1s
+  // skeleton while the 632KB payload round-trips. SWR then revalidates in the
+  // background and swaps in fresh %s. Read once on mount.
+  const themeFallback = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(THEME_PERF_CACHE_KEY)
+      const p = raw ? JSON.parse(raw) : null
+      return p?.themes?.length ? p : undefined
+    } catch { return undefined }
+  }, [])
   const { data, isLoading } = useMobileSWR('/api/theme-performance', fetcher, {
     // 10s so the theme %s stay near-live and the leaderboard re-sorts in order.
     // (The server overlay is cached at the same 10s window — see _LIVE_1D_TTL —
@@ -229,11 +244,25 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     // aggregates of up to ~2,050 holdings; we can't stream them tick-by-tick
     // like the watchlist (that would fan out the single-process SSE backend),
     // so a short server-refresh window is the live-enough, safe approach.
+    fallbackData: themeFallback,
     refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 10_000,
     dedupingInterval: 8_000,
     revalidateOnFocus: false,
   })
   const isComputing = data?.status === 'computing'
+
+  // Persist the freshest full response for next load's instant paint. Throttled +
+  // idle-deferred so the 632KB JSON.stringify never janks the main thread.
+  const lastPersistRef = useRef(0)
+  useEffect(() => {
+    if (!data?.themes?.length) return
+    const now = Date.now()
+    if (now - lastPersistRef.current < 20_000) return
+    lastPersistRef.current = now
+    const write = () => { try { localStorage.setItem(THEME_PERF_CACHE_KEY, JSON.stringify(data)) } catch { /* quota / private mode */ } }
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(write, { timeout: 3000 })
+    else setTimeout(write, 0)
+  }, [data])
 
   const { data: rotationData } = useMobileSWR('/api/theme-rotation', fetcher, {
     refreshInterval: 900_000,   // 15 min — matches backend cache

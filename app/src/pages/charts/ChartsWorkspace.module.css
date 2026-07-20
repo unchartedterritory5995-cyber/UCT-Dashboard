@@ -609,6 +609,11 @@
    so the ResizeObserver row-height math matches — else the grid clips. */
 .workspaceBodyMerged {
   padding: 0;
+  /* Thin seam line at the very bottom — same divider as between merged widgets —
+     so the blended board is separated from the OS taskbar instead of bleeding off
+     the screen edge. clientHeight excludes this border, so the rowHeight math
+     already leaves room for it (grid fits above the line). */
+  border-bottom: 1px solid var(--border, #1f2937);
 }
 
 /* Widget body becomes the container-query root for its embedded child page —
