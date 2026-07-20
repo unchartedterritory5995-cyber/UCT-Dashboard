@@ -252,3 +252,49 @@ def run_orphan_batch(batch=None, dry_run=None) -> dict:
     if counts["added"] and not dry:
         post_engine_run()
     return {**counts, "run_id": run_id, "cost_capped": cost_capped, "dry_run": dry}
+
+
+def daily_report_text(result: dict) -> str:
+    """Discord digest for one nightly orphan run: the names absorbed (grouped by
+    theme), the run counts, and the day's LLM spend vs the cap. The scheduler
+    feeds this to _send_webhook after each run_orphan_batch(). Never raises for a
+    missing/partial `result` — a notification must not depend on run internals."""
+    result = result or {}
+    run_id = result.get("run_id")
+    examined = int(result.get("examined", 0) or 0)
+    added = int(result.get("added", 0) or 0)
+    retiered = int(result.get("retiered", 0) or 0)
+    dropped = int(result.get("dropped", 0) or 0)
+    skipped = int(result.get("skipped", 0) or 0)
+
+    by_theme = {}
+    if run_id:
+        try:
+            for ev in store.events_for_run(run_id):
+                if ev.get("event") == "add":
+                    by_theme.setdefault(ev["theme_id"], []).append(str(ev["sym"]))
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("daily report: events unavailable: %s", e)
+
+    lines = []
+    if by_theme:
+        total = sum(len(v) for v in by_theme.values())
+        lines.append(f"Absorbed {total} orphan{'' if total == 1 else 's'}:")
+        for tid in sorted(by_theme)[:12]:
+            lines.append(f" • {', '.join(by_theme[tid])} → {tid}")
+        extra = len(by_theme) - 12
+        if extra > 0:
+            lines.append(f"  …and {extra} more theme{'' if extra == 1 else 's'}")
+    else:
+        lines.append("No new memberships tonight.")
+    lines.append("")
+    lines.append(f"Examined {examined} · added {added} · retiered {retiered} "
+                 f"· dropped {dropped} · skipped {skipped}")
+    try:
+        lines.append(f"LLM spend: ${store.day_cost_usd():.2f} today "
+                     f"(cap ${_env_f('THEME_ENGINE_DAILY_COST_CAP', 5.0):.2f})")
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("daily report: spend unavailable: %s", e)
+    if result.get("cost_capped"):
+        lines.append("⚠️ daily cost cap reached — run stopped early.")
+    return "\n".join(lines)

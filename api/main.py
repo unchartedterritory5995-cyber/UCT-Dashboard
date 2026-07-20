@@ -3105,12 +3105,28 @@ async def lifespan(app: FastAPI):
         # MANDATORY clear-decisions step between validation dry-run and go-live).
         if os.environ.get("THEME_ENGINE_ENABLED") == "1":
             def _theme_engine_orphans_job():
+                res = None
                 try:
                     from api.services.theme_engine import orphans as _te_orphans
                     res = _te_orphans.run_orphan_batch()
                     print(f"[scheduler] theme-engine orphan batch: {res}")
                 except Exception as e:  # noqa: BLE001
                     print(f"[scheduler] theme-engine orphan batch error: {e}")
+                # Daily digest -> Discord (guarded; a post failure never masks the
+                # batch, and _send_webhook itself never raises). Posts every night,
+                # including "No new memberships tonight," so the owner sees the
+                # engine ran each day.
+                if res is not None:
+                    try:
+                        from api.services.theme_engine import orphans as _te_orphans
+                        from api.services.discord_notify import _send_webhook
+                        _send_webhook({
+                            "title": "🧬 Theme Engine — Tonight",
+                            "description": _te_orphans.daily_report_text(res)[:4000],
+                            "color": 0xC9A84C,  # UCT gold
+                        })
+                    except Exception as e:  # noqa: BLE001
+                        print(f"[scheduler] theme-engine daily report post error: {e}")
 
             def _theme_engine_improve_job():
                 from api.services.theme_engine import improve as _te_improve

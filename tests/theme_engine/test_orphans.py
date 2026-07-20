@@ -99,3 +99,34 @@ def test_malformed_verdict_never_kills_the_batch(monkeypatch, store):
     # no row, and the run ledger closed cleanly (no error).
     rows = store.engine_rows()
     assert [r["sym_hy"] for r in rows] == ["GOOD1"]
+
+
+def test_daily_report_groups_adds_by_theme(monkeypatch, store):
+    # Digest for the nightly Discord ping: names grouped by theme + the run counts.
+    monkeypatch.setattr(orph, "store", store)
+    r = store.start_run("orphan")
+    store.upsert_add("regional_banks", "FBIZ", "peripheral", None, 0.9, "x", r)
+    store.upsert_add("regional_banks", "OSBC", "peripheral", None, 0.9, "x", r)
+    store.upsert_add("reits", "SUI", "peripheral", None, 0.9, "x", r)
+    text = orph.daily_report_text({"run_id": r, "examined": 50, "added": 3,
+                                   "retiered": 0, "dropped": 0, "skipped": 47})
+    assert "Absorbed 3 orphans:" in text
+    assert "FBIZ, OSBC → regional_banks" in text               # append order preserved
+    assert "SUI → reits" in text
+    assert "Examined 50 · added 3 · retiered 0 · dropped 0 · skipped 47" in text
+    assert "LLM spend:" in text
+
+
+def test_daily_report_zero_adds_is_quiet_line(monkeypatch, store):
+    monkeypatch.setattr(orph, "store", store)
+    r = store.start_run("orphan")
+    text = orph.daily_report_text({"run_id": r, "examined": 40, "added": 0,
+                                   "retiered": 0, "dropped": 0, "skipped": 40})
+    assert "No new memberships tonight." in text
+    assert "added 0" in text
+
+
+def test_daily_report_tolerates_missing_result(monkeypatch, store):
+    # A notification must never crash on a partial/None result (batch errored path).
+    monkeypatch.setattr(orph, "store", store)
+    assert "No new memberships tonight." in orph.daily_report_text(None)

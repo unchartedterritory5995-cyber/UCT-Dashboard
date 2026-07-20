@@ -208,6 +208,15 @@ def engine_rows(theme_id=None) -> list:
         out.append(d)
     return out
 
+def events_for_run(run_id: str) -> list:
+    """All membership events for one run, oldest-first — feeds the daily digest.
+    `sym` is stored dot-form (display-ready, e.g. BRK.B)."""
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT event, theme_id, sym, old_tier, new_tier FROM engine_membership_events "
+            "WHERE run_id=? ORDER BY id", (run_id,)).fetchall()
+    return [dict(r) for r in rows]
+
 def adds_older_than(days: int) -> list:
     with _conn() as c:
         rows = c.execute("SELECT * FROM engine_memberships WHERE action='add' AND created_at < datetime('now', ?)",

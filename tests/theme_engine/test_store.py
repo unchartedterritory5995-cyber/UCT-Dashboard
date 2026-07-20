@@ -48,3 +48,12 @@ def test_suppress_lifecycle(store):
     assert store.engine_rows("space") == []                    # suppress rows never merge
     store.set_suppress_status("space", "LMT", "dismissed")
     assert store.pending_suppressions() == []                  # dismissed never resurfaces
+
+def test_events_for_run_returns_run_events_oldest_first(store):
+    r = store.start_run("orphan")
+    store.upsert_add("reits", "SUI", "peripheral", None, .9, "x", r)
+    store.upsert_add("reits", "SHO", "relevant", None, .95, "y", r)
+    evs = store.events_for_run(r)
+    assert [e["sym"] for e in evs] == ["SUI", "SHO"]           # oldest-first (ORDER BY id)
+    assert all(e["event"] == "add" for e in evs)
+    assert store.events_for_run("no-such-run") == []           # unknown run -> empty
