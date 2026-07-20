@@ -167,6 +167,56 @@ async def options_quotes_batch(contracts: list[dict]):
     except Exception as e:
         logger.warning("[options-quotes] snapshot OI backfill skipped: %s", e)
 
+    # ── Live Massive-snapshot price fallback (2026-07-20) ──────────────────
+    # When Schwab AND UW leave a contract without a usable price (far-dated /
+    # illiquid LEAPS with no live NBBO), fill Now / OI / underlying from
+    # Massive's real-time single-contract snapshot. P&L is contract-based, so
+    # filling `mark` is all the UI needs to show Now + P&L. Never fails the req.
+    try:
+        need_px = []  # list of (result_index, (sym, cp, strike, exp_mdy))
+        for i, c in enumerate(contracts):
+            r = results[i] if i < len(results) else None
+            if not isinstance(r, dict) or r.get("error"):
+                continue
+            has_px = any((r.get(k) or 0) > 0 for k in ("mark", "last", "bid", "ask"))
+            need_uy = not ((r.get("underlyingPrice") or 0) > 0)
+            need_oi = not ((r.get("openInterest") or 0) > 0)
+            if has_px and not need_uy and not need_oi:
+                continue
+            key = _snapshot_key(c)   # 'SYM|C|strike|M/D/YYYY'
+            if not key:
+                continue
+            p = key.split("|")
+            need_px.append((i, (p[0], p[1], float(p[2]), p[3])))
+        if need_px:
+            from api.massive_oi_snapshots import _fetch_fields_all_async, _contract_key
+            fmap = await _fetch_fields_all_async([t for _, t in need_px])
+            filled = 0
+            for i, (sym, cp, strike, exp_mdy) in need_px:
+                f = fmap.get(_contract_key(sym, cp, strike, exp_mdy))
+                if not f:
+                    continue
+                r = results[i]
+                px = f.get("mid") or f.get("last")
+                if not ((r.get("mark") or 0) > 0) and px and px > 0:
+                    r["mark"] = px
+                    if not ((r.get("last") or 0) > 0):
+                        r["last"] = f.get("last") or px
+                    r["_price_source"] = "massive"
+                    filled += 1
+                if not ((r.get("openInterest") or 0) > 0) and f.get("oi"):
+                    r["openInterest"] = f["oi"]
+                    r["oi_estimated"] = True
+                if not ((r.get("underlyingPrice") or 0) > 0) and f.get("underlying"):
+                    r["underlyingPrice"] = f["underlying"]
+                for gk in ("iv", "delta", "gamma", "theta"):
+                    if not r.get(gk) and f.get(gk) is not None:
+                        r[gk] = f[gk]
+            if filled:
+                logger.info("[options-quotes] massive price fallback filled %d contracts", filled)
+    except Exception as e:
+        logger.warning("[options-quotes] massive price fallback skipped: %s", e)
+
     return {"quotes": results}
 @router.get("/market-summary")
 async def market_summary():
