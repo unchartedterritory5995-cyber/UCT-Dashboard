@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import CompassOrb from '../../../components/voice/CompassOrb'
+import VoiceInputButton from '../../journal-2-0/components/VoiceInputButton'
 import styles from './AiSearchWidget.module.css'
 
 // Spread across the tool's real range so the first impression isn't "it only
@@ -428,6 +429,16 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         {query && !loading && (
           <button className={styles.clearBtn} title="Clear" onClick={() => { setQuery(''); inputRef.current?.focus() }}>✕</button>
         )}
+        {/* Dictate into the ask box (paid — Whisper; renders null for free users). */}
+        <VoiceInputButton
+          disabled={loading}
+          onTranscript={(t) => {
+            const add = String(t || '').trim()
+            if (!add) return
+            setQuery((q) => (q ? `${q} ${add}` : add))
+            inputRef.current?.focus()
+          }}
+        />
         {loading ? (
           <button className={styles.stopBtn} onClick={stop} title="Stop this search" aria-label="Stop search">
             <span className={styles.stopSquare} aria-hidden="true" />Stop
