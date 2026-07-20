@@ -1,16 +1,4 @@
-import os, tempfile, importlib
-import pytest
-
-@pytest.fixture()
-def store(monkeypatch, tmp_path):
-    # Point auth_db at a scratch DB (house pattern: AUTH_DB_PATH env honored by auth_db)
-    monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))
-    import api.services.auth_db as auth_db
-    importlib.reload(auth_db)
-    import api.services.theme_engine.store as st
-    importlib.reload(st)
-    st.init_engine_tables()
-    return st
+# The `store` fixture lives in conftest.py (shared with test_orphans.py).
 
 def test_upsert_add_then_retier_preserves_lineage(store):
     r1 = store.start_run("orphan")

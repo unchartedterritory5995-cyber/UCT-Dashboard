@@ -1,4 +1,8 @@
-"""Shared fixture for theme-engine tests: scratch auth.db + reloaded modules.
+"""Shared fixtures for theme-engine tests: scratch auth.db + reloaded modules.
+
+`store` — api.services.theme_engine.store reloaded against a scratch auth.db
+  (engine tables only; moved here from test_store.py so test_orphans.py can
+  share it).
 
 `db` bundles everything the merged-read tests need:
   db.store      — api.services.theme_engine.store (reloaded against scratch DB)
@@ -11,6 +15,24 @@ import importlib
 from types import SimpleNamespace
 
 import pytest
+
+
+@pytest.fixture()
+def store(monkeypatch, tmp_path):
+    # Point auth_db at a scratch DB (house pattern: AUTH_DB_PATH env honored by auth_db)
+    monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    import api.services.auth_db as auth_db
+    importlib.reload(auth_db)
+    import api.services.theme_engine.store as st
+    importlib.reload(st)
+    # Task-5 adaptation: orphans.run_orphan_batch's unpatched _candidates_for
+    # reads theme_db.get_all_themes() against the same scratch DB — the (empty)
+    # theme tables must exist or every batch test dies on OperationalError.
+    import api.services.theme_db as theme_db
+    importlib.reload(theme_db)
+    theme_db.init_theme_tables()
+    st.init_engine_tables()
+    return st
 
 
 def _seed_owner(c):
