@@ -51,11 +51,17 @@ export function makePeerFiller({
     const syms = [seed, ...peers].slice(0, n)
     // Carry also_in (the seed's OTHER theme memberships) + name + seed so the
     // group header can offer a "also in: [groups]" switcher for multi-membership.
+    // Also carry the per-sym membership `sources` map ({sym: 'owner'|'engine'})
+    // for the provenance dot: peer ranking floats the seed's sub-theme, so
+    // peer-fill syms are NOT guaranteed inside fetchGroupTop's top-16 rows —
+    // without this map an engine-added seed/peer would lose its dot.
     const nextGroup = {
       id: res.group_id,
       name: res.group_name || null,
       by: 'today', n, seed,
       alsoIn: Array.isArray(res.also_in) ? res.also_in : [],
+      ...(res.sources && typeof res.sources === 'object' && !Array.isArray(res.sources)
+        ? { sources: res.sources } : {}),
     }
     fillCells(syms, nextGroup)
     if (snapshot) onUndoAvailable?.({ label: `filled peers of ${seed}`, snapshot })

@@ -42,7 +42,7 @@ const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
 
 function GridChartCell({
   cell,               // {id, sym|null, tf} — controlled; sym null = empty slot
-  badge,              // {changePct, tier, rationale} | null — Groups mode scanner badge (Task 15)
+  badge,              // {changePct, tier, rationale, engine} | null — Groups mode scanner badge (Task 15; engine = provenance dot, T8)
   rationale,          // static rationale string, mirrors badge.rationale — used as the badge's title tooltip
   scanning,           // bool — Groups Mode toggle is ON; empty cells show the scan-prompt copy
   onChange,           // (nextCell) => void — container merges + debounce-persists
@@ -307,6 +307,7 @@ function GridChartCell({
                 aria-label={`today ${badge.changePct ?? '—'}%, ${badge.tier || 'holding'}`}
               >
                 {badge.tier && <span className={styles.cellBadgeTier}>{badge.tier[0].toUpperCase()}</span>}
+                {badge.engine && <span title="Added by the theme engine" style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--text-muted, #6b7280)', display: 'inline-block', opacity: 0.7, flex: '0 0 auto' }} />}
                 {Number.isFinite(badge.changePct) && (
                   <span style={{ color: badge.changePct >= 0 ? '#22c55e' : '#f87171' }}>
                     {badge.changePct >= 0 ? '+' : ''}{badge.changePct.toFixed(1)}%

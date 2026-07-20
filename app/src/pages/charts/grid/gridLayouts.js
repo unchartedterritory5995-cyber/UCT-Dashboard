@@ -97,8 +97,22 @@ function sanitizeGroup(g) {
         .map(x => ({ id: x.id, name: x.name }))
         .slice(0, 8)
     : []
+  // Membership provenance map from a peer fill ({sym: 'owner'|'engine'}). Only
+  // 'engine' entries are informative (absent = owner everywhere it's read), so
+  // persist just those — the badge dot survives a reload without bloating the
+  // pref blob with the whole group's owner rows. Bounded defensively.
+  const sources = {}
+  if (g.sources && typeof g.sources === 'object' && !Array.isArray(g.sources)) {
+    for (const k of Object.keys(g.sources)) {
+      if (typeof k === 'string' && k && g.sources[k] === 'engine') {
+        sources[k] = 'engine'
+        if (Object.keys(sources).length >= 64) break
+      }
+    }
+  }
   return { id, by, ...(n ? { n } : {}), ...(name ? { name } : {}),
-           ...(alsoIn.length ? { alsoIn } : {}) }
+           ...(alsoIn.length ? { alsoIn } : {}),
+           ...(Object.keys(sources).length ? { sources } : {}) }
 }
 
 // Sanitize state hydrated from the multichart_state pref (or an old V1 blob).

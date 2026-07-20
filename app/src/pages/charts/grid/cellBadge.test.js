@@ -7,14 +7,23 @@ describe('buildCellBadges', () => {
     const meta = { RKLB: { tier: 'core', rationale: 'Launch' }, ASTS: { tier: 'core', rationale: 'Sats' } }
     const live = { RKLB: { change_pct: 8.2 }, ASTS: { change_pct: -1.1 } }
     const out = buildCellBadges(cells, meta, live)
-    expect(out[0]).toEqual({ changePct: 8.2, tier: 'core', rationale: 'Launch' })
-    expect(out[1]).toEqual({ changePct: -1.1, tier: 'core', rationale: 'Sats' })
+    expect(out[0]).toEqual({ changePct: 8.2, tier: 'core', rationale: 'Launch', engine: false })
+    expect(out[1]).toEqual({ changePct: -1.1, tier: 'core', rationale: 'Sats', engine: false })
     expect(out[2]).toBeNull()   // empty cell -> no badge
   })
 
   it('tolerates missing meta / live (partial data)', () => {
     const cells = [{ id: 'a', sym: 'XYZ' }]
     const out = buildCellBadges(cells, {}, {})
-    expect(out[0]).toEqual({ changePct: null, tier: null, rationale: '' })
+    expect(out[0]).toEqual({ changePct: null, tier: null, rationale: '', engine: false })
+  })
+
+  it('marks engine-sourced cells', () => {
+    const badges = buildCellBadges(
+      [{ id: 'a', sym: 'SMCI' }],
+      { SMCI: { tier: 'peripheral', rationale: 'x', source: 'engine' } },
+      {},
+    )
+    expect(badges[0].engine).toBe(true)
   })
 })

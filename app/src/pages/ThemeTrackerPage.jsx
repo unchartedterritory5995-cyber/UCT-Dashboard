@@ -177,11 +177,16 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
         // Highlight only the SELECTED instance (by key). Falls back to the bare
         // symbol when no instance key is set (e.g. hub-driven selection).
         const isSelected = selectedNavKey ? selectedNavKey === rowKey : h.sym === selectedSym
+        // Provenance mark (T8): engine-added members render slightly dimmed so a
+        // trader can tell them from curated names. Absent source = owner (full).
+        const isEngine = h.source === 'engine'
         return (
           <div
             key={h.sym}
             ref={el => { if (rowRefs) rowRefs.current[rowKey] = el }}
             className={`${styles.stockRow} ${isSelected ? styles.selected : ''}`}
+            style={isEngine ? { opacity: 0.85 } : undefined}
+            title={isEngine ? 'Engine-added — pending curation' : undefined}
             onClick={() => onSelectSym(h.sym, h.name, theme.ticker)}
             onMouseEnter={onHoverSym ? () => onHoverSym(h.sym) : undefined}
             onFocus={onHoverSym ? () => onHoverSym(h.sym) : undefined}

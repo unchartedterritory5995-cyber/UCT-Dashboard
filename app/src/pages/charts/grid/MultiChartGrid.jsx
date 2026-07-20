@@ -274,7 +274,7 @@ export default function MultiChartGrid({ mc }) {
     fetchGroupTop(g.id, { n: 16, by: g.by || 'today' }).then(res => {
       if (!live) return
       const metaBySym = {}
-      for (const r of (res.rows || [])) metaBySym[r.sym] = { tier: r.tier, rationale: r.rationale }
+      for (const r of (res.rows || [])) metaBySym[r.sym] = { tier: r.tier, rationale: r.rationale, source: r.source }
       setGroupMeta(prev => ({ ...prev, total: res.total, metaBySym }))
     }).catch(() => { /* header degrades to name-only; never an unhandled rejection */ })
     fetchGroups().then(list => {
@@ -285,10 +285,25 @@ export default function MultiChartGrid({ mc }) {
     return () => { live = false }
   }, [state.group?.id, state.group?.by, state.group?.name])
 
-  const cellBadges = useMemo(
-    () => buildCellBadges(cells, groupMeta.metaBySym || {}, livePrices),
-    [cells, groupMeta.metaBySym, livePrices],
-  )
+  // Badge meta = fetchGroupTop's top-16 rows (tier/rationale/source), overlaid
+  // with the peer-fill `sources` map carried on the group state. The peer
+  // ranking floats the seed's sub-theme, so a peer-fill sym (especially the
+  // typed seed) can rank below the top-16 in the plain ranking — the group-state
+  // map is what keeps its engine dot correct. fetchGroupTop's source wins where
+  // both exist (same authority, fresher fetch).
+  const cellBadges = useMemo(() => {
+    let meta = groupMeta.metaBySym || {}
+    const src = state.group?.sources
+    if (src && typeof src === 'object') {
+      meta = { ...meta }
+      for (const s of Object.keys(src)) {
+        const cur = meta[s]
+        if (!cur) meta[s] = { source: src[s] }
+        else if (cur.source == null) meta[s] = { ...cur, source: src[s] }
+      }
+    }
+    return buildCellBadges(cells, meta, livePrices)
+  }, [cells, groupMeta.metaBySym, state.group?.sources, livePrices])
 
   // Grid cells LOCK the volume pane low — these are mini-charts where a tall
   // volume pane eats the price action. Decoupled from the shared workspace
