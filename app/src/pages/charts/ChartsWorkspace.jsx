@@ -7,6 +7,7 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
+import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
@@ -451,9 +452,13 @@ export default function ChartsWorkspace() {
     // parseLayout keeps extra fields (`...parsed`), so pull chartSettings OUT of
     // the board layout — it belongs in the chart_settings pref, not the
     // charts_workspace_layout arrangement blob.
-    const { chartSettings, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
+    const { chartSettings, watchlistSettings, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     setLayout(boardLayout)
     setPref('charts_workspace_layout', JSON.stringify(boardLayout))
+    // Restore the template's WATCHLIST appearance (or defaults for a prebuilt/older
+    // template that carries none) so a locked/prebuilt template never inherits the
+    // user's personal watchlist styling.
+    setPref('watchlist_settings', JSON.stringify(watchlistSettings || WATCHLIST_DEFAULTS))
     // Restore the chart settings the template was saved with, if it has them.
     // Arrangement-only / older templates carry none → leave the current settings
     // untouched (never silently reset to default; only "UCT Default" applies the
@@ -482,6 +487,9 @@ export default function ChartsWorkspace() {
     // Restore the exact chart settings baked into the default (parsed fresh each
     // apply so the frozen constant is never mutated).
     setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+    // Watchlist appearance is part of the frozen default too → reset it, so no
+    // personal watchlist styling leaks onto the locked UCT Default.
+    setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
     setChartsTheme('default')
     // UCT Default is the frozen default, not a saved template → no active template.
     setPref('charts_active_template', 'null')
@@ -539,10 +547,11 @@ export default function ChartsWorkspace() {
       // applyTemplate restores it. The frozen default settings are applied ONLY by
       // "UCT Default".
       const chartSettings = parsePref(prefs?.chart_settings, null)
+      const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
       const scope = isAdmin ? saveAsScope : 'user'
       const saved = await saveLayout({
         name: nm,
-        layout: { ...layout, chartSettings },
+        layout: { ...layout, chartSettings, watchlistSettings },
         groups: null,
         scope,
       })
@@ -574,8 +583,9 @@ export default function ChartsWorkspace() {
       const list = active.scope === 'global' ? globalLayouts : myLayouts
       if (list.some(t => t.id === active.id)) {
         const chartSettings = parsePref(prefs?.chart_settings, null)
+        const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
         try {
-          await saveLayout({ name: active.name, layout: { ...layout, chartSettings }, groups: null, scope: active.scope })
+          await saveLayout({ name: active.name, layout: { ...layout, chartSettings, watchlistSettings }, groups: null, scope: active.scope })
         } catch { /* surfaced by SWR revalidate */ }
       }
     }
@@ -721,7 +731,7 @@ export default function ChartsWorkspace() {
                     type="button"
                     className={styles.addMenuItem}
                     style={{ flex: 1, ...(chartsTheme === 'sunrise' ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
-                    onClick={() => { setChartsTheme('sunrise'); setOpenMenuOpen(false) }}
+                    onClick={() => { setChartsTheme('sunrise'); setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS)); setOpenMenuOpen(false) }}
                   >{chartsTheme === 'sunrise' ? '✓ ' : ''}TSDR — Sunset</button>
                 </div>
                 {wsGlobalLayouts.map(t => (
