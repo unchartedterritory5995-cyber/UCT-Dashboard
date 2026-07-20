@@ -55,14 +55,14 @@ vi.mock('../../context/AuthContext', () => ({
 
 // Mock useChartLayouts — named layout templates (prebuilt + personal). The
 // "default template applies on first visit" behavior gates on isLoading.
-let mockLayouts = { global: [], mine: [], isLoading: false, saveLayout: vi.fn(async () => ({})) }
+let mockLayouts = { global: [], mine: [], isLoading: false, saveLayout: vi.fn(async () => ({})), deleteLayout: vi.fn(async () => {}) }
 vi.mock('../../hooks/useChartLayouts', () => ({
   default: () => ({
     global: mockLayouts.global,
     mine: mockLayouts.mine,
     isLoading: mockLayouts.isLoading,
     saveLayout: (...args) => mockLayouts.saveLayout(...args),
-    deleteLayout: async () => {},
+    deleteLayout: (...args) => mockLayouts.deleteLayout(...args),
     refresh: () => {},
   }),
 }))
@@ -82,7 +82,7 @@ beforeEach(() => {
   mockPrefs = {}
   mqMatches = false
   mockUser = { id: 1, role: 'user' }
-  mockLayouts = { global: [], mine: [], isLoading: false, saveLayout: vi.fn(async () => ({})) }
+  mockLayouts = { global: [], mine: [], isLoading: false, saveLayout: vi.fn(async () => ({})), deleteLayout: vi.fn(async () => {}) }
   vi.useFakeTimers()
 })
 
@@ -164,6 +164,71 @@ test('opening a My-layouts template restores its saved chart settings (not leake
   // chartSettings must NOT leak into the workspace-layout arrangement blob.
   const layoutCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_workspace_layout')
   expect(JSON.parse(layoutCall[1])).not.toHaveProperty('chartSettings')
+})
+
+test('Save current arrangement updates the open custom template in place (arrangement + chart settings)', async () => {
+  const tpl = {
+    id: 42, name: 'My Setup', scope: 'user',
+    layout: { widgets: [{ id: 's1', type: 'scanner', color: 'C', x: 0, y: 0, w: 8, h: 10, opts: {} }], cols: 24 },
+  }
+  mockLayouts.mine = [tpl]
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }),
+    chart_settings: JSON.stringify({ chartType: 'bars' }),
+    charts_active_template: JSON.stringify({ id: 42, name: 'My Setup', scope: 'user' }),
+  }
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /save layout/i }).click() })
+  await act(async () => { screen.getByRole('button', { name: /save current arrangement/i }).click() })
+  expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)
+  const payload = mockLayouts.saveLayout.mock.calls[0][0]
+  expect(payload.name).toBe('My Setup')
+  expect(payload.scope).toBe('user')
+  expect(payload.layout.chartSettings).toEqual({ chartType: 'bars' })
+})
+
+test('Save current arrangement does NOT touch any template when none is active', () => {
+  mockLayouts.mine = [{ id: 42, name: 'My Setup', scope: 'user', layout: { widgets: [], cols: 24 } }]
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }),
+    charts_active_template: 'null',
+  }
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /save layout/i }).click() })
+  act(() => { screen.getByRole('button', { name: /save current arrangement/i }).click() })
+  expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
+})
+
+test('deleting a layout asks to confirm; Go back cancels without deleting', () => {
+  mockLayouts.mine = [{ id: 42, name: 'My Setup', scope: 'user', layout: { widgets: [], cols: 24 } }]
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  act(() => { screen.getByRole('button', { name: '✕' }).click() })
+  expect(screen.getByText('Delete?')).toBeInTheDocument()
+  act(() => { screen.getByRole('button', { name: /go back/i }).click() })
+  expect(screen.queryByText('Delete?')).not.toBeInTheDocument()
+  expect(mockLayouts.deleteLayout).not.toHaveBeenCalled()
+})
+
+test('confirming delete of the OPEN layout deletes it and falls back to UCT Default', async () => {
+  mockLayouts.mine = [{
+    id: 42, name: 'My Setup', scope: 'user',
+    layout: { widgets: [{ id: 's1', type: 'scanner', color: 'C', x: 0, y: 0, w: 8, h: 10, opts: {} }], cols: 24 },
+  }]
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify({ widgets: [{ id: 's1', type: 'scanner', color: 'C', x: 0, y: 0, w: 8, h: 10, opts: {} }], cols: 24 }),
+    charts_active_template: JSON.stringify({ id: 42, name: 'My Setup', scope: 'user' }),
+  }
+  renderWS()
+  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  act(() => { screen.getByRole('button', { name: '✕' }).click() })
+  await act(async () => { screen.getByRole('button', { name: /^Yes$/ }).click() })
+  expect(mockLayouts.deleteLayout).toHaveBeenCalledWith(42)
+  // Fell back to UCT Default: frozen layout persisted + active template cleared.
+  const layoutCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_workspace_layout')
+  expect(JSON.parse(layoutCall[1]).widgets.some(w => w.type === 'chart')).toBe(true)
+  const activeCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_active_template')
+  expect(activeCall[1]).toBe('null')
 })
 
 test('first visit prefers a prebuilt template named "chart" over the starter fallback', () => {

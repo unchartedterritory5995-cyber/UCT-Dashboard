@@ -182,6 +182,18 @@ function pickWidgetColor(widgets, groupSyms) {
   return nextColor(widgets.map((w) => w.color))
 }
 
+// Inline "Delete?" confirm shown in place of a layout's ✕ so an accidental click
+// can't wipe a saved layout. Yes deletes; Go back cancels.
+function DeleteConfirm({ onYes, onCancel }) {
+  return (
+    <span className={styles.delConfirm} role="group" aria-label="Confirm delete layout">
+      <span className={styles.delConfirmMsg}>Delete?</span>
+      <button type="button" className={styles.delConfirmYes} onClick={onYes}>Yes</button>
+      <button type="button" className={styles.delConfirmNo} onClick={onCancel}>Go back</button>
+    </span>
+  )
+}
+
 export default function ChartsWorkspace() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
@@ -377,10 +389,6 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave, groupSyms])
 
-  // Explicit "Save layout" — flushes the debounced auto-save and persists the
-  // current arrangement (widgets + color-group tickers) immediately. The auto-save
-  // is debounced 500ms, so a refresh within that window could lose the last change
-  // (the "resets to default on refresh sometimes" report); this guarantees a save.
   const [savedFlash, setSavedFlash] = useState(false)
   const savedFlashTimerRef = useRef(null)
   const flashSaved = useCallback(() => {
@@ -388,12 +396,6 @@ export default function ChartsWorkspace() {
     if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current)
     savedFlashTimerRef.current = setTimeout(() => setSavedFlash(false), 1600)
   }, [])
-  const handleSaveLayout = useCallback(() => {
-    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
-    setPref('charts_workspace_layout', JSON.stringify(layout))
-    setPref('charts_workspace_groups', JSON.stringify(groupSyms))
-    flashSaved()
-  }, [layout, groupSyms, setPref, flashSaved])
 
   // ── Named layout templates (prebuilt + personal) ──
   const { user } = useAuth()
@@ -401,6 +403,8 @@ export default function ChartsWorkspace() {
   const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
   const [openMenuOpen, setOpenMenuOpen] = useState(false)
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
+  // Which template's ✕ is awaiting delete confirmation (id), or null.
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [saveAsName, setSaveAsName] = useState('')
   const [saveAsScope, setSaveAsScope] = useState('user')  // 'user' | 'global' (admin)
   const [saveErr, setSaveErr] = useState('')
@@ -425,6 +429,10 @@ export default function ChartsWorkspace() {
     if (chartSettings) {
       setPref('chart_settings', chartSettings)
     }
+    // Remember which named template is now open, so "Save current arrangement"
+    // can update THIS template in place with later edits. Persisted so the link
+    // survives a refresh.
+    setPref('charts_active_template', JSON.stringify({ id: tpl.id, name: tpl.name, scope: tpl.scope || 'user' }))
     setOpenMenuOpen(false)
     flashSaved()
   }, [setPref, flashSaved])
@@ -443,6 +451,8 @@ export default function ChartsWorkspace() {
     // apply so the frozen constant is never mutated).
     setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
     setChartsTheme('default')
+    // UCT Default is the frozen default, not a saved template → no active template.
+    setPref('charts_active_template', 'null')
     setOpenMenuOpen(false)
     flashSaved()
   }, [setPref, setChartsTheme, flashSaved])
@@ -482,6 +492,8 @@ export default function ChartsWorkspace() {
     const g = { A: null, B: null, C: null, D: null }
     setGroupSymsState(g)
     setPref('charts_workspace_groups', JSON.stringify(g))
+    // Blank board is not a named template.
+    setPref('charts_active_template', 'null')
   }, [setPref])
 
   const handleSaveAsTemplate = useCallback(async () => {
@@ -495,22 +507,56 @@ export default function ChartsWorkspace() {
       // applyTemplate restores it. The frozen default settings are applied ONLY by
       // "UCT Default".
       const chartSettings = parsePref(prefs?.chart_settings, null)
-      await saveLayout({
+      const scope = isAdmin ? saveAsScope : 'user'
+      const saved = await saveLayout({
         name: nm,
         layout: { ...layout, chartSettings },
         groups: null,
-        scope: isAdmin ? saveAsScope : 'user',
+        scope,
       })
+      // The just-saved template becomes the active one, so "Save current
+      // arrangement" updates it going forward.
+      if (saved?.id != null) {
+        setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }))
+      }
       setSaveAsName(''); setSaveErr(''); setSaveMenuOpen(false)
       flashSaved()
     } catch (e) {
       setSaveErr(e.message || 'Save failed')
     }
-  }, [saveAsName, layout, prefs?.chart_settings, isAdmin, saveAsScope, saveLayout, flashSaved])
+  }, [saveAsName, layout, prefs?.chart_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
+
+  // Explicit "Save current arrangement" — flush the debounced auto-save + persist
+  // the working board immediately (the auto-save is debounced 500ms, so a refresh
+  // within that window could otherwise lose the last change). If a NAMED template
+  // is currently open, ALSO update that template in place with the current widgets
+  // + chart settings, so reopening it reflects the edits. Only updates a template
+  // the user can write (their own, or a global one when admin); a stale/deleted
+  // active ref is ignored (just saves the working board).
+  const handleSaveLayout = useCallback(async () => {
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    setPref('charts_workspace_layout', JSON.stringify(layout))
+    setPref('charts_workspace_groups', JSON.stringify(groupSyms))
+    const active = parsePref(prefs?.charts_active_template, null)
+    if (active?.id != null && (active.scope !== 'global' || isAdmin)) {
+      const list = active.scope === 'global' ? globalLayouts : myLayouts
+      if (list.some(t => t.id === active.id)) {
+        const chartSettings = parsePref(prefs?.chart_settings, null)
+        try {
+          await saveLayout({ name: active.name, layout: { ...layout, chartSettings }, groups: null, scope: active.scope })
+        } catch { /* surfaced by SWR revalidate */ }
+      }
+    }
+    flashSaved()
+  }, [layout, groupSyms, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
   const handleDeleteTemplate = useCallback(async (id) => {
     try { await deleteLayout(id) } catch { /* surfaced by SWR revalidate */ }
-  }, [deleteLayout])
+    // If the layout you just deleted was the one open on screen, fall back to the
+    // UCT Default so you're never left staring at a now-gone layout.
+    const active = parsePref(prefs?.charts_active_template, null)
+    if (active?.id === id) applyUctDefault()
+  }, [deleteLayout, prefs?.charts_active_template, applyUctDefault])
 
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
@@ -601,7 +647,7 @@ export default function ChartsWorkspace() {
               onClick={() => { setOpenMenuOpen(o => !o); setAddMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false) }}
             >Open layout ▾</button>
             {openMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => setOpenMenuOpen(false)}>
+              <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => { setOpenMenuOpen(false); setConfirmDeleteId(null) }}>
                 <div className={styles.menuSection}>Prebuilt</div>
                 {/* UCT Default — the LOCKED canonical layout (frozen shell +
                     chart settings, UCT_DEFAULT_LAYOUT / _CHART_SETTINGS_JSON).
@@ -621,7 +667,14 @@ export default function ChartsWorkspace() {
                   <div key={`g${t.id}`} className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
                     {isAdmin && (
-                      <button type="button" className={styles.menuDel} title="Delete prebuilt template" onClick={() => handleDeleteTemplate(t.id)}>✕</button>
+                      confirmDeleteId === t.id ? (
+                        <DeleteConfirm
+                          onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }}
+                          onCancel={() => setConfirmDeleteId(null)}
+                        />
+                      ) : (
+                        <button type="button" className={styles.menuDel} title="Delete prebuilt template" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
+                      )
                     )}
                   </div>
                 ))}
@@ -629,7 +682,14 @@ export default function ChartsWorkspace() {
                 {wsMyLayouts.map(t => (
                   <div key={`m${t.id}`} className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
-                    <button type="button" className={styles.menuDel} title="Delete" onClick={() => handleDeleteTemplate(t.id)}>✕</button>
+                    {confirmDeleteId === t.id ? (
+                      <DeleteConfirm
+                        onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }}
+                        onCancel={() => setConfirmDeleteId(null)}
+                      />
+                    ) : (
+                      <button type="button" className={styles.menuDel} title="Delete" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
+                    )}
                   </div>
                 ))}
               </div>
