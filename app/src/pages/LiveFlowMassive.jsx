@@ -3349,6 +3349,38 @@ export default function LiveFlowMassive() {
 
   // Value extractor for a given sort column. Keeps null/missing separate so
   // the comparator can always push blanks to the bottom regardless of dir.
+  // ── Alpha Gold: one row per ticker (best by grade, then premium) ─────────
+  // A name firing Alpha Gold at many strikes shouldn't own the tape. Keep only
+  // each ticker's BEST Alpha Gold print in the alpha view; the runner-ups demote
+  // to their directional tier (Bull→bullish, Bear→bearish, else size) so they
+  // still surface there instead of vanishing. Only the alpha view collapses —
+  // every other tier is untouched. Membership + counts follow the demoted tier.
+  const _alphaDemote = (() => {
+    const byTicker = new Map();
+    for (const a of alerts) {
+      if ((a._tierKey || "") !== "alpha") continue;
+      const t = a.ticker || "";
+      let arr = byTicker.get(t);
+      if (!arr) { arr = []; byTicker.set(t, arr); }
+      arr.push(a);
+    }
+    const gr = (a) => _GRADE_NUMERIC_FE[a.grade] ?? -1;              // A+ > A > B …
+    const pr = (a) => (a.alertPremium != null ? Number(a.alertPremium) : 0) || 0;
+    const demote = new Map();  // alert.id -> demoted tier
+    for (const group of byTicker.values()) {
+      if (group.length <= 1) continue;                              // single print — nothing to collapse
+      group.sort((x, y) => (gr(y) - gr(x)) || (pr(y) - pr(x)));     // grade-first, premium tiebreak
+      for (let i = 1; i < group.length; i++) {                      // [0] keeps alpha; rest demote
+        const a = group[i];
+        demote.set(a.id, a._direction === "Bull" ? "bullish"
+                       : a._direction === "Bear" ? "bearish"
+                       : "size");
+      }
+    }
+    return demote;
+  })();
+  const _tierOf = (a) => _alphaDemote.get(a.id) || a._tierKey || "algo";
+
   const _colValue = (a, key) => {
     switch (key) {
       case "time":      return a.timestamp || 0;
@@ -3371,7 +3403,7 @@ export default function LiveFlowMassive() {
       case "side":      return a._side || "";
       case "type":      return a._type || "";
       case "pl":        return computePL(a, quotes[a.ticker]);
-      case "tier":      return TIER_ORDER.indexOf(a._tierKey || "algo");
+      case "tier":      return TIER_ORDER.indexOf(_tierOf(a));
       default:          return a.timestamp || 0;
     }
   };
@@ -3397,7 +3429,7 @@ export default function LiveFlowMassive() {
 
   const visibleAlerts = alerts
     .filter(a => {
-      const tier = a._tierKey || "algo";
+      const tier = _tierOf(a);
       if (hideAlgo && tier === "algo") return false;  // global Algo hide
       if (!filters[tier]) return false;
       // 7/7 + 7/9: Stocks / ETFs partition filter. PREFER the authoritative
@@ -3439,7 +3471,7 @@ export default function LiveFlowMassive() {
       const k = `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`;
       if (!contractFilter.has(k)) continue;
     }
-    const t = a._tierKey || "algo";
+    const t = _tierOf(a);
     if (tierCounts[t] !== undefined) tierCounts[t]++;
   }
 
