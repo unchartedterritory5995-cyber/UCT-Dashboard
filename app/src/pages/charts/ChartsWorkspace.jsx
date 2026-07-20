@@ -203,7 +203,7 @@ export default function ChartsWorkspace() {
   // to a thin 1px seam so the widgets blend together TC2000-style. Persisted so the
   // merged view survives reloads until the user unmerges.
   const merged = parsePref(prefs?.charts_merged, false) === true
-  const gridGap = merged ? 1 : MARGIN_Y
+  const gridGap = merged ? 4 : MARGIN_Y
   const toggleMerged = useCallback(() => setPref('charts_merged', JSON.stringify(!merged)), [merged, setPref])
 
   // Viewport-locked sizing: measure the workspace body and divide its height

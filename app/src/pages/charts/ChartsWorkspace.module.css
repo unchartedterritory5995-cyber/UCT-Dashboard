@@ -57,10 +57,11 @@
   height: 100%;
   overflow: hidden;
 }
-/* Merged board: no border/radius so adjacent widgets touch with only the thin 1px
-   grid seam (the body background) showing between them. */
+/* Merged board: keep the widgets header-free + locked, but give each a defined edge
+   in a slightly-brighter divider colour + a small gap so the sections stay clearly
+   separated instead of bleeding into one another. */
 .widgetMerged {
-  border: none;
+  border: 1px solid var(--border-strong, #33404f);
   border-radius: 0;
 }
 
