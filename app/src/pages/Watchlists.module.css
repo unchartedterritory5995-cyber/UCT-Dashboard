@@ -187,7 +187,12 @@
   display: grid;
   grid-template-columns: var(--wl-grid);
   align-items: stretch;   /* cells fill the row height so vertical gridlines meet the horizontal ones */
-  padding: 5px 8px;
+  /* NO vertical padding — otherwise the stretched cells (and their right borders) sit
+     inside the padding and stop short of the row's bottom border. Height comes from
+     min-height instead; the content is centered vertically inside each cell. */
+  padding: 0 8px;
+  min-height: 30px;
+  box-sizing: border-box;
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.11);  /* horizontal gridline */
   transition: background 0.1s;
