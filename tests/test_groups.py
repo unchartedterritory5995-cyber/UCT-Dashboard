@@ -67,6 +67,47 @@ def test_rotation_order_ranks_hot_themes_first(monkeypatch):
     assert order["utilities"] == 2          # None rank sinks last
 
 
+def test_today_map_bounds_a_slow_snapshot(monkeypatch):
+    """A stalled Massive snapshot must NOT pin the request path — _today_map
+    returns {} within the deadline (rank_holdings then falls back to RS) instead
+    of blocking ~25s on the httpx read timeout (the 30-40s cold peer-fill bug)."""
+    import time as _t
+    import api.services.massive as massive
+    groups._TODAY_CACHE.clear()
+
+    def _slow(_syms):
+        _t.sleep(5.0)                       # far longer than the 3s deadline
+        return {"AAA": 1.0}
+
+    monkeypatch.setattr(massive, "get_etf_snapshots", _slow)
+    monkeypatch.setattr(groups, "_TODAY_TIMEOUT_S", 0.3)
+    t0 = _t.monotonic()
+    out = groups._today_map(["AAA"])
+    elapsed = _t.monotonic() - t0
+    assert out == {}                        # degraded, not blocked
+    assert elapsed < 2.0                    # bounded well under the 5s stall
+
+
+def test_today_map_returns_data_when_fast_and_caches(monkeypatch):
+    """A healthy snapshot returns normalized data AND is cached per sym-set so a
+    group switch's peers-fill + badge top_n fetch share ONE Massive call."""
+    import api.services.massive as massive
+    groups._TODAY_CACHE.clear()
+    calls = {"n": 0}
+
+    def _fast(syms):
+        calls["n"] += 1
+        return {"aaa": 5.0, "BBB": -1.0}    # mixed case -> normalized
+
+    monkeypatch.setattr(massive, "get_etf_snapshots", _fast)
+    monkeypatch.setattr(groups, "_TODAY_TIMEOUT_S", 3.0)
+    out1 = groups._today_map(["AAA", "BBB"])
+    out2 = groups._today_map(["BBB", "AAA"])   # same set, order-independent key
+    assert out1 == {"AAA": 5.0, "BBB": -1.0}
+    assert out2 == out1
+    assert calls["n"] == 1                  # second call served from cache
+
+
 def test_rank_holdings_today_then_fallbacks(monkeypatch):
     holdings = [
         {"sym": "AAA", "tier": "core"},       # today +5

@@ -9,6 +9,7 @@ CANONICAL SYMBOL FORM IS HYPHEN + UPPERCASE (BRK-B) — matches cap_universe,
 ticker-search, and /api/bars. The taxonomy stores dot class-shares (BRK.B);
 convert with to_taxonomy_sym() only for theme_db lookups.
 """
+import concurrent.futures as _cf
 import json
 import logging
 import os
@@ -31,6 +32,17 @@ _AI_PEERS_TTL = 6 * 3600.0            # peers of a ticker barely change — cach
 _AI_PEERS_VERSION = "v1"              # bump to invalidate the whole AI-peer cache
 _AI_PEERS_TIMEOUT = float(os.environ.get("GROUPS_AI_PEERS_TIMEOUT", "6"))
 _AI_PEERS_SEM = threading.Semaphore(int(os.environ.get("GROUPS_AI_PEERS_CONCURRENCY", "3")))
+
+# The "today's move" ranking snapshot fires a LIVE Massive batch on the request
+# path (rank_holdings -> _today_map). The Massive httpx client's read timeout is
+# 25s, so a single cold/stalled snapshot pinned /api/groups/peers for ~30s and
+# no peer/sympathy cell appeared until it returned (the 30-40s cold peer-fill
+# bug). Bound the call hard + cache the result briefly so a stall degrades to RS
+# ordering fast and a group switch's peers-fill + badge top_n share one snapshot.
+_TODAY_TIMEOUT_S = float(os.environ.get("GROUPS_TODAY_SNAPSHOT_TIMEOUT", "3"))
+_TODAY_CACHE_TTL = float(os.environ.get("GROUPS_TODAY_SNAPSHOT_TTL", "20"))
+_TODAY_CACHE = {}                    # {sym-set key: (out, at)} — tiny, self-pruning by TTL
+_TODAY_POOL = _cf.ThreadPoolExecutor(max_workers=4, thread_name_prefix="grp-today")
 
 
 def normalize_sym(s: str) -> str:
@@ -181,15 +193,40 @@ def list_groups() -> list:
 
 def _today_map(syms: list) -> dict:
     """{sym(hyphen upper): todaysChangePerc}. One batched Massive snapshot; the
-    same source theme_performance uses. Empty on failure (falls back to RS)."""
+    same source theme_performance uses.
+
+    HARD-BOUNDED (`_TODAY_TIMEOUT_S`) and briefly cached per sym-set: the Massive
+    call runs on a dedicated pool with a wall-clock cap, so a stalled snapshot
+    (the httpx client's read timeout is 25s) returns {} in ~3s instead of pinning
+    /api/groups/peers for 30s — rank_holdings then falls back to RS ordering.
+    Only a real (non-empty) result is cached, so a transient stall self-recovers
+    on the next call rather than pinning RS-fallback for the whole TTL."""
     if not syms:
         return {}
-    try:
-        from api.services.massive import get_etf_snapshots
-        raw = get_etf_snapshots(syms) or {}
-        return {normalize_sym(k): v for k, v in raw.items()}
-    except Exception:
+    norm = sorted({normalize_sym(s) for s in syms if s})
+    if not norm:
         return {}
+    key = ",".join(norm)
+    hit = _TODAY_CACHE.get(key)
+    if hit is not None and (time.monotonic() - hit[1]) < _TODAY_CACHE_TTL:
+        return hit[0]
+
+    def _fetch():
+        from api.services.massive import get_etf_snapshots
+        raw = get_etf_snapshots(norm) or {}
+        return {normalize_sym(k): v for k, v in raw.items()}
+
+    try:
+        out = _TODAY_POOL.submit(_fetch).result(timeout=_TODAY_TIMEOUT_S)
+    except Exception:
+        out = {}                     # timeout OR fetch error -> RS fallback in rank_holdings
+    if out:                          # cache only real data (a stall retries next call)
+        now = time.monotonic()
+        if len(_TODAY_CACHE) > 256:  # bound the map: drop expired entries first
+            for k in [k for k, v in _TODAY_CACHE.items() if (now - v[1]) >= _TODAY_CACHE_TTL]:
+                _TODAY_CACHE.pop(k, None)
+        _TODAY_CACHE[key] = (out, now)
+    return out
 
 
 def _rs_map() -> dict:
