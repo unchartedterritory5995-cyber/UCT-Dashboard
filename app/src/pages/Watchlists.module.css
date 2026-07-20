@@ -234,7 +234,7 @@
 /* Price + Volume match the ticker symbol EXACTLY (font, size, weight, color). */
 .priceCell, .volCell { color: var(--text-bright); font-weight: 600; }
 /* % Change matches Theme Tracker's .ret EXACTLY — normal weight (400), not bold. */
-.changeCell { font-weight: 600; }
+.changeCell { font-weight: 400; }   /* only the % change is thin; everything else is 600 */
 
 /* Notes + alert actions — revealed on row hover, overlaid at the right edge so the
    default view stays clean columns. */
