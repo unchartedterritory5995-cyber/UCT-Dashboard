@@ -601,7 +601,7 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 - **Persistent focus after ticker pick**: every ticker change (dropdown click, Enter, internal `StockChart.onSymbolChange`) routes through a single `handleSymbolChange` in ChartWidget; after the sym updates, `requestAnimationFrame` refocuses the chart container. Pick ticker → still focused → start typing the next ticker without re-clicking. **Do not pass `setGroupSym` directly to SymbolSearch or StockChart** or this behavior breaks.
 
 ### Predictive ticker autocomplete (TradingView-style)
-- **Backend:** `GET /api/ticker-search?q=NV&limit=20` (`api/routers/ticker_search.py`). Loads `cap_universe.json` (3,685 tickers) once at module import. Ranks: exact → prefix → substring. Returns `{results: [{ticker, name | null}]}`.
+- **Backend:** `GET /api/ticker-search?q=NV&limit=20` (`api/routers/ticker_search.py`). Loads `cap_universe.json` (3,742 tickers) once at module import. Ranks: exact → prefix → substring. Returns `{results: [{ticker, name | null}]}`.
 - **Name source:** existing `ticker_meta` cache (same one powering chart watermarks). In-process TTLCache → on-disk `/data/ticker_meta_cache/{TICKER}.json` (24h TTL). For misses, fires bounded async backfill (2-worker pool, max 8 in-flight) via `_base_meta()` so the next request resolves the name. Never blocks the autocomplete response.
 - **Frontend (`SymbolSearch.jsx`):** 150ms debounced fetch. Renders full-width rows with bold gold ticker + dim grey company name. Arrow ↑/↓ navigate, Enter submits highlighted, Esc closes. Empty query falls back to a hardcoded POPULAR list (30 ETF/megacap entries with names baked in so the dropdown is never bare on a fresh deploy). "Go to {TICKER}" fallback row when no exact match exists so any ticker still works.
 - **Background prewarmer** (`api/services/ticker_names_prewarm.py`): daemon thread on Railway startup (60s warmup delay so it doesn't fight `bars_prewarm`) walks the full cap_universe and calls `_base_meta` on each (250ms sleep between calls). Skips already-fresh disk entries → reboots no-op in ~5s. Full cold pass ~30 min. Toggle off with `TICKER_NAMES_PREWARM_DISABLED=1`.
@@ -705,7 +705,7 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - **GZip compression**: `GZipMiddleware` on FastAPI (skips `/api/stream/*` SSE endpoints), ~6x smaller payloads
 - **3-layer cache**: in-memory TTLCache (~1ms, 5-15min) → persistent disk `/data/bars_cache/` (~10ms, 2-72hr) → Massive API (4-30s)
 - **Disk cache TTLs**: D=48hr, W=72hr, 60m=8hr, 30m=4hr, 5m=2hr. Empty results never cached.
-- **Full universe pre-cache**: background thread on startup fetches 3,685 tickers (`api/data/cap_universe.json`) × 5 TFs = 18,425 entries. Also pulls tickers from wire_data (UCT20, candidates, earnings), theme taxonomy (all tiers), watchlists, and tagged tickers. Continuous refresh loop cycles permanently.
+- **Full universe pre-cache**: background thread on startup fetches 3,742 tickers (`api/data/cap_universe.json`) × 5 TFs = 18,425 entries. Also pulls tickers from wire_data (UCT20, candidates, earnings), theme taxonomy (all tiers), watchlists, and tagged tickers. Continuous refresh loop cycles permanently.
 - **SWR prefetch**: `app/src/utils/prefetchBars.js` — `prefetchBars(tickers, tf)` warms adjacent tickers in list contexts, `prefetchAllTimeframes(sym)` warms all 5 TFs on selection. Wired into DrillModal, ThemeTrackerPage, Watchlists, CustomScan. `prefetchBar(sym)` on TickerPopup hover.
 - **Stale intraday detection**: `_is_intraday_stale()` checks if Massive data is >5 days old (catches pre-split bars), falls back to yfinance (split-adjusted).
 - **Lookback caps**: daily/weekly capped at 30 years (10,950 days) to avoid strftime crash on pre-1900 dates. Intraday scales dynamically: `bars_per_day = 390 / multiplier`, lookback = `max_bars / bars_per_day * 1.5`.
@@ -1393,12 +1393,12 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 - `api/services/theme_db.py` — SQLite schema + seed from JSON
 - `api/services/realtime_stream.py` — Massive/Polygon WebSocket tick-by-tick streaming
 - `api/routers/stream.py` — SSE endpoint for real-time price push to browser
-- `themes_taxonomy.json` — source of truth: 99 themes, 1928 holdings, 12 sectors
+- `themes_taxonomy.json` — source of truth: 111 themes, 2049 holdings, 12 sectors (v4.16.0; curated + 12 new narrow themes)
 - `morning-wire/morning_wire_engine.py` — reads taxonomy, fetches holdings, pushes to Railway
 
 ### Architecture
 - **Hybrid taxonomy**: JSON seed file → SQLite DB on startup → API enrichment with sector/tier/sub_themes
-- **99 themes across 12 sectors**: Technology, Innovation, Clean Energy, Traditional Energy, Materials, Defense & Industrials, Financials, Healthcare, Consumer, Real Estate & Utilities, Crypto, Global
+- **111 themes across 12 sectors**: Technology, Innovation, Clean Energy, Traditional Energy, Materials, Defense & Industrials, Financials, Healthcare, Consumer, Real Estate & Utilities, Crypto, Global
 - **Holdings cap**: 50 per theme (was 15), filtered by $300M market cap
 - **Non-blocking compute**: memory cache → disk → `{status: "computing"}`
 - **Workers**: `_MAX_WORKERS = 2` (reduced for Railway 512MB scalability)

@@ -365,7 +365,7 @@ const SHOWCASE = [
     features: [
       { name: 'UCT 20', desc: 'the leadership portfolio, ranked with live signals' },
       { name: 'Screener', desc: 'the firm’s daily vetted candidates' },
-      { name: 'Theme Tracker', desc: '99 themes, 12 sectors, 1,928 stocks' },
+      { name: 'Theme Tracker', desc: '111 themes, 12 sectors, 1,367 stocks' },
       { name: 'Breadth Monitor', desc: '20+ internals + 500-day analogue matching' },
       { name: 'COT positioning', desc: 'commitment-of-traders, refreshed weekly' },
       { name: 'RS & relative strength', desc: 'leaders sorted the moment they lead' },
@@ -413,7 +413,7 @@ const INVENTORY = [
       'Breadth Monitor — 20+ internals, eight-tier heatmap, industry groups',
       'ATR extension & 500-day analogue matching',
       'COT positioning, refreshed weekly',
-      'Theme Tracker — 99 themes, 12 sectors, 1,928 stocks',
+      'Theme Tracker — 111 themes, 12 sectors, 1,367 stocks',
       'LiveFlow — options tape, dark-pool prints, gamma exposure',
       'Flow scoreboard — who’s winning the tape today',
       'Earnings & economic calendar with analyst-rating percentiles',
@@ -570,7 +570,7 @@ const FAQS = [
 
 // Chip strips under each pillar — compact feature naming.
 const PILLAR_CHIPS = {
-  market: ['LiveFlow tape', 'Dark-pool prints', 'GEX', 'Breadth Monitor', 'COT', '99 themes', 'Stock Catalysts', 'UCT 20', 'Calendar', 'News + tweet tape', '3,685 tickers streaming'],
+  market: ['LiveFlow tape', 'Dark-pool prints', 'GEX', 'Breadth Monitor', 'COT', '111 themes', 'Stock Catalysts', 'UCT 20', 'Calendar', 'News + tweet tape', '3,742 tickers streaming'],
   charts: ['Drag-resize tiles', '4 link groups', '8 timeframes', 'Streaming bars', 'Drawing tools', 'Pattern callouts', 'Deep history', 'Mobile workspace'],
   research: ['Fundamentals widget', 'Analyst ratings & targets', 'Ownership', 'SEC filings', 'AI earnings-call recaps', 'Listen-live audio', 'Full transcripts', 'Forward estimates'],
   uct20: ['20 leadership names', 'Live RS ranking', 'Setup tags — leader / pullback / extended', 'Entry, stop & target', 'Live P&L', 'Rotates as leadership shifts'],
@@ -857,8 +857,8 @@ export default function Landing() {
               <h2 className={styles.sectionH2}>See the whole market moving. <em>Live.</em></h2>
               <p className={styles.sectionP}>
                 The options tape streaming sweeps, blocks, and dark-pool prints.
-                Breadth on an eight-tier heatmap with 500 days of analogues. 99 themes
-                across 1,928 stocks so you see rotation the moment it starts — and
+                Breadth on an eight-tier heatmap with 500 days of analogues. 111 themes
+                across 1,367 stocks so you see rotation the moment it starts — and
                 twenty vetted catalysts every morning, ranked with the reason attached.
               </p>
               <ChipRow chips={PILLAR_CHIPS.market} />
