@@ -10,11 +10,14 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const widgetIdRef = useRef(null)
   if (!widgetIdRef.current) widgetIdRef.current = `wl${Math.random().toString(36).slice(2, 9)}`
   // Scoped context: routes the wrapped Watchlists' useChartsSym calls
-  // into THIS widget's color group, not Group A.
+  // into THIS widget's color group, not Group A. setSym is a STABLE callback (not
+  // re-created when groupSyms changes) so the memoized watchlist rows' select handler
+  // stays stable across selection changes.
+  const setSym = useCallback((s) => setGroupSym(color, s), [color, setGroupSym])
   const scopedSymContext = useMemo(() => ({
     sym: groupSyms[color],
-    setSym: (s) => setGroupSym(color, s),
-  }), [groupSyms, color, setGroupSym])
+    setSym,
+  }), [groupSyms, color, setSym])
 
   const watchKey = opts?.watchKey || null
   const pick = useCallback((sel) => {
