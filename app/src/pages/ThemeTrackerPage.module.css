@@ -381,7 +381,7 @@
 .sym {
   font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 400;   /* match the % change / watchlist symbol weight (thin) */
+  font-weight: 600;
   letter-spacing: 0.5px;
   color: var(--text-bright);
 }
@@ -391,6 +391,7 @@
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
+  font-weight: 600;
   text-align: right;
   white-space: nowrap;
 }

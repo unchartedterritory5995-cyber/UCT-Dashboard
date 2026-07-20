@@ -103,7 +103,7 @@
 .gridHead {
   display: grid;
   grid-template-columns: var(--wl-grid);
-  align-items: stretch;   /* header cells full height so their gridlines meet the horizontal line */
+  align-items: center;   /* header gridlines stay short (cut off), matching the rows */
   padding: 0 8px;
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
@@ -187,13 +187,8 @@
 .listRow {
   display: grid;
   grid-template-columns: var(--wl-grid);
-  align-items: stretch;   /* cells fill the row height so vertical gridlines meet the horizontal ones */
-  /* NO vertical padding — otherwise the stretched cells (and their right borders) sit
-     inside the padding and stop short of the row's bottom border. Height comes from
-     min-height instead; the content is centered vertically inside each cell. */
-  padding: 0 8px;
-  min-height: 30px;
-  box-sizing: border-box;
+  align-items: center;   /* cells sit at content height so the vertical gridlines stay short (cut off, per preference) */
+  padding: 5px 8px;
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.11);  /* horizontal gridline */
   transition: background 0.1s;
@@ -237,9 +232,9 @@
   text-overflow: ellipsis;
 }
 /* Price + Volume match the ticker symbol EXACTLY (font, size, weight, color). */
-.priceCell, .volCell { color: var(--text-bright); font-weight: 400; }   /* match the % change weight */
+.priceCell, .volCell { color: var(--text-bright); font-weight: 600; }
 /* % Change matches Theme Tracker's .ret EXACTLY — normal weight (400), not bold. */
-.changeCell { font-weight: 400; }
+.changeCell { font-weight: 600; }
 
 /* Notes + alert actions — revealed on row hover, overlaid at the right edge so the
    default view stays clean columns. */
@@ -283,7 +278,7 @@
 .rowSym {
   font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 400;   /* match the % change value weight (thin), not the headers */
+  font-weight: 600;
   color: var(--text-bright);
   letter-spacing: 0.5px;
   flex-shrink: 0;
