@@ -107,24 +107,69 @@
   flex-shrink: 0;
 }
 .colHeaderRow > span {
+  position: relative;
   padding: 0 7px;
+  /* Labels share the EXACT font/size/color/brightness of the Price + Volume cells. */
   font-family: var(--font-sans);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: var(--text-muted);
+  color: var(--text);
+  text-align: center;   /* label centered above its column */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .colHeaderRow .hSym,
-.colHeaderRow .hPrice,
-.colHeaderRow .hVol,
-.colHeaderRow .hChg { border-left: 1px solid rgba(255, 255, 255, 0.05); }
-.colHeaderRow .hPrice,
-.colHeaderRow .hVol,
-.colHeaderRow .hChg { text-align: right; }
+.colHeaderRow .hCol { border-left: 1px solid rgba(255, 255, 255, 0.11); cursor: pointer; user-select: none; }
+.colHeaderRow .hSym:hover,
+.colHeaderRow .hCol:hover { color: var(--text-bright); }
+/* Active sort column — faint gold. */
+.colHeaderRow .hSortActive,
+.colHeaderRow .hSortActive:hover { color: var(--ut-gold, #c9a84c); }
+
+/* Drag handle sitting on a column's LEFT gridline — drag to resize that column. */
+.colResize {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  z-index: 2;
+}
+.colResize:hover { background: rgba(201, 168, 76, 0.35); }
+
+/* Column right-click menu (hide/show columns) */
+.colMenu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 150px;
+  background: var(--bg-elevated, #16181c);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,0.5));
+}
+.colMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-bright, #e0dac8);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.colMenuItem:hover { background: var(--bg-hover, #2a2d24); }
+.colMenuCheck { width: 12px; color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
+.colMenuDivider { height: 1px; background: var(--border, #2e3127); margin: 4px 0; }
 
 .listRow {
   display: grid;
@@ -132,13 +177,13 @@
   align-items: center;
   padding: 5px 8px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);  /* horizontal gridline */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.11);  /* horizontal gridline */
   transition: background 0.1s;
   position: relative;
 }
-/* Cell padding + faint vertical gridlines between columns. */
+/* Cell padding + vertical gridlines between columns. */
 .listRow > * { padding: 0 7px; }
-.symCell, .priceCell, .volCell, .changeCell { border-left: 1px solid rgba(255, 255, 255, 0.05); }
+.symCell, .priceCell, .volCell, .changeCell { border-left: 1px solid rgba(255, 255, 255, 0.11); }
 
 /* Flag star (leftmost column) — filled = in Flagged list; click toggles flag. */
 .flagStar {
@@ -160,13 +205,14 @@
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
+  font-weight: 600;
   text-align: right;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.priceCell { color: var(--text); }
-.volCell { color: var(--text-muted); }
+/* Price + Volume share the header labels' exact color/brightness. */
+.priceCell, .volCell { color: var(--text); }
 .changeCell { font-weight: 600; }
 
 /* Notes + alert actions — revealed on row hover, overlaid at the right edge so the

@@ -21,6 +21,14 @@ import { useChartsSym } from './charts/ChartsSymContext'
 const fetcher = url => fetch(url).then(r => r.json())
 const PERIODS = [['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']]
 const PERF_COLS = [['1d', '1D'], ['1w', '1W'], ['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD']]
+// Configurable columns (right-click a header to hide/show, drag a gridline to resize).
+// Flag + Sym are fixed (star + identity). Persisted per-user in localStorage.
+const OPTIONAL_COLS = [
+  { key: 'price', label: 'Price', def: 62, min: 44 },
+  { key: 'vol', label: 'Vol', def: 56, min: 40 },
+  { key: 'chg', label: '% Chg', def: 68, min: 50 },
+]
+const WL_COLS_LS = 'uct.watchlist.cols'
 const COL_PRESETS = {
   'Price View': new Set(),
   'Performance': new Set(['1d', '1w', '1m', '3m', 'ytd']),
@@ -513,6 +521,90 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   const currentLists = activeTab === 'mine' ? myLists : communityLists
 
+  // ── Configurable + sortable columns (persisted per-user in localStorage) ──
+  const [colCfg, setColCfg] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(WL_COLS_LS)) || {} } catch { return {} }
+  })
+  const saveColCfg = useCallback((next) => {
+    setColCfg(next)
+    try { localStorage.setItem(WL_COLS_LS, JSON.stringify(next)) } catch { /* ignore */ }
+  }, [])
+  const [liveResize, setLiveResize] = useState(null)   // {key,width} during a drag
+  const [colMenu, setColMenu] = useState(null)         // {x,y} right-click menu
+  const colHidden = colCfg.hidden || {}
+  const colSort = colCfg.sort || null                  // {key, dir} | null
+  const colWidth = (k) => {
+    if (liveResize?.key === k) return liveResize.width
+    return colCfg.widths?.[k] ?? OPTIONAL_COLS.find(c => c.key === k)?.def
+  }
+  const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
+  const gridTemplate = ['26px', 'minmax(0,1fr)', ...visibleOptional.map(c => `${colWidth(c.key)}px`)].join(' ')
+
+  // Drag a header gridline (handle on the column's LEFT edge) to resize that column.
+  const startColResize = (e, key) => {
+    e.preventDefault(); e.stopPropagation()
+    const startX = e.clientX
+    const startW = colWidth(key)
+    const min = OPTIONAL_COLS.find(c => c.key === key)?.min || 40
+    const calc = (ev) => Math.max(min, Math.round(startW - (ev.clientX - startX)))
+    const onMove = (ev) => setLiveResize({ key, width: calc(ev) })
+    const onUp = (ev) => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      const w = calc(ev)
+      setLiveResize(null)
+      saveColCfg({ ...colCfg, widths: { ...(colCfg.widths || {}), [key]: w } })
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+  const toggleColHidden = (key) => saveColCfg({ ...colCfg, hidden: { ...colHidden, [key]: !colHidden[key] } })
+  const handleColSort = (key) => {
+    const next = (!colSort || colSort.key !== key)
+      ? { key, dir: key === 'sym' ? 'asc' : 'desc' }   // first click: sym A→Z, numbers high→low
+      : { key, dir: colSort.dir === 'asc' ? 'desc' : 'asc' }
+    saveColCfg({ ...colCfg, sort: next })
+  }
+  // Sort an array of symbols by the active column (used by every list render).
+  const applyColSort = (syms) => {
+    if (!colSort) return syms
+    const { key, dir } = colSort
+    const mul = dir === 'asc' ? 1 : -1
+    const num = (s) => {
+      const q = prices[s]
+      if (key === 'price') return q?.price ?? -Infinity
+      if (key === 'vol') return q?.volume ?? -Infinity
+      if (key === 'chg') return q?.change_pct ?? -Infinity
+      return 0
+    }
+    return [...syms].sort((a, b) => key === 'sym'
+      ? mul * String(a).localeCompare(String(b))
+      : mul * (num(a) - num(b)))
+  }
+  const sortArrow = (key) => (colSort?.key === key ? (colSort.dir === 'asc' ? ' ▲' : ' ▼') : '')
+
+  // Column header (Flag · Sym · Price · Volume · % Change): click a label to sort,
+  // right-click to hide/show columns, drag a gridline to resize.
+  const columnHeader = (
+    <div className={styles.colHeaderRow} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
+      <span className={styles.hFlag} />
+      <span
+        className={`${styles.hSym}${colSort?.key === 'sym' ? ' ' + styles.hSortActive : ''}`}
+        onClick={() => handleColSort('sym')}
+      >Sym{sortArrow('sym')}</span>
+      {visibleOptional.map(c => (
+        <span
+          key={c.key}
+          className={`${styles.hCol}${colSort?.key === c.key ? ' ' + styles.hSortActive : ''}`}
+          onClick={() => handleColSort(c.key)}
+        >
+          <span className={styles.colResize} onMouseDown={e => startColResize(e, c.key)} onClick={e => e.stopPropagation()} />
+          {c.label}{sortArrow(c.key)}
+        </span>
+      ))}
+    </div>
+  )
+
   // Compact volume: 24.0M / 205K / 1.2B.
   const fmtVol = (v) => {
     if (v == null || !Number.isFinite(v)) return '—'
@@ -521,17 +613,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (v >= 1e3) return (v / 1e3).toFixed(v >= 1e5 ? 0 : 1) + 'K'
     return String(v)
   }
-
-  // Column header row (Flag · Sym · Price · Volume · % Change) shown atop every list.
-  const columnHeader = (
-    <div className={styles.colHeaderRow}>
-      <span className={styles.hFlag} />
-      <span className={styles.hSym}>Sym</span>
-      <span className={styles.hPrice}>Price</span>
-      <span className={styles.hVol}>Vol</span>
-      <span className={styles.hChg}>% Chg</span>
-    </div>
-  )
 
   // Shared columnar ticker row: Flag(star) | Symbol(logo) | Price | Volume | % Change.
   // The star reflects + toggles Flagged-list membership. Owner rows reveal notes +
@@ -561,11 +642,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={16} round /></span>
           <span className={styles.rowSym}>{sym}</span>
         </span>
-        <span className={styles.priceCell}>{price != null ? price.toFixed(2) : '—'}</span>
-        <span className={styles.volCell}>{fmtVol(volume)}</span>
-        <span className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
-          {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
-        </span>
+        {!colHidden.price && <span className={styles.priceCell}>{price != null ? price.toFixed(2) : '—'}</span>}
+        {!colHidden.vol && <span className={styles.volCell}>{fmtVol(volume)}</span>}
+        {!colHidden.chg && (
+          <span className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
+            {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
+          </span>
+        )}
         {isOwner && (
           <div className={styles.rowActions} onClick={e => e.stopPropagation()}>
             <button
@@ -638,7 +721,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         </div>
 
         {open && (() => {
-          const sortedItems = sortAndFilterItems(items)
+          let sortedItems = sortAndFilterItems(items)
+          if (colSort) {
+            const order = applyColSort(sortedItems.map(i => i.sym))
+            sortedItems = order.map(s => sortedItems.find(i => i.sym === s)).filter(Boolean)
+          }
           const dragOk = isOwner && !sortBy
           return (
           <div className={styles.wlItems}>
@@ -745,7 +832,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <div className={styles.wlItems}>
             {flagged.length === 0 ? (
               <div className={styles.wlEmpty}>No flagged tickers. Press <strong>Shift+F</strong> on any chart.</div>
-            ) : flagged.map(sym => renderTickerRow({ sym }))}
+            ) : applyColSort(flagged).map(sym => renderTickerRow({ sym }))}
           </div>
         )}
       </div>
@@ -835,7 +922,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         )}
 
         {/* Body */}
-        <div className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}`}>
+        <div className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}`} style={{ '--wl-grid': gridTemplate }}>
 
           {columnHeader}
 
@@ -865,7 +952,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                     </div>
                     {open && (
                       <div className={styles.wlItems}>
-                        {syms.map(sym => renderTickerRow({ sym }))}
+                        {applyColSort(syms).map(sym => renderTickerRow({ sym }))}
                       </div>
                     )}
                   </div>
@@ -909,7 +996,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                     </div>
                     {open && (
                       <div className={styles.wlItems}>
-                        {ct.symbols.map(sym => renderTickerRow({ sym }))}
+                        {applyColSort(ct.symbols).map(sym => renderTickerRow({ sym }))}
                       </div>
                     )}
                   </div>
@@ -1046,6 +1133,24 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Column right-click menu (hide/show columns) ── */}
+      {colMenu && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 2999 }} onClick={() => setColMenu(null)} onContextMenu={e => { e.preventDefault(); setColMenu(null) }} />
+          <div className={styles.colMenu} style={{ left: Math.min(colMenu.x, window.innerWidth - 170), top: Math.min(colMenu.y, window.innerHeight - 180) }}>
+            <div style={{ padding: '4px 10px 6px', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>Columns</div>
+            {OPTIONAL_COLS.map(c => (
+              <button key={c.key} type="button" className={styles.colMenuItem} onClick={() => toggleColHidden(c.key)}>
+                <span className={styles.colMenuCheck}>{!colHidden[c.key] ? <UIcon name="check" size={11} /> : null}</span>
+                {c.label}
+              </button>
+            ))}
+            <div className={styles.colMenuDivider} />
+            <button type="button" className={styles.colMenuItem} onClick={() => { saveColCfg({}); setColMenu(null) }}>Reset columns</button>
+          </div>
+        </>
       )}
 
       {/* ── Alert popover ── */}

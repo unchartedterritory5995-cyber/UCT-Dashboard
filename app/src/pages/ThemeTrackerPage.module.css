@@ -337,6 +337,22 @@
   flex-shrink: 0;
 }
 
+/* Flag star before each holding — filled = in Flagged list; click toggles flag. */
+.flagStar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.22);
+  padding: 0;
+  margin-right: 7px;
+  flex-shrink: 0;
+}
+.flagStar:hover { color: var(--ut-gold, #c9a84c); }
+.flagStarActive { color: var(--ut-gold, #c9a84c); }
+
 .stockRow:hover {
   background: var(--bg-hover);
 }

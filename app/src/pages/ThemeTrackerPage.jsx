@@ -123,6 +123,7 @@ function ReturnCell({ value, baseClass }) {
 }
 
 function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices }) {
+  const { isFlagged, toggle: toggleFlag } = useFlagged()
   const isPortfolio = theme.ticker === 'UCT20'
   const groupLive = liveGroupReturn(theme, activeKey, prices)
   const momentumDelta = rotationRanking?.momentum_delta
@@ -182,6 +183,11 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
             {...(tickerActions ? tickerActions.longPressProps(h.sym) : {})}
           >
             <span className={styles.stockLabel}>
+              <button
+                className={`${styles.flagStar}${isFlagged(h.sym) ? ' ' + styles.flagStarActive : ''}`}
+                onClick={e => { e.stopPropagation(); toggleFlag(h.sym) }}
+                title={isFlagged(h.sym) ? 'Remove from Flagged' : 'Add to Flagged'}
+              >{isFlagged(h.sym) ? <UIcon name="star-fill" size={12} /> : <UIcon name="star" size={12} />}</button>
               <span className={styles.stockLogo}><CompanyLogo sym={h.sym} name={h.name} size={16} round /></span>
               {getTag && getTag(h.sym) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(h.sym)]?.hex, marginRight: 4 }} />}
               <span className={styles.sym}>{h.sym}</span>
