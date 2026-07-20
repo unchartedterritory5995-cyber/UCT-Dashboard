@@ -73,11 +73,12 @@ describe('pooled useRealtimePrices', () => {
     expect(openInstances()).toHaveLength(0)
   })
 
-  it('REST change_pct wins over the stream (a stream 0 must not blank the %)', async () => {
+  it('recomputes the % live from the streamed price + REST prev_close (ticks live, never flashes the stream 0)', async () => {
     vi.useFakeTimers()
     const { default: useLivePrices } = await import('./useLivePrices')
+    // Regular session (ext_session null): REST supplies the OFFICIAL prev_close.
     useLivePrices.mockReturnValue({
-      prices: { AAPL: { price: 100, change_pct: 5.2, change: 4.9, prev_close: 95 } },
+      prices: { AAPL: { price: 100, change_pct: 5.2, change: 4.9, prev_close: 95, ext_session: null } },
       isLoading: false,
     })
     const { default: useRealtimePrices } = await import('./useRealtimePrices')
@@ -92,8 +93,37 @@ describe('pooled useRealtimePrices', () => {
     })
 
     const px = a.result.current.prices.AAPL
-    expect(px.price).toBe(100.5)     // stream drives the live price
-    expect(px.change_pct).toBe(5.2)  // …but REST's change_pct WINS (not the stream's 0)
+    expect(px.price).toBe(100.5)                 // stream drives the live price
+    // % is recomputed from the LIVE price vs the official prev close — it TICKS with
+    // the streamed price and IGNORES the stream's spurious 0 (no 0.00% flash) AND is
+    // NOT frozen at REST's stale 5.2.
+    expect(px.change_pct).toBeCloseTo(((100.5 - 95) / 95) * 100, 6)
+    expect(px.change).toBeCloseTo(100.5 - 95, 6)
+    a.unmount()
+  })
+
+  it('extended hours keeps REST’s frozen regular-session % (an after-hours print must not move the day %)', async () => {
+    vi.useFakeTimers()
+    const { default: useLivePrices } = await import('./useLivePrices')
+    // Post-market: ext_session set → do NOT recompute from the ext price.
+    useLivePrices.mockReturnValue({
+      prices: { AAPL: { price: 100, change_pct: 5.2, change: 4.9, prev_close: 95, ext_session: 'post' } },
+      isLoading: false,
+    })
+    const { default: useRealtimePrices } = await import('./useRealtimePrices')
+    const mgr = await import('../lib/priceStreamManager')
+
+    const a = renderHook(() => useRealtimePrices(['AAPL']))
+    act(() => { vi.advanceTimersByTime(mgr.REBUILD_DEBOUNCE_MS + 10) })
+    const es = openInstances()[0]
+    act(() => {
+      es.emitOpen()
+      es.emitMessage({ AAPL: { price: 102, change_pct: 7.4, change: 7 } }) // after-hours pop
+    })
+
+    const px = a.result.current.prices.AAPL
+    expect(px.price).toBe(102)       // stream still drives the live (ext) price
+    expect(px.change_pct).toBe(5.2)  // …but the day % stays REST's frozen regular-session value
     expect(px.change).toBe(4.9)
     a.unmount()
   })

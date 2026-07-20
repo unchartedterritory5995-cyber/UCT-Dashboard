@@ -27,6 +27,32 @@ import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } 
 const EMPTY_SNAPSHOT = Object.freeze({ prices: Object.freeze({}), staleSymbols: new Set(), connected: false })
 const getEmptySnapshot = () => EMPTY_SNAPSHOT
 
+// Set merged.change_pct / merged.change so the day % TICKS with every trade.
+//
+// The day % drives the header day-change, the chart legend %, the watchlist %, and
+// the theme %. We deliberately do NOT trust the SSE stream's own change_pct: its
+// prev_close isn't seeded, so it flashes 0.00% (that's why % used to be routed
+// straight from the server). But the REST feed is 15s-cached, so sourcing % ONLY
+// from it pinned every % to a 15s cadence — the "not updating / updating slowly"
+// regression. Instead we recompute the REGULAR-SESSION % on the client from the
+// live streamed price + the OFFICIAL prev close (REST): it ticks with every trade
+// AND can't flash 0 (the streamed PRICE is a real trade; a bad/≤0 price or missing
+// prev close falls back to the server %). Extended hours keeps REST's frozen
+// regular-session % — a post-market print must not move the day % — detected via
+// ext_session (null only during regular trading).
+function _applyLiveChange(merged, rest) {
+  if (!rest) return
+  const px = Number(merged.price)
+  const prevClose = Number(rest.prev_close)
+  if (rest.ext_session == null && px > 0 && prevClose > 0) {
+    merged.change_pct = ((px - prevClose) / prevClose) * 100
+    merged.change = px - prevClose
+  } else {
+    if (rest.change_pct != null) merged.change_pct = rest.change_pct
+    if (rest.change != null) merged.change = rest.change
+  }
+}
+
 function usePooledRealtimePrices(tickers = []) {
   // Massive REST polling always runs (2s) — provides session OHLC + volume
   const { prices: polledPrices, isLoading } = useLivePrices(tickers)
@@ -55,15 +81,7 @@ function usePooledRealtimePrices(tickers = []) {
     for (const sym of tickerSet) {
       const rest = polledPrices[sym]
       const merged = { ...rest, ...snap.prices[sym] }
-      // change_pct / change come from REST (server-recomputed: regular-session move
-      // vs prev close). The SSE stream's change_pct can be a STALE prior-session
-      // value or a spurious 0 (its prev_close isn't seeded when there are no live
-      // trades, e.g. weekends/after-hours). Letting it override REST is what made
-      // the header + theme % flash to 0.00%. REST wins; stream still drives price.
-      if (rest) {
-        if (rest.change_pct != null) merged.change_pct = rest.change_pct
-        if (rest.change != null) merged.change = rest.change
-      }
+      _applyLiveChange(merged, rest)
       if (merged.price != null || merged.day_open != null) result[sym] = merged
     }
     return result
@@ -248,13 +266,7 @@ function useLegacyRealtimePrices(tickers = []) {
     for (const sym of tickerSet) {
       const rest = polledPrices[sym]
       const merged = { ...rest, ...streamPrices[sym] }
-      // change_pct / change come from REST — the SSE stream's value can be a stale
-      // prior-session number or a spurious 0 (unseeded prev_close on weekends /
-      // after-hours), and overriding REST is what flashed the % to 0.00%.
-      if (rest) {
-        if (rest.change_pct != null) merged.change_pct = rest.change_pct
-        if (rest.change != null) merged.change = rest.change
-      }
+      _applyLiveChange(merged, rest)
       if (merged.price != null || merged.day_open != null) result[sym] = merged
     }
     return result
