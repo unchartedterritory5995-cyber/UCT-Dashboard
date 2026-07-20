@@ -1387,10 +1387,13 @@
 }
 
 /* ── Live tick flash ── quick bold (+ green/red bg tint on the % column) each
-   time a cell's value updates, mirroring the Theme Tracker's ReturnCell. */
+   time a cell's value updates, mirroring the Theme Tracker's ReturnCell. The tint
+   rides this content-sized inner box so it hugs the value (a small rounded box),
+   not the full-width grid cell. */
+.tickInner { display: inline-block; padding: 0 2px; border-radius: 3px; }
 .tickFlash { font-weight: 800; }
-.tickUp   { animation: wlTickUp 0.48s ease-out; border-radius: 3px; }
-.tickDown { animation: wlTickDown 0.48s ease-out; border-radius: 3px; }
+.tickUp   { animation: wlTickUp 0.48s ease-out; }
+.tickDown { animation: wlTickDown 0.48s ease-out; }
 @keyframes wlTickUp {
   0%   { background: rgba(26, 229, 26, 0.28); }
   100% { background: transparent; }

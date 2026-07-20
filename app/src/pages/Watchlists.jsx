@@ -80,7 +80,13 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
   const flash = dir
     ? `${styles.tickFlash}${tint ? ' ' + (dir === 'up' ? styles.tickUp : styles.tickDown) : ''}`
     : ''
-  return <span className={`${className}${flash ? ' ' + flash : ''}`}>{display}</span>
+  // The tint/bold ride an INNER content-sized box so the flash hugs the value
+  // (like Theme Tracker), not the full-width grid cell. Outer keeps cell layout.
+  return (
+    <span className={className}>
+      <span className={`${styles.tickInner}${flash ? ' ' + flash : ''}`}>{display}</span>
+    </span>
+  )
 })
 
 // Memoized columnar ticker row: Flag(star) | Symbol(logo) | Price | Volume | % Change.
