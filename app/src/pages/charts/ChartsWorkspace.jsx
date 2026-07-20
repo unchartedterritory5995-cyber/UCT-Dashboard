@@ -256,10 +256,17 @@ export default function ChartsWorkspace() {
     return { A: null, B: null, C: null, D: null }
   })
 
+  // The linked ticker updates INSTANTLY (state), but persisting it is debounced —
+  // otherwise fast arrow-scanning fires a POST /api/auth/preferences per keypress
+  // (+ an optimistic SWR mutate that re-renders every prefs consumer). 400ms trailing.
+  const groupsSaveTimerRef = useRef(null)
   const setGroupSym = useCallback((color, sym) => {
     setGroupSymsState(prev => {
       const next = { ...prev, [color]: sym }
-      setPref('charts_workspace_groups', JSON.stringify(next))
+      if (groupsSaveTimerRef.current) clearTimeout(groupsSaveTimerRef.current)
+      groupsSaveTimerRef.current = setTimeout(() => {
+        setPref('charts_workspace_groups', JSON.stringify(next))
+      }, 400)
       return next
     })
   }, [setPref])
@@ -280,6 +287,10 @@ export default function ChartsWorkspace() {
   // Ref (not state) so hover crossings never re-render anything; each widget's
   // StockChart reads it through a hotkeysActive callback at keydown time.
   const activeChartRef = useRef(null)
+  // Same idea for watchlists: the last hovered/focused Watchlist widget owns the
+  // arrow keys + its own scroll-into-view, so 4 watchlists don't all fight over one
+  // keypress (first-mounted-wins race) or all force a reflow on every selection.
+  const activeWatchlistRef = useRef(null)
 
   // AI-search bus: a chart's "AI search" context action routes a query to any
   // mounted AI Search widget; request() returns false when none exist so the
@@ -298,7 +309,7 @@ export default function ChartsWorkspace() {
   const setChartsTheme = useCallback((t) => setPref('charts_theme', t), [setPref])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef }),
+    () => ({ groupSyms, setGroupSym, chartsTheme, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
     [groupSyms, setGroupSym, chartsTheme],
   )
 

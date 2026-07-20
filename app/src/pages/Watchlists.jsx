@@ -71,7 +71,10 @@ function AddItemRow({ onAdd }) {
   )
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null }) {
+  // This widget is "active" (owns arrow keys + its own scroll) when hovered/focused.
+  const isActiveWidget = () => !activeRef || activeRef.current == null || activeRef.current === widgetKey
+  const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
   const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)
   const { sym: hubSym, setSym: setHubSym } = useChartsSym()
@@ -381,6 +384,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // Don't hijack arrows while user is typing in an input/textarea/contenteditable
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
+    // Only the ACTIVE watchlist widget handles arrows — otherwise all 4 widgets race
+    // over one keypress (first-mounted wins) and navigate the wrong list.
+    if (activeRef && activeRef.current != null && activeRef.current !== widgetKey) return
 
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       // Derive the order straight from the DOM (the actual on-screen order) so arrow
@@ -435,6 +441,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const pageRef = useRef(null)
   useEffect(() => {
     if (!selectedSym || !pageRef.current) return
+    // Only the active widget scrolls — otherwise all 4 watchlists force a synchronous
+    // reflow on every selection change (the big cost when scanning up / wrapping).
+    if (!isActiveWidget()) return
     const row = pageRef.current.querySelector(`[data-watch-sym="${CSS.escape(selectedSym)}"]`)
     if (row && typeof row.scrollIntoView === 'function') {
       row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
@@ -905,7 +914,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }
 
   return (
-    <div ref={pageRef} className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}>
+    <div ref={pageRef} className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`} onPointerEnter={markActiveWidget} onFocusCapture={markActiveWidget}>
 
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>

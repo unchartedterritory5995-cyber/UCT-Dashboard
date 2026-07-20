@@ -32,7 +32,16 @@ const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
 export default function ChartWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
-  const sym = groupSyms[color] || 'SPY'
+  // Debounce the linked ticker (~90ms): during a fast arrow-scan through a watchlist,
+  // the group sym changes many times/sec — without this every intermediate ticker
+  // runs the full StockChart fetch/framing pipeline and the charts fall behind. The
+  // chart settles on the ticker you land on when the scan pauses.
+  const groupSym = groupSyms[color] || 'SPY'
+  const [sym, setSym] = useState(groupSym)
+  useEffect(() => {
+    const t = setTimeout(() => setSym(groupSym), 90)
+    return () => clearTimeout(t)
+  }, [groupSym])
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { data: fund } = useFundamentalSnapshot(sym)

@@ -1,11 +1,14 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useRef } from 'react'
 import Watchlists from '../../Watchlists'
 import WatchlistPicker from './WatchlistPicker'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym } = useWorkspace()
+  const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace()
+  // Stable id so this widget can claim "active" (owns arrow keys + its own scroll).
+  const widgetIdRef = useRef(null)
+  if (!widgetIdRef.current) widgetIdRef.current = `wl${Math.random().toString(36).slice(2, 9)}`
   // Scoped context: routes the wrapped Watchlists' useChartsSym calls
   // into THIS widget's color group, not Group A.
   const scopedSymContext = useMemo(() => ({
@@ -34,6 +37,8 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         pickList={watchKey}
         pickName={opts?.watchName || null}
         onExitPick={exitPick}
+        activeRef={activeWatchlistRef}
+        widgetKey={widgetIdRef.current}
       />
     </ChartsSymContext.Provider>
   )
