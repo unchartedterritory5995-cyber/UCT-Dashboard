@@ -91,15 +91,99 @@
 }
 
 /* ── List rows ── */
-.listRow {
-  display: flex;
+/* ── Columnar watchlist: Flag(star) · Symbol · Price · Volume · % Change ── */
+.listBody { --wl-grid: 26px minmax(0, 1fr) 62px 56px 66px; }
+
+.colHeaderRow {
+  display: grid;
+  grid-template-columns: var(--wl-grid);
   align-items: center;
-  padding: 6px 12px;   /* tighter, matches Theme Tracker row density */
-  cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  transition: background 0.1s;
-  gap: 5px;
+  padding: 5px 8px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex-shrink: 0;
 }
+.colHeaderRow > span {
+  padding: 0 7px;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.colHeaderRow .hSym,
+.colHeaderRow .hPrice,
+.colHeaderRow .hVol,
+.colHeaderRow .hChg { border-left: 1px solid rgba(255, 255, 255, 0.05); }
+.colHeaderRow .hPrice,
+.colHeaderRow .hVol,
+.colHeaderRow .hChg { text-align: right; }
+
+.listRow {
+  display: grid;
+  grid-template-columns: var(--wl-grid);
+  align-items: center;
+  padding: 5px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);  /* horizontal gridline */
+  transition: background 0.1s;
+  position: relative;
+}
+/* Cell padding + faint vertical gridlines between columns. */
+.listRow > * { padding: 0 7px; }
+.symCell, .priceCell, .volCell, .changeCell { border-left: 1px solid rgba(255, 255, 255, 0.05); }
+
+/* Flag star (leftmost column) — filled = in Flagged list; click toggles flag. */
+.flagStar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.22);
+  padding: 0 4px;
+}
+.flagStar:hover { color: var(--ut-gold); }
+.flagStarActive { color: var(--ut-gold); }
+
+.symCell { display: inline-flex; align-items: center; min-width: 0; }
+
+.priceCell, .volCell, .changeCell {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.priceCell { color: var(--text); }
+.volCell { color: var(--text-muted); }
+.changeCell { font-weight: 600; }
+
+/* Notes + alert actions — revealed on row hover, overlaid at the right edge so the
+   default view stays clean columns. */
+.rowActions {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding-left: 8px;
+  background: var(--bg-surface);
+  box-shadow: -8px 0 8px -4px var(--bg-surface);
+}
+.listRow:hover .rowActions { display: inline-flex; }
 
 /* Round company logo before the ticker — mirrors Theme Tracker's .stockLogo. */
 .rowLogo {
@@ -108,7 +192,7 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-  margin-right: 2px;
+  margin-right: 7px;
   flex-shrink: 0;
 }
 
@@ -408,7 +492,7 @@
    group's own accordion header (the redundant second row); drop the group indent
    so the star hugs the left edge; and don't box the items separately. */
 .pickMode .wlHeader { display: none; }
-.pickMode .wlRow { padding-left: 10px; }
+.pickMode .wlRow { padding-left: 4px; }   /* single-list: star hugs the left edge */
 .pickMode .wlItems { background: transparent; border-top: none; }
 
 .tabBtn {
@@ -1043,7 +1127,7 @@
 }
 
 .wlRow {
-  padding-left: 28px;
+  padding-left: 16px;   /* small group indent; the grid columns carry the layout now */
 }
 
 .wlDesc {

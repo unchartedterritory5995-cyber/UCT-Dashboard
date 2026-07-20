@@ -513,6 +513,80 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   const currentLists = activeTab === 'mine' ? myLists : communityLists
 
+  // Compact volume: 24.0M / 205K / 1.2B.
+  const fmtVol = (v) => {
+    if (v == null || !Number.isFinite(v)) return '—'
+    if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B'
+    if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
+    if (v >= 1e3) return (v / 1e3).toFixed(v >= 1e5 ? 0 : 1) + 'K'
+    return String(v)
+  }
+
+  // Column header row (Flag · Sym · Price · Volume · % Change) shown atop every list.
+  const columnHeader = (
+    <div className={styles.colHeaderRow}>
+      <span className={styles.hFlag} />
+      <span className={styles.hSym}>Sym</span>
+      <span className={styles.hPrice}>Price</span>
+      <span className={styles.hVol}>Vol</span>
+      <span className={styles.hChg}>% Chg</span>
+    </div>
+  )
+
+  // Shared columnar ticker row: Flag(star) | Symbol(logo) | Price | Volume | % Change.
+  // The star reflects + toggles Flagged-list membership. Owner rows reveal notes +
+  // alert icons on hover (overlaid at the right). name/isOwner/notes are optional.
+  function renderTickerRow({ sym, name = null, isOwner = false, itemId = null, notes = null, onCtx = null, onRemove = null }) {
+    const q = prices[sym]
+    const price = q?.price ?? null
+    const changePct = q?.change_pct ?? null
+    const volume = q?.volume ?? null
+    const flg = isFlagged(sym)
+    const selected = selectedSym === sym
+    return (
+      <div
+        key={sym}
+        data-watch-sym={sym}
+        className={`${styles.listRow} ${styles.wlRow}${selected ? ' ' + styles.listRowSelected : ''}`}
+        onClick={() => { setSelectedSym(sym); setHubSym(sym) }}
+        onPointerEnter={() => prefetchBarOnIntent(sym, 'D')}
+        onFocus={() => prefetchBarOnIntent(sym, 'D')}
+      >
+        <button
+          className={`${styles.flagStar}${flg ? ' ' + styles.flagStarActive : ''}`}
+          onClick={e => { e.stopPropagation(); toggleFlag(sym) }}
+          title={flg ? 'Remove from Flagged' : 'Add to Flagged (Shift+F)'}
+        >{flg ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
+        <span className={styles.symCell} onContextMenu={onCtx || undefined}>
+          <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={16} round /></span>
+          <span className={styles.rowSym}>{sym}</span>
+        </span>
+        <span className={styles.priceCell}>{price != null ? price.toFixed(2) : '—'}</span>
+        <span className={styles.volCell}>{fmtVol(volume)}</span>
+        <span className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}>
+          {changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
+        </span>
+        {isOwner && (
+          <div className={styles.rowActions} onClick={e => e.stopPropagation()}>
+            <button
+              className={`${styles.noteBtn}${expandedNote === itemId ? ' ' + styles.noteBtnActive : ''}`}
+              onClick={() => toggleNote(itemId, notes)}
+              title="Notes"
+            ><UIcon name="edit" size={12} /></button>
+            <button
+              className={`${styles.alertBtn}${hasAlert(sym) ? ' ' + styles.alertBtnActive : ''}`}
+              onClick={e => { setAlertPopover({ sym, x: e.clientX, y: e.clientY }); setAlertPrice(''); setAlertDir('above') }}
+              title="Set price alert"
+            ><UIcon name="bell" size={12} /></button>
+            {onRemove && (
+              <button className={styles.removeBtn} onClick={onRemove} title="Remove from this list">×</button>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // ── Render a watchlist accordion group ──
   function renderWatchlistGroup(wl, isOwner) {
     const open = expandedLists.has(wl.id)
@@ -589,68 +663,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               const isStarred = starred.has(`${wl.id}:${item.sym}`)
               return (
                 <React.Fragment key={item.id}>
-                  <div
-                    data-watch-sym={item.sym}
-                    className={`${styles.listRow} ${styles.wlRow}${selectedSym === item.sym ? ' ' + styles.listRowSelected : ''}${dragItemId === item.id ? ' ' + styles.dragging : ''}${dragOverId === item.id ? ' ' + styles.dragOver : ''}`}
-                    onClick={() => { setSelectedSym(item.sym); setHubSym(item.sym); }}
-                    onPointerEnter={() => prefetchBarOnIntent(item.sym, 'D')}
-                    onFocus={() => prefetchBarOnIntent(item.sym, 'D')}
-                    draggable={dragOk}
-                    onDragStart={dragOk ? e => { e.dataTransfer.effectAllowed = 'move'; setDragItemId(item.id) } : undefined}
-                    onDragOver={dragOk ? e => { e.preventDefault(); setDragOverId(item.id) } : undefined}
-                    onDrop={dragOk ? e => { e.preventDefault(); handleDrop(wl.id, items) } : undefined}
-                    onDragEnd={() => { setDragItemId(null); setDragOverId(null) }}
-                  >
-                    {dragOk && <span className={styles.dragHandle}>⠿</span>}
-                    <button
-                      className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
-                      onClick={e => { e.stopPropagation(); toggleStar(wl.id, item.sym) }}
-                      title={isStarred ? 'Unstar' : 'Star'}
-                    >{isStarred ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
-                    {getTag(item.sym) && (
-                      <span className={styles.tagDot} style={{ background: TAG_BY_KEY[getTag(item.sym)]?.hex }} title={TAG_BY_KEY[getTag(item.sym)]?.label} />
-                    )}
-                    <span className={styles.rowLogo}><CompanyLogo sym={item.sym} name={item.name} size={16} round /></span>
-                    <span
-                      className={styles.rowSym}
-                      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY, id: wl.id, isOwner, symbols: items.map(i => i.sym), sym: item.sym }) }}
-                      {...longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), id: wl.id, isOwner, symbols: items.map(i => i.sym), sym: item.sym }))}
-                    >{item.sym}</span>
-                    {item.notes && <span className={styles.noteIndicator} title="Has notes">...</span>}
-                    <div className={styles.rowRight}>
-                      {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
-                      {changePct != null && (
-                        <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
-                          {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
-                        </span>
-                      )}
-                      {PERF_COLS.filter(([k]) => visiblePerf.has(k)).map(([k, label]) => {
-                        const val = perfData[item.sym]?.[k]
-                        return (
-                          <span key={k} className={`${styles.perfCell} ${changePctClass(val)}`} title={label}>
-                            {val != null ? `${val > 0 ? '+' : ''}${val.toFixed(1)}%` : '—'}
-                          </span>
-                        )
-                      })}
-                      <button
-                        className={`${styles.noteBtn}${expandedNote === item.id ? ' ' + styles.noteBtnActive : ''}`}
-                        onClick={e => { e.stopPropagation(); toggleNote(item.id, item.notes) }}
-                        title="Notes"
-                      ><UIcon name="edit" size={13} /></button>
-                      <button
-                        className={`${styles.alertBtn}${hasAlert(item.sym) ? ' ' + styles.alertBtnActive : ''}`}
-                        onClick={e => { e.stopPropagation(); setAlertPopover({ sym: item.sym, x: e.clientX, y: e.clientY }); setAlertPrice(''); setAlertDir('above') }}
-                        title="Set price alert"
-                      ><UIcon name="bell" size={13} /></button>
-                      {isOwner && (
-                        <button
-                          className={styles.removeBtn}
-                          onClick={e => { e.stopPropagation(); handleRemoveItem(wl.id, item.id) }}
-                          title="Remove"
-                        >×</button>
-                      )}
-                    </div>
-                  </div>
+                  {renderTickerRow({
+                    sym: item.sym,
+                    name: item.name,
+                    isOwner,
+                    itemId: item.id,
+                    notes: item.notes,
+                    onCtx: e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY, id: wl.id, isOwner, symbols: items.map(i => i.sym), sym: item.sym }) },
+                    onRemove: isOwner ? (e => { e.stopPropagation(); handleRemoveItem(wl.id, item.id) }) : null,
+                  })}
                   {expandedNote === item.id && (
                     <div className={styles.noteRow}>
                       {isOwner ? (
@@ -724,50 +745,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <div className={styles.wlItems}>
             {flagged.length === 0 ? (
               <div className={styles.wlEmpty}>No flagged tickers. Press <strong>Shift+F</strong> on any chart.</div>
-            ) : flagged.map(sym => {
-              const q = prices[sym]
-              const price = q?.price ?? null
-              const changePct = q?.change_pct ?? null
-              const isStarred = starred.has(`flagged:${sym}`)
-              return (
-                <div
-                  key={sym}
-                  data-watch-sym={sym}
-                  className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
-                  onClick={() => { setSelectedSym(sym); setHubSym(sym); }}
-                  onPointerEnter={() => prefetchBarOnIntent(sym, 'D')}
-                  onFocus={() => prefetchBarOnIntent(sym, 'D')}
-                >
-                  <button
-                    className={`${styles.starBtn}${isStarred ? ' ' + styles.starBtnActive : ''}`}
-                    onClick={e => { e.stopPropagation(); toggleStar('flagged', sym) }}
-                    title={isStarred ? 'Unstar' : 'Star'}
-                  >{isStarred ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
-                  {getTag(sym) && (
-                    <span className={styles.tagDot} style={{ background: TAG_BY_KEY[getTag(sym)]?.hex }} title={TAG_BY_KEY[getTag(sym)]?.label} />
-                  )}
-                  <span className={styles.rowLogo}><CompanyLogo sym={sym} size={16} round /></span>
-                  <span className={styles.rowSym}>{sym}</span>
-                  <div className={styles.rowRight}>
-                    {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
-                    {changePct != null && (
-                      <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
-                        {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
-                      </span>
-                    )}
-                    {PERF_COLS.filter(([k]) => visiblePerf.has(k)).map(([k, label]) => {
-                      const val = perfData[sym]?.[k]
-                      return (
-                        <span key={k} className={`${styles.perfCell} ${changePctClass(val)}`} title={label}>
-                          {val != null ? `${val > 0 ? '+' : ''}${val.toFixed(1)}%` : '—'}
-                        </span>
-                      )
-                    })}
-                    <button className={styles.removeBtn} onClick={e => { e.stopPropagation(); removeFlagged(sym) }} title="Remove">×</button>
-                  </div>
-                </div>
-              )
-            })}
+            ) : flagged.map(sym => renderTickerRow({ sym }))}
           </div>
         )}
       </div>
@@ -859,6 +837,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         {/* Body */}
         <div className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}`}>
 
+          {columnHeader}
+
           {/* ── My Lists tab — Flagged pinned at top + tag groups + user lists ── */}
           {activeTab === 'mine' && (
             <>
@@ -885,41 +865,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                     </div>
                     {open && (
                       <div className={styles.wlItems}>
-                        {syms.map(sym => {
-                          const q = prices[sym]
-                          const price = q?.price ?? null
-                          const changePct = q?.change_pct ?? null
-                          return (
-                            <div
-                              key={sym}
-                              data-watch-sym={sym}
-                              className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`}
-                              onClick={() => { setSelectedSym(sym); setHubSym(sym); }}
-                              onPointerEnter={() => prefetchBarOnIntent(sym, 'D')}
-                              onFocus={() => prefetchBarOnIntent(sym, 'D')}
-                            >
-                              <span className={styles.rowLogo}><CompanyLogo sym={sym} size={16} round /></span>
-                              <span className={styles.rowSym}>{sym}</span>
-                              <div className={styles.rowRight}>
-                                {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
-                                {changePct != null && (
-                                  <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
-                                    {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
-                                  </span>
-                                )}
-                                {PERF_COLS.filter(([k]) => visiblePerf.has(k)).map(([k, label]) => {
-                                  const val = perfData[sym]?.[k]
-                                  return (
-                                    <span key={k} className={`${styles.perfCell} ${changePctClass(val)}`} title={label}>
-                                      {val != null ? `${val > 0 ? '+' : ''}${val.toFixed(1)}%` : '—'}
-                                    </span>
-                                  )
-                                })}
-                                <button className={styles.removeBtn} onClick={e => { e.stopPropagation(); removeTag(sym) }} title="Remove tag">×</button>
-                              </div>
-                            </div>
-                          )
-                        })}
+                        {syms.map(sym => renderTickerRow({ sym }))}
                       </div>
                     )}
                   </div>
@@ -963,25 +909,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                     </div>
                     {open && (
                       <div className={styles.wlItems}>
-                        {ct.symbols.map(sym => {
-                          const q = prices[sym]
-                          const price = q?.price ?? null
-                          const changePct = q?.change_pct ?? null
-                          return (
-                            <div key={sym} data-watch-sym={sym} className={`${styles.listRow} ${styles.wlRow}${selectedSym === sym ? ' ' + styles.listRowSelected : ''}`} onClick={() => { setSelectedSym(sym); setHubSym(sym); }}>
-                              <span className={styles.rowLogo}><CompanyLogo sym={sym} size={16} round /></span>
-                              <span className={styles.rowSym}>{sym}</span>
-                              <div className={styles.rowRight}>
-                                {price != null && <span className={styles.rowPrice}>${price.toFixed(2)}</span>}
-                                {changePct != null && (
-                                  <span className={`${styles.rowChange} ${changePct >= 0 ? styles.gain : styles.loss}`}>
-                                    {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
+                        {ct.symbols.map(sym => renderTickerRow({ sym }))}
                       </div>
                     )}
                   </div>
