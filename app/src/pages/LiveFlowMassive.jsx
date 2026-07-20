@@ -1099,7 +1099,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
   const rowColor = isAlpha ? P.ac : (_underOI ? DIM_WHITE : dirColor);
   const tickerColor = rowColor;
   const tickerWeight = isAlpha ? 700 : 600;
-  const strikeColor = isAlpha ? (alphaAccent || rowColor) : rowColor;  // Alpha Gold strike carries direction color too
+  const strikeColor = rowColor;  // Alpha Gold strike stays gold; direction shown via edge + star + word
   const strikeWeight = isAlpha ? 700 : (isSize ? 700 : 600);
   const premColor = rowColor;
   const premWeight = isAlpha ? 700 : 600;
