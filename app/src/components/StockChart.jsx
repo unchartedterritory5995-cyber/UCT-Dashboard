@@ -2967,6 +2967,9 @@ export default function StockChart({
       }
 
       if (cmd.startsWith('tf:')) {
+        // Holding the key auto-repeats ~30x/sec; without this guard each repeat
+        // would advance a rung and fire a bars fetch.
+        if (e.repeat) return
         if (typeof onTfChange !== 'function') return
         const next = resolveTfCycle({
           command: cmd,

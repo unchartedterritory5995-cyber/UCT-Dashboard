@@ -38,6 +38,24 @@ export function resolveTfCycle({ command, currentTf, lastCommand, lastIndex }) {
   return { tf: TF_ORDER[index], index };
 }
 
+/**
+ * Should a chart shortcut claim this key, beating ticker search?
+ *
+ * A single letter with no Ctrl/Alt/Meta is ALWAYS a ticker character — INCLUDING
+ * a shifted uppercase letter, because traders type tickers uppercase (HOOD, LLY,
+ * TSLA, COIN). So a shortcut never claims a letter, even though some letters are
+ * bound to drawing tools and Shift+H/L/T/C are display toggles; those toggles stay
+ * reachable whenever a chart is NOT focused. Digits (timeframes) and Shift+digit
+ * DO claim. Shift+F (flag) is handled by each widget's own branch before this is
+ * consulted, so it is unaffected.
+ */
+export function shortcutClaimsKey(event) {
+  if (!matchShortcut(event)) return false;
+  const isTickerLetter = /^[a-zA-Z]$/.test(event.key)
+    && !event.ctrlKey && !event.altKey && !event.metaKey;
+  return !isTickerLetter;
+}
+
 export const SHORTCUTS = [
   // Timeframes — Shift+digit intraday, bare digit daily and up.
   // (Ctrl+digit is browser-reserved for tab switching, so Shift carries these.)
@@ -138,7 +156,7 @@ export function matchShortcut(event) {
     if (key === ' ' || key === 'Spacebar') return 'replay:playpause';
     if (key === 'ArrowLeft') return 'replay:back';
     if (key === 'ArrowRight') return 'replay:forward';
-    if (key === '?' || (key === '/' && shift)) return 'help';
+    if (key === '?') return 'help';
   } else {
     // Shift held
     if (event.code && SHIFT_CODE_TF[event.code]) return SHIFT_CODE_TF[event.code];

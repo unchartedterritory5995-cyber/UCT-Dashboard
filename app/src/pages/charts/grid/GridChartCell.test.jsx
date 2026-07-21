@@ -5,7 +5,7 @@
 // handler (handleCellKeyDown) — the second, near-identical handler that had
 // the same "digit swallowed by ticker search" defect.
 
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { vi } from 'vitest'
 
 // Mock StockChart (heavy chart lib) and the symbol-search component with a
@@ -85,11 +85,35 @@ test('typing a bare digit does NOT open ticker search (digits are timeframes)', 
   expect(openWithSpy).not.toHaveBeenCalled()
 })
 
-test('Shift+letter bound to a toggle does NOT open ticker search', () => {
+test('Shift+letter types the ticker, does not fire the toggle', () => {
   openWithSpy.mockClear()
   const { container } = renderCell()
-  // Shift+H is the Heikin Ashi toggle — it must not type "H" into the box.
+  // Shift+H is bound to the Heikin Ashi toggle, but a letter is a ticker
+  // character first (traders type tickers uppercase) — it must type "H" into
+  // the search box rather than firing the toggle.
   fireEvent.keyDown(cellSurface(container), { key: 'H', code: 'KeyH', shiftKey: true })
+  expect(openWithSpy).toHaveBeenCalledWith('H')
+})
+
+test('a bare digit reaches the document (not swallowed by the cell container)', () => {
+  const { container } = renderCell()
+  const surface = cellSurface(container)
+  const received = vi.fn()
+  document.addEventListener('keydown', received)
+  try {
+    const event = new KeyboardEvent('keydown', { key: '1', bubbles: true, cancelable: true })
+    act(() => { surface.dispatchEvent(event) })
+    expect(received).toHaveBeenCalledTimes(1)
+    expect(event.defaultPrevented).toBe(false)
+  } finally {
+    document.removeEventListener('keydown', received)
+  }
+})
+
+test('Shift+digit does NOT open ticker search (still wins as a timeframe shortcut)', () => {
+  openWithSpy.mockClear()
+  const { container } = renderCell()
+  fireEvent.keyDown(cellSurface(container), { key: '!', code: 'Digit1', shiftKey: true })
   expect(openWithSpy).not.toHaveBeenCalled()
 })
 
