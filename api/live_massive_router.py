@@ -268,6 +268,19 @@ DEFAULT_THRESHOLDS = {
     # can be legitimate aggressive ITM directional bets). 50%+ is
     # consensus deep-ITM and suppressed.
     "max_itm_pct": 50.0,
+    # Deep-ITM DIRECTION guard (2026-07-20). On deeply-ITM contracts the
+    # single-venue NBBO is unreliable, so the A/B/AA/BB side — and thus
+    # bull/bear — is frequently wrong (AMAT/MU LEAP puts read opposite BBS).
+    # Beyond this ITM %, the row is kept but its DIRECTION is dropped (no
+    # bull/bear). Separate from max_itm_pct (which drops the row entirely).
+    # Set 0 to disable.
+    "direction_max_itm_pct": 20.0,
+    # Keep-as-Size floor (2026-07-20). When the side can't be trusted (deep-ITM
+    # guard, ambiguous at-bid 'B', or blank single-venue NBBO) direction is None
+    # and the row would be dropped. If premium clears this floor, KEEP it as a
+    # neutral Size row instead — real size shouldn't vanish on an uncertain side
+    # (UW's own doc: a fill at the bid is "not necessarily a sell"). 0 disables.
+    "keep_sizeless_min_premium": 1000000,
     # Size tier V/OI gate (added 6/30 evening).
     #
     # Size tier ($500K-$1M+ premium MAGENTA, not Alpha-Gold-quality)
@@ -1155,20 +1168,45 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
     cp_short = "C" if cp_full == "CALL" else ("P" if cp_full == "PUT" else "")
     side = row["Side"] or ""
 
-    direction = _derive_direction(cp_full, side, row.get("Type", ""))
-    if direction is None and require_direction:
-        # Unclassified side → can't determine bull/bear → skip
-        return None
-
     strike = _parse_strike(row["Strike"])
     spot = _parse_float(row["Spot"])
+    money_pct, money_label = _moneyness(strike, spot, cp_full)
     premium = _parse_int(row["Premium"])
+
+    direction = _derive_direction(cp_full, side, row.get("Type", ""))
+    # Deep-ITM side/direction guard (2026-07-20): on deeply-ITM contracts the
+    # single-venue NBBO is unreliable (wide/stale books), so the A/B/AA/BB side —
+    # and therefore bull/bear — is frequently wrong (AMAT/MU LEAP puts read the
+    # OPPOSITE side of BBS). Beyond direction_max_itm_pct, drop the direction:
+    # better directionless than a confidently-wrong bull/bear. Tunable; 0 disables.
+    if direction is not None and money_label == "ITM" and money_pct is not None:
+        try:
+            _dir_itm_cap = _load_thresholds().get("direction_max_itm_pct", 20.0)
+        except Exception:
+            _dir_itm_cap = 20.0
+        if _dir_itm_cap and money_pct > _dir_itm_cap:
+            direction = None
+    # Keep-as-Size override (2026-07-20): when the side can't be trusted — the
+    # deep-ITM guard above, an ambiguous at-bid "B", or a blank single-venue
+    # NBBO — direction is None. Real size shouldn't vanish on a side we can't
+    # call, so if premium clears keep_sizeless_min_premium, KEEP the print as a
+    # NEUTRAL Size row (no Bull/Bear) instead of dropping it. Below the floor a
+    # direction-less row is still noise → drop.
+    _sizeless = False
+    if direction is None and require_direction:
+        try:
+            _keep_floor = _load_thresholds().get("keep_sizeless_min_premium", 1000000)
+        except Exception:
+            _keep_floor = 1000000
+        if _keep_floor and premium >= _keep_floor:
+            _sizeless = True
+        else:
+            return None
+
     volume = _parse_int(row["Volume"])
     oi = _parse_int(row["OI"])
     dte = _parse_int(row["Dte"])
     price = _parse_float(row["Price"])
-
-    money_pct, money_label = _moneyness(strike, spot, cp_full)
 
     # ─── Noise filter 0: Spot-independent deep-ITM heuristic ────────────────
     # When Spot is missing (backfilled historical data), the % from spot
@@ -1258,7 +1296,7 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
     if type_str == "ML/" and oi > 0:
         return None  # BBS-format spread leg, not a directional signal
 
-    if direction is None:
+    if direction is None and not _sizeless:
         # require_direction=False path: no clean direction, but the row passed
         # every noise filter above (not deep-ITM/lottery/spread). Return a
         # minimal alert so the by-contract rollup counts this print toward
@@ -1289,7 +1327,12 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
             "_tierKey": None,
         }
 
-    result = _derive_alert_name(row, direction, money_pct=money_pct)
+    if _sizeless:
+        # Untrustworthy side but premium cleared the floor → neutral Size row,
+        # no Bull/Bear label (see keep_sizeless_min_premium).
+        result = ("UCT Size", "size", TIER_PRIORITY["size"])
+    else:
+        result = _derive_alert_name(row, direction, money_pct=money_pct)
     if result is None:
         return None  # WHITE row that didn't qualify for premium override
     alert_name, tier_key, tier_priority = result
@@ -1350,6 +1393,7 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
         "_er": row["ER"],
         "_uoa": row["Uoa"],
         "_direction": direction,
+        "_directionUnconfirmed": _sizeless,
         # 7/7: expose source ('stocks' or 'indexes') so downstream code —
         # both the ETF-branch in _qualifies_curated and the frontend
         # ETF/Stocks toggle — can classify without a hardcoded ticker list.
