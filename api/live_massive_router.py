@@ -3597,6 +3597,28 @@ def _unclaim_push(alert: dict):
         pass
 
 
+def _flow_direction(cp: str, side: str):
+    """Directional implication of a print for NET-FLOW math — INCLUDES at-bid
+    'B' (unlike _derive_direction, which drops it as too ambiguous to ALERT on).
+    For measuring whether a contract is one-sided, at-bid selling IS real
+    directional flow: a put sold at the bid is bullish, a call sold is bearish.
+    Counting it (2026-07-21) stops strict-B dropping from bear-biasing the split
+    on put-heavy contracts — MU $1190P read 80% bear classified vs 54% real."""
+    s = (side or "").strip().upper()
+    c = (cp or "").strip().upper()
+    if s in ("A", "AA"):
+        bought = True
+    elif s in ("B", "BB"):
+        bought = False
+    else:
+        return None
+    if c in ("C", "CALL"):
+        return "Bull" if bought else "Bear"
+    if c in ("P", "PUT"):
+        return "Bear" if bought else "Bull"
+    return None
+
+
 def _net_flow_clean(alert: dict, flow_split: dict, min_ratio: float) -> bool:
     """True only when the CONTRACT's directional flow is cleanly one-sided in the
     alert's direction. A big ask-side print on a two-way tape (both Bull and Bear
@@ -3663,7 +3685,10 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
     # count toward either side.
     _flow = {}
     for _fa in alerts:
-        _fd = (_fa.get("_direction") or "").strip()
+        # INCLUSIVE flow direction (counts at-bid selling), NOT the alert's
+        # _direction (which drops at-bid) — so the cleanliness split reflects the
+        # TRUE two-sided flow instead of a strict-B bear bias (MU: 80%→54% bear).
+        _fd = _flow_direction(_fa.get("cp"), _fa.get("_side"))
         if _fd in ("Bull", "Bear"):
             _fk = f"{_fa.get('ticker','')}|{_fa.get('cp','')}|{_fa.get('strike','')}|{_fa.get('exp','')}"
             _fs = _flow.setdefault(_fk, {"Bull": 0.0, "Bear": 0.0})
