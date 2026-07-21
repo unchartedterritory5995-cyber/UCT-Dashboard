@@ -119,6 +119,71 @@ async def test_detects_stale_sync_and_still_broken(env):
     assert kinds == ["stale_sync", "still_broken"]
 
 
+def _set_last_error(ba_id, msg):
+    conn = auth_db.get_connection()
+    conn.execute(
+        "UPDATE j2_broker_accounts SET last_error=?, last_sync_status='error' WHERE id=?",
+        (msg, ba_id))
+    conn.commit(); conn.close()
+
+
+@pytest.mark.asyncio
+async def test_member_emailed_once_per_stale_episode(env, monkeypatch):
+    """A silently-stale connection WITH a recorded error emails the member once
+    per stale episode — durable dedup means an hourly re-sweep never re-spams."""
+    from api.services.journal_two.broker import notifications
+    from api.services import email_service
+    monkeypatch.setattr(notifications, "_spawn", lambda fn, *a: fn(*a))  # run delivery sync
+    sent = []
+    monkeypatch.setattr(email_service, "send_broker_reconnect_email",
+                        lambda email, name, brokerage: sent.append((email, brokerage)) or True)
+    env["mk_user"]("u-stale")
+    ba = _mk_conn_with_account(
+        "u-stale", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=30)))
+    _set_last_error(ba["id"], "SnapTrade rejected this connection")  # real, member-actionable
+    await fleet_monitor.run_fleet_check()
+    await fleet_monitor.run_fleet_check()  # same episode
+    assert [e for e, _ in sent] == ["u-stale@x.com"]  # exactly one
+
+
+@pytest.mark.asyncio
+async def test_stale_without_error_does_not_member_email(env, monkeypatch):
+    """Stale but NO recorded error = a backend/scheduler gap, not an auth lapse.
+    Emailing 'reconnect' would be a wrong-copy false alarm — the hasError gate
+    blocks it (owner is still pinged)."""
+    from api.services.journal_two.broker import notifications
+    from api.services import email_service
+    monkeypatch.setattr(notifications, "_spawn", lambda fn, *a: fn(*a))
+    sent = []
+    monkeypatch.setattr(email_service, "send_broker_reconnect_email",
+                        lambda *a: sent.append(a) or True)
+    env["mk_user"]("u-stale2")
+    _mk_conn_with_account(
+        "u-stale2", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=30)))
+    out = await fleet_monitor.run_fleet_check()
+    assert any(f["kind"] == "stale_sync" for f in out["findings"])  # still detected
+    assert sent == []  # but member NOT emailed
+
+
+@pytest.mark.asyncio
+async def test_broken_connection_does_not_member_email_on_sweep(env, monkeypatch):
+    """still_broken is already member-emailed at the broken transition
+    (connection_broken); the hourly sweep must NOT re-email a duplicate."""
+    from api.services.journal_two.broker import notifications
+    from api.services import email_service
+    monkeypatch.setattr(notifications, "_spawn", lambda fn, *a: fn(*a))
+    sent = []
+    monkeypatch.setattr(email_service, "send_broker_reconnect_email",
+                        lambda *a: sent.append(a) or True)
+    env["mk_user"]("u-broken")
+    ba = _mk_conn_with_account(
+        "u-broken", status="broken",
+        last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=1)))
+    _set_last_error(ba["id"], "reconnect required")
+    await fleet_monitor.run_fleet_check()
+    assert sent == []
+
+
 @pytest.mark.asyncio
 async def test_healthy_fleet_pings_nothing(env):
     env["mk_user"]("u-ok")

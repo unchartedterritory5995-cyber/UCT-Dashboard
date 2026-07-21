@@ -534,6 +534,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_cash_flows_ext
     ON j2_broker_cash_flows(user_id, external_id);
 CREATE INDEX IF NOT EXISTS idx_j2_cash_flows_acct
     ON j2_broker_cash_flows(user_id, account_id, flow_date);
+
+-- Durable once-per-stale-episode dedup for the MEMBER "connection went stale"
+-- email (fleet monitor). Keyed on the broker account; notified_marker = the
+-- last_sync_at we last emailed for, which advances on the next successful sync,
+-- so an hourly re-sweep of the same episode never re-emails a customer.
+CREATE TABLE IF NOT EXISTS j2_broker_member_stale_notify (
+    broker_account_id TEXT PRIMARY KEY,
+    notified_marker   TEXT NOT NULL
+);
 """
 
 

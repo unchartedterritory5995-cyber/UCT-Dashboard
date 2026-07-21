@@ -163,3 +163,70 @@ def _last_attempts_all_failed(user_id: str, broker_account_id: str) -> bool:
         conn.close()
     return (len(rows) == _CONSECUTIVE_FAILURES_TO_PING
             and all(r["status"] == "error" for r in rows))
+
+
+# ── Silently-stale (still 'active') connection: MEMBER nudge, once per episode ─
+#
+# The transition-into-'broken' path above emails the member once per incident.
+# But a sync-enabled account can go 24h+ without a successful sync while STILL
+# status='active' AND carrying a recorded error (auth silently lapsed) — the
+# fleet monitor's stale_sync finding. Today that reaches only the owner's
+# Discord, so the member keeps trading off dead data. This nudges the member by
+# email (reusing the reconnect template), with DURABLE dedup that survives
+# redeploys. The caller gates on a real last_error so a transient BACKEND gap
+# (no error) never wrongly tells a customer to reconnect.
+def member_stale_alert(user_id: str, ba: dict[str, Any] | None, *,
+                       stale_marker: str) -> None:
+    """Email the member whose connection has gone silently stale. Once per
+    stale EPISODE: keyed on ``stale_marker`` (the account's last_sync_at, or
+    'ever'), which advances on the next successful sync — so an hourly re-sweep
+    of the same episode never re-emails, but a fresh episode re-arms. Durable
+    (auth.db table j2_broker_member_stale_notify), because a repeat member email
+    on every redeploy would be real customer spam. Best-effort + off-thread."""
+    _spawn(_do_member_stale, user_id, dict(ba or {}), str(stale_marker or "ever"))
+
+
+def _member_stale_already_notified(acct_id: str, marker: str) -> bool:
+    """True if the member was already emailed for THIS stale episode. Records
+    the marker (atomic upsert) as a side effect when it is new."""
+    from api.services.auth_db import get_connection
+
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT notified_marker FROM j2_broker_member_stale_notify "
+            "WHERE broker_account_id = ?", (acct_id,)
+        ).fetchone()
+        if row and row["notified_marker"] == marker:
+            return True
+        conn.execute(
+            "INSERT INTO j2_broker_member_stale_notify "
+            "(broker_account_id, notified_marker) VALUES (?, ?) "
+            "ON CONFLICT(broker_account_id) DO UPDATE SET "
+            "notified_marker = excluded.notified_marker",
+            (acct_id, marker),
+        )
+        conn.commit()
+        return False
+    finally:
+        conn.close()
+
+
+def _do_member_stale(user_id: str, ba: dict[str, Any], marker: str) -> None:
+    try:
+        acct_id = ba.get("id")
+        if not acct_id:
+            return
+        if _member_stale_already_notified(str(acct_id), marker):
+            return
+        row = _user_row(user_id)
+        if not (row and row["email"]):
+            return
+        from api.services import email_service
+
+        brokerage = ba.get("brokerageName") or "brokerage"
+        email_service.send_broker_reconnect_email(
+            row["email"], row["display_name"], brokerage
+        )
+    except Exception:
+        logger.exception("member stale alert failed")

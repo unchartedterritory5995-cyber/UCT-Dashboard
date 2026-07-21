@@ -144,6 +144,9 @@ def _collect_findings() -> list[dict[str, Any]]:
             if ts is None or now - ts > timedelta(hours=_STALE_SYNC_HOURS):
                 findings.append({
                     "kind": "stale_sync", "userId": a["user_id"],
+                    "accountId": a["id"], "brokerage": a["brokerage_name"],
+                    "staleMarker": a["last_sync_at"] or "ever",
+                    "hasError": bool(a["last_error"]),
                     "detail": f"{a['brokerage_name']} {a['account_number_masked']}: "
                               f"no successful sync since {a['last_sync_at'] or 'ever'}",
                 })
@@ -186,6 +189,25 @@ async def run_fleet_check() -> dict[str, Any]:
                 })
         except Exception:  # noqa: BLE001 — advisory only
             logger.exception("partner health check failed")
+
+    # Members are otherwise NEVER contacted by this module (owner-only Discord
+    # digest below). Nudge the member whose PAID, sync-enabled connection has
+    # gone silently stale WITH a recorded error (auth silently lapsed) — the one
+    # state the transition-time member email in connection_broken does not cover.
+    # Gated on hasError so a transient backend gap (stale but no error) never
+    # wrongly tells a customer to reconnect. Durable once-per-episode dedup lives
+    # in notifications.member_stale_alert; suppressed users are already filtered.
+    for f in findings:
+        if f.get("kind") == "stale_sync" and f.get("userId") and f.get("hasError"):
+            try:
+                from api.services.journal_two.broker import notifications
+                notifications.member_stale_alert(
+                    f["userId"],
+                    {"id": f.get("accountId"), "brokerageName": f.get("brokerage")},
+                    stale_marker=f.get("staleMarker") or "ever",
+                )
+            except Exception:  # noqa: BLE001 — never break the sweep
+                logger.exception("member stale alert dispatch failed")
 
     pinged = False
     if findings:

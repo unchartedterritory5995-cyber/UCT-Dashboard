@@ -71,14 +71,23 @@ def test_tools_dict_exposes_expected_entries():
         assert "input_schema" in spec
 
 
+def _recent_iso(days_ago: int) -> str:
+    """A UTC exit timestamp `days_ago` days back — RELATIVE on purpose. These
+    day-window tests previously seeded hardcoded 2026-05 dates, which silently
+    fell outside `days=7` once the real clock advanced past them (the tests rotted
+    into failures even though list_recent_trades was correct)."""
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc) - timedelta(days=days_ago)).isoformat()
+
+
 def test_list_recent_trades_returns_filtered_trades(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=_recent_iso(1),
                   symbol="NVDA", setup="Bull Flag", result="Win")
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-10T20:00:00+00:00",
+                  exit_iso=_recent_iso(2),
                   symbol="AAPL", setup="Pullback", result="Loss")
     result = tools.TOOLS["list_recent_trades"]["executor"](
         user_id="u_chat", account_id=acc["id"], args={"days": 7}, conn=db_conn,
@@ -91,10 +100,10 @@ def test_list_recent_trades_filters_by_setup(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=_recent_iso(1),
                   symbol="NVDA", setup="Bull Flag", result="Win")
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-10T20:00:00+00:00",
+                  exit_iso=_recent_iso(2),
                   symbol="AAPL", setup="Pullback", result="Loss")
     result = tools.TOOLS["list_recent_trades"]["executor"](
         user_id="u_chat", account_id=acc["id"], args={"days": 7, "setup": "Bull Flag"}, conn=db_conn,
@@ -107,10 +116,10 @@ def test_get_aggregates_period_week_returns_summary(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=_recent_iso(0),
                   pnl_dollar=400, r_multiple=2.0, result="Win")
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-12T20:00:00+00:00",
+                  exit_iso=_recent_iso(0),
                   pnl_dollar=-200, r_multiple=-1.0, result="Loss")
     result = tools.TOOLS["get_aggregates"]["executor"](
         user_id="u_chat", account_id=acc["id"], args={"period": "week"}, conn=db_conn,
@@ -124,10 +133,10 @@ def test_get_aggregates_with_breakdown_by_setup(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-11T20:00:00+00:00",
+                  exit_iso=_recent_iso(0),
                   setup="Bull Flag", r_multiple=1.5, result="Win")
     _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                  exit_iso="2026-05-12T20:00:00+00:00",
+                  exit_iso=_recent_iso(0),
                   setup="Pullback", r_multiple=-1.0, result="Loss")
     result = tools.TOOLS["get_aggregates"]["executor"](
         user_id="u_chat", account_id=acc["id"],
@@ -205,9 +214,9 @@ def test_get_recent_recaps_returns_eod_and_weekly(db_conn):
 def test_find_arcs_uses_assembler_detectors(db_conn):
     from api.services.journal_two import coach_chat_tools as tools
     acc = _seed_account(db_conn)
-    for day, sym in (("2026-05-07", "TSLA"), ("2026-05-08", "NVDA"), ("2026-05-11", "CRWD")):
+    for days_ago, sym in ((3, "TSLA"), (2, "NVDA"), (1, "CRWD")):
         _insert_trade(db_conn, user_id="u_chat", account_id=acc["id"],
-                      exit_iso=f"{day}T20:00:00+00:00", setup="Bull Flag",
+                      exit_iso=_recent_iso(days_ago), setup="Bull Flag",
                       symbol=sym, result="Loss", r_multiple=-1.0, pnl_dollar=-100)
     result = tools.TOOLS["find_arcs"]["executor"](
         user_id="u_chat", account_id=acc["id"], args={"lookback_days": 10}, conn=db_conn,
