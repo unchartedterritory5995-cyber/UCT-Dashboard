@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchShortcut, SHORTCUTS } from './keyboardShortcuts';
+import { matchShortcut, SHORTCUTS, TF_ORDER, resolveTfCycle } from './keyboardShortcuts';
 
 
 function evt(key, opts = {}) {
@@ -106,5 +106,78 @@ describe('matchShortcut', () => {
       expect(typeof s.command).toBe('string');
       expect(typeof s.description).toBe('string');
     }
+  });
+});
+
+
+describe('TF_ORDER', () => {
+  it('is the eight-rung ladder in time order', () => {
+    expect(TF_ORDER).toEqual(['1', '5', '15', '30', '60', 'D', 'W', 'M']);
+  });
+});
+
+
+describe('resolveTfCycle', () => {
+  const cold = { lastCommand: null, lastIndex: null };
+
+  it('goes to the key home on a cold press', () => {
+    expect(resolveTfCycle({ command: 'tf:1', currentTf: 'D', ...cold }))
+      .toEqual({ tf: '1', index: 0 });
+    expect(resolveTfCycle({ command: 'tf:D', currentTf: '5', ...cold }))
+      .toEqual({ tf: 'D', index: 5 });
+    expect(resolveTfCycle({ command: 'tf:M', currentTf: '5', ...cold }))
+      .toEqual({ tf: 'M', index: 7 });
+  });
+
+  it('advances one rung when the same key repeats', () => {
+    // Shift+1 pressed twice: home 1m, then 5m.
+    const first = resolveTfCycle({ command: 'tf:1', currentTf: 'D', ...cold });
+    const second = resolveTfCycle({
+      command: 'tf:1', currentTf: first.tf,
+      lastCommand: 'tf:1', lastIndex: first.index,
+    });
+    expect(second).toEqual({ tf: '5', index: 1 });
+  });
+
+  it('walks the entire ladder and wraps', () => {
+    const seen = [];
+    let last = { command: null, index: null };
+    let currentTf = 'D';
+    for (let i = 0; i < 9; i++) {
+      const next = resolveTfCycle({
+        command: 'tf:1', currentTf,
+        lastCommand: last.command, lastIndex: last.index,
+      });
+      seen.push(next.tf);
+      currentTf = next.tf;
+      last = { command: 'tf:1', index: next.index };
+    }
+    expect(seen).toEqual(['1', '5', '15', '30', '60', 'D', 'W', 'M', '1']);
+  });
+
+  it('advances instead of no-opping when already sitting on the key home', () => {
+    // Chart is already Daily (clicked in the TF bar); pressing 1 must move.
+    expect(resolveTfCycle({ command: 'tf:D', currentTf: 'D', ...cold }))
+      .toEqual({ tf: 'W', index: 6 });
+  });
+
+  it('resets to home when a different timeframe key is pressed', () => {
+    // Mid-walk at Monthly via tf:1, then press 5 (home Weekly).
+    expect(resolveTfCycle({
+      command: 'tf:W', currentTf: 'M',
+      lastCommand: 'tf:1', lastIndex: 7,
+    })).toEqual({ tf: 'W', index: 6 });
+  });
+
+  it('breaks the chain when the timeframe changed by other means', () => {
+    // Last keypress landed on 15m (index 2) but the TF bar moved us to 60.
+    expect(resolveTfCycle({
+      command: 'tf:1', currentTf: '60',
+      lastCommand: 'tf:1', lastIndex: 2,
+    })).toEqual({ tf: '1', index: 0 });
+  });
+
+  it('returns null for a command outside the ladder', () => {
+    expect(resolveTfCycle({ command: 'tf:ZZ', currentTf: 'D', ...cold })).toBe(null);
   });
 });

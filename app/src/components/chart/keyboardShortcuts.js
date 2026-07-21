@@ -1,5 +1,42 @@
 // app/src/components/chart/keyboardShortcuts.js
 
+/**
+ * The timeframe ladder, in time order. Single source of truth — the ChartWidget
+ * timeframe bar and the repeat-press cycle both read it.
+ */
+export const TF_ORDER = ['1', '5', '15', '30', '60', 'D', 'W', 'M'];
+
+
+/**
+ * Resolve where a timeframe keypress lands.
+ *
+ * Rules, evaluated in order:
+ *  1. Same key pressed again with the chain intact -> advance one rung.
+ *  2. Chart already sits on this key's home -> advance one rung (so no press
+ *     is ever a silent no-op).
+ *  3. Otherwise -> jump to this key's home.
+ * The walk wraps at the end of TF_ORDER. The chain is considered broken when
+ * the chart's current timeframe is not the rung the last keypress landed on
+ * (i.e. the TF bar, a saved layout or a grid restore moved it).
+ *
+ * Pure: callers own the {command, index} they pass back in next time.
+ */
+export function resolveTfCycle({ command, currentTf, lastCommand, lastIndex }) {
+  const home = String(command || '').slice(3);
+  const homeIndex = TF_ORDER.indexOf(home);
+  if (homeIndex === -1) return null;
+
+  const chainIntact = command === lastCommand
+    && Number.isInteger(lastIndex)
+    && TF_ORDER[lastIndex] === currentTf;
+
+  let index;
+  if (chainIntact) index = (lastIndex + 1) % TF_ORDER.length;
+  else if (currentTf === home) index = (homeIndex + 1) % TF_ORDER.length;
+  else index = homeIndex;
+
+  return { tf: TF_ORDER[index], index };
+}
 
 export const SHORTCUTS = [
   // Timeframes
