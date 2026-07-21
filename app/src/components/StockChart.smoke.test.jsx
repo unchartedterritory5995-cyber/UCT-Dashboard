@@ -75,4 +75,49 @@ describe('StockChart render smoke', () => {
       expect(() => render(<StockChart sym="AAPL" tf={tf} />)).not.toThrow()
     }
   })
+
+  // ⚠️ RUN THIS FILE. On 2026-07-21 a TDZ crash (volMaPeriodEff reading `cs` before
+  // its declaration) shipped to production and took /charts down for every user —
+  // NOT because this guard was missing, but because the test command used all session
+  // was `vitest run src/components/chart …`, which matches src/components/chart/** and
+  // silently EXCLUDES this file (it lives in src/components/). Verified after the fact:
+  // this suite fails on that commit with "Cannot access 'cs' before initialization".
+  // Run `vitest run src/components` — or just the whole suite — before pushing StockChart.
+
+  it('mounts with the /charts workspace prop recipe', () => {
+    // The exact shape ChartWidget ships, and the one the TDZ crash took down.
+    expect(() => render(
+      <StockChart sym="AAPL" tf="D" boldCandles userCandleColors volumeMa={50} showRangeSelector />
+    )).not.toThrow()
+  })
+
+  it('mounts for every chart type', () => {
+    for (const chartType of ['candles', 'hollow', 'bars', 'hlc', 'line', 'area']) {
+      expect(() => render(<StockChart sym="AAPL" tf="D" settingsOverride={{ chartType }} />)).not.toThrow()
+      cleanup()
+    }
+  })
+
+  it('mounts on a light + gradient canvas (the canvas-derived chrome path)', () => {
+    // Exercises canvasSample / panelFor / toolbarFor / separatorColors — all added
+    // 2026-07-21 and all reading settings during render.
+    expect(() => render(
+      <StockChart
+        sym="AAPL" tf="D" userCandleColors canvasTheme="sunrise"
+        settingsOverride={{ bgMode: 'gradient', bgGradient: { top: '#16233b', bottom: '#ffffff' } }}
+      />
+    )).not.toThrow()
+  })
+
+  it('mounts with volume settings driven from chart settings', () => {
+    expect(() => render(
+      <StockChart sym="AAPL" tf="D" boldCandles userCandleColors
+        settingsOverride={{ volume: { visible: true, maPeriod: 20, maColor: '#fff', labelVisible: false } }} />
+    )).not.toThrow()
+  })
+
+  it('unmounts cleanly', () => {
+    const { unmount } = render(<StockChart sym="AAPL" tf="D" />)
+    expect(() => unmount()).not.toThrow()
+  })
 })
