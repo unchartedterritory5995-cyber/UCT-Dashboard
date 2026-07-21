@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseColor, luminance, dividerFor } from './dividerColor'
+import { parseColor, luminance, dividerFor, panelFor } from './dividerColor'
 
 // Gridlines/hairlines were authored as fixed near-white and vanish on a light canvas.
 // dividerFor picks the contrasting side. The null return is load-bearing: it means
@@ -60,5 +60,42 @@ describe('dividerFor', () => {
     expect(luminance(parseColor('#0000ff'))).toBeLessThan(0.5)
     expect(dividerFor('#00ff00')).toMatch(/^rgba\(0, 0, 0,/)
     expect(dividerFor('#0000ff')).toMatch(/^rgba\(255, 255, 255,/)
+  })
+})
+
+describe('panelFor', () => {
+  it('reproduces the hardcoded range-bar background on the default canvas', () => {
+    // rgba(14, 15, 13, ...) IS #0e0f0d — the literal the stylesheet used to hardcode.
+    // If this drifts, the default dark chart silently changes appearance.
+    expect(panelFor('#0e0f0d').bg).toBe('rgba(14, 15, 13, 0.88)')
+    expect(panelFor('#0e0f0d').bgSoft).toBe('rgba(14, 15, 13, 0.62)')
+  })
+
+  it('tints the panel with the canvas, so a light canvas gets a light panel', () => {
+    expect(panelFor('#ffffff').bg).toBe('rgba(255, 255, 255, 0.88)')
+    expect(panelFor('#eaf1fa').bg).toBe('rgba(234, 241, 250, 0.88)')
+  })
+
+  it('flips text, border and hover on a light canvas', () => {
+    const dark = panelFor('#0e0f0d')
+    const light = panelFor('#eaf1fa')
+    expect(dark.text).toBe('#8a8578')          // original muted tan
+    expect(dark.textStrong).toBe('#e2dfd6')    // original near-white hover
+    expect(light.text).not.toBe(dark.text)
+    expect(light.textStrong).not.toBe(dark.textStrong)
+    expect(light.border).toMatch(/^rgba\(0, 0, 0,/)
+    expect(dark.border).toMatch(/^rgba\(255, 255, 255,/)
+    expect(light.hover).toMatch(/^rgba\(0, 0, 0,/)
+  })
+
+  it('keeps the panel more opaque than its soft variant', () => {
+    const p = panelFor('#123456')
+    const a = (s) => Number(/([\d.]+)\)$/.exec(s)[1])
+    expect(a(p.bg)).toBeGreaterThan(a(p.bgSoft))
+  })
+
+  it('returns null on an unparseable canvas (keep the hardcoded values)', () => {
+    expect(panelFor('linear-gradient(to bottom, #fff, #000)')).toBeNull()
+    expect(panelFor(null)).toBeNull()
   })
 })

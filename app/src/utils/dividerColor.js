@@ -33,6 +33,32 @@ export function luminance(rgb) {
   return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255
 }
 
+/** Styling for the small floating panels drawn ON the chart canvas — the crosshair
+ *  OHLC legend, the volume legend, and the range-selector bar.
+ *
+ *  These are not a fixed dark chrome: they're the CANVAS COLOR at partial alpha, which
+ *  is why they read as "part of the chart" while still masking the candles behind them.
+ *  The default dark canvas (#0e0f0d) is literally where the hardcoded
+ *  rgba(14, 15, 13, 0.72) came from — deriving it keeps that exact look while making a
+ *  light canvas produce a light panel instead of a dark blob.
+ *
+ *  Text/border/hover flip on luminance so the contents stay legible either way.
+ *  Returns null when the color can't be parsed, meaning "keep the hardcoded values". */
+export function panelFor(canvasColor) {
+  const rgb = parseColor(canvasColor)
+  if (!rgb) return null
+  const [r, g, b] = rgb
+  const light = luminance(rgb) > 0.5
+  return {
+    bg: `rgba(${r}, ${g}, ${b}, 0.88)`,
+    bgSoft: `rgba(${r}, ${g}, ${b}, 0.62)`,
+    border: light ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.06)',
+    text: light ? '#4a5561' : '#8a8578',
+    textStrong: light ? '#0a141e' : '#e2dfd6',
+    hover: light ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.07)',
+  }
+}
+
 /** Divider color for hairlines drawn ON `canvasColor`.
  *  Alpha is asymmetric on purpose: dark-on-light needs more weight than
  *  light-on-dark to read as the same hairline. Returns null when the color can't

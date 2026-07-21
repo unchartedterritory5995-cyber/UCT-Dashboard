@@ -23,8 +23,8 @@
   gap: 1px;
   padding: 2px 3px;
   border-radius: 6px;
-  background: rgba(14, 15, 13, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--chart-panel-bg, rgba(14, 15, 13, 0.72));
+  border: 1px solid var(--chart-panel-border, rgba(255, 255, 255, 0.06));
   backdrop-filter: blur(2px);
   pointer-events: auto;
 }
@@ -40,7 +40,7 @@
   gap: 12px;
   padding: 2px 7px;
   border-radius: 3px;
-  background: rgba(14, 15, 13, 0.55);
+  background: var(--chart-panel-bg-soft, rgba(14, 15, 13, 0.55));
   /* Match the main chart legend: mono font + tan/gold label + value colors. */
   font-family: var(--font-mono);
   font-size: 10px;
@@ -57,7 +57,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #8a8578;
+  color: var(--chart-panel-text, #8a8578);
   font-family: var(--font-sans);
   font-size: 10.5px;
   font-weight: 700;
@@ -67,8 +67,8 @@
   transition: color 0.12s, background 0.12s;
 }
 .rangeBtn:hover {
-  color: #e2dfd6;
-  background: rgba(255, 255, 255, 0.07);
+  color: var(--chart-panel-text-strong, #e2dfd6);
+  background: var(--chart-panel-hover, rgba(255, 255, 255, 0.07));
 }
 
 /* ── UCT brand mark — replaces the built-in TradingView attribution logo ── */
@@ -193,7 +193,7 @@
   font-size: 10px;
   color: var(--text-muted);
   pointer-events: none;
-  background: rgba(26, 28, 23, 0.88);
+  background: var(--chart-panel-bg, rgba(26, 28, 23, 0.88));
   padding: 3px 8px;
   border-radius: 3px;
 }
@@ -255,7 +255,7 @@
   align-content: start;
   top: 46px;
   /* Keep the more-transparent background; font + colors stay the original mono look. */
-  background: rgba(14, 15, 13, 0.55);
+  background: var(--chart-panel-bg-soft, rgba(14, 15, 13, 0.55));
 }
 .vlHead {
   grid-column: 1 / -1;

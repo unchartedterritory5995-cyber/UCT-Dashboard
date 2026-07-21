@@ -9,6 +9,7 @@ import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
+import { panelFor } from '../utils/dividerColor'
 import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
@@ -1009,6 +1010,30 @@ export default function StockChart({
       candleDown: cs.candles?.downColor,
     }
   }, [cs.theme, cs.background, cs.bgMode, cs.textColor, cs.grid?.color, cs.crosshair?.color, cs.candles?.upColor, cs.candles?.downColor, boldCandles, canvasTheme, userCanvas])
+
+  // The floating panels drawn ON the canvas — crosshair OHLC legend, volume legend,
+  // range-selector bar — are the canvas color at partial alpha (that's where the
+  // hardcoded rgba(14,15,13,0.72) came from: #0e0f0d, the default canvas). Hardcoded,
+  // they stayed dark blobs on a light canvas; derived, they flip with it and their
+  // text/border stay legible. Published as CSS vars on the wrapper; the stylesheet
+  // keeps the original literals as fallbacks so any unparseable canvas is a no-op.
+  const panelVars = useMemo(() => {
+    const solid = canvasTheme === 'sunrise'
+      ? '#eaf1fa'
+      : (userCanvas && cs.bgMode === 'gradient')
+        ? (cs.bgGradient?.top || MB_BG)
+        : ((userCanvas || !boldCandles) ? (cs.background || MB_BG) : MB_BG)
+    const p = panelFor(solid)
+    if (!p) return undefined
+    return {
+      '--chart-panel-bg': p.bg,
+      '--chart-panel-bg-soft': p.bgSoft,
+      '--chart-panel-border': p.border,
+      '--chart-panel-text': p.text,
+      '--chart-panel-text-strong': p.textStrong,
+      '--chart-panel-hover': p.hover,
+    }
+  }, [canvasTheme, userCanvas, boldCandles, cs.bgMode, cs.background, cs.bgGradient?.top])
 
   // ── Price-scale: forceLogScale (Model Book) defaults to log without touching
   // the user's global chart-settings pref. A per-instance override lets the
@@ -7925,7 +7950,7 @@ export default function StockChart({
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
 
   return (
-    <div className={`${styles.wrapper} ${className}`} style={{ height }}>
+    <div className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}>
       {replayMode && sessionBars?.length > 0 && (
         <div className={styles.replayBadge} title="Time Machine — historical replay active">
           <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
