@@ -461,7 +461,7 @@ def _qualifies_curated(alert: dict, thresholds: dict,
     # Toggle `hide_sizeless` in /thresholds. (Auto-push already never fires them.)
     if thresholds.get("hide_sizeless") and (
         alert.get("_directionUnconfirmed")
-        or (alert.get("alertName") or "").lower() == "uct size"
+        or (alert.get("alertName") or "").lower().startswith("uct size")
     ):
         return False
 
@@ -1346,7 +1346,7 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
     if _sizeless:
         # Untrustworthy side but premium cleared the floor → neutral Size row,
         # no Bull/Bear label (see keep_sizeless_min_premium).
-        result = ("UCT Size", "size", TIER_PRIORITY["size"])
+        result = ("UCT Size - Not Clean", "size", TIER_PRIORITY["size"])
     else:
         result = _derive_alert_name(row, direction, money_pct=money_pct)
     if result is None:
@@ -3571,7 +3571,7 @@ def should_auto_push(alert: dict, cfg: dict = None) -> bool:
     # neutral "big, direction unknown" print is not a Bull/Bear signal to blast
     # to Discord. Directional Size (UCT Size Bulls/Bears) is unaffected. Manual
     # force-push is unaffected (this gates auto-push only).
-    if alert.get("_directionUnconfirmed") or name == "uct size":
+    if alert.get("_directionUnconfirmed") or name.startswith("uct size"):
         return False
 
     # ── Single-print tiers ──
@@ -3697,7 +3697,7 @@ def _demote_two_way_flow(alerts: list) -> None:
         if (max(fs["Bull"], fs["Bear"]) / tot) < ratio or d != dom:
             a["_direction"] = None
             a["_directionUnconfirmed"] = True
-            a["alertName"] = "UCT Size"
+            a["alertName"] = "UCT Size - Not Clean"
             a["_tierKey"] = "size"
 
 
