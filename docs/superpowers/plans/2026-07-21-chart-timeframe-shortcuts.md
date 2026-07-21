@@ -706,11 +706,18 @@ In `handleChartKeyDown`, find these two lines (currently 287–288, immediately 
 Replace them with:
 
 ```js
-    // A bound chart shortcut always beats ticker search. Without this, digits
+    // A bound chart shortcut beats ticker search — EXCEPT a bare letter, which
+    // is a ticker character first. Without the early return, digits
     // (timeframes) and Shift+letter (display toggles) would be swallowed by
-    // the symbol box below, which stopPropagation()s them. Returning here lets
-    // the event keep bubbling to StockChart's document-level handler.
-    if (matchShortcut(e)) return
+    // the symbol box below, which stopPropagation()s them. Without the letter
+    // exemption, the 8 letters still bound to drawing tools (a c f h r t v x)
+    // would stop TSLA / AAPL / F / HD / RIVN / CRM / V / XOM being typeable.
+    // Returning here lets the event bubble to StockChart's document handler.
+    const shortcutCmd = matchShortcut(e)
+    if (shortcutCmd) {
+      const bareLetter = !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && /^[a-zA-Z]$/.test(e.key)
+      if (!bareLetter) return
+    }
     if (e.ctrlKey || e.altKey || e.metaKey) return
     if (!TICKER_KEY_RE.test(e.key)) return
 ```

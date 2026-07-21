@@ -102,11 +102,22 @@ and inherits this gating.
 
 ### Type-to-search arbitration
 
-New rule: **a bound shortcut always beats ticker search.**
+New rule: **a bound shortcut beats ticker search — except a bare letter, which
+always goes to search.**
 
 `ChartWidget.handleChartKeyDown` consults `matchShortcut(e)` first and returns
 early if the key is spoken for, letting the event continue to the chart's own
 handler. Only unclaimed keys reach `TICKER_KEY_RE` and open the search box.
+
+The bare-letter exemption is load-bearing. Eight letters — `a c f h r t v x` —
+are still bound to drawing tools, which are out of scope here. Without the
+exemption, "a bound shortcut always wins" would stop `TSLA`, `AAPL`, `F`, `HD`,
+`RIVN`, `CRM`, `V` and `XOM` from being typeable — breaking the exact workflow
+this change exists to enable. So: a single letter with no modifiers always
+opens search; digits and every modifier combo (`Shift+H`, `Shift+F`) win as
+shortcuts. This leaves drawing tools exactly as they behave today — reachable
+from the toolbar, never from a focused chart widget — and the exemption can be
+lifted once tool bindings move off bare letters.
 `TICKER_KEY_RE` additionally narrows to `/^[A-Za-z.]$/` — no US ticker begins
 with a digit, so digits should never open the box regardless of whether they are
 currently bound.
