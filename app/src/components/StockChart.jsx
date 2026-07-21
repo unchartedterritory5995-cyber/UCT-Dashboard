@@ -9,7 +9,7 @@ import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
-import { panelFor } from '../utils/dividerColor'
+import { panelFor, toolbarFor } from '../utils/dividerColor'
 import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
@@ -1024,8 +1024,15 @@ export default function StockChart({
         ? (cs.bgGradient?.top || MB_BG)
         : ((userCanvas || !boldCandles) ? (cs.background || MB_BG) : MB_BG)
     const p = panelFor(solid)
+    const t = toolbarFor(solid)
     if (!p) return undefined
     return {
+      ...(t ? {
+        '--chart-toolbar-bg': t.bg,
+        '--chart-toolbar-bg-hover': t.bgHover,
+        '--chart-toolbar-text': t.text,
+        '--chart-toolbar-text-hover': t.textHover,
+      } : {}),
       '--chart-panel-bg': p.bg,
       '--chart-panel-bg-soft': p.bgSoft,
       '--chart-panel-border': p.border,

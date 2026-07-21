@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseColor, luminance, dividerFor, panelFor } from './dividerColor'
+import { parseColor, luminance, dividerFor, panelFor, toolbarFor } from './dividerColor'
 
 // Gridlines/hairlines were authored as fixed near-white and vanish on a light canvas.
 // dividerFor picks the contrasting side. The null return is load-bearing: it means
@@ -97,5 +97,54 @@ describe('panelFor', () => {
   it('returns null on an unparseable canvas (keep the hardcoded values)', () => {
     expect(panelFor('linear-gradient(to bottom, #fff, #000)')).toBeNull()
     expect(panelFor(null)).toBeNull()
+  })
+})
+
+describe('toolbarFor', () => {
+  it('reproduces the original dark button colors on the default canvas', () => {
+    // Was hardcoded #1a1c17 / #2e3127. The derived step lands within a hair of both,
+    // so the default dark chart is visually unchanged.
+    expect(toolbarFor('#0e0f0d').bg).toBe('rgb(26, 27, 25)')       // ≈ #1a1b19
+    expect(toolbarFor('#0e0f0d').bgHover).toBe('rgb(45, 46, 44)')  // ≈ #2d2e2c
+  })
+
+  it('steps AWAY from the canvas — lighter on dark, darker on light', () => {
+    const lum = (s) => {
+      const [r, g, b] = /rgb\((\d+), (\d+), (\d+)\)/.exec(s).slice(1).map(Number)
+      return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+    }
+    // Dark canvas: button is brighter than the canvas.
+    expect(lum(toolbarFor('#0e0f0d').bg)).toBeGreaterThan(luminance(parseColor('#0e0f0d')))
+    // Light canvas: button is darker. This is the whole point — a fixed "one step
+    // up" would glow on white.
+    expect(lum(toolbarFor('#ffffff').bg)).toBeLessThan(luminance(parseColor('#ffffff')))
+    expect(lum(toolbarFor('#eaf1fa').bg)).toBeLessThan(luminance(parseColor('#eaf1fa')))
+  })
+
+  it('hover is a bigger step than idle, in the same direction', () => {
+    const lum = (s) => {
+      const [r, g, b] = /rgb\((\d+), (\d+), (\d+)\)/.exec(s).slice(1).map(Number)
+      return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+    }
+    const dark = toolbarFor('#0e0f0d')
+    const light = toolbarFor('#ffffff')
+    expect(lum(dark.bgHover)).toBeGreaterThan(lum(dark.bg))
+    expect(lum(light.bgHover)).toBeLessThan(lum(light.bg))
+  })
+
+  it('keeps the button tinted by the canvas rather than neutral grey', () => {
+    // A red canvas gets a red-tinted button, not a grey one.
+    expect(toolbarFor('#c41f2d').bg).toBe('rgb(199, 42, 56)')
+  })
+
+  it('flips the icon colors for a light canvas', () => {
+    expect(toolbarFor('#0e0f0d').text).toBe('#a8a290')      // original
+    expect(toolbarFor('#0e0f0d').textHover).toBe('#e2dfd6') // original
+    expect(toolbarFor('#ffffff').text).not.toBe('#a8a290')
+    expect(toolbarFor('#ffffff').textHover).not.toBe('#e2dfd6')
+  })
+
+  it('returns null on an unparseable canvas', () => {
+    expect(toolbarFor('linear-gradient(to bottom, #fff, #000)')).toBeNull()
   })
 })

@@ -33,6 +33,36 @@ export function luminance(rgb) {
   return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255
 }
 
+/** Blend `rgb` toward `target` ([r,g,b]) by `amount` (0..1). */
+function mix(rgb, target, amount) {
+  return rgb.map((v, i) => Math.round(v + (target[i] - v) * amount))
+}
+const rgbStr = ([r, g, b]) => `rgb(${r}, ${g}, ${b})`
+
+/** Styling for the drawing TOOLBAR buttons, which sit directly on the canvas.
+ *
+ *  Unlike the legend panels (which match the canvas), these are deliberately a small
+ *  step AWAY from it so the controls are findable without shouting — on the default
+ *  #0e0f0d canvas the buttons are #1a1c17, one token step up. Hardcoded, that "one
+ *  step up" becomes "one step BRIGHTER than a white canvas", i.e. glowing. Here the
+ *  step follows the canvas: lighter on a dark canvas, darker on a light one.
+ *
+ *  The mix amounts are calibrated to reproduce the existing dark values:
+ *  #0e0f0d + 5% white ≈ #1a1b19 (was #1a1c17); + 13% ≈ #2d2e2c (was #2e3127).
+ *  Returns null when unparseable, meaning "keep the hardcoded values". */
+export function toolbarFor(canvasColor) {
+  const rgb = parseColor(canvasColor)
+  if (!rgb) return null
+  const light = luminance(rgb) > 0.5
+  const toward = light ? [0, 0, 0] : [255, 255, 255]
+  return {
+    bg: rgbStr(mix(rgb, toward, 0.05)),
+    bgHover: rgbStr(mix(rgb, toward, 0.13)),
+    text: light ? '#5a5548' : '#a8a290',
+    textHover: light ? '#14181e' : '#e2dfd6',
+  }
+}
+
 /** Styling for the small floating panels drawn ON the chart canvas — the crosshair
  *  OHLC legend, the volume legend, and the range-selector bar.
  *

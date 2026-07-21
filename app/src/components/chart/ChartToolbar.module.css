@@ -49,16 +49,20 @@
   justify-content: center;
   border: none;
   border-radius: 3px;
-  background: rgba(26, 28, 23, 0.85);
-  color: #a8a290;
+  /* One small step AWAY from the canvas so controls are findable without shouting.
+     --chart-toolbar-* is published by StockChart from the canvas color, so the step
+     goes lighter on a dark canvas and darker on a light one; the literals below are
+     the original dark values, kept as fallbacks. */
+  background: var(--chart-toolbar-bg, rgba(26, 28, 23, 0.85));
+  color: var(--chart-toolbar-text, #a8a290);
   cursor: pointer;
   padding: 0;
   transition: background 0.12s, color 0.12s;
   flex-shrink: 0;
 }
 .btn:hover {
-  background: rgba(46, 49, 39, 0.95);
-  color: #e2dfd6;
+  background: var(--chart-toolbar-bg-hover, rgba(46, 49, 39, 0.95));
+  color: var(--chart-toolbar-text-hover, #e2dfd6);
 }
 .btn:disabled {
   opacity: 0.25;
