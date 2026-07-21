@@ -845,7 +845,7 @@ export default function StockChart({
   canvasTheme: canvasThemeProp = null,  // workspace chart-theme override: 'sunrise' = light gradient canvas (keeps green/red candles); null = follow the app theme (see the derived `canvasTheme` below)
   showSma5 = false,          // workspace: add a faint 5-period SMA overlay (legend included). Very low-opacity so it's barely visible.
   onVolumePaneResize = null,  // (pct) => void — fired when the user drags the price/volume separator, so the caller can persist the new height
-  volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
+  volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off). Overridden by cs.volume.maPeriod when set (Indicators tab).
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   backgroundWarm = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
   deepWarm = false,         // true = run ONLY the deep-history dwell-warm (not the all-TF chain) even when backgroundWarm=false. Multi-chart grid passes true for the MAXIMIZED cell so its scroll-back is instant; the all-TF chain stays off (herd guard).
@@ -942,6 +942,10 @@ export default function StockChart({
   // prefs.theme and recolored every chart the moment Light was selected, which is not
   // wanted — the widgets must look identical in every app theme.
   const canvasTheme = canvasThemeProp
+
+  // Volume MA is editable from the Indicators tab; the `volumeMa` prop stays the
+  // fallback for callers that don't use chart settings (Model Book, popups).
+  const volMaPeriodEff = Number.isFinite(Number(cs?.volume?.maPeriod)) ? Number(cs.volume.maPeriod) : volumeMa
 
   // ── Chart settings from user preferences ──
   const csBase = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
@@ -1672,7 +1676,7 @@ export default function StockChart({
       change: change.toFixed(2), changePct: changePct.toFixed(2),
       dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
       volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
-      volMaPeriod: volumeMa || null,
+      volMaPeriod: volMaPeriodEff || null,
       overlays, rsi: null, macd: null, macdSig: null, stochK: null, stochD: null,
       atr: null, sar: null, ichimokuTenkan: null, ichimokuKijun: null, compare: null,
     }
@@ -3366,8 +3370,8 @@ export default function StockChart({
     // Volume bars track the candle palette EXACTLY so the red/green of the
     // volume pane matches the red/green of the candles above it (a dimmed alpha
     // composites darker over the near-black canvas and reads as a mismatched hue).
-    const upC = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-    const downC = boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+    const upC = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+    const downC = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
     const gold = '#e6b800'
     return sessionAppliedBars.map((b, i) => {
       // Up/down follows the SAME rule as the candles: net change (close vs the
@@ -3398,18 +3402,18 @@ export default function StockChart({
   }, [volData, candleFrameFade, frameFadeAlpha, fadeCutoff])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
-    if (!volumeMa || volumeMa < 2 || !sessionAppliedBars?.length) return []
+    if (!volMaPeriodEff || volMaPeriodEff < 2 || !sessionAppliedBars?.length) return []
     const out = []
     const q = []
     let sum = 0
     for (const b of sessionAppliedBars) {
       const v = b.v || 0
       q.push(v); sum += v
-      if (q.length > volumeMa) sum -= q.shift()
-      if (q.length === volumeMa) out.push({ time: adjustTime(b.t), value: sum / volumeMa })
+      if (q.length > volMaPeriodEff) sum -= q.shift()
+      if (q.length === volMaPeriodEff) out.push({ time: adjustTime(b.t), value: sum / volMaPeriodEff })
     }
     return out
-  }, [sessionAppliedBars, volumeMa, adjustTime])
+  }, [sessionAppliedBars, volMaPeriodEff, adjustTime])
   const overlayData = useMemo(() => {
     if (!sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -3840,7 +3844,7 @@ export default function StockChart({
         if (volumeSeriesRef.current) {
           // Full-opacity default color (matches closed bars + volData) — no lighter
           // "developing" tint. Value is 0 here so it's invisible until the next tick.
-          const _vUpN = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+          const _vUpN = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
           volumeSeriesRef.current.update({ time: barTime, value: 0, color: _vUpN })
         }
         _extendOverlaysLive(barTime, price)
@@ -3974,11 +3978,11 @@ export default function StockChart({
         const _up = _prevC != null ? (data.bar.c >= _prevC) : (data.bar.c >= data.bar.o)
         // Full-opacity default color (same derivation as volData) — the developing
         // bar matches the closed bars instead of a lighter tint.
-        const _vUp = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-        const _vDown = boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+        const _vUp = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+        const _vDown = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
         volumeSeriesRef.current.update({
           time: tSec,
-          value: data.bar.v,
+          value: _volB,
           color: _up ? _vUp : _vDown,
         })
       }
@@ -4805,8 +4809,8 @@ export default function StockChart({
             const _prevCD = colorByNetChange && _pbD && _pbD.length >= 2 ? _pbD[_pbD.length - 2].c : null
             const _upD = _prevCD != null ? (lb.close >= _prevCD) : (lb.close >= lb.open)
             // Full-opacity default color (same derivation as volData) — no lighter tint.
-            const _vUpD = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-            const _vDownD = boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            const _vUpD = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vDownD = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             volumeSeriesRef.current.update({
               time: lb.time, value: lb.volume,
               color: _upD ? _vUpD : _vDownD,
@@ -4974,7 +4978,7 @@ export default function StockChart({
       _applyData(volumeSeriesRef.current, volData)
 
       // Subtle smooth volume MA line on the same pane/scale as the bars.
-      if (volumeMa && volMaData.length) {
+      if (volMaPeriodEff && volMaData.length) {
         // candleFrameFade: split the volume MA into base (≤ setup day) + a fading
         // tail past it, so it crossfades with the candles / volume / price MAs.
         const _vmFade = candleFrameFade && fadeCutoff != null
@@ -4988,7 +4992,7 @@ export default function StockChart({
           crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
         }
         if (!volMaSeriesRef.current) {
-          volMaSeriesRef.current = chart.addSeries(LineSeries, { color: VOL_MA_COLOR, ..._vmOpts }, _vmPane)
+          volMaSeriesRef.current = chart.addSeries(LineSeries, { color: cs.volume?.maColor || VOL_MA_COLOR, lineWidth: Number(cs.volume?.maLineWidth) || 1, ..._vmOpts }, _vmPane)
         }
         _applyData(volMaSeriesRef.current, baseVM)
         if (_vmFade) {
@@ -6906,7 +6910,7 @@ export default function StockChart({
         changePct: changePct.toFixed(2),
         dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
         volAvg,
-        volMaPeriod: volumeMa || null,
+        volMaPeriod: volMaPeriodEff || null,
         overlays: ovValues,
         rsi: rsiValue, macd: macdValue, macdSig: macdSignalValue,
         stochK: stochKValue, stochD: stochDValue,
@@ -7904,14 +7908,22 @@ export default function StockChart({
           if (volumeSeriesRef.current) {
             // match the candle palette (same derivation as volData) so the
             // developing bar's volume color matches the historical bars
-            const _vUp = boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-            const _vDown = boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
+            const _vUp = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
+            const _vDown = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
             const _pbC = prevBarsRef.current
             const _prevCC = colorByNetChange && _pbC && _pbC.length >= 2 ? _pbC[_pbC.length - 2].c : null
             const _upC = _prevCC != null ? (candle.c >= _prevCC) : (candle.c >= candle.o)
+            // Same reset hazard as the push writer: the registry candle only counts
+            // ticks seen since we subscribed, so on a fresh symbol/TF it restarts near
+            // 0 mid-bucket. Floor it at the true volume we already hold for this same
+            // bucket (fetched partial / last server refresh) — never paint LESS than
+            // what has demonstrably already traded.
+            const _regV = Number(candle.v) || 0
+            const _knownV = (lastBarRef.current && lastBarRef.current.time === tSec
+              && Number.isFinite(lastBarRef.current.volume)) ? lastBarRef.current.volume : 0
             volumeSeriesRef.current.update({
               time: tSec,
-              value: candle.v || 0,
+              value: Math.max(_regV, _knownV),
               color: _upC ? _vUp : _vDown,
             })
           }
@@ -8274,7 +8286,13 @@ export default function StockChart({
           {verticalLegend ? (
             <>
               <span className={styles.vlHead} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
-              <span className={styles.vlChange} style={{ color: parseFloat(crosshairData.change) >= 0 ? (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a') : (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d') }}>
+              {/* VERTICAL legend variant. The horizontal branch below has the same
+                  readout — BOTH must honor the Header day-change colors, which is why
+                  fixing only one appeared to do nothing. Explicit setting wins; else
+                  the Sunset pair; else the default green/red. */}
+              <span className={styles.vlChange} style={{ color: (parseFloat(crosshairData.change) >= 0
+                ? (cs.header?.colors?.dayChangeUp || (canvasTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'))
+                : (cs.header?.colors?.dayChangeDown || (canvasTheme === 'sunrise' ? '#7d1620' : '#c41f2d'))) }}>
                 {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
               </span>
               <span className={styles.vlLabel} style={legBase}>Open</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>

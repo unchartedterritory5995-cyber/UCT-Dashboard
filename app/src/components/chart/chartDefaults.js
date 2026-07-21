@@ -78,8 +78,11 @@ export const CHART_DEFAULTS = {
 
   volume: {
     visible: true,
-    upColor: 'rgba(60,184,104,0.35)',
-    downColor: 'rgba(231,76,60,0.35)',
+    // Match StockChart's MB_UP / MB_DOWN — the workspace renders volume from these
+    // now, so the defaults must equal the previous hardcoded palette or the default
+    // look would shift for every user.
+    upColor: '#1ae51a',
+    downColor: '#c41f2d',
     hvcEnabled: true,
     separatePane: false,
     paneHeightPct: 22,   // height of the separate volume pane, % of chart (8–45)
