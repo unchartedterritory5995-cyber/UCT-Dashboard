@@ -155,6 +155,17 @@ export function VoiceProvider({ children }) {
     audioRef.current = el
   }, [])
 
+  // Monotonic playback generation. Read-aloud is a two-step flow — an async
+  // POST /tts/prepare, THEN playUrl() — and on a cold clip the prepare leg can
+  // take seconds. Every intentional interrupt (stop, or switching into another
+  // voice mode) bumps this counter so a chain that resolves LATER can tell its
+  // playback was cancelled and must not start. Without it, pressing Stop while
+  // a clip was preparing did nothing and the voice began talking afterwards —
+  // from the saved position, i.e. halfway through the brief, with the bar gone.
+  const playGenRef = useRef(0)
+  const getPlayGen = useCallback(() => playGenRef.current, [])
+  const cancelPending = useCallback(() => { playGenRef.current += 1 }, [])
+
   // Read-aloud replay: useReadAloud registers a closure that re-reads the
   // current track (optionally overriding voice/speed). The AudioPlayerBar's
   // voice picker calls it so changing the reader's voice re-synthesizes the
@@ -166,6 +177,18 @@ export function VoiceProvider({ children }) {
   const replayReadAloud = useCallback((overrides) => {
     const fn = readAloudReplayRef.current
     if (typeof fn === 'function') fn(overrides || {})
+  }, [])
+
+  // Enter the 'loading' state BEFORE the async TTS prepare leg, so the player
+  // bar — and therefore a Stop control — is on screen while a cold clip
+  // synthesizes. Previously the state stayed 'idle' for that whole window, so
+  // the user had nothing to cancel with and no feedback that anything started.
+  const beginLoad = useCallback(({ trackId, trackLabel }) => {
+    // Bump first: starting a new read supersedes any chain still preparing, so
+    // an older clip can't land afterwards and start talking over the new one.
+    playGenRef.current += 1
+    dispatch({ type: 'load', trackId, trackLabel })
+    return playGenRef.current
   }, [])
 
   const playUrl = useCallback(async ({ url, trackId, trackLabel }) => {
@@ -221,18 +244,35 @@ export function VoiceProvider({ children }) {
   // whenever we switch INTO another voice mode, so a previous read-aloud can
   // never keep playing underneath the new mode (orphaned audio).
   const haltAudioEl = useCallback(() => {
-    const el = audioRef.current
-    if (!el) return
-    try { el.pause() } catch { /* ignore */ }
-    try { if (el.srcObject) el.srcObject = null } catch { /* ignore */ }
-    try { el.src = '' } catch { /* ignore */ }
+    const halt = (el) => {
+      if (!el) return
+      try { el.pause() } catch { /* ignore */ }
+      try { if (el.srcObject) el.srcObject = null } catch { /* ignore */ }
+      try { el.src = '' } catch { /* ignore */ }
+    }
+    halt(audioRef.current)
+    // Defense in depth: halting used to depend SOLELY on audioRef, so it
+    // silently no-op'd whenever the ref was null or pointed at a different
+    // element than the one actually playing — while the state still went idle
+    // and hid the player bar, stranding audio the user could no longer stop.
+    // Stopping must never be best-effort: sweep every element the voice layer
+    // owns (tagged by AudioPlayerBar). Scoped by attribute so we never touch
+    // unrelated media — Desk videos, earnings-call audio, etc.
+    if (typeof document !== 'undefined') {
+      try {
+        document.querySelectorAll('audio[data-uct-voice-audio]').forEach((el) => {
+          if (el !== audioRef.current) halt(el)
+        })
+      } catch { /* ignore */ }
+    }
   }, [])
 
   const stop = useCallback(() => {
+    cancelPending()
     haltAudioEl()
     readAloudReplayRef.current = null
     dispatch({ type: 'stop' })
-  }, [haltAudioEl])
+  }, [haltAudioEl, cancelPending])
 
   const setSpeed = useCallback((speed) => {
     if (audioRef.current) audioRef.current.playbackRate = speed
@@ -242,17 +282,19 @@ export function VoiceProvider({ children }) {
   // Starting a one-shot or Realtime session is an intentional interrupt — halt
   // any read-aloud first so it doesn't keep playing under the new mode.
   const startListening = useCallback(() => {
+    cancelPending()
     haltAudioEl()
     dispatch({ type: 'b_listening' })
-  }, [haltAudioEl])
+  }, [haltAudioEl, cancelPending])
   const startThinking = useCallback(() => dispatch({ type: 'b_thinking' }), [])
   const startResponding = useCallback(({ transcript, narration }) =>
     dispatch({ type: 'b_responding', transcript, narration }), [])
 
   const beginRealtime = useCallback((context = 'global') => {
+    cancelPending()
     haltAudioEl()
     dispatch({ type: 'c_connecting', context })
-  }, [haltAudioEl])
+  }, [haltAudioEl, cancelPending])
   const realtimeConnected = useCallback(({ sessionId, openaiSessionId }) =>
     dispatch({ type: 'c_connected', sessionId, openaiSessionId }), [])
   const realtimeUserTurn = useCallback((text) =>
@@ -270,6 +312,7 @@ export function VoiceProvider({ children }) {
   const value = useMemo(() => ({
     ...state,
     attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
+    beginLoad, getPlayGen, cancelPending,
     registerReadAloud, replayReadAloud,
     startListening, startThinking, startResponding,
     beginRealtime, realtimeConnected, realtimeUserTurn,
@@ -277,6 +320,7 @@ export function VoiceProvider({ children }) {
     realtimeDisconnect, realtimeError,
     setWakeEnabled,
   }), [state, attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
+       beginLoad, getPlayGen, cancelPending,
        registerReadAloud, replayReadAloud,
        startListening, startThinking, startResponding,
        beginRealtime, realtimeConnected, realtimeUserTurn,

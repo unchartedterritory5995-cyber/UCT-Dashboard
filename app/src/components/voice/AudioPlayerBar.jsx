@@ -30,9 +30,15 @@ export default function AudioPlayerBar() {
   const lastSaveRef = useRef(0)
 
   // Register the shared <audio> element with the voice context exactly once.
+  // Halt it BEFORE detaching: once the ref is nulled nothing can reach this
+  // element again, so a still-playing clip would be stranded with no control.
   useEffect(() => {
-    voice.attachAudio(audioRef.current)
-    return () => voice.attachAudio(null)
+    const el = audioRef.current
+    voice.attachAudio(el)
+    return () => {
+      try { el?.pause() } catch { /* ignore */ }
+      voice.attachAudio(null)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -219,7 +225,9 @@ export default function AudioPlayerBar() {
   // removing it from the document. Only the controls bar toggles.
   return (
     <>
-      <audio ref={audioRef} preload="auto" hidden />
+      {/* data-uct-voice-audio marks this as voice-owned so VoiceContext's
+          stop() can sweep it even if the ref ever goes stale. */}
+      <audio ref={audioRef} preload="auto" hidden data-uct-voice-audio="" />
       {visible && (
         <div className={styles.bar} role="region" aria-label="Audio playback">
           {isReadAloud && (

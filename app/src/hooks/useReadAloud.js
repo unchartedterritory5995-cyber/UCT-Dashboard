@@ -30,6 +30,13 @@ export default function useReadAloud() {
         await voice.resume()
         return
       }
+      // Mid-prepare the button already renders as "Pause read-aloud", so a
+      // click here must CANCEL the pending read — not silently queue a second
+      // synthesis of the same track.
+      if (voice.trackId === trackId && voice.status === 'loading') {
+        voice.stop()
+        return
+      }
     }
 
     let text
@@ -45,6 +52,16 @@ export default function useReadAloud() {
     if (voiceOverride) body.voice = voiceOverride
     if (speedOverride !== undefined) body.speed = speedOverride
 
+    // Show the player bar (and its Stop button) for the whole prepare leg, and
+    // remember which playback generation this chain belongs to. Any stop /
+    // mode-switch bumps the generation, which is how we detect below that the
+    // user cancelled while the clip was still synthesizing.
+    const gen = voice.beginLoad({ trackId, trackLabel: label })
+    const cancelled = () => voice.getPlayGen() !== gen
+    // Leave the bar in a sane state if we bail before playback starts —
+    // otherwise it sticks on "preparing…" forever.
+    const abort = () => { if (!cancelled()) voice.stop() }
+
     // Two-step so playback can stream natively: POST the text to /prepare (which
     // validates + returns a short-lived token), then point the <audio> element
     // at GET /stream?token=…. The browser plays the MP3 progressively as bytes
@@ -57,7 +74,11 @@ export default function useReadAloud() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+      // The user pressed Stop while this was in flight — abandon it silently.
+      // Do NOT alert (they cancelled; nothing failed) and do NOT play.
+      if (cancelled()) return
       if (!r.ok) {
+        abort()
         // Surface every failure — a silent no-op makes the button look "broken".
         if (r.status === 402) {
           alert('Voice features require a paid plan.')
@@ -74,12 +95,16 @@ export default function useReadAloud() {
         return
       }
       const data = await r.json()
+      if (cancelled()) return
       if (!data || !data.token) {
+        abort()
         alert('Read Aloud failed. Please try again.')
         return
       }
       streamUrl = `/api/voice/tts/stream?token=${encodeURIComponent(data.token)}`
     } catch (e) {
+      if (cancelled()) return
+      abort()
       console.error('[useReadAloud] fetch failed', e)
       alert('Read Aloud failed — could not reach the server. Please try again.')
       return
@@ -87,6 +112,10 @@ export default function useReadAloud() {
 
     // Register a replay closure so the player's voice/speed pickers can
     // re-read THIS track with a different voice (which requires re-synthesis).
+    // Final gate: everything above was async, so re-check right before the one
+    // line that actually makes noise.
+    if (cancelled()) return
+
     voice.registerReadAloud((overrides = {}) => play({
       trackId,
       label,
