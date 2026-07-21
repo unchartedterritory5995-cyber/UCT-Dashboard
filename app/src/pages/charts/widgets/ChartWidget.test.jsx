@@ -113,3 +113,15 @@ test('a bound shortcut key does NOT open ticker search', () => {
   fireEvent.keyDown(chartSurface(container), { key: 'H', code: 'KeyH', shiftKey: true })
   expect(openWithSpy).not.toHaveBeenCalled()
 })
+
+test('a bare letter bound to a drawing tool still opens ticker search', () => {
+  openWithSpy.mockClear()
+  const { container } = render(<Wrap color="A" />)
+  const surface = chartSurface(container)
+  // 't' is bound to tool:trendline and 'a' to tool:arrow — with no modifiers,
+  // ticker search must win so TSLA/AAPL/etc. can still be typed.
+  fireEvent.keyDown(surface, { key: 't' })
+  expect(openWithSpy).toHaveBeenCalledWith('t')
+  fireEvent.keyDown(surface, { key: 'a' })
+  expect(openWithSpy).toHaveBeenCalledWith('a')
+})

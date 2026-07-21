@@ -291,11 +291,21 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
       setFlagToast(willFlag ? 'flagged' : 'unflagged')
       return
     }
-    // A bound chart shortcut always beats ticker search. Without this, digits
-    // (timeframes) and Shift+letter (display toggles) would be swallowed by
-    // the symbol box below, which stopPropagation()s them. Returning here lets
-    // the event keep bubbling to StockChart's document-level handler.
-    if (matchShortcut(e)) return
+    // A bound chart shortcut beats ticker search — EXCEPT a bare letter with no
+    // modifiers, which always wins for search instead. Without the general rule,
+    // digits (timeframes) and Shift+letter (display toggles, e.g. Shift+H Heikin
+    // Ashi) would be swallowed by the symbol box below, which stopPropagation()s
+    // them. But letters are ticker characters, and 8 bare letters (a c f h r t v x)
+    // are ALSO bound to drawing tools — without the carve-out, typing TSLA, AAPL,
+    // F, HD, RIVN, CRM, V, or XOM into the chart couldn't open search at all. Those
+    // tool bindings are being revisited separately; until then, letters win. This
+    // only restores current (pre-shortcut) ticker-search behavior — drawing tools
+    // remain reachable from the on-screen toolbar exactly as before.
+    const shortcutCmd = matchShortcut(e)
+    if (shortcutCmd) {
+      const bareLetter = !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && /^[a-zA-Z]$/.test(e.key)
+      if (!bareLetter) return
+    }
     if (e.ctrlKey || e.altKey || e.metaKey) return
     if (!TICKER_KEY_RE.test(e.key)) return
     e.preventDefault()
