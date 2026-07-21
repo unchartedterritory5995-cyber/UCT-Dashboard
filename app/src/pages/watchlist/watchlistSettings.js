@@ -95,8 +95,12 @@ export function watchlistStyleVars(s) {
   }
   if (s.bgMode === 'solid') {
     vars['--wl-bg'] = s.bg
+    vars['--wl-bg-solid'] = s.bg
   } else if (s.bgMode === 'gradient') {
     vars['--wl-bg'] = `linear-gradient(to bottom, ${s.bgGradient.top} 0%, ${s.bgGradient.bottom} 100%)`
+    // A SOLID stand-in for surfaces that can't take a gradient without repeating it
+    // (the header strip). The TOP stop is the edge the header meets, so it blends.
+    vars['--wl-bg-solid'] = s.bgGradient.top
   }
   return vars
 }

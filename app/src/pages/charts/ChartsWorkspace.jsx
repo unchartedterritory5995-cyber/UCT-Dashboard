@@ -7,7 +7,7 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
-import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
+import { WATCHLIST_DEFAULTS, mergeWatchlistSettings } from '../watchlist/watchlistSettings'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
@@ -331,23 +331,28 @@ export default function ChartsWorkspace() {
   const chartsTheme = prefs.charts_theme || 'default'
   const setChartsTheme = useCallback((t) => setPref('charts_theme', t), [setPref])
 
-  // The chart canvas color, republished as --widget-canvas so the widget CHROME
-  // (widget panel + border, the symbol/clock header row, the timeframe/meta row,
-  // and the watchlist's own header rows) paints the same color as the chart it
-  // sits around. Without this the canvas turned e.g. red while every row above it
-  // stayed on --bg-elevated, so the widget read as two unrelated halves.
-  // Mirrors StockChart's own background resolution: Sunset wins, then a gradient
-  // uses its TOP stop (that's the edge the header meets), else the solid color.
-  const widgetCanvas = useMemo(() => {
-    if (chartsTheme === 'sunrise') return '#eaf1fa'
+  // Each widget's chrome (panel + border, header row, and its own top rows) paints
+  // the canvas color of THAT widget's settings, published to the widget subtree as
+  // --widget-canvas by WidgetHost. Keyed by widget type — a type absent here gets no
+  // variable and keeps the default tokens, which is why Fundamentals / Theme Tracker /
+  // AI Search / Scanner are untouched: they have no canvas setting of their own yet.
+  // (This was briefly set on the WORKSPACE root, which cascaded the chart's color into
+  // every widget — do NOT hoist it back up.)
+  // Resolution mirrors each surface's own: a gradient contributes its TOP stop, since
+  // that's the edge the header actually meets; otherwise the solid color.
+  const widgetCanvasByType = useMemo(() => {
     const cs = mergeChartSettings(prefs.chart_settings)
-    if (cs.bgMode === 'gradient') return cs.bgGradient?.top || cs.background
-    return cs.background
-  }, [chartsTheme, prefs.chart_settings])
+    const chart = chartsTheme === 'sunrise'
+      ? '#eaf1fa'
+      : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
+    const wl = mergeWatchlistSettings(parsePref(prefs.watchlist_settings, null))
+    const watchlist = wl.bgMode === 'gradient' ? (wl.bgGradient?.top || wl.bg) : wl.bg
+    return { chart, watchlist }
+  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
-    [groupSyms, setGroupSym, chartsTheme],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType],
   )
 
   // Debounced layout persist (500ms).
@@ -640,7 +645,7 @@ export default function ChartsWorkspace() {
     return (
       <WorkspaceContext.Provider value={workspaceValue}>
         {gridMode ? (
-          <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column', '--widget-canvas': widgetCanvas }}>
+          <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Phone toolbar: grid mode persists from desktop, and without an
                 exit control a phone user is TRAPPED in it (mega-review #15 —
                 the desktop entry flyout doesn't exist on phone). */}
@@ -682,7 +687,7 @@ export default function ChartsWorkspace() {
 
   return (
     <WorkspaceContext.Provider value={workspaceValue}>
-      <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ '--widget-canvas': widgetCanvas }}>
+      <div className={styles.workspace} data-charts-theme={chartsTheme}>
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
           {!gridMode && (<>

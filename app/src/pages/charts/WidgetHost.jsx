@@ -5,6 +5,7 @@ import ScannerWidget from './widgets/ScannerWidget'
 import FundamentalsWidget from './widgets/FundamentalsWidget'
 import AiSearchWidget from './widgets/AiSearchWidget'
 import WidgetHeader from './WidgetHeader'
+import { useWorkspace } from './WorkspaceContext'
 import styles from './ChartsWorkspace.module.css'
 
 const TYPE_LABEL = {
@@ -29,6 +30,15 @@ function WidgetBody({ widget, onOptsChange }) {
 }
 
 export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, headerAtBottom = false, merged = false }) {
+  // Publish THIS widget's own canvas color to its own subtree, so its chrome (panel,
+  // border, header bar, and its interior top rows) matches the surface it wraps.
+  // Scoped per widget on purpose: only types with a user-facing canvas setting appear
+  // in the map, so Fundamentals / Theme Tracker / AI Search / Scanner get no variable
+  // and keep the default tokens until they gain settings of their own. Setting this on
+  // the workspace root instead would leak the chart's color into every widget.
+  const { widgetCanvasByType } = useWorkspace() || {}
+  const canvas = widgetCanvasByType?.[widget.type] || null
+
   const header = (
     <WidgetHeader
       label={TYPE_LABEL[widget.type] || widget.type}
@@ -47,7 +57,10 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // Otherwise, when another widget sits directly above this one, drop the drag/close bar
   // to the BOTTOM so the two widgets blend together at the seam (no header in the middle).
   return (
-    <div className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}`}>
+    <div
+      className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}`}
+      style={canvas ? { '--widget-canvas': canvas } : undefined}
+    >
       {merged
         ? body
         : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
