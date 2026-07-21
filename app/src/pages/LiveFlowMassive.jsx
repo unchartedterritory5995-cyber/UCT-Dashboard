@@ -1004,8 +1004,8 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
         <button
           onClick={() => onHideNoSideChange(!hideNoSide)}
           title={hideNoSide
-            ? "Direction-unconfirmed 'UCT Size' prints are HIDDEN. Click to show them again."
-            : "Hide direction-unconfirmed 'UCT Size' prints (big size, side couldn't be confirmed — not a bull/bear signal)."
+            ? "Not-clean prints (UCT Size - Not Clean: side unconfirmed or two-way flow) are HIDDEN. Click to show them again."
+            : "Hide not-clean prints — big size, but the direction isn't clean (side couldn't be confirmed, or the contract is two-way)."
           }
           style={{
             background: hideNoSide ? P.ac : "transparent",
@@ -1015,7 +1015,7 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
             display: "inline-flex", alignItems: "center", gap: 6,
           }}
         >
-          {hideNoSide ? "✓ No-Side hidden" : "Hide No-Side"}
+          {hideNoSide ? "✓ Not Clean hidden" : "Hide Not Clean"}
         </button>
       )}
 
@@ -3495,7 +3495,7 @@ export default function LiveFlowMassive() {
     .filter(a => {
       const tier = _tierOf(a);
       if (hideAlgo && tier === "algo") return false;  // global Algo hide
-      if (hideNoSide && (a._directionUnconfirmed || (a.alertName || "").toLowerCase() === "uct size")) return false;  // hide direction-unconfirmed "UCT Size"
+      if (hideNoSide && (a._directionUnconfirmed || (a.alertName || "").toLowerCase().startsWith("uct size"))) return false;  // hide direction-unconfirmed "UCT Size"
       if (!filters[tier]) return false;
       // 7/7 + 7/9: Stocks / ETFs partition filter. PREFER the authoritative
       // backend source (Massive ticker_types); fall back to KNOWN_ETFS_INDEXES
