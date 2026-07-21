@@ -172,7 +172,7 @@ def test_create_rejects_missing_underlying(db_conn):
             "direction": "bullish",
             "entry_date": "2026-04-19",
             "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                      "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                      "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
         }, conn=db_conn)
 
 
@@ -184,7 +184,7 @@ def test_create_rejects_bad_strategy_type(db_conn):
             "underlying": "NVDA", "strategy_type": "nonsense",
             "direction": "bullish", "entry_date": "2026-04-19",
             "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                      "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                      "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
         }, conn=db_conn)
 
 
@@ -207,7 +207,7 @@ def test_create_rejects_bad_leg_strike(db_conn):
             "underlying": "NVDA", "strategy_type": "long_call",
             "direction": "bullish", "entry_date": "2026-04-19",
             "legs": [{"side": "buy", "contract_type": "call", "strike": -5,
-                      "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                      "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
         }, conn=db_conn)
 
 
@@ -238,7 +238,7 @@ def test_create_single_leg_long_call(db_conn):
         "fees": 0.65,
         "setup": "VCP",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5.20}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5.20}],
     }, conn=db_conn)
     assert s["underlying"] == "NVDA"
     assert s["strategyType"] == "long_call"
@@ -259,10 +259,10 @@ def test_create_four_leg_iron_condor(db_conn):
         "direction": "neutral",
         "entry_date": "2026-04-19",
         "legs": [
-            {"side": "sell", "contract_type": "put",  "strike": 420, "expiration": "2026-05-16", "qty": 1, "entry_price": 1.50},
-            {"side": "buy",  "contract_type": "put",  "strike": 415, "expiration": "2026-05-16", "qty": 1, "entry_price": 0.50},
-            {"side": "sell", "contract_type": "call", "strike": 440, "expiration": "2026-05-16", "qty": 1, "entry_price": 1.40},
-            {"side": "buy",  "contract_type": "call", "strike": 445, "expiration": "2026-05-16", "qty": 1, "entry_price": 0.60},
+            {"side": "sell", "contract_type": "put",  "strike": 420, "expiration": _exp_iso(30), "qty": 1, "entry_price": 1.50},
+            {"side": "buy",  "contract_type": "put",  "strike": 415, "expiration": _exp_iso(30), "qty": 1, "entry_price": 0.50},
+            {"side": "sell", "contract_type": "call", "strike": 440, "expiration": _exp_iso(30), "qty": 1, "entry_price": 1.40},
+            {"side": "buy",  "contract_type": "call", "strike": 445, "expiration": _exp_iso(30), "qty": 1, "entry_price": 0.60},
         ],
     }, conn=db_conn)
     assert s["strategyType"] == "iron_condor"
@@ -277,7 +277,7 @@ def test_list_and_get_strategy(db_conn):
         "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
     }, conn=db_conn)
     all_list = list_strategies("u1", conn=db_conn)
     assert len(all_list) == 1
@@ -294,7 +294,7 @@ def test_close_strategy_debit_winner(db_conn):
         "direction": "bullish", "entry_date": "2026-04-19",
         "fees": 0.65,
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5.00}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5.00}],
     }, conn=db_conn)
     closed = close_strategy("u1", s["id"], {
         "exitPrices": {"0": 7.20},
@@ -318,9 +318,9 @@ def test_close_credit_spread_winner(db_conn):
         "direction": "bullish", "entry_date": "2026-04-19",
         "legs": [
             {"side": "sell", "contract_type": "put", "strike": 420,
-             "expiration": "2026-05-16", "qty": 1, "entry_price": 1.50},
+             "expiration": _exp_iso(30), "qty": 1, "entry_price": 1.50},
             {"side": "buy",  "contract_type": "put", "strike": 415,
-             "expiration": "2026-05-16", "qty": 1, "entry_price": 0.50},
+             "expiration": _exp_iso(30), "qty": 1, "entry_price": 0.50},
         ],
     }, conn=db_conn)
     # net_entry = (-150) + 50 = -100 (net credit)
@@ -345,10 +345,10 @@ def test_mark_expired_zero_legs(db_conn):
         "underlying": "SPY", "strategy_type": "iron_condor",
         "direction": "neutral", "entry_date": "2026-04-19",
         "legs": [
-            {"side": "sell", "contract_type": "put",  "strike": 420, "expiration": "2026-05-16", "qty": 1, "entry_price": 1.50},
-            {"side": "buy",  "contract_type": "put",  "strike": 415, "expiration": "2026-05-16", "qty": 1, "entry_price": 0.50},
-            {"side": "sell", "contract_type": "call", "strike": 440, "expiration": "2026-05-16", "qty": 1, "entry_price": 1.40},
-            {"side": "buy",  "contract_type": "call", "strike": 445, "expiration": "2026-05-16", "qty": 1, "entry_price": 0.60},
+            {"side": "sell", "contract_type": "put",  "strike": 420, "expiration": _exp_iso(30), "qty": 1, "entry_price": 1.50},
+            {"side": "buy",  "contract_type": "put",  "strike": 415, "expiration": _exp_iso(30), "qty": 1, "entry_price": 0.50},
+            {"side": "sell", "contract_type": "call", "strike": 440, "expiration": _exp_iso(30), "qty": 1, "entry_price": 1.40},
+            {"side": "buy",  "contract_type": "call", "strike": 445, "expiration": _exp_iso(30), "qty": 1, "entry_price": 0.60},
         ],
     }, conn=db_conn)
     # net_entry = -180 (credit)
@@ -387,7 +387,7 @@ def test_delete_only_open(db_conn):
         "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
     }, conn=db_conn)
     # Close it first
     close_strategy("u1", s["id"], {
@@ -406,7 +406,7 @@ def test_update_metadata_only(db_conn):
         "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
     }, conn=db_conn)
     updated = update_strategy("u1", s["id"], {
         "notes": "Updated thesis",
@@ -429,7 +429,7 @@ def test_user_isolation(db_conn):
         "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
     }, conn=db_conn)
 
     assert list_strategies("bob", conn=db_conn) == []
@@ -445,13 +445,13 @@ def test_account_filter(db_conn):
         "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19", "accountId": "acc-live",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
     }, conn=db_conn)
     b = create_strategy("u1", {
         "underlying": "AMD", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19", "accountId": "acc-paper",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 140,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 3}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 3}],
     }, conn=db_conn)
     live_only = list_strategies("u1", account_id="acc-live", conn=db_conn)
     assert len(live_only) == 1
@@ -466,8 +466,8 @@ def test_create_custom_strategy_then_close(db_conn):
         "underlying": "TSLA", "strategy_type": "custom", "direction": "neutral",
         "entry_date": "2026-04-19",
         "legs": [
-            {"side": "buy",  "contract_type": "call", "strike": 250, "expiration": "2026-06-20", "qty": 2, "entry_price": 8},
-            {"side": "sell", "contract_type": "put",  "strike": 230, "expiration": "2026-06-20", "qty": 2, "entry_price": 4},
+            {"side": "buy",  "contract_type": "call", "strike": 250, "expiration": _exp_iso(60), "qty": 2, "entry_price": 8},
+            {"side": "sell", "contract_type": "put",  "strike": 230, "expiration": _exp_iso(60), "qty": 2, "entry_price": 4},
         ],
     }, conn=db_conn)
     # net_entry = (+2*8 -2*4)*100 = 800
@@ -492,7 +492,7 @@ def test_close_rejects_already_closed(db_conn):
         "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
     }, conn=db_conn)
     close_strategy("u1", s["id"], {
         "exitPrices": {"0": 7}, "exitDate": "2026-04-25",
@@ -512,7 +512,7 @@ def test_close_rejects_negative_exit_price(db_conn):
         "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
     }, conn=db_conn)
     with pytest.raises(OptionValidationError):
         close_strategy("u1", s["id"], {
@@ -566,7 +566,7 @@ def test_linked_playbook_id_empty_string_normalized_to_null(db_conn):
         "underlying": "NVDA", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19", "linkedPlaybookId": "   ",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 200,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 5}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 5}],
     }, conn=db_conn)
     assert s["linkedPlaybookId"] is None
 
@@ -587,7 +587,7 @@ def test_delete_race_returns_false_when_status_flipped(db_conn):
         "underlying": "AMD", "strategy_type": "long_call", "direction": "bullish",
         "entry_date": "2026-04-19",
         "legs": [{"side": "buy", "contract_type": "call", "strike": 140,
-                  "expiration": "2026-05-16", "qty": 1, "entry_price": 3}],
+                  "expiration": _exp_iso(30), "qty": 1, "entry_price": 3}],
     }, conn=db_conn)
     # Open strategy deletes fine
     assert delete_strategy("u1", s["id"], conn=db_conn) is True
