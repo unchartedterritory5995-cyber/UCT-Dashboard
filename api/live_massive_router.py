@@ -449,6 +449,16 @@ def _qualifies_curated(alert: dict, thresholds: dict,
     if tier == "algo":
         return False
 
+    # Optional (2026-07-21): hide direction-unconfirmed "UCT Size" (keep-as-Size)
+    # rows from the curated feed. They're big prints whose side we couldn't call —
+    # SHOWN by default; the admin can hide them since they're non-directional.
+    # Toggle `hide_sizeless` in /thresholds. (Auto-push already never fires them.)
+    if thresholds.get("hide_sizeless") and (
+        alert.get("_directionUnconfirmed")
+        or (alert.get("alertName") or "").lower() == "uct size"
+    ):
+        return False
+
     prem = alert.get("alertPremium") or 0
     v_oi = alert.get("volumeOIRatio") or 0
     hit_count = alert.get("_hitCount") or 1
@@ -3395,8 +3405,14 @@ _AUTO_PUSH_CFG = {
     "grade_a": True,             # push grade A / A+
     "size_sweep_enabled": False, # optional: high-premium Size B sweeps
     "size_min_premium": 3_000_000,
-    "accum_enabled": True,        # push high-conviction accumulations (By-Contract)
+    "accum_enabled": False,       # push accumulations (By-Contract) — OFF 2026-07-21 (too noisy; two-way contracts mislabeled). Re-enable in the auto-push panel.
     "accum_min_premium": 3_000_000,  # accumulation premium floor
+    # Net-flow cleanliness gate (2026-07-21): only auto-push when the
+    # CONTRACT's directional premium is >= this fraction one-sided (dominant
+    # side / total directional). A big print on a two-way tape (MU $1190P:
+    # mixed bid/ask puts, ~50/50) won't fire. 0 disables. Only as reliable
+    # as the per-print side reads (fresh-NBBO accuracy makes it meaningful).
+    "min_directional_ratio": 0.67,
     # ── Time gates (2026-07-15). Runtime-tunable; both off == prior behaviour.
     "market_hours_only": True,    # never fire outside 9:30-16:00 ET, Mon-Fri
     "max_alert_age_sec": 600,     # single: don't fire a print older than 10 min
@@ -3533,6 +3549,15 @@ def should_auto_push(alert: dict, cfg: dict = None) -> bool:
     grade = (alert.get("grade") or "").upper()
     name = (alert.get("alertName") or "").lower()
 
+    # Never auto-push a direction-unconfirmed "UCT Size" print (2026-07-21):
+    # keep-as-Size surfaces big prints whose side we couldn't trust (deep-ITM,
+    # ambiguous at-bid 'B', stale/blank NBBO). They belong in the FEED, but a
+    # neutral "big, direction unknown" print is not a Bull/Bear signal to blast
+    # to Discord. Directional Size (UCT Size Bulls/Bears) is unaffected. Manual
+    # force-push is unaffected (this gates auto-push only).
+    if alert.get("_directionUnconfirmed") or name == "uct size":
+        return False
+
     # ── Single-print tiers ──
     if cfg.get("alpha_gold") and (tier == "alpha" or "alpha gold" in name):
         return True
@@ -3572,6 +3597,31 @@ def _unclaim_push(alert: dict):
         pass
 
 
+def _net_flow_clean(alert: dict, flow_split: dict, min_ratio: float) -> bool:
+    """True only when the CONTRACT's directional flow is cleanly one-sided in the
+    alert's direction. A big ask-side print on a two-way tape (both Bull and Bear
+    premium heavy — e.g. MU $1190P's mixed bid/ask puts) fails; a genuinely
+    one-directional contract (e.g. NFLX 8/21, dominated by one ask sweep) passes.
+    Requires the dominant side's premium >= min_ratio of total directional premium
+    AND that dominant side to match the alert's direction. Direction-less prints
+    never pass. Only as good as the per-print side reads feeding flow_split."""
+    d = (alert.get("_direction") or "").strip()
+    if d not in ("Bull", "Bear"):
+        return False
+    key = (f"{alert.get('ticker','')}|{alert.get('cp','')}|"
+           f"{alert.get('strike','')}|{alert.get('exp','')}")
+    fs = flow_split.get(key)
+    if not fs:
+        return False
+    bull = fs.get("Bull", 0.0)
+    bear = fs.get("Bear", 0.0)
+    total = bull + bear
+    if total <= 0:
+        return False
+    dominant = "Bull" if bull >= bear else "Bear"
+    return dominant == d and (max(bull, bear) / total) >= min_ratio
+
+
 def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
     """Per-scan auto-push pass, run on the FULL alert set in /recent:
       1) mark forwardedToDiscord on every alert already in the push log — so
@@ -3608,6 +3658,17 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
         except Exception:
             curated_ok = None
     enabled = bool(_AUTO_PUSH_CFG.get("enabled")) and live
+    # Net-flow split per contract (2026-07-21): directional premium by side, so we
+    # only fire on cleanly one-directional contracts. Direction-less prints don't
+    # count toward either side.
+    _flow = {}
+    for _fa in alerts:
+        _fd = (_fa.get("_direction") or "").strip()
+        if _fd in ("Bull", "Bear"):
+            _fk = f"{_fa.get('ticker','')}|{_fa.get('cp','')}|{_fa.get('strike','')}|{_fa.get('exp','')}"
+            _fs = _flow.setdefault(_fk, {"Bull": 0.0, "Bear": 0.0})
+            _fs[_fd] += (_fa.get("alertPremium") or 0)
+    _min_ratio = float(_AUTO_PUSH_CFG.get("min_directional_ratio", 0.67) or 0)
     to_push = []
     for a in alerts:
         try:
@@ -3617,7 +3678,9 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
         if key in pushed:
             a["forwardedToDiscord"] = True
             continue
-        if enabled and should_auto_push(a) and _push_window_ok(a, mode, _AUTO_PUSH_CFG):
+        if (enabled and should_auto_push(a)
+                and (_min_ratio <= 0 or _net_flow_clean(a, _flow, _min_ratio))
+                and _push_window_ok(a, mode, _AUTO_PUSH_CFG)):
             if curated_ok is not None and not curated_ok(a):
                 continue   # conviction match, but failed its cap-tier curated floor
             if _record_push(a, mode, "auto"):           # atomic claim
