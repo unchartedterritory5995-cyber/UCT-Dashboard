@@ -7,7 +7,12 @@ endpoint. The Live tab in src/pages/LiveFlow.jsx hits this every 5 seconds.
 Phase B will add SQLite-backed history endpoints, filter config CRUD, and
 Discord forwarding stats.
 """
-from fastapi import APIRouter, Query, Body
+from fastapi import APIRouter, Query, Body, Depends
+# 2026-07-20 security pass: the mutating/admin routes below were UNAUTHENTICATED
+# and internet-reachable (an anonymous POST to /admin/force-push-discord could
+# post into members' Discord; /admin/refresh-baselines — registered for GET too —
+# ran a 141k-row recompute). Same gate used across the flow routers.
+from api.flow_admin_auth import require_flow_admin
 from pydantic import BaseModel
 
 import logging
@@ -269,7 +274,8 @@ def get_user_blocklist():
 
 
 @router.put("/user-blocklist")
-def update_user_blocklist(payload: UserBlocklistPayload):
+def update_user_blocklist(payload: UserBlocklistPayload,
+                          _auth: dict = Depends(require_flow_admin)):
     """
     Replace the user-managed blocklist with the provided ticker list.
     Tickers are uppercased and trimmed; empties dropped. Persists to disk.
@@ -479,6 +485,7 @@ def admin_clear_before_date(
 @router.post("/admin/force-push-discord")
 async def admin_force_push_discord(
     payload: dict = Body(..., description="Alert dict to push (from LiveFlow row)"),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """
     Push a single alert to Discord, bypassing all gates.
@@ -650,6 +657,7 @@ def admin_refresh_baselines(
                         description="FlowDB source: 'stocks' or 'indexes'. Worker only uses 'stocks'."),
     min_premium: int = Query(default=250_000, ge=0, le=10_000_000,
                              description="Premium floor for inclusion. Matches Bullflow's filter — trades below this never reach the worker."),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """
     Recompute per-ticker premium percentiles from FlowDB and persist to the

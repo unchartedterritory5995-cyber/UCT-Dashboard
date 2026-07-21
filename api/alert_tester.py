@@ -29,7 +29,9 @@ from collections import defaultdict, Counter
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, Depends
+# 2026-07-20 security pass: /api/admin/alert-tester/simulate was unauthenticated.
+from api.flow_admin_auth import require_flow_admin
 from fastapi.responses import JSONResponse
 
 log = logging.getLogger("alert_tester")
@@ -871,6 +873,7 @@ def _extract_from_jsonrpc(envelope: Any) -> dict:
 
 @router.post("/simulate")
 async def simulate(
+    _auth: dict = Depends(require_flow_admin),
     csv_file: UploadFile = File(...),
     alert_config: str = Form(...),
     min_discord_grade: str = Form("B"),

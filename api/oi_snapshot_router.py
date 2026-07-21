@@ -13,7 +13,11 @@ Integration in main.py:
     app.include_router(oi_snapshot_router)
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+# 2026-07-20 security pass: these were UNAUTHENTICATED + internet-reachable.
+# /bulk-fetch is called by the Live Flow page (any logged-in user); the rest are
+# admin/maintenance jobs that hit the paid Schwab API and mutate OI snapshots.
+from api.flow_admin_auth import require_flow_admin, require_flow_user
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime, timedelta
@@ -37,7 +41,7 @@ def _run_snapshot_background():
 
 
 @router.post("/run")
-def run_snapshot():
+def run_snapshot(_auth: dict = Depends(require_flow_admin)):
     """Kick off today's snapshot in the background and return immediately.
     Long jobs (60-180s) would exceed Cloudflare's 100s edge timeout if we
     waited inline. Poll /run-status to see when it finishes.
@@ -70,7 +74,7 @@ def run_status():
 
 
 @router.post("/cancel")
-def cancel_run():
+def cancel_run(_auth: dict = Depends(require_flow_admin)):
     """Force-mark any active 'running' run as failed. Use to unstick an
     orphan run after a Railway restart killed an in-flight job."""
     oi_snapshots.init_db()
@@ -79,7 +83,7 @@ def cancel_run():
 
 
 @router.post("/run-sync")
-def run_snapshot_sync():
+def run_snapshot_sync(_auth: dict = Depends(require_flow_admin)):
     """Synchronous version — blocks until job finishes. Use only when called
     from inside the network (admin server-to-server, not via Cloudflare)."""
     try:
@@ -152,7 +156,8 @@ class ConfirmResponse(BaseModel):
 
 
 @router.post("/confirm", response_model=List[ConfirmResponse])
-def confirm_trades(trades: List[ConfirmRequest]):
+def confirm_trades(trades: List[ConfirmRequest],
+                   _auth: dict = Depends(require_flow_admin)):
     """Apply confirmation logic to a batch of B-side trades. Returns inferred
     direction for each (or None if not yet confirmable)."""
     out = []
@@ -248,7 +253,8 @@ def _iso_to_mdy(exp_iso: str) -> Optional[str]:
 
 
 @router.post("/bulk-fetch", response_model=BulkFetchOIResponse)
-async def bulk_fetch_oi(contracts: List[BulkFetchOIContract]):
+async def bulk_fetch_oi(contracts: List[BulkFetchOIContract],
+                        _auth: dict = Depends(require_flow_user)):
     """On-demand OI fetch for a batch of contracts (operator-triggered).
 
     Two-stage like the worker's _enrich_with_oi:
@@ -498,6 +504,7 @@ def _backfill_flow_oi(resolved_contracts: List[tuple],
 @router.post("/backfill-flow-oi")
 def backfill_flow_oi_for_date(
     target_date: str = Query(..., description="M/D/YYYY. Write OI from contract_oi_snapshots into this PAST date's flow.OI rows."),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """One-shot: populate flow.OI for a HISTORICAL date from contract_oi_snapshots.
 

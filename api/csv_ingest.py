@@ -31,7 +31,11 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
+# 2026-07-20 security pass: these /api/admin/live routes were UNAUTHENTICATED and
+# internet-reachable — an anonymous caller could replay an arbitrary CSV to the
+# members' Discord or ingest fabricated flow rows into the DB.
+from api.flow_admin_auth import require_flow_admin
 from fastapi.responses import JSONResponse
 
 from api import live_alerts_db, alert_tester
@@ -143,6 +147,7 @@ async def ingest_bullflow_csv(
         description="JSON array of alert config objects; each must have alertName + filter fields",
     ),
     date: str = Form(..., description="Trade date YYYY-MM-DD (must match CSV contents)"),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """
     Ingest a Bullflow daily CSV into live_alerts_v1.
@@ -261,6 +266,7 @@ async def replay_csv_preview(
         description="JSON array of alert config objects; each must have alertName + filter fields",
     ),
     date: str = Form(..., description="Trade date YYYY-MM-DD"),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """
     Wrapper that calls _replay_csv_preview_impl with full exception trapping.
@@ -470,6 +476,7 @@ async def replay_csv_to_discord(
     date: str = Form(..., description="Trade date YYYY-MM-DD"),
     confirm: str = Form(default="", description="Must equal YES_REPLAY_TO_DISCORD"),
     max_posts: int = Form(default=25, description="Hard cap on Discord posts; default 25"),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """Diagnostic wrapper — surfaces exceptions as JSON instead of 500."""
     import traceback as _tb
@@ -666,7 +673,8 @@ def _summarize_by_alert(alerts: list) -> dict:
 
 
 @router.post("/clear-csv-ingest")
-async def clear_csv_ingest(date: str = Form(...)):
+async def clear_csv_ingest(date: str = Form(...),
+                           _auth: dict = Depends(require_flow_admin)):
     """
     Delete all csv_ingest rows for a given date so the CSV can be re-ingested
     cleanly (e.g. after changing alert configs in Bullflow MCP and wanting
