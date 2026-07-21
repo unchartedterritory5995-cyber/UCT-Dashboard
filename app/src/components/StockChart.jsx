@@ -5055,23 +5055,29 @@ export default function StockChart({
       const tailData = _tailRaw && _tailRaw.length >= 2 ? _tailRaw : []
       // Model Book renders MAs as smooth curves (TradingView look) instead of
       // the default straight-segment polyline.
+      // Per-overlay width/style from the Indicators tab; unset falls back to the
+      // instance-wide defaults so stored blobs and Model Book are unaffected.
+      const _ovCfg = resolvedOverlays?.[i] || {}
+      const _ovStyleMap = { solid: 0, dotted: 1, dashed: 2 }
+      const _ovLineStyle = _ovStyleMap[_ovCfg.lineStyle] ?? 0
       const _ovLineType = (boldCandles || modelBookLook) ? LineType.Curved : LineType.Simple
       // 0.5 floors to a true 1px hairline on retina (lineWidth*dpr), thinner than
       // the standard 1; non-retina stays ~1px. Model Book (boldCandles) + the
       // intraday popup (modelBookLook) use it.
-      const _ovLineWidth = (boldCandles || modelBookLook) ? 0.5 : 1
+      const _ovLineWidth = Number(_ovCfg.lineWidth) > 0 ? Number(_ovCfg.lineWidth) : ((boldCandles || modelBookLook) ? 0.5 : 1)
       // fitPriceToCandles: MAs contribute NO price range, so the scale fits the
       // candles only and a far 200MA clips off-screen instead of squashing price.
       const _ovAutoscale = fitPriceToCandles ? () => ({ priceRange: null }) : () => null
       if (i < overlaySeriesRefs.current.length) {
         // Reuse existing series — always setData (even empty) to clear stale data
-        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, autoscaleInfoProvider: _ovAutoscale })
+        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, lineStyle: _ovLineStyle, autoscaleInfoProvider: _ovAutoscale })
         _applyData(overlaySeriesRefs.current[i], baseData)
       } else if (baseData.length) {
         // Add new series only if there's data to show
         const ls = chart.addSeries(LineSeries, {
           color,
           lineWidth: _ovLineWidth,
+          lineStyle: _ovLineStyle,
           lineType: _ovLineType,
           crosshairMarkerVisible: false,
           priceLineVisible: false,
@@ -8415,8 +8421,8 @@ export default function StockChart({
       {/* Volume-pane legend (top-left): dollar volume + average volume over the MA
           period. Follows the crosshair (or the latest bar), pinned live to the top
           of the volume pane. */}
-      {showVolLegend && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
-        <div ref={volLegendRef} className={styles.volLegend}>
+      {showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
+        <div ref={volLegendRef} className={styles.volLegend} style={cs.volume?.labelColor ? { color: cs.volume.labelColor } : undefined}>
           {crosshairData.dollarVol != null && (
             <span className={styles.volLegItem}>
               <span className={styles.volLegLabel}>$ Vol</span>

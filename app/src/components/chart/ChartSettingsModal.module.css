@@ -422,3 +422,57 @@
   gap: 9px;
 }
 .hdrRowCtl .cSwatch { width: 24px; height: 24px; }
+
+/* ── Indicators tab ──────────────────────────────────────────────────────────
+   Rendered from indicatorRegistry, so these are generic row primitives rather
+   than per-indicator styles — a new descriptor needs no CSS. */
+.indBlock {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, #2e3127);
+}
+.indBlock:last-child { border-bottom: none; }
+.indHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.indName {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--text-bright, #e0dac8);
+}
+.indRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0 3px 28px;   /* indent under the enable toggle */
+}
+.indLabel { font-size: 11px; color: var(--text-muted, #8c8674); }
+/* Fields present in the schema but not yet honored by the renderer are shown
+   inert with a title explaining why — better than a control that silently no-ops. */
+.indLabelOff { opacity: 0.45; }
+.indNum {
+  width: 66px;
+  background: var(--bg-elevated, #16181c);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 4px;
+  color: var(--text-bright, #e0dac8);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 6px;
+}
+.indSelect {
+  min-width: 96px;
+  background: var(--bg-elevated, #16181c);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 4px;
+  color: var(--text-bright, #e0dac8);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+.indNum:disabled, .indSelect:disabled { opacity: 0.4; cursor: not-allowed; }

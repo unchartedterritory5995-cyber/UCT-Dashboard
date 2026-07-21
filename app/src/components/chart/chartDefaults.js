@@ -58,11 +58,22 @@ export const CHART_DEFAULTS = {
     colors: {},
   },
 
+  // Moving-average overlays. `lineWidth`/`lineStyle` are per-overlay (the Indicators
+  // tab edits them); when unset the renderer keeps its own defaults, so existing
+  // stored blobs are unaffected. `offset` and `plotStyle` are declared here but NOT
+  // yet honored by the renderer — both need series-level work in StockChart (offset
+  // re-keys every point; plotStyle swaps the LWC series type). The Indicators tab
+  // shows them disabled rather than pretending they work.
   overlays: [
-    { enabled: true, type: 'EMA', period: 9,   color: '#4ade80' },
-    { enabled: true, type: 'EMA', period: 20,  color: '#f472b6' },
-    { enabled: true, type: 'SMA', period: 50,  color: '#60a5fa' },
-    { enabled: true, type: 'SMA', period: 200, color: '#fb923c' },
+    { enabled: true, type: 'EMA', period: 9,   color: '#4ade80', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    { enabled: true, type: 'EMA', period: 20,  color: '#f472b6', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    { enabled: true, type: 'SMA', period: 50,  color: '#60a5fa', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    { enabled: true, type: 'SMA', period: 200, color: '#fb923c', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    // APPENDED, never inserted: mergeChartSettings merges overlays POSITIONALLY, so
+    // inserting a slot would shift every stored blob's overlays by one (a user's EMA 9
+    // would silently become an SMA 5). New slots go on the end. This is the SMA 5 that
+    // used to be the hardcoded `showSma5` prop, now a real editable overlay.
+    { enabled: true, type: 'SMA', period: 5,   color: 'rgba(168,162,144,0.55)', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
   ],
 
   volume: {
@@ -72,6 +83,18 @@ export const CHART_DEFAULTS = {
     hvcEnabled: true,
     separatePane: false,
     paneHeightPct: 22,   // height of the separate volume pane, % of chart (8–45)
+    // The "$ Vol … Avg 50D …" strip at the top-left of the volume pane.
+    labelVisible: true,
+    labelColor: '#9b9684',
+    // The volume moving-average line. Was a prop (volumeMa) with a hardcoded color;
+    // now a real editable indicator. period 0 = off.
+    maPeriod: 50,
+    maColor: 'rgba(168,162,144,0.55)',
+    maLineWidth: 1,
+    maLineStyle: 'solid',
+    // Declared, not yet honored — swapping the volume pane between histogram/line/area
+    // needs a series-type recreate in StockChart (same as overlays' plotStyle).
+    plotStyle: 'histogram',
   },
 
   watermark: {
@@ -286,8 +309,11 @@ export function mergeChartSettings(userSettings) {
       // defaults. Same trap `timeframes` guards against — merge, never wholesale-swap.
       colors: { ...CHART_DEFAULTS.header.colors, ...(parsed.header?.colors || {}) },
     },
+    // Positional merge, PADDED to the defaults' length: a stored blob written before a
+    // slot was added is shorter, and .map alone would drop the new slot forever.
     overlays: Array.isArray(parsed.overlays)
-      ? parsed.overlays.map((o, i) => ({ ...CHART_DEFAULTS.overlays[i], ...o }))
+      ? CHART_DEFAULTS.overlays.map((d, i) => ({ ...d, ...(parsed.overlays[i] || {}) }))
+        .concat(parsed.overlays.slice(CHART_DEFAULTS.overlays.length))
       : CHART_DEFAULTS.overlays.map(o => ({ ...o })),
     volume: { ...CHART_DEFAULTS.volume, ...(parsed.volume || {}) },
     watermark: {

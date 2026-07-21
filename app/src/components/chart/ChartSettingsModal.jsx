@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
+import { listIndicators, readEnabled, patchFor } from './indicatorRegistry'
 import styles from './ChartSettingsModal.module.css'
 
 /**
@@ -255,6 +256,12 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     earnMiss: ['markers', 'earningsMiss'],
   }
   const setColorTarget = (target, hex) => {
+    if (typeof target === 'string' && target.startsWith('ind:')) {
+      const [, rowId, field] = target.split(':')
+      const row = indRowById(rowId)
+      if (row) setSetting(patchFor(row, { [field]: hex }, settings))
+      return
+    }
     // Watermark keeps color + opacity as SEPARATE settings (the chart reads them
     // apart), so map the picker's 8-digit color → {color, opacity}.
     if (target === 'watermark') {
@@ -270,7 +277,16 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     next.preset = 'custom'
     onChange?.(next)
   }
+  const indRows = listIndicators(settings)
+  const indRowById = (id) => indRows.find((r) => r.id === id)
+
   const targetValue = (t) => {
+    // Registry-driven indicator fields carry their path in the target string, so the
+    // switch below never needs a case per indicator.
+    if (typeof t === 'string' && t.startsWith('ind:')) {
+      const [, rowId, field] = t.split(':')
+      return indRowById(rowId)?.values?.[field] || '#c9a84c'
+    }
     switch (t) {
       case 'bodyUp': return candles.upColor || '#1ae51a'
       case 'bodyDown': return candles.downColor || '#c41f2d'
@@ -359,7 +375,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
         </div>
 
         <div className={styles.tabs} role="tablist">
-          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
+          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Indicators'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -488,6 +504,74 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             </div>
           </section>
           </>)}
+          {activeTab === 'indicators' && (<>
+          {/* Rendered ENTIRELY from indicatorRegistry — no per-indicator JSX. Adding an
+              indicator later is a descriptor, not another block down here. */}
+          {['Moving averages', 'Volume'].map((group) => {
+            const rows = indRows.filter((r) => r.group === group)
+            if (!rows.length) return null
+            return (
+              <section key={group} className={styles.section}>
+                <div className={styles.sectionLabel}>{group}</div>
+                {rows.map((row) => {
+                  const on = readEnabled(row)
+                  const enabledKey = row.enabledKey || 'enabled'
+                  const set = (patch) => setSetting(patchFor(row, patch, settings))
+                  return (
+                    <div key={row.id} className={styles.indBlock}>
+                      <div className={styles.indHead}>
+                        <button
+                          type="button" role="switch" aria-checked={on} aria-label={`Toggle ${row.label}`}
+                          className={`${styles.toggle} ${on ? styles.toggleOn : ''}`}
+                          onClick={() => set({ [enabledKey]: !on })}
+                        ><span className={styles.toggleKnob} /></button>
+                        <span className={styles.indName}>{row.label}</span>
+                      </div>
+                      {on && row.fields.map((f) => {
+                        if (f.showIf && !f.showIf(row.values)) return null
+                        const val = row.values?.[f.key]
+                        const dis = !!f.disabled
+                        return (
+                          <div key={f.key} className={styles.indRow} title={f.disabled || undefined}>
+                            <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
+                            {f.type === 'color' && colorSwatch(`ind:${row.id}:${f.key}`, f.label, val)}
+                            {f.type === 'toggle' && (
+                              <button
+                                type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
+                                className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''}`}
+                                onClick={() => set({ [f.key]: val === false })}
+                              ><span className={styles.toggleKnob} /></button>
+                            )}
+                            {f.type === 'number' && (
+                              <input
+                                type="number" className={styles.indNum} disabled={dis}
+                                min={f.min} max={f.max} step={f.step} value={val ?? ''}
+                                onChange={(e) => set({ [f.key]: Number(e.target.value) })}
+                              />
+                            )}
+                            {f.type === 'select' && (
+                              <select
+                                className={styles.indSelect} disabled={dis} value={val ?? ''}
+                                onChange={(e) => {
+                                  const raw = e.target.value
+                                  const opt = f.options.find(([v]) => String(v) === raw)
+                                  set({ [f.key]: opt ? opt[0] : raw })
+                                }}
+                              >
+                                {f.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                              </select>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </section>
+            )
+          })}
+          </>)}
+
           {activeTab === 'header' && (<>
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Title</div>
