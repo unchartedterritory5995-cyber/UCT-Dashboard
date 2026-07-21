@@ -155,6 +155,15 @@ _state = {
     "last_side_classified_nbbo": 0,  # Phase 2h: subset classified via NBBO
     "last_side_classified_tick": 0,  # Phase 2h: subset classified via tick test
     "last_side_no_signal": 0,        # Phase 2h: events with no NBBO+no tick history
+    # Quote-age histogram (2026-07-21): cumulative age of the prevailing
+    # CONSOLIDATED NBBO at classify time, independent of the staleness gate.
+    # Shows how much directional coverage survives a tighter window before
+    # we commit to one. (get_status copies all of _state, so these surface
+    # on /api/live/massive/status automatically.)
+    "nbbo_age_sub1s": 0,             # prevailing NBBO <= 1s old at the fill
+    "nbbo_age_1to5s": 0,             # 1-5s old
+    "nbbo_age_5to30s": 0,            # 5-30s old
+    "nbbo_age_over30s": 0,           # > 30s old
     # Subscribe-lag recovery (2026-07-11): fast-path subscribe + post-NBBO
     # reclassification. Success = reclassified_total climbing during RTH while
     # last_side_classified_tick / no_signal shrink on first-burst contracts.
@@ -267,7 +276,13 @@ MAX_Q_SUBSCRIPTIONS = 950
 # fallback it triggers is worse than the staleness it prevents. 30s is a
 # compromise: still rejects genuinely dead books, keeps the stable ones.
 # Watch last_side_fresh_nbbo vs last_side_have_nbbo in /side-method-stats.
-NBBO_STALENESS_NS = 30_000_000_000  # 30s (was 5s; 60s before the Phase 1 audit)
+NBBO_STALENESS_NS = int(float(os.environ.get("MASSIVE_NBBO_STALENESS_SEC", "30")) * 1_000_000_000)
+# ^ 30s default (was 5s; 60s before the Phase 1 audit). TUNABLE 2026-07-21:
+# validation proved 30s-stale CONSOLIDATED quotes classify sides WRONG (BABA
+# stored B vs fresh-quote A). keep_sizeless_min_premium now catches the
+# empties as neutral Size, so this can be tightened toward ~1s once the
+# nbbo_age_* histogram (get_status) shows enough sub-1s coverage. Set via
+# MASSIVE_NBBO_STALENESS_SEC without a redeploy.
 
 
 # ── Subscribe-lag recovery (2026-07-11) ────────────────────────────
@@ -897,6 +912,18 @@ def _classify_events_side(events: list) -> None:
             have_nbbo += 1
             bid, ask, nbbo_ts_ns = nbbo
             age_ns = evt.first_ts_ns - nbbo_ts_ns  # always >= 0 (_nbbo_at filters)
+            # Quote-age telemetry (2026-07-21) — cumulative, independent of the
+            # gate below: how stale the consolidated NBBO is at the fill. Tells us
+            # how much directional coverage survives a tighter window (validation:
+            # 30s-stale quotes classify WRONG; keep-as-Size catches the empties).
+            if age_ns <= 1_000_000_000:
+                _state["nbbo_age_sub1s"] += 1
+            elif age_ns <= 5_000_000_000:
+                _state["nbbo_age_1to5s"] += 1
+            elif age_ns <= 30_000_000_000:
+                _state["nbbo_age_5to30s"] += 1
+            else:
+                _state["nbbo_age_over30s"] += 1
             if age_ns <= NBBO_STALENESS_NS:
                 fresh_nbbo += 1
                 # _classify_side expects (bid, ask, ts_ms) format
