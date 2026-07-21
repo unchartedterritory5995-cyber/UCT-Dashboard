@@ -108,7 +108,7 @@ import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
-import { matchShortcut } from './chart/keyboardShortcuts'
+import { matchShortcut, resolveTfCycle } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import UIcon from './ui/UIcon'
@@ -2936,6 +2936,11 @@ export default function StockChart({
   // hand-rolled handler that lived here previously.
   const hotkeysActiveRef = useRef(hotkeysActive)
   hotkeysActiveRef.current = hotkeysActive
+  // Repeat-press timeframe cycling: remembers which timeframe key was pressed
+  // last and which rung of TF_ORDER it landed on. Per-instance (a ref, not
+  // module state) so two chart widgets walk the ladder independently, and not
+  // state because a cycle position must never trigger a re-render.
+  const tfCycleRef = useRef({ command: null, index: null })
   useEffect(() => {
     const onKey = (e) => {
       // Instance gate: multi-chart surfaces hand every cell this prop so only
@@ -2962,11 +2967,17 @@ export default function StockChart({
       }
 
       if (cmd.startsWith('tf:')) {
-        const tf = cmd.slice(3)
-        if (typeof onTfChange === 'function') {
-          e.preventDefault()
-          onTfChange(tf)
-        }
+        if (typeof onTfChange !== 'function') return
+        const next = resolveTfCycle({
+          command: cmd,
+          currentTf: resolvedTf,
+          lastCommand: tfCycleRef.current.command,
+          lastIndex: tfCycleRef.current.index,
+        })
+        if (!next) return
+        e.preventDefault()
+        tfCycleRef.current = { command: cmd, index: next.index }
+        onTfChange(next.tf)
         return
       }
 
@@ -3048,7 +3059,7 @@ export default function StockChart({
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [cs, onTfChange, showDrawingTools, replayMode, sessionBars?.length, handleUpdateChartSettings])
+  }, [cs, onTfChange, showDrawingTools, replayMode, sessionBars?.length, handleUpdateChartSettings, resolvedTf])
 
   // ── Replay auto-advance interval ──
   useEffect(() => {
