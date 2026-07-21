@@ -281,6 +281,12 @@ DEFAULT_THRESHOLDS = {
     # neutral Size row instead — real size shouldn't vanish on an uncertain side
     # (UW's own doc: a fill at the bid is "not necessarily a sell"). 0 disables.
     "keep_sizeless_min_premium": 1000000,
+    # Net-flow demote (2026-07-21): in the curated feed, a directional print on a
+    # contract whose OWN net flow is < this fraction one-sided (dominant/total,
+    # at-bid selling counted) is demoted to neutral "UCT Size" — drops the
+    # misleading Bull/Bear AND removes it from the Market Read math (MU $1190P
+    # ~54/46 -> neutral). 0 disables. Mirrors the auto-push min_directional_ratio.
+    "net_flow_min_ratio": 0.67,
     # Size tier V/OI gate (added 6/30 evening).
     #
     # Size tier ($500K-$1M+ premium MAGENTA, not Alpha-Gold-quality)
@@ -1967,6 +1973,10 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
                 skipped_curated += 1
         all_alerts = kept
 
+        # Net-flow demote: two-way contracts (MU-style ~54/46) -> neutral "UCT
+        # Size", so the feed stops mislabeling them Bull/Bear. See the helper.
+        _demote_two_way_flow(all_alerts)
+
         # ─── Contract-level dedupe (added 2026-07-05) ────────────────────
         # In curated mode, collapse multiple alerts on the same contract
         # (ticker + cp + strike + exp) to a single representative row. Fixes
@@ -2311,6 +2321,12 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
     bear_prem_1h = 0
     count_1h = 0
     by_ticker_1h: dict = {}  # ticker → {bull, bear} restricted to last-hour window
+
+    # Net-flow demote (2026-07-21): keep two-way contracts (MU-style ~54/46) OUT
+    # of the Market Read bull/bear totals — same demote as the feed, so a churned
+    # contract can't skew the macro read. Mutates _direction→None; the loop below
+    # already skips None.
+    _demote_two_way_flow(classified)
 
     for a in classified:
         # Skip multi-leg/Algo alerts when caller requested directional-only.
@@ -3642,6 +3658,47 @@ def _net_flow_clean(alert: dict, flow_split: dict, min_ratio: float) -> bool:
         return False
     dominant = "Bull" if bull >= bear else "Bear"
     return dominant == d and (max(bull, bear) / total) >= min_ratio
+
+
+def _demote_two_way_flow(alerts: list) -> None:
+    """Demote directional prints on TWO-WAY contracts to neutral "UCT Size" —
+    in place. A contract whose OWN net flow (inclusive of at-bid selling) is
+    < net_flow_min_ratio one-sided isn't a directional signal (MU $1190P ~54/46),
+    so its Bull/Bear prints become neutral: drops the misleading label AND (since
+    the Market-Read + feed both skip _direction=None) keeps it out of the bull/bear
+    math. Shared by _compute_recent (feed) and the market read. 0 disables.
+    Idempotent — the split reads _side, so re-running is safe. GIGO: only as good
+    as the per-print side reads (deep-ITM/stale inflate — pairs w/ staleness)."""
+    try:
+        ratio = float(_load_thresholds().get("net_flow_min_ratio", 0.67) or 0)
+    except Exception:
+        ratio = 0.67
+    if ratio <= 0 or not alerts:
+        return
+    nf = {}
+    for a in alerts:
+        fd = _flow_direction(a.get("cp"), a.get("_side"))
+        if fd in ("Bull", "Bear"):
+            k = f"{a.get('ticker','')}|{a.get('cp','')}|{a.get('strike','')}|{a.get('exp','')}"
+            e = nf.setdefault(k, {"Bull": 0.0, "Bear": 0.0})
+            e[fd] += (a.get("alertPremium") or 0)
+    for a in alerts:
+        d = (a.get("_direction") or "").strip()
+        if d not in ("Bull", "Bear"):
+            continue
+        k = f"{a.get('ticker','')}|{a.get('cp','')}|{a.get('strike','')}|{a.get('exp','')}"
+        fs = nf.get(k)
+        if not fs:
+            continue
+        tot = fs["Bull"] + fs["Bear"]
+        if tot <= 0:
+            continue
+        dom = "Bull" if fs["Bull"] >= fs["Bear"] else "Bear"
+        if (max(fs["Bull"], fs["Bear"]) / tot) < ratio or d != dom:
+            a["_direction"] = None
+            a["_directionUnconfirmed"] = True
+            a["alertName"] = "UCT Size"
+            a["_tierKey"] = "size"
 
 
 def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
