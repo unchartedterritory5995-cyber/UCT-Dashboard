@@ -179,18 +179,6 @@ export function VoiceProvider({ children }) {
     if (typeof fn === 'function') fn(overrides || {})
   }, [])
 
-  // Enter the 'loading' state BEFORE the async TTS prepare leg, so the player
-  // bar — and therefore a Stop control — is on screen while a cold clip
-  // synthesizes. Previously the state stayed 'idle' for that whole window, so
-  // the user had nothing to cancel with and no feedback that anything started.
-  const beginLoad = useCallback(({ trackId, trackLabel }) => {
-    // Bump first: starting a new read supersedes any chain still preparing, so
-    // an older clip can't land afterwards and start talking over the new one.
-    playGenRef.current += 1
-    dispatch({ type: 'load', trackId, trackLabel })
-    return playGenRef.current
-  }, [])
-
   const playUrl = useCallback(async ({ url, trackId, trackLabel }) => {
     dispatch({ type: 'load', trackId, trackLabel })
     const el = audioRef.current
@@ -273,6 +261,30 @@ export function VoiceProvider({ children }) {
       } catch { /* ignore */ }
     }
   }, [])
+
+  // Enter the 'loading' state BEFORE the async TTS prepare leg, so the player
+  // bar — and therefore a Stop control — is on screen while a cold clip
+  // synthesizes. Previously the state stayed 'idle' for that whole window, so
+  // the user had nothing to cancel with and no feedback that anything started.
+  const beginLoad = useCallback(({ trackId, trackLabel }) => {
+    // Halt the OLD clip before re-labelling the store. Without this the
+    // previous track keeps playing through the new track's prepare, and the
+    // shared element's events then land under the WRONG identity:
+    //   - its 'ended'/'error' hit reset() -> stop() -> generation bump, which
+    //     silently cancelled the read that was still preparing, and
+    //   - its 'timeupdate'/'pause' wrote the old clip's position under the NEW
+    //     trackId's localStorage key, so the next play of THAT track resumed
+    //     from a position it never reached.
+    haltAudioEl()
+    // Bump after halting: starting a new read supersedes any chain still
+    // preparing, so an older clip can't land afterwards and talk over the new one.
+    playGenRef.current += 1
+    // The replay closure belongs to the outgoing track — drop it so the voice
+    // picker can't re-read the previous clip while this one is preparing.
+    readAloudReplayRef.current = null
+    dispatch({ type: 'load', trackId, trackLabel })
+    return playGenRef.current
+  }, [haltAudioEl])
 
   const stop = useCallback(() => {
     cancelPending()

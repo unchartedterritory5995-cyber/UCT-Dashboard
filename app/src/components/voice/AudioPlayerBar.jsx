@@ -96,18 +96,24 @@ export default function AudioPlayerBar() {
         } catch { /* ignore */ }
       }
     }
+    // A halted element (src removed by haltAudioEl) has no live source, so any
+    // event still arriving from it belongs to a track we already tore down.
+    // Acting on those events under the CURRENT `id` is how a finished clip
+    // cancelled a preparing read and poisoned another track's saved position.
+    const detached = () => !el.getAttribute('src') && !el.srcObject
+
     const reset = (e) => {
-      // An 'error' on an element with no source isn't a playback failure —
-      // it's the teardown of an already-cleared element. Treating it as real
-      // calls stop(), which cancels a read-aloud that may already be
-      // preparing. Ignore it.
-      if (e && e.type === 'error' && !el.getAttribute('src') && !el.srcObject) return
+      // An 'ended'/'error' from an already-cleared element isn't a real
+      // playback event — it's teardown. Treating it as real calls stop(),
+      // which cancels a read-aloud that may already be preparing.
+      if (e && detached()) return
       try { if (el.srcObject) el.srcObject = null } catch {}
       if (id) { try { localStorage.removeItem(posKey(id)) } catch {} }
       setProgress({ trackId: null, currentTime: 0, duration: 0, playing: false })
       voice.stop()
     }
     const onTime = () => {
+      if (detached()) return
       setCurrentTime(el.currentTime || 0)
       publish()
       if (id && Math.abs(el.currentTime - lastSaveRef.current) > 5) {
@@ -127,6 +133,10 @@ export default function AudioPlayerBar() {
       publish()
     }
     const onPauseSave = () => {
+      // The 'pause' fired by haltAudioEl() lands AFTER the store has been
+      // re-labelled, so saving here would stamp the outgoing clip's position
+      // onto the incoming track's key.
+      if (detached()) return
       publish()
       if (id) { try { localStorage.setItem(posKey(id), String(el.currentTime)) } catch {} }
     }
@@ -297,6 +307,10 @@ export default function AudioPlayerBar() {
                 className={styles.speedSel}
                 value={voiceName}
                 onChange={onVoiceChange}
+                // Re-reading needs a track to re-read; mid-prepare there isn't
+                // one yet, so a change here would either no-op or replay the
+                // PREVIOUS track and cancel the pending one.
+                disabled={isLoading || isError}
                 aria-label="Reader voice"
                 title="Reader voice"
               >
