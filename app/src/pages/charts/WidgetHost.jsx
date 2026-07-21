@@ -37,7 +37,12 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // and keep the default tokens until they gain settings of their own. Setting this on
   // the workspace root instead would leak the chart's color into every widget.
   const { widgetCanvasByType } = useWorkspace() || {}
-  const canvas = widgetCanvasByType?.[widget.type] || null
+  const chrome = widgetCanvasByType?.[widget.type] || null
+  // --widget-divider keeps the hairlines BETWEEN header rows visible at any canvas
+  // color: they were fixed near-white and disappeared on a light canvas.
+  const chromeStyle = chrome?.canvas
+    ? { '--widget-canvas': chrome.canvas, ...(chrome.divider ? { '--widget-divider': chrome.divider } : {}) }
+    : undefined
 
   const header = (
     <WidgetHeader
@@ -59,7 +64,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   return (
     <div
       className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}`}
-      style={canvas ? { '--widget-canvas': canvas } : undefined}
+      style={chromeStyle}
     >
       {merged
         ? body

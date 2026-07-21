@@ -19,6 +19,24 @@ import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
+// Minimal color parse for the divider-contrast decision below. Handles the forms the
+// canvas pickers actually produce: #rgb, #rrggbb, #rrggbbaa (alpha ignored — the swatch
+// sits on an opaque surface) and rgb()/rgba(). Returns [r,g,b] or null when unreadable,
+// in which case callers leave the existing hardcoded divider alone.
+function _parseColor(c) {
+  if (typeof c !== 'string') return null
+  const s = c.trim()
+  const hex = /^#([0-9a-f]{3,8})$/i.exec(s)
+  if (hex) {
+    let h = hex[1]
+    if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+    if (h.length !== 6 && h.length !== 8) return null
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+  }
+  const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(s)
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null
+}
+
 // 24-col grid (doubled from the original 12) so widgets can size in half-of-the-
 // old-column steps — e.g. the Theme widget now has a width between the old "1 col
 // (too thin)" and "2 cols". Every breakpoint is doubled in lockstep so relative
@@ -340,6 +358,19 @@ export default function ChartsWorkspace() {
   // every widget — do NOT hoist it back up.)
   // Resolution mirrors each surface's own: a gradient contributes its TOP stop, since
   // that's the edge the header actually meets; otherwise the solid color.
+  // Divider color for the hairlines BETWEEN a widget's header rows. They were fixed
+  // near-white translucent lines, which vanish the moment the canvas goes light — so
+  // pick the side that contrasts with the canvas: a dark hairline on a light canvas,
+  // the original light one on a dark canvas. Alpha is asymmetric on purpose: dark-on-
+  // light needs more weight than light-on-dark to read as the same hairline.
+  const dividerFor = (color) => {
+    const rgb = _parseColor(color)
+    if (!rgb) return null
+    // Rec. 709 relative luminance — good enough to pick a side, and cheap.
+    const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255
+    return lum > 0.5 ? 'rgba(0, 0, 0, 0.18)' : 'rgba(255, 255, 255, 0.10)'
+  }
+
   const widgetCanvasByType = useMemo(() => {
     const cs = mergeChartSettings(prefs.chart_settings)
     const chart = chartsTheme === 'sunrise'
@@ -347,7 +378,11 @@ export default function ChartsWorkspace() {
       : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
     const wl = mergeWatchlistSettings(parsePref(prefs.watchlist_settings, null))
     const watchlist = wl.bgMode === 'gradient' ? (wl.bgGradient?.top || wl.bg) : wl.bg
-    return { chart, watchlist }
+    return {
+      chart: { canvas: chart, divider: dividerFor(chart) },
+      watchlist: { canvas: watchlist, divider: dividerFor(watchlist) },
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings])
 
   const workspaceValue = useMemo(

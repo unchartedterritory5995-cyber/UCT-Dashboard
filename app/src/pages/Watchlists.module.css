@@ -53,7 +53,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--widget-divider, var(--border));
   /* Header strip follows the watchlist's own canvas so the whole surface reads as one
      piece. --widget-canvas is the per-widget color published by WidgetHost inside the
      /charts workspace; --wl-bg-solid is the standalone-page equivalent (a solid stand-in
