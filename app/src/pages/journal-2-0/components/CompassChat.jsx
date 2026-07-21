@@ -86,6 +86,15 @@ export default function CompassChat({ accountId }) {
     } catch { /* ignore */ }
   }, [messages, ttsEnabled])
 
+  // Stop speaking when the user turns TTS off or navigates away. Without this a
+  // long answer kept talking after the chat was closed, with no control left to
+  // stop it (speechSynthesis outlives the component).
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return undefined
+    if (!ttsEnabled) { try { window.speechSynthesis.cancel() } catch { /* ignore */ } }
+    return () => { try { window.speechSynthesis.cancel() } catch { /* ignore */ } }
+  }, [ttsEnabled])
+
   const toolResults = useMemo(() => {
     const out = {}
     for (const m of messages) {

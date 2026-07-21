@@ -43,6 +43,10 @@ export default function useHandsFreeMorningWire({ rundownHtml }) {
 
     let cancelled = false
     const run = async () => {
+      // Snapshot the playback generation BEFORE the async TTS fetch: if the user
+      // stops (or another read starts) while this is in flight, playWhenCurrent
+      // below no-ops instead of starting audio they already cancelled.
+      const _playGen = voice.getPlayGen()
       try {
         // Gate on proactive_speak setting
         const settingsResp = await fetch('/api/voice/settings', {
@@ -81,7 +85,7 @@ export default function useHandsFreeMorningWire({ rundownHtml }) {
           URL.revokeObjectURL(url)
           return
         }
-        await voice.playUrl({
+        await voice.playWhenCurrent(_playGen, {
           url,
           trackId: `compass-wire-${todayUTC()}`,
           trackLabel: 'Compass — Morning Wire',

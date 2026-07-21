@@ -196,6 +196,20 @@ export function VoiceProvider({ children }) {
     }
   }, [state.speed])
 
+  // Guarded play for callers that fetch their audio asynchronously (proactive
+  // insights, hands-free recaps, the J2 verdict/review cards). They all had the
+  // same shape as the read-aloud bug: fetch TTS for seconds, then play
+  // unconditionally — so a Stop pressed mid-fetch was ignored and the voice
+  // started afterwards. Capture voice.getPlayGen() BEFORE the fetch and play
+  // through this; if anything cancelled or superseded meanwhile, it no-ops.
+  // Deliberately does not touch state (no bar during their fetch) so these
+  // dormant paths keep their existing flow — it only prevents late playback.
+  const playWhenCurrent = useCallback(async (gen, opts) => {
+    if (playGenRef.current !== gen) return false
+    await playUrl(opts)
+    return true
+  }, [playUrl])
+
   const playStream = useCallback(async ({ stream, trackId, trackLabel }) => {
     dispatch({ type: 'load', trackId, trackLabel })
     const el = audioRef.current
@@ -259,6 +273,12 @@ export function VoiceProvider({ children }) {
           if (el !== audioRef.current) halt(el)
         })
       } catch { /* ignore */ }
+    }
+    // Browser-native TTS (Compass chat, earnings-call Listen) is a SEPARATE
+    // audio system — it never touches the shared <audio>, so stopping the
+    // element left it talking with no visible control. "Stop" must mean stop.
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try { window.speechSynthesis.cancel() } catch { /* ignore */ }
     }
   }, [])
 
@@ -330,7 +350,7 @@ export function VoiceProvider({ children }) {
 
   const value = useMemo(() => ({
     ...state,
-    attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
+    attachAudio, playUrl, playStream, playWhenCurrent, pause, resume, stop, setSpeed,
     beginLoad, getPlayGen, cancelPending,
     registerReadAloud, replayReadAloud,
     startListening, startThinking, startResponding,
@@ -338,7 +358,7 @@ export function VoiceProvider({ children }) {
     realtimeAssistantPartial, realtimeAssistantDone,
     realtimeDisconnect, realtimeError,
     setWakeEnabled,
-  }), [state, attachAudio, playUrl, playStream, pause, resume, stop, setSpeed,
+  }), [state, attachAudio, playUrl, playStream, playWhenCurrent, pause, resume, stop, setSpeed,
        beginLoad, getPlayGen, cancelPending,
        registerReadAloud, replayReadAloud,
        startListening, startThinking, startResponding,

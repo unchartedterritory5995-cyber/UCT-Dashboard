@@ -34,6 +34,10 @@ export default function TradeReviewCard({ review, isLoading, onFeedback, onRegen
     spokenForRef.current = review.id
     let cancelled = false
     const run = async () => {
+      // Snapshot the playback generation BEFORE the async TTS fetch: if the user
+      // stops (or another read starts) while this is in flight, playWhenCurrent
+      // below no-ops instead of starting audio they already cancelled.
+      const _playGen = voice.getPlayGen()
       try {
         const settingsResp = await fetch('/api/voice/settings', {
           credentials: 'include',
@@ -57,7 +61,7 @@ export default function TradeReviewCard({ review, isLoading, onFeedback, onRegen
         const blob = await ttsResp.blob()
         const url = URL.createObjectURL(blob)
         if (cancelled) { URL.revokeObjectURL(url); return }
-        await voice.playUrl({
+        await voice.playWhenCurrent(_playGen, {
           url,
           trackId: `compass-tradereview-${review.id}`,
           trackLabel: 'Compass — Trade post-mortem',

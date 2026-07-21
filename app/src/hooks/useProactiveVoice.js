@@ -45,6 +45,10 @@ export default function useProactiveVoice() {
     }
 
     const tick = async () => {
+      // Snapshot the playback generation BEFORE the async TTS fetch: if the user
+      // stops (or another read starts) while this is in flight, playWhenCurrent
+      // below no-ops instead of starting audio they already cancelled.
+      const _playGen = voice.getPlayGen()
       if (inFlightRef.current) return
       if (isAudioBusy()) return
       inFlightRef.current = true
@@ -78,7 +82,7 @@ export default function useProactiveVoice() {
           : 'Compass'
 
         // Play through the global audio bar (same pipeline as read-aloud)
-        await voice.playUrl({
+        await voice.playWhenCurrent(_playGen, {
           url,
           trackId: `${TRACK_ID_PREFIX}${insight.id}`,
           trackLabel: label,

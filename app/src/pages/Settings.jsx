@@ -169,11 +169,23 @@ function CompassVoicePicker({ value, onChange, enabled }) {
     try {
       if (audioRef.current) {
         audioRef.current.pause()
-        audioRef.current.src = ''
+        // removeAttribute, not src = '' — the empty string resolves against the
+        // document URL and makes the browser load the page as media, firing a
+        // bogus 'error'. Same trap as the shared voice element.
+        audioRef.current.removeAttribute('src')
+        audioRef.current.load()
       }
     } catch { /* ignore */ }
     setPreviewing(null)
   }
+
+  // This preview uses a detached `new Audio()`, which the global voice Stop
+  // cannot reach — so it must clean itself up when the user leaves Settings.
+  useEffect(() => () => {
+    try {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src') }
+    } catch { /* ignore */ }
+  }, [])
 
   const preview = async (voiceId) => {
     if (previewing === voiceId) {

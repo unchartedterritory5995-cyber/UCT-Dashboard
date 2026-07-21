@@ -211,6 +211,71 @@ describe('switching tracks while one is still playing', () => {
   })
 })
 
+describe('stop() reaches every voice surface', () => {
+  beforeEach(() => {
+    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue()
+    HTMLMediaElement.prototype.pause = vi.fn()
+  })
+
+  it('cancels browser speechSynthesis too, not just the <audio>', async () => {
+    // Compass chat / earnings-call Listen speak through speechSynthesis, which
+    // never touches the shared element — so "Stop" used to leave them talking
+    // with no control. Stop must mean stop everywhere.
+    const cancel = vi.fn()
+    vi.stubGlobal('speechSynthesis', { cancel, speak: vi.fn() })
+    function Ctl() {
+      const voice = useVoice()
+      return <button onClick={() => voice.stop()}>stop</button>
+    }
+    render(<VoiceProvider><AudioPlayerBar /><Ctl /></VoiceProvider>)
+    fireEvent.click(screen.getByText('stop'))
+    expect(cancel).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('playWhenCurrent refuses to start audio the user already stopped', async () => {
+    // The shape shared by proactive insights, hands-free recaps and the J2
+    // verdict cards: capture the generation, fetch TTS for seconds, then play.
+    // A Stop pressed mid-fetch must win.
+    let captured
+    function Ctl() {
+      const voice = useVoice()
+      return (
+        <>
+          <button onClick={() => { captured = voice.getPlayGen() }}>capture</button>
+          <button onClick={() => voice.stop()}>stop</button>
+          <button onClick={() => voice.playWhenCurrent(captured, { url: '/u', trackId: 't', trackLabel: 'T' })}>late-play</button>
+        </>
+      )
+    }
+    render(<VoiceProvider><AudioPlayerBar /><Ctl /></VoiceProvider>)
+
+    fireEvent.click(screen.getByText('capture'))   // caller starts its fetch
+    fireEvent.click(screen.getByText('stop'))      // user cancels mid-fetch
+    await act(async () => { fireEvent.click(screen.getByText('late-play')) }) // fetch lands
+
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+    expect(screen.queryByRole('region')).toBeNull()
+  })
+
+  it('playWhenCurrent still plays when nothing intervened', async () => {
+    let captured
+    function Ctl() {
+      const voice = useVoice()
+      return (
+        <>
+          <button onClick={() => { captured = voice.getPlayGen() }}>capture</button>
+          <button onClick={() => voice.playWhenCurrent(captured, { url: '/u', trackId: 't', trackLabel: 'T' })}>late-play</button>
+        </>
+      )
+    }
+    render(<VoiceProvider><AudioPlayerBar /><Ctl /></VoiceProvider>)
+    fireEvent.click(screen.getByText('capture'))
+    await act(async () => { fireEvent.click(screen.getByText('late-play')) })
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
+  })
+})
+
 describe('VoiceContext — stop() is authoritative', () => {
   beforeEach(() => {
     HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue()

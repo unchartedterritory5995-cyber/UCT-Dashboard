@@ -137,6 +137,11 @@ export default function AudioPlayerBar() {
       // re-labelled, so saving here would stamp the outgoing clip's position
       // onto the incoming track's key.
       if (detached()) return
+      // Something outside the store paused us (e.g. a Desk video calling
+      // pauseOtherAudio). The element is the source of truth for playing vs
+      // paused, so mirror it — otherwise the bar kept showing a Pause button
+      // for audio that was already silent.
+      if (voice.status === 'playing') voice.pause()
       publish()
       if (id) { try { localStorage.setItem(posKey(id), String(el.currentTime)) } catch {} }
     }

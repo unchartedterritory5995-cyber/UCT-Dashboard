@@ -7,4 +7,11 @@ export function pauseOtherAudio() {
   document.querySelectorAll('audio').forEach((el) => {
     try { if (!el.paused) el.pause() } catch { /* ignore */ }
   })
+  // Browser-native TTS (Compass chat, earnings-call Listen) is a separate audio
+  // system that no <audio> pause can reach — without this a Desk video played
+  // over the top of it. Cancelling speech is safe here: unlike the voice state
+  // machine there is nothing to leave inconsistent.
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    try { window.speechSynthesis.cancel() } catch { /* ignore */ }
+  }
 }

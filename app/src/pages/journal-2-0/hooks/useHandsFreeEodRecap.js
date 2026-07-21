@@ -61,6 +61,10 @@ export default function useHandsFreeEodRecap({ accountId, todaysEodRecap }) {
     // silently if disabled (Compass tab still renders the recap visually).
     let cancelled = false
     const run = async () => {
+      // Snapshot the playback generation BEFORE the async TTS fetch: if the user
+      // stops (or another read starts) while this is in flight, playWhenCurrent
+      // below no-ops instead of starting audio they already cancelled.
+      const _playGen = voice.getPlayGen()
       try {
         const settingsResp = await fetch('/api/voice/settings', {
           credentials: 'include',
@@ -91,7 +95,7 @@ export default function useHandsFreeEodRecap({ accountId, todaysEodRecap }) {
           return
         }
 
-        await voice.playUrl({
+        await voice.playWhenCurrent(_playGen, {
           url,
           trackId: `compass-eod-${accountId}-${todayET()}`,
           trackLabel: "Compass — Today's recap",

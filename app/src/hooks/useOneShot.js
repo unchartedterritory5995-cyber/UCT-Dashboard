@@ -57,6 +57,10 @@ export default function useOneShot() {
     })
 
     rec.addEventListener('stop', async () => {
+      // Snapshot the playback generation BEFORE the async TTS fetch: if the user
+      // stops (or another read starts) while this is in flight, playWhenCurrent
+      // below no-ops instead of starting audio they already cancelled.
+      const _playGen = voice.getPlayGen()
       stream.getTracks().forEach((t) => t.stop())
 
       if (chunksRef.current.length === 0) {
@@ -106,7 +110,7 @@ export default function useOneShot() {
       const url = URL.createObjectURL(audioBlob)
       activeBlobUrl.current = url
 
-      await voice.playUrl({
+      await voice.playWhenCurrent(_playGen, {
         url,
         trackId: `oneshot-${Date.now()}`,
         trackLabel: narration ? narration.slice(0, 60) : 'Voice query',
