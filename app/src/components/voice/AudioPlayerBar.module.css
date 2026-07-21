@@ -67,6 +67,39 @@
   .seek { flex-basis: 100px; min-width: 60px; }
 }
 
+/* PHONE: the pill is centred with transform and its children have min-widths,
+   so the full read-aloud control set (2 skip buttons + 2 times + seek + voice
+   picker + speed + stop) summed to ~550px and overflowed a 360-430px screen —
+   pushing the STOP BUTTON clean off the right edge. The bar is the only stop
+   control for read-aloud, so that made audio unstoppable on a phone (the exact
+   "I can't close it out" failure this whole fix is about). Go full-width, drop
+   the secondary controls, and pin Stop last so it is always reachable.
+   Guarded by tools/audio_bar_mobile_check.py. */
+@media (max-width: 640px) {
+  .bar {
+    left: 8px;
+    right: 8px;
+    transform: none;
+    max-width: none;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .skipBtn,
+  .voiceSel,
+  .time { display: none; }        /* secondary on a phone */
+  .label { max-width: none; flex: 1 1 auto; }
+  .seek { flex: 1 1 60px; min-width: 40px; max-width: none; }
+  /* flex-shrink:0 is load-bearing — without it the buttons get squeezed to
+     ~24px wide and fall under the 44px tap minimum. */
+  .iconBtn {
+    width: var(--tap-min, 44px);
+    height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+    flex: 0 0 var(--tap-min, 44px);
+  }
+  .stopBtn { margin-left: auto; }
+}
+
 /* Keep the player ABOVE the mobile bottom tab bar (shown ≤1024px) instead of
    overlapping it whenever Compass speaks. Mirrors the FloatingOrb's safe-area
    offset so controls stay tappable on phones/tablets. */

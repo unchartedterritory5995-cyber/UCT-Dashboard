@@ -253,7 +253,7 @@ export default function AudioPlayerBar() {
           {isReadAloud && (
             <button
               type="button"
-              className={styles.iconBtn}
+              className={`${styles.iconBtn} ${styles.skipBtn}`}
               onClick={() => skip(-SKIP)}
               disabled={isLoading || isError}
               aria-label="Back 15 seconds"
@@ -276,7 +276,7 @@ export default function AudioPlayerBar() {
           {isReadAloud && (
             <button
               type="button"
-              className={styles.iconBtn}
+              className={`${styles.iconBtn} ${styles.skipBtn}`}
               onClick={() => skip(SKIP)}
               disabled={isLoading || isError}
               aria-label="Forward 15 seconds"
@@ -309,7 +309,7 @@ export default function AudioPlayerBar() {
               <span className={styles.time}>{seekable ? fmtTime(duration) : '--:--'}</span>
 
               <select
-                className={styles.speedSel}
+                className={`${styles.speedSel} ${styles.voiceSel}`}
                 value={voiceName}
                 onChange={onVoiceChange}
                 // Re-reading needs a track to re-read; mid-prepare there isn't
@@ -340,7 +340,7 @@ export default function AudioPlayerBar() {
 
           <button
             type="button"
-            className={styles.iconBtn}
+            className={`${styles.iconBtn} ${styles.stopBtn}`}
             onClick={voice.stop}
             aria-label="Stop"
           >
