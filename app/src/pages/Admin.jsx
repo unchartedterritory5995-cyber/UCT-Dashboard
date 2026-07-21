@@ -3,6 +3,7 @@ import styles from './Admin.module.css'
 import UIcon from '../components/ui/UIcon'
 import TwitterAccountsPanel from '../components/admin/TwitterAccountsPanel'
 import CommunityReportsPanel from '../components/admin/CommunityReportsPanel'
+import AiSearchInsightsPanel from '../components/admin/AiSearchInsightsPanel'
 import { formatETDate } from '../utils/timeAgo'
 
 // ── Constants ──
@@ -1999,6 +2000,9 @@ export default function Admin() {
 
       {/* ── Section 6c: Twitter News Ingestion (spec 2026-05-25) ── */}
       <TwitterAccountsPanel />
+
+      {/* ── Section 6c-2: AI Search Insights (learning-loop data foundation) ── */}
+      <AiSearchInsightsPanel />
 
       {/* ── Section 6d: Community Reports (The Floor) ── */}
       <CommunityReportsPanel />

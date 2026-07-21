@@ -17,7 +17,7 @@ function noteDoc(text) {
   return JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
 }
 
-export default function ShareToFloor({ card, label = 'Share to Floor', compact = false, direct = false }) {
+export default function ShareToFloor({ card, label = 'Share to Floor', compact = false, direct = false, onShared = null }) {
   const { data: status } = useSWR('/api/community/status', fetcher)
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
@@ -37,6 +37,7 @@ export default function ShareToFloor({ card, label = 'Share to Floor', compact =
       const data = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(data.detail || `Error ${r.status}`)
       setState('done')
+      try { onShared?.() } catch { /* callback must never break the share */ }
       setTimeout(() => { setOpen(false); setState('idle'); setNote('') }, 1400)
     } catch (e) {
       setState('error'); setErr(e.message)

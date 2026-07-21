@@ -20,6 +20,26 @@ const plainAnswer = (a) => String(a || '')
   .replace(/\[([^\]]+)\]\(\$[A-Za-z][A-Za-z.\-]{0,6}\)/g, '$1')
   .replace(/\*\*/g, '')
 
+// Anonymous per-widget-session id for de-identified conversation threading in the
+// capture log — random, NOT tied to the user. Minted once per mounted widget.
+const newConversationId = () => {
+  try { return crypto.randomUUID().replace(/-/g, '') } catch { /* older browsers */ }
+  return `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+}
+
+// Best-effort quality signal (save/share/copy) on an answer, joined by its stable
+// answer_id. Fire-and-forget — never blocks or surfaces an error to the member.
+const emitSignal = (answerId, kind) => {
+  if (!answerId) return
+  try {
+    fetch('/api/ai-search/signal', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer_id: answerId, kind }),
+    }).catch(() => {})
+  } catch { /* noop */ }
+}
+
 // Tickers mentioned in an answer (link form + bare cashtag), first few, deduped.
 const extractTickers = (text) => {
   const out = []
@@ -170,6 +190,7 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
           compact
           label="Share"
           card={{ kind: 'ai', q: entry.q, a: plainAnswer(entry.answer), tickers: extractTickers(entry.answer) }}
+          onShared={() => emitSignal(entry.answerId, 'share')}
         />
       </div>
 
@@ -247,6 +268,10 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   // back to the single-shot endpoint after an intentional stop.
   const abortRef = useRef(null)
   const stoppedRef = useRef(false)
+  // Anonymous conversation threading for the capture log (not identity): a random
+  // per-session id + a turn counter, sent with each ask. Never rendered.
+  const conversationIdRef = useRef(newConversationId())
+  const turnRef = useRef(0)
 
   // Rotate the loading status line so a long search reads as progress, not a hang.
   useEffect(() => {
@@ -276,6 +301,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       id: ++idRef.current,
       q: question,
       answer: d.answer || '',
+      answerId: d.answer_id || null,   // stable server id → join save/share/pin signals
       citations: Array.isArray(d.citations) ? d.citations : [],
       related: Array.isArray(d.related_questions) ? d.related_questions.slice(0, 3) : [],
     }
@@ -295,7 +321,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: question, history: historyRef.current }),
+      body: JSON.stringify({ query: question, history: historyRef.current, conversation_id: conversationIdRef.current, turn_index: turnRef.current }),
       signal,
     })
     if (r.status >= 502 && r.status <= 504) {
@@ -304,7 +330,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: question, history: historyRef.current }),
+        body: JSON.stringify({ query: question, history: historyRef.current, conversation_id: conversationIdRef.current, turn_index: turnRef.current }),
         signal,
       })
     }
@@ -360,6 +386,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     // Conversation memory = the last 3 completed turns (reference resolution,
     // not a full transcript). Sent with both the stream and single-shot calls.
     historyRef.current = threadRef.current.slice(-3).map((e) => ({ q: e.q, a: String(e.answer || '').slice(0, 1200) }))
+    turnRef.current += 1   // this ask's turn index (anon threading for the log)
     stoppedRef.current = false
     const ctrl = new AbortController()
     abortRef.current = ctrl
@@ -382,7 +409,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: question, history: historyRef.current }),
+        body: JSON.stringify({ query: question, history: historyRef.current, conversation_id: conversationIdRef.current, turn_index: turnRef.current }),
         signal: ctrl.signal,
       })
       let r = await singleShot()
@@ -428,15 +455,17 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       .replace(/\[([^\]]+)\]\(\$[A-Za-z][A-Za-z.\-]{0,6}\)/g, '$1')
       .replace(/\*\*/g, '')
     navigator.clipboard?.writeText(plain)
-      .then(() => { setCopiedId(entry.id); setTimeout(() => setCopiedId(null), 1600) })
+      .then(() => { setCopiedId(entry.id); setTimeout(() => setCopiedId(null), 1600); emitSignal(entry.answerId, 'copy') })
       .catch(() => { /* clipboard unavailable — button just doesn't confirm */ })
   }, [])
 
   // Save / unsave an answer to localStorage (keyed by question) so a member can
   // reopen it in a later session; restore drops the saved turn back into the thread.
+  // A new save also emits a best-effort 'save' quality signal (joined by answerId).
   const toggleSave = useCallback((entry) => {
     setSaved((prev) => {
       const exists = prev.some((s) => s.q === entry.q)
+      if (!exists) emitSignal(entry.answerId, 'save')
       const next = exists
         ? prev.filter((s) => s.q !== entry.q)
         : [{ q: entry.q, answer: entry.answer, citations: entry.citations || [], related: entry.related || [] }, ...prev].slice(0, 30)
