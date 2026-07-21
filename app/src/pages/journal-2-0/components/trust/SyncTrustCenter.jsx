@@ -92,7 +92,7 @@ export default function SyncTrustCenter({ onSynced }) {
         <h3 className={styles.title}>Sync Trust</h3>
         {/* One-tap full re-sync — absorbed from the retired BrokerSyncStatus
             bar so ONE surface owns broker sync (no stacked chrome bands). */}
-        <span className={styles.headAuto}>auto every 20m</span>
+        <span className={styles.headAuto}>{trust.syncCadence || 'auto-syncs'}</span>
         <button
           type="button"
           className={styles.headSyncBtn}

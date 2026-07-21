@@ -75,7 +75,7 @@ beforeEach(() => {
   syncNow.mockResolvedValue(undefined)
   selected = { accountId: 'a1', account: { id: 'a1', name: 'RH', balanceSource: 'broker' }, accounts: [] }
   trustState = {
-    trust: { anyBroker: true, accounts: [okAccount()] },
+    trust: { anyBroker: true, accounts: [okAccount()], syncCadence: 'auto-syncs daily' },
     syncLog: [syncRow()],
     orphans: [],
     reattach,
@@ -88,10 +88,20 @@ describe('SyncTrustCenter', () => {
   it('header owns the one-tap re-sync (absorbed BrokerSyncStatus bar)', async () => {
     const onSynced = vi.fn()
     render(<SyncTrustCenter onSynced={onSynced} />)
-    expect(screen.getByText(/auto every 20m/i)).toBeInTheDocument()
+    // The cadence chip reflects the REAL backend cadence (from trust.syncCadence),
+    // never the old hardcoded "auto every 20m" that didn't match the daily default.
+    expect(screen.getByText(/auto-syncs daily/i)).toBeInTheDocument()
+    expect(screen.queryByText(/auto every 20m/i)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Sync now/i }))
     await waitFor(() => expect(syncNow).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(onSynced).toHaveBeenCalledTimes(1))
+  })
+
+  it('falls back to a safe cadence label when the backend omits syncCadence', () => {
+    trustState = { ...trustState, trust: { anyBroker: true, accounts: [okAccount()] } }
+    render(<SyncTrustCenter onSynced={vi.fn()} />)
+    expect(screen.getByText(/auto-syncs/i)).toBeInTheDocument()
+    expect(screen.queryByText(/20m/i)).toBeNull()
   })
 
   it('hides entirely for a manual account (renders one muted line, no health panel)', () => {

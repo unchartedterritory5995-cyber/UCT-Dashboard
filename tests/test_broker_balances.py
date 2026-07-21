@@ -109,6 +109,85 @@ def test_write_balances_sets_account_fields(env):
     assert acct["brokerBuyingPower"] == 16000.0
 
 
+def test_write_balances_floors_untrustworthy_derived_equity(env):
+    # INV-4: no broker_total + a full margin debit against a PARTIAL positions
+    # feed derives an implausible <= 0 net-liq (the −$17,774 class). It must NOT
+    # be persisted as equity / account_size / an equity-curve point — the prior
+    # last-good equity is preserved while the component balances still refresh.
+    # 1) establish a good equity.
+    balances.write_balances(
+        "u1", env["ba"],
+        [{"currency": "USD", "cash": 5000, "buying_power": 10000}],
+        [_pos("AAPL", 100, 100, 90)],   # MV 10000 → derived 15000 (>0, trusted)
+    )
+    # 2) bad derived: -22447.21 cash + only ~4673 MV materialized → derived < 0.
+    out = balances.write_balances(
+        "u1", env["ba"],
+        [{"currency": "USD", "cash": -22447.21, "buying_power": 6464.36}],
+        [_pos("XYZ", 50, 93.46, 90)],   # MV 4673 → derived ≈ -17774
+    )
+    assert out["equity"] is None and out["equityTrustworthy"] is False
+    conn = auth_db.get_connection()
+    try:
+        row = conn.execute(
+            "SELECT broker_total_equity, account_size, broker_cash, broker_market_value "
+            "FROM j2_accounts WHERE id=?", (env["acct_id"],)
+        ).fetchone()
+        snap_eq = conn.execute(
+            "SELECT total_equity FROM j2_broker_equity_snapshots WHERE user_id='u1'"
+        ).fetchone()
+    finally:
+        conn.close()
+    # Prior good equity + account_size preserved (NOT the -17774 garbage).
+    assert row["broker_total_equity"] == 15000.0
+    assert row["account_size"] == 15000.0
+    # Component balances DID refresh (individually broker-reported, trustworthy).
+    assert row["broker_cash"] == -22447.21
+    assert row["broker_market_value"] == 4673.0
+    # Equity-curve point NOT poisoned by the bad sync.
+    assert snap_eq["total_equity"] == 15000.0
+
+
+def test_write_balances_rejects_non_finite_broker_total(env):
+    # NaN/Inf broker_total (Python's json parses these) must NOT short-circuit
+    # the finiteness guard into account_size / the equity curve.
+    import math
+    balances.write_balances(  # establish a good equity first
+        "u1", env["ba"],
+        [{"currency": "USD", "cash": 5000, "buying_power": 10000}],
+        [_pos("AAPL", 100, 100, 90)],   # derived 15000
+    )
+    for bad in (float("nan"), float("inf")):
+        out = balances.write_balances(
+            "u1", env["ba"],
+            [{"currency": "USD", "cash": 100, "buying_power": 100}],
+            [_pos("AAPL", 1, 100, 90)], broker_total=bad,
+        )
+        assert out["equityTrustworthy"] is False
+    conn = auth_db.get_connection()
+    try:
+        row = conn.execute(
+            "SELECT broker_total_equity, account_size FROM j2_accounts WHERE id=?",
+            (env["acct_id"],)
+        ).fetchone()
+    finally:
+        conn.close()
+    assert row["broker_total_equity"] == 15000.0            # prior good preserved
+    assert math.isfinite(row["account_size"]) and row["account_size"] == 15000.0
+
+
+def test_write_balances_mirrors_broker_reported_negative_equity(env):
+    # A broker that reports its own negative total (genuine margin debt) is
+    # TRUTH — persist it verbatim; the sanity floor only guards the DERIVED path.
+    out = balances.write_balances(
+        "u1", env["ba"],
+        [{"currency": "USD", "cash": -5000, "buying_power": 0}],
+        [_pos("AAPL", 10, 100, 90)],
+        broker_total=-1200.0,
+    )
+    assert out["equity"] == -1200.0 and out["equityTrustworthy"] is True
+
+
 # ── holdings reconciliation ──────────────────────────────────────────────────
 
 def test_carried_in_position_uses_cost_basis_estimated(env):

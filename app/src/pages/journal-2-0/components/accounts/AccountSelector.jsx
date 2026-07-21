@@ -57,8 +57,12 @@ export default function AccountSelector({ onNewAccount }) {
     for (const c of comparison) m[c.id] = c.currentBalance
     return m
   }, [comparison])
+  // Key the startingBalance fallback on PRESENCE, not null: a broker account
+  // that's synced-but-pending (INV-1) has a real null currentBalance and must
+  // render "—" (money(null)), NOT the $1.00 startingBalance seed. Only fall back
+  // when the comparison row hasn't loaded for this id yet.
   const balanceFor = (a) =>
-    balanceById[a?.id] != null ? balanceById[a.id] : a?.startingBalance
+    (a?.id != null && a.id in balanceById) ? balanceById[a.id] : a?.startingBalance
   const [open, setOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)

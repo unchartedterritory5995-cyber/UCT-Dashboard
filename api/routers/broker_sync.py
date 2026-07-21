@@ -96,7 +96,12 @@ def trust(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """Sync Trust Center summary: per broker account, health + imported-vs-
     broker counts + token state. Read-only. Any logged-in user (anyBroker=
     false + empty list if not broker-connected)."""
-    return broker_service.trust_summary(user["id"])
+    from api.services.journal_two.broker import sync as broker_sync_engine
+    summary = broker_service.trust_summary(user["id"])
+    # Real background cadence (derived from config) so the UI chip can't drift
+    # from reality the way the hardcoded "auto every 20m" did.
+    summary["syncCadence"] = broker_sync_engine.sync_cadence_label()
+    return summary
 
 
 @router.post("/connect")

@@ -209,9 +209,31 @@ def _default_interval_min() -> int:
     import os
     explicit = os.getenv("BROKER_SYNC_INTERVAL_MIN")
     if explicit:
-        return int(explicit)
+        try:
+            return int(explicit)
+        except (TypeError, ValueError):
+            pass  # malformed override (e.g. "20m") → fall through to the mode
+            # default rather than raising — this runs on the trust request path.
     mode = (os.getenv("BROKER_SYNC_MODE") or "daily").strip().lower()
     return 20 if mode == "legacy" else 1440
+
+
+def sync_cadence_label() -> str:
+    """Humanized background auto-sync cadence for the Trust Center chip, DERIVED
+    from the actual configured interval so the copy can never drift from reality
+    (the hardcoded 'auto every 20m' was false under the default daily mode).
+    Intraday freshness still comes from webhooks + on-open sync + the Recent
+    Orders poll — this describes only the background reconcile cadence."""
+    mins = _default_interval_min()
+    if mins <= 0:
+        return "auto-syncs"
+    if mins % 1440 == 0:
+        days = mins // 1440
+        return "auto-syncs daily" if days == 1 else f"auto-syncs every {days}d"
+    if mins % 60 == 0:
+        hours = mins // 60
+        return "auto-syncs hourly" if hours == 1 else f"auto-syncs every {hours}h"
+    return f"auto-syncs every {mins}m"
 
 
 async def sync_due_accounts(
@@ -504,6 +526,7 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
         # CURRENT state. Best-effort — a balances hiccup must not fail the whole
         # sync (the trade import above already succeeded).
         pos_res: dict[str, Any] = {"upserted": 0}
+        balances_error: str | None = None
         try:
             raw_positions = await snap.get_positions(
                 bu["snaptradeUserId"], bu["userSecret"], ba["snaptradeAccountId"]
@@ -577,8 +600,16 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
                 _optr.reconcile_option_holdings(user_id, ba, raw_option_holdings)
             except Exception:
                 pass  # best-effort; never break the core sync
-        except snap.SnapError:
-            bal_res = None  # leave prior balances; surfaced via last_error if needed
+        except snap.SnapError as e:
+            # Holdings/balances/positions refresh failed (rate-limit, transient,
+            # unsupported broker). The activities import above already succeeded,
+            # so we keep the cursor advance — but current state (equity, cash,
+            # positions) is now STALE, so we must NOT report a clean success.
+            # Capture the reason and record it below (the prior code fell through
+            # to ok=True → last_error=None, hiding the failure: a new position
+            # stayed invisible until a manual "Sync now").
+            bal_res = None
+            balances_error = f"holdings/balances not refreshed: {e}"
 
         # Flag likely manual↔broker duplicate trades for user review (never
         # auto-deleted). Best-effort — must not fail the sync.
@@ -591,9 +622,16 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
         latest = activities_store.latest_occurred_at(user_id, broker_account_id)
         if latest:
             connections.update_cursor(user_id, broker_account_id, latest)
+        # Auth is healthy if we reached here (every auth-class error raises
+        # earlier), so a broken connection recovers to active even when the
+        # best-effort holdings refresh hiccupped — that staleness is surfaced via
+        # last_sync_status='error', not by keeping a false "reconnect needed".
         if ba["status"] == "broken":
             connections.set_status(user_id, broker_account_id, "active")
-        connections.record_sync_result(user_id, broker_account_id, ok=True)
+        connections.record_sync_result(
+            user_id, broker_account_id,
+            ok=(balances_error is None), error=balances_error,
+        )
 
         summary = {
             "fetched": len(raw),
@@ -606,8 +644,12 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             "openPositions": recon["openPositions"],
             "optionEvents": recon["optionEvents"],
             "fifoErrors": recon["fifoErrors"],
+            "balancesError": balances_error,
         }
-        _finish_log(log_id, ok=True, summary=summary)
+        # The audit-log row must agree with the account chip: a stale-holdings
+        # sync is an 'error' row carrying the reason, not a green 'ok'.
+        _finish_log(log_id, ok=(balances_error is None), summary=summary,
+                    error=balances_error)
         return summary
     except Exception as e:
         # Already recorded specific failures above; ensure the log closes.

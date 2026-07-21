@@ -13,33 +13,39 @@ place.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 
 def resolve_equity(account: dict[str, Any], realized_pnl: float = 0.0) -> dict[str, Any]:
     """Return the account's equity snapshot.
 
-    Broker-linked accounts (balanceSource == 'broker' with a synced equity)
-    report the broker's real net-liquidation value, cash, buying power, and
-    open-position market value. Manual accounts report
-    startingBalance + realized_pnl (the legacy closed-equity rule) and leave
-    the broker-only fields null.
+    Broker-linked accounts report the broker's real net-liquidation value, cash,
+    buying power, and open-position market value — never a reconstructed figure.
+    Manual accounts report startingBalance + realized_pnl (the legacy
+    closed-equity rule) and leave the broker-only fields null.
+
+    INV-1 (no reconstructed current-state): a broker account whose broker equity
+    hasn't synced yet (or is non-finite) reports `equity: None` with
+    `pending: True` — an explicit "syncing" state (the UI renders "—"), NEVER
+    `startingBalance + realized_pnl`. Presenting a reconstructed number as a
+    broker account's balance is exactly the class of bug that let a −$17,774
+    fabrication reach a screen; a broker account must only ever show broker truth.
 
     `realized_pnl` is the caller's already-computed sum of closed-trade P&L;
     keeping it a parameter makes this function pure + trivially testable.
     """
-    is_broker = (
-        account.get("balanceSource") == "broker"
-        and account.get("brokerTotalEquity") is not None
-    )
-    if is_broker:
+    if account.get("balanceSource") == "broker":
+        equity = _f(account.get("brokerTotalEquity"))
+        pending = equity is None or not math.isfinite(equity)
         return {
-            "equity": float(account["brokerTotalEquity"]),
+            "equity": None if pending else equity,
             "cash": _f(account.get("brokerCash")),
             "buyingPower": _f(account.get("brokerBuyingPower")),
             "marketValue": _f(account.get("brokerMarketValue")),
             "source": "broker",
             "syncedAt": account.get("brokerBalanceSyncedAt"),
+            "pending": pending,
         }
     starting = _f(account.get("startingBalance")) or 0.0
     return {
@@ -49,6 +55,7 @@ def resolve_equity(account: dict[str, Any], realized_pnl: float = 0.0) -> dict[s
         "marketValue": None,
         "source": "manual",
         "syncedAt": None,
+        "pending": False,
     }
 
 

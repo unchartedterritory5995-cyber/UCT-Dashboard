@@ -38,6 +38,47 @@ export function indexFromFraction(frac, n) {
   return Math.max(0, Math.min(n - 1, i))
 }
 
+// Divergence tolerance for trusting the live reconstruction over broker truth:
+// the larger of 15% of equity or $1,000 (covers real intraday moves + small
+// accounts, but rejects a missing-positions blowout / sign flip).
+const HEADLINE_DIVERGENCE_PCT = 0.15
+const HEADLINE_DIVERGENCE_FLOOR = 1000
+
+/**
+ * Resolve the headline account value for a broker account.
+ *
+ * Broker-reported equity (`brokerTotalEquity`) is the anchor of record. The live
+ * client reconstruction (`liveNetLiq` = cash + live market value) is trusted for
+ * the headline ONLY while it stays coherent with broker truth — so an incomplete
+ * or stale positions set can never pair a full margin debit with a partial market
+ * value and flip a funded account deeply negative (the −$17,774-vs-+$9,588 bug).
+ * When they diverge, we fall back to the broker's own number, never the
+ * reconstructed one. With no live reconstruction, use the perf base, then truth.
+ *
+ * @param {{brokerTotalEquity?: number, liveNetLiq?: number, perfBase?: number}} args
+ * @returns {number|null}
+ */
+export function resolveHeadlineEquity({ brokerTotalEquity, liveNetLiq, perfBase } = {}) {
+  const truth = Number.isFinite(brokerTotalEquity) ? brokerTotalEquity : null
+  const live = Number.isFinite(liveNetLiq) ? liveNetLiq : null
+  const base = Number.isFinite(perfBase) ? perfBase : null
+  if (live != null) {
+    if (truth == null) return live
+    // Broker equity is stale intraday (background sync is ~daily; broker truth is
+    // near-morning), and the live reconstruction EXISTS to surface today's move —
+    // so a real gain or a moderate loss MUST reach the headline. Only the
+    // missing-positions blowup is a hazard, and it can only push the
+    // reconstruction implausibly BELOW truth (a full margin debit paired with a
+    // truncated market value), typically flipping a funded account non-positive.
+    // Reject just that signature; trust every plausible live value.
+    const tol = Math.max(HEADLINE_DIVERGENCE_PCT * Math.abs(truth), HEADLINE_DIVERGENCE_FLOOR)
+    const blewUp = (truth > 0 && live <= 0)             // funded account driven <= 0 (sign flip)
+      || (live < truth - tol && live < truth / 2)       // collapsed far below truth
+    return blewUp ? truth : live
+  }
+  return base != null ? base : truth // no live reconstruction → perf base, else truth
+}
+
 function fmtDate(iso) {
   if (!iso) return ''
   const d = new Date(`${String(iso).slice(0, 10)}T00:00:00`)
@@ -82,8 +123,33 @@ export default function BrokerAccountHero({
     enabled: isIntraday && isBroker,
   })
 
-  const series = isIntraday ? (intradaySeries || []) : (data?.equitySeries || [])
+  const rawSeries = isIntraday ? (intradaySeries || []) : (data?.equitySeries || [])
   const isLoading = isIntraday ? intraLoading : perfLoading
+
+  // Tween target = the non-scrub headline. Broker-reported equity is the anchor
+  // of record; the live reconstruction only wins while it stays coherent with it
+  // (see resolveHeadlineEquity). Computed before the early return so the hook
+  // order is stable for non-broker accounts too.
+  const baseValue = data?.endEquity ?? account?.brokerTotalEquity
+  const headTarget = resolveHeadlineEquity({
+    brokerTotalEquity: account?.brokerTotalEquity,
+    liveNetLiq: liveSummary?.netLiq,
+    perfBase: baseValue,
+  })
+  const animatedHead = useAnimatedNumber(headTarget)
+
+  // Anchor the intraday (1D) curve on the same headline value: a constant offset
+  // preserves the curve SHAPE (it's min-max normalized) but makes the scrub
+  // readout report broker-anchored dollars, so dragging can't reveal the
+  // reconstructed −$17,774 level after the headline was corrected.
+  const series = useMemo(() => {
+    if (!isIntraday || rawSeries.length === 0) return rawSeries
+    const lastVal = rawSeries[rawSeries.length - 1]?.value
+    if (!Number.isFinite(lastVal) || !Number.isFinite(headTarget)) return rawSeries
+    const offset = headTarget - lastVal
+    if (Math.abs(offset) < 0.005) return rawSeries
+    return rawSeries.map((p) => ({ ...p, value: p.value + offset }))
+  }, [isIntraday, rawSeries, headTarget])
 
   const model = useMemo(() => {
     if (series.length < 2) return null
@@ -102,13 +168,6 @@ export default function BrokerAccountHero({
     const up = series[n - 1].value >= series[0].value
     return { line, area, up, coords, baselineY: coords[0].y, estimated: series.some((p) => p.estimated) }
   }, [series])
-
-  // Tween target = the non-scrub headline (live net-liq, else perf base).
-  // Called before the early return so the hook order is stable for
-  // non-broker accounts too.
-  const baseValue = data?.endEquity ?? account?.brokerTotalEquity
-  const netLiqVal = liveSummary?.netLiq
-  const animatedHead = useAnimatedNumber(netLiqVal != null ? netLiqVal : baseValue)
 
   // RH extended-hours split — null during regular session/closed. Computed
   // before the early return so hook order stays stable.

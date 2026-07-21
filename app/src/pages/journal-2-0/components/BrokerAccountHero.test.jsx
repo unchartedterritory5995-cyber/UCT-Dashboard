@@ -22,7 +22,55 @@ let mockPerf = {
 }
 vi.mock('../hooks/useJ2BrokerPerformance', () => ({ default: () => mockPerf }))
 
-import BrokerAccountHero, { indexFromFraction } from './BrokerAccountHero'
+import BrokerAccountHero, { indexFromFraction, resolveHeadlineEquity } from './BrokerAccountHero'
+
+describe('resolveHeadlineEquity (broker-truth coherence guard)', () => {
+  it('trusts the live reconstruction when it agrees with broker truth', () => {
+    // live net-liq $20 off a $10k broker equity → coherent → show the live value
+    expect(resolveHeadlineEquity({ brokerTotalEquity: 10000, liveNetLiq: 10020, perfBase: 9990 }))
+      .toBe(10020)
+  })
+
+  it('falls back to broker truth when the reconstruction diverges (the −$17,774 bug)', () => {
+    // full margin cash + partial market value collapsed the recompute; broker
+    // truth is +$9,588.17 — the headline must show that, never the −$17,774.
+    expect(resolveHeadlineEquity({
+      brokerTotalEquity: 9588.17, liveNetLiq: -17774.10, perfBase: 9588.17,
+    })).toBe(9588.17)
+  })
+
+  it('never shows a negative headline when the funded account reports positive equity', () => {
+    const v = resolveHeadlineEquity({ brokerTotalEquity: 9588.17, liveNetLiq: -17774.10 })
+    expect(v).toBeGreaterThan(0)
+    expect(v).toBe(9588.17)
+  })
+
+  it('uses the perf base, then broker truth, when there is no live reconstruction', () => {
+    expect(resolveHeadlineEquity({ brokerTotalEquity: 14632.18, perfBase: 14600 })).toBe(14600)
+    expect(resolveHeadlineEquity({ brokerTotalEquity: 14632.18 })).toBe(14632.18)
+  })
+
+  it('keeps the live value when broker truth is unavailable (no false fallback)', () => {
+    expect(resolveHeadlineEquity({ liveNetLiq: 12345, perfBase: 12000 })).toBe(12345)
+  })
+
+  it('does NOT clamp a legitimate large intraday GAIN to the stale broker figure', () => {
+    // broker equity is ~morning-stale; a +20% live move on complete data must
+    // reach the headline (not revert to a stale, self-contradictory number).
+    expect(resolveHeadlineEquity({ brokerTotalEquity: 10000, liveNetLiq: 12000, perfBase: 10000 }))
+      .toBe(12000)
+  })
+
+  it('does NOT clamp a moderate intraday LOSS', () => {
+    expect(resolveHeadlineEquity({ brokerTotalEquity: 10000, liveNetLiq: 9000 })).toBe(9000)
+  })
+
+  it('still clamps a severe positive collapse (partial positions, no sign flip)', () => {
+    // live far below truth AND below half of it = the missing-positions signature
+    // even without going negative → fall back to broker truth.
+    expect(resolveHeadlineEquity({ brokerTotalEquity: 10000, liveNetLiq: 3000 })).toBe(10000)
+  })
+})
 
 describe('indexFromFraction (scrub math)', () => {
   it('maps a 0..1 pointer fraction to a clamped data index', () => {
@@ -120,6 +168,26 @@ describe('BrokerAccountHero', () => {
     expect(screen.getByText('$10,020.00')).toBeInTheDocument()   // net-liq headline
     expect(screen.getByText(/LIVE/i)).toBeInTheDocument()
     expect(screen.getByText(/-\$50\.00/)).toBeInTheDocument()    // Today $ (down)
+  })
+
+  it('shows broker truth, not a diverged reconstruction, as the headline (the live bug)', () => {
+    // Real incident: Robinhood ··2364 — broker equity +$9,588.17, but the client
+    // recompute (full −$22,447.21 margin cash + only 2 materialized positions)
+    // collapsed to −$17,774.10. The headline must show the broker's number.
+    const account = {
+      balanceSource: 'broker', brokerTotalEquity: 9588.17,
+      brokerCash: -22447.21, brokerBuyingPower: 6464.36,
+    }
+    render(
+      <BrokerAccountHero
+        account={account}
+        aggregates={{ unrealized: 2236.72, invested: 0.487 }}
+        liveSummary={{ netLiq: -17774.10, marketValue: 4673.11, today: 98.07, todayPct: 0.005 }}
+        isLive
+      />,
+    )
+    expect(screen.getByText('$9,588.17')).toBeInTheDocument()          // broker truth
+    expect(screen.queryByText(/-\$17,774\.10/)).toBeNull()             // never the fabricated negative
   })
 })
 

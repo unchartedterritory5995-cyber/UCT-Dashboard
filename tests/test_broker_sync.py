@@ -127,6 +127,82 @@ async def test_sync_reconciles_positions_and_balances(env):
 
 
 @pytest.mark.asyncio
+async def test_holdings_refresh_failure_is_surfaced_not_silently_ok(env, monkeypatch):
+    # A SnapError while fetching the LIVE holdings/balances (rate-limit,
+    # transient, unsupported broker) must NOT report a clean success: the
+    # activities import above already succeeded, but current state
+    # (equity/cash/positions) is stale. The prior code fell through to
+    # record_sync_result(ok=True) → last_error=None, so a newly-added position
+    # stayed invisible until a manual "Sync now" (the reported bug).
+    async def boom(*a, **kw):
+        raise snap.SnapError("positions endpoint 503")
+
+    monkeypatch.setattr(snap, "get_positions", boom)
+    out = await sync.sync_account("u1", env["ba_id"])
+
+    # Trades still imported (the activities half succeeded) + cursor advanced.
+    assert out["imported"] == 2
+    assert _trade_count() == 2
+    assert out["balancesError"] and "holdings/balances not refreshed" in out["balancesError"]
+    ba = connections.get_broker_account("u1", env["ba_id"])
+    assert ba["activitiesCursor"] == "2026-04-03T00:00:00Z"
+
+    # The account's freshness signal reflects the stale holdings, not a green check.
+    conn = auth_db.get_connection()
+    try:
+        row = conn.execute(
+            "SELECT last_sync_status, last_error FROM j2_broker_accounts WHERE id=?",
+            (env["ba_id"],),
+        ).fetchone()
+    finally:
+        conn.close()
+    assert row["last_sync_status"] == "error"
+    assert "holdings/balances not refreshed" in (row["last_error"] or "")
+
+    # The audit-log row must AGREE with the account chip — a stale-holdings sync
+    # is an 'error' row carrying the reason, never a green 'ok' beside an amber
+    # health badge (the diagnostic surface must not lie).
+    conn = auth_db.get_connection()
+    try:
+        log = conn.execute(
+            "SELECT status, error FROM j2_broker_sync_log WHERE user_id='u1' "
+            "ORDER BY started_at DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        conn.close()
+    assert log["status"] == "error"
+    assert "holdings/balances not refreshed" in (log["error"] or "")
+
+
+@pytest.mark.asyncio
+async def test_broken_connection_recovers_despite_holdings_hiccup(env, monkeypatch):
+    # A previously-broken connection whose AUTH has healed (activities fetched
+    # fine) but that hits a transient holdings rate-limit must recover to
+    # 'active' — the holdings staleness is an error on last_sync_status, NOT a
+    # false "reconnect needed" banner.
+    connections.set_status("u1", env["ba_id"], "broken", error="was broken")
+
+    async def boom(*a, **kw):
+        raise snap.SnapError("positions endpoint 429")
+
+    monkeypatch.setattr(snap, "get_positions", boom)
+    await sync.sync_account("u1", env["ba_id"])
+    ba = connections.get_broker_account("u1", env["ba_id"])
+    assert ba["status"] == "active"          # auth recovered
+    assert ba["lastSyncStatus"] == "error"   # holdings still flagged stale
+
+
+@pytest.mark.asyncio
+async def test_clean_sync_still_reports_ok(env):
+    # Guard against over-flagging: a fully successful sync (holdings included)
+    # must still record ok with no balancesError.
+    out = await sync.sync_account("u1", env["ba_id"])
+    assert out["balancesError"] is None
+    ba = connections.get_broker_account("u1", env["ba_id"])
+    assert ba["lastSyncStatus"] == "ok"
+
+
+@pytest.mark.asyncio
 async def test_sync_captures_cash_flows(env):
     acts = ACTS + [
         {"id": "c1", "type": "CONTRIBUTION", "amount": 5000, "currency": "USD",
@@ -312,6 +388,20 @@ def test_locked_retry_has_a_longer_tail():
     # Three retries (four attempts) with a patient tail — a big concurrent
     # backfill can hold auth.db past a ~4s total budget.
     assert sync._LOCKED_RETRY_DELAYS == (1.0, 3.0, 8.0)
+
+
+def test_sync_cadence_label_reflects_config(monkeypatch):
+    # The Trust Center chip is DERIVED from this, so it can never drift from the
+    # real cadence the way the hardcoded "auto every 20m" did.
+    monkeypatch.delenv("BROKER_SYNC_INTERVAL_MIN", raising=False)
+    monkeypatch.delenv("BROKER_SYNC_MODE", raising=False)
+    assert sync.sync_cadence_label() == "auto-syncs daily"        # default = 1440
+    monkeypatch.setenv("BROKER_SYNC_MODE", "legacy")
+    assert sync.sync_cadence_label() == "auto-syncs every 20m"    # legacy = 20
+    monkeypatch.setenv("BROKER_SYNC_INTERVAL_MIN", "60")          # explicit wins
+    assert sync.sync_cadence_label() == "auto-syncs hourly"
+    monkeypatch.setenv("BROKER_SYNC_INTERVAL_MIN", "120")
+    assert sync.sync_cadence_label() == "auto-syncs every 2h"
 
 
 @pytest.mark.asyncio

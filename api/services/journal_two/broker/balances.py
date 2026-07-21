@@ -23,6 +23,7 @@ entry while still estimated).
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -189,47 +190,83 @@ def write_balances(
     derived = round((cash or 0.0) + mv, 2)
     equity = round(float(broker_total), 2) if broker_total is not None else derived
 
+    # INV-4 sanity floor. A broker-reported total is TRUTH — mirror it even if
+    # negative (real margin debt). But the DERIVED path (no broker total) pairs a
+    # COMPLETE broker cash figure with a possibly-INCOMPLETE positions feed, so a
+    # full margin debit against a truncated market value can go implausibly <= 0
+    # (the −$17,774 class). We must never persist a fabricated / non-finite
+    # net-liq as the account's equity, its account_size (sizing / risk% / heat%
+    # denominator), or an equity-curve point. When the derived equity is
+    # untrustworthy we still refresh the individually broker-reported cash / BP /
+    # MV, but leave the prior (last-good) equity + account_size + curve untouched
+    # — resolve_equity then reports "pending" and the UI shows "—", never a wrong
+    # number.
+    # Finiteness is checked UNCONDITIONALLY: Python's json parses NaN/Infinity,
+    # so a bad SDK payload can make broker_total (and thus equity) non-finite —
+    # that must never reach account_size / the equity curve.
+    equity_trustworthy = math.isfinite(equity) and (
+        broker_total is not None or equity > 0
+    )
+
     owned = conn is None
     conn = conn or get_connection()
     try:
-        # Mirror the broker: a broker account's "size" IS its real net-liq
-        # equity. account_size is the denominator for % invested / risk% / heat%
-        # and the base for position sizing — keeping it at the static seed made
-        # those wildly wrong on a real (esp. margined) account, where gross
-        # position value can exceed equity (>100% invested). Sync it every
-        # balance refresh so all of that math reflects the actual account.
-        conn.execute(
-            """
-            UPDATE j2_accounts
-               SET balance_source = 'broker',
-                   broker_total_equity = ?, broker_cash = ?,
-                   broker_buying_power = ?, broker_market_value = ?,
-                   account_size = ?,
-                   broker_balance_synced_at = ?, updated_at = ?
-             WHERE id = ? AND user_id = ?
-            """,
-            (equity, cash, buying_power, mv, equity, _now_iso(), _now_iso(),
-             broker_account["j2AccountId"], user_id),
-        )
-        # Append a daily net-liq snapshot (latest sync of the day wins) → powers
-        # the real broker equity curve.
-        conn.execute(
-            """
-            INSERT INTO j2_broker_equity_snapshots
-                (user_id, broker_account_id, snapshot_date, total_equity, cash,
-                 market_value, synced_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_id, broker_account_id, snapshot_date) DO UPDATE SET
-                total_equity = excluded.total_equity, cash = excluded.cash,
-                market_value = excluded.market_value, synced_at = excluded.synced_at
-            """,
-            (user_id, broker_account["id"], _et_date(), equity, cash, mv, _now_iso()),
-        )
+        if equity_trustworthy:
+            # Mirror the broker: a broker account's "size" IS its real net-liq
+            # equity (denominator for % invested / risk% / heat% and the base for
+            # position sizing). Sync it every balance refresh.
+            conn.execute(
+                """
+                UPDATE j2_accounts
+                   SET balance_source = 'broker',
+                       broker_total_equity = ?, broker_cash = ?,
+                       broker_buying_power = ?, broker_market_value = ?,
+                       account_size = ?,
+                       broker_balance_synced_at = ?, updated_at = ?
+                 WHERE id = ? AND user_id = ?
+                """,
+                (equity, cash, buying_power, mv, equity, _now_iso(), _now_iso(),
+                 broker_account["j2AccountId"], user_id),
+            )
+            # Append a daily net-liq snapshot (latest sync of the day wins) →
+            # powers the real broker equity curve.
+            conn.execute(
+                """
+                INSERT INTO j2_broker_equity_snapshots
+                    (user_id, broker_account_id, snapshot_date, total_equity, cash,
+                     market_value, synced_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, broker_account_id, snapshot_date) DO UPDATE SET
+                    total_equity = excluded.total_equity, cash = excluded.cash,
+                    market_value = excluded.market_value, synced_at = excluded.synced_at
+                """,
+                (user_id, broker_account["id"], _et_date(), equity, cash, mv, _now_iso()),
+            )
+        else:
+            # Untrustworthy derived equity: refresh the component balances but do
+            # NOT clobber equity / account_size / the curve with a fabricated
+            # number. The prior last-good equity stays in place.
+            conn.execute(
+                """
+                UPDATE j2_accounts
+                   SET balance_source = 'broker',
+                       broker_cash = ?, broker_buying_power = ?,
+                       broker_market_value = ?,
+                       broker_balance_synced_at = ?, updated_at = ?
+                 WHERE id = ? AND user_id = ?
+                """,
+                (cash, buying_power, mv, _now_iso(), _now_iso(),
+                 broker_account["j2AccountId"], user_id),
+            )
         conn.commit()
     finally:
         if owned:
             conn.close()
-    return {"equity": equity, "cash": cash, "buyingPower": buying_power, "marketValue": mv}
+    return {
+        "equity": equity if equity_trustworthy else None,
+        "cash": cash, "buyingPower": buying_power, "marketValue": mv,
+        "equityTrustworthy": equity_trustworthy,
+    }
 
 
 # ── Holdings reconciliation (positions) ──────────────────────────────────────

@@ -153,7 +153,9 @@ export default function AccountsTab({ onNewAccount }) {
                   )}
                 </div>
                 <span className={styles.balance}>
-                  {money(balanceByAccount[a.id] != null ? balanceByAccount[a.id] : a.startingBalance)}
+                  {/* Presence, not null: a synced-but-pending broker account
+                      (INV-1 null balance) renders "—", not the $1 seed. */}
+                  {money(a.id in balanceByAccount ? balanceByAccount[a.id] : a.startingBalance)}
                 </span>
                 <span className={styles.tradeCount}>
                   {tradeCountByAccount[a.id] ?? 0} trades
