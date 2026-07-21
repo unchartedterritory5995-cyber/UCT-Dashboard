@@ -1,6 +1,6 @@
 /* Widget header styles — full workspace styles land in Task 12. */
 .widgetHeader {
-  background: var(--bg-elevated, #0d1218);
+  background: var(--widget-canvas, var(--bg-elevated, #0d1218));
   border-bottom: 1px solid var(--border, #1f2937);
   display: flex;
   align-items: center;
@@ -49,7 +49,7 @@
 .closeBtn:hover { color: var(--text, #e5e7eb); }
 
 .widget {
-  background: var(--bg-elevated, #0f141b);
+  background: var(--widget-canvas, var(--bg-elevated, #0f141b));
   border: 1px solid var(--border, #1f2937);
   border-radius: 4px;
   display: flex;
@@ -104,7 +104,7 @@
   min-height: 34px;   /* shared header-row height so divider lines align across widgets */
   height: 34px;
   box-sizing: border-box;
-  background: var(--bg-elevated, #0d1218);
+  background: var(--widget-canvas, var(--bg-elevated, #0d1218));
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
   overflow: hidden;
@@ -118,7 +118,7 @@
   padding: 0 6px;
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
-  background: var(--bg-elevated, #0d1218);
+  background: var(--widget-canvas, var(--bg-elevated, #0d1218));
   border-bottom: 1px solid var(--border, #1f2937);
   flex-shrink: 0;
 }

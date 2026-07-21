@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
 import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
+import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
@@ -330,6 +331,20 @@ export default function ChartsWorkspace() {
   const chartsTheme = prefs.charts_theme || 'default'
   const setChartsTheme = useCallback((t) => setPref('charts_theme', t), [setPref])
 
+  // The chart canvas color, republished as --widget-canvas so the widget CHROME
+  // (widget panel + border, the symbol/clock header row, the timeframe/meta row,
+  // and the watchlist's own header rows) paints the same color as the chart it
+  // sits around. Without this the canvas turned e.g. red while every row above it
+  // stayed on --bg-elevated, so the widget read as two unrelated halves.
+  // Mirrors StockChart's own background resolution: Sunset wins, then a gradient
+  // uses its TOP stop (that's the edge the header meets), else the solid color.
+  const widgetCanvas = useMemo(() => {
+    if (chartsTheme === 'sunrise') return '#eaf1fa'
+    const cs = mergeChartSettings(prefs.chart_settings)
+    if (cs.bgMode === 'gradient') return cs.bgGradient?.top || cs.background
+    return cs.background
+  }, [chartsTheme, prefs.chart_settings])
+
   const workspaceValue = useMemo(
     () => ({ groupSyms, setGroupSym, chartsTheme, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
     [groupSyms, setGroupSym, chartsTheme],
@@ -625,7 +640,7 @@ export default function ChartsWorkspace() {
     return (
       <WorkspaceContext.Provider value={workspaceValue}>
         {gridMode ? (
-          <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column', '--widget-canvas': widgetCanvas }}>
             {/* Phone toolbar: grid mode persists from desktop, and without an
                 exit control a phone user is TRAPPED in it (mega-review #15 —
                 the desktop entry flyout doesn't exist on phone). */}
@@ -667,7 +682,7 @@ export default function ChartsWorkspace() {
 
   return (
     <WorkspaceContext.Provider value={workspaceValue}>
-      <div className={styles.workspace} data-charts-theme={chartsTheme}>
+      <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ '--widget-canvas': widgetCanvas }}>
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
           {!gridMode && (<>

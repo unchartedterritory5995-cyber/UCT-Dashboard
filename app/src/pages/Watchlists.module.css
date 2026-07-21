@@ -54,7 +54,12 @@
   gap: 8px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-elevated);
+  /* --widget-canvas = the chart canvas color, published by ChartsWorkspace so every
+     widget's chrome matches the chart beside it. Undefined outside the /charts
+     workspace (standalone /watchlists), where this falls back to the normal token.
+     The list BODY still follows --wl-bg, the user's own Watchlist Settings canvas —
+     this is the header strip only. */
+  background: var(--widget-canvas, var(--bg-elevated));
   flex-shrink: 0;
 }
 
