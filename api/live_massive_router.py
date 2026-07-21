@@ -1355,6 +1355,72 @@ def _today_mdyyyy() -> str:
     return f"{d.month}/{d.day}/{d.year}"
 
 
+def _resolve_date(target_date) -> str:
+    """Resolve an incoming target_date to the flow store's 'M/D/YYYY' format.
+    None → today (ET). Accepts ISO 'YYYY-MM-DD' (the standard date-picker /
+    task-spec format) and normalizes it — flow.db keys CreatedDate as M/D/YYYY,
+    so an un-normalized ISO date silently matched ZERO rows (a 200-with-zeros
+    'empty day' bug). Anything else is passed through unchanged (assumed already
+    M/D/YYYY)."""
+    if not target_date:
+        return _today_mdyyyy()
+    s = str(target_date).strip()
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", s)   # ISO YYYY-MM-DD
+    if m:
+        return f"{int(m.group(2))}/{int(m.group(3))}/{int(m.group(1))}"
+    # Canonicalize M/D/YYYY too so a zero-padded '07/19/2026' collapses to the
+    # flow.db key format '7/19/2026' (else it matches zero rows AND isn't 'today',
+    # so it would be cached as an empty historical day).
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", s)
+    if m:
+        return f"{int(m.group(1))}/{int(m.group(2))}/{int(m.group(3))}"
+    return s
+
+
+# Historical dates are NOT truly immutable: the T+1 flat-file ingest + gap-fill
+# mutates "yesterday" AFTER it rolls into the past. So we cache historical dates
+# with a long-but-BOUNDED TTL (default 6h) rather than never-expire — a morning
+# view of yesterday re-checks within the window and picks up the backfill (this
+# matters most for worker-history, whose job is gap detection).
+_HISTORICAL_TTL = int(os.environ.get("MASSIVE_HISTORICAL_TTL", "21600"))  # 6h
+
+
+def _cached_single_flight(cache_dict, key, lock, ttl, compute):
+    """Generic serve-fresh / serve-stale / single-flight cache for the heavy
+    per-date scan endpoints (diagnostic, worker-history). One recompute at a time
+    per `lock`; a stale holder is served instantly instead of queueing behind the
+    compute (that pile-up is what starved /recent). Heavy computes are bounded by
+    the shared fill semaphore so a herd of cold callers can't pin the whole anyio
+    threadpool. Pass a long `ttl` (_HISTORICAL_TTL) for past dates.
+
+    NOTE: on a TRULY cold key (no value yet) concurrent callers all take the
+    `with lock` branch and block until the first fills — bounded to one compute,
+    but each blocked caller pins a threadpool thread meanwhile; the flow-worker
+    warmer pre-fills today's keys so this window is narrow."""
+    now = time.time()
+    hit = cache_dict.get(key)
+    if hit is not None and now - hit[0] < ttl:
+        return hit[1]
+    if not lock.acquire(blocking=False):
+        if hit is not None:
+            return hit[1]                              # serve stale; another refreshes
+        with lock:                                    # cold first-ever: compute once
+            h2 = cache_dict.get(key)
+            if h2 is not None and time.time() - h2[0] < ttl:
+                return h2[1]
+            with _recent_fill_sem:                    # bound concurrent heavy scans
+                payload = compute()
+            cache_dict[key] = (time.time(), payload)
+            return payload
+    try:
+        with _recent_fill_sem:                        # bound concurrent heavy scans
+            payload = compute()
+        cache_dict[key] = (time.time(), payload)
+        return payload
+    finally:
+        lock.release()
+
+
 def _get_worker_status() -> dict:
     """Worker liveness derived from FlowDB write recency.
 
@@ -1620,7 +1686,7 @@ def recent_massive_alerts(
                    show full-day history of rare tiers (Alpha Gold, Size)
                    without being pushed out by common tiers like Algo.
     """
-    today = target_date or _today_mdyyyy()
+    today = _resolve_date(target_date)   # ISO YYYY-MM-DD → M/D/YYYY (else zero-rows)
 
     # Piggyback on the frontend's 5s polling cadence to auto-record any
     # worker restart. Cheap O(1) module-cache check when nothing changed;
@@ -1640,18 +1706,37 @@ def recent_massive_alerts(
     # the worker). A background warmer (flow_worker_main) now keeps these keys
     # hot; this stub covers the brief window before the first fill lands.
     ck = (today, limit, min_grade, sort_by, tier, curated)
+    is_today = (today == _today_mdyyyy())
     now = time.time()
     hit = _recent_cache.get(ck)
-    if hit is not None and now - hit[0] < _RECENT_CACHE_TTL:
-        return hit[1]                              # fresh
+    # Today: 15s TTL (kept hot by the warmer, live tape). Historical: a long
+    # BOUNDED TTL (6h) — NOT never-expire, so the T+1 backfill/gap-fill that
+    # mutates a past date is eventually picked up.
+    _fresh_ttl = _RECENT_CACHE_TTL if is_today else _HISTORICAL_TTL
+    if hit is not None and now - hit[0] < _fresh_ttl:
+        return hit[1]
     lock = _recent_lock_for(ck)
+    if not is_today:
+        # HISTORICAL date: NOT the live tape. Compute SYNCHRONOUSLY (block once,
+        # this key only) and cache with the bounded historical TTL — never return
+        # a warming stub. The stub made past dates in the DateRail show an empty
+        # tape: the 15s TTL expired between the frontend's 20-30s polls, so a
+        # non-warmed historical key was cold on EVERY poll and never filled.
+        # (Auto-push stays inert on historical: _compute_recent passes live=False.)
+        with lock:
+            h2 = _recent_cache.get(ck)
+            if h2 is not None:
+                return h2[1]
+            payload = _compute_recent(today, limit, min_grade, sort_by, tier, curated)
+            _recent_cache[ck] = (time.time(), payload)
+            return payload
     if hit is not None:
-        # Stale value in hand — serve it immediately; kick a background refresh
-        # if nobody else already holds the single-flight lock.
+        # TODAY, stale — serve it immediately; kick a background refresh if
+        # nobody else already holds the single-flight lock.
         if lock.acquire(blocking=False):
             _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock)
         return hit[1]
-    # Cold key — never seen. Return a warming stub now; fill in the background.
+    # TODAY, cold — return a warming stub now; fill in the background.
     if lock.acquire(blocking=False):
         _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock)
     return _warming_stub(today)
@@ -1892,10 +1977,25 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
     }
 
 
+_diagnostic_cache: dict = {}          # date -> (ts, payload)
+_DIAGNOSTIC_TTL = 30
+_diagnostic_lock = threading.Lock()   # single-flight: one heavy scan at a time
+
+
 @router.get("/diagnostic")
 def diagnostic(target_date: str = Query(default=None)):
-    """Per-tier counts for the target date — useful for tuning thresholds."""
-    today = target_date or _today_mdyyyy()
+    """Per-tier counts for the target date — useful for tuning thresholds.
+    Cached (single-flight): today TTL 30s + kept hot by the flow-worker warmer;
+    historical dates cached immutably. Was an UNCACHED full-day scan (18-58s)
+    that blocked the single-process event loop on every call (524/502 risk)."""
+    today = _resolve_date(target_date)
+    ttl = _HISTORICAL_TTL if today != _today_mdyyyy() else _DIAGNOSTIC_TTL
+    return _cached_single_flight(
+        _diagnostic_cache, today, _diagnostic_lock, ttl,
+        lambda: _build_diagnostic(today))
+
+
+def _build_diagnostic(today):
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
@@ -2280,7 +2380,7 @@ def day_stats(
     When exclude_algo=true, the Algo tier (multi-leg complex strategies) is
     skipped during aggregation. Single-leg directional alerts only.
     """
-    today = target_date or _today_mdyyyy()
+    today = _resolve_date(target_date)   # ISO YYYY-MM-DD → M/D/YYYY (else zero-rows)
     now = time.time()
     if stock_etf not in ("stocks", "etfs", "all"):
         stock_etf = "all"
@@ -2690,7 +2790,7 @@ def by_contract(
     Sorted by latest activity; also returns a `score` (qualifying_hits x total
     premium x direction-consistency, x2 for dormant/unusual names) for optional
     conviction-first sorting. Cached 30s per (date, stock_etf, min_hits)."""
-    today = target_date or _today_mdyyyy()
+    today = _resolve_date(target_date)   # ISO YYYY-MM-DD → M/D/YYYY (else zero-rows)
     se = stock_etf if stock_etf in ("stocks", "etfs", "all") else "all"
     now = time.time()
     key = (today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
@@ -4742,19 +4842,35 @@ def q_pool_history(
         return {"ok": False, "error": str(_e), "error_type": type(_e).__name__}
 
 
+_worker_history_cache: dict = {}      # (date, min_gap) -> (ts, payload)
+# 300s (> the frontend's 180s status poll) so a poll almost always hits a warm
+# entry instead of triggering another 24-45s scan; outage history isn't time-
+# sensitive. Warmed on boot/new-day only (see flow_worker_main warmer).
+_WORKER_HISTORY_TTL = int(os.environ.get("MASSIVE_WORKER_HISTORY_TTL", "300"))
+_worker_history_lock = threading.Lock()   # single-flight: one heavy scan at a time
+
+
 @router.get("/worker-history")
 def worker_history(
-    target_date: str = Query(default=None, description="M/D/YYYY. Defaults to today ET."),
+    target_date: str = Query(default=None, description="M/D/YYYY or ISO. Defaults to today ET."),
     min_gap_minutes: int = Query(default=2, ge=1, le=30,
                                   description="Minimum consecutive empty minutes to count as a downtime window."),
 ):
     """Retrospective outage detection from flow.db write timestamps — wrapper.
 
-    Delegates to _worker_history_impl and catches any exception so a bug
-    surfaces as a usable JSON error instead of an upstream-gateway null.
+    Cached (single-flight): today TTL 30s + kept hot by the flow-worker warmer;
+    historical dates cached immutably. Was an UNCACHED full-day minute-by-minute
+    scan (24-45s) that blocked the single-process event loop on every call.
+    Delegates to _worker_history_impl; catches any exception so a bug surfaces
+    as a usable JSON error (uncached) instead of an upstream-gateway null.
     """
+    today = _resolve_date(target_date)
+    ttl = _HISTORICAL_TTL if today != _today_mdyyyy() else _WORKER_HISTORY_TTL
     try:
-        return _worker_history_impl(target_date, min_gap_minutes)
+        return _cached_single_flight(
+            _worker_history_cache, (today, int(min_gap_minutes)),
+            _worker_history_lock, ttl,
+            lambda: _worker_history_impl(today, min_gap_minutes))
     except Exception as _err:
         import traceback as _tb
         return {

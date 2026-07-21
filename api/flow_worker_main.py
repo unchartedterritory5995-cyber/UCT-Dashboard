@@ -365,11 +365,19 @@ def _start_recent_cache_warmer():
     symptom. (The web service's dashboard warmer fills WEB's cache, which the flow
     read-proxy bypasses — so the warm MUST happen here.)
 
-    Warms the EXACT default keys LiveFlowMassive.jsx requests: curated ON *and*
-    OFF, limit=10000, min_grade=D, sort_by=recent, tier=None. Recomputes only on
-    a fresh boot, a new trading day, or when new rows arrived (max_id moved) — it
-    idles (zero load) when the tape is quiet. Gated by MASSIVE_RECENT_WARM_ENABLED
-    (default on); cadence MASSIVE_RECENT_WARM_INTERVAL (default 25s)."""
+    Warms the EXACT default keys LiveFlowMassive.jsx requests: /recent (curated
+    ON *and* OFF, limit=10000, min_grade=D, sort_by=recent, tier=None), /day-stats
+    (the Market Read hero) and /by-contract (the accumulation view) on
+    boot/new-day/stale-floor (traffic keeps them warm in between), PLUS
+    /worker-history on boot/new-day ONLY (it's polled only every 180s so traffic
+    can't keep it warm — a stale-floor re-warm of its 24-45s scan would starve
+    the WS writer). /diagnostic is cached but NOT warmed (admin-only, never
+    polled). The /recent+day-stats+by-contract group recomputes on a fresh boot,
+    a new trading day, or when an entry
+    drifts past the stale floor — it idles (near-zero load) when the tape is
+    quiet and lets live traffic keep the caches fresh in between. Gated by
+    MASSIVE_RECENT_WARM_ENABLED (default on); cadence
+    MASSIVE_RECENT_WARM_INTERVAL (default 25s)."""
     if os.environ.get("MASSIVE_RECENT_WARM_ENABLED", "1") != "1":
         log.info("[recent-warmer] disabled (MASSIVE_RECENT_WARM_ENABLED!=1)")
         return
@@ -394,25 +402,63 @@ def _start_recent_cache_warmer():
         # small settle so flow.db + indexes exist (mirrors _ensure_flow_indexes)
         time.sleep(int(os.environ.get("MASSIVE_RECENT_WARM_DELAY", "8")))
         last_day = None
+        def _stale(entry):
+            return entry is None or (time.time() - entry[0]) > stale_floor
         while True:
             try:
                 today = lmr._today_mdyyyy()
-                ck = (today, 10000, "D", "recent", None, True)  # the costly key
-                cached = lmr._recent_cache.get(ck)
-                age = (time.time() - cached[0]) if cached else None
-                if cached is None or today != last_day or (age is not None and age > stale_floor):
+                new_day = (today != last_day)
+                # (1) /recent default keys — the tape, loaded on every page view.
+                ck = (today, 10000, "D", "recent", None, True)  # the costly curated key
+                if new_day or _stale(lmr._recent_cache.get(ck)):
                     for k in KEYS:
                         try:
                             lmr.warm_recent(**k)  # single-flight; skips if a fill holds the lock
                         except Exception:
-                            log.exception("[recent-warmer] warm failed: %s", k)
-                    last_day = today
+                            log.exception("[recent-warmer] recent warm failed: %s", k)
+                # (2) /day-stats default key — the Market Read hero, also every page
+                # view. Same cold-scan class as /recent (~14s cold). No auto-push,
+                # so calling the route directly just fills its 30s cache.
+                ds_key = (today, False, "all")
+                if new_day or _stale(lmr._day_stats_cache.get(ds_key)):
+                    try:
+                        lmr.day_stats(target_date=None, exclude_algo=False, stock_etf="all")
+                    except Exception:
+                        log.exception("[recent-warmer] day-stats warm failed")
+                # (3) /by-contract default key — the By-Contract accumulation view
+                # (~16s cold). Call the ROUTE (not _build_by_contract) so its
+                # accumulation auto-push stays intact — it's dedup-safe (POSTED
+                # marks persist in the pushed DB), so warmer-triggered scans never
+                # double-fire; they just keep the cache hot + pushes timely.
+                bc_key = (today, "all", 3, True, 1)
+                if new_day or _stale(lmr._by_contract_cache.get(bc_key)):
+                    try:
+                        lmr.by_contract(target_date=None, stock_etf="all", min_hits=3,
+                                        exclude_algo=True, lookback_days=1)
+                    except Exception:
+                        log.exception("[recent-warmer] by-contract warm failed")
+                # (4) /worker-history — was UNCACHED (24-45s); the frontend status
+                # panel polls it every 180s. Warm ONLY on boot / new-day (NOT the
+                # stale-floor): traffic can't keep it warm (its 180s poll exceeds
+                # the 120s stale floor), so a stale-floor re-warm would recompute
+                # this 24-45s scan continuously on the single flow-worker and
+                # starve the OPRA WS writer. Its 300s TTL (> the 180s poll) lets
+                # polls hit a warm entry between sparse poller-triggered recomputes.
+                # (/diagnostic is deliberately NOT warmed — admin-only, never
+                # polled by the page; its cache serves the rare hit instead.)
+                if new_day:
+                    try:
+                        lmr.worker_history(target_date=None, min_gap_minutes=2)
+                    except Exception:
+                        log.exception("[recent-warmer] worker-history warm failed")
+                last_day = today
             except Exception:
                 log.exception("[recent-warmer] loop error")
             time.sleep(interval)
 
     threading.Thread(target=_loop, daemon=True, name="recent-warmer").start()
-    log.info("[recent-warmer] armed (interval=%ss)", interval)
+    log.info("[recent-warmer] armed (interval=%ss; warms /recent + /day-stats + "
+             "/by-contract [+ /worker-history on new-day])", interval)
 
 
 def main():
