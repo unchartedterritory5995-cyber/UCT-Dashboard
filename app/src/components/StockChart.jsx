@@ -943,9 +943,6 @@ export default function StockChart({
   // wanted — the widgets must look identical in every app theme.
   const canvasTheme = canvasThemeProp
 
-  // Volume MA is editable from the Indicators tab; the `volumeMa` prop stays the
-  // fallback for callers that don't use chart settings (Model Book, popups).
-  const volMaPeriodEff = Number.isFinite(Number(cs?.volume?.maPeriod)) ? Number(cs.volume.maPeriod) : volumeMa
 
   // ── Chart settings from user preferences ──
   const csBase = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
@@ -953,6 +950,10 @@ export default function StockChart({
     () => (settingsOverride ? mergeSettingsOverride(csBase, settingsOverride) : csBase),
     [csBase, settingsOverride],
   )
+
+  // Volume MA is editable from the Indicators tab; the `volumeMa` prop stays the
+  // fallback for callers that don't use chart settings (Model Book, popups).
+  const volMaPeriodEff = Number.isFinite(Number(cs?.volume?.maPeriod)) ? Number(cs.volume.maPeriod) : volumeMa
   // Effective candle/volume up-green: darkened for the Sunrise light theme so it
   // stands out on the bright canvas; on the Charts workspace (userCandleColors) it
   // comes from the user's saved candle color so the settings pickers actually paint;
