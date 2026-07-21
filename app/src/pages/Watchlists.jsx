@@ -61,6 +61,23 @@ function fmtEarn(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '')
   return m ? `${+m[2]}/${+m[3]}` : '—'
 }
+// Market cap arrives PRE-FORMATTED from the backend ("$1.23T" / "$482.10B" / "$950M" /
+// "$12,345") — parse the display string back to a number so the column can sort.
+function parseMcap(s) {
+  if (s == null) return null
+  if (typeof s === 'number') return Number.isFinite(s) ? s : null
+  const m = /^\s*\$?\s*(-?[\d,.]+)\s*([TBMK]?)/i.exec(String(s))
+  if (!m) return null
+  const n = parseFloat(m[1].replace(/,/g, ''))
+  if (!Number.isFinite(n)) return null
+  const mult = { T: 1e12, B: 1e9, M: 1e6, K: 1e3 }[m[2].toUpperCase()] || 1
+  return n * mult
+}
+// Next earnings sorts by calendar date — YYYY-MM-DD → YYYYMMDD.
+function earnSortValue(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '')
+  return m ? Number(`${m[1]}${m[2]}${m[3]}`) : null
+}
 // UCT rating (1–99) → tier color: high = green, mid = gold, low = red.
 function ratingColor(r) {
   if (r == null || !Number.isFinite(r)) return undefined
@@ -792,18 +809,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [])
   // Fixed-px columns (so header + row gridlines line up), SCALED DOWN to fit the widget
   // when their total exceeds the available width; a trailing filler absorbs any slack.
-  const gridTemplate = useMemo(() => {
+  // These are the RENDERED widths — the drag-dividers below MUST position off this same
+  // array, not off the raw colWidth(), or they drift right of the real gridlines whenever
+  // the grid is scaled (i.e. as soon as an extra column is added or the widget narrows).
+  const renderedColWidths = useMemo(() => {
     const widths = orderedKeys.map(k => colWidth(k))
     const total = widths.reduce((a, b) => a + b, 0)
     const avail = bodyW - 2
     const scale = (bodyW > 0 && total > avail) ? Math.max(0.35, avail / total) : 1
-    const cols = orderedKeys.map((k, i) => {
-      const w = scale < 1 ? Math.max(COL_META[k]?.min ?? 20, Math.floor(widths[i] * scale)) : widths[i]
-      return `${w}px`
-    })
-    return [...cols, 'minmax(0, 1fr)'].join(' ')
+    return orderedKeys.map((k, i) => (
+      scale < 1 ? Math.max(COL_META[k]?.min ?? 20, Math.floor(widths[i] * scale)) : widths[i]
+    ))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderedKeys, colCfg, bodyW, liveResize])
+  const gridTemplate = useMemo(
+    () => [...renderedColWidths.map(w => `${w}px`), 'minmax(0, 1fr)'].join(' '),
+    [renderedColWidths],
+  )
 
   // Optional Market Cap / Next Earnings / UCT Rating columns — fetched only when at
   // least one is actually shown (fundamentals are heavy per ticker).
@@ -846,7 +868,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const startX = e.clientX
     const startW = colWidth(key)
     const min = COL_META[key]?.min || 40
-    const calc = (ev) => Math.max(min, Math.round(startW + (ev.clientX - startX)))
+    // Widths are stored UNSCALED but painted scaled — convert the cursor delta back
+    // into unscaled space so the gridline tracks the pointer 1:1 while shrunk-to-fit.
+    const rawTotal = orderedKeys.reduce((a, k) => a + colWidth(k), 0)
+    const renTotal = renderedColWidths.reduce((a, b) => a + b, 0)
+    const scale = (rawTotal > 0 && renTotal > 0) ? renTotal / rawTotal : 1
+    const calc = (ev) => Math.max(min, Math.round(startW + (ev.clientX - startX) / (scale || 1)))
     const onMove = (ev) => setLiveResize({ key, width: calc(ev) })
     const onUp = (ev) => {
       window.removeEventListener('mousemove', onMove)
@@ -880,22 +907,40 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const basis = (key === 'sym') ? null : (sortBasis || prices)
     const num = (s) => {
       const q = basis?.[s]
-      if (key === 'price') return q?.price ?? -Infinity
-      if (key === 'vol') return q?.volume ?? -Infinity
-      if (key === 'chg') return q?.change_pct ?? -Infinity
+      if (key === 'price') return q?.price ?? null
+      if (key === 'vol') return q?.volume ?? null
+      if (key === 'chg') return q?.change_pct ?? null
+      // Extra columns sort off the meta batch, not the quote feed. Market cap arrives
+      // as a display string ("$1.2T") → parse it back to a number; next earnings sorts
+      // by calendar date; rating is already numeric.
+      const m = metaData?.[s]
+      if (key === 'mcap') return parseMcap(m?.market_cap)
+      if (key === 'earn') return earnSortValue(m?.next_earnings)
+      if (key === 'rating') return Number.isFinite(Number(m?.composite)) ? Number(m.composite) : null
       return 0
     }
-    return [...syms].sort((a, b) => key === 'sym'
-      ? mul * String(a).localeCompare(String(b))
-      : mul * (num(a) - num(b)))
-  }, [colSort, sortBasis, prices])
+    // Blanks always sink to the bottom in BOTH directions (they'd otherwise lead the
+    // list when sorting ascending) — same rule the per-list sort already uses.
+    return [...syms].sort((a, b) => {
+      if (key === 'sym') return mul * String(a).localeCompare(String(b))
+      const va = num(a), vb = num(b)
+      const ba = va == null || !Number.isFinite(va)
+      const bb = vb == null || !Number.isFinite(vb)
+      if (ba && bb) return 0
+      if (ba) return 1
+      if (bb) return -1
+      return mul * (va - vb)
+    })
+  }, [colSort, sortBasis, prices, metaData])
 
   // Column header. Labels click to sort / right-click to hide-show. Gridlines are
   // SEPARATE draggable dividers overlaid on the header (positioned at each column
   // boundary), so dragging a gridline only resizes — never sorts/selects a column.
+  // Positions come from renderedColWidths (the SCALED widths the grid actually paints),
+  // so a divider sits exactly on its gridline at any widget width / column count.
   const _gridDividers = (() => {
     let acc = 8  // header padding-left
-    return orderedKeys.map(key => { acc += colWidth(key); return { key, x: acc } })
+    return orderedKeys.map((key, i) => { acc += renderedColWidths[i] ?? colWidth(key); return { key, x: acc } })
   })()
   const headerDragProps = (key) => ({
     draggable: true,
