@@ -33,6 +33,22 @@ export function luminance(rgb) {
   return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255
 }
 
+/** Text/accent colors for chrome sitting ON a user-chosen canvas — widget header rows,
+ *  session toggles, the market clock and its popup.
+ *
+ *  The dark values are the app's existing tokens; the light ones are the Sunset palette's
+ *  darkened equivalents, so a light canvas gets the same identity rather than a
+ *  washed-out version of the dark one (gold #c9a84c on white is barely legible).
+ *  Returns null when unparseable → callers keep their existing tokens. */
+export function chromeFor(canvasColor) {
+  const rgb = parseColor(canvasColor)
+  if (!rgb) return null
+  const light = luminance(rgb) > 0.5
+  return light
+    ? { text: '#3e4a58', textStrong: '#0a141e', accent: '#7a5c16', accentBg: 'rgba(122, 92, 22, 0.14)' }
+    : { text: '#9b9684', textStrong: '#d8d2c2', accent: '#c9a84c', accentBg: 'rgba(201, 168, 76, 0.12)' }
+}
+
 /** Blend `rgb` toward `target` ([r,g,b]) by `amount` (0..1). */
 function mix(rgb, target, amount) {
   return rgb.map((v, i) => Math.round(v + (target[i] - v) * amount))

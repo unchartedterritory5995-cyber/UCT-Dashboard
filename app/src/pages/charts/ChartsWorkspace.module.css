@@ -227,7 +227,7 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #9b9684;
+  color: var(--widget-text, #9b9684);
 }
 .chartMetaVal {
   font-size: 13px;
@@ -263,7 +263,7 @@
 }
 .sessionBtn {
   background: transparent;
-  color: var(--text-muted, #6b7280);
+  color: var(--widget-text, var(--text-muted, #6b7280));
   border: none;
   padding: 3px 9px;
   font-family: inherit;
@@ -279,8 +279,8 @@
 .sessionBtn:disabled { opacity: 0.4; cursor: default; }
 .sessionBtnActive,
 .sessionBtnActive:hover {
-  color: var(--accent, #c9a84c);
-  background: rgba(201, 168, 76, 0.12);
+  color: var(--widget-accent, var(--accent, #c9a84c));
+  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.12));
 }
 
 /* Live market clock — flat inline text that matches the Market Cap / Next
@@ -299,16 +299,16 @@
 
 /* Hover popup: full session status + next boundary, below the clock. */
 .clockPopup {
-  position: absolute;
-  top: calc(100% + 7px);
-  right: 0;
-  z-index: 30;
+  /* Portaled to <body> (see ChartMarketClock) — .chartHeaderTop's overflow:hidden
+     clipped it here. Position comes from inline fixed coords; z-index must clear the
+     workspace chrome and RGL's drag layers. */
+  z-index: 4200;
   padding: 5px 10px;
   border-radius: 7px;
-  background: rgba(16, 17, 14, 0.97);
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  background: var(--widget-popup-bg, rgba(16, 17, 14, 0.97));
+  border: 1px solid var(--widget-popup-border, rgba(201, 168, 76, 0.3));
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
-  color: #d8d2c2;
+  color: var(--widget-text-strong, #d8d2c2);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
@@ -323,9 +323,9 @@
   right: 16px;
   width: 7px;
   height: 7px;
-  background: rgba(16, 17, 14, 0.97);
-  border-left: 1px solid rgba(201, 168, 76, 0.3);
-  border-top: 1px solid rgba(201, 168, 76, 0.3);
+  background: var(--widget-popup-bg, rgba(16, 17, 14, 0.97));
+  border-left: 1px solid var(--widget-popup-border, rgba(201, 168, 76, 0.3));
+  border-top: 1px solid var(--widget-popup-border, rgba(201, 168, 76, 0.3));
   transform: rotate(45deg);
 }
 @keyframes clockPopIn {
@@ -350,14 +350,14 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
-  color: #d8d2c2;
+  color: var(--widget-text-strong, #d8d2c2);
 }
 .clockEt {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #9b9684;
+  color: var(--widget-text, #9b9684);
 }
 .clockDivider { display: none; }
 .clockStatus {

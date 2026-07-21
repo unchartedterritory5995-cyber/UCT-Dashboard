@@ -45,6 +45,20 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
         '--widget-canvas': chrome.canvas,
         ...(chrome.divider ? { '--widget-divider': chrome.divider } : {}),
         ...(chrome.dividerStrong ? { '--widget-divider-strong': chrome.dividerStrong } : {}),
+        // Text/accent for chrome sitting on the canvas — session toggle, market clock.
+        // Gold on white is barely legible, so the accent darkens with the canvas too.
+        ...(chrome.chrome ? {
+          '--widget-text': chrome.chrome.text,
+          '--widget-text-strong': chrome.chrome.textStrong,
+          '--widget-accent': chrome.chrome.accent,
+          '--widget-accent-bg': chrome.chrome.accentBg,
+        } : {}),
+        // The clock's hover popup floats over the canvas, so it matches it like the
+        // chart's own legend panels do.
+        ...(chrome.panel ? {
+          '--widget-popup-bg': chrome.panel.bg,
+          '--widget-popup-border': chrome.panel.border,
+        } : {}),
       }
     : undefined
 
