@@ -1,5 +1,5 @@
 {
-  "version": "4.18.0+99d7df37",
+  "version": "4.19.0+f5aaacad",
   "generated_at": "2026-07-21",
   "sectors": [
     {
@@ -564,12 +564,6 @@
           "rationale": "CrowdStrike endpoint security cloud platform"
         },
         {
-          "sym": "CYBR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "CyberArk identity security and PAM software"
-        },
-        {
           "sym": "S",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -886,12 +880,6 @@
           "tier": "core",
           "sub_theme_id": "network_security",
           "rationale": "Zero-trust cloud security pioneer"
-        },
-        {
-          "sym": "CYBR",
-          "tier": "core",
-          "sub_theme_id": "identity_access",
-          "rationale": "Privileged access management leader"
         },
         {
           "sym": "S",
@@ -1284,10 +1272,10 @@
           "rationale": "Enterprise data storage and management"
         },
         {
-          "sym": "PSTG",
+          "sym": "P",
           "tier": "relevant",
           "sub_theme_id": "dc_infrastructure",
-          "rationale": "Flash-based enterprise data storage"
+          "rationale": "Everpure enterprise flash storage platform formerly Pure Storage"
         },
         {
           "sym": "CRDO",
@@ -1595,10 +1583,10 @@
           "rationale": "The9 Limited Chinese online game operator"
         },
         {
-          "sym": "GMGI",
+          "sym": "MRDN",
           "tier": "peripheral",
           "sub_theme_id": "game_platforms",
-          "rationale": "Golden Matrix Group online gaming platform"
+          "rationale": "Meridian Holdings online gaming and betting platforms formerly Golden Matrix"
         },
         {
           "sym": "DDI",
@@ -1784,12 +1772,6 @@
           "tier": "core",
           "sub_theme_id": "payments",
           "rationale": "Leading online payment processor"
-        },
-        {
-          "sym": "FI",
-          "tier": "core",
-          "sub_theme_id": "payments",
-          "rationale": "Banking and payments technology infrastructure"
         },
         {
           "sym": "AFRM",
@@ -2145,12 +2127,6 @@
           "rationale": "Single-cell genomics analysis instruments"
         },
         {
-          "sym": "EXAS",
-          "tier": "relevant",
-          "sub_theme_id": "sequencing",
-          "rationale": "Genomic cancer screening (Cologuard, Oncotype)"
-        },
-        {
           "sym": "TWST",
           "tier": "relevant",
           "sub_theme_id": "synthetic_bio",
@@ -2173,12 +2149,6 @@
           "tier": "relevant",
           "sub_theme_id": "gene_editing",
           "rationale": "Editas Medicine CRISPR gene editing therapies"
-        },
-        {
-          "sym": "SGMO",
-          "tier": "relevant",
-          "sub_theme_id": "gene_editing",
-          "rationale": "Sangamo Therapeutics zinc finger gene therapy"
         },
         {
           "sym": "GH",
@@ -3461,12 +3431,6 @@
           "rationale": "Energy Transfer diversified energy midstream"
         },
         {
-          "sym": "CTRA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Coterra Energy Marcellus and Permian producer"
-        },
-        {
           "sym": "AR",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -3556,12 +3520,6 @@
           "rationale": "Permian Basin focused E&P operator"
         },
         {
-          "sym": "CTRA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Appalachia and Permian natural gas and oil"
-        },
-        {
           "sym": "CHRD",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -3598,18 +3556,6 @@
           "rationale": "Occidental Petroleum Permian and DJ Basin production"
         },
         {
-          "sym": "VTLE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Vital Energy Permian Basin E&P operator"
-        },
-        {
-          "sym": "CIVI",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Civitas Resources DJ Basin E&P producer"
-        },
-        {
           "sym": "MGY",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -3628,10 +3574,10 @@
           "rationale": "Northern Oil and Gas non-operated Williston Basin"
         },
         {
-          "sym": "BRY",
+          "sym": "CRC",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Berry Corp heavy oil producer California"
+          "rationale": "California Resources California oil and gas producer absorbed Berry 2025"
         },
         {
           "sym": "GPOR",
@@ -3765,10 +3711,10 @@
           "rationale": "Tidewater offshore marine support vessel operator"
         },
         {
-          "sym": "NR",
+          "sym": "NPKI",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Newpark Resources drilling fluids and mats"
+          "rationale": "NPK International specialty rental worksite access matting"
         },
         {
           "sym": "HLX",
@@ -3859,12 +3805,6 @@
           "tier": "core",
           "sub_theme_id": "lng",
           "rationale": "Largest US LNG exporter (Cheniere Energy)"
-        },
-        {
-          "sym": "CTRA",
-          "tier": "relevant",
-          "sub_theme_id": "gas_producers",
-          "rationale": "Marcellus shale natural gas focused producer"
         },
         {
           "sym": "KMI",
@@ -4207,12 +4147,6 @@
           "rationale": "Silvercorp Metals Chinese silver mining operations"
         },
         {
-          "sym": "MAG",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "MAG Silver Juanicipio high-grade silver mine Mexico"
-        },
-        {
           "sym": "MUX",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -4385,13 +4319,7 @@
           "rationale": "Valhi Inc specialty metals and titanium operations"
         },
         {
-          "sym": "LYC",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Lynas Corp OTC ADR rare earth processing"
-        },
-        {
-          "sym": "PCRFY",
+          "sym": "PCRHY",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Panasonic EV batteries needing RE magnets OTC"
@@ -4687,10 +4615,10 @@
           "rationale": "American Vanguard specialty crop chemicals"
         },
         {
-          "sym": "CVGW",
+          "sym": "AVO",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "owner-reviewed add"
+          "rationale": "Mission Produce avocado sourcing and distribution absorbed Calavo 2026"
         },
         {
           "sym": "CNH",
@@ -4743,10 +4671,10 @@
           "rationale": "Essential Utilities, regulated water and gas"
         },
         {
-          "sym": "SJW",
+          "sym": "HTO",
           "tier": "relevant",
           "sub_theme_id": "water_utilities",
-          "rationale": "Regional water utility in California and Texas"
+          "rationale": "H2O America regulated water utility formerly SJW Group"
         },
         {
           "sym": "CWT",
@@ -4809,10 +4737,10 @@
           "rationale": "Tetra Tech water and environment engineering"
         },
         {
-          "sym": "RXN",
+          "sym": "ZWS",
           "tier": "relevant",
           "sub_theme_id": "water_tech",
-          "rationale": "Rexnord water management industrial products"
+          "rationale": "Zurn Elkay Water Solutions water management products formerly Rexnord"
         },
         {
           "sym": "IEX",
@@ -5853,10 +5781,10 @@
           "rationale": "Ardmore Shipping product tanker operations"
         },
         {
-          "sym": "CPLP",
+          "sym": "CCEC",
           "tier": "peripheral",
           "sub_theme_id": "container_shipping",
-          "rationale": "Capital Product Partners LNG carrier fleet"
+          "rationale": "Capital Clean Energy Carriers LNG carrier fleet"
         },
         {
           "sym": "GLNG",
@@ -6116,12 +6044,6 @@
           "rationale": "Zions Bancorp, Western US community bank"
         },
         {
-          "sym": "CMA",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Comerica, Texas and Midwest business bank"
-        },
-        {
           "sym": "FHN",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -6186,12 +6108,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Old National Bancorp Midwest regional bank"
-        },
-        {
-          "sym": "CADE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Cadence Bank Southeast regional banking"
         },
         {
           "sym": "UMBF",
@@ -6266,10 +6182,10 @@
           "rationale": "Second-largest global insurance broker"
         },
         {
-          "sym": "MMC",
+          "sym": "MRSH",
           "tier": "core",
           "sub_theme_id": "insurance_brokers",
-          "rationale": "Largest global insurance broker (Marsh McLennan)"
+          "rationale": "Marsh global insurance brokerage and risk advisory"
         },
         {
           "sym": "MET",
@@ -6884,12 +6800,6 @@
           "rationale": "Continuous glucose monitoring for diabetes"
         },
         {
-          "sym": "HOLX",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Women's health diagnostics and screening"
-        },
-        {
           "sym": "ALGN",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -7009,22 +6919,16 @@
           "rationale": "Oral small-molecule GLP-1 receptor agonist"
         },
         {
-          "sym": "ZEAL",
+          "sym": "ZLDPF",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Zealand Pharma next-gen GLP-1 and amylin analogs"
+          "rationale": "Zealand Pharma next-gen GLP-1 and amylin analogs OTC"
         },
         {
           "sym": "KROS",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Keros Therapeutics metabolic disease biologics pipeline"
-        },
-        {
-          "sym": "TERN",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Terns Pharma NASH and obesity drug candidate"
         },
         {
           "sym": "RLAY",
@@ -7342,12 +7246,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Conagra Brands packaged food portfolio leader"
-        },
-        {
-          "sym": "K",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Kellanova global snack and cereal brands"
         },
         {
           "sym": "SJM",
@@ -7883,12 +7781,6 @@
           "rationale": "Azul Brazilian Airlines largest domestic network"
         },
         {
-          "sym": "GOL",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Gol Linhas Aereas Brazilian low-cost carrier"
-        },
-        {
           "sym": "PAC",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -7905,18 +7797,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Frontier Airlines ultra-low-cost carrier"
-        },
-        {
-          "sym": "SNCY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Sun Country Airlines leisure focused carrier"
-        },
-        {
-          "sym": "AC",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Air Canada largest Canadian airline ADR"
         }
       ]
     },
@@ -8230,12 +8110,6 @@
           "rationale": "Legacy Housing manufactured home builder"
         },
         {
-          "sym": "TPH",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Tri Pointe Homes premium homebuilder West Coast"
-        },
-        {
           "sym": "HOV",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -8331,10 +8205,10 @@
           "rationale": "Global-e Online cross-border e-commerce platform"
         },
         {
-          "sym": "BIGC",
+          "sym": "CMRC",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "BigCommerce SaaS e-commerce platform merchants"
+          "rationale": "Commerce.com SaaS e-commerce platform for merchants formerly BigCommerce"
         },
         {
           "sym": "MNSO",
@@ -8367,7 +8241,7 @@
           "rationale": "Vipshop Chinese online discount e-commerce"
         },
         {
-          "sym": "DTC",
+          "sym": "SBDS",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Solo Brands DTC e-commerce for outdoor brands"
@@ -9080,10 +8954,10 @@
           "rationale": "Bitcoin miner with custom ASIC chip program"
         },
         {
-          "sym": "BITF",
+          "sym": "KEEL",
           "tier": "core",
           "sub_theme_id": null,
-          "rationale": "Canadian Bitcoin miner with hydro power"
+          "rationale": "Keel Infrastructure bitcoin mining and HPC hosting formerly Bitfarms"
         },
         {
           "sym": "HUT",
@@ -9199,10 +9073,10 @@
           "rationale": "Cipher Mining Bitcoin miner with ASIC chip program"
         },
         {
-          "sym": "BITF",
+          "sym": "KEEL",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Bitfarms Canadian Bitcoin miner BTC treasury"
+          "rationale": "Keel Infrastructure bitcoin mining and HPC hosting formerly Bitfarms"
         },
         {
           "sym": "HUT",
@@ -9551,10 +9425,10 @@
           "rationale": "Sabesp, Sao Paulo water and sewage utility"
         },
         {
-          "sym": "ERJ",
+          "sym": "EMBJ",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Embraer, Brazilian regional jet manufacturer"
+          "rationale": "Embraer Brazilian regional jet and defense aircraft maker"
         },
         {
           "sym": "STNE",
@@ -9575,10 +9449,10 @@
           "rationale": "CEMIG Brazilian electric utility Minas Gerais"
         },
         {
-          "sym": "BRFS",
+          "sym": "MBRFY",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "BRF SA Brazilian poultry and pork processor"
+          "rationale": "MBRF Global Foods Brazilian poultry pork and beef processor"
         },
         {
           "sym": "UGP",
@@ -9611,12 +9485,6 @@
           "rationale": "XP Inc Brazilian digital investment platform"
         },
         {
-          "sym": "CBD",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Companhia Brasileira Distribuicao retail chain"
-        },
-        {
           "sym": "VTEX",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -9629,10 +9497,10 @@
           "rationale": "Azul Brazilian Airlines carrier ADR"
         },
         {
-          "sym": "EBR",
+          "sym": "AXIA",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Centrais Eletricas Brasileiras electric utility"
+          "rationale": "AXIA Energia Brazilian electric utility formerly Eletrobras"
         },
         {
           "sym": "AFYA",
@@ -9712,10 +9580,10 @@
           "rationale": "Mizuho Financial Group major Japanese bank ADR"
         },
         {
-          "sym": "CAJ",
+          "sym": "CAJPY",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Canon Inc Japanese imaging and office technology"
+          "rationale": "Canon Inc Japanese imaging and office technology OTC ADR"
         },
         {
           "sym": "FANUY",
@@ -9772,7 +9640,7 @@
           "rationale": "Nissan Motor Japanese auto manufacturer ADR"
         },
         {
-          "sym": "PCRFY",
+          "sym": "PCRHY",
           "tier": "peripheral",
           "sub_theme_id": null,
           "rationale": "Panasonic Japanese electronics and battery ADR"
@@ -9849,10 +9717,10 @@
           "rationale": "Silicom networking hardware Taiwan R&D center"
         },
         {
-          "sym": "AUO",
+          "sym": "AUOTY",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "AU Optronics Taiwan flat panel display ADR"
+          "rationale": "AUO Corporation Taiwan flat panel display ADR"
         },
         {
           "sym": "LEDS",
@@ -9930,18 +9798,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Samsung Electronics largest Korean tech company"
-        },
-        {
-          "sym": "HYMLF",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Hyundai Motor Korean auto manufacturer"
-        },
-        {
-          "sym": "LGCLF",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "LG Chem Korean battery and chemicals OTC"
         }
       ]
     },
@@ -10206,10 +10062,10 @@
           "rationale": "Grab Holdings SEA ride-hailing super-app"
         },
         {
-          "sym": "ERJ",
+          "sym": "EMBJ",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Embraer Brazilian aerospace manufacturer ADR"
+          "rationale": "Embraer Brazilian regional jet and defense aircraft maker"
         },
         {
           "sym": "BIDU",
@@ -10450,10 +10306,10 @@
           "rationale": "Lumen Technologies, fiber/enterprise networking"
         },
         {
-          "sym": "USM",
+          "sym": "AD",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "United States Cellular, regional wireless carrier"
+          "rationale": "Array Digital Infrastructure towers and spectrum formerly US Cellular"
         },
         {
           "sym": "SATS",
@@ -10516,10 +10372,10 @@
           "rationale": "SBA Communications cell tower infrastructure"
         },
         {
-          "sym": "TEF",
+          "sym": "TELFY",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "Telefonica Spanish global telecom carrier ADR"
+          "rationale": "Telefonica Spanish global telecom carrier OTC ADR"
         },
         {
           "sym": "VOD",
@@ -10528,10 +10384,10 @@
           "rationale": "Vodafone Group global telecom carrier ADR"
         },
         {
-          "sym": "ATUS",
+          "sym": "OPTU",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "Altice USA cable and broadband provider"
+          "rationale": "Optimum Communications cable and broadband provider formerly Altice USA"
         },
         {
           "sym": "CABO",
@@ -10727,12 +10583,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "CTV and programmatic sell-side advertising platform"
-        },
-        {
-          "sym": "IAS",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Digital ad verification and brand safety leader"
         },
         {
           "sym": "DV",
@@ -11532,10 +11382,10 @@
           "rationale": "North American environmental services and waste management"
         },
         {
-          "sym": "MEG",
+          "sym": "ONT",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "Environmental services and waste remediation company"
+          "rationale": "Onterris environmental services formerly Montrose Environmental"
         },
         {
           "sym": "WCN",
@@ -11591,12 +11441,6 @@
           "rationale": "Bilingual education and training institution operator"
         },
         {
-          "sym": "UDMY",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Online learning marketplace for professional skills"
-        },
-        {
           "sym": "COUR",
           "tier": "core",
           "sub_theme_id": null,
@@ -11609,10 +11453,10 @@
           "rationale": "Online postsecondary education provider"
         },
         {
-          "sym": "ATGE",
+          "sym": "CVSA",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "Higher education institution operator"
+          "rationale": "Covista postsecondary education and medical schools formerly Adtalem"
         },
         {
           "sym": "LAUR",
@@ -11804,10 +11648,10 @@
           "rationale": "Zillow Group Class A shares for real estate tech platform"
         },
         {
-          "sym": "RDFN",
+          "sym": "RKT",
           "tier": "core",
           "sub_theme_id": null,
-          "rationale": "Technology-powered real estate brokerage and search platform"
+          "rationale": "Rocket Companies mortgage and real estate platform absorbed Redfin 2025"
         },
         {
           "sym": "COMP",
@@ -11816,10 +11660,10 @@
           "rationale": "AI-driven real estate technology for homebuying"
         },
         {
-          "sym": "EXPI",
+          "sym": "AGNT",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Cloud-based real estate brokerage platform"
+          "rationale": "AGNT Inc cloud-based real estate brokerage formerly eXp World"
         },
         {
           "sym": "CSGP",
@@ -12093,12 +11937,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Metal and plastic container packaging manufacturer"
-        },
-        {
-          "sym": "SEE",
-          "tier": "core",
-          "sub_theme_id": null,
-          "rationale": "Food and protective packaging solutions provider"
         },
         {
           "sym": "ATR",
@@ -12617,22 +12455,16 @@
           "rationale": "Aerospace precision-engineered components and fasteners"
         },
         {
-          "sym": "SPR",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Aerostructures manufacturer for commercial and defense jets"
-        },
-        {
           "sym": "RKLB",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Small satellite launch vehicle and space systems company"
         },
         {
-          "sym": "ERJ",
+          "sym": "EMBJ",
           "tier": "relevant",
           "sub_theme_id": null,
-          "rationale": "Regional jet and defense aircraft manufacturer from Brazil"
+          "rationale": "Embraer Brazilian regional jet and defense aircraft maker"
         },
         {
           "sym": "KTOS",
@@ -12853,12 +12685,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "National HealthCare, long-term care facilities"
-        },
-        {
-          "sym": "SEM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Select Medical, rehab hospitals and outpatient clinics"
         },
         {
           "sym": "ABT",
@@ -13446,19 +13272,7 @@
           "rationale": "new-theme seed"
         },
         {
-          "sym": "VERV",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "new-theme seed"
-        },
-        {
           "sym": "FATE",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "new-theme seed"
-        },
-        {
-          "sym": "SGMO",
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "new-theme seed"
