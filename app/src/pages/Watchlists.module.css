@@ -117,8 +117,9 @@
   padding: 0 8px;
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
+  /* Follows the canvas like the rest of the widget chrome (see .listHeader). */
+  background: var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated)));
+  border-bottom: 1px solid var(--widget-divider, var(--wl-divider, var(--border)));
   position: sticky;
   top: 0;
   z-index: 3;
@@ -130,7 +131,7 @@
   align-items: center;
   justify-content: center;   /* label centered in its column (vertically + horizontally) */
   padding: 0 7px;
-  border-right: 1px solid rgba(255, 255, 255, 0.11);   /* gridline on every column's right */
+  border-right: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));   /* gridline on every column's right */
   /* Labels match the ticker symbol EXACTLY (font, size, weight, color). */
   font-family: var(--font-sans);
   font-size: calc(11px * var(--wl-font-scale, 1));
@@ -203,14 +204,14 @@
   align-items: center;   /* cells sit at content height so the vertical gridlines stay short (cut off, per preference) */
   padding: 5px 8px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.11);  /* horizontal gridline */
+  border-bottom: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));  /* horizontal gridline */
   transition: background 0.1s;
   position: relative;
 }
 /* Vertical gridlines on the RIGHT of every column (so the LAST column gets one too),
    full-height (align-items:stretch) → they connect to the horizontal lines = one grid.
    Data cells get text padding; the flag column gets none so its star centers cleanly. */
-.symCell, .priceCell, .volCell, .changeCell, .metaCell { border-right: 1px solid rgba(255, 255, 255, 0.11); padding: 0 7px; }
+.symCell, .priceCell, .volCell, .changeCell, .metaCell { border-right: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11))); padding: 0 7px; }
 /* Market Cap / Next Earnings / UCT Rating cells — same layout as Price/Volume. */
 .metaCell {
   display: flex; align-items: center; justify-content: center;
@@ -228,7 +229,7 @@
   min-width: 0;
   background: transparent;
   border: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.11);   /* flag|sym gridline */
+  border-right: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));   /* flag|sym gridline */
   cursor: pointer;
   color: rgba(255, 255, 255, 0.22);
   padding: 0;

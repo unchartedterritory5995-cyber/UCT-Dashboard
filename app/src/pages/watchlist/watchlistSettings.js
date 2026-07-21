@@ -1,3 +1,5 @@
+import { dividerFor } from '../../utils/dividerColor'
+
 // Watchlist appearance settings — the model behind the ⚙ Watchlist Settings panel.
 // Mirrors the chart-settings idea (usePreferences-backed, deep-merged over defaults,
 // applied as CSS variables) but is its own thing: canvas/background (solid or the
@@ -93,6 +95,16 @@ export function watchlistStyleVars(s) {
       (Number(s.fontSize) > 0 ? Number(s.fontSize) : WATCHLIST_BASE_FONT_PX) / WATCHLIST_BASE_FONT_PX
     ),
   }
+  // Gridlines/hairlines were authored as fixed near-white and vanish on a light
+  // canvas — derive the contrasting side from whatever canvas the user picked.
+  // Inside the /charts workspace --widget-divider takes precedence (same value,
+  // published per widget); this covers the standalone page.
+  const solid = s.bgMode === 'gradient' ? s.bgGradient?.top : s.bg
+  const div = dividerFor(solid)
+  const divStrong = dividerFor(solid, { strong: true })
+  if (div) vars['--wl-divider'] = div
+  if (divStrong) vars['--wl-divider-strong'] = divStrong
+
   if (s.bgMode === 'solid') {
     vars['--wl-bg'] = s.bg
     vars['--wl-bg-solid'] = s.bg

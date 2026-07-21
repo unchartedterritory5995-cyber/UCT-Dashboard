@@ -41,7 +41,11 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // --widget-divider keeps the hairlines BETWEEN header rows visible at any canvas
   // color: they were fixed near-white and disappeared on a light canvas.
   const chromeStyle = chrome?.canvas
-    ? { '--widget-canvas': chrome.canvas, ...(chrome.divider ? { '--widget-divider': chrome.divider } : {}) }
+    ? {
+        '--widget-canvas': chrome.canvas,
+        ...(chrome.divider ? { '--widget-divider': chrome.divider } : {}),
+        ...(chrome.dividerStrong ? { '--widget-divider-strong': chrome.dividerStrong } : {}),
+      }
     : undefined
 
   const header = (
