@@ -54,7 +54,7 @@ A single `useEffect` that warms the current grid symbols. It **must**:
 ### 3c. `deepWarm` split — StockChart + GridChartCell + MultiChartGrid
 - **StockChart.jsx:** add prop `deepWarm = false`. Change the dwell-warm gate (~L7672) from `if (!backgroundWarm) return` to `if (!backgroundWarm && !deepWarm) return`, and add `deepWarm` to that effect's dep array. **Leave the all-TF chain (~L2416) gated on `backgroundWarm` alone — untouched.**
 - **GridChartCell.jsx:** add a `deepWarm` prop, forward it to `<StockChart deepWarm={deepWarm} …>`, keep `backgroundWarm={false}`.
-- **MultiChartGrid.jsx:** pass `deepWarm={activeIdx === i || maxId === cell.id}`. `deepWarm` is a **boolean value** (not the `isActive` thunk — a ref mutation won't re-run the effect). The dwell-warm's own 900 ms timer is the inherent debounce so a hover sweep fires no fetch; only the active + previously-active cell re-render (bounded).
+- **MultiChartGrid.jsx:** pass `deepWarm={gridWarmEnabled && maxId === cell.id}` — the **maximized** cell only. (Design review correction: gating on the hover-driven `activeIdx` would flip a `deepWarm` prop on two cells per hover, breaking GridChartCell's `React.memo` "a mouse sweep re-renders zero charts" contract. Maximizing is a deliberate, rare action and is the real deep scroll-back surface, so it both preserves the memo contract and matches the actual use case. `deepWarm` is a boolean value the dwell-warm effect keys on.)
 
 ## 4. Data flow
 
@@ -75,7 +75,8 @@ hover/focus/maximize a cell ──▶ deepWarm=true ──▶ (900ms dwell) setF
 
 ## 5. Deliberate parity concessions (documented, tunable)
 
-- **Deep history warms only the focused/maximized cell**, not all 16 (deep-warming all = herd). Scroll-back is instant where you're looking; a non-focused cell's first scroll-back is an on-demand backfill (already the case today).
+- **Deep history warms only the MAXIMIZED cell**, not all 16 (deep-warming all = herd; hover-driven deep-warm was dropped in review to preserve the memo contract). Scroll-back is instant on the cell you maximized to study; a mini cell's first deep scroll-back is an on-demand backfill (already the case today; its shallow window is already warm so TF-switch stays instant).
+- **A long-open board re-warms every ~2h** so evicted intraday TFs (IDB drops intraday entries whose newest bar is >26h old — e.g. a Fri→Mon weekend gap) are re-warmed. The re-warm is a near-noop via downstream dedupe unless something actually evicted (design-review Finding 2).
 - **The "warm 5-min early" ordering** (commit 54c11091) is a StockChart-internal `backgroundWarm` optimization the grid intentionally does not run per-cell; the container warm covers the same TFs via the shared queue instead.
 - A **global Heikin-Ashi** chart-setting disables the push feed on all cells by design (they fall back to the 30 s SWR cadence). Documented, not fixed here.
 

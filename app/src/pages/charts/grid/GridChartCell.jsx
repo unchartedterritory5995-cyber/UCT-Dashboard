@@ -56,7 +56,7 @@ function GridChartCell({
   onBarsReady,        // () => void — releases this cell's mount-queue slot
   isMaximized,        // this cell is expanded to fill the whole grid body
   onToggleMaximize,   // () => void — expand/restore this cell
-  deepWarm,           // bool — this cell is the active/maximized one; pre-load full history for instant scroll-back (StockChart deepWarm)
+  deepWarm,           // bool — this cell is MAXIMIZED; pre-load full history for instant scroll-back (StockChart deepWarm). Gated on maxId (not hover) so the React.memo "hover sweep re-renders zero charts" contract holds.
 }) {
   const sym = cell.sym
 

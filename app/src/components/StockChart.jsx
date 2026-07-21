@@ -847,7 +847,7 @@ export default function StockChart({
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
   liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
   backgroundWarm = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
-  deepWarm = false,         // true = run ONLY the deep-history dwell-warm (not the all-TF chain) even when backgroundWarm=false. Multi-chart grid passes true for the focused/maximized cell so its scroll-back is instant; the all-TF chain stays off (herd guard).
+  deepWarm = false,         // true = run ONLY the deep-history dwell-warm (not the all-TF chain) even when backgroundWarm=false. Multi-chart grid passes true for the MAXIMIZED cell so its scroll-back is instant; the all-TF chain stays off (herd guard).
   onBarsReady = null,       // optional () => void — fired at most once per mount, when the chart first has renderable bars OR reaches fatal error (first loading=false). The grid mount queue uses it to release a concurrency slot.
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   hotkeysActive = true,     // boolean | () => boolean — gates this instance's document-level keydown shortcuts at dispatch time (read via latest-ref: neither form re-subscribes, the callback form never re-renders). Multi-chart surfaces pass a callback reading the container's active-cell ref so one keypress doesn't retime every mounted chart. Absent/true = today's always-active behavior.

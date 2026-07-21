@@ -282,8 +282,19 @@ export default function MultiChartGrid({ mc }) {
   // as slots free (mountedIds is state), so this flips true when the grid drains.
   const firstPaintSettled = cells.every(c => !c.sym || mountedIds.has(`${c.id}::${c.sym}`))
   useEffect(() => {
-    if (!gridWarmEnabled) return
+    if (!gridWarmEnabled) return undefined
     gridWarmer.maybeWarm(gridSyms, hydrated && firstPaintSettled)
+    // Re-warm periodically so a board left open past IDB's ~26h intraday-eviction
+    // window (e.g. Fri close → Mon open) re-warms evicted TFs. reset() drops the
+    // content-key so the same sym set warms again; the interval closure holds the
+    // current gridSyms for an idle board (deps unchanged → effect never re-ran),
+    // and downstream dedupe (idbGet skip + _idbSeen) makes it a near-noop unless
+    // something actually evicted. Cleared/re-armed on any sym-set change.
+    const id = setInterval(() => {
+      gridWarmer.reset()
+      gridWarmer.maybeWarm(gridSyms, hydrated && firstPaintSettled)
+    }, 2 * 60 * 60 * 1000)
+    return () => clearInterval(id)
   }, [gridWarmer, gridWarmEnabled, gridSyms, hydrated, firstPaintSettled])
 
   // ── Group meta (Groups mode): the current group's display name + universe
@@ -437,7 +448,7 @@ export default function MultiChartGrid({ mc }) {
                 onBarsReady={onBarsReadyFns[i]}
                 isMaximized={maxId === cell.id}
                 onToggleMaximize={onToggleMaxFns[i]}
-                deepWarm={gridWarmEnabled && (activeIdx === i || maxId === cell.id)}
+                deepWarm={gridWarmEnabled && maxId === cell.id}
               />
             </div>
           )
