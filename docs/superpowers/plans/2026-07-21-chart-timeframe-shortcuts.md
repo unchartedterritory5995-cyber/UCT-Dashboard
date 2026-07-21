@@ -8,6 +8,13 @@
 
 **Tech Stack:** React 18, Vite, Vitest + @testing-library/react. No new dependencies.
 
+> **Post-implementation corrections (2026-07-21, after review — the task steps below predate these):**
+> 1. **Arbitration reversed for letters.** Task 4's "a bound shortcut always beats ticker search" regressed uppercase ticker typing. Final rule: **any letter with no Ctrl/Alt/Meta (Shift included) opens ticker search**; only digits and `Shift`+digit win as shortcuts. The rule is one shared predicate, `shortcutClaimsKey(event)`, exported from `keyboardShortcuts.js`.
+> 2. **Second handler.** `app/src/pages/charts/grid/GridChartCell.jsx` carried its own copy of the same keydown handler and the same bug; it got the identical fix plus a new `GridChartCell.test.jsx`.
+> 3. **Auto-repeat guard.** The `tf:` branch in `StockChart.jsx` gained `if (e.repeat) return` so holding a timeframe key does not walk the ladder ~30×/sec.
+> 4. **Real regression tests.** Both container test files now assert a digit keydown reaches a document listener un-prevented (the actual bug), not merely that search stayed closed.
+> The design spec has been updated to match; where a task step below conflicts with these, the corrections govern.
+
 ## Global Constraints
 
 - **Worktree:** work ONLY in `C:\Users\Patrick\uct-worktrees\chart-shortcuts` on branch `chart-tf-shortcuts`. Never edit `C:\Users\Patrick\uct-dashboard` — that checkout is stale.

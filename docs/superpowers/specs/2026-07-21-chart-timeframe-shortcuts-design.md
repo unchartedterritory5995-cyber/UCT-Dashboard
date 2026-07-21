@@ -109,31 +109,33 @@ always goes to search.**
 early if the key is spoken for, letting the event continue to the chart's own
 handler. Only unclaimed keys reach `TICKER_KEY_RE` and open the search box.
 
-The bare-letter exemption is load-bearing. Eight letters — `a c f h r t v x` —
-are still bound to drawing tools, which are out of scope here. Without the
-exemption, "a bound shortcut always wins" would stop `TSLA`, `AAPL`, `F`, `HD`,
-`RIVN`, `CRM`, `V` and `XOM` from being typeable — breaking the exact workflow
-this change exists to enable. So: a single letter with no modifiers always
-opens search; digits and every modifier combo (`Shift+H`, `Shift+F`) win as
-shortcuts. This leaves drawing tools exactly as they behave today — reachable
-from the toolbar, never from a focused chart widget — and the exemption can be
-lifted once tool bindings move off bare letters.
-`TICKER_KEY_RE` additionally narrows to `/^[A-Za-z.]$/` — no US ticker begins
-with a digit, so digits should never open the box regardless of whether they are
-currently bound.
+The letter exemption is load-bearing. A single letter with no Ctrl/Alt/Meta is
+always treated as a ticker character — **including a shifted uppercase letter**,
+because traders type tickers in uppercase (`HOOD`, `LLY`, `TSLA`, `COIN`). Eight
+letters (`a c f h r t v x`) are still bound to drawing tools and four
+(`Shift+H/L/T/C`) to display toggles, all out of scope here; if a bound shortcut
+beat search on those, typing `TSLA`, `AAPL`, `F`, `HD`, `RIVN`, `CRM`, `V`,
+`XOM`, `HOOD` or `COIN` would silently fire a tool or flip a chart setting
+instead of opening search — breaking the exact workflow this change exists to
+enable. So: **any letter with no Ctrl/Alt/Meta opens search; digits (timeframes)
+and `Shift`+digit win as shortcuts.** The display toggles stay reachable exactly
+as before — whenever a chart is not focused — and the letter exemption can shrink
+once tool/toggle bindings move off bare letters.
+
+The single arbitration predicate lives in `keyboardShortcuts.js` as
+`shortcutClaimsKey(event)` (`matchShortcut(event) && !isTickerLetter`), so both
+chart containers (`ChartWidget` and `GridChartCell`) share one rule and cannot
+drift. `TICKER_KEY_RE` narrows to `/^[A-Za-z.]$/` — no US ticker begins with a
+digit, so a digit never opens the box regardless of what it is bound to.
 
 Once the search input has focus, every character types into it (digits included)
 until `Esc` or `Enter` — unchanged, and guaranteed by the existing early-return
 on `INPUT`/`TEXTAREA`/`contentEditable` targets.
 
-This also fixes a latent bug: `Shift+H` currently opens the search box with "H"
-*and* is meant to toggle Heikin Ashi. Under the new rule the toggle wins and the
-search box stays closed. The same protection applies automatically to whatever
-drawing-tool bindings are chosen in the follow-up work.
-
-`Shift+F` (flag current ticker) keeps its existing dedicated branch ahead of both
-checks — it is deliberately handled before the shortcut table and stops
-propagation so it cannot also fire the theme widget's `Shift+F`.
+`Shift+F` (flag current ticker) keeps its existing dedicated branch ahead of the
+arbitration check in each handler — it is handled first and stops propagation so
+it cannot also fire the theme widget's `Shift+F`, and because `matchShortcut`
+does not emit a command for `Shift+F` the arbitration check leaves it alone.
 
 ## Code changes
 
@@ -145,23 +147,29 @@ propagation so it cannot also fire the theme widget's `Shift+F`.
 - `matchShortcut()`: add `Shift`+`e.code` digit handling for the intraday set;
   map bare `1`/`5`/`9` to Daily/Weekly/Monthly; delete the `d`/`w`/`m` letter
   cases and the old `1`–`5` intraday map.
+- Export `shortcutClaimsKey(event)` — the shared arbitration predicate
+  (`matchShortcut(event) && !isTickerLetter`), used by both chart containers.
 - Update the `SHORTCUTS` table (which drives the help overlay) to match.
 
 **`app/src/components/StockChart.jsx`**
 - Add a `tfCycleRef` (`{command, index}`); the `tf:` branch of the keydown
   handler delegates to `resolveTfCycle()` and calls `onTfChange()` with the
   result.
-- No change to `hotkeysActive` gating or listener registration.
+- Guard the `tf:` branch with `if (e.repeat) return` so holding a timeframe key
+  does not auto-repeat through the whole ladder (dozens of bars fetches/sec).
+- No change to `hotkeysActive` gating.
 
-**`app/src/pages/charts/widgets/ChartWidget.jsx`**
-- `handleChartKeyDown`: add the `matchShortcut(e)` early-return after the
-  existing `Shift+F` branch and before `TICKER_KEY_RE`.
+**`app/src/pages/charts/widgets/ChartWidget.jsx` and
+`app/src/pages/charts/grid/GridChartCell.jsx`** (both chart containers — they
+carry near-identical keydown handlers, so both get the same change)
+- Add the `if (shortcutClaimsKey(e)) return` early-return after the existing
+  `Shift+F` branch and before `TICKER_KEY_RE`.
 - Narrow `TICKER_KEY_RE` to `/^[A-Za-z.]$/`.
 - Derive the local `TFS` bar from `TF_ORDER` instead of redeclaring the ladder.
 
 **`app/src/components/chart/KeyboardHelpOverlay.jsx`**
 - Regenerates from the updated `SHORTCUTS` table automatically. Add one line to
-  the timeframe group explaining repeat-to-cycle.
+  the timeframe group explaining repeat-to-cycle (with "wrapping around").
 
 ## Testing
 
@@ -171,8 +179,11 @@ propagation so it cannot also fire the theme widget's `Shift+F`.
 - **`matchShortcut` tests**: `Shift`+each intraday `code` (including `Numpad`
   variants); bare `1`/`5`/`9`; `d`/`w`/`m` now return `null`; existing toggle,
   replay and help assertions unchanged.
-- **`ChartWidget` test**: a digit keydown does not call `openWith`; a letter
-  keydown still does; a bound shortcut key does not call `openWith`.
+- **`ChartWidget` + `GridChartCell` tests** (both containers): a digit keydown
+  does not call `openWith` and is neither `preventDefault`d nor
+  `stopPropagation`d (so it reaches StockChart's handler — the actual reported
+  bug, asserted via a document-level listener); a bare letter and a shifted
+  uppercase letter both call `openWith`; a `Shift`+digit does not.
 - **Manual smoke test in the real app** (jsdom cannot express focus ownership,
   and does not run the real bundle): the full key map, a nine-press walk around
   the ladder, ticker typing for `DELL`/`WMT`, and a two-widget workspace
