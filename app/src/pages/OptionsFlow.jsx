@@ -2462,10 +2462,17 @@ export default function OptionsFlowDashboard() {
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
-    if (availableDates.length > 0 && dateFilter !== "All" && !dateFilter.startsWith("Last") && !availableDates.includes(dateFilter)) {
+    // Guard (2026-07-20): do NOT reset the day scope to "All" while a Search
+    // deep-dive is active. The live delta-merge bumps availableDates a few
+    // seconds after load; the per-ticker fetch (searchFull) carries its own,
+    // often fresher dates that legitimately include days the main availableDates
+    // doesn't yet. Resetting here blew the Search scope open from the selected
+    // day to full history — the "loads correct, then flips to all-time" bug.
+    // Same principle as the 2026-07-18 ZERO-OUT FIX on the fetch effect.
+    if (!selectedTicker && availableDates.length > 0 && dateFilter !== "All" && !dateFilter.startsWith("Last") && !availableDates.includes(dateFilter)) {
       setDateFilter("All");
     }
-  }, [availableDates]);
+  }, [availableDates, selectedTicker]);
 
   // Process data whenever parsedRows or dateFilter or date range changes.
   // _lastMergedVer tracks the live delta-merge (see that effect, below);
