@@ -104,6 +104,30 @@ describe('useReadAloud — cancelling during prepare', () => {
     await waitFor(() => expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled())
   })
 
+  it('a stray media error on a cleared element does not cancel a new read', async () => {
+    // Regression: haltAudioEl used to do `el.src = ''`, which resolves against
+    // the document URL — Chrome then tries to load the PAGE as media and fires
+    // a bogus 'error'. AudioPlayerBar's reset handler treats an error as a real
+    // failure and calls stop(); once stop() started cancelling pending reads,
+    // that stray event silently killed the NEXT read-aloud mid-prepare
+    // (press Stop, press Read aloud again → nothing ever plays).
+    const { fetchMock, release } = deferredPrepare()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(<VoiceProvider><AudioPlayerBar /><Harness /></VoiceProvider>)
+    fireEvent.click(screen.getByText('read-aloud'))
+    await waitFor(() => expect(screen.getByLabelText('Stop')).toBeTruthy())
+
+    // Late teardown error from the PREVIOUS clip's cleared element.
+    const el = container.querySelector('audio')
+    expect(el.getAttribute('src')).toBeNull()
+    await act(async () => { fireEvent(el, new Event('error')) })
+
+    // The in-flight read must survive it and play.
+    await act(async () => { release(); await Promise.resolve() })
+    await waitFor(() => expect(HTMLMediaElement.prototype.play).toHaveBeenCalled())
+  })
+
   it('still plays normally when the user does not cancel', async () => {
     const { fetchMock, release } = deferredPrepare()
     vi.stubGlobal('fetch', fetchMock)

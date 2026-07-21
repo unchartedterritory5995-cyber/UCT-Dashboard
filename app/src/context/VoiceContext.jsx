@@ -248,7 +248,14 @@ export function VoiceProvider({ children }) {
       if (!el) return
       try { el.pause() } catch { /* ignore */ }
       try { if (el.srcObject) el.srcObject = null } catch { /* ignore */ }
-      try { el.src = '' } catch { /* ignore */ }
+      // removeAttribute + load(), NOT src = ''. Assigning the empty string
+      // resolves against the DOCUMENT url, so the browser tries to load the
+      // page itself as media and fires a bogus 'error' event (verified in
+      // Chrome). That stray error reaches AudioPlayerBar's reset handler,
+      // which calls stop() — which would then cancel the NEXT read-aloud
+      // while it was still preparing.
+      try { el.removeAttribute('src') } catch { /* ignore */ }
+      try { el.load() } catch { /* ignore */ }
     }
     halt(audioRef.current)
     // Defense in depth: halting used to depend SOLELY on audioRef, so it

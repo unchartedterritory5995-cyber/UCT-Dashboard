@@ -96,7 +96,12 @@ export default function AudioPlayerBar() {
         } catch { /* ignore */ }
       }
     }
-    const reset = () => {
+    const reset = (e) => {
+      // An 'error' on an element with no source isn't a playback failure —
+      // it's the teardown of an already-cleared element. Treating it as real
+      // calls stop(), which cancels a read-aloud that may already be
+      // preparing. Ignore it.
+      if (e && e.type === 'error' && !el.getAttribute('src') && !el.srcObject) return
       try { if (el.srcObject) el.srcObject = null } catch {}
       if (id) { try { localStorage.removeItem(posKey(id)) } catch {} }
       setProgress({ trackId: null, currentTime: 0, duration: 0, playing: false })
