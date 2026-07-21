@@ -579,7 +579,12 @@
 :global([data-charts-theme='sunrise']) .clkOpen { --clk-tone: #0a5c22; --clk-glow: rgba(10, 92, 34, 0.5); }
 
 .workspaceHeader {
-  background: var(--bg-elevated, #0d1218);
+  /* --bg-surface, NOT --bg-elevated: this toolbar sits directly against the left
+     nav (NavBar.module.css uses --bg-surface), and --bg-elevated is one step
+     brighter, so the two read as mismatched panels where they meet. Most visible
+     on the light theme (#e8eff5 vs #f2f6fa) but the same one-step gap exists in
+     every theme. Keep these two in lockstep. */
+  background: var(--bg-surface, #0d1218);
   border-bottom: 1px solid var(--border, #1f2937);
   padding: 8px 16px;
   display: flex;
