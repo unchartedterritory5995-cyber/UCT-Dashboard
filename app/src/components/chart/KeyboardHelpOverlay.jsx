@@ -44,6 +44,11 @@ export default function KeyboardHelpOverlay({ open, onClose }) {
                     </li>
                   ))}
                 </ul>
+                {groupName === 'Timeframe' && (
+                  <p className={styles.groupNote}>
+                    Press the same key again to step through every timeframe.
+                  </p>
+                )}
               </div>
             )
           ))}
