@@ -406,7 +406,8 @@ def test_admin_stats_reports_usage(monkeypatch):
     assert d["by_mode"] == {"fast": 2, "reasoning": 1}
     # billed: 1 fast (other was cached) + reasoning at 2 units = 3
     assert d["billed_units"] == 3
-    assert d["top_users"] == [{"user_id": 7, "units": 3}]
+    # De-identified: the per-user breakdown (raw user_id) was removed from /admin/stats.
+    assert "top_users" not in d
     assert d["single_shot_requests"] == 3 and d["stream_requests"] == 0
 
 
@@ -419,3 +420,91 @@ def test_global_budget_429(monkeypatch):
     r = _client(user_id=12).post("/api/ai-search", json={"query": "c"})
     assert r.status_code == 429
     assert "tomorrow" in r.json()["detail"].lower()
+
+
+# ── capture-foundation wiring (ai_search_log) ────────────────────────────────
+def test_answer_returns_stable_answer_id_and_logs(monkeypatch, tmp_path):
+    _reset_counters()
+    import api.services.ai_search_log as ail
+    monkeypatch.setenv("AI_SEARCH_LOG_DB_PATH", str(tmp_path / "log.db"))
+    monkeypatch.setenv("AI_SEARCH_LOG_ENABLED", "1")
+    ail._reset_for_tests()
+    monkeypatch.setattr(ai.perplexity_search, "web_search", _fake_search())
+    r = _client(user_id=5).post("/api/ai-search", json={"query": "why is SMCI moving today"})
+    assert r.status_code == 200
+    aid = r.json().get("answer_id")
+    assert aid and len(aid) >= 16                 # stable id returned to the client
+    ins = ail.insights(days=1)
+    assert ins["window_count"] == 1
+    assert ins["by_freshness"].get("time_sensitive") == 1   # 'today' → time_sensitive
+
+
+def test_logging_is_invariant_when_disabled(monkeypatch, tmp_path):
+    _reset_counters()
+    import api.services.ai_search_log as ail
+    monkeypatch.setenv("AI_SEARCH_LOG_ENABLED", "0")
+    ail._reset_for_tests()
+    monkeypatch.setattr(ai.perplexity_search, "web_search", _fake_search())
+    r = _client(user_id=5).post("/api/ai-search", json={"query": "q"})
+    # Answer path is unaffected by logging being off; still returns an id + answer.
+    assert r.status_code == 200 and r.json()["answer"].startswith("echo:")
+    assert r.json().get("answer_id")
+
+
+def test_signal_endpoint_records_and_gates_admin(monkeypatch, tmp_path):
+    _reset_counters()
+    import api.services.ai_search_log as ail
+    monkeypatch.setenv("AI_SEARCH_LOG_DB_PATH", str(tmp_path / "log.db"))
+    monkeypatch.setenv("AI_SEARCH_LOG_ENABLED", "1")
+    ail._reset_for_tests()
+    ail.log(user_id="u1", answer_id="AID1", query="q", answer="a")
+    # a member can record a passive save signal
+    r = _client(user_id=5, role="user").post("/api/ai-search/signal", json={"answer_id": "AID1", "kind": "save"})
+    assert r.status_code == 200 and r.json()["ok"] is True
+    # pin is admin-only
+    assert _client(role="user").post("/api/ai-search/signal", json={"answer_id": "AID1", "kind": "pin"}).status_code == 403
+    assert _client(role="admin").post("/api/ai-search/signal", json={"answer_id": "AID1", "kind": "pin"}).status_code == 200
+    # unknown kind rejected
+    assert _client(role="user").post("/api/ai-search/signal", json={"answer_id": "AID1", "kind": "bogus"}).status_code == 422
+
+
+def test_admin_log_endpoint(monkeypatch, tmp_path):
+    _reset_counters()
+    import api.services.ai_search_log as ail
+    monkeypatch.setenv("AI_SEARCH_LOG_DB_PATH", str(tmp_path / "log.db"))
+    monkeypatch.setenv("AI_SEARCH_LOG_ENABLED", "1")
+    ail._reset_for_tests()
+    ail.log(user_id="u1", query="what is a VCP pattern", answer="A VCP is...")
+    assert _client(role="user").get("/api/ai-search/admin/log").status_code == 403
+    r = _client(role="admin").get("/api/ai-search/admin/log?days=7")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["window_count"] == 1 and d["by_freshness"].get("evergreen") == 1
+
+
+def test_stream_endpoint_logs_final_answer_and_id(monkeypatch, tmp_path):
+    _reset_counters()
+    import api.services.ai_search_log as ail
+    monkeypatch.setenv("AI_SEARCH_LOG_DB_PATH", str(tmp_path / "log.db"))
+    monkeypatch.setenv("AI_SEARCH_LOG_ENABLED", "1")
+    ail._reset_for_tests()
+
+    async def fake_stream(query, **kw):
+        yield {"type": "delta", "text": "SMCI is ripping"}
+        yield {"type": "final", "answer": "SMCI is ripping on AI capex",
+               "citations": ["https://reuters.com/x"], "related_questions": [], "cached": False,
+               "model": "sonar-pro"}
+
+    monkeypatch.setattr(ai.perplexity_search, "stream_search", fake_stream)
+    with _client(user_id=8).stream("POST", "/api/ai-search/stream",
+                                   json={"query": "why is SMCI moving today"}) as r:
+        assert r.status_code == 200
+        body = "".join(chunk for chunk in r.iter_text())
+    # meta event carries the stable answer_id; final too
+    assert '"answer_id"' in body and '"type": "final"' in body
+    # the finished answer was captured exactly once (run_in_executor already drained
+    # on the sync TestClient event loop by the time the stream closes)
+    ins = ail.insights(days=1)
+    assert ins["window_count"] == 1
+    assert ins["recent"][0]["answer_snip"].startswith("SMCI is ripping")
+    assert ins["recent"][0]["endpoint"] == "stream"

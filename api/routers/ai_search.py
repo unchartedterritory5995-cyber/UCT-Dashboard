@@ -11,6 +11,7 @@ Counters are in-memory (reset on redeploy — lenient by design, never user-host
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -662,59 +663,73 @@ def _fresh_salt(query: str, salt: str) -> str:
     return f"{salt}|{bucket}" if salt else bucket
 
 
-def _uct_context(query: str) -> tuple[str, str]:
-    """Returns (context_text, cache_salt). Both empty when nothing useful.
+def _empty_meta() -> dict:
+    return {"grounding_sources": [], "grounding_intents": [], "regime_label": None,
+            "recency": None, "had_live_price": False, "ctx_block": "", "query_tickers": []}
+
+
+def _uct_context(query: str) -> tuple[str, str, dict]:
+    """Returns (context_text, cache_salt, meta). ctx+salt empty when nothing useful.
 
     Always: market regime + live quote & today's catalyst thesis for tickers
     named in the question. Intent-routed extras (movers, breadth, earnings,
     UCT20, scanner, headlines) join only when the phrasing asks for them, so
     the grounding stays a tight supplement rather than a data dump.
+
+    `meta` records — for the capture log, computed here so the log wrapper never
+    re-runs the regexes — which desk feeds actually fired, the regime label at
+    answer time (a genuine one-way door; the classifier never persists history),
+    the query recency, whether a live price was injected, and the ctx block.
     """
     parts: list[str] = []
     salt_bits: list[str] = []
+    meta = _empty_meta()
+    syms = _extract_tickers(query)[:3]
+    meta["query_tickers"] = list(syms)
+    meta["recency"] = _auto_recency(query)
+
+    def _add(source: str, line: str):
+        if line:
+            parts.append(line)
+            if source not in meta["grounding_sources"]:
+                meta["grounding_sources"].append(source)
+
     try:
         rg = _regime_provider()
         label = rg.get("regime") or rg.get("label")
         if label:
             conf = rg.get("confidence")
-            parts.append(f"Market regime: {label}" + (f" (confidence {conf})" if conf else ""))
+            _add("regime", f"Market regime: {label}" + (f" (confidence {conf})" if conf else ""))
+            meta["regime_label"] = str(label)
             salt_bits.append(str(label))
     except Exception:
         pass
-    syms = _extract_tickers(query)[:3]
     for s in syms:
         try:
             q = _quote_provider(s)
             if q.get("last"):
-                parts.append(f"{s}: last ${q['last']}, {q.get('direction', 'flat')} {q.get('abs_pct', 0)}% today")
+                _add("quote", f"{s}: last ${q['last']}, {q.get('direction', 'flat')} {q.get('abs_pct', 0)}% today")
+                meta["had_live_price"] = True
         except Exception:
             pass
         try:
-            line = _ctx_catalyst(s)
-            if line:
-                parts.append(line)
+            _add("catalyst", _ctx_catalyst(s))
         except Exception:
             pass
     for s in syms[:2]:   # tape is verbose — first two symbols only
         try:
-            line = _ctx_tape(s)
-            if line:
-                parts.append(line)
+            _add("tape", _ctx_tape(s))
         except Exception:
             pass
     for s in syms[:2]:   # active setups — cheap local patterns.db read
         try:
-            line = _ctx_patterns(s)
-            if line:
-                parts.append(line)
+            _add("patterns", _ctx_patterns(s))
         except Exception:
             pass
     if _FLOW_RE.search(query or ""):   # flow = HTTP hop to the flow-worker
         for s in syms[:2]:
             try:
-                line = _ctx_flow_ticker(s)
-                if line:
-                    parts.append(line)
+                _add("flow", _ctx_flow_ticker(s))
             except Exception:
                 pass
     # Per-ticker fundamentals / analyst / insider — intent-gated cached reads.
@@ -723,18 +738,16 @@ def _uct_context(query: str) -> tuple[str, str]:
     q = query or ""
     _perticker = []
     if _FUNDAMENTALS_RE.search(q):
-        _perticker.append("_ctx_fundamentals")
+        _perticker.append(("fundamentals", "_ctx_fundamentals"))
     if _ANALYST_RE.search(q):
-        _perticker.append("_ctx_analyst")
+        _perticker.append(("analyst", "_ctx_analyst"))
     if _INSIDER_RE.search(q):
-        _perticker.append("_ctx_insider")
-    for fn_name in _perticker:
+        _perticker.append(("insider", "_ctx_insider"))
+    for source, fn_name in _perticker:
         fn = getattr(_this, fn_name)
         for s in syms[:2]:
             try:
-                line = fn(s)
-                if line:
-                    parts.append(line)
+                _add(source, fn(s))
             except Exception:
                 pass
     salt_bits.extend(syms)
@@ -745,31 +758,33 @@ def _uct_context(query: str) -> tuple[str, str]:
         try:
             line = getattr(this_mod, fn_name)()
             if line:
-                parts.append(line)
+                _add(fn_name.replace("_ctx_", ""), line)
+                meta["grounding_intents"].append(fn_name.replace("_ctx_", ""))
         except Exception:
             pass
     if not parts:
-        return "", ""
+        return "", "", meta
     ctx = "\n".join(parts)[:_CTX_BUDGET]
+    meta["ctx_block"] = ctx
     # Salt excludes live prices on purpose: a cached answer may carry a price
     # up to one cache-TTL stale (same staleness class as the web data itself);
     # salting on every tick would defeat the cache. The ET day rolls catalysts/
     # calendar entries over at midnight. Intent flags are derived from the
     # query, which is already part of the cache key.
     salt_bits.append(_et_day())
-    return ctx, "|".join(salt_bits)
+    return ctx, "|".join(salt_bits), meta
 
 
-def _grounded_system(query: str) -> tuple[str, str]:
-    ctx, salt = _uct_context(query)
+def _grounded_system(query: str) -> tuple[str, str, dict]:
+    ctx, salt, meta = _uct_context(query)
     if not ctx:
-        return _WIDGET_SYSTEM, ""
+        return _WIDGET_SYSTEM, "", meta
     return (
         _WIDGET_SYSTEM
         + "\n\nUCT DESK CONTEXT (internal desk data — authoritative for price, "
           "percent move, and market regime; prefer these figures over web "
           "sources and attribute them to 'UCT desk data'): " + ctx
-    ), salt
+    ), salt, meta
 
 
 class AiSearchIn(BaseModel):
@@ -782,6 +797,10 @@ class AiSearchIn(BaseModel):
     # Conversation memory: prior {q, a} exchanges from THIS widget session so
     # follow-ups can resolve references. Sanitized server-side; never persisted.
     history: list | None = None
+    # Anonymized conversation threading for the capture log (NOT identity): a random
+    # per-widget-session id + this ask's turn index. Optional; capture is best-effort.
+    conversation_id: str | None = None
+    turn_index: int | None = None
 
 
 def _clean_history(hist) -> list[dict]:
@@ -806,6 +825,62 @@ def _history_salt(salt: str, history: list[dict]) -> str:
     return f"{salt}|h{digest}" if salt else f"h{digest}"
 
 
+def ai_search_log_new_id() -> str:
+    """A stable answer id, even if the log service is unavailable (best-effort)."""
+    try:
+        from api.services import ai_search_log
+        return ai_search_log.new_answer_id()
+    except Exception:
+        import uuid
+        return uuid.uuid4().hex
+
+
+def _answer_kind(result: dict) -> str:
+    """Classify a finished answer for the capture log — the cheap Phase-2 exclusion
+    gate (refusals / data-limited / empty never become house knowledge)."""
+    if result.get("error") == "incomplete":
+        return "incomplete"
+    if result.get("error"):
+        return "error"
+    ans = (result.get("answer") or "").strip()
+    if not ans:
+        return "empty"
+    low = ans.lower()
+    if "i'm the uct research desk" in low or "ask me about markets" in low:
+        return "refused"
+    if len(ans) < 220 and not result.get("citations") and (
+            "don't have" in low or "no live" in low or "can't fetch" in low
+            or "private company" in low):
+        return "data_limited"
+    return "ok"
+
+
+def _log_answer(*, body: AiSearchIn, user_id, answer_id, endpoint, mode, result,
+                meta: dict, history, fallback_used=False) -> None:
+    """Best-effort capture of a finished answer. Never raises (double-guarded here
+    AND inside ai_search_log.log). Reads grounding facts from `meta` — never re-runs
+    the router regexes."""
+    try:
+        from api.services import ai_search_log
+        m = meta or _empty_meta()
+        ai_search_log.log(
+            user_id=user_id, answer_id=answer_id, endpoint=endpoint,
+            query=body.query, answer=result.get("answer") or "",
+            answer_kind=_answer_kind(result), mode=mode, model=result.get("model"),
+            fallback_used=fallback_used, cached=bool(result.get("cached")),
+            recency=m.get("recency"), grounded_sources=m.get("grounding_sources"),
+            grounding_intents=m.get("grounding_intents"), regime_label=m.get("regime_label"),
+            had_live_price=m.get("had_live_price"), grounding_context=m.get("ctx_block"),
+            query_tickers=m.get("query_tickers"), citations=result.get("citations"),
+            related_questions=result.get("related_questions"),
+            domain_pack=result.get("domain_pack"), elapsed_ms=result.get("elapsed_ms"),
+            error=result.get("error"), units=_billing_units(mode),
+            conversation_id=body.conversation_id, turn_index=body.turn_index,
+            has_history=bool(history))
+    except Exception:
+        pass
+
+
 @router.post("")
 def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
     user_id = user.get("id")
@@ -816,7 +891,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
     _reserve(user_id, units)   # atomic check-and-reserve BEFORE the upstream call
     _record_request(mode, stream=False)
     history = _clean_history(body.history)
-    system, salt = _grounded_system(body.query)
+    system, salt, meta = _grounded_system(body.query)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
 
     def _search(m):
@@ -826,12 +901,16 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
         )
 
     result = _search(mode)
+    effective_mode = mode
     effective_units = units
+    fallback_used = False
     # Reasoning came back empty (budget consumed by <think>) → fall back to
     # sonar-pro so a member never sees a blank answer; bill the fast tier only.
     if mode == "reasoning" and not result.get("answer"):
         result = _search("fast")
+        effective_mode = "fast"
         effective_units = _billing_units("fast")
+        fallback_used = True
     # Reconcile the reservation with what actually happened.
     if result.get("cached"):
         _refund(user_id, units); _record_cache_hit()
@@ -839,6 +918,13 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
         _refund(user_id, units)   # never bill a failed/empty search
     elif effective_units != units:
         _refund(user_id, units - effective_units)   # keep only the fast unit
+    # Stable id so a later save/share/pin can join back to this de-identified row.
+    answer_id = ai_search_log_new_id()
+    result["answer_id"] = answer_id
+    # Best-effort capture (sync def runs in the anyio threadpool — a direct call is fine).
+    _log_answer(body=body, user_id=user_id, answer_id=answer_id, endpoint="single",
+                mode=effective_mode, result=result, meta=meta, history=history,
+                fallback_used=fallback_used)
     return result
 
 
@@ -857,17 +943,20 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     _reserve(user_id, units)   # reserve BEFORE opening the stream (bill even if client disconnects)
     _record_request(mode, stream=True)
     history = _clean_history(body.history)
-    system, salt = _grounded_system(body.query)
+    system, salt, meta = _grounded_system(body.query)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
+    answer_id = ai_search_log_new_id()
 
     async def gen():
         settled = False
         got_answer = False
-        # Tell the client the tier up front so it can show a patient state for
-        # the reasoning path — sonar-reasoning-pro emits its whole <think> block
-        # (stripped server-side) before the first visible token, so there's a
-        # ~15-25s silent gap the widget should explain rather than look hung.
-        yield f"data: {json.dumps({'type': 'meta', 'mode': mode})}\n\n"
+        # captured_final holds the ONE answer we log — updated at BOTH the normal
+        # 'final' event AND the inline reasoning→fast fallback, so the log records
+        # the answer the member actually saw (never the failed empty reasoning try).
+        captured = {"result": None, "mode": mode, "fallback_used": False}
+        # Tell the client the tier + the stable answer_id up front (the id lets a
+        # later save/share/pin join back to this de-identified row).
+        yield f"data: {json.dumps({'type': 'meta', 'mode': mode, 'answer_id': answer_id})}\n\n"
         try:
             async for ev in perplexity_search.stream_search(
                 body.query, max_tokens=700, system=system, mode=mode, domain_pack="finance",
@@ -878,6 +967,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
                     got_answer = True
                 if t == "final" and not settled:
                     settled = True   # keep the reservation for a real answer
+                    captured["result"] = {k: v for k, v in ev.items() if k != "type"}
                     if ev.get("cached"):
                         _refund(user_id, units); _record_cache_hit()
                 elif t == "error" and not settled:
@@ -893,12 +983,34 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
                         if fb.get("answer"):
                             if not fb.get("cached"):
                                 _reserve(user_id, 1)
-                            yield f"data: {json.dumps({'type':'final', **fb})}\n\n"
+                            captured["result"] = dict(fb)
+                            captured["mode"] = "fast"
+                            captured["fallback_used"] = True
+                            yield f"data: {json.dumps({'type':'final', 'answer_id': answer_id, **fb})}\n\n"
                             continue
+                    captured["result"] = {"answer": "", "error": ev.get("error") or "stream error"}
+                if t == "final":
+                    ev = {**ev, "answer_id": answer_id}
                 yield f"data: {json.dumps(ev)}\n\n"
         finally:
             if not settled:
                 _refund(user_id, units)   # generator cancelled before any final/error
+            # Capture the finished answer ONCE — offloaded to a worker thread so the
+            # SQLite write NEVER blocks the shared event loop (the 524-outage surface).
+            res = captured["result"]
+            if res is None and not settled:
+                res = {"answer": "", "error": "incomplete"}   # disconnect before any final
+            if res is not None:
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.run_in_executor(
+                        None,
+                        lambda: _log_answer(
+                            body=body, user_id=user_id, answer_id=answer_id, endpoint="stream",
+                            mode=captured["mode"], result=res, meta=meta, history=history,
+                            fallback_used=captured["fallback_used"]))
+                except Exception:
+                    pass
 
     return StreamingResponse(
         gen(),
@@ -908,11 +1020,10 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
 
 @router.get("/admin/stats")
 def ai_search_admin_stats(user: dict = Depends(require_admin)):
-    """Today's AI Search usage at a glance: burn vs caps, mode mix, cache hit
-    rate, top users by quota units. In-memory — resets at midnight ET and on
-    redeploy (same lifetime as the caps themselves)."""
+    """Today's live AI Search usage: burn vs caps, mode mix, cache-hit rate.
+    In-memory — resets at midnight ET and on redeploy (same lifetime as the caps).
+    De-identified: no per-user breakdown (that lives nowhere now)."""
     with _usage_lock:
-        top = sorted(_usage_by_user.items(), key=lambda kv: -kv[1])[:15]
         requests = _stats["requests"]
         cache_hits = _stats["cache_hits"]
         return {
@@ -927,6 +1038,42 @@ def ai_search_admin_stats(user: dict = Depends(require_admin)):
             "by_mode": dict(_stats["by_mode"]),
             "stream_requests": _stats["stream"],
             "single_shot_requests": _stats["single"],
-            "top_users": [{"user_id": uid, "units": u} for uid, u in top],
             "note": "in-memory since last deploy; resets daily (ET) and on redeploy",
         }
+
+
+@router.get("/admin/log")
+def ai_search_admin_log(days: int = 7, limit: int = 50, user: dict = Depends(require_admin)):
+    """Persistent, DE-IDENTIFIED analytics over the captured Q&A log: what members
+    ask, top tickers, freshness split, mode/grounding/cache/error rates, recent rows.
+    The 'All-time · window' lane of the admin panel (vs /admin/stats' 'Today · live')."""
+    from api.services import ai_search_log
+    days = max(1, min(90, int(days or 7)))
+    limit = max(1, min(200, int(limit or 50)))
+    return ai_search_log.insights(days=days, recent_limit=limit)
+
+
+class AiSignalIn(BaseModel):
+    answer_id: str
+    kind: str   # save | share | copy | pin | unpin | exclude | unexclude | helpful
+
+
+@router.post("/signal")
+def ai_search_signal(body: AiSignalIn, user: dict = Depends(get_current_user)):
+    """Best-effort human quality signal on a prior answer (save/share/copy = member
+    vouch; pin/exclude = admin curation). Joined by the stable answer_id, so it stays
+    de-identified. Never fails the caller."""
+    try:
+        from api.services import ai_search_log
+        kind = (body.kind or "").strip().lower()
+        # Curation (pin/exclude) is admin-only; passive signals are open to any member.
+        if kind in ("pin", "unpin", "exclude", "unexclude") and user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="admin only")
+        if kind not in ("save", "share", "copy", "pin", "unpin", "exclude", "unexclude", "helpful"):
+            raise HTTPException(status_code=422, detail="unknown signal kind")
+        ai_search_log.record_signal(body.answer_id, kind)
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+    return {"ok": True}
