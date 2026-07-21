@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, Fragment } from "react";
+import { useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 
 /**
@@ -82,6 +82,7 @@ const ROW_LIMIT_ALL_VALUE = 10000;  // "All" (2026-07-09): the Color index makes
 // needs a fresh LS key to nuke stored smaller values.
 const LS_KEY_ROW_LIMIT = "uct_liveflow_massive_rowlimit_v3";
 const LS_KEY_HIDE_ALGO = "uct_liveflow_massive_hidealgo_v1";
+const LS_KEY_HIDE_NOSIDE = "uct_liveflow_massive_hidenoside_v1";
 const LS_KEY_CURATED   = "uct_liveflow_massive_curated_v1";
 const LS_KEY_STOCK_ETF = "uct_liveflow_massive_stocketf_v1";
 
@@ -156,7 +157,7 @@ const TIER_META = {
     desc: "Multi-leg / complex strategies. Non-directional — treat as background.",
   },
 };
-const TIER_ORDER = ["alpha", "size", "bullish", "bearish", "leaps", "unusual", "algo"];
+const TIER_ORDER = ["alpha", "size", "bullish", "bearish", "leaps", "unusual"];  // "algo" removed 2026-07-21 (Bullflow-era; Massive has no tradeType) — algo rows auto-hide (no filter key)
 
 // ─── localStorage keys ────────────────────────────────────────────────────
 const LS_KEY_FILTERS = "uct_liveflow_massive_filters_v1";
@@ -997,6 +998,27 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
         );
       })}
 
+      {/* Hide No-Side (2026-07-21) — hides direction-unconfirmed "UCT Size" rows:
+          big prints whose side we couldn't confirm. Sits by the Unusual pill. */}
+      {onHideNoSideChange && (
+        <button
+          onClick={() => onHideNoSideChange(!hideNoSide)}
+          title={hideNoSide
+            ? "Direction-unconfirmed 'UCT Size' prints are HIDDEN. Click to show them again."
+            : "Hide direction-unconfirmed 'UCT Size' prints (big size, side couldn't be confirmed — not a bull/bear signal)."
+          }
+          style={{
+            background: hideNoSide ? P.ac : "transparent",
+            color: hideNoSide ? P.bg : P.wh,
+            border: `1px solid ${P.bd}`, borderRadius: 4,
+            padding: "5px 12px", cursor: "pointer", fontSize: 13,
+            display: "inline-flex", alignItems: "center", gap: 6,
+          }}
+        >
+          {hideNoSide ? "✓ No-Side hidden" : "Hide No-Side"}
+        </button>
+      )}
+
       {/* Ticker search — moved to the LEFT of the filter row (flex order:-1).
           Client-side substring match on the fetched feed; at the default
           "Show: All" limit that's the full trading day. */}
@@ -1583,14 +1605,15 @@ function DateRail({ targetDate, onDateChange }) {
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────
-function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
+function Header({ status, loadPending, warming, workerLive,
+                  sortBy, onSortChange, minGrade, onMinGradeChange,
                   rowLimit, onRowLimitChange,
                   hideAlgo, onHideAlgoChange,
+                  hideNoSide, onHideNoSideChange,
                   curated, onCuratedChange,
                   tickerFilter, contractFilter, onClearFilters,
                   targetDate, onDateChange, onOiFetch, oiFetchState,
                   nullOICount }) {
-  const connected = status?.connected;
   const lastEvent = status?.last_event_at;
   const returned = status?.returned;
   return (
@@ -1606,11 +1629,17 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
         </span>
         <span style={{
           padding: "2px 8px", borderRadius: 3, fontSize: 11,
-          background: connected ? P.bu : P.be, color: P.wh,
+          background: loadPending ? P.bd : (workerLive ? P.bu : P.be),
+          color: P.wh,
         }}>
-          {connected ? "● WORKER LIVE" : "○ WORKER IDLE"}
+          {loadPending
+            ? "◌ LOADING…"
+            : (workerLive ? "● WORKER LIVE" : "○ WORKER IDLE")}
         </span>
-        {lastEvent && (
+        {!loadPending && warming && (
+          <span style={{ color: P.dm, fontSize: 11 }}>syncing…</span>
+        )}
+        {!loadPending && lastEvent && (
           <span style={{ color: P.dm, fontSize: 11 }}>
             last event: {new Date(lastEvent).toLocaleTimeString()}
           </span>
@@ -1735,26 +1764,6 @@ function Header({ status, sortBy, onSortChange, minGrade, onMinGradeChange,
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
-        {/* Hide Algo toggle — when ON: (1) Algo rows filtered from the table,
-            (2) Algo premium excluded from the Market Read card aggregation.
-            Multi-leg trades aren't truly directional even when one leg prints
-            at ask, so this gives a cleaner "directional conviction only" read. */}
-        <button
-          onClick={() => onHideAlgoChange(!hideAlgo)}
-          title={hideAlgo
-            ? "Algo (multi-leg) tier currently HIDDEN from both the table and the bull/bear card math. Click to show again."
-            : "Hide Algo (multi-leg) tier from both the table and the bull/bear card math. Gives a pure-directional read."
-          }
-          style={{
-            background: hideAlgo ? P.ac : "transparent",
-            color: hideAlgo ? P.bg : P.wh,
-            border: `1px solid ${P.bd}`, borderRadius: 3,
-            padding: "3px 10px", cursor: "pointer", fontSize: 11,
-            fontWeight: 600,
-          }}
-        >
-          {hideAlgo ? "✓ Algo hidden" : "Hide Algo"}
-        </button>
 
         <span style={{ width: 1, height: 18, background: P.bd, margin: "0 6px" }} />
 
@@ -2719,6 +2728,18 @@ export default function LiveFlowMassive() {
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
+  // Loading vs empty (2026-07-20): distinguish "still fetching the first
+  // snapshot" from "loaded, genuinely empty / worker idle" so the page never
+  // flashes a false "Worker idle" during the initial cold /recent fill.
+  // `dataArrived` flips true on the first real (non-warming) response; `warming`
+  // tracks the backend's cold-cache "filling in the background" stub.
+  const [dataArrived, setDataArrived] = useState(false);
+  const [warming, setWarming] = useState(false);
+  // Safety net: if the first snapshot never arrives (a persistent background
+  // fill failure would keep returning warming stubs forever), escalate the
+  // loading copy after a generous window so the user isn't stuck staring at a
+  // silent spinner. A legit cold curated fill is <~120s, so 150s = "wrong".
+  const [loadSlow, setLoadSlow] = useState(false);
   const [filters, setFilters] = useState(loadFilters);
   const [sortBy, setSortBy] = useState(() =>
     localStorage.getItem(LS_KEY_SORT) || "recent"
@@ -2767,6 +2788,9 @@ export default function LiveFlowMassive() {
   // so the toggle gives a cleaner "directional conviction only" read.
   const [hideAlgo, setHideAlgo] = useState(() =>
     localStorage.getItem(LS_KEY_HIDE_ALGO) === "1"
+  );
+  const [hideNoSide, setHideNoSide] = useState(() =>
+    localStorage.getItem(LS_KEY_HIDE_NOSIDE) === "1"
   );
   // 7/7: Stocks / ETFs / All partition filter. 'all' shows everything (today's
   // behavior). 'stocks' hides tickers in KNOWN_ETFS_INDEXES; 'etfs' shows only
@@ -2958,6 +2982,7 @@ export default function LiveFlowMassive() {
   }, [sortCol, sortDir]);
   useEffect(() => { localStorage.setItem(LS_KEY_ROW_LIMIT, String(rowLimit)); }, [rowLimit]);
   useEffect(() => { localStorage.setItem(LS_KEY_HIDE_ALGO, hideAlgo ? "1" : "0"); }, [hideAlgo]);
+  useEffect(() => { localStorage.setItem(LS_KEY_HIDE_NOSIDE, hideNoSide ? "1" : "0"); }, [hideNoSide]);
   useEffect(() => { localStorage.setItem(LS_KEY_STOCK_ETF, stockEtfFilter); }, [stockEtfFilter]);
   useEffect(() => { localStorage.setItem(LS_KEY_CURATED, curated ? "1" : "0"); }, [curated]);
 
@@ -3067,6 +3092,18 @@ export default function LiveFlowMassive() {
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
         if (cancelled) return;
+        // Cold-cache "warming" stub — the backend is filling the snapshot in the
+        // background (worker just (re)started or new trading day). Keep whatever
+        // tape is already on screen (NEVER blank it), show the loading indicator,
+        // and let the next poll pick up the real snapshot. Only status + the
+        // warming flag update here.
+        if (d.warming) {
+          setWarming(true);
+          if (d.status) setStatus(d.status);
+          setError(null);
+          return;  // finally-block reschedules the poll
+        }
+        setWarming(false);
         const incoming = d.alerts || [];
         // Track which IDs are new since last poll for flash animation
         const newIds = new Set();
@@ -3081,6 +3118,7 @@ export default function LiveFlowMassive() {
         // values survive the poll refresh (fix for OI-disappears-after-5s bug).
         setAlerts(applyOiEnrichment(incoming));
         setStatus(d.status);
+        setDataArrived(true);
         setError(null);
       } catch (e) {
         if (e?.name === "AbortError") return;
@@ -3146,6 +3184,10 @@ export default function LiveFlowMassive() {
           (!isolatedTier || (a._tierKey || "algo") === isolatedTier)
       );
       if (!fresh.length) return;
+      // Live prints arriving means we're loaded + connected — clear the initial
+      // loading/warming state even if the first /recent poll hasn't returned yet.
+      setDataArrived(true);
+      setWarming(false);
       setAlerts((prev) => {
         const seen = new Set(prev.map((a) => a.id));
         const add = fresh.filter((a) => !seen.has(a.id));
@@ -3453,6 +3495,7 @@ export default function LiveFlowMassive() {
     .filter(a => {
       const tier = _tierOf(a);
       if (hideAlgo && tier === "algo") return false;  // global Algo hide
+      if (hideNoSide && (a._directionUnconfirmed || (a.alertName || "").toLowerCase() === "uct size")) return false;  // hide direction-unconfirmed "UCT Size"
       if (!filters[tier]) return false;
       // 7/7 + 7/9: Stocks / ETFs partition filter. PREFER the authoritative
       // backend source (Massive ticker_types); fall back to KNOWN_ETFS_INDEXES
@@ -3674,6 +3717,28 @@ export default function LiveFlowMassive() {
     }
   };
 
+  // ── Header liveness/loading (2026-07-20) ──────────────────────────────────
+  // firstLoadPending: no real snapshot yet (initial cold fill / warming stub)
+  // and no error → the header shows "LOADING", never the false "Worker idle".
+  const firstLoadPending = !dataArrived && !error;
+  // Data-derived liveness backstop: the backend liveness probe can freeze
+  // last_event_at (a replayed old-dated row with a high id poisons it), so also
+  // treat the tape as LIVE when the newest alert on screen is recent.
+  // `timestamp` is unix SECONDS. Defense-in-depth — right even if status lies.
+  const newestEventTs = useMemo(() => {
+    let m = 0;
+    for (const a of alerts) { const t = Number(a?.timestamp) || 0; if (t > m) m = t; }
+    return m;
+  }, [alerts]);
+  const workerLive = !!(status?.connected) ||
+    (newestEventTs > 0 && (Date.now() / 1000 - newestEventTs) < 180);
+  // Escalate the loading copy if the first snapshot is taking abnormally long.
+  useEffect(() => {
+    if (!firstLoadPending) { setLoadSlow(false); return; }
+    const t = setTimeout(() => setLoadSlow(true), 150000);
+    return () => clearTimeout(t);
+  }, [firstLoadPending]);
+
   return (
     <div style={{
       background: P.bg, color: P.wh, minHeight: "100vh",
@@ -3689,6 +3754,9 @@ export default function LiveFlowMassive() {
 
       <Header
         status={status}
+        loadPending={firstLoadPending}
+        warming={warming}
+        workerLive={workerLive}
         sortBy={sortBy}
         onSortChange={setSortBy}
         minGrade={minGrade}
@@ -3697,6 +3765,8 @@ export default function LiveFlowMassive() {
         onRowLimitChange={setRowLimit}
         hideAlgo={hideAlgo}
         onHideAlgoChange={setHideAlgo}
+        hideNoSide={hideNoSide}
+        onHideNoSideChange={setHideNoSide}
         curated={curated}
         onCuratedChange={setCurated}
         tickerFilter={tickerFilter}
@@ -3873,11 +3943,15 @@ export default function LiveFlowMassive() {
           padding: 30, textAlign: "center", color: P.dm,
           background: P.cd, borderRadius: 4, marginTop: 20,
         }}>
-          {alerts.length === 0
-            ? (status?.connected
-                ? "Waiting for live flow… (markets may be closed, or no Y/M conviction yet today)"
-                : "Worker idle. Check /api/massive/status or try ?date=6/26/2026 to view historical data.")
-            : `No alerts match your filters. (${alerts.length} total alerts hidden)`}
+          {firstLoadPending
+            ? (loadSlow
+                ? "Still loading — the tape is taking unusually long. Try refreshing (Ctrl+Shift+R)."
+                : "Loading today's flow…")
+            : (alerts.length === 0
+                ? (workerLive
+                    ? "Waiting for live flow… (markets may be closed, or no conviction prints yet today)"
+                    : "No flow for today yet — markets may be closed, or nothing has cleared the conviction filter. Use History or ?date=M/D/YYYY to view a past session.")
+                : `No alerts match your filters. (${alerts.length} total alerts hidden)`)}
         </div>
       )}
 
