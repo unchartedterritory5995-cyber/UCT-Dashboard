@@ -841,7 +841,7 @@ export default function StockChart({
   modelBookLook = false,      // match the Model Book main chart's NON-candle styling (thin 0.5px curved MAs + VWAP, fuller-opacity volume) without the bold candle bodies (intraday popup)
   volumePaneHeightPct = null, // override the separate volume pane height (%)
   showRangeSelector = false, // show the TC2000-style date-range bar (3M/6M/YTD/12M/1Y/5Y) bottom-left, above the volume pane
-  canvasTheme = null,        // workspace chart-theme override: 'sunrise' = light gradient canvas (keeps green/red candles); null = the normal dark canvas
+  canvasTheme: canvasThemeProp = null,  // workspace chart-theme override: 'sunrise' = light gradient canvas (keeps green/red candles); null = follow the app theme (see the derived `canvasTheme` below)
   showSma5 = false,          // workspace: add a faint 5-period SMA overlay (legend included). Very low-opacity so it's barely visible.
   onVolumePaneResize = null,  // (pct) => void — fired when the user drags the price/volume separator, so the caller can persist the new height
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off)
@@ -933,6 +933,13 @@ export default function StockChart({
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
+
+  // The chart canvas is a <canvas> — app-theme CSS tokens cannot reach it, so the
+  // light app theme has to drive the chart's own theme explicitly or every chart
+  // would stay black inside a white app. An explicit prop still wins (the /charts
+  // workspace passes 'sunrise' for its per-layout Sunset toggle regardless of the
+  // app theme); this only supplies the default when no prop was given.
+  const canvasTheme = canvasThemeProp ?? (prefs.theme === 'light' ? 'sunrise' : null)
 
   // ── Chart settings from user preferences ──
   const csBase = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])

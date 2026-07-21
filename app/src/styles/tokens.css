@@ -141,6 +141,80 @@
   --border-accent: #2a2a2a;
 }
 
+/* ── Light theme ──────────────────────────────────────────────────────────
+   The app-wide counterpart of the charts workspace "TSDR — Sunset" look. The
+   palette is LIFTED from :global([data-charts-theme='sunrise']) in
+   ChartsWorkspace.module.css so the two surfaces match exactly — if you retune
+   one, retune the other (they are deliberately the same white / white-blue /
+   darkened-gold identity, not two independent light themes).
+
+   Unlike the other themes here, this one MUST override the text tokens too.
+   midnight/oled/dim are all dark, so they only ever needed to move the
+   backgrounds and let the light text ride along; on a white canvas that same
+   text is invisible, so --text* inverts to near-black and the accents darken
+   (bright gold/green/red are unreadable on white).
+
+   KNOWN LIMIT: this only reaches CSS that uses the tokens. Roughly half the
+   app's colors are hardcoded hex/rgba in .module.css files and will stay dark
+   on white until swept surface by surface — same iterative path the sunrise
+   theme took. Don't assume a page is correct here until it's been looked at. */
+[data-theme="light"] {
+  --bg: #d7e6f2;
+  --bg-surface: #e8eff5;
+  --bg-elevated: #f2f6fa;
+  --bg-hover: rgba(20, 45, 75, 0.07);
+  --border: #c2d2e0;
+  --border-accent: #a9bccd;
+
+  /* Inverted: near-black on the bright canvas. --text-heading/-bright are the
+     DARKEST (they were the lightest in the dark themes) so emphasis still reads
+     as emphasis rather than inverting the hierarchy. */
+  --text: #1b2836;
+  --text-muted: #3e4a58;
+  --text-bright: #0a141e;
+  --text-heading: #16212e;
+
+  /* Darkened accents — the same values the Sunset candles/volume use. */
+  --ut-gold: #7a5c16;
+  --ut-gold-dim: #7a5c161a;
+  --ut-gold-glow: #7a5c1633;
+  --ut-cream: #4a4130;   /* dark warm neutral — the inverse of the dark theme's light cream */
+  --ut-green: #0a5c22;
+  --ut-green-bright: #0a5c22;
+  --ut-green-dim: #0a5c2218;
+  --ut-green-glow: #0a5c2240;
+  --ut-red: #7d1620;
+  --ut-red-bright: #7d1620;
+  --ut-red-dim: #7d162018;
+
+  /* Semantic gain/loss + status: the dark-theme values (#3cb868 / #e74c3c) are
+     washed out on white, so they follow the candle palette. */
+  --gain: #0a5c22;
+  --gain-bg: #0a5c2214;
+  --gain-border: #0a5c2238;
+  --loss: #7d1620;
+  --loss-bg: #7d162014;
+  --loss-border: #7d162038;
+  --warn: #7a5c16;
+  --warn-bg: #7a5c1614;
+  --warn-border: #7a5c1638;
+  --info: #1f5d7a;
+  --info-bg: #1f5d7a12;
+  --info-border: #1f5d7a30;
+
+  /* Tick-flash tint (read inside Theme Tracker / watchlist keyframes). */
+  --tick-up-bg: rgba(10, 92, 34, 0.26);
+  --tick-down-bg: rgba(125, 22, 32, 0.24);
+
+  /* Shadows are tuned for glow-on-black; soften them so panels don't look
+     smudged on a bright canvas. */
+  --shadow-sm: 0 1px 2px rgba(20, 45, 75, 0.10);
+  --shadow-md: 0 2px 8px rgba(20, 45, 75, 0.12);
+  --shadow-lg: 0 4px 16px rgba(20, 45, 75, 0.16);
+  --shadow-modal: 0 20px 50px rgba(20, 45, 75, 0.22);
+  --shadow-popover: 0 8px 24px rgba(20, 45, 75, 0.18);
+}
+
 /* ── Dim theme ── */
 [data-theme="dim"] {
   --bg: #1a1d1a;

@@ -30,6 +30,9 @@ const THEME_OPTIONS = [
   { value: 'midnight', label: 'Midnight', desc: 'Deep dark green', swatch: '#0e0f0d' },
   { value: 'oled', label: 'OLED Black', desc: 'Pure black for AMOLED', swatch: '#000000' },
   { value: 'dim', label: 'Dim', desc: 'Softer for daytime', swatch: '#1a1d1a' },
+  // Light: the app-wide counterpart of the charts "TSDR — Sunset" look. Selecting it
+  // also flips every StockChart to the Sunset canvas (see StockChart's canvasTheme).
+  { value: 'light', label: 'Light', desc: 'TSDR Sunset white', swatch: '#e8eff5' },
   { value: 'system', label: 'System', desc: 'Match your OS', swatch: null },
 ]
 
