@@ -1,5 +1,5 @@
 {
-  "version": "4.17.0+bc8a9169",
+  "version": "4.18.0+99d7df37",
   "generated_at": "2026-07-21",
   "sectors": [
     {
@@ -3135,12 +3135,6 @@
           "rationale": "GE Vernova nuclear services and SMR development"
         },
         {
-          "sym": "BWX",
-          "tier": "relevant",
-          "sub_theme_id": "nuclear_tech",
-          "rationale": "Naval nuclear reactors and fuel components"
-        },
-        {
           "sym": "NXE",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -4342,12 +4336,6 @@
           "tier": "core",
           "sub_theme_id": null,
           "rationale": "Ivanhoe Mines Kamoa-Kakula copper DRC ADR"
-        },
-        {
-          "sym": "FM",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "First Quantum Minerals copper producer Zambia"
         },
         {
           "sym": "GLNCY",
@@ -5899,6 +5887,12 @@
           "tier": "relevant",
           "sub_theme_id": "dry_bulk",
           "rationale": "Diana Shipping dry bulk carrier fleet"
+        },
+        {
+          "sym": "CMBT",
+          "tier": "relevant",
+          "sub_theme_id": "dry_bulk",
+          "rationale": "CMB.TECH dry bulk and tanker fleet, absorbed Golden Ocean 2025"
         }
       ]
     },
@@ -9849,12 +9843,6 @@
           "rationale": "CEVA wireless and smart sensing IP licensor"
         },
         {
-          "sym": "AONNY",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Delta Electronics ADR Taiwan power supply leader"
-        },
-        {
           "sym": "SILC",
           "tier": "peripheral",
           "sub_theme_id": null,
@@ -9954,12 +9942,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "LG Chem Korean battery and chemicals OTC"
-        },
-        {
-          "sym": "HNDAF",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "Hyundai Motor Korean auto manufacturer OTC"
         }
       ]
     },
@@ -11146,10 +11128,10 @@
           "rationale": "Casual dining operator including Chilis and Maggianos"
         },
         {
-          "sym": "DINE",
+          "sym": "DIN",
           "tier": "peripheral",
           "sub_theme_id": null,
-          "rationale": "Multi-brand casual dining restaurant operator"
+          "rationale": "Dine Brands multi-brand casual dining IHOP and Applebees"
         },
         {
           "sym": "CAKE",
@@ -12712,12 +12694,6 @@
           "rationale": "Healthcare SaaS for patient intake and digital workflows"
         },
         {
-          "sym": "NFRX",
-          "tier": "peripheral",
-          "sub_theme_id": null,
-          "rationale": "AI-powered clinical decision support for nephrologists"
-        },
-        {
           "sym": "LFST",
           "tier": "relevant",
           "sub_theme_id": null,
@@ -13214,12 +13190,6 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Aktis Oncology, targeted cancer therapy, IPO Jan 2026"
-        },
-        {
-          "sym": "CRIS",
-          "tier": "relevant",
-          "sub_theme_id": null,
-          "rationale": "Caris Life Sciences, precision oncology, IPO Jun 2025"
         }
       ]
     },
