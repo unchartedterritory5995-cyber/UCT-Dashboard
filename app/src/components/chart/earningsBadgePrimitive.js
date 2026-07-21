@@ -9,7 +9,12 @@ const FONT_FAMILY = "'Instrument Sans', sans-serif"
 const ROW_BOTTOM = 6   // px from the price-pane bottom (badges sit just above volume)
 const PAD_X = 6        // px horizontal padding inside the pill
 const PAD_Y = 3        // px vertical padding
-const GLYPH = '#0c0c0e' // near-black glyph on the colored pill
+// Fallback glyph color. Normally StockChart passes `glyphColor` = the chart canvas
+// color, so the "E" reads as punched out of the pill and shows the background through
+// it. A true destination-out erase would cut through the chart canvas to the PAGE
+// beneath rather than to the chart's own background, so painting the canvas color is
+// both simpler and correct — identical on a solid canvas.
+const GLYPH = '#0c0c0e' // near-black, matching the default dark canvas
 
 // Factory → { primitive, setPoints, setOptions }.
 // opts: { enabled, points:[{time,price,beat}], beatColor, missColor, unknownColor, fontPx }
@@ -20,6 +25,7 @@ export function createEarningsBadgePrimitive(initial) {
     beatColor: '#1ae51a',
     missColor: '#c41f2d',
     unknownColor: '#94a3b8',
+    glyphColor: null,   // null = GLYPH fallback; StockChart passes the canvas color
     fontPx: 11,
     ...initial,
   }
@@ -82,7 +88,7 @@ export function createEarningsBadgePrimitive(initial) {
             else ctx.rect(rect.x, rect.y, rect.w, rect.h)
             ctx.fill()
             // Glyph
-            ctx.fillStyle = GLYPH
+            ctx.fillStyle = opts.glyphColor || GLYPH
             ctx.fillText('E', x, rect.y + rect.h / 2 + 0.5)
           }
           lastHitRects = hits

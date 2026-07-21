@@ -5597,6 +5597,9 @@ export default function StockChart({
       const mk = cs.markers || {}
       earnBadgeRef.current.setOptions({
         enabled: earningsEvents.length > 0,
+        // The glyph paints the CANVAS color so the 'E' reads as cut out of the pill,
+        // showing the chart background through it at any canvas color.
+        glyphColor: canvasSample.top,
         beatColor: mk.earningsBeat || '#1ae51a',
         missColor: mk.earningsMiss || '#c41f2d',
       })
