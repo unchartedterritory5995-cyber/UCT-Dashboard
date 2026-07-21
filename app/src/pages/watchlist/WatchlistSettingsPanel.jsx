@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../components/chart/ColorPanel'
 import UIcon from '../../components/ui/UIcon'
+import { WATCHLIST_FONT_SIZES } from './watchlistSettings'
 import styles from './WatchlistSettingsPanel.module.css'
 
 const PANEL_W = 268
@@ -158,6 +159,19 @@ export default function WatchlistSettingsPanel({ settings: s, onChange, onReset,
               </div>
             </Row>
           )}
+
+          {/* Text */}
+          <div className={styles.sectionLabel}>Text</div>
+          <Row label="Text size" hint="whole watchlist">
+            <select
+              className={styles.sizeSelect}
+              value={Number(s.fontSize)}
+              onChange={e => set({ fontSize: Number(e.target.value) })}
+              title="Watchlist text size"
+            >
+              {WATCHLIST_FONT_SIZES.map(px => <option key={px} value={px}>{px}</option>)}
+            </select>
+          </Row>
 
           {/* Text colors */}
           <div className={styles.sectionLabel}>Text colors</div>

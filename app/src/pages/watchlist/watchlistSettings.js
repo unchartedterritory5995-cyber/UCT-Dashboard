@@ -34,7 +34,23 @@ export const WATCHLIST_DEFAULTS = {
 
   // Company logos before the ticker in the Symbol column.
   showLogos: true,
+
+  // Text size for the whole watchlist surface, in px, as shown in the settings
+  // dropdown. This is the ROW text size (ticker/price/volume); every other element
+  // on the surface (group headers, column labels, badges) sits at its own base size
+  // and is scaled proportionally from this one, so the visual hierarchy is preserved
+  // instead of everything flattening to a single size.
+  fontSize: 11,
 }
+
+// The row text size that the CSS bases are authored against. fontSize === this = the
+// default look (scale 1). Changing this without re-authoring the CSS shifts everything.
+export const WATCHLIST_BASE_FONT_PX = 11
+
+// Selectable row text sizes (px). Deliberately narrower than the chart settings
+// picker (which runs to 40px): the watchlist scales proportionally off this row
+// size, so anything much past 16 overflows the columns in a narrow /charts widget.
+export const WATCHLIST_FONT_SIZES = [9, 10, 11, 12, 13, 14, 15, 16]
 
 // Prior default canvas colors that shipped WRONG — both #22251e and #1a1c17 read
 // grey/green (too light). A stored blob equal to one of these was never a deliberate
@@ -47,6 +63,12 @@ const LEGACY_DEFAULT_BG = new Set(['#22251e', '#1a1c17'])
 export function mergeWatchlistSettings(saved) {
   const s = (saved && typeof saved === 'object') ? { ...saved } : {}
   if (typeof s.bg === 'string' && LEGACY_DEFAULT_BG.has(s.bg.toLowerCase())) delete s.bg  // → new default
+  // Text size briefly shipped as a `fontScale` multiplier before becoming a px
+  // `fontSize`. Convert any stored blob so an early tester doesn't snap back to default.
+  if (s.fontSize == null && Number.isFinite(Number(s.fontScale))) {
+    s.fontSize = Math.round(Number(s.fontScale) * WATCHLIST_BASE_FONT_PX)
+  }
+  delete s.fontScale
   return {
     ...WATCHLIST_DEFAULTS,
     ...s,
@@ -65,6 +87,11 @@ export function watchlistStyleVars(s) {
     '--wl-down': s.downColor,
     '--wl-tint-up': s.tintUp,
     '--wl-tint-down': s.tintDown,
+    // The chosen row size becomes a ratio against the size the CSS is authored at, and
+    // is multiplied into every font-size on the surface (see Watchlists.module.css).
+    '--wl-font-scale': String(
+      (Number(s.fontSize) > 0 ? Number(s.fontSize) : WATCHLIST_BASE_FONT_PX) / WATCHLIST_BASE_FONT_PX
+    ),
   }
   if (s.bgMode === 'solid') {
     vars['--wl-bg'] = s.bg

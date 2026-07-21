@@ -20,7 +20,7 @@ import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
-import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars } from './watchlist/watchlistSettings'
+import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars } from './watchlist/watchlistSettings'
 
 const fetcher = url => fetch(url).then(r => r.json())
 const PERIODS = [['1', '1min'], ['5', '5min'], ['15', '15min'], ['30', '30min'], ['60', '1hr'], ['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']]
@@ -129,7 +129,7 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
 // setSym stability + the stable onRow* callbacks + memoized orderedKeys in the parent).
 const WatchRow = React.memo(function WatchRow({
   sym, name, price, changePct, volume, flagged, selected, orderedKeys,
-  showLogos = true, tintEnabled = true, mcap = null, earn = null, rating = null,
+  showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
   isOwner, itemId, notes, wlId, noteOpen, alertOn,
   onSelect, onToggleFlag, onIntent, onToggleNote, onSetAlert, onCtx, onRemove,
 }) {
@@ -144,7 +144,7 @@ const WatchRow = React.memo(function WatchRow({
     )
     if (key === 'sym') return (
       <span key="sym" className={styles.symCell} onContextMenu={wlId ? (e => onCtx(e, sym, wlId, isOwner)) : undefined}>
-        {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={16} round /></span>}
+        {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round /></span>}
         <span className={styles.rowSym}>{sym}</span>
       </span>
     )
@@ -238,6 +238,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(WATCHLIST_DEFAULTS))
   }, [setPref])
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
+  // CompanyLogo sizes itself with an inline px style, so the text-size scale has to be
+  // applied in JS for the logo (the CSS var handles everything else).
+  const rowLogoSize = useMemo(() => {
+    const px = Number(wlSettings.fontSize)
+    const scale = px > 0 ? px / WATCHLIST_BASE_FONT_PX : 1
+    return Math.round(16 * scale)
+  }, [wlSettings.fontSize])
 
   const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)
@@ -967,6 +974,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         orderedKeys={orderedKeys}
         showLogos={wlSettings.showLogos}
         tintEnabled={wlSettings.tintEnabled}
+        logoSize={rowLogoSize}
         mcap={metaData[sym]?.market_cap ?? null}
         earn={metaData[sym]?.next_earnings ?? null}
         rating={metaData[sym]?.composite ?? null}

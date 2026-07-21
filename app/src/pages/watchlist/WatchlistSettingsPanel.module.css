@@ -135,6 +135,31 @@
   font-weight: 600;
 }
 
+/* Text-size picker — a plain numeric px dropdown. The chevron is drawn as a background
+   SVG so the control looks identical across platforms (the native select arrow varies
+   wildly and reads as un-styled chrome next to the rest of the panel). */
+.sizeSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-elevated, #16181c);
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b8674' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  border: 1px solid var(--border, #2a3340);
+  border-radius: 5px;
+  color: var(--text-bright, #e0dac8);
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 24px 4px 10px;
+  cursor: pointer;
+}
+.sizeSelect:hover { border-color: var(--ut-gold, #c9a84c); }
+.sizeSelect:focus-visible { outline: 1px solid var(--ut-gold, #c9a84c); outline-offset: 1px; }
+/* The popup list is OS-rendered — force readable colors so it doesn't inherit
+   a transparent/near-black background on Windows. */
+.sizeSelect option { background: var(--bg-elevated, #16181c); color: var(--text-bright, #e0dac8); }
+
 .gradPair { display: inline-flex; align-items: center; gap: 6px; }
 .gradArrow { color: var(--text-muted, #8b8674); font-size: 11px; }
 
