@@ -657,6 +657,33 @@ header tab (owner decision 7/17). Source: `app/src/pages/charts/grid/`.
   StockChart `onBarsReady` or 5s safety timer — the guard against the
   2026-05-24 fetch-herd outage class. Cells pass `backgroundWarm={false}` (no
   all-TF warm chain / dwell-warm). NEVER bypass with eager mounts.
+- **Chart-parity warming** (shipped 2026-07-20, `feat/multichart-warm-parity`,
+  flag `VITE_GRID_WARM_ENABLED` default ON): grid cells feel instant on all
+  timeframes + scroll-back like the primary chart, herd-safely. Spec/plan:
+  `docs/superpowers/{specs,plans}/2026-07-20-multichart-warm-parity*`. Design
+  reality: live-streaming, stale-gap-refetch, and the sane-price chokepoint
+  ALREADY reach cells unchanged (cells default `liveUpdates=true`) — the only
+  gap was warming. **How it works — and its LOCKED invariants:**
+  - `GridChartCell` **MUST keep `backgroundWarm={false}`** — flipping it re-runs
+    StockChart's per-cell all-TF chain, which does DIRECT `fetch()` (StockChart
+    ~L2416) = instant 16×7 herd. Parity is achieved WITHOUT it.
+  - **Container-driven warm**: `MultiChartGrid` calls `prefetchGridWarm(gridSyms)`
+    (`utils/prefetchBars.js` — `prefetchListAllTimeframes` over all 8 TFs
+    `GRID_WARM_TFS`) which rides the EXISTING bounded, idle-deferred `_idbQueue`
+    (`_IDB_MAX=3`). A 16-cell grid = up to 128 jobs but **≤3 concurrent** (prod-
+    verified: 80 fetches peaked at 6 in flight incl. mount, all shallow
+    `bars=600`). The warm MUST go through the prefetch module (never a direct
+    fetch). The decision logic is the pure helper `grid/gridWarm.js`
+    (`makeGridWarmer`) with 4 guards: content-keyed (a TF/Style/undo change with
+    the same sym-set never re-warms), ready-gated (`hydrated && firstPaintSettled`
+    — deferred past the cold paint), read-only (never a state mutator → no
+    `scheduleSave` thrash), + a ~2h re-warm for boards left open past IDB's 26h
+    intraday eviction.
+  - **`deepWarm` prop** (StockChart) gates ONLY the dwell-warm (deep history),
+    independent of `backgroundWarm`. Passed **maximized-cell-only**
+    (`deepWarm={gridWarmEnabled && maxId===cell.id}`) — NOT hover-driven
+    `activeIdx` (that broke GridChartCell's React.memo "hover sweep re-renders
+    zero charts" contract). ≤1 deep fetch in flight.
 - **Streaming needs NOTHING**: priceStreamManager/barsStreamManager pool
   browser-wide (16 cells = 1 SSE). Never add a per-cell stream or second mux.
 - **Persistence**: working state = `multichart_state` pref (500ms debounce +
