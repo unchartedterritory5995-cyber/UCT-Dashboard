@@ -435,6 +435,62 @@
   color: var(--text, #e5e7eb);
 }
 
+/* ── App theme = Light: widgets keep their dark look ─────────────────────────
+   The light APP theme (Settings → Preferences → App Theme) restyles page CHROME
+   only: the left nav, the page background behind the board, and the workspace
+   toolbar. Widgets are self-contained surfaces and must look identical in every
+   app theme — a chart shouldn't recolor because the site chrome did. So the dark
+   tokens are re-asserted for the widget subtree, which sits inside the light
+   page. The chart CANVAS is handled separately (StockChart no longer derives its
+   theme from prefs.theme at all).
+
+   Values mirror the OLED palette — the app's default theme and what widgets
+   render as out of the box. Scoped to [data-charts-theme='default'] so the
+   Sunset charts toggle, which is an explicit per-layout choice and owns the
+   widget palette itself, is untouched. */
+:global([data-theme='light']) [data-charts-theme='default'] .widget {
+  --bg: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-elevated: #111111;
+  --bg-hover: #1a1a1a;
+  --border: #1e1e1e;
+  --border-accent: #2a2a2a;
+  --text: #b6b09d;
+  --text-muted: #8c8674;
+  --text-bright: #e0dac8;
+  --text-heading: #f0ead8;
+  --ut-gold: #c9a84c;
+  --ut-gold-dim: #c9a84c15;
+  --ut-gold-glow: #c9a84c35;
+  --ut-cream: #d4c9a8;
+  --ut-green: #2d8c4e;
+  --ut-green-bright: #3cb868;
+  --ut-green-dim: #2d8c4e18;
+  --ut-green-glow: #2d8c4e40;
+  --ut-red: #c0392b;
+  --ut-red-bright: #e74c3c;
+  --ut-red-dim: #c0392b18;
+  --gain: #3cb868;
+  --gain-bg: #3cb86815;
+  --gain-border: #3cb86835;
+  --loss: #e74c3c;
+  --loss-bg: #e74c3c15;
+  --loss-border: #e74c3c35;
+  --warn: #c9a84c;
+  --warn-bg: #c9a84c15;
+  --warn-border: #c9a84c35;
+  --info: #6ba3be;
+  --info-bg: #6ba3be12;
+  --info-border: #6ba3be30;
+  --tick-up-bg: rgba(60, 184, 104, 0.26);
+  --tick-down-bg: rgba(231, 76, 60, 0.24);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
+  --shadow-modal: 0 20px 50px rgba(0,0,0,0.5);
+  --shadow-popover: 0 8px 24px rgba(0,0,0,0.5);
+}
+
 /* ── TSDR — Sunrise light theme (workspace-wide) ─────────────────────────────
    The chart CANVAS gets a light sky-gradient via StockChart's canvasTheme; here we
    flip the workspace chrome + every variable-driven widget (panels, headers, text,

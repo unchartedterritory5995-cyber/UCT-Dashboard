@@ -934,12 +934,13 @@ export default function StockChart({
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
 
-  // The chart canvas is a <canvas> — app-theme CSS tokens cannot reach it, so the
-  // light app theme has to drive the chart's own theme explicitly or every chart
-  // would stay black inside a white app. An explicit prop still wins (the /charts
-  // workspace passes 'sunrise' for its per-layout Sunset toggle regardless of the
-  // app theme); this only supplies the default when no prop was given.
-  const canvasTheme = canvasThemeProp ?? (prefs.theme === 'light' ? 'sunrise' : null)
+  // NOTE: the chart canvas deliberately does NOT follow the app theme. The light app
+  // theme restyles the page chrome only (nav, page background, toolbars); charts keep
+  // their own look, controlled by the /charts theme toggle (charts_theme -> the
+  // 'sunrise' prop) or an explicit caller override. An earlier build derived this from
+  // prefs.theme and recolored every chart the moment Light was selected, which is not
+  // wanted — the widgets must look identical in every app theme.
+  const canvasTheme = canvasThemeProp
 
   // ── Chart settings from user preferences ──
   const csBase = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
