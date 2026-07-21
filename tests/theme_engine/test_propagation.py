@@ -137,3 +137,56 @@ def test_rotation_heat_maps_curated_only_theme_by_id(monkeypatch):
         "rankings": {"SMH": {"ticker": "SMH", "1w_rank": 40.0}}})
     heat = imp._rotation_heat()
     assert heat[0] == "uranium_miners"                 # id-keyed hot theme resolved
+
+
+# ── Owner-removal propagation (2026-07-21) ────────────────────────────────────
+# A holding the OWNER deletes from themes_taxonomy.json used to linger in Theme
+# Tracker until the next wire push (~up to 26h of stale disk snapshot), because
+# the I-3 drop filter only ever removed ENGINE rows. Found live: GOGL stayed in
+# Shipping after being removed from the taxonomy (the ticker is now a 2x GOOGL
+# leveraged ETF, not Golden Ocean). Curated-only themes now drop owner rows too;
+# ETF-backed themes must NOT, since their wire holdings are live yfinance fund
+# constituents that legitimately extend beyond the curated taxonomy list.
+
+def test_enrich_drops_owner_row_removed_from_curated_only_theme(monkeypatch):
+    import api.services.theme_performance as tp
+    monkeypatch.setattr(tp.theme_db, "get_all_themes", lambda: {"themes": [
+        {"id": "shipping", "name": "Shipping", "etf_ticker": None, "sector_id": "industrials",
+         "sub_themes": [], "holdings": [{"sym": "GNK", "tier": "relevant", "source": "owner"}]}],
+        "sectors": []})
+    themes = {"themes": [
+        {"name": "Shipping", "ticker": "shipping", "holdings": [
+            {"sym": "GNK", "returns": {"1d": 1.0}, "ref_prices": {}},
+            {"sym": "GOGL", "returns": {"1d": 2.0}, "ref_prices": {}},  # removed from taxonomy
+        ]}]}
+    out = tp._enrich_with_taxonomy(themes)
+    syms = {h["sym"] for h in out["themes"][0]["holdings"]}
+    assert syms == {"GNK"}, "owner row removed from a curated-only theme must drop immediately"
+
+
+def test_enrich_keeps_etf_constituents_absent_from_taxonomy(monkeypatch):
+    import api.services.theme_performance as tp
+    monkeypatch.setattr(tp.theme_db, "get_all_themes", lambda: {"themes": [
+        {"id": "silver", "name": "Silver", "etf_ticker": "SIL", "sector_id": "materials",
+         "sub_themes": [], "holdings": [{"sym": "CDE", "tier": "core", "source": "owner"}]}],
+        "sectors": []})
+    themes = {"themes": [
+        {"name": "Silver", "ticker": "SIL", "holdings": [
+            {"sym": "CDE", "returns": {"1d": 1.0}, "ref_prices": {}},
+            {"sym": "HL", "returns": {"1d": 2.0}, "ref_prices": {}},   # yfinance constituent
+        ]}]}
+    out = tp._enrich_with_taxonomy(themes)
+    syms = {h["sym"] for h in out["themes"][0]["holdings"]}
+    assert "HL" in syms, "ETF-backed themes must keep live fund constituents"
+
+
+def test_enrich_empty_taxonomy_members_never_blanks_holdings(monkeypatch):
+    import api.services.theme_performance as tp
+    monkeypatch.setattr(tp.theme_db, "get_all_themes", lambda: {"themes": [
+        {"id": "shipping", "name": "Shipping", "etf_ticker": None, "sector_id": "industrials",
+         "sub_themes": [], "holdings": []}], "sectors": []})   # cold / partial DB
+    themes = {"themes": [
+        {"name": "Shipping", "ticker": "shipping",
+         "holdings": [{"sym": "GNK", "returns": {"1d": 1.0}, "ref_prices": {}}]}]}
+    out = tp._enrich_with_taxonomy(themes)
+    assert {h["sym"] for h in out["themes"][0]["holdings"]} == {"GNK"}

@@ -527,14 +527,25 @@ def _enrich_with_taxonomy(result: dict) -> dict:
                     h["tier"] = m.get("tier", "relevant")
                     h["sub_theme_id"] = m.get("sub_theme_id")
                     h["source"] = m.get("source", "owner")
-            # I-3: drop ENGINE members that left the merged read (co-movement
-            # auto-drop / admin rollback) but still linger in the wire-derived
-            # base result — otherwise a dropped name lingers in Theme Tracker
-            # (with its engine dot) until the next wire push (up to ~1 day).
-            # Owner/wire holdings (source owner-or-absent) are never removed.
-            holdings[:] = [h for h in holdings
-                           if h.get("source") != "engine"
-                           or _to_hyphen(h.get("sym")) in members]
+            # I-3: drop members that left the merged read but still linger in
+            # the wire-derived base result — otherwise a dropped name shows in
+            # Theme Tracker until the next wire push (up to ~1 day).
+            #   - ENGINE rows: always dropped (co-movement auto-drop/rollback).
+            #   - OWNER rows: dropped ONLY for curated-only themes (etf_ticker
+            #     null), where the taxonomy IS the complete holdings source.
+            #     ETF-backed themes take their wire holdings from live yfinance
+            #     fund constituents, which legitimately extend beyond the
+            #     curated taxonomy supplement — filtering those would empty the
+            #     theme. There an owner removal still waits for the wire push.
+            # Guarded on a NON-EMPTY members map so a cold or partially-seeded
+            # taxonomy DB can never blank a theme's holdings.
+            curated_only = not tax.get("etf_ticker")
+            if members:
+                holdings[:] = [
+                    h for h in holdings
+                    if _to_hyphen(h.get("sym")) in members
+                    or (h.get("source") != "engine" and not curated_only)
+                ]
             # Merged members the wire snapshot doesn't carry yet — appended in
             # the same holding shape; priced on the next recompute.
             have = {_to_hyphen(h.get("sym")) for h in holdings}
