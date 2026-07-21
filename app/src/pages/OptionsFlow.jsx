@@ -2462,17 +2462,10 @@ export default function OptionsFlowDashboard() {
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
-    // Guard (2026-07-20): do NOT reset the day scope to "All" while a Search
-    // deep-dive is active. The live delta-merge bumps availableDates a few
-    // seconds after load; the per-ticker fetch (searchFull) carries its own,
-    // often fresher dates that legitimately include days the main availableDates
-    // doesn't yet. Resetting here blew the Search scope open from the selected
-    // day to full history — the "loads correct, then flips to all-time" bug.
-    // Same principle as the 2026-07-18 ZERO-OUT FIX on the fetch effect.
-    if (!selectedTicker && availableDates.length > 0 && dateFilter !== "All" && !dateFilter.startsWith("Last") && !availableDates.includes(dateFilter)) {
+    if (availableDates.length > 0 && dateFilter !== "All" && !dateFilter.startsWith("Last") && !availableDates.includes(dateFilter)) {
       setDateFilter("All");
     }
-  }, [availableDates, selectedTicker]);
+  }, [availableDates]);
 
   // Process data whenever parsedRows or dateFilter or date range changes.
   // _lastMergedVer tracks the live delta-merge (see that effect, below);
@@ -8455,6 +8448,22 @@ export default function OptionsFlowDashboard() {
               const tk = (_uncapped && _uncapped.TICKER_DB && _uncapped.TICKER_DB.find(t => t.s === selectedTicker.s))
                 || (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s)
                 || selectedTicker;
+              // Scope the ticker's FULL trade list to the selected day range —
+              // the SAME _scopeAllDirectional the summary cards use — so the
+              // Top-Trades table no longer flips to the ticker's uncapped full
+              // history once the /api/flow/ticker deep-dive resolves (the
+              // "full history under a 1d badge" bug documented at ~line 8631). 2026-07-20.
+              const _tkTradesScoped = _scopeAllDirectional((tk && tk.t) || []);
+              // TEMP DIAGNOSTIC (remove after) — why a strike vanishes from the scoped table:
+              try {
+                const _has = (arr) => (arr||[]).filter(t=>t && t.S===tk.s && String(t.K)==="1200" && t.CP==="C").length;
+                // eslint-disable-next-line no-console
+                console.log("[search-dbg]", tk.s,
+                  "| tk.t:", (tk.t||[]).length, "| scoped:", _tkTradesScoped.length,
+                  "| 1200C in tk.t:", _has(tk.t), "| 1200C in scoped:", _has(_tkTradesScoped),
+                  "| dateFilter:", dateFilter, "| searchDte:", (typeof searchDte!=="undefined"?searchDte:"?"),
+                  "| _uncapped:", !!_uncapped, "| tk.t recent dates:", [...new Set((tk.t||[]).map(t=>t&&t.Dt).filter(Boolean))].sort().slice(-4));
+              } catch(_e) {}
               // DTE filter for summary cards
               const dteF = t => searchDte==="All" ? true : searchDte==="ST" ? t.DTE>=0&&t.DTE<60 : searchDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
               // Source changed from D.clean_confirmed → D.all_directional so the
@@ -8783,7 +8792,7 @@ export default function OptionsFlowDashboard() {
                       handles the expanded view. Passing panelFn made TT also
                       render an inline copy, creating a double-layer panel
                       that required two clicks to close. */}
-                  <Card title={tk.s+" — Top Trades by Premium"} sub={tk.n+" total"}><TT rows={tk.t} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
+                  <Card title={tk.s+" — Top Trades by Premium"} sub={_tkTradesScoped.length+" total"}><TT rows={_tkTradesScoped} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
                   {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
                 </>
               );
