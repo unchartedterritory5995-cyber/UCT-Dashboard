@@ -20,14 +20,21 @@ import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
 import TimeframeMenu from './TimeframeMenu'
 import { tfLabel, tfSortKey } from '../../../components/chart/timeframes'
 import styles from '../ChartsWorkspace.module.css'
+import { matchShortcut, TF_ORDER } from '../../../components/chart/keyboardShortcuts'
 
-const TFS = [
-  ['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'],
-  ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M'],
-]
+// Labels for the timeframe bar. Order comes from TF_ORDER so the bar and the
+// keyboard ladder can never drift apart.
+const TF_LABELS = {
+  '1': '1m', '5': '5m', '15': '15m', '30': '30m',
+  '60': '1h', 'D': '1D', 'W': '1W', 'M': '1M',
+}
+const TFS = TF_ORDER.map(code => [code, TF_LABELS[code]])
 
-// Letter or digit, no modifier combos. Period allowed for class-share tickers (BRK.B).
-const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
+// Letters only, no modifier combos. Period allowed for class-share tickers
+// (BRK.B). Digits are deliberately EXCLUDED — they are timeframe shortcuts,
+// and no US ticker starts with a digit. Once the search box has focus it
+// accepts digits normally; this regex only decides what OPENS it.
+const TICKER_KEY_RE = /^[A-Za-z.]$/
 
 export default function ChartWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef } = useWorkspace()
@@ -284,6 +291,11 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
       setFlagToast(willFlag ? 'flagged' : 'unflagged')
       return
     }
+    // A bound chart shortcut always beats ticker search. Without this, digits
+    // (timeframes) and Shift+letter (display toggles) would be swallowed by
+    // the symbol box below, which stopPropagation()s them. Returning here lets
+    // the event keep bubbling to StockChart's document-level handler.
+    if (matchShortcut(e)) return
     if (e.ctrlKey || e.altKey || e.metaKey) return
     if (!TICKER_KEY_RE.test(e.key)) return
     e.preventDefault()

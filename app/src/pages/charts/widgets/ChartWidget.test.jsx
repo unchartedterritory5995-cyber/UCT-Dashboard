@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import { useState } from 'react'
 import { vi } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
@@ -14,7 +14,16 @@ vi.mock('../../../components/StockChart', () => ({
     </div>
   ),
 }))
-vi.mock('../../../components/chart/SymbolSearch', () => ({ default: () => <span>search</span> }))
+const openWithSpy = vi.fn()
+vi.mock('../../../components/chart/SymbolSearch', async () => {
+  const { forwardRef, useImperativeHandle } = await import('react')
+  return {
+    default: forwardRef((_props, ref) => {
+      useImperativeHandle(ref, () => ({ openWith: (...a) => openWithSpy(...a) }))
+      return <span>search</span>
+    }),
+  }
+})
 vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => <span>share</span> }))
 vi.mock('../../../components/chart/ChartSettingsModal', () => ({ default: () => null }))
 vi.mock('./ChartMarketClock', () => ({ default: () => <span>clock</span> }))
@@ -70,4 +79,37 @@ test('symbol changes write back to the widgets color group only', () => {
   act(() => { screen.getByText('change').click() })
   expect(screen.getByTestId('groupA').textContent).toBe('NVDA')
   expect(screen.getByTestId('groupB').textContent).toBe('AAPL')
+})
+
+// The chart container is the focusable element that owns type-to-search.
+// It is the only element in the widget with tabIndex=0.
+function chartSurface(container) {
+  const el = container.querySelector('[tabindex="0"]')
+  if (!el) throw new Error('chart surface not found')
+  return el
+}
+
+test('typing a letter opens ticker search', () => {
+  openWithSpy.mockClear()
+  const { container } = render(<Wrap color="A" />)
+  fireEvent.keyDown(chartSurface(container), { key: 'n' })
+  expect(openWithSpy).toHaveBeenCalledWith('n')
+})
+
+test('typing a digit does NOT open ticker search (digits are timeframes)', () => {
+  openWithSpy.mockClear()
+  const { container } = render(<Wrap color="A" />)
+  const surface = chartSurface(container)
+  fireEvent.keyDown(surface, { key: '1' })
+  fireEvent.keyDown(surface, { key: '5' })
+  fireEvent.keyDown(surface, { key: '9' })
+  expect(openWithSpy).not.toHaveBeenCalled()
+})
+
+test('a bound shortcut key does NOT open ticker search', () => {
+  openWithSpy.mockClear()
+  const { container } = render(<Wrap color="A" />)
+  // Shift+H is the Heikin Ashi toggle — it must not type "H" into the box.
+  fireEvent.keyDown(chartSurface(container), { key: 'H', code: 'KeyH', shiftKey: true })
+  expect(openWithSpy).not.toHaveBeenCalled()
 })
