@@ -39,6 +39,21 @@ function mix(rgb, target, amount) {
 }
 const rgbStr = ([r, g, b]) => `rgb(${r}, ${g}, ${b})`
 
+/** Sample a top→bottom gradient at `t` (0 = top, 1 = bottom).
+ *
+ *  A gradient canvas has no single color, so chrome anchored at different heights must
+ *  sample at ITS OWN height or it fights the background — e.g. the range bar sits just
+ *  above the volume pane, ~80% down, where a top-sampled dark panel would sit as a dark
+ *  slab on a near-white area. Returns null if either stop is unparseable, meaning
+ *  "fall back to the single-color path". */
+export function sampleGradient(top, bottom, t) {
+  const A = parseColor(top)
+  const B = parseColor(bottom)
+  if (!A || !B) return null
+  const k = Math.min(1, Math.max(0, t))
+  return rgbStr(A.map((v, i) => Math.round(v + (B[i] - v) * k)))
+}
+
 /** Styling for the drawing TOOLBAR buttons, which sit directly on the canvas.
  *
  *  Unlike the legend panels (which match the canvas), these are deliberately a small

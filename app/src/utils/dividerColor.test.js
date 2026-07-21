@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseColor, luminance, dividerFor, panelFor, toolbarFor } from './dividerColor'
+import { parseColor, luminance, dividerFor, panelFor, toolbarFor, sampleGradient } from './dividerColor'
 
 // Gridlines/hairlines were authored as fixed near-white and vanish on a light canvas.
 // dividerFor picks the contrasting side. The null return is load-bearing: it means
@@ -146,5 +146,33 @@ describe('toolbarFor', () => {
 
   it('returns null on an unparseable canvas', () => {
     expect(toolbarFor('linear-gradient(to bottom, #fff, #000)')).toBeNull()
+  })
+})
+
+describe('sampleGradient', () => {
+  it('returns the endpoints at t=0 and t=1', () => {
+    expect(sampleGradient('#000000', '#ffffff', 0)).toBe('rgb(0, 0, 0)')
+    expect(sampleGradient('#000000', '#ffffff', 1)).toBe('rgb(255, 255, 255)')
+  })
+
+  it('interpolates between the stops', () => {
+    expect(sampleGradient('#000000', '#ffffff', 0.5)).toBe('rgb(128, 128, 128)')
+  })
+
+  it('samples a navy->white ramp near the bottom as LIGHT', () => {
+    // The reported case: chrome at ~80% down sat as a dark slab on a near-white area.
+    const low = sampleGradient('#16233b', '#ffffff', 0.8)
+    expect(luminance(parseColor(low))).toBeGreaterThan(0.5)
+    expect(dividerFor(low)).toMatch(/^rgba\(0, 0, 0,/)   // → dark hairline, visible
+  })
+
+  it('clamps t outside 0..1', () => {
+    expect(sampleGradient('#000000', '#ffffff', -1)).toBe('rgb(0, 0, 0)')
+    expect(sampleGradient('#000000', '#ffffff', 2)).toBe('rgb(255, 255, 255)')
+  })
+
+  it('returns null if either stop is unparseable', () => {
+    expect(sampleGradient('#000000', 'nope', 0.5)).toBeNull()
+    expect(sampleGradient(null, '#ffffff', 0.5)).toBeNull()
   })
 })

@@ -9,7 +9,7 @@ import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
-import { panelFor, toolbarFor } from '../utils/dividerColor'
+import { panelFor, toolbarFor, sampleGradient, parseColor, luminance } from '../utils/dividerColor'
 import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
@@ -1017,14 +1017,41 @@ export default function StockChart({
   // they stayed dark blobs on a light canvas; derived, they flip with it and their
   // text/border stay legible. Published as CSS vars on the wrapper; the stylesheet
   // keeps the original literals as fallbacks so any unparseable canvas is a no-op.
-  const panelVars = useMemo(() => {
-    const solid = canvasTheme === 'sunrise'
+  // The canvas sampled at the two heights chrome actually sits at. A GRADIENT canvas has
+  // no single color: the crosshair legend and toolbar ride the TOP, while the range bar,
+  // volume legend and the price/volume pane separator sit ~80% down, which on a
+  // navy→white ramp is the opposite end. Sampling per-height is what stops a dark slab
+  // landing on a near-white area. On a solid canvas both collapse to the same color.
+  const canvasSample = useMemo(() => {
+    const isGradient = userCanvas && cs.bgMode === 'gradient' && canvasTheme !== 'sunrise'
+    const gTop = cs.bgGradient?.top || MB_BG
+    const gBottom = cs.bgGradient?.bottom || MB_BG
+    const top = canvasTheme === 'sunrise'
       ? '#eaf1fa'
-      : (userCanvas && cs.bgMode === 'gradient')
-        ? (cs.bgGradient?.top || MB_BG)
+      : isGradient
+        ? gTop
         : ((userCanvas || !boldCandles) ? (cs.background || MB_BG) : MB_BG)
-    const p = panelFor(solid)
-    const t = toolbarFor(solid)
+    const low = isGradient ? (sampleGradient(gTop, gBottom, 0.8) || top) : top
+    return { top, low }
+  }, [canvasTheme, userCanvas, boldCandles, cs.bgMode, cs.background, cs.bgGradient?.top, cs.bgGradient?.bottom])
+
+  // Price/volume pane separator. Was hardcoded near-white, so it vanished against the
+  // pale bottom of a light or gradient canvas. Derived from the canvas AT THE
+  // SEPARATOR'S OWN HEIGHT; the dark values are the originals, so the default is
+  // visually unchanged.
+  const separatorColors = useMemo(() => {
+    const rgb = parseColor(canvasSample.low)
+    const light = rgb ? luminance(rgb) > 0.5 : false
+    return light
+      ? { color: 'rgba(0, 0, 0, 0.22)', hover: 'rgba(0, 0, 0, 0.38)' }
+      : { color: 'rgba(255, 255, 255, 0.18)', hover: 'rgba(255, 255, 255, 0.32)' }
+  }, [canvasSample])
+
+  const panelVars = useMemo(() => {
+    const { top: solidTop, low: solidLow } = canvasSample
+    const p = panelFor(solidTop)
+    const pLow = panelFor(solidLow) || p
+    const t = toolbarFor(solidTop)
     if (!p) return undefined
     return {
       ...(t ? {
@@ -1039,8 +1066,15 @@ export default function StockChart({
       '--chart-panel-text': p.text,
       '--chart-panel-text-strong': p.textStrong,
       '--chart-panel-hover': p.hover,
+      // Bottom-anchored variants (identical to the above on a solid canvas).
+      '--chart-panel-bg-low': pLow.bg,
+      '--chart-panel-bg-soft-low': pLow.bgSoft,
+      '--chart-panel-border-low': pLow.border,
+      '--chart-panel-text-low': pLow.text,
+      '--chart-panel-text-strong-low': pLow.textStrong,
+      '--chart-panel-hover-low': pLow.hover,
     }
-  }, [canvasTheme, userCanvas, boldCandles, cs.bgMode, cs.background, cs.bgGradient?.top])
+  }, [canvasSample])
 
   // ── Price-scale: forceLogScale (Model Book) defaults to log without touching
   // the user's global chart-settings pref. A per-instance override lets the
@@ -4214,7 +4248,7 @@ export default function StockChart({
         fontSize: cs.textSize ?? 11,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
-        ...((boldCandles || subtleSeparator) ? { panes: { separatorColor: canvasTheme === 'sunrise' ? 'rgba(30,42,58,0.5)' : 'rgba(255,255,255,0.18)', separatorHoverColor: canvasTheme === 'sunrise' ? 'rgba(30,42,58,0.7)' : 'rgba(255,255,255,0.32)', enableResize: !frozen } } : {}),
+        ...((boldCandles || subtleSeparator) ? { panes: { separatorColor: separatorColors.color, separatorHoverColor: separatorColors.hover, enableResize: !frozen } } : {}),
       },
       // Frozen (Setup Library examples): the chart is a static exhibit pinned to
       // its framed window — no pan/zoom/axis-drag, and the wheel is left alone so
