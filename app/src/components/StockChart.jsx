@@ -4358,7 +4358,14 @@ export default function StockChart({
         borDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downBorder || _d) : _d),
         wickUp: _sruniform ? _u : (userCandleColors ? (cs.candles.upWick || _u) : _u),
         wickDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downWick || _d) : _d),
-        hollow: canvasTheme === 'sunrise' || cs.chartType === 'hollow',
+        // Hollow bodies are a CANDLE-ONLY effect. A CandlestickSeries with a
+        // transparent body still draws its border (borderVisible below), so the bar
+        // stays visible as an outline — but BarSeries (chartType 'bars'/'hlc') has NO
+        // border to fall back on, so a transparent "body" is the bar's only stroke and
+        // the bar disappears outright. Left unguarded, every up-bar vanished under the
+        // Sunset/light canvas while the MAs (same data) drew normally.
+        hollow: (canvasTheme === 'sunrise' || cs.chartType === 'hollow')
+          && (cs.chartType === 'candles' || cs.chartType === 'hollow'),
         insideBlack: canvasTheme === 'sunrise',
       }
     }
@@ -4447,12 +4454,19 @@ export default function StockChart({
         // / deep red); the intraday popup (modelBookLook) keeps the base bold one.
         const _bUp = boldCandles ? mbUp : BOLD_UP
         const _bDown = boldCandles ? mbDown : BOLD_DOWN
-        const _bold = canvasTheme === 'sunrise' ? {
+        const _bold = (canvasTheme === 'sunrise' && _seriesType === 'candle') ? {
           // Sunrise default = HOLLOW candles (TC2000 look): up = hollow body + dark
           // green outline; down = filled dark red. Same palette as the volume bars.
           upColor: 'rgba(0,0,0,0)', downColor: mbDown,
           borderVisible: true, borderUpColor: mbUp, borderDownColor: mbDown,
           wickUpColor: mbUp, wickDownColor: mbDown,
+        } : canvasTheme === 'sunrise' ? {
+          // Sunrise with a BAR series ('bars'/'hlc'): SOLID dark palette, never the
+          // hollow treatment above. BarSeries has no border, so a transparent upColor
+          // leaves the bar with no stroke at all and every up-bar disappears. The
+          // per-bar painter hides this in netchange mode but is a passthrough in
+          // open/close mode, where the series option is what actually paints.
+          upColor: mbUp, downColor: mbDown,
         } : cs.chartType === 'hollow' ? {
           // HOLLOW chart type in a non-sunrise theme (e.g. the default bold workspace):
           // up = transparent body + colored outline, down = filled. Without this the
