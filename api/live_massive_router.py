@@ -32,7 +32,15 @@ Why this lives separately:
   2. The Bullflow worker (liveflow_worker.py) and this router can coexist
   3. Once validated, swap LiveFlow.jsx data source URL — no other changes needed
 """
-from fastapi import APIRouter, Query, Request, HTTPException
+from fastapi import APIRouter, Query, Request, HTTPException, Depends
+# Auth for the MUTATING endpoints below. Until 2026-07-20 every POST on this
+# router was UNAUTHENTICATED and internet-reachable — anyone could fire
+# force-push-discord into members' Discord or rewrite the alert thresholds.
+# require_flow_admin/-user accept a PUSH_SECRET bearer, a direct admin/user
+# session cookie, OR the HMAC-signed vouch that flow_proxy injects (which is how
+# this works on the flow-worker, where web's auth.db isn't present). Same gate
+# already used by darkpool_router / dealer_positioning_router / flow_gap_autofill.
+from api.flow_admin_auth import require_flow_admin, require_flow_user
 from datetime import date, datetime, timezone, timedelta
 import sqlite3
 import os
@@ -2078,7 +2086,8 @@ async def _fetch_one_quote(ticker: str) -> float | None:
 
 
 @router.post("/current-quotes")
-async def current_quotes(payload: CurrentQuotesPayload):
+async def current_quotes(payload: CurrentQuotesPayload,
+                         _auth: dict = Depends(require_flow_user)):
     """
     Batch fetch current spot prices for a list of tickers. Used by the
     frontend to compute P/L from alert spot → current spot. Polls less
@@ -3641,6 +3650,7 @@ def force_push_discord(
     target_date: str = Query(None),
     mode: str = Query("single", description="'single' or 'accumulation'"),
     lookback_days: int = Query(3, ge=1, le=5, description="Accumulation lookback window for finding the contract (matches the radar)."),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """Manual override: push a Massive alert to Discord, bypassing all auto-fire
     gates (like LiveFlow's force-push). Two modes:
@@ -3727,7 +3737,7 @@ def get_auto_push_config():
 
 
 @router.post("/auto-push-config")
-async def set_auto_push_config(request: Request):
+async def set_auto_push_config(request: Request, _auth: dict = Depends(require_flow_admin)):
     """Admin: update + persist the auto-push config (master switch + thresholds).
     Whitelisted keys only; persisted to disk so it survives restarts."""
     try:
@@ -3748,7 +3758,7 @@ async def set_auto_push_config(request: Request):
 
 
 @router.post("/thresholds")
-async def save_thresholds(request: Request):
+async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_admin)):
     """Admin: persist new Curated-mode thresholds. Validates shape lightly
     then atomic-swaps the JSON file. Invalidates server-side cache so the
     next /recent poll picks up the new values."""
@@ -3797,7 +3807,7 @@ async def save_thresholds(request: Request):
 
 
 @router.post("/thresholds/reset")
-def reset_thresholds():
+def reset_thresholds(_auth: dict = Depends(require_flow_admin)):
     """Admin: revert to compiled-in defaults (wipes the saved file)."""
     try:
         if os.path.exists(_THRESHOLDS_PATH):
@@ -3846,6 +3856,7 @@ def dormant_status():
 @router.post("/recompute-dormant")
 def recompute_dormant(
     lookback: int = Query(default=30, ge=1, le=365, description="Trading days to look back"),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """Admin: scan FlowDB and recompute the active-tickers set. Writes the
     result to /data/dormant_tickers.json (atomic swap) and invalidates the
@@ -4329,6 +4340,7 @@ def side_method_stats():
 async def enrich_oi(
     request: Request,
     target_date: str = Query(default=None, description="M/D/YYYY. Clamp lookup to snap_date <= this date so historical views return pre-trade OI instead of post-trade lookahead. Omit for latest available."),
+    _auth: dict = Depends(require_flow_user),
 ):
     """Enrich a batch of contracts with prior OI from contract_oi_snapshots.
 
@@ -5311,6 +5323,7 @@ def restart_log(
 @router.post("/backfill-spot")
 def backfill_spot(
     target_date: str = Query(default=None, description="M/D/YYYY. Defaults to today ET."),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """Manually run the stranded-spot backfill for a given date.
 
