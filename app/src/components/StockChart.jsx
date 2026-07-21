@@ -8309,7 +8309,17 @@ export default function StockChart({
           {crosshairData.volume != null && (
             <span className={styles.legendLabel} style={legBase}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
           )}
-          <span className={parseFloat(crosshairData.change) >= 0 ? styles.legendUp : styles.legendDown}>
+          {/* Same Day-change colors as the header row (Chart Settings -> Header): one
+              setting drives both readouts. Unset falls through to the CSS class. */}
+          <span
+            className={parseFloat(crosshairData.change) >= 0 ? styles.legendUp : styles.legendDown}
+            style={(() => {
+              const c = parseFloat(crosshairData.change) >= 0
+                ? cs.header?.colors?.dayChangeUp
+                : cs.header?.colors?.dayChangeDown
+              return c ? { color: c } : undefined
+            })()}
+          >
             {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
           </span>
           {crosshairData.overlays.map((ov, i) => (
