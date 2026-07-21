@@ -407,6 +407,32 @@
   margin: 0 0 10px;
 }
 
+/* ── THE OPTIONS DESK ─────────────────────────────────────────
+   Deliberately NOT a new chrome band — it reads as one of the
+   monologue's own segments (same rail, same label). The only
+   differentiators: the standing-position paragraph is set slightly
+   quieter with a hairline above it (yesterday's tape reads at full
+   brightness; the still-open position is context), and the closing
+   sentence carries a gold arrow — a typographic pull to the Options
+   Flow page, invisible to the read-aloud extractor. No gain/loss
+   color in the prose: direction lives in the verbs, so two paragraphs
+   never turn into a scoreboard. */
+.rundownWrap :global(.rd-flow-standing) {
+  color: rgba(255, 255, 255, 0.82);
+  padding-top: 10px;
+  margin-top: 2px;
+  border-top: 1px solid rgba(201, 168, 76, 0.16);
+}
+.rundownWrap :global(.rd-flow-standing)::after {
+  content: " \2192"; /* → */
+  color: #d4b45c;
+  font-weight: 600;
+}
+.rundownWrap :global(.rd-flow-quiet) {
+  color: rgba(255, 255, 255, 0.72);
+  font-style: italic;
+}
+
 /* ── Top 5 Picks ─────────────────────────────────────────────── */
 .rundownWrap :global(.rd-top-picks-grid) {
   display: flex;
