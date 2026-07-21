@@ -28,6 +28,7 @@ import { CHART_TYPE_OPTIONS, mergeChartSettings } from '../../../components/char
 import UIcon from '../../../components/ui/UIcon'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
+import { matchShortcut } from '../../../components/chart/keyboardShortcuts'
 
 const TFS = [
   ['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'],
@@ -37,8 +38,11 @@ const TFS = [
 // Per-cell chart style. '' = inherit the user's global chart_settings type.
 const CELL_CHART_TYPES = [['', 'Style'], ...CHART_TYPE_OPTIONS]
 
-// Letter or digit, no modifier combos. Period allowed for class-share tickers (BRK.B).
-const TICKER_KEY_RE = /^[A-Za-z0-9.]$/
+// Letters only, no modifier combos. Period allowed for class-share tickers
+// (BRK.B). Digits are deliberately EXCLUDED — they are timeframe shortcuts,
+// and no US ticker starts with a digit. Once the search box has focus it
+// accepts digits normally; this regex only decides what OPENS it.
+const TICKER_KEY_RE = /^[A-Za-z.]$/
 
 function GridChartCell({
   cell,               // {id, sym|null, tf} — controlled; sym null = empty slot
@@ -186,6 +190,21 @@ function GridChartCell({
       toggleFlag(sym)
       setFlagToast(willFlag ? 'flagged' : 'unflagged')
       return
+    }
+    // A bound chart shortcut beats ticker search — EXCEPT a bare letter with no
+    // modifiers, which always wins for search instead. Without the general rule,
+    // digits (timeframes) and Shift+letter (display toggles, e.g. Shift+H Heikin
+    // Ashi) would be swallowed by the symbol box below, which stopPropagation()s
+    // them. But letters are ticker characters, and 8 bare letters (a c f h r t v x)
+    // are ALSO bound to drawing tools — without the carve-out, typing TSLA, AAPL,
+    // F, HD, RIVN, CRM, V, or XOM into the chart couldn't open search at all. Those
+    // tool bindings are being revisited separately; until then, letters win. This
+    // only restores current (pre-shortcut) ticker-search behavior — drawing tools
+    // remain reachable from the on-screen toolbar exactly as before.
+    const shortcutCmd = matchShortcut(e)
+    if (shortcutCmd) {
+      const bareLetter = !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && /^[a-zA-Z]$/.test(e.key)
+      if (!bareLetter) return
     }
     if (e.ctrlKey || e.altKey || e.metaKey) return
     if (!TICKER_KEY_RE.test(e.key)) return
