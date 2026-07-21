@@ -154,3 +154,109 @@ phases carries zero personal attribution.
 Small, cheap, and zero-risk to the live product, yet it turns on the tap that every future
 "smart brain" capability needs — and it immediately shows what people actually ask during the
 test week. Phases 2–3 build directly on this schema with no rework.
+
+---
+
+## 9. Finalized design (post 11-specialist panel review, 2026-07-21)
+
+The panel verified the spec against the code and caught real bugs + one-way doors. This section is
+the authoritative build blueprint; it supersedes the drafts in §4 where they differ. Guiding rule
+kept from the synthesis: **capture only what is unrecoverable at write time now; do NOT add
+speculative Phase-2 processing columns (SQLite `ALTER ADD` is migration-free later); keep the
+freshness gate conservative (a false-evergreen poisons the future brain; a false-time_sensitive
+merely fails to compound).**
+
+### 9.1 Corrections the panel caught (must-fix)
+- `bool(salt)` is a wrong `grounded` signal — `salt` is overwritten before use and regime injects on
+  ~every query. Replace with an explicit **grounding meta dict**.
+- Freshness leaked: `_auto_recency` returns `"week"` for analyst/price-target asks; a live-grounded
+  "is X a buy here" fires no time-sensitive intent. Both must be `time_sensitive`.
+- The streaming log runs in an `async finally` on the **single shared event loop** (the 524 surface):
+  it MUST be offloaded (`run_in_executor` / `anyio.to_thread`), never a bare sync write.
+- Existing `/admin/stats` returns `top_users` keyed by raw `user_id` — drop that list.
+
+### 9.2 Grounding meta (router change, additive)
+`_uct_context` / `_grounded_system` return `(…, meta)` where
+`meta = {grounding_sources:list, grounding_intents:list, regime_label, recency, had_live_price,
+ctx_block, query_tickers, answer_tickers?}`. Each desk line tags its source as it is appended to
+`parts`. The log wrapper reads **strictly from meta** — it never re-runs the regexes.
+
+### 9.3 Schema — `ai_search_log` (final columns)
+Identity/time: `id` PK · `answer_id` TEXT UUID (unique, returned to client) · `ts` UTC ISO ·
+`day_et` · `session_bucket` (premarket/regular/power/afterhours/overnight/weekend) · `endpoint`
+(single|stream).
+Question: `query` · `query_norm` · `question_type` (rule-based taxonomy) · `first_person` (0/1).
+Answer: `answer` · `answer_kind` (ok/refused/data_limited/empty/error/incomplete) · `answer_hash`
+(sha256) · `answer_chars` · `mode` (effective) · `model` (concrete sonar-*) · `fallback_used` (0/1).
+Freshness gate: `recency` (day/week/none, raw `_auto_recency`) · `freshness` (evergreen|time_sensitive)
+· `classifier_version` INT.
+Grounding provenance: `grounded_sources` JSON · `grounding_intents` JSON · `regime_label` ·
+`had_live_price` (0/1) · `grounding_context` (≤2600 char injected block) · `cached` (0/1).
+Entities: `query_tickers` JSON · `answer_tickers` JSON (from the answer's forced `[Display]($SYM)`
+links) · `primary_ticker` · `primary_sector` · `primary_themes` JSON (point-in-time).
+Sources: `citations_json` JSON (URL list) · `citation_count` (derived) · `related_questions` JSON ·
+`domain_pack`.
+Perf/cost: `elapsed_ms` · `error` · `units`.
+Threading (anon): `conversation_id` (random, client-minted per widget session — NOT user id) ·
+`turn_index` · `has_history` (0/1).
+Privacy/curation: `user_bucket` (HMAC, see 9.6) · `pinned` (0/1) · `excluded` (0/1) · `capture_version` INT.
+Indexes: `day_et`, `ts`, `freshness`, `answer_id`, `primary_ticker`.
+
+Sibling table `ai_search_feedback(id, answer_id, kind, ts)` — kind ∈ save|share|copy|pin|exclude|helpful.
+
+### 9.4 Classifier (rule-based, free, `classifier_version`)
+- `freshness`: **time_sensitive** if `recency ∈ {day, week}` OR grounded on a live quote/patterns/
+  flow/movers; **evergreen** only on a positive evergreen signal (concept/definition/history/
+  company-profile) AND no live grounding; **default ambiguous → time_sensitive**.
+- `question_type`: why-move / valuation / compare / setup-technical / macro / catalyst-news /
+  concept-education / idea-screen / options-flow / portfolio-risk — reuse `_REASONING_RE`,
+  `_FAST_RE`, `_FUNDAMENTALS_RE`, `_WHY_MOVE_RE`, `_INTENT_SPECS`.
+- `first_person`: regex — "my position/shares/cost basis", "I bought/own/holding/sold", "should I",
+  + email/phone/account-number patterns.
+
+### 9.5 Wiring (both endpoints)
+- Mint `answer_id = uuid4` per answer; return it (single-shot dict + streaming `meta`/`final` events).
+- Single-shot `ai_search` (sync def, in the anyio threadpool): direct `ai_search_log.log(...)`.
+- Streaming `ai_search_stream`: hold one `captured_final` updated at BOTH the normal `final` event
+  AND the inline reasoning→fast fallback final; log **exactly once** in `finally` via
+  `run_in_executor(None, log, …)`. If cancelled before any final → `answer_kind='incomplete'`.
+- `AiSearchIn` gains `answer_id?`-none, `conversation_id?`, `turn_index?`, `history` (existing).
+
+### 9.6 Privacy (de-identified, not "anonymized")
+- No `user_id` stored. `user_bucket = HMAC(PUSH_SECRET, user_id + day_et)` — keyed (unbrute-forceable
+  vs the member table), day-rotating, redeploy-stable. The salt/secret is NEVER written to the log DB
+  (tested).
+- `first_person` flag surfaces personal content. **Phase-2 retrieval MUST gate on
+  `non-first_person AND non-time_sensitive AND cited AND non-excluded`** (documented; cross-member
+  reuse is an explicit future owner go/no-go).
+- **Retention:** nightly/self-heal prune of `time_sensitive` rows older than `AI_SEARCH_LOG_RETENTION_DAYS`
+  (default 60); evergreen + curated (`pinned`) rows kept. Request-driven self-heal (throttled) so no
+  scheduler/main.py change.
+- **Disclosure:** one plain line near the AI Search box / disclaimer — "questions are retained
+  de-identified to improve the research desk."
+
+### 9.7 Admin + signals
+- One panel `AiSearchInsightsPanel.jsx` on `/admin`, built as a `.healthSection` (Admin.module.css,
+  mirroring `TwitterAccountsPanel` — SWR, statsGrid, analyticsBar, activityList; NO TileCard, NO
+  ECharts, NO new stylesheet). Aggregate-first: KPI strip + freshness split as the hero (gold vs
+  info-blue, red reserved for error), Top Questions + Top Tickers side-by-side, collapsible recent
+  rows (freshness/mode badges, answer snippet with `[Display]($SYM)` stripped, NO identity), Today/7d/
+  30d selector, explicit loading/empty/flag-off/error states.
+- `GET /api/ai-search/admin/log?days=&limit=` (admin) → `insights()`. Fix `/admin/stats`: drop
+  `top_users`. Fold both into the one panel with labeled "Today · live" vs "All-time · window" lanes.
+- `POST /api/ai-search/signal {answer_id, kind}` (best-effort, swallow-all) → `ai_search_feedback`.
+  Wire the widget's existing **Save** and **ShareToFloor** to also emit a signal, and add admin
+  **pin/exclude** row buttons.
+
+### 9.8 Hardening + tests (no-migration promise)
+- Additive columns ONLY; `_ensure_init` checks `PRAGMA table_info` and auto-`ALTER ADD`s a
+  fewer-column DB; column-explicit named INSERTs (never positional); length caps.
+- Tests add: streaming logs **exactly once**; the fallback-final is the logged answer; **response
+  bytes identical with logging on vs off** (invariance); fewer-column DB auto-migrates on init; the
+  salt is stable across a simulated same-day redeploy and never persisted; classifier freshness/
+  question_type/first_person cases; `/admin/log` shape + admin-gating; `/signal` records.
+
+### 9.9 Explicitly dropped (per synthesis)
+Net-new member thumbs UI · LLM freshness classifier · Phase-2 processing-state columns
+(`embedded_at`, eligibility gate) · `asker_role` · per-answer consent banner/opt-out · ECharts/
+Recharts/new-CSS/TileCard for the panel · any retrieval/embedding/synthesis (Phases 2–3).
