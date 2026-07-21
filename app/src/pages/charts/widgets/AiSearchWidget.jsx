@@ -419,8 +419,8 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     try { abortRef.current?.abort() } catch { /* already settled */ }
   }, [])
 
-  // Follow-ups run directly — the input stays clear (conversation flow).
-  const askFollowUp = (q) => { run(q) }
+  // Follow-ups run directly; keep focus in the (bottom) ask box for the next one.
+  const askFollowUp = (q) => { run(q); inputRef.current?.focus() }
 
   const copyExchange = useCallback((entry) => {
     // Strip the [Label]($TICKER) link syntax and bold markers for a clean paste.
@@ -475,40 +475,6 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
 
   return (
     <div className={styles.root}>
-      <div className={styles.searchRow}>
-        <span className={styles.spark}><Spark state={loading ? 'thinking' : 'idle'} /></span>
-        <textarea
-          ref={inputRef}
-          className={styles.input}
-          placeholder="Ask anything about the markets…"
-          aria-label="Ask anything about the markets"
-          value={query}
-          rows={1}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={onKeyDown}
-        />
-        {query && !loading && (
-          <button className={styles.clearBtn} title="Clear" onClick={() => { setQuery(''); inputRef.current?.focus() }}>✕</button>
-        )}
-        {/* Dictate into the ask box (paid — Whisper; renders null for free users). */}
-        <VoiceInputButton
-          disabled={loading}
-          onTranscript={(t) => {
-            const add = String(t || '').trim()
-            if (!add) return
-            setQuery((q) => (q ? `${q} ${add}` : add))
-            inputRef.current?.focus()
-          }}
-        />
-        {loading ? (
-          <button className={styles.stopBtn} onClick={stop} title="Stop this search" aria-label="Stop search">
-            <span className={styles.stopSquare} aria-hidden="true" />Stop
-          </button>
-        ) : (
-          <button className={styles.askBtn} onClick={() => run()} disabled={!query.trim()}>Ask</button>
-        )}
-      </div>
-
       <div className={styles.body} ref={bodyRef}>
         {empty && (
           <div className={styles.empty}>
@@ -572,6 +538,42 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
 
         {thread.length > 0 && (
           <div className={styles.disclaimer}>AI-generated research — verify before trading.</div>
+        )}
+      </div>
+
+      {/* Ask bar pinned at the BOTTOM (chat layout): after reading an answer the
+          follow-up input is right here — no scrolling back up to continue. */}
+      <div className={styles.searchRow}>
+        <span className={styles.spark}><Spark state={loading ? 'thinking' : 'idle'} /></span>
+        <textarea
+          ref={inputRef}
+          className={styles.input}
+          placeholder={thread.length > 0 ? 'Ask a follow-up…' : 'Ask anything about the markets…'}
+          aria-label="Ask anything about the markets"
+          value={query}
+          rows={1}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onKeyDown}
+        />
+        {query && !loading && (
+          <button className={styles.clearBtn} title="Clear" onClick={() => { setQuery(''); inputRef.current?.focus() }}>✕</button>
+        )}
+        {/* Dictate into the ask box (paid — Whisper; renders null for free users). */}
+        <VoiceInputButton
+          disabled={loading}
+          onTranscript={(t) => {
+            const add = String(t || '').trim()
+            if (!add) return
+            setQuery((q) => (q ? `${q} ${add}` : add))
+            inputRef.current?.focus()
+          }}
+        />
+        {loading ? (
+          <button className={styles.stopBtn} onClick={stop} title="Stop this search" aria-label="Stop search">
+            <span className={styles.stopSquare} aria-hidden="true" />Stop
+          </button>
+        ) : (
+          <button className={styles.askBtn} onClick={() => run()} disabled={!query.trim()}>Ask</button>
         )}
       </div>
     </div>

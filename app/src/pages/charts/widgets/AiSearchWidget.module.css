@@ -13,13 +13,13 @@
   --loss: #c41f2d;
 }
 
-/* ── Search row (fixed at top) ── */
+/* ── Ask row (pinned at the bottom, chat-style) ── */
 .searchRow {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border, #1f2937);
+  border-top: 1px solid var(--border, #1f2937);
   flex-shrink: 0;
 }
 .spark { display: inline-flex; color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
