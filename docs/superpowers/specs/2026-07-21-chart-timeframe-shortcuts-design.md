@@ -162,8 +162,13 @@ propagation so it cannot also fire the theme widget's `Shift+F`.
   replay and help assertions unchanged.
 - **`ChartWidget` test**: a digit keydown does not call `openWith`; a letter
   keydown still does; a bound shortcut key does not call `openWith`.
-- **Playwright** (jsdom cannot express focus ownership): a two-widget workspace
-  where a timeframe keypress retimes only the focused widget.
+- **Manual smoke test in the real app** (jsdom cannot express focus ownership,
+  and does not run the real bundle): the full key map, a nine-press walk around
+  the ladder, ticker typing for `DELL`/`WMT`, and a two-widget workspace
+  confirming a keypress retimes only the focused chart and each chart keeps its
+  own cycle position. Automated browser coverage is not warranted here because
+  the ownership gate (`hotkeysActive`) is pre-existing code this work does not
+  touch; the new logic is entirely in the pure `resolveTfCycle` unit tests.
 
 ## Out of scope
 
