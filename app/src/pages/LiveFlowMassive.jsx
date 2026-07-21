@@ -3495,7 +3495,7 @@ export default function LiveFlowMassive() {
     .filter(a => {
       const tier = _tierOf(a);
       if (hideAlgo && tier === "algo") return false;  // global Algo hide
-      if (hideNoSide && (a._directionUnconfirmed || (a.alertName || "").toLowerCase().startsWith("uct size"))) return false;  // hide direction-unconfirmed "UCT Size"
+      if (hideNoSide && (a._directionUnconfirmed || (a.alertName || "").toLowerCase().includes("not clean"))) return false;  // hide direction-unconfirmed "UCT Size"
       if (!filters[tier]) return false;
       // 7/7 + 7/9: Stocks / ETFs partition filter. PREFER the authoritative
       // backend source (Massive ticker_types); fall back to KNOWN_ETFS_INDEXES
