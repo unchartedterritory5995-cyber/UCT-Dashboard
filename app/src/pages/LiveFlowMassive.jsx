@@ -851,7 +851,7 @@ function MarketReadCard({ stats }) {
 // This is the click-to-focus pattern used by other dashboards (Bloomberg,
 // Twitter, etc.) — clicking always either isolates or restores, never the
 // confusing in-between multi-select state.
-function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChange, search, onSearchChange, viewMode, onViewModeChange }) {
+function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChange, search, onSearchChange, viewMode, onViewModeChange, hideNoSide, onHideNoSideChange }) {
   const allOn = TIER_ORDER.every(t => filters[t]);
   const onlyOnTier = (() => {
     const ons = TIER_ORDER.filter(t => filters[t]);
@@ -3838,7 +3838,8 @@ export default function LiveFlowMassive() {
         <FilterChips filters={filters} onChange={setFilters} counts={tierCounts}
                      stockEtfFilter={stockEtfFilter} onStockEtfChange={setStockEtfFilter}
                      search={search} onSearchChange={setSearch}
-                     viewMode={viewMode} onViewModeChange={setViewMode} />
+                     viewMode={viewMode} onViewModeChange={setViewMode}
+                     hideNoSide={hideNoSide} onHideNoSideChange={setHideNoSide} />
 
         {viewMode === "contract" && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", fontSize: 11, color: P.mt }}>
