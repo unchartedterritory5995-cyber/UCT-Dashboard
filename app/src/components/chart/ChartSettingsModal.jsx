@@ -242,6 +242,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
     // Per-item header/legend colors (Header tab → Show). Day change is a pair.
     hdrDayUp: ['header', 'colors', 'dayChangeUp'],
     hdrDayDown: ['header', 'colors', 'dayChangeDown'],
+    hdrTitle: ['header', 'colors', 'title'],
     hdrMarketCap: ['header', 'colors', 'marketCap'],
     hdrNextEarnings: ['header', 'colors', 'nextEarnings'],
     hdrUctRating: ['header', 'colors', 'uctRating'],
@@ -306,6 +307,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
       // the swatch reads as the current on-screen color before the user changes it.
       case 'hdrDayUp': return hdrColors.dayChangeUp || '#1ae51a'
       case 'hdrDayDown': return hdrColors.dayChangeDown || '#ff3b47'
+      case 'hdrTitle': return hdrColors.title || '#c9a84c'
       case 'hdrMarketCap': return hdrColors.marketCap || '#c9a84c'
       case 'hdrNextEarnings': return hdrColors.nextEarnings || '#6ba3be'
       case 'hdrUctRating': return hdrColors.uctRating || '#1ae51a'  // price-candle up-green
@@ -587,6 +589,12 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                   <span className={styles.modeName}>{label}</span>
                 </button>
               ))}
+            </div>
+            {/* Title color — same swatch/ColorPanel mechanism as the other header
+                items, so it supports opacity. Unset keeps the built-in gold. */}
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>Title color</span>
+              <div className={styles.hdrRowCtl}>{colorSwatch('hdrTitle', 'Title color')}</div>
             </div>
           </section>
 

@@ -40,7 +40,7 @@ const POPULAR_RESULTS = [
   { ticker: 'SOXX',  name: 'iShares Semiconductor ETF' },
 ]
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -213,7 +213,10 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         {displayLabel ? (
           // fullLabel: lift the 240px cap so the whole name has real layout width
           // (otherwise it overflows the capped box and paints over the day gain).
-          <span className={styles.labelWrap} style={fullLabel ? { maxWidth: 'none' } : undefined}>
+          <span
+            className={styles.labelWrap}
+            style={{ ...(fullLabel ? { maxWidth: 'none' } : null), ...(labelColor ? { color: labelColor } : null) }}
+          >
             {logoSym ? (
               <span className={styles.labelLogo}><CompanyLogo sym={logoSym} name={displayLabel} size={16} round /></span>
             ) : brandLogo ? (

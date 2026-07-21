@@ -368,6 +368,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             logoSym={themeIdx.isIndex ? null : sym}
             brandLogo={themeIdx.isIndex}
             displayLabel={headerLabel}
+            labelColor={hdrColors.title || null}
           />
         </div>
         {hdr.showChange && (themeIdx.isIndex ? (
