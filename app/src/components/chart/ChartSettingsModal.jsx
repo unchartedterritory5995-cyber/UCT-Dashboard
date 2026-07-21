@@ -648,6 +648,28 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             </div>
           </section>
 
+          {/* Bar thickness — OHLC/HLC bars only. Lightweight Charts exposes exactly one
+              boolean (thinBars); CandlestickSeries has no width option, so this section
+              is hidden for candles/hollow rather than shown as a control that does nothing. */}
+          {(curType === 'bars' || curType === 'hlc') && (
+            <section className={styles.section}>
+              <div className={styles.sectionLabel}>Bar thickness</div>
+              <div className={styles.modeRow}>
+                {[{ thin: true, label: 'Thin' }, { thin: false, label: 'Thick' }].map(({ thin, label }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`${styles.modeCard} ${(candles.thinBars !== false) === thin ? styles.modeCardActive : ''}`}
+                    onClick={() => setSetting({ candles: { ...candles, thinBars: thin } })}
+                    aria-pressed={(candles.thinBars !== false) === thin}
+                  >
+                    <span className={styles.modeName}>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           {showColorMode && (
             <section className={styles.section}>
               <div className={styles.sectionLabel}>Color based on</div>

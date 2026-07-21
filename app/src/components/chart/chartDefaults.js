@@ -15,6 +15,12 @@ export const CHART_DEFAULTS = {
     upWick: '#1ae51a',
     downWick: '#c41f2d',
     oneColor: '#1ae51a',
+    // Bar thickness for the OHLC/HLC bar types ONLY. Lightweight Charts exposes a
+    // single boolean here (`thinBars`) — true = 1px lines (the long-standing look,
+    // and the library default), false = lines as wide as the bar slot. There is no
+    // in-between, and CandlestickSeries has no width option at all, so candles and
+    // hollow candles cannot be thickened. See the Type section of ChartSettingsModal.
+    thinBars: true,
   },
 
   // How candles/bars are colored. 'netchange' = close-vs-previous-close (default,

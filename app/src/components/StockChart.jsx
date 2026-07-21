@@ -4386,6 +4386,7 @@ export default function StockChart({
         case 'bars':
           priceSeries = chart.addSeries(BarSeries, {
             upColor: cs.candles.upColor, downColor: cs.candles.downColor,
+            thinBars: cs.candles.thinBars !== false,
           })
           break
         case 'hlc':
@@ -4393,6 +4394,7 @@ export default function StockChart({
           priceSeries = chart.addSeries(BarSeries, {
             upColor: cs.candles.upColor, downColor: cs.candles.downColor,
             openVisible: false,
+            thinBars: cs.candles.thinBars !== false,
           })
           break
         case 'line': {
@@ -4602,7 +4604,12 @@ export default function StockChart({
           wickUpColor: NC.wickUp, wickDownColor: NC.wickDown,
         })
       } else if (_ct === 'bars' || _ct === 'hlc') {
-        candleSeriesRef.current.applyOptions({ upColor: NC.up, downColor: NC.down, openVisible: _ct !== 'hlc' })
+        // thinBars rides this same live-apply path (it isn't in the price-style key),
+        // so toggling thickness repaints without destroying/recreating the series.
+        candleSeriesRef.current.applyOptions({
+          upColor: NC.up, downColor: NC.down, openVisible: _ct !== 'hlc',
+          thinBars: cs.candles.thinBars !== false,
+        })
       } else if (_ct === 'line') {
         candleSeriesRef.current.applyOptions({ color: NC.mode === 'onecolor' ? NC.one : NC.up })
       } else if (_ct === 'area') {
