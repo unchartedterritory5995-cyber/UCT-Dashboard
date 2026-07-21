@@ -135,6 +135,98 @@ async def test_poll_account_injects_fill_and_builds_trade(env, monkeypatch):
     assert row and row["symbol"] == "NVDA"
     assert row["entry_price"] == 500.0 and row["exit_price"] == 510.0
 
+# ── FIX-E: intraday exit updates Open Positions immediately ───────────────────
+
+def _fixe_seed_real_long(ba, shares):
+    """Simulate a prior full sync: opening BUY in the ledger + a matching
+    ledger-complete (entry_estimated=0) j2_positions row."""
+    from api.services.journal_two.broker import balances
+    day = NOW.isoformat()
+    activities_store.store_activities("u1", ba["id"], [
+        {"id": "real-buy", "type": "BUY", "units": shares, "price": 500,
+         "symbol": {"symbol": "NVDA"}, "trade_date": day}])
+    balances.reconcile_positions("u1", ba,
+        [{"symbol": "NVDA", "units": shares, "average_purchase_price": 500, "price": 505}],
+        [{"symbol": "NVDA", "side": "Long", "shares": shares,
+          "entryPrice": 500.0, "entryDate": day}])
+
+
+def _fixe_open_rows():
+    conn = auth_db.get_connection()
+    rows = conn.execute(
+        "SELECT symbol, shares, entry_estimated FROM j2_positions "
+        "WHERE user_id='u1' AND closed_at IS NULL").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@pytest.mark.asyncio
+async def test_fixe_full_intraday_exit_removes_open_position(env):
+    ba = env["ba"]
+    _fixe_seed_real_long(ba, 100)
+    assert _fixe_open_rows()[0]["entry_estimated"] == 0
+    snap.configure(_Group(account_information=_Group(
+        get_user_account_recent_orders=lambda **kw: _Resp({"orders": [_order(
+            brokerage_order_id="ord-sell", action="SELL", execution_price=510.0,
+            time_executed=(NOW + timedelta(minutes=30)).isoformat())]}))))
+    out = await recent_orders.poll_account("u1", ba)
+    assert out["new"] == 1
+    assert _fixe_open_rows() == []  # flattened → gone from Open Positions now
+
+
+@pytest.mark.asyncio
+async def test_fixe_partial_intraday_exit_decrements_shares(env):
+    ba = env["ba"]
+    _fixe_seed_real_long(ba, 100)
+    snap.configure(_Group(account_information=_Group(
+        get_user_account_recent_orders=lambda **kw: _Resp({"orders": [_order(
+            brokerage_order_id="ord-trim", action="SELL", filled_quantity=40,
+            execution_price=510.0,
+            time_executed=(NOW + timedelta(minutes=30)).isoformat())]}))))
+    out = await recent_orders.poll_account("u1", ba)
+    assert out["new"] == 1
+    rows = _fixe_open_rows()
+    assert len(rows) == 1 and abs(rows[0]["shares"] - 60) < 1e-6
+
+
+@pytest.mark.asyncio
+async def test_fixe_estimated_carried_in_position_never_dropped(env):
+    ba = env["ba"]
+    from api.services.journal_two.broker import balances
+    # Carried-in: broker holding with NO activity history → entry_estimated=1.
+    balances.reconcile_positions("u1", ba,
+        [{"symbol": "NVDA", "units": 100, "average_purchase_price": 500, "price": 505}], [])
+    assert _fixe_open_rows()[0]["entry_estimated"] == 1
+    # Selling it intraday reconstructs a phantom short (no prior buy in ledger);
+    # the entry_estimated gate must protect the row from a false drop.
+    snap.configure(_Group(account_information=_Group(
+        get_user_account_recent_orders=lambda **kw: _Resp({"orders": [_order(
+            brokerage_order_id="ord-sell", action="SELL", execution_price=510.0,
+            time_executed=(NOW + timedelta(minutes=30)).isoformat())]}))))
+    await recent_orders.poll_account("u1", ba)
+    rows = _fixe_open_rows()
+    assert len(rows) == 1 and rows[0]["shares"] == 100  # untouched
+
+
+@pytest.mark.asyncio
+async def test_fixe_fifo_error_symbol_is_never_closed(env):
+    """A symbol whose FIFO DROPPED a lot this rebuild (e.g. a transient
+    transfer-basis miss on a price-less ACATS/JRNLSEC transfer-in) has an
+    untrustworthy share count — it must NOT be trimmed/closed even though it is
+    absent from the FIFO open set. Guards the false-close / user-data-loss vector
+    found in adversarial review."""
+    ba = env["ba"]
+    _fixe_seed_real_long(ba, 100)  # ledger-complete (entry_estimated=0) NVDA long
+    from api.services.journal_two.broker import balances
+    # FIFO produced NO NVDA position this rebuild BUT recorded an error naming it
+    # (the dropped transfer-in). Without the gate this would DELETE the row.
+    res = balances.apply_intraday_fifo_to_open_positions(
+        "u1", ba, [],
+        fifo_errors=[{"row": 1, "symbol": "NVDA", "message": "transfer-in no basis — skipped"}])
+    assert res == {"trimmed": 0, "closed": 0}
+    rows = _fixe_open_rows()
+    assert len(rows) == 1 and rows[0]["shares"] == 100  # preserved, not false-closed
+
 
 @pytest.mark.asyncio
 async def test_repeat_poll_is_idempotent(env):

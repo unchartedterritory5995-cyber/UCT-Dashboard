@@ -105,10 +105,10 @@ def _reconstruct_long_only(fills: list[Fill]) -> dict:
 
     for f in sorted_fills:
         if f.shares <= 0:
-            errors.append({"row": f.row, "message": f"shares must be > 0 (got {f.shares})"})
+            errors.append({"row": f.row, "symbol": f.symbol, "message": f"shares must be > 0 (got {f.shares})"})
             continue
         if f.price <= 0:
-            errors.append({"row": f.row, "message": f"price must be > 0 (got {f.price})"})
+            errors.append({"row": f.row, "symbol": f.symbol, "message": f"price must be > 0 (got {f.price})"})
             continue
 
         q = queues.setdefault(f.symbol, deque())
@@ -173,12 +173,12 @@ def _apply_adjustment(a: dict, lots: dict[str, deque[Lot]],
     if a["kind"] == "split":
         pos = sum(l.shares for l in q)
         if cur is None or pos <= _EPS:
-            errors.append({"row": a["row"], "message": f"{sym} split with no open position — skipped"})
+            errors.append({"row": a["row"], "symbol": sym, "message": f"{sym} split with no open position — skipped"})
             return
         rel = delta if cur == "long" else -delta
         new_pos = pos + rel
         if new_pos <= _EPS:
-            errors.append({"row": a["row"], "message": f"{sym} split would zero or flip the position — skipped"})
+            errors.append({"row": a["row"], "symbol": sym, "message": f"{sym} split would zero or flip the position — skipped"})
             return
         ratio = new_pos / pos
         for l in q:  # total lot cost is preserved: (shares×ratio) × (price÷ratio)
@@ -190,11 +190,11 @@ def _apply_adjustment(a: dict, lots: dict[str, deque[Lot]],
     # transfer / journal
     if delta > 0:
         if cur == "short":
-            errors.append({"row": a["row"], "message": f"{sym} share transfer-in against a short position — skipped"})
+            errors.append({"row": a["row"], "symbol": sym, "message": f"{sym} share transfer-in against a short position — skipped"})
             return
         price = a.get("price")
         if price is None or price <= 0:
-            errors.append({"row": a["row"], "message": f"{sym} share transfer-in with no basis price — skipped"})
+            errors.append({"row": a["row"], "symbol": sym, "message": f"{sym} share transfer-in with no basis price — skipped"})
             return
         q.append(Lot(shares=delta, price=price, date=a["date"], fee_per_share=0.0))
         side[sym] = "long"
@@ -202,7 +202,7 @@ def _apply_adjustment(a: dict, lots: dict[str, deque[Lot]],
 
     # delta < 0 — shares leave the account at basis; no P&L is realized.
     if cur != "long" or not q:
-        errors.append({"row": a["row"], "message": f"{sym} share transfer-out with no held long shares — skipped"})
+        errors.append({"row": a["row"], "symbol": sym, "message": f"{sym} share transfer-out with no held long shares — skipped"})
         return
     remaining = -delta
     while remaining > _EPS and q:
@@ -215,7 +215,7 @@ def _apply_adjustment(a: dict, lots: dict[str, deque[Lot]],
     if not q:
         side[sym] = None
     if remaining > _EPS:
-        errors.append({"row": a["row"], "message": f"{sym} share transfer-out exceeded held shares by {remaining:g}"})
+        errors.append({"row": a["row"], "symbol": sym, "message": f"{sym} share transfer-out exceeded held shares by {remaining:g}"})
 
 
 def _reconstruct_with_shorts(fills: list[Fill], adjustments: list[dict] | None = None) -> dict:
@@ -247,10 +247,10 @@ def _reconstruct_with_shorts(fills: list[Fill], adjustments: list[dict] | None =
             continue
         f = item
         if f.shares <= 0:
-            errors.append({"row": f.row, "message": f"shares must be > 0 (got {f.shares})"})
+            errors.append({"row": f.row, "symbol": f.symbol, "message": f"shares must be > 0 (got {f.shares})"})
             continue
         if f.price <= 0:
-            errors.append({"row": f.row, "message": f"price must be > 0 (got {f.price})"})
+            errors.append({"row": f.row, "symbol": f.symbol, "message": f"price must be > 0 (got {f.price})"})
             continue
 
         sym = f.symbol

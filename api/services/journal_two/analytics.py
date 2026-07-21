@@ -68,6 +68,22 @@ def _valid_date_bound(d: str | None) -> str | None:
         return None
 
 
+def _net_pnl(r) -> float:
+    """NET realized P&L for a trade row: gross ``pnl_dollar`` minus ``fees``.
+
+    ``j2_trades.pnl_dollar`` is stored GROSS (pre-fees) on EVERY write path
+    (manual close, CSV import, broker FIFO reconstruction — see
+    ``trades.bulk_insert_trades``); the trade's fees live in a separate ``fees``
+    column. Netting here keeps the equity curve, daily/weekly/monthly P&L, and
+    the broker curve baseline in agreement with the per-trade ``pnlDollarNet``
+    the trade list already shows. A NULL-fees row nets to its gross value.
+    """
+    gross = float(r["pnl_dollar"] or 0)
+    keys = r.keys()
+    fees = float(r["fees"]) if "fees" in keys and r["fees"] is not None else 0.0
+    return gross - fees
+
+
 def get_analytics(
     user_id: str,
     *,
@@ -205,7 +221,7 @@ def _broker_equity_baseline(
         return None
     if not row or row["balance_source"] != "broker" or row["broker_total_equity"] is None:
         return None
-    realized = sum(float(r["pnl_dollar"] or 0) for r in rows)
+    realized = sum(_net_pnl(r) for r in rows)
     return round(float(row["broker_total_equity"]) - realized, 2)
 
 
@@ -258,7 +274,7 @@ def _equity_section(rows: list[sqlite3.Row], starting_balance: float) -> dict[st
     by_day: dict[str, float] = defaultdict(float)
     for r in rows:
         d = _row_et_day(r, "exit_date")
-        by_day[d] += float(r["pnl_dollar"] or 0)
+        by_day[d] += _net_pnl(r)
 
     sorted_days = sorted(by_day.keys())
 
@@ -317,7 +333,7 @@ def _performance_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
     DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     for r in rows:
-        pnl = float(r["pnl_dollar"] or 0)
+        pnl = _net_pnl(r)
         d_str = _row_et_day(r, "exit_date")
         d = Date.fromisoformat(d_str)
 
@@ -454,6 +470,13 @@ def _distribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
 # ── Section 4: Attribution ────────────────────────────────────────────────────
 
 
+# Sample-size confidence gate — mirrors the "Confidence threshold = 10 everywhere"
+# constraint that setup_stats/playbook_stats shade on. A bucket below this is
+# flagged `lowConfidence` so a 1-trade "100% win" is not read as confidently as
+# an 80-trade one. Additive only: existing winRate/pnl numbers are untouched.
+_ATTRIBUTION_MIN_SAMPLE = 10
+
+
 def _attribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
     """P&L by setup/symbol + win-rate-by-setup + avg-R-by-setup + rolling win rate."""
     by_setup_data: dict[str, dict[str, Any]] = defaultdict(
@@ -495,6 +518,8 @@ def _attribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
             "winRate": wr,
             "avgR": round(avg_r, 3) if avg_r is not None else None,
             "tradeCount": d["count"],
+            "sampleSize": d["count"],
+            "lowConfidence": d["count"] < _ATTRIBUTION_MIN_SAMPLE,
         })
     by_setup.sort(key=lambda x: x["totalPnl"], reverse=True)
 
@@ -508,6 +533,8 @@ def _attribution_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
             "winRate": wr,
             "avgPnl": round(d["pnl"] / d["count"], 2) if d["count"] else None,
             "tradeCount": d["count"],
+            "sampleSize": d["count"],
+            "lowConfidence": d["count"] < _ATTRIBUTION_MIN_SAMPLE,
         })
     by_symbol.sort(key=lambda x: x["totalPnl"], reverse=True)
 
@@ -790,8 +817,11 @@ def _risk_section(rows: list[sqlite3.Row]) -> dict[str, Any]:
     r_hist, expectancy_r = _r_histogram(rs)
 
     # Drawdown over the cumulative net-P&L equity curve (exit-date order, baseline 0).
+    # Net of fees so the Risk-tab drawdown ("money actually kept") agrees with the
+    # Equity-tab curve; attribution/distribution/edge stay gross by design (pre-fee
+    # edge analysis).
     points = [
-        (_row_et_day(r, "exit_date"), float(r["pnl_dollar"] or 0)) for r in ordered
+        (_row_et_day(r, "exit_date"), _net_pnl(r)) for r in ordered
     ]
     drawdown = _drawdown_from_series(points)
 

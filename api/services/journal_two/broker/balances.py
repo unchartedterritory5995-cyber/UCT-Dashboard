@@ -429,3 +429,120 @@ def reconcile_positions(
         if owned:
             conn.close()
     return {"upserted": upserted, "closed": closed, "discrepancies": discrepancies}
+
+
+def apply_intraday_fifo_to_open_positions(
+    user_id: str,
+    broker_account: dict,
+    fifo_open_positions: list[dict],
+    fifo_errors: list[dict] | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """OPTIMISTIC Open-Positions update with NO broker holdings call.
+
+    The recent-orders fast path injects a new executed fill and rebuilds
+    j2_trades from the LOCAL ledger, but never refreshes j2_positions — so a
+    just-flattened position lingers in Open Positions with a stale share count
+    until the next full sync. This bridges that gap for the SAFE subset of rows,
+    staying inside SnapTrade's polling cap (no holdings/positions API call).
+
+    SAFETY — this only ever SHRINKS or CLOSES, and only rows whose basis is real
+    and ledger-complete:
+
+      • Gate on ``entry_estimated = 0``. That flag is set (in reconcile_positions)
+        only when FIFO shares matched the broker's share count EXACTLY at the last
+        full reconcile — i.e. the local ledger fully explains the holding. Every
+        intraday fill since is captured by the recent-orders poll (which returns
+        ALL executed orders in its window and dedups), so the post-fill FIFO share
+        count for such a symbol is trustworthy. Carried-in / diverged rows
+        (``entry_estimated = 1``) have missing opening lots — their FIFO count is
+        meaningless (a sell of a carried-in long even reconstructs as a phantom
+        short), so they are NEVER touched here; the next full holdings-as-truth
+        sync owns them.
+      • The recent-orders feed contains only EXECUTED orders, never phantom sells,
+        so FIFO can never show FEWER shares than the broker actually holds for a
+        ledger-complete symbol. Hence a shrink/close here can never drop or
+        under-count a position that still has open shares.
+
+    Direction is strictly one-way:
+      • FIFO shares  < row shares            → UPDATE shares down (partial trim/exit)
+      • (symbol, side) absent from FIFO      → DELETE the row (full exit; the
+        closing round-trip is already written to j2_trades by reconstruct_account)
+      • FIFO shares >= row shares            → no-op (an add — the next full sync
+        refreshes entry/basis; the fast path never grows a position or rewrites
+        the average entry)
+
+    Returns {trimmed, closed}.
+    """
+    j2_account_id = broker_account["j2AccountId"]
+    broker_account_id = broker_account["id"]
+    # Post-fill FIFO leftovers keyed by (normalized symbol, side) — same
+    # normalize_symbol + "Long"/"Short" space as the bkpos: external_id.
+    fifo_shares: dict[tuple[str, str], float] = {
+        (p["symbol"], p["side"]): p["shares"]
+        for p in fifo_open_positions
+        if p.get("symbol") and p.get("side")
+    }
+    prefix = f"bkpos:{broker_account_id}:"
+    # Symbols whose FIFO reconstruction DROPPED a lot this rebuild (e.g. a
+    # transient transfer-basis miss on a price-less ACATS/JRNLSEC transfer-in)
+    # have an untrustworthy share count — the broker may still hold the shares.
+    # NEVER trim/close such a symbol here (that would false-close a still-held
+    # position and lose the user's stop/setup/notes); the next full
+    # holdings-as-truth sync owns it. Normalized to match the bkpos: symbol.
+    error_syms = {
+        normalize_symbol(e["symbol"])
+        for e in (fifo_errors or [])
+        if isinstance(e, dict) and e.get("symbol")
+    }
+    error_syms.discard(None)
+
+    owned = conn is None
+    conn = conn or get_connection()
+    trimmed = 0
+    closed = 0
+    try:
+        conn.execute("BEGIN")
+        rows = conn.execute(
+            "SELECT id, external_id, shares FROM j2_positions "
+            "WHERE user_id = ? AND account_id = ? AND source = 'broker' "
+            "AND closed_at IS NULL AND entry_estimated = 0 "
+            "AND external_id LIKE 'bkpos:%'",
+            (user_id, j2_account_id),
+        ).fetchall()
+        now = _now_iso()
+        for row in rows:
+            ext = row["external_id"] or ""
+            if not ext.startswith(prefix):
+                continue  # a different broker account's row — never touch it
+            # external_id == bkpos:{broker_account_id}:{symbol}:{side}; the
+            # symbol never contains ':' (equity ticker, class shares → hyphen).
+            symbol, _, side = ext[len(prefix):].rpartition(":")
+            if not symbol or side not in ("Long", "Short"):
+                continue
+            if symbol in error_syms:
+                continue  # untrustworthy FIFO count this rebuild — leave for the full sync
+            row_shares = row["shares"] if row["shares"] is not None else 0.0
+            key = (symbol, side)
+            if key in fifo_shares:
+                fs = fifo_shares[key]
+                if fs < row_shares - 1e-6:
+                    conn.execute(
+                        "UPDATE j2_positions SET shares = ?, updated_at = ? "
+                        "WHERE id = ?",
+                        (round(fs * 10000) / 10000, now, row["id"]),
+                    )
+                    trimmed += 1
+                # fs >= row_shares → add/unchanged: leave for the full sync.
+            else:
+                # Position went flat in the ledger-complete FIFO → close it now.
+                conn.execute("DELETE FROM j2_positions WHERE id = ?", (row["id"],))
+                closed += 1
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+    return {"trimmed": trimmed, "closed": closed}

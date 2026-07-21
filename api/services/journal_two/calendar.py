@@ -189,7 +189,11 @@ def _aggregate_trades(
     for r in rows:
         d = _row_et_day(r, "exit_date")
         b = bucket.setdefault(d, _empty_bucket(d))
-        b["pnlDollar"] += float(r["pnl_dollar"] or 0)
+        # NET of fees: pnl_dollar is stored GROSS (pre-fees); the calendar day
+        # cell must show money actually kept (matches the trade list's net).
+        _keys = r.keys()
+        _fees = float(r["fees"]) if "fees" in _keys and r["fees"] is not None else 0.0
+        b["pnlDollar"] += float(r["pnl_dollar"] or 0) - _fees
         if r["r_multiple"] is not None:
             b["rSum"] += float(r["r_multiple"])
         b["tradeCount"] += 1
@@ -208,6 +212,13 @@ def _aggregate_trades(
 
     total_pnl = sum(b["pnlDollar"] for b in days)
     total_r = sum(b["rSum"] for b in days)
+    # Equity-side fees for this window. pnl_dollar is stored GROSS, so gross =
+    # net + fees for the equity portion (folded-in option strategies already
+    # embed their fees in a net pnl_dollar, hence equity rows only here).
+    total_fees = sum(
+        float(r["fees"]) if "fees" in r.keys() and r["fees"] is not None else 0.0
+        for r in rows
+    )
     trade_count = sum(b["tradeCount"] for b in days)
     winners = sum(b["winners"] for b in days)
     losers = sum(b["losers"] for b in days)
@@ -216,8 +227,8 @@ def _aggregate_trades(
     )
     totals = {
         "netPnlDollar": total_pnl,
-        "grossPnlDollar": total_pnl,  # fees field not yet on trades; future-proofed
-        "fees": 0.0,
+        "grossPnlDollar": round(total_pnl + total_fees, 2),
+        "fees": round(total_fees, 2),
         "tradeCount": trade_count,
         "winners": winners,
         "losers": losers,

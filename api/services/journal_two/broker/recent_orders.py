@@ -184,10 +184,19 @@ def _apply_orders(user_id: str, ba: dict, orders: list[dict]) -> dict[str, Any]:
         from api.services.journal_two import accounts as accounts_service
         from api.services.journal_two.broker import reconstruct
         from api.services.journal_two.broker import historical_equity
+        from api.services.journal_two.broker import balances
         all_acts = activities_store.get_activities(user_id, ba["id"])
         settings = accounts_service.get_account_settings(user_id, ba["j2AccountId"])
-        reconstruct.reconstruct_account(
+        recon = reconstruct.reconstruct_account(
             user_id, ba["id"], ba["j2AccountId"], all_acts, settings)
+        # Optimistic Open-Positions update — NO broker holdings call (stays
+        # inside the polling cap). Shrink/close only the rows whose real FIFO
+        # basis now shows fewer/zero shares, so an intraday exit leaves Open
+        # Positions immediately instead of lingering with a stale share count
+        # until the next full sync.
+        balances.apply_intraday_fifo_to_open_positions(
+            user_id, ba, recon.get("openPositions") or [],
+            fifo_errors=recon.get("fifoErrors") or [])
         historical_equity.invalidate_cache(user_id)
     except Exception:  # noqa: BLE001 — provisional rows are already stored;
         logger.exception("local reconstruction after intraday fill failed")

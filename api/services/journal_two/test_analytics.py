@@ -126,6 +126,22 @@ def test_equity_curve_running_balance_correct(db_conn):
     assert curve[2]["equity"] == 100_250
 
 
+def test_equity_and_performance_net_of_fees(db_conn):
+    """pnl_dollar is stored GROSS; the equity curve + daily P&L must net fees so
+    they agree with the trade list's pnlDollarNet (FIX-A)."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_account(db_conn, "u1", starting_balance=100_000)
+    tid = _add_trade(db_conn, "u1", pnl=100)
+    db_conn.execute("UPDATE j2_trades SET fees = 10 WHERE id = ?", (tid,))
+    db_conn.commit()
+
+    got = get_analytics("u1", conn=db_conn)
+    # gross +100, fees 10 -> net +90
+    assert got["equity"]["curve"][-1]["equity"] == 100_090
+    assert got["performance"]["byDay"] == [{"date": "2026-04-19", "pnl": 90.0}]
+
+
 def test_equity_drawdown_kpis(db_conn):
     """Trades: +100, -200, +50 → peak balance 100,100; max DD = -150."""
     from api.services.journal_two.analytics import get_analytics
@@ -279,6 +295,37 @@ def test_pnl_by_symbol(db_conn):
     assert syms["NVDA"]["totalPnl"] == 150
     assert syms["NVDA"]["tradeCount"] == 2
     assert syms["AMD"]["totalPnl"] == 140
+
+
+def test_attribution_low_confidence_flag(db_conn):
+    """bySetup/bySymbol carry additive sampleSize + lowConfidence (n<10 gate);
+    existing winRate/tradeCount numbers stay exactly as before."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1")
+
+    # ONE-trade setup: a 100% win rate that MUST be flagged low-confidence.
+    _add_trade(db_conn, "u1", account_id=aid, setup="VCP", symbol="AAA", pnl=100)
+    # A 12-trade setup: above the n=10 threshold -> confident.
+    for i in range(12):
+        _add_trade(db_conn, "u1", account_id=aid, setup="EP", symbol="BBB",
+                   pnl=10, exit_date_iso=f"2026-04-{i + 1:02d}T18:00:00Z")
+
+    got = get_analytics("u1", account_id=aid, conn=db_conn)
+    setups = {s["setup"]: s for s in got["attribution"]["bySetup"]}
+    syms = {s["symbol"]: s for s in got["attribution"]["bySymbol"]}
+
+    # Numbers unchanged
+    assert setups["VCP"]["winRate"] == 1.0
+    assert setups["VCP"]["tradeCount"] == 1
+    assert setups["EP"]["tradeCount"] == 12
+    # New additive fields
+    assert setups["VCP"]["sampleSize"] == 1
+    assert setups["VCP"]["lowConfidence"] is True
+    assert setups["EP"]["sampleSize"] == 12
+    assert setups["EP"]["lowConfidence"] is False
+    assert syms["AAA"]["lowConfidence"] is True
+    assert syms["BBB"]["lowConfidence"] is False
 
 
 def test_rolling_win_rate_window(db_conn):
