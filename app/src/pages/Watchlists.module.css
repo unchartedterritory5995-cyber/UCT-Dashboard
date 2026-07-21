@@ -138,7 +138,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--text-bright);
+  color: var(--widget-text-strong, var(--wl-text-strong, var(--text-bright)));
   text-transform: none;   /* labels render as provided: Symbol / Price / Volume / % Change */
   white-space: nowrap;
   overflow: hidden;
@@ -150,10 +150,10 @@
    gridline (left of Symbol) would vanish. Give it the same height as the label cells. */
 .gridHead .hFlag { min-height: 15px; }
 .gridHead .hSym:hover,
-.gridHead .hCol:hover { color: var(--text-bright); }
+.gridHead .hCol:hover { color: var(--widget-text-strong, var(--wl-text-strong, var(--text-bright))); }
 /* Active sort column — faint gold. */
 .gridHead .hSortActive,
-.gridHead .hSortActive:hover { color: var(--ut-gold, #c9a84c); }
+.gridHead .hSortActive:hover { color: var(--widget-accent, var(--wl-accent, var(--ut-gold, #c9a84c))); }
 
 /* Independent gridline dividers overlaid on the header, centered on each column
    boundary. Dragging one only resizes — it's not part of a sortable cell. */
@@ -289,7 +289,9 @@
 }
 
 .listRow:hover {
-  background: var(--bg-hover);
+  /* A step AWAY from the canvas, so a white list gets a faint grey instead of the
+     dark-theme --bg-hover slab. */
+  background: var(--widget-row-hover, var(--wl-row-hover, var(--bg-hover)));
 }
 
 .listRowSelected {
@@ -534,8 +536,9 @@
 /* ── Tab bar ── */
 .tabBar {
   display: flex;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-elevated);
+  /* Follows the canvas like the other watchlist chrome (see .listHeader). */
+  border-bottom: 1px solid var(--widget-divider, var(--wl-divider, var(--border)));
+  background: var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated)));
   flex-shrink: 0;
 }
 
@@ -548,17 +551,18 @@
   padding: 0 10px;
   min-height: 34px;   /* shared first-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-elevated);
+  /* Follows the canvas like the other watchlist chrome (see .listHeader). */
+  border-bottom: 1px solid var(--widget-divider, var(--wl-divider, var(--border)));
+  background: var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated)));
   flex-shrink: 0;
 }
 .pickBackBtn {
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-muted, #8c8674);
+  color: var(--widget-text, var(--wl-text, var(--text-muted, #8c8674)));
   background: transparent;
-  border: 1px solid var(--border, #1f2937);
+  border: 1px solid var(--widget-divider, var(--wl-divider, var(--border, #1f2937)));
   border-radius: 5px;
   padding: 3px 9px;
   cursor: pointer;
@@ -576,7 +580,7 @@
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
-  color: var(--ut-gold, #c9a84c);   /* Theme-Tracker gold */
+  color: var(--widget-accent, var(--wl-accent, var(--ut-gold, #c9a84c)));   /* Theme-Tracker gold */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

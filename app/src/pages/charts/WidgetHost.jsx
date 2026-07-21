@@ -52,6 +52,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
           '--widget-text-strong': chrome.chrome.textStrong,
           '--widget-accent': chrome.chrome.accent,
           '--widget-accent-bg': chrome.chrome.accentBg,
+          '--widget-row-hover': chrome.rowHover,
         } : {}),
         // The clock's hover popup floats over the canvas, so it matches it like the
         // chart's own legend panels do.

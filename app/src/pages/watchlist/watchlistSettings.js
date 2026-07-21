@@ -1,4 +1,4 @@
-import { dividerFor } from '../../utils/dividerColor'
+import { dividerFor, chromeFor, toolbarFor } from '../../utils/dividerColor'
 
 // Watchlist appearance settings — the model behind the ⚙ Watchlist Settings panel.
 // Mirrors the chart-settings idea (usePreferences-backed, deep-merged over defaults,
@@ -104,6 +104,19 @@ export function watchlistStyleVars(s) {
   const divStrong = dividerFor(solid, { strong: true })
   if (div) vars['--wl-divider'] = div
   if (divStrong) vars['--wl-divider-strong'] = divStrong
+
+  // Header text + gold accent, contrast-matched to the canvas (gold on white is barely
+  // legible), and the row-hover fill — one small step AWAY from the canvas, so it's a
+  // faint grey on a white list instead of the dark-theme --bg-hover.
+  const chrome = chromeFor(solid)
+  if (chrome) {
+    vars['--wl-text'] = chrome.text
+    vars['--wl-text-strong'] = chrome.textStrong
+    vars['--wl-accent'] = chrome.accent
+    vars['--wl-accent-bg'] = chrome.accentBg
+  }
+  const hover = toolbarFor(solid)
+  if (hover) vars['--wl-row-hover'] = hover.bg
 
   if (s.bgMode === 'solid') {
     vars['--wl-bg'] = s.bg

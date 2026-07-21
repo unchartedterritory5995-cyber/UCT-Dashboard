@@ -9,7 +9,7 @@ import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
 import { WATCHLIST_DEFAULTS, mergeWatchlistSettings } from '../watchlist/watchlistSettings'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
-import { dividerFor, chromeFor, panelFor } from '../../utils/dividerColor'
+import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
@@ -352,11 +352,11 @@ export default function ChartsWorkspace() {
     return {
       chart: {
         canvas: chart, divider: dividerFor(chart), dividerStrong: dividerFor(chart, { strong: true }),
-        chrome: chromeFor(chart), panel: panelFor(chart),
+        chrome: chromeFor(chart), panel: panelFor(chart), rowHover: toolbarFor(chart)?.bg,
       },
       watchlist: {
         canvas: watchlist, divider: dividerFor(watchlist), dividerStrong: dividerFor(watchlist, { strong: true }),
-        chrome: chromeFor(watchlist), panel: panelFor(watchlist),
+        chrome: chromeFor(watchlist), panel: panelFor(watchlist), rowHover: toolbarFor(watchlist)?.bg,
       },
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
