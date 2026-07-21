@@ -6824,7 +6824,10 @@ export default function StockChart({
           d = lastOv ? { value: lastOv.value } : null
         }
         const ov = resolvedOverlays?.[i]
-        if (!d || !ov) return null
+        // Disabled overlays (and any without a finite value) must be dropped, not
+        // rendered blank — the vertical legend is a CSS grid, so an empty entry
+        // leaves a dead row where the MA used to be instead of collapsing.
+        if (!d || !ov || ov.enabled === false || !Number.isFinite(Number(d.value))) return null
         // Match the DISPLAYED line color (ema9MatchCandle repaints the 9-EMA to MB_UP).
         const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
         return { label: `${ov.type} ${ov.period}`, value: d.value, color }
@@ -8454,7 +8457,7 @@ export default function StockChart({
           period. Follows the crosshair (or the latest bar), pinned live to the top
           of the volume pane. */}
       {showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
-        <div ref={volLegendRef} className={styles.volLegend} style={cs.volume?.labelColor ? { color: cs.volume.labelColor } : undefined}>
+        <div ref={volLegendRef} className={styles.volLegend}>
           {crosshairData.dollarVol != null && (
             <span className={styles.volLegItem}>
               <span className={styles.volLegLabel}>$ Vol</span>

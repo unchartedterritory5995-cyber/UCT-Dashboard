@@ -48,8 +48,11 @@
   user-select: none;
 }
 .volLegItem { display: inline-flex; gap: 5px; align-items: baseline; }
-.volLegLabel { color: #a8a290; font-weight: 500; }
-.volLegVal { color: #d4cfc0; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* The $ Vol / Avg strip sits directly under the range buttons (3M/6M/YTD/…), so it
+   shares their color token — the two must always match, and both follow the canvas.
+   Not user-editable by design; the Indicators tab only toggles visibility. */
+.volLegLabel { color: var(--chart-panel-text-low, #a8a290); font-weight: 500; }
+.volLegVal { color: var(--chart-panel-text-low, #d4cfc0); font-weight: 600; font-variant-numeric: tabular-nums; }
 :global([data-charts-theme='sunrise']) .volLegend { background: rgba(255, 255, 255, 0.55); }
 :global([data-charts-theme='sunrise']) .volLegLabel { color: #3f4a57; }
 :global([data-charts-theme='sunrise']) .volLegVal { color: #12202c; }

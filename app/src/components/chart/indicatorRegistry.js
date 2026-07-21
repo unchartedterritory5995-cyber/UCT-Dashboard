@@ -47,8 +47,9 @@ export const VOLUME_FIELDS = [
   { key: 'downColor',    label: 'Down bars',    type: 'color' },
   { key: 'separatePane', label: 'Separate pane', type: 'toggle' },
   { key: 'hvcEnabled',   label: 'Highlight 52W volume highs', type: 'toggle' },
+  // Visibility only — the label's COLOR is not user-editable; it tracks the range
+  // buttons above it (--chart-panel-text-low) so the two always match.
   { key: 'labelVisible', label: 'Show $ Vol / Avg label', type: 'toggle' },
-  { key: 'labelColor',   label: 'Label color',  type: 'color', showIf: (v) => v.labelVisible !== false },
   { key: 'maPeriod',     label: 'Volume MA period', type: 'number', min: 0, max: 200, step: 1 },
   { key: 'maColor',      label: 'Volume MA color',  type: 'color',  showIf: (v) => Number(v.maPeriod) > 0 },
   { key: 'maLineWidth',  label: 'Volume MA width',  type: 'select', options: LINE_WIDTHS, showIf: (v) => Number(v.maPeriod) > 0 },
