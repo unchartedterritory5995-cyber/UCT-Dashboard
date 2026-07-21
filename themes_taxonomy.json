@@ -1,6 +1,6 @@
 {
-  "version": "4.16.0+39359f8e",
-  "generated_at": "2026-07-19",
+  "version": "4.17.0+bc8a9169",
+  "generated_at": "2026-07-21",
   "sectors": [
     {
       "id": "technology",
@@ -5815,12 +5815,6 @@
           "tier": "relevant",
           "sub_theme_id": "tankers",
           "rationale": "Teekay Tankers crude oil fleet"
-        },
-        {
-          "sym": "GOGL",
-          "tier": "relevant",
-          "sub_theme_id": "dry_bulk",
-          "rationale": "Golden Ocean dry bulk carrier fleet operator"
         },
         {
           "sym": "GNK",
