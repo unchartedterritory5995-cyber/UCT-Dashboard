@@ -160,6 +160,9 @@ def _trades_in_range(
           LEFT JOIN j2_accounts a ON a.id = t.account_id
          WHERE t.user_id = ? AND t.account_id IN ({placeholders})
            AND t.exit_date >= ? AND t.exit_date < ?
+           -- FIX-C: coaching aggregates must not be fed unvouched trades
+           -- (phantom short / user opt-out). The trade list still shows them.
+           AND (t.analytics_excluded IS NULL OR t.analytics_excluded = 0)
          ORDER BY t.exit_date ASC
         """,
         [user_id, *ids, start_iso, end_iso],
@@ -354,6 +357,8 @@ def _discipline_events(conn, user_id, account_id, start, end) -> dict:
           FROM j2_trades
          WHERE user_id = ? AND account_id = ?
            AND exit_date >= ? AND exit_date < ?
+           -- FIX-C: sizing stats exclude unvouched trades.
+           AND (analytics_excluded IS NULL OR analytics_excluded = 0)
         """,
         (user_id, account_id, start_iso, end_iso),
     ).fetchall()

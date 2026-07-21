@@ -721,6 +721,18 @@ _PHASE_2_ALTERS = [
     # Paper-trading flag from the SnapTrade account object — paper accounts
     # must be visually segregated so simulated results never read as real.
     "ALTER TABLE j2_broker_accounts ADD COLUMN is_paper INTEGER",
+    # FIX-C — analytics exclusion. A trade the reconstruction cannot vouch for
+    # (today: a phantom SHORT whose opening BUY predates the broker's history
+    # window) is FLAGGED, never deleted: it stays visible + editable in the trade
+    # list and export, and only STAT AGGREGATES skip it. 0/NULL = counted,
+    # 1 = excluded. Nullable-with-default so every read uses the NULL-tolerant
+    # predicate (filters.ANALYTICS_INCLUDED_SQL) and a legacy row can never be
+    # silently dropped.
+    "ALTER TABLE j2_trades ADD COLUMN analytics_excluded INTEGER DEFAULT 0",
+    # Why it was flagged: 'phantom_short' (auto) | 'manual' (user opt-out).
+    "ALTER TABLE j2_trades ADD COLUMN analytics_excluded_reason TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_j2_trades_user_excl "
+    "ON j2_trades(user_id, analytics_excluded)",
 ]
 
 

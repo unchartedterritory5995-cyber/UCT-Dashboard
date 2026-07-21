@@ -79,6 +79,33 @@ def _resolve_transfer_basis(adjustments: list[dict], price_fn) -> None:
                 a["price"] = p
 
 
+def _history_truncated(
+    user_id: str, broker_account_id: str, fills: list, conn=None,
+) -> bool:
+    """True when the broker's own ``first_transaction_date`` (persisted by a
+    PRIOR sync via connections.record_holdings_meta) is EARLIER than the
+    earliest activity in this reconstruction — i.e. our window starts
+    mid-story, so a SELL on a flat book can legitimately be closing a position
+    opened BEFORE the window (the phantom-short cause).
+
+    Conservative by construction: an unknown/absent first_transaction_date
+    returns False, so a genuine intraday/swing short is NEVER mislabeled.
+    Never raises.
+    """
+    from api.services.journal_two.broker import connections
+    try:
+        acct = connections.get_broker_account(user_id, broker_account_id, conn=conn)
+    except Exception:  # noqa: BLE001 — advisory signal only
+        return False
+    ftd = (acct or {}).get("firstTransactionDate")
+    if not ftd:
+        return False
+    earliest = min((f.date[:10] for f in fills if getattr(f, "date", None)), default=None)
+    if not earliest:
+        return False
+    return str(ftd)[:10] < earliest
+
+
 def reconstruct_account(
     user_id: str,
     broker_account_id: str,
@@ -100,6 +127,22 @@ def reconstruct_account(
     )
     trades = fifo_out["trades"]
     assign_external_ids(broker_account_id, trades)
+
+    # FIX-C — turn fifo's phantomShortSuspect SIGNAL into an analytics exclusion,
+    # but ONLY when the activity history is PROVABLY truncated (the broker's own
+    # first_transaction_date predates our earliest activity). The trade is still
+    # imported and still shown in the trade list/export — only stat aggregates
+    # skip it, and the user can un-flag it. external_id is unaffected (it hashes
+    # only symbol/side/dates/shares/prices), so idempotency is preserved.
+    truncated = _history_truncated(
+        user_id, broker_account_id, part["equity_fills"], conn=conn
+    )
+    phantom_suspects = 0
+    for t in trades:
+        flagged = bool(t.get("phantomShortSuspect")) and truncated
+        t["analyticsExcluded"] = flagged
+        if flagged:
+            phantom_suspects += 1
 
     ins = trades_service.bulk_insert_trades(
         user_id, trades, settings, conn=conn,
@@ -131,6 +174,8 @@ def reconstruct_account(
         "prunedTrades": pruned_trades,
         "prunedOptions": pruned_options,
         "openPositions": fifo_out["open_positions"],
+        "phantomShortSuspects": phantom_suspects,
+        "historyTruncated": truncated,
         "optionEvents": part["option_events"],
         "optionsImported": opt_res["imported"],
         "optionsSkipped": opt_res["skipped"],

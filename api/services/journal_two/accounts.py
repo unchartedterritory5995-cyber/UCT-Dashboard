@@ -745,7 +745,10 @@ def _account_metrics(
     sql = (
         "SELECT pnl_dollar, result, exit_date "
         "  FROM j2_trades "
-        " WHERE user_id = ? AND account_id = ?"
+        " WHERE user_id = ? AND account_id = ? "
+        # FIX-C: account stat aggregate — skip trades the reconstruction can't
+        # vouch for (phantom short / user opt-out). The list still shows them.
+        "   AND (analytics_excluded IS NULL OR analytics_excluded = 0)"
     )
     params: list[Any] = [user_id, account_id]
     if spec is not None:
@@ -866,7 +869,9 @@ def goal_progress(
             "SELECT exit_date, trading_day_et, pnl_dollar "
             "  FROM j2_trades "
             " WHERE user_id = ? AND account_id = ? "
-            "   AND exit_date >= ?"
+            "   AND exit_date >= ? "
+            # FIX-C: goal P&L aggregate excludes unvouched trades.
+            "   AND (analytics_excluded IS NULL OR analytics_excluded = 0)"
         )
         params: list[Any] = [
             user_id, account_id, year_start.isoformat() + "T00:00:00Z",

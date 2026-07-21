@@ -613,24 +613,42 @@ def update_trade(
             exit_date=row["exit_date"], original_stop=original_stop,
             breakeven_range=settings["breakevenRange"],
         )
+        # FIX-C: let the user override the auto "excluded from stats" flag — a
+        # heuristic phantom-short call CAN be wrong, so a false positive must be
+        # recoverable. An un-flag survives every re-sync because bulk_insert
+        # SKIPS a duplicate external_id rather than re-stamping the row.
+        excl_now = (row["analytics_excluded"]
+                    if "analytics_excluded" in keys and row["analytics_excluded"] is not None
+                    else 0)
+        excl_reason_now = (row["analytics_excluded_reason"]
+                           if "analytics_excluded_reason" in keys else None)
+        if "analyticsExcluded" in patch:
+            analytics_excluded = 1 if patch["analyticsExcluded"] else 0
+            analytics_excluded_reason = "manual" if analytics_excluded else None
+        else:
+            analytics_excluded, analytics_excluded_reason = excl_now, excl_reason_now
+
         conn.execute(
             """
             UPDATE j2_trades
                SET original_stop = ?, setup = ?, notes = ?,
                    pnl_dollar = ?, pnl_percent = ?, r_multiple = ?, result = ?,
-                   mistake_tags = ?, emotion_tags = ?
+                   mistake_tags = ?, emotion_tags = ?,
+                   analytics_excluded = ?, analytics_excluded_reason = ?
              WHERE id = ? AND user_id = ?
             """,
             (original_stop, setup, notes, derived["pnl_dollar"], derived["pnl_percent"],
              derived["r_multiple"], derived["result"], json.dumps(mistake_tags),
-             json.dumps(emotion_tags), trade_id, user_id),
+             json.dumps(emotion_tags), analytics_excluded, analytics_excluded_reason,
+             trade_id, user_id),
         )
         conn.commit()
         new_row = conn.execute(
             "SELECT id, user_id, position_id, symbol, side, shares, entry_price, "
             "entry_date, exit_price, exit_date, original_stop, setup, notes, "
             "pnl_dollar, pnl_percent, r_multiple, hold_days, result, context_at_entry, "
-            "account_id, fees, created_at, mistake_tags, emotion_tags, source "
+            "account_id, fees, created_at, mistake_tags, emotion_tags, source, "
+            "analytics_excluded, analytics_excluded_reason "
             "FROM j2_trades WHERE id = ?", (trade_id,),
         ).fetchone()
         return _row_to_trade(new_row)
@@ -801,6 +819,11 @@ def bulk_insert_trades(
                         (user_id, external_id),
                     ).fetchone()
                     if dup is not None:
+                        # FIX-C INVARIANT: a duplicate external_id SKIPS — we
+                        # never UPDATE the existing row. That is exactly what
+                        # preserves a user's manual un-flag (analytics_excluded
+                        # = 0) across every re-sync. Do NOT "helpfully" re-stamp
+                        # analytics_excluded here.
                         skipped += 1
                         continue
 
@@ -834,8 +857,9 @@ def bulk_insert_trades(
                         r_multiple, hold_days, result, context_at_entry,
                         account_id, fees, created_at, regime,
                         mistake_tags, emotion_tags, source, external_id,
+                        analytics_excluded, analytics_excluded_reason,
                         trading_day_et, hour_et
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         trade_id,
@@ -865,6 +889,11 @@ def bulk_insert_trades(
                         '[]',
                         source,
                         external_id,
+                        # FIX-C: reconstruction flagged this round-trip as one it
+                        # cannot vouch for (phantom short from truncated history).
+                        # Flag only — the row is still inserted and still listed.
+                        1 if pt.get("analyticsExcluded") else 0,
+                        "phantom_short" if pt.get("analyticsExcluded") else None,
                         compute_trading_day_et(pt["exitDate"]),
                         compute_hour_et(pt["exitDate"]),
                     ),
@@ -941,6 +970,18 @@ def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
         # create on manual trades; NULL on broker/historical imports (and on the
         # breadth-history backfill for days with no snapshot) → surfaces as None.
         "regime": row["regime"] if "regime" in keys else None,
+        # FIX-C: the trade is still LISTED; this tells the UI to badge it as
+        # "excluded from stats" (reconstruction couldn't vouch for it) and lets
+        # the user un-flag it. NULL-tolerant for every legacy row.
+        "analyticsExcluded": (
+            bool(row["analytics_excluded"])
+            if "analytics_excluded" in keys and row["analytics_excluded"] is not None
+            else False
+        ),
+        "analyticsExcludedReason": (
+            row["analytics_excluded_reason"]
+            if "analytics_excluded_reason" in keys else None
+        ),
     }
 
 
@@ -949,7 +990,8 @@ _TRADE_COLS = """id, user_id, position_id, symbol, side, shares,
                        original_stop, setup, notes, pnl_dollar, pnl_percent,
                        r_multiple, hold_days, result, context_at_entry,
                        account_id, fees, created_at, mistake_tags, emotion_tags,
-                       source, regime"""
+                       source, regime,
+                       analytics_excluded, analytics_excluded_reason"""
 
 
 def list_trades_for_user(

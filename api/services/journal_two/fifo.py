@@ -55,6 +55,12 @@ class Lot:
     price: float
     date: str
     fee_per_share: float = 0.0  # opening-fill fee / opening shares, for proration
+    # FIX-C: this lot was opened SHORT on a flat book with NO prior in-window BUY
+    # (or transfer-in) for the symbol → the "short" may really be a sale of shares
+    # bought BEFORE the activity window starts (broker history caps at ~4y). A
+    # SIGNAL only; reconstruct.py decides (using the broker's own
+    # first_transaction_date) whether it becomes an analytics exclusion.
+    suspect: bool = False
 
 
 _EPS = 1e-9
@@ -133,7 +139,7 @@ def _reconstruct_long_only(fills: list[Fill]) -> dict:
         while remaining > _EPS and q:
             lot = q[0]
             take = min(lot.shares, remaining)
-            consumed.append((take, lot.price, lot.date, take * lot.fee_per_share))
+            consumed.append((take, lot.price, lot.date, take * lot.fee_per_share, False))
             lot.shares -= take
             remaining -= take
             if lot.shares <= _EPS:
@@ -164,7 +170,8 @@ def _adjustment_rank(a: dict) -> int:
 
 
 def _apply_adjustment(a: dict, lots: dict[str, deque[Lot]],
-                      side: dict[str, str | None], errors: list[dict]) -> None:
+                      side: dict[str, str | None], errors: list[dict],
+                      seen_shares_in: set[str] | None = None) -> None:
     sym = a["symbol"]
     q = lots.setdefault(sym, deque())
     cur = side.setdefault(sym, None)
@@ -198,6 +205,8 @@ def _apply_adjustment(a: dict, lots: dict[str, deque[Lot]],
             return
         q.append(Lot(shares=delta, price=price, date=a["date"], fee_per_share=0.0))
         side[sym] = "long"
+        if seen_shares_in is not None:
+            seen_shares_in.add(sym)  # FIX-C: shares arrived in-window via transfer
         return
 
     # delta < 0 — shares leave the account at basis; no P&L is realized.
@@ -237,13 +246,18 @@ def _reconstruct_with_shorts(fills: list[Fill], adjustments: list[dict] | None =
     # Per-symbol state: a deque of open lots all on the same side.
     lots: dict[str, deque[Lot]] = {}
     side: dict[str, str | None] = {}  # 'long' | 'short' | None
+    # FIX-C: symbols for which we have SEEN shares arrive in-window (a Buy fill
+    # or a transfer-in). A sell that opens a short on a symbol NOT in this set is
+    # the phantom-short suspect signature — the "short" is more likely the sale
+    # of a position opened before the broker's history window.
+    seen_shares_in: set[str] = set()
 
     trades: list[dict] = []
     errors: list[dict] = []
 
     for _, item_kind, item in stream:
         if item_kind == "adj":
-            _apply_adjustment(item, lots, side, errors)
+            _apply_adjustment(item, lots, side, errors, seen_shares_in)
             continue
         f = item
         if f.shares <= 0:
@@ -257,6 +271,8 @@ def _reconstruct_with_shorts(fills: list[Fill], adjustments: list[dict] | None =
         q = lots.setdefault(sym, deque())
         side.setdefault(sym, None)
         is_buy = f.action == "Buy"
+        if is_buy:
+            seen_shares_in.add(sym)  # FIX-C: shares demonstrably arrived in-window
         remaining = f.shares
 
         # Per-share fee of this fill is constant, so any lot opened from it
@@ -267,14 +283,22 @@ def _reconstruct_with_shorts(fills: list[Fill], adjustments: list[dict] | None =
             cur = side[sym]
             if cur is None:
                 # Flat → open in the fill's direction with all remaining.
-                q.append(Lot(shares=remaining, price=f.price, date=f.date, fee_per_share=fps))
+                # FIX-C: a SELL opening from flat with NO in-window buy/transfer-in
+                # for this symbol is the phantom-short signature (a pre-window long
+                # being sold). Flag the lot; reconstruct.py gates it on the broker's
+                # own first_transaction_date before it becomes an exclusion.
+                opened_suspect = (not is_buy) and (sym not in seen_shares_in)
+                q.append(Lot(shares=remaining, price=f.price, date=f.date,
+                             fee_per_share=fps, suspect=opened_suspect))
                 side[sym] = "long" if is_buy else "short"
                 remaining = 0
                 break
 
             opening = (cur == "long" and is_buy) or (cur == "short" and not is_buy)
             if opening:
-                q.append(Lot(shares=remaining, price=f.price, date=f.date, fee_per_share=fps))
+                # Adding to an already-suspect short keeps the suspicion.
+                q.append(Lot(shares=remaining, price=f.price, date=f.date,
+                             fee_per_share=fps, suspect=bool(q and q[0].suspect)))
                 remaining = 0
                 break
 
@@ -284,7 +308,8 @@ def _reconstruct_with_shorts(fills: list[Fill], adjustments: list[dict] | None =
             while remaining > _EPS and q:
                 lot = q[0]
                 take = min(lot.shares, remaining)
-                consumed.append((take, lot.price, lot.date, take * lot.fee_per_share))
+                consumed.append((take, lot.price, lot.date,
+                                 take * lot.fee_per_share, lot.suspect))
                 close_shares += take
                 lot.shares -= take
                 remaining -= take
@@ -315,16 +340,21 @@ def _reconstruct_with_shorts(fills: list[Fill], adjustments: list[dict] | None =
 # ── Shared helpers ──────────────────────────────────────────────────────────
 
 def _make_trade(symbol: str, side_label: str,
-                consumed: list[tuple[float, float, str, float]],
+                consumed: list[tuple[float, float, str, float, bool]],
                 exit_price: float, exit_date: str, *, exit_fee: float = 0.0) -> dict:
     """Aggregate consumed open-lots into one round-trip trade. `consumed`
-    is [(shares, lot_price, lot_date, fee_portion), ...]; for a Long these are
-    buy lots (entry side), for a Short these are sell-to-open lots. Total trade
-    `fees` = prorated entry-lot fees + this close's exit fee."""
-    total = sum(s for s, _, _, _ in consumed)
-    vwap = sum(s * p for s, p, _, _ in consumed) / total if total > 0 else 0.0
-    earliest = min(d for _, _, d, _ in consumed)
-    entry_fee = sum(fp for _, _, _, fp in consumed)
+    is [(shares, lot_price, lot_date, fee_portion, suspect), ...]; for a Long
+    these are buy lots (entry side), for a Short these are sell-to-open lots.
+    Total trade `fees` = prorated entry-lot fees + this close's exit fee."""
+    total = sum(s for s, _, _, _, _ in consumed)
+    vwap = sum(s * p for s, p, _, _, _ in consumed) / total if total > 0 else 0.0
+    earliest = min(d for _, _, d, _, _ in consumed)
+    entry_fee = sum(fp for _, _, _, fp, _ in consumed)
+    # FIX-C: a Short built from ANY suspect lot is a phantom-short SUSPECT.
+    # Signal only — fifo cannot know whether the broker's history is truncated;
+    # reconstruct.py makes the exclusion call.
+    suspect = (side_label == "Short"
+               and any(sus for _, _, _, _, sus in consumed))
     return {
         "symbol": symbol,
         "side": side_label,
@@ -337,6 +367,7 @@ def _make_trade(symbol: str, side_label: str,
         "originalStop": None,
         "setup": None,
         "notes": None,
+        "phantomShortSuspect": suspect,
     }
 
 

@@ -199,6 +199,8 @@ def list_trader_summaries(
               JOIN j2_settings s ON s.user_id = t.user_id
               JOIN users u        ON u.id      = t.user_id
              WHERE json_extract(s.data, '$.shareJournalData') = 1
+               -- FIX-C: public leaderboard stats exclude unvouched trades.
+               AND (t.analytics_excluded IS NULL OR t.analytics_excluded = 0)
              GROUP BY u.id
             """
         ).fetchall()

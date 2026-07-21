@@ -29,7 +29,9 @@ from api.services.journal_two.calendar import (
     _strategy_scope_where,
     to_et_date,
 )
-from api.services.journal_two.filters import FilterSpec, trades_where
+from api.services.journal_two.filters import (
+    ANALYTICS_INCLUDED_SQL, FilterSpec, trades_where,
+)
 from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
@@ -190,7 +192,13 @@ def _fetch_trades(
         "       id, external_id, source, "  # for trade_ref → excursion join (Task 7)
         "       mistake_tags, emotion_tags, fees "  # psychology section (Task A8)
         "  FROM j2_trades "
-        " WHERE user_id = ?"
+        " WHERE user_id = ? "
+        # FIX-C: stat aggregates skip trades the reconstruction cannot vouch for
+        # (phantom short from a truncated broker history, or a user opt-out).
+        # This ONE predicate de-poisons every section fed by this fetch: equity,
+        # performance, distribution, attribution, edgeScore, risk, exitQuality,
+        # regime, psychology. The trade LIST/export deliberately do NOT filter.
+        + ANALYTICS_INCLUDED_SQL
     )
     params: list[Any] = [user_id]
     if account_id:

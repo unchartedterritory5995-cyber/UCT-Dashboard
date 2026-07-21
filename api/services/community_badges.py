@@ -37,6 +37,7 @@ def _compute():
         for r in conn.execute(
                 f"""SELECT user_id, COUNT(*) AS n, SUM(COALESCE(r_multiple, 0)) AS net_r
                       FROM j2_trades WHERE user_id IN ({q}) AND exit_date >= ?
+                       AND (analytics_excluded IS NULL OR analytics_excluded = 0)
                      GROUP BY user_id""", opted + [week_ago]).fetchall():
             if r["n"] >= 2 and (r["net_r"] or 0) > 0:
                 by_user.setdefault(r["user_id"], []).append("green_week")
@@ -44,6 +45,7 @@ def _compute():
         for uid in opted:
             rows = conn.execute(
                 "SELECT result FROM j2_trades WHERE user_id=? "
+                "  AND (analytics_excluded IS NULL OR analytics_excluded = 0) "
                 "ORDER BY exit_date DESC, created_at DESC LIMIT 3", (uid,)).fetchall()
             if len(rows) == 3 and all(x["result"] == "Win" for x in rows):
                 by_user.setdefault(uid, []).append("hot_hand")

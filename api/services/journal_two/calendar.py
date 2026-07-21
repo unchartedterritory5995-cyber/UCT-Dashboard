@@ -637,6 +637,9 @@ def get_calendar(
             "       result, fees, trading_day_et "
             "  FROM j2_trades "
             " WHERE user_id = ? "
+            # FIX-C: calendar DAY-CELL aggregate excludes unvouched trades. The
+            # day-detail LIST below deliberately does NOT filter (still shown).
+            "   AND (analytics_excluded IS NULL OR analytics_excluded = 0) "
             "   AND (COALESCE(trading_day_et, '') >= ?"
             "        OR (trading_day_et IS NULL AND exit_date >= ?)) "
             "   AND (COALESCE(trading_day_et, '~') <= ?"

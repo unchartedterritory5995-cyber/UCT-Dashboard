@@ -106,3 +106,24 @@ def parse_filter_query(
         sides=split(sides), setups=split(setups), tags=split(tags),
         limit=limit, offset=offset,
     )
+
+
+# ── FIX-C: analytics exclusion (spec: flag, never delete) ────────────────────
+# A trade whose reconstruction we cannot vouch for (today: a phantom SHORT
+# fabricated from a truncated broker history, or a user's manual opt-out) is
+# EXCLUDED from stat aggregates ONLY. NULL-tolerant: every legacy row predates
+# the column.
+#
+# DELIBERATELY NOT part of `trades_where`. `trades_where` is shared by the trade
+# LIST (trades.list_trades_for_user), the CSV/JSON export, and the calendar
+# day-detail — all of which MUST keep showing excluded trades (the spec is
+# "flag, never hide"). Splice this constant ONLY at aggregate call sites.
+ANALYTICS_INCLUDED_SQL = (
+    "AND (analytics_excluded IS NULL OR analytics_excluded = 0)"
+)
+
+
+def analytics_included_sql(alias: str | None = None) -> str:
+    """`ANALYTICS_INCLUDED_SQL` qualified for a joined query (e.g. alias='t')."""
+    col = f"{alias}.analytics_excluded" if alias else "analytics_excluded"
+    return f"AND ({col} IS NULL OR {col} = 0)"

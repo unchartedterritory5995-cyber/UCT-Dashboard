@@ -142,6 +142,31 @@ def test_equity_and_performance_net_of_fees(db_conn):
     assert got["performance"]["byDay"] == [{"date": "2026-04-19", "pnl": 90.0}]
 
 
+def test_analytics_excludes_flagged_trades_but_row_is_kept(db_conn):
+    """FIX-C: a trade the reconstruction cannot vouch for (a phantom SHORT from
+    a truncated broker history, or a user opt-out) is FLAGGED, never deleted —
+    stat aggregates skip it, but the row survives so the trade list/export can
+    still show it and the user can un-flag it."""
+    from api.services.journal_two.analytics import get_analytics
+    _add_user(db_conn, "u1", "u1@x.com")
+    aid = _add_account(db_conn, "u1", starting_balance=100_000)
+    _add_trade(db_conn, "u1", account_id=aid, pnl=100, result="Win")
+    bad = _add_trade(db_conn, "u1", account_id=aid, pnl=-500, result="Loss",
+                     exit_date_iso="2026-04-20T18:00:00Z")
+    db_conn.execute(
+        "UPDATE j2_trades SET analytics_excluded=1, "
+        "analytics_excluded_reason='phantom_short' WHERE id=?", (bad,))
+    db_conn.commit()
+
+    got = get_analytics("u1", account_id=aid, conn=db_conn)
+    # Aggregates count ONLY the vouched trade: 100_000 + 100 (the -500 is skipped).
+    assert got["equity"]["curve"][-1]["equity"] == 100_100
+    # ...but the flagged trade was NOT deleted.
+    n = db_conn.execute(
+        "SELECT COUNT(*) AS n FROM j2_trades WHERE id=?", (bad,)).fetchone()["n"]
+    assert n == 1
+
+
 def test_equity_drawdown_kpis(db_conn):
     """Trades: +100, -200, +50 → peak balance 100,100; max DD = -150."""
     from api.services.journal_two.analytics import get_analytics
