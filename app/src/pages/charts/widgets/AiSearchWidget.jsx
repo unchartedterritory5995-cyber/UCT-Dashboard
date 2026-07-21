@@ -566,7 +566,9 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         {!loading && limitMsg && <div className={styles.limit}>{limitMsg}</div>}
 
         {thread.length > 0 && (
-          <div className={styles.disclaimer}>AI-generated research — verify before trading.</div>
+          <div className={styles.disclaimer}>
+            AI-generated research — verify before trading. Questions are retained de-identified to improve the research desk.
+          </div>
         )}
       </div>
 

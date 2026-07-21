@@ -48,7 +48,22 @@ export default function AiSearchInsightsPanel() {
   const [days, setDays] = useState(7)
   const [showRows, setShowRows] = useState(false)
   const { data: live } = useSWR('/api/ai-search/admin/stats', fetcher, { refreshInterval: 60000 })
-  const { data: log } = useSWR(`/api/ai-search/admin/log?days=${days}&limit=40`, fetcher, { refreshInterval: 120000 })
+  const { data: log, mutate } = useSWR(`/api/ai-search/admin/log?days=${days}&limit=40`, fetcher, { refreshInterval: 120000 })
+
+  // Pin (curate into future house knowledge) / exclude (never reuse) an answer.
+  // Optimistic: flip the row locally, POST the signal, reconcile from the server.
+  const curate = (row, on, which) => {
+    const kind = (which === 'pin' ? (on ? 'pin' : 'unpin') : (on ? 'exclude' : 'unexclude'))
+    mutate((cur) => cur && ({
+      ...cur,
+      recent: cur.recent.map((r) => r.answer_id === row.answer_id ? { ...r, [which === 'pin' ? 'pinned' : 'excluded']: on } : r),
+    }), { revalidate: false })
+    fetch('/api/ai-search/signal', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer_id: row.answer_id, kind }),
+    }).catch(() => {}).finally(() => mutate())
+  }
 
   const fresh = log?.by_freshness || {}
   const freshTotal = (fresh.evergreen || 0) + (fresh.time_sensitive || 0)
@@ -150,6 +165,21 @@ export default function AiSearchInsightsPanel() {
               </span>
               <span className={styles.activityTime} style={{ flexShrink: 0 }}>
                 {r.question_type} · {r.mode}{r.grounded ? ' · grounded' : ''}{r.first_person ? ' · personal' : ''}
+              </span>
+              {/* Curation: pin → future house knowledge; exclude → never reuse. */}
+              <span style={{ display: 'inline-flex', gap: 4, flexShrink: 0 }}>
+                <button title={r.pinned ? 'Unpin' : 'Pin (curate into house knowledge)'}
+                  onClick={() => curate(r, !r.pinned, 'pin')}
+                  className={styles.auditToggle}
+                  style={{ padding: '1px 6px', fontSize: 10, color: r.pinned ? 'var(--ut-gold, #c9a84c)' : 'var(--text-muted)', borderColor: r.pinned ? 'var(--ut-gold, #c9a84c)' : 'var(--border)' }}>
+                  {r.pinned ? '★' : '☆'}
+                </button>
+                <button title={r.excluded ? 'Un-exclude' : 'Exclude (never reuse)'}
+                  onClick={() => curate(r, !r.excluded, 'exclude')}
+                  className={styles.auditToggle}
+                  style={{ padding: '1px 6px', fontSize: 10, color: r.excluded ? '#f87171' : 'var(--text-muted)', borderColor: r.excluded ? '#f87171' : 'var(--border)' }}>
+                  ⊘
+                </button>
               </span>
             </div>
           ))}

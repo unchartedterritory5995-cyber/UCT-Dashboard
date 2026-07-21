@@ -144,6 +144,21 @@ def test_signal_and_pin_flag(db):
     assert pinned == 1
 
 
+def test_curation_flag_transitions(db):
+    """pin/unpin and exclude/unexclude flip the curation flags Phase-2 retrieval reads."""
+    ail.log(user_id="u1", answer_id="aid-x", query="q", answer="a")
+
+    def flags():
+        with sqlite3.connect(str(db)) as c:
+            return c.execute("SELECT pinned, excluded FROM ai_search_log WHERE answer_id='aid-x'").fetchone()
+
+    assert flags() == (0, 0)
+    ail.record_signal("aid-x", "pin");      assert flags() == (1, 0)
+    ail.record_signal("aid-x", "exclude");  assert flags() == (1, 1)
+    ail.record_signal("aid-x", "unpin");    assert flags() == (0, 1)
+    ail.record_signal("aid-x", "unexclude"); assert flags() == (0, 0)
+
+
 # ── forward-compatibility: additive migration ────────────────────────────────
 def test_additive_migration_from_bare_table(tmp_path, monkeypatch):
     p = tmp_path / "old.db"
