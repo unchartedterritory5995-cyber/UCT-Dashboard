@@ -39,15 +39,16 @@ export function resolveTfCycle({ command, currentTf, lastCommand, lastIndex }) {
 }
 
 export const SHORTCUTS = [
-  // Timeframes
-  { keys: '1', command: 'tf:1', description: 'Switch to 1-minute' },
-  { keys: '5', command: 'tf:5', description: 'Switch to 5-minute' },
-  { keys: '2', command: 'tf:15', description: 'Switch to 15-minute' },
-  { keys: '3', command: 'tf:30', description: 'Switch to 30-minute' },
-  { keys: '4', command: 'tf:60', description: 'Switch to 1-hour' },
-  { keys: 'D', command: 'tf:D', description: 'Daily' },
-  { keys: 'W', command: 'tf:W', description: 'Weekly' },
-  { keys: 'M', command: 'tf:M', description: 'Monthly' },
+  // Timeframes — Shift+digit intraday, bare digit daily and up.
+  // (Ctrl+digit is browser-reserved for tab switching, so Shift carries these.)
+  { keys: 'Shift+1', command: 'tf:1', description: '1-minute' },
+  { keys: 'Shift+3', command: 'tf:5', description: '5-minute' },
+  { keys: 'Shift+4', command: 'tf:15', description: '15-minute' },
+  { keys: 'Shift+5', command: 'tf:30', description: '30-minute' },
+  { keys: 'Shift+6', command: 'tf:60', description: '1-hour' },
+  { keys: '1', command: 'tf:D', description: 'Daily' },
+  { keys: '5', command: 'tf:W', description: 'Weekly' },
+  { keys: '9', command: 'tf:M', description: 'Monthly' },
 
   // Drawing tools
   { keys: 'Esc', command: 'tool:cursor', description: 'Cursor / cancel' },
@@ -83,6 +84,21 @@ export const SHORTCUTS = [
 ];
 
 
+// Physical-key lookup for the Shift+digit intraday set. Keyed on event.code
+// because Shift+1 yields "!" on a US layout and other symbols elsewhere;
+// the code is layout-independent and picks up the numpad for free.
+const SHIFT_CODE_TF = {
+  Digit1: 'tf:1', Numpad1: 'tf:1',
+  Digit3: 'tf:5', Numpad3: 'tf:5',
+  Digit4: 'tf:15', Numpad4: 'tf:15',
+  Digit5: 'tf:30', Numpad5: 'tf:30',
+  Digit6: 'tf:60', Numpad6: 'tf:60',
+};
+
+// Bare digits — the higher timeframes. Letters are deliberately NOT bound to
+// timeframes so DELL / WMT / MU can be typed straight into ticker search.
+const BARE_DIGIT_TF = { '1': 'tf:D', '5': 'tf:W', '9': 'tf:M' };
+
 /**
  * Match a KeyboardEvent to a command id. Returns null on no match.
  * Ignores events with ctrl/meta held (so browser shortcuts like Ctrl+F work).
@@ -109,13 +125,7 @@ export function matchShortcut(event) {
 
   // Direct key match
   if (!shift) {
-    if (/^[1-5]$/.test(key)) {
-      const tfMap = { '1': 'tf:1', '2': 'tf:15', '3': 'tf:30', '4': 'tf:60', '5': 'tf:5' };
-      return tfMap[key] || null;
-    }
-    if (key === 'd' || key === 'D') return 'tf:D';
-    if (key === 'w' || key === 'W') return 'tf:W';
-    if (key === 'm' || key === 'M') return 'tf:M';
+    if (/^[0-9]$/.test(key)) return BARE_DIGIT_TF[key] || null;
     if (key === 't' || key === 'T') return 'tool:trendline';
     if (key === 'h' || key === 'H') return 'tool:horizontal';
     if (key === 'v' || key === 'V') return 'tool:vertical';
@@ -131,6 +141,7 @@ export function matchShortcut(event) {
     if (key === '?' || (key === '/' && shift)) return 'help';
   } else {
     // Shift held
+    if (event.code && SHIFT_CODE_TF[event.code]) return SHIFT_CODE_TF[event.code];
     if (key === 'H') return 'toggle:ha';
     if (key === 'L') return 'toggle:log';
     if (key === 'T') return 'toggle:theme';

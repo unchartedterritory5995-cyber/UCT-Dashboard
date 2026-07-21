@@ -3,25 +3,29 @@ import { matchShortcut, SHORTCUTS, TF_ORDER, resolveTfCycle } from './keyboardSh
 
 
 function evt(key, opts = {}) {
-  return { key, ctrlKey: opts.ctrl, shiftKey: opts.shift, altKey: opts.alt, metaKey: opts.meta };
+  return {
+    key,
+    code: opts.code,
+    ctrlKey: opts.ctrl,
+    shiftKey: opts.shift,
+    altKey: opts.alt,
+    metaKey: opts.meta,
+  };
 }
 
 
 describe('matchShortcut', () => {
-  it('returns "tf:1" for "1" key', () => {
-    expect(matchShortcut(evt('1'))).toBe('tf:1');
+  it('returns "tf:D" for bare "1"', () => {
+    expect(matchShortcut(evt('1'))).toBe('tf:D');
   });
 
-  it('returns "tf:5" for "5"', () => {
-    expect(matchShortcut(evt('5'))).toBe('tf:5');
+  it('returns "tf:W" for bare "5"', () => {
+    expect(matchShortcut(evt('5'))).toBe('tf:W');
   });
 
-  it('returns "tf:D" for "d"', () => {
-    expect(matchShortcut(evt('d'))).toBe('tf:D');
-  });
-
-  it('returns "tf:W" for "w"', () => {
-    expect(matchShortcut(evt('w'))).toBe('tf:W');
+  it('bare "d"/"w" no longer switch timeframe (freed for ticker search)', () => {
+    expect(matchShortcut(evt('d'))).toBe(null);
+    expect(matchShortcut(evt('w'))).toBe(null);
   });
 
   it('returns "tool:trendline" for "t"', () => {
@@ -93,8 +97,8 @@ describe('matchShortcut', () => {
     expect(matchShortcut(evt('b'))).toBe(null);
   });
 
-  it('plain m stays Monthly, plain v stays vertical-line tool', () => {
-    expect(matchShortcut(evt('m'))).toBe('tf:M');
+  it('plain m is now unbound; plain v stays the vertical-line tool', () => {
+    expect(matchShortcut(evt('m'))).toBe(null);
     expect(matchShortcut(evt('v'))).toBe('tool:vertical');
   });
 
@@ -105,6 +109,49 @@ describe('matchShortcut', () => {
       expect(typeof s.keys).toBe('string');
       expect(typeof s.command).toBe('string');
       expect(typeof s.description).toBe('string');
+    }
+  });
+
+  it('maps Shift+digit to the intraday timeframes by physical key', () => {
+    // Shift+1 produces "!" on a US layout — the code is what identifies the key.
+    expect(matchShortcut(evt('!', { shift: true, code: 'Digit1' }))).toBe('tf:1');
+    expect(matchShortcut(evt('#', { shift: true, code: 'Digit3' }))).toBe('tf:5');
+    expect(matchShortcut(evt('$', { shift: true, code: 'Digit4' }))).toBe('tf:15');
+    expect(matchShortcut(evt('%', { shift: true, code: 'Digit5' }))).toBe('tf:30');
+    expect(matchShortcut(evt('^', { shift: true, code: 'Digit6' }))).toBe('tf:60');
+  });
+
+  it('accepts the numpad for Shift+digit timeframes', () => {
+    expect(matchShortcut(evt('1', { shift: true, code: 'Numpad1' }))).toBe('tf:1');
+    expect(matchShortcut(evt('6', { shift: true, code: 'Numpad6' }))).toBe('tf:60');
+  });
+
+  it('leaves Shift+2 unbound (reserved for a future 2-minute timeframe)', () => {
+    expect(matchShortcut(evt('@', { shift: true, code: 'Digit2' }))).toBe(null);
+  });
+
+  it('returns "tf:M" for bare "9"', () => {
+    expect(matchShortcut(evt('9'))).toBe('tf:M');
+  });
+
+  it('leaves unassigned bare digits unbound', () => {
+    expect(matchShortcut(evt('2'))).toBe(null);
+    expect(matchShortcut(evt('3'))).toBe(null);
+    expect(matchShortcut(evt('4'))).toBe(null);
+    expect(matchShortcut(evt('7'))).toBe(null);
+    expect(matchShortcut(evt('0'))).toBe(null);
+  });
+
+  it('keeps the Shift letter toggles working alongside Shift+digit', () => {
+    expect(matchShortcut(evt('H', { shift: true, code: 'KeyH' }))).toBe('toggle:ha');
+    expect(matchShortcut(evt('C', { shift: true, code: 'KeyC' }))).toBe('toggle:countdown');
+  });
+
+  it('every SHORTCUTS timeframe command names a real rung', () => {
+    for (const s of SHORTCUTS) {
+      if (s.command.startsWith('tf:')) {
+        expect(TF_ORDER).toContain(s.command.slice(3));
+      }
     }
   });
 });
