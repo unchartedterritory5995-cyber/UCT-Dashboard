@@ -56,7 +56,10 @@ export default function ChartRender() {
     <div style={{ background: '#0a0a0a', minHeight: '100vh' }}>
       {/* Hide the floating drawing toolbar overlay in the export (it's not part
           of the real composeScreenshot canvas capture). */}
-      <style>{`#chart-export [class*="toolbar" i]{display:none !important}
+      <style>{`#chart-export [class*="toolbar" i],
+        #chart-export [class*="scaleToggle" i],
+        #chart-export [class*="resetView" i],
+        #chart-export [class*="homeBtn" i]{display:none !important}
         #chart-export{font-family:'Instrument Sans',-apple-system,Segoe UI,sans-serif}`}</style>
       <div id="chart-export" style={{ width: w, background: '#0a0a0a' }}>
         <div style={{ height: 40, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 16px', color: '#888', fontSize: 14, position: 'relative' }}>
