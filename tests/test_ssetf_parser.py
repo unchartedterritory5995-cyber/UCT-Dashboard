@@ -94,6 +94,28 @@ def test_non_adjacent_ticker_not_accepted():
     r = _p("NVDA Growth And Income Leaders 2X Long Basket ETF")
     assert r.status == "skip"
 
+def test_non_adjacent_ticker_zero_candidates_no_exclusion():
+    # Regression: the fixture above trips the "Income" exclusion gate before
+    # ever reaching the adjacency logic, so it doesn't actually exercise the
+    # non-adjacent-candidate -> zero_candidates path. This fixture has NO
+    # excluded words: NVDA (idx 0) sits 4 tokens from the factor/direction
+    # cluster ("2X" idx 4, "Long" idx 5) -> not within +/-1 -> falls through
+    # to the company-name pass (which also finds nothing) -> zero_candidates.
+    r = _p("NVDA Growth Leaders Fund 2X Long Basket Daily ETF")
+    assert (r.status, r.reason) == ("skip", "zero_candidates")
+
+def test_two_candidates_second_not_adjacent_still_ambiguous():
+    # The >=2-candidates-anywhere rule fires regardless of adjacency: TSLA
+    # (idx 0) is 2+ tokens from the "2X Long" cluster (idx 2-3) while NVDA
+    # (idx 4) IS adjacent -- both still count, so this must quarantine as
+    # ambiguous rather than silently accepting the lone adjacent one.
+    r = _p("TSLA Weird 2X Long NVDA Daily ETF")
+    assert (r.status, r.reason) == ("quarantine", "ambiguous")
+
+def test_both_directions_quarantines():
+    r = _p("Issuer 2X Long Short NVDA Daily ETF")
+    assert (r.status, r.reason) == ("quarantine", "both_directions")
+
 def test_no_factor_is_skip():
     assert _p("Vanguard Total Stock Market ETF").status == "skip"
 
