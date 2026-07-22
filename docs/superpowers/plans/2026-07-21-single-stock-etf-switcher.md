@@ -816,13 +816,16 @@ def test_rebuild_happy_path(tmp_db, monkeypatch):
     assert tmp_db.status()["last_status"] == "ok"
 
 def test_header_gate_refuses_html_login_page(tmp_db, monkeypatch):
+    import csv as _csv, io as _io
+    # Two-line HTML => DictReader yields 1 row with a garbage header, so the
+    # HEADER gate (not fetch_empty) must trip — this is the 200-HTML login page.
+    html = "<html>\n<body>login</body>\n</html>"
     monkeypatch.setattr(tmp_db, "_fetch_finviz_market",
-                        lambda: [{"<html>": "login"}])
-    monkeypatch.setattr(tmp_db, "_fetch_finviz_market", lambda: list(
-        __import__("csv").DictReader(__import__("io").StringIO("<html><body>login</body></html>"))))
+                        lambda: list(_csv.DictReader(_io.StringIO(html))))
     rec = tmp_db.rebuild(trigger="test")
-    assert rec["status"] in ("refused_headers", "fetch_empty")
-    assert tmp_db.status()["etf_count"] == 0 or True  # previous table untouched
+    assert rec["status"] == "refused_headers"
+    assert tmp_db.status()["last_status"] == "refused_headers"
+    assert tmp_db.status()["etf_count"] == 0  # garbage never seeds the table
 
 def test_liquidity_gate_refuses_all_zero_volume(tmp_db, monkeypatch):
     monkeypatch.setattr(tmp_db, "_fetch_finviz_market", lambda: _mkrows())
