@@ -1352,7 +1352,13 @@ export default function StockChart({
   const resolvedOverlays = useMemo(
     () => {
       const base = overlaysProp !== undefined ? overlaysProp : cs.overlays.filter(o => o.enabled)
-      if (!showSma5 || base.some(o => o.type === 'SMA' && Number(o.period) === 5)) return base
+      // showSma5 is a LEGACY fallback from before SMA 5 was a real, editable overlay.
+      // Only inject the synthetic faint SMA 5 when the user has NO SMA 5 overlay AT ALL
+      // — checked against the UNFILTERED cs.overlays. Otherwise a DISABLED real SMA 5
+      // (dropped from the enabled-filtered `base`) got re-added here as a faint phantom,
+      // whose near-invisible legend row read as a blank GAP that never collapsed.
+      const hasRealSma5 = (cs.overlays || []).some(o => o.type === 'SMA' && Number(o.period) === 5)
+      if (!showSma5 || hasRealSma5 || base.some(o => o.type === 'SMA' && Number(o.period) === 5)) return base
       // A very faint 5-SMA (barely visible). Dark on the light Sunrise canvas, light on
       // the dark canvas — either way just a whisper of a line. Appended so it's included
       // in the legend + line rendering like any other overlay.
