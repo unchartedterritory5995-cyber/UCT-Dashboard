@@ -8,18 +8,27 @@ Overview) makes ONE request instead of three.
 Pure composition over services that are already cached (ratings 12h, fundamentals
 30min); this adds a thin 30min envelope cache keyed by symbol. Never raises —
 returns a null-safe skeleton on any failure so the card degrades gracefully.
+
+Serve path is stale-while-revalidate over a persistent disk snapshot
+(fundamentals_snapshot_store): the yfinance/ratings composition never blocks a
+repeat view — an expired snapshot (≤2 days) returns instantly while a
+background thread rebuilds it.
 """
 from __future__ import annotations
 
 import logging
+import threading
 
 from api.services.cache import cache
+from api.services import fundamentals_snapshot_store as snap_store
 from api.services.fundamentals import get_fundamentals
 from api.services.research.ratings import get_ratings
 
 _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 1800  # 30 min — matches the fundamentals envelope
+_SNAP_KIND = "research_snapshot"
+_STALE_SERVE_MAX = 2 * 86400   # serve an expired snapshot up to 2 days old while refreshing
 
 
 def _skeleton(sym: str) -> dict:
@@ -37,6 +46,29 @@ def _skeleton(sym: str) -> dict:
     }
 
 
+_refresh_inflight: set[str] = set()
+_refresh_lock = threading.Lock()
+
+
+def _schedule_refresh(sym: str) -> None:
+    """Background rebuild after a stale-serve (deduped per symbol)."""
+    with _refresh_lock:
+        if sym in _refresh_inflight:
+            return
+        _refresh_inflight.add(sym)
+
+    def _run():
+        try:
+            _build_snapshot(sym)
+        except Exception as exc:
+            _logger.warning("snapshot bg refresh failed for %s: %s", sym, exc)
+        finally:
+            with _refresh_lock:
+                _refresh_inflight.discard(sym)
+
+    threading.Thread(target=_run, daemon=True, name=f"research-snap-refresh-{sym}").start()
+
+
 def get_snapshot(sym: str) -> dict:
     """Consolidated ratings + key fundamentals for the snapshot card."""
     sym = (sym or "").upper().strip()
@@ -48,6 +80,23 @@ def get_snapshot(sym: str) -> dict:
     if cached is not None:
         return cached
 
+    snap = snap_store.get(_SNAP_KIND, sym)
+    if snap is not None:
+        payload, age, ttl = snap
+        if age <= ttl:
+            cache.set(ck, payload, max(60, int(ttl - age)))
+            return payload
+        if age <= _STALE_SERVE_MAX:
+            cache.set(ck, payload, 60)
+            _schedule_refresh(sym)
+            return payload
+
+    return _build_snapshot(sym)
+
+
+def _build_snapshot(sym: str) -> dict:
+    """Live composition; populates memory + disk."""
+    ck = f"research_snapshot::{sym}"
     out = _skeleton(sym)
 
     fund: dict = {}
@@ -113,4 +162,10 @@ def get_snapshot(sym: str) -> dict:
     }
 
     cache.set(ck, out, _CACHE_TTL)
+    # Persist only when something actually resolved — a transient all-null
+    # composition must not become days of stale-served blanks.
+    if out["composite"] is not None or out["name"] != sym or any(
+        v is not None for v in out["metrics"].values()
+    ):
+        snap_store.put(_SNAP_KIND, sym, out, _CACHE_TTL)
     return out

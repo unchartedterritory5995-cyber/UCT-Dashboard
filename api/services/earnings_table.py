@@ -1,25 +1,37 @@
 """Orchestrates the fundamentals widget payload: annual table (annual_financials)
 + quarterly strip (get_year_earnings) + next earnings date. Picks a cache TTL
-that collapses to 15 min around a ticker's earnings (the event fast-path)."""
+that collapses to 5 min around a ticker's earnings (the event fast-path).
+
+Serve path is stale-while-revalidate over a persistent disk snapshot
+(fundamentals_snapshot_store): memory hit → disk hit (fresh) → disk hit
+(stale ≤3 days: return instantly + background rebuild) → synchronous build
+(first-ever ticker only). The multi-provider assembly never lands on the
+request path for a ticker anyone has viewed before — including across
+redeploys."""
 from __future__ import annotations
 
 import logging
 import math
 import os
 import re
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from api.services import earnings_estimates as ee
+from api.services import fundamentals_snapshot_store as snap_store
 from api.services import yf_util
 from api.services.annual_financials import get_annual_financials
 from api.services.cache import cache
 
 _log = logging.getLogger(__name__)
 
-_FAST_TTL = 900       # 15 min — within the earnings window
+_FAST_TTL = 300       # 5 min — within the earnings window
 _SLOW_TTL = 21_600    # 6 h — normal cadence
 _EMPTY_TTL = 120      # 2 min — a fully-empty payload (transient outage) self-heals fast
+_STALE_SERVE_MAX = 3 * 86400   # serve an expired snapshot up to 3 days old while refreshing
+_SNAP_KIND = "earnings_table"
 
 try:
     from zoneinfo import ZoneInfo
@@ -396,37 +408,126 @@ def _build_quarterly(ticker, now, fresh=False):
     return out
 
 
+def _build(ticker, now):
+    """Full multi-provider assembly → (sanitized result, fresh). Annual runs in
+    parallel with the (fresh-window + quarterly) chain — the two halves hit
+    disjoint providers, so overlap roughly halves a cold build."""
+    with ThreadPoolExecutor(max_workers=1) as ex:
+        fut_annual = ex.submit(lambda: get_annual_financials_fn(ticker, now=now))
+        # Compute the earnings window ONCE: it both selects the outer TTL and
+        # tells the quarterly builder to freshen the inner year-earnings cache.
+        fresh = _is_fresh_window(ticker, now)
+        quarterly = _build_quarterly(ticker, now, fresh=fresh)
+        annual = fut_annual.result()
+    # Sanitize any non-finite float (NaN/inf) → None so the response always
+    # renders (Starlette json.dumps allow_nan=False) and no poison is cached.
+    result = _sanitize({"ticker": ticker, "annual": annual, "quarterly": quarterly})
+    return result, fresh
+
+
+def _build_and_cache(ticker, now=None):
+    """Build + populate memory cache; persist non-empty results to disk."""
+    now = time.time() if now is None else now
+    result, fresh = _build(ticker, now)
+    ckey = f"earnings_table::{ticker}"
+    ttl = _FAST_TTL if fresh else _SLOW_TTL
+    if not result["annual"] and not result["quarterly"]:
+        # Never pin a blank widget for hours on a transient source outage — the
+        # sub-services deliberately don't cache empties; keep that retry behavior.
+        # Empties are never persisted either: a stale-served blank would stick.
+        cache.set(ckey, result, _EMPTY_TTL)
+        return result
+    cache.set(ckey, result, ttl)
+    snap_store.put(_SNAP_KIND, ticker, result, ttl, now=now)
+    return result
+
+
+_refresh_inflight: set[str] = set()
+_refresh_lock = threading.Lock()
+
+
+def _schedule_refresh(ticker):
+    """Background rebuild after a stale-serve (deduped per ticker)."""
+    with _refresh_lock:
+        if ticker in _refresh_inflight:
+            return
+        _refresh_inflight.add(ticker)
+
+    def _run():
+        try:
+            _build_and_cache(ticker)
+        except Exception as e:
+            _log.warning("earnings-table bg refresh failed for %s: %s", ticker, e)
+        finally:
+            with _refresh_lock:
+                _refresh_inflight.discard(ticker)
+
+    threading.Thread(target=_run, daemon=True, name=f"fund-table-refresh-{ticker}").start()
+
+
+def invalidate(ticker):
+    """Drop the ticker's payload from memory AND disk so the next read is a
+    true rebuild (used by the fundamentals monitor's self-heal)."""
+    s = (ticker or "").upper().strip()
+    if not s:
+        return
+    cache.invalidate(f"earnings_table::{s}")
+    snap_store.delete(_SNAP_KIND, s)
+
+
+def refresh_now(ticker, max_age=600, now=None):
+    """Synchronous rebuild if the stored snapshot is older than `max_age`
+    seconds (the earnings-day reporters warm). Also clears the inner per-year
+    earnings cache so a just-reported quarter is pulled fresh from the source
+    rather than served from a pre-print inner entry. Returns True if rebuilt."""
+    now = time.time() if now is None else now
+    s = (ticker or "").upper().strip()
+    if not s:
+        return False
+    snap = snap_store.get(_SNAP_KIND, s, now=now)
+    if snap is not None and snap[1] <= max_age:
+        return False
+    cache.invalidate(f"earnings_table::{s}")
+    # Separator-anchored prefix (must span the per-year suffix) — same idiom as
+    # the fundamentals monitor heal.
+    cache.delete_prefix(f"mb_year_earnings_{s}_")
+    _build_and_cache(s, now=now)
+    return True
+
+
 def get_earnings_table(ticker, now=None, debug=False):
     now = time.time() if now is None else now
     ticker = (ticker or "").upper().strip()
     if not ticker:
         return {"ticker": "", "annual": [], "quarterly": []}
 
-    ckey = f"earnings_table::{ticker}"
-    if not debug:
-        hit = cache.get(ckey)
-        if hit is not None:
-            return hit
-
-    # Compute the earnings window ONCE: it both selects the outer TTL and tells
-    # the quarterly builder to freshen the inner year-earnings cache.
-    fresh = _is_fresh_window(ticker, now)
-    annual = get_annual_financials_fn(ticker, now=now)
-    quarterly = _build_quarterly(ticker, now, fresh=fresh)
-    # Sanitize any non-finite float (NaN/inf) → None so the response always
-    # renders (Starlette json.dumps allow_nan=False) and no poison is cached.
-    result = _sanitize({"ticker": ticker, "annual": annual, "quarterly": quarterly})
     if debug:
+        result, _fresh = _build(ticker, now)
         result["_sources"] = {
-            "annual": (annual[0].get("_source") if annual else None),
+            "annual": (result["annual"][0].get("_source") if result["annual"] else None),
             "quarterly": "get_year_earnings",
         }
         return result
 
-    ttl = _FAST_TTL if fresh else _SLOW_TTL
-    if not result["annual"] and not result["quarterly"]:
-        # Never pin a blank widget for hours on a transient source outage — the
-        # sub-services deliberately don't cache empties; keep that retry behavior.
-        ttl = _EMPTY_TTL
-    cache.set(ckey, result, ttl)
-    return result
+    ckey = f"earnings_table::{ticker}"
+    hit = cache.get(ckey)
+    if hit is not None:
+        return hit
+
+    snap = snap_store.get(_SNAP_KIND, ticker, now=now)
+    if snap is not None:
+        payload, age, ttl = snap
+        if age <= ttl:
+            # Fresh on disk (e.g. right after a redeploy) — seed memory, serve.
+            cache.set(ckey, payload, max(60, ttl - age))
+            return payload
+        if age <= _STALE_SERVE_MAX:
+            # Stale-while-revalidate: instant response, background rebuild.
+            # Short memory pin so a request storm doesn't re-read disk per hit;
+            # the background refresh overwrites it with the rebuilt payload.
+            cache.set(ckey, payload, 60)
+            _schedule_refresh(ticker)
+            return payload
+        # Too old to trust — fall through to a synchronous rebuild.
+
+    return _build_and_cache(ticker, now=now)

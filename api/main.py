@@ -3136,6 +3136,51 @@ async def lifespan(app: FastAPI):
             )
             print("[startup] Fundamentals warm scheduled -- daily at 5:30 AM ET")
 
+        # -- Earnings-day reporters auto-refresh (fundamentals widget freshness) --
+        # Weekdays every 15 min through the print windows (6-9:xx AM BMO,
+        # 4-7:xx PM ET AMC): rebuild the earnings-table snapshot for today's
+        # reporters — clearing the inner per-year cache — so a just-released
+        # quarter is live server-side within minutes, with zero user traffic.
+        # Bounded (≤40 tickers, skip when <10 min stale). Default ON; opt out
+        # with FUNDAMENTALS_REPORTERS_WARM_DISABLED=1.
+        if os.environ.get("FUNDAMENTALS_REPORTERS_WARM_DISABLED", "").lower() not in ("1", "true", "yes"):
+            def _fundamentals_reporters_warm_job():
+                import logging as _lg
+                log = _lg.getLogger("fundamentals.reporters_warm")
+                try:
+                    from api.services.earnings_table import refresh_now
+                    from api.services import engine as _rw_engine
+                    syms: list[str] = []
+                    try:
+                        earn = _rw_engine.get_earnings() or {}
+                        for bucket in ("bmo", "amc"):
+                            for row in (earn.get(bucket) or []):
+                                s = (row.get("sym") or "").upper().strip()
+                                if s and s not in syms:
+                                    syms.append(s)
+                    except Exception:
+                        pass
+                    refreshed = 0
+                    for s in syms[:40]:
+                        try:
+                            if refresh_now(s, max_age=600):
+                                refreshed += 1
+                        except Exception as e:
+                            log.debug("reporters warm %s failed: %s", s, e)
+                    if refreshed:
+                        log.info("reporters warm: refreshed %d/%d", refreshed, len(syms))
+                except Exception as e:
+                    log.warning("reporters warm job crashed: %s", e)
+
+            _scheduler.add_job(
+                _fundamentals_reporters_warm_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="6-9,16-19", minute="*/15", timezone=_ET),
+                id="fundamentals_reporters_warm",
+                max_instances=1,
+                replace_existing=True,
+            )
+            print("[startup] Fundamentals reporters warm scheduled -- every 15 min in earnings windows")
+
         # -- Theme Membership Engine (nightly orphan sweep + weekly improve) --
         # Gated: no THEME_ENGINE_ENABLED=1, no jobs — the engine ships inert.
         # See api/routers/theme_engine.py for the activation runbook (incl. the

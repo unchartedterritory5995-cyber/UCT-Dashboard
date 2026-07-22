@@ -171,9 +171,11 @@ def _heal(sym: str, now=None) -> dict:
     stale cache; if it persists it is a genuine current-pipeline defect."""
     s = (sym or "").upper().strip()
     try:
-        # EXACT-key delete for earnings_table:: (one key per ticker, no trailing
-        # separator — a prefix delete would over-match: 'A' would wipe AAPL/AMZN).
-        cache.invalidate(f"earnings_table::{s}")
+        # Clears memory AND the persistent disk snapshot — with the
+        # stale-while-revalidate serve path a memory-only invalidate would
+        # re-serve the same bad payload from disk and the re-check would lie.
+        from api.services.earnings_table import invalidate as _et_invalidate
+        _et_invalidate(s)
         # mb_year_earnings_{s}_ IS separator-anchored, so prefix delete is safe
         # and correct (it must span the per-year suffix).
         cache.delete_prefix(f"mb_year_earnings_{s}_")

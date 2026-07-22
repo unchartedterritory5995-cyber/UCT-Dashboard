@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import Any
 
 import requests
@@ -16,6 +17,7 @@ from fastapi import APIRouter, Depends, Query
 
 from api.services.fundamentals import get_fundamentals
 from api.services.earnings_table import get_earnings_table
+from api.services import fundamentals_snapshot_store as snap_store
 from api.services.cache import cache
 from api.middleware.auth_middleware import get_current_user
 
@@ -24,6 +26,8 @@ router = APIRouter()
 
 _FH_METRIC_TTL = 3600  # 1 hour
 _TIMEOUT = 10
+_SNAP_KIND = "fund_snapshot"          # /api/fundamentals/{ticker} payloads
+_SNAP_STALE_MAX = 7 * 86400           # serve-stale ceiling for the compact snapshot
 
 
 def _fh_metric_get(ticker: str) -> dict[str, Any]:
@@ -81,22 +85,31 @@ def fundamentals_health():
     return fundamentals_monitor.get_state()
 
 
-@router.get("/api/fundamentals/{ticker}")
-def get_fundamentals_endpoint(ticker: str):
-    """Compact fundamentals for a ticker.
+_snap_refresh_inflight: set[str] = set()
+_snap_refresh_lock = threading.Lock()
 
-    Returns {market_cap, forward_pe, beta, week52_high, week52_low, avg_vol, div_yield}.
-    All fields are null-safe; returns empty dict (not error) on any failure.
-    """
-    sym = (ticker or "").upper().strip()
-    if not sym:
-        return {}
 
-    ck = f"api_fund::{sym}"
-    hit = cache.get(ck)
-    if hit is not None:
-        return hit
+def _schedule_snapshot_refresh(sym: str) -> None:
+    """Background rebuild of the compact snapshot after a stale-serve."""
+    with _snap_refresh_lock:
+        if sym in _snap_refresh_inflight:
+            return
+        _snap_refresh_inflight.add(sym)
 
+    def _run():
+        try:
+            _build_snapshot(sym)
+        except Exception as e:
+            _log.warning("fund snapshot bg refresh failed for %s: %s", sym, e)
+        finally:
+            with _snap_refresh_lock:
+                _snap_refresh_inflight.discard(sym)
+
+    threading.Thread(target=_run, daemon=True, name=f"fund-snap-refresh-{sym}").start()
+
+
+def _build_snapshot(sym: str) -> dict[str, Any]:
+    """Live build of the compact snapshot; populates memory + disk."""
     try:
         base = get_fundamentals(sym)
     except Exception as e:
@@ -131,6 +144,7 @@ def get_fundamentals_endpoint(ticker: str):
 
     result: dict[str, Any] = {
         "ticker": sym,
+        "name": base.get("name"),                       # company name (widget header)
         "market_cap": base.get("market_cap"),          # formatted string e.g. "$1.23T"
         "forward_pe": base.get("pe_forward"),           # float or None
         "beta": base.get("beta"),                       # float or None
@@ -140,5 +154,41 @@ def get_fundamentals_endpoint(ticker: str):
         "div_yield": base.get("dividend_yield_pct"),    # pct e.g. 1.5
     }
 
-    cache.set(ck, result, _FH_METRIC_TTL)
+    cache.set(f"api_fund::{sym}", result, _FH_METRIC_TTL)
+    # Persist only when at least one field resolved — a transient all-null
+    # build must not become a week of stale-served blanks.
+    if any(v is not None for k, v in result.items() if k != "ticker"):
+        snap_store.put(_SNAP_KIND, sym, result, _FH_METRIC_TTL)
     return result
+
+
+@router.get("/api/fundamentals/{ticker}")
+def get_fundamentals_endpoint(ticker: str):
+    """Compact fundamentals for a ticker.
+
+    Returns {market_cap, forward_pe, beta, week52_high, week52_low, avg_vol, div_yield}.
+    All fields are null-safe; returns empty dict (not error) on any failure.
+    Serve order: memory → disk (fresh) → disk (stale ≤7d, background refresh)
+    → live build — the yfinance/Finnhub round-trips never block a repeat view.
+    """
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {}
+
+    ck = f"api_fund::{sym}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+
+    snap = snap_store.get(_SNAP_KIND, sym)
+    if snap is not None:
+        payload, age, ttl = snap
+        if age <= ttl:
+            cache.set(ck, payload, max(60, int(ttl - age)))
+            return payload
+        if age <= _SNAP_STALE_MAX:
+            cache.set(ck, payload, 60)
+            _schedule_snapshot_refresh(sym)
+            return payload
+
+    return _build_snapshot(sym)
