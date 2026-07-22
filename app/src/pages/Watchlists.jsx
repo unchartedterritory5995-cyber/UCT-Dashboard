@@ -45,7 +45,7 @@ const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderabl
 // [full label, abbreviation] + the min column width to still show the full word.
 const COL_LABELS = {
   flag: ['', ''], sym: ['Symbol', 'Sym'], price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'],
-  mcap: ['Market Cap', 'Mkt Cap'], earn: ['Next Earnings', 'Earn'], rating: ['UCT Rating', 'UCT'],
+  mcap: ['Market Cap', 'Mkt Cap'], earn: ['Next Earnings', 'Earnings'], rating: ['UCT Rating', 'UCT'],
 }
 const COL_FULL_MINW = { sym: 62, price: 46, vol: 60, chg: 80, mcap: 78, earn: 108, rating: 82 }
 // Extra data columns the user can ADD via the + button (not shown by default).
