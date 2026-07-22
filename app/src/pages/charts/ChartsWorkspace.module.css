@@ -61,7 +61,15 @@
    line (a hair brighter than the widget's own border) over a 1px seam — TC2000-style,
    no bright bar / no wide gap. */
 .widgetMerged {
-  border: 1px solid #2b3540;
+  /* Border on the RIGHT + BOTTOM only. Adjacent merged widgets tile edge-to-edge
+     (zero gap), so a single 1px seam comes from the left/top widget's own edge —
+     instead of BOTH widgets drawing a 1px border and the interior seam reading as
+     2px (thick) while the layout's outer top edge stayed 1px (thin). The outer
+     top + left edges are drawn by .workspaceBodyMerged's inset shadow; the outer
+     bottom by its ::after; the outer right by the rightmost widgets' own border. */
+  border: none;
+  border-right: 1px solid #2b3540;
+  border-bottom: 1px solid #2b3540;
   border-radius: 0;
 }
 
@@ -677,6 +685,9 @@
    so the ResizeObserver row-height math matches — else the grid clips. */
 .workspaceBodyMerged {
   padding: 0;
+  /* Outer TOP + LEFT seam (widgets only border right/bottom now). Inset shadow, not
+     a border, so it adds a 1px hairline without resizing the box (no grid shift). */
+  box-shadow: inset 1px 1px 0 0 #2b3540;
 }
 /* Thin seam line at the very bottom — the SAME #2b3540 divider that separates the
    merged widgets — so the blended board is cleanly separated from the OS taskbar
