@@ -12,6 +12,12 @@
   --ut-gold: #c9a84c;
   --ut-gold-dim: #c9a84c15;
   --ut-gold-glow: #c9a84c35;
+  /* Semantic accent = the brand gold. Aliased (not hardcoded) so every
+     `var(--accent)` follows the per-theme --ut-gold: bright #c9a84c on dark,
+     the darker #7a5c16 on the light theme (legible on light chrome like the
+     charts toolbar buttons), and bright again inside dark chart widgets where
+     the .widget scope re-asserts the dark --ut-gold. */
+  --accent: var(--ut-gold);
   --ut-cream: #d4c9a8;
   --bg: #0e0f0d;
   --bg-surface: #1a1c17;
