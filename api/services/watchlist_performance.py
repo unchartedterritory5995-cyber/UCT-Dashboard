@@ -12,18 +12,25 @@ _logger = logging.getLogger(__name__)
 
 from api.services.cache import cache
 from api.services.massive import get_agg_bars
-from api.services.theme_performance import _compute_returns
+from api.services.theme_performance import _compute_returns_with_refs
 
 _MAX_WORKERS = 2  # Conservative for Railway 512MB — prevents thread explosion
 _CACHE_TTL = 300  # 5 minutes
+
+# Periods for which we surface the REFERENCE close price so the client can recompute
+# the % against a live intraday price, tick-by-tick (like the daily change column).
+_REF_PERIODS = ("5d", "30d", "60d", "90d")
 
 
 def _fetch_ticker_returns(ticker: str) -> dict:
     to_date = date.today().isoformat()
     from_date = (date.today() - timedelta(days=400)).isoformat()
     bars = get_agg_bars(ticker, from_date, to_date)
-    r = _compute_returns(bars)
-    return {k: r.get(k) for k in ("1d", "1w", "1m", "3m", "ytd", "5d", "30d", "60d", "90d")}
+    r, refs = _compute_returns_with_refs(bars)
+    out = {k: r.get(k) for k in ("1d", "1w", "1m", "3m", "ytd", "5d", "30d", "60d", "90d")}
+    # Reference closes for the N-day columns → client recomputes % vs the live price.
+    out["refs"] = {k: refs.get(k) for k in _REF_PERIODS}
+    return out
 
 
 def get_batch_returns(tickers: list[str]) -> dict:
@@ -50,7 +57,8 @@ def get_batch_returns(tickers: list[str]) -> dict:
             except Exception as e:
                 _logger.warning("Failed to fetch returns for %s: %s", ticker, e)
                 results[ticker] = {"1d": None, "1w": None, "1m": None, "3m": None, "ytd": None,
-                                   "5d": None, "30d": None, "60d": None, "90d": None}
+                                   "5d": None, "30d": None, "60d": None, "90d": None,
+                                   "refs": {k: None for k in _REF_PERIODS}}
 
     cache.set(cache_key, results, _CACHE_TTL)
     return results

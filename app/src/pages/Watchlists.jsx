@@ -185,21 +185,25 @@ function fmtVol(v) {
 // == day direction). tickUp/tickDown map to the user's custom --wl-tint colors, so
 // this stays palette-agnostic. `dir` now only GATES the flash (any change), the
 // color comes from the day sign.
-const FlashCell = React.memo(function FlashCell({ value, display, className, tint = false, tintSign = null }) {
+//
+// `flashEnabled` (the "Background tint" setting) is the master switch for ALL the
+// pulse effects — the bold flash AND the tint. Off = the value simply changes with
+// no visual effect at all.
+const FlashCell = React.memo(function FlashCell({ value, display, className, tint = false, tintSign = null, flashEnabled = true }) {
   const [dir, setDir] = useState(null)
   const prevRef = useRef(value)
   useEffect(() => {
     const p = prevRef.current
-    if (value != null && p != null && value !== p) {
+    prevRef.current = value
+    if (flashEnabled && value != null && p != null && value !== p) {
       setDir(value > p ? 'up' : 'down')
-      prevRef.current = value
       const id = setTimeout(() => setDir(null), 480)
       return () => clearTimeout(id)
     }
-    prevRef.current = value
-  }, [value])
+    return undefined
+  }, [value, flashEnabled])
   const daySign = tintSign != null ? tintSign : value
-  const flash = dir
+  const flash = (flashEnabled && dir)
     ? `${styles.tickFlash}${tint ? ' ' + (daySign >= 0 ? styles.tickUp : styles.tickDown) : ''}`
     : ''
   // The tint/bold ride an INNER content-sized box so the flash hugs the value
@@ -229,7 +233,7 @@ const WatchRow = React.memo(function WatchRow({
   // Signed % cell (green/red text + day-direction tint flash) — shared by the
   // %-from-open/high/low columns so they read like the % Change column.
   const pctCell = (key, v) => (
-    <FlashCell key={key} value={v} tint={tintEnabled}
+    <FlashCell key={key} value={v} tint={tintEnabled} flashEnabled={tintEnabled}
       className={`${styles.changeCell} ${v != null ? (v >= 0 ? styles.gain : styles.loss) : ''}`}
       display={v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—'} />
   )
@@ -249,14 +253,14 @@ const WatchRow = React.memo(function WatchRow({
       </span>
     )
     if (key === 'price') return (
-      <FlashCell key="price" value={price} className={styles.priceCell}
+      <FlashCell key="price" value={price} className={styles.priceCell} flashEnabled={tintEnabled}
         display={price != null ? price.toFixed(2) : '—'} />
     )
     if (key === 'vol') return (
-      <FlashCell key="vol" value={volume} className={styles.volCell} display={fmtVol(volume)} />
+      <FlashCell key="vol" value={volume} className={styles.volCell} flashEnabled={tintEnabled} display={fmtVol(volume)} />
     )
     if (key === 'chg') return (
-      <FlashCell key="chg" value={changePct} tint={tintEnabled}
+      <FlashCell key="chg" value={changePct} tint={tintEnabled} flashEnabled={tintEnabled}
         className={`${styles.changeCell} ${changePct != null ? (changePct >= 0 ? styles.gain : styles.loss) : ''}`}
         display={changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` : '—'} />
     )
@@ -269,7 +273,7 @@ const WatchRow = React.memo(function WatchRow({
     )
     // Intraday quote-derived columns.
     if (key === 'dchg') return (
-      <FlashCell key="dchg" value={dchg} tint={tintEnabled}
+      <FlashCell key="dchg" value={dchg} tint={tintEnabled} flashEnabled={tintEnabled}
         className={`${styles.changeCell} ${dchg != null ? (dchg >= 0 ? styles.gain : styles.loss) : ''}`}
         display={dchg != null ? `${dchg >= 0 ? '+' : ''}${dchg.toFixed(2)}` : '—'} />
     )
@@ -1025,8 +1029,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       // Extra columns sort off the meta batch, not the quote feed. Market cap arrives
       // as a display string ("$1.2T") → parse it back to a number; next earnings sorts
       // by calendar date; rating is already numeric.
-      // N-day performance columns sort off the perf batch.
-      if (PERF_COL_KEYS.has(key)) return perfData?.[s]?.[PERF_KEY_MAP[key]] ?? null
+      // N-day performance columns sort off the LIVE % (price vs reference close),
+      // matching the displayed value; fall back to the backend's static %.
+      if (PERF_COL_KEYS.has(key)) {
+        const period = PERF_KEY_MAP[key]
+        const ref = perfData?.[s]?.refs?.[period]
+        if (Number.isFinite(ref) && ref > 0 && Number.isFinite(q?.price)) return ((q.price - ref) / ref) * 100
+        return perfData?.[s]?.[period] ?? null
+      }
       const m = metaData?.[s]
       if (key === 'mcap') return parseMcap(m?.market_cap)
       if (key === 'earn') return earnSortValue(m?.next_earnings)
@@ -1134,6 +1144,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // `wlId` (owner watchlist rows only) enables the right-click context menu + remove button.
   function renderTickerRow({ sym, name = null, isOwner = false, itemId = null, notes = null, wlId = null }) {
     const q = prices[sym]
+    // N-day % change, computed LIVE from the current price vs the reference close N
+    // trading days ago (backend `refs`), so these columns tick/flash/tint with every
+    // quote update just like % Change. Falls back to the backend's static % when the
+    // reference close isn't available yet.
+    const perfLive = (period) => {
+      const ref = perfData[sym]?.refs?.[period]
+      const p = q?.price
+      if (Number.isFinite(ref) && ref > 0 && Number.isFinite(p)) return ((p - ref) / ref) * 100
+      return perfData[sym]?.[period] ?? null
+    }
     return (
       <WatchRow
         key={sym}
@@ -1150,10 +1170,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         sector={metaData[sym]?.sector ?? null}
         industry={metaData[sym]?.industry ?? null}
         theme={themeData[sym] ?? null}
-        perf5d={perfData[sym]?.['5d'] ?? null}
-        perf30d={perfData[sym]?.['30d'] ?? null}
-        perf60d={perfData[sym]?.['60d'] ?? null}
-        perf90d={perfData[sym]?.['90d'] ?? null}
+        perf5d={perfLive('5d')}
+        perf30d={perfLive('30d')}
+        perf60d={perfLive('60d')}
+        perf90d={perfLive('90d')}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}

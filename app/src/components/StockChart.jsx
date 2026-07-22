@@ -1667,7 +1667,10 @@ export default function StockChart({
     const overlays = rovs.map((ov, i) => {
       const d = ovData[i]?.data
       const pt = (d && d.length) ? d[d.length - 1] : null
-      if (!pt || !ov) return null
+      // Drop DISABLED overlays (they can still carry stale computed data) so a
+      // toggled-off MA vanishes from the always-on legend and the grid collapses —
+      // matching the live/crosshair builder's `ov.enabled === false` guard.
+      if (!pt || !ov || ov.enabled === false) return null
       const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
       return { label: `${ov.type} ${ov.period}`, value: pt.value, color, _period: Number(ov.period) }
     }).filter(Boolean).sort((a, b) => a._period - b._period)   // legend always in ascending-period order
