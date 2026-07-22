@@ -127,7 +127,7 @@ const HEADER_ROWS = [
   { key: 'showLegend', label: 'Chart legend', swatches: [['hdrLegend', 'Chart legend color']] },
 ]
 
-export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor }) {
+export default function ChartSettingsModal({ open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null }) {
   const panelRef = useRef(null)
   const dragRef = useRef(null)
   const [activeTab, setActiveTab] = useState('price') // 'price' | 'canvas'
@@ -360,7 +360,7 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
         className={styles.panel}
         ref={panelRef}
         onMouseDown={(e) => e.stopPropagation()}
-        style={pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : undefined}
+        style={{ ...(themeVars || {}), ...(pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : {}) }}
       >
         <div className={styles.header} onPointerDown={startDrag} style={{ cursor: 'move' }}>
           <span className={styles.title}>Chart Settings</span>

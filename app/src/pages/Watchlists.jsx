@@ -9,6 +9,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useWatchlistMeta from '../hooks/useWatchlistMeta'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
+import { menuThemeVars } from '../utils/dividerColor'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import useTagColors from '../hooks/useTagColors'
@@ -363,6 +364,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(WATCHLIST_DEFAULTS))
   }, [setPref])
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
+  // Canvas-matched palette for the Watchlist Settings panel (light/gold on a light
+  // canvas, dark on a dark one) — same mechanism as the chart popup menus.
+  const wlMenuVars = useMemo(() => {
+    const canvas = wlSettings.bgMode === 'gradient' ? (wlSettings.bgGradient?.top || wlSettings.bg) : wlSettings.bg
+    return menuThemeVars(canvas) || {}
+  }, [wlSettings])
   // CompanyLogo sizes itself with an inline px style, so the text-size scale has to be
   // applied in JS for the logo (the CSS var handles everything else).
   const rowLogoSize = useMemo(() => {
@@ -1368,6 +1375,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           onClose={() => setSettingsOpen(false)}
           gearEl={settingsBtnRef.current}
           hostEl={pageRef.current}
+          themeVars={wlMenuVars}
         />
       )}
 

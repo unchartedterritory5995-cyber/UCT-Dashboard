@@ -39,7 +39,7 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function WatchlistSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl }) {
+export default function WatchlistSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)               // settings-menu position (left of the watchlist)
   const [activeTarget, setActiveTarget] = useState(null)  // { target, label } — which color is being edited
@@ -126,7 +126,7 @@ export default function WatchlistSettingsPanel({ settings: s, onChange, onReset,
       <div
         ref={panelRef}
         className={styles.panel}
-        style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}
+        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>

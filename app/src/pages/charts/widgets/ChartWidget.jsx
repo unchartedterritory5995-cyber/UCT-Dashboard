@@ -650,6 +650,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         savedColors={savedColors}
         onSaveColor={saveColor}
         onDeleteColor={deleteColor}
+        themeVars={menuVars}
       />
     </div>
   )

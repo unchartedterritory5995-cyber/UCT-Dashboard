@@ -21,11 +21,11 @@
   height: min(568px, 88vh);
   display: flex;
   flex-direction: column;
-  background: #0e0e10;
-  border: 1px solid #242426;
+  background: var(--menu-bg, #0e0e10);
+  border: 1px solid var(--menu-border, #242426);
   border-radius: 12px;
   box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.7),
+    0 24px 70px var(--menu-shadow, rgba(0, 0, 0, 0.7)),
     0 0 0 1px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
   overflow: hidden;
@@ -42,15 +42,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-bottom: 1px solid #202022;
-  background: linear-gradient(180deg, #161618 0%, #0e0e10 100%);
+  border-bottom: 1px solid var(--menu-divider, #202022);
+  background: linear-gradient(180deg, var(--menu-bg-top, #161618) 0%, var(--menu-bg, #0e0e10) 100%);
 }
 
 .title {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: #ededed;
+  color: var(--menu-text, #ededed);
 }
 
 .headerRight {
@@ -60,8 +60,8 @@
 }
 .resetBtn {
   background: transparent;
-  border: 1px solid #2c2c30;
-  color: #8a8a8f;
+  border: 1px solid var(--menu-border, #2c2c30);
+  color: var(--menu-text-dim, #8a8a8f);
   font-family: inherit;
   font-size: 10.5px;
   font-weight: 600;
@@ -71,17 +71,17 @@
   white-space: nowrap;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-.resetBtn:hover { color: #ededed; border-color: rgba(201, 168, 76, 0.45); }
+.resetBtn:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
 .resetBtnConfirm {
-  color: #f0b23a;
-  border-color: rgba(240, 178, 58, 0.6);
-  background: rgba(240, 178, 58, 0.12);
+  color: var(--menu-accent, #f0b23a);
+  border-color: var(--menu-accent, rgba(240, 178, 58, 0.6));
+  background: var(--menu-accent-bg, rgba(240, 178, 58, 0.12));
 }
 
 .close {
   background: transparent;
   border: none;
-  color: #6b6b6b;
+  color: var(--menu-text-faint, #6b6b6b);
   font-size: 15px;
   line-height: 1;
   cursor: pointer;
@@ -89,14 +89,14 @@
   border-radius: 6px;
   transition: color 120ms, background 120ms;
 }
-.close:hover { color: #ededed; background: rgba(255, 255, 255, 0.05); }
+.close:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
 
 /* Tabs — horizontal row under the header (Price Style / Canvas / …). */
 .tabs {
   display: flex;
   gap: 22px;
   padding: 0 18px;
-  border-bottom: 1px solid #202022;
+  border-bottom: 1px solid var(--menu-divider, #202022);
 }
 .tab {
   position: relative;
@@ -107,12 +107,12 @@
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.2px;
-  color: #7a7a7a;
+  color: var(--menu-text-dim, #7a7a7a);
   cursor: pointer;
   transition: color 120ms;
 }
-.tab:hover { color: #cfcfcf; }
-.tabActive { color: #ededed; }
+.tab:hover { color: var(--menu-text, #cfcfcf); }
+.tabActive { color: var(--menu-text, #ededed); }
 .tabActive::after {
   content: '';
   position: absolute;
@@ -120,7 +120,7 @@
   right: 0;
   bottom: -1px;
   height: 2px;
-  background: #c9a84c;
+  background: var(--menu-accent, #c9a84c);
   border-radius: 2px 2px 0 0;
 }
 
@@ -135,15 +135,15 @@
   padding: 40px 8px;
   text-align: center;
   font-size: 12.5px;
-  color: #6b6b6b;
+  color: var(--menu-text-faint, #6b6b6b);
 }
 
 .section + .section { margin-top: 22px; }
 
 /* Canvas — grouped card of aligned rows (label left, control right). */
 .card {
-  background: #131315;
-  border: 1px solid #232325;
+  background: var(--menu-bg-top, #131315);
+  border: 1px solid var(--menu-border, #232325);
   border-radius: 10px;
   padding: 0 14px;
 }
@@ -154,15 +154,15 @@
   gap: 12px;
   min-height: 48px;
 }
-.field + .field { border-top: 1px solid #202022; }
-.fieldLabel { font-size: 12.5px; font-weight: 500; color: #d4d4d4; }
+.field + .field { border-top: 1px solid var(--menu-divider, #202022); }
+.fieldLabel { font-size: 12.5px; font-weight: 500; color: var(--menu-text, #d4d4d4); }
 
 /* Segmented control (Solid / Gradient) — sits flush at the top of the card. */
 .seg {
   display: flex;
   gap: 4px;
   padding: 6px 0;
-  border-bottom: 1px solid #202022;
+  border-bottom: 1px solid var(--menu-divider, #202022);
 }
 .segBtn {
   flex: 1;
@@ -173,16 +173,16 @@
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 600;
-  color: #8a8a8a;
+  color: var(--menu-text-dim, #8a8a8a);
   cursor: pointer;
   transition: color 120ms, background 120ms, border-color 120ms;
 }
-.segBtn:hover { color: #cfcfcf; background: #1a1a1c; }
+.segBtn:hover { color: var(--menu-text, #cfcfcf); background: var(--menu-hover, #1a1a1c); }
 .segBtnActive,
 .segBtnActive:hover {
-  color: #e7cf8f;
-  background: rgba(201, 168, 76, 0.10);
-  border-color: #c9a84c;
+  color: var(--menu-accent, #e7cf8f);
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
+  border-color: var(--menu-accent, #c9a84c);
 }
 .toggle {
   position: relative;
@@ -190,13 +190,13 @@
   height: 21px;
   flex: none;
   border-radius: 999px;
-  border: 1px solid #2e2e30;
-  background: #161618;
+  border: 1px solid var(--menu-border, #2e2e30);
+  background: var(--menu-input-bg, #161618);
   cursor: pointer;
   padding: 0;
   transition: background 140ms, border-color 140ms;
 }
-.toggle:hover { border-color: #3a3a3c; }
+.toggle:hover { border-color: var(--menu-border, #3a3a3c); }
 .toggleKnob {
   position: absolute;
   top: 2px;
@@ -204,11 +204,11 @@
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  background: #9a9a9a;
+  background: var(--menu-text-dim, #9a9a9a);
   transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background 140ms;
 }
-.toggleOn { background: rgba(201, 168, 76, 0.22); border-color: #c9a84c; }
-.toggleOn .toggleKnob { transform: translateX(17px); background: #e2c98a; }
+.toggleOn { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.22)); border-color: var(--menu-accent, #c9a84c); }
+.toggleOn .toggleKnob { transform: translateX(17px); background: var(--menu-accent, #e2c98a); }
 
 /* A row's right-side controls sitting together (e.g. size dropdown + swatch). */
 .fieldControls { display: flex; align-items: center; gap: 10px; }
@@ -219,10 +219,10 @@
   color-scheme: dark;
   appearance: none;
   -webkit-appearance: none;
-  background: #161618;
-  border: 1px solid #2b2b2d;
+  background: var(--menu-input-bg, #161618);
+  border: 1px solid var(--menu-border, #2b2b2d);
   border-radius: 7px;
-  color: #d4d4d4;
+  color: var(--menu-text, #d4d4d4);
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 600;
@@ -234,29 +234,29 @@
   background-position: right 9px center;
   transition: border-color 120ms;
 }
-.sizeSelect:hover { border-color: #3a3a3c; }
-.sizeSelect:focus { outline: none; border-color: #c9a84c; }
+.sizeSelect:hover { border-color: var(--menu-border, #3a3a3c); }
+.sizeSelect:focus { outline: none; border-color: var(--menu-accent, #c9a84c); }
 
 /* Selectable field chips (watermark lines). */
 .chipRow { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .chip {
   padding: 5px 10px;
   border-radius: 999px;
-  border: 1px solid #2b2b2d;
-  background: #161618;
+  border: 1px solid var(--menu-border, #2b2b2d);
+  background: var(--menu-input-bg, #161618);
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 500;
-  color: #9a9a9a;
+  color: var(--menu-text-dim, #9a9a9a);
   cursor: pointer;
   transition: color 120ms, background 120ms, border-color 120ms;
 }
-.chip:hover { color: #cfcfcf; border-color: #3a3a3c; }
+.chip:hover { color: var(--menu-text, #cfcfcf); border-color: var(--menu-border, #3a3a3c); }
 .chipOn,
 .chipOn:hover {
-  color: #e7cf8f;
-  background: rgba(201, 168, 76, 0.12);
-  border-color: #c9a84c;
+  color: var(--menu-accent, #e7cf8f);
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12));
+  border-color: var(--menu-accent, #c9a84c);
 }
 
 .sectionLabel {
@@ -264,7 +264,7 @@
   font-weight: 700;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: #7a7a7a;
+  color: var(--menu-text-dim, #7a7a7a);
   margin-bottom: 12px;
 }
 
@@ -285,18 +285,18 @@
   justify-content: center;
   gap: 9px;
   padding: 16px 8px 12px;
-  background: #161618;
-  border: 1px solid #242426;
+  background: var(--menu-input-bg, #161618);
+  border: 1px solid var(--menu-border, #242426);
   border-radius: 9px;
-  color: #808080;
+  color: var(--menu-text-dim, #808080);
   cursor: pointer;
   font-family: inherit;
   transition: border-color 120ms, background 120ms, color 120ms, transform 120ms;
 }
 .typeCard:hover {
-  background: #1c1c1e;
-  border-color: #2e2e30;
-  color: #d4d4d4;
+  background: var(--menu-hover, #1c1c1e);
+  border-color: var(--menu-border, #2e2e30);
+  color: var(--menu-text, #d4d4d4);
   transform: translateY(-1px);
 }
 
@@ -319,9 +319,9 @@
 /* Active card — gold accent, matching the site's premium accent. */
 .typeCardActive,
 .typeCardActive:hover {
-  background: rgba(201, 168, 76, 0.10);
-  border-color: #c9a84c;
-  color: #e7cf8f;
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
+  border-color: var(--menu-accent, #c9a84c);
+  color: var(--menu-accent, #e7cf8f);
   transform: none;
 }
 
@@ -340,8 +340,8 @@
   align-items: center;
   justify-content: center;
   padding: 12px;
-  background: #161618;
-  border: 1px solid #242426;
+  background: var(--menu-input-bg, #161618);
+  border: 1px solid var(--menu-border, #242426);
   border-radius: 9px;
   cursor: pointer;
   font-family: inherit;
@@ -349,30 +349,30 @@
   transition: border-color 120ms, background 120ms, transform 120ms;
 }
 .modeCard:hover {
-  background: #1c1c1e;
-  border-color: #2e2e30;
+  background: var(--menu-hover, #1c1c1e);
+  border-color: var(--menu-border, #2e2e30);
   transform: translateY(-1px);
 }
 
 .modeName {
   font-size: 12.5px;
   font-weight: 600;
-  color: #d4d4d4;
+  color: var(--menu-text, #d4d4d4);
 }
 .modeDesc {
   font-size: 10.5px;
   font-weight: 500;
-  color: #7a7a7a;
+  color: var(--menu-text-dim, #7a7a7a);
 }
 
 .modeCardActive,
 .modeCardActive:hover {
-  background: rgba(201, 168, 76, 0.10);
-  border-color: #c9a84c;
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.10));
+  border-color: var(--menu-accent, #c9a84c);
   transform: none;
 }
-.modeCardActive .modeName { color: #e7cf8f; }
-.modeCardActive .modeDesc { color: #b39a5e; }
+.modeCardActive .modeName { color: var(--menu-accent, #e7cf8f); }
+.modeCardActive .modeDesc { color: var(--menu-accent, #b39a5e); }
 
 /* Colors — Body / Borders / Wick line up under the 3 columns above (Body left,
    Borders center, Wick right), each centered within its third. */
@@ -391,7 +391,7 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
-  color: #b0b0b0;
+  color: var(--menu-text-dim, #b0b0b0);
 }
 .cSwatches { display: flex; gap: 10px; justify-content: center; }
 
@@ -402,16 +402,16 @@
   width: 30px;
   height: 30px;
   border-radius: 6px;
-  border: 1px solid #2b2b2d;
+  border: 1px solid var(--menu-border, #2b2b2d);
   cursor: pointer;
   padding: 0;
   transition: border-color 120ms, box-shadow 120ms;
 }
-.cSwatch:hover { border-color: #565658; }
+.cSwatch:hover { border-color: var(--menu-border, #565658); }
 .cSwatchActive,
 .cSwatchActive:hover {
   border-color: transparent;
-  box-shadow: 0 0 0 2px #0e0e10, 0 0 0 3px #c9a84c;
+  box-shadow: 0 0 0 2px var(--menu-bg, #0e0e10), 0 0 0 3px var(--menu-accent, #c9a84c);
 }
 
 /* Header "Show" rows: color swatch(es) + the show toggle, right-aligned. Day change
@@ -428,7 +428,7 @@
    than per-indicator styles — a new descriptor needs no CSS. */
 .indBlock {
   padding: 8px 0;
-  border-bottom: 1px solid var(--border, #2e3127);
+  border-bottom: 1px solid var(--menu-divider, var(--border, #2e3127));
 }
 .indBlock:last-child { border-bottom: none; }
 .indHead {
@@ -441,7 +441,7 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: var(--text-bright, #e0dac8);
+  color: var(--menu-text, var(--text-bright, #e0dac8));
 }
 .indRow {
   display: flex;
@@ -450,26 +450,26 @@
   gap: 10px;
   padding: 3px 0 3px 28px;   /* indent under the enable toggle */
 }
-.indLabel { font-size: 11px; color: var(--text-muted, #8c8674); }
+.indLabel { font-size: 11px; color: var(--menu-text-dim, var(--text-muted, #8c8674)); }
 /* Fields present in the schema but not yet honored by the renderer are shown
    inert with a title explaining why — better than a control that silently no-ops. */
 .indLabelOff { opacity: 0.45; }
 .indNum {
   width: 66px;
-  background: var(--bg-elevated, #16181c);
-  border: 1px solid var(--border, #2e3127);
+  background: var(--menu-input-bg, var(--bg-elevated, #16181c));
+  border: 1px solid var(--menu-border, var(--border, #2e3127));
   border-radius: 4px;
-  color: var(--text-bright, #e0dac8);
+  color: var(--menu-text, var(--text-bright, #e0dac8));
   font-family: inherit;
   font-size: 11px;
   padding: 3px 6px;
 }
 .indSelect {
   min-width: 96px;
-  background: var(--bg-elevated, #16181c);
-  border: 1px solid var(--border, #2e3127);
+  background: var(--menu-input-bg, var(--bg-elevated, #16181c));
+  border: 1px solid var(--menu-border, var(--border, #2e3127));
   border-radius: 4px;
-  color: var(--text-bright, #e0dac8);
+  color: var(--menu-text, var(--text-bright, #e0dac8));
   font-family: inherit;
   font-size: 11px;
   padding: 3px 6px;
