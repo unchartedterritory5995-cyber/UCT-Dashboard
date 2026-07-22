@@ -1,5 +1,5 @@
 {
-  "version": "4.20.0+6be7d930",
+  "version": "4.21.0+3b3cb52b",
   "generated_at": "2026-07-22",
   "sectors": [
     {
@@ -12785,6 +12785,12 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "owner-reviewed add"
+        },
+        {
+          "sym": "SIMO",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Silicon Motion, NAND flash controllers"
         },
         {
           "sym": "AVGO",
