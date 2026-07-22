@@ -607,6 +607,7 @@
   background: var(--bg-elevated, #1f2937); color: var(--accent, #c9a84c);
   border: none; padding: 6px 12px; border-radius: 3px;
   font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+  font-weight: 600;   /* was inherited-normal — too faint at 10px, esp. in light mode */
   cursor: pointer; font-family: inherit;
 }
 .toolbarBtn.ghost { background: transparent; color: var(--text-muted, #6b7280); }
