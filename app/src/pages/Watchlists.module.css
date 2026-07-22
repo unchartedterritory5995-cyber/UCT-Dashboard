@@ -102,6 +102,24 @@
      list is long enough to scroll. On a short list the rows — and the selected-row
      gold tint — extend to the widget's right edge. The header + rows stay aligned
      because both live inside this same scroll container. */
+  /* Scrollbar tracks the canvas: --wl-divider-strong is derived from the chosen canvas
+     color (dividerFor) — a translucent DARK line on a light canvas, a translucent LIGHT
+     line on a dark one — so the thumb is subtle + transparent on any canvas instead of
+     the fixed OS-dark bar. Same --widget-* → --wl-* fallback chain the cells use. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.14))) transparent;
+}
+.listBody::-webkit-scrollbar { width: 10px; }
+.listBody::-webkit-scrollbar-track { background: transparent; }
+.listBody::-webkit-scrollbar-thumb {
+  background: var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.14)));
+  border-radius: 5px;
+  border: 2px solid transparent;   /* inset the thumb a touch so it doesn't kiss the edge */
+  background-clip: padding-box;
+}
+.listBody::-webkit-scrollbar-thumb:hover {
+  background: var(--widget-text, var(--wl-text, rgba(255, 255, 255, 0.3)));
+  background-clip: padding-box;
 }
 
 /* ── List rows ── */
