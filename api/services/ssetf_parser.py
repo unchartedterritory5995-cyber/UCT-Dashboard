@@ -41,11 +41,22 @@ _STOPLIST = {
 # Inverse Bitcoin Daily Target ETF" was mis-mapped to a SPAC. These funds
 # track the ASSET, not a stock -> must fall through to zero-candidate skip
 # (spec §7: commodity/crypto funds are out of scope). Company-pass only; the
-# ticker pass is unaffected.
+# ticker pass is unaffected. Side effect: a company legitimately named with
+# one of these words ("Stellar Bancorp") can never be company-pass-matched —
+# a safe silent skip; the §3.5 remap override is the escape hatch.
 _CRYPTO_ASSETS = {
     "BITCOIN", "ETHER", "ETHEREUM", "SOLANA", "AVALANCHE", "STELLAR",
     "XRP", "RIPPLE", "DOGECOIN", "LITECOIN", "CARDANO", "CHAINLINK", "SUI",
 }
+
+# Direction keywords must never SEED a company-name span. They are inert
+# today only by luck — each happens to multi-hit ("Long" -> Longeveron +
+# Long Table Growth; "Bull" -> Bullish + Bullfrog AI) — but if one of those
+# companies leaves the export, "Long" would uniquely prefix-match the
+# survivor and "T-Rex 2X Long Bitcoin Daily Target ETF" would mis-map to a
+# 2x-long Longeveron fund (the catastrophic mode). Company-pass only: the
+# BULL/Webull ticker-pass carve-out (_candidate/_STOPLIST) is untouched.
+_DIRECTION_WORDS = {"LONG", "SHORT", "BULL", "BEAR", "INVERSE"}
 
 
 @dataclass
@@ -180,7 +191,9 @@ def _company_pass(tokens: list[str], anchor_idx: set, stock_set: dict[str, str])
         return re.sub(r"[^a-z0-9 ]", "", s.lower())
 
     def _span_word_ok(w: str) -> bool:
-        return w[:1].isupper() and not _is_stoplisted(w) and w.upper() not in _CRYPTO_ASSETS
+        return (w[:1].isupper() and not _is_stoplisted(w)
+                and w.upper() not in _CRYPTO_ASSETS
+                and w.upper() not in _DIRECTION_WORDS)
 
     companies = {t: _norm(c) for t, c in stock_set.items() if c}
     spans: list[str] = []

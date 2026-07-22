@@ -53,9 +53,7 @@ def test_fixture_numeric_format_is_plain_thousands(export):
     # THOUSANDS of shares — no comma grouping. SPY=52138.11 in the live
     # export; the fixture keeps NVDA-class rows whose avg volume must be
     # a big plain float, never a comma string and never a raw share count.
-    _, _, _ = export
-    with open(FIXTURE, encoding="utf-8") as fh:
-        rows = list(csv.DictReader(fh))
+    rows, _, _ = export
     nvda = next(r for r in rows if r["Ticker"] == "NVDA")
     assert "," not in nvda["Average Volume"]
     v = _num(nvda["Average Volume"])

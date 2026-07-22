@@ -73,6 +73,22 @@ def test_crypto_asset_funds_never_map_to_treasury_companies(name, etf):
     r = parse_etf_name(name, etf, REAL_STOCK_SET)
     assert r.status != "parsed" and r.underlying not in ("BIXI", "HSDT", "AVAT")
 
+def test_direction_words_never_seed_company_spans():
+    # Structural guard (review finding): with a SINGLE Long*-prefixed company
+    # in the universe, the 'Long' span would uniquely prefix-match it — so
+    # "T-Rex 2X Long Bitcoin Daily Target ETF" would mis-map to a 2x-long
+    # Longeveron fund (the catastrophic mode; today it is prevented only by
+    # the lucky Longeveron+Long Table Growth multi-hit). Direction keywords
+    # are barred from company-span seeding — company pass ONLY, the
+    # BULL/Webull ticker-pass carve-out is untouched.
+    stock = {"LGVN": "Longeveron Inc", "TSLA": "Tesla, Inc."}
+    r = parse_etf_name("T-REX 2X Long Bitcoin Daily Target ETF", "BTCL", stock)
+    assert r.status == "skip" and r.underlying != "LGVN"
+    # ...and the exclusion must not break the legitimate company path:
+    r = parse_etf_name("T-REX 2X Long Tesla Daily Target ETF", "TSLT", stock)
+    assert (r.status, r.underlying, r.direction) == ("parsed", "TSLA", "long")
+
+
 def test_fundlevel_ambiguity_still_none_when_two_spans_match_differently():
     # Two spans (both adjacent to the cluster) uniquely matching DIFFERENT
     # companies must still refuse: matches = {TSLA, MSFT} -> len != 1 ->
