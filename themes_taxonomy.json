@@ -1,6 +1,6 @@
 {
-  "version": "4.19.0+f5aaacad",
-  "generated_at": "2026-07-21",
+  "version": "4.20.0+6be7d930",
+  "generated_at": "2026-07-22",
   "sectors": [
     {
       "id": "technology",
@@ -12773,6 +12773,12 @@
           "tier": "relevant",
           "sub_theme_id": null,
           "rationale": "Western Digital, NAND flash and HDD"
+        },
+        {
+          "sym": "STX",
+          "tier": "relevant",
+          "sub_theme_id": null,
+          "rationale": "Seagate, mass-capacity HDD leader (HAMR)"
         },
         {
           "sym": "SNDK",
