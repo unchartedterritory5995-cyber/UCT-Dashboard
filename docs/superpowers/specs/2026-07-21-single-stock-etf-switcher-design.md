@@ -188,11 +188,15 @@ Parse rules (pure functions, `parse_etf_name(name, stock_set) -> ParseResult`):
    (BRK.B → BRK-B) before membership lookup (the universe stores hyphens; it
    has zero dotted entries).
 1. **Factor:** regex `(\d+(?:\.\d+)?)\s*[xX]` — accepts `2X`, `2x`, `1.5X`,
-   `1.25x`; `-1x` (own pattern — `\b` doesn't sit cleanly next to `-`) implies
-   factor 1 + SHORT. No factor → not a leveraged fund → skip silently (most of
-   the ETF universe).
+   `1.25x`. Any negative multiplier `-Nx` (`-1x`/`-2x`/`-3x`/`-1.5x`; own pattern
+   `_MINUS_NX_RE` — `\b` doesn't sit cleanly next to `-`) implies **SHORT —
+   direction only**; the factor MAGNITUDE still comes from the `_FACTOR_RE` match
+   (so `-2x` → short at factor 2.0), with a 1.0 fallback for a bare `-1x` that
+   has no other factor token. No factor → not a leveraged fund → skip silently
+   (most of the ETF universe).
 2. **Direction:** word-boundary keyword scan — LONG: `long|bull`; SHORT:
-   `short|bear|inverse` (plus `-1x`). Word boundaries mandatory (`Bullion`
+   `short|bear|inverse` (plus any negative multiplier `-Nx`). Word boundaries
+   mandatory (`Bullion`
    must never match `bull`). **Before scanning, mask any token that is a
    ticker candidate in the stock set** (so `…2X Short BULL Daily ETF` —
    BULL = Webull — yields exactly one SHORT keyword). If keywords from BOTH
@@ -213,8 +217,9 @@ Parse rules (pure functions, `parse_etf_name(name, stock_set) -> ParseResult`):
    (e.g. the owner's `NBIC` = "Corgi NBIS 2x Daily ETF"). **The guardrail is
    forward-safe because it keys off the ABSENCE of a bearish token, not the
    presence of "Long":** the rule fires only inside the already-reached
-   `not (long_hit or short_hit)` branch, so no `short|inverse|bear|-1x` matched
-   (it reuses the existing SHORT detection — no second keyword list), and the
+   `not (long_hit or short_hit)` branch, so no `short|inverse|bear` word or
+   negative multiplier `-Nx` matched (it reuses the existing SHORT detection —
+   no second keyword list), and the
    entire industry ALWAYS labels a bearish/inverse fund explicitly. If Corgi
    ever ships an inverse fund it will carry an explicit bearish token and the
    existing SHORT logic catches it first (`both_directions` still wins if both
@@ -244,6 +249,27 @@ Parse rules (pure functions, `parse_etf_name(name, stock_set) -> ParseResult`):
      Corp"). Exactly one company matches → underlying. Zero or multiple
      (sector words like "Semiconductor" prefix-match nothing or many) →
      **silent skip**, counted.
+   - *Index/region stoplist (`_INDEX_REGION_TERMS`) — geographic index funds
+     resolve zero candidates.* A bounded, evidence-based set of index-provider +
+     region words (`MSCI`, `FTSE`, `RUSSELL`, `STOXX`, `EAFE`, `EMERGING`,
+     `MARKETS`, `EUROPE`, `EUROZONE`, `JAPAN`, `CHINA`, `BRAZIL`, `MEXICO`,
+     `GERMANY`, `INDIA`, `KOREA`, `TAIWAN`, `PACIFIC`, `WORLD`, `GLOBAL`,
+     `DEVELOPED`) that appear ONLY in leveraged GEOGRAPHIC INDEX funds (out of
+     scope, rule 4). Live-data finding (2026-07-22 probe): these funds
+     coincidentally resolved a single company two ways — "Europe" prefix-matched
+     *European Equity Fund Inc* and "Japan" *Japan Smaller Capitalization Fund
+     Inc* (COMPANY pass), and the real `MSCI` ticker sat next to "Short" in
+     `ProShares Short MSCI EAFE` (TICKER pass) — so `EPV`/`EWV`/`EFZ`/`EUM`
+     became bogus single-stock shorts, and a Corgi Taiwan fund mis-mapped to TSM.
+     The guard bars these terms as **company-pass span seeds** (same mechanism as
+     `_CRYPTO_ASSETS`/`_DIRECTION_WORDS`) AND rejects a **ticker candidate that is
+     immediately adjacent (±1) to one of these terms** (an index-provider ticker
+     embedded in an index name is the family, not the company). A genuine
+     single-stock fund never names a region/index word beside its ticker (`2x
+     Long NBIS Daily`) or as its company span (`Tesla`/`NVIDIA`), so the guard
+     drops no real single-stock fund — `MSCI` as a bona-fide single-stock
+     underlying (`2x Long MSCI Daily`, no adjacent index term) still resolves via
+     the ticker pass. §3.5 remap override is the escape hatch.
    - *Zero candidates after both passes → silent skip, NOT quarantine.* The
      ETF universe holds ~100+ leveraged index/sector funds (SOXL, TNA, LABU,
      BITX…) with factor + direction and no single-stock underlying; sending

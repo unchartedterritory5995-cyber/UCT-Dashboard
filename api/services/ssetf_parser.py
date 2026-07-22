@@ -78,6 +78,26 @@ _DIRECTIONLESS_LONG_ISSUERS = frozenset({"CORGI"})
 # BULL/Webull ticker-pass carve-out (_candidate/_STOPLIST) is untouched.
 _DIRECTION_WORDS = {"LONG", "SHORT", "BULL", "BEAR", "INVERSE"}
 
+# Index-provider + geographic/region words that must never SEED a company-name
+# span. Live-data finding (2026-07-22 probe): leveraged GEOGRAPHIC INDEX funds
+# (out of scope, spec §3.2 rule 4 — index funds skip) coincidentally prefix-match
+# single-company closed-end funds via the company pass — "Europe" -> European
+# Equity Fund Inc (EPV), "Japan" -> Japan Smaller Capitalization Fund Inc (EWV),
+# "Emerging"/"Markets" -> ... — turning a ProShares/Direxion index fund into a
+# bogus single-stock short. These words name a REGION or an INDEX FAMILY, never a
+# single-stock underlying's company name (a real single-stock fund names an actual
+# company, e.g. Tesla/NVIDIA). Barring them as span seeds makes the whole class
+# resolve ZERO company candidates -> silent skip. Company-pass ONLY; the ticker
+# pass is untouched (so a legitimately-tickered single-stock fund is unaffected,
+# and an index-provider that is ALSO a real ticker, e.g. MSCI, still resolves via
+# the ticker pass when it is the genuine adjacent underlying). §3.5 remap override
+# is the escape hatch if a real company ever legitimately leads with one of these.
+_INDEX_REGION_TERMS = {
+    "MSCI", "FTSE", "RUSSELL", "STOXX", "EAFE", "EMERGING", "MARKETS",
+    "EUROPE", "EUROZONE", "JAPAN", "CHINA", "BRAZIL", "MEXICO", "GERMANY",
+    "INDIA", "KOREA", "TAIWAN", "PACIFIC", "WORLD", "GLOBAL", "DEVELOPED",
+}
+
 
 @dataclass
 class ParseResult:
@@ -159,6 +179,19 @@ def parse_etf_name(name: str, etf_ticker: str, stock_set: dict[str, str]) -> Par
     for i, tok in enumerate(tokens):
         c = _candidate(tok)
         if c and c in stock_set:
+            # Reject an index-provider ticker embedded in an index name: "MSCI"
+            # in "ProShares Short MSCI EAFE" / "MSCI Japan" is the index family,
+            # not MSCI Inc — it is a real ticker sitting next to a region/index
+            # term (spec §3.2 rule 4: index funds skip). A genuine single-stock
+            # ticker is NEVER adjacent to a region/index word ("2x Long NBIS
+            # Daily" — NBIS is flanked by leverage grammar), so this can't drop a
+            # real single-stock fund; MSCI as a bona-fide single-stock underlying
+            # ("2x Long MSCI Daily") is untouched (no adjacent index term). This
+            # is the ticker-pass half of the _INDEX_REGION_TERMS guard.
+            if any(0 <= i + d < len(tokens)
+                   and tokens[i + d].upper() in _INDEX_REGION_TERMS
+                   for d in (-1, 1)):
+                continue
             cand_idx[i] = c
 
     # Direction scan over tokens, with candidate tokens MASKED — e.g. "BULL"
@@ -230,7 +263,8 @@ def _company_pass(tokens: list[str], anchor_idx: set, stock_set: dict[str, str])
     def _span_word_ok(w: str) -> bool:
         return (w[:1].isupper() and not _is_stoplisted(w)
                 and w.upper() not in _CRYPTO_ASSETS
-                and w.upper() not in _DIRECTION_WORDS)
+                and w.upper() not in _DIRECTION_WORDS
+                and w.upper() not in _INDEX_REGION_TERMS)
 
     companies = {t: _norm(c) for t, c in stock_set.items() if c}
     spans: list[str] = []

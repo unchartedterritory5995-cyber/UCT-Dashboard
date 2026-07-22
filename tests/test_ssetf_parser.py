@@ -183,6 +183,47 @@ def test_negative_multiplier_plus_long_word_is_both_directions():
     r = _p("Issuer -3x Long NVDA Daily ETF")
     assert (r.status, r.reason) == ("quarantine", "both_directions")
 
+# ── Index/region stoplist: geographic INDEX funds skip, never mis-map ──
+# Live-data finding (2026-07-22 probe): leveraged geographic index funds (out of
+# scope, spec §3.2 rule 4) mis-mapped to single companies TWO ways — "Europe"/
+# "Japan" prefix-matched closed-end funds (COMPANY pass), and the real MSCI
+# ticker sat next to "Short" (TICKER pass). Both halves of the _INDEX_REGION_TERMS
+# guard make them resolve ZERO candidates → skip. INDEX_STOCK_SET carries the REAL
+# colliding companies so these are non-vacuous: WITHOUT the guard EFZ/EUM → MSCI
+# and EPV/EWV → the closed-end funds.
+INDEX_STOCK_SET = {
+    **STOCK_SET,
+    "MSCI": "MSCI Inc",                              # index provider, ALSO a real ticker
+    "EEA": "European Equity Fund Inc",              # 'Europe' company-pass collision
+    "JOF": "Japan Smaller Capitalization Fund Inc",  # 'Japan' company-pass collision
+}
+
+@pytest.mark.parametrize("name,etf", [
+    ("ProShares UltraShort MSCI Japan -2x Shares", "EWV"),     # company pass (Japan→JOF)
+    ("ProShares Short MSCI EAFE -1X Shares", "EFZ"),           # ticker pass (MSCI adj Short)
+    ("ProShares UltraShort FTSE Europe -2X Shares", "EPV"),    # company pass (Europe→EEA)
+    ("ProShares Short MSCI Emerging Markets -1x Shares", "EUM"),  # ticker pass (MSCI adj)
+])
+def test_geographic_index_funds_skip_not_mismap(name, etf):
+    r = parse_etf_name(name, etf, INDEX_STOCK_SET)
+    assert (r.status, r.underlying) == ("skip", None)
+    assert r.underlying not in ("MSCI", "EEA", "JOF")
+
+def test_index_stoplist_does_not_break_company_pass():
+    # POSITIVE GUARD: the index/region stoplist must NOT block a legitimate
+    # single-stock company-name match (Tesla / NVIDIA).
+    r = parse_etf_name("T-REX 2X Long Tesla Daily Target ETF", "TSLT", INDEX_STOCK_SET)
+    assert (r.status, r.underlying, r.direction) == ("parsed", "TSLA", "long")
+    r = parse_etf_name("T-REX 2X Inverse NVIDIA Daily Target ETF", "NVDQ", INDEX_STOCK_SET)
+    assert (r.status, r.underlying, r.direction) == ("parsed", "NVDA", "short")
+
+def test_index_provider_ticker_still_resolves_as_genuine_single_stock():
+    # MSCI as a BONA-FIDE single-stock underlying (not embedded in an index name)
+    # STILL resolves via the ticker pass — the guard fires only when an index/
+    # region term is ADJACENT, so a real "2x Long MSCI" fund is untouched.
+    r = parse_etf_name("Issuer 2X Long MSCI Daily ETF", "MSCX", INDEX_STOCK_SET)
+    assert (r.status, r.underlying, r.direction) == ("parsed", "MSCI", "long")
+
 # ── Exclusions ──
 @pytest.mark.parametrize("name", [
     "YieldMax NVDA Option Income Strategy ETF",
