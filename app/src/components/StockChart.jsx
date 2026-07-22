@@ -4335,6 +4335,10 @@ export default function StockChart({
       },
       timeScale: {
         borderColor: themeColors.borderColor,
+        // No horizontal separator line under the panes — matches the borderless right
+        // price scale so the bottom edge stays a clean single hairline (the widget's
+        // own border), not a doubled dark line.
+        borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
         // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour).
@@ -8224,12 +8228,16 @@ export default function StockChart({
           display: (showFatalError || selectedRangeEmpty) ? 'none' : 'block',
           // Sunrise (and any user gradient) paints a continuous gradient HERE, behind
           // the transparent LWC canvas, so it flows unbroken through the price + volume
-          // panes. The user gradient (Canvas settings) works the same way.
+          // panes. The user gradient (Canvas settings) works the same way. For a SOLID
+          // canvas, match the container to the canvas color so a sub-pixel gap at the
+          // right/bottom edge (the LWC canvas rounds short of the container at fractional
+          // display scaling) blends in instead of exposing the dark --widget-canvas
+          // behind it as a black line.
           background: canvasTheme === 'sunrise'
             ? SUNRISE_GRADIENT
             : (userCanvas && cs.bgMode === 'gradient'
                 ? `linear-gradient(to bottom, ${cs.bgGradient?.top || '#16233b'} 0%, ${cs.bgGradient?.bottom || '#0e0f0d'} 100%)`
-                : undefined),
+                : themeColors.background),
         }}
       />
       {/* ── Dark Pool volume profile bars — uses series.priceToCoordinate() to
