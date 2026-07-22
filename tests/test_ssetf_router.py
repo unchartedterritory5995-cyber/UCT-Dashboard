@@ -32,10 +32,28 @@ def test_rebuild_returns_started(client, monkeypatch):
     r = client.post("/api/single-stock-etfs/rebuild")
     assert r.status_code == 200 and r.json()["status"] == "started"
 
+def _seed_nbis_family(monkeypatch):
+    """Seed one NBIS family member so lookup('NBIS') returns a POPULATED family
+    when enabled — makes the kill-switch test discriminate (flag-off must empty a
+    non-empty family, not just echo an already-empty table)."""
+    with ss._write_conn() as c:
+        c.execute(
+            "INSERT INTO etfs (etf_ticker, underlying, direction, factor, name, price,"
+            " avg_volume, avg_dollar_vol, vol_source, updated_at)"
+            " VALUES ('NBIU','NBIS','long',2.0,'Issuer 2x Long NBIS',50.0,1e6,5e7,'finviz',1)")
+    ss.invalidate_cache()
+
 def test_kill_switch_returns_empty(client, monkeypatch):
+    # With the flag ON (default) a seeded family is returned...
+    _seed_nbis_family(monkeypatch)
+    on = client.get("/api/single-stock-etfs/NBIS").json()
+    assert on["underlying"] == "NBIS" and on["best_long"] == "NBIU"
+    # ...and with the flag OFF the SAME seeded table returns the empty shape.
+    # (Discriminating: deleting the router's _enabled() guard makes this fail.)
     monkeypatch.setenv("SINGLE_STOCK_ETFS_ENABLED", "0")
-    r = client.get("/api/single-stock-etfs/NBIS")
-    assert r.json()["underlying"] is None
+    ss.invalidate_cache()
+    off = client.get("/api/single-stock-etfs/NBIS").json()
+    assert off["underlying"] is None and off["long"] == []
 
 def test_anon_is_rejected(tmp_path, monkeypatch):
     monkeypatch.setenv("SSETF_DB_PATH", str(tmp_path / "s.db"))

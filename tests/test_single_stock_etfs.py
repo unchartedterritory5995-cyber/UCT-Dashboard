@@ -13,16 +13,23 @@ def test_num_formats():
     assert ss._num("n/a") is None
 
 def test_fetch_never_logs_token(monkeypatch, caplog):
+    # Return a real 401 Response (with the auth token in the request URL, exactly
+    # as httpx builds it from params=) so PRODUCTION executes r.raise_for_status()
+    # — the actual §3.1 leak vector. A pre-raised exception (the old test) skipped
+    # that line entirely, so it couldn't catch a handler that logs str(e). This
+    # fails on `logger.warning("...: %s", e)` and passes on the status-code-only
+    # handler (mutation-checked).
     monkeypatch.setenv("FINVIZ_API_KEY", "SECRET-TOKEN-XYZ")
-    def boom(url, **kw):
-        req = httpx.Request("GET", url + "?auth=SECRET-TOKEN-XYZ")
-        resp = httpx.Response(401, request=req)
-        raise httpx.HTTPStatusError("401 Unauthorized", request=req, response=resp)
-    monkeypatch.setattr(ss.httpx, "get", boom)
+    def fake_get(url, **kw):
+        req = httpx.Request("GET", url, params=kw.get("params"))
+        assert "SECRET-TOKEN-XYZ" in str(req.url)  # sanity: token IS in the URL
+        return httpx.Response(401, request=req)
+    monkeypatch.setattr(ss.httpx, "get", fake_get)
     with caplog.at_level(logging.DEBUG):
         rows = ss._fetch_finviz_market()
     assert rows == []
     assert "SECRET-TOKEN-XYZ" not in caplog.text
+    assert "auth=" not in caplog.text
 
 def test_fetch_missing_key_returns_empty(monkeypatch, caplog):
     monkeypatch.delenv("FINVIZ_API_KEY", raising=False)
@@ -62,6 +69,19 @@ def test_lookup_forward_and_reverse(tmp_db):
     assert [r["ticker"] for r in fam["long"]] == ["NBIL", "NEBX"]  # liquidity desc
     assert fam["best_long"] == "NBIL" and fam["best_short"] == "NBIZ"
     assert tmp_db.lookup("nbil")["underlying"] == "NBIS"  # reverse, case-insensitive
+
+
+def test_lookup_cache_is_size_bounded(tmp_db, monkeypatch):
+    # The module cache must not grow unbounded on an odd symbol stream (it caches
+    # misses too). Drive it past the cap with a small cap and confirm it stays
+    # bounded AND that a real family still resolves afterward.
+    monkeypatch.setattr(tmp_db, "_LOOKUP_CACHE_MAX", 50)
+    _seed(tmp_db)
+    for i in range(200):
+        tmp_db.lookup(f"ZZ{i}")          # 200 distinct misses, cap is 50
+    assert len(tmp_db._LOOKUP_CACHE) <= 50
+    tmp_db.invalidate_cache()
+    assert tmp_db.lookup("NBIS")["best_long"] == "NBIL"  # still correct after churn
 
 
 def test_lookup_empty_shape(tmp_db):

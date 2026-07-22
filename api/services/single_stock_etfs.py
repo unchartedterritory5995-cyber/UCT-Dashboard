@@ -170,6 +170,14 @@ def _meta_get(k: str, default=None):
 
 _LOOKUP_CACHE: dict[str, tuple[float, dict]] = {}
 _LOOKUP_TTL = 600.0
+# Hard size cap on the module-level cache. lookup() runs on the per-request path
+# keyed on the (get_current_user-authed but otherwise unvalidated) {symbol}, and
+# caches MISSES too, so an odd symbol stream could grow it unbounded on the single
+# 512MB pod. The real key space is the ~3,742-ticker universe + their ETF tickers
+# (~4-5k), so 20k leaves generous headroom for legitimate traffic while bounding
+# the worst case. On overflow we drop the whole cache (simple, correct — the next
+# lookups re-warm from SQLite in ~1ms) rather than track per-entry LRU.
+_LOOKUP_CACHE_MAX = 20_000
 _EMPTY_FAMILY = {"underlying": None, "long": [], "short": [], "best_long": None, "best_short": None}
 
 
@@ -220,6 +228,8 @@ def lookup(symbol: str) -> dict:
         out = {"underlying": underlying, "long": longs, "short": shorts,
                "best_long": longs[0]["ticker"] if longs else None,
                "best_short": shorts[0]["ticker"] if shorts else None}
+    if len(_LOOKUP_CACHE) >= _LOOKUP_CACHE_MAX:
+        _LOOKUP_CACHE.clear()   # bounded worst case; re-warms from SQLite in ~1ms
     _LOOKUP_CACHE[sym] = (now, out)
     try:
         _maybe_self_heal()
