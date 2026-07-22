@@ -31,6 +31,18 @@ describe('videoStore', () => {
     expect(v.getSnapshot().index).toBe(2)
   })
 
+  it('play() and playIndex() bump selectSeq; autoplay next() does not', () => {
+    expect(v.getSnapshot().selectSeq).toBe(0)
+    v.play(LIST, 0)
+    expect(v.getSnapshot().selectSeq).toBe(1)
+    v.playIndex(1)
+    expect(v.getSnapshot().selectSeq).toBe(2)
+    v.next()
+    expect(v.getSnapshot().selectSeq).toBe(2)
+    v.play(LIST, 2) // re-picking (even the same video) still bumps
+    expect(v.getSnapshot().selectSeq).toBe(3)
+  })
+
   it('minimize/expand toggle docked<->mini', () => {
     v.play(LIST, 0)
     v.minimize()

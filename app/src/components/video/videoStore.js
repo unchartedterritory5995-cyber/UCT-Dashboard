@@ -20,6 +20,7 @@ let state = {
   pos: readPos(), // { x, y } free-drag position of the mini, or null
   dockRect: null, // { top, left, width, height } of the Desk slot, or null
   playing: false,
+  selectSeq: 0, // bumps on every explicit user pick — the theater scrolls itself into view on change
 }
 const listeners = new Set()
 
@@ -32,7 +33,7 @@ function set(patch) {
 export function play(list, index = 0) {
   if (!Array.isArray(list) || !list.length) return
   const i = Math.max(0, Math.min(index, list.length - 1))
-  set({ list, index: i, mode: 'docked', playing: true })
+  set({ list, index: i, mode: 'docked', playing: true, selectSeq: state.selectSeq + 1 })
 }
 
 // Request the player seek to `sec` (used by chapter rows + ticker-moment chips).
@@ -55,7 +56,7 @@ export function getCurrentTime() {
 
 export function playIndex(i) {
   if (i < 0 || i >= state.list.length) return
-  set({ index: i })
+  set({ index: i, selectSeq: state.selectSeq + 1 })
 }
 
 export function next() {
@@ -117,6 +118,6 @@ export function getSnapshot() {
 }
 
 export function __reset() {
-  state = { list: [], index: 0, mode: 'closed', pos: readPos(), dockRect: null, playing: false }
+  state = { list: [], index: 0, mode: 'closed', pos: readPos(), dockRect: null, playing: false, selectSeq: 0 }
   listeners.clear()
 }

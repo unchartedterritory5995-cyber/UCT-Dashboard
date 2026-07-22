@@ -35,10 +35,11 @@ const fmtT = (sec) => {
 
 export default function VideoDockSlot() {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
-  const { list, index, mode } = snap
+  const { list, index, mode, selectSeq } = snap
   const active = mode !== 'closed' && list.length > 0
   const docked = mode === 'docked'
   const boxRef = useRef(null)
+  const theaterRef = useRef(null)
   // Chapters + ticker-moments + recap for the now-playing video (empty for
   // non-session videos or before generation). Hook runs unconditionally.
   const { chapters, tickerMoments, headline, summary, posterUrl, loading, hasTranscript, setups } =
@@ -252,6 +253,18 @@ export default function VideoDockSlot() {
     }
   }, [docked, report])
 
+  // Picking a video from the shelves below the fold starts it playing
+  // off-screen — jump the page up to the theater so the selection is visible.
+  // Keyed on selectSeq (explicit user picks only), NOT the video id: autoplay-
+  // next must never yank a user who scrolled down to read notes.
+  useEffect(() => {
+    if (!docked || !selectSeq) return
+    const el = theaterRef.current || boxRef.current
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [docked, selectSeq])
+
   // Track the playing chapter by polling the player clock (the store exposes no
   // time subscription); highlight it + scroll it into view in the left rail.
   useEffect(() => {
@@ -327,7 +340,7 @@ export default function VideoDockSlot() {
   const hasLeft = loading || chapters.length > 0 || !!posterUrl || setups.length > 0
 
   return (
-    <div className={styles.theater}>
+    <div ref={theaterRef} className={styles.theater}>
       <div className={`${styles.fourZone} ${hasLeft ? '' : styles.noLeft}`}>
         {/* CENTER — the player + its title/subtitle. */}
         <div className={styles.centerCol}>
