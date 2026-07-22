@@ -154,53 +154,52 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   V2 — Centered symbol-search modal (OLED-black, TradingView/TC2000-style).
-   Scrim + card are scoped to the chart bounds (see the positioning effect), so
-   the modal lands in the MIDDLE of the chart and a grid cell dims just itself.
+   V2 — Centered symbol-search modal. Palette + chrome mirror the Chart Settings
+   modal (ChartSettingsModal.module.css): #0e0e10 panel, #242426 border, neutral
+   grays, gold used only as a sparing accent. NO dim / NO blur behind it — the
+   scrim is transparent and only catches an outside click, so the chart stays
+   fully visible. Scrim + card are scoped to the chart bounds, so the modal
+   lands in the MIDDLE of the chart.
    ══════════════════════════════════════════════════════════════════════════ */
 .scrim {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(120% 120% at 50% 40%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.72));
-  -webkit-backdrop-filter: blur(3px) saturate(0.9);
-  backdrop-filter: blur(3px) saturate(0.9);
-  animation: symScrimIn 0.13s ease-out;
+  background: transparent;   /* no dim, no blur — matches Chart Settings */
+  padding: 20px;
 }
-@keyframes symScrimIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal {
   max-width: calc(100% - 24px);
   max-height: calc(100% - 32px);
   display: flex;
   flex-direction: column;
-  background: #050506;                 /* near-pure OLED black */
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 14px;
+  background: #0e0e10;
+  border: 1px solid #242426;
+  border-radius: 12px;
   box-shadow:
-    0 28px 90px rgba(0, 0, 0, 0.9),
-    0 2px 0 rgba(255, 255, 255, 0.03) inset,
-    0 0 0 1px rgba(201, 168, 76, 0.06);   /* whisper of gold on the edge */
+    0 24px 70px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
   overflow: hidden;
-  animation: symModalIn 0.16s cubic-bezier(0.2, 0.9, 0.3, 1);
+  animation: symModalIn 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 @keyframes symModalIn {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .modalHeader {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 15px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.04), transparent);
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #202022;
+  background: linear-gradient(180deg, #161618 0%, #0e0e10 100%);
 }
 .modalSearchIcon {
   flex: 0 0 auto;
-  color: #c9a84c;
-  opacity: 0.85;
+  color: #6b6b6b;
 }
 .modalInput {
   flex: 1 1 auto;
@@ -208,104 +207,90 @@
   background: transparent;
   border: none;
   outline: none;
-  color: #f2f0ea;
+  color: #ededed;
   font-family: var(--font-sans);
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   padding: 0;
 }
 .modalInput::placeholder {
-  color: #55524a;
+  color: #6b6b6b;
   font-weight: 500;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 .modalEsc {
   flex: 0 0 auto;
-  font-family: var(--font-sans);
+  font-family: inherit;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 1px;
-  color: #6f6a5d;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  letter-spacing: 0.5px;
+  color: #8a8a8f;
+  background: transparent;
+  border: 1px solid #2c2c30;
   border-radius: 6px;
   padding: 4px 8px;
   cursor: pointer;
-  transition: color 0.12s, background 0.12s;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-.modalEsc:hover { color: #e2dfd6; background: rgba(255, 255, 255, 0.09); }
+.modalEsc:hover { color: #ededed; border-color: rgba(201, 168, 76, 0.45); }
 
 .modalList {
   overflow-y: auto;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   scrollbar-width: thin;
-  scrollbar-color: #2e3127 transparent;
+  scrollbar-color: #2c2c30 transparent;
 }
 .modalList::-webkit-scrollbar { width: 6px; }
 .modalList::-webkit-scrollbar-track { background: transparent; }
-.modalList::-webkit-scrollbar-thumb { background: #2e3127; border-radius: 3px; }
+.modalList::-webkit-scrollbar-thumb { background: #2c2c30; border-radius: 3px; }
 
 .modalItem {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   width: 100%;
   text-align: left;
-  padding: 9px 12px 9px 13px;
+  padding: 9px 12px;
   font-family: var(--font-sans);
   background: transparent;
   border: none;
-  border-radius: 9px;
+  border-radius: 7px;
   cursor: pointer;
   transition: background 0.1s;
 }
 .modalItem:hover,
 .modalItemHi {
-  background: rgba(255, 255, 255, 0.055);
-}
-/* Gold accent bar on the keyboard-highlighted / hovered row. */
-.modalItemHi::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  border-radius: 2px;
-  background: #c9a84c;
+  background: rgba(255, 255, 255, 0.05);
 }
 .modalLogo {
   flex: 0 0 auto;
   display: inline-flex;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 .modalSym {
   flex: 0 0 auto;
-  min-width: 62px;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  color: #d8b658;
+  min-width: 60px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #c9a84c;
 }
 .modalName {
   flex: 1 1 auto;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
-  color: #8a8577;
+  color: #8a8a8f;
   letter-spacing: 0.2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.modalItemActive { background: rgba(201, 168, 76, 0.10); }
-.modalItemActive .modalSym { color: #efd07f; }
+.modalItemActive .modalSym { color: #e4c870; }   /* the current symbol reads a touch brighter */
 
 /* "Go to {TYPED}" fallback row */
 .modalGoIcon {
@@ -313,32 +298,32 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: rgba(201, 168, 76, 0.12);
-  color: #d8b658;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #8a8a8f;
   font-size: 12px;
   font-weight: 700;
 }
 .modalGo {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
-  color: #a8a290;
-  letter-spacing: 0.3px;
+  color: #8a8a8f;
+  letter-spacing: 0.2px;
 }
-.modalGo strong { color: #d8b658; font-weight: 800; }
+.modalGo strong { color: #c9a84c; font-weight: 700; }
 
 .modalFooter {
   display: flex;
   gap: 16px;
   align-items: center;
   padding: 9px 15px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid #202022;
   font-family: var(--font-sans);
   font-size: 11px;
-  color: #6f6a5d;
-  letter-spacing: 0.3px;
+  color: #6b6b6b;
+  letter-spacing: 0.2px;
 }
 .modalFooter .kbd {
   display: inline-flex;
@@ -351,15 +336,15 @@
   font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
-  color: #a8a290;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #8a8a8f;
+  background: transparent;
+  border: 1px solid #2c2c30;
   border-radius: 4px;
 }
 
 /* Phone: the modal fills more of the (small) chart area. */
 @media (max-width: 640px) {
-  .modalInput { font-size: 17px; }
+  .modalInput { font-size: 15px; }
   .modalFooter { gap: 12px; font-size: 10px; }
 }
 

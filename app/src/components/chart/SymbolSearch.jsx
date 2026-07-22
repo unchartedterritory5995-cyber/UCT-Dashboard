@@ -140,6 +140,29 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     return () => document.removeEventListener('keydown', handler)
   }, [open])
 
+  // Return focus to the chart when the overlay CLOSES so type-to-search works
+  // again immediately. Type-to-search fires from the chart's onKeyDown, which
+  // needs the chart element focused; closing by clicking the (transparent) scrim
+  // left focus on <body>, so the next keystroke never reached the chart handler
+  // and the search wouldn't reopen. Only refocus if nothing else claimed focus
+  // (checked after the click's focus settles) — so clicking straight into another
+  // input isn't hijacked. Centered/charts only (boundsRef is the chart element).
+  const wasOpenRef = useRef(false)
+  useEffect(() => {
+    const justClosed = wasOpenRef.current && !open
+    wasOpenRef.current = open
+    if (!justClosed) return undefined
+    const host = boundsRef?.current
+    if (!host) return undefined
+    const id = requestAnimationFrame(() => {
+      const ae = document.activeElement
+      if (!ae || ae === document.body) {
+        try { host.focus({ preventScroll: true }) } catch { /* not focusable */ }
+      }
+    })
+    return () => cancelAnimationFrame(id)
+  }, [open, boundsRef])
+
   // Debounced server-side autocomplete (3,685-ticker $300M+ universe).
   // Empty query → POPULAR. Non-empty → /api/ticker-search.
   useEffect(() => {
