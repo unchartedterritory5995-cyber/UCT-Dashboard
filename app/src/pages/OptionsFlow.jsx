@@ -122,6 +122,22 @@ const P = {
   bk:"#6ba3be", uc:"#706b5e"
 };
 
+// ─── GEX level vocabulary ────────────────────────────────────────────────────
+// Single source of truth for level names + colors, keyed by the backend
+// classify_gex_state `role`. Color convention: resistance/above = red,
+// support/below = green, pin = gold, magnet = blue, flip = dim. 2026-07-22.
+const GEX_ROLE = {
+  resistance:  { name:"Ceiling",      hex:P.be },
+  support:     { name:"Floor",        hex:P.bu },
+  wall:        { name:"Pin",          hex:P.ac },
+  magnet_up:   { name:"Magnet \u2191", hex:P.sw },
+  magnet_down: { name:"Magnet \u2193", hex:P.sw },
+  danger:      { name:"Danger Line",  hex:"#ffab00" },
+  gamma_flip:  { name:"Flip Line",    hex:"#8a8f99" },
+};
+function gexLevelName(role, fallback) { return (GEX_ROLE[role] || {}).name || fallback || ""; }
+function gexLevelHex(role, fallback) { return (GEX_ROLE[role] || {}).hex || fallback || "#8a8f99"; }
+
 // ─── Formatting ────────────────────────────────────────────────────────────────
 function fmt(n) {
   if (n == null || isNaN(n)) return "$0";
@@ -2213,6 +2229,7 @@ export default function OptionsFlowDashboard() {
   const [gexData, setGexData] = useState(null);
   const [gexLoading, setGexLoading] = useState(false);
   const [gexDte, setGexDte] = useState("all");
+  const [gexAdjusted, setGexAdjusted] = useState(false); // false = naive OI GEX, true = trade-aware (dealer_positioning est_dealer_net)
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
   const [gexChartTf, setGexChartTf] = useState('D');
@@ -3575,7 +3592,7 @@ export default function OptionsFlowDashboard() {
 
   // Auto-load market data (deferred — non-critical)
   useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
-  useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte); }, [dataMode, gexTicker, gexDte]);
+  useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte, gexAdjusted); }, [dataMode, gexTicker, gexDte, gexAdjusted]);
 
   // GEX horizontal price lines — derived from gexData. Passed as `priceLines`
   // prop to the StockChart that renders the "AMD Chart with GEX Levels" panel.
@@ -3594,63 +3611,49 @@ export default function OptionsFlowDashboard() {
       if (ratio > 0.25) return { lw:2, ls:0, op:"80" };
       return { lw:1, ls:2, op:"59" };
     };
+    const L = gexData.levels || {};
     const lines = [];
+    // Primary walls + flip — names/colors from the backend classification
+    // `role` (Ceiling/Floor/Pin/Magnet ↑↓/Danger Line/Flip Line), falling
+    // back to spot geometry when the classification block is absent.
     if (cw && pw && cw.strike === pw.strike) {
       const combined = cw.gex + Math.abs(pw.gex);
-      const proximity = sp > 0 ? Math.abs(cw.strike - sp) / sp : 0;
-      const aboveSpot = cw.strike > sp;
-      let title, color;
-      if (proximity < 0.003) { title = "Pin "+fmtG(combined); color = "#c9a84c"; }
-      else if (aboveSpot) { title = "Resistance "+fmtG(combined); color = "#c43030"; }
-      else { title = "Support ↑ "+fmtG(combined); color = "#00BCD4"; }
-      lines.push({ price:cw.strike, color, lineWidth:4, lineStyle:0, title });
+      lines.push({ price:cw.strike, color:gexLevelHex("wall"), lineWidth:4, lineStyle:0, title:"Pin "+fmtG(combined) });
     } else {
       if (cw) {
-        const aboveSpot = cw.strike > sp;
-        let title, color;
-        if (aboveSpot) { title = "Ceiling "+fmtG(cw.gex); color = "#c43030"; }
-        else { title = "Support ↑ "+fmtG(cw.gex); color = "#00BCD4"; }
-        lines.push({ price:cw.strike, color, lineWidth:4, lineStyle:0, title });
+        const role = (L.call_wall && L.call_wall.role) || (cw.strike > sp ? "resistance" : "support");
+        lines.push({ price:cw.strike, color:gexLevelHex(role), lineWidth:4, lineStyle:0, title:gexLevelName(role,"Ceiling")+" "+fmtG(cw.gex) });
       }
       if (pw) {
-        const belowSpot = pw.strike < sp;
-        let title, color;
-        if (belowSpot) { title = "Bounce "+fmtG(Math.abs(pw.gex)); color = "#0a8f55"; }
-        else { title = "Resistance "+fmtG(Math.abs(pw.gex)); color = "#c43030"; }
-        lines.push({ price:pw.strike, color, lineWidth:4, lineStyle:0, title });
+        const role = (L.put_wall && L.put_wall.role) || (pw.strike < sp ? "support" : "magnet_up");
+        lines.push({ price:pw.strike, color:gexLevelHex(role), lineWidth:4, lineStyle:0, title:gexLevelName(role,"Floor")+" "+fmtG(Math.abs(pw.gex)) });
       }
     }
-    if (zg) lines.push({ price:zg, color:"#ffab00", lineWidth:1, lineStyle:2, title:"Danger Line" });
+    if (zg) {
+      const role = (L.zero_gamma && L.zero_gamma.role) || "gamma_flip";
+      lines.push({ price:zg, color:gexLevelHex(role), lineWidth:1, lineStyle:2, title:gexLevelName(role,"Flip Line") });
+    }
     const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
-    // Secondary above/below levels: keep the LINES (visible, color-coded so
-    // user still sees support/resistance positions), but suppress the right-
-    // axis $-value LABELS. Each axis label triggers LWC overlap-avoidance
-    // layout work per redraw; with 6 secondary labels stacked near spot,
-    // that compounded into visible crosshair lag. Walls + Danger Line keep
-    // their labels (those carry the most important $ values).
-    const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike)).map(s=>{
-      const callVal = s.callGex > 0 ? s.callGex : 0;
-      const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
-      const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
-      return { strike:s.strike, gex:best.val, type:best.type };
-    }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
+    // Secondary levels — position-based: above spot = Speed Bump (a lesser
+    // ceiling, red), below spot = Cushion (a lesser floor, green). Only the
+    // STRONG ones (thick line, ratio > ~0.5 of the dominant wall) get a
+    // right-axis label/name — the line title rides on that axis label in the
+    // StockChart wrapper, so labelling every secondary stacked 6 tags near
+    // spot and caused LWC overlap-avoidance crosshair lag. Threshold = lw>=3.
+    const SECONDARY_LABEL_MIN_LW = 3; // 3 ≈ ratio>0.5; raise to 4 for fewer labels
+    const bestGex = s => Math.max(s.callGex > 0 ? s.callGex : 0, s.putGex < 0 ? Math.abs(s.putGex) : 0);
+    const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike))
+      .map(s=>({ strike:s.strike, gex:bestGex(s) })).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
     aboveCandidates.forEach(s => {
       usedStrikes.add(s.strike);
       const {lw,ls,op} = getLineWeight(s.gex);
-      const title = s.type === "call" ? "Ceiling "+fmtG(s.gex) : "Weak Spot "+fmtG(s.gex);
-      lines.push({ price:s.strike, color:"#c43030"+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
+      lines.push({ price:s.strike, color:gexLevelHex("resistance")+op, lineWidth:lw, lineStyle:ls, title:"Speed Bump "+fmtG(s.gex), axisLabelVisible:lw>=SECONDARY_LABEL_MIN_LW });
     });
-    const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike)).map(s=>{
-      const callVal = s.callGex > 0 ? s.callGex : 0;
-      const putVal = s.putGex < 0 ? Math.abs(s.putGex) : 0;
-      const best = callVal >= putVal ? { val:callVal, type:"call" } : { val:putVal, type:"put" };
-      return { strike:s.strike, gex:best.val, type:best.type };
-    }).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
+    const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike))
+      .map(s=>({ strike:s.strike, gex:bestGex(s) })).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
     belowCandidates.forEach(s => {
       const {lw,ls,op} = getLineWeight(s.gex);
-      const baseColor = s.type === "call" ? "#00BCD4" : "#0a8f55";
-      const title = s.type === "call" ? "Support ↑ "+fmtG(s.gex) : "Bounce "+fmtG(s.gex);
-      lines.push({ price:s.strike, color:baseColor+op, lineWidth:lw, lineStyle:ls, title, axisLabelVisible:false });
+      lines.push({ price:s.strike, color:gexLevelHex("support")+op, lineWidth:lw, lineStyle:ls, title:"Cushion "+fmtG(s.gex), axisLabelVisible:lw>=SECONDARY_LABEL_MIN_LW });
     });
     return lines;
   }, [gexData]);
@@ -4343,11 +4346,11 @@ export default function OptionsFlowDashboard() {
     }
   }
 
-  async function fetchGex(ticker, dte) {
+  async function fetchGex(ticker, dte, adjusted=false) {
     if (!ticker) return;
     setGexLoading(true);
     try {
-      const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}`);
+      const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}&adjusted=${adjusted?"true":"false"}`);
       if (resp.ok) {
         const data = await resp.json();
         data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
@@ -4649,6 +4652,20 @@ export default function OptionsFlowDashboard() {
                   }}>{label}</button>
                 ))}
               </div>
+              {/* Naive vs Trade-Aware (flow-signed) GEX. Naive = every OI
+                  assumed customer-long (dealer short). Trade-Aware scales each
+                  contract by est_customer_net/OI from dealer_positioning, so
+                  bought vs sold flow signs the gamma. 2026-07-22. */}
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }} title="Naive: assumes dealers are short all OI. Trade-Aware: signs each strike from your Massive bought/sold flow (est_dealer_net).">
+                {[[false,"Naive"],[true,"Trade-Aware"]].map(([v,label])=>(
+                  <button key={label} onClick={()=>setGexAdjusted(v)} style={{
+                    padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
+                    fontSize:10, fontWeight:700, fontFamily:"inherit",
+                    background:gexAdjusted===v?(v?"#c9a84c":P.cd):"transparent",
+                    color:gexAdjusted===v?(v?P.bg:P.wh):P.mt
+                  }}>{label}</button>
+                ))}
+              </div>
             </div>
 
             {gexLoading && <Card><div style={{ textAlign:"center", padding:"40px 0", color:P.dm, fontSize:12 }}>Loading gamma data for {gexTicker}…</div></Card>}
@@ -4664,6 +4681,29 @@ export default function OptionsFlowDashboard() {
 
             {!gexLoading && !hasError && gexData && (
               <>
+                {/* Trade-Aware status banner — only in adjusted mode. Surfaces
+                    attribution depth + flow coverage so the flip/regime read is
+                    trusted proportionally. Low coverage (join not hitting or no
+                    backfill) is called out explicitly so "adjusted" is never
+                    silently just naive. 2026-07-22. */}
+                {gexData.adjusted && (()=>{
+                  const cov = gexData.coveragePct != null ? gexData.coveragePct : 0;
+                  const conf = gexData.avgConfidence != null ? gexData.avgConfidence : 0;
+                  const days = gexData.attributionDays || 0;
+                  const withDp = gexData.contractsWithDp || 0;
+                  const total = withDp + (gexData.contractsWithoutDp || 0);
+                  const lowCov = cov < 0.30 || days === 0;
+                  const bandC = lowCov ? P.be : (cov >= 0.6 && conf >= 0.5 ? P.bu : "#c9a84c");
+                  return (
+                    <div style={{ background:bandC+"14", border:"1px solid "+bandC+"55", borderRadius:8, padding:"9px 14px", display:"flex", gap:16, alignItems:"center", flexWrap:"wrap", fontSize:11 }}>
+                      <span style={{ fontWeight:800, color:bandC, letterSpacing:0.5 }}>⚡ TRADE-AWARE</span>
+                      <span style={{ color:P.mt }}>Flow coverage <b style={{ color:P.wh }}>{Math.round(cov*100)}%</b> <span style={{ color:P.dm }}>({withDp}/{total} contracts)</span></span>
+                      <span style={{ color:P.mt }}>Confidence <b style={{ color:P.wh }}>{Math.round(conf*100)}%</b></span>
+                      <span style={{ color:P.mt }}>{days} day{days===1?"":"s"} of attribution</span>
+                      {lowCov && <span style={{ color:P.be, fontWeight:700 }}>{days===0 ? "⚠ No attribution data — run a dealer-positioning backfill (mostly naive)." : "⚠ Low coverage — levels are mostly naive; treat the flip as tentative."}</span>}
+                    </div>
+                  );
+                })()}
                 {/* Key Level Cards */}
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:8 }}>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.wh }}>
@@ -4671,27 +4711,27 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:18, fontWeight:900, color:P.wh }}>${gexData.spot?.toFixed(2)}</div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.ticker}</div>
                   </div>
-                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.ac }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Danger Line</div>
-                    <div style={{ fontSize:18, fontWeight:900, color:P.ac }}>{gexData.zeroGamma ? "$"+gexData.zeroGamma.toFixed(2) : "—"}</div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+(gexData.zeroGamma ? gexLevelHex((gexData.levels&&gexData.levels.zero_gamma&&gexData.levels.zero_gamma.role)||"danger") : P.ac) }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexData.zeroGamma ? gexLevelName((gexData.levels&&gexData.levels.zero_gamma&&gexData.levels.zero_gamma.role),"Danger Line") : "Danger Line"}</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:gexData.zeroGamma ? gexLevelHex((gexData.levels&&gexData.levels.zero_gamma&&gexData.levels.zero_gamma.role)||"danger") : P.ac }}>{gexData.zeroGamma ? "$"+gexData.zeroGamma.toFixed(2) : "—"}</div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>
-                      {gexData.zeroGamma && gexData.spot ? ((gexData.spot - gexData.zeroGamma)/gexData.zeroGamma*100).toFixed(2)+"% above" : ""}
+                      {gexData.zeroGamma && gexData.spot ? Math.abs((gexData.spot - gexData.zeroGamma)/gexData.zeroGamma*100).toFixed(2)+"% "+(gexData.spot>=gexData.zeroGamma?"above":"below") : ""}
                     </div>
                   </div>
-                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.bu }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Ceiling</div>
-                    <div style={{ fontSize:18, fontWeight:900, color:P.bu }}>{gexData.callWall ? "$"+gexData.callWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""} ceiling</div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+(gexData.callWall ? gexLevelHex((gexData.levels&&gexData.levels.call_wall&&gexData.levels.call_wall.role)||"resistance") : P.be) }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexLevelName((gexData.levels&&gexData.levels.call_wall&&gexData.levels.call_wall.role),"Ceiling")}</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:gexData.callWall ? gexLevelHex((gexData.levels&&gexData.levels.call_wall&&gexData.levels.call_wall.role)||"resistance") : P.wh }}>{gexData.callWall ? "$"+gexData.callWall.strike : "—"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""}</div>
                   </div>
-                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.be }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Floor</div>
-                    <div style={{ fontSize:18, fontWeight:900, color:P.be }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""} floor</div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+(gexData.putWall ? gexLevelHex((gexData.levels&&gexData.levels.put_wall&&gexData.levels.put_wall.role)||"support") : P.bu) }}>
+                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexLevelName((gexData.levels&&gexData.levels.put_wall&&gexData.levels.put_wall.role),"Floor")}</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:gexData.putWall ? gexLevelHex((gexData.levels&&gexData.levels.put_wall&&gexData.levels.put_wall.role)||"support") : P.wh }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""}</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #c9a84c" }}>
                     <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.zeroGamma && gexData.spot < gexData.zeroGamma ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
+                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{(gexData.warnings ? gexData.warnings.below_danger_active : (gexData.zeroGamma && gexData.spot < gexData.zeroGamma)) ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
                   </div>
                 </div>
 
@@ -4824,7 +4864,10 @@ export default function OptionsFlowDashboard() {
                   const pwPct = 100 - cwPct;
 
                   const isPositive = tg > 0 && (!zg || sp >= zg); // positive GEX AND above danger line
-                  const belowDangerLine = zg && sp < zg;
+                  // Prefer the backend's gated flag — only true when spot is
+                  // below the flip AND within the near threshold (stops the
+                  // "below danger" warning firing any time zg sits above spot).
+                  const belowDangerLine = gexData.warnings ? !!gexData.warnings.below_danger_active : (zg && sp < zg);
                   const zgDist = zg ? ((sp - zg) / zg * 100).toFixed(1) : null;
 
                   // Pre-compute strike helpers (needed by verdict, setup text, trade ideas)
@@ -5168,6 +5211,16 @@ export default function OptionsFlowDashboard() {
                       <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
+                    {gexData.adjusted && (()=>{
+                      const cov=Math.round((gexData.coveragePct||0)*100), conf=Math.round((gexData.avgConfidence||0)*100), days=gexData.attributionDays||0;
+                      const low=cov<30||days===0;
+                      const bc=low?P.be:(cov>=60&&conf>=50?P.bu:P.ac);
+                      return (
+                        <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:bc+"22", color:bc, display:"inline-block", marginBottom:10, marginRight:8 }}>
+                          ⚡ Flow-signed · {cov}% coverage · {conf}% confidence{low?(days===0?" · no attribution yet — reads as naive":" · low coverage, tentative"):""}
+                        </div>
+                      );
+                    })()}
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
                       {belowDangerLine?"⚠️ Below danger line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
                     </div>
@@ -5322,6 +5375,11 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:14, fontWeight:700, color:P.wh, marginBottom:4 }}>{setupTitle}</div>
                     <p style={{ fontSize:12, color:P.dm, lineHeight:1.5, margin:"0 0 8px" }}>{setupText}</p>
                     <div style={{ fontSize:13, fontWeight:800, color:P.wh, textTransform:"uppercase", letterSpacing:1.5, marginBottom:5 }}>Game Plan</div>
+                    {gexData.adjusted && (gexData.coveragePct||0) < 0.3 && (
+                      <div style={{ fontSize:11, color:P.ac, background:P.ac+"18", borderRadius:4, padding:"5px 9px", marginBottom:6, lineHeight:1.4 }}>
+                        Positioning unconfirmed (low flow coverage) — treat these as levels of interest, not directional calls.
+                      </div>
+                    )}
                     {trades.map((t,ti) => (
                       <div key={ti} style={{ display:"flex", gap:7, alignItems:"flex-start", marginBottom:5, fontSize:12, color:P.dm, lineHeight:1.45 }}>
                         <div style={{ flexShrink:0, width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, marginTop:1, background:t.bg, color:t.c }}>{t.i}</div>
