@@ -22,7 +22,6 @@ import { getExtSession, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
 import EarningsMarkerPopover from './chart/EarningsMarkerPopover'
 import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
-import { createLastValueLabelPrimitive } from './chart/lastValueLabelPrimitive'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
@@ -1418,10 +1417,6 @@ export default function StockChart({
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
-  // Custom ROUNDED last-value axis tags (workspace look only) — replace the native
-  // square tags. Wrapper = { primitive, setOptions }; re-created when a series is.
-  const priceLabelPrimRef = useRef(null)
-  const volLabelPrimRef = useRef(null)
 
   // Keep the plot-centered watermark centered the INSTANT the chart resizes (e.g.
   // a sibling widget is added and this chart narrows). hardCenterXPx is otherwise
@@ -3416,24 +3411,6 @@ export default function StockChart({
       }
     })
   }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme])
-  // Feed the custom rounded axis tags their up/down COLOR from the last bar's
-  // direction (same net-change rule as the candles/volume). The tag's VALUE and
-  // vertical position are read live from the series by the primitive itself, so
-  // this only needs to run when the data or palette changes, not every tick.
-  useEffect(() => {
-    if (!userCandleColors) return
-    const bars = sessionAppliedBars
-    if (!bars || !bars.length) return
-    const n = bars.length
-    const last = bars[n - 1]
-    const prevC = n > 1 ? bars[n - 2].c : last.o
-    const isUp = colorByNetChange ? (last.c >= prevC) : (last.c >= last.o)
-    const cUp = cs.candles.upColor, cDown = cs.candles.downColor
-    const vUp = cs.volume.upColor || cUp, vDown = cs.volume.downColor || cDown
-    priceLabelPrimRef.current?.setOptions({ enabled: true, color: isUp ? cUp : cDown })
-    volLabelPrimRef.current?.setOptions({ enabled: true, color: isUp ? vUp : vDown })
-  }, [sessionAppliedBars, colorByNetChange, cs.candles.upColor, cs.candles.downColor, cs.volume.upColor, cs.volume.downColor, userCandleColors])
-
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
   // re-tint effect lives AFTER updateChart (below) so its setData wins over
@@ -4556,17 +4533,6 @@ export default function StockChart({
           })
       }
       candleSeriesRef.current = priceSeries
-      // Custom rounded last-value tag (workspace look) — attach a fresh primitive to
-      // the just-created series and hide the native square tag (below) so they don't
-      // double up. Gated on userCandleColors so Model Book / DarkPool keep native.
-      priceLabelPrimRef.current = null
-      if (userCandleColors && !hideLastValue) {
-        try {
-          const p = createLastValueLabelPrimitive({ enabled: true, color: cs.candles.upColor })
-          priceSeries.attachPrimitive(p.primitive)
-          priceLabelPrimRef.current = p
-        } catch { priceLabelPrimRef.current = null }
-      }
       // Model Book studies a past year — the current (latest) price line is
       // irrelevant there, so hide the dotted last-price line for exact-range.
       // boldCandles paints solid bright green/red; hideLastValue drops the
@@ -4614,7 +4580,7 @@ export default function StockChart({
         // Optional integer-only price axis (DarkPool page passes precision:0
         // for large-cap stocks so the axis shows "200" not "200.00").
         const _priceFormat = priceFormat ? { priceFormat } : {}
-        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && !priceLabelPrimRef.current, ..._bold, ..._priceFormat })
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue, ..._bold, ..._priceFormat })
       } catch { /* older LWC */ }
 
       // ── colorByNetChange ── Color each candle by close-vs-PREVIOUS-close (TC2000 /
@@ -4989,21 +4955,11 @@ export default function StockChart({
           priceLineVisible: !boldCandles && !hidePriceLine,
           // volumeLastValue opt-in shows the current-volume tag on the right scale
           // (mirrors the main chart's price tag) even in the bold/charts-workspace look.
-          // Custom rounded tag (workspace) replaces the native one — hide native then.
-          lastValueVisible: (volumeLastValue || (!boldCandles && !hidePriceLine)) && !(userCandleColors && !hideLastValue),
+          lastValueVisible: volumeLastValue || (!boldCandles && !hidePriceLine),
         }, volSeparatePane ? 1 : 0)
         volumeSeriesRef.current = vs
         volumeSeparatePaneRef.current = volScaleId
         lastAppliedVolPctRef.current = null  // fresh pane → force the height (re)apply below
-        // Attach the custom rounded volume tag (matches the price tag's size/inset).
-        volLabelPrimRef.current = null
-        if (userCandleColors && !hideLastValue) {
-          try {
-            const vp = createLastValueLabelPrimitive({ enabled: true, color: cs.volume.upColor || cs.candles.upColor })
-            vs.attachPrimitive(vp.primitive)
-            volLabelPrimRef.current = vp
-          } catch { volLabelPrimRef.current = null }
-        }
       }
       if (volSeparatePane) {
         // Own pane: small top margin so bars don't kiss the divider; size the
