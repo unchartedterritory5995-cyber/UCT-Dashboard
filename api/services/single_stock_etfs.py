@@ -30,6 +30,14 @@ logger = logging.getLogger(__name__)
 EXPECTED_HEADERS = ["Ticker", "Company", "Sector", "Industry", "Average Volume", "Price"]
 _EXPORT_COLS = "1,2,3,4,63,65"  # ids config; headers are the runtime contract
 
+# Finviz export "Average Volume" is in THOUSANDS of shares (probe-pinned
+# 2026-07-22: SPY=52138.11, NVDL=22100.86 — the decimals prove the unit; raw
+# share counts would be ~1000x larger integers). Scale to real shares so
+# avg_dollar_vol is real DOLLARS — required for ranking consistency with the
+# §3.3 bars backfill (close×volume = real $); with mixed units one
+# bars_fallback row would out-rank every finviz-sourced row ~1000x.
+_FINVIZ_AVG_VOL_SCALE = 1000.0
+
 
 def _num(v) -> Optional[float]:
     """Finviz numeric: '1,234,567' | '12.34' | '-' | '' -> float | None.
@@ -400,6 +408,8 @@ def _rebuild_locked(force_shrink: bool, trigger: str) -> dict:
                 continue
             price = _num(r.get("Price"))
             avg_vol = _num(r.get("Average Volume"))
+            if avg_vol is not None:
+                avg_vol *= _FINVIZ_AVG_VOL_SCALE  # thousands -> shares
             adv = price * avg_vol if (price and avg_vol) else None
             parsed[t] = {"etf_ticker": t, "underlying": und, "direction": direc, "factor": fac,
                          "name": name, "price": price, "avg_volume": avg_vol,

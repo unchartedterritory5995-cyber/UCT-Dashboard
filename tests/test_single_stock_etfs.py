@@ -121,6 +121,19 @@ def test_rebuild_happy_path(tmp_db, monkeypatch):
     assert tmp_db.status()["last_status"] == "ok"
 
 
+def test_finviz_avg_volume_is_thousands_scaled_to_real_dollars(tmp_db, monkeypatch):
+    # Probe-pinned unit (2026-07-22 live export): "Average Volume" is
+    # THOUSANDS of shares (SPY=52138.11). 1,000 (K shares) x $50.00 must
+    # store avg_dollar_vol = $50,000,000 real dollars — NOT $50K — or the
+    # §3.3 bars backfill (real close x volume) out-ranks finviz rows 1000x.
+    monkeypatch.setattr(tmp_db, "_fetch_finviz_market",
+                        lambda: _mkrows(n_etf=1, vol="1,000", price="50.00"))
+    rec = tmp_db.rebuild(trigger="test")
+    assert rec["status"] == "ok"
+    fam = tmp_db.lookup("NBIS")
+    assert fam["long"][0]["avg_dollar_vol"] == pytest.approx(50_000_000.0)
+
+
 def test_header_gate_refuses_html_login_page(tmp_db, monkeypatch):
     import csv as _csv, io as _io
     # Two-line HTML => DictReader yields 1 row with a garbage header, so the

@@ -38,6 +38,48 @@ def test_company_pass(name, und, direc):
     r = _p(name)
     assert (r.status, r.underlying, r.direction) == ("parsed", und, direc)
 
+# Real-data stock set slice (live Finviz export, 2026-07-22 probe): the
+# collisions below actually exist and broke the company pass in production
+# data. Keep these companies verbatim — they are the regression fixtures.
+REAL_STOCK_SET = {
+    **STOCK_SET,
+    "LGVN": "Longeveron Inc",                              # 'Long' span multi-hit …
+    "LTGRU": "Long Table Growth Corp",                     # … (2 companies)
+    "BIXI": "Bitcoin Infrastructure Acquisition Corp Ltd", # 'Bitcoin' unique prefix
+    "HSDT": "Solana Co",
+    "AVAT": "Avalanche Treasury Corp",
+    "MSFT": "Microsoft Corp",
+}
+
+def test_company_pass_survives_long_prefixed_companies():
+    # Live bug: the 'Long' span prefix-matches Longeveron + Long Table Growth;
+    # an early return killed the pass before 'Tesla' was evaluated, dropping
+    # EVERY "T-REX 2X Long <Company>" fund (TSLT, NVDX, MSFX...). Spec §8
+    # pins TSLT -> TSLA.
+    r = parse_etf_name("T-REX 2X Long Tesla Daily Target ETF", "TSLT", REAL_STOCK_SET)
+    assert (r.status, r.underlying, r.direction) == ("parsed", "TSLA", "long")
+    r = parse_etf_name("T-Rex 2X Long Microsoft Daily Target ETF", "MSFX", REAL_STOCK_SET)
+    assert (r.status, r.underlying, r.direction) == ("parsed", "MSFT", "long")
+
+@pytest.mark.parametrize("name,etf", [
+    ("T-Rex 2X Inverse Bitcoin Daily Target ETF", "BTCZ"),
+    ("T-Rex 2X Long Bitcoin Daily Target ETF", "BTCL"),
+    ("2x Solana ETF", "SOLT"),
+])
+def test_crypto_asset_funds_never_map_to_treasury_companies(name, etf):
+    # Live bug: 'Bitcoin' uniquely prefix-matched Bitcoin Infrastructure
+    # Acquisition Corp (BIXI) -> a crypto fund mapped to a SPAC. Crypto asset
+    # words must never seed the company pass (spec §7: out of scope).
+    r = parse_etf_name(name, etf, REAL_STOCK_SET)
+    assert r.status != "parsed" and r.underlying not in ("BIXI", "HSDT", "AVAT")
+
+def test_fundlevel_ambiguity_still_none_when_two_spans_match_differently():
+    # Two spans (both adjacent to the cluster) uniquely matching DIFFERENT
+    # companies must still refuse: matches = {TSLA, MSFT} -> len != 1 ->
+    # zero_candidates skip.
+    r = parse_etf_name("Issuer Tesla 2X Long Microsoft Daily ETF", "XXXX", REAL_STOCK_SET)
+    assert (r.status, r.reason) == ("skip", "zero_candidates")
+
 # ── Adversarial: live basket funds naming real tickers must NEVER map ──
 def test_berz_fang_basket_never_maps():
     r = _p("MicroSectors FANG & Innovation -3X Inverse Leveraged ETN", "BERZ")

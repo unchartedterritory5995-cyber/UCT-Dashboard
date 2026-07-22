@@ -33,6 +33,20 @@ _STOPLIST = {
     "DAILY", "TARGET", "SHARES",
 }
 
+# Crypto/commodity asset words that must never seed the COMPANY-NAME pass.
+# Live-data finding (2026-07-22 probe): the crypto-treasury-company era means
+# each of these uniquely prefix-matches a listed company ("Bitcoin" -> Bitcoin
+# Infrastructure Acquisition Corp, "Solana" -> Solana Co, "Avalanche" ->
+# Avalanche Treasury Corp, "Stellar" -> Stellar V Capital Corp), so "T-Rex 2X
+# Inverse Bitcoin Daily Target ETF" was mis-mapped to a SPAC. These funds
+# track the ASSET, not a stock -> must fall through to zero-candidate skip
+# (spec §7: commodity/crypto funds are out of scope). Company-pass only; the
+# ticker pass is unaffected.
+_CRYPTO_ASSETS = {
+    "BITCOIN", "ETHER", "ETHEREUM", "SOLANA", "AVALANCHE", "STELLAR",
+    "XRP", "RIPPLE", "DOGECOIN", "LITECOIN", "CARDANO", "CHAINLINK", "SUI",
+}
+
 
 @dataclass
 class ParseResult:
@@ -165,16 +179,19 @@ def _company_pass(tokens: list[str], anchor_idx: set, stock_set: dict[str, str])
     def _norm(s: str) -> str:
         return re.sub(r"[^a-z0-9 ]", "", s.lower())
 
+    def _span_word_ok(w: str) -> bool:
+        return w[:1].isupper() and not _is_stoplisted(w) and w.upper() not in _CRYPTO_ASSETS
+
     companies = {t: _norm(c) for t, c in stock_set.items() if c}
     spans: list[str] = []
     for i, tok in enumerate(tokens):
         if not any(abs(i - a) <= 1 for a in anchor_idx):
             continue
-        if not tok[:1].isupper() or _is_stoplisted(tok):
+        if not _span_word_ok(tok):
             continue
         for ln in (3, 2, 1):
             span = tokens[i:i + ln]
-            if len(span) == ln and all(w[:1].isupper() and not _is_stoplisted(w) for w in span):
+            if len(span) == ln and all(_span_word_ok(w) for w in span):
                 spans.append(" ".join(span))
     matches = set()
     for span in spans:
@@ -184,6 +201,12 @@ def _company_pass(tokens: list[str], anchor_idx: set, stock_set: dict[str, str])
         hits = [t for t, c in companies.items() if c.startswith(ns)]
         if len(hits) == 1:
             matches.add(hits[0])
-        elif len(hits) > 1:
-            return None          # sector-word ambiguity -> caller skips
+        # >1 hits: the SPAN is ambiguous ('Long' -> Longeveron + Long Table
+        # Growth; 'Semiconductor' -> many), so it identifies nothing — but it
+        # must not veto OTHER spans. Live-data bug (2026-07-22 probe): an
+        # early `return None` here killed every "T-REX 2X Long <Company>"
+        # name (the 'Long' span multi-hits real Long*-prefixed companies)
+        # before the company span was ever evaluated — spec §8 pins TSLT ->
+        # TSLA. Fund-level ambiguity is still caught below: two spans
+        # uniquely matching DIFFERENT companies -> len(matches) != 1 -> None.
     return matches.pop() if len(matches) == 1 else None
