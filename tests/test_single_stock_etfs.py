@@ -36,6 +36,7 @@ def tmp_db(tmp_path, monkeypatch):
     monkeypatch.setenv("SSETF_DB_PATH", str(tmp_path / "ssetf.db"))
     import importlib
     importlib.reload(ss)
+    monkeypatch.setattr(ss, "_spawn_rebuild", lambda trig: None)  # no stray self-heal threads escaping test boundaries
     yield ss
     ss.invalidate_cache()
 

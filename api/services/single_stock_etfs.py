@@ -295,11 +295,7 @@ def rebuild(force_shrink: bool = False, trigger: str = "manual") -> dict:
     try:
         return _rebuild_locked(force_shrink, trigger)
     finally:
-        try:
-            _REBUILD_LOCK.release()
-        except RuntimeError:
-            # This can occur in tests when module is reloaded while daemon threads run
-            pass
+        _REBUILD_LOCK.release()
 
 
 def _finish(record: dict) -> dict:
