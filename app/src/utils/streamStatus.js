@@ -16,7 +16,7 @@ export const STREAM_RECONNECT_CAP_MS = 20000
 // arriving and accumulating underneath at full speed; this only throttles the
 // visible re-render/repaint so the UI feels calm instead of frantic. The 2s REST
 // poll stays the freshness floor beneath this. Raise to slow, lower to speed up.
-export const LIVE_UI_CADENCE_MS = 1000
+export const LIVE_UI_CADENCE_MS = 750
 
 // Precedence: a dead connection outranks a server-stale symbol.
 export function streamStatus({ isStreaming, isStale }) {

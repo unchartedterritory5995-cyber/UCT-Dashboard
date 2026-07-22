@@ -40,7 +40,7 @@ const POPULAR_RESULTS = [
   { ticker: 'SOXX',  name: 'iShares Semiconductor ETF' },
 ]
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -267,7 +267,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         <div
           ref={dropdownRef}
           className={styles.dropdown}
-          style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, width: menuPos.width, zIndex: 3000 }}
+          style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, width: menuPos.width, zIndex: 3000, ...(themeVars || {}) }}
         >
           <div className={styles.inputRow}>
             <input

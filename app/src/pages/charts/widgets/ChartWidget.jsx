@@ -14,6 +14,7 @@ import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import { mergeChartSettings } from '../../../components/chart/chartDefaults'
+import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import ChartDayGain from './ChartDayGain'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
@@ -167,6 +168,12 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const { prefs, setPref } = usePreferences()
   const chartCs = mergeChartSettings(prefs.chart_settings)
   const extHoursOn = chartCs.extendedHoursShading ?? true
+  // Canvas-matched palette for the chart popup menus (ticker search / timeframe /
+  // right-click). White+gold on a light canvas, dark OLED on a dark one.
+  const menuCanvasColor = chartsTheme === 'sunrise'
+    ? '#eaf3fb'
+    : (chartCs.bgMode === 'gradient' ? (chartCs.bgGradient?.top || chartCs.background) : chartCs.background)
+  const menuVars = useMemo(() => menuThemeVars(menuCanvasColor) || {}, [menuCanvasColor])
 
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
@@ -380,6 +387,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             displayLabel={headerLabel}
             labelColor={hdrColors.title || null}
             boundsRef={focusableRef}
+            themeVars={menuVars}
           />
         </div>
         {hdr.showChange && (themeIdx.isIndex ? (
@@ -459,6 +467,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             onRemoveCustom={removeCustomTf}
             anchor={tfMenuAnchor}
             onClose={() => setTfMenuOpen(false)}
+            themeVars={menuVars}
           />
         )}
         {showAnyMeta && (
@@ -589,7 +598,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             onClick={closeCtx}
             onContextMenu={(e) => { e.preventDefault(); closeCtx() }}
           />
-          <div className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y }} role="menu">
+          <div className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y, ...menuVars }} role="menu">
             {Number.isFinite(ctxMenu.price) && (
               <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
                 <UIcon name="bell" size={14} className={styles.chartCtxIcon} />

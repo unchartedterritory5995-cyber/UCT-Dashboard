@@ -48,13 +48,14 @@
   /* Never exceed the viewport on a narrow phone (was a fixed 280px that
      overflowed a 375px screen once any left offset was applied). */
   max-width: calc(100vw - 20px);
-  /* Palette mirrors the Chart Settings modal (the UCT default look): #0e0e10
-     panel, #242426 border, neutral grays, gold only as a sparing accent. */
-  background: #0e0e10;
-  border: 1px solid #242426;
+  /* Palette adapts to the chart canvas via --menu-* vars (set inline from
+     menuThemeVars): white/gold on a light canvas, dark OLED on a dark one. The
+     hardcoded values are the dark defaults for consumers that pass no vars. */
+  background: var(--menu-bg, #0e0e10);
+  border: 1px solid var(--menu-border, #242426);
   border-radius: 10px;
   box-shadow:
-    0 18px 50px rgba(0, 0, 0, 0.7),
+    0 18px 50px var(--menu-shadow, rgba(0, 0, 0, 0.7)),
     0 0 0 1px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
   overflow: hidden;
@@ -71,17 +72,17 @@
 
 .inputRow {
   padding: 8px;
-  border-bottom: 1px solid #202022;
-  background: linear-gradient(180deg, #161618 0%, #0e0e10 100%);
+  border-bottom: 1px solid var(--menu-divider, #202022);
+  background: linear-gradient(180deg, var(--menu-bg-top, #161618) 0%, var(--menu-bg, #0e0e10) 100%);
 }
 
 .input {
   width: 100%;
   height: 32px;
-  background: #161618;
-  border: 1px solid #2c2c30;
+  background: var(--menu-input-bg, #161618);
+  border: 1px solid var(--menu-border, #2c2c30);
   border-radius: 6px;
-  color: #ededed;
+  color: var(--menu-text, #ededed);
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
@@ -92,10 +93,10 @@
   transition: border-color 0.12s;
 }
 .input:focus {
-  border-color: rgba(201, 168, 76, 0.55);
+  border-color: var(--menu-accent, rgba(201, 168, 76, 0.55));
 }
 .input::placeholder {
-  color: #6b6b6b;
+  color: var(--menu-text-faint, #6b6b6b);
   font-weight: 400;
   letter-spacing: 0;
 }
@@ -108,11 +109,11 @@
   flex-direction: column;
   gap: 1px;
   scrollbar-width: thin;
-  scrollbar-color: #2c2c30 transparent;
+  scrollbar-color: var(--menu-border, #2c2c30) transparent;
 }
 .list::-webkit-scrollbar { width: 6px; }
 .list::-webkit-scrollbar-track { background: transparent; }
-.list::-webkit-scrollbar-thumb { background: #2c2c30; border-radius: 3px; }
+.list::-webkit-scrollbar-thumb { background: var(--menu-border, #2c2c30); border-radius: 3px; }
 
 .item {
   display: flex;
@@ -122,7 +123,7 @@
   text-align: left;
   padding: 6px 9px;
   font-family: var(--font-sans);
-  color: #8a8a8f;
+  color: var(--menu-text-dim, #8a8a8f);
   background: transparent;
   border: none;
   border-radius: 6px;
@@ -131,22 +132,22 @@
 }
 .item:hover,
 .itemHighlighted {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ededed;
+  background: var(--menu-hover, rgba(255, 255, 255, 0.05));
+  color: var(--menu-text, #ededed);
 }
 .itemSym {
   flex: 0 0 auto;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.6px;
-  color: #c9a84c;
+  color: var(--menu-accent, #c9a84c);
   min-width: 56px;
 }
 .itemName {
   flex: 1 1 auto;
   font-size: 10px;
   font-weight: 400;
-  color: #6b6b6b;
+  color: var(--menu-text-faint, #6b6b6b);
   letter-spacing: 0.2px;
   text-transform: none;
   overflow: hidden;
@@ -154,10 +155,10 @@
   white-space: nowrap;
 }
 .itemActive {
-  background: rgba(201, 168, 76, 0.12);
+  background: var(--menu-accent-bg, rgba(201, 168, 76, 0.12));
 }
 .itemActive .itemSym {
-  color: #e4c870;
+  color: var(--menu-accent, #e4c870);
 }
 
 /* Company-name + logo label mode (charts workspace header) */
