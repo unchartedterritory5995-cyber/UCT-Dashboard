@@ -1,5 +1,27 @@
 import '@testing-library/jest-dom'
-import { vi } from 'vitest'
+import { beforeEach, vi } from 'vitest'
+import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
+
+// ── SWR cache isolation between tests ─────────────────────────────────────
+// SWR keeps a module-global cache PLUS concurrent-request (dedupe) markers
+// that outlive each test — `dedupingInterval` is wall-clock, so within one
+// fast-running file every later mount of an already-fetched key silently
+// reuses the previous test's resolved data instead of that test's own
+// `global.fetch` mock. Purge both stores before each test so every test's
+// fetch mock actually governs what its components see.
+beforeEach(() => {
+  const state = SWRGlobalState.get(swrCache)
+  if (state) {
+    // [EVENT_REVALIDATORS, MUTATION, FETCH, PRELOAD] — leave the revalidator
+    // registrations alone (they belong to mounted hooks and unregister on
+    // unmount); clear the request/mutation bookkeeping.
+    const [, MUTATION, FETCH, PRELOAD] = state
+    for (const store of [MUTATION, FETCH, PRELOAD]) {
+      for (const k of Object.keys(store)) delete store[k]
+    }
+  }
+  for (const k of Array.from(swrCache.keys())) swrCache.delete(k)
+})
 
 // ── Browser API shims missing from jsdom ──────────────────────────────────
 

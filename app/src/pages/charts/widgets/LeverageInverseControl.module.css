@@ -1,0 +1,207 @@
+/* Leverage/Inverse single-stock ETF switcher — lives in the tfBar right-
+   cluster (.tfBarRight) beside the settings gear. The pill mirrors the
+   session toggle idiom from ChartsWorkspace.module.css (.sessionToggle /
+   .sessionBtn: 1px var(--border) box, 4px radius, 10px/700/0.5px caps,
+   3px vertical padding ⇒ ~22px tall) so it reads native to the toolbar.
+   The panel mirrors the TimeframeMenu popover (OLED surface, 10px radius,
+   fixed position, 9200 z) — chart popovers stay dark in every app theme. */
+
+.wrap { display: inline-flex; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border, #1f2937);
+  border-radius: 4px;
+  overflow: hidden;
+  /* Directional tint tokens — the app's chart up/down family (#1ae51a /
+     #ff3b47, same values ChartWidget + ChartDayGain use). Overridden for
+     the Sunrise light theme below. */
+  --li-up: #1ae51a;
+  --li-up-bg: rgba(26, 229, 26, 0.09);
+  --li-down: #ff3b47;
+  --li-down-bg: rgba(255, 59, 71, 0.1);
+}
+
+.segBtn,
+.caretBtn {
+  background: transparent;
+  color: var(--widget-text, var(--text-muted, #6b7280));
+  border: none;
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.segBtn + .segBtn,
+.segBtn + .caretBtn,
+.caretBtn + .segBtn { border-left: 1px solid var(--border, #1f2937); }
+.segBtn:hover:not(:disabled),
+.caretBtn:hover { color: var(--text, #e5e7eb); }
+.segBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* Active seat. STOCK takes the standard gold active treatment (mirrors
+   .sessionBtnActive); the leveraged seats carry a subtle directional tint. */
+.segStockActive,
+.segStockActive:hover:not(:disabled) {
+  color: var(--widget-accent, var(--accent, #c9a84c));
+  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.12));
+}
+.segLongActive,
+.segLongActive:hover:not(:disabled) {
+  color: var(--li-up);
+  background: var(--li-up-bg);
+}
+.segShortActive,
+.segShortActive:hover:not(:disabled) {
+  color: var(--li-down);
+  background: var(--li-down-bg);
+}
+
+.caretBtn {
+  padding: 3px 6px;
+  font-size: 8px;      /* the ▾ glyph renders large for its em box */
+  line-height: 14px;   /* keep the caret cell the same height as the segs */
+}
+.caretBtn:hover { color: var(--widget-accent, var(--accent, #c9a84c)); }
+
+/* Sunrise light theme: the vivid dark-theme green/red vanish on a bright
+   header — swap to the theme's dark candle palette (the same values the
+   workspace sunrise override maps every hardcoded up/down color to). */
+:global([data-charts-theme='sunrise']) .pill {
+  --li-up: #0a5c22;
+  --li-up-bg: rgba(10, 92, 34, 0.12);
+  --li-down: #7d1620;
+  --li-down-bg: rgba(125, 22, 32, 0.12);
+}
+
+/* ── Container-query collapse ────────────────────────────────────────────
+   .widgetBody is the container root (container-type: inline-size — already
+   set by the workspace). In a narrow widget the three text segments fold
+   away; the caret survives so the family panel stays reachable. */
+@container (max-width: 480px) {
+  .segBtn { display: none; }
+  .segBtn + .caretBtn { border-left: none; }  /* no stray divider at the pill edge */
+}
+
+/* ── Family panel ──────────────────────────────────────────────────────── */
+.panel {
+  position: fixed;
+  z-index: 9200;
+  width: 316px;
+  display: flex;
+  flex-direction: column;
+  background: #0c0c0e;
+  border: 1px solid #26262a;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  color: #e6e6e8;
+  overflow: hidden;
+  animation: liPanelIn 110ms ease-out;
+}
+@keyframes liPanelIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .panel { animation: none; }
+}
+
+.panelScroll { overflow-y: auto; padding: 6px; }
+
+/* Geometry contract with the JSX height estimate: two 20px group labels +
+   12px panel padding ≈ 52px chrome; each .row is 30px (24px + 3+3 pad). */
+.groupLabel {
+  height: 20px;
+  box-sizing: border-box;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 6px 1px;
+}
+.groupLong { color: var(--li-up, #1ae51a); opacity: 0.75; }
+.groupShort { color: var(--li-down, #ff3b47); opacity: 0.75; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: #d4d4d6;
+}
+.row:hover { background: #16161a; }
+.rowCurrent { background: #1c1a12; }
+
+.rowTicker {
+  flex-shrink: 0;
+  min-width: 42px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #c9a84c;
+}
+.rowName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: #8f8f96;
+}
+.rowFactor {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid #2b2b2d;
+}
+.rowFactorLong { color: #6fbf82; }
+.rowFactorShort { color: #d07a83; }
+.rowVol {
+  flex-shrink: 0;
+  min-width: 58px;
+  text-align: right;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: #9a9aa0;
+}
+.rowBest {
+  flex-shrink: 0;
+  width: 68px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #c9a84c;
+  white-space: nowrap;
+}
+.rowBestPad { flex-shrink: 0; width: 68px; }
+
+/* Currently-charted member indicator — the cell is reserved on every row so
+   columns stay aligned; only the charted member's dot is filled. */
+.rowDot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: transparent;
+}
+.rowDotOn {
+  background: #c9a84c;
+  box-shadow: 0 0 4px rgba(201, 168, 76, 0.6);
+}
