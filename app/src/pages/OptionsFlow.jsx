@@ -8502,6 +8502,13 @@ export default function OptionsFlowDashboard() {
               // trivially one-directional per CP).
               const ccAll = (_uncappedAllDir !== null ? _uncappedAllDir : (D.all_directional||[])).filter(t => t.S===tk.s && !t._rescueDerived);
               const ccTrades = ccAll.filter(dteF);
+              // All-time (range-independent) ticker prints for the STILL-OPEN calc,
+              // so "Still open (all)" accounts for positions opened BEFORE the window
+              // (e.g. the Jan-2028 put) — matches the table's Still-open mode, which
+              // uses all-time tk.t. The window-scoped ccTrades still drives the
+              // "In window" raw totals below. 2026-07-21.
+              const _tkAllPrintsDte = (_uncapped ? (_uncapped.all_directional||[]) : (D.all_directional||[]))
+                .filter(t => t.S===tk.s && !t._rescueDerived).filter(dteF);
               // Raw totals — clean-classified directional flow only.
               let ccB=0, ccR=0;
               ccTrades.forEach(t => { if(t.D==="BULL") ccB+=t.P; else if(t.D==="BEAR") ccR+=t.P; });
@@ -8558,7 +8565,7 @@ export default function OptionsFlowDashboard() {
               let openContractsPriced = 0, openContractsTotal = 0;
               {
                 const byCt = {};
-                ccTrades.forEach(t => {
+                _tkAllPrintsDte.forEach(t => {
                   const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
                   if (!byCt[k]) byCt[k] = { trades:[], V_total:0, minOI:Infinity };
                   byCt[k].trades.push(t);
