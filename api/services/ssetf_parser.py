@@ -18,7 +18,14 @@ _EXCLUDE_RE = re.compile(
     re.I,
 )
 _FACTOR_RE = re.compile(r"(\d+(?:\.\d+)?)\s*[xX]\b")
-_MINUS_1X_RE = re.compile(r"-1\s*[xX]\b")
+# Any negative multiplier (-1x, -2x, -3x, -1.5x) is a bearish/inverse marker.
+# DIRECTION ONLY — the factor MAGNITUDE still comes from _FACTOR_RE (which
+# matches the "Nx" inside "-Nx"), so "-2x" => short at factor 2.0. This is the
+# other half of the _DIRECTIONLESS_LONG_ISSUERS guardrail: industry convention
+# (corgi-research.md) is that a leveraged LONG may drop its direction word, but
+# a bearish fund ALWAYS carries an explicit token — short|inverse|bear or a
+# negative multiplier — so no direction-less name can hide an inverse fund.
+_MINUS_NX_RE = re.compile(r"-\d+(?:\.\d+)?\s*[xX]\b")
 _LONG_RE = re.compile(r"\b(long|bull)\b", re.I)
 _SHORT_RE = re.compile(r"\b(short|bear|inverse)\b", re.I)
 _CAND_RE = re.compile(r"^[A-Z]{1,5}$")
@@ -127,18 +134,22 @@ def parse_etf_name(name: str, etf_ticker: str, stock_set: dict[str, str]) -> Par
     if _EXCLUDE_RE.search(name):
         return ParseResult("skip", "excluded")
 
-    minus_1x = bool(_MINUS_1X_RE.search(name))
+    minus_nx = bool(_MINUS_NX_RE.search(name))
     m = _FACTOR_RE.search(name)
-    if not (m or minus_1x):
+    if not (m or minus_nx):
         return ParseResult("skip", "no_factor")
-    factor = 1.0 if (minus_1x and not m) else float(m.group(1))
+    # Factor MAGNITUDE always from _FACTOR_RE; the negative marker only flips
+    # DIRECTION (below). The 1.0 fallback covers a bare "-1x"-style token with
+    # no other _FACTOR_RE match (defensive — "-Nx" contains "Nx" so m normally
+    # matches and the parsed magnitude wins, e.g. "-2x" => factor 2.0).
+    factor = 1.0 if (minus_nx and not m) else float(m.group(1))
 
     tokens = tokenize(name)
 
-    # Anchor indices: factor tokens + minus-1x tokens (the "cluster" seed).
+    # Anchor indices: factor tokens + negative-multiplier tokens (cluster seed).
     anchor_idx = set()
     for i, tok in enumerate(tokens):
-        if _FACTOR_RE.search(tok) or _MINUS_1X_RE.search(tok):
+        if _FACTOR_RE.search(tok) or _MINUS_NX_RE.search(tok):
             anchor_idx.add(i)
 
     # Ticker candidates ANYWHERE in the name that resolve to a real symbol in
@@ -162,7 +173,7 @@ def parse_etf_name(name: str, etf_ticker: str, stock_set: dict[str, str]) -> Par
         elif _SHORT_RE.fullmatch(tok):
             short_hit = True
             anchor_idx.add(i)
-    if minus_1x:
+    if minus_nx:
         short_hit = True
 
     if long_hit and short_hit:
@@ -195,8 +206,10 @@ def parse_etf_name(name: str, etf_ticker: str, stock_set: dict[str, str]) -> Par
         # Issuer rule (spec §3.2 rule 2 exception): a direction-less leveraged
         # name from a _DIRECTIONLESS_LONG_ISSUERS sponsor is LONG. Reaching this
         # branch already guarantees NO bearish token matched (short/bear/inverse
-        # via _SHORT_RE, -1x via minus_1x) — so the "no bearish word present"
-        # guardrail is structural, not a second keyword list. The underlying is
+        # via _SHORT_RE, any negative multiplier -Nx via minus_nx) — so the "no
+        # bearish word present" guardrail is structural, not a second keyword
+        # list, and it now catches a hypothetical direction-less -2x/-3x. The
+        # underlying is
         # already resolved above (ticker or company pass); this rule ONLY
         # supplies the missing direction, it never widens underlying acceptance
         # (an unresolved underlying skipped as zero_candidates before here).
