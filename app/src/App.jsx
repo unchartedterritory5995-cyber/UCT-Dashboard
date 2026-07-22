@@ -64,6 +64,7 @@ const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trad
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const ChartsWorkspace = lazy(() => import('./pages/charts/ChartsWorkspace'))
+const ChartRender = lazy(() => import('./pages/ChartRender'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
 const Patterns = lazy(() => import('./pages/Patterns'))
 const CatalystsHistory = lazy(() => import('./pages/CatalystsHistory'))
@@ -155,7 +156,7 @@ export default function App() {
         {/* Cinematic intro overlay — plays on page load for the APP, but never
             on public marketing routes: a cold visitor clicking through to the
             landing page must see it immediately, not a 9-second brand film. */}
-        {!['/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy'].includes(window.location.pathname) && (
+        {!['/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy', '/r/chart'].includes(window.location.pathname) && (
           <IntroAnimation />
         )}
         {/* Global right-click → "+ Add to Portfolio" on every StockChart.
@@ -196,6 +197,12 @@ export default function App() {
             {/* Public pricing page — the ONE plan, 7-day
                 no-card trial, honest scope. Adapts CTA to auth state. */}
             <Route path="/pricing" element={<Pricing />} />
+
+            {/* Headless, token-gated chart export for the Morning Wire → Substack
+                renderer (and future Discord charts). Renders the real StockChart
+                for a ticker with entry/stop/target lines; /api/bars is public so
+                no session is needed. */}
+            <Route path="/r/chart" element={<ChartRender />} />
 
             {/* Protected routes — require authentication */}
             <Route element={<AuthGuard />}>
