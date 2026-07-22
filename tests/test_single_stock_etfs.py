@@ -212,3 +212,30 @@ def test_concurrent_rebuild_single_flight(tmp_db, monkeypatch):
     release.set(); t1.join(timeout=10)
     assert results["b"]["status"] == "already_running"
     assert results["a"]["status"] == "ok"
+
+
+def test_backfill_uses_bars_sqlite(tmp_db, monkeypatch):
+    from api.services import bars_sqlite
+    monkeypatch.setattr(bars_sqlite, "get_bars",
+                        lambda t, tf, n: [(1, 1, 1, 1, 10.0, 1000), (2, 1, 1, 1, 20.0, 2000)])
+    assert tmp_db._backfill_dollar_vol("NEWZ") == (10.0 * 1000 + 20.0 * 2000) / 2
+
+
+def test_backfill_none_on_empty_or_error(tmp_db, monkeypatch):
+    from api.services import bars_sqlite
+    monkeypatch.setattr(bars_sqlite, "get_bars", lambda t, tf, n: [])
+    assert tmp_db._backfill_dollar_vol("NEWZ") is None
+    monkeypatch.setattr(bars_sqlite, "get_bars",
+                        lambda t, tf, n: (_ for _ in ()).throw(RuntimeError()))
+    assert tmp_db._backfill_dollar_vol("NEWZ") is None
+
+
+def test_self_heal_no_empty_table_cooldown_bypass(tmp_db, monkeypatch):
+    fired = []
+    monkeypatch.setattr(tmp_db, "_spawn_rebuild", lambda trig: fired.append(trig))
+    tmp_db._meta_set("last_attempt_at", int(__import__("time").time()) - 60)  # 1 min ago
+    tmp_db._maybe_self_heal()      # empty table, but attempt 1 min ago -> NO spawn
+    assert fired == []
+    tmp_db._meta_set("last_attempt_at", int(__import__("time").time()) - 400)  # >5 min
+    tmp_db._maybe_self_heal()
+    assert fired == ["self_heal"]

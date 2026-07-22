@@ -234,8 +234,39 @@ def status() -> dict:
     return out
 
 
+# ── Self-heal constants ──────────────────────────────────────────────────────
+_HEAL_STALE_SECONDS = 48 * 3600
+_HEAL_COOLDOWN = 30 * 60
+_HEAL_MIN_COOLDOWN = 5 * 60   # applies even when the table is EMPTY (spec §3.4)
+
+
+def _enabled() -> bool:
+    return os.environ.get("SINGLE_STOCK_ETFS_ENABLED", "1") == "1"
+
+
+def _spawn_rebuild(trigger: str) -> None:
+    threading.Thread(target=lambda: rebuild(trigger=trigger),
+                     daemon=True, name="ssetf-heal").start()
+
+
 def _maybe_self_heal() -> None:
-    pass
+    if not _enabled() or _REBUILD_LOCK.locked():
+        return
+    try:
+        _ensure_init()
+        with contextlib.closing(_connect()) as c:
+            empty = c.execute("SELECT COUNT(*) FROM etfs").fetchone()[0] == 0
+        last_ok = _meta_get("last_success_at", 0) or 0
+        stale = (time.time() - last_ok) > _HEAL_STALE_SECONDS
+        if not (empty or stale):
+            return
+        last_attempt = _meta_get("last_attempt_at", 0) or 0
+        cooldown = _HEAL_MIN_COOLDOWN if empty else _HEAL_COOLDOWN
+        if (time.time() - last_attempt) < cooldown:
+            return   # NO empty-table bypass — hot lookup path (spec §3.4)
+        _spawn_rebuild("self_heal")
+    except Exception:
+        pass
 
 
 # ── Rebuild ──────────────────────────────────────────────────────────────────
@@ -246,7 +277,16 @@ _LIQ_BAD_FRACTION = 0.20
 
 
 def _backfill_dollar_vol(ticker: str) -> Optional[float]:
-    return None  # Task 5 implements (bars_sqlite mean(c*v) over <=20 daily bars)
+    """Mean close*volume over the last <=20 cached daily bars; None if unknown."""
+    try:
+        from api.services import bars_sqlite
+        bars = bars_sqlite.get_bars(ticker, "D", 20)
+        if not bars:
+            return None
+        vals = [float(b[4]) * float(b[5]) for b in bars if b[4] and b[5]]
+        return sum(vals) / len(vals) if vals else None
+    except Exception:
+        return None
 
 
 def rebuild(force_shrink: bool = False, trigger: str = "manual") -> dict:
@@ -255,7 +295,11 @@ def rebuild(force_shrink: bool = False, trigger: str = "manual") -> dict:
     try:
         return _rebuild_locked(force_shrink, trigger)
     finally:
-        _REBUILD_LOCK.release()
+        try:
+            _REBUILD_LOCK.release()
+        except RuntimeError:
+            # This can occur in tests when module is reloaded while daemon threads run
+            pass
 
 
 def _finish(record: dict) -> dict:
