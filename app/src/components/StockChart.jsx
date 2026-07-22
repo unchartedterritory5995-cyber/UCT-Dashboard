@@ -1511,7 +1511,7 @@ export default function StockChart({
   // change that lives only on the display path — the pre/post-market preview candle —
   // is read as "nothing changed" and never paints. See the plan comment in updateChart.
   const prevPaintBarsRef = useRef(null)
-  // True only while a Ctrl+drag measure is in progress — every handleScroll site
+  // True only while a Shift+drag measure is in progress — every handleScroll site
   // reads it so a data-poll re-applyOptions can't unlock the chart mid-measure.
   const measureLockRef = useRef(false)
   const focusRafRef = useRef(null)        // in-flight focus-zoom animation frame id
@@ -4273,7 +4273,7 @@ export default function StockChart({
       // its framed window — no pan/zoom/axis-drag, and the wheel is left alone so
       // it scrolls the PAGE instead of the chart.
       // Plain mouse-drag PANS the chart (default). Drag-to-measure is gated behind
-      // Ctrl: onDown sets measureLockRef while Ctrl+dragging so the chart stays put.
+      // Shift: onDown sets measureLockRef while Shift+dragging so the chart stays put.
       // Computed here (re-runs on data polls) so a poll can't unlock mid-measure.
       handleScroll: (frozen || measureLockRef.current) ? false : true,
       handleScale: frozen || measureLockRef.current ? false : true,
@@ -7241,7 +7241,7 @@ export default function StockChart({
   const dragMeasureStateRef = useRef(null)   // { startX, startY, startPrice, startLogical } while dragging
   const [measureReadout, setMeasureReadout] = useState(null)  // { x, y, pct, bars, span, flip } | null
 
-  // Plain mouse-drag pans (default). The Ctrl+drag measure locks scrolling only for
+  // Plain mouse-drag pans (default). The Shift+drag measure locks scrolling only for
   // the duration of the drag (in onDown/end below); frozen (Setup Library) stays
   // non-pannable. This effect just holds the default so a data-poll re-applyOptions
   // can't clobber it.
@@ -7305,7 +7305,7 @@ export default function StockChart({
       dragMeasureStateRef.current = null
       measureLockRef.current = false
       clearLine(); setMeasureReadout(null)
-      // Restore pan + zoom after the Ctrl+drag measure.
+      // Restore pan + zoom after the Shift+drag measure.
       try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', end)
@@ -7313,8 +7313,8 @@ export default function StockChart({
     }
     const onDown = (e) => {
       if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
-      // Only measure while Ctrl is held — a plain drag pans the chart (LWC handles it).
-      if (!e.ctrlKey) return
+      // Only measure while Shift is held — a plain drag pans the chart (LWC handles it).
+      if (!e.shiftKey) return
       const series = candleSeriesRef.current, chart = chartRef.current
       if (!series || !chart) return
       const { x, y } = getPos(e)
