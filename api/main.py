@@ -101,6 +101,7 @@ from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
+from api.routers import single_stock_etfs as single_stock_etfs_router
 from api.flow_router import flow_router
 from api.flow_summary import flow_summary_router
 from api.oi_snapshot_router import router as oi_snapshot_router
@@ -2905,6 +2906,19 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_nightly_flow_prune, trigger=CronTrigger(hour=20, minute=0, timezone=_ET), id="flow_nightly_prune", max_instances=1, replace_existing=True)
 
+        # Single-stock ETF family map: nightly rebuild (spec: docs/superpowers/
+        # specs/2026-07-21-single-stock-etf-switcher-design.md §3.4). Weekdays
+        # 20:30 ET; self-heals on lookup if this ever misses.
+        def _ssetf_nightly():
+            import os as _os
+            if _os.environ.get("SINGLE_STOCK_ETFS_ENABLED", "1") != "1":
+                return
+            from api.services import single_stock_etfs as _ss
+            _ss.rebuild(trigger="cron")
+        _scheduler.add_job(_ssetf_nightly,
+                           trigger=CronTrigger(day_of_week="mon-fri", hour=20, minute=30, timezone=_ET),
+                           id="ssetf_nightly_rebuild", max_instances=1, replace_existing=True)
+
         # -- Daily OI snapshot for retroactive flow confirmation ----------
         # Captures Schwab live OI for every contract with flow in the past
         # 30 days. Runs at 5:30 AM ET -- well before market open, off-peak
@@ -3609,6 +3623,7 @@ app.include_router(stream_router.router)
 app.include_router(live_prices_router.router)
 app.include_router(ticker_meta_router.router)
 app.include_router(ticker_search_router.router)
+app.include_router(single_stock_etfs_router.router)
 app.include_router(rs_ranking_router.router)
 app.include_router(intelligence_router.router)
 app.include_router(transcripts_router.router)
