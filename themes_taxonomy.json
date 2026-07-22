@@ -1,5 +1,5 @@
 {
-  "version": "4.21.0+3b3cb52b",
+  "version": "4.22.0",
   "generated_at": "2026-07-22",
   "sectors": [
     {
@@ -64,6 +64,120 @@
     }
   ],
   "themes": [
+    {
+      "id": "neocloud",
+      "name": "Neocloud",
+      "sector_id": "technology",
+      "etf_ticker": null,
+      "etf_name": null,
+      "display_order": 8,
+      "sub_themes": [
+        {
+          "id": "nc_pureplay",
+          "name": "Pure-Play GPU Clouds"
+        },
+        {
+          "id": "nc_miner_pivot",
+          "name": "Miner-to-AI Converts"
+        },
+        {
+          "id": "nc_infra",
+          "name": "AI Data-Center & Power Infra"
+        }
+      ],
+      "holdings": [
+        {
+          "sym": "CRWV",
+          "tier": "core",
+          "sub_theme_id": "nc_pureplay",
+          "rationale": "Largest pure-play AI neocloud; hyperscaler-scale GPU capacity, ~$99B revenue backlog"
+        },
+        {
+          "sym": "NBIS",
+          "tier": "core",
+          "sub_theme_id": "nc_pureplay",
+          "rationale": "Full-stack vertically integrated AI cloud; owns data centers, NVIDIA-backed"
+        },
+        {
+          "sym": "IREN",
+          "tier": "core",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "Ex-bitcoin miner turned GPU cloud; $3.4B NVIDIA cloud contract, 600K-GPU roadmap"
+        },
+        {
+          "sym": "CORZ",
+          "tier": "core",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "Core Scientific 1.2GW pivot to AI hosting; 590MW leased to CoreWeave (12-yr)"
+        },
+        {
+          "sym": "WULF",
+          "tier": "core",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "TeraWulf zero-carbon HPC developer; multi-billion contracted AI compute via Fluidstack"
+        },
+        {
+          "sym": "APLD",
+          "tier": "core",
+          "sub_theme_id": "nc_infra",
+          "rationale": "Applied Digital AI-factory landlord; 1GW+ contracted, CoreWeave lease anchor"
+        },
+        {
+          "sym": "CIFR",
+          "tier": "relevant",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "Cipher Mining converting its power pipeline into AI data-center hosting"
+        },
+        {
+          "sym": "HUT",
+          "tier": "relevant",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "Hut 8 ~$7B AI data-center deal with Anthropic, backstopped by Google"
+        },
+        {
+          "sym": "GLXY",
+          "tier": "relevant",
+          "sub_theme_id": "nc_infra",
+          "rationale": "Galaxy Digital Helios TX campus: 800MW to CoreWeave on 15-yr leases, $1B+/yr"
+        },
+        {
+          "sym": "WYFI",
+          "tier": "relevant",
+          "sub_theme_id": "nc_pureplay",
+          "rationale": "WhiteFiber pure-play GPU cloud with owned Tier-3 data centers; Bit Digital spinout"
+        },
+        {
+          "sym": "BTBT",
+          "tier": "relevant",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "Bit Digital pivoted to AI cloud; owned GPU infrastructure (WhiteFiber parent)"
+        },
+        {
+          "sym": "BTDR",
+          "tier": "relevant",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "Bitdeer building AI/HPC cloud capacity alongside mining and ASIC design"
+        },
+        {
+          "sym": "HIVE",
+          "tier": "relevant",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "HIVE Digital Buzz HPC subsidiary operating GPU AI-cloud data centers"
+        },
+        {
+          "sym": "MARA",
+          "tier": "peripheral",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "Largest bitcoin miner beginning AI/HPC compute diversification"
+        },
+        {
+          "sym": "RIOT",
+          "tier": "peripheral",
+          "sub_theme_id": "nc_miner_pivot",
+          "rationale": "Riot Platforms exploring AI/HPC hosting at its Corsicana Texas campus"
+        }
+      ]
+    },
     {
       "id": "semiconductors",
       "name": "Semiconductors",
