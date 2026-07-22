@@ -28,7 +28,11 @@
   background: transparent;
   color: var(--widget-text, var(--text-muted, #6b7280));
   border: none;
-  padding: 3px 8px;
+  /* Tightened horizontal padding (was 8px) trims the pill's footprint by ~18px
+     across the three segments so the wrap point sits well below the default
+     w:17 chart width — pairs with the @container collapse below to keep the
+     tfBar single-row at every width. */
+  padding: 3px 6px;
   font-family: inherit;
   font-size: 10px;
   font-weight: 700;
@@ -63,7 +67,7 @@
 }
 
 .caretBtn {
-  padding: 3px 6px;
+  padding: 3px 5px;
   font-size: 8px;      /* the ▾ glyph renders large for its em box */
   line-height: 14px;   /* keep the caret cell the same height as the segs */
 }
@@ -82,8 +86,19 @@
 /* ── Container-query collapse ────────────────────────────────────────────
    .widgetBody is the container root (container-type: inline-size — already
    set by the workspace). In a narrow widget the three text segments fold
-   away; the caret survives so the family panel stays reachable. */
-@container (max-width: 480px) {
+   away; the caret survives so the family panel (full STOCK/LONG/SHORT access)
+   stays reachable.
+
+   Breakpoint tuned to the REAL toolbar-wrap point, not a nominal "phone" width.
+   The tfBar (flex-wrap) shares its row with the header meta block (Market Cap /
+   Next Earnings / UCT Rating) and .chartFill is flex:1, so if the full pill tips
+   the tfBar to a second row it steals chart-canvas height. Live-measured (meta
+   shown, worst case): the full pill wraps the toolbar at .widgetBody widths
+   ≤ ~992px and fits from ~996px. Collapsing to caret-only at ≤ 1000px keeps the
+   default UCT w:17 chart (~957px) single-row while w:18+ (~1014px) still shows the
+   one-click segments. Never let this rise into the fitting range for a width you
+   want segments at, nor fall to where the full pill can still wrap. */
+@container (max-width: 1000px) {
   .segBtn { display: none; }
   .segBtn + .caretBtn { border-left: none; }  /* no stray divider at the pill edge */
 }
