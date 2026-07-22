@@ -3153,7 +3153,10 @@ async def lifespan(app: FastAPI):
                     syms: list[str] = []
                     try:
                         earn = _rw_engine.get_earnings() or {}
-                        for bucket in ("bmo", "amc"):
+                        # amc = yesterday's after-close reporters (BMO-morning recap);
+                        # amc_tonight = TONIGHT's reporters — the ones printing live
+                        # during the 4-8 PM window.
+                        for bucket in ("bmo", "amc", "amc_tonight"):
                             for row in (earn.get(bucket) or []):
                                 s = (row.get("sym") or "").upper().strip()
                                 if s and s not in syms:
