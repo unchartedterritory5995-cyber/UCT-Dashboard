@@ -186,6 +186,19 @@ def test_quarantine_rewrite(tmp_db, monkeypatch):
     assert tmp_db.status()["quarantine"] == []   # derived data: rewritten per run
 
 
+def test_error_path_stamps_status_and_keeps_table(tmp_db, monkeypatch):
+    monkeypatch.setattr(tmp_db, "_fetch_finviz_market", lambda: _mkrows())
+    assert tmp_db.rebuild(trigger="test")["status"] == "ok"
+    # malformed add override: NULL underlying violates etfs NOT NULL at swap time
+    with tmp_db._write_conn() as c:
+        c.execute("INSERT INTO overrides VALUES ('BADZ','add',NULL,NULL,NULL,NULL,1)")
+    rec = tmp_db.rebuild(trigger="test")
+    assert rec["status"] == "error" and rec.get("error")
+    st = tmp_db.status()
+    assert st["last_status"] == "error"
+    assert st["etf_count"] == 10          # previous table fully intact (atomic)
+
+
 def test_concurrent_rebuild_single_flight(tmp_db, monkeypatch):
     import threading as th
     started, release = th.Event(), th.Event()

@@ -263,7 +263,8 @@ def _finish(record: dict) -> dict:
     st = record["status"]
     _meta_set("last_status", st)
     _meta_set("last_error", record.get("error"))
-    _meta_set("last_counts", record.get("counts"))
+    if record.get("counts") is not None:  # refusals/errors keep the prior run's counts visible
+        _meta_set("last_counts", record.get("counts"))
     if st == "ok":
         _meta_set("last_success_at", record["attempt_at"])
         _meta_set("last_diff", record.get("diff"))
@@ -291,161 +292,171 @@ def _rebuild_locked(force_shrink: bool, trigger: str) -> dict:
     _meta_set("last_attempt_at", now)  # stamped at START of EVERY attempt
     rec: dict = {"status": "error", "trigger": trigger, "attempt_at": now}
 
-    rows = _fetch_finviz_market()
-    if not rows:
-        rec["status"] = "fetch_empty"
+    try:
+        rows = _fetch_finviz_market()
+        if not rows:
+            rec["status"] = "fetch_empty"
+            return _finish(rec)
+
+        # Gate 1: header assert (catches wrong column ids AND 200-HTML login pages).
+        headers = list(rows[0].keys())
+        missing = [h for h in EXPECTED_HEADERS if h not in headers]
+        if missing:
+            rec.update(status="refused_headers", error=f"missing headers: {missing}")
+            return _finish(rec)
+
+        stock_set: dict[str, str] = {}
+        etf_rows: list[dict] = []
+        for r in rows:
+            t = (r.get("Ticker") or "").strip().upper()
+            if not t:
+                continue
+            if (r.get("Industry") or "").strip() == _ETF_INDUSTRY:
+                etf_rows.append(r)
+            else:
+                stock_set[t] = (r.get("Company") or "").strip()
+        if len(stock_set) < 2000:  # fail-soft membership fallback (spec §3.1)
+            try:
+                path = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
+                with open(path, encoding="utf-8") as fh:
+                    for t in json.load(fh):
+                        stock_set.setdefault(str(t).upper(), "")
+                logger.warning("[ssetf] stock set thin (%d) — merged cap_universe fallback", len(stock_set))
+            except Exception:
+                pass
+
+        # Load overrides.
+        _ensure_init()
+        with contextlib.closing(_connect()) as c:
+            ovr = {r["etf_ticker"]: dict(r) for r in c.execute("SELECT * FROM overrides").fetchall()}
+            prev_count = c.execute("SELECT COUNT(*) FROM etfs").fetchone()[0]
+            prev_map = {r["etf_ticker"]: dict(r) for r in c.execute("SELECT * FROM etfs").fetchall()}
+            prev_median = _median([r["avg_dollar_vol"] for r in prev_map.values()
+                                   if r["avg_dollar_vol"]])
+
+        parsed: dict[str, dict] = {}
+        quarantined: list[tuple] = []
+        skipped_zero = 0
+        overrides_applied = 0
+        for r in etf_rows:
+            t = (r.get("Ticker") or "").strip().upper()
+            name = (r.get("Company") or "").strip()
+            o = ovr.get(t)
+            if o and o["action"] == "exclude":
+                overrides_applied += 1
+                continue
+            res = parse_etf_name(name, t, stock_set)
+            if o and o["action"] == "remap":
+                overrides_applied += 1
+                und, direc, fac = o["underlying"], o["direction"], o["factor"]
+            elif res.status == "parsed":
+                und, direc, fac = res.underlying, res.direction, res.factor
+            elif res.status == "quarantine":
+                quarantined.append((t, name, res.reason, now))
+                continue
+            else:
+                if res.reason == "zero_candidates":
+                    skipped_zero += 1
+                continue
+            price = _num(r.get("Price"))
+            avg_vol = _num(r.get("Average Volume"))
+            adv = price * avg_vol if (price and avg_vol) else None
+            parsed[t] = {"etf_ticker": t, "underlying": und, "direction": direc, "factor": fac,
+                         "name": name, "price": price, "avg_volume": avg_vol,
+                         "avg_dollar_vol": adv, "vol_source": "finviz" if adv else "none",
+                         "updated_at": now}
+
+        # 'add' overrides: inject rows absent from the export (spec §3.5).
+        for t, o in ovr.items():
+            if o["action"] == "add" and t not in parsed:
+                overrides_applied += 1
+                parsed[t] = {"etf_ticker": t, "underlying": o["underlying"],
+                             "direction": o["direction"], "factor": o["factor"],
+                             "name": o["note"] or f"{t} (manual add)", "price": None,
+                             "avg_volume": None, "avg_dollar_vol": None,
+                             "vol_source": "none", "updated_at": now}
+            elif o["action"] == "add" and t in parsed:
+                overrides_applied += 1
+                parsed[t].update(underlying=o["underlying"], direction=o["direction"],
+                                 factor=o["factor"])  # export row wins name/price/vol
+
+        # An 'add' override may inject a ticker this run's parser had already
+        # routed to quarantine — drop it there so it never double-lands in
+        # both the etfs table and the quarantine table.
+        if quarantined:
+            quarantined = [q for q in quarantined if q[0] not in parsed]
+
+        new_count = len(parsed)
+        rec.update(new_count=new_count, prev_count=prev_count)
+
+        # Gate 2: liquidity (skip backfill entirely when it trips — spec §3.3).
+        bad = [p for p in parsed.values() if not p["avg_dollar_vol"]]
+        median_new = _median([p["avg_dollar_vol"] for p in parsed.values() if p["avg_dollar_vol"]])
+        liq_tripped = (new_count > 0 and len(bad) / new_count > _LIQ_BAD_FRACTION) or \
+                      (median_new == 0 and (prev_median or 0) > 0)
+        if liq_tripped and not force_shrink:
+            rec["status"] = "refused_liquidity"
+            return _finish(rec)
+
+        # Bounded fresh-listing backfill (Task 5 wires the real impl).
+        backfilled = 0
+        if not liq_tripped:
+            for p in list(parsed.values()):
+                if backfilled >= 25:
+                    break
+                if p["avg_dollar_vol"] is None:
+                    adv = _backfill_dollar_vol(p["etf_ticker"])
+                    if adv:
+                        p["avg_dollar_vol"] = adv
+                        p["vol_source"] = "bars_fallback"
+                    backfilled += 1
+
+        # Gate 3: shrink guard.
+        if prev_count and new_count < prev_count * _SHRINK_FLOOR and not force_shrink:
+            rec["status"] = "refused_shrink"
+            return _finish(rec)
+
+        # Diff vs previous table.
+        added = sorted(set(parsed) - set(prev_map))
+        removed = sorted(set(prev_map) - set(parsed))
+        def _bests(m):
+            out = {}
+            for r in m.values():
+                key = (r["underlying"], r["direction"])
+                cur = out.get(key)
+                if cur is None or (r["avg_dollar_vol"] or 0) > (cur[1] or 0):
+                    out[key] = (r["etf_ticker"], r["avg_dollar_vol"])
+            return {k: v[0] for k, v in out.items()}
+        b_old, b_new = _bests(prev_map), _bests(parsed)
+        best_changes = [f"{u}/{d}: {b_old.get((u, d))} -> {t}"
+                        for (u, d), t in b_new.items() if b_old.get((u, d)) not in (None, t)]
+        diff = {"added": added, "removed": removed, "best_changes": best_changes,
+                "skipped_zero_candidate": skipped_zero,
+                "new_families": sorted({p["underlying"] for p in parsed.values()} -
+                                       {r["underlying"] for r in prev_map.values()})}
+
+        # Atomic swap + quarantine rewrite in ONE transaction (spec §3.4).
+        with _write_conn() as c:
+            c.execute("DELETE FROM etfs")
+            c.executemany(
+                "INSERT INTO etfs (etf_ticker, underlying, direction, factor, name, price,"
+                " avg_volume, avg_dollar_vol, vol_source, updated_at)"
+                " VALUES (:etf_ticker,:underlying,:direction,:factor,:name,:price,"
+                ":avg_volume,:avg_dollar_vol,:vol_source,:updated_at)",
+                list(parsed.values()))
+            c.execute("DELETE FROM quarantine")
+            c.executemany("INSERT INTO quarantine VALUES (?,?,?,?)", quarantined)
+
+        rec.update(status="ok", diff=diff, counts={
+            "csv_rows": len(rows), "etf_rows": len(etf_rows), "parsed": len(parsed),
+            "skipped_zero_candidate": skipped_zero, "quarantined": len(quarantined),
+            "overrides_applied": overrides_applied, "backfilled": backfilled,
+            "etfs_written": new_count,
+            "families": len({p["underlying"] for p in parsed.values()})})
         return _finish(rec)
-
-    # Gate 1: header assert (catches wrong column ids AND 200-HTML login pages).
-    headers = list(rows[0].keys())
-    missing = [h for h in EXPECTED_HEADERS if h not in headers]
-    if missing:
-        rec.update(status="refused_headers", error=f"missing headers: {missing}")
+    except Exception as e:
+        rec.update(status="error", error=f"{type(e).__name__}: {e}")
         return _finish(rec)
-
-    stock_set: dict[str, str] = {}
-    etf_rows: list[dict] = []
-    for r in rows:
-        t = (r.get("Ticker") or "").strip().upper()
-        if not t:
-            continue
-        if (r.get("Industry") or "").strip() == _ETF_INDUSTRY:
-            etf_rows.append(r)
-        else:
-            stock_set[t] = (r.get("Company") or "").strip()
-    if len(stock_set) < 2000:  # fail-soft membership fallback (spec §3.1)
-        try:
-            path = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
-            with open(path, encoding="utf-8") as fh:
-                for t in json.load(fh):
-                    stock_set.setdefault(str(t).upper(), "")
-            logger.warning("[ssetf] stock set thin (%d) — merged cap_universe fallback", len(stock_set))
-        except Exception:
-            pass
-
-    # Load overrides.
-    _ensure_init()
-    with contextlib.closing(_connect()) as c:
-        ovr = {r["etf_ticker"]: dict(r) for r in c.execute("SELECT * FROM overrides").fetchall()}
-        prev_count = c.execute("SELECT COUNT(*) FROM etfs").fetchone()[0]
-        prev_map = {r["etf_ticker"]: dict(r) for r in c.execute("SELECT * FROM etfs").fetchall()}
-        prev_median = _median([r["avg_dollar_vol"] for r in prev_map.values()
-                               if r["avg_dollar_vol"]])
-
-    parsed: dict[str, dict] = {}
-    quarantined: list[tuple] = []
-    skipped_zero = 0
-    overrides_applied = 0
-    for r in etf_rows:
-        t = (r.get("Ticker") or "").strip().upper()
-        name = (r.get("Company") or "").strip()
-        o = ovr.get(t)
-        if o and o["action"] == "exclude":
-            overrides_applied += 1
-            continue
-        res = parse_etf_name(name, t, stock_set)
-        if o and o["action"] == "remap":
-            overrides_applied += 1
-            res_status, und, direc, fac = "parsed", o["underlying"], o["direction"], o["factor"]
-        elif res.status == "parsed":
-            res_status, und, direc, fac = "parsed", res.underlying, res.direction, res.factor
-        elif res.status == "quarantine":
-            quarantined.append((t, name, res.reason, now))
-            continue
-        else:
-            if res.reason == "zero_candidates":
-                skipped_zero += 1
-            continue
-        price = _num(r.get("Price"))
-        avg_vol = _num(r.get("Average Volume"))
-        adv = price * avg_vol if (price and avg_vol) else None
-        parsed[t] = {"etf_ticker": t, "underlying": und, "direction": direc, "factor": fac,
-                     "name": name, "price": price, "avg_volume": avg_vol,
-                     "avg_dollar_vol": adv, "vol_source": "finviz" if adv else "none",
-                     "updated_at": now}
-
-    # 'add' overrides: inject rows absent from the export (spec §3.5).
-    for t, o in ovr.items():
-        if o["action"] == "add" and t not in parsed:
-            overrides_applied += 1
-            parsed[t] = {"etf_ticker": t, "underlying": o["underlying"],
-                         "direction": o["direction"], "factor": o["factor"],
-                         "name": o["note"] or f"{t} (manual add)", "price": None,
-                         "avg_volume": None, "avg_dollar_vol": None,
-                         "vol_source": "none", "updated_at": now}
-        elif o["action"] == "add" and t in parsed:
-            overrides_applied += 1
-            parsed[t].update(underlying=o["underlying"], direction=o["direction"],
-                             factor=o["factor"])  # export row wins name/price/vol
-
-    new_count = len(parsed)
-    rec.update(new_count=new_count, prev_count=prev_count)
-
-    # Gate 2: liquidity (skip backfill entirely when it trips — spec §3.3).
-    bad = [p for p in parsed.values() if not p["avg_dollar_vol"]]
-    median_new = _median([p["avg_dollar_vol"] for p in parsed.values() if p["avg_dollar_vol"]])
-    liq_tripped = (new_count > 0 and len(bad) / new_count > _LIQ_BAD_FRACTION) or \
-                  (median_new == 0 and (prev_median or 0) > 0)
-    if liq_tripped and not force_shrink:
-        rec["status"] = "refused_liquidity"
-        return _finish(rec)
-
-    # Bounded fresh-listing backfill (Task 5 wires the real impl).
-    backfilled = 0
-    if not liq_tripped:
-        for p in list(parsed.values()):
-            if backfilled >= 25:
-                break
-            if p["avg_dollar_vol"] is None:
-                adv = _backfill_dollar_vol(p["etf_ticker"])
-                if adv:
-                    p["avg_dollar_vol"] = adv
-                    p["vol_source"] = "bars_fallback"
-                backfilled += 1
-
-    # Gate 3: shrink guard.
-    if prev_count and new_count < prev_count * _SHRINK_FLOOR and not force_shrink:
-        rec["status"] = "refused_shrink"
-        return _finish(rec)
-
-    # Diff vs previous table.
-    added = sorted(set(parsed) - set(prev_map))
-    removed = sorted(set(prev_map) - set(parsed))
-    def _bests(m):
-        out = {}
-        for r in m.values():
-            key = (r["underlying"], r["direction"])
-            cur = out.get(key)
-            if cur is None or (r["avg_dollar_vol"] or 0) > (cur[1] or 0):
-                out[key] = (r["etf_ticker"], r["avg_dollar_vol"])
-        return {k: v[0] for k, v in out.items()}
-    b_old, b_new = _bests(prev_map), _bests(parsed)
-    best_changes = [f"{u}/{d}: {b_old.get((u, d))} -> {t}"
-                    for (u, d), t in b_new.items() if b_old.get((u, d)) not in (None, t)]
-    diff = {"added": added, "removed": removed, "best_changes": best_changes,
-            "skipped_zero_candidate": skipped_zero,
-            "new_families": sorted({p["underlying"] for p in parsed.values()} -
-                                   {r["underlying"] for r in prev_map.values()})}
-
-    # Atomic swap + quarantine rewrite in ONE transaction (spec §3.4).
-    with _write_conn() as c:
-        c.execute("DELETE FROM etfs")
-        c.executemany(
-            "INSERT INTO etfs (etf_ticker, underlying, direction, factor, name, price,"
-            " avg_volume, avg_dollar_vol, vol_source, updated_at)"
-            " VALUES (:etf_ticker,:underlying,:direction,:factor,:name,:price,"
-            ":avg_volume,:avg_dollar_vol,:vol_source,:updated_at)",
-            list(parsed.values()))
-        c.execute("DELETE FROM quarantine")
-        c.executemany("INSERT INTO quarantine VALUES (?,?,?,?)", quarantined)
-
-    rec.update(status="ok", diff=diff, counts={
-        "csv_rows": len(rows), "etf_rows": len(etf_rows), "parsed": len(parsed),
-        "skipped_zero_candidate": skipped_zero, "quarantined": len(quarantined),
-        "overrides_applied": overrides_applied, "backfilled": backfilled,
-        "etfs_written": new_count,
-        "families": len({p["underlying"] for p in parsed.values()})})
-    return _finish(rec)
 
 
 def _median(vals: list) -> float:
