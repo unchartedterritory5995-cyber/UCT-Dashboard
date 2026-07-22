@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+import { LIVE_UI_CADENCE_MS } from '../utils/streamStatus'
 
 vi.mock('./useLivePrices', () => ({
   default: vi.fn(() => ({ prices: {}, isLoading: false })),
@@ -60,7 +61,7 @@ describe('pooled useRealtimePrices', () => {
     act(() => {
       es.emitOpen()
       es.emitMessage({ AAPL: { price: 111 }, MSFT: { price: 222 } })
-      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
+      vi.advanceTimersByTime(LIVE_UI_CADENCE_MS)   // flush the publish throttle window
     })
 
     expect(a.result.current.prices.AAPL.price).toBe(111)
@@ -91,7 +92,7 @@ describe('pooled useRealtimePrices', () => {
     act(() => {
       es.emitOpen()
       es.emitMessage({ AAPL: { price: 100.5, change_pct: 0, change: 0 } }) // spurious stream 0
-      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
+      vi.advanceTimersByTime(LIVE_UI_CADENCE_MS)   // flush the publish throttle window
     })
 
     const px = a.result.current.prices.AAPL
@@ -121,7 +122,7 @@ describe('pooled useRealtimePrices', () => {
     act(() => {
       es.emitOpen()
       es.emitMessage({ AAPL: { price: 102, change_pct: 7.4, change: 7 } }) // after-hours pop
-      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
+      vi.advanceTimersByTime(LIVE_UI_CADENCE_MS)   // flush the publish throttle window
     })
 
     const px = a.result.current.prices.AAPL
@@ -150,7 +151,7 @@ describe('pooled useRealtimePrices', () => {
       es.emitOpen()
       es.emitMessage({ AAPL: { price: 42 } })
       es.emitMessage({ AAPL: { price: 43 } })
-      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
+      vi.advanceTimersByTime(LIVE_UI_CADENCE_MS)   // flush the publish throttle window
     })
     expect(active.result.current.prices.AAPL.price).toBe(43)
     expect(idleRenders).toBe(rendersBefore)   // idle consumer untouched by publishes
@@ -174,7 +175,7 @@ describe('pooled useRealtimePrices', () => {
       for (const fn of es.listeners['stale'] || []) {
         fn({ data: JSON.stringify({ sym: 'AAPL' }) })
       }
-      vi.advanceTimersByTime(500)   // flush the 500ms publish throttle
+      vi.advanceTimersByTime(LIVE_UI_CADENCE_MS)   // flush the publish throttle window
     })
     expect(a.result.current.staleSymbols.has('AAPL')).toBe(true)
     expect(b.result.current.staleSymbols.size).toBe(0)
