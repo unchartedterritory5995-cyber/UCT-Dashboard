@@ -165,20 +165,22 @@
    on white until swept surface by surface — same iterative path the sunrise
    theme took. Don't assume a page is correct here until it's been looked at. */
 [data-theme="light"] {
-  --bg: #d7e6f2;
-  --bg-surface: #e8eff5;
-  --bg-elevated: #f2f6fa;
-  --bg-hover: rgba(20, 45, 75, 0.07);
-  --border: #c2d2e0;
-  --border-accent: #a9bccd;
+  /* Classic WHITE light theme — clean neutral grays, no blue tint. The page is
+     pure white; surfaces/cards separate with a whisper of warm-neutral gray plus
+     borders + soft shadows (below). */
+  --bg: #ffffff;
+  --bg-surface: #f4f5f6;
+  --bg-elevated: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --border: #e3e5e7;
+  --border-accent: #cbced1;
 
-  /* Inverted: near-black on the bright canvas. --text-heading/-bright are the
-     DARKEST (they were the lightest in the dark themes) so emphasis still reads
-     as emphasis rather than inverting the hierarchy. */
-  --text: #1b2836;
-  --text-muted: #3e4a58;
-  --text-bright: #0a141e;
-  --text-heading: #16212e;
+  /* Inverted: near-black on the bright canvas, neutral (not blue) grays.
+     --text-heading/-bright are the DARKEST so emphasis still reads as emphasis. */
+  --text: #1f2328;
+  --text-muted: #57606a;
+  --text-bright: #0b0e11;
+  --text-heading: #161a1e;
 
   /* Darkened accents — the same values the Sunset candles/volume use. */
   --ut-gold: #7a5c16;
@@ -212,13 +214,12 @@
   --tick-up-bg: rgba(10, 92, 34, 0.26);
   --tick-down-bg: rgba(125, 22, 32, 0.24);
 
-  /* Shadows are tuned for glow-on-black; soften them so panels don't look
-     smudged on a bright canvas. */
-  --shadow-sm: 0 1px 2px rgba(20, 45, 75, 0.10);
-  --shadow-md: 0 2px 8px rgba(20, 45, 75, 0.12);
-  --shadow-lg: 0 4px 16px rgba(20, 45, 75, 0.16);
-  --shadow-modal: 0 20px 50px rgba(20, 45, 75, 0.22);
-  --shadow-popover: 0 8px 24px rgba(20, 45, 75, 0.18);
+  /* Neutral soft shadows for a clean white canvas (no blue cast). */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.16);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 /* ── Dim theme ── */
