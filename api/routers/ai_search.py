@@ -796,9 +796,18 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
     # _grounded_system in a thread (never on the shared event loop).
     try:
         from api.services import ai_search_memory
-        mblock = ai_search_memory.retrieve_context(query, meta.get("question_type"))
+        qtk = meta.get("query_tickers") or []
+        mblock = ai_search_memory.retrieve_context(
+            query, meta.get("question_type"), primary_ticker=(qtk[0] if qtk else None))
         if mblock:
             system += mblock
+    except Exception:
+        pass
+    # Phase 3 — throttled background dossier synthesis (dark unless flag on; kicks
+    # a daemon thread, never blocks). Warms the house-view brain as questions come in.
+    try:
+        from api.services import ai_search_dossier
+        ai_search_dossier.maybe_run()
     except Exception:
         pass
     return system, salt, meta
@@ -1086,6 +1095,14 @@ def ai_search_admin_reindex(user: dict = Depends(require_admin)):
     log rows. Runs inline (admin path, off the user request path)."""
     from api.services import ai_search_memory
     return ai_search_memory.reindex()
+
+
+@router.post("/admin/synthesize")
+def ai_search_admin_synthesize(user: dict = Depends(require_admin)):
+    """Force a Phase-3 dossier synthesis batch (per-ticker/theme house views).
+    No-op unless AI_SEARCH_DOSSIER_ENABLED=1. Runs inline (admin path)."""
+    from api.services import ai_search_dossier
+    return ai_search_dossier.run_batch()
 
 
 class AiSignalIn(BaseModel):

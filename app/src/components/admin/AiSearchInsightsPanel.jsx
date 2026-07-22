@@ -138,7 +138,8 @@ export default function AiSearchInsightsPanel() {
         <span style={{ fontWeight: 600, color: 'var(--text)' }}>
           <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />House brain
         </span>
-        <span>{log?.memory?.indexed ?? 0} answers indexed</span>
+        <span>{log?.memory?.indexed ?? 0} answers</span>
+        <span>{log?.memory?.dossiers ?? 0} dossiers</span>
         <span style={{ color: log?.memory?.enabled ? '#4ade80' : 'var(--text-muted)' }}>
           {log?.memory?.enabled ? 'retrieval ON' : 'retrieval off (dark)'}
         </span>
@@ -147,6 +148,11 @@ export default function AiSearchInsightsPanel() {
             try { await fetch('/api/ai-search/admin/reindex', { method: 'POST', credentials: 'include' }); mutate(); }
             catch { /* best-effort */ }
           }}>Reindex</button>
+        <button className={styles.auditToggle} style={{ padding: '1px 8px', fontSize: 11 }}
+          onClick={async () => {
+            try { await fetch('/api/ai-search/admin/synthesize', { method: 'POST', credentials: 'include' }); mutate(); }
+            catch { /* best-effort */ }
+          }}>Synthesize</button>
       </div>
 
       {/* Top questions + top tickers side by side */}

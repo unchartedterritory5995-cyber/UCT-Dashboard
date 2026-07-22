@@ -79,6 +79,14 @@ def _connect() -> sqlite3.Connection:
             embedding BLOB NOT NULL, model TEXT, created_at TEXT)"""
     )
     c.execute("CREATE INDEX IF NOT EXISTS idx_aism_hash ON ais_memory(answer_hash)")
+    # Phase 3 — synthesized house-view dossiers (per ticker / theme). This module
+    # owns the DB, so it owns the schema; ai_search_dossier writes through upsert_dossier.
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS ais_dossiers (
+            entity_key TEXT PRIMARY KEY, entity_type TEXT, title TEXT,
+            dossier_text TEXT, source_hash TEXT, embedding BLOB,
+            synthesized_at TEXT, model TEXT)"""
+    )
     return c
 
 
@@ -249,8 +257,127 @@ def search(query: str, k: int = 3, *, embed_fn=None) -> list[dict]:
         return []
 
 
+# ── Phase 3 dossiers: storage + search (this module owns the DB) ─────────────
+_DOSSIER_CACHE: dict | None = None
+
+
+def get_dossier(entity_key: str) -> dict | None:
+    """Keyed fetch of a synthesized dossier (e.g. 'NVDA' or 'theme:ai-infra')."""
+    if not entity_key:
+        return None
+    try:
+        with contextlib.closing(_connect()) as c:
+            c.row_factory = sqlite3.Row
+            r = c.execute("SELECT entity_key, entity_type, title, dossier_text, source_hash "
+                          "FROM ais_dossiers WHERE entity_key=?", (entity_key,)).fetchone()
+            return dict(r) if r else None
+    except Exception:
+        return None
+
+
+def get_source_hash(entity_key: str):
+    d = get_dossier(entity_key)
+    return d["source_hash"] if d else None
+
+
+def upsert_dossier(*, entity_key, entity_type, title, dossier_text, source_hash,
+                   embedding_vec, model) -> None:
+    """Store/replace a dossier (called by ai_search_dossier after synthesis)."""
+    try:
+        from api.services.brain_kb_service import _pack
+        with contextlib.closing(_connect()) as c:
+            c.execute(
+                "INSERT OR REPLACE INTO ais_dossiers (entity_key, entity_type, title, "
+                "dossier_text, source_hash, embedding, synthesized_at, model) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (entity_key, entity_type, title, dossier_text, source_hash,
+                 _pack(embedding_vec), datetime.now(timezone.utc).isoformat(), model))
+            c.commit()
+        global _DOSSIER_CACHE
+        with _LOCK:
+            _DOSSIER_CACHE = None
+    except Exception:
+        log.exception("upsert_dossier failed")
+
+
+def dossier_count() -> int:
+    try:
+        with contextlib.closing(_connect()) as c:
+            return c.execute("SELECT COUNT(*) FROM ais_dossiers").fetchone()[0]
+    except Exception:
+        return 0
+
+
+def _dossier_matrix():
+    global _DOSSIER_CACHE
+    import numpy as np
+    path = _index_db()
+    stamp = os.path.getmtime(path) if os.path.exists(path) else 0
+    with _LOCK:
+        if _DOSSIER_CACHE and _DOSSIER_CACHE["stamp"] == stamp:
+            return _DOSSIER_CACHE
+    try:
+        from api.services.brain_kb_service import _unpack
+        with contextlib.closing(_connect()) as c:
+            rows = c.execute("SELECT entity_key, entity_type, title, dossier_text, embedding "
+                             "FROM ais_dossiers WHERE embedding IS NOT NULL").fetchall()
+        if not rows:
+            cache = {"stamp": stamp, "mat": None, "meta": []}
+        else:
+            mat = np.array([_unpack(r[4]) for r in rows], dtype=np.float32)
+            norms = np.linalg.norm(mat, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            mat = mat / norms
+            meta = [{"entity_key": r[0], "entity_type": r[1], "title": r[2],
+                     "dossier_text": r[3]} for r in rows]
+            cache = {"stamp": stamp, "mat": mat, "meta": meta}
+    except Exception:
+        cache = {"stamp": stamp, "mat": None, "meta": []}
+    with _LOCK:
+        _DOSSIER_CACHE = cache
+    return cache
+
+
+def search_dossiers(query: str, k: int = 1, *, embed_fn=None) -> list[dict]:
+    """Vector-search dossiers (catches theme + company-name questions where the
+    ticker wasn't extracted). [] on empty / error."""
+    import numpy as np
+    try:
+        cache = _dossier_matrix()
+        if cache["mat"] is None:
+            return []
+        from api.services.brain_kb_service import _default_embed
+        embed_fn = embed_fn or _default_embed
+        q = np.array(embed_fn([query])[0], dtype=np.float32)
+        qn = np.linalg.norm(q)
+        if qn == 0:
+            return []
+        scores = cache["mat"] @ (q / qn)
+        out = []
+        for i in np.argsort(-scores)[:k]:
+            i = int(i)
+            if scores[i] < _MIN_SCORE:
+                continue
+            out.append({**cache["meta"][i], "score": float(scores[i])})
+        return out
+    except Exception:
+        return []
+
+
+def _best_dossier(query: str, primary_ticker: str | None, *, embed_fn=None) -> dict | None:
+    """The dossier to lead with: the named ticker's (keyed, guaranteed) if present,
+    else the best semantic match (theme / company-name questions)."""
+    if primary_ticker:
+        d = get_dossier(primary_ticker)
+        if d:
+            return d
+    hits = search_dossiers(query, k=1, embed_fn=embed_fn)
+    return hits[0] if hits else None
+
+
 # ── the blend (request-time) ─────────────────────────────────────────────────
-def retrieve_context(query: str, question_type: str | None = None, *, embed_fn=None) -> str:
+def retrieve_context(query: str, question_type: str | None = None,
+                     primary_ticker: str | None = None, *, embed_fn=None) -> str:
     """The memory block injected into the system prompt, or "".
 
     Returns "" unless the flag is on AND the question type benefits from prior
@@ -262,29 +389,41 @@ def retrieve_context(query: str, question_type: str | None = None, *, embed_fn=N
         return ""
     try:
         _maybe_index()
+        block = ""
+        # Phase 3 — lead with the synthesized HOUSE-VIEW dossier for the entity
+        # (durable context; live data above still owns every current figure).
+        try:
+            dossier = _best_dossier(query, primary_ticker, embed_fn=embed_fn)
+            if dossier:
+                block += (
+                    f"\n\nUCT HOUSE VIEW on {dossier.get('title') or dossier.get('entity_key')} "
+                    "(the desk's synthesized durable view — verify any current figure against the "
+                    f"live UCT desk data above):\n{(dossier.get('dossier_text') or '').strip()[:1400]}"
+                )
+        except Exception:
+            pass
+        # Then supporting prior Q&A.
         hits = search(query, k=3, embed_fn=embed_fn)
-        if not hits:
-            return ""
-        lines = []
-        for h in hits:
-            a = (h.get("answer") or "").replace("\n", " ").strip()
-            lines.append(f"- (Q: {(h.get('query') or '').strip()[:90]}) {a[:420]}")
-        body = "\n".join(lines)
-        return (
-            "\n\nPRIOR DESK RESEARCH (the desk's own past answers on similar questions — "
-            "CONTEXT ONLY, may be dated; the live UCT desk data above is authoritative for "
-            "any current price / level / date — prefer it and re-verify):\n" + body
-        )
+        if hits:
+            lines = [f"- (Q: {(h.get('query') or '').strip()[:90]}) "
+                     f"{(h.get('answer') or '').replace(chr(10), ' ').strip()[:420]}" for h in hits]
+            block += (
+                "\n\nPRIOR DESK RESEARCH (the desk's own past answers on similar questions — "
+                "CONTEXT ONLY, may be dated; the live UCT desk data above is authoritative for "
+                "any current price / level / date — prefer it and re-verify):\n" + "\n".join(lines)
+            )
+        return block
     except Exception:
         return ""
 
 
 def status() -> dict:
     """Small admin summary — index size, enabled flag, last index time."""
-    out = {"enabled": _enabled(), "indexed": 0, "last_index_epoch": _LAST_INDEX}
+    out = {"enabled": _enabled(), "indexed": 0, "dossiers": 0, "last_index_epoch": _LAST_INDEX}
     try:
         with contextlib.closing(_connect()) as idx:
             out["indexed"] = idx.execute("SELECT COUNT(*) FROM ais_memory").fetchone()[0]
+            out["dossiers"] = idx.execute("SELECT COUNT(*) FROM ais_dossiers").fetchone()[0]
     except Exception:
         pass
     return out
