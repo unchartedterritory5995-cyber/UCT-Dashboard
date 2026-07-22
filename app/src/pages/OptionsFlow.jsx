@@ -8448,22 +8448,39 @@ export default function OptionsFlowDashboard() {
               const tk = (_uncapped && _uncapped.TICKER_DB && _uncapped.TICKER_DB.find(t => t.s === selectedTicker.s))
                 || (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s)
                 || selectedTicker;
-              // Scope the ticker's FULL trade list to the selected day range —
-              // the SAME _scopeAllDirectional the summary cards use — so the
-              // Top-Trades table no longer flips to the ticker's uncapped full
-              // history once the /api/flow/ticker deep-dive resolves (the
-              // "full history under a 1d badge" bug documented at ~line 8631). 2026-07-20.
-              const _tkTradesScoped = _scopeAllDirectional((tk && tk.t) || []);
-              // TEMP DIAGNOSTIC (remove after) — why a strike vanishes from the scoped table:
-              try {
-                const _has = (arr) => (arr||[]).filter(t=>t && t.S===tk.s && String(t.K)==="1200" && t.CP==="C").length;
-                // eslint-disable-next-line no-console
-                console.log("[search-dbg]", tk.s,
-                  "| tk.t:", (tk.t||[]).length, "| scoped:", _tkTradesScoped.length,
-                  "| 1200C in tk.t:", _has(tk.t), "| 1200C in scoped:", _has(_tkTradesScoped),
-                  "| dateFilter:", dateFilter, "| searchDte:", (typeof searchDte!=="undefined"?searchDte:"?"),
-                  "| _uncapped:", !!_uncapped, "| tk.t recent dates:", [...new Set((tk.t||[]).map(t=>t&&t.Dt).filter(Boolean))].sort().slice(-4));
-              } catch(_e) {}
+              // Window-scoped per-contract premium (2026-07-21). tk.t carries the
+              // ALL-TIME consMap premium per contract, so a windowed view (e.g. 20d)
+              // over-states: a contract's full accumulation shows even though only
+              // part traded in-window, and can exceed the (scoped) summary totals
+              // (the "$10.5M contract > $1.9M total" bug). Fix: re-sum each
+              // contract's P/V from the SAME scoped directional prints the summary
+              // cards use, then override tk.t's P/V with those window values.
+              // Contracts with no in-window flow drop out. Every other field
+              // (OI / maxOI / Live OI / Status / DTE) stays from tk.t, so the Status
+              // column remains range-independent (still-open is a separate lens via
+              // the "Still-open flow" toggle).
+              const _tkScopedPrints = (_uncappedAllDir !== null ? _uncappedAllDir : (D.all_directional || []))
+                .filter(t => t.S === tk.s && !t._rescueDerived);
+              const _scopedByContract = {};
+              for (const _t of _tkScopedPrints) {
+                const _ck = _t.CP + "|" + _t.K + "|" + _t.E;
+                const _e = _scopedByContract[_ck] || (_scopedByContract[_ck] = { P: 0, V: 0 });
+                _e.P += _t.P; _e.V += _t.V;
+              }
+              const _tkTradesScoped = (tk && tk.t ? tk.t : [])
+                .map(_c => { const _w = _scopedByContract[_c.CP + "|" + _c.K + "|" + _c.E];
+                             return _w ? { ..._c, P: _w.P, V: _w.V } : null; })
+                .filter(Boolean)
+                .sort((_a, _b) => _b.P - _a.P);
+              // All-time per-contract list (range-independent) for "Still open (all)"
+              // mode: shows positions regardless of when they opened, so an older
+              // still-open build (e.g. a Jan-2028 put opened months ago) still
+              // appears; the Status column marks which are open. 2026-07-21.
+              const _tkTradesFull = (tk && tk.t ? tk.t.slice() : []).sort((_a, _b) => (_b.P||0) - (_a.P||0));
+              const _rangeLabel = (dateFrom && dateTo) ? (dateFrom + "\u2013" + dateTo)
+                : dateFilter === "All" ? "all dates"
+                : (typeof dateFilter === "string" && dateFilter.startsWith("Last")) ? ("last " + dateFilter.slice(4) + " days")
+                : "selected range";
               // DTE filter for summary cards
               const dteF = t => searchDte==="All" ? true : searchDte==="ST" ? t.DTE>=0&&t.DTE<60 : searchDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
               // Source changed from D.clean_confirmed → D.all_directional so the
@@ -8621,23 +8638,36 @@ export default function OptionsFlowDashboard() {
                         toggle switches display. */}
                     <div style={{ marginLeft:12, display:"flex", gap:6, alignItems:"center", borderLeft:"1px solid "+P.bd, paddingLeft:12 }}>
                       <button
-                        onClick={()=> setOiConfirmedOnly(v=>!v)}
+                        onClick={()=> setOiConfirmedOnly(false)}
+                        style={{
+                          padding:"4px 12px", borderRadius:"16px 0 0 16px", border:"1.5px solid "+(!oiConfirmedOnly?P.bu:P.bd), borderRight:"none",
+                          cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                          background:!oiConfirmedOnly?P.bu+"22":"transparent", color:!oiConfirmedOnly?P.bu:P.mt,
+                        }}
+                        title="Premiums reflect flow that TRADED in the selected date range (matches the range buttons above)."
+                      >
+                        In window
+                      </button>
+                      <button
+                        onClick={()=> { if (stillOpenComputable) setOiConfirmedOnly(true); }}
                         disabled={!stillOpenComputable}
                         style={{
-                          padding:"4px 12px", borderRadius:16, border:"1.5px solid "+(oiConfirmedOnly?P.bu:P.bd),
+                          padding:"4px 12px", borderRadius:"0 16px 16px 0", border:"1.5px solid "+(oiConfirmedOnly?P.bu:P.bd),
                           cursor:!stillOpenComputable?"not-allowed":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
                           background:oiConfirmedOnly?P.bu+"22":"transparent",
-                          color:oiConfirmedOnly?P.bu:(stillOpenComputable?P.mt:"#555"),
-                          opacity:stillOpenComputable?1:0.6,
+                          color:oiConfirmedOnly?P.bu:(stillOpenComputable?P.mt:"#555"), opacity:stillOpenComputable?1:0.6,
                         }}
-                        title={stillOpenComputable ? "Filter bull/bear totals to still-open flow (Live OI \u2265 entry) — excludes closed/exited positions. Range-independent, matches the Status column." : "Fetch Live OI & Prices first (blue button), then this filters to still-open flow"}
+                        title={stillOpenComputable ? "Positions still open by Live OI, regardless of when they opened (range-independent). Older builds still on the book appear here." : "Fetch Live OI & Prices first (blue button), then switch to still-open."}
                       >
-                        {oiConfirmedOnly ? "\u2713 Still-open flow" : (stillOpenComputable ? "Still-open flow" : "Still-open flow \u00b7 fetch OI")}
+                        {stillOpenComputable ? "Still open (all)" : "Still open \u00b7 fetch OI"}
                       </button>
                       {oiConfirmError && (
                         <span style={{ fontSize:9, color:P.be }} title={oiConfirmError}>err</span>
                       )}
                     </div>
+                  </div>
+                  <div style={{ fontSize:9, color:P.mt, opacity:0.8, marginBottom:6 }}>
+                    Premiums reflect flow that <b>traded</b> in this range. For positions still open regardless of when they opened, switch to <b>Still open (all)</b>.
                   </div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
                     <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16, borderTop:"3px solid "+dirC }}>
@@ -8792,7 +8822,7 @@ export default function OptionsFlowDashboard() {
                       handles the expanded view. Passing panelFn made TT also
                       render an inline copy, creating a double-layer panel
                       that required two clicks to close. */}
-                  <Card title={tk.s+" — Top Trades by Premium"} sub={_tkTradesScoped.length+" total"}><TT rows={_tkTradesScoped} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
+                  <Card title={tk.s+" \u2014 Top Trades \u00b7 "+(_useOpen ? "still open (all dates)" : _rangeLabel)} sub={(_useOpen ? _tkTradesFull : _tkTradesScoped).length+" total"}><TT rows={_useOpen ? _tkTradesFull : _tkTradesScoped} priceFn={getPrice} fadeOnStale={true} onRowClick={r=>{ fetchContractHistory(r.S,r.CP,r.K,r.E); setSelectedItem(prev=>prev&&prev.sym===r.S&&prev.cp===r.CP&&String(prev.K)===String(r.K)&&prev.exp===r.E?null:{sym:r.S,cp:r.CP,K:r.K,exp:r.E}); }}/></Card>
                   {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
                 </>
               );
