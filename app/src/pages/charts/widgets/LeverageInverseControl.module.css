@@ -48,6 +48,21 @@
 .caretBtn:hover { color: var(--text, #e5e7eb); }
 .segBtn:disabled { opacity: 0.4; cursor: default; }
 
+/* Fixed-width leveraged segments — the two factor buttons. Their label varies
+   with the family's factor ("2X ↑" is narrow, "1.25X ↓" is wide), which would
+   change the pill's total width and re-wrap the toolbar at a factor-dependent
+   breakpoint. A min-width sized for the widest realistic label ("1.25X ↓")
+   makes the pill's footprint LABEL-INDEPENDENT, so the @container collapse
+   below can be tuned to one measured wrap point that holds for every factor.
+   Live-measured (border-box, 6px side padding): "1.25X ↓" ≈ 39px of glyphs →
+   ~51px intrinsic; 52px min-width contains it AND pads the narrow "2X ↑" (~44px)
+   out to the same width, so both render at exactly 52px. text-align centers the
+   shorter labels within that fixed box. */
+.segLev {
+  min-width: 52px;
+  text-align: center;
+}
+
 /* Active seat. STOCK takes the standard gold active treatment (mirrors
    .sessionBtnActive); the leveraged seats carry a subtle directional tint. */
 .segStockActive,
@@ -86,19 +101,27 @@
 /* ── Container-query collapse ────────────────────────────────────────────
    .widgetBody is the container root (container-type: inline-size — already
    set by the workspace). In a narrow widget the three text segments fold
-   away; the caret survives so the family panel (full STOCK/LONG/SHORT access)
-   stays reachable.
+   away; the caret survives — and because the family panel now leads with a
+   STOCK row above the Long/Short groups, that caret alone keeps full
+   STOCK / LONG / SHORT access reachable (the whole reason the collapse is safe).
 
    Breakpoint tuned to the REAL toolbar-wrap point, not a nominal "phone" width.
    The tfBar (flex-wrap) shares its row with the header meta block (Market Cap /
    Next Earnings / UCT Rating) and .chartFill is flex:1, so if the full pill tips
-   the tfBar to a second row it steals chart-canvas height. Live-measured (meta
-   shown, worst case): the full pill wraps the toolbar at .widgetBody widths
-   ≤ ~992px and fits from ~996px. Collapsing to caret-only at ≤ 1000px keeps the
-   default UCT w:17 chart (~957px) single-row while w:18+ (~1014px) still shows the
-   one-click segments. Never let this rise into the fitting range for a width you
-   want segments at, nor fall to where the full pill can still wrap. */
-@container (max-width: 1000px) {
+   the tfBar to a second row it steals chart-canvas height. The two leveraged
+   segments now carry a fixed 52px min-width (.segLev), so the pill's footprint —
+   and thus its wrap point — is LABEL-INDEPENDENT: a "1.25X ↓" family renders the
+   exact same 174px pill as a "2X ↑" one, so the wrap point no longer moves with
+   the factor. Live-measured (segments forced visible): with the toolbar's widest
+   realistic meta ($999.99B / 12/31/2026 / 3-digit rating ≈ 450px) the full pill
+   wraps the tfBar at .widgetBody widths ≤ 1054px and fits from 1056px (a typical
+   populated meta wraps ≤ ~1022px). Collapsing to caret-only at ≤ 1060px sits just
+   above that worst-case wrap, so the segments render ONLY where the fixed-width
+   pill provably fits — the tfBar stays single-row at EVERY width for EVERY factor.
+   Narrower widgets keep full STOCK/LONG/SHORT reach through the caret panel (which
+   now leads with the STOCK row). Never lower this below ~1055px (the fixed pill
+   would wrap when shown). */
+@container (max-width: 1060px) {
   .segBtn { display: none; }
   .segBtn + .caretBtn { border-left: none; }  /* no stray divider at the pill edge */
 }
@@ -137,6 +160,7 @@
   text-transform: uppercase;
   padding: 5px 6px 1px;
 }
+.groupStock { color: #c9a84c; opacity: 0.75; }
 .groupLong { color: var(--li-up, #1ae51a); opacity: 0.75; }
 .groupShort { color: var(--li-down, #ff3b47); opacity: 0.75; }
 
@@ -188,6 +212,7 @@
 }
 .rowFactorLong { color: #6fbf82; }
 .rowFactorShort { color: #d07a83; }
+.rowFactorStock { color: #c9a84c; }
 .rowVol {
   flex-shrink: 0;
   min-width: 58px;

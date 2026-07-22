@@ -42,20 +42,33 @@ describe('LeverageInverseControl', () => {
     expect(onSelect).toHaveBeenCalledWith('NBIS')
   })
 
-  it('panel lists every fund liquidity-desc with the ★ on best per side', async () => {
+  it('panel leads with a STOCK row and lists every fund liquidity-desc with ★ on best per side', async () => {
     render(<LeverageInverseControl sym="NBIS" onSelect={() => {}} />)
     fireEvent.click(await screen.findByRole('button', { name: /more single-stock etfs/i }))
     const rows = screen.getAllByRole('menuitem')
-    expect(rows.map(r => r.textContent.slice(0, 4))).toEqual(['NBIL', 'NEBX', 'NBIZ'])
-    expect(rows[0].textContent).toMatch(/most liquid/i)
-    expect(rows[1].textContent).not.toMatch(/most liquid/i)
+    // STOCK row leads, then the funds liquidity-desc
+    expect(rows.map(r => r.textContent.slice(0, 4))).toEqual(['NBIS', 'NBIL', 'NEBX', 'NBIZ'])
+    expect(rows[0].textContent).not.toMatch(/most liquid/i)  // STOCK row carries no ★
+    expect(rows[1].textContent).toMatch(/most liquid/i)      // NBIL = best_long
+    expect(rows[2].textContent).not.toMatch(/most liquid/i)  // NEBX not best
+  })
+
+  it('panel STOCK row returns to the underlying from a leveraged seat', async () => {
+    const onSelect = vi.fn()
+    render(<LeverageInverseControl sym="NBIL" onSelect={onSelect} />)
+    // On a leveraged seat the caret reads "More NBIS ETFs"
+    fireEvent.click(await screen.findByRole('button', { name: /more nbis etfs/i }))
+    const rows = screen.getAllByRole('menuitem')
+    expect(rows[0].textContent).toMatch(/^NBIS/)             // STOCK row is first
+    fireEvent.click(rows[0])
+    expect(onSelect).toHaveBeenCalledWith('NBIS')            // back to the underlying
   })
 
   it('panel row click selects that specific fund (manual override)', async () => {
     const onSelect = vi.fn()
     render(<LeverageInverseControl sym="NBIS" onSelect={onSelect} />)
     fireEvent.click(await screen.findByRole('button', { name: /more single-stock etfs/i }))
-    fireEvent.click(screen.getAllByRole('menuitem')[1])
+    fireEvent.click(screen.getAllByRole('menuitem')[2])     // [0]=STOCK, [1]=NBIL, [2]=NEBX
     expect(onSelect).toHaveBeenCalledWith('NEBX')
   })
 

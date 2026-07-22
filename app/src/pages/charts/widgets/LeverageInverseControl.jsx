@@ -24,12 +24,14 @@ const fmtFactor = (f) => {
   return Number.isFinite(n) && n > 0 ? String(n) : '?'
 }
 
-// Panel geometry (must mirror the module CSS): header+padding ≈ 52px chrome
-// (2 group labels + panel padding), each fund row 30px. Used to estimate the
-// panel height BEFORE it renders so we can clamp it on-screen — the charts
+// Panel geometry (must mirror the module CSS): header+padding ≈ 72px chrome
+// (3 group labels — STOCK/Long/Short — at 20px each + 12px panel padding), each
+// fund row 30px. The STOCK group + its single row are ALWAYS present, so both
+// the chrome (3 labels) and the row count (+1) budget for them. Used to estimate
+// the panel height BEFORE it renders so we can clamp it on-screen — the charts
 // workspace is viewport-locked, so an off-screen panel is unrecoverable.
 const PANEL_W = 316
-const PANEL_CHROME_H = 52
+const PANEL_CHROME_H = 72
 const PANEL_ROW_H = 30
 const GUTTER = 8
 const GAP = 4
@@ -81,7 +83,7 @@ export default function LeverageInverseControl({ sym, onSelect }) {
     // Vertical clamp: estimate height ≈ chrome + rows*30; if it won't fit
     // below the anchor, open ABOVE (floored at the top gutter). maxHeight is
     // capped to the chosen side's available space; the row list scrolls.
-    const rows = (family.long?.length || 0) + (family.short?.length || 0)
+    const rows = 1 + (family.long?.length || 0) + (family.short?.length || 0) // +1: the STOCK row
     const estH = PANEL_CHROME_H + rows * PANEL_ROW_H
     const spaceBelow = vh - GUTTER - (r.bottom + GAP)
     const openAbove = r.bottom + GAP + estH > vh - GUTTER
@@ -112,6 +114,33 @@ export default function LeverageInverseControl({ sym, onSelect }) {
   const caretLabel = seat === 'long' || seat === 'short'
     ? `More ${family.underlying} ETFs`
     : 'More single-stock ETFs'
+
+  // The underlying common stock as a panel row — the way BACK to the stock from
+  // any seat, and (critically) the ONLY route to it when the pill has collapsed
+  // to caret-only. Same markup/columns as the fund rows (no emoji); it carries a
+  // neutral "1X" badge instead of a leveraged factor, no volume/★, and the same
+  // filled indicator when the underlying is the charted symbol.
+  const renderStockRow = () => {
+    const on = sym === family.underlying
+    return (
+      <button
+        type="button"
+        role="menuitem"
+        className={`${styles.row} ${on ? styles.rowCurrent : ''}`}
+        onClick={() => pick(family.underlying)}
+      >
+        <span className={styles.rowTicker}>{family.underlying}</span>
+        <span className={styles.rowName}>Common stock</span>
+        <span className={`${styles.rowFactor} ${styles.rowFactorStock}`}>1X</span>
+        <span className={styles.rowVol}>—</span>
+        <span className={styles.rowBestPad} aria-hidden="true" />
+        <span
+          className={`${styles.rowDot} ${on ? styles.rowDotOn : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+    )
+  }
 
   const renderRow = (row, side, best) => (
     <button
@@ -152,7 +181,7 @@ export default function LeverageInverseControl({ sym, onSelect }) {
         </button>
         <button
           type="button"
-          className={`${styles.segBtn} ${seat === 'long' ? styles.segLongActive : ''}`}
+          className={`${styles.segBtn} ${styles.segLev} ${seat === 'long' ? styles.segLongActive : ''}`}
           disabled={!bestLongRow}
           title={bestLongRow
             ? `${bestLong} — ${fmtFactor(bestLongRow.factor)}x long ${family.underlying}, most liquid`
@@ -163,7 +192,7 @@ export default function LeverageInverseControl({ sym, onSelect }) {
         </button>
         <button
           type="button"
-          className={`${styles.segBtn} ${seat === 'short' ? styles.segShortActive : ''}`}
+          className={`${styles.segBtn} ${styles.segLev} ${seat === 'short' ? styles.segShortActive : ''}`}
           disabled={!bestShortRow}
           title={bestShortRow
             ? `${bestShort} — ${fmtFactor(bestShortRow.factor)}x short ${family.underlying}, most liquid`
@@ -193,6 +222,8 @@ export default function LeverageInverseControl({ sym, onSelect }) {
           aria-label={`${family.underlying} single-stock ETFs`}
         >
           <div className={styles.panelScroll}>
+            <div className={`${styles.groupLabel} ${styles.groupStock}`}>Stock</div>
+            {renderStockRow()}
             {longs.length > 0 && (
               <>
                 <div className={`${styles.groupLabel} ${styles.groupLong}`}>Long</div>
