@@ -176,6 +176,12 @@ _state = {
     "oi_fetch_batches_sent": 0,      # cumulative Schwab batch calls
     "oi_fetch_contracts_resolved": 0, # contracts where Schwab returned OI > 0
     "oi_fetch_contracts_unresolved": 0, # contracts where Schwab returned no data
+    # Stage-2 batch-cap (2026-07-22): how many unresolved contracts we DIDN'T
+    # flow-probe this/most flushes because the count/time cap tripped (they went
+    # to Stage-3 instead). A climbing _last during RTH = bursts of fresh
+    # contracts that used to stall the tape; now they don't.
+    "oi_stage2_skipped_last": 0,
+    "oi_stage2_skipped_total": 0,
     # Phase 3: retroactive spot backfill on startup — fills blank Spot on
     # today's rows written by prior worker processes that died before
     # the async spot fetcher could resolve their symbols. See
@@ -546,6 +552,20 @@ def get_status() -> dict:
 _OI_FALLBACK_CACHE: dict = {}
 _OI_FALLBACK_TTL = float(os.environ.get("MASSIVE_OI_FALLBACK_CACHE_TTL", "600"))
 
+# ── Stage-2 OI probe caps (2026-07-22, batch-cap / lag-aware fix) ────────────
+# The Stage-2 flow-table fallback runs INLINE in flusher() before writes are
+# enqueued, so if it blocks the loop the WS reader starves and NEW prints don't
+# even reach the aggregator — the row lands in flow.db (and the curated feed)
+# minutes late. A burst of fresh, uncached contracts in one flush could fire up
+# to 3 ORDER-BY-id-DESC probes PER EVENT (the 86.7s-of-88.7s batch on 7/17).
+# These caps bound Stage-2's cost per flush: a hard probe COUNT cap and a wall-
+# clock TIME BUDGET. Whatever we don't probe stays unresolved → Stage-3 (the
+# on-demand Schwab queue, drained every 20s) picks it up and Stage-1 has it next
+# batch. So the only cost of skipping is OI arriving a cycle later, never tape
+# latency. Set MASSIVE_OI_STAGE2_MAX_PROBES=0 to disable Stage-2 entirely.
+_OI_STAGE2_MAX_PROBES = int(os.environ.get("MASSIVE_OI_STAGE2_MAX_PROBES", "60"))
+_OI_STAGE2_MAX_MS = float(os.environ.get("MASSIVE_OI_STAGE2_MAX_MS", "1200"))
+
 
 def _load_oi_for_events(events: list) -> dict:
     """
@@ -636,7 +656,7 @@ def _load_oi_for_events(events: list) -> dict:
                         out[i] = _hit[0]
                 else:
                     unresolved.append((k, i, e))
-            if unresolved:
+            if unresolved and _OI_STAGE2_MAX_PROBES != 0:
                 # Build per-contract query against flow. Each contract is
                 # (Symbol, CallPut, Strike, ExpirationDate). We use the MAX(id)
                 # row with non-zero OI - matches the pattern in
@@ -646,6 +666,13 @@ def _load_oi_for_events(events: list) -> dict:
                 # tables, so we do one query per unresolved event. SQLite
                 # handles this fast (<1ms per query) and the unresolved
                 # set is usually small (<50).
+                #
+                # BATCH-CAP (2026-07-22): a burst of fresh, uncached contracts
+                # could make "usually small" large and, at ~3 probes/event, block
+                # the flusher for seconds — starving the WS reader so new prints
+                # land late. Bound Stage-2 by a probe COUNT cap and a wall-clock
+                # TIME BUDGET; anything past the cap stays unresolved and is
+                # handled by Stage-3 (on-demand Schwab) below.
                 sql2 = """
                     SELECT OI FROM flow
                     WHERE Symbol = ? AND CallPut = ? AND Strike = ?
@@ -653,7 +680,16 @@ def _load_oi_for_events(events: list) -> dict:
                       AND OI IS NOT NULL AND OI != '' AND OI != '0'
                     ORDER BY id DESC LIMIT 1
                 """
+                _stage2_start = time.time()
+                _stage2_probed = 0
                 for key, i, e in unresolved:
+                    # Stop probing once either cap trips — the rest fall through
+                    # to Stage-3 (uncached, so they get a fair probe on a later,
+                    # calmer flush once they're not stalling the tape).
+                    if _stage2_probed >= _OI_STAGE2_MAX_PROBES or \
+                       (time.time() - _stage2_start) * 1000.0 >= _OI_STAGE2_MAX_MS:
+                        break
+                    _stage2_probed += 1
                     # CallPut in flow table is stored as 'CALL'/'PUT' (from BBS),
                     # while contract_key uses 'C'/'P'. Use the full word here.
                     # Strike in flow is text - match the format BBS uses
@@ -685,6 +721,11 @@ def _load_oi_for_events(events: list) -> dict:
                     # Cache the outcome either way — a miss cached is a
                     # full-probe skipped on every batch for the next 10 min.
                     _OI_FALLBACK_CACHE[key] = (out.get(i), _now_cache)
+                _stage2_skipped = len(unresolved) - _stage2_probed
+                _state["oi_stage2_skipped_last"] = _stage2_skipped
+                if _stage2_skipped > 0:
+                    _state["oi_stage2_skipped_total"] = \
+                        _state.get("oi_stage2_skipped_total", 0) + _stage2_skipped
                 if len(_OI_FALLBACK_CACHE) > 30000:
                     _cut = _now_cache - _OI_FALLBACK_TTL
                     for _k in [_k for _k, _v in _OI_FALLBACK_CACHE.items()
