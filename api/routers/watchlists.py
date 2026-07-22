@@ -79,6 +79,34 @@ def rename_flagged(body: FlaggedRename, user: dict = Depends(get_current_user)):
     return result
 
 
+# ── Themes for tickers (batch) ──
+
+class ThemesBatchRequest(BaseModel):
+    tickers: list[str]
+
+
+@router.post("/api/watchlists/themes-batch")
+def themes_batch(body: ThemesBatchRequest, user: dict = Depends(get_current_user)):
+    """Primary theme name per ticker for a BATCH — powers the Watchlist's
+    optional Theme column. Null-safe, never raises per-ticker."""
+    from api.services.theme_db import get_themes_for_ticker
+    syms = list(dict.fromkeys(
+        (t or "").upper().strip() for t in (body.tickers or []) if t and t.strip()
+    ))[:500]
+    results: dict[str, Optional[str]] = {}
+    for sym in syms:
+        name = None
+        try:
+            themes = get_themes_for_ticker(sym)
+            if themes:
+                first = themes[0]
+                name = (first.get("theme_name") if isinstance(first, dict) else None) or None
+        except Exception:
+            name = None
+        results[sym] = name
+    return {"results": results}
+
+
 # ── Performance data ──
 
 @router.post("/api/watchlist-performance")

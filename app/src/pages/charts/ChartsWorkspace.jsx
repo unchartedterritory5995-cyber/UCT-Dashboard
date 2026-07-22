@@ -523,6 +523,7 @@ export default function ChartsWorkspace() {
     // personal watchlist styling leaks onto the locked UCT Default.
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
     setChartsTheme('default')
+    try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // reset columns too (mirrors WL_COLS_LS)
     // UCT Default is the frozen default, not a saved template → no active template.
     setPref('charts_active_template', 'null')
     setOpenMenuOpen(false)
@@ -564,9 +565,18 @@ export default function ChartsWorkspace() {
     const g = { A: null, B: null, C: null, D: null }
     setGroupSymsState(g)
     setPref('charts_workspace_groups', JSON.stringify(g))
+    // Reset the shared styling to the UCT DEFAULT so every widget you add to the new
+    // board matches the default look instead of inheriting the previous layout's
+    // personal styling (chart colors/volume, watchlist appearance + columns, theme).
+    // Layout stays blank; a freshly-added watchlist widget mounts and re-reads the
+    // reset column config from localStorage.
+    setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+    setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
+    setChartsTheme('default')
+    try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // mirrors WL_COLS_LS in Watchlists.jsx
     // Blank board is not a named template.
     setPref('charts_active_template', 'null')
-  }, [setPref])
+  }, [setPref, setChartsTheme])
 
   const handleSaveAsTemplate = useCallback(async () => {
     const nm = saveAsName.trim()

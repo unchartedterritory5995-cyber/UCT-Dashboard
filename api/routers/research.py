@@ -75,9 +75,12 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
                 "market_cap": (s.get("metrics") or {}).get("market_cap"),
                 "next_earnings": s.get("next_earnings"),
                 "composite": s.get("composite"),
+                "sector": s.get("sector"),
+                "industry": s.get("industry"),
             }
         except Exception:
-            return sym, {"market_cap": None, "next_earnings": None, "composite": None}
+            return sym, {"market_cap": None, "next_earnings": None, "composite": None,
+                         "sector": None, "industry": None}
 
     out: dict[str, dict] = {}
     with ThreadPoolExecutor(max_workers=6) as ex:

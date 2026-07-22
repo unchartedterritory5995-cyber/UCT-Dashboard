@@ -136,7 +136,7 @@ def _compute_returns_with_refs(bars: list[dict]) -> tuple[dict, dict]:
     overlay can recompute returns using a fresh intraday price without
     re-fetching bar history.
     """
-    null = {k: None for k in ("1d", "1w", "1m", "3m", "1y", "ytd")}
+    null = {k: None for k in ("1d", "1w", "1m", "3m", "1y", "ytd", "5d", "30d", "60d", "90d")}
     if not bars:
         return null.copy(), null.copy()
     closes = [b["c"] for b in bars]
@@ -162,16 +162,25 @@ def _compute_returns_with_refs(bars: list[dict]) -> tuple[dict, dict]:
     ref_1m  = close_at(23)
     ref_3m  = close_at(67)
     ref_1y  = close_at(253)
+    # N trading days back = close_at(N+1)
+    ref_5d  = close_at(6)
+    ref_30d = close_at(31)
+    ref_60d = close_at(61)
+    ref_90d = close_at(91)
 
     returns = {
         "1d": pct(ref_1d), "1w": pct(ref_1w),
         "1m": pct(ref_1m), "3m": pct(ref_3m),
         "1y": pct(ref_1y), "ytd": pct(ytd_close),
+        "5d": pct(ref_5d), "30d": pct(ref_30d),
+        "60d": pct(ref_60d), "90d": pct(ref_90d),
     }
     ref_prices = {
         "1d": ref_1d, "1w": ref_1w,
         "1m": ref_1m, "3m": ref_3m,
         "1y": ref_1y, "ytd": ytd_close,
+        "5d": ref_5d, "30d": ref_30d,
+        "60d": ref_60d, "90d": ref_90d,
     }
     return returns, ref_prices
 

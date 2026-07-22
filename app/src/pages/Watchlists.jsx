@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useWatchlistMeta from '../hooks/useWatchlistMeta'
+import useWatchlistThemes from '../hooks/useWatchlistThemes'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import useTagColors from '../hooks/useTagColors'
@@ -43,6 +44,9 @@ const COL_META = {
   // Intraday quote-derived columns (computed client-side from the live quote).
   dchg: { def: 70, min: 50 }, fromopen: { def: 76, min: 54 }, fromhigh: { def: 76, min: 54 },
   fromlow: { def: 76, min: 54 }, dcr: { def: 58, min: 42 },
+  // Fundamentals text columns (from the meta batch) + N-day performance (perf batch).
+  sector: { def: 116, min: 70 }, industry: { def: 136, min: 80 }, theme: { def: 124, min: 74 },
+  perf5d: { def: 66, min: 48 }, perf30d: { def: 68, min: 48 }, perf60d: { def: 68, min: 48 }, perf90d: { def: 70, min: 50 },
 }
 const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation] + the min column width to still show the full word.
@@ -51,10 +55,13 @@ const COL_LABELS = {
   mcap: ['Market Cap', 'Mkt Cap'], earn: ['Next Earnings', 'Earnings'], rating: ['UCT Rating', 'UCT'],
   dchg: ['$ Change', '$ Chg'], fromopen: ['% from Open', '% Open'], fromhigh: ['% from High', '% High'],
   fromlow: ['% from Low', '% Low'], dcr: ['DCR', 'DCR'],
+  sector: ['Sector', 'Sector'], industry: ['Industry', 'Industry'], theme: ['Theme', 'Theme'],
+  perf5d: ['5-Day', '5-day'], perf30d: ['30-Day', '30-day'], perf60d: ['60-Day', '60-day'], perf90d: ['90-Day', '90-day'],
 }
 const COL_FULL_MINW = {
   sym: 62, price: 46, vol: 60, chg: 80, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40,
+  sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
 const EXTRA_COLS = [
@@ -66,12 +73,24 @@ const EXTRA_COLS = [
   { key: 'fromhigh', label: '% from High' },
   { key: 'fromlow', label: '% from Low' },
   { key: 'dcr', label: 'Daily Closing Range' },
+  { key: 'sector', label: 'Sector' },
+  { key: 'industry', label: 'Industry' },
+  { key: 'theme', label: 'Theme' },
+  { key: 'perf5d', label: '5-Day Change' },
+  { key: 'perf30d', label: '30-Day Change' },
+  { key: 'perf60d', label: '60-Day Change' },
+  { key: 'perf90d', label: '90-Day Change' },
 ]
 const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
 // meta fetch (vs the live quote feed). Only these trigger useWatchlistMeta; the
 // quote-derived ones (dchg/fromopen/…) read fields already on prices[sym].
-const META_KEYS = new Set(['mcap', 'earn', 'rating'])
+const META_KEYS = new Set(['mcap', 'earn', 'rating', 'sector', 'industry'])
+// Text columns — sorted alphabetically, not numerically.
+const TEXT_COLS = new Set(['sector', 'industry', 'theme'])
+// N-day performance columns → their key in perfData (from /api/watchlist-performance).
+const PERF_KEY_MAP = { perf5d: '5d', perf30d: '30d', perf60d: '60d', perf90d: '90d' }
+const PERF_COL_KEYS = new Set(Object.keys(PERF_KEY_MAP))
 // Intraday quote-derived column VALUES (numbers or null). Shared by row rendering
 // AND column sorting so the two never drift. Each takes the live quote (prices[sym]).
 const colDerived = {
@@ -202,6 +221,8 @@ const WatchRow = React.memo(function WatchRow({
   sym, name, price, changePct, volume, flagged, selected, orderedKeys,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null,
+  sector = null, industry = null, theme = null,
+  perf5d = null, perf30d = null, perf60d = null, perf90d = null,
   isOwner, itemId, notes, wlId, noteOpen, alertOn,
   onSelect, onToggleFlag, onIntent, onToggleNote, onSetAlert, onCtx, onRemove,
 }) {
@@ -258,6 +279,15 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'dcr') return (
       <span key="dcr" className={styles.metaCell}>{dcr != null ? `${dcr.toFixed(0)}%` : '—'}</span>
     )
+    // Fundamentals text columns (left-aligned, ellipsized, full value on hover).
+    if (key === 'sector') return <span key="sector" className={styles.textCell} title={sector || ''}>{sector || '—'}</span>
+    if (key === 'industry') return <span key="industry" className={styles.textCell} title={industry || ''}>{industry || '—'}</span>
+    if (key === 'theme') return <span key="theme" className={styles.textCell} title={theme || ''}>{theme || '—'}</span>
+    // N-day performance columns (signed %, green/red like % Change).
+    if (key === 'perf5d') return pctCell('perf5d', perf5d)
+    if (key === 'perf30d') return pctCell('perf30d', perf30d)
+    if (key === 'perf60d') return pctCell('perf60d', perf60d)
+    if (key === 'perf90d') return pctCell('perf90d', perf90d)
     return null
   }
   return (
@@ -572,7 +602,18 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [activeTab, flagged, tags, myLists, communityLists, expandedLists])
 
   const { prices } = useRealtimePrices(allTickers)
-  const { perfData } = useWatchlistPerformance(visiblePerf.size > 0 ? allTickers : [])
+  // Column config (persisted per-user in localStorage) — declared HERE, above the
+  // perf/theme fetches, so those can gate on which columns are shown.
+  const [colCfg, setColCfg] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(WL_COLS_LS)) || {} } catch { return {} }
+  })
+  const _colKeys = Array.isArray(colCfg.order) ? colCfg.order : []
+  // Perf batch: fetched when a legacy perf pill OR an N-day column is active.
+  const { perfData } = useWatchlistPerformance(
+    (visiblePerf.size > 0 || _colKeys.some(k => PERF_COL_KEYS.has(k))) ? allTickers : [],
+  )
+  // Theme batch: only when the Theme column is shown.
+  const { themeData } = useWatchlistThemes(_colKeys.includes('theme') ? allTickers : [])
 
   // Pre-warm EVERY visible ticker across all scan timeframes (into durable IDB)
   // so arrowing/scrolling the list is instant on intraday TFs (5m/30m/1h), not
@@ -817,10 +858,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   const currentLists = activeTab === 'mine' ? myLists : communityLists
 
-  // ── Configurable + sortable columns (persisted per-user in localStorage) ──
-  const [colCfg, setColCfg] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(WL_COLS_LS)) || {} } catch { return {} }
-  })
+  // ── Configurable + sortable columns ── (colCfg STATE is declared earlier, above
+  // the meta/perf/theme fetches, so those fetches can gate on which columns show.)
   const saveColCfg = useCallback((next) => {
     setColCfg(next)
     try { localStorage.setItem(WL_COLS_LS, JSON.stringify(next)) } catch { /* ignore */ }
@@ -986,16 +1025,32 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       // Extra columns sort off the meta batch, not the quote feed. Market cap arrives
       // as a display string ("$1.2T") → parse it back to a number; next earnings sorts
       // by calendar date; rating is already numeric.
+      // N-day performance columns sort off the perf batch.
+      if (PERF_COL_KEYS.has(key)) return perfData?.[s]?.[PERF_KEY_MAP[key]] ?? null
       const m = metaData?.[s]
       if (key === 'mcap') return parseMcap(m?.market_cap)
       if (key === 'earn') return earnSortValue(m?.next_earnings)
       if (key === 'rating') return Number.isFinite(Number(m?.composite)) ? Number(m.composite) : null
       return 0
     }
+    // Text columns sort alphabetically off the meta / theme batch.
+    const textVal = (s) => {
+      if (key === 'sector') return metaData?.[s]?.sector || ''
+      if (key === 'industry') return metaData?.[s]?.industry || ''
+      if (key === 'theme') return themeData?.[s] || ''
+      return ''
+    }
     // Blanks always sink to the bottom in BOTH directions (they'd otherwise lead the
     // list when sorting ascending) — same rule the per-list sort already uses.
     return [...syms].sort((a, b) => {
       if (key === 'sym') return mul * String(a).localeCompare(String(b))
+      if (TEXT_COLS.has(key)) {
+        const sa = textVal(a), sb = textVal(b)
+        if (!sa && !sb) return 0
+        if (!sa) return 1
+        if (!sb) return -1
+        return mul * sa.localeCompare(sb)
+      }
       const va = num(a), vb = num(b)
       const ba = va == null || !Number.isFinite(va)
       const bb = vb == null || !Number.isFinite(vb)
@@ -1004,7 +1059,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (bb) return -1
       return mul * (va - vb)
     })
-  }, [colSort, sortBasis, prices, metaData])
+  }, [colSort, sortBasis, prices, metaData, perfData, themeData])
 
   // Column header. Labels click to sort / right-click to hide-show. Gridlines are
   // SEPARATE draggable dividers overlaid on the header (positioned at each column
@@ -1092,6 +1147,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         fromHigh={colDerived.fromhigh(q)}
         fromLow={colDerived.fromlow(q)}
         dcr={colDerived.dcr(q)}
+        sector={metaData[sym]?.sector ?? null}
+        industry={metaData[sym]?.industry ?? null}
+        theme={themeData[sym] ?? null}
+        perf5d={perfData[sym]?.['5d'] ?? null}
+        perf30d={perfData[sym]?.['30d'] ?? null}
+        perf60d={perfData[sym]?.['60d'] ?? null}
+        perf90d={perfData[sym]?.['90d'] ?? null}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}

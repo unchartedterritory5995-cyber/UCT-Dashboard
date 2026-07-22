@@ -23,14 +23,14 @@ def _fetch_ticker_returns(ticker: str) -> dict:
     from_date = (date.today() - timedelta(days=400)).isoformat()
     bars = get_agg_bars(ticker, from_date, to_date)
     r = _compute_returns(bars)
-    return {k: r.get(k) for k in ("1d", "1w", "1m", "3m", "ytd")}
+    return {k: r.get(k) for k in ("1d", "1w", "1m", "3m", "ytd", "5d", "30d", "60d", "90d")}
 
 
 def get_batch_returns(tickers: list[str]) -> dict:
-    """Compute 1d/1w/1m/3m/ytd returns for a batch of tickers.
+    """Compute 1d/1w/1m/3m/ytd + 5d/30d/60d/90d returns for a batch of tickers.
 
     Returns:
-        {ticker: {1d, 1w, 1m, 3m, ytd}} dict
+        {ticker: {1d, 1w, 1m, 3m, ytd, 5d, 30d, 60d, 90d}} dict
     """
     deduped = sorted(set(t.upper() for t in tickers))
     if not deduped:
@@ -49,7 +49,8 @@ def get_batch_returns(tickers: list[str]) -> dict:
                 results[ticker] = future.result(timeout=15)
             except Exception as e:
                 _logger.warning("Failed to fetch returns for %s: %s", ticker, e)
-                results[ticker] = {"1d": None, "1w": None, "1m": None, "3m": None, "ytd": None}
+                results[ticker] = {"1d": None, "1w": None, "1m": None, "3m": None, "ytd": None,
+                                   "5d": None, "30d": None, "60d": None, "90d": None}
 
     cache.set(cache_key, results, _CACHE_TTL)
     return results
