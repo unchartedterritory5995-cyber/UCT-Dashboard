@@ -251,7 +251,6 @@ function GridChartCell({
             fullLabel
             logoSym={sym || null}
             displayLabel={headerLabel}
-            centered
             boundsRef={focusableRef}
           />
         </span>

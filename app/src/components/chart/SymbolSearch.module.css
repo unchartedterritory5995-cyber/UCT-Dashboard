@@ -48,10 +48,15 @@
   /* Never exceed the viewport on a narrow phone (was a fixed 280px that
      overflowed a 375px screen once any left offset was applied). */
   max-width: calc(100vw - 20px);
-  background: #161716;             /* elevated dark surface (matches app theme) */
-  border: 1px solid #2a2b28;
-  border-radius: 6px;
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.75);
+  /* Palette mirrors the Chart Settings modal (the UCT default look): #0e0e10
+     panel, #242426 border, neutral grays, gold only as a sparing accent. */
+  background: #0e0e10;
+  border: 1px solid #242426;
+  border-radius: 10px;
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
   overflow: hidden;
   z-index: 20;
 }
@@ -65,30 +70,32 @@
 }
 
 .inputRow {
-  padding: 7px;
-  border-bottom: 1px solid #2a2b28;
+  padding: 8px;
+  border-bottom: 1px solid #202022;
+  background: linear-gradient(180deg, #161618 0%, #0e0e10 100%);
 }
 
 .input {
   width: 100%;
-  height: 30px;
-  background: #0e0f0d;               /* page black — matches the charts theme */
-  border: 1px solid #2a2b28;
-  border-radius: 5px;
-  color: #e2dfd6;
+  height: 32px;
+  background: #161618;
+  border: 1px solid #2c2c30;
+  border-radius: 6px;
+  color: #ededed;
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
-  padding: 0 9px;
+  padding: 0 10px;
   outline: none;
   box-sizing: border-box;
+  transition: border-color 0.12s;
 }
 .input:focus {
   border-color: rgba(201, 168, 76, 0.55);
 }
 .input::placeholder {
-  color: #555;
+  color: #6b6b6b;
   font-weight: 400;
   letter-spacing: 0;
 }
@@ -101,11 +108,11 @@
   flex-direction: column;
   gap: 1px;
   scrollbar-width: thin;
-  scrollbar-color: #2e3127 transparent;
+  scrollbar-color: #2c2c30 transparent;
 }
-.list::-webkit-scrollbar { width: 4px; }
+.list::-webkit-scrollbar { width: 6px; }
 .list::-webkit-scrollbar-track { background: transparent; }
-.list::-webkit-scrollbar-thumb { background: #2e3127; border-radius: 2px; }
+.list::-webkit-scrollbar-thumb { background: #2c2c30; border-radius: 3px; }
 
 .item {
   display: flex;
@@ -113,19 +120,19 @@
   gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 5px 8px;
+  padding: 6px 9px;
   font-family: var(--font-sans);
-  color: #a8a290;
+  color: #8a8a8f;
   background: transparent;
   border: none;
-  border-radius: 3px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.1s;
 }
 .item:hover,
 .itemHighlighted {
-  background: rgba(255, 255, 255, 0.06);
-  color: #e2dfd6;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ededed;
 }
 .itemSym {
   flex: 0 0 auto;
@@ -139,7 +146,7 @@
   flex: 1 1 auto;
   font-size: 10px;
   font-weight: 400;
-  color: #6f6a5d;
+  color: #6b6b6b;
   letter-spacing: 0.2px;
   text-transform: none;
   overflow: hidden;
@@ -147,205 +154,10 @@
   white-space: nowrap;
 }
 .itemActive {
-  background: rgba(201, 168, 76, 0.15);
+  background: rgba(201, 168, 76, 0.12);
 }
 .itemActive .itemSym {
   color: #e4c870;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   V2 — Centered symbol-search modal. Palette + chrome mirror the Chart Settings
-   modal (ChartSettingsModal.module.css): #0e0e10 panel, #242426 border, neutral
-   grays, gold used only as a sparing accent. NO dim / NO blur behind it — the
-   scrim is transparent and only catches an outside click, so the chart stays
-   fully visible. Scrim + card are scoped to the chart bounds, so the modal
-   lands in the MIDDLE of the chart.
-   ══════════════════════════════════════════════════════════════════════════ */
-.scrim {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;   /* no dim, no blur — matches Chart Settings */
-  padding: 20px;
-}
-
-.modal {
-  max-width: calc(100% - 24px);
-  max-height: calc(100% - 32px);
-  display: flex;
-  flex-direction: column;
-  background: #0e0e10;
-  border: 1px solid #242426;
-  border-radius: 12px;
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  overflow: hidden;
-  animation: symModalIn 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
-}
-@keyframes symModalIn {
-  from { opacity: 0; transform: translateY(8px) scale(0.985); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.modalHeader {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 13px 16px;
-  border-bottom: 1px solid #202022;
-  background: linear-gradient(180deg, #161618 0%, #0e0e10 100%);
-}
-.modalSearchIcon {
-  flex: 0 0 auto;
-  color: #6b6b6b;
-}
-.modalInput {
-  flex: 1 1 auto;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #ededed;
-  font-family: var(--font-sans);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  padding: 0;
-}
-.modalInput::placeholder {
-  color: #6b6b6b;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-}
-.modalEsc {
-  flex: 0 0 auto;
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: #8a8a8f;
-  background: transparent;
-  border: 1px solid #2c2c30;
-  border-radius: 6px;
-  padding: 4px 8px;
-  cursor: pointer;
-  transition: color 0.12s, border-color 0.12s, background 0.12s;
-}
-.modalEsc:hover { color: #ededed; border-color: rgba(201, 168, 76, 0.45); }
-
-.modalList {
-  overflow-y: auto;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  scrollbar-width: thin;
-  scrollbar-color: #2c2c30 transparent;
-}
-.modalList::-webkit-scrollbar { width: 6px; }
-.modalList::-webkit-scrollbar-track { background: transparent; }
-.modalList::-webkit-scrollbar-thumb { background: #2c2c30; border-radius: 3px; }
-
-.modalItem {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  width: 100%;
-  text-align: left;
-  padding: 9px 12px;
-  font-family: var(--font-sans);
-  background: transparent;
-  border: none;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: background 0.1s;
-}
-.modalItem:hover,
-.modalItemHi {
-  background: rgba(255, 255, 255, 0.05);
-}
-.modalLogo {
-  flex: 0 0 auto;
-  display: inline-flex;
-  width: 22px;
-  height: 22px;
-}
-.modalSym {
-  flex: 0 0 auto;
-  min-width: 60px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: #c9a84c;
-}
-.modalName {
-  flex: 1 1 auto;
-  font-size: 12px;
-  font-weight: 400;
-  color: #8a8a8f;
-  letter-spacing: 0.2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.modalItemActive .modalSym { color: #e4c870; }   /* the current symbol reads a touch brighter */
-
-/* "Go to {TYPED}" fallback row */
-.modalGoIcon {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #8a8a8f;
-  font-size: 12px;
-  font-weight: 700;
-}
-.modalGo {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #8a8a8f;
-  letter-spacing: 0.2px;
-}
-.modalGo strong { color: #c9a84c; font-weight: 700; }
-
-.modalFooter {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  padding: 9px 15px;
-  border-top: 1px solid #202022;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  color: #6b6b6b;
-  letter-spacing: 0.2px;
-}
-.modalFooter .kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  margin-right: 3px;
-  font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 700;
-  color: #8a8a8f;
-  background: transparent;
-  border: 1px solid #2c2c30;
-  border-radius: 4px;
-}
-
-/* Phone: the modal fills more of the (small) chart area. */
-@media (max-width: 640px) {
-  .modalInput { font-size: 15px; }
-  .modalFooter { gap: 12px; font-size: 10px; }
 }
 
 /* Company-name + logo label mode (charts workspace header) */

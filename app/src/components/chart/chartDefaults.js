@@ -291,9 +291,22 @@ export function mergeChartSettings(userSettings) {
     try { parsed = JSON.parse(parsed) } catch { return { ...CHART_DEFAULTS } }
   }
 
+  // Heal the legacy DIM volume default. rgba(0,200,83,0.3) / rgba(255,23,68,0.3)
+  // was a different hue from the candles AND only 30% opacity, so volume rendered
+  // dim + mismatched over the black canvas. Snap it to the candle colors at full
+  // opacity (the intended UCT-default look) so EVERY chart — new layouts and added
+  // widgets included — matches out of the box, without the user re-applying "UCT
+  // Default". Only the two exact legacy strings heal; a deliberate custom volume
+  // color is never touched.
+  const _candles = { ...CHART_DEFAULTS.candles, ...(parsed.candles || {}) }
+  const _volume = { ...CHART_DEFAULTS.volume, ...(parsed.volume || {}) }
+  const _norm = (c) => (c || '').replace(/\s+/g, '').toLowerCase()
+  if (_norm(_volume.upColor) === 'rgba(0,200,83,0.3)') _volume.upColor = _candles.upColor
+  if (_norm(_volume.downColor) === 'rgba(255,23,68,0.3)') _volume.downColor = _candles.downColor
+
   return {
     chartType: parsed.chartType || CHART_DEFAULTS.chartType,
-    candles: { ...CHART_DEFAULTS.candles, ...(parsed.candles || {}) },
+    candles: _candles,
     candleColorMode: parsed.candleColorMode || CHART_DEFAULTS.candleColorMode,
     background: parsed.background || CHART_DEFAULTS.background,
     bgMode: parsed.bgMode || CHART_DEFAULTS.bgMode,
@@ -318,7 +331,7 @@ export function mergeChartSettings(userSettings) {
       ? CHART_DEFAULTS.overlays.map((d, i) => ({ ...d, ...(parsed.overlays[i] || {}) }))
         .concat(parsed.overlays.slice(CHART_DEFAULTS.overlays.length))
       : CHART_DEFAULTS.overlays.map(o => ({ ...o })),
-    volume: { ...CHART_DEFAULTS.volume, ...(parsed.volume || {}) },
+    volume: _volume,
     watermark: {
       ...CHART_DEFAULTS.watermark,
       ...(parsed.watermark || {}),

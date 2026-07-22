@@ -379,7 +379,6 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             brandLogo={themeIdx.isIndex}
             displayLabel={headerLabel}
             labelColor={hdrColors.title || null}
-            centered
             boundsRef={focusableRef}
           />
         </div>

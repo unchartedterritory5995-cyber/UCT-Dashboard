@@ -816,21 +816,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     setBodyW(el.clientWidth)
     return () => ro.disconnect()
   }, [])
-  // Fixed-px columns (so header + row gridlines line up), SCALED DOWN to fit the widget
-  // when their total exceeds the available width; a trailing filler absorbs any slack.
-  // These are the RENDERED widths — the drag-dividers below MUST position off this same
-  // array, not off the raw colWidth(), or they drift right of the real gridlines whenever
-  // the grid is scaled (i.e. as soon as an extra column is added or the widget narrows).
-  const renderedColWidths = useMemo(() => {
-    const widths = orderedKeys.map(k => colWidth(k))
-    const total = widths.reduce((a, b) => a + b, 0)
-    const avail = bodyW - 2
-    const scale = (bodyW > 0 && total > avail) ? Math.max(0.35, avail / total) : 1
-    return orderedKeys.map((k, i) => (
-      scale < 1 ? Math.max(COL_META[k]?.min ?? 20, Math.floor(widths[i] * scale)) : widths[i]
-    ))
+  // Fixed-px columns at their set widths — NO shrink-to-fit. Dragging a gridline
+  // resizes only that column; when the total exceeds the widget width the columns
+  // simply overflow and the rightmost ones clip off the right edge (.listBody is
+  // overflow-x:hidden). This is deliberate: making Price wider must push Volume off
+  // the screen rather than silently squeezing every other column to keep it all
+  // visible. (`bodyW` is still measured but no longer scales the widths.)
+  const renderedColWidths = useMemo(
+    () => orderedKeys.map(k => colWidth(k)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderedKeys, colCfg, bodyW, liveResize])
+    [orderedKeys, colCfg, liveResize],
+  )
   const gridTemplate = useMemo(
     () => [...renderedColWidths.map(w => `${w}px`), 'minmax(0, 1fr)'].join(' '),
     [renderedColWidths],
