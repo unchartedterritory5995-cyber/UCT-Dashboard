@@ -8481,6 +8481,14 @@ export default function OptionsFlowDashboard() {
                 : dateFilter === "All" ? "all dates"
                 : (typeof dateFilter === "string" && dateFilter.startsWith("Last")) ? ("last " + dateFilter.slice(4) + " days")
                 : "selected range";
+              // Label for the In-window toggle button — mirrors the timeframe
+              // selected in the top range buttons (1d/5d/20d/60d/90d/All) so it
+              // reads "5 day flow", "20 day flow", etc. and updates live when the
+              // top selector changes. 2026-07-21.
+              const _windowBtnLabel = (dateFrom && dateTo) ? "Selected dates"
+                : dateFilter === "All" ? "All flow"
+                : (typeof dateFilter === "string" && dateFilter.startsWith("Last")) ? (dateFilter.slice(4) + " day flow")
+                : "In window";
               // DTE filter for summary cards
               const dteF = t => searchDte==="All" ? true : searchDte==="ST" ? t.DTE>=0&&t.DTE<60 : searchDte==="LT" ? t.DTE>=60&&t.DTE<180 : t.DTE>=180;
               // Source changed from D.clean_confirmed → D.all_directional so the
@@ -8653,7 +8661,7 @@ export default function OptionsFlowDashboard() {
                         }}
                         title="Premiums reflect flow that TRADED in the selected date range (matches the range buttons above)."
                       >
-                        In window
+                        {_windowBtnLabel}
                       </button>
                       <button
                         onClick={()=> { if (stillOpenComputable) setOiConfirmedOnly(true); }}
