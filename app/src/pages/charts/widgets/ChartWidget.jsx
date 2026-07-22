@@ -19,6 +19,7 @@ import UIcon from '../../../components/ui/UIcon'
 import ChartDayGain from './ChartDayGain'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
 import TimeframeMenu from './TimeframeMenu'
+import LeverageInverseControl from './LeverageInverseControl'
 import { tfLabel, tfSortKey } from '../../../components/chart/timeframes'
 import styles from '../ChartsWorkspace.module.css'
 import { TF_ORDER, shortcutClaimsKey } from '../../../components/chart/keyboardShortcuts'
@@ -493,6 +494,9 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           </div>
         )}
         <div className={styles.tfBarRight}>
+          {!themeIdx.isIndex && (
+            <LeverageInverseControl sym={sym} onSelect={handleSymbolChange} />
+          )}
           {/* Chart settings gear — moved down next to Share to the Floor. */}
           <button
             type="button"
