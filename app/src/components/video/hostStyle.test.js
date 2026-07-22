@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeHostStyle, MINI } from './hostStyle'
+import { computeHostStyle, dockPinTransform, MINI } from './hostStyle'
 
 describe('computeHostStyle', () => {
   it('docked fills the slot rect exactly', () => {
@@ -35,5 +35,28 @@ describe('computeHostStyle', () => {
   it('docked without a rect falls back to the mini placement (no flash)', () => {
     const s = computeHostStyle('docked', null, 1280, 800, null)
     expect(s.width).toBe(MINI.desktopW)
+  })
+})
+
+describe('dockPinTransform', () => {
+  const base = { top: 100, left: 50, width: 640, height: 360 }
+
+  it('offsets to the live rect when the slot has scrolled away from base', () => {
+    // slot scrolled up 80px and right 4px since React last rendered `base`
+    const live = { top: 20, left: 54, width: 640, height: 360 }
+    expect(dockPinTransform(live, base)).toBe('translate3d(4px, -80px, 0)')
+  })
+
+  it('is identity (empty) when the live rect matches base', () => {
+    expect(dockPinTransform({ ...base }, base)).toBe('')
+  })
+
+  it('is identity when the slot has no size yet (pre-layout)', () => {
+    expect(dockPinTransform({ top: 0, left: 0, width: 0, height: 0 }, base)).toBe('')
+  })
+
+  it('is identity when either rect is missing', () => {
+    expect(dockPinTransform(null, base)).toBe('')
+    expect(dockPinTransform({ top: 0, left: 0, width: 10, height: 10 }, null)).toBe('')
   })
 })

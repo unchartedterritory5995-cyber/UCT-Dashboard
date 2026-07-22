@@ -40,3 +40,16 @@ export function computeHostStyle(mode, dockRect, vw, vh, pos) {
   const margin = mobile ? MINI.mobileMargin : MINI.desktopMargin
   return { top: vh - h - bottomClear, left: vw - w - margin, width: w, height: h }
 }
+
+// The per-frame scroll pin. The docked host's top/left come from React (the last
+// reported slot rect = `baseRect`); this returns the GPU transform that offsets
+// it to the slot's LIVE on-screen rect so it tracks native scroll 1:1 with no
+// React round-trip. Empty string (identity) when already aligned, when the slot
+// has no size yet, or when either rect is missing.
+export function dockPinTransform(liveRect, baseRect) {
+  if (!liveRect || !baseRect) return ''
+  if (!(liveRect.width > 0 || liveRect.height > 0)) return ''
+  const dx = liveRect.left - baseRect.left
+  const dy = liveRect.top - baseRect.top
+  return dx || dy ? `translate3d(${dx}px, ${dy}px, 0)` : ''
+}

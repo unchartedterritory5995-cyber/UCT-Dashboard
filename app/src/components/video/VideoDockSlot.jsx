@@ -232,7 +232,9 @@ export default function VideoDockSlot() {
     const el = boxRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    registerDockSlot({ top: r.top, left: r.left, width: r.width, height: r.height })
+    // Pass the element too: GlobalVideoLayer reads its live rect every frame to
+    // pin the fixed player to the slot without waiting on a React re-render.
+    registerDockSlot({ top: r.top, left: r.left, width: r.width, height: r.height }, el)
   }, [])
 
   // Only track the rect while the theater box is on screen (docked). Leaving

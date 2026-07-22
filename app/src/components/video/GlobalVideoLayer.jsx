@@ -10,8 +10,8 @@ import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from '
 import { useNavigate } from 'react-router-dom'
 import { useYouTubeApi } from '../../pages/desk/useYouTubeApi'
 import { recordProgress, markWatched, resumeSeconds } from '../../pages/desk/videoProgress'
-import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos, registerTimeGetter } from './videoStore'
-import { computeHostStyle } from './hostStyle'
+import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos, registerTimeGetter, getDockEl } from './videoStore'
+import { computeHostStyle, dockPinTransform } from './hostStyle'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { fmtTime, nextRate } from './playerUtils'
 import { pauseOtherAudio } from './audioExclusivity'
@@ -74,7 +74,15 @@ export default function GlobalVideoLayer() {
   const [fsFake, setFsFake] = useState(false)
   const [dragPos, setDragPos] = useState(null)
   const [pipOn, setPipOn] = useState(false)
+  // True for a beat after any dock<->mini change so the morph still eases
+  // top/left (the base .host transition drops them so docked scroll snaps).
+  const [morphing, setMorphing] = useState(false)
   const canPip = pipSupported()
+  // Refs the per-frame pin loop reads without re-subscribing every render.
+  const dockRectRef = useRef(dockRect)
+  dockRectRef.current = dockRect
+  const fsFakeRef = useRef(fsFake)
+  fsFakeRef.current = fsFake
 
   const saveNow = useCallback(() => {
     const p = playerRef.current
@@ -245,6 +253,39 @@ export default function GlobalVideoLayer() {
   useEffect(() => {
     if (mode !== 'docked') setFsFake(false)
   }, [mode])
+
+  // Ease top/left only across a dock<->mini change, not during scroll. The base
+  // .host transition drops top/left (so docked scroll-follow snaps); this flags
+  // a short window where the .morphing class re-adds them for the shrink/grow.
+  useEffect(() => {
+    setMorphing(true)
+    const id = setTimeout(() => setMorphing(false), 380)
+    return () => clearTimeout(id)
+  }, [mode])
+
+  // While docked, pin the fixed player to the theater slot's LIVE rect every
+  // frame via a GPU transform offset — so it tracks native scroll 1:1 instead of
+  // trailing a store->React->reflow round-trip. transform is written only here
+  // (React drives top/left/width/height), so the two never fight.
+  useEffect(() => {
+    if (!docked) return
+    let raf = 0
+    const tick = () => {
+      const el = getDockEl()
+      const base = dockRectRef.current
+      const h = hostElRef.current
+      if (h && el && base && !fsFakeRef.current) {
+        h.style.transform = dockPinTransform(el.getBoundingClientRect(), base)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(raf)
+      const h = hostElRef.current
+      if (h) h.style.transform = ''
+    }
+  }, [docked])
 
   // Auto-advance countdown when a video ends and another follows.
   useEffect(() => {
@@ -448,6 +489,7 @@ export default function GlobalVideoLayer() {
     mode === 'mini' ? styles.mini : styles.docked,
     dragPos ? styles.dragging : '',
     fsFake ? styles.fsFake : '',
+    morphing ? styles.morphing : '',
   ].filter(Boolean).join(' ')
 
   return (

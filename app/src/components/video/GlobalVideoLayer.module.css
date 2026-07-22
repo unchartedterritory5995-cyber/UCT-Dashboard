@@ -5,6 +5,15 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+  /* NOTE: top/left are deliberately NOT transitioned here. While docked, the
+     player is repositioned per-scroll (and pinned every frame via a transform
+     offset), so easing top/left makes it visibly trail the scroll. The
+     dock<->mini morph re-adds them via .morphing for the shrink/grow. */
+  transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Dock<->mini change: ease top/left too, just for the morph window. */
+.morphing {
   transition: top 0.32s cubic-bezier(0.22, 1, 0.36, 1),
     left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
     width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
@@ -26,6 +35,8 @@
 }
 .docked {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  /* The per-frame scroll-pin writes transform; hint the compositor. */
+  will-change: transform;
 }
 .mini {
   border: 1px solid rgba(201, 168, 76, 0.4);

@@ -68,6 +68,18 @@ describe('videoStore', () => {
     expect(s.dockRect.width).toBe(640)
   })
 
+  it('registerDockSlot stores the live slot element; clear/close null it', () => {
+    const el = { id: 'slot' }
+    v.play(LIST, 0)
+    v.registerDockSlot({ top: 0, left: 0, width: 640, height: 360 }, el)
+    expect(v.getDockEl()).toBe(el)
+    // a rect-only report (no el arg) must NOT wipe the registered element
+    v.registerDockSlot({ top: 5, left: 0, width: 640, height: 360 })
+    expect(v.getDockEl()).toBe(el)
+    v.clearDockSlot()
+    expect(v.getDockEl()).toBeNull()
+  })
+
   it('close() resets to closed/empty', () => {
     v.play(LIST, 2)
     v.close()

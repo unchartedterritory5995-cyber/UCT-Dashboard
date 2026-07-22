@@ -24,6 +24,12 @@ let state = {
 }
 const listeners = new Set()
 
+// The live Desk theater slot DOM node — kept OUTSIDE `state` so it never
+// triggers a re-render. GlobalVideoLayer reads it every animation frame to pin
+// the fixed player to the slot's live rect (tight scroll-follow, no React lag).
+let _dockEl = null
+export function getDockEl() { return _dockEl }
+
 function set(patch) {
   state = { ...state, ...patch }
   listeners.forEach((cb) => cb())
@@ -74,6 +80,7 @@ export function expand() {
 }
 
 export function close() {
+  _dockEl = null
   set({ list: [], index: 0, mode: 'closed', dockRect: null, playing: false })
 }
 
@@ -91,13 +98,15 @@ export function setPlaying(b) {
 // The Desk theater slot reported its rect → just record where to dock. Does
 // NOT change mode: re-docking is an explicit user action (expand()), so a video
 // the user parked in the corner stays there even while the Desk is on screen.
-export function registerDockSlot(rect) {
+export function registerDockSlot(rect, el) {
+  if (el !== undefined) _dockEl = el
   set({ dockRect: rect })
 }
 
 // Leaving the docked theater (navigated away OR intentionally minimized) →
 // float as mini and drop the stale rect.
 export function clearDockSlot() {
+  _dockEl = null
   const patch = { dockRect: null }
   if (state.mode === 'docked') patch.mode = 'mini'
   set(patch)
@@ -118,6 +127,7 @@ export function getSnapshot() {
 }
 
 export function __reset() {
+  _dockEl = null
   state = { list: [], index: 0, mode: 'closed', pos: readPos(), dockRect: null, playing: false, selectSeq: 0 }
   listeners.clear()
 }
