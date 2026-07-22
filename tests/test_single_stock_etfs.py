@@ -189,7 +189,10 @@ def test_override_add_and_exclude(tmp_db, monkeypatch):
 
 def test_quarantine_rewrite(tmp_db, monkeypatch):
     rows = _mkrows()
-    rows.append({"Ticker": "QQ01", "Company": "Corgi NBIS 2x Daily ETF",  # no direction
+    # Neutral (non-issuer-ruled) sponsor so this stays a real no_direction
+    # quarantine — a "Corgi" name would hit the §3.2 rule-2 issuer exception and
+    # parse LONG instead (see test_ssetf_fixture.test_corgi_directionless_*).
+    rows.append({"Ticker": "QQ01", "Company": "Acme NBIS 2x Daily ETF",  # no direction
                  "Sector": "Financial", "Industry": "Exchange Traded Fund",
                  "Average Volume": "100,000", "Price": "20.00"})
     monkeypatch.setattr(tmp_db, "_fetch_finviz_market", lambda: rows)

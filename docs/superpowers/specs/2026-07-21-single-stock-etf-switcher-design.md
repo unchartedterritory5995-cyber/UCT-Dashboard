@@ -201,6 +201,31 @@ Parse rules (pure functions, `parse_etf_name(name, stock_set) -> ParseResult`):
    keyword → QUARANTINE (`reason='no_direction'`) — some issuers omit "Long",
    but defaulting is how a short fund gets mislabeled long; an override
    promotes the row in one line.
+
+   **Issuer-rule exception (`_DIRECTIONLESS_LONG_ISSUERS`, EDGAR-verified):**
+   the `no_direction` quarantine has ONE narrow, evidence-backed exception.
+   When a would-be `no_direction` row (factor present, underlying resolved, no
+   direction keyword) is from an issuer that registers direction-less LONG
+   names — **Corgi** today — it is classified LONG at the parsed factor instead
+   of quarantined. Corgi ETF Trust I (SEC EDGAR CIK 0002078265) has **zero**
+   inverse/short funds; all 144+ are single-stock 2x LONG registered as
+   "Corgi `<NAME>` 2x Daily ETF" with "Long" dropped from the exchange name
+   (e.g. the owner's `NBIC` = "Corgi NBIS 2x Daily ETF"). **The guardrail is
+   forward-safe because it keys off the ABSENCE of a bearish token, not the
+   presence of "Long":** the rule fires only inside the already-reached
+   `not (long_hit or short_hit)` branch, so no `short|inverse|bear|-1x` matched
+   (it reuses the existing SHORT detection — no second keyword list), and the
+   entire industry ALWAYS labels a bearish/inverse fund explicitly. If Corgi
+   ever ships an inverse fund it will carry an explicit bearish token and the
+   existing SHORT logic catches it first (`both_directions` still wins if both
+   somehow match). The rule ONLY supplies the missing direction — it never
+   widens underlying acceptance (an unresolved underlying still
+   `skip`s/`quarantine`s as before), and `self_reference` still applies. The
+   issuer set is a conservative module constant (Corgi only); a future
+   same-convention issuer is a one-word add. Watch: re-audit if EDGAR ever
+   returns a fund-level Corgi `"Short"`/`"Inverse"` hit (currently 0). Tests:
+   `test_ssetf_parser.py` Corgi suite + `test_ssetf_fixture.py`
+   `test_corgi_directionless_funds_parse_long`.
 3. **Underlying — two passes, adjacency-gated:**
    - *Ticker pass:* collect candidate tokens (rule 0 test) that are ∈ the
      stock set, after removing an issuer stoplist (`T-Rex`/`T-REX` explicitly —
@@ -319,7 +344,16 @@ mean a broken export, not fresh listings; don't burn the budget on garbage.
   swap, reflecting only the current export's problem rows — names later fixed
   by overrides/renames/delistings drop out of `/status` automatically. Left
   untouched (with the previous etfs table) on a refused swap. Historical trail
-  lives in the diff log, not the table.
+  lives in the diff log, not the table. **The §3.2 rule-2 Corgi issuer
+  exception materially shrinks the `no_direction` quarantine set** — the entire
+  Corgi lineup (~90 resolvable single-stock funds live; all 7 direction-less
+  resolvable Corgi rows in the committed fixture) now parses LONG instead of
+  quarantining, moving those rows from `quarantined` into `parsed`/`etfs_written`
+  in the per-run record. The guardrail is honest: this only lifts rows with a
+  resolved underlying and NO bearish token — a Corgi thematic/sector fund whose
+  underlying doesn't resolve still `skip`s (counted in `skipped_zero_candidate`),
+  and any future explicitly-bearish Corgi name still routes through normal SHORT
+  logic, so the exception cannot silently mislabel an inverse fund as long.
 - **Override table** — applied AFTER parsing on every rebuild;
   `action ∈ {remap, exclude, add}`:
   - `remap` — correct a mispair (fix underlying/direction/factor for a parsed

@@ -49,6 +49,19 @@ _CRYPTO_ASSETS = {
     "XRP", "RIPPLE", "DOGECOIN", "LITECOIN", "CARDANO", "CHAINLINK", "SUI",
 }
 
+# Issuers that register direction-less LONG names — a leverage factor with the
+# direction word ("Long") dropped from the exchange name. Verified against SEC
+# EDGAR (2026-07-22, corgi-research.md): Corgi ETF Trust I (CIK 0002078265) has
+# ZERO inverse/short funds; all 144+ funds are single-stock 2x LONG registered
+# as "Corgi <NAME> 2x Daily ETF". Because the entire industry ALWAYS labels a
+# bearish/inverse fund explicitly (short|inverse|bear|-1x), a direction-less
+# name from one of these issuers is safely LONG — and the guardrail is that this
+# rule fires ONLY when NO bearish token is present (see parse_etf_name). Keep
+# this list conservative: a future issuer with the same naming convention is a
+# one-word add here. Watch: re-audit if EDGAR ever shows a fund-level Corgi
+# "Short"/"Inverse" hit (currently 0).
+_DIRECTIONLESS_LONG_ISSUERS = frozenset({"CORGI"})
+
 # Direction keywords must never SEED a company-name span. They are inert
 # today only by luck — each happens to multi-hit ("Long" -> Longeveron +
 # Long Table Growth; "Bull" -> Bullish + Bullfrog AI) — but if one of those
@@ -179,7 +192,18 @@ def parse_etf_name(name: str, etf_ticker: str, stock_set: dict[str, str]) -> Par
             return ParseResult("skip", "zero_candidates", factor=factor)
 
     if not (long_hit or short_hit):
-        return ParseResult("quarantine", "no_direction", underlying=underlying, factor=factor)
+        # Issuer rule (spec §3.2 rule 2 exception): a direction-less leveraged
+        # name from a _DIRECTIONLESS_LONG_ISSUERS sponsor is LONG. Reaching this
+        # branch already guarantees NO bearish token matched (short/bear/inverse
+        # via _SHORT_RE, -1x via minus_1x) — so the "no bearish word present"
+        # guardrail is structural, not a second keyword list. The underlying is
+        # already resolved above (ticker or company pass); this rule ONLY
+        # supplies the missing direction, it never widens underlying acceptance
+        # (an unresolved underlying skipped as zero_candidates before here).
+        if any(t.upper() in _DIRECTIONLESS_LONG_ISSUERS for t in tokens):
+            long_hit = True
+        else:
+            return ParseResult("quarantine", "no_direction", underlying=underlying, factor=factor)
     if underlying == etf_ticker.upper():
         return ParseResult("quarantine", "self_reference", factor=factor)
 

@@ -125,7 +125,45 @@ def test_bullion_never_matches_bull_keyword():
     assert r.status == "skip"  # no direction keyword + no candidate -> not quarantine noise
 
 def test_missing_direction_quarantines():
+    # A direction-less leveraged name from a NON-issuer-ruled sponsor still
+    # quarantines (the general rule, spec §3.2 rule 2). The Corgi issuer
+    # exception is covered in the Corgi suite below; use a neutral issuer here
+    # so this invariant stays decoupled from that exception.
+    r = _p("Acme NBIS 2x Daily ETF")
+    assert (r.status, r.reason) == ("quarantine", "no_direction")
+
+# ── Corgi issuer rule (spec §3.2 rule 2 exception; EDGAR-verified) ──
+# Corgi registers every fund as "Corgi <NAME> 2x Daily ETF" — 2x LONG but with
+# "Long" dropped from the exchange name. SEC EDGAR shows ZERO Corgi inverse
+# funds, and industry-wide a bearish fund ALWAYS carries an explicit token
+# (short|inverse|bear|-1x), so a direction-less Corgi 2x name is safely LONG.
+def test_corgi_directionless_is_long_nbis():
+    # The owner's screenshot case (NBIC): was quarantined no_direction, now long.
     r = _p("Corgi NBIS 2x Daily ETF")
+    assert (r.status, r.underlying, r.direction, r.factor) == ("parsed", "NBIS", "long", 2.0)
+
+def test_corgi_directionless_is_long_nvda():
+    r = _p("Corgi NVDA 2x Daily ETF")
+    assert (r.status, r.underlying, r.direction, r.factor) == ("parsed", "NVDA", "long", 2.0)
+
+def test_corgi_explicit_bearish_still_wins():
+    # GUARDRAIL: a hypothetical FUTURE Corgi inverse name carries an explicit
+    # bearish token — existing SHORT logic fires first, the issuer rule never
+    # runs. It must resolve SHORT, never be forced long.
+    r = _p("Corgi NBIS 2x Short Daily ETF")
+    assert (r.status, r.underlying, r.direction, r.factor) == ("parsed", "NBIS", "short", 2.0)
+
+def test_corgi_rule_never_forces_a_bad_underlying():
+    # When the underlying does NOT resolve (thematic/sector Corgi fund, no single
+    # ticker), the row still skips as zero_candidates — the issuer rule only
+    # supplies the missing LONG direction, it never widens underlying acceptance.
+    r = _p("Corgi Quantum Computing 2x Daily ETF")
+    assert (r.status, r.reason, r.underlying) == ("skip", "zero_candidates", None)
+
+def test_corgi_rule_is_issuer_scoped_and_does_not_leak():
+    # A direction-less name from a NON-Corgi issuer must STILL quarantine
+    # no_direction — the exception is scoped to the issuer allowlist only.
+    r = _p("Acme NBIS 2x Daily ETF")
     assert (r.status, r.reason) == ("quarantine", "no_direction")
 
 def test_minus_1x_implies_short():
