@@ -224,6 +224,90 @@ def test_index_provider_ticker_still_resolves_as_genuine_single_stock():
     r = parse_etf_name("Issuer 2X Long MSCI Daily ETF", "MSCX", INDEX_STOCK_SET)
     assert (r.status, r.underlying, r.direction) == ("parsed", "MSCI", "long")
 
+# ── Broad-market / market-cap-segment funds skip, not mis-map ──
+# Live-data bug (2026-07-22 probe): "Corgi U.S. Mid-Cap 2x Daily ETF" (XVO) is a
+# broad-market INDEX fund but the company pass matched "Mid-Cap" -> MidCap Financial
+# Investment Corp (MFIC) and the Corgi long rule turned it into a bogus 2x-long MFIC.
+# The market-cap-segment terms in _INDEX_REGION_TERMS make it resolve zero candidates.
+CAPSEG_STOCK_SET = {
+    **STOCK_SET,
+    "MFIC": "MidCap Financial Investment Corp",  # 'Mid-Cap' company-pass collision
+}
+
+@pytest.mark.parametrize("name,etf", [
+    ("Corgi U.S. Mid-Cap 2x Daily ETF", "XVO"),
+    ("Issuer 2X Long Small-Cap Daily ETF", "SMLX"),
+    ("Issuer Large-Cap 2x Bull Daily ETF", "LRGX"),
+])
+def test_market_cap_segment_funds_skip_not_mismap(name, etf):
+    r = parse_etf_name(name, etf, CAPSEG_STOCK_SET)
+    assert r.status == "skip"
+    assert r.underlying not in ("MFIC",)  # never a bogus single-stock pick
+
+# ── Sector / theme / index-family funds skip, not mis-map ──
+# Live-data bug (2026-07-22 probe): 14 leveraged SECTOR/THEME/INDEX funds mapped to
+# coincidentally-named small companies via the company pass — the whole class is
+# barred by _NONSTOCK_SPAN_TERMS. SECTOR_STOCK_SET carries the REAL colliding
+# companies so these assertions are non-vacuous (without the guard each mis-maps).
+SECTOR_STOCK_SET = {
+    **STOCK_SET,
+    "FISI": "Financial Institutions Inc",       # 'Financial' collision (FAS/FAZ)
+    "TECH": "Bio-Techne Corp",                   # 'Biotech' collision (LABU/XBIX)
+    "MPT": "Medical Properties Trust Inc",       # 'Medical' collision (PILL)
+    "IBG": "Innovation Beverage Group Ltd",      # 'Innovation' collision (TARK/SARK)
+    "RM": "Regional Management Corp",            # 'Regional' collision (SKRE)
+    "PDEX": "Pro-Dex Inc",                       # 'Prod.' collision (DRIP/GUSH)
+    "DUO": "Fangdd Network Group Ltd",           # 'FANG+' collision (FNGG)
+}
+
+@pytest.mark.parametrize("name,etf,bad", [
+    ("Direxion Financial Bull 3X ETF", "FAS", "FISI"),
+    ("Direxion Financial Bear 3X ETF", "FAZ", "FISI"),
+    ("Direxion Daily S&P Biotech Bull 3X ETF", "LABU", "TECH"),
+    ("Corgi U.S. Biotech 2x Daily ETF", "XBIX", "TECH"),
+    ("Direxion Daily Pharmaceutical & Medical Bull 3X ETF", "PILL", "MPT"),
+    ("Tradr 2X Long Innovation ETF", "TARK", "IBG"),
+    ("Tradr 1X Short Innovation Daily ETF", "SARK", "IBG"),
+    ("Tuttle Capital Daily 2X Inverse Regional Banks ETF", "SKRE", "RM"),
+    ("Direxion Daily S&P Oil & Gas Exp. & Prod. Bull 2X ETF", "GUSH", "PDEX"),
+    ("Direxion Daily NYSE FANG+ Bull 2X ETF", "FNGG", "DUO"),
+])
+def test_sector_theme_index_funds_skip_not_mismap(name, etf, bad):
+    r = parse_etf_name(name, etf, SECTOR_STOCK_SET)
+    assert r.status == "skip", f"{etf} should skip, got {r.status}/{r.underlying}"
+    assert r.underlying != bad, f"{etf} mis-mapped to {bad}"
+
+def test_sector_stoplist_preserves_real_company_named_funds():
+    # POSITIVE GUARD: sector stoplist must not block the real company-name maps.
+    for name, etf, und in [
+        ("T-Rex 2X Long Microsoft Daily Target ETF", "MSFX", "MSFT"),
+        ("T-Rex 2X Long NVIDIA Daily Target ETF", "NVDX", "NVDA"),
+    ]:
+        s = {**SECTOR_STOCK_SET, "MSFT": "Microsoft Corp"}
+        r = parse_etf_name(name, etf, s)
+        assert r.underlying == und, f"{etf} should resolve {und}, got {r.underlying}"
+
+# ── No-separator class-share alias (BRKB -> BRK-B) ──
+# Live-data finding: "Corgi BRKB 2x Daily ETF" (BRKL) and "Direxion Daily BRKB Bull
+# 2X ETF" (BRKU) are real single-stock Berkshire funds; the fund names write "BRKB"
+# but the universe stores "BRK-B". Aliased only when BRK-B is real and BRKB is not.
+BRK_STOCK_SET = {**STOCK_SET, "BRK-B": "Berkshire Hathaway Inc"}
+
+def test_brkb_alias_resolves_to_brk_b_corgi():
+    r = parse_etf_name("Corgi BRKB 2x Daily ETF", "BRKL", BRK_STOCK_SET)
+    assert (r.status, r.underlying, r.direction, r.factor) == ("parsed", "BRK-B", "long", 2.0)
+
+def test_brkb_alias_resolves_to_brk_b_direxion():
+    r = parse_etf_name("Direxion Daily BRKB Bull 2X ETF", "BRKU", BRK_STOCK_SET)
+    assert (r.status, r.underlying, r.direction) == ("parsed", "BRK-B", "long")
+
+def test_brkb_alias_only_when_hyphen_form_real():
+    # If BRK-B is NOT in the universe, no bogus alias mapping happens.
+    no_brk = {"NBIS": "Nebius Group NV", "NVDA": "NVIDIA Corp"}
+    r = parse_etf_name("Corgi BRKB 2x Daily ETF", "BRKL", no_brk)
+    assert r.underlying != "BRK-B"
+    assert r.status == "skip"
+
 # ── Exclusions ──
 @pytest.mark.parametrize("name", [
     "YieldMax NVDA Option Income Strategy ETF",

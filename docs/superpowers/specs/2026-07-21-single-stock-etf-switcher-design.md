@@ -270,6 +270,35 @@ Parse rules (pure functions, `parse_etf_name(name, stock_set) -> ParseResult`):
      drops no real single-stock fund — `MSCI` as a bona-fide single-stock
      underlying (`2x Long MSCI Daily`, no adjacent index term) still resolves via
      the ticker pass. §3.5 remap override is the escape hatch.
+   - *Sector/theme/market-cap stoplist (`_NONSTOCK_SPAN_TERMS`, +market-cap terms
+     in `_INDEX_REGION_TERMS`) — leveraged sector/theme/broad-market index funds
+     resolve zero candidates.* Coverage-audit finding (2026-07-22, live universe):
+     14 leveraged SECTOR/THEME/INDEX funds mis-mapped to coincidentally-named small
+     companies via the company pass — "Financial" (Direxion Financial Bull/Bear 3X,
+     `FAS`/`FAZ`) → *Financial Institutions Inc*; "Biotech" (`LABU`/`LABD`, Corgi
+     Biotech `XBIX`) → *Bio-Techne*; "Medical" (`PILL`) → *Medical Properties
+     Trust*; "Innovation" (`TARK`/`SARK`) → *Innovation Beverage Group*; "Regional"
+     (`SKRE`) → *Regional Management*; "Prod." (S&P Oil & Gas, `DRIP`/`GUSH`) →
+     *Pro-Dex*; "FANG+" (NYSE FANG+, `FNGG`) → *Fangdd Network*; "Mid-Cap" (Corgi
+     U.S. Mid-Cap `XVO`) → *MidCap Financial*. The seed word is compared in
+     stripped-alpha form (so `FANG+`→`FANG`, `Mid-Cap`→`MIDCAP`) against a bounded
+     sector/theme/index-family set; company-pass ONLY, so a real ticker (`ENPH`,
+     `ET`) is untouched, and no marquee single-stock underlying (Tesla/NVIDIA/
+     Microsoft/…) is named with a sector word. Cut live parsed 480→466 (the 14
+     bogus maps), zero legit funds dropped.
+   - *No-separator class-share alias (`_TICKER_ALIASES`).* Fund names sometimes
+     write a class share without the hyphen the universe stores — `Corgi BRKB 2x`,
+     `Direxion Daily BRKB Bull 2X` are Berkshire's `BRK-B`. Aliased (`BRKB`→`BRK-B`,
+     `BRKA`→`BRK-A`) ONLY when the hyphen form is a real symbol and the literal
+     token is not, so a future genuine `BRKB` listing still wins via direct match.
+   - *Known coverage gap (documented, override-covered):* ProShares `Ultra`/
+     `UltraShort` single-stock funds (`Ultra COIN`, `Ultra CRCL`) use an IMPLIED
+     factor (Ultra = 2×) with no number, so they skip as `no_factor`. Their
+     underlyings (COIN/CRCL) are already covered via other issuers' ticker-named
+     funds, so this is a per-fund completeness gap, not a coverage hole; the trap
+     that keeps it out of v1 is "Ultra **Short** <bond>" DURATION funds (1×, not
+     leverage). A scoped ProShares implied-factor rule is a future add; the §3.5
+     `add` override covers any specific ProShares single-stock fund meanwhile.
    - *Zero candidates after both passes → silent skip, NOT quarantine.* The
      ETF universe holds ~100+ leveraged index/sector funds (SOXL, TNA, LABU,
      BITX…) with factor + direction and no single-stock underlying; sending

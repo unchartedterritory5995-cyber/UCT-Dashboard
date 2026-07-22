@@ -78,25 +78,74 @@ _DIRECTIONLESS_LONG_ISSUERS = frozenset({"CORGI"})
 # BULL/Webull ticker-pass carve-out (_candidate/_STOPLIST) is untouched.
 _DIRECTION_WORDS = {"LONG", "SHORT", "BULL", "BEAR", "INVERSE"}
 
-# Index-provider + geographic/region words that must never SEED a company-name
-# span. Live-data finding (2026-07-22 probe): leveraged GEOGRAPHIC INDEX funds
-# (out of scope, spec §3.2 rule 4 — index funds skip) coincidentally prefix-match
-# single-company closed-end funds via the company pass — "Europe" -> European
-# Equity Fund Inc (EPV), "Japan" -> Japan Smaller Capitalization Fund Inc (EWV),
-# "Emerging"/"Markets" -> ... — turning a ProShares/Direxion index fund into a
-# bogus single-stock short. These words name a REGION or an INDEX FAMILY, never a
-# single-stock underlying's company name (a real single-stock fund names an actual
-# company, e.g. Tesla/NVIDIA). Barring them as span seeds makes the whole class
-# resolve ZERO company candidates -> silent skip. Company-pass ONLY; the ticker
-# pass is untouched (so a legitimately-tickered single-stock fund is unaffected,
-# and an index-provider that is ALSO a real ticker, e.g. MSCI, still resolves via
-# the ticker pass when it is the genuine adjacent underlying). §3.5 remap override
-# is the escape hatch if a real company ever legitimately leads with one of these.
+# Index-provider + geographic/region + broad-market-structure words that must
+# never SEED a company-name span (and bar a ticker candidate adjacent to one).
+# Live-data finding (2026-07-22 probe): leveraged GEOGRAPHIC/BROAD-MARKET INDEX
+# funds (out of scope, spec §3.2 rule 4 — index funds skip) coincidentally
+# prefix-match single-company closed-end funds via the company pass — "Europe" ->
+# European Equity Fund Inc (EPV), "Japan" -> Japan Smaller Capitalization Fund Inc
+# (EWV), "Mid-Cap" -> MidCap Financial Investment Corp (the XVO bug: "Corgi U.S.
+# Mid-Cap 2x Daily ETF" mis-mapped to MFIC as a bogus single-stock long) — turning
+# an index fund into a bogus single-stock pick. These words name a REGION, an INDEX
+# FAMILY, or a MARKET-CAP SEGMENT, never a single-stock underlying's company name
+# (a real single-stock fund names an actual company, e.g. Tesla/NVIDIA). Barring
+# them as span seeds makes the whole class resolve ZERO company candidates ->
+# silent skip. Company-pass + the adjacent-ticker guard; a legitimately-tickered
+# single-stock fund is unaffected, and an index-provider that is ALSO a real ticker
+# (e.g. MSCI) still resolves via the ticker pass when it is the genuine adjacent
+# underlying. §3.5 remap override is the escape hatch if a real company ever
+# legitimately leads with one of these.
 _INDEX_REGION_TERMS = {
     "MSCI", "FTSE", "RUSSELL", "STOXX", "EAFE", "EMERGING", "MARKETS",
     "EUROPE", "EUROZONE", "JAPAN", "CHINA", "BRAZIL", "MEXICO", "GERMANY",
     "INDIA", "KOREA", "TAIWAN", "PACIFIC", "WORLD", "GLOBAL", "DEVELOPED",
+    # Broad-market / market-cap-segment terms (index funds, not single stocks).
+    "MID-CAP", "MIDCAP", "SMALL-CAP", "SMALLCAP", "LARGE-CAP", "LARGECAP",
+    "MEGA-CAP", "MEGACAP", "MICRO-CAP", "MICROCAP", "EQUITIES",
 }
+
+# Sector / theme / index-family words that must never SEED a company-name span.
+# Live-data finding (2026-07-22 probe): leveraged SECTOR/THEME/INDEX funds (out of
+# scope, spec §3.2 rule 4 — index/sector funds skip) coincidentally prefix-match a
+# small single-company name via the company pass — e.g. "Financial" (Direxion
+# Financial Bull 3X, FAS/FAZ) -> Financial Institutions Inc; "Biotech" (S&P Biotech,
+# LABU/LABD; Corgi U.S. Biotech, XBIX) -> Bio-Techne Corp; "Medical" (Pharmaceutical
+# & Medical, PILL) -> Medical Properties Trust; "Innovation" (Tradr Innovation,
+# TARK/SARK) -> Innovation Beverage Group; "Regional" (Regional Banks, SKRE) ->
+# Regional Management; "Prod" (S&P Oil & Gas Exp. & Prod., DRIP/GUSH) -> Pro-Dex;
+# "FANG+" (NYSE FANG+, FNGG) -> Fangdd Network — each a bogus single-stock pick.
+# These name a SECTOR, THEME, or INDEX FAMILY, never a single-stock underlying's
+# company name (no marquee single-stock ETF underlying — Tesla/NVIDIA/Microsoft/
+# Apple/Coinbase/... — is named with a sector word). Compared in stripped-alpha
+# form (so "FANG+" -> "FANG", "Mid-Cap" -> "MIDCAP") against the seed word; company
+# pass ONLY (the ticker pass is untouched, so a real ticker like ENPH/ET still
+# resolves). §3.5 remap override is the escape hatch for any real exception.
+_NONSTOCK_SPAN_TERMS = frozenset({
+    # region + index-provider + market-cap (stripped forms of _INDEX_REGION_TERMS)
+    "MSCI", "FTSE", "RUSSELL", "STOXX", "EAFE", "EMERGING", "MARKETS", "EUROPE",
+    "EUROZONE", "JAPAN", "CHINA", "BRAZIL", "MEXICO", "GERMANY", "INDIA", "KOREA",
+    "TAIWAN", "PACIFIC", "WORLD", "GLOBAL", "DEVELOPED", "MIDCAP", "SMALLCAP",
+    "LARGECAP", "MEGACAP", "MICROCAP", "EQUITIES",
+    # sector / industry
+    "FINANCIAL", "FINANCIALS", "BANK", "BANKS", "BIOTECH", "BIOTECHNOLOGY",
+    "PHARMACEUTICAL", "PHARMACEUTICALS", "PHARMA", "MEDICAL", "HEALTHCARE",
+    "REGIONAL", "OIL", "GAS", "EXPLORATION", "PRODUCTION", "PROD", "ENERGY",
+    "TECHNOLOGY", "SEMICONDUCTOR", "SEMICONDUCTORS", "RETAIL", "UTILITIES",
+    "UTILITY", "INDUSTRIALS", "MATERIALS", "CONSUMER", "STAPLES", "DISCRETIONARY",
+    "MINERS", "MINING", "AEROSPACE", "DEFENSE", "HOMEBUILDERS", "TRANSPORTATION",
+    "TELECOM", "TELECOMMUNICATIONS", "INSURANCE", "REIT", "REITS",
+    # theme / index family
+    "INNOVATION", "FANG", "NYSE", "NASDAQ", "INTERNET", "CLOUD", "ROBOTICS",
+    "CANNABIS", "URANIUM", "LITHIUM", "SOLAR", "AIRLINES", "INFRASTRUCTURE",
+    "MOMENTUM", "CRYPTOCURRENCY",
+})
+
+# No-separator class-share aliases. Finviz fund names sometimes write a class
+# share without the hyphen the universe stores ("Corgi BRKB 2x Daily ETF",
+# "Direxion Daily BRKB Bull 2X ETF" — the underlying is Berkshire's BRK-B).
+# Applied only when the alias IS a real symbol and the literal token is NOT, so
+# a future genuine "BRKB" listing would still win via the direct match.
+_TICKER_ALIASES = {"BRKB": "BRK-B", "BRKA": "BRK-A"}
 
 
 @dataclass
@@ -178,6 +227,10 @@ def parse_etf_name(name: str, etf_ticker: str, stock_set: dict[str, str]) -> Par
     cand_idx: dict[int, str] = {}
     for i, tok in enumerate(tokens):
         c = _candidate(tok)
+        # No-separator class-share alias (BRKB -> BRK-B) only when the alias is a
+        # real symbol and the literal candidate is not (direct match always wins).
+        if c and c not in stock_set and c in _TICKER_ALIASES and _TICKER_ALIASES[c] in stock_set:
+            c = _TICKER_ALIASES[c]
         if c and c in stock_set:
             # Reject an index-provider ticker embedded in an index name: "MSCI"
             # in "ProShares Short MSCI EAFE" / "MSCI Japan" is the index family,
@@ -261,10 +314,12 @@ def _company_pass(tokens: list[str], anchor_idx: set, stock_set: dict[str, str])
         return re.sub(r"[^a-z0-9 ]", "", s.lower())
 
     def _span_word_ok(w: str) -> bool:
+        wa = re.sub(r"[^A-Z]", "", w.upper())   # "FANG+" -> "FANG", "Mid-Cap" -> "MIDCAP"
         return (w[:1].isupper() and not _is_stoplisted(w)
                 and w.upper() not in _CRYPTO_ASSETS
                 and w.upper() not in _DIRECTION_WORDS
-                and w.upper() not in _INDEX_REGION_TERMS)
+                and w.upper() not in _INDEX_REGION_TERMS
+                and wa not in _NONSTOCK_SPAN_TERMS)
 
     companies = {t: _norm(c) for t, c in stock_set.items() if c}
     spans: list[str] = []
