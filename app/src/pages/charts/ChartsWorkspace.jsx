@@ -479,6 +479,11 @@ export default function ChartsWorkspace() {
   // so any older-shaped template is normalized to the current grid.
   const applyTemplate = useCallback((tpl) => {
     if (!tpl?.layout?.widgets) return
+    // PREBUILT (global-scope) templates are LOCKED: opening one must reset EVERY
+    // per-user override so nothing from the previously-open layout — theme, chart
+    // styling, watchlist columns, volume-pane height — carries over. Personal
+    // templates keep the current styling (they don't force a reset).
+    const isPrebuilt = (tpl.scope || 'user') === 'global'
     // Switch the ARRANGEMENT only — keep whatever tickers are currently loaded in
     // each color group. A template must not swap the stock you're looking at.
     // parseLayout keeps extra fields (`...parsed`), so pull chartSettings OUT of
@@ -491,12 +496,21 @@ export default function ChartsWorkspace() {
     // template that carries none) so a locked/prebuilt template never inherits the
     // user's personal watchlist styling.
     setPref('watchlist_settings', JSON.stringify(watchlistSettings || WATCHLIST_DEFAULTS))
-    // Restore the chart settings the template was saved with, if it has them.
-    // Arrangement-only / older templates carry none → leave the current settings
-    // untouched (never silently reset to default; only "UCT Default" applies the
-    // frozen default settings).
+    // Restore the chart settings the template was saved with, if it has them. A
+    // PREBUILT template that carries none resets to the frozen default (never inherit
+    // the previous layout's chart styling); a personal arrangement-only template
+    // leaves the current settings untouched.
     if (chartSettings) {
       setPref('chart_settings', chartSettings)
+    } else if (isPrebuilt) {
+      setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
+    }
+    if (isPrebuilt) {
+      // Wipe the standalone per-user overrides so a prebuilt layout always opens
+      // clean: theme (e.g. TSDR Sunset), watchlist columns, volume-pane height.
+      setChartsTheme('default')
+      try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }
+      setPref('charts_vol_pane_pct', '')
     }
     // Remember which named template is now open, so "Save current arrangement"
     // can update THIS template in place with later edits. Persisted so the link
@@ -504,7 +518,7 @@ export default function ChartsWorkspace() {
     setPref('charts_active_template', JSON.stringify({ id: tpl.id, name: tpl.name, scope: tpl.scope || 'user' }))
     setOpenMenuOpen(false)
     flashSaved()
-  }, [setPref, flashSaved])
+  }, [setPref, setChartsTheme, flashSaved])
 
   // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
   // chart_settings + the default theme. Everything is loaded FROM the in-code
@@ -524,6 +538,9 @@ export default function ChartsWorkspace() {
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // reset columns too (mirrors WL_COLS_LS)
+    // Volume-pane height is a SEPARATE global per-user override (charts_vol_pane_pct)
+    // that otherwise survives — reset it so a dragged pane snaps back to the default.
+    setPref('charts_vol_pane_pct', '')
     // UCT Default is the frozen default, not a saved template → no active template.
     setPref('charts_active_template', 'null')
     setOpenMenuOpen(false)
