@@ -1669,8 +1669,8 @@ export default function StockChart({
       const pt = (d && d.length) ? d[d.length - 1] : null
       if (!pt || !ov) return null
       const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
-      return { label: `${ov.type} ${ov.period}`, value: pt.value, color }
-    }).filter(Boolean)
+      return { label: `${ov.type} ${ov.period}`, value: pt.value, color, _period: Number(ov.period) }
+    }).filter(Boolean).sort((a, b) => a._period - b._period)   // legend always in ascending-period order
     const vma = volMaDataRef.current
     return {
       time: last.t, open: o, high: h, low: l, close: c, volume: vol,
@@ -6849,8 +6849,8 @@ export default function StockChart({
         if (!d || !ov || ov.enabled === false || !Number.isFinite(Number(d.value))) return null
         // Match the DISPLAYED line color (ema9MatchCandle repaints the 9-EMA to MB_UP).
         const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
-        return { label: `${ov.type} ${ov.period}`, value: d.value, color }
-      }).filter(Boolean)
+        return { label: `${ov.type} ${ov.period}`, value: d.value, color, _period: Number(ov.period) }
+      }).filter(Boolean).sort((a, b) => a._period - b._period)   // legend always in ascending-period order (SMA 5 before EMA 9, etc.)
 
       // For OHLC types (candles/bars/hollow)
       const o = priceData.open ?? priceData.value

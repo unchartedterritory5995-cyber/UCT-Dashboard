@@ -40,21 +40,66 @@ const COL_META = {
   vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 },
   // Optional data columns (added via the + button).
   mcap: { def: 82, min: 56 }, earn: { def: 92, min: 62 }, rating: { def: 78, min: 54 },
+  // Intraday quote-derived columns (computed client-side from the live quote).
+  dchg: { def: 70, min: 50 }, fromopen: { def: 76, min: 54 }, fromhigh: { def: 76, min: 54 },
+  fromlow: { def: 76, min: 54 }, dcr: { def: 58, min: 42 },
 }
 const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation] + the min column width to still show the full word.
 const COL_LABELS = {
   flag: ['', ''], sym: ['Symbol', 'Sym'], price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'],
   mcap: ['Market Cap', 'Mkt Cap'], earn: ['Next Earnings', 'Earnings'], rating: ['UCT Rating', 'UCT'],
+  dchg: ['$ Change', '$ Chg'], fromopen: ['% from Open', '% Open'], fromhigh: ['% from High', '% High'],
+  fromlow: ['% from Low', '% Low'], dcr: ['DCR', 'DCR'],
 }
-const COL_FULL_MINW = { sym: 62, price: 46, vol: 60, chg: 80, mcap: 78, earn: 108, rating: 82 }
+const COL_FULL_MINW = {
+  sym: 62, price: 46, vol: 60, chg: 80, mcap: 78, earn: 108, rating: 82,
+  dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40,
+}
 // Extra data columns the user can ADD via the + button (not shown by default).
 const EXTRA_COLS = [
   { key: 'mcap', label: 'Market Cap' },
   { key: 'earn', label: 'Next Earnings' },
   { key: 'rating', label: 'UCT Rating' },
+  { key: 'dchg', label: '$ Change' },
+  { key: 'fromopen', label: '% from Open' },
+  { key: 'fromhigh', label: '% from High' },
+  { key: 'fromlow', label: '% from Low' },
+  { key: 'dcr', label: 'Daily Closing Range' },
 ]
 const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
+// Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
+// meta fetch (vs the live quote feed). Only these trigger useWatchlistMeta; the
+// quote-derived ones (dchg/fromopen/…) read fields already on prices[sym].
+const META_KEYS = new Set(['mcap', 'earn', 'rating'])
+// Intraday quote-derived column VALUES (numbers or null). Shared by row rendering
+// AND column sorting so the two never drift. Each takes the live quote (prices[sym]).
+const colDerived = {
+  dchg: (q) => {
+    if (!q) return null
+    if (Number.isFinite(q.change)) return q.change
+    const p = q.price, pc = q.prev_close
+    return (Number.isFinite(p) && Number.isFinite(pc)) ? p - pc : null
+  },
+  fromopen: (q) => {
+    const o = q?.day_open, p = q?.price
+    return (Number.isFinite(o) && o > 0 && Number.isFinite(p)) ? ((p - o) / o) * 100 : null
+  },
+  fromhigh: (q) => {
+    const h = q?.day_high, p = q?.price
+    return (Number.isFinite(h) && h > 0 && Number.isFinite(p)) ? ((p - h) / h) * 100 : null
+  },
+  fromlow: (q) => {
+    const l = q?.day_low, p = q?.price
+    return (Number.isFinite(l) && l > 0 && Number.isFinite(p)) ? ((p - l) / l) * 100 : null
+  },
+  // Daily Closing Range: where the price sits within the day's range, 0–100%.
+  dcr: (q) => {
+    const h = q?.day_high, l = q?.day_low, p = q?.price
+    if (!Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(p) || h <= l) return null
+    return Math.max(0, Math.min(100, ((p - l) / (h - l)) * 100))
+  },
+}
 
 // ISO date → compact M/D for the Next Earnings column.
 function fmtEarn(iso) {
@@ -156,9 +201,17 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
 const WatchRow = React.memo(function WatchRow({
   sym, name, price, changePct, volume, flagged, selected, orderedKeys,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
+  dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null,
   isOwner, itemId, notes, wlId, noteOpen, alertOn,
   onSelect, onToggleFlag, onIntent, onToggleNote, onSetAlert, onCtx, onRemove,
 }) {
+  // Signed % cell (green/red text + day-direction tint flash) — shared by the
+  // %-from-open/high/low columns so they read like the % Change column.
+  const pctCell = (key, v) => (
+    <FlashCell key={key} value={v} tint={tintEnabled}
+      className={`${styles.changeCell} ${v != null ? (v >= 0 ? styles.gain : styles.loss) : ''}`}
+      display={v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—'} />
+  )
   const cellFor = (key) => {
     if (key === 'flag') return (
       <button
@@ -192,6 +245,18 @@ const WatchRow = React.memo(function WatchRow({
       <span key="rating" className={styles.metaCell} style={{ color: ratingColor(rating), fontWeight: 600 }}>
         {Number.isFinite(rating) ? rating : '—'}
       </span>
+    )
+    // Intraday quote-derived columns.
+    if (key === 'dchg') return (
+      <FlashCell key="dchg" value={dchg} tint={tintEnabled}
+        className={`${styles.changeCell} ${dchg != null ? (dchg >= 0 ? styles.gain : styles.loss) : ''}`}
+        display={dchg != null ? `${dchg >= 0 ? '+' : ''}${dchg.toFixed(2)}` : '—'} />
+    )
+    if (key === 'fromopen') return pctCell('fromopen', fromOpen)
+    if (key === 'fromhigh') return pctCell('fromhigh', fromHigh)
+    if (key === 'fromlow') return pctCell('fromlow', fromLow)
+    if (key === 'dcr') return (
+      <span key="dcr" className={styles.metaCell}>{dcr != null ? `${dcr.toFixed(0)}%` : '—'}</span>
     )
     return null
   }
@@ -833,8 +898,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   )
 
   // Optional Market Cap / Next Earnings / UCT Rating columns — fetched only when at
-  // least one is actually shown (fundamentals are heavy per ticker).
-  const extraVisible = orderedKeys.some(k => EXTRA_KEYS.has(k))
+  // least one is actually shown (fundamentals are heavy per ticker). The quote-derived
+  // columns ($ chg / % from open·high·low / DCR) read prices[sym] — no meta fetch.
+  const extraVisible = orderedKeys.some(k => META_KEYS.has(k))
   const { metaData } = useWatchlistMeta(extraVisible ? allTickers : [])
 
   // Extra data columns (Market Cap / Next Earnings / UCT Rating) toggle on/off from the
@@ -915,6 +981,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (key === 'price') return q?.price ?? null
       if (key === 'vol') return q?.volume ?? null
       if (key === 'chg') return q?.change_pct ?? null
+      // Intraday quote-derived columns sort off the same helper the cells render from.
+      if (colDerived[key]) return colDerived[key](q)
       // Extra columns sort off the meta batch, not the quote feed. Market cap arrives
       // as a display string ("$1.2T") → parse it back to a number; next earnings sorts
       // by calendar date; rating is already numeric.
@@ -1019,6 +1087,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         price={q?.price ?? null}
         changePct={q?.change_pct ?? null}
         volume={q?.volume ?? null}
+        dchg={colDerived.dchg(q)}
+        fromOpen={colDerived.fromopen(q)}
+        fromHigh={colDerived.fromhigh(q)}
+        fromLow={colDerived.fromlow(q)}
+        dcr={colDerived.dcr(q)}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}
