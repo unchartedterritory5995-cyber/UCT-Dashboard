@@ -83,3 +83,16 @@ def test_status_shape(tmp_db):
     assert st["etf_count"] == 3 and st["family_count"] == 1
     assert st["last_status"] == "ok"
     assert isinstance(st["quarantine"], list)
+
+
+def test_lookup_returns_are_mutation_safe(tmp_db):
+    _seed(tmp_db)
+    fam1 = tmp_db.lookup("NBIS")
+    fam1["long"].append({"ticker": "HACK"})
+    fam1["best_long"] = "HACK"
+    fam2 = tmp_db.lookup("NBIS")            # cache-hit path
+    assert all(r["ticker"] != "HACK" for r in fam2["long"])
+    assert fam2["best_long"] == "NBIL"
+    empty1 = tmp_db.lookup("KO")
+    empty1["long"].append({"ticker": "HACK"})
+    assert tmp_db.lookup("XOM")["long"] == []   # sentinel not poisoned

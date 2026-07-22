@@ -171,14 +171,19 @@ def _row_out(r) -> dict:
             "avg_dollar_vol": r["avg_dollar_vol"]}
 
 
+def _copy_family(fam: dict) -> dict:
+    """Return a fresh copy of a family dict with deep-copied lists to prevent mutation."""
+    return {**fam, "long": [dict(r) for r in fam["long"]], "short": [dict(r) for r in fam["short"]]}
+
+
 def lookup(symbol: str) -> dict:
     sym = (symbol or "").strip().upper()
     if not sym:
-        return dict(_EMPTY_FAMILY)
+        return _copy_family(_EMPTY_FAMILY)
     hit = _LOOKUP_CACHE.get(sym)
     now = time.time()
     if hit and now - hit[0] < _LOOKUP_TTL:
-        return hit[1]
+        return _copy_family(hit[1])
     _ensure_init()
     with contextlib.closing(_connect()) as c:
         row = c.execute("SELECT underlying FROM etfs WHERE etf_ticker=?", (sym,)).fetchone()
@@ -205,8 +210,11 @@ def lookup(symbol: str) -> dict:
                "best_long": longs[0]["ticker"] if longs else None,
                "best_short": shorts[0]["ticker"] if shorts else None}
     _LOOKUP_CACHE[sym] = (now, out)
-    _maybe_self_heal()
-    return out
+    try:
+        _maybe_self_heal()
+    except Exception:
+        pass
+    return _copy_family(out)
 
 
 def status() -> dict:
