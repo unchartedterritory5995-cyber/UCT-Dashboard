@@ -1888,6 +1888,14 @@ export default function ChartDrawingOverlay({
         }
         return
       }
+      // Alt+T arms the trendline tool. Alt avoids the bare-letter conflict with
+      // type-to-search ticker entry on the charts workspace (where bare 't' is
+      // swallowed into the symbol box), so trendline stays keyboard-reachable there.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 't') {
+        e.preventDefault()
+        setActiveTool('trendline')
+        return
+      }
       // Tool shortcuts
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
         switch (e.key.toLowerCase()) {

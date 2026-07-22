@@ -2593,6 +2593,11 @@ export default function StockChart({
                     : (_memBars?.length
                         ? _memBars
                         : (_aggBars?.length ? _aggBars : null))))))
+  // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
+  // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
+  // point.time is then guaranteed to resolve in the overlay's timeToIndex.
+  const drawBarsRef = useRef(null)
+  drawBarsRef.current = bars
   const loading = !bars && !error
   // First-bars latch: fire onBarsReady exactly once per mount, on the first
   // render where loading settles false — renderable bars OR fatal error both
@@ -7241,6 +7246,10 @@ export default function StockChart({
   const dragMeasureStateRef = useRef(null)   // { startX, startY, startPrice, startLogical } while dragging
   const [measureReadout, setMeasureReadout] = useState(null)  // { x, y, pct, bars, span, flip } | null
 
+  // ── Ctrl+drag to draw a trendline (press A → drag → release B) ────────────
+  const trendDragCanvasRef = useRef(null)
+  const trendDragStateRef = useRef(null)   // { startX, startY, a: { time, price } } while dragging
+
   // Plain mouse-drag pans (default). The Shift+drag measure locks scrolling only for
   // the duration of the drag (in onDown/end below); frozen (Setup Library) stays
   // non-pannable. This effect just holds the default so a data-poll re-applyOptions
@@ -7334,6 +7343,104 @@ export default function StockChart({
     el.addEventListener('pointerdown', onDown)
     return () => { el.removeEventListener('pointerdown', onDown); end() }
   }, [dragMeasure, chartReady, activeTool, frozen, canvasTheme])
+
+  // ── Ctrl+drag to draw a trendline ─────────────────────────────────────────
+  // Mirrors the Shift+drag measure: listens on the chart container so it works
+  // over empty chart space (the drawing overlay is pointer-events:none there),
+  // locks pan/zoom for the drag, shows a solid preview line, and commits ONE
+  // trendline drawing on release (clean single undo/redo — no create-then-reshape
+  // degenerate-redo). Available wherever drawing is enabled (showDrawingTools).
+  // Coordinate mapping matches ChartDrawingOverlay.toChart exactly (same chart
+  // timeScale + the overlay's own `bars` via drawBarsRef) so the point.time
+  // always resolves in the overlay's timeToIndex.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady || !showDrawingTools) return undefined
+    if (activeTool && activeTool !== 'cursor') return undefined   // an armed tool owns clicks
+
+    const getPos = (e) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height } }
+    const ptAt = (x, y) => {
+      const series = candleSeriesRef.current, chart = chartRef.current
+      if (!series || !chart) return null
+      let price = null; try { price = series.coordinateToPrice(y) } catch { /* disposed */ }
+      let logical = null; try { logical = chart.timeScale().coordinateToLogical(x) } catch { /* disposed */ }
+      if (price == null || logical == null) return null
+      const arr = drawBarsRef.current || []
+      if (!arr.length) return null
+      const idx = Math.max(0, Math.min(arr.length - 1, Math.round(logical)))
+      const t = arr[idx]?.t
+      return t == null ? null : { time: t, price }
+    }
+    const clearPreview = () => {
+      const c = trendDragCanvasRef.current; if (!c) return
+      const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height)
+    }
+    const drawPreview = (x1, y1, x2, y2, w, h) => {
+      const c = trendDragCanvasRef.current; if (!c) return
+      const dpr = window.devicePixelRatio || 1
+      const W = Math.round(w * dpr), H = Math.round(h * dpr)
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; c.style.width = w + 'px'; c.style.height = h + 'px' }
+      const ctx = c.getContext('2d'); if (!ctx) return
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      const col = canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c')
+      ctx.strokeStyle = col; ctx.lineWidth = cs.drawingDefaults?.width || 1
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+      ctx.fillStyle = col
+      ctx.beginPath(); ctx.arc(x1, y1, 3, 0, 6.283); ctx.fill()
+      ctx.beginPath(); ctx.arc(x2, y2, 3, 0, 6.283); ctx.fill()
+    }
+    const onMove = (e) => {
+      const st = trendDragStateRef.current; if (!st) return
+      const { x, y, w, h } = getPos(e)
+      drawPreview(st.startX, st.startY, x, y, w, h)
+    }
+    const end = (e) => {
+      const st = trendDragStateRef.current
+      trendDragStateRef.current = null
+      clearPreview()
+      measureLockRef.current = false
+      try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      if (!st) return
+      // Commit only on a real pointer-UP that actually dragged — a pointercancel
+      // (browser interrupt) or a stray Ctrl+click that never moved makes no line.
+      if (!e || e.type !== 'pointerup') return
+      const p = getPos(e)
+      if (Math.abs(p.x - st.startX) < 4 && Math.abs(p.y - st.startY) < 4) return
+      const b = ptAt(p.x, p.y); if (!b) return
+      const col = canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c')
+      addDrawingRef.current?.({
+        type: 'trendline',
+        points: [st.a, b],
+        color: col,
+        lineWidth: cs.drawingDefaults?.width || 1,
+        lineStyle: cs.drawingDefaults?.style || 'solid',
+      })
+    }
+    const onDown = (e) => {
+      if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
+      // Ctrl ONLY — Shift is the measure, Alt is the overlay's clone-drag.
+      if (!e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return
+      const { x, y } = getPos(e)
+      const a = ptAt(x, y); if (!a) return
+      e.preventDefault()
+      // Lock pan/zoom for the whole drag; measureLockRef is also read by the
+      // data-poll re-applyOptions so a poll can't unlock mid-draw.
+      measureLockRef.current = true
+      try { chartRef.current?.applyOptions({ handleScroll: false, handleScale: false }) } catch { /* noop */ }
+      trendDragStateRef.current = { startX: x, startY: y, a }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', end)
+      window.addEventListener('pointercancel', end)
+    }
+    el.addEventListener('pointerdown', onDown)
+    return () => { el.removeEventListener('pointerdown', onDown); end() }
+    // addDrawing is read via addDrawingRef (stable) so a mid-drag re-render can't
+    // tear this down; cs.drawingDefaults is memoized so it won't churn on ticks.
+  }, [chartReady, showDrawingTools, activeTool, frozen, canvasTheme, cs.drawingDefaults])
 
   // ── Persist a user's volume-pane resize ───────────────────────────────────
   // LWC has no separator-drag event, so poll the actual volume-pane fraction; when
@@ -8424,6 +8531,13 @@ export default function StockChart({
       {dragMeasure && (
         <canvas
           ref={dragMeasureCanvasRef}
+          style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 5 }}
+        />
+      )}
+      {/* Ctrl+drag trendline: transient solid preview line while dragging. */}
+      {showDrawingTools && (
+        <canvas
+          ref={trendDragCanvasRef}
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 5 }}
         />
       )}
