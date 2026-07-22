@@ -40,7 +40,7 @@ const POPULAR_RESULTS = [
   { ticker: 'SOXX',  name: 'iShares Semiconductor ETF' },
 ]
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, centered = false, boundsRef = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -69,20 +69,37 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     },
   }), [])
 
-  // Position the dropdown as a fixed-position PORTAL (rendered to document.body).
+  // Position the overlay as a fixed-position PORTAL (rendered to document.body).
   // The chart-widget header is `overflow:hidden` and only ~28px tall, and the grid
   // item's transform makes even position:fixed get clipped — so an in-tree dropdown
   // has its top/bottom cut off. A portal escapes every ancestor. Recompute on
-  // scroll/resize so it tracks the badge while open.
+  // scroll/resize so it tracks its host while open.
+  //
+  // Two modes:
+  //  • anchored (default) — small dropdown pinned under the badge (Watchlists,
+  //    Research header, etc.).
+  //  • centered — a modal card dead-centered inside `boundsRef` (the chart widget),
+  //    so type-to-search lands in the MIDDLE of the chart. Falls back to the
+  //    viewport when no bounds host is supplied. Scrim covers only the host so a
+  //    grid cell dims just itself, not the whole app.
   useEffect(() => {
     if (!open) { setMenuPos(null); return }
     const place = () => {
+      if (centered) {
+        const host = boundsRef?.current
+        const b = host
+          ? host.getBoundingClientRect()
+          : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
+        const cardW = Math.round(Math.min(540, Math.max(300, b.width - 40)))
+        setMenuPos({ mode: 'centered', left: b.left, top: b.top, width: b.width, height: b.height, cardW })
+        return
+      }
       const el = wrapRef.current
       if (!el) return
       const r = el.getBoundingClientRect()
       const W = Math.min(280, window.innerWidth - 16)
       const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8))
-      setMenuPos({ left, top: r.bottom + 4, width: W })
+      setMenuPos({ mode: 'anchored', left, top: r.bottom + 4, width: W })
     }
     place()
     window.addEventListener('scroll', place, true)
@@ -91,7 +108,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       window.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
     }
-  }, [open])
+  }, [open, centered, boundsRef])
 
   // Focus the input once it's mounted (after the position is known). The
   // activeElement guard keeps a scroll-triggered reposition from stealing the caret.
@@ -240,7 +257,74 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         )}
       </button>
 
-      {open && menuPos && createPortal(
+      {open && menuPos && menuPos.mode === 'centered' && createPortal(
+        // ── V2: centered modal, OLED-black, TradingView/TC2000-style ──
+        <div
+          className={styles.scrim}
+          style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, width: menuPos.width, height: menuPos.height, zIndex: 3000 }}
+        >
+          <div ref={dropdownRef} className={styles.modal} style={{ width: menuPos.cardW }}>
+            <div className={styles.modalHeader}>
+              <svg className={styles.modalSearchIcon} viewBox="0 0 16 16" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <circle cx="7" cy="7" r="4.5" />
+                <line x1="10.5" y1="10.5" x2="14" y2="14" strokeLinecap="round" />
+              </svg>
+              <input
+                ref={inputRef}
+                className={styles.modalInput}
+                value={query}
+                onChange={e => setQuery(e.target.value.toUpperCase())}
+                onKeyDown={handleInputKey}
+                placeholder="Search symbol"
+                spellCheck={false}
+                maxLength={10}
+              />
+              <button type="button" className={styles.modalEsc} onClick={() => setOpen(false)} title="Close (Esc)">ESC</button>
+            </div>
+            <div ref={listRef} className={styles.modalList}>
+              {results.map((r, i) => (
+                <button
+                  key={`${r.ticker}-${i}`}
+                  className={[
+                    styles.modalItem,
+                    r.ticker === sym ? styles.modalItemActive : '',
+                    i === activeIdx ? styles.modalItemHi : '',
+                  ].filter(Boolean).join(' ')}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  onClick={() => submit(r.ticker)}
+                >
+                  {r._typed ? (
+                    <>
+                      <span className={styles.modalGoIcon} aria-hidden>↵</span>
+                      <span className={styles.modalGo}>Go to <strong>{r.ticker}</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={styles.modalLogo}><CompanyLogo sym={r.ticker} name={r.name} size={24} round /></span>
+                      <span className={styles.modalSym}>{r.ticker}</span>
+                      {r.name && <span className={styles.modalName}>{r.name}</span>}
+                    </>
+                  )}
+                </button>
+              ))}
+              {results.length === 0 && query.trim() && (
+                <button className={styles.modalItem} onClick={() => submit(query)}>
+                  <span className={styles.modalGoIcon} aria-hidden>↵</span>
+                  <span className={styles.modalGo}>Go to <strong>{query.trim().toUpperCase()}</strong></span>
+                </button>
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <span><kbd className={styles.kbd}>↑</kbd><kbd className={styles.kbd}>↓</kbd> navigate</span>
+              <span><kbd className={styles.kbd}>↵</kbd> open</span>
+              <span><kbd className={styles.kbd}>esc</kbd> close</span>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {open && menuPos && menuPos.mode !== 'centered' && createPortal(
         <div
           ref={dropdownRef}
           className={styles.dropdown}

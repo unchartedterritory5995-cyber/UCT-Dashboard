@@ -108,7 +108,10 @@ function liveGroupReturn(theme, periodKey, prices) {
 }
 
 // A return cell that briefly flashes bold (TC2000-style) whenever its displayed
-// value changes — green flash on an uptick, red on a downtick.
+// value changes. TINT COLOR follows the DAY DIRECTION, not the tick direction: a
+// holding green on the day always flashes the up-tint (even on a down-tick), one
+// red on the day always flashes the down-tint. `value` IS the day return, so its
+// sign == the day direction. `dir` now only GATES the flash (any change).
 function ReturnCell({ value, baseClass }) {
   const [dir, setDir] = useState(null)
   const prevRef = useRef(null)
@@ -123,7 +126,7 @@ function ReturnCell({ value, baseClass }) {
     }
     prevRef.current = r
   }, [value])
-  const flashCls = dir === 'up' ? styles.flashUp : dir === 'down' ? styles.flashDown : ''
+  const flashCls = dir ? (value >= 0 ? styles.flashUp : styles.flashDown) : ''
   return (
     <span className={`${baseClass} ${dir ? styles.retFlash : ''} ${flashCls}`}>
       {fmtRet(value)}

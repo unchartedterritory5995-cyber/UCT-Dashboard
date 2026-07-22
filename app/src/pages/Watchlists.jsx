@@ -111,9 +111,17 @@ function fmtVol(v) {
 
 // Flash a quick bold (+ optional up/down background tint) whenever a cell's value
 // ticks — mirrors ThemeTrackerPage's ReturnCell so the watchlist feels as "live"
-// as the theme tracker. `tint` adds the green/red background flash (the % column);
+// as the theme tracker. `tint` adds the up/down background flash (the % column);
 // price/volume flash bold only. No flash on first paint (prevRef seeds to value).
-const FlashCell = React.memo(function FlashCell({ value, display, className, tint = false }) {
+//
+// TINT COLOR follows the DAY DIRECTION, not the tick direction: a stock green on
+// the day always flashes the up-tint (even on a down-tick), a stock red on the day
+// always flashes the down-tint. `tintSign` supplies that day value; it defaults to
+// the cell's own value (the % column's value IS the day change, so its sign already
+// == day direction). tickUp/tickDown map to the user's custom --wl-tint colors, so
+// this stays palette-agnostic. `dir` now only GATES the flash (any change), the
+// color comes from the day sign.
+const FlashCell = React.memo(function FlashCell({ value, display, className, tint = false, tintSign = null }) {
   const [dir, setDir] = useState(null)
   const prevRef = useRef(value)
   useEffect(() => {
@@ -126,8 +134,9 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
     }
     prevRef.current = value
   }, [value])
+  const daySign = tintSign != null ? tintSign : value
   const flash = dir
-    ? `${styles.tickFlash}${tint ? ' ' + (dir === 'up' ? styles.tickUp : styles.tickDown) : ''}`
+    ? `${styles.tickFlash}${tint ? ' ' + (daySign >= 0 ? styles.tickUp : styles.tickDown) : ''}`
     : ''
   // The tint/bold ride an INNER content-sized box so the flash hugs the value
   // (like Theme Tracker), not the full-width grid cell. Outer keeps cell layout.
