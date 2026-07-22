@@ -1,6 +1,8 @@
 // Single global registry. All chart instances subscribe here for live state.
 // Replaces per-component liveBarRef + series.update logic; multi-chart sync is automatic.
 
+import { LIVE_UI_CADENCE_MS } from '../utils/streamStatus';
+
 const _state = new Map(); // sym -> { tf -> {o,h,l,c,v,t} }
 const _subscribers = new Map(); // sym -> Set<callback>
 const _correctionSubscribers = new Map(); // sym -> Set<callback>
@@ -9,6 +11,25 @@ function _notify(sym) {
   const subs = _subscribers.get(sym);
   if (!subs) return;
   subs.forEach(cb => { try { cb(); } catch {} });
+}
+
+// Coalesce the candle repaint to the shared live-UI cadence (in lockstep with
+// priceStreamManager's PUBLISH_THROTTLE_MS). The o/h/l/c/v state is ALWAYS updated
+// immediately (getCandle stays current for a freshly-mounting chart); only the
+// subscriber repaint is throttled per-symbol: leading edge fires at once, then at
+// most once per window, with a trailing flush so the final tick of a burst always
+// paints. Bar closes/corrections bypass this and notify immediately — they're
+// once-a-minute discrete events, not churn, and accuracy matters more than calm.
+const _tickThrottleTimers = new Map(); // sym -> timeout id (throttle window open)
+const _tickPending = new Map();        // sym -> true if a repaint was requested mid-window
+
+function _notifyTickThrottled(sym) {
+  if (_tickThrottleTimers.has(sym)) { _tickPending.set(sym, true); return; }
+  _notify(sym); // leading edge
+  _tickThrottleTimers.set(sym, setTimeout(() => {
+    _tickThrottleTimers.delete(sym);
+    if (_tickPending.get(sym)) { _tickPending.delete(sym); _notify(sym); }
+  }, LIVE_UI_CADENCE_MS));
 }
 
 function _notifyCorrection(sym) {
@@ -39,7 +60,7 @@ export function applyTick(sym, price, vol, ts) {
     };
   }
   _state.set(sym, symState);
-  _notify(sym);
+  _notifyTickThrottled(sym);
 }
 
 export function applyBarClose(sym, tf, bar) {
@@ -75,4 +96,7 @@ export function _reset() {
   _state.clear();
   _subscribers.clear();
   _correctionSubscribers.clear();
+  for (const t of _tickThrottleTimers.values()) clearTimeout(t);
+  _tickThrottleTimers.clear();
+  _tickPending.clear();
 }

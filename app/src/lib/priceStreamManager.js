@@ -18,7 +18,7 @@
 
 import * as realtimeCandle from './realtimeCandle'
 import {
-  STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS,
+  STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS, LIVE_UI_CADENCE_MS,
 } from '../utils/streamStatus'
 
 export const MAX_SSE_TICKERS = 50   // mirror of api/routers/stream.py MAX_SSE_TICKERS
@@ -38,13 +38,14 @@ function _allConnected() {
   return _buckets.length > 0 && _buckets.every(b => b.connected)
 }
 
-// Coalesce re-render notifications to a ~2x/sec HEARTBEAT. Updating the whole app
-// (watchlist, theme tracker, header %, chart legend source) on EVERY tick is visual
-// churn + a re-render storm across many rows; a calm 500ms cadence looks less chaotic
+// Coalesce re-render notifications to the shared live-UI cadence. Updating the whole
+// app (watchlist, theme tracker, header %, chart legend source) on EVERY tick is visual
+// churn + a re-render storm across many rows; a calm, fixed cadence looks less chaotic
 // AND is lighter. The snapshot is refreshed IMMEDIATELY so getSnapshot() (and a
 // freshly-mounting consumer) always reads current data — only the notify (re-render)
-// is throttled: leading edge fires at once, then at most once per 500ms window.
-const PUBLISH_THROTTLE_MS = 500
+// is throttled: leading edge fires at once, then at most once per window. Keep this in
+// lockstep with realtimeCandle's flush so numbers and candle move together.
+const PUBLISH_THROTTLE_MS = LIVE_UI_CADENCE_MS
 let _throttleTimer = null
 let _pendingPublish = false
 
