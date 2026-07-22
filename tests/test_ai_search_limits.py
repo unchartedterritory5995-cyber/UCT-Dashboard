@@ -508,3 +508,34 @@ def test_stream_endpoint_logs_final_answer_and_id(monkeypatch, tmp_path):
     assert ins["window_count"] == 1
     assert ins["recent"][0]["answer_snip"].startswith("SMCI is ripping")
     assert ins["recent"][0]["endpoint"] == "stream"
+
+
+# ── Phase 2 memory blend wiring ──────────────────────────────────────────────
+def _capture_system_fake():
+    cap = {}
+    def fake(query, **kw):
+        cap['system'] = kw.get('system', '')
+        return {"answer": "x", "citations": [], "related_questions": [], "cached": False}
+    return cap, fake
+
+
+def test_memory_block_injected_into_system(monkeypatch):
+    _reset_counters()
+    cap, fake = _capture_system_fake()
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    import api.services.ai_search_memory as mem
+    monkeypatch.setattr(mem, "retrieve_context", lambda q, qt, **k: "\n\nPRIOR DESK RESEARCH (test block)")
+    r = _client().post("/api/ai-search", json={"query": "what is a VCP pattern"})
+    assert r.status_code == 200
+    assert "PRIOR DESK RESEARCH (test block)" in cap['system']
+
+
+def test_memory_absent_when_retrieval_empty(monkeypatch):
+    _reset_counters()
+    cap, fake = _capture_system_fake()
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    import api.services.ai_search_memory as mem
+    monkeypatch.setattr(mem, "retrieve_context", lambda q, qt, **k: "")   # flag off / no hit
+    r = _client().post("/api/ai-search", json={"query": "what is a VCP pattern"})
+    assert r.status_code == 200
+    assert "PRIOR DESK RESEARCH" not in cap['system']   # invariance: nothing injected

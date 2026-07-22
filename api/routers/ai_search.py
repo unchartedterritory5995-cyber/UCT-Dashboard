@@ -777,14 +777,31 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
 
 def _grounded_system(query: str) -> tuple[str, str, dict]:
     ctx, salt, meta = _uct_context(query)
-    if not ctx:
-        return _WIDGET_SYSTEM, "", meta
-    return (
-        _WIDGET_SYSTEM
-        + "\n\nUCT DESK CONTEXT (internal desk data — authoritative for price, "
-          "percent move, and market regime; prefer these figures over web "
-          "sources and attribute them to 'UCT desk data'): " + ctx
-    ), salt, meta
+    # question_type drives the Phase-2 memory blend (and is captured in the log).
+    try:
+        from api.services import ai_search_log
+        meta["question_type"] = ai_search_log.classify_question_type(query)
+    except Exception:
+        meta["question_type"] = None
+    system = _WIDGET_SYSTEM
+    if ctx:
+        system += (
+            "\n\nUCT DESK CONTEXT (internal desk data — authoritative for price, "
+            "percent move, and market regime; prefer these figures over web "
+            "sources and attribute them to 'UCT desk data'): " + ctx
+        )
+    # Phase 2 — blend in the desk's OWN prior evergreen research (best-effort,
+    # flag + question-type gated, labeled 'may be dated' so live data stays primary).
+    # NOTE: this can make a blocking embedding call, so the streaming endpoint runs
+    # _grounded_system in a thread (never on the shared event loop).
+    try:
+        from api.services import ai_search_memory
+        mblock = ai_search_memory.retrieve_context(query, meta.get("question_type"))
+        if mblock:
+            system += mblock
+    except Exception:
+        pass
+    return system, salt, meta
 
 
 class AiSearchIn(BaseModel):
@@ -943,7 +960,11 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     _reserve(user_id, units)   # reserve BEFORE opening the stream (bill even if client disconnects)
     _record_request(mode, stream=True)
     history = _clean_history(body.history)
-    system, salt, meta = _grounded_system(body.query)
+    # Build the grounded system OFF the event loop — grounding reads + the Phase-2
+    # memory embedding call are blocking, and this runs on the single shared loop
+    # (the 524-outage surface). run_in_executor keeps the loop free.
+    loop = asyncio.get_running_loop()
+    system, salt, meta = await loop.run_in_executor(None, _grounded_system, body.query)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
     answer_id = ai_search_log_new_id()
 
@@ -1050,7 +1071,21 @@ def ai_search_admin_log(days: int = 7, limit: int = 50, user: dict = Depends(req
     from api.services import ai_search_log
     days = max(1, min(90, int(days or 7)))
     limit = max(1, min(200, int(limit or 50)))
-    return ai_search_log.insights(days=days, recent_limit=limit)
+    out = ai_search_log.insights(days=days, recent_limit=limit)
+    try:
+        from api.services import ai_search_memory
+        out["memory"] = ai_search_memory.status()   # Phase-2 house-brain summary
+    except Exception:
+        out["memory"] = {"enabled": False, "indexed": 0}
+    return out
+
+
+@router.post("/admin/reindex")
+def ai_search_admin_reindex(user: dict = Depends(require_admin)):
+    """Force a rebuild of the Phase-2 house-brain index from the eligible evergreen
+    log rows. Runs inline (admin path, off the user request path)."""
+    from api.services import ai_search_memory
+    return ai_search_memory.reindex()
 
 
 class AiSignalIn(BaseModel):
