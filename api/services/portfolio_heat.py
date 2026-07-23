@@ -105,7 +105,7 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
         if not sym:
             continue
         try:
-            entry = float(p.get("entry_price"))
+            entry = float(p.get("entryPrice"))
             shares = float(p.get("shares"))
         except (TypeError, ValueError):
             continue
@@ -113,7 +113,7 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
         # surface it, never silently drop it (dropping it under-reports heat and
         # would let a confident over-cap add escape the no-GO guard).
         try:
-            stop = float(p.get("stop_price"))
+            stop = float(p.get("stopPrice"))
             is_placeholder = (stop == entry) or stop <= 0
         except (TypeError, ValueError):
             stop, is_placeholder = entry, True

@@ -145,8 +145,8 @@ def _current_portfolio_risk(user_id: str, account_id: str | None) -> dict:
         sector_lookup = {}
 
     for p in opens:
-        entry = p.get("entry_price")
-        stop = p.get("stop_price")
+        entry = p.get("entryPrice")
+        stop = p.get("stopPrice")
         shares = p.get("shares")
         sym = (p.get("symbol") or "").upper()
         if entry is None or stop is None or shares is None or not sym:

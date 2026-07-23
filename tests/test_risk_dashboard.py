@@ -57,9 +57,10 @@ def test_dashboard_sector_cap_is_2_5x_max_risk():
 def test_dashboard_includes_position_risk(monkeypatch):
     """When the user has open positions, total_risk + by_symbol populate."""
     uid = _user()
+    # Matches the real shape journal_two.positions._row_to_position returns (camelCase).
     fake_positions = [
-        {"symbol": "NVDA", "entry_price": 200, "stop_price": 195, "shares": 100},
-        {"symbol": "AAPL", "entry_price": 180, "stop_price": 175, "shares": 50},
+        {"symbol": "NVDA", "entryPrice": 200, "stopPrice": 195, "shares": 100},
+        {"symbol": "AAPL", "entryPrice": 180, "stopPrice": 175, "shares": 50},
     ]
     with patch("api.services.journal_two.positions.list_open_positions",
                return_value=fake_positions), \
@@ -78,9 +79,10 @@ def test_dashboard_includes_position_risk(monkeypatch):
 def test_dashboard_sector_aggregation(monkeypatch):
     """When positions share sectors, by_sector aggregates them."""
     uid = _user()
+    # Matches the real shape journal_two.positions._row_to_position returns (camelCase).
     fake_positions = [
-        {"symbol": "NVDA", "entry_price": 200, "stop_price": 195, "shares": 100},
-        {"symbol": "AMD",  "entry_price": 100, "stop_price": 98,  "shares": 100},
+        {"symbol": "NVDA", "entryPrice": 200, "stopPrice": 195, "shares": 100},
+        {"symbol": "AMD",  "entryPrice": 100, "stopPrice": 98,  "shares": 100},
     ]
     def fake_themes(sym):
         return [{"sector_name": "Technology", "ticker": "XLK"}]

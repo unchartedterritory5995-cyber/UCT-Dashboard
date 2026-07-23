@@ -2,7 +2,8 @@ from api.services import portfolio_heat as ph
 
 
 def _pos(sym, entry, stop, shares, side="long"):
-    return {"symbol": sym, "entry_price": entry, "stop_price": stop, "shares": shares, "side": side}
+    # Matches the real shape journal_two.positions._row_to_position returns (camelCase).
+    return {"symbol": sym, "entryPrice": entry, "stopPrice": stop, "shares": shares, "side": side}
 
 
 def _fns(positions, regime="bull_trend", exposure=120, cap=10.0):
@@ -54,8 +55,8 @@ def test_never_raises():
 def test_by_sector_concentration_flag(monkeypatch):
     monkeypatch.setattr(ph, "_sectors_for", lambda sym: {"Semiconductors"})
     out = ph.portfolio_heat("u", positions_fn=lambda uid, aid: [
-        {"symbol": "NVDA", "entry_price": 130, "stop_price": 127, "shares": 100, "side": "long"},
-        {"symbol": "AMD", "entry_price": 100, "stop_price": 97, "shares": 100, "side": "long"}],
+        {"symbol": "NVDA", "entryPrice": 130, "stopPrice": 127, "shares": 100, "side": "long"},
+        {"symbol": "AMD", "entryPrice": 100, "stopPrice": 97, "shares": 100, "side": "long"}],
         regime_fn=lambda: {"regime": "bull_trend", "exposure_rating": 120}, cap_fn=lambda: 10.0,
         account_size=100000.0)
     assert any(f["sector"] == "Semiconductors" for f in out["concentration_flags"])
@@ -63,7 +64,7 @@ def test_by_sector_concentration_flag(monkeypatch):
 
 def test_null_stop_is_placeholder_not_dropped():
     out = ph.portfolio_heat("u", **_fns([_pos("DECK", 105, 100, 100),
-                                         {"symbol": "NUL", "entry_price": 50, "stop_price": None, "shares": 200}]))
+                                         {"symbol": "NUL", "entryPrice": 50, "stopPrice": None, "shares": 200}]))
     assert "NUL" in out["placeholder_stops"]          # surfaced, not dropped
     assert out["risk_heat_pct"] == 0.5                # only DECK counts
     assert any(p["symbol"] == "NUL" and p["placeholder_stop"] for p in out["per_position"])
