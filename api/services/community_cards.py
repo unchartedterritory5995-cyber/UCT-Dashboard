@@ -159,6 +159,12 @@ def build_card(kind: str, ref: dict, *, user_id: str, load_trade) -> dict:
     if kind == "ai":
         # Share an AI Search answer to the floor. The client sends the question +
         # a plain-text answer teaser it already displayed; server sanitizes + caps.
+        # SECURITY: a personal AI answer (position/P&L grounded) must never become
+        # a community card, regardless of what the client sends — refuse it the
+        # same way every other malformed/disallowed input in this function is
+        # refused (raise ValueError -> 400 in the router), never a silent pass-through.
+        if ref.get("personal"):
+            raise ValueError("personal AI answers cannot be shared to community")
         q = _clean_text(ref.get("q"), 200)
         a = _clean_text(ref.get("a"), 900)
         if not (q and a):
