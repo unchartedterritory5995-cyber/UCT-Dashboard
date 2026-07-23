@@ -45,5 +45,5 @@ def render_catalysts(token: str = "", n: int = 3, date: str = ""):
             if rows:
                 md = prev
                 break
-    n = max(1, min(int(n or 3), 10))
+    n = max(1, min(int(n or 3), 80))  # up to 80 so the newsletter can build a movers→news map
     return {"market_date": md, "rows": rows[:n]}
