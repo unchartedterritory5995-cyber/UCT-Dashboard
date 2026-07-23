@@ -674,6 +674,60 @@ def _pull_analyst_actions() -> dict[str, dict]:
         return {}
 
 
+def _pull_fmp_analyst() -> dict[str, dict]:
+    """Source 10: FMP analyst rating changes — `grades-latest-news`, a MARKET-WIDE
+    feed of the freshest upgrades / downgrades / initiations off the Street
+    (TheFly-sourced). A genuine rating change is a catalyst; each row maps onto
+    the existing `analyst_meta` shape, so it reuses the tag / gate / curator /
+    synthesis plumbing with no new wiring.
+
+    Only genuine rating CHANGES are kept (upgrade/downgrade/initiate, or a
+    changed grade) — routine PT-reiterations are dropped to keep the pool clean.
+    Fail-soft (no key / any error => {}). Gated on CATALYST_FMP_ANALYST_ENABLED
+    (default on). Complements the Finnhub/wire analyst source (that one wins on
+    a conflict; FMP fills gaps + surfaces analyst-driven names it missed)."""
+    if os.environ.get("CATALYST_FMP_ANALYST_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return {}
+    key = os.environ.get("FMP_API_KEY", "")
+    if not key:
+        return {}
+    try:
+        import requests
+        limit = int(os.environ.get("CATALYST_FMP_ANALYST_LIMIT", "100"))
+        timeout = float(os.environ.get("CATALYST_FMP_ANALYST_TIMEOUT", "8"))
+        r = requests.get("https://financialmodelingprep.com/stable/grades-latest-news",
+                         params={"limit": limit, "apikey": key}, timeout=timeout)
+        r.raise_for_status()
+        rows = r.json()
+    except Exception as e:
+        logger.warning("[catalyst-sources] FMP analyst pull failed: %s", e)
+        return {}
+    if not isinstance(rows, list):
+        return {}
+    real_actions = {"upgrade", "downgrade", "initiate", "initiated"}
+    out: dict[str, dict] = {}
+    for row in rows:                                   # newest-first: first per sym wins
+        sym = (row.get("symbol") or "").upper()
+        if not sym or sym in out:
+            continue
+        action = (row.get("action") or "").strip().lower()
+        prev = row.get("previousGrade")
+        new = row.get("newGrade")
+        # Keep only genuine rating changes; drop routine PT-reiterations.
+        if action not in real_actions and (not prev or not new or prev == new):
+            continue
+        out[sym] = {
+            "action": action or "rating change",
+            "firm": row.get("gradingCompany"),
+            "from_rating": prev,
+            "to_rating": new,
+            "price_target": None,
+            "at": _parse_iso_to_unix(row.get("publishedDate") or ""),
+            "source": "FMP",
+        }
+    return out
+
+
 def _merge_hunter_hits(by_ticker: dict, hits: list[dict]) -> list[dict]:
     """Fold Catalyst-Hunter hits onto the candidate pool (keyed by ticker).
     Enriches existing entries in place; creates a minimal new entry for an
@@ -752,6 +806,7 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
         "scanner":    _pull_scanner_setups,
         "perplexity": _pull_perplexity_discovery,
         "analyst":    _pull_analyst_actions,
+        "fmp_analyst": _pull_fmp_analyst,
         "flow":       _pull_options_flow,
     }
     results: dict[str, dict] = {}
@@ -776,6 +831,7 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
     universe.update(results.get("scanner", {}).keys())
     universe.update(results.get("perplexity", {}).keys())
     universe.update(results.get("analyst", {}).keys())
+    universe.update(results.get("fmp_analyst", {}).keys())
     universe.update(results.get("flow", {}).keys())
 
     # Record per-source contribution so the health check can spot a dead source.
@@ -805,7 +861,10 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
         for pp_item in (results.get("perplexity", {}).get(ticker, []) or []):
             rss.append(pp_item)
         setup = results["scanner"].get(ticker)
-        analyst_meta = results.get("analyst", {}).get(ticker)
+        # Finnhub/wire analyst wins on conflict; FMP grades-latest-news fills the
+        # gap + surfaces analyst-driven names the wire source missed.
+        analyst_meta = (results.get("analyst", {}).get(ticker)
+                        or results.get("fmp_analyst", {}).get(ticker))
         flow_meta = results.get("flow", {}).get(ticker)
 
         sector = snap.get("sector")
