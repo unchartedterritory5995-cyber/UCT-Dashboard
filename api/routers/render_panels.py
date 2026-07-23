@@ -1,15 +1,18 @@
-"""Token-gated public data for the headless render pages (/r/catalysts, /r/calendar).
+"""Token-gated public data for the headless render pages (/r/catalysts, /r/calendar, …).
 
 The Morning Wire → Substack renderer screenshots the /r/* pages in a logged-OUT
-headless browser. `/api/calendar` and `/api/ticker-logo` are already public, but
-`/api/catalysts/today` is auth-gated — so this exposes the SAME catalyst rows
-behind a shared render token (CHART_RENDER_TOKEN, the backend twin of the
-frontend's VITE_CHART_RENDER_TOKEN). Read-only, no side effects.
+headless browser, so these endpoints are gated only by a shared render token
+(CHART_RENDER_TOKEN). That token is inlined into the frontend JS bundle, so treat
+these as EFFECTIVELY PUBLIC: return only fields safe to expose (no internal
+signal-sourcing / scoring), and rate-limit so they can't be abused to drive
+unbounded provider calls. Read-only, no side effects.
 """
 
 from __future__ import annotations
 
+import hmac
 import os
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -19,6 +22,25 @@ from api.services.catalyst import store as catalyst_store
 
 router = APIRouter(prefix="/api", tags=["render"])
 
+# Public catalyst fields safe to expose — the panel shows only these. Internal
+# columns (raw_signals, score, signals_hash, thesis_model, thesis_sources, …) are
+# deliberately NOT returned so the endpoint can't leak the signal-sourcing/scoring.
+_CATALYST_PUBLIC = ("ticker", "price", "gap_pct", "vol_x", "tag", "catalyst_type",
+                    "thesis_text", "catalyst_at", "market_cap", "sector")
+
+# Shared sliding-window rate limit across all /r/* endpoints — the legit caller is
+# the once-a-day newsletter (~5 requests); this only bounds abuse.
+_RL: list[float] = []
+_RL_MAX_PER_MIN = 60
+
+
+def _rate_limit() -> None:
+    now = time.time()
+    _RL[:] = [t for t in _RL if now - t < 60.0]
+    if len(_RL) >= _RL_MAX_PER_MIN:
+        raise HTTPException(status_code=429, detail="rate limited")
+    _RL.append(now)
+
 
 def _et_today() -> str:
     return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
@@ -26,13 +48,15 @@ def _et_today() -> str:
 
 def _check_token(token: str) -> None:
     want = os.environ.get("CHART_RENDER_TOKEN", "")
-    if not want or token != want:
+    # Fail CLOSED when unset, constant-time compare when set.
+    if not want or not hmac.compare_digest(str(token), want):
         raise HTTPException(status_code=403, detail="forbidden")
+    _rate_limit()
 
 
 @router.get("/r/catalysts")
 def render_catalysts(token: str = "", n: int = 3, date: str = ""):
-    """Top-N ranked Stock Catalysts for today (or `date`) — token-gated public read."""
+    """Top-N ranked Stock Catalysts for today (or `date`) — public-safe fields only."""
     _check_token(token)
     md = date or _et_today()
     rows = catalyst_store.get_for_date(md) or []
@@ -45,17 +69,19 @@ def render_catalysts(token: str = "", n: int = 3, date: str = ""):
             if rows:
                 md = prev
                 break
-    n = max(1, min(int(n or 3), 80))  # up to 80 so the newsletter can build a movers→news map
-    return {"market_date": md, "rows": rows[:n]}
+    n = max(1, min(int(n or 3), 40))
+    public = [{k: r.get(k) for k in _CATALYST_PUBLIC} for r in rows[:n]]
+    return {"market_date": md, "rows": public}
 
 
 def _rev_m(v):
-    """Normalize revenue to $ millions (FMP gives raw dollars; some paths give millions)."""
+    """Normalize revenue to $ millions. Values >= $1M-in-millions ($1T/qtr) are
+    impossible, so anything that large must be raw dollars → divide."""
     try:
         v = float(v)
     except (TypeError, ValueError):
         return None
-    return v / 1e6 if abs(v) >= 1e9 else v  # >=1e9 ⇒ raw dollars; else already millions
+    return v / 1e6 if abs(v) >= 1e6 else v
 
 
 @router.get("/r/earnings-history")
@@ -66,12 +92,14 @@ def render_earnings_history(token: str = "", syms: str = ""):
     _check_token(token)
     from api.services import earnings_table as et
     out = {}
-    for sym in [s.strip().upper() for s in (syms or "").split(",") if s.strip()][:15]:
+    for sym in [s.strip().upper() for s in (syms or "").split(",") if s.strip()][:12]:
         try:
             q = (et.get_earnings_table(sym) or {}).get("quarterly", []) or []
             reported = [r for r in q if r.get("reported")]
             forward = [r for r in q if not r.get("reported")]
-            last, nxt = (reported[-1] if reported else None), (forward[0] if forward else None)
+            # Order-independent: labels are "YYYY QN" (lexicographic == chronological).
+            last = max(reported, key=lambda r: r.get("label") or "") if reported else None
+            nxt = min(forward, key=lambda r: r.get("label") or "￿") if forward else None
             out[sym] = {
                 "last_q": ({"label": last.get("label"), "eps": last.get("eps_actual"),
                             "rev_m": _rev_m(last.get("rev_actual"))} if last else None),
@@ -93,19 +121,17 @@ def render_tweets(token: str = "", n: int = 5, hours: int = 18):
     screenshots /r/tweets into a 'Top Tweets' panel.
     """
     _check_token(token)
+    hours = max(1, min(int(hours or 18), 48))
     try:
         from api.services import tweet_store
-        rows = tweet_store.feed(hours=int(hours or 18), limit=60) or []
+        rows = tweet_store.feed(hours=hours, limit=60) or []
     except Exception:  # noqa: BLE001
         rows = []
     with_tickers = [t for t in rows if t.get("tickers")]
     picked = (with_tickers or rows)[: max(1, min(int(n or 5), 10))]
     out = [{
-        "author_handle": t.get("author_handle"),
-        "author_name": t.get("author_name"),
         "text": t.get("text"),
         "tickers": t.get("tickers", []),
         "created_at": t.get("created_at"),
-        "like_count": t.get("like_count"),
     } for t in picked]
     return {"tweets": out}
