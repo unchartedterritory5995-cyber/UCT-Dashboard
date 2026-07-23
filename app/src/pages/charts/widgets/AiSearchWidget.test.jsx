@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 // ShareToFloor fetches /api/community/status on mount — stub it so it doesn't
-// add fetch calls the assertions don't expect.
-vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => null }))
+// add fetch calls the assertions don't expect. Rendered as a real, findable
+// element (not null) so tests can assert its presence/absence per entry.
+vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => <button>Share to Floor</button> }))
 import AiSearchWidget from './AiSearchWidget'
 
 // Plain JSON mock — has no .body stream, so run() falls back to the
@@ -27,6 +28,21 @@ function sseBody(events) {
 
 function mockStreamFetch(events) {
   global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, body: sseBody(events) })
+}
+
+// A manually-driven SSE stream: unlike sseBody (all events queued upfront —
+// they land on the very first render, so a transient state like the
+// personal-waiting-line can never be observed), this lets a test push one
+// event, let React commit, assert, then push the next.
+function controllableSseStream() {
+  let ctrl
+  const enc = new TextEncoder()
+  const stream = new ReadableStream({ start(c) { ctrl = c } })
+  return {
+    stream,
+    push: (ev) => ctrl.enqueue(enc.encode(`data: ${JSON.stringify(ev)}\n\n`)),
+    close: () => ctrl.close(),
+  }
 }
 
 const GOOD = {
@@ -61,6 +77,30 @@ describe('AiSearchWidget', () => {
     expect(cite.getAttribute('href')).toBe('https://www.wsj.com/article-one')
     // compliance line present
     expect(screen.getByText(/verify before trading/i)).toBeTruthy()
+    // non-personal answer: no regression — ShareToFloor + the retention
+    // disclaimer both still render exactly as before.
+    expect(screen.getByRole('button', { name: /share to floor/i })).toBeTruthy()
+    expect(screen.getByText(/retained de-identified/i)).toBeTruthy()
+  })
+
+  it('personal answer: position-aware waiting state, no ShareToFloor, no retention disclaimer', async () => {
+    const s = controllableSseStream()
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, body: s.stream })
+    render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'am i overexposed' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    // meta arrives first — position-aware waiting line shown before any delta/final.
+    s.push({ type: 'meta', personal: true })
+    expect(await screen.findByText(/your positions/i)).toBeTruthy()
+    s.push({ type: 'delta', text: 'Your NVDA position is up 4% today.' })
+    s.push({ type: 'final', personal: true, answer: 'Your NVDA position is up 4% today.', citations: [] })
+    s.close()
+    await waitFor(() => expect(screen.getByText(/Your NVDA position is up 4%/)).toBeTruthy())
+    // No community-share affordance and no de-identified-retention claim on a
+    // personal, position-aware turn.
+    expect(screen.queryByRole('button', { name: /share to floor/i })).toBeNull()
+    expect(screen.queryByText(/retained de-identified/i)).toBeNull()
   })
 
   it('429 shows the friendly limit notice, not the red error', async () => {

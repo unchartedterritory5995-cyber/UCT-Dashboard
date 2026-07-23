@@ -186,12 +186,16 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
         <button className={styles.actionBtn} onClick={() => onSave(entry)} title="Save this answer (reopen it later)">
           {isSaved ? 'Saved ✓' : 'Save'}
         </button>
-        <ShareToFloor
-          compact
-          label="Share"
-          card={{ kind: 'ai', q: entry.q, a: plainAnswer(entry.answer), tickers: extractTickers(entry.answer) }}
-          onShared={() => emitSignal(entry.answerId, 'share')}
-        />
+        {/* Personal answers (position-aware) are never eligible for community
+            sharing — they're grounded in the member's own book, not a public take. */}
+        {!entry.personal && (
+          <ShareToFloor
+            compact
+            label="Share"
+            card={{ kind: 'ai', q: entry.q, a: plainAnswer(entry.answer), tickers: extractTickers(entry.answer) }}
+            onShared={() => emitSignal(entry.answerId, 'share')}
+          />
+        )}
       </div>
 
       {isLast && entry.related?.length > 0 && (
@@ -254,6 +258,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const [pending, setPending] = useState(null)   // question in flight (shown at the tail)
   const [streamText, setStreamText] = useState('')   // partial answer while streaming
   const [deep, setDeep] = useState(false)   // reasoning tier — longer silent think phase
+  const [personalPending, setPersonalPending] = useState(false)   // branch entered a personal (position-aware) answer — shown before the final payload confirms it
   const inputRef = useRef(null)
   const bodyRef = useRef(null)
   // threadRef mirrors `thread` so run()/tryStream (stable callbacks) always read
@@ -304,6 +309,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       answerId: d.answer_id || null,   // stable server id → join save/share/pin signals
       citations: Array.isArray(d.citations) ? d.citations : [],
       related: Array.isArray(d.related_questions) ? d.related_questions.slice(0, 3) : [],
+      personal: !!d.personal,   // position-aware answer — gates ShareToFloor + the retention disclaimer
     }
     threadRef.current = [...threadRef.current, entry]
     setThread(threadRef.current)
@@ -360,6 +366,9 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
           // reasoning tier goes silent through its (stripped) think phase —
           // tell the member it's a deeper pass so the wait doesn't read as hung.
           if (ev.mode === 'reasoning') setDeep(true)
+          // backend entered the personal (position-aware) branch — swap the
+          // waiting line before the final payload confirms it.
+          if (ev.personal) setPersonalPending(true)
         } else if (ev.type === 'delta' && ev.text) {
           text += ev.text
           setStreamText(text)
@@ -390,7 +399,7 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
     stoppedRef.current = false
     const ctrl = new AbortController()
     abortRef.current = ctrl
-    setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery(''); setStreamText(''); setDeep(false)
+    setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery(''); setStreamText(''); setDeep(false); setPersonalPending(false)
     try {
       let outcome = null
       try {
@@ -468,13 +477,13 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
       if (!exists) emitSignal(entry.answerId, 'save')
       const next = exists
         ? prev.filter((s) => s.q !== entry.q)
-        : [{ q: entry.q, answer: entry.answer, citations: entry.citations || [], related: entry.related || [] }, ...prev].slice(0, 30)
+        : [{ q: entry.q, answer: entry.answer, citations: entry.citations || [], related: entry.related || [], personal: !!entry.personal }, ...prev].slice(0, 30)
       persistSaved(next)
       return next
     })
   }, [])
   const restoreSaved = useCallback((item) => {
-    const entry = { id: ++idRef.current, q: item.q, answer: item.answer || '', citations: item.citations || [], related: item.related || [] }
+    const entry = { id: ++idRef.current, q: item.q, answer: item.answer || '', citations: item.citations || [], related: item.related || [], personal: !!item.personal }
     threadRef.current = [...threadRef.current, entry]
     setThread(threadRef.current)
   }, [])
@@ -556,7 +565,9 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
               </div>
             ) : (
               <div className={styles.status}>
-                <span className={styles.spinner} /> {deep ? 'Reasoning through this — a deeper pass, ~20-30s…' : SEARCH_PHASES[phase]}
+                <span className={styles.spinner} /> {personalPending
+                  ? 'Checking your positions and the desk read…'
+                  : (deep ? 'Reasoning through this — a deeper pass, ~20-30s…' : SEARCH_PHASES[phase])}
               </div>
             )}
           </div>
@@ -565,7 +576,10 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         {!loading && error && <div className={styles.error}>{error}</div>}
         {!loading && limitMsg && <div className={styles.limit}>{limitMsg}</div>}
 
-        {thread.length > 0 && (
+        {/* Retention disclaimer is FALSE for a personal (position-aware) turn —
+            those questions are never logged/retained de-identified — so it's
+            gated on the latest turn's personal flag, not shown blanket. */}
+        {thread.length > 0 && !thread[thread.length - 1]?.personal && (
           <div className={styles.disclaimer}>
             AI-generated research — verify before trading. Questions are retained de-identified to improve the research desk.
           </div>
