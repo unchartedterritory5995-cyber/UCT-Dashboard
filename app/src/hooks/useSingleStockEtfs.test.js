@@ -1,6 +1,8 @@
 // app/src/hooks/useSingleStockEtfs.test.js
-import { renderHook, waitFor } from '@testing-library/react'
+import React from 'react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { SWRConfig, useSWRConfig } from 'swr'
 import useSingleStockEtfs from './useSingleStockEtfs'
 
 const FAMILY = {
@@ -34,5 +36,38 @@ describe('useSingleStockEtfs', () => {
     const { result } = renderHook(() => useSingleStockEtfs('KO'))
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
     expect(result.current.hasFamily).toBe(false)
+  })
+
+  it('a non-ok first load yields no family without crashing', async () => {
+    global.fetch = vi.fn(async () => ({ ok: false, status: 503 }))
+    const { result } = renderHook(() => useSingleStockEtfs('NBIS'))
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    expect(result.current.hasFamily).toBe(false)   // nothing to show yet; SWR will retry
+    expect(result.current.family).toBeNull()
+  })
+
+  it('KEEPS the last-good family through a transient failure (the deploy-blip bug)', async () => {
+    // First fetch succeeds; a later revalidation blips (503). The pill must NOT
+    // vanish — SWR retains data for the key on error because the fetcher throws.
+    let n = 0
+    global.fetch = vi.fn(async () => {
+      n += 1
+      return n === 1 ? { ok: true, json: async () => FAMILY } : { ok: false, status: 503 }
+    })
+    const wrapper = ({ children }) => React.createElement(
+      SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0 } }, children)
+    const { result } = renderHook(() => {
+      const fam = useSingleStockEtfs('NBIS')
+      const { mutate } = useSWRConfig()
+      return { fam, mutate }
+    }, { wrapper })
+    await waitFor(() => expect(result.current.fam.hasFamily).toBe(true))
+    // force a revalidation that fails (simulates the /api blip during a deploy)
+    await act(async () => {
+      await result.current.mutate('/api/single-stock-etfs/NBIS').catch(() => {})
+    })
+    expect(n).toBeGreaterThan(1)                        // the failing refetch actually ran
+    expect(result.current.fam.hasFamily).toBe(true)     // pill STILL shows (last-good retained)
+    expect(result.current.fam.family.best_long).toBe('NBIL')
   })
 })

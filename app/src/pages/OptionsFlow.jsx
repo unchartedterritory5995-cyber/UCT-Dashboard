@@ -3613,47 +3613,62 @@ export default function OptionsFlowDashboard() {
     };
     const L = gexData.levels || {};
     const lines = [];
+    const _labeledPrices = []; // strikes already carrying a right-axis label — used to de-dupe secondary labels
     // Primary walls + flip — names/colors from the backend classification
     // `role` (Ceiling/Floor/Pin/Magnet ↑↓/Danger Line/Flip Line), falling
     // back to spot geometry when the classification block is absent.
     if (cw && pw && cw.strike === pw.strike) {
       const combined = cw.gex + Math.abs(pw.gex);
       lines.push({ price:cw.strike, color:gexLevelHex("wall"), lineWidth:4, lineStyle:0, title:"Pin "+fmtG(combined) });
+      _labeledPrices.push(cw.strike);
     } else {
       if (cw) {
         const role = (L.call_wall && L.call_wall.role) || (cw.strike > sp ? "resistance" : "support");
         lines.push({ price:cw.strike, color:gexLevelHex(role), lineWidth:4, lineStyle:0, title:gexLevelName(role,"Ceiling")+" "+fmtG(cw.gex) });
+        _labeledPrices.push(cw.strike);
       }
       if (pw) {
         const role = (L.put_wall && L.put_wall.role) || (pw.strike < sp ? "support" : "magnet_up");
         lines.push({ price:pw.strike, color:gexLevelHex(role), lineWidth:4, lineStyle:0, title:gexLevelName(role,"Floor")+" "+fmtG(Math.abs(pw.gex)) });
+        _labeledPrices.push(pw.strike);
       }
     }
     if (zg) {
       const role = (L.zero_gamma && L.zero_gamma.role) || "gamma_flip";
       lines.push({ price:zg, color:gexLevelHex(role), lineWidth:1, lineStyle:2, title:gexLevelName(role,"Flip Line") });
+      _labeledPrices.push(zg);
     }
     const usedStrikes = new Set([cw?.strike, pw?.strike].filter(Boolean));
     // Secondary levels — position-based: above spot = Speed Bump (a lesser
-    // ceiling, red), below spot = Cushion (a lesser floor, green). Only the
-    // STRONG ones (thick line, ratio > ~0.5 of the dominant wall) get a
-    // right-axis label/name — the line title rides on that axis label in the
-    // StockChart wrapper, so labelling every secondary stacked 6 tags near
-    // spot and caused LWC overlap-avoidance crosshair lag. Threshold = lw>=3.
-    const SECONDARY_LABEL_MIN_LW = 3; // 3 ≈ ratio>0.5; raise to 4 for fewer labels
+    // ceiling, red), below spot = Cushion (a lesser floor, green). EVERY
+    // secondary gets its name + premium EXCEPT one that would print on top of a
+    // higher-priority line — we de-dupe by price PROXIMITY rather than the old
+    // strength floor, so isolated weak levels still get named while the label
+    // stacking that caused LWC crosshair lag (several tags in one band near
+    // spot) is avoided. Strongest secondaries claim a contested spot first
+    // (candidates are gamma-desc; walls/pin/flip seed the labelled set above).
+    const SECONDARY_LABEL_MIN_LW = 1;   // strength floor for a label (1 = label all); raise to thin labels
+    const LABEL_MIN_GAP_PCT = 0.0006;   // drop a label within ~0.06% of spot of an already-labelled line
+    const _labelGap = sp > 0 ? sp * LABEL_MIN_GAP_PCT : 0;
+    const _labelOk = (strike, lw) => {
+      if (lw < SECONDARY_LABEL_MIN_LW) return false;
+      if (_labeledPrices.some(p => Math.abs(p - strike) < _labelGap)) return false;
+      _labeledPrices.push(strike);
+      return true;
+    };
     const bestGex = s => Math.max(s.callGex > 0 ? s.callGex : 0, s.putGex < 0 ? Math.abs(s.putGex) : 0);
     const aboveCandidates = [...(gexData.strikes||[])].filter(s=>s.strike>sp&&!usedStrikes.has(s.strike))
       .map(s=>({ strike:s.strike, gex:bestGex(s) })).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
     aboveCandidates.forEach(s => {
       usedStrikes.add(s.strike);
       const {lw,ls,op} = getLineWeight(s.gex);
-      lines.push({ price:s.strike, color:gexLevelHex("resistance")+op, lineWidth:lw, lineStyle:ls, title:"Speed Bump "+fmtG(s.gex), axisLabelVisible:lw>=SECONDARY_LABEL_MIN_LW });
+      lines.push({ price:s.strike, color:gexLevelHex("resistance")+op, lineWidth:lw, lineStyle:ls, title:"Speed Bump "+fmtG(s.gex), axisLabelVisible:_labelOk(s.strike, lw) });
     });
     const belowCandidates = [...(gexData.strikes||[])].filter(s=>s.strike<sp&&!usedStrikes.has(s.strike))
       .map(s=>({ strike:s.strike, gex:bestGex(s) })).filter(s=>s.gex>0).sort((a,b)=>b.gex-a.gex).slice(0,3);
     belowCandidates.forEach(s => {
       const {lw,ls,op} = getLineWeight(s.gex);
-      lines.push({ price:s.strike, color:gexLevelHex("support")+op, lineWidth:lw, lineStyle:ls, title:"Cushion "+fmtG(s.gex), axisLabelVisible:lw>=SECONDARY_LABEL_MIN_LW });
+      lines.push({ price:s.strike, color:gexLevelHex("support")+op, lineWidth:lw, lineStyle:ls, title:"Cushion "+fmtG(s.gex), axisLabelVisible:_labelOk(s.strike, lw) });
     });
     return lines;
   }, [gexData]);

@@ -23,7 +23,7 @@ import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import ChartSettingsModal from '../../../components/chart/ChartSettingsModal'
 import GridChartCell from './GridChartCell'
 import useStaggeredMount from './useStaggeredMount'
-import { parseLayoutId } from './gridLayouts'
+import { parseLayoutId, LAYOUTS } from './gridLayouts'
 import { createSpike, SPIKE_SYMS } from './gridSpike'
 import { makePeerFiller } from './peerFill'
 import { makeGridWarmer } from './gridWarm'
@@ -125,6 +125,22 @@ export default function MultiChartGrid({ mc }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [maxId])
+
+  // Alt+\ cycles through the grid layout presets (1×2 → 2×2 → …, wrapping).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'Backslash')) return
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      if (typeof mc.enterGrid !== 'function') return
+      e.preventDefault()
+      const i = LAYOUTS.findIndex(l => l.id === state.layout)
+      const next = LAYOUTS[(i + 1) % LAYOUTS.length]
+      if (next) mc.enterGrid(next.id)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [state.layout, mc])
 
   // ── Active-cell tracking (hover-sticky, seeded to cell 0, focus-aware) ──
   const activeCellRef = useRef(0)

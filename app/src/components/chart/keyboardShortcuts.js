@@ -44,7 +44,7 @@ export function resolveTfCycle({ command, currentTf, lastCommand, lastIndex }) {
  * A single letter with no Ctrl/Alt/Meta is ALWAYS a ticker character — INCLUDING
  * a shifted uppercase letter, because traders type tickers uppercase (HOOD, LLY,
  * TSLA, COIN). So a shortcut never claims a letter, even though some letters are
- * bound to drawing tools and Shift+H/L/T/C are display toggles; those toggles stay
+ * bound to drawing tools and Shift+L/T/C are display toggles; those toggles stay
  * reachable whenever a chart is NOT focused. Digits (timeframes) and Shift+digit
  * DO claim. Shift+F (flag) is handled by each widget's own branch before this is
  * consulted, so it is unaffected.
@@ -68,22 +68,27 @@ export const SHORTCUTS = [
   { keys: '5', command: 'tf:W', description: 'Weekly' },
   { keys: '9', command: 'tf:M', description: 'Monthly' },
 
-  // Drawing tools
+  // Drawing tools (Alt+letter — bare letters go to ticker search)
   { keys: 'Esc', command: 'tool:cursor', description: 'Cursor / cancel' },
-  { keys: 'T', command: 'tool:trendline', description: 'Trendline' },
-  { keys: 'H', command: 'tool:horizontal', description: 'Horizontal line' },
-  { keys: 'V', command: 'tool:vertical', description: 'Vertical line' },
-  { keys: 'R', command: 'tool:rect', description: 'Rectangle' },
-  { keys: 'C', command: 'tool:circle', description: 'Circle' },
-  { keys: 'A', command: 'tool:arrow', description: 'Arrow' },
-  { keys: 'F', command: 'tool:fib', description: 'Fibonacci retracement' },
-  { keys: 'X', command: 'tool:text', description: 'Text annotation' },
+  { keys: 'Alt+T', command: 'tool:trendline', description: 'Trendline' },
+  { keys: 'Alt+H', command: 'tool:horizontal', description: 'Horizontal line' },
+  { keys: 'Alt+J', command: 'tool:hray', description: 'Horizontal ray' },
+  { keys: 'Alt+V', command: 'tool:vertical', description: 'Vertical line' },
+  { keys: 'Alt+R', command: 'tool:rect', description: 'Rectangle' },
+  { keys: 'Alt+C', command: 'tool:circle', description: 'Ellipse / circle' },
+  { keys: 'Alt+A', command: 'tool:arrow', description: 'Arrow' },
+  { keys: 'Alt+F', command: 'tool:fib', description: 'Fibonacci retracement' },
+  { keys: 'Alt+E', command: 'tool:fibext', description: 'Fibonacci extension' },
+  { keys: 'Alt+W', command: 'tool:avwap', description: 'Anchored VWAP' },
+  { keys: 'Alt+X', command: 'tool:text', description: 'Text annotation' },
 
   // Display toggles
-  { keys: 'Shift+H', command: 'toggle:ha', description: 'Toggle Heikin Ashi' },
   { keys: 'Shift+L', command: 'toggle:log', description: 'Toggle log scale' },
   { keys: 'Shift+T', command: 'toggle:theme', description: 'Toggle light/dark theme' },
   { keys: 'Shift+C', command: 'toggle:countdown', description: 'Toggle bar-close countdown' },
+  { keys: 'Alt+U', command: 'toggle:vwap', description: 'Toggle session VWAP' },
+  { keys: 'Alt+Shift+W', command: 'toggle:watermark', description: 'Toggle symbol watermark' },
+  { keys: 'Alt+I', command: 'toggle:invert', description: 'Invert price scale' },
 
   // Indicator toggles (Ctrl/Cmd held)
   { keys: 'Ctrl+I', command: 'toggle:rsi', description: 'Toggle RSI' },
@@ -97,7 +102,12 @@ export const SHORTCUTS = [
   { keys: '←', command: 'replay:back', description: 'Replay step back' },
   { keys: '→', command: 'replay:forward', description: 'Replay step forward' },
 
-  // Help
+  // Other
+  { keys: '+ / -', command: 'zoom', description: 'Zoom in / out' },
+  { keys: 'Alt+,', command: 'settings', description: 'Open chart settings' },
+  { keys: 'Alt+Shift+A', command: 'addindicator', description: 'Add indicator (settings)' },
+  { keys: 'Alt+S', command: 'screenshot', description: 'Screenshot chart (PNG)' },
+  { keys: 'Alt+\\', command: 'gridcycle', description: 'Cycle grid layout (multi-chart)' },
   { keys: '?', command: 'help', description: 'Show this help overlay' },
 ];
 
@@ -160,7 +170,6 @@ export function matchShortcut(event) {
   } else {
     // Shift held
     if (event.code && SHIFT_CODE_TF[event.code]) return SHIFT_CODE_TF[event.code];
-    if (key === 'H') return 'toggle:ha';
     if (key === 'L') return 'toggle:log';
     if (key === 'T') return 'toggle:theme';
     if (key === 'C') return 'toggle:countdown';

@@ -2971,6 +2971,80 @@ export default function StockChart({
         if (target.isContentEditable) return
       }
 
+      // Alt-based chart toggles. Alt is rejected by matchShortcut (so browser
+      // Alt shortcuts keep working), so these are handled here. Keyed on e.code
+      // for layout independence (Mac emits special chars with Alt).
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        // Alt+U → toggle the session-VWAP indicator.
+        if (!e.shiftKey && e.code === 'KeyU') {
+          e.preventDefault()
+          const next = { ...cs.indicators, vwap: { ...(cs.indicators?.vwap || {}), enabled: !cs.indicators?.vwap?.enabled } }
+          handleUpdateChartSettings({ ...cs, indicators: next, preset: 'custom' })
+          return
+        }
+        // Alt+Shift+W → toggle the symbol watermark.
+        if (e.shiftKey && e.code === 'KeyW') {
+          e.preventDefault()
+          handleUpdateChartSettings({ ...cs, watermark: { ...cs.watermark, visible: !cs.watermark?.visible }, preset: 'custom' })
+          return
+        }
+        // Alt+I → invert the price scale (flip upside-down).
+        if (!e.shiftKey && e.code === 'KeyI') {
+          e.preventDefault()
+          handleUpdateChartSettings({ ...cs, invertScale: !cs.invertScale, preset: 'custom' })
+          return
+        }
+        // Alt+, → open chart settings (workspace modal, when wired).
+        if (!e.shiftKey && e.code === 'Comma' && typeof onOpenSettings === 'function') {
+          e.preventDefault()
+          onOpenSettings()
+          return
+        }
+        // Alt+Shift+A → add indicator: opens the settings panel (its Indicators
+        // section) rather than a duplicate dialog.
+        if (e.shiftKey && e.code === 'KeyA' && typeof onOpenSettings === 'function') {
+          e.preventDefault()
+          onOpenSettings()
+          return
+        }
+        // Alt+S → download a PNG screenshot of the chart (LWC panes: candles,
+        // volume, indicators). Drawing overlays are not composited in v1.
+        if (!e.shiftKey && e.code === 'KeyS') {
+          const chart = chartRef.current
+          if (chart && typeof chart.takeScreenshot === 'function') {
+            e.preventDefault()
+            try {
+              const canvas = chart.takeScreenshot()
+              canvas.toBlob((blob) => {
+                if (!blob) return
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `${sym || 'chart'}_${resolvedTf || ''}.png`
+                document.body.appendChild(a); a.click(); a.remove()
+                setTimeout(() => URL.revokeObjectURL(url), 1000)
+              })
+            } catch { /* screenshot unsupported */ }
+          }
+          return
+        }
+      }
+
+      // Zoom the time axis around its center: + / = zoom in, - zoom out.
+      if ((e.key === '+' || e.key === '=' || e.key === '-') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const chart = chartRef.current
+        if (chart) {
+          let r = null; try { r = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+          if (r && r.to > r.from) {
+            e.preventDefault()
+            const center = (r.to + r.from) / 2
+            const half = ((r.to - r.from) * (e.key === '-' ? 1.25 : 0.8)) / 2
+            try { chart.timeScale().setVisibleLogicalRange({ from: center - half, to: center + half }) } catch { /* transient */ }
+          }
+        }
+        return
+      }
+
       const cmd = matchShortcut(e)
       if (!cmd) return
 
@@ -3025,7 +3099,6 @@ export default function StockChart({
           handleUpdateChartSettings({ ...cs, indicators: next, preset: 'custom' })
         }
         switch (target) {
-          case 'ha': updateField('heikinAshi', !cs.heikinAshi); break
           case 'log': updateField('logScale', !cs.logScale); break
           case 'theme': updateField('theme', cs.theme === 'light' ? 'dark' : 'light'); break
           case 'countdown': updateField('countdown', !cs.countdown); break
@@ -3076,7 +3149,30 @@ export default function StockChart({
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [cs, onTfChange, showDrawingTools, replayMode, sessionBars?.length, handleUpdateChartSettings, resolvedTf])
+  }, [cs, onTfChange, showDrawingTools, replayMode, sessionBars?.length, handleUpdateChartSettings, resolvedTf, onOpenSettings])
+
+  // Apply the inverted price scale (Alt+I) — on toggle and on chart (re)creation.
+  useEffect(() => {
+    if (!chartReady) return
+    try { mainPriceScale()?.applyOptions({ invertScale: !!cs.invertScale }) } catch { /* disposed */ }
+  }, [cs.invertScale, chartReady, mainPriceScale])
+
+  // Double-click the price axis → reset it to auto-scale (after a manual drag).
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady) return undefined
+    const onDbl = (e) => {
+      const chart = chartRef.current
+      if (!chart) return
+      let axisW = 0; try { axisW = chart.priceScale('right').width() || 0 } catch { /* no axis */ }
+      const r = el.getBoundingClientRect()
+      if (axisW > 0 && (e.clientX - r.left) >= r.width - axisW - 2) {
+        try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* disposed */ }
+      }
+    }
+    el.addEventListener('dblclick', onDbl)
+    return () => el.removeEventListener('dblclick', onDbl)
+  }, [chartReady, mainPriceScale])
 
   // ── Replay auto-advance interval ──
   useEffect(() => {

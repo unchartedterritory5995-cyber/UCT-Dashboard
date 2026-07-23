@@ -712,7 +712,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // over one keypress (first-mounted wins) and navigate the wrong list.
     if (activeRef && activeRef.current != null && activeRef.current !== widgetKey) return
 
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    // Space advances like ArrowDown (next ticker). Never steal it from a control
+    // that uses Space (button/link/select); text inputs are already excluded above.
+    const navSpace = e.key === ' ' || e.key === 'Spacebar'
+    if (navSpace) {
+      const t = tgt?.tagName
+      if (t === 'BUTTON' || t === 'A' || t === 'SELECT' || tgt?.getAttribute?.('role') === 'button') return
+    }
+    const navDown = e.key === 'ArrowDown' || navSpace
+    if (navDown || e.key === 'ArrowUp') {
       // Derive the order straight from the DOM (the actual on-screen order) so arrow
       // nav ALWAYS matches the displayed rows — including any active column sort.
       // Falls back to visibleSymsFlat if the DOM isn't reachable.
@@ -739,10 +747,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const len = flat.length
       let next
       if (idx < 0) {
-        next = e.key === 'ArrowDown' ? 0 : len - 1
+        next = navDown ? 0 : len - 1
       } else {
         // WRAP at the ends: off the bottom → top, off the top → bottom.
-        next = e.key === 'ArrowDown' ? (idx + 1) % len : (idx - 1 + len) % len
+        next = navDown ? (idx + 1) % len : (idx - 1 + len) % len
       }
       const nextSym = flat[next]
       if (nextSym) {

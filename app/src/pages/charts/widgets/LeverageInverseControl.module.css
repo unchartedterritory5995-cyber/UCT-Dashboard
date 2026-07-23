@@ -137,7 +137,7 @@
   border: 1px solid #26262a;
   border-radius: 10px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-family: var(--font-sans);
   color: #e6e6e8;
   overflow: hidden;
   animation: liPanelIn 110ms ease-out;
@@ -186,10 +186,12 @@
 .rowTicker {
   flex-shrink: 0;
   min-width: 42px;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  /* App unified all fonts (incl. --font-mono) to Instrument Sans; don't reach for
+     IBM Plex Mono (not loaded → generic system monospace, off from the dashboard). */
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   color: #c9a84c;
 }
 .rowName {
