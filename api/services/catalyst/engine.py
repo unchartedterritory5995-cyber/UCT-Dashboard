@@ -1049,8 +1049,14 @@ def run_refresh(hunt: Optional[bool] = None) -> dict:
     # can never break or go blank.
     top_12 = curator.curate(scored, market_date=md)
     summary["selected"] = len(top_12)
-    summary["curator"] = "on" if os.environ.get(
-        "CATALYST_CURATOR_ENABLED", "0").lower() in ("1", "true", "yes") else "off"
+    # Report whether the LLM judgment ACTUALLY drove the list (not just the flag)
+    # — "ran" = curator selected; "fallback" = flag on but it fell back to the
+    # mechanical quota; "off" = flag off. This is the signal that would have
+    # caught the 2026-07-23 silent-fallback bug.
+    _flag_on = os.environ.get(
+        "CATALYST_CURATOR_ENABLED", "0").lower() in ("1", "true", "yes")
+    summary["curator"] = (
+        ("ran" if curator.curator_ran(md) else "fallback") if _flag_on else "off")
 
     # Tier 1C: enrich top-12 with broader Twitter search before synthesis.
     # Bounded — skips tickers that already have ≥5 tweets from curated accounts.

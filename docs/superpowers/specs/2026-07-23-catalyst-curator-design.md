@@ -3,6 +3,28 @@
 **Date:** 2026-07-23
 **Status:** shipped flag-gated (`CATALYST_CURATOR_ENABLED`), default OFF in code.
 
+## v2 fix (2026-07-23, same day) — it was silently falling back
+
+First ship never actually ran in prod: on the real ~40-name pool the model was
+asked to echo a full JSON object per candidate (ticker+keep+rank+type+why), the
+output overflowed `max_tokens=2000`, came back truncated/unparseable, and the
+never-raise fallback silently swallowed it → the mechanical quota ran instead
+(bank-heavy list). Two changes make it robust:
+
+1. **Compact output contract** — the model now returns tiny ticker arrays
+   `{"keep":[…ranked…], "cut":[…]}` (no per-name prose). ~40 short tickers can't
+   truncate. `_norm_tickers` tolerates the model returning objects too.
+2. **Loud fallback + a real "did it run" signal** — every fallback is logged
+   with its reason (an explicit `stop_reason == "max_tokens"` truncation guard,
+   parse failure with the raw tail, or the exception), and `curator.curator_ran(md)`
+   drives `summary["curator"] = ran|fallback|off` so a silent fallback can never
+   again masquerade as success. Live-verified on a bank-heavy pool: `curator_ran
+   True`, kept STM/TSLA/HUT/RELL, cut all 10 sleepy regional banks.
+
+The rubric was also strengthened: explicitly cut routine bank/financial earnings
+(the owner's core complaint) unless genuinely notable, and don't let one story
+(a sector-earnings cluster) eat the board.
+
 ## Problem
 
 The catalyst list decides its 20 rows with an additive score + a rigid

@@ -1,6 +1,7 @@
 """Curator = the swing-trader/news-desk selection brain. These cover the
-mechanical scaffolding (flag gating, parsing, mapping, ordering, cap, skip-if-
-stable, and the never-break fallback). The LLM call itself is always mocked."""
+mechanical scaffolding (flag gating, compact keep/cut parsing, mapping,
+ordering, cap, skip-if-stable, truncation guard, the LOUD never-break fallback,
+and the `curator_ran` signal). The LLM call itself is always mocked."""
 import json
 
 import pytest
@@ -15,12 +16,12 @@ MD = "2026-07-23"
 def _clean_state(monkeypatch):
     # Isolate module-level per-date caches between tests.
     curator._CURATION_BY_DATE.clear()
+    curator._RAN_BY_DATE.clear()
     curator._POOL_HASH_BY_DATE.clear()
     curator._ORDER_BY_DATE.clear()
     # Never touch the real cost store / cap in unit tests.
     monkeypatch.setattr(curator.cost_guard, "may_synthesize", lambda md: True)
-    monkeypatch.setattr(curator.cost_guard, "record",
-                        lambda *a, **k: 0.0)
+    monkeypatch.setattr(curator.cost_guard, "record", lambda *a, **k: 0.0)
     yield
 
 
@@ -31,14 +32,15 @@ def _c(ticker, score=10.0, tag="Catalyst", **kw):
     return d
 
 
-def _mock_call(monkeypatch, picks):
-    """Patch the LLM call to return a picks payload. Returns a counter list
-    whose [0] is the number of times the LLM was actually invoked."""
+def _mock_call(monkeypatch, keep, cut=None, stop_reason="end_turn"):
+    """Patch the LLM call to return a compact keep/cut payload. Returns a
+    counter list whose [0] is the number of times the LLM was invoked."""
     calls = [0]
+    payload = json.dumps({"keep": keep, "cut": cut or []})
 
     def fake(model, prompt):
         calls[0] += 1
-        return json.dumps({"picks": picks}), 100, 50
+        return payload, 100, 50, stop_reason
 
     monkeypatch.setattr(curator, "_call", fake)
     return calls
@@ -47,11 +49,12 @@ def _mock_call(monkeypatch, picks):
 # ── Flag gating + fallback ───────────────────────────────────────────────
 def test_flag_off_uses_mechanical_selection(monkeypatch):
     monkeypatch.delenv("CATALYST_CURATOR_ENABLED", raising=False)
-    calls = _mock_call(monkeypatch, [{"ticker": "AAA", "keep": True, "rank": 1}])
+    calls = _mock_call(monkeypatch, ["AAA"])
     pool = [_c("AAA"), _c("BBB")]
     out = curator.curate(pool, market_date=MD)
     assert calls[0] == 0                      # LLM never called when flag off
     assert {c["ticker"] for c in out} == {"AAA", "BBB"}   # mechanical kept both
+    assert curator.curator_ran(MD) is False
 
 
 def test_empty_pool_returns_empty(monkeypatch):
@@ -64,19 +67,30 @@ def test_empty_pool_returns_empty(monkeypatch):
 def test_cost_cap_falls_back(monkeypatch):
     monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
     monkeypatch.setattr(curator.cost_guard, "may_synthesize", lambda md: False)
-    calls = _mock_call(monkeypatch, [{"ticker": "AAA", "keep": True, "rank": 1}])
-    pool = [_c("AAA"), _c("BBB")]
-    out = curator.curate(pool, market_date=MD)
+    calls = _mock_call(monkeypatch, ["AAA"])
+    out = curator.curate([_c("AAA"), _c("BBB")], market_date=MD)
     assert calls[0] == 0                      # cost cap → no LLM
     assert len(out) == 2                       # mechanical fallback still returns
+    assert curator.curator_ran(MD) is False
 
 
 def test_bad_json_falls_back(monkeypatch):
     monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
-    monkeypatch.setattr(curator, "_call", lambda m, p: ("not json at all", 10, 5))
-    pool = [_c("AAA"), _c("BBB")]
-    out = curator.curate(pool, market_date=MD)
+    monkeypatch.setattr(curator, "_call",
+                        lambda m, p: ("not json at all", 10, 5, "end_turn"))
+    out = curator.curate([_c("AAA"), _c("BBB")], market_date=MD)
     assert {c["ticker"] for c in out} == {"AAA", "BBB"}   # fell back, didn't break
+    assert curator.curator_ran(MD) is False
+
+
+def test_truncation_falls_back(monkeypatch):
+    # A response cut off at max_tokens must fall back LOUDLY, not silently.
+    monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
+    monkeypatch.setattr(curator, "_call",
+                        lambda m, p: ('{"keep": ["AA', 10, 3000, "max_tokens"))
+    out = curator.curate([_c("AAA"), _c("BBB")], market_date=MD)
+    assert len(out) == 2
+    assert curator.curator_ran(MD) is False
 
 
 def test_llm_exception_falls_back(monkeypatch):
@@ -89,46 +103,57 @@ def test_llm_exception_falls_back(monkeypatch):
     assert [c["ticker"] for c in out] == ["AAA"]          # never raises
 
 
-def test_kept_nothing_falls_back(monkeypatch):
-    # If the curator cuts everything, don't show a blank list — fall back.
+def test_no_keepers_falls_back(monkeypatch):
+    # If the curator keeps nothing, don't show a blank list — fall back.
     monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
-    _mock_call(monkeypatch, [
-        {"ticker": "AAA", "keep": False}, {"ticker": "BBB", "keep": False}])
+    _mock_call(monkeypatch, [], cut=["AAA", "BBB"])
     out = curator.curate([_c("AAA"), _c("BBB")], market_date=MD)
     assert len(out) == 2                       # mechanical fallback
+    assert curator.curator_ran(MD) is False
 
 
 # ── Happy path: curate + rank + cut ──────────────────────────────────────
 def test_curate_ranks_and_cuts(monkeypatch):
     monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
-    _mock_call(monkeypatch, [
-        {"ticker": "CCC", "keep": True, "rank": 1, "catalyst_type": "M&A", "why": "buyout"},
-        {"ticker": "AAA", "keep": True, "rank": 2, "catalyst_type": "Earnings", "why": "beat"},
-        {"ticker": "BBB", "keep": False, "why": "sleepy bank print"},
-    ])
+    _mock_call(monkeypatch, keep=["CCC", "AAA"], cut=["BBB"])
     pool = [_c("AAA", score=30), _c("BBB", score=20), _c("CCC", score=10)]
     out = curator.curate(pool, market_date=MD)
     # BBB cut; CCC ranked above AAA per the curator (NOT by raw score).
     assert [c["ticker"] for c in out] == ["CCC", "AAA"]
-    assert out[0]["curator_catalyst_type"] == "M&A"
-    assert out[0]["curator_why"] == "buyout"
+    assert out[0]["curator_rank"] == 1
+    assert curator.curator_ran(MD) is True
 
 
 def test_unmentioned_name_kept_as_safety_net(monkeypatch):
     monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
-    # Curator only judges AAA; ZZZ is never mentioned → must NOT be dropped.
-    _mock_call(monkeypatch, [{"ticker": "AAA", "keep": True, "rank": 1}])
+    # Curator lists only AAA (keep); ZZZ appears in neither list → NOT dropped.
+    _mock_call(monkeypatch, keep=["AAA"], cut=[])
     out = curator.curate([_c("AAA"), _c("ZZZ")], market_date=MD)
-    tickers = {c["ticker"] for c in out}
-    assert tickers == {"AAA", "ZZZ"}
+    assert {c["ticker"] for c in out} == {"AAA", "ZZZ"}
     assert out[0]["ticker"] == "AAA"           # ranked name leads the safety net
+
+
+def test_explicit_cut_is_dropped(monkeypatch):
+    monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
+    _mock_call(monkeypatch, keep=["AAA"], cut=["BBB"])
+    out = curator.curate([_c("AAA"), _c("BBB")], market_date=MD)
+    assert [c["ticker"] for c in out] == ["AAA"]
+    assert curator.get_curation(MD)["BBB"]["keep"] is False
+
+
+def test_object_items_tolerated(monkeypatch):
+    # The model may return objects instead of bare ticker strings — tolerate it.
+    monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
+    _mock_call(monkeypatch, keep=[{"ticker": "AAA"}], cut=[{"t": "BBB"}])
+    out = curator.curate([_c("AAA"), _c("BBB")], market_date=MD)
+    assert [c["ticker"] for c in out] == ["AAA"]
 
 
 def test_target_cap_truncates(monkeypatch):
     monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
     monkeypatch.setenv("CATALYST_CURATOR_TARGET", "3")
-    picks = [{"ticker": f"T{i}", "keep": True, "rank": i} for i in range(1, 9)]
-    _mock_call(monkeypatch, picks)
+    keep = [f"T{i}" for i in range(1, 9)]
+    _mock_call(monkeypatch, keep=keep)
     pool = [_c(f"T{i}", score=100 - i) for i in range(1, 9)]
     out = curator.curate(pool, market_date=MD)
     assert len(out) == 3
@@ -138,23 +163,19 @@ def test_target_cap_truncates(monkeypatch):
 # ── Skip-if-stable ───────────────────────────────────────────────────────
 def test_stable_pool_skips_rebill(monkeypatch):
     monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
-    calls = _mock_call(monkeypatch, [
-        {"ticker": "AAA", "keep": True, "rank": 1},
-        {"ticker": "BBB", "keep": True, "rank": 2},
-    ])
-    pool1 = [_c("AAA"), _c("BBB")]
-    curator.curate(pool1, market_date=MD)
+    calls = _mock_call(monkeypatch, keep=["AAA", "BBB"])
+    curator.curate([_c("AAA"), _c("BBB")], market_date=MD)
     assert calls[0] == 1
     # Fresh candidate objects, identical signal fingerprint → reuse, no re-bill.
-    pool2 = [_c("AAA"), _c("BBB")]
-    out = curator.curate(pool2, market_date=MD)
+    out = curator.curate([_c("AAA"), _c("BBB")], market_date=MD)
     assert calls[0] == 1                       # LLM NOT called again
     assert [c["ticker"] for c in out] == ["AAA", "BBB"]
+    assert curator.curator_ran(MD) is True
 
 
 def test_changed_pool_rebills(monkeypatch):
     monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
-    calls = _mock_call(monkeypatch, [{"ticker": "AAA", "keep": True, "rank": 1}])
+    calls = _mock_call(monkeypatch, keep=["AAA"])
     curator.curate([_c("AAA", gap_pct=4.0)], market_date=MD)
     assert calls[0] == 1
     # gap moved materially → fingerprint changes → re-curate.
@@ -165,12 +186,9 @@ def test_changed_pool_rebills(monkeypatch):
 # ── Explain verdict surface ──────────────────────────────────────────────
 def test_get_curation_exposes_verdicts(monkeypatch):
     monkeypatch.setenv("CATALYST_CURATOR_ENABLED", "1")
-    _mock_call(monkeypatch, [
-        {"ticker": "AAA", "keep": True, "rank": 1, "why": "real beat"},
-        {"ticker": "BBB", "keep": False, "why": "nothing-burger"},
-    ])
+    _mock_call(monkeypatch, keep=["AAA"], cut=["BBB"])
     curator.curate([_c("AAA"), _c("BBB")], market_date=MD)
     verdicts = curator.get_curation(MD)
     assert verdicts["AAA"]["keep"] is True
+    assert verdicts["AAA"]["rank"] == 1
     assert verdicts["BBB"]["keep"] is False
-    assert "nothing-burger" in verdicts["BBB"]["why"]
