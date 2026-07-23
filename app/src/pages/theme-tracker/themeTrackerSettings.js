@@ -90,17 +90,20 @@ export function themeTrackerStyleVars(s) {
     // it (the header strips). The TOP stop is the edge the headers meet.
     vars['--tt-bg-solid'] = solid
 
-    // Header strips / group rows sit one small step AWAY from the canvas (mirrors
-    // the --bg-elevated relationship on the default look), and row hover another.
+    // Header strips / group rows go TRANSPARENT on a custom canvas so the chosen
+    // color (or gradient) runs unbroken through the whole widget — owner feedback:
+    // a stepped "elevated" tone read as a darker band across the tabs/header.
+    // Separation comes from the contrast-matched dividers instead.
+    vars['--tt-elev'] = 'transparent'
     const tb = toolbarFor(solid)
-    if (tb) {
-      vars['--tt-elev'] = tb.bg
-      vars['--tt-row-hover'] = tb.bgHover
-    }
+    if (tb) vars['--tt-row-hover'] = tb.bgHover
     // Hairlines + chrome text contrast-matched to the chosen canvas — fixed
     // near-white lines/gold text vanish on a light canvas.
     const div = dividerFor(solid)
     if (div) vars['--tt-divider'] = div
+    // Scrollbar thumb (strong divider) — the OS-dark bar sticks out on a light canvas.
+    const divStrong = dividerFor(solid, { strong: true })
+    if (divStrong) vars['--tt-divider-strong'] = divStrong
     const chrome = chromeFor(solid)
     if (chrome) {
       vars['--tt-text'] = chrome.text

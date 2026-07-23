@@ -96,6 +96,10 @@ export const CHART_DEFAULTS = {
     maColor: 'rgba(168,162,144,0.55)',
     maLineWidth: 1,
     maLineStyle: 'solid',
+    // Bar style: 'columns' = built-in full-slot HistogramSeries (the long-standing
+    // look); 'histogram' = thin bars with a gap between each (ThinVolumeSeries
+    // custom series, TC2000-style). Recreates the volume series on change.
+    barStyle: 'columns',
     // Declared, not yet honored — swapping the volume pane between histogram/line/area
     // needs a series-type recreate in StockChart (same as overlays' plotStyle).
     plotStyle: 'histogram',

@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
 import { WATCHLIST_DEFAULTS, mergeWatchlistSettings } from '../watchlist/watchlistSettings'
+import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings } from '../theme-tracker/themeTrackerSettings'
+import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings } from './widgets/fundamentalsSettings'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import WidgetHost from './WidgetHost'
@@ -336,10 +338,9 @@ export default function ChartsWorkspace() {
   // Each widget's chrome (panel + border, header row, and its own top rows) paints
   // the canvas color of THAT widget's settings, published to the widget subtree as
   // --widget-canvas by WidgetHost. Keyed by widget type — a type absent here gets no
-  // variable and keeps the default tokens, which is why Fundamentals / Theme Tracker /
-  // AI Search / Scanner are untouched: they have no canvas setting of their own yet.
-  // (This was briefly set on the WORKSPACE root, which cascaded the chart's color into
-  // every widget — do NOT hoist it back up.)
+  // variable and keeps the default tokens (AI Search / Scanner have no canvas setting
+  // of their own yet). (This was briefly set on the WORKSPACE root, which cascaded the
+  // chart's color into every widget — do NOT hoist it back up.)
   // Resolution mirrors each surface's own: a gradient contributes its TOP stop, since
   // that's the edge the header actually meets; otherwise the solid color.
   const widgetCanvasByType = useMemo(() => {
@@ -349,18 +350,28 @@ export default function ChartsWorkspace() {
       : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
     const wl = mergeWatchlistSettings(parsePref(prefs.watchlist_settings, null))
     const watchlist = wl.bgMode === 'gradient' ? (wl.bgGradient?.top || wl.bg) : wl.bg
+    const tt = mergeThemeTrackerSettings(parsePref(prefs.theme_tracker_settings, null))
+    const themes = tt.bgMode === 'gradient' ? (tt.bgGradient?.top || tt.bg) : tt.bg
+    const fw = mergeFundamentalsSettings(parsePref(prefs.fundamentals_settings, null))
+    const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
+    // Theme Tracker / Fundamentals publish ONLY when the user actually customized
+    // their canvas (their settings model is emit-when-off-default): the drag bar +
+    // panel then follow the chosen canvas, while an untouched widget keeps the
+    // default chrome tokens byte-identical.
+    const ttCustom = tt.bgMode === 'gradient' || String(tt.bg).toLowerCase() !== THEME_TRACKER_DEFAULTS.bg
+    const fwCustom = fw.bgMode === 'gradient' || String(fw.bg).toLowerCase() !== FUNDAMENTALS_DEFAULTS.bg
+    const entry = (canvas) => ({
+      canvas, divider: dividerFor(canvas), dividerStrong: dividerFor(canvas, { strong: true }),
+      chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
+    })
     return {
-      chart: {
-        canvas: chart, divider: dividerFor(chart), dividerStrong: dividerFor(chart, { strong: true }),
-        chrome: chromeFor(chart), panel: panelFor(chart), rowHover: toolbarFor(chart)?.bg,
-      },
-      watchlist: {
-        canvas: watchlist, divider: dividerFor(watchlist), dividerStrong: dividerFor(watchlist, { strong: true }),
-        chrome: chromeFor(watchlist), panel: panelFor(watchlist), rowHover: toolbarFor(watchlist)?.bg,
-      },
+      chart: entry(chart),
+      watchlist: entry(watchlist),
+      ...(ttCustom ? { themes: entry(themes) } : {}),
+      ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings])
+  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings])
 
   const workspaceValue = useMemo(
     () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),

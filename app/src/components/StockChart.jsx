@@ -22,6 +22,7 @@ import { getExtSession, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
 import EarningsMarkerPopover from './chart/EarningsMarkerPopover'
 import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
+import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
@@ -964,6 +965,16 @@ export default function StockChart({
   // stay fully opaque — the candle's per-color opacity (8-digit #rrggbbaa from the
   // color picker) must NOT bleed into the MA line. Strip any trailing alpha.
   const mbUpOpaque = /^#[0-9a-f]{8}$/i.test(mbUp) ? mbUp.slice(0, 7) : mbUp
+  // ema9MatchCandle is a DEFAULT, not a lock: it repaints the 9-EMA to the candle
+  // up-color only while the overlay still wears its stock default color. The moment
+  // the user picks a custom color in Chart Settings → Indicators, that color wins.
+  // All three consumers (line series, always-on legend, crosshair legend) read this
+  // one predicate so the line and its legend labels can never disagree.
+  const _EMA9_STOCK_COLOR = '#4ade80'   // CHART_DEFAULTS.overlays[0].color
+  const ema9CandleColorFor = (ov) => (
+    ema9MatchCandle && ov?.type === 'EMA' && Number(ov?.period) === 9
+      && (!ov.color || String(ov.color).toLowerCase() === _EMA9_STOCK_COLOR)
+  ) ? mbUpOpaque : null
   // Volume bars keep the FIXED bold palette regardless of the user's candle color —
   // volume gets its own color control later, so changing candle colors must not
   // touch it. (This is the original mbUp/mbDown, before userCandleColors.)
@@ -1677,7 +1688,7 @@ export default function StockChart({
       // toggled-off MA vanishes from the always-on legend and the grid collapses —
       // matching the live/crosshair builder's `ov.enabled === false` guard.
       if (!pt || !ov || ov.enabled === false) return null
-      const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
+      const color = ema9CandleColorFor(ov) ?? ov.color
       return { label: `${ov.type} ${ov.period}`, value: pt.value, color, _period: Number(ov.period) }
     }).filter(Boolean).sort((a, b) => a._period - b._period)   // legend always in ascending-period order
     const vma = volMaDataRef.current
@@ -5050,14 +5061,20 @@ export default function StockChart({
       // overlaid indicator can take the LEFT axis. Overlay mode keeps the
       // invisible overlay scale ('').
       const volScaleId = volSeparatePane ? 'right' : ''
-      // priceScaleId / paneIndex are fixed at creation, so recreate when the
-      // target scale changes (overlay <-> separate pane, or legacy migration).
-      if (volumeSeriesRef.current && volumeSeparatePaneRef.current !== volScaleId) {
+      // Bar style: 'columns' = the built-in HistogramSeries (full-slot bars, the
+      // long-standing look); 'histogram' = ThinVolumeSeries (custom series drawing
+      // thin bars with a gap between each, TC2000-style).
+      const volBarStyle = cs.volume?.barStyle === 'histogram' ? 'histogram' : 'columns'
+      // priceScaleId / paneIndex / series TYPE are fixed at creation, so recreate
+      // when the target scale OR the bar style changes. The ref stores a composite
+      // key (was just the scale id) — only ever compared for equality.
+      const volSeriesKey = `${volScaleId}|${volBarStyle}`
+      if (volumeSeriesRef.current && volumeSeparatePaneRef.current !== volSeriesKey) {
         try { chart.removeSeries(volumeSeriesRef.current) } catch {}
         volumeSeriesRef.current = null
       }
       if (!volumeSeriesRef.current) {
-        const vs = chart.addSeries(HistogramSeries, {
+        const volOpts = {
           priceFormat: { type: 'volume' },
           priceScaleId: volScaleId,
           // Model Book: no dashed last-volume price line / axis tag.
@@ -5065,9 +5082,12 @@ export default function StockChart({
           // volumeLastValue opt-in shows the current-volume tag on the right scale
           // (mirrors the main chart's price tag) even in the bold/charts-workspace look.
           lastValueVisible: volumeLastValue || (!boldCandles && !hidePriceLine),
-        }, volSeparatePane ? 1 : 0)
+        }
+        const vs = volBarStyle === 'histogram'
+          ? chart.addCustomSeries(new ThinVolumeSeries(), volOpts, volSeparatePane ? 1 : 0)
+          : chart.addSeries(HistogramSeries, volOpts, volSeparatePane ? 1 : 0)
         volumeSeriesRef.current = vs
-        volumeSeparatePaneRef.current = volScaleId
+        volumeSeparatePaneRef.current = volSeriesKey
         lastAppliedVolPctRef.current = null  // fresh pane → force the height (re)apply below
       }
       if (volSeparatePane) {
@@ -5172,9 +5192,11 @@ export default function StockChart({
       const { data: ovData } = overlayData[i]
       let color = overlayData[i].color
       // Charts workspace: repaint the 9-EMA in the candle up-color (MB_UP) so the
-      // fast MA matches the candles. Reliable regardless of saved overlay colors.
+      // fast MA matches the candles — but ONLY while it wears the stock default
+      // color; a user-picked color from the Indicators tab wins (ema9CandleColorFor).
       const _ov = resolvedOverlays?.[i]
-      if (ema9MatchCandle && _ov?.type === 'EMA' && Number(_ov?.period) === 9) color = mbUpOpaque
+      const _ema9Match = ema9CandleColorFor(_ov)
+      if (_ema9Match) color = _ema9Match
       // Split into base (≤ setup day) + tail (≥ setup day) when fading; the shared
       // cutoff point joins them so the line is seamless at full opacity.
       const baseData = _fadeMA ? ovData.filter(p => String(p.time) <= _cut) : ovData
@@ -6956,8 +6978,9 @@ export default function StockChart({
         // rendered blank — the vertical legend is a CSS grid, so an empty entry
         // leaves a dead row where the MA used to be instead of collapsing.
         if (!d || !ov || ov.enabled === false || !Number.isFinite(Number(d.value))) return null
-        // Match the DISPLAYED line color (ema9MatchCandle repaints the 9-EMA to MB_UP).
-        const color = (ema9MatchCandle && ov.type === 'EMA' && Number(ov.period) === 9) ? mbUpOpaque : ov.color
+        // Match the DISPLAYED line color (ema9CandleColorFor: candle-up repaint only
+        // while the 9-EMA wears its stock default; a user-picked color wins).
+        const color = ema9CandleColorFor(ov) ?? ov.color
         return { label: `${ov.type} ${ov.period}`, value: d.value, color, _period: Number(ov.period) }
       }).filter(Boolean).sort((a, b) => a._period - b._period)   // legend always in ascending-period order (SMA 5 before EMA 9, etc.)
 

@@ -77,12 +77,13 @@
   border-color: rgba(201, 168, 76, 0.3);
 }
 
-/* ⚙ Theme Tracker settings gear (right end of the period bar) */
+/* ⚙ Theme Tracker settings gear (right end of the search row — riding the period
+   bar it wrapped onto its own row in narrow widgets and wasted a full strip). */
 .settingsBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: auto;
+  margin-left: 6px;
   background: none;
   border: none;
   border-radius: 4px;
@@ -139,10 +140,12 @@
 
 .searchClear {
   position: absolute;
-  right: 16px;
+  /* Sits just inside the input's right edge — the ⚙ gear now occupies the far
+     right of this row (≈28px + the bar's 10px padding). */
+  right: 44px;
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--tt-text, var(--text-muted));
   font-size: 14px;
   cursor: pointer;
   padding: 0 2px;
@@ -150,7 +153,7 @@
 }
 
 .searchClear:hover {
-  color: var(--text);
+  color: var(--tt-text-strong, var(--text));
 }
 
 /* ── Active column highlight ────────────────────────────────────────────── */
@@ -231,6 +234,18 @@
 .tableBody {
   overflow-y: auto;
   flex: 1;
+  /* Scrollbar tracks the canvas: transparent track + a thumb derived from the
+     chosen canvas (--tt-divider-strong, set only when customized), so the OS-dark
+     bar never sits as a dark stripe on a light/gradient canvas. Same approach as
+     the Watchlist widget's list scrollbar. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--tt-divider-strong, rgba(255, 255, 255, 0.14)) transparent;
+}
+.tableBody::-webkit-scrollbar { width: 8px; background: transparent; }
+.tableBody::-webkit-scrollbar-track { background: transparent; }
+.tableBody::-webkit-scrollbar-thumb {
+  background: var(--tt-divider-strong, rgba(255, 255, 255, 0.14));
+  border-radius: 4px;
 }
 
 /* ── Theme group row ────────────────────────────────────────────────────── */
@@ -403,8 +418,11 @@
 }
 
 .stockRow.selected {
-  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.08));
-  border-left: 2px solid var(--tt-accent, var(--ut-gold));
+  /* EXACTLY the Watchlist widget's selected-row look (.listRowSelected): the same
+     fixed gold tint + gold bar on every canvas — owner spotted the accent-bg
+     variant reading slightly darker side-by-side. Keep these two in sync. */
+  background: rgba(201, 168, 76, 0.08);
+  border-left: 2px solid var(--ut-gold);
   padding-left: 10px;   /* 12px − 2px border keeps the bullet aligned */
 }
 

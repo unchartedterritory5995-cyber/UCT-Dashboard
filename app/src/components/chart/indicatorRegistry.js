@@ -40,9 +40,14 @@ export const MA_FIELDS = [
   { key: 'lineWidth', label: 'Line width',   type: 'select', options: LINE_WIDTHS },
 ]
 
+/** Bar styles for the volume pane. 'columns' = the built-in full-slot histogram
+ *  (bars touch, the long-standing look); 'histogram' = thin bars with a visible
+ *  gap between each (TC2000-style, drawn by the ThinVolumeSeries custom series). */
+export const VOLUME_BAR_STYLES = [['columns', 'Columns'], ['histogram', 'Histogram']]
+
 /** Fields for the volume pane. */
 export const VOLUME_FIELDS = [
-  { key: 'plotStyle',    label: 'Plot style',   type: 'select', options: PLOT_STYLES, disabled: NOT_WIRED },
+  { key: 'barStyle',     label: 'Bar style',    type: 'select', options: VOLUME_BAR_STYLES },
   { key: 'upColor',      label: 'Up bars',      type: 'color' },
   { key: 'downColor',    label: 'Down bars',    type: 'color' },
   { key: 'separatePane', label: 'Separate pane', type: 'toggle' },

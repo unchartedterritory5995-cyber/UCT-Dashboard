@@ -629,13 +629,6 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
             </button>
           ))}
-          {/* ⚙ Theme Tracker settings */}
-          <button
-            ref={settingsBtnRef}
-            className={`${styles.settingsBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
-            onClick={() => setSettingsOpen(o => !o)}
-            title="Theme Tracker settings"
-          ><UIcon name="gear" size={14} /></button>
         </div>
 
         {/* Search */}
@@ -649,6 +642,14 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           {search && (
             <button className={styles.searchClear} onClick={() => setSearch('')}>×</button>
           )}
+          {/* ⚙ Theme Tracker settings — rides the search row (a gear on its own
+              wrapped period-bar row wasted a full strip of vertical space). */}
+          <button
+            ref={settingsBtnRef}
+            className={`${styles.settingsBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
+            onClick={() => setSettingsOpen(o => !o)}
+            title="Theme Tracker settings"
+          ><UIcon name="gear" size={14} /></button>
         </div>
 
         <div className={styles.tableHeader}>
