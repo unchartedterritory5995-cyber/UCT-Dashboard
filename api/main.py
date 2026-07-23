@@ -43,6 +43,7 @@ import sentry_sdk
 from api.limiter import limiter
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts, calendar as calendar_router, bars as bars_router
 from api.routers import cot as cot_router
+from api.routers import render_panels as render_panels_router
 from api.routers import live_prices as live_prices_router
 from api.routers import ticker_meta as ticker_meta_router
 from api.routers import ticker_search as ticker_search_router
@@ -3572,6 +3573,7 @@ def health_cache():
 
 from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)
+app.include_router(render_panels_router.router)
 app.include_router(snapshot.router)
 app.include_router(movers.router)
 app.include_router(engine_data.router)
