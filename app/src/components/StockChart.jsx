@@ -9,7 +9,7 @@ import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
-import { panelFor, toolbarFor, sampleGradient, parseColor, luminance } from '../utils/dividerColor'
+import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
 import { toHeikinAshi, computeBB, computeVWAP, computeRSI, computeMACD, computeStochastic, computeATR, computeParabolicSAR, computeIchimoku, computeMFI, computeCCI, computeWilliamsR, computeADX, computeOBV, computeDonchian } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
@@ -8186,6 +8186,7 @@ export default function StockChart({
           sym={sym}
           beatColor={cs.markers?.earningsBeat || '#1ae51a'}
           missColor={cs.markers?.earningsMiss || '#c41f2d'}
+          themeVars={menuThemeVars(canvasSample.top) || undefined}
           onClose={() => setEarningsPopup(null)}
         />
       )}

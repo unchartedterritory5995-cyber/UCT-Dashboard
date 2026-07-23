@@ -1,12 +1,16 @@
 /* app/src/pages/charts/widgets/FundamentalsWidget.module.css
-   Uses the app's real design tokens from tokens.css (ut-, text-, bg-, border, font-sans). */
+   Uses the app's real design tokens from tokens.css (ut-, text-, bg-, border, font-sans).
+   --fw-* vars come from Fundamentals Settings (fundamentalsSettings.js). They are
+   emitted ONLY when the user deviates from the default, so every fallback below IS
+   the default look. */
 .root {
   height: 100%;
   overflow: auto;
   padding: 5px 8px 6px;
   font-family: var(--font-sans);
   font-size: var(--text-base, 12px);
-  color: var(--text);
+  background: var(--fw-bg, none);
+  color: var(--fw-text, var(--text));
 }
 .hint {
   display: flex; align-items: center; justify-content: center;
@@ -49,13 +53,13 @@
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.3px;
-  color: var(--ut-gold);
+  color: var(--fw-accent, var(--ut-gold));
   flex-shrink: 0;
 }
 .companyName {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-heading);
+  color: var(--fw-text, var(--text-heading));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -67,8 +71,8 @@
   gap: 2px;
   padding: 2px;
   margin: 0;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--fw-elev, var(--bg-elevated));
+  border: 1px solid var(--fw-divider, var(--border));
   border-radius: 6px;
 }
 .toggleBtn {
@@ -77,7 +81,7 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--fw-text-dim, var(--text-muted));
   background: transparent;
   border: none;
   border-radius: 4px;
@@ -85,11 +89,37 @@
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
 }
-.toggleBtn:hover:not(:disabled):not(.toggleBtnActive) { color: var(--text-bright); }
+.toggleBtn:hover:not(:disabled):not(.toggleBtnActive) { color: var(--fw-heading, var(--text-bright)); }
 .toggleBtn:disabled { opacity: 0.4; cursor: default; }
 .toggleBtnActive {
-  color: var(--bg-elevated);
-  background: var(--ut-gold);
+  color: var(--fw-elev, var(--bg-elevated));
+  background: var(--fw-accent, var(--ut-gold));
+}
+
+/* ⚙ Fundamentals settings gear (right end of the header row) */
+.gearBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 4px;
+  color: var(--fw-text-dim, var(--text-muted));
+  cursor: pointer;
+  opacity: 0.75;
+  transition: color 0.1s, background 0.1s, opacity 0.1s;
+}
+.gearBtn:hover {
+  opacity: 1;
+  color: var(--fw-accent, var(--ut-gold));
+  background: var(--fw-hover, rgba(255, 255, 255, 0.06));
+}
+.gearBtnActive {
+  opacity: 1;
+  color: var(--fw-accent, var(--ut-gold));
+  background: var(--fw-accent-bg, rgba(201, 168, 76, 0.12));
 }
 
 /* ── Annual table ───────────────────────────────────────────── */
@@ -100,43 +130,49 @@
   font-size: var(--text-xs, 10px);
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--fw-text-dim, var(--text-muted));
   padding: 3px 6px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--fw-divider, var(--border));
 }
 .annual th { padding: 2px 6px; }
 .annual td {
   text-align: right;
   padding: 2px 6px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-bright);
+  border-bottom: 1px solid var(--fw-divider, var(--border));
+  color: var(--fw-text, var(--text-bright));
   font-variant-numeric: tabular-nums;
 }
-.annual tr:hover td { background: var(--bg-hover); }
+.annual tr:hover td { background: var(--fw-hover, var(--bg-hover)); }
 .left { text-align: left !important; }
-.estRow td { color: var(--text-muted); }
-.estRow .left { color: var(--ut-gold); font-weight: 600; }
+.estRow td { color: var(--fw-text-dim, var(--text-muted)); }
+.estRow .left { color: var(--fw-accent, var(--ut-gold)); font-weight: 600; }
 
-/* Match the chart's candle colors (MB_UP / MB_DOWN) exactly. */
-.pos { color: #1ae51a; }
-.neg { color: #c41f2d; }
+/* Match the chart's candle colors (MB_UP / MB_DOWN) exactly. --fw-up/--fw-down
+   are only set when the user deviates from the default in Fundamentals Settings,
+   so a deliberate user color wins over the workspace theme; otherwise these hold. */
+.pos { color: var(--fw-up, #1ae51a); }
+.neg { color: var(--fw-down, #c41f2d); }
 /* Sunrise: match the dark candle green/red. */
 :global([data-charts-theme='sunrise']) .pos,
-:global([data-charts-theme='sunrise']) .revUp { color: #0a5c22; }
+:global([data-charts-theme='sunrise']) .revUp { color: var(--fw-up, #0a5c22); }
 :global([data-charts-theme='sunrise']) .neg,
-:global([data-charts-theme='sunrise']) .revDown { color: #7d1620; }
+:global([data-charts-theme='sunrise']) .revDown { color: var(--fw-down, #7d1620); }
 /* Quarter date reads dark on the bright card. */
 :global([data-charts-theme='sunrise']) .qDate { color: #55606e; }
-.rev { font-size: 8px; margin-left: 3px; vertical-align: middle; }
-.revUp { color: #1ae51a; }
-.revDown { color: #c41f2d; }
+.rev { font-size: 0.73em; margin-left: 3px; vertical-align: middle; }
+.revUp { color: var(--fw-up, #1ae51a); }
+.revDown { color: var(--fw-down, #c41f2d); }
 
-/* ── Quarterly strip — compact 3-line cards, single wide row ──── */
+/* ── Quarterly strip — compact 3-line cards, single wide row ────
+   The card's text sizes are authored in em off the BLOCK font-size (11px) so the
+   shrink-to-fit pass (useShrinkToFit in FundamentalsWidget.jsx) can scale a whole
+   card down by nudging one inline font-size — big numbers never clip anymore. */
 .qStrip { display: flex; gap: 5px; flex-wrap: wrap; }
 .qBlock {
   flex: 1 1 116px; min-width: 104px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  font-size: 11px;
+  background: var(--fw-elev, var(--bg-elevated));
+  border: 1px solid var(--fw-divider, var(--border));
   border-radius: 5px;
   padding: 4px 7px;
   line-height: 1.28;
@@ -145,10 +181,10 @@
    border + a faint diagonal hatch texture instead of the loud gold fill. */
 .qNext {
   border-style: dashed;
-  border-color: #43483d;
+  border-color: var(--fw-divider, #43483d);
   background:
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 1px, transparent 1px, transparent 7px),
-    var(--bg-elevated);
+    var(--fw-elev, var(--bg-elevated));
 }
 .qHead {
   display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
@@ -156,23 +192,24 @@
 }
 .qLabel {
   font-weight: 700;
-  font-size: 11px;
+  font-size: 1em;
   letter-spacing: 0.3px;
-  color: var(--text-heading);
+  color: var(--fw-text, var(--text-heading));
 }
-.qDate { color: #8b8674; font-size: 10px; font-variant-numeric: tabular-nums; }
+.qDate { color: var(--fw-text-dim, #8b8674); font-size: 0.91em; font-variant-numeric: tabular-nums; }
 .qRow {
   display: flex; gap: 4px; align-items: baseline;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: var(--text-bright);
-  font-size: 11px;
+  color: var(--fw-text, var(--text-bright));
+  font-size: 1em;
 }
-.qRow .muted { color: var(--text-muted); }
-/* Fixed-width metric prefix so EPS/Rev values align vertically within a card. */
-.qRow > .muted:first-child { min-width: 24px; }
-.slash, .est { color: var(--text-muted); }
-.est { font-size: 10px; }
+.qRow .muted { color: var(--fw-text-dim, var(--text-muted)); }
+/* Fixed-width metric prefix so EPS/Rev values align vertically within a card.
+   em (not px) so it tracks the shrink-to-fit scale. */
+.qRow > .muted:first-child { min-width: 2.18em; }
+.slash, .est { color: var(--fw-text-dim, var(--text-muted)); }
+.est { font-size: 0.91em; }
 
 /* Container-query collapse: hide the oldest quarter blocks as the WIDGET narrows
    (root is inside .widgetBody which is container-type: inline-size). */

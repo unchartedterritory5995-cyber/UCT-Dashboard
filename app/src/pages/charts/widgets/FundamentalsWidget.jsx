@@ -1,10 +1,15 @@
-import { useCallback } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import useEarningsTable from '../../../hooks/useEarningsTable'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
+import UIcon from '../../../components/ui/UIcon'
+import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import { menuThemeVars } from '../../../utils/dividerColor'
+import FundamentalsSettingsPanel from './FundamentalsSettingsPanel'
+import { FUNDAMENTALS_SETTINGS_KEY, FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsStyleVars } from './fundamentalsSettings'
 import styles from './FundamentalsWidget.module.css'
 
 function fmtSales(v) {
@@ -53,10 +58,40 @@ function AnnualTable({ rows }) {
   )
 }
 
+// Shrink-to-fit: a quarter card's rows are nowrap tabular figures, so a big
+// number ("$23.9B / $20.0B +19.5%") can outgrow the card and clip at its right
+// edge. The card's text is authored in em off the block font-size (see the CSS),
+// so nudging the block's inline font-size down until scrollWidth fits clientWidth
+// scales every row proportionally. Re-runs on data change AND card resize.
+function useShrinkToFit(dep) {
+  const ref = useRef(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let raf = 0
+    const fit = () => {
+      el.style.fontSize = ''   // reset to the CSS-authored size, then re-measure
+      const base = parseFloat(getComputedStyle(el).fontSize) || 11
+      let size = base
+      for (let i = 0; i < 4 && el.scrollWidth > el.clientWidth && size > 7.5; i++) {
+        size = Math.max(7.5, Math.floor(size * (el.clientWidth / el.scrollWidth) * 10) / 10)
+        el.style.fontSize = `${size}px`
+      }
+    }
+    fit()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit) })
+    ro.observe(el)
+    return () => { ro.disconnect(); cancelAnimationFrame(raf) }
+  }, [dep])
+  return ref
+}
+
 function QuarterBlock({ q }) {
+  const fitRef = useShrinkToFit(q)
   if (!q.reported) {
     return (
-      <div className={`${styles.qBlock} ${styles.qNext}`}>
+      <div ref={fitRef} className={`${styles.qBlock} ${styles.qNext}`}>
         <div className={styles.qHead}>
           <span className={styles.qLabel}>{q.label || 'Next'}</span>
           {/* Prefer the scheduled report date; fall back to the fiscal period end
@@ -70,7 +105,7 @@ function QuarterBlock({ q }) {
     )
   }
   return (
-    <div className={styles.qBlock}>
+    <div ref={fitRef} className={styles.qBlock}>
       <div className={styles.qHead}><span className={styles.qLabel}>{q.label}</span></div>
       <div className={styles.qRow}>
         <span className={styles.muted}>EPS</span> <span>{fmtEps(q.eps_actual)}</span>
@@ -90,6 +125,29 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym } = useWorkspace()
   const sym = groupSyms?.[color] || null
   const { data } = useEarningsTable(sym)
+
+  // ── Fundamentals appearance settings (⚙ panel) — mirrors the watchlist's ──
+  const { prefs, setPref } = usePreferences()
+  const fwSettings = useMemo(
+    () => mergeFundamentalsSettings(parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null)),
+    [prefs],
+  )
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsBtnRef = useRef(null)
+  const rootRef = useRef(null)
+  const patchSettings = useCallback((patch) => {
+    setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify({ ...fwSettings, ...patch }))
+  }, [fwSettings, setPref])
+  const resetSettings = useCallback(() => {
+    setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify(FUNDAMENTALS_DEFAULTS))
+  }, [setPref])
+  const fwStyle = useMemo(() => fundamentalsStyleVars(fwSettings), [fwSettings])
+  // Canvas-matched palette for the settings panel itself (same mechanism as the
+  // chart/watchlist popup menus).
+  const fwMenuVars = useMemo(() => {
+    const canvas = fwSettings.bgMode === 'gradient' ? (fwSettings.bgGradient?.top || fwSettings.bg) : fwSettings.bg
+    return menuThemeVars(canvas) || {}
+  }, [fwSettings])
   // Company name for the header — from the shared snapshot (already fetched for
   // this ticker elsewhere, so SWR dedupes: no extra request).
   const { data: snap } = useFundamentalSnapshot(sym)
@@ -127,7 +185,18 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
   }
 
   return (
-    <div className={styles.root}>
+    <div ref={rootRef} className={styles.root} style={fwStyle}>
+      {settingsOpen && (
+        <FundamentalsSettingsPanel
+          settings={fwSettings}
+          onChange={patchSettings}
+          onReset={resetSettings}
+          onClose={() => setSettingsOpen(false)}
+          gearEl={settingsBtnRef.current}
+          hostEl={rootRef.current}
+          themeVars={fwMenuVars}
+        />
+      )}
       <div className={styles.header}>
         <div className={styles.company}>
           <span className={styles.companySym}>{sym}</span>
@@ -173,6 +242,14 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
           Ownership
         </button>
         </div>
+        {/* ⚙ Fundamentals settings */}
+        <button
+          ref={settingsBtnRef}
+          type="button"
+          className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
+          onClick={() => setSettingsOpen(o => !o)}
+          title="Fundamentals settings"
+        ><UIcon name="gear" size={13} /></button>
       </div>
 
       {effectiveView === 'analyst' ? (

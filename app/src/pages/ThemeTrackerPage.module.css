@@ -35,6 +35,9 @@
 }
 
 /* ── Period rank tabs ───────────────────────────────────────────────────── */
+/* --tt-* vars come from Theme Tracker Settings (themeTrackerSettings.js). They are
+   emitted ONLY when the user deviates from the default, so every fallback below IS
+   the default look. */
 .periodBar {
   display: flex;
   flex-wrap: wrap;   /* narrow widget → tabs that don't fit stack onto the next row */
@@ -43,14 +46,14 @@
   padding: 0 12px;
   min-height: 34px;   /* shared first-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
   flex-shrink: 0;
 }
 
 .periodTab {
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: calc(10px * var(--tt-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.8px;
   text-transform: uppercase;
@@ -58,20 +61,46 @@
   border-radius: 3px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--tt-text, var(--text-muted));
   cursor: pointer;
   transition: color 0.1s, background 0.1s;
 }
 
 .periodTab:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--tt-text-strong, var(--text));
+  background: var(--tt-row-hover, rgba(255, 255, 255, 0.06));
 }
 
 .periodTabActive {
-  color: var(--ut-gold);
-  background: rgba(201, 168, 76, 0.12);
+  color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.12));
   border-color: rgba(201, 168, 76, 0.3);
+}
+
+/* ⚙ Theme Tracker settings gear (right end of the period bar) */
+.settingsBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 4px;
+  color: var(--tt-text, var(--text-muted));
+  cursor: pointer;
+  opacity: 0.75;
+  transition: color 0.1s, background 0.1s, opacity 0.1s;
+}
+.settingsBtn:hover {
+  opacity: 1;
+  color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-row-hover, rgba(255, 255, 255, 0.06));
+}
+.settingsBtnActive {
+  opacity: 1;
+  color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.12));
 }
 
 /* ── Search bar ─────────────────────────────────────────────────────────── */
@@ -82,26 +111,26 @@
   padding: 0 10px;
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
   flex-shrink: 0;
 }
 
 .searchInput {
   flex: 1;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
+  border: 1px solid var(--tt-divider, var(--border));
   border-radius: 3px;
   padding: 4px 28px 4px 8px;
   font-family: var(--font-sans);
-  font-size: 11px;
-  color: var(--text);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  color: var(--tt-text-strong, var(--text));
   outline: none;
   transition: border-color 0.15s;
 }
 
 .searchInput::placeholder {
-  color: var(--text-muted);
+  color: var(--tt-text, var(--text-muted));
 }
 
 .searchInput:focus {
@@ -126,7 +155,7 @@
 
 /* ── Active column highlight ────────────────────────────────────────────── */
 .colLabelActive {
-  color: var(--ut-gold);
+  color: var(--tt-accent, var(--ut-gold));
 }
 
 .retActive {
@@ -143,8 +172,9 @@
   border-right: 1px solid var(--border);
   overflow: hidden;
   /* Match the Watchlist widget's row background (its .leftPanel uses --bg-surface),
-     so the area behind the theme tickers reads the same across both widgets. */
-  background: var(--bg-surface);
+     so the area behind the theme tickers reads the same across both widgets.
+     --tt-bg = the user's Theme Tracker Settings canvas (solid or gradient). */
+  background: var(--tt-bg, var(--bg-surface));
 }
 
 /* Sticky column header */
@@ -152,17 +182,17 @@
   display: grid;
   grid-template-columns: 1fr 80px;
   padding: 8px 12px;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
   flex-shrink: 0;
 }
 
 .colLabel {
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: calc(10px * var(--tt-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.8px;
-  color: var(--text-muted);
+  color: var(--tt-text, var(--text-muted));
   text-transform: uppercase;
   text-align: right;
 }
@@ -213,14 +243,14 @@
   column-gap: 10px;
   align-items: center;
   padding: 7px 12px;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
   cursor: pointer;
   user-select: none;
 }
 
 .groupRow:hover {
-  background: var(--bg-hover);
+  background: var(--tt-row-hover, var(--bg-hover));
 }
 
 /* Inline flow (not flex) so the count chip follows the last word of the title
@@ -229,10 +259,10 @@
 .groupName {
   display: block;
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: calc(11px * var(--tt-font-scale, 1));
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: var(--ut-gold);
+  color: var(--tt-accent, var(--ut-gold));
   text-transform: uppercase;
   line-height: 1.4;
 }
@@ -242,8 +272,8 @@
   width: 10px;
   text-align: center;
   margin-right: 6px;
-  font-size: 9px;
-  color: var(--text-muted);
+  font-size: calc(9px * var(--tt-font-scale, 1));
+  color: var(--tt-text, var(--text-muted));
   vertical-align: middle;
 }
 
@@ -252,9 +282,9 @@
   margin-left: 6px;
   vertical-align: middle;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: calc(10px * var(--tt-font-scale, 1));
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--tt-text, var(--text-muted));
   background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
   padding: 1px 5px;
@@ -304,7 +334,7 @@
   /* left padding matches .groupRow (12px) so the bullet + ticker line up
      under the theme caret + title */
   padding: 5px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--tt-row-divider, rgba(255, 255, 255, 0.04));
   cursor: pointer;
   transition: background 0.1s;
 }
@@ -336,8 +366,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: calc(16px * var(--tt-font-scale, 1));
+  height: calc(16px * var(--tt-font-scale, 1));
   margin-right: 7px;
   flex-shrink: 0;
 }
@@ -359,38 +389,38 @@
 .flagStarActive { color: var(--ut-gold, #c9a84c); }
 
 .stockRow:hover {
-  background: var(--bg-hover);
+  background: var(--tt-row-hover, var(--bg-hover));
 }
 
 /* "… Index" row = the theme's equal-weight thematic-ETF chart. */
 .indexRow { border-bottom: 1px solid rgba(201, 168, 76, 0.15); }
-.indexRow .sym { color: var(--ut-gold); }
-.indexRow :global(svg) { color: var(--ut-gold); }
+.indexRow .sym { color: var(--tt-accent, var(--ut-gold)); }
+.indexRow :global(svg) { color: var(--tt-accent, var(--ut-gold)); }
 .indexBadge {
-  margin-left: 6px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.5px;
+  margin-left: 6px; font-size: calc(8.5px * var(--tt-font-scale, 1)); font-weight: 700; letter-spacing: 0.5px;
   padding: 1px 5px; border-radius: 3px;
-  background: rgba(201, 168, 76, 0.18); color: var(--ut-gold);
+  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.18)); color: var(--tt-accent, var(--ut-gold));
 }
 
 .stockRow.selected {
-  background: rgba(201, 168, 76, 0.08);
-  border-left: 2px solid var(--ut-gold);
+  background: var(--tt-accent-bg, rgba(201, 168, 76, 0.08));
+  border-left: 2px solid var(--tt-accent, var(--ut-gold));
   padding-left: 10px;   /* 12px − 2px border keeps the bullet aligned */
 }
 
 .sym {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: calc(11px * var(--tt-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: var(--text-bright);
+  color: var(--tt-sym, var(--text-bright));
 }
 
 /* ── Return cell ────────────────────────────────────────────────────────── */
 .ret {
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: calc(11px * var(--tt-font-scale, 1));
   font-weight: 400;   /* only the % change is thin; symbols stay 600 */
   text-align: right;
   white-space: nowrap;
@@ -400,14 +430,16 @@
    down-color (#c41f2d) because that deep red reads fine as a big filled candle
    but too dark as thin small text — this keeps it legible + as punchy as the
    green. */
-.retPos   { color: #1ae51a; }
-.retNeg   { color: #ff3b47; }
-/* Sunrise (charts workspace): match the dark candle green/red. */
+.retPos   { color: var(--tt-up, #1ae51a); }
+.retNeg   { color: var(--tt-down, #ff3b47); }
+/* Sunrise (charts workspace): match the dark candle green/red. --tt-up/--tt-down
+   are only set when the user deviates from the default in Theme Tracker Settings,
+   so a deliberate user color wins over the workspace theme; otherwise these hold. */
 :global([data-charts-theme='sunrise']) .retPos,
-:global([data-charts-theme='sunrise']) .rotBadgeIn { color: #0a5c22; }
+:global([data-charts-theme='sunrise']) .rotBadgeIn { color: var(--tt-up, #0a5c22); }
 :global([data-charts-theme='sunrise']) .retNeg,
-:global([data-charts-theme='sunrise']) .rotBadgeOut { color: #7d1620; }
-.retFlat  { color: var(--text-muted); }
+:global([data-charts-theme='sunrise']) .rotBadgeOut { color: var(--tt-down, #7d1620); }
+.retFlat  { color: var(--tt-text, var(--text-muted)); }
 
 /* TC2000-style tick flash: the number goes bold for a beat and a colored tint
    (green uptick / red downtick) fades out behind it. tabular-nums keeps digit

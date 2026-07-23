@@ -2,11 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './EarningsMarkerPopover.module.css'
 
-// Themed (OLED) earnings panel shown when an earnings marker is clicked on the
-// chart. Data comes straight off the marker (/api/chart/markers → FMP), so it
-// opens instantly with no extra fetch. Self-contained: figures only, no footer.
+// Themed earnings panel shown when an earnings marker is clicked on the chart.
+// Data comes straight off the marker (/api/chart/markers → FMP), so it opens
+// instantly with no extra fetch. Self-contained: figures only, no footer.
+// Canvas-matched like every other chart popup: StockChart passes `themeVars`
+// (menuThemeVars of the chart canvas) and the CSS reads `var(--menu-*, <dark>)`,
+// so it goes white/gold on a light canvas and stays OLED on a dark one.
 
-const DIM = '#8a8a90'
+const DIM = 'var(--menu-text-dim, #8a8a90)'
 
 // EPS / plain numbers: up to 2 decimals, trailing zeros kept for cents-like reads.
 function fmtNum(v, dp = 2) {
@@ -59,7 +62,7 @@ function SurpriseRow({ label, absStr, pctNum, pctText, beatColor, missColor }) {
   )
 }
 
-export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1ae51a', missColor = '#c41f2d', onClose }) {
+export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1ae51a', missColor = '#c41f2d', themeVars = null, onClose }) {
   const ref = useRef(null)
   // Position is finalized after mount using the popover's REAL size, so it never
   // overhangs the viewport bottom (badges now sit low on the chart → clicks land
@@ -113,9 +116,12 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
 
   // First paint renders off-screen (measure), then useLayoutEffect pins the real
   // position before the browser shows it — so there's no visible jump.
-  const style = pos
-    ? { left: pos.left, top: pos.top }
-    : { left: x, top: y, visibility: 'hidden' }
+  // Portaled to document.body, so the canvas-matched --menu-* vars must ride the
+  // popover's own root style (they can't cascade from the chart wrapper).
+  const style = {
+    ...(themeVars || {}),
+    ...(pos ? { left: pos.left, top: pos.top } : { left: x, top: y, visibility: 'hidden' }),
+  }
 
   return createPortal(
     <div ref={ref} className={styles.pop} style={style} role="dialog" aria-label={`${sym || ''} earnings`}>

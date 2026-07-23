@@ -15,6 +15,10 @@ import { prefetchBar, prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, pr
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
+import usePreferences, { parsePref } from '../hooks/usePreferences'
+import { menuThemeVars } from '../utils/dividerColor'
+import ThemeTrackerSettingsPanel from './theme-tracker/ThemeTrackerSettingsPanel'
+import { THEME_TRACKER_SETTINGS_KEY, THEME_TRACKER_DEFAULTS, THEME_TRACKER_BASE_FONT_PX, mergeThemeTrackerSettings, themeTrackerStyleVars } from './theme-tracker/themeTrackerSettings'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBarPrices, { pickFreshPrice } from '../hooks/useRealtimeBarPrices'
 
@@ -112,11 +116,14 @@ function liveGroupReturn(theme, periodKey, prices) {
 // holding green on the day always flashes the up-tint (even on a down-tick), one
 // red on the day always flashes the down-tint. `value` IS the day return, so its
 // sign == the day direction. `dir` now only GATES the flash (any change).
-function ReturnCell({ value, baseClass }) {
+function ReturnCell({ value, baseClass, flashEnabled = true }) {
   const [dir, setDir] = useState(null)
   const prevRef = useRef(null)
   useEffect(() => {
     const r = value == null ? null : Math.round(value * 100) / 100
+    // Tick-flash disabled in Theme Tracker Settings: keep tracking the previous
+    // value (so re-enabling doesn't flash on a stale compare) but never animate.
+    if (!flashEnabled) { prevRef.current = r; return }
     const p = prevRef.current
     if (r != null && p != null && r !== p) {
       setDir(r > p ? 'up' : 'down')
@@ -125,7 +132,7 @@ function ReturnCell({ value, baseClass }) {
       return () => clearTimeout(id)
     }
     prevRef.current = r
-  }, [value])
+  }, [value, flashEnabled])
   const flashCls = dir ? (value >= 0 ? styles.flashUp : styles.flashDown) : ''
   return (
     <span className={`${baseClass} ${dir ? styles.retFlash : ''} ${flashCls}`}>
@@ -134,7 +141,7 @@ function ReturnCell({ value, baseClass }) {
   )
 }
 
-function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices }) {
+function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices, tintEnabled = true, showLogos = true, logoSize = 16 }) {
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const isPortfolio = theme.ticker === 'UCT20'
   const groupLive = liveGroupReturn(theme, activeKey, prices)
@@ -157,7 +164,7 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
           {isPortfolio && <span className={styles.portfolioBadge}><UIcon name="star-fill" size={13} /></span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
-        <ReturnCell value={groupLive} baseClass={`${styles.ret} ${styles.retActive} ${retClass(groupLive, styles)}`} />
+        <ReturnCell value={groupLive} baseClass={`${styles.ret} ${styles.retActive} ${retClass(groupLive, styles)}`} flashEnabled={tintEnabled} />
       </div>
 
       {open && (() => {
@@ -177,7 +184,7 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
                   so "ETF" there was misleading (mega-review). */}
               <span className={styles.indexBadge}>{theme.etf_name ? 'ETF' : 'INDEX'}</span>
             </span>
-            <ReturnCell value={groupLive} baseClass={`${styles.ret} ${retClass(groupLive, styles)}`} />
+            <ReturnCell value={groupLive} baseClass={`${styles.ret} ${retClass(groupLive, styles)}`} flashEnabled={tintEnabled} />
           </div>
         )
       })()}
@@ -209,11 +216,11 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
                 onClick={e => { e.stopPropagation(); toggleFlag(h.sym) }}
                 title={isFlagged(h.sym) ? 'Remove from Flagged' : 'Add to Flagged'}
               >{isFlagged(h.sym) ? <UIcon name="star-fill" size={12} /> : <UIcon name="star" size={12} />}</button>
-              <span className={styles.stockLogo}><CompanyLogo sym={h.sym} name={h.name} size={16} round /></span>
+              {showLogos && <span className={styles.stockLogo}><CompanyLogo sym={h.sym} name={h.name} size={logoSize} round /></span>}
               {getTag && getTag(h.sym) && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: TAG_BY_KEY[getTag(h.sym)]?.hex, marginRight: 4 }} />}
               <span className={styles.sym}>{h.sym}</span>
             </span>
-            <ReturnCell value={retVal} baseClass={`${styles.ret} ${retClass(retVal, styles)}`} />
+            <ReturnCell value={retVal} baseClass={`${styles.ret} ${retClass(retVal, styles)}`} flashEnabled={tintEnabled} />
           </div>
         )
       })}
@@ -228,6 +235,37 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // you click into another — they never jump to the watchlist just from hover.
   const isActiveWidget = () => !activeRef || activeRef.current == null || activeRef.current === widgetKey
   const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
+
+  // ── Theme Tracker appearance settings (⚙ panel) — mirrors the watchlist's ──
+  const { prefs, setPref } = usePreferences()
+  const ttSettings = useMemo(
+    () => mergeThemeTrackerSettings(parsePref(prefs?.[THEME_TRACKER_SETTINGS_KEY], null)),
+    [prefs],
+  )
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsBtnRef = useRef(null)
+  const pageRef = useRef(null)
+  const patchSettings = useCallback((patch) => {
+    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify({ ...ttSettings, ...patch }))
+  }, [ttSettings, setPref])
+  const resetSettings = useCallback(() => {
+    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify(THEME_TRACKER_DEFAULTS))
+  }, [setPref])
+  const ttStyle = useMemo(() => themeTrackerStyleVars(ttSettings), [ttSettings])
+  // Canvas-matched palette for the settings panel (light/gold on a light canvas,
+  // dark on a dark one) — same mechanism as the chart/watchlist popup menus.
+  const ttMenuVars = useMemo(() => {
+    const canvas = ttSettings.bgMode === 'gradient' ? (ttSettings.bgGradient?.top || ttSettings.bg) : ttSettings.bg
+    return menuThemeVars(canvas) || {}
+  }, [ttSettings])
+  // CompanyLogo sizes itself with an inline px style, so the text-size scale is
+  // applied in JS for the logo (the CSS vars handle everything else).
+  const rowLogoSize = useMemo(() => {
+    const px = Number(ttSettings.fontSize)
+    const scale = px > 0 ? px / THEME_TRACKER_BASE_FONT_PX : 1
+    return Math.round(16 * scale)
+  }, [ttSettings.fontSize])
+
   const [activeTab, setActiveTab] = useState('Today')  // always open on Today (not persisted → resets every load)
   // Instant paint: seed SWR from the LAST cached response so the tab renders
   // immediately on refresh (like the chart's IDB cache) instead of showing a ~1s
@@ -551,10 +589,24 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
 
   return (
     <div
+      ref={pageRef}
       className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}
+      style={ttStyle}
       onPointerDown={markActiveWidget}
       onFocusCapture={markActiveWidget}
     >
+      {settingsOpen && (
+        <ThemeTrackerSettingsPanel
+          settings={ttSettings}
+          onChange={patchSettings}
+          onReset={resetSettings}
+          onClose={() => setSettingsOpen(false)}
+          gearEl={settingsBtnRef.current}
+          hostEl={pageRef.current}
+          themeVars={ttMenuVars}
+        />
+      )}
+
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
 
@@ -569,6 +621,13 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
             </button>
           ))}
+          {/* ⚙ Theme Tracker settings */}
+          <button
+            ref={settingsBtnRef}
+            className={`${styles.settingsBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
+            onClick={() => setSettingsOpen(o => !o)}
+            title="Theme Tracker settings"
+          ><UIcon name="gear" size={14} /></button>
         </div>
 
         {/* Search */}
@@ -611,7 +670,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               activeKey={activeKey} sortDir={sortDir} open={openTheme === theme.ticker} onToggle={toggleTheme}
               rowRefs={rowRefs} rotationRanking={rotationRankings[theme.ticker]} getTag={getTag}
               tickerActions={tickerActions} onHoverSym={handleHoverSym}
-              prices={openTheme === theme.ticker ? tickPrices : null} />
+              prices={openTheme === theme.ticker ? tickPrices : null}
+              tintEnabled={ttSettings.tintEnabled} showLogos={ttSettings.showLogos} logoSize={rowLogoSize} />
           ))}
         </div>
       </div>
