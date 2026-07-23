@@ -126,6 +126,11 @@ def _ensure_init() -> None:
                 "CREATE TABLE IF NOT EXISTS ai_search_feedback ("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, answer_id TEXT, kind TEXT, ts TEXT)",
                 "CREATE INDEX IF NOT EXISTS idx_aisf_aid ON ai_search_feedback(answer_id)",
+                # Content-free counter for the personal branch (invariant #2: the
+                # personal branch never logs query/answer text anywhere). ONLY a
+                # per-day invocation + degraded tally — no query/answer columns.
+                "CREATE TABLE IF NOT EXISTS ai_search_personal_counter ("
+                "day TEXT PRIMARY KEY, invocations INTEGER DEFAULT 0, degraded INTEGER DEFAULT 0)",
             ):
                 conn.execute(stmt)
             conn.commit()
@@ -136,6 +141,32 @@ def _reset_for_tests() -> None:
     global _INIT_DONE, _LAST_PRUNE
     _INIT_DONE = False
     _LAST_PRUNE = 0.0
+
+
+def _reset_for_test() -> None:
+    """Alias — some test suites use the singular spelling."""
+    _reset_for_tests()
+
+
+def _all_rows_for_test() -> list[dict]:
+    """Test helper: every ai_search_log row, oldest first."""
+    _ensure_init()
+    with contextlib.closing(_connect()) as conn:
+        conn.row_factory = sqlite3.Row
+        return [dict(r) for r in conn.execute("SELECT * FROM ai_search_log ORDER BY id").fetchall()]
+
+
+# ── grounding tiers ───────────────────────────────────────────────────────────
+# Sources that inject on ~every query (ambient context, not differentiating
+# "desk" grounding from a generic web answer). Excluded from the tier decision
+# so the coverage metric reflects real proprietary grounding, not noise.
+_AMBIENT = {"regime", "recency"}
+
+
+def _grounding_tier(sources) -> str:
+    """"desk-grounded" when a real (non-ambient) source is present, else
+    "web-only". `sources` is any iterable of source-name strings."""
+    return "desk-grounded" if (set(sources or ()) - _AMBIENT) else "web-only"
 
 
 # ── classifiers (rule-based, free, versioned) ────────────────────────────────
@@ -255,16 +286,20 @@ def log(*, user_id=None, answer_id=None, endpoint="single", query="", answer="",
         had_live_price=False, grounding_context=None, query_tickers=None,
         primary_sector=None, primary_themes=None, citations=None, related_questions=None,
         domain_pack=None, elapsed_ms=None, error=None, units=0,
-        conversation_id=None, turn_index=None, has_history=False, day_et=None) -> None:
+        conversation_id=None, turn_index=None, has_history=False, day_et=None,
+        skip_query_text: bool = False) -> None:
     """Best-effort insert of one Q&A row. Swallows all errors — it can never break
     or slow the answer. Computes derived + classified fields internally so callers
-    stay thin. `user_id` is used only to derive the HMAC day-bucket, never stored."""
+    stay thin. `user_id` is used only to derive the HMAC day-bucket, never stored.
+    `skip_query_text=True` stores "" for the query text (and everything derived
+    from it) instead of the raw query — used by callers that must NOT persist
+    query content."""
     if not _enabled():
         return
     try:
         _ensure_init()
         day = day_et or _et_day()
-        q = (query or "")[:2000]
+        q = "" if skip_query_text else (query or "")[:2000]
         a = (answer or "")[:16000]
         gsrc = [str(s) for s in (grounded_sources or [])]
         qtk = [str(t).upper() for t in (query_tickers or [])]
@@ -350,6 +385,28 @@ def record_signal(answer_id, kind) -> None:
         pass
 
 
+def record_personal_invocation(degraded: bool = False) -> None:
+    """Content-free tally of ONE personal-branch request. Stores NO query/answer
+    text — just increments today's (day, invocations, degraded) counter row.
+    Best-effort, swallows all errors (never affects the answer path)."""
+    if not _enabled():
+        return
+    try:
+        _ensure_init()
+        day = _et_day()
+        deg = 1 if degraded else 0
+        with contextlib.closing(_connect()) as conn:
+            conn.execute(
+                "INSERT INTO ai_search_personal_counter (day, invocations, degraded) "
+                "VALUES (?, 1, ?) "
+                "ON CONFLICT(day) DO UPDATE SET "
+                "invocations = invocations + 1, degraded = degraded + excluded.degraded",
+                (day, deg))
+            conn.commit()
+    except Exception:
+        pass
+
+
 def _maybe_prune() -> None:
     """Retention: drop raw time_sensitive rows past the window (evergreen + pinned
     kept). Throttled to ~6h and triggered from insights() (admin path) — NEVER from a
@@ -393,18 +450,35 @@ def insights(days: int = 7, recent_limit: int = 50) -> dict:
         "answered": 0, "distinct_buckets": 0, "top_questions": [], "top_tickers": [],
         "by_mode": {}, "by_question_type": {}, "by_freshness": {},
         "cache_rate": 0.0, "grounded_rate": 0.0, "error_rate": 0.0, "first_person_rate": 0.0,
+        "grounding_coverage": {}, "personal": {"invocations": 0, "degraded": 0, "rate": 0.0},
         "recent": [],
     }
     try:
         _ensure_init()
         _maybe_prune()
         cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, days))).isoformat()
+        cutoff_day = (datetime.now(timezone.utc) - timedelta(days=max(1, days))).strftime("%Y-%m-%d")
         with contextlib.closing(_connect()) as conn:
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
             out["total"] = c.execute("SELECT COUNT(*) FROM ai_search_log").fetchone()[0]
             rows = c.execute("SELECT * FROM ai_search_log WHERE ts >= ? ORDER BY ts DESC", (cutoff,)).fetchall()
+            prows = c.execute(
+                "SELECT invocations, degraded FROM ai_search_personal_counter WHERE day >= ?",
+                (cutoff_day,)).fetchall()
         n = len(rows)
+        # Personal lane: content-free counter, independent of `n` (ai_search_log
+        # never gets personal-branch rows — invariant #2 in the router). rate is
+        # invocations over (logged non-personal + invocations) so it reads as
+        # "share of all activity that was personalized".
+        p_invocations = sum(r["invocations"] for r in prows)
+        p_degraded = sum(r["degraded"] for r in prows)
+        p_denom = n + p_invocations
+        out["personal"] = {
+            "invocations": p_invocations,
+            "degraded": p_degraded,
+            "rate": round(p_invocations / p_denom, 3) if p_denom else 0.0,
+        }
         out["window_count"] = n
         if n:
             from collections import Counter
@@ -422,6 +496,14 @@ def insights(days: int = 7, recent_limit: int = 50) -> dict:
             out["by_mode"] = dict(Counter(r["mode"] or "?" for r in rows))
             out["by_question_type"] = dict(Counter(r["question_type"] or "other" for r in rows))
             out["by_freshness"] = dict(Counter(r["freshness"] or "?" for r in rows))
+            tier_counts: Counter = Counter()
+            for r in rows:
+                try:
+                    gs = json.loads(r["grounded_sources"] or "[]")
+                except Exception:
+                    gs = []
+                tier_counts[_grounding_tier(gs)] += 1
+            out["grounding_coverage"] = dict(tier_counts)
             out["cache_rate"] = round(sum(1 for r in rows if r["cached"]) / n, 3)
             out["grounded_rate"] = round(sum(1 for r in rows if (r["grounded_sources"] or "[]") != "[]") / n, 3)
             out["error_rate"] = round(sum(1 for r in rows if r["error"]) / n, 3)
