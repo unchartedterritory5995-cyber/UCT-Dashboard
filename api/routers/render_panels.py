@@ -116,15 +116,13 @@ def render_earnings_history(token: str = "", syms: str = ""):
 # Public-safe flow fields — the structured conviction board the engine already
 # emits into wire["options_flow"]. Same board the FREE OptionsFlow page shows; the
 # rows are display-shaped (no raw signal-sourcing), so we pass them through capped.
-_FLOW_PUBLIC = ("sym", "cp", "strike", "exp", "dte", "dir", "grade",
-                "premium_spoken", "sector", "cap_band", "gold")
-_FLOW_LB_PUBLIC = ("sym", "dir", "net_spoken", "pct", "sector", "er", "contract")
+_FLOW_PUBLIC = ("sym", "dir", "skew", "cp_word", "net_spoken", "contract", "er")
 
 
 @router.get("/r/flow")
-def render_flow(token: str = "", n: int = 12):
+def render_flow(token: str = "", n: int = 10):
     """Notable options flow (prior session) — token-gated public read over the engine's
-    pushed wire["options_flow"]: net-premium leaderboard + graded contract prints."""
+    pushed wire["options_flow"]: a net-read line + one conviction-ranked list."""
     _check_token(token)
     try:
         from api.services import engine as _eng
@@ -132,13 +130,10 @@ def render_flow(token: str = "", n: int = 12):
     except Exception:  # noqa: BLE001
         wire = {}
     flow = (wire.get("options_flow") or {}) if isinstance(wire, dict) else {}
-    rows = flow.get("rows") or []
-    n = max(1, min(int(n or 12), 24))
+    rows = flow.get("flow") or []
+    n = max(1, min(int(n or 10), 16))
     public = [{k: r.get(k) for k in _FLOW_PUBLIC} for r in rows[:n]]
-    lb = flow.get("leaderboard") or {}
-    lb_pub = {side: [{k: i.get(k) for k in _FLOW_LB_PUBLIC} for i in (lb.get(side) or [])]
-              for side in ("bull", "bear")}
-    return {"session": flow.get("session"), "rows": public, "leaderboard": lb_pub}
+    return {"session": flow.get("session"), "net_read": flow.get("net_read"), "flow": public}
 
 
 @router.get("/r/tweets")
