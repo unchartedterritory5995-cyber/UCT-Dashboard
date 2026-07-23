@@ -3000,6 +3000,34 @@ export default function StockChart({
           onOpenSettings()
           return
         }
+        // Alt+Shift+A → add indicator: opens the settings panel (its Indicators
+        // section) rather than a duplicate dialog.
+        if (e.shiftKey && e.code === 'KeyA' && typeof onOpenSettings === 'function') {
+          e.preventDefault()
+          onOpenSettings()
+          return
+        }
+        // Alt+S → download a PNG screenshot of the chart (LWC panes: candles,
+        // volume, indicators). Drawing overlays are not composited in v1.
+        if (!e.shiftKey && e.code === 'KeyS') {
+          const chart = chartRef.current
+          if (chart && typeof chart.takeScreenshot === 'function') {
+            e.preventDefault()
+            try {
+              const canvas = chart.takeScreenshot()
+              canvas.toBlob((blob) => {
+                if (!blob) return
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `${sym || 'chart'}_${resolvedTf || ''}.png`
+                document.body.appendChild(a); a.click(); a.remove()
+                setTimeout(() => URL.revokeObjectURL(url), 1000)
+              })
+            } catch { /* screenshot unsupported */ }
+          }
+          return
+        }
       }
 
       // Zoom the time axis around its center: + / = zoom in, - zoom out.
