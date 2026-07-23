@@ -5257,6 +5257,13 @@ export default function StockChart({
           lineWidth: 1, lineType: LineType.Curved, priceScaleId: volScaleId,
           priceLineVisible: false, lastValueVisible: false,
           crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
+          // The volume price scale uses the formatter of its LOWEST-z-order series.
+          // The volume MA line shares this scale, and with the custom ThinVolumeSeries
+          // (histogram style) the MA line — not the bars — ends up the formatter
+          // source, so WITHOUT this its default price formatter rendered the axis raw
+          // ("2000000000.00"). Give every series on the scale the SAME volume
+          // formatter so the axis abbreviates no matter which source wins.
+          priceFormat: { type: 'custom', formatter: formatVolumeAxis, minMove: 1 },
         }
         if (!volMaSeriesRef.current) {
           volMaSeriesRef.current = chart.addSeries(LineSeries, { color: cs.volume?.maColor || VOL_MA_COLOR, lineWidth: Number(cs.volume?.maLineWidth) || 1, ..._vmOpts }, _vmPane)
