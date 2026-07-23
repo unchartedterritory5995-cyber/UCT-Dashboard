@@ -317,17 +317,19 @@ def _fmt_heat(user_id, account_id):
     return ("EXPOSURE: " + "; ".join(bits)) if bits else ""
 
 def _fmt_edge(user_id, account_id):
+    # edge_for_setups returns {setup_name: {n, avg_r, total_r, win_rate, verdict, muted, note}}
     try:
         e = _edge_for(user_id, account_id)
     except Exception:
         return ""
-    rows = (e.get("by_setup") or e.get("setups") or []) if isinstance(e, dict) else []
+    if not isinstance(e, dict) or not e:
+        return ""
     out = []
-    for r in rows[:6]:
-        k = r.get("setup") or r.get("key")
-        if k and r.get("avg_r") is not None:
-            n = r.get("trade_count") or r.get("n")
-            out.append(f"{k} {r['avg_r']:+.2f}R" + (f"/{n}t" if n else ""))
+    for setup, d in list(e.items())[:6]:
+        if d.get("avg_r") is not None:
+            out.append(f"{setup} {d['avg_r']:+.2f}R" + (f"/{d.get('n')}t" if d.get("n") else ""))
+        elif d.get("note"):
+            out.append(f"{setup} ({d['note']})")
     return ("YOUR EDGE BY SETUP: " + "; ".join(out)) if out else ""
 
 def assemble(user_id, account_id, query, tickers):
@@ -864,8 +866,8 @@ git commit -m "feat: widget personal-answer waiting state + share/disclaimer sup
 ### Task 10: Admin panel — redesigned grounding-coverage lane
 
 **Files:**
-- Modify: `app/src/.../AiSearchInsightsPanel.jsx` (confirm path)
-- Test: extend its test (or add one)
+- Modify: `app/src/components/admin/AiSearchInsightsPanel.jsx`
+- Test: `app/src/components/admin/AiSearchInsightsPanel.test.jsx` (add if absent)
 
 - [ ] **Step 1: Failing vitest** — mock `insights()` payload with `grounding_coverage` tiers + `personal` lane; assert the lane renders the tier rates and the personal invocation rate with its denominator label, and does NOT render regime as a "proprietary" hit.
 
