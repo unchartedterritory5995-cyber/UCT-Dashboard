@@ -53,7 +53,8 @@
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.3px;
-  color: var(--fw-accent, var(--ut-gold));
+  /* Follows the Settings "Text" color (owner ask); gold only as the untouched default. */
+  color: var(--fw-text, var(--ut-gold));
   flex-shrink: 0;
 }
 .companyName {
@@ -92,8 +93,13 @@
 .toggleBtn:hover:not(:disabled):not(.toggleBtnActive) { color: var(--fw-heading, var(--text-bright)); }
 .toggleBtn:disabled { opacity: 0.4; cursor: default; }
 .toggleBtnActive {
-  color: var(--fw-elev, var(--bg-elevated));
-  background: var(--fw-accent, var(--ut-gold));
+  /* Canvas-derived shading, not the gold fill (owner ask): one step darker than a
+     light canvas / one step lighter than a dark one (--fw-hover = toolbarFor
+     bgHover when a canvas is set; the fallback is the same step on the default
+     dark). Text goes strong for contrast against the subtle shade. */
+  color: var(--fw-heading, var(--text-bright));
+  background: var(--fw-hover, rgba(255, 255, 255, 0.13));
+  font-weight: 700;
 }
 
 /* ⚙ Fundamentals settings gear (right end of the header row) */

@@ -51,7 +51,13 @@ class ThinVolumeRenderer {
         const left = Math.round(bar.x * hpr - w / 2)
         const top = Math.min(y, zeroY)
         const h = Math.max(1, Math.abs(zeroY - y))
-        ctx.fillStyle = item.color || options.color
+        // Per-point color arrives as bar.barColor, NOT originalData.color — LWC's
+        // getCustomSeriesPlotRow destructures `color` OUT of the item
+        // (`const { time, color, ...data } = item`) and surfaces it here (falling
+        // back to the series options color itself). Reading item.color instead
+        // silently painted every bar the series default (the launch bug: user
+        // up/down volume colors never applied in Histogram style).
+        ctx.fillStyle = bar.barColor || options.color
         ctx.fillRect(left, top, w, h)
       }
     })
