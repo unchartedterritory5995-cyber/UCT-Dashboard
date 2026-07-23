@@ -2990,6 +2990,21 @@ export default function StockChart({
         }
       }
 
+      // Zoom the time axis around its center: + / = zoom in, - zoom out.
+      if ((e.key === '+' || e.key === '=' || e.key === '-') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const chart = chartRef.current
+        if (chart) {
+          let r = null; try { r = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+          if (r && r.to > r.from) {
+            e.preventDefault()
+            const center = (r.to + r.from) / 2
+            const half = ((r.to - r.from) * (e.key === '-' ? 1.25 : 0.8)) / 2
+            try { chart.timeScale().setVisibleLogicalRange({ from: center - half, to: center + half }) } catch { /* transient */ }
+          }
+        }
+        return
+      }
+
       const cmd = matchShortcut(e)
       if (!cmd) return
 
