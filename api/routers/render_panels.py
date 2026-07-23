@@ -118,12 +118,13 @@ def render_earnings_history(token: str = "", syms: str = ""):
 # rows are display-shaped (no raw signal-sourcing), so we pass them through capped.
 _FLOW_PUBLIC = ("sym", "cp", "strike", "exp", "dte", "dir", "grade",
                 "premium_spoken", "sector", "cap_band", "gold")
+_FLOW_LB_PUBLIC = ("sym", "dir", "net_spoken", "pct", "sector", "er", "contract")
 
 
 @router.get("/r/flow")
 def render_flow(token: str = "", n: int = 12):
-    """Top-N notable options flow (prior session, conviction-ranked) — token-gated
-    public read over the engine's pushed wire["options_flow"] board."""
+    """Notable options flow (prior session) — token-gated public read over the engine's
+    pushed wire["options_flow"]: net-premium leaderboard + graded contract prints."""
     _check_token(token)
     try:
         from api.services import engine as _eng
@@ -134,7 +135,10 @@ def render_flow(token: str = "", n: int = 12):
     rows = flow.get("rows") or []
     n = max(1, min(int(n or 12), 24))
     public = [{k: r.get(k) for k in _FLOW_PUBLIC} for r in rows[:n]]
-    return {"session": flow.get("session"), "rows": public}
+    lb = flow.get("leaderboard") or {}
+    lb_pub = {side: [{k: i.get(k) for k in _FLOW_LB_PUBLIC} for i in (lb.get(side) or [])]
+              for side in ("bull", "bear")}
+    return {"session": flow.get("session"), "rows": public, "leaderboard": lb_pub}
 
 
 @router.get("/r/tweets")
