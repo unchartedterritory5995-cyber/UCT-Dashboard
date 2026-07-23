@@ -275,6 +275,13 @@ DEFAULT_THRESHOLDS = {
     # bull/bear). Separate from max_itm_pct (which drops the row entirely).
     # Set 0 to disable.
     "direction_max_itm_pct": 20.0,
+    # Null-spot fail-closed (2026-07-23). The deep-ITM guard above and the
+    # deep-ITM/lottery noise filters are ALL gated on having a spot price. When
+    # spot enrichment is missing for a row (or a whole symbol), they silently
+    # skip and arb/parity flow publishes with a confident bull/bear. When True,
+    # approximate moneyness from price vs strike and drop the direction on
+    # apparent deep-ITM. False restores the old fail-open behaviour.
+    "spotless_itm_guard": True,
     # Keep-as-Size floor (2026-07-20). When the side can't be trusted (deep-ITM
     # guard, ambiguous at-bid 'B', or blank single-venue NBBO) direction is None
     # and the row would be dropped. If premium clears this floor, KEEP it as a
@@ -1202,6 +1209,48 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
             _dir_itm_cap = 20.0
         if _dir_itm_cap and money_pct > _dir_itm_cap:
             direction = None
+    # Null-spot fail-CLOSED (2026-07-23). The guard above needs money_pct, which
+    # needs spot — and the deep-ITM/lottery noise filters further down are all
+    # gated on `spot > 0` too. So when spot enrichment is missing (ISRG 7/23:
+    # a whole symbol arrived with Spot NULL), every one of those protections
+    # SKIPS and a 75%-ITM put bought at parity publishes as a clean
+    # "UCT Size Bears". Same philosophy as the guard above — better
+    # directionless than confidently wrong — so approximate moneyness from
+    # price vs strike instead of trusting it.
+    #
+    # A deep-ITM option trades at ~intrinsic, so at parity we can recover spot:
+    #   PUT : spot ≈ strike - price  → moneyness = price / (strike - price)
+    #   CALL: spot ≈ strike + price  → moneyness = price / (strike + price)
+    # Solving each for "moneyness > direction_max_itm_pct" gives a pure
+    # price-vs-strike trip point, so this guard uses the SAME cap as the
+    # spot-based one above rather than a second hardcoded number:
+    #   PUT  trips when price > strike * cap/(100 + cap)
+    #   CALL trips when price > strike * cap/(100 - cap)
+    # This only drops DIRECTION; keep-as-Size below still decides whether the
+    # row survives as a neutral Size print. Tunable — set
+    # spotless_itm_guard=false to restore the old fail-open behaviour.
+    # Only applied under 365 DTE: the at-parity assumption needs extrinsic to be
+    # small relative to intrinsic. On LEAPS it isn't — an OTM 2028 put can carry
+    # $34 of pure time value and would trip this falsely — so LEAPS keep their
+    # direction and rely on the spot-based guard once enrichment is fixed.
+    if direction is not None and money_pct is None and strike > 0 \
+            and 0 < (_parse_int(row.get("Dte")) or 0) < 365:
+        _px_guard = _parse_float(row.get("Price"))
+        if _px_guard and _px_guard > 0:
+            try:
+                _t = _load_thresholds()
+                _spotless_on = _t.get("spotless_itm_guard", True)
+                _cap_no_spot = float(_t.get("direction_max_itm_pct", 20.0) or 0)
+            except Exception:
+                _spotless_on, _cap_no_spot = True, 20.0
+            if _spotless_on and _cap_no_spot > 0:
+                if cp_full == "PUT":
+                    _trip = strike * (_cap_no_spot / (100.0 + _cap_no_spot))
+                else:
+                    _denom = max(100.0 - _cap_no_spot, 1.0)
+                    _trip = strike * (_cap_no_spot / _denom)
+                if _px_guard > _trip:
+                    direction = None
     # Keep-as-Size override (2026-07-20): when the side can't be trusted — the
     # deep-ITM guard above, an ambiguous at-bid "B", or a blank single-venue
     # NBBO — direction is None. Real size shouldn't vanish on a side we can't
@@ -3996,6 +4045,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "keep_sizeless_min_premium", # premium floor to keep a direction-less print as neutral Size
         "net_flow_min_ratio",        # feed-side two-way-flow demote threshold
         "hide_sizeless",             # hide direction-unconfirmed rows from curated
+        "spotless_itm_guard",        # fail closed on deep-ITM when spot is missing
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
