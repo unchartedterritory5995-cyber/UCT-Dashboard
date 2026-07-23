@@ -434,10 +434,18 @@ export default function CustomScan({ allCandidates }) {
   useEffect(() => {
     function onKey(e) {
       if (!selectedSym) return
-      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      // Space advances like ArrowDown (next ticker).
+      const navSpace = e.key === ' ' || e.key === 'Spacebar'
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && !navSpace) return
+      // Don't hijack these while typing, or steal Space from a control that uses it.
+      const t = e.target
+      const tag = t?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable) return
+      if (navSpace && (tag === 'BUTTON' || tag === 'A' || tag === 'SELECT' || t?.getAttribute?.('role') === 'button')) return
       const idx = orderedResults.findIndex(r => r.ticker === selectedSym)
       if (idx === -1) return
-      const next = e.key === 'ArrowDown' ? orderedResults[idx + 1] : orderedResults[idx - 1]
+      const navDown = e.key === 'ArrowDown' || navSpace
+      const next = navDown ? orderedResults[idx + 1] : orderedResults[idx - 1]
       if (next) { setSelectedSym(next.ticker); setSelectedName(next.name || '') }
       e.preventDefault()
     }

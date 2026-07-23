@@ -470,13 +470,21 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   }, [rtPrices, barPrices, expandedSyms])
 
   const handleKeyDown = useCallback((e) => {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    // Space advances like ArrowDown (next ticker).
+    const navSpace = e.key === ' ' || e.key === 'Spacebar'
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && !navSpace) return
     // Another list widget owns the arrows (user last clicked it) — don't fight it.
     if (activeRef && activeRef.current != null && activeRef.current !== widgetKey) return
     // Don't hijack arrows while user is typing in the search input,
     // any inline editor, etc.
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
+    // Space also never steals from a control that uses it.
+    if (navSpace) {
+      const t = tgt?.tagName
+      if (t === 'BUTTON' || t === 'A' || t === 'SELECT' || tgt?.getAttribute?.('role') === 'button') return
+    }
+    const navDown = e.key === 'ArrowDown' || navSpace
     if (!allStocks.length) return
     // Locate by the exact INSTANCE (theme::sym) so navigating a ticker that also
     // lives in another open theme steps to its true neighbor instead of jumping
@@ -491,8 +499,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     e.stopImmediatePropagation()   // this widget owns the arrow — don't double-handle
     markActiveWidget()             // keep the lock here as you keep scanning
     const nextIdx = idx < 0
-      ? (e.key === 'ArrowDown' ? 0 : allStocks.length - 1)
-      : (e.key === 'ArrowDown'
+      ? (navDown ? 0 : allStocks.length - 1)
+      : (navDown
           ? Math.min(idx + 1, allStocks.length - 1)
           : Math.max(idx - 1, 0))
     if (nextIdx === idx) return
