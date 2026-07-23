@@ -49,6 +49,42 @@ def render_catalysts(token: str = "", n: int = 3, date: str = ""):
     return {"market_date": md, "rows": rows[:n]}
 
 
+def _rev_m(v):
+    """Normalize revenue to $ millions (FMP gives raw dollars; some paths give millions)."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    return v / 1e6 if abs(v) >= 1e9 else v  # >=1e9 ⇒ raw dollars; else already millions
+
+
+@router.get("/r/earnings-history")
+def render_earnings_history(token: str = "", syms: str = ""):
+    """Per-ticker last-reported-quarter ACTUALS + upcoming-quarter estimate & projected
+    YoY growth (est vs the year-ago actual) — token-gated public read over the cached
+    FMP-backed earnings table. Powers the newsletter's 'set to report' blocks."""
+    _check_token(token)
+    from api.services import earnings_table as et
+    out = {}
+    for sym in [s.strip().upper() for s in (syms or "").split(",") if s.strip()][:15]:
+        try:
+            q = (et.get_earnings_table(sym) or {}).get("quarterly", []) or []
+            reported = [r for r in q if r.get("reported")]
+            forward = [r for r in q if not r.get("reported")]
+            last, nxt = (reported[-1] if reported else None), (forward[0] if forward else None)
+            out[sym] = {
+                "last_q": ({"label": last.get("label"), "eps": last.get("eps_actual"),
+                            "rev_m": _rev_m(last.get("rev_actual"))} if last else None),
+                "upcoming": ({"label": nxt.get("label"), "eps_est": nxt.get("eps_estimate"),
+                              "rev_est_m": _rev_m(nxt.get("rev_estimate")),
+                              "eps_yoy": nxt.get("eps_est_chg_pct"),
+                              "rev_yoy": nxt.get("rev_est_chg_pct")} if nxt else None),
+            }
+        except Exception:  # noqa: BLE001
+            out[sym] = None
+    return {"data": out}
+
+
 @router.get("/r/tweets")
 def render_tweets(token: str = "", n: int = 5, hours: int = 18):
     """Top-N recent notable tweets that mention tickers — token-gated public read.
