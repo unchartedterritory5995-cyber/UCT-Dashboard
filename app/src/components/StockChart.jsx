@@ -866,6 +866,7 @@ export default function StockChart({
   disablePatterns = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
   showSavedDrawings = false, // render the user's saved per-symbol drawings as a READ-ONLY layer when the drawing tools are off (multi-chart grid cells: a member's trendlines must not vanish there). Inert when showDrawingTools is on — the editable overlay already renders them.
   settingsOverride = null,  // optional PARTIAL chart_settings blob merged over the user's global settings for THIS instance only (multi-chart grid: per-cell chart type). Precedence defaults < global < override; overridden keys are restored from the un-overridden base before any settings write persists, so an override can never leak into the global blob. MUST be identity-stable (useMemo) — it's a memo dep.
+  onSettingsPersist = null,  // optional (nextFullSettings) => void — when provided, ALL in-chart settings writes (gear, indicators, overlays, ext-hours, log/pct scale, right-click toggles) route HERE instead of the global chart_settings pref. Used by a Chart widget's EXTRA tabs so each tab's edits persist to that tab's own blob in isolation, never touching the global settings or another tab. `settingsOverride` should carry this tab's full settings so `cs` reflects it.
   hideCompare = false,      // hide both compare-symbol entry points (text input + popover)
   hideCountdown = false,    // hide the intraday bar-close countdown badge
   // ── Animated "focus a setup" zoom (Model Book) ──
@@ -1793,6 +1794,12 @@ export default function StockChart({
     try { localStorage.setItem('uct-draw-repeat', val ? 'true' : 'false') } catch {}
   }, [])
   const handleUpdateChartSettings = useCallback((newSettings) => {
+    // Isolated-persist path (Chart widget extra tabs): route the whole new blob
+    // to the owner instead of the global pref, so a tab's edits stay on that tab.
+    // `newSettings` is already the fully-merged settings ({...cs, ...change}), so
+    // it's exactly what the tab should store — no override-restore dance needed
+    // (the tab IS the authoritative blob, not a partial over global).
+    if (onSettingsPersist) { onSettingsPersist(newSettings); return }
     // Every settings write site spreads {...cs}, which carries any per-instance
     // settingsOverride — restore overridden top-level keys from the
     // un-overridden base so an override never leaks into the GLOBAL blob.
@@ -1810,7 +1817,7 @@ export default function StockChart({
       }
     }
     setPref('chart_settings', JSON.stringify(persisted))
-  }, [setPref, settingsOverride, csBase, cs])
+  }, [setPref, settingsOverride, csBase, cs, onSettingsPersist])
 
   // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
   // panel toggles, so both stay in lockstep (one logical state, two entry points).

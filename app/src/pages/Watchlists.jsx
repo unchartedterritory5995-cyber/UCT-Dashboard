@@ -344,25 +344,33 @@ function AddItemRow({ onAdd }) {
   )
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null }) {
   // This widget is "active" (owns arrow keys + its own scroll) when hovered/focused.
   const isActiveWidget = () => !activeRef || activeRef.current == null || activeRef.current === widgetKey
   const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
 
   // ── Watchlist appearance settings (⚙ panel) ────────────────────────────────
   const { prefs, setPref } = usePreferences()
+  // In the /charts workspace, each watchlist WIDGET owns its own appearance
+  // settings (passed as settingsOverride + onSettingsPersist), so changing one
+  // widget's canvas/colors never touches another. Absent (the standalone page)
+  // → the shared global `watchlist_settings` pref, exactly as before. A widget
+  // that hasn't diverged yet inherits the global blob as its seed.
   const wlSettings = useMemo(
-    () => mergeWatchlistSettings(parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)),
-    [prefs],
+    () => mergeWatchlistSettings(settingsOverride ?? parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)),
+    [settingsOverride, prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const patchSettings = useCallback((patch) => {
-    setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify({ ...wlSettings, ...patch }))
-  }, [wlSettings, setPref])
+    const next = { ...wlSettings, ...patch }
+    if (onSettingsPersist) onSettingsPersist(next)
+    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(next))
+  }, [wlSettings, setPref, onSettingsPersist])
   const resetSettings = useCallback(() => {
-    setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(WATCHLIST_DEFAULTS))
-  }, [setPref])
+    if (onSettingsPersist) onSettingsPersist({ ...WATCHLIST_DEFAULTS })
+    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(WATCHLIST_DEFAULTS))
+  }, [setPref, onSettingsPersist])
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
   // Canvas-matched palette for the Watchlist Settings panel (light/gold on a light
   // canvas, dark on a dark one) — same mechanism as the chart popup menus.

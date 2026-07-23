@@ -13,6 +13,7 @@ import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings } from './widgets/fund
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings } from './widgets/breadthWidgetSettings'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
+import { widgetOwnChrome } from './widgetChrome'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
@@ -399,9 +400,24 @@ export default function ChartsWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
 
+  // Per-WIDGET chrome canvas (keyed by widget id). Every chart/watchlist widget
+  // now owns its settings, so its border/header/dividers must follow ITS canvas,
+  // not the one-per-type global. Only diverged widgets get an entry; the rest
+  // fall back to widgetCanvasByType (the global default) in WidgetHost. This is
+  // what makes "changing one widget's canvas never touches another" true for the
+  // chrome, matching the isolated list/chart surfaces.
+  const widgetCanvasById = useMemo(() => {
+    const out = {}
+    for (const w of layout.widgets || []) {
+      const entry = widgetOwnChrome(w, chartsTheme)
+      if (entry) out[w.id] = entry
+    }
+    return out
+  }, [layout.widgets, chartsTheme])
+
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById],
   )
 
   // Debounced layout persist (500ms).

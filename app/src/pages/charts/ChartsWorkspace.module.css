@@ -118,6 +118,117 @@
   overflow: hidden;
 }
 
+/* ── Chart tab strip (TC2000-style, above the ticker header) ─────────────────
+   Renders ONLY when a widget has ≥1 extra tab, so a single-chart widget looks
+   exactly as before. Each tab is an independent chart profile. */
+.chartTabStrip {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 4px;
+  min-height: 26px;
+  box-sizing: border-box;
+  background: var(--widget-canvas, var(--bg-elevated, #0d1218));
+  border-bottom: 1px solid var(--widget-divider, rgba(255, 255, 255, 0.06));
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;   /* thin, unobtrusive — the strip scrolls if many tabs */
+}
+.chartTabStrip::-webkit-scrollbar { height: 0; }
+
+.chartTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  margin-top: 3px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background: transparent;
+  color: var(--widget-text, #8b8778);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  cursor: pointer;
+  max-width: 160px;
+}
+.chartTab:hover { color: var(--widget-text-strong, var(--text, #e5e7eb)); }
+
+.chartTabActive {
+  color: var(--accent, #c9a84c);
+  border-color: var(--widget-divider, rgba(255, 255, 255, 0.12));
+  background: rgba(201, 168, 76, 0.10);
+}
+
+.chartTabLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+/* Inline rename input, sized to sit exactly where the label was. */
+.chartTabRename {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--accent, #c9a84c);
+  border-radius: 3px;
+  color: var(--text, #e5e7eb);
+  font: inherit;
+  font-size: 11px;
+  padding: 0 3px;
+  width: 84px;
+  outline: none;
+}
+
+.chartTabClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  color: var(--widget-text, #8b8778);
+  opacity: 0.55;
+  cursor: pointer;
+  line-height: 1;
+}
+.chartTabClose:hover { opacity: 1; color: #ff6b74; background: rgba(255, 107, 116, 0.12); }
+
+.chartTabAdd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  margin-top: 3px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--widget-text, #8b8778);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.chartTabAdd:hover {
+  color: var(--accent, #c9a84c);
+  border-color: var(--widget-divider, rgba(255, 255, 255, 0.12));
+  background: rgba(201, 168, 76, 0.08);
+}
+
+/* The small color-group dot on an extra tab — mirrors the widget color dot so
+   you can see at a glance which symbol-link group a tab follows. */
+.chartTabDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
 .tfBar {
   display: flex;
   flex-wrap: wrap;

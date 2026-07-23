@@ -27,6 +27,14 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
     onOptsChange?.({ ...(opts || {}), watchKey: null, watchName: null })
   }, [opts, onOptsChange])
 
+  // Per-widget appearance settings: this widget's own blob (null = inherit the
+  // global default until edited). Persisting writes it into THIS widget's opts,
+  // so changing one watchlist's canvas/colors never touches another.
+  const wlSettingsOverride = opts?.settings || null
+  const persistWlSettings = useCallback((next) => {
+    onOptsChange?.({ ...(opts || {}), settings: next })
+  }, [opts, onOptsChange])
+
   // No list chosen yet (freshly added) → show the picker menu instead of the
   // full list view. Once a list is picked, the widget scopes to that single list.
   if (!watchKey) {
@@ -42,6 +50,8 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         onExitPick={exitPick}
         activeRef={activeWatchlistRef}
         widgetKey={widgetIdRef.current}
+        settingsOverride={wlSettingsOverride}
+        onSettingsPersist={persistWlSettings}
       />
     </ChartsSymContext.Provider>
   )

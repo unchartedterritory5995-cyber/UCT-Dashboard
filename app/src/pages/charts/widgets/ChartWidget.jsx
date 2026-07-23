@@ -23,6 +23,11 @@ import LeverageInverseControl from './LeverageInverseControl'
 import { tfLabel, tfSortKey } from '../../../components/chart/timeframes'
 import styles from '../ChartsWorkspace.module.css'
 import { TF_ORDER, shortcutClaimsKey } from '../../../components/chart/keyboardShortcuts'
+import ChartTabStrip from './ChartTabStrip'
+import {
+  sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
+  setActiveChartTab, renameChartTab, patchChartTab,
+} from '../chartTabs'
 
 // Labels for the timeframe bar. Order comes from TF_ORDER so the bar and the
 // keyboard ladder can never drift apart.
@@ -41,11 +46,23 @@ const TICKER_KEY_RE = /^[A-Za-z.]$/
 export default function ChartWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
+
+  // ── Multi-tab context ───────────────────────────────────────────────────────
+  // A Chart widget can hold multiple INDEPENDENT chart profiles as tabs. Tab 0
+  // ("main") uses the global chart_settings exactly like a tab-less widget always
+  // has; extra tabs each carry their own settings/tf/color-group, fully isolated.
+  // `activeColor`/`activeTf`/the active settings blob below drive everything the
+  // rendered chart reads, and every settings write is routed to the active tab.
+  const { tabs: extraTabs, active: activeTabIdx } = sanitizeChartTabs(opts)
+  const isMainTab = activeTabIdx === 0
+  const activeExtra = isMainTab ? null : (extraTabs[activeTabIdx - 1] || null)
+  const activeColor = isMainTab ? color : (activeExtra?.color || color)
+
   // Debounce the linked ticker (~90ms): during a fast arrow-scan through a watchlist,
   // the group sym changes many times/sec — without this every intermediate ticker
   // runs the full StockChart fetch/framing pipeline and the charts fall behind. The
   // chart settles on the ticker you land on when the scan pauses.
-  const groupSym = groupSyms[color] || 'SPY'
+  const groupSym = groupSyms[activeColor] || 'SPY'
   const [sym, setSym] = useState(groupSym)
   useEffect(() => {
     const t = setTimeout(() => setSym(groupSym), 90)
@@ -84,15 +101,15 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const [externalCrosshair, setExternalCrosshair] = useState(null)
 
   const reportCrosshair = useCallback((payload) => {
-    crosshairBus?.emit(color, widgetIdRef.current, payload)
-  }, [crosshairBus, color])
+    crosshairBus?.emit(activeColor, widgetIdRef.current, payload)
+  }, [crosshairBus, activeColor])
 
   useEffect(() => {
     if (!crosshairBus) return undefined
     return crosshairBus.subscribe(({ color: c, sourceId, payload }) => {
-      if (c === color && sourceId !== widgetIdRef.current) setExternalCrosshair(payload)
+      if (c === activeColor && sourceId !== widgetIdRef.current) setExternalCrosshair(payload)
     })
-  }, [crosshairBus, color])
+  }, [crosshairBus, activeColor])
   // Drop any stale external crosshair when this widget's own symbol changes.
   useEffect(() => { setExternalCrosshair(null) }, [sym])
 
@@ -116,7 +133,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
       activeChartRef.current = null
     }
   }, [activeChartRef])
-  const tf = opts?.tf || 'D'
+  const tf = isMainTab ? (opts?.tf || 'D') : (activeExtra?.tf || 'D')
   // Thematic-ETF pseudo-ticker ("$IDX:<slug>"): render the theme's equal-weight
   // index via barsOverride (D/W/M only). Normal tickers: themeIdx.isIndex=false.
   const themeIdx = useThemeIndexBars(sym, tf)
@@ -142,8 +159,9 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
     : null
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
-    onOptsChange?.({ ...(opts || {}), tf: nextTf })
-  }, [opts, tf, onOptsChange])
+    if (isMainTab) onOptsChange?.({ ...(opts || {}), tf: nextTf })
+    else if (activeExtra) onOptsChange?.(patchChartTab(opts, activeExtra.id, { tf: nextTf }))
+  }, [opts, tf, onOptsChange, isMainTab, activeExtra])
 
   // ── Extended-hours session view ("Regular Hours" / "Include pre/post-market") ──
   // Ephemeral per-widget state (not persisted). Defaults to Regular Hours and
@@ -167,7 +185,31 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // the same pref, so they stay in lockstep). ON = pre/post bars show; OFF =
   // regular session only (9:30–4:00 ET) with overnight gaps.
   const { prefs, setPref } = usePreferences()
-  const chartCs = mergeChartSettings(prefs.chart_settings)
+  // EVERY chart surface in the workspace owns its OWN settings, so editing one
+  // widget (or tab) never touches another or the dashboard. The global blob is
+  // only the SEED/default: a widget/tab that hasn't been edited yet inherits it
+  // (so existing layouts look identical), and NEW widgets start from it; the
+  // moment you change a setting it's stored on that surface's own blob in `opts`
+  // and diverges. Main tab → opts.settings; extra tab → its chartTabs[i].settings.
+  const globalCs = mergeChartSettings(prefs.chart_settings)
+  const activeStoredSettings = isMainTab ? (opts?.settings || null) : (activeExtra?.settings || null)
+  const activeStoredCs = useMemo(
+    () => (activeStoredSettings ? mergeChartSettings(activeStoredSettings) : null),
+    [activeStoredSettings],
+  )
+  // Aliased to `chartCs` so every existing read below (header, menus, StockChart
+  // props) becomes surface-scoped automatically. Inherit the global seed until edited.
+  const chartCs = activeStoredCs || globalCs
+  // Identity-stable full-blob override handed to StockChart (null = inherit global).
+  const settingsOverride = useMemo(() => activeStoredSettings || null, [activeStoredSettings])
+  // The single write sink for the ACTIVE surface. NEVER writes the global pref —
+  // that isolation is the whole point (the "editing one chart changes the other"
+  // bug was every widget sharing the one global blob). StockChart's internal
+  // settings writes route here too via onSettingsPersist.
+  const writeActiveSettings = useCallback((nextFull) => {
+    if (isMainTab) onOptsChange?.({ ...(opts || {}), settings: nextFull })
+    else if (activeExtra) onOptsChange?.(patchChartTab(opts, activeExtra.id, { settings: nextFull }))
+  }, [isMainTab, activeExtra, opts, onOptsChange])
   const extHoursOn = chartCs.extendedHoursShading ?? true
   // Canvas-matched palette for the chart popup menus (ticker search / timeframe /
   // right-click). White+gold on a light canvas, dark OLED on a dark one.
@@ -202,9 +244,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const [tfMenuAnchor, setTfMenuAnchor] = useState(null)
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
   const patchHeader = useCallback((patch) => {
-    const cur = mergeChartSettings(prefs.chart_settings)
-    setPref('chart_settings', JSON.stringify({ ...cur, header: { ...cur.header, ...patch }, preset: 'custom' }))
-  }, [prefs.chart_settings, setPref])
+    writeActiveSettings({ ...chartCs, header: { ...chartCs.header, ...patch }, preset: 'custom' })
+  }, [chartCs, writeActiveSettings])
   const toggleTfFav = useCallback((code) => {
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
     patchHeader({ timeframes: fav.includes(code) ? fav.filter(c => c !== code) : [...fav, code] })
@@ -222,17 +263,16 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // item keeps its built-in color (see chartDefaults header.colors).
   const hdrColors = hdr.colors || {}
   const setExtHours = useCallback((on) => {
-    const next = { ...mergeChartSettings(prefs.chart_settings), extendedHoursShading: on, preset: 'custom' }
-    setPref('chart_settings', JSON.stringify(next))
-  }, [prefs.chart_settings, setPref])
+    writeActiveSettings({ ...chartCs, extendedHoursShading: on, preset: 'custom' })
+  }, [chartCs, writeActiveSettings])
 
   // New chart-settings modal (opened by the button above the clock). Persists the
   // whole merged settings object to the shared chart_settings pref; StockChart reads
   // the same pref so changes apply live.
   const [settingsOpen, setSettingsOpen] = useState(false)
   const updateChartSettings = useCallback((next) => {
-    setPref('chart_settings', JSON.stringify(next))
-  }, [setPref])
+    writeActiveSettings(next)
+  }, [writeActiveSettings])
   // User-saved custom colors, shared across every picker in the settings modal.
   const savedColors = useMemo(() => {
     try {
@@ -273,11 +313,37 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   // start typing again for the next ticker without re-clicking the chart.
   const handleSymbolChange = useCallback((s) => {
     if (!s) return
-    setGroupSym(color, s)
+    setGroupSym(activeColor, s)
     requestAnimationFrame(() => {
       focusableRef.current?.focus({ preventScroll: true })
     })
-  }, [color, setGroupSym])
+  }, [activeColor, setGroupSym])
+
+  // ── Tab handlers (all go through the pure chartTabs reducer) ──
+  const tabList = useMemo(() => chartTabList(opts), [opts])
+  const tabColors = useMemo(
+    () => Object.fromEntries(extraTabs.map(t => [t.id, t.color])),
+    [extraTabs],
+  )
+  const handleAddTab = useCallback(() => {
+    onOptsChange?.(addChartTab(opts, { color: activeColor, tf: 'D' }))
+  }, [opts, activeColor, onOptsChange])
+  const handleSelectTab = useCallback((idx) => {
+    onOptsChange?.(setActiveChartTab(opts, idx))
+  }, [opts, onOptsChange])
+  const handleCloseTab = useCallback((id) => {
+    onOptsChange?.(closeChartTab(opts, id))
+  }, [opts, onOptsChange])
+  const handleRenameTab = useCallback((id, name) => {
+    onOptsChange?.(renameChartTab(opts, id, name))
+  }, [opts, onOptsChange])
+  const handleCycleTabColor = useCallback((id) => {
+    const t = extraTabs.find(x => x.id === id)
+    if (!t) return
+    const order = ['A', 'B', 'C', 'D']
+    const next = order[(order.indexOf(t.color) + 1) % order.length]
+    onOptsChange?.(patchChartTab(opts, id, { color: next }))
+  }, [opts, extraTabs, onOptsChange])
 
   const handleChartClick = useCallback(() => {
     // Don't steal focus from a child input (e.g., the open search dropdown).
@@ -372,6 +438,20 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
 
   return (
     <div className={styles.chartWidget} onPointerEnter={markActive} onFocusCapture={markActive}>
+      {/* Chart tab strip — renders only once ≥1 extra tab exists, so a single-chart
+          widget is visually unchanged. Each tab is an independent chart profile. */}
+      {extraTabs.length > 0 && (
+        <ChartTabStrip
+          tabs={tabList}
+          activeIndex={activeTabIdx}
+          tabColors={tabColors}
+          onSelect={handleSelectTab}
+          onAdd={handleAddTab}
+          onClose={handleCloseTab}
+          onRename={handleRenameTab}
+          onCycleColor={handleCycleTabColor}
+        />
+      )}
       {/* Top border row: logo + company name + day $/% change — sits above the
           timeframe/meta row so a long company name never pushes the session
           toggle + clock onto a second line. */}
@@ -497,6 +577,19 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           {!themeIdx.isIndex && (
             <LeverageInverseControl sym={sym} onSelect={handleSymbolChange} />
           )}
+          {/* Add-tab entry point — only when the strip isn't showing yet (0 extra
+              tabs). Once a tab exists, the strip's own + button takes over. */}
+          {extraTabs.length === 0 && (
+            <button
+              type="button"
+              className={styles.chartSettingsBtn}
+              onClick={handleAddTab}
+              title="New chart tab (independent settings, loads as UCT Default)"
+              aria-label="New chart tab"
+            >
+              <UIcon name="plus" size={15} />
+            </button>
+          )}
           {/* Chart settings gear — moved down next to Share to the Floor. */}
           <button
             type="button"
@@ -528,6 +621,13 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
             watermarkName: `${themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Index`,
             liveUpdates: false,
           } : {})}
+          /* Per-surface settings isolation: this widget/tab's own full settings
+             blob (null = inherit the global default). onSettingsPersist routes
+             ALL of StockChart's internal settings writes to writeActiveSettings
+             so nothing ever hits the shared global pref → editing one chart
+             never changes another. */
+          settingsOverride={settingsOverride}
+          onSettingsPersist={writeActiveSettings}
           onSymbolChange={handleSymbolChange}
           onTfChange={setTf}
           onOpenSettings={() => setSettingsOpen(true)}
@@ -636,8 +736,8 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           <div className={styles.tempAiTab} style={{ left: tempAi.x, top: tempAi.y }}>
             <AiSearchWidget
               initialQuery={tempAi.query}
-              color={color}
-              onTicker={(tk) => { setGroupSym(color, tk); setTempAi(null) }}
+              color={activeColor}
+              onTicker={(tk) => { setGroupSym(activeColor, tk); setTempAi(null) }}
             />
           </div>
         </>

@@ -39,8 +39,10 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // in the map, so Fundamentals / Theme Tracker / AI Search / Scanner get no variable
   // and keep the default tokens until they gain settings of their own. Setting this on
   // the workspace root instead would leak the chart's color into every widget.
-  const { widgetCanvasByType } = useWorkspace() || {}
-  const chrome = widgetCanvasByType?.[widget.type] || null
+  const { widgetCanvasByType, widgetCanvasById } = useWorkspace() || {}
+  // Per-widget chrome wins (each widget owns its settings now); fall back to the
+  // per-type global default for a widget that hasn't diverged.
+  const chrome = widgetCanvasById?.[widget.id] || widgetCanvasByType?.[widget.type] || null
   // --widget-divider keeps the hairlines BETWEEN header rows visible at any canvas
   // color: they were fixed near-white and disappeared on a light canvas.
   const chromeStyle = chrome?.canvas
