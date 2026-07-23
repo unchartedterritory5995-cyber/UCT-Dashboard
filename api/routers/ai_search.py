@@ -74,6 +74,189 @@ def is_personal(query, user):
     except Exception:
         return False
 
+
+def _personal_uid(user) -> str | None:
+    """The user_id used for personal reads. `get_current_user` returns `id`;
+    `is_personal`/`_is_paid_server` read `user_id` — accept either so the branch
+    fires with the real server-derived session dict."""
+    u = user or {}
+    return u.get("user_id") or u.get("id")
+
+
+def _personal_enabled() -> bool:
+    """Dark by default — flip AI_SEARCH_PERSONAL_ENABLED to arm the branch."""
+    return os.environ.get("AI_SEARCH_PERSONAL_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
+
+# ── needs-web heuristic: does the personal query have a research/news/ticker-
+# outlook component (→ fetch a fresh PUBLIC draft to fold in), or is it PURE
+# self-state (→ skip Perplexity entirely: one hop, streams immediately, half
+# the cost)? Asymmetric: a research signal wins; otherwise default to no web.
+_PERSONAL_SELF_STATE_RE = re.compile(
+    r"\b(am i (over ?exposed|too (concentrated|heavy)|too much in)"
+    r"|how('?s| is| am i) (my )?(book|week|day|portfolio|risk|heat|exposure|doing)"
+    r"|how am i doing"
+    r"|my (heat|risk|exposure|book|portfolio)\b(?!.*\b(news|earnings|catalyst)\b))\b", re.I)
+_PERSONAL_RESEARCH_RE = re.compile(
+    r"\b(given the news|the news\b|news on|catalyst|earnings|report(?:ing|s)?\b"
+    r"|should i (add|buy|sell|trim|hold)"
+    r"|outlook|forecast|guidance|analyst|price target|upgrade|downgrade"
+    r"|extended|setup|chart|thesis|fair value|valuation|target"
+    r"|why (?:is|did|are)|moving|today|tonight|premarket|pre-market|this week)\b", re.I)
+
+
+def _needs_web(query: str, question_type: str | None = None) -> bool:
+    q = query or ""
+    if _PERSONAL_RESEARCH_RE.search(q):
+        return True
+    if _PERSONAL_SELF_STATE_RE.search(q):
+        return False
+    return False
+
+
+async def _fetch_personal_draft(body, public_system: str, salt: str) -> tuple[str, list]:
+    """Collect the PUBLIC web draft to fold into synthesis. INVARIANT #1: the
+    Perplexity leg receives ONLY the current query and history=None — the widget
+    `history` (which may contain a prior personal answer with positions/P&L) is
+    NEVER passed here. `public_system` is `_grounded_system`'s output — no
+    personal data. Best-effort: any failure yields an empty draft."""
+    answer, citations = "", []
+    async for ev in perplexity_search.stream_search(
+        body.query, max_tokens=500, system=public_system, mode="fast",
+        domain_pack="finance", recency=_auto_recency(body.query),
+        related=False, cache_salt=salt, history=None,   # ← history=None, never body.history
+    ):
+        if ev.get("type") == "final":
+            answer = ev.get("answer") or ""
+            citations = ev.get("citations") or []
+    return answer, citations
+
+
+def _resolve_personal(uid, query: str):
+    """Blocking: build the PUBLIC grounded system (no personal data) + resolve the
+    single account. Returns (account_id, public_system, salt, meta) or None to
+    decline (zero accounts → fall through to the normal public path). Runs off the
+    event loop (grounding reads + memory embedding block)."""
+    system, salt, meta = _grounded_system(query)
+    tickers = meta.get("query_tickers") or []
+    try:
+        account_id = ai_search_personal.resolve_account(uid, tickers)
+    except Exception:
+        account_id = None
+    if account_id is None:
+        return None
+    return account_id, system, salt, meta
+
+
+async def _personal_gen(body, uid, account_id, public_system, salt, meta):
+    """Async SSE generator for the personal branch (stream endpoint).
+
+    Order is load-bearing for privacy:
+      • emit `meta {personal:true}` FIRST (position-aware waiting state, no dead-air)
+      • PUBLIC draft (invariant #1: history=None) only when the query needs web
+      • assemble the PERSONAL block (best-effort) — goes ONLY to synthesize()
+      • per-user atomic synth reserve; over-cap → PUBLIC draft in-band (never raise)
+      • synthesis error/empty → refund the synth reservation + PUBLIC draft in-band
+      • NEVER `_log_answer` anywhere here (invariant #2, branch-keyed skip)
+      • never writes the synthesized answer to any shared cache (invariant #3)
+    """
+    answer_id = ai_search_log_new_id()
+    yield f"data: {json.dumps({'type': 'meta', 'personal': True, 'answer_id': answer_id})}\n\n"
+    tickers = meta.get("query_tickers") or []
+    draft, citations = "", []
+    if _needs_web(body.query, meta.get("question_type")):
+        try:
+            draft, citations = await _fetch_personal_draft(body, public_system, salt)
+        except Exception:
+            draft, citations = "", []
+    loop = asyncio.get_running_loop()
+    try:
+        personal_block = await loop.run_in_executor(
+            None, ai_search_personal.assemble, uid, account_id, body.query, tickers)
+    except Exception:
+        personal_block = ""
+    live_desk = meta.get("ctx_block") or ""
+
+    if not ai_search_personal.reserve_synth(uid):
+        # Over the synth cost cap → degrade to the PUBLIC draft, flagged so the
+        # UI can show "general answer (personalization paused)". No reservation
+        # was taken, so nothing to refund.
+        final = {"type": "final", "answer": draft, "citations": citations,
+                 "personal": True, "personalization_paused": True, "answer_id": answer_id}
+        yield f"data: {json.dumps(final)}\n\n"
+        return
+
+    parts: list[str] = []
+    try:
+        async for delta in ai_search_personal.synthesize(
+                body.query, draft, personal_block, live_desk, body.history):   # FULL history → synthesis ONLY
+            if delta:
+                parts.append(delta)
+                yield f"data: {json.dumps({'type': 'delta', 'text': delta})}\n\n"
+        answer = "".join(parts).strip()
+        if not answer:
+            ai_search_personal.refund_synth(uid)   # produced nothing → give the reservation back
+            final = {"type": "final", "answer": draft, "citations": citations,
+                     "personal": True, "personalization_paused": True, "answer_id": answer_id}
+        else:
+            final = {"type": "final", "answer": answer, "citations": citations,
+                     "personal": True, "answer_id": answer_id}
+        yield f"data: {json.dumps(final)}\n\n"
+    except Exception:
+        # Synthesis error/timeout AFTER a successful reserve → refund + emit the
+        # already-fetched PUBLIC draft as the final IN-BAND (never raise, never
+        # null: the widget must not re-run the whole 2× branch via single-shot).
+        ai_search_personal.refund_synth(uid)
+        fallback = "".join(parts).strip() or draft
+        final = {"type": "final", "answer": fallback, "citations": citations,
+                 "personal": True, "personalization_paused": True, "answer_id": answer_id}
+        yield f"data: {json.dumps(final)}\n\n"
+    # INVARIANT #2: no `_log_answer` on this branch — decided at branch entry,
+    # covering every exit above (success, over-cap degrade, synthesis failure).
+
+
+async def _personal_single(body, uid, account_id, public_system, salt, meta) -> dict:
+    """Single-shot (non-streamed) twin of `_personal_gen` — collect synthesis to a
+    string. Same no-log / no-cache / in-band-fallback rules; returns a dict shaped
+    like the public single-shot response, carrying personal:true."""
+    answer_id = ai_search_log_new_id()
+    tickers = meta.get("query_tickers") or []
+    draft, citations = "", []
+    if _needs_web(body.query, meta.get("question_type")):
+        try:
+            draft, citations = await _fetch_personal_draft(body, public_system, salt)
+        except Exception:
+            draft, citations = "", []
+    loop = asyncio.get_running_loop()
+    try:
+        personal_block = await loop.run_in_executor(
+            None, ai_search_personal.assemble, uid, account_id, body.query, tickers)
+    except Exception:
+        personal_block = ""
+    live_desk = meta.get("ctx_block") or ""
+    base = {"citations": citations, "personal": True, "answer_id": answer_id,
+            "model": None, "mode": "personal"}
+
+    if not ai_search_personal.reserve_synth(uid):
+        return {**base, "answer": draft, "personalization_paused": True}
+
+    parts: list[str] = []
+    try:
+        async for delta in ai_search_personal.synthesize(
+                body.query, draft, personal_block, live_desk, body.history):
+            if delta:
+                parts.append(delta)
+        answer = "".join(parts).strip()
+        if not answer:
+            ai_search_personal.refund_synth(uid)
+            return {**base, "answer": draft, "personalization_paused": True}
+        return {**base, "answer": answer}
+    except Exception:
+        ai_search_personal.refund_synth(uid)
+        return {**base, "answer": "".join(parts).strip() or draft, "personalization_paused": True}
+    # INVARIANT #2: no `_log_answer` — the caller never logs the personal branch.
+
+
 _WIDGET_INTRO = (
     "You are the UCT Intelligence research desk — a sharp, decisive markets & "
     "trading research assistant for serious swing traders. Answer the question "
@@ -970,6 +1153,19 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
     user_id = user.get("id")
     if not (body.query or "").strip():
         raise HTTPException(status_code=422, detail="Empty question.")
+    # ── Personal branch (dark unless AI_SEARCH_PERSONAL_ENABLED). Distinct code
+    # path: no _log_answer, no shared cache, PUBLIC-only Perplexity leg. Decided
+    # here from the SERVER-derived user dict, never client JSON.
+    puid = _personal_uid(user)
+    if _personal_enabled() and is_personal(body.query, {**(user or {}), "user_id": puid}):
+        resolved = _resolve_personal(puid, body.query)
+        if resolved is not None:
+            account_id, public_system, psalt, pmeta = resolved
+            _record_request("personal", stream=False)
+            _reserve(user_id, 1)   # daily cap (raises 429 before any upstream work)
+            return asyncio.run(
+                _personal_single(body, puid, account_id, public_system, psalt, pmeta))
+        # zero accounts → decline, fall through to the normal public path.
     mode = _auto_mode(body.query, body.mode)
     units = _billing_units(mode)
     _reserve(user_id, units)   # atomic check-and-reserve BEFORE the upstream call
@@ -1022,6 +1218,23 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     user_id = user.get("id")
     if not (body.query or "").strip():
         raise HTTPException(status_code=422, detail="Empty question.")
+    # ── Personal branch (dark unless AI_SEARCH_PERSONAL_ENABLED). Distinct code
+    # path from the public stream below: PUBLIC-only Perplexity leg (history=None),
+    # per-user synth reserve, in-band fallback, and NO _log_answer anywhere.
+    puid = _personal_uid(user)
+    if _personal_enabled() and is_personal(body.query, {**(user or {}), "user_id": puid}):
+        loop = asyncio.get_running_loop()
+        resolved = await loop.run_in_executor(None, _resolve_personal, puid, body.query)
+        if resolved is not None:
+            account_id, public_system, psalt, pmeta = resolved
+            _record_request("personal", stream=True)
+            _reserve(user_id, 1)   # daily cap (raises 429 BEFORE the stream opens)
+            return StreamingResponse(
+                _personal_gen(body, puid, account_id, public_system, psalt, pmeta),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
+        # zero accounts → decline, fall through to the normal public stream.
     mode = _auto_mode(body.query, body.mode)
     units = _billing_units(mode)
     _reserve(user_id, units)   # reserve BEFORE opening the stream (bill even if client disconnects)
