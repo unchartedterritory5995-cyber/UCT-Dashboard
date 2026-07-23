@@ -35,7 +35,7 @@ def _is_paid_server(user):
     try:
         from api.middleware.auth_middleware import is_paid_user
         from api.services.auth_service import get_user_plan
-        uid = (user or {}).get("user_id")
+        uid = (user or {}).get("user_id") or (user or {}).get("id")
         if not uid:
             return False
         return is_paid_user({**user, "plan": get_user_plan(uid)})
@@ -69,7 +69,7 @@ def is_personal(query, user):
     if not _is_paid_server(user):          # cheap gate before any DB read
         return False
     try:
-        uid = user.get("user_id")
+        uid = (user or {}).get("user_id") or (user or {}).get("id")
         return bool(uid) and ai_search_personal.has_data(uid)
     except Exception:
         return False
@@ -198,9 +198,10 @@ async def _personal_gen(body, uid, account_id, public_system, salt, meta):
             ai_search_personal.refund_synth(uid)   # produced nothing → give the reservation back
             final = {"type": "final", "answer": draft, "citations": citations,
                      "personal": True, "personalization_paused": True, "answer_id": answer_id}
-        else:
-            final = {"type": "final", "answer": answer, "citations": citations,
-                     "personal": True, "answer_id": answer_id}
+            yield f"data: {json.dumps(final)}\n\n"
+            return   # mirror _personal_single: don't leave this yield reachable by the except below
+        final = {"type": "final", "answer": answer, "citations": citations,
+                 "personal": True, "answer_id": answer_id}
         yield f"data: {json.dumps(final)}\n\n"
     except Exception:
         # Synthesis error/timeout AFTER a successful reserve → refund + emit the
@@ -1157,7 +1158,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
     # path: no _log_answer, no shared cache, PUBLIC-only Perplexity leg. Decided
     # here from the SERVER-derived user dict, never client JSON.
     puid = _personal_uid(user)
-    if _personal_enabled() and is_personal(body.query, {**(user or {}), "user_id": puid}):
+    if _personal_enabled() and is_personal(body.query, user):
         resolved = _resolve_personal(puid, body.query)
         if resolved is not None:
             account_id, public_system, psalt, pmeta = resolved
@@ -1222,7 +1223,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_us
     # path from the public stream below: PUBLIC-only Perplexity leg (history=None),
     # per-user synth reserve, in-band fallback, and NO _log_answer anywhere.
     puid = _personal_uid(user)
-    if _personal_enabled() and is_personal(body.query, {**(user or {}), "user_id": puid}):
+    if _personal_enabled() and is_personal(body.query, user):
         loop = asyncio.get_running_loop()
         resolved = await loop.run_in_executor(None, _resolve_personal, puid, body.query)
         if resolved is not None:

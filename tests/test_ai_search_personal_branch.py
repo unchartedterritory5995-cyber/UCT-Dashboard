@@ -13,6 +13,10 @@ structurally:
 import asyncio
 import json
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from api.middleware.auth_middleware import get_current_user
 from api.routers import ai_search as r
 
 
@@ -308,3 +312,96 @@ def test_personal_enabled_flag(monkeypatch):
     for v in ("0", "", "no", "off"):
         monkeypatch.setenv("AI_SEARCH_PERSONAL_ENABLED", v)
         assert r._personal_enabled() is False
+
+
+# ── endpoint-level wiring (Task 5 fix pass 2, findings #1/#3) ────────────────
+# Drives the REAL FastAPI route (POST /api/ai-search) with a realistic session
+# dict keyed `id` (never `user_id`) — the shape `get_current_user` actually
+# returns — to prove the id-key bridge (`_personal_uid`) resolves end-to-end,
+# and that the branch's log-skip / log-normally behavior holds through the
+# full router wiring, not just the module-level generator helpers above.
+
+def _reset_router_counters():
+    r._usage_day = ""
+    r._usage_by_user = {}
+    r._usage_global = 0
+    r._stats = r._fresh_stats()
+
+
+def _real_id_client():
+    app = FastAPI()
+    app.include_router(r.router)
+    # Realistic session dict — key is `id`, NEVER `user_id`.
+    app.dependency_overrides[get_current_user] = lambda: {
+        "id": "realid", "email": "x@y.z", "role": "member"}
+    return TestClient(app)
+
+
+def test_endpoint_personal_branch_fires_and_resolves_real_id(monkeypatch):
+    """Full router wiring, single-shot endpoint: the personal branch fires off
+    the real `id`-keyed session dict, resolve_account/assemble both receive
+    the bridged uid ('realid'), and the public capture log is never called."""
+    _reset_router_counters()
+    monkeypatch.setenv("AI_SEARCH_PERSONAL_ENABLED", "1")
+    monkeypatch.setattr(r, "_is_paid_server", lambda u: True)
+    monkeypatch.setattr(r.ai_search_personal, "has_data", lambda uid: True)
+
+    captured = {}
+
+    def fake_resolve_account(uid, tickers):
+        captured["resolve_uid"] = uid
+        return "acctX"
+
+    def fake_assemble(uid, account_id, query, tickers):
+        captured["assemble_uid"] = uid
+        return "YOUR POSITIONS: NVDA entry $100, +12%, stop $90"
+
+    async def fake_synth(q, draft, pb, live, hist):
+        yield "personalized answer"
+
+    monkeypatch.setattr(r.ai_search_personal, "resolve_account", fake_resolve_account)
+    monkeypatch.setattr(r.ai_search_personal, "assemble", fake_assemble)
+    monkeypatch.setattr(r.ai_search_personal, "reserve_synth", lambda uid: True)
+    monkeypatch.setattr(r.ai_search_personal, "refund_synth", lambda uid: None)
+    monkeypatch.setattr(r.ai_search_personal, "synthesize", fake_synth)
+
+    logged = []
+    from api.services import ai_search_log
+    monkeypatch.setattr(ai_search_log, "log", lambda **kw: logged.append(kw))
+
+    resp = _real_id_client().post("/api/ai-search", json={"query": "am i overexposed"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("personal") is True         # branch fired
+    assert data.get("answer") == "personalized answer"
+    assert logged == []                          # public log NEVER called on this branch
+    # the id->uid bridge resolved to the real session id end-to-end
+    assert captured["resolve_uid"] == "realid"
+    assert captured["assemble_uid"] == "realid"
+
+
+def test_endpoint_personal_branch_declines_falls_through_and_logs(monkeypatch):
+    """Fail-closed: when resolve_account finds zero accounts, the branch
+    declines and the request falls through to the normal PUBLIC path — which
+    logs normally (proves the no-log rule is branch-keyed, not query-keyed)."""
+    _reset_router_counters()
+    monkeypatch.setenv("AI_SEARCH_PERSONAL_ENABLED", "1")
+    monkeypatch.setattr(r, "_is_paid_server", lambda u: True)
+    monkeypatch.setattr(r.ai_search_personal, "has_data", lambda uid: True)
+    monkeypatch.setattr(r.ai_search_personal, "resolve_account", lambda uid, tickers: None)
+
+    def fake_web_search(query, **kw):
+        return {"answer": "public answer", "citations": [], "related_questions": [], "cached": False}
+
+    monkeypatch.setattr(r.perplexity_search, "web_search", fake_web_search)
+
+    logged = []
+    from api.services import ai_search_log
+    monkeypatch.setattr(ai_search_log, "log", lambda **kw: logged.append(kw))
+
+    resp = _real_id_client().post("/api/ai-search", json={"query": "am i overexposed"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("personal") is not True      # fell through, NOT the personal branch
+    assert data.get("answer") == "public answer"
+    assert logged != []                           # public path logs normally
