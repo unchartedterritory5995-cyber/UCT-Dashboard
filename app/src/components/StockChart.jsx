@@ -7495,7 +7495,16 @@ export default function StockChart({
     if (!chartReady) return
     const vis = !indicatorsHidden
     const set = (ref) => { try { ref.current?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
-    ;[volumeSeriesRef, bbUpperRef, bbMiddleRef, bbLowerRef, vwapSeriesRef, rsiSeriesRef, macdLineRef, macdSignalRef, macdHistRef, overlayTailSeriesRef].forEach(set)
+    ;[
+      volumeSeriesRef, overlayTailSeriesRef,
+      bbUpperRef, bbMiddleRef, bbLowerRef, vwapSeriesRef, rsiSeriesRef,
+      macdLineRef, macdSignalRef, macdHistRef,
+      stochKRef, stochDRef, atrSeriesRef, sarSeriesRef,
+      ichimokuTenkanRef, ichimokuKijunRef, ichimokuSpanARef, ichimokuSpanBRef, ichimokuChikouRef,
+      mfiSeriesRef, cciSeriesRef, williamsRSeriesRef,
+      adxSeriesRef, adxPlusDIRef, adxMinusDIRef, obvSeriesRef,
+      donchianUpperRef, donchianMiddleRef, donchianLowerRef,
+    ].forEach(set)
     const ov = overlaySeriesRefs.current
     if (Array.isArray(ov)) ov.forEach(s => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } })
   }, [indicatorsHidden, chartReady, cs.indicators, resolvedOverlays, cs.volume, resolvedTf, sym])
