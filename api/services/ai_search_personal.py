@@ -28,14 +28,37 @@ def _edge_for(user_id, account_id):
     from api.services.personal_edge import edge_for_setups
     return edge_for_setups(user_id, account_id) or {}
 
+def _read_flagged_items(user_id):
+    # Read-only mirror of watchlist_service.get_or_create_flagged_list — SELECT only,
+    # NEVER creates the shadow row. Returns [] on miss (no flagged list yet).
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id FROM watchlists WHERE user_id = ? AND is_flagged_list = 1", (user_id,)
+        ).fetchone()
+        if not row:
+            return []
+        items = conn.execute(
+            "SELECT * FROM watchlist_items WHERE watchlist_id = ? ORDER BY sort_order ASC, added_at DESC",
+            (row["id"],),
+        ).fetchall()
+        return [dict(i) for i in items]
+    finally:
+        conn.close()
+
 def _watch_syms(user_id):
     from api.services import watchlist_service as ws
     syms = []
     try:
         for wl in (ws.list_user_watchlists(user_id) or []):
             syms += [i.get("sym") for i in (wl.get("items") or []) if i.get("sym")]
-        fl = ws.get_or_create_flagged_list(user_id) or {}
-        syms += [i.get("sym") for i in (fl.get("items") or []) if i.get("sym")]
+        # NOTE: list_user_watchlists excludes the flagged list (is_flagged_list filter),
+        # so it's read separately here — via a read-only SELECT, never get_or_create_flagged_list
+        # (which INSERTs a shadow row on miss and would violate the read-only invariant).
+        for i in _read_flagged_items(user_id):
+            if i.get("sym"):
+                syms.append(i["sym"])
     except Exception as e:
         _log.debug("watch syms failed: %s", e)
     seen, out = set(), []
@@ -147,6 +170,11 @@ def _fmt_edge(user_id, account_id):
     return ("YOUR EDGE BY SETUP: " + "; ".join(out)) if out else ""
 
 def assemble(user_id, account_id, query, tickers):
+    if not account_id:
+        # No resolved account ⇒ decline the personal branch. Guards against None
+        # reaching portfolio_heat/list_open_positions/edge_for_setups, whose internal
+        # fallback (get_or_migrate_default_account) is a WRITE.
+        return ""
     sections = [
         _fmt_positions(user_id, account_id, tickers),
         _fmt_heat(user_id, account_id),
