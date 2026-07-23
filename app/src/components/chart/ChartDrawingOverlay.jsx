@@ -8,6 +8,14 @@ const POINT_COUNT = {
   pitchfork: 3, advance: 2, cup: 3,
 }
 
+// Alt+<letter> → drawing tool (keyboard arm). Keyed on KeyboardEvent.code so it is
+// layout-independent (and unaffected by the special characters Mac emits with Alt).
+const ALT_TOOL = {
+  KeyT: 'trendline', KeyH: 'horizontal', KeyJ: 'hray', KeyV: 'vertical',
+  KeyR: 'rect', KeyC: 'circle', KeyA: 'arrow', KeyF: 'fib', KeyE: 'fibext',
+  KeyW: 'avwap', KeyX: 'text',
+}
+
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
 const FIB_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa']
 
@@ -1888,12 +1896,13 @@ export default function ChartDrawingOverlay({
         }
         return
       }
-      // Alt+T arms the trendline tool. Alt avoids the bare-letter conflict with
-      // type-to-search ticker entry on the charts workspace (where bare 't' is
-      // swallowed into the symbol box), so trendline stays keyboard-reachable there.
-      if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 't') {
+      // Alt+<letter> arms a drawing tool. Alt avoids the bare-letter conflict with
+      // type-to-search ticker entry on the charts workspace (bare 't' etc. are
+      // swallowed into the symbol box), so tools stay keyboard-reachable there.
+      // Keyed on e.code so it's layout-independent and survives Mac's Alt chars.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && ALT_TOOL[e.code]) {
         e.preventDefault()
-        setActiveTool('trendline')
+        setActiveTool(ALT_TOOL[e.code])
         return
       }
       // Tool shortcuts

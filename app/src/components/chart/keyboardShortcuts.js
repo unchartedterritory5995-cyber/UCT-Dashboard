@@ -68,21 +68,26 @@ export const SHORTCUTS = [
   { keys: '5', command: 'tf:W', description: 'Weekly' },
   { keys: '9', command: 'tf:M', description: 'Monthly' },
 
-  // Drawing tools
+  // Drawing tools (Alt+letter — bare letters go to ticker search)
   { keys: 'Esc', command: 'tool:cursor', description: 'Cursor / cancel' },
-  { keys: 'T', command: 'tool:trendline', description: 'Trendline' },
-  { keys: 'H', command: 'tool:horizontal', description: 'Horizontal line' },
-  { keys: 'V', command: 'tool:vertical', description: 'Vertical line' },
-  { keys: 'R', command: 'tool:rect', description: 'Rectangle' },
-  { keys: 'C', command: 'tool:circle', description: 'Circle' },
-  { keys: 'A', command: 'tool:arrow', description: 'Arrow' },
-  { keys: 'F', command: 'tool:fib', description: 'Fibonacci retracement' },
-  { keys: 'X', command: 'tool:text', description: 'Text annotation' },
+  { keys: 'Alt+T', command: 'tool:trendline', description: 'Trendline' },
+  { keys: 'Alt+H', command: 'tool:horizontal', description: 'Horizontal line' },
+  { keys: 'Alt+J', command: 'tool:hray', description: 'Horizontal ray' },
+  { keys: 'Alt+V', command: 'tool:vertical', description: 'Vertical line' },
+  { keys: 'Alt+R', command: 'tool:rect', description: 'Rectangle' },
+  { keys: 'Alt+C', command: 'tool:circle', description: 'Ellipse / circle' },
+  { keys: 'Alt+A', command: 'tool:arrow', description: 'Arrow' },
+  { keys: 'Alt+F', command: 'tool:fib', description: 'Fibonacci retracement' },
+  { keys: 'Alt+E', command: 'tool:fibext', description: 'Fibonacci extension' },
+  { keys: 'Alt+W', command: 'tool:avwap', description: 'Anchored VWAP' },
+  { keys: 'Alt+X', command: 'tool:text', description: 'Text annotation' },
 
   // Display toggles
   { keys: 'Shift+L', command: 'toggle:log', description: 'Toggle log scale' },
   { keys: 'Shift+T', command: 'toggle:theme', description: 'Toggle light/dark theme' },
   { keys: 'Shift+C', command: 'toggle:countdown', description: 'Toggle bar-close countdown' },
+  { keys: 'Alt+U', command: 'toggle:vwap', description: 'Toggle session VWAP' },
+  { keys: 'Alt+Shift+W', command: 'toggle:watermark', description: 'Toggle symbol watermark' },
 
   // Indicator toggles (Ctrl/Cmd held)
   { keys: 'Ctrl+I', command: 'toggle:rsi', description: 'Toggle RSI' },

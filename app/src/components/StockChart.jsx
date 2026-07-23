@@ -2971,6 +2971,25 @@ export default function StockChart({
         if (target.isContentEditable) return
       }
 
+      // Alt-based chart toggles. Alt is rejected by matchShortcut (so browser
+      // Alt shortcuts keep working), so these are handled here. Keyed on e.code
+      // for layout independence (Mac emits special chars with Alt).
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        // Alt+U → toggle the session-VWAP indicator.
+        if (!e.shiftKey && e.code === 'KeyU') {
+          e.preventDefault()
+          const next = { ...cs.indicators, vwap: { ...(cs.indicators?.vwap || {}), enabled: !cs.indicators?.vwap?.enabled } }
+          handleUpdateChartSettings({ ...cs, indicators: next, preset: 'custom' })
+          return
+        }
+        // Alt+Shift+W → toggle the symbol watermark.
+        if (e.shiftKey && e.code === 'KeyW') {
+          e.preventDefault()
+          handleUpdateChartSettings({ ...cs, watermark: { ...cs.watermark, visible: !cs.watermark?.visible }, preset: 'custom' })
+          return
+        }
+      }
+
       const cmd = matchShortcut(e)
       if (!cmd) return
 
