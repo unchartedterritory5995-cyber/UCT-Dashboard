@@ -1528,6 +1528,15 @@ export default function StockChart({
   // charts with many lines + axis labels (e.g. the GEX chart with 8-12).
   const lastPriceLinesRef = useRef(undefined)
   const markersControllerRef = useRef(null)  // lightweight-charts SeriesMarkers controller — must be reused/detached, not recreated
+  // One-way axis-width ratchet: the widest right-axis column MEASURED this
+  // sym/tf session. The static _axisMinWidth floor is an empirical calibration
+  // (76 @ fontSize 11 @ DPR 1.5) that has now been out-drifted three separate
+  // times (raw floor → textSize scaling → volume-pane pin); whenever any tag
+  // measures even 1px past the floor, LWC auto-sizes the shared column per
+  // live write and the sub-pixel re-measure jitter shakes the whole plot
+  // left-right. Ratcheting the floor up to the widest observed width lets the
+  // column grow but never shrink mid-session — immune to DPR/zoom/font drift.
+  const axisWidthRatchetRef = useRef(0)
   const volMaSeriesRef = useRef(null)  // 50-MA line on the volume pane
   const volMaDataRef = useRef([])      // latest volMaData (avg-volume series) for the crosshair legend
   const volLegendRef = useRef(null)    // volume-pane top-left legend ($ vol + avg vol) — positioned live
@@ -2339,6 +2348,7 @@ export default function StockChart({
     setIdbLoaded(false)
     idbSinceRef.current = null
     idbReadyForRef.current = null  // synchronous — invalidates the gate immediately
+    axisWidthRatchetRef.current = 0  // new sym/tf → let the axis column re-fit once
     const key = `${sym}_${resolvedTf}`
     idbGet(sym, resolvedTf).then(entry => {
       if (entry?.bars?.length) {
@@ -4435,8 +4445,17 @@ export default function StockChart({
     // user-bumped cs.textSize widens every axis tag past that floor, un-pinning
     // the axis so it re-flows on each live tick — the ~1/sec left-right shake
     // came BACK for users with larger scale text. Scale the floor with the font
-    // so the pin holds at any size (never below the verified 76).
-    const _axisMinWidth = Math.ceil(76 * Math.max(1, (cs.textSize ?? 11) / 11))
+    // so the pin holds at any size (never below the verified 76) — then ratchet
+    // it up to the widest column actually MEASURED this sym/tf, so even an
+    // environment the static floor never anticipated (DPR/zoom/font fallback)
+    // can only widen the axis once, never oscillate it (axisWidthRatchetRef).
+    let _measuredAxis = 0
+    try { _measuredAxis = chartRef.current?.priceScale('right')?.width() || 0 } catch { /* no chart yet */ }
+    if (_measuredAxis > axisWidthRatchetRef.current) axisWidthRatchetRef.current = _measuredAxis
+    const _axisMinWidth = Math.max(
+      Math.ceil(76 * Math.max(1, (cs.textSize ?? 11) / 11)),
+      axisWidthRatchetRef.current,
+    )
     const chartOpts = {
       layout: {
         background: themeColors.layoutTransparent
