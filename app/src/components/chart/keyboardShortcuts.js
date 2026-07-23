@@ -105,6 +105,7 @@ export const SHORTCUTS = [
   // Other
   { keys: '+ / -', command: 'zoom', description: 'Zoom in / out' },
   { keys: 'Alt+,', command: 'settings', description: 'Open chart settings' },
+  { keys: 'Alt+\\', command: 'gridcycle', description: 'Cycle grid layout (multi-chart)' },
   { keys: '?', command: 'help', description: 'Show this help overlay' },
 ];
 
