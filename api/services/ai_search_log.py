@@ -297,7 +297,12 @@ def log(*, user_id=None, answer_id=None, endpoint="single", query="", answer="",
     stay thin. `user_id` is used only to derive the HMAC day-bucket, never stored.
     `skip_query_text=True` stores "" for the query text (and everything derived
     from it) instead of the raw query — used by callers that must NOT persist
-    query content. `personal=True` marks the row as personal-branch content — an
+    query content. Invariant #6: raw-query text is ALSO auto-blanked (regardless
+    of `skip_query_text`) whenever `first_person_flag(query)` is 1 — a
+    detection-miss first-person query must never persist verbatim just because a
+    caller forgot to pass `skip_query_text`. `first_person`/`question_type`/
+    `freshness` are still classified off the RAW query so analytics survive the
+    blank. `personal=True` marks the row as personal-branch content — an
     independent backstop so it can never be picked up by brain ingest even if it
     somehow reaches this table (the personal branch is not expected to log at all)."""
     if not _enabled():
@@ -305,7 +310,13 @@ def log(*, user_id=None, answer_id=None, endpoint="single", query="", answer="",
     try:
         _ensure_init()
         day = day_et or _et_day()
-        q = "" if skip_query_text else (query or "")[:2000]
+        # Invariant #6: a first-person query (detected on the RAW query, before any
+        # blanking) must never persist its raw text, regardless of caller/branch.
+        # `fp` is computed here and reused as the stored `first_person` label so a
+        # re-derivation from the (now-blanked) `q` can never wrongly record 0.
+        fp = first_person_flag(query)
+        skip = bool(skip_query_text) or bool(fp)
+        q = "" if skip else (query or "")[:2000]
         a = (answer or "")[:16000]
         gsrc = [str(s) for s in (grounded_sources or [])]
         qtk = [str(t).upper() for t in (query_tickers or [])]
@@ -319,9 +330,15 @@ def log(*, user_id=None, answer_id=None, endpoint="single", query="", answer="",
             "session_bucket": _session_bucket(),
             "endpoint": endpoint,
             "query": q,
+            # query_norm mirrors `q` (blanked when skip) — it holds normalized RAW
+            # query text, so it must never survive a skip either.
             "query_norm": q.strip().lower(),
-            "question_type": classify_question_type(q),
-            "first_person": first_person_flag(q),
+            # question_type/freshness are low-cardinality LABELS classified off the
+            # RAW query (not `q`) so analytics survive a skip; first_person reuses
+            # the RAW-derived `fp` computed above rather than re-deriving from the
+            # (possibly blanked) `q`, which would wrongly record 0 for a skipped row.
+            "question_type": classify_question_type(query),
+            "first_person": fp,
             "answer": a,
             "answer_kind": answer_kind or "ok",
             "answer_hash": hashlib.sha256(a.encode("utf-8", "ignore")).hexdigest() if a else None,
@@ -330,7 +347,7 @@ def log(*, user_id=None, answer_id=None, endpoint="single", query="", answer="",
             "model": model,
             "fallback_used": 1 if fallback_used else 0,
             "recency": recency,
-            "freshness": classify_freshness(q, recency, gsrc),
+            "freshness": classify_freshness(query, recency, gsrc),
             "classifier_version": CLASSIFIER_VERSION,
             "cached": 1 if cached else 0,
             "grounded_sources": json.dumps(gsrc),
