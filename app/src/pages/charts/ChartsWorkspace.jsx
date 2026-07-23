@@ -500,13 +500,16 @@ export default function ChartsWorkspace() {
     // parseLayout keeps extra fields (`...parsed`), so pull chartSettings OUT of
     // the board layout — it belongs in the chart_settings pref, not the
     // charts_workspace_layout arrangement blob.
-    const { chartSettings, watchlistSettings, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
+    const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     setLayout(boardLayout)
     setPref('charts_workspace_layout', JSON.stringify(boardLayout))
-    // Restore the template's WATCHLIST appearance (or defaults for a prebuilt/older
+    // Restore the template's WIDGET appearance blobs (or defaults for a prebuilt/older
     // template that carries none) so a locked/prebuilt template never inherits the
-    // user's personal watchlist styling.
+    // user's personal widget styling. Watchlist / Theme Tracker / Fundamentals all
+    // follow the same rule.
     setPref('watchlist_settings', JSON.stringify(watchlistSettings || WATCHLIST_DEFAULTS))
+    setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || THEME_TRACKER_DEFAULTS))
+    setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || FUNDAMENTALS_DEFAULTS))
     // Restore the chart settings the template was saved with, if it has them. A
     // PREBUILT template that carries none resets to the frozen default (never inherit
     // the previous layout's chart styling); a personal arrangement-only template
@@ -544,9 +547,12 @@ export default function ChartsWorkspace() {
     // Restore the exact chart settings baked into the default (parsed fresh each
     // apply so the frozen constant is never mutated).
     setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
-    // Watchlist appearance is part of the frozen default too → reset it, so no
-    // personal watchlist styling leaks onto the locked UCT Default.
+    // Watchlist / Theme Tracker / Fundamentals appearance are part of the frozen
+    // default too → reset them, so no personal widget styling leaks onto the
+    // locked UCT Default.
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
+    setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
+    setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // reset columns too (mirrors WL_COLS_LS)
     // Volume-pane height is a SEPARATE global per-user override (charts_vol_pane_pct)
@@ -600,6 +606,8 @@ export default function ChartsWorkspace() {
     // reset column config from localStorage.
     setPref('chart_settings', UCT_DEFAULT_CHART_SETTINGS_JSON)
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
+    setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
+    setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // mirrors WL_COLS_LS in Watchlists.jsx
     // Blank board is not a named template.
@@ -618,10 +626,12 @@ export default function ChartsWorkspace() {
       // "UCT Default".
       const chartSettings = parsePref(prefs?.chart_settings, null)
       const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
+      const themeTrackerSettings = parsePref(prefs?.theme_tracker_settings, null)
+      const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
       const scope = isAdmin ? saveAsScope : 'user'
       const saved = await saveLayout({
         name: nm,
-        layout: { ...layout, chartSettings, watchlistSettings },
+        layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings },
         groups: null,
         scope,
       })
@@ -635,7 +645,7 @@ export default function ChartsWorkspace() {
     } catch (e) {
       setSaveErr(e.message || 'Save failed')
     }
-  }, [saveAsName, layout, prefs?.chart_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
+  }, [saveAsName, layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
 
   // Explicit "Save current arrangement" — flush the debounced auto-save + persist
   // the working board immediately (the auto-save is debounced 500ms, so a refresh
@@ -654,13 +664,15 @@ export default function ChartsWorkspace() {
       if (list.some(t => t.id === active.id)) {
         const chartSettings = parsePref(prefs?.chart_settings, null)
         const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
+        const themeTrackerSettings = parsePref(prefs?.theme_tracker_settings, null)
+        const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
         try {
-          await saveLayout({ name: active.name, layout: { ...layout, chartSettings, watchlistSettings }, groups: null, scope: active.scope })
+          await saveLayout({ name: active.name, layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings }, groups: null, scope: active.scope })
         } catch { /* surfaced by SWR revalidate */ }
       }
     }
     flashSaved()
-  }, [layout, groupSyms, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
+  }, [layout, groupSyms, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
   const handleDeleteTemplate = useCallback(async (id) => {
     try { await deleteLayout(id) } catch { /* surfaced by SWR revalidate */ }
