@@ -429,3 +429,25 @@ def test_personal_request_bumps_content_free_counter(tmp_path, monkeypatch):
     ins = ai_search_log.insights(days=7)
     assert ins["personal"]["invocations"] == 1
     assert ins["personal"]["degraded"] == 0
+
+
+def test_degraded_personal_path_records_degraded_true(monkeypatch):
+    """Final-review fix 2: record_personal_invocation is now offloaded via
+    loop.run_in_executor in `_personal_gen` rather than called directly on the
+    event loop. Spy on it (DB assertions are indirect through the executor) to
+    confirm a DEGRADED path (synth over-cap → reserve_synth False) still calls
+    it with degraded=True."""
+    from api.services import ai_search_log
+    _paid(monkeypatch)
+    monkeypatch.setattr(r.ai_search_personal, "reserve_synth", lambda uid: False)  # over cap
+
+    calls = []
+    monkeypatch.setattr(ai_search_log, "record_personal_invocation",
+                         lambda degraded=False: calls.append(degraded))
+
+    async def fake_stream_search(*a, **k):
+        yield {"type": "final", "answer": "PUBLIC DRAFT", "citations": []}
+
+    monkeypatch.setattr(r.perplexity_search, "stream_search", fake_stream_search)
+    _run_personal_stream(r, "should i add to my nvda given the news", history=None)
+    assert calls == [True]

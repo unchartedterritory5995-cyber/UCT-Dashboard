@@ -182,7 +182,7 @@ async def _personal_gen(body, uid, account_id, public_system, salt, meta):
         # Over the synth cost cap → degrade to the PUBLIC draft, flagged so the
         # UI can show "general answer (personalization paused)". No reservation
         # was taken, so nothing to refund.
-        ai_search_log.record_personal_invocation(degraded=True)
+        await loop.run_in_executor(None, ai_search_log.record_personal_invocation, True)
         final = {"type": "final", "answer": draft, "citations": citations,
                  "personal": True, "personalization_paused": True, "answer_id": answer_id}
         yield f"data: {json.dumps(final)}\n\n"
@@ -198,12 +198,12 @@ async def _personal_gen(body, uid, account_id, public_system, salt, meta):
         answer = "".join(parts).strip()
         if not answer:
             ai_search_personal.refund_synth(uid)   # produced nothing → give the reservation back
-            ai_search_log.record_personal_invocation(degraded=True)
+            await loop.run_in_executor(None, ai_search_log.record_personal_invocation, True)
             final = {"type": "final", "answer": draft, "citations": citations,
                      "personal": True, "personalization_paused": True, "answer_id": answer_id}
             yield f"data: {json.dumps(final)}\n\n"
             return   # mirror _personal_single: don't leave this yield reachable by the except below
-        ai_search_log.record_personal_invocation(degraded=False)
+        await loop.run_in_executor(None, ai_search_log.record_personal_invocation, False)
         final = {"type": "final", "answer": answer, "citations": citations,
                  "personal": True, "answer_id": answer_id}
         yield f"data: {json.dumps(final)}\n\n"
@@ -212,7 +212,7 @@ async def _personal_gen(body, uid, account_id, public_system, salt, meta):
         # already-fetched PUBLIC draft as the final IN-BAND (never raise, never
         # null: the widget must not re-run the whole 2× branch via single-shot).
         ai_search_personal.refund_synth(uid)
-        ai_search_log.record_personal_invocation(degraded=True)
+        await loop.run_in_executor(None, ai_search_log.record_personal_invocation, True)
         fallback = "".join(parts).strip() or draft
         final = {"type": "final", "answer": fallback, "citations": citations,
                  "personal": True, "personalization_paused": True, "answer_id": answer_id}
