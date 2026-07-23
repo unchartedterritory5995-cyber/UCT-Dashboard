@@ -66,12 +66,23 @@ def _build_candle_events(tickers, last_state: dict) -> list[dict]:
     return events
 
 
-def _build_stale_events(tickers, now=None):
+def _build_stale_events(tickers, now=None, bb=None):
     """Return list of stale event dicts for tickers whose last tick is too old.
+
+    A symbol is stale only when EVERY live source has gone quiet. `last_seen`
+    alone tracks the FINNHUB trade feed, whose free tier legitimately trickles
+    (a ticker can go minutes between prints) — while the Massive feed keeps
+    powering the price/candle the user actually sees. Judging staleness off
+    Finnhub alone produced the "badge says STALE but the price is ticking"
+    bug, so the Massive developing-partial timestamp (via `bb`) counts as
+    activity too and the newest of the two sources decides.
 
     Args:
       tickers: iterable of ticker symbols
       now: epoch seconds; defaults to time.time()
+      bb: optional bar_broadcaster — its `get_last_price(sym)["ts"]` is the
+          Massive developing 1-min partial's bucket start (ms; ≤60s behind the
+          newest Massive tick while trades flow).
 
     Returns:
       List of {"type": "stale", "sym": SYM, "last_seen": ts} dicts.
@@ -81,6 +92,17 @@ def _build_stale_events(tickers, now=None):
     events = []
     for sym in tickers:
         last_seen = realtime_stream.get_last_seen(sym)
+        if bb is not None:
+            try:
+                mp = bb.get_last_price(sym)
+                mts = mp.get("ts") if mp else None
+                if mts:
+                    # Bucket starts are ms; normalize defensively so a future
+                    # seconds-valued source can't zero out staleness detection.
+                    msec = int(mts / 1000) if mts > 1_000_000_000_000 else int(mts)
+                    last_seen = msec if last_seen is None else max(last_seen, msec)
+            except Exception:
+                pass  # best-effort — Finnhub-only staleness is the fallback
         if last_seen is None:
             continue
         if bars_liveness.is_stale(last_seen, tf="1", market_open=None):
@@ -200,7 +222,7 @@ async def stream_prices(
                 now_int = int(time.time())
                 if now_int > last_stale_check:
                     last_stale_check = now_int
-                    stale_events = _build_stale_events(ticker_list, now=now_int)
+                    stale_events = _build_stale_events(ticker_list, now=now_int, bb=_bb)
                     currently_stale = {e["sym"] for e in stale_events}
                     # Emit stale for newly-stale tickers
                     for e in stale_events:
