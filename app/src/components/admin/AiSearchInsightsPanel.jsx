@@ -70,6 +70,17 @@ export default function AiSearchInsightsPanel() {
   const maxQ = Math.max(1, ...(log?.top_questions || []).map((q) => q.count))
   const maxT = Math.max(1, ...(log?.top_tickers || []).map((t) => t.count))
 
+  // Grounding coverage — differentiation tiers (web-only vs desk-grounded) +
+  // the personal lane. Ambient sources (regime/recency, injected on ~every
+  // query) never count toward "desk-grounded" — see _grounding_tier in
+  // ai_search_log.py. This is the whole point of the metric: don't report
+  // regime as a proprietary hit.
+  const gc = log?.grounding_coverage || {}
+  const deskGrounded = gc['desk-grounded'] || 0
+  const webOnly = gc['web-only'] || 0
+  const gcTotal = deskGrounded + webOnly
+  const personal = log?.personal || {}
+
   return (
     <div className={styles.healthSection}>
       <div className={styles.sectionTitle}>
@@ -131,6 +142,24 @@ export default function AiSearchInsightsPanel() {
       <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
         <span><span style={{ color: FRESH_COLORS.evergreen }}>■</span> Evergreen {fresh.evergreen || 0}</span>
         <span><span style={{ color: FRESH_COLORS.time_sensitive }}>■</span> Time-sensitive {fresh.time_sensitive || 0}</span>
+      </div>
+
+      {/* Grounding coverage — differentiation tiers over logged NON-personal rows, plus
+          the content-free personal lane. Ambient sources (regime/recency) are NEVER
+          reported as a proprietary "desk-grounded" hit. */}
+      <div className={styles.analyticsBarLabel} style={{ margin: '14px 0 6px', opacity: 0.7 }}>
+        Grounding coverage (desk-grounded = a real proprietary source beyond ambient regime/recency)
+      </div>
+      {gcTotal === 0 && (
+        <div className={styles.analyticsBarLabel} style={{ opacity: 0.6, marginBottom: 6 }}>No data yet</div>
+      )}
+      <div className={styles.statsGrid}>
+        <Stat n={log ? deskGrounded : '—'} label="Desk-grounded" />
+        <Stat n={log ? webOnly : '—'} label="Web-only" />
+        <Stat n={log ? pct(gcTotal ? deskGrounded / gcTotal : 0) : '—'} label="Desk-grounded rate" />
+        <Stat n={log ? (personal.invocations ?? 0) : '—'} label="Personal invocations" />
+        <Stat n={log ? (personal.degraded ?? 0) : '—'} label="Personal degraded" />
+        <Stat n={log ? pct(personal.rate) : '—'} label="Personal / total requests" />
       </div>
 
       {/* House brain (Phase 2) — the retrieval-memory index built from evergreen answers */}
