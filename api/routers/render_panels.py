@@ -113,6 +113,30 @@ def render_earnings_history(token: str = "", syms: str = ""):
     return {"data": out}
 
 
+# Public-safe flow fields — the structured conviction board the engine already
+# emits into wire["options_flow"]. Same board the FREE OptionsFlow page shows; the
+# rows are display-shaped (no raw signal-sourcing), so we pass them through capped.
+_FLOW_PUBLIC = ("sym", "cp", "strike", "exp", "dte", "dir", "grade",
+                "premium_spoken", "sector", "cap_band", "gold")
+
+
+@router.get("/r/flow")
+def render_flow(token: str = "", n: int = 12):
+    """Top-N notable options flow (prior session, conviction-ranked) — token-gated
+    public read over the engine's pushed wire["options_flow"] board."""
+    _check_token(token)
+    try:
+        from api.services import engine as _eng
+        wire = _eng._load_wire_data() or {}
+    except Exception:  # noqa: BLE001
+        wire = {}
+    flow = (wire.get("options_flow") or {}) if isinstance(wire, dict) else {}
+    rows = flow.get("rows") or []
+    n = max(1, min(int(n or 12), 24))
+    public = [{k: r.get(k) for k in _FLOW_PUBLIC} for r in rows[:n]]
+    return {"session": flow.get("session"), "rows": public}
+
+
 @router.get("/r/tweets")
 def render_tweets(token: str = "", n: int = 5, hours: int = 18):
     """Top-N recent notable tweets that mention tickers — token-gated public read.
