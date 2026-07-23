@@ -38,22 +38,20 @@ function renderText(text) {
 }
 
 function TweetCard({ t }) {
+  const tickers = Array.isArray(t.tickers) ? t.tickers.slice(0, 8) : []
+  // Author omitted. Text starts at the top (no empty header row); the tickers +
+  // time share one compact bottom row so every card fills tightly and uniformly.
   return (
-    <div style={{ padding: '13px 16px', background: '#121212', border: '1px solid #232323', borderRadius: 10, marginBottom: 11 }}>
-      {/* Author (name/handle) intentionally omitted — headline + tickers only. */}
-      <div style={{ display: 'flex' }}>
+    <div style={{ padding: '12px 16px', background: '#121212', border: '1px solid #232323', borderRadius: 10, marginBottom: 10 }}>
+      <div style={{ color: '#e4e4e4', fontSize: 14, lineHeight: 1.5 }}>{renderText(t.text)}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
+        {tickers.map((tk) => (
+          <span key={tk} style={{ fontSize: 11, fontWeight: 700, color: '#c9a84c', background: 'rgba(201,168,76,0.12)', padding: '2px 8px', borderRadius: 999 }}>
+            {String(tk).toUpperCase()}
+          </span>
+        ))}
         <span style={{ marginLeft: 'auto', color: '#6f6f6f', fontSize: 11.5 }}>{timeAgo(t.created_at)}</span>
       </div>
-      <div style={{ color: '#d7d7d7', fontSize: 13.5, lineHeight: 1.5, marginTop: 2 }}>{renderText(t.text)}</div>
-      {Array.isArray(t.tickers) && t.tickers.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-          {t.tickers.slice(0, 8).map((tk) => (
-            <span key={tk} style={{ fontSize: 11, fontWeight: 700, color: '#c9a84c', background: 'rgba(201,168,76,0.12)', padding: '2px 8px', borderRadius: 999 }}>
-              {String(tk).toUpperCase()}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
