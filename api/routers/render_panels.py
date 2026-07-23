@@ -47,3 +47,29 @@ def render_catalysts(token: str = "", n: int = 3, date: str = ""):
                 break
     n = max(1, min(int(n or 3), 80))  # up to 80 so the newsletter can build a movers→news map
     return {"market_date": md, "rows": rows[:n]}
+
+
+@router.get("/r/tweets")
+def render_tweets(token: str = "", n: int = 5, hours: int = 18):
+    """Top-N recent notable tweets that mention tickers — token-gated public read.
+
+    Prefers tweets carrying cashtags (ticker links), newest first; the newsletter
+    screenshots /r/tweets into a 'Top Tweets' panel.
+    """
+    _check_token(token)
+    try:
+        from api.services import tweet_store
+        rows = tweet_store.feed(hours=int(hours or 18), limit=60) or []
+    except Exception:  # noqa: BLE001
+        rows = []
+    with_tickers = [t for t in rows if t.get("tickers")]
+    picked = (with_tickers or rows)[: max(1, min(int(n or 5), 10))]
+    out = [{
+        "author_handle": t.get("author_handle"),
+        "author_name": t.get("author_name"),
+        "text": t.get("text"),
+        "tickers": t.get("tickers", []),
+        "created_at": t.get("created_at"),
+        "like_count": t.get("like_count"),
+    } for t in picked]
+    return {"tweets": out}
