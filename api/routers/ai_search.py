@@ -25,9 +25,54 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user, require_admin
-from api.services import perplexity_search
+from api.services import ai_search_personal, perplexity_search
 
 router = APIRouter(prefix="/api/ai-search", tags=["ai-search"])
+
+
+def _is_paid_server(user):
+    """Server-resolved plan — NEVER trust a client-sent plan field."""
+    try:
+        from api.middleware.auth_middleware import is_paid_user
+        from api.services.auth_service import get_user_plan
+        uid = (user or {}).get("user_id")
+        if not uid:
+            return False
+        return is_paid_user({**user, "plan": get_user_plan(uid)})
+    except Exception:
+        return False
+
+
+# ── Personal-intent detection: is this query about the member's OWN portfolio?
+# Purpose-built regex — matches "am I overexposed", "should I trim my NVDA",
+# "room to add", "how's my week", "my positions/stop" phrasing. Deliberately
+# does NOT match generic market/ticker questions ("is TSLA extended", "thoughts
+# on NVDA") — asymmetric by design: when unsure, treat as non-personal.
+_PERSONAL_INTENT_RE = re.compile(
+    r"\b(am i (over ?exposed|too (concentrated|heavy)|too much in)"
+    r"|should i (add|trim|hold|sell|buy)\b"
+    r"|room to add|how('?s| is| am i) my|how am i doing"
+    r"|my (position|positions|book|portfolio|stop|risk|heat|shares)"
+    r"|(closest|near(est)?) (to )?(its )?stop"
+    r"|how('?s| is) my (day|week|book))\b", re.I)
+
+
+def is_personal(query, user):
+    """True only when the query reads as a portfolio-intent question AND the
+    member is paid AND we actually have personal data for them. Gate order is
+    deliberate: cheap regex -> cheap paid check -> DB has_data probe, so the
+    DB read only runs on a real candidate."""
+    if not user or not (query or "").strip():
+        return False
+    if not _PERSONAL_INTENT_RE.search(query):
+        return False
+    if not _is_paid_server(user):          # cheap gate before any DB read
+        return False
+    try:
+        uid = user.get("user_id")
+        return bool(uid) and ai_search_personal.has_data(uid)
+    except Exception:
+        return False
 
 _WIDGET_INTRO = (
     "You are the UCT Intelligence research desk — a sharp, decisive markets & "
