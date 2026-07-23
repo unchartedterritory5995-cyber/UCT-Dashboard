@@ -88,6 +88,7 @@ export const SHORTCUTS = [
   { keys: 'Shift+C', command: 'toggle:countdown', description: 'Toggle bar-close countdown' },
   { keys: 'Alt+U', command: 'toggle:vwap', description: 'Toggle session VWAP' },
   { keys: 'Alt+Shift+W', command: 'toggle:watermark', description: 'Toggle symbol watermark' },
+  { keys: 'Alt+I', command: 'toggle:invert', description: 'Invert price scale' },
 
   // Indicator toggles (Ctrl/Cmd held)
   { keys: 'Ctrl+I', command: 'toggle:rsi', description: 'Toggle RSI' },
@@ -101,7 +102,9 @@ export const SHORTCUTS = [
   { keys: '←', command: 'replay:back', description: 'Replay step back' },
   { keys: '→', command: 'replay:forward', description: 'Replay step forward' },
 
-  // Help
+  // Other
+  { keys: '+ / -', command: 'zoom', description: 'Zoom in / out' },
+  { keys: 'Alt+,', command: 'settings', description: 'Open chart settings' },
   { keys: '?', command: 'help', description: 'Show this help overlay' },
 ];
 

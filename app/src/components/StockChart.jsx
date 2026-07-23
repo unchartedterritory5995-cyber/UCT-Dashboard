@@ -2988,6 +2988,18 @@ export default function StockChart({
           handleUpdateChartSettings({ ...cs, watermark: { ...cs.watermark, visible: !cs.watermark?.visible }, preset: 'custom' })
           return
         }
+        // Alt+I → invert the price scale (flip upside-down).
+        if (!e.shiftKey && e.code === 'KeyI') {
+          e.preventDefault()
+          handleUpdateChartSettings({ ...cs, invertScale: !cs.invertScale, preset: 'custom' })
+          return
+        }
+        // Alt+, → open chart settings (workspace modal, when wired).
+        if (!e.shiftKey && e.code === 'Comma' && typeof onOpenSettings === 'function') {
+          e.preventDefault()
+          onOpenSettings()
+          return
+        }
       }
 
       // Zoom the time axis around its center: + / = zoom in, - zoom out.
@@ -3109,7 +3121,30 @@ export default function StockChart({
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [cs, onTfChange, showDrawingTools, replayMode, sessionBars?.length, handleUpdateChartSettings, resolvedTf])
+  }, [cs, onTfChange, showDrawingTools, replayMode, sessionBars?.length, handleUpdateChartSettings, resolvedTf, onOpenSettings])
+
+  // Apply the inverted price scale (Alt+I) — on toggle and on chart (re)creation.
+  useEffect(() => {
+    if (!chartReady) return
+    try { mainPriceScale()?.applyOptions({ invertScale: !!cs.invertScale }) } catch { /* disposed */ }
+  }, [cs.invertScale, chartReady, mainPriceScale])
+
+  // Double-click the price axis → reset it to auto-scale (after a manual drag).
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady) return undefined
+    const onDbl = (e) => {
+      const chart = chartRef.current
+      if (!chart) return
+      let axisW = 0; try { axisW = chart.priceScale('right').width() || 0 } catch { /* no axis */ }
+      const r = el.getBoundingClientRect()
+      if (axisW > 0 && (e.clientX - r.left) >= r.width - axisW - 2) {
+        try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* disposed */ }
+      }
+    }
+    el.addEventListener('dblclick', onDbl)
+    return () => el.removeEventListener('dblclick', onDbl)
+  }, [chartReady, mainPriceScale])
 
   // ── Replay auto-advance interval ──
   useEffect(() => {

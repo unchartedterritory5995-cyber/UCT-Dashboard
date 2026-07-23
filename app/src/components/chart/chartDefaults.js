@@ -2,6 +2,7 @@
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
+  invertScale: false,   // flip the price axis upside-down (Alt+I)
 
   candles: {
     // Defaults are the workspace "bold" palette (formerly hardcoded as MB_UP/MB_DOWN
@@ -306,6 +307,7 @@ export function mergeChartSettings(userSettings) {
 
   return {
     chartType: parsed.chartType || CHART_DEFAULTS.chartType,
+    invertScale: parsed.invertScale ?? CHART_DEFAULTS.invertScale,
     candles: _candles,
     candleColorMode: parsed.candleColorMode || CHART_DEFAULTS.candleColorMode,
     background: parsed.background || CHART_DEFAULTS.background,
