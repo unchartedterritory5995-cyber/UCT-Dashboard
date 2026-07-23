@@ -2,8 +2,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 
-// Mock the Breadth.jsx re-exports the view consumes so the test stays isolated.
-vi.mock('../../Breadth', () => ({
+// Mock the metric-registry module the view consumes so the test stays isolated.
+// (Was '../../Breadth' before the registry moved to breadth/heatmapMetrics.js.)
+vi.mock('../heatmapMetrics', () => ({
   HM_METRICS_BY_KEY: {
     a: { key: 'a', label: 'A', getTier: () => 'g3', getFmt: () => '1' },
     b: { key: 'b', label: 'B', getTier: () => 'r3', getFmt: () => '2' },

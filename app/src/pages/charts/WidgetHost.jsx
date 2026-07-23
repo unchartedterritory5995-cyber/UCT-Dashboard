@@ -3,6 +3,7 @@ import WatchlistWidget from './widgets/WatchlistWidget'
 import ThemesWidget from './widgets/ThemesWidget'
 import ScannerWidget from './widgets/ScannerWidget'
 import FundamentalsWidget from './widgets/FundamentalsWidget'
+import BreadthWidget from './widgets/BreadthWidget'
 import AiSearchWidget from './widgets/AiSearchWidget'
 import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
@@ -14,6 +15,7 @@ const TYPE_LABEL = {
   themes: 'Themes',
   scanner: 'Scanner',
   fundamentals: 'Fundamentals',
+  breadth: 'Breadth',
   aisearch: 'AI Search',
 }
 
@@ -24,6 +26,7 @@ function WidgetBody({ widget, onOptsChange }) {
     case 'themes':    return <ThemesWidget    color={widget.color} opts={widget.opts} />
     case 'scanner':   return <ScannerWidget   color={widget.color} opts={widget.opts} />
     case 'fundamentals': return <FundamentalsWidget color={widget.color} opts={widget.opts} onOptsChange={onOptsChange} />
+    case 'breadth':   return <BreadthWidget opts={widget.opts} onOptsChange={onOptsChange} />
     case 'aisearch':  return <AiSearchWidget color={widget.color} />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {widget.type}</div>
   }

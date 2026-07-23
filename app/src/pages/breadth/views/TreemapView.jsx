@@ -8,7 +8,7 @@ import ReactECharts from 'echarts-for-react'
 import {
   HM_METRICS_BY_KEY, TREEMAP_DEF, TIER_CELL_COLORS,
   TIER_SCORES, TIER_LABELS, TIER_TIP_COLORS,
-} from '../../Breadth'
+} from '../heatmapMetrics'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 
 export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleKeys, signalKey, notableKey, onDrill, options = {} }) {

@@ -10,6 +10,7 @@ import { WorkspaceContext } from './WorkspaceContext'
 import { WATCHLIST_DEFAULTS, mergeWatchlistSettings } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings } from './widgets/fundamentalsSettings'
+import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings } from './widgets/breadthWidgetSettings'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import WidgetHost from './WidgetHost'
@@ -98,16 +99,18 @@ const WIDGET_DEFAULTS = {
   themes:    { w: 6,  h: 10, minW: 2, minH: 4 },
   scanner:   { w: 8,  h: 10, minW: 6, minH: 4 },
   fundamentals: { w: 8, h: 6, minW: 6, minH: 2 },
+  breadth:   { w: 8,  h: 10, minW: 4, minH: 4 },
   aisearch:  { w: 7,  h: 10, minW: 3, minH: 3 },
 }
 
-const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'aisearch']
+const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch']
 const WIDGET_LABELS = {
   chart: 'Chart',
   watchlist: 'Watchlist',
   themes: 'Theme Tracker',
   scanner: 'Scanner',
   fundamentals: 'Fundamentals',
+  breadth: 'Breadth',
   aisearch: 'AI Search',
 }
 
@@ -163,6 +166,16 @@ function clampWidgetsToRows(widgets) {
     if (y + h > FIXED_ROWS) h = FIXED_ROWS - y  // y ≤ FIXED_ROWS-minH ⇒ h ≥ minH
     return { ...w, y, h }
   })
+}
+
+// The watchlist column config (added columns / widths / order) lives in
+// localStorage (WL_COLS_LS in Watchlists.jsx), not a pref — read it for
+// template capture. null when unset/unreadable (JSON drops the key).
+function readWatchlistColumns() {
+  try {
+    const v = JSON.parse(localStorage.getItem('uct.watchlist.cols'))
+    return (v && typeof v === 'object') ? v : null
+  } catch { return null }
 }
 
 function nextColor(currentColors) {
@@ -354,12 +367,15 @@ export default function ChartsWorkspace() {
     const themes = tt.bgMode === 'gradient' ? (tt.bgGradient?.top || tt.bg) : tt.bg
     const fw = mergeFundamentalsSettings(parsePref(prefs.fundamentals_settings, null))
     const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
-    // Theme Tracker / Fundamentals publish ONLY when the user actually customized
-    // their canvas (their settings model is emit-when-off-default): the drag bar +
-    // panel then follow the chosen canvas, while an untouched widget keeps the
-    // default chrome tokens byte-identical.
+    const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null))
+    const breadth = bw.bgMode === 'gradient' ? (bw.bgGradient?.top || bw.bg) : bw.bg
+    // Theme Tracker / Fundamentals / Breadth publish ONLY when the user actually
+    // customized their canvas (their settings model is emit-when-off-default): the
+    // drag bar + panel then follow the chosen canvas, while an untouched widget
+    // keeps the default chrome tokens byte-identical.
     const ttCustom = tt.bgMode === 'gradient' || String(tt.bg).toLowerCase() !== THEME_TRACKER_DEFAULTS.bg
     const fwCustom = fw.bgMode === 'gradient' || String(fw.bg).toLowerCase() !== FUNDAMENTALS_DEFAULTS.bg
+    const bwCustom = bw.bgMode === 'gradient' || String(bw.bg).toLowerCase() !== BREADTH_WIDGET_DEFAULTS.bg
     const entry = (canvas) => ({
       canvas, divider: dividerFor(canvas), dividerStrong: dividerFor(canvas, { strong: true }),
       chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
@@ -378,9 +394,10 @@ export default function ChartsWorkspace() {
       watchlist: watchlistEntry,
       ...(ttCustom ? { themes: entry(themes) } : {}),
       ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
+      ...(bwCustom ? { breadth: entry(breadth) } : {}),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings])
+  }, [chartsTheme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
 
   const workspaceValue = useMemo(
     () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
@@ -509,7 +526,7 @@ export default function ChartsWorkspace() {
     // parseLayout keeps extra fields (`...parsed`), so pull chartSettings OUT of
     // the board layout — it belongs in the chart_settings pref, not the
     // charts_workspace_layout arrangement blob.
-    const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
+    const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     setLayout(boardLayout)
     setPref('charts_workspace_layout', JSON.stringify(boardLayout))
     // Restore the template's WIDGET appearance blobs (or defaults for a prebuilt/older
@@ -519,6 +536,19 @@ export default function ChartsWorkspace() {
     setPref('watchlist_settings', JSON.stringify(watchlistSettings || WATCHLIST_DEFAULTS))
     setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || THEME_TRACKER_DEFAULTS))
     setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || FUNDAMENTALS_DEFAULTS))
+    setPref('breadth_widget_settings', JSON.stringify(breadthSettings || BREADTH_WIDGET_DEFAULTS))
+    // Watchlist COLUMN config (added columns / widths / order — localStorage, not a
+    // pref) rides the template too: owner-reported bug — added columns vanished after
+    // switching layouts and back, because Save captured them nowhere and opening a
+    // prebuilt wiped the localStorage key. Widgets remount on layout switch (new
+    // widget ids), so they re-read this key on mount.
+    try {
+      if (watchlistColumns && typeof watchlistColumns === 'object') {
+        localStorage.setItem('uct.watchlist.cols', JSON.stringify(watchlistColumns))
+      } else if (isPrebuilt) {
+        localStorage.removeItem('uct.watchlist.cols')
+      }
+    } catch { /* ignore */ }
     // Restore the chart settings the template was saved with, if it has them. A
     // PREBUILT template that carries none resets to the frozen default (never inherit
     // the previous layout's chart styling); a personal arrangement-only template
@@ -530,9 +560,10 @@ export default function ChartsWorkspace() {
     }
     if (isPrebuilt) {
       // Wipe the standalone per-user overrides so a prebuilt layout always opens
-      // clean: theme (e.g. TSDR Sunset), watchlist columns, volume-pane height.
+      // clean: theme (e.g. TSDR Sunset), volume-pane height. (Watchlist columns
+      // are handled by the watchlistColumns conditional above — restore when the
+      // template carries them, wipe when a prebuilt carries none.)
       setChartsTheme('default')
-      try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }
       setPref('charts_vol_pane_pct', '')
     }
     // Remember which named template is now open, so "Save current arrangement"
@@ -562,6 +593,7 @@ export default function ChartsWorkspace() {
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
     setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
     setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))
+    setPref('breadth_widget_settings', JSON.stringify(BREADTH_WIDGET_DEFAULTS))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // reset columns too (mirrors WL_COLS_LS)
     // Volume-pane height is a SEPARATE global per-user override (charts_vol_pane_pct)
@@ -617,6 +649,7 @@ export default function ChartsWorkspace() {
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
     setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
     setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))
+    setPref('breadth_widget_settings', JSON.stringify(BREADTH_WIDGET_DEFAULTS))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // mirrors WL_COLS_LS in Watchlists.jsx
     // Blank board is not a named template.
@@ -637,10 +670,12 @@ export default function ChartsWorkspace() {
       const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
       const themeTrackerSettings = parsePref(prefs?.theme_tracker_settings, null)
       const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
+      const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
+      const watchlistColumns = readWatchlistColumns()
       const scope = isAdmin ? saveAsScope : 'user'
       const saved = await saveLayout({
         name: nm,
-        layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings },
+        layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
         groups: null,
         scope,
       })
@@ -675,8 +710,10 @@ export default function ChartsWorkspace() {
         const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
         const themeTrackerSettings = parsePref(prefs?.theme_tracker_settings, null)
         const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
+        const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
+        const watchlistColumns = readWatchlistColumns()
         try {
-          await saveLayout({ name: active.name, layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings }, groups: null, scope: active.scope })
+          await saveLayout({ name: active.name, layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns }, groups: null, scope: active.scope })
         } catch { /* surfaced by SWR revalidate */ }
       }
     }

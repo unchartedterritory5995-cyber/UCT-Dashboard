@@ -4,7 +4,7 @@
  * visualization style. Spec: docs/superpowers/specs/2026-06-01-breadth-views-multi-style-design.md
  */
 import { useState, useEffect, useMemo } from 'react'
-import { HM_METRICS, PCTILE_KEYS, FFILL_KEYS } from '../Breadth'
+import { HM_METRICS, PCTILE_KEYS, FFILL_KEYS } from './heatmapMetrics'
 import useBreadthViews from './useBreadthViews'
 import { normalizeMetric, pickSignals } from './views/breadthViewShared'
 import BreadthSignalStrip from './views/BreadthSignalStrip'

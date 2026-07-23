@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import TreemapView from './breadth/views/TreemapView'
-import { TREEMAP_DEF } from './Breadth'
+import { TREEMAP_DEF } from './breadth/heatmapMetrics'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
 const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
