@@ -25,9 +25,11 @@ describe('prefetchBarOnIntent', () => {
     expect(preloadMock).not.toHaveBeenCalled()
   })
 
-  it('debounces rapid repeated intents into a single fetch', () => {
+  it('debounces rapid repeated intents into a single fetch', async () => {
     for (let i = 0; i < 6; i++) prefetchBarOnIntent('NVDA', 'D')
-    vi.advanceTimersByTime(120)
+    // Async variant: _warmIntentNow awaits an IDB probe (miss here) before the
+    // network preload, so the awaited microtask must flush before asserting.
+    await vi.advanceTimersByTimeAsync(120)
     expect(preloadMock).toHaveBeenCalledTimes(1)
   })
 
