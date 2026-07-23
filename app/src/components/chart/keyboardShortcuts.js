@@ -81,6 +81,10 @@ export const SHORTCUTS = [
   { keys: 'Alt+E', command: 'tool:fibext', description: 'Fibonacci extension' },
   { keys: 'Alt+W', command: 'tool:avwap', description: 'Anchored VWAP' },
   { keys: 'Alt+X', command: 'tool:text', description: 'Text annotation' },
+  { keys: 'Alt+P', command: 'tool:position', description: 'Position tool (long / short R:R)' },
+  { keys: 'Alt+Shift+P', command: 'tool:priceRange', description: 'Price range' },
+  { keys: 'Alt+Shift+D', command: 'tool:dateRange', description: 'Date range' },
+  { keys: 'Alt+Shift+E', command: 'tool:eraser', description: 'Eraser (click to delete)' },
 
   // Display toggles
   { keys: 'Shift+L', command: 'toggle:log', description: 'Toggle log scale' },
