@@ -4145,7 +4145,11 @@ export default function StockChart({
         const _vDown = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
         volumeSeriesRef.current.update({
           time: tSec,
-          value: _volB,
+          // The incoming push-bar's volume. (A phantom `_volB` shipped 2026-07-21
+          // here — the surrounding try/catch swallowed the ReferenceError, which
+          // silently killed writer B's volume update AND the liveBarRef/lastBarRef
+          // advancement below it on every push tick.)
+          value: data.bar.v,
           color: _up ? _vUp : _vDown,
         })
       }
@@ -7496,7 +7500,12 @@ export default function StockChart({
     const vis = !indicatorsHidden
     const set = (ref) => { try { ref.current?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
     ;[
-      volumeSeriesRef, overlayTailSeriesRef,
+      // NB: the MA tail refs live in the ARRAY ref overlayTailSeriesRefs (plural,
+      // handled with overlaySeriesRefs below). A phantom singular
+      // `overlayTailSeriesRef` here shipped 2026-07-22 and crashed /charts with a
+      // ReferenceError the moment any chart mounted — every identifier in this
+      // list MUST be a declared ref (there is no build-time check for this).
+      volumeSeriesRef,
       bbUpperRef, bbMiddleRef, bbLowerRef, vwapSeriesRef, rsiSeriesRef,
       macdLineRef, macdSignalRef, macdHistRef,
       stochKRef, stochDRef, atrSeriesRef, sarSeriesRef,
@@ -7505,8 +7514,9 @@ export default function StockChart({
       adxSeriesRef, adxPlusDIRef, adxMinusDIRef, obvSeriesRef,
       donchianUpperRef, donchianMiddleRef, donchianLowerRef,
     ].forEach(set)
-    const ov = overlaySeriesRefs.current
-    if (Array.isArray(ov)) ov.forEach(s => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } })
+    const setAll = (arr) => { if (Array.isArray(arr)) arr.forEach(s => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }) }
+    setAll(overlaySeriesRefs.current)
+    setAll(overlayTailSeriesRefs.current)
   }, [indicatorsHidden, chartReady, cs.indicators, resolvedOverlays, cs.volume, resolvedTf, sym])
 
   // Plain mouse-drag pans (default). The Shift+drag measure locks scrolling only for
