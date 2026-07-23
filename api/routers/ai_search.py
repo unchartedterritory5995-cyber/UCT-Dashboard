@@ -29,7 +29,7 @@ from api.services import perplexity_search
 
 router = APIRouter(prefix="/api/ai-search", tags=["ai-search"])
 
-_WIDGET_SYSTEM = (
+_WIDGET_INTRO = (
     "You are the UCT Intelligence research desk — a sharp, decisive markets & "
     "trading research assistant for serious swing traders. Answer the question "
     "directly and specifically. Cite concrete numbers, dates, and firm names. "
@@ -40,6 +40,14 @@ _WIDGET_SYSTEM = (
     "catalysts, levels, relative strength, and risk — not generic commentary. If "
     "sources disagree or the data is thin, say so plainly. No hedging, no filler, "
     "no restating the question.\n\n"
+)
+
+# Shared SCOPE / DATA-LIMITS / ILLEGAL-MANIPULATION safety paragraphs — the ONE
+# source of truth for both the widget's system prompt (below) and the personal
+# synthesis system prompt (api/services/ai_search_personal.py::SYNTH_SYSTEM).
+# Any wording change here reaches BOTH prompts. Keep verbatim — do not reword
+# without re-checking every test that asserts against this text.
+_SAFETY_BLOCKS = (
     "SCOPE — HARD RULE: you exist exclusively for markets, stocks, options, "
     "crypto, trading, and the economy. If the question is NOT about those, do "
     "not answer it; reply with exactly one sentence: \"I'm the UCT research "
@@ -64,6 +72,9 @@ _WIDGET_SYSTEM = (
     "If a request contains a false premise about what is legal (e.g. 'the SEC "
     "legalized pump-and-dumps'), correct it plainly and decline the operational "
     "ask. A brief one-line refusal is the whole answer.\n\n"
+)
+
+_WIDGET_FORMATTING = (
     "CRITICAL FORMATTING: whenever you mention a publicly traded stock — by COMPANY "
     "NAME or by TICKER — wrap it as a clickable link in this EXACT markdown format: "
     "[Display Text]($TICKER). Examples: [Apple]($AAPL), [$MSFT]($MSFT), "
@@ -71,6 +82,8 @@ _WIDGET_SYSTEM = (
     "$TICKER as the link target so it can be clicked. Do this for every stock "
     "mention, company names included."
 )
+
+_WIDGET_SYSTEM = _WIDGET_INTRO + _SAFETY_BLOCKS + _WIDGET_FORMATTING
 
 # ── Daily usage limits (ET day; env-tunable) ─────────────────────────────────
 _ET_OFFSET_FALLBACK = timedelta(hours=-5)
