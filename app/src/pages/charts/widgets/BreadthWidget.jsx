@@ -66,7 +66,7 @@ const GROUP_LABELS = {
 // ── Heatmap view (widget-local): grouped 8-tier tile grid ──────────────────
 // The page's treemap look, rebuilt as a plain CSS grid: dark tier fill + bright
 // tier value — reads perfectly at widget size and costs zero chart libraries.
-function HeatmapView({ currentRow, onDrill, cellColors = TIER_CELL_COLORS, tipColors = TIER_TIP_COLORS }) {
+function HeatmapView({ currentRow, onDrill, cellColors = TIER_CELL_COLORS, tipColors = TIER_TIP_COLORS, textColor = null }) {
   return (
     <div className={styles.hmWrap}>
       {HEATMAP_GROUPS.map(g => {
@@ -89,7 +89,10 @@ function HeatmapView({ currentRow, onDrill, cellColors = TIER_CELL_COLORS, tipCo
                     title={`${m.label} — open Breadth`}
                   >
                     <span className={styles.hmTileLabel}>{m.label}</span>
-                    <span className={styles.hmTileVal} style={{ color: score != null ? tipColors[score] : 'var(--bw-text-dim, #8b8674)' }}>
+                    {/* A custom ⚙ Text color paints the VALUES too (owner ask) —
+                        the tile fill still carries the tier; unset keeps the
+                        bright tier-colored numbers. */}
+                    <span className={styles.hmTileVal} style={{ color: textColor || (score != null ? tipColors[score] : 'var(--bw-text-dim, #8b8674)') }}>
                       {m.getFmt(currentRow)}
                     </span>
                   </button>
@@ -260,6 +263,7 @@ export default function BreadthWidget({ opts, onOptsChange }) {
                 currentRow={currentRow} onDrill={drill}
                 cellColors={custom ? custom.cellColors : TIER_CELL_COLORS}
                 tipColors={custom ? custom.tipColors : TIER_TIP_COLORS}
+                textColor={bwSettings.textColor !== BREADTH_WIDGET_DEFAULTS.textColor ? bwSettings.textColor : null}
               />
             : <active.Comp {...common} />}
         </div>
