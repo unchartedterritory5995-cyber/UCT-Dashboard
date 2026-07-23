@@ -187,21 +187,33 @@ def _build_prompt(pool: list[dict]) -> str:
 
 def _call(model: str, prompt: str) -> tuple:
     """One Anthropic call. Returns (text, input_tokens, output_tokens, stop_reason).
-    Raises on API error so curate() can fall back. Retries once without
-    temperature for models that reject it (e.g. Opus 4.8)."""
+    Raises on API error so curate() can fall back.
+
+    Thinking is DISABLED: Sonnet 5 does extended thinking by default, which on a
+    big 40-name pool burned the whole output-token budget on reasoning and left
+    the JSON truncated (out_tok=3000 but only ~260 chars of answer → parse fail →
+    silent fallback, 2026-07-23). Curation is a deterministic ranking task with an
+    explicit rubric — it doesn't need thinking, and disabling it sends every
+    output token to the JSON. Retries once dropping any kwarg the model rejects
+    (thinking / temperature) so a different model id stays usable."""
     from api.services.engine import _get_anthropic_client
     client = _get_anthropic_client()
     max_tokens = _intenv("CATALYST_CURATOR_MAX_TOKENS", 3000)
     kwargs = dict(model=model, max_tokens=max_tokens, temperature=0.2,
+                  thinking={"type": "disabled"},
                   system=SYSTEM_PROMPT, messages=[{"role": "user", "content": prompt}])
     try:
         msg = client.messages.create(**kwargs)
     except Exception as e:
-        if "temperature" in str(e).lower():
-            kwargs.pop("temperature", None)
-            msg = client.messages.create(**kwargs)
-        else:
+        es = str(e).lower()
+        dropped = False
+        if "thinking" in es:
+            kwargs.pop("thinking", None); dropped = True
+        if "temperature" in es:
+            kwargs.pop("temperature", None); dropped = True
+        if not dropped:
             raise
+        msg = client.messages.create(**kwargs)
     text = "".join(getattr(b, "text", "") or "" for b in msg.content).strip()
     return text, msg.usage.input_tokens, msg.usage.output_tokens, getattr(msg, "stop_reason", None)
 
