@@ -3,7 +3,7 @@ edge/watchlists into a compact PERSONAL CONTEXT block, then synthesizes a
 position-aware answer. Read-only. Every sub-read is best-effort — a failure drops
 that slice, never the answer. Personal data NEVER reaches Perplexity or the log."""
 from __future__ import annotations
-import logging, os, time
+import logging, os, threading, time
 _log = logging.getLogger(__name__)
 
 _BLOCK_CAP = 2600            # mirror the router's _CTX_BUDGET
@@ -185,3 +185,98 @@ def assemble(user_id, account_id, query, tickers):
         sections.append("YOUR WATCHLIST: " + ", ".join(syms))
     block = "\n".join(s for s in sections if s)
     return block[:_BLOCK_CAP]
+
+
+# ── Synthesis — position-aware streaming answer over AsyncAnthropic ─────────
+# Blends the fresh web draft (Perplexity) with the member's PERSONAL CONTEXT
+# (from assemble() above) into one prose answer. Personal data goes into this
+# prompt ONLY — never to Perplexity, never to the capture log.
+
+_SYNTH_MODEL = os.environ.get("AI_SEARCH_SYNTH_MODEL", "claude-sonnet-5")
+_SYNTH_MAX_TOKENS = int(os.environ.get("AI_SEARCH_SYNTH_MAX_TOKENS", "800"))
+_SYNTH_TIMEOUT = float(os.environ.get("AI_SEARCH_SYNTH_TIMEOUT", "45"))
+_SYNTH_PERUSER_CAP = int(os.environ.get("AI_SEARCH_SYNTH_PERUSER_CAP", "20"))
+_SYNTH_GLOBAL_HARD = float(os.environ.get("AI_SEARCH_SYNTH_COST_HARD", "25"))
+_APPROX_COST = 0.02   # rough per-call USD estimate used ONLY for the cost gate
+
+_synth_lock = threading.Lock()
+_synth_day = ""
+_synth_by_user: dict = {}
+_synth_spend = 0.0
+
+
+def _et_day():
+    # Lazy import — avoids a module-load cycle with api.routers.ai_search.
+    from api.routers.ai_search import _et_day as d
+    return d()
+
+
+def _reset_synth_counters():
+    global _synth_day, _synth_by_user, _synth_spend
+    _synth_day, _synth_by_user, _synth_spend = "", {}, 0.0
+
+
+def reserve_synth(user_id):
+    """Atomic check-AND-increment under one lock hold (mirrors
+    api.routers.ai_search._reserve) — verify AND increment together so
+    concurrent requests can't all pass a separate gate and blow the cap.
+    False ⇒ over cap ⇒ caller falls back to the public (non-personal) draft."""
+    global _synth_day, _synth_spend
+    with _synth_lock:
+        d = _et_day()
+        if d != _synth_day:
+            _synth_day = d
+            _synth_by_user.clear()
+            _synth_spend = 0.0
+        if _synth_spend + _APPROX_COST > _SYNTH_GLOBAL_HARD:
+            return False
+        if _synth_by_user.get(user_id, 0) + 1 > _SYNTH_PERUSER_CAP:
+            return False
+        _synth_by_user[user_id] = _synth_by_user.get(user_id, 0) + 1
+        _synth_spend += _APPROX_COST
+        return True
+
+
+def _async_client():
+    import anthropic
+    return anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+
+
+def SYNTH_SYSTEM(personal_block, live_desk):
+    from api.routers.ai_search import _SAFETY_BLOCKS
+    return (
+        "You are the UCT Intelligence research desk answering for THIS member, with their own "
+        "positions and risk in front of you.\n\n" + _SAFETY_BLOCKS + "\n\n"
+        "FRESHNESS FIREWALL: the PERSONAL CONTEXT and any prior research may be dated. The LIVE "
+        "DESK figures and the fresh web draft are authoritative — never override a live number "
+        "with a stale personal one.\n\n"
+        "CONTEXT DIRECTIVE: present the position-aware facts (entry, size, heat, edge, earnings "
+        "exposure) alongside the fresh read. DO NOT author a GO/HOLD/SKIP call — state plainly "
+        "that the decision is the member's. Never invent a fill, stop, P&L, or level not in the "
+        "PERSONAL CONTEXT. For any position marked 'no stop set — risk undefined', say the risk "
+        "is undefined and do NOT propose a numeric stop or risk.\n\n"
+        f"=== LIVE DESK ===\n{live_desk}\n\n=== PERSONAL CONTEXT (private; may be dated) ===\n{personal_block}"
+    )
+
+
+async def synthesize(query, draft, personal_block, live_desk, history):
+    """Streams token deltas from a personal-context-aware Anthropic call that
+    folds the fresh web draft together with the member's own positions/heat/
+    edge. LOCKED config: no `temperature` kwarg (Sonnet tier 400s on it),
+    thinking disabled, explicit timeout."""
+    system = SYNTH_SYSTEM(personal_block, live_desk)
+    msgs = []
+    for h in (history or [])[-3:]:
+        if isinstance(h, dict) and h.get("q") and h.get("a"):
+            msgs.append({"role": "user", "content": str(h["q"])[:300]})
+            msgs.append({"role": "assistant", "content": str(h["a"])[:1200]})
+    user = query if not draft else f"{query}\n\n[fresh web research draft to fold in]\n{draft}"
+    msgs.append({"role": "user", "content": user})
+    client = _async_client()
+    async with client.messages.stream(
+        model=_SYNTH_MODEL, max_tokens=_SYNTH_MAX_TOKENS, system=system,
+        messages=msgs, thinking={"type": "disabled"},
+        timeout=_SYNTH_TIMEOUT,     # NO temperature (Sonnet tier 400s)
+    ) as stream:
+        async for delta in stream.text_stream:
+            yield delta
