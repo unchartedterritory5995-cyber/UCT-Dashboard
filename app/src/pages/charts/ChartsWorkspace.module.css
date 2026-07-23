@@ -818,6 +818,35 @@
   z-index: 10;
 }
 
+/* ── Merged-mode seam resize overlay ────────────────────────────────────────
+   A pointer-transparent layer over the merged grid; only the seam bars catch
+   pointer events, so widgets between them stay fully interactive. Each bar sits
+   ON the boundary between adjacent widgets and drag-resizes both (TC2000-style).
+   z-index above the grid items (which are position:absolute, auto z) but below
+   the bottom hairline (::after, z-index 10). */
+.seamOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;   /* the layer is transparent; only .seamV/.seamH grab */
+}
+.seamV, .seamH {
+  position: absolute;
+  pointer-events: auto;
+  background: transparent;
+  transition: background 90ms ease;
+  touch-action: none;     /* let pointer capture own the gesture, no page pan */
+}
+.seamV { cursor: col-resize; }
+.seamH { cursor: row-resize; }
+/* A faint gold hairline appears on hover so the draggable seams are
+   discoverable; while a drag is active EVERY seam shows it so the whole
+   split-pane grid is visible as you drag. */
+.seamV:hover,
+.seamOverlayDragging .seamV { background: linear-gradient(to right, transparent 3px, rgba(201,168,76,0.55) 3px, rgba(201,168,76,0.55) 5px, transparent 5px); }
+.seamH:hover,
+.seamOverlayDragging .seamH { background: linear-gradient(to bottom, transparent 3px, rgba(201,168,76,0.55) 3px, rgba(201,168,76,0.55) 5px, transparent 5px); }
+
 /* Widget body becomes the container-query root for its embedded child page —
    container queries inside Watchlists / ThemeTrackerPage / Screener
    embedded modes react to actual widget width, not viewport width. */

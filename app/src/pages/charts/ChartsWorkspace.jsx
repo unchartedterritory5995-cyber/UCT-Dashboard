@@ -14,6 +14,7 @@ import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings } from './widgets/b
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
+import MergedSeamOverlay from './MergedSeamOverlay'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
@@ -233,6 +234,10 @@ export default function ChartsWorkspace() {
   // itself never scrolls — widget max size = visible chart area.
   const bodyRef = useRef(null)
   const [rowHeight, setRowHeight] = useState(34)
+  // Grid content width (px) — needed to convert a merged-mode seam-drag from
+  // pixels to whole grid columns. Merged has no body padding, so the grid inner
+  // width IS the body width; unmerged we still track it (harmless, unused there).
+  const [gridWidth, setGridWidth] = useState(0)
   useEffect(() => {
     const el = bodyRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -252,6 +257,7 @@ export default function ChartsWorkspace() {
         ? Math.max(12, Math.ceil(available / FIXED_ROWS))
         : Math.max(12, Math.floor(available / FIXED_ROWS))
       setRowHeight(rh)
+      setGridWidth(el.clientWidth - bodyPad * 2)
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -465,6 +471,19 @@ export default function ChartsWorkspace() {
     setLayout(prev => {
       const next = { ...prev, widgets: prev.widgets.filter(w => w.id !== id) }
       scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
+  // Merged-mode seam drag: MergedSeamOverlay hands back the whole widgets array
+  // with the two sides of the dragged seam resized. Preview on every move
+  // (commit=false → no persist thrash); persist once on release (commit=true).
+  const minWFor = useCallback((w) => WIDGET_DEFAULTS[w.type]?.minW || 2, [])
+  const minHFor = useCallback((w) => WIDGET_DEFAULTS[w.type]?.minH || 3, [])
+  const handleSeamResize = useCallback((nextWidgets, commit) => {
+    setLayout(prev => {
+      const next = { ...prev, widgets: clampWidgetsToRows(nextWidgets) }
+      if (commit) scheduleSave(next)
       return next
     })
   }, [scheduleSave])
@@ -1045,6 +1064,22 @@ export default function ChartsWorkspace() {
               )
             })}
           </ResponsiveGridLayout>
+          )}
+          {/* Merged mode: draggable seams between adjacent widgets (TC2000-style
+              split-pane resize). RGL's own drag/resize is off while merged, so
+              these bars are the only way to resize — grow one widget, shrink its
+              neighbor, board stays gapless. */}
+          {merged && !gridMode && gridWidth > 0 && (
+            <MergedSeamOverlay
+              widgets={layout.widgets}
+              cols={GRID_COLS}
+              rows={FIXED_ROWS}
+              colWidth={gridWidth / GRID_COLS}
+              rowHeight={rowHeight}
+              minWFor={minWFor}
+              minHFor={minHFor}
+              onResize={handleSeamResize}
+            />
           )}
         </main>
       </div>
