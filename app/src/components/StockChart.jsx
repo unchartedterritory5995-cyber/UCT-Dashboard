@@ -1063,6 +1063,29 @@ export default function StockChart({
       : { color: 'rgba(255, 255, 255, 0.18)', hover: 'rgba(255, 255, 255, 0.32)' }
   }, [canvasSample])
 
+  // ── Axis auto-ink + crosshair-label canvas blend ────────────────────────────
+  // The date/time + price scale text and the crosshair's pop-up axis labels
+  // follow the CANVAS, not the user's scale-color setting (owner request
+  // 2026-07-23): the label background blends into the canvas and the ink
+  // auto-flips white/black by canvas luminance — white text on a dark canvas,
+  // black on a light one. The scale color picker can no longer render the axes
+  // unreadable against the canvas. Crosshair label TEXT needs no explicit
+  // color: LWC contrast-picks it from labelBackgroundColor, and layout.textColor
+  // (the ink below) agrees with it by construction either way.
+  const axisAuto = useMemo(() => {
+    const isGradient = userCanvas && cs.bgMode === 'gradient' && canvasTheme !== 'sunrise'
+    // The time axis sits at the BOTTOM of the canvas — blend its labels with the
+    // gradient's END color (a solid canvas collapses to the same value).
+    const labelBg = canvasTheme === 'sunrise'
+      ? '#fbf1c9'
+      : isGradient
+        ? (cs.bgGradient?.bottom || MB_BG)
+        : ((userCanvas || !boldCandles) ? (cs.background || MB_BG) : MB_BG)
+    const rgb = parseColor(labelBg)
+    const light = rgb ? luminance(rgb) > 0.5 : false
+    return { labelBg, ink: light ? '#1f2937' : '#ffffff' }
+  }, [userCanvas, boldCandles, cs.bgMode, cs.background, cs.bgGradient?.bottom, canvasTheme])
+
   const panelVars = useMemo(() => {
     const { top: solidTop, low: solidLow } = canvasSample
     const p = panelFor(solidTop)
@@ -2032,7 +2055,7 @@ export default function StockChart({
       crosshairData,
       volPos: relPos(volLegendRef.current),
       bgColor,
-      textColor: themeColors.textColor,   // price-scale text color → header blends with it
+      textColor: axisAuto.ink,   // canvas-contrast axis ink → header blends with it
       swingLabels,
       swingStyle: {
         color: sl.color, tintByType: sl.tintByType, upColor: sl.upColor, downColor: sl.downColor,
@@ -2045,7 +2068,7 @@ export default function StockChart({
         fontPx: sl.fontPx,
       },
     }
-  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles, themeColors])
+  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles, axisAuto])
 
   const handleDownload = useCallback(async () => {
     if (!chartRef.current) return
@@ -4407,6 +4430,13 @@ export default function StockChart({
     }
 
     // ── Create or update chart instance ──
+    // Axis-width pin, scaled with the user's scale text size. The 76px floor
+    // below was verified at fontSize 11 (see the rightPriceScale comment); a
+    // user-bumped cs.textSize widens every axis tag past that floor, un-pinning
+    // the axis so it re-flows on each live tick — the ~1/sec left-right shake
+    // came BACK for users with larger scale text. Scale the floor with the font
+    // so the pin holds at any size (never below the verified 76).
+    const _axisMinWidth = Math.ceil(76 * Math.max(1, (cs.textSize ?? 11) / 11))
     const chartOpts = {
       layout: {
         background: themeColors.layoutTransparent
@@ -4414,7 +4444,9 @@ export default function StockChart({
           : themeColors.backgroundGradient
             ? { type: ColorType.VerticalGradient, topColor: themeColors.backgroundGradient.top, bottomColor: themeColors.backgroundGradient.bottom }
             : { type: ColorType.Solid, color: themeColors.background },
-        textColor: themeColors.textColor,
+        // Auto-contrast ink derived from the canvas — deliberately NOT the user's
+        // scale color (see axisAuto).
+        textColor: axisAuto.ink,
         fontFamily: "'Instrument Sans', sans-serif",
         fontSize: cs.textSize ?? 11,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
@@ -4440,8 +4472,10 @@ export default function StockChart({
         horzLine: { visible: false, labelVisible: false },
       } : {
         mode: cs.crosshair.magnet ? 1 : 0,  // 1 = Magnet (snaps to OHLC), 0 = Normal
-        vertLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: canvasTheme === 'sunrise' ? '#fbf1c9' : themeColors.background },
-        horzLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: themeColors.background },
+        // Crosshair date/price labels blend with the canvas (gradient-bottom aware);
+        // LWC auto-contrasts their text against this background (axisAuto).
+        vertLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
+        horzLine: { color: themeColors.crosshairColor, width: cs.crosshair.width ?? 1, style: cs.crosshair.style, labelBackgroundColor: axisAuto.labelBg },
       },
       rightPriceScale: {
         borderColor: themeColors.borderColor,
@@ -4459,8 +4493,9 @@ export default function StockChart({
         // 64px axis, so it auto-sized per tick and the intraday WS push feed
         // (multiple ticks/sec) made it shake continuously. 76 is the value verified
         // against a DPR-1.5 live-tick repro (0 shifts). Tightening the axis is not
-        // worth reintroducing the jitter.
-        minimumWidth: 76,
+        // worth reintroducing the jitter. _axisMinWidth scales this floor with
+        // cs.textSize (larger scale text = wider tags = the same overflow class).
+        minimumWidth: _axisMinWidth,
         // Locked proportional placement (carried across ticker switches) wins over the
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
@@ -5128,7 +5163,12 @@ export default function StockChart({
         // ticker/timeframe (a dragged volume axis otherwise pins a fixed range that
         // makes a lower-volume name's bars tiny) — re-applied each pass so an
         // accidental axis drag always snaps back to a consistent auto-fit.
-        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, autoScale: true, scaleMargins: { top: 0.12, bottom: 0 } })
+        // minimumWidth: v5 aligns all panes to one shared axis column — the VOLUME
+        // pane's scale was never pinned, so its developing-bar tag ("185.71K" →
+        // "1.02M") re-measuring on every ~1s live volume update could exceed the
+        // main pane's pinned width and re-flow the shared column each tick — the
+        // whole plot shakes left-right once a second. Pin it to the same floor.
+        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, autoScale: true, minimumWidth: _axisMinWidth, scaleMargins: { top: 0.12, bottom: 0 } })
         try {
           // Stretch factors are relative. Address panes by their series' own
           // pane object (getPane) rather than raw index, so an index-comparison
