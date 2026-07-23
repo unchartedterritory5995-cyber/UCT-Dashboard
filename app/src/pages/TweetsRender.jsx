@@ -32,15 +32,13 @@ function renderText(text) {
 }
 
 function TweetCard({ t }) {
-  const handle = (t.author_handle || '').replace(/^@/, '')
   return (
     <div style={{ padding: '13px 16px', background: '#121212', border: '1px solid #232323', borderRadius: 10, marginBottom: 11 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ color: '#e8e8e8', fontWeight: 700, fontSize: 13.5 }}>{t.author_name || handle}</span>
-        <span style={{ color: '#6f7f92', fontSize: 12.5 }}>@{handle}</span>
+      {/* Author (name/handle) intentionally omitted — headline + tickers only. */}
+      <div style={{ display: 'flex' }}>
         <span style={{ marginLeft: 'auto', color: '#6f6f6f', fontSize: 11.5 }}>{timeAgo(t.created_at)}</span>
       </div>
-      <div style={{ color: '#d7d7d7', fontSize: 13.5, lineHeight: 1.5 }}>{renderText(t.text)}</div>
+      <div style={{ color: '#d7d7d7', fontSize: 13.5, lineHeight: 1.5, marginTop: 2 }}>{renderText(t.text)}</div>
       {Array.isArray(t.tickers) && t.tickers.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
           {t.tickers.slice(0, 8).map((tk) => (
