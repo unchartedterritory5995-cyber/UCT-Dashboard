@@ -67,6 +67,7 @@ const ChartsWorkspace = lazy(() => import('./pages/charts/ChartsWorkspace'))
 const ChartRender = lazy(() => import('./pages/ChartRender'))
 const CatalystsRender = lazy(() => import('./pages/CatalystsRender'))
 const CalendarRender = lazy(() => import('./pages/CalendarRender'))
+const InternalsRender = lazy(() => import('./pages/InternalsRender'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
 const Patterns = lazy(() => import('./pages/Patterns'))
 const CatalystsHistory = lazy(() => import('./pages/CatalystsHistory'))
@@ -158,7 +159,7 @@ export default function App() {
         {/* Cinematic intro overlay — plays on page load for the APP, but never
             on public marketing routes: a cold visitor clicking through to the
             landing page must see it immediately, not a 9-second brand film. */}
-        {!['/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy', '/r/chart', '/r/catalysts', '/r/calendar'].includes(window.location.pathname) && (
+        {!['/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy', '/r/chart', '/r/catalysts', '/r/calendar', '/r/internals'].includes(window.location.pathname) && (
           <IntroAnimation />
         )}
         {/* Global right-click → "+ Add to Portfolio" on every StockChart.
@@ -207,6 +208,7 @@ export default function App() {
             <Route path="/r/chart" element={<ChartRender />} />
             <Route path="/r/catalysts" element={<CatalystsRender />} />
             <Route path="/r/calendar" element={<CalendarRender />} />
+            <Route path="/r/internals" element={<InternalsRender />} />
 
             {/* Protected routes — require authentication */}
             <Route element={<AuthGuard />}>
