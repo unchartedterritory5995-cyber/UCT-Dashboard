@@ -160,7 +160,26 @@ function _connectBucket(bucket) {
     touch()
     try {
       const data = JSON.parse(event.data)
-      _streamPrices = { ..._streamPrices, ...data }
+      const prev = _streamPrices
+      _streamPrices = { ...prev, ...data }
+      // A CHANGED price/volume IS freshness — clear any stale flag for that
+      // symbol. The server's 'fresh' event only fires on a stale→fresh
+      // transition seen by the SAME connection; a flag raised before a
+      // reconnect/bucket-rebuild otherwise sticks forever ("STALE badge while
+      // the price is ticking"). Changed-only: the payload carries the whole
+      // bucket's map, and a genuinely-quiet symbol's unchanged entry must not
+      // clear its flag just because a bucket-mate ticked.
+      let nextStale = null
+      for (const k of Object.keys(data)) {
+        const sym = k.toUpperCase()
+        if (!(nextStale || _staleSymbols).has(sym)) continue
+        const p = prev[k]
+        const n = data[k]
+        if (p && n && p.price === n.price && p.volume === n.volume) continue
+        if (!nextStale) nextStale = new Set(_staleSymbols)
+        nextStale.delete(sym)
+      }
+      if (nextStale) _staleSymbols = nextStale
       _publish()
     } catch { /* malformed frame — ignore */ }
   }
