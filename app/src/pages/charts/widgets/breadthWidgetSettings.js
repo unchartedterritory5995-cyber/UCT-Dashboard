@@ -25,6 +25,13 @@ export const BREADTH_WIDGET_DEFAULTS = {
   // support these; same choices as the Breadth page's per-view Customize).
   palette: 'classic',      // 'classic' | 'colorblind' | 'mono' | 'ocean'
   intensity: 'normal',     // 'subtle' | 'normal' | 'bold'
+
+  // Custom up/down direction colors. Empty = follow the palette above. When BOTH
+  // are set, every breadth reading recolors from these two hues instead — the
+  // 8-tier system derives darker/lighter shades per severity (heatmap tile fills,
+  // tile values, and the SVG views' tier colors all rebuild from them).
+  upColor: '',
+  downColor: '',
 }
 
 /** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */
@@ -34,6 +41,57 @@ export function mergeBreadthWidgetSettings(saved) {
     ...BREADTH_WIDGET_DEFAULTS,
     ...s,
     bgGradient: { ...BREADTH_WIDGET_DEFAULTS.bgGradient, ...(s.bgGradient || {}) },
+  }
+}
+
+// ── Custom up/down tier derivation ─────────────────────────────────────────
+// Mix `hex` toward `target` ([r,g,b]) by `amt` (0..1). 8-digit hex loses its
+// alpha here on purpose — tier shades must stay opaque.
+function mixHex(hex, target, amt) {
+  const m = /^#([0-9a-f]{6})/i.exec(String(hex).trim())
+  if (!m) return hex
+  const n = parseInt(m[1], 16)
+  const ch = (v, t) => Math.round(v + (t - v) * amt)
+  const r = ch((n >> 16) & 255, target[0]), g = ch((n >> 8) & 255, target[1]), b = ch(n & 255, target[2])
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
+const W = [255, 255, 255], K = [0, 0, 0]
+
+/** Build the three tier color systems from user up/down colors, or null when
+ *  either is unset (→ follow the named palette / classic maps).
+ *  Shade logic mirrors the classic maps' pattern:
+ *  - views (bright): extreme = the pure hue, milder = lighter tints.
+ *  - heatmap tile FILLS (dark): mid tier brightest, extremes darkest.
+ *  - heatmap tile VALUES (bright text): pure hue at extreme, tints milder. */
+export function customBreadthColors(s) {
+  const up = (s.upColor || '').trim()
+  const down = (s.downColor || '').trim()
+  if (!up || !down) return null
+  return {
+    // → resolveViewColors palette object (rings/meters/radar/…)
+    viewPalette: {
+      tier: {
+        g3: mixHex(up, W, 0), g2: mixHex(up, W, 0.28), g1: mixHex(up, W, 0.55),
+        a: '#fbbf24',
+        r1: mixHex(down, W, 0.55), r2: mixHex(down, W, 0.28), r3: mixHex(down, W, 0),
+        '': '#475569',
+      },
+      bull: mixHex(up, W, 0.1),
+      bear: mixHex(down, W, 0.1),
+    },
+    // → heatmap tile fills (dark, mirrors TIER_CELL_COLORS' weighting)
+    cellColors: {
+      g3: mixHex(up, K, 0.78), g2: mixHex(up, K, 0.5), g1: mixHex(up, K, 0.68),
+      a: '#5a4510',
+      r1: mixHex(down, K, 0.68), r2: mixHex(down, K, 0.5), r3: mixHex(down, K, 0.78),
+      '': '#181818',
+    },
+    // → heatmap tile value text, keyed by TIER_SCORES (mirrors TIER_TIP_COLORS)
+    tipColors: {
+      6: mixHex(up, W, 0.25), 5: mixHex(up, W, 0), 4: mixHex(up, W, 0.5),
+      3: '#f59e0b',
+      2: mixHex(down, W, 0.5), 1: mixHex(down, W, 0.25), 0: mixHex(down, W, 0),
+    },
   }
 }
 

@@ -25,7 +25,6 @@ import {
 } from '../../breadth/heatmapMetrics'
 import { normalizeMetric, pickSignals } from '../../breadth/views/breadthViewShared'
 import { resolveDefaultVisible, optionDefaults } from '../../breadth/views/viewMetricConfig'
-import BreadthSignalStrip from '../../breadth/views/BreadthSignalStrip'
 import RingsView from '../../breadth/views/RingsView'
 import MetersView from '../../breadth/views/MetersView'
 import TugView from '../../breadth/views/TugView'
@@ -34,7 +33,7 @@ import ScoreboardView from '../../breadth/views/ScoreboardView'
 import EqualizerView from '../../breadth/views/EqualizerView'
 import TimelineView from '../../breadth/views/TimelineView'
 import BreadthSettingsPanel from './BreadthSettingsPanel'
-import { BREADTH_WIDGET_SETTINGS_KEY, BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthWidgetStyleVars } from './breadthWidgetSettings'
+import { BREADTH_WIDGET_SETTINGS_KEY, BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthWidgetStyleVars, customBreadthColors } from './breadthWidgetSettings'
 import styles from './BreadthWidget.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -67,7 +66,7 @@ const GROUP_LABELS = {
 // ── Heatmap view (widget-local): grouped 8-tier tile grid ──────────────────
 // The page's treemap look, rebuilt as a plain CSS grid: dark tier fill + bright
 // tier value — reads perfectly at widget size and costs zero chart libraries.
-function HeatmapView({ currentRow, onDrill }) {
+function HeatmapView({ currentRow, onDrill, cellColors = TIER_CELL_COLORS, tipColors = TIER_TIP_COLORS }) {
   return (
     <div className={styles.hmWrap}>
       {HEATMAP_GROUPS.map(g => {
@@ -85,12 +84,12 @@ function HeatmapView({ currentRow, onDrill }) {
                     key={m.key}
                     type="button"
                     className={styles.hmTile}
-                    style={{ background: TIER_CELL_COLORS[tier] ?? TIER_CELL_COLORS[''] }}
+                    style={{ background: cellColors[tier] ?? cellColors[''] }}
                     onClick={() => onDrill(m)}
                     title={`${m.label} — open Breadth`}
                   >
                     <span className={styles.hmTileLabel}>{m.label}</span>
-                    <span className={styles.hmTileVal} style={{ color: score != null ? TIER_TIP_COLORS[score] : 'var(--bw-text-dim, #8b8674)' }}>
+                    <span className={styles.hmTileVal} style={{ color: score != null ? tipColors[score] : 'var(--bw-text-dim, #8b8674)' }}>
                       {m.getFmt(currentRow)}
                     </span>
                   </button>
@@ -187,23 +186,29 @@ export default function BreadthWidget({ opts, onOptsChange }) {
     return ALL_METRICS.filter(m => visible.has(m.key))
   }, [active.styleKey])
 
-  // Signal of the Day + notable divergence — same picker the page uses.
+  // Signal of the Day + notable divergence — same picker the page uses. The
+  // strip UI was dropped (owner: reclaim the vertical space), but the keys still
+  // flow to the views so they can star/pulse the standout metric inline.
   const signals = useMemo(
     () => (currentRow ? pickSignals(metrics, currentRow, prevRow, pctileByKey) : { signalKey: null, notableKey: null }),
     [metrics, currentRow, prevRow, pctileByKey],
   )
-  const signalMetric  = metrics.find(m => m.key === signals.signalKey) ?? null
-  const notableMetric = metrics.find(m => m.key === signals.notableKey) ?? null
 
   // Widget drills open the full Breadth section (the widget has no drill modal).
   const drill = useCallback(() => navigate('/breadth'), [navigate])
 
+  // Custom up/down direction colors (⚙): when both are set, all three tier
+  // color systems rebuild from those two hues (null = follow the named palette).
+  const custom = useMemo(() => customBreadthColors(bwSettings), [bwSettings])
+
   // View options: the view's own defaults + the ⚙ palette/intensity choice.
+  // A custom up/down pair overrides the named palette (object palette —
+  // resolveViewColors accepts it).
   const viewOptions = useMemo(() => ({
     ...optionDefaults(active.styleKey),
-    palette: bwSettings.palette,
+    palette: custom ? custom.viewPalette : bwSettings.palette,
     intensity: bwSettings.intensity,
-  }), [active.styleKey, bwSettings.palette, bwSettings.intensity])
+  }), [active.styleKey, bwSettings.palette, bwSettings.intensity, custom])
 
   const common = {
     currentRow, prevRow, recentRows, metrics, normalize, onDrill: drill,
@@ -249,18 +254,15 @@ export default function BreadthWidget({ opts, onOptsChange }) {
       )}
 
       {currentRow && (
-        <>
-          <BreadthSignalStrip
-            signalMetric={signalMetric} signalReason={signals.signalReason}
-            notableMetric={notableMetric} notableReason={signals.notableReason}
-            currentRow={currentRow} onDrill={drill}
-          />
-          <div className={styles.viewArea}>
-            {view === 'heatmap'
-              ? <HeatmapView currentRow={currentRow} onDrill={drill} />
-              : <active.Comp {...common} />}
-          </div>
-        </>
+        <div className={styles.viewArea}>
+          {view === 'heatmap'
+            ? <HeatmapView
+                currentRow={currentRow} onDrill={drill}
+                cellColors={custom ? custom.cellColors : TIER_CELL_COLORS}
+                tipColors={custom ? custom.tipColors : TIER_TIP_COLORS}
+              />
+            : <active.Comp {...common} />}
+        </div>
       )}
     </div>
   )

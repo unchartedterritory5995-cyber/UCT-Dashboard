@@ -72,8 +72,13 @@ export const PALETTES = {
 
 // Resolve a view's color context from its palette + intensity options.
 // intensity: 'subtle' (lower opacity, no glow) | 'normal' (current look) | 'bold' (glow).
+// `paletteKey` may also be a PALETTE OBJECT ({ tier, bull, bear }) — the /charts
+// Breadth widget builds one from user-picked up/down colors and passes it through
+// options.palette; named-key callers (the Breadth page) are unaffected.
 export function resolveViewColors(paletteKey = 'classic', intensityKey = 'normal') {
-  const p = PALETTES[paletteKey] ?? PALETTES.classic
+  const p = (paletteKey && typeof paletteKey === 'object' && paletteKey.tier)
+    ? paletteKey
+    : (PALETTES[paletteKey] ?? PALETTES.classic)
   return {
     tier: p.tier, bull: p.bull, bear: p.bear,
     fillOpacity: intensityKey === 'subtle' ? 0.6 : 1,

@@ -19,8 +19,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 3px;
-  padding: 0 8px;
-  min-height: 34px;   /* shared first-header-row height (aligns divider lines across widgets) */
+  /* Breathing room off the widget's top border (owner ask — the pills sat
+     flush against the drag bar). */
+  padding: 9px 8px 6px;
   box-sizing: border-box;
   background: var(--bw-elev, var(--bg-elevated));
   border-bottom: 1px solid var(--bw-divider, var(--border));
@@ -53,7 +54,7 @@
   margin-left: auto;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  color: var(--bw-text-dim, var(--text-muted));
+  color: var(--bw-text, var(--bw-text-dim, var(--text-muted)));
   white-space: nowrap;
 }
 .gearBtn {
@@ -112,7 +113,9 @@
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--bw-accent, var(--ut-gold));
+  /* The ⚙ Text color wins when set (--bw-text is emit-when-custom); the default
+     stays the gold accent. */
+  color: var(--bw-text, var(--bw-accent, var(--ut-gold)));
   margin: 0 0 4px 2px;
 }
 .hmGrid {
@@ -141,7 +144,8 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
+  /* Follows the ⚙ Text color too (the "UP 4%+" captions on every tile). */
+  color: var(--bw-text, rgba(255, 255, 255, 0.72));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

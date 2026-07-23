@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 import BreadthWidget from './BreadthWidget'
+import { customBreadthColors } from './breadthWidgetSettings'
 
 const mockData = vi.fn()
 vi.mock('../../../hooks/useMobileSWR', () => ({
@@ -80,4 +81,20 @@ test('has a settings gear', () => {
   mockData.mockReturnValue(ROWS)
   render(<Wrap />)
   expect(screen.getByTitle('Breadth widget settings')).toBeInTheDocument()
+})
+
+test('customBreadthColors derives severity shades from the two hues (both required)', () => {
+  expect(customBreadthColors({ upColor: '', downColor: '' })).toBeNull()
+  expect(customBreadthColors({ upColor: '#3b82f6', downColor: '' })).toBeNull()
+  const c = customBreadthColors({ upColor: '#3b82f6', downColor: '#a855f7' })
+  // Extremes keep the pure hue; milder tiers are tints; tile fills are dark shades.
+  expect(c.viewPalette.tier.g3).toBe('#3b82f6')
+  expect(c.viewPalette.tier.r3).toBe('#a855f7')
+  expect(c.viewPalette.tier.g1).not.toBe(c.viewPalette.tier.g3)
+  expect(c.tipColors[5]).toBe('#3b82f6')
+  expect(c.tipColors[0]).toBe('#a855f7')
+  expect(c.cellColors.g2).not.toBe(c.cellColors.g3)
+  // Amber caution + no-data stay on the house palette.
+  expect(c.viewPalette.tier.a).toBe('#fbbf24')
+  expect(c.cellColors['']).toBe('#181818')
 })

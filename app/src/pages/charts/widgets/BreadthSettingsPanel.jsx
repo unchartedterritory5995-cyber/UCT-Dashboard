@@ -97,6 +97,10 @@ export default function BreadthSettingsPanel({ settings: s, onChange, onReset, o
       case 'bg': return s.bg
       case 'gradTop': return s.bgGradient.top
       case 'gradBottom': return s.bgGradient.bottom
+      // Unset = follow the palette — show a representative default so the swatch
+      // never reads blank.
+      case 'upColor': return s.upColor || '#22c55e'
+      case 'downColor': return s.downColor || '#ef4444'
       default: return s[t]
     }
   }
@@ -182,6 +186,18 @@ export default function BreadthSettingsPanel({ settings: s, onChange, onReset, o
               {INTENSITY_CHOICES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </Row>
+
+          {/* Custom direction colors — set BOTH and every breadth reading
+              recolors from these two hues (severity = darker/lighter shades),
+              overriding the palette above. ↺ Reset returns to the palette. */}
+          <div className={styles.sectionLabel}>Up / Down colors</div>
+          <Row label="Up" hint="bullish readings">{swatch('upColor', 'Up color')}</Row>
+          <Row label="Down" hint="bearish readings">{swatch('downColor', 'Down color')}</Row>
+          {(!s.upColor || !s.downColor) && (
+            <div className={styles.hint} style={{ padding: '2px 0 4px' }}>
+              Set both to override the palette; severity shades derive automatically.
+            </div>
+          )}
         </div>
       </div>
 
