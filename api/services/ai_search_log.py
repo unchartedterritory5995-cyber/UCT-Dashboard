@@ -95,6 +95,10 @@ _COLUMNS: list[tuple[str, str]] = [
     ("conversation_id", "TEXT"), ("turn_index", "INTEGER"), ("has_history", "INTEGER DEFAULT 0"),
     ("user_bucket", "TEXT"), ("pinned", "INTEGER DEFAULT 0"), ("excluded", "INTEGER DEFAULT 0"),
     ("capture_version", "INTEGER"),
+    # Explicit personal-branch marker (Task 7). Belt-and-suspenders backstop: the
+    # personal branch never logs at all (invariant #2), but if a personal row ever
+    # reached this table, this flag lets brain ingest independently exclude it.
+    ("personal", "INTEGER DEFAULT 0"),
 ]
 
 
@@ -287,13 +291,15 @@ def log(*, user_id=None, answer_id=None, endpoint="single", query="", answer="",
         primary_sector=None, primary_themes=None, citations=None, related_questions=None,
         domain_pack=None, elapsed_ms=None, error=None, units=0,
         conversation_id=None, turn_index=None, has_history=False, day_et=None,
-        skip_query_text: bool = False) -> None:
+        skip_query_text: bool = False, personal: bool = False) -> None:
     """Best-effort insert of one Q&A row. Swallows all errors — it can never break
     or slow the answer. Computes derived + classified fields internally so callers
     stay thin. `user_id` is used only to derive the HMAC day-bucket, never stored.
     `skip_query_text=True` stores "" for the query text (and everything derived
     from it) instead of the raw query — used by callers that must NOT persist
-    query content."""
+    query content. `personal=True` marks the row as personal-branch content — an
+    independent backstop so it can never be picked up by brain ingest even if it
+    somehow reaches this table (the personal branch is not expected to log at all)."""
     if not _enabled():
         return
     try:
@@ -351,6 +357,7 @@ def log(*, user_id=None, answer_id=None, endpoint="single", query="", answer="",
             "pinned": 0,
             "excluded": 0,
             "capture_version": CAPTURE_VERSION,
+            "personal": 1 if personal else 0,
         }
         cols = list(row.keys())
         placeholders = ",".join("?" for _ in cols)

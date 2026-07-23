@@ -92,8 +92,11 @@ def _connect() -> sqlite3.Connection:
 
 # ── indexing (background, incremental) ───────────────────────────────────────
 def _eligible_rows(log_db_path: str, known_ids: set) -> list[dict]:
-    """Evergreen, ok, non-first-person, non-excluded answers not yet indexed.
-    De-dup by answer_hash so the ~50 near-identical answers collapse to one."""
+    """Evergreen, ok, non-first-person, non-excluded, non-personal answers not yet
+    indexed. `personal=0` is a belt-and-suspenders backstop — the personal branch
+    never logs at all (invariant #2), but if a personal row ever reached the log
+    it must never enter the brain. De-dup by answer_hash so the ~50 near-identical
+    answers collapse to one."""
     out: list[dict] = []
     seen_hashes: set = set()
     try:
@@ -101,9 +104,9 @@ def _eligible_rows(log_db_path: str, known_ids: set) -> list[dict]:
             c.row_factory = sqlite3.Row
             rows = c.execute(
                 "SELECT answer_id, answer_hash, query, answer, primary_ticker, "
-                "question_type, pinned, citation_count FROM ai_search_log "
+                "question_type, pinned, citation_count, personal FROM ai_search_log "
                 "WHERE freshness='evergreen' AND answer_kind='ok' AND first_person=0 "
-                "AND excluded=0 AND answer IS NOT NULL AND answer <> '' "
+                "AND excluded=0 AND personal=0 AND answer IS NOT NULL AND answer <> '' "
                 "ORDER BY id DESC LIMIT 5000"
             ).fetchall()
     except Exception:
@@ -137,7 +140,7 @@ def reindex(*, embed_fn=None, batch_size: int = 128, log_db_path: str | None = N
                 with contextlib.closing(sqlite3.connect(log_db, timeout=5)) as c:
                     still_ok = {row[0] for row in c.execute(
                         "SELECT answer_id FROM ai_search_log WHERE freshness='evergreen' "
-                        "AND answer_kind='ok' AND first_person=0 AND excluded=0")}
+                        "AND answer_kind='ok' AND first_person=0 AND excluded=0 AND personal=0")}
             except Exception:
                 still_ok = known  # if we can't check, don't delete
             for aid in list(known - still_ok):
