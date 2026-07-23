@@ -13,27 +13,37 @@
   color: var(--text);
 }
 
-/* ── View pill bar ── */
+/* ── View pill bar ──
+   Row rhythm matches the chart widget's shared header rows (34px first row,
+   32px each wrapped row, border-box) so this bar's bottom divider lands EXACTLY
+   on the chart widget's gridlines beside it — merged or unmerged:
+   1 row  → 1px pad + 32px row + 1px border = 34 (chart's .chartHeaderTop line)
+   2 rows → 1px pad + 32 + 32 + 1px border = 66 (chart's .tfBar line). */
 .bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 3px;
-  /* Breathing room off the widget's top border (owner ask — the pills sat
-     flush against the drag bar). */
-  padding: 9px 8px 6px;
+  align-content: flex-start;
+  row-gap: 0;
+  column-gap: 3px;
+  padding: 1px 8px 0;
+  min-height: 34px;
   box-sizing: border-box;
   background: var(--bw-elev, var(--bg-elevated));
   border-bottom: 1px solid var(--bw-divider, var(--border));
   flex-shrink: 0;
 }
 .pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;   /* row-height driver — see the .bar rhythm note */
+  box-sizing: border-box;
   font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 0 8px;
   border-radius: 3px;
   border: 1px solid transparent;
   background: transparent;
@@ -51,6 +61,10 @@
   border-color: rgba(201, 168, 76, 0.3);
 }
 .asOf {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;   /* matches the pill row height so wrapped rows stay 32px */
+  box-sizing: border-box;
   margin-left: auto;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
@@ -61,11 +75,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 32px;   /* matches the pill row height */
+  box-sizing: border-box;
   margin-left: 4px;
   background: none;
   border: none;
   border-radius: 4px;
-  padding: 3px 4px;
+  padding: 0 4px;
   color: var(--bw-text-dim, var(--text-muted));
   cursor: pointer;
   opacity: 0.75;
@@ -118,18 +134,26 @@
   color: var(--bw-header, var(--bw-accent, var(--ut-gold)));
   margin: 0 0 4px 2px;
 }
+/* Mosaic fill: flex rows stretch the tiles to the widget's full width — no
+   dead-track gutters at the end of a group row (the auto-fill grid left ragged
+   white space that made the widget stick out on a light canvas). Groups with
+   few metrics get big hero tiles, treemap-style. */
 .hmGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 .hmTile {
+  flex: 1 1 96px;
+  min-width: 88px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
   padding: 6px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  /* Hairline follows the canvas side: near-white on dark (default), flipped to
+     a dark line via --bw-tile-border on a light canvas. */
+  border: 1px solid var(--bw-tile-border, rgba(255, 255, 255, 0.06));
   border-radius: 4px;
   cursor: pointer;
   text-align: left;
@@ -145,8 +169,9 @@
   letter-spacing: 0.4px;
   text-transform: uppercase;
   /* Follows the ⚙ Readings color (the captions sit ON the tiles, like the
-     values — a light-canvas dark header color must not black them out). */
-  color: var(--bw-value, rgba(255, 255, 255, 0.72));
+     values — a light-canvas dark header color must not black them out).
+     --bw-tile-label = the light-canvas default (dark ink on pastel tiles). */
+  color: var(--bw-value, var(--bw-tile-label, rgba(255, 255, 255, 0.72)));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -161,6 +186,6 @@
 
 /* Narrow widget: tighter tiles */
 @container (max-width: 340px) {
-  .hmGrid { grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); }
+  .hmTile { flex-basis: 80px; min-width: 74px; }
   .hmTileVal { font-size: 13px; }
 }

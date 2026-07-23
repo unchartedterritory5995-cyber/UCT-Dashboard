@@ -33,7 +33,11 @@ import ScoreboardView from '../../breadth/views/ScoreboardView'
 import EqualizerView from '../../breadth/views/EqualizerView'
 import TimelineView from '../../breadth/views/TimelineView'
 import BreadthSettingsPanel from './BreadthSettingsPanel'
-import { BREADTH_WIDGET_SETTINGS_KEY, BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthWidgetStyleVars, customBreadthColors } from './breadthWidgetSettings'
+import {
+  BREADTH_WIDGET_SETTINGS_KEY, BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings,
+  breadthWidgetStyleVars, customBreadthColors, isLightCanvas,
+  LIGHT_TIER_CELL_COLORS, LIGHT_TIER_TIP_COLORS,
+} from './breadthWidgetSettings'
 import styles from './BreadthWidget.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
@@ -202,7 +206,10 @@ export default function BreadthWidget({ opts, onOptsChange }) {
 
   // Custom up/down direction colors (⚙): when both are set, all three tier
   // color systems rebuild from those two hues (null = follow the named palette).
-  const custom = useMemo(() => customBreadthColors(bwSettings), [bwSettings])
+  // A LIGHT canvas flips the heatmap tiles to soft tints with dark ink — the
+  // dark near-black tiles read as heavy ink blocks on white.
+  const lightCanvas = useMemo(() => isLightCanvas(bwSettings), [bwSettings])
+  const custom = useMemo(() => customBreadthColors(bwSettings, lightCanvas), [bwSettings, lightCanvas])
 
   // View options: the view's own defaults + the ⚙ palette/intensity choice.
   // A custom up/down pair overrides the named palette (object palette —
@@ -261,8 +268,8 @@ export default function BreadthWidget({ opts, onOptsChange }) {
           {view === 'heatmap'
             ? <HeatmapView
                 currentRow={currentRow} onDrill={drill}
-                cellColors={custom ? custom.cellColors : TIER_CELL_COLORS}
-                tipColors={custom ? custom.tipColors : TIER_TIP_COLORS}
+                cellColors={custom ? custom.cellColors : (lightCanvas ? LIGHT_TIER_CELL_COLORS : TIER_CELL_COLORS)}
+                tipColors={custom ? custom.tipColors : (lightCanvas ? LIGHT_TIER_TIP_COLORS : TIER_TIP_COLORS)}
                 textColor={bwSettings.valueColor || null}
               />
             : <active.Comp {...common} />}

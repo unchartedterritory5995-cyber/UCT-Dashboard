@@ -1,4 +1,4 @@
-import { dividerFor, chromeFor, toolbarFor } from '../../../utils/dividerColor'
+import { dividerFor, chromeFor, toolbarFor, parseColor, luminance } from '../../../utils/dividerColor'
 
 // Breadth-widget appearance settings — the model behind its ⚙ Settings panel.
 // Sibling of fundamentalsSettings.js: usePreferences-backed, merged over
@@ -68,13 +68,37 @@ function mixHex(hex, target, amt) {
 }
 const W = [255, 255, 255], K = [0, 0, 0]
 
+/** True when the chosen canvas reads light (drives the light tile treatment). */
+export function isLightCanvas(s) {
+  const solid = s.bgMode === 'gradient' ? (s.bgGradient?.top || s.bg) : s.bg
+  const rgb = parseColor(solid)
+  return rgb ? luminance(rgb) > 0.5 : false
+}
+
+// Light-canvas defaults for the heatmap tiles: soft tints of the classic
+// green/red (extreme = most saturated tint) with dark ink values — the dark
+// near-black tiles read as heavy ink blocks on a white canvas (owner: "sticks
+// out like a sore thumb"). Derived once from the classic direction hues.
+const LU = '#16a34a', LD = '#dc2626'
+export const LIGHT_TIER_CELL_COLORS = {
+  g3: mixHex(LU, W, 0.5), g2: mixHex(LU, W, 0.64), g1: mixHex(LU, W, 0.78),
+  a:  mixHex('#b45309', W, 0.7),
+  r1: mixHex(LD, W, 0.78), r2: mixHex(LD, W, 0.64), r3: mixHex(LD, W, 0.5),
+  '': '#ececec',
+}
+export const LIGHT_TIER_TIP_COLORS = {
+  6: mixHex(LU, K, 0.45), 5: mixHex(LU, K, 0.3), 4: mixHex(LU, K, 0.15),
+  3: '#92400e',
+  2: mixHex(LD, K, 0.15), 1: mixHex(LD, K, 0.3), 0: mixHex(LD, K, 0.45),
+}
+
 /** Build the three tier color systems from user up/down colors, or null when
  *  either is unset (→ follow the named palette / classic maps).
  *  Shade logic mirrors the classic maps' pattern:
  *  - views (bright): extreme = the pure hue, milder = lighter tints.
  *  - heatmap tile FILLS (dark): mid tier brightest, extremes darkest.
  *  - heatmap tile VALUES (bright text): pure hue at extreme, tints milder. */
-export function customBreadthColors(s) {
+export function customBreadthColors(s, light = false) {
   const up = (s.upColor || '').trim()
   const down = (s.downColor || '').trim()
   if (!up || !down) return null
@@ -90,19 +114,34 @@ export function customBreadthColors(s) {
       bull: mixHex(up, W, 0.1),
       bear: mixHex(down, W, 0.1),
     },
-    // → heatmap tile fills (dark, mirrors TIER_CELL_COLORS' weighting)
-    cellColors: {
-      g3: mixHex(up, K, 0.78), g2: mixHex(up, K, 0.5), g1: mixHex(up, K, 0.68),
-      a: '#5a4510',
-      r1: mixHex(down, K, 0.68), r2: mixHex(down, K, 0.5), r3: mixHex(down, K, 0.78),
-      '': '#181818',
-    },
-    // → heatmap tile value text, keyed by TIER_SCORES (mirrors TIER_TIP_COLORS)
-    tipColors: {
-      6: mixHex(up, W, 0.25), 5: mixHex(up, W, 0), 4: mixHex(up, W, 0.5),
-      3: '#f59e0b',
-      2: mixHex(down, W, 0.5), 1: mixHex(down, W, 0.25), 0: mixHex(down, W, 0),
-    },
+    // → heatmap tile fills. Dark canvas: dark shades (mirrors TIER_CELL_COLORS'
+    // weighting). Light canvas: soft tints, extreme = most saturated.
+    cellColors: light
+      ? {
+          g3: mixHex(up, W, 0.5), g2: mixHex(up, W, 0.64), g1: mixHex(up, W, 0.78),
+          a: mixHex('#b45309', W, 0.7),
+          r1: mixHex(down, W, 0.78), r2: mixHex(down, W, 0.64), r3: mixHex(down, W, 0.5),
+          '': '#ececec',
+        }
+      : {
+          g3: mixHex(up, K, 0.78), g2: mixHex(up, K, 0.5), g1: mixHex(up, K, 0.68),
+          a: '#5a4510',
+          r1: mixHex(down, K, 0.68), r2: mixHex(down, K, 0.5), r3: mixHex(down, K, 0.78),
+          '': '#181818',
+        },
+    // → heatmap tile value text, keyed by TIER_SCORES (mirrors TIER_TIP_COLORS).
+    // Light canvas: dark ink shades of the hues for contrast on the tints.
+    tipColors: light
+      ? {
+          6: mixHex(up, K, 0.45), 5: mixHex(up, K, 0.3), 4: mixHex(up, K, 0.15),
+          3: '#92400e',
+          2: mixHex(down, K, 0.15), 1: mixHex(down, K, 0.3), 0: mixHex(down, K, 0.45),
+        }
+      : {
+          6: mixHex(up, W, 0.25), 5: mixHex(up, W, 0), 4: mixHex(up, W, 0.5),
+          3: '#f59e0b',
+          2: mixHex(down, W, 0.5), 1: mixHex(down, W, 0.25), 0: mixHex(down, W, 0),
+        },
   }
 }
 
@@ -137,6 +176,13 @@ export function breadthWidgetStyleVars(s) {
       vars['--bw-text-strong'] = chrome.textStrong
       vars['--bw-accent'] = chrome.accent
       vars['--bw-accent-bg'] = chrome.accentBg
+    }
+    // Light canvas: tile hairlines flip dark, and tile captions default to dark
+    // ink (the tiles themselves become soft tints — see LIGHT_TIER_CELL_COLORS).
+    const rgb = parseColor(solid)
+    if (rgb && luminance(rgb) > 0.5) {
+      vars['--bw-tile-border'] = 'rgba(0, 0, 0, 0.10)'
+      vars['--bw-tile-label'] = 'rgba(0, 0, 0, 0.62)'
     }
   }
   return vars
