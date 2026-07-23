@@ -17,6 +17,7 @@ def _clean_state(monkeypatch):
     # Isolate module-level per-date caches between tests.
     curator._CURATION_BY_DATE.clear()
     curator._RAN_BY_DATE.clear()
+    curator._LAST_FALLBACK_REASON.clear()
     curator._POOL_HASH_BY_DATE.clear()
     curator._ORDER_BY_DATE.clear()
     # Never touch the real cost store / cap in unit tests.

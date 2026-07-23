@@ -1058,6 +1058,12 @@ def run_refresh(hunt: Optional[bool] = None) -> dict:
     summary["curator"] = (
         ("ran" if curator.curator_ran(md) else "fallback") if _flag_on else "off")
 
+    # Guardrail: if the curator is ENABLED but fell back to the mechanical quota,
+    # log + fire a deduped Discord alert so a silent fallback can never again
+    # masquerade as a working curator (the 2026-07-23 lesson). Never raises.
+    from api.services.catalyst import curator_health
+    curator_health.check_and_alert(md)
+
     # Tier 1C: enrich top-12 with broader Twitter search before synthesis.
     # Bounded — skips tickers that already have ≥5 tweets from curated accounts.
     _enrich_with_twitter_search(top_12)

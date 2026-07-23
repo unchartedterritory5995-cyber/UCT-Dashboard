@@ -292,6 +292,24 @@ def catalyst_stats(user=Depends(require_admin)):
     today_rows = store.get_for_date(today, ranked_only=False)
     last_refresh_at = max((r["thesis_at"] for r in today_rows
                            if r.get("thesis_at")), default=None)
+
+    # Curator health — did the swing-trader judgment layer actually drive the
+    # list today, or did it fall back to the mechanical quota? (2026-07-23 guardrail)
+    from api.services.catalyst import curator
+    _flag_on = os.environ.get(
+        "CATALYST_CURATOR_ENABLED", "0").lower() in ("1", "true", "yes")
+    _verdicts = curator.get_curation(today)
+    curator_status = {
+        "enabled": _flag_on,
+        "status": (("ran" if curator.curator_ran(today) else "fallback")
+                   if _flag_on else "off"),
+        "ran": curator.curator_ran(today),
+        "kept": sum(1 for v in _verdicts.values() if v.get("keep")),
+        "cut": sum(1 for v in _verdicts.values() if not v.get("keep")),
+        "last_fallback_reason": curator.last_fallback_reason(today),
+        "model": curator.CURATOR_MODEL,
+    }
+
     return {
         "today": daily,
         "mtd_cost_usd": round(mtd["total_cost_usd"], 4),
@@ -299,6 +317,7 @@ def catalyst_stats(user=Depends(require_admin)):
         "today_rows": len(today_rows),
         "today_ranked": len([r for r in today_rows if r["rank"] is not None]),
         "last_refresh_at": last_refresh_at,
+        "curator": curator_status,
     }
 
 

@@ -42,6 +42,9 @@ CURATOR_MODEL = os.environ.get("CATALYST_CURATOR_MODEL", "claude-sonnet-5")
 _CURATION_BY_DATE: dict[str, dict[str, dict]] = {}
 # Did the LLM judgment actually drive the list for a date (vs a fallback)?
 _RAN_BY_DATE: dict[str, bool] = {}
+# The reason the curator fell back for a date (None when it ran) — for the
+# guardrail alert + admin stats.
+_LAST_FALLBACK_REASON: dict[str, str] = {}
 # Skip-if-stable: pool fingerprint per date so an unchanged pool doesn't re-bill.
 _POOL_HASH_BY_DATE: dict[str, str] = {}
 _ORDER_BY_DATE: dict[str, list[str]] = {}   # kept ticker order for a stable pool
@@ -67,6 +70,11 @@ def curator_ran(market_date: str) -> bool:
     """True when the LLM judgment actually drove the list for this date (i.e.
     the curator did NOT fall back to the mechanical quota)."""
     return bool(_RAN_BY_DATE.get(market_date))
+
+
+def last_fallback_reason(market_date: str) -> Optional[str]:
+    """The reason the curator fell back for this date, or None if it ran."""
+    return _LAST_FALLBACK_REASON.get(market_date)
 
 
 # ── Compact per-candidate signal formatting for the pool prompt ──────────────
@@ -288,8 +296,10 @@ def curate(scored: list[dict], *, market_date: str) -> list[dict]:
     whether the LLM actually drove the list.
     """
     _RAN_BY_DATE[market_date] = False
+    _LAST_FALLBACK_REASON.pop(market_date, None)
 
     def fallback(reason: str) -> list[dict]:
+        _LAST_FALLBACK_REASON[market_date] = reason
         if _enabled():
             logger.warning("[catalyst-curator] FALLING BACK to mechanical quota: %s", reason)
         return selection.select_top_12(scored)
