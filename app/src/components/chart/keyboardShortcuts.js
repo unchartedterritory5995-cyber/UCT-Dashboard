@@ -44,7 +44,7 @@ export function resolveTfCycle({ command, currentTf, lastCommand, lastIndex }) {
  * A single letter with no Ctrl/Alt/Meta is ALWAYS a ticker character — INCLUDING
  * a shifted uppercase letter, because traders type tickers uppercase (HOOD, LLY,
  * TSLA, COIN). So a shortcut never claims a letter, even though some letters are
- * bound to drawing tools and Shift+H/L/T/C are display toggles; those toggles stay
+ * bound to drawing tools and Shift+L/T/C are display toggles; those toggles stay
  * reachable whenever a chart is NOT focused. Digits (timeframes) and Shift+digit
  * DO claim. Shift+F (flag) is handled by each widget's own branch before this is
  * consulted, so it is unaffected.
@@ -80,7 +80,6 @@ export const SHORTCUTS = [
   { keys: 'X', command: 'tool:text', description: 'Text annotation' },
 
   // Display toggles
-  { keys: 'Shift+H', command: 'toggle:ha', description: 'Toggle Heikin Ashi' },
   { keys: 'Shift+L', command: 'toggle:log', description: 'Toggle log scale' },
   { keys: 'Shift+T', command: 'toggle:theme', description: 'Toggle light/dark theme' },
   { keys: 'Shift+C', command: 'toggle:countdown', description: 'Toggle bar-close countdown' },
@@ -160,7 +159,6 @@ export function matchShortcut(event) {
   } else {
     // Shift held
     if (event.code && SHIFT_CODE_TF[event.code]) return SHIFT_CODE_TF[event.code];
-    if (key === 'H') return 'toggle:ha';
     if (key === 'L') return 'toggle:log';
     if (key === 'T') return 'toggle:theme';
     if (key === 'C') return 'toggle:countdown';

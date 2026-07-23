@@ -40,8 +40,9 @@ describe('matchShortcut', () => {
     expect(matchShortcut(evt('Escape'))).toBe('tool:cursor');
   });
 
-  it('returns "toggle:ha" for shift+H', () => {
-    expect(matchShortcut(evt('H', { shift: true }))).toBe('toggle:ha');
+  it('shift+H is no longer bound (Heikin Ashi shortcut removed)', () => {
+    expect(matchShortcut(evt('H', { shift: true }))).toBe(null);
+    expect(matchShortcut(evt('H', { shift: true, code: 'KeyH' }))).toBe(null);
   });
 
   it('returns "toggle:log" for shift+L', () => {
@@ -143,7 +144,7 @@ describe('matchShortcut', () => {
   });
 
   it('keeps the Shift letter toggles working alongside Shift+digit', () => {
-    expect(matchShortcut(evt('H', { shift: true, code: 'KeyH' }))).toBe('toggle:ha');
+    expect(matchShortcut(evt('L', { shift: true, code: 'KeyL' }))).toBe('toggle:log');
     expect(matchShortcut(evt('C', { shift: true, code: 'KeyC' }))).toBe('toggle:countdown');
   });
 

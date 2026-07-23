@@ -3025,7 +3025,6 @@ export default function StockChart({
           handleUpdateChartSettings({ ...cs, indicators: next, preset: 'custom' })
         }
         switch (target) {
-          case 'ha': updateField('heikinAshi', !cs.heikinAshi); break
           case 'log': updateField('logScale', !cs.logScale); break
           case 'theme': updateField('theme', cs.theme === 'light' ? 'dark' : 'light'); break
           case 'countdown': updateField('countdown', !cs.countdown); break
