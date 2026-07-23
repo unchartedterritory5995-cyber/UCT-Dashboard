@@ -4901,7 +4901,27 @@ export default function OptionsFlowDashboard() {
                   const putsBelowSpot = topPuts.filter(s => s.strike < sp);
                   const swingPutsBelow = putsBelowSpot.filter(s => sp - s.strike >= minTargetDist);
                   const firstSupBelow = swingPutsBelow.length > 0 ? swingPutsBelow.sort((a,b)=>b.strike-a.strike)[0] : (putsBelowSpot.length > 0 ? putsBelowSpot.sort((a,b)=>b.strike-a.strike)[0] : null);
-                  const clearAirAbove = !firstResAbove || (firstResAbove.strike - sp) / sp > 0.005;
+                  // ── Consolidated position truth (2026-07-23) ──────────────
+                  // Blockers above = ANY meaningful gamma between spot and the
+                  // ceiling — call OR put. The old check only scanned topCalls,
+                  // so a put-heavy strike overhead (common when the put wall
+                  // dominates) read as "clear air" while the chart drew a thick
+                  // Speed Bump right there. Match the chart's bestGex so the two
+                  // surfaces can't disagree.
+                  const _bestG = s => Math.max(s.callGex > 0 ? s.callGex : 0, s.putGex < 0 ? Math.abs(s.putGex) : 0);
+                  const _wallMaxG = Math.max(cwGex, pwGex, 1);
+                  const blockersAbove = [...(gexData.strikes||[])]
+                    .filter(s => s.strike > sp && (!cwAboveSpot || s.strike < cwStrike) && _bestG(s) >= _wallMaxG * 0.10)
+                    .sort((a,b) => a.strike - b.strike);
+                  const firstBlockerAbove = blockersAbove.length ? blockersAbove[0] : null;
+                  const blockerGexAbove = blockersAbove.reduce((a,s) => a + _bestG(s), 0);
+                  // Backend classification: is price sitting ON a wall? Used as the
+                  // single pin/magnet centre so the Game Plan can't name a
+                  // different "price wants to stay here" than the level cards.
+                  const _clsL = gexData.levels || {};
+                  const _atWallStrike = (_clsL.call_wall && _clsL.call_wall.role === "wall") ? cwStrike
+                                      : (_clsL.put_wall && _clsL.put_wall.role === "wall") ? pwStrike : null;
+                  const clearAirAbove = (!firstResAbove || (firstResAbove.strike - sp) / sp > 0.005) && !firstBlockerAbove;
 
                   // Thin zone detection — gaps where price can accelerate
                   const allStrikesAbove = [...(gexData.strikes||[])].filter(s => s.strike > sp && (s.callGex > 0 || Math.abs(s.putGex) > 0)).sort((a,b)=>a.strike-b.strike);
@@ -5087,7 +5107,7 @@ export default function OptionsFlowDashboard() {
 
                   if (pinSetup) {
                     // Pin setup trades
-                    const pinStrike = cwStrike === pwStrike ? cwStrike : Math.round((cwStrike+pwStrike)/2);
+                    const pinStrike = cwStrike === pwStrike ? cwStrike : (_atWallStrike != null ? _atWallStrike : Math.round((cwStrike+pwStrike)/2));
                     const pinRange = cwStrike === pwStrike ? Math.round(sp*0.005) : wallSpread;
                     const pinAboveSpot = pinStrike > sp;
                     const pinBelowSpot = pinStrike < sp;
@@ -5123,7 +5143,10 @@ export default function OptionsFlowDashboard() {
                   } else if (squeezeSetup) {
                     // Squeeze setup trades
                     const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
-                    const mid = Math.round((lo+hi)/2);
+                    // Centre the squeeze on the wall price is actually sitting on
+                    // (backend role==="wall") rather than the geometric midpoint —
+                    // otherwise the Game Plan names a level the cards never show.
+                    const mid = _atWallStrike != null ? _atWallStrike : Math.round((lo+hi)/2);
                     if (isIntraday) {
                       trades.push({ i:"S", bg:"#00BCD433", c:"#00BCD4", t:"Price wants to stay at $"+mid+" — sell premium here (iron fly). Profit if price stays between $"+(lo-Math.round(wallSpread))+"–$"+(hi+Math.round(wallSpread))+"." });
                       trades.push({ i:"F", bg:P.ac+"33", c:P.ac, t:"Price keeps snapping back to $"+mid+". Sell rallies above $"+(hi+Math.round(wallSpread*0.5))+" and buy dips below $"+(lo-Math.round(wallSpread*0.5))+"." });
@@ -5189,6 +5212,12 @@ export default function OptionsFlowDashboard() {
                     trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line at $"+zg.toFixed(0)+" is only "+(Math.abs((sp-zg)/sp)*100).toFixed(1)+"% away. "+(isIntraday?"One bad move and the safety net breaks — drops would get faster after that.":"A daily close below $"+zg.toFixed(0)+" flips the regime — expect faster drops and wider swings after that.") });
                   }
 
+                  // Blocked path — the inverse of clear air. Named explicitly so
+                  // meaningful gamma between spot and the ceiling (often put-side)
+                  // is reported instead of silently omitted. 2026-07-23.
+                  if (!clearAirAbove && cwAboveSpot && firstBlockerAbove && blockerGexAbove > 0) {
+                    trades.push({ i:"↗", bg:P.dm+"33", c:P.mt, t:"Path up is blocked — "+fmtGex(blockerGexAbove)+" sits between $"+sp.toFixed(0)+" and the $"+cwStrike+" ceiling, first at $"+firstBlockerAbove.strike+". Expect it to slow there, not run clean." });
+                  }
                   // Clear air / breakout potential
                   if (clearAirAbove && cwAboveSpot) {
                     const intermediateRes = firstResAbove && firstResAbove.strike < cwStrike ? firstResAbove : null;
@@ -5214,7 +5243,7 @@ export default function OptionsFlowDashboard() {
                     trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — a break means fast downside with nothing to catch it.") });
                   }
                   const cwCloseBelow = cwMagnet && (sp - cwStrike) / sp < 0.02;
-                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : "")+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Broken support at $"+cwStrike+" would speed up the drop." : "") });
+                  trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot && sp > zg ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : (zg && !zgNearSpot && sp < zg ? " Safety net is already off below $"+zg.toFixed(0)+" — drops are faster here." : ""))+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Broken support at $"+cwStrike+" would speed up the drop." : "") });
 
                   const gaugeMin = zg ? Math.min(zg, pwStrike) - (sp*0.005) : pwStrike - (sp*0.01);
                   const gaugeMax = Math.max(cwStrike, sp) + (sp*0.01);
@@ -5237,7 +5266,7 @@ export default function OptionsFlowDashboard() {
                       );
                     })()}
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
-                      {belowDangerLine?"⚠️ Below danger line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" danger line":""}
+                      {belowDangerLine?"⚠️ Below danger line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" "+gexLevelName((_clsL.zero_gamma&&_clsL.zero_gamma.role),"danger line").toLowerCase():""}
                     </div>
 
                     {/* Quick Read — auto-generated narrative */}
@@ -5333,7 +5362,7 @@ export default function OptionsFlowDashboard() {
 
                     <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"center" }}>
                       <div style={{ display:"flex", gap:6 }}>
-                        {[["Spot","$"+sp.toFixed(0),P.wh],["Danger Line","$"+(zg?zg.toFixed(0):"—"),P.ac],["GEX",fmtGex(tg),tg>0?P.bu:P.be]].map(([l,v,c])=>(
+                        {[["Spot","$"+sp.toFixed(0),P.wh],[gexLevelName((_clsL.zero_gamma&&_clsL.zero_gamma.role),"Danger Line"),"$"+(zg?zg.toFixed(0):"—"),gexLevelHex((_clsL.zero_gamma&&_clsL.zero_gamma.role)||"danger")],["GEX",fmtGex(tg),tg>0?P.bu:P.be]].map(([l,v,c])=>(
                           <div key={l} style={{ background:P.al, borderRadius:6, padding:"8px 12px", textAlign:"center" }}>
                             <div style={{ fontSize:9, color:P.dm, textTransform:"uppercase" }}>{l}</div>
                             <div style={{ fontSize:16, fontWeight:800, color:c }}>{v}</div>
@@ -5377,12 +5406,17 @@ export default function OptionsFlowDashboard() {
                     <div style={{ background:P.al, borderRadius:6, padding:"10px 12px", marginBottom:10 }}>
                       <div style={{ fontSize:10, color:P.dm, textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>Ceiling vs floor{wallsInverted?" — spot between both":""}</div>
                       <div style={{ display:"flex", height:28, borderRadius:4, overflow:"hidden", marginBottom:5 }}>
-                        <div style={{ width:cwPct+"%", background:SG, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#e1f5ee" }}>Ceiling ${cwStrike} — {fmtGex(cwGex)}</div>
-                        <div style={{ width:pwPct+"%", background:SR, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>{fmtGex(pwGex)}</div>
+                        {/* Colors follow the unified convention: the level ABOVE
+                            (resistance/ceiling) is red, the level BELOW
+                            (support/floor) is green — matching the chart lines
+                            and the level cards. Was inverted (call=green /
+                            put=red) until 2026-07-23. */}
+                        <div style={{ width:cwPct+"%", background:SR, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>Ceiling ${cwStrike} — {fmtGex(cwGex)}</div>
+                        <div style={{ width:pwPct+"%", background:SG, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#e1f5ee" }}>{fmtGex(pwGex)}</div>
                       </div>
                       <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, marginBottom:5 }}>
-                        <span style={{ color:P.bu }}>Call {cwRatio}x · {cwLabel}</span>
-                        <span style={{ color:P.be }}>Put ${pwStrike} · {pwLabel}</span>
+                        <span style={{ color:P.be }}>Call {cwRatio}x · {gexLevelName((_clsL.call_wall&&_clsL.call_wall.role), cwLabel)}</span>
+                        <span style={{ color:P.bu }}>Put ${pwStrike} · {gexLevelName((_clsL.put_wall&&_clsL.put_wall.role), pwLabel)}</span>
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:4, fontSize:11, fontWeight:700, background:verdictBg, color:verdictColor }}><span style={{ fontSize:14 }}>{verdictIcon}</span><span>{verdictText}</span></div>
                     </div>
