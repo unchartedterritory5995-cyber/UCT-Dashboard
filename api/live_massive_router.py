@@ -3986,6 +3986,16 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "fresh_strike_min_volume",   # min volume to promote OI=0 fresh strikes
         "bullish_bearish_min_vol_oi_ratio",  # V/OI gate for catchall tier
         "leaps_min_vol_oi_ratio",    # V/OI gate for LEAPS tier
+        # 2026-07-23: the four side-classification / net-flow tunables added on
+        # 7/21 were put into DEFAULT_THRESHOLDS and wired into the logic, but
+        # never added HERE — so any admin-panel save that included them 400'd
+        # with "Unknown keys" and rejected the WHOLE payload, meaning no
+        # threshold change of any kind could be saved. Same oversight class as
+        # sweep_empty_side_as_ask above (missing 7/3 → 7/16).
+        "direction_max_itm_pct",     # deep-ITM cap above which direction is dropped
+        "keep_sizeless_min_premium", # premium floor to keep a direction-less print as neutral Size
+        "net_flow_min_ratio",        # feed-side two-way-flow demote threshold
+        "hide_sizeless",             # hide direction-unconfirmed rows from curated
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
