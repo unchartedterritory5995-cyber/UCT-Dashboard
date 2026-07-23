@@ -21,9 +21,15 @@ function timeAgo(ts) {
   return `${Math.floor(s / 86400)}d`
 }
 
+function decodeEntities(s) {
+  return String(s || '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&#x27;/gi, "'")
+}
+
 // Render tweet text with $CASHTAGS gold and @handles dimmed.
 function renderText(text) {
-  const parts = String(text || '').split(/(\$[A-Za-z]{1,6}\b|@\w+)/g)
+  const parts = decodeEntities(text).split(/(\$[A-Za-z]{1,6}\b|@\w+)/g)
   return parts.map((p, i) => {
     if (/^\$[A-Za-z]{1,6}$/.test(p)) return <span key={i} style={{ color: '#c9a84c', fontWeight: 700 }}>{p}</span>
     if (/^@\w+$/.test(p)) return <span key={i} style={{ color: '#7f8ea3' }}>{p}</span>
