@@ -128,6 +128,9 @@ def _candidate_block(idx: int, c: dict) -> str:
     hunter = synthesize._format_hunter_block(c)
     if hunter:
         lines.append("   " + hunter)
+    flow = synthesize._format_flow_block(c)
+    if flow:
+        lines.append("   " + flow)
     if c.get("scanner_setup"):
         lines.append("   scanner: " + synthesize._format_scanner_block(c.get("scanner_setup")))
     tw = _tweets_line(c.get("tweets") or [])
@@ -166,6 +169,7 @@ KEEP (worth attention), in this spirit:
 - Earnings that actually MOVED the stock hard (the market's reaction — a big gap, a guidance shock — not the mere fact of a print).
 - Street-moving analyst actions: a real upgrade/downgrade, a big price-target change, a notable initiation — when it's actually driving the stock.
 - Clean momentum/technical: a real breakout to new highs, a gap-and-go, a high-participation thrust — even with no fresh headline (continuation of a story).
+- Unusual options flow: heavy, one-sided smart-money sweep/block premium (the "Options flow" line) — a real positioning signal worth surfacing even BEFORE the stock has moved. Keep it when the net premium is large and directional; a small or mixed flow line on an otherwise sleepy name is not enough on its own.
 
 CUT hard:
 - Micro-cap / sub-$5 / low-float PENNY PUMPS: a $1.80 name up 60% on a squeeze or a paid press release is untradeable for this desk no matter the %.

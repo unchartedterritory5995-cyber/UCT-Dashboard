@@ -61,7 +61,9 @@ GRADE — how strong/actionable is the catalyst:
 
 CATALYST_TYPE — pick the single best label:
   Earnings, M&A, FDA, Analyst, Contract, Guidance, Product, Legal, Insider,
-  Index, Offering, Momentum, Sector-wide, None
+  Index, Offering, Momentum, Sector-wide, Flow, None
+  (Flow = the move/interest is driven by unusual options flow / smart-money
+   sweeps, with no stronger company-specific catalyst.)
 
 TAG: pick from Catalyst, Earnings, Gapper, News (matches engine classification).
 source_urls: include the URLs from SIGNALS you actually used.
@@ -152,6 +154,30 @@ def _format_hunter_block(c: dict) -> str:
     return f"Hunter catalyst ({ctype}): \"{c['hunter_headline']}\"{(' - ' + url) if url else ''}"
 
 
+def _format_flow_block(c: dict) -> str:
+    """Unusual options-flow conviction line (sweep/block smart-money premium),
+    from the flow leaderboard. Empty when the name isn't on the flow board."""
+    f = c.get("options_flow")
+    if not f:
+        return ""
+    prem = f.get("netPremium")
+    try:
+        prem_s = f"${abs(float(prem)) / 1e6:.1f}M"
+    except (TypeError, ValueError):
+        prem_s = "?"
+    direction = (f.get("dir") or "?").upper()
+    bull = f.get("bullPct")
+    bull_s = f", {int(bull)}% bull" if isinstance(bull, (int, float)) else ""
+    tc = f.get("topContract") or {}
+    top = ""
+    if tc:
+        cp = (tc.get("cp") or "").upper()
+        top = (f"; biggest {cp} ${tc.get('strike')} {tc.get('exp')}"
+               + (f" x{tc.get('hits')}" if tc.get("hits") else ""))
+    er = " (earnings soon)" if f.get("er") else ""
+    return f"Options flow: {prem_s} net {direction} sweep/block premium{bull_s}{er}{top}"
+
+
 def format_prompt(c: dict) -> str:
     return f"""Synthesize a catalyst for {c['ticker']} ({c.get('company') or c['ticker']}).
 
@@ -173,6 +199,7 @@ UCT scanner: {_format_scanner_block(c.get('scanner_setup'))}
 
 Analyst action: {_format_analyst_block(c.get('analyst_meta'))}
 {_format_hunter_block(c)}
+{_format_flow_block(c)}
 Output the JSON now."""
 
 

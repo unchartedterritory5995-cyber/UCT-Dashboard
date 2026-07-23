@@ -17,8 +17,9 @@ def _f(name: str, default: float) -> float:
 def assign_tag(c: dict) -> Optional[str]:
     if c.get("earnings_reported_recently"):
         return "Earnings"
-    # Catalyst: hard analyst action, or 2+ tweets, or 1+ RSS headline.
+    # Catalyst: hard analyst action, unusual options flow, 2+ tweets, or 1+ RSS.
     if (c.get("analyst_meta")
+            or c.get("flow_notable")
             or c.get("tweet_mention_count", 0) >= 2
             or c.get("rss_headline_count", 0) >= 1):
         return "Catalyst"

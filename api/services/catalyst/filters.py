@@ -152,6 +152,8 @@ def is_real_catalyst(c: dict) -> tuple[bool, Optional[str]]:
             return True, None                          # independent hard signal
         if c.get("hunter_confirmed"):
             return True, None                          # Hunter-confirmed hard catalyst
+        if c.get("flow_notable"):
+            return True, None                          # unusual options flow (smart money)
         return False, (
             f"earnings reported but no real reaction "
             f"(gap {gap_abs:.1f}% < {earnings_min_move:.0f}%) — sleepy print"
@@ -171,6 +173,11 @@ def is_real_catalyst(c: dict) -> tuple[bool, Optional[str]]:
         #                                                stock hasn't moved yet (early /
         #                                                pre-move detection). quality_gate
         #                                                still drops untradeable junk.
+    if c.get("flow_notable"):
+        return True, None                              # unusual options flow (smart money
+        #                                                positioning) — surface it even
+        #                                                before the stock moves; the
+        #                                                curator judges whether it's real.
 
     return False, (
         f"no real move (gap {gap_abs:.1f}% < {min_move:.0f}%, "

@@ -93,6 +93,12 @@ def score(c: dict) -> float:
     if c.get("scanner_setup"):
         s += _w("SCANNER_SETUP", 12.0)
 
+    # Unusual options flow (smart-money sweep/block premium) — a real
+    # positioning signal. Flat bonus so a flow-notable name clears the pre-sort
+    # into the curator pool; the curator judges whether the flow is worth a slot.
+    if c.get("flow_notable"):
+        s += _w("FLOW", 12.0)
+
     # Sector momentum: each peer in candidate pool adds a small bonus
     s += c.get("sector_momentum_count", 0) * _w("SECTOR_MOMENTUM", 5.0)
 

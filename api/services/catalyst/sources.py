@@ -699,6 +699,42 @@ def _merge_hunter_hits(by_ticker: dict, hits: list[dict]) -> list[dict]:
 
 
 # ── Orchestrator ────────────────────────────────────────────────────────
+def _pull_options_flow() -> dict[str, dict]:
+    """Source 9: options-flow conviction board — unusual sweep/block "smart
+    money" premium per ticker. Reads the flow-worker's per-ticker leaderboard
+    (`/api/flow/top-conviction`), which already filters to sweep/block prints,
+    drops noise, and ranks by net bull/bear premium.
+
+    Post-cutover the fresh flow.db lives on the FLOW-WORKER; web's local copy is
+    a frozen snapshot, so we MUST fetch over WORKER_INTERNAL_URL (internal, the
+    endpoint takes no auth). Fail-soft: disabled / no worker URL / any error =>
+    {} (no flow signal today). Gated on CATALYST_FLOW_ENABLED (default on)."""
+    if os.environ.get("CATALYST_FLOW_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return {}
+    base = os.environ.get("WORKER_INTERNAL_URL", "").rstrip("/")
+    if not base:
+        return {}
+    try:
+        import requests
+        limit = int(os.environ.get("CATALYST_FLOW_LIMIT", "20"))
+        timeout = float(os.environ.get("CATALYST_FLOW_TIMEOUT", "6"))
+        r = requests.get(f"{base}/api/flow/top-conviction",
+                         params={"limit": limit}, timeout=timeout)
+        r.raise_for_status()
+        data = r.json() or {}
+    except Exception as e:
+        logger.warning("[catalyst-sources] options-flow pull failed: %s", e)
+        return {}
+    out: dict[str, dict] = {}
+    for i, it in enumerate(data.get("items") or []):
+        sym = (it.get("sym") or "").upper()
+        if not sym:
+            continue
+        it.setdefault("rank", i + 1)
+        out[sym] = it
+    return out
+
+
 def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
                 existing_tickers: Optional[set[str]] = None) -> list[dict]:
     """Runs all source pulls in parallel; merges into Candidate dicts
@@ -716,6 +752,7 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
         "scanner":    _pull_scanner_setups,
         "perplexity": _pull_perplexity_discovery,
         "analyst":    _pull_analyst_actions,
+        "flow":       _pull_options_flow,
     }
     results: dict[str, dict] = {}
     with ThreadPoolExecutor(max_workers=8, thread_name_prefix="cat-src") as ex:
@@ -739,6 +776,7 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
     universe.update(results.get("scanner", {}).keys())
     universe.update(results.get("perplexity", {}).keys())
     universe.update(results.get("analyst", {}).keys())
+    universe.update(results.get("flow", {}).keys())
 
     # Record per-source contribution so the health check can spot a dead source.
     global _LAST_SOURCE_STATS
@@ -768,6 +806,7 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
             rss.append(pp_item)
         setup = results["scanner"].get(ticker)
         analyst_meta = results.get("analyst", {}).get(ticker)
+        flow_meta = results.get("flow", {}).get(ticker)
 
         sector = snap.get("sector")
         if sector:
@@ -820,6 +859,12 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
             "float_shares": snap.get("float_shares"),
             "shares_outstanding": snap.get("shares_outstanding"),
             "analyst_meta": analyst_meta,
+            # Options-flow conviction (unusual sweep/block smart money). Presence
+            # on the leaderboard = flow_notable → surfaces the name + feeds the
+            # curator + scoring. options_flow = {dir, netPremium, bullPct,
+            # topContract, er, sector, rank}.
+            "options_flow": flow_meta,
+            "flow_notable": bool(flow_meta),
         })
 
     for c in candidates:
