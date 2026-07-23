@@ -237,6 +237,18 @@ def reserve_synth(user_id):
         return True
 
 
+def refund_synth(user_id):
+    """Inverse of reserve_synth — give back a reservation when synthesis fails
+    (error/timeout) or produces nothing AFTER a successful reserve_synth, so a
+    failed personal query doesn't permanently consume the member's synth budget.
+    Atomic under the same lock; never underflows below zero."""
+    global _synth_spend
+    with _synth_lock:
+        if _synth_by_user.get(user_id):
+            _synth_by_user[user_id] = max(0, _synth_by_user[user_id] - 1)
+        _synth_spend = max(0.0, _synth_spend - _APPROX_COST)
+
+
 def _async_client():
     import anthropic
     return anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
