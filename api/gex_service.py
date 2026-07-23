@@ -26,6 +26,7 @@ between the card view, chart overlay, and AI summary, and stops the
 """
 
 import logging
+import os
 import httpx
 from typing import Optional, Dict
 
@@ -39,6 +40,20 @@ from api.dealer_positioning import (
 logger = logging.getLogger("gex")
 
 CHAINS_URL = "https://api.schwabapi.com/marketdata/v1/chains"
+
+# ── Wall-search distance cap (2026-07-23) ────────────────────────────────────
+# The call/put wall used to be the global max/min over the ENTIRE chain for the
+# DTE filter, with no distance constraint. On a high-IV name that lets a far-OTM
+# lottery strike win on raw gamma and become the headline "Ceiling": CBRS at
+# spot $226.91 picked $340 (50% OTM, $1.5M) over $235 ($1.4M) — the strike that
+# actually mattered and was already drawn on the chart. That one pick then
+# poisoned the whole read ("choppy week between $205 and $340", "swing target
+# $340 this week") and the level wasn't even visible in the ±12% strike chart.
+# Restrict the wall search to strikes within this % of spot. If nothing falls in
+# the band (very wide-strike or illiquid chains) we fall back to the full list
+# so a wall is always returned. 0DTE/weekly are unaffected — their walls sit
+# within 1-2% of spot anyway.
+WALL_MAX_DIST_PCT = float(os.environ.get("GEX_WALL_MAX_DIST_PCT", "15.0"))
 
 
 def _parse_schwab_exp_key(exp_key: str) -> Optional[str]:
@@ -390,12 +405,22 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
     # max/min logic still works because the SIGN encodes meaning — but to
     # find the strongest "wall" regardless of which way it leans, we use
     # ABS in adjusted mode for the call_wall search.
+    #
+    # 2026-07-23: search only strikes within WALL_MAX_DIST_PCT of spot so a
+    # far-OTM strike can't win on raw gamma alone (see the constant's note).
+    # Falls back to the full chain if the band is empty.
+    _wall_band = [
+        s for s in strikes_list
+        if spot <= 0 or abs(s["strike"] - spot) / spot * 100.0 <= WALL_MAX_DIST_PCT
+    ] or strikes_list
+    _wall_band_capped = len(_wall_band) < len(strikes_list)
+
     if adjusted:
-        call_wall = max(strikes_list, key=lambda x: abs(x["callGex"])) if strikes_list else None
-        put_wall = max(strikes_list, key=lambda x: abs(x["putGex"])) if strikes_list else None
+        call_wall = max(_wall_band, key=lambda x: abs(x["callGex"])) if _wall_band else None
+        put_wall = max(_wall_band, key=lambda x: abs(x["putGex"])) if _wall_band else None
     else:
-        call_wall = max(strikes_list, key=lambda x: x["callGex"]) if strikes_list else None
-        put_wall = min(strikes_list, key=lambda x: x["putGex"]) if strikes_list else None
+        call_wall = max(_wall_band, key=lambda x: x["callGex"]) if _wall_band else None
+        put_wall = min(_wall_band, key=lambda x: x["putGex"]) if _wall_band else None
 
     # Zero gamma (same multi-fallback approach as before)
     zero_gamma = None
@@ -477,6 +502,11 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         "putWall": pw_dict,
         "strikes": strikes_list,
         "dteFilter": dte_filter,
+        # Wall-search band (2026-07-23): walls are chosen only from strikes
+        # within wallBandPct of spot; wallBandCapped is True when that
+        # actually excluded part of the chain.
+        "wallBandPct": WALL_MAX_DIST_PCT,
+        "wallBandCapped": _wall_band_capped,
         # ── Trade-aware metadata ──────────────────────────────────────
         "adjusted": adjusted,
         "attributionDays": attribution_days,
