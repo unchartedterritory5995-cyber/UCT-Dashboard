@@ -405,3 +405,27 @@ def test_endpoint_personal_branch_declines_falls_through_and_logs(monkeypatch):
     assert data.get("personal") is not True      # fell through, NOT the personal branch
     assert data.get("answer") == "public answer"
     assert logged != []                           # public path logs normally
+
+
+# ── Task 6 wiring: content-free personal-invocation counter ──────────────────
+def test_personal_request_bumps_content_free_counter(tmp_path, monkeypatch):
+    """A personal-branch request (stream) increments the content-free counter —
+    no query/answer text involved, just the tally."""
+    from api.services import ai_search_log
+    monkeypatch.setenv("AI_SEARCH_LOG_DB_PATH", str(tmp_path / "l.db"))
+    ai_search_log._reset_for_test()
+    _paid(monkeypatch)
+
+    async def fake_stream_search(*a, **k):
+        yield {"type": "final", "answer": "draft", "citations": []}
+
+    monkeypatch.setattr(r.perplexity_search, "stream_search", fake_stream_search)
+
+    async def fake_synth(q, draft, pb, live, hist):
+        yield "personalized answer"
+
+    monkeypatch.setattr(r.ai_search_personal, "synthesize", fake_synth)
+    _run_personal_stream(r, "should i add to my nvda given the news")
+    ins = ai_search_log.insights(days=7)
+    assert ins["personal"]["invocations"] == 1
+    assert ins["personal"]["degraded"] == 0

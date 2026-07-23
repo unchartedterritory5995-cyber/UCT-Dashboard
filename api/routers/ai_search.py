@@ -160,6 +160,7 @@ async def _personal_gen(body, uid, account_id, public_system, salt, meta):
       • NEVER `_log_answer` anywhere here (invariant #2, branch-keyed skip)
       • never writes the synthesized answer to any shared cache (invariant #3)
     """
+    from api.services import ai_search_log
     answer_id = ai_search_log_new_id()
     yield f"data: {json.dumps({'type': 'meta', 'personal': True, 'answer_id': answer_id})}\n\n"
     tickers = meta.get("query_tickers") or []
@@ -181,6 +182,7 @@ async def _personal_gen(body, uid, account_id, public_system, salt, meta):
         # Over the synth cost cap → degrade to the PUBLIC draft, flagged so the
         # UI can show "general answer (personalization paused)". No reservation
         # was taken, so nothing to refund.
+        ai_search_log.record_personal_invocation(degraded=True)
         final = {"type": "final", "answer": draft, "citations": citations,
                  "personal": True, "personalization_paused": True, "answer_id": answer_id}
         yield f"data: {json.dumps(final)}\n\n"
@@ -196,10 +198,12 @@ async def _personal_gen(body, uid, account_id, public_system, salt, meta):
         answer = "".join(parts).strip()
         if not answer:
             ai_search_personal.refund_synth(uid)   # produced nothing → give the reservation back
+            ai_search_log.record_personal_invocation(degraded=True)
             final = {"type": "final", "answer": draft, "citations": citations,
                      "personal": True, "personalization_paused": True, "answer_id": answer_id}
             yield f"data: {json.dumps(final)}\n\n"
             return   # mirror _personal_single: don't leave this yield reachable by the except below
+        ai_search_log.record_personal_invocation(degraded=False)
         final = {"type": "final", "answer": answer, "citations": citations,
                  "personal": True, "answer_id": answer_id}
         yield f"data: {json.dumps(final)}\n\n"
@@ -208,18 +212,22 @@ async def _personal_gen(body, uid, account_id, public_system, salt, meta):
         # already-fetched PUBLIC draft as the final IN-BAND (never raise, never
         # null: the widget must not re-run the whole 2× branch via single-shot).
         ai_search_personal.refund_synth(uid)
+        ai_search_log.record_personal_invocation(degraded=True)
         fallback = "".join(parts).strip() or draft
         final = {"type": "final", "answer": fallback, "citations": citations,
                  "personal": True, "personalization_paused": True, "answer_id": answer_id}
         yield f"data: {json.dumps(final)}\n\n"
     # INVARIANT #2: no `_log_answer` on this branch — decided at branch entry,
     # covering every exit above (success, over-cap degrade, synthesis failure).
+    # record_personal_invocation is the ONE content-free exception — it stores
+    # no query/answer text, only a per-day invocation+degraded tally.
 
 
 async def _personal_single(body, uid, account_id, public_system, salt, meta) -> dict:
     """Single-shot (non-streamed) twin of `_personal_gen` — collect synthesis to a
     string. Same no-log / no-cache / in-band-fallback rules; returns a dict shaped
     like the public single-shot response, carrying personal:true."""
+    from api.services import ai_search_log
     answer_id = ai_search_log_new_id()
     tickers = meta.get("query_tickers") or []
     draft, citations = "", []
@@ -239,6 +247,7 @@ async def _personal_single(body, uid, account_id, public_system, salt, meta) -> 
             "model": None, "mode": "personal"}
 
     if not ai_search_personal.reserve_synth(uid):
+        ai_search_log.record_personal_invocation(degraded=True)
         return {**base, "answer": draft, "personalization_paused": True}
 
     parts: list[str] = []
@@ -250,12 +259,16 @@ async def _personal_single(body, uid, account_id, public_system, salt, meta) -> 
         answer = "".join(parts).strip()
         if not answer:
             ai_search_personal.refund_synth(uid)
+            ai_search_log.record_personal_invocation(degraded=True)
             return {**base, "answer": draft, "personalization_paused": True}
+        ai_search_log.record_personal_invocation(degraded=False)
         return {**base, "answer": answer}
     except Exception:
         ai_search_personal.refund_synth(uid)
+        ai_search_log.record_personal_invocation(degraded=True)
         return {**base, "answer": "".join(parts).strip() or draft, "personalization_paused": True}
     # INVARIANT #2: no `_log_answer` — the caller never logs the personal branch.
+    # record_personal_invocation is the ONE content-free exception (no query/answer).
 
 
 _WIDGET_INTRO = (
