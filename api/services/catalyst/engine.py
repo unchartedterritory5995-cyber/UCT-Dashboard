@@ -1165,6 +1165,14 @@ def run_refresh(hunt: Optional[bool] = None) -> dict:
                     "rss": c.get("rss", []),
                     "earnings_meta": c.get("earnings_meta"),
                     "scanner_setup": c.get("scanner_setup"),
+                    # Compact display signals for the tile's flow + firm-edge chips
+                    # (NOT part of signals_hash — display-only, won't force re-synth).
+                    "options_flow": ({
+                        "dir": _of.get("dir"),
+                        "netPremium": _of.get("netPremium"),
+                        "bullPct": _of.get("bullPct"),
+                    } if (_of := c.get("options_flow")) else None),
+                    "brain_grade": c.get("brain_grade"),
                 }, default=str),
                 # Display-only; intentionally NOT part of raw_signals/signals_hash.
                 "rating_change": json.dumps(c["rating_change"], default=str)

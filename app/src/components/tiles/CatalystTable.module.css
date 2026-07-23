@@ -504,6 +504,52 @@
   border: 1px solid rgba(160, 160, 160, 0.35);
 }
 
+/* Flow chip — unusual options-flow conviction (net sweep/block premium). */
+.flowChip {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+.flowBull {
+  background: rgba(74, 222, 128, 0.14);
+  color: var(--ut-green-bright);
+  border: 1px solid rgba(74, 222, 128, 0.40);
+}
+.flowBear {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--ut-red-bright);
+  border: 1px solid rgba(248, 113, 113, 0.40);
+}
+.flowFlat {
+  background: rgba(160, 160, 160, 0.14);
+  color: var(--text-muted);
+  border: 1px solid rgba(160, 160, 160, 0.35);
+}
+
+/* Edge chip — the firm's historical win-rate for this candidate's setup (Brain). */
+.edgeChip {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+  background: rgba(201, 168, 76, 0.14);
+  color: var(--ut-gold, #c9a84c);
+  border: 1px solid rgba(201, 168, 76, 0.42);
+}
+
 /* Lead chip — the row's ONE badge: catalyst type (or tag bucket) + grade
    fused into a single unit leading the thesis text. */
 .leadChip {

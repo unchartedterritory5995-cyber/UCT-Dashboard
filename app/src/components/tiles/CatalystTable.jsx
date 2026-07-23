@@ -85,7 +85,23 @@ function WhenStack({ ts, dimmed }) {
 const TYPE_ICONS = {
   'M&A': 'link', 'FDA': 'pill', 'Analyst': 'equity', 'Contract': 'document', 'Guidance': 'patterns',
   'Product': 'rocket', 'Legal': 'scale', 'Insider': 'user', 'Index': 'flow', 'Offering': 'dollar',
-  'Earnings': 'breadth', 'Momentum': 'wave', 'Sector-wide': 'factory', 'Halt': 'pause',
+  'Earnings': 'breadth', 'Momentum': 'wave', 'Sector-wide': 'factory', 'Halt': 'pause', 'Flow': 'flow',
+}
+
+// Parse the row's raw_signals JSON (a string from the API) once, safely.
+function safeParseSignals(raw) {
+  if (!raw) return {}
+  if (typeof raw === 'object') return raw
+  try { return JSON.parse(raw) || {} } catch { return {} }
+}
+
+// $55M / $1.2M / $940K
+function fmtPremium(v) {
+  const n = Math.abs(Number(v) || 0)
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `$${Math.round(n / 1e3)}K`
+  return `$${Math.round(n)}`
 }
 
 // PRE-MOVE: a Catalyst-Hunter-confirmed catalyst whose stock hasn't reacted yet.
@@ -135,6 +151,40 @@ function RatingChangeChip({ rc }) {
   return (
     <span className={`${styles.ratingChip} ${cls}`} title={title}>
       {arrow} {act.toUpperCase()}{rc.company ? ` · ${rc.company}` : ''}
+    </span>
+  )
+}
+
+// Unusual options-flow conviction (net sweep/block smart-money premium).
+// Display-only context — green for a bullish tilt, red for bearish.
+// `flow` = {dir, netPremium, bullPct} or null.
+function FlowChip({ flow }) {
+  if (!flow || !flow.netPremium) return null
+  const dir = String(flow.dir || '').toUpperCase()
+  const cls = dir === 'BULL' ? styles.flowBull : dir === 'BEAR' ? styles.flowBear : styles.flowFlat
+  const prem = fmtPremium(flow.netPremium)
+  const bull = flow.bullPct != null ? ` · ${flow.bullPct}% bull` : ''
+  const title = `Unusual options flow: ${prem} net ${dir || '—'} sweep/block premium${bull}`
+  return (
+    <span className={`${styles.flowChip} ${cls}`} title={title}>
+      <UIcon name="flow" size={10} style={{ marginRight: 3, verticalAlign: '-1px' }} />
+      {prem} {dir}
+    </span>
+  )
+}
+
+// Firm edge — the desk's historical win-rate/expectancy for this candidate's
+// setup, from the Brain. Display-only. `edge` = {setup, win_rate_pct, expectancy,
+// sample} or null.
+function EdgeChip({ edge }) {
+  if (!edge || edge.win_rate_pct == null) return null
+  const wr = Math.round(Number(edge.win_rate_pct))
+  const exp = edge.expectancy != null ? `${Number(edge.expectancy).toFixed(2)} expectancy` : ''
+  const title = `Firm edge: ${edge.setup} — ${wr}% win${exp ? `, ${exp}` : ''}${edge.sample ? ` over ${edge.sample} logged trades` : ''}`
+  return (
+    <span className={styles.edgeChip} title={title}>
+      <UIcon name="patterns" size={10} style={{ marginRight: 3, verticalAlign: '-1px' }} />
+      {edge.setup} {wr}%
     </span>
   )
 }
@@ -690,6 +740,7 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
                     <td className={styles.colThesis}>
                       {(() => {
                         const isExp = expanded.has(r.ticker)
+                        const rs = safeParseSignals(r.raw_signals)
                         return (
                           <div className={styles.thesisCell}>
                             <button
@@ -703,6 +754,8 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
                                 <LeadChip type={r.catalyst_type} tag={r.tag} grade={r.grade} />
                                 <PreMoveChip preMove={r.pre_move} />
                                 <RatingChangeChip rc={r.rating_change} />
+                                <FlowChip flow={rs.options_flow} />
+                                <EdgeChip edge={rs.brain_grade} />
                                 <HighlightThesis text={r.thesis_text} />
                               </span>
                               <UIcon
