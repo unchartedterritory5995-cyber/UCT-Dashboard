@@ -89,7 +89,7 @@ function HeatmapView({ currentRow, onDrill, cellColors = TIER_CELL_COLORS, tipCo
                     title={`${m.label} — open Breadth`}
                   >
                     <span className={styles.hmTileLabel}>{m.label}</span>
-                    {/* A custom ⚙ Text color paints the VALUES too (owner ask) —
+                    {/* A custom ⚙ Readings color paints the values (owner ask) —
                         the tile fill still carries the tier; unset keeps the
                         bright tier-colored numbers. */}
                     <span className={styles.hmTileVal} style={{ color: textColor || (score != null ? tipColors[score] : 'var(--bw-text-dim, #8b8674)') }}>
@@ -263,7 +263,7 @@ export default function BreadthWidget({ opts, onOptsChange }) {
                 currentRow={currentRow} onDrill={drill}
                 cellColors={custom ? custom.cellColors : TIER_CELL_COLORS}
                 tipColors={custom ? custom.tipColors : TIER_TIP_COLORS}
-                textColor={bwSettings.textColor !== BREADTH_WIDGET_DEFAULTS.textColor ? bwSettings.textColor : null}
+                textColor={bwSettings.valueColor || null}
               />
             : <active.Comp {...common} />}
         </div>

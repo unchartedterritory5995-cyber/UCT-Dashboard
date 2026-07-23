@@ -18,8 +18,11 @@ export const BREADTH_WIDGET_DEFAULTS = {
   bg: '#0e0f0d',
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
 
-  // Primary text (metric labels/values on the widget chrome).
-  textColor: '#e0dac8',
+  // Two independent text colors (owner: one color for both fails on a light
+  // canvas — headers sit ON the canvas, readings sit ON the dark tiles).
+  // Empty = the default look (gold section headers; white-ish tile text).
+  headerColor: '',   // section names ("SCORE", "PRIMARY BREADTH") + the as-of date
+  valueColor: '',    // the readings on the tiles (values + their captions)
 
   // View color system — passed into the breadth views' options (they already
   // support these; same choices as the Breadth page's per-view Customize).
@@ -37,6 +40,14 @@ export const BREADTH_WIDGET_DEFAULTS = {
 /** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */
 export function mergeBreadthWidgetSettings(saved) {
   const s = (saved && typeof saved === 'object') ? { ...saved } : {}
+  // The single `textColor` briefly shipped (2026-07-22) before splitting into
+  // headerColor + valueColor — seed both from a stored custom value so an early
+  // tester's pick carries forward.
+  if (s.textColor && s.textColor !== '#e0dac8' && !s.headerColor && !s.valueColor) {
+    s.headerColor = s.textColor
+    s.valueColor = s.textColor
+  }
+  delete s.textColor
   return {
     ...BREADTH_WIDGET_DEFAULTS,
     ...s,
@@ -102,7 +113,8 @@ export function breadthWidgetStyleVars(s) {
   const D = BREADTH_WIDGET_DEFAULTS
   const vars = {}
 
-  if (s.textColor !== D.textColor) vars['--bw-text'] = s.textColor
+  if (s.headerColor) vars['--bw-header'] = s.headerColor
+  if (s.valueColor) vars['--bw-value'] = s.valueColor
 
   const customBg = s.bgMode === 'gradient'
     || (typeof s.bg === 'string' && s.bg.toLowerCase() !== D.bg)

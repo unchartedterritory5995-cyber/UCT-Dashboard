@@ -101,6 +101,8 @@ export default function BreadthSettingsPanel({ settings: s, onChange, onReset, o
       // never reads blank.
       case 'upColor': return s.upColor || '#22c55e'
       case 'downColor': return s.downColor || '#ef4444'
+      case 'headerColor': return s.headerColor || '#c9a84c'
+      case 'valueColor': return s.valueColor || '#e6e6e8'
       default: return s[t]
     }
   }
@@ -160,9 +162,11 @@ export default function BreadthSettingsPanel({ settings: s, onChange, onReset, o
             </Row>
           )}
 
-          {/* Text */}
+          {/* Text — two independent colors: headers sit ON the canvas, readings
+              sit ON the dark tiles (one shared color fails on a light canvas). */}
           <div className={styles.sectionLabel}>Text colors</div>
-          <Row label="Text" hint="labels + chrome">{swatch('textColor', 'Text')}</Row>
+          <Row label="Headers" hint="section names + date">{swatch('headerColor', 'Headers')}</Row>
+          <Row label="Readings" hint="values on the tiles">{swatch('valueColor', 'Readings')}</Row>
 
           {/* View colors */}
           <div className={styles.sectionLabel}>View colors</div>

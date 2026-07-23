@@ -10,7 +10,7 @@
   overflow: hidden;
   font-family: var(--font-sans);
   background: var(--bw-bg, var(--bg-surface));
-  color: var(--bw-text, var(--text));
+  color: var(--text);
 }
 
 /* ── View pill bar ── */
@@ -54,7 +54,7 @@
   margin-left: auto;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  color: var(--bw-text, var(--bw-text-dim, var(--text-muted)));
+  color: var(--bw-header, var(--bw-text-dim, var(--text-muted)));
   white-space: nowrap;
 }
 .gearBtn {
@@ -113,9 +113,9 @@
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  /* The ⚙ Text color wins when set (--bw-text is emit-when-custom); the default
-     stays the gold accent. */
-  color: var(--bw-text, var(--bw-accent, var(--ut-gold)));
+  /* The ⚙ Headers color wins when set (--bw-header is emit-when-custom); the
+     default stays the gold accent. */
+  color: var(--bw-header, var(--bw-accent, var(--ut-gold)));
   margin: 0 0 4px 2px;
 }
 .hmGrid {
@@ -144,8 +144,9 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  /* Follows the ⚙ Text color too (the "UP 4%+" captions on every tile). */
-  color: var(--bw-text, rgba(255, 255, 255, 0.72));
+  /* Follows the ⚙ Readings color (the captions sit ON the tiles, like the
+     values — a light-canvas dark header color must not black them out). */
+  color: var(--bw-value, rgba(255, 255, 255, 0.72));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

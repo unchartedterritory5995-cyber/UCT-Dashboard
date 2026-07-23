@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 import BreadthWidget from './BreadthWidget'
-import { customBreadthColors } from './breadthWidgetSettings'
+import { customBreadthColors, mergeBreadthWidgetSettings } from './breadthWidgetSettings'
 
 const mockData = vi.fn()
 vi.mock('../../../hooks/useMobileSWR', () => ({
@@ -97,4 +97,15 @@ test('customBreadthColors derives severity shades from the two hues (both requir
   // Amber caution + no-data stay on the house palette.
   expect(c.viewPalette.tier.a).toBe('#fbbf24')
   expect(c.cellColors['']).toBe('#181818')
+})
+
+test('legacy single textColor migrates into headerColor + valueColor', () => {
+  const m = mergeBreadthWidgetSettings({ textColor: '#ffffff' })
+  expect(m.headerColor).toBe('#ffffff')
+  expect(m.valueColor).toBe('#ffffff')
+  expect(m.textColor).toBeUndefined()
+  // Default blob stays defaults (no phantom migration of the old default value).
+  const d = mergeBreadthWidgetSettings({ textColor: '#e0dac8' })
+  expect(d.headerColor).toBe('')
+  expect(d.valueColor).toBe('')
 })
