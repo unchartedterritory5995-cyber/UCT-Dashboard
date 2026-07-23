@@ -120,6 +120,25 @@ def score(c: dict) -> float:
     if c.get("analyst_meta"):
         s += _w("ANALYST_ACTION", 12.0)
 
+    # Brain setup-grade — the firm's OWN historical edge for this candidate's
+    # setup (e.g. an Episodic Pivot the firm has logged hundreds of times). A
+    # positive-expectancy setup earns a bonus scaled by expectancy (capped), so
+    # a name that fits a proven setup ranks above an equal mover that fits none.
+    # Only fires when the brain had enough sample to grade it. Fail-neutral.
+    bg = c.get("brain_grade")
+    if isinstance(bg, dict):
+        exp = bg.get("expectancy")
+        if isinstance(exp, (int, float)) and exp > 0:
+            s += min(float(exp), 3.0) * _w("BRAIN_EDGE", 5.0)
+
+    # News sentiment (AlphaVantage, dormant unless a premium key is set) — a
+    # small attention nudge for names carrying real, sentiment-scored coverage.
+    av = c.get("av_news")
+    if isinstance(av, dict):
+        sent = av.get("news_sentiment")
+        if isinstance(sent, (int, float)):
+            s += abs(float(sent)) * _w("NEWS_SENTIMENT", 8.0)
+
     # Freshness: a catalyst breaking TODAY (not ranked in the prior days) gets a
     # boost so 'new and sudden' surfaces above multi-day continuations. Multi-day
     # runners are NOT penalized — they simply don't get this bonus.

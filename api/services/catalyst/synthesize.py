@@ -75,8 +75,13 @@ Output ONLY the JSON object — no markdown fences, no commentary, no
 def compute_signals_hash(candidate: dict) -> str:
     """SHA1 of a stable JSON serialization of the candidate's source signals.
     Used to skip re-synthesizing when nothing has changed."""
+    # brain_grade + av_news are new thesis-driving signals; adding them lets a
+    # newly-graded / newly-sentiment-scored name refresh its thesis instead of
+    # serving a stale skip-if-stable one. Kept minimal on purpose — retroactively
+    # adding the older analyst/flow keys would force a one-time mass re-synth.
     signal_keys = ("tweets", "rss", "earnings_meta", "scanner_setup",
-                   "gap_pct", "vol_x", "price", "hunter_headline")
+                   "gap_pct", "vol_x", "price", "hunter_headline",
+                   "brain_grade", "av_news")
     payload = {k: candidate.get(k) for k in signal_keys}
     blob = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()
@@ -178,6 +183,40 @@ def _format_flow_block(c: dict) -> str:
     return f"Options flow: {prem_s} net {direction} sweep/block premium{bull_s}{er}{top}"
 
 
+def _format_brain_block(c: dict) -> str:
+    """The firm's own historical edge for this candidate's setup (Brain Pack),
+    if the situation maps to a graded setup. Empty otherwise."""
+    bg = c.get("brain_grade")
+    if not bg:
+        return ""
+    setup = bg.get("setup") or "?"
+    wr = bg.get("win_rate_pct")
+    n = bg.get("sample")
+    exp = bg.get("expectancy")
+    parts = [f"Firm edge: {setup}"]
+    if isinstance(wr, (int, float)):
+        parts.append(f"{wr:.0f}% win")
+    if isinstance(exp, (int, float)):
+        parts.append(f"{exp:.2f} expectancy")
+    if isinstance(n, (int, float)):
+        parts.append(f"over {int(n)} logged trades")
+    return ", ".join(parts)
+
+
+def _format_sentiment_block(c: dict) -> str:
+    """AlphaVantage per-ticker news sentiment (dormant unless a premium AV key
+    is set). Empty when no sentiment signal is present."""
+    av = c.get("av_news")
+    if not av:
+        return ""
+    label = av.get("news_sentiment_label") or "?"
+    score = av.get("news_sentiment")
+    n = av.get("av_article_count")
+    score_s = f" ({score:+.2f})" if isinstance(score, (int, float)) else ""
+    n_s = f" across {int(n)} articles" if isinstance(n, (int, float)) else ""
+    return f"News sentiment: {label}{score_s}{n_s}"
+
+
 def format_prompt(c: dict) -> str:
     return f"""Synthesize a catalyst for {c['ticker']} ({c.get('company') or c['ticker']}).
 
@@ -200,6 +239,8 @@ UCT scanner: {_format_scanner_block(c.get('scanner_setup'))}
 Analyst action: {_format_analyst_block(c.get('analyst_meta'))}
 {_format_hunter_block(c)}
 {_format_flow_block(c)}
+{_format_brain_block(c)}
+{_format_sentiment_block(c)}
 Output the JSON now."""
 
 

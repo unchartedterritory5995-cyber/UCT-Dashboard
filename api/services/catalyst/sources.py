@@ -728,6 +728,128 @@ def _pull_fmp_analyst() -> dict[str, dict]:
     return out
 
 
+def _pull_finviz_news() -> dict[str, list[dict]]:
+    """Source 12: Finviz Elite market news export — a curated, ticker-tagged
+    headline feed (`news_export.ashx`, CSV `Title,Source,Date,Url,Category,
+    Ticker`). Finviz links each headline to the stock(s) it's about, so this
+    surfaces the "why" for names the move-detectors found — complementary to the
+    RSS + Perplexity + tweet feeds. Items merge into the same `rss` list.
+
+    Only CATALYST-SPECIFIC rows are kept: a headline tagged to a single (or a
+    few) ticker(s). Macro/thematic pieces tagged to many tickers ("These S&P 500
+    sectors are selling off") are dropped — they'd attach vague sector prose to
+    every megacap. Returns {ticker: [rss_item, ...]}. Fail-soft (no key / any
+    error => {}). Gated on CATALYST_FINVIZ_NEWS_ENABLED (default on)."""
+    if os.environ.get("CATALYST_FINVIZ_NEWS_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return {}
+    token = os.environ.get("FINVIZ_API_KEY", "")
+    if not token:
+        return {}
+    try:
+        import csv
+        import io
+        import requests
+        timeout = float(os.environ.get("CATALYST_FINVIZ_NEWS_TIMEOUT", "8"))
+        r = requests.get("https://elite.finviz.com/news_export.ashx",
+                         params={"v": 3, "auth": token}, timeout=timeout)
+        r.raise_for_status()
+        rows = list(csv.DictReader(io.StringIO(r.text)))
+    except Exception as e:
+        logger.warning("[catalyst-sources] Finviz news pull failed: %s", e)
+        return {}
+    # A headline tagged to more than this many tickers is macro/thematic noise,
+    # not a company catalyst — drop it (env-tunable).
+    max_tk = int(_envf("CATALYST_FINVIZ_NEWS_MAX_TICKERS", 3))
+    out: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        raw = (row.get("Ticker") or "").strip()
+        if not raw:
+            continue
+        tickers = [t.strip().upper() for t in raw.split(",") if t.strip()]
+        if not tickers or len(tickers) > max_tk:
+            continue
+        title = (row.get("Title") or "").strip()
+        if not title or _LEGAL_NOISE_RE.search(title):
+            continue
+        item = {
+            "source": row.get("Source") or "Finviz",
+            "title": title,
+            "url": row.get("Url") or "",
+            "time_published": _parse_iso_to_unix((row.get("Date") or "").replace(" ", "T")),
+        }
+        for t in tickers:
+            if t and len(t) <= 5:
+                out[t].append(item)
+    return out
+
+
+def _pull_av_news() -> dict[str, dict]:
+    """Source 13: AlphaVantage NEWS_SENTIMENT — a market-wide feed whose articles
+    carry per-ticker SENTIMENT scores (the one signal the other news feeds don't
+    give us). One call returns sentiment for many tickers; we aggregate to
+    {ticker: {news_sentiment, news_sentiment_label, av_article_count}}.
+
+    DORMANT BY DEFAULT (CATALYST_AV_NEWS_ENABLED unset => off): the FREE AV tier
+    is rate-limited to ~25 calls/day and is SHARED with the earnings-history
+    widget, so a live call every refresh would starve that budget. This is wired
+    + ready so that setting a dedicated/premium AV key + the flag lights it up
+    with zero further work. Rate-limit-aware (an "Information"/"Note" throttle
+    reply => {}, same as any error). Fail-soft in every direction."""
+    if os.environ.get("CATALYST_AV_NEWS_ENABLED", "0").lower() not in ("1", "true", "yes"):
+        return {}
+    key = os.environ.get("CATALYST_AV_NEWS_KEY") or os.environ.get("ALPHAVANTAGE_API_KEY", "")
+    if not key:
+        return {}
+    try:
+        import requests
+        limit = int(os.environ.get("CATALYST_AV_NEWS_LIMIT", "200"))
+        timeout = float(os.environ.get("CATALYST_AV_NEWS_TIMEOUT", "12"))
+        r = requests.get("https://www.alphavantage.co/query",
+                         params={"function": "NEWS_SENTIMENT", "apikey": key,
+                                 "sort": "LATEST", "limit": limit}, timeout=timeout)
+        r.raise_for_status()
+        data = r.json() or {}
+    except Exception as e:
+        logger.warning("[catalyst-sources] AV news pull failed: %s", e)
+        return {}
+    feed = data.get("feed")
+    if not isinstance(feed, list) or not feed:
+        # "Information"/"Note" throttle reply, or a genuinely empty window.
+        return {}
+    min_rel = _envf("CATALYST_AV_NEWS_MIN_RELEVANCE", 0.1)
+    agg: dict[str, list[float]] = defaultdict(list)
+    for art in feed:
+        for ts in (art.get("ticker_sentiment") or []):
+            sym = (ts.get("ticker") or "").upper()
+            if not sym or len(sym) > 5:
+                continue
+            try:
+                rel = float(ts.get("relevance_score") or 0)
+                sent = float(ts.get("ticker_sentiment_score") or 0)
+            except (TypeError, ValueError):
+                continue
+            if rel < min_rel:
+                continue
+            agg[sym].append(sent)
+    out: dict[str, dict] = {}
+    for sym, scores in agg.items():
+        if not scores:
+            continue
+        avg = sum(scores) / len(scores)
+        if avg >= 0.15:
+            label = "Bullish"
+        elif avg <= -0.15:
+            label = "Bearish"
+        else:
+            label = "Neutral"
+        out[sym] = {
+            "news_sentiment": round(avg, 3),
+            "news_sentiment_label": label,
+            "av_article_count": len(scores),
+        }
+    return out
+
+
 def _merge_hunter_hits(by_ticker: dict, hits: list[dict]) -> list[dict]:
     """Fold Catalyst-Hunter hits onto the candidate pool (keyed by ticker).
     Enriches existing entries in place; creates a minimal new entry for an
@@ -808,6 +930,8 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
         "analyst":    _pull_analyst_actions,
         "fmp_analyst": _pull_fmp_analyst,
         "flow":       _pull_options_flow,
+        "finviz_news": _pull_finviz_news,
+        "av_news":    _pull_av_news,
     }
     results: dict[str, dict] = {}
     with ThreadPoolExecutor(max_workers=8, thread_name_prefix="cat-src") as ex:
@@ -833,6 +957,8 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
     universe.update(results.get("analyst", {}).keys())
     universe.update(results.get("fmp_analyst", {}).keys())
     universe.update(results.get("flow", {}).keys())
+    universe.update(results.get("finviz_news", {}).keys())
+    universe.update(results.get("av_news", {}).keys())
 
     # Record per-source contribution so the health check can spot a dead source.
     global _LAST_SOURCE_STATS
@@ -860,6 +986,9 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
         rss = list(results["rss"].get(ticker, []))
         for pp_item in (results.get("perplexity", {}).get(ticker, []) or []):
             rss.append(pp_item)
+        # Finviz Elite ticker-tagged headlines merge into the same rss list.
+        for fv_item in (results.get("finviz_news", {}).get(ticker, []) or []):
+            rss.append(fv_item)
         setup = results["scanner"].get(ticker)
         # Finnhub/wire analyst wins on conflict; FMP grades-latest-news fills the
         # gap + surfaces analyst-driven names the wire source missed.
@@ -924,10 +1053,24 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
             # topContract, er, sector, rank}.
             "options_flow": flow_meta,
             "flow_notable": bool(flow_meta),
+            # AlphaVantage per-ticker news sentiment (dormant unless a premium
+            # AV key + CATALYST_AV_NEWS_ENABLED are set). {news_sentiment,
+            # news_sentiment_label, av_article_count} — a nudge for the curator
+            # + synthesis, never a gate.
+            "av_news": results.get("av_news", {}).get(ticker),
         })
 
     for c in candidates:
         c["sector_momentum_count"] = max(0, sector_counts.get(c.get("sector"), 0) - 1)
+
+    # ── Brain setup-grade (source 11, ENRICHMENT) — attach the firm's historical
+    # edge to candidates whose situation maps to a graded setup. No-op when the
+    # Brain Pack isn't installed. Discovers no tickers; pure ranking/narrative. ──
+    try:
+        from api.services.catalyst import brain_grades
+        _LAST_SOURCE_STATS["brain_grades"] = brain_grades.enrich(candidates)
+    except Exception:
+        logger.exception("[catalyst-sources] brain grading failed (non-fatal)")
 
     # ── Catalyst Hunter (Opus web-search discovery) — run_refresh only ──
     # Runs sequentially after the fast deterministic pulls (it's slower). New
