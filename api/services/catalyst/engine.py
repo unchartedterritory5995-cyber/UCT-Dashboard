@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from typing import Optional
 
 from api.services.catalyst import (
+    curator,
     filters,
     selection,
     scoring,
@@ -1042,8 +1043,14 @@ def run_refresh(hunt: Optional[bool] = None) -> dict:
     scored = [c for c in candidates if c.get("tag")]
     summary["scored"] = len(scored)
 
-    top_12 = selection.select_top_12(scored)
+    # Selection brain: the swing-trader/news-desk curator when enabled
+    # (CATALYST_CURATOR_ENABLED), else the mechanical 10/5/3/2 quota. curate()
+    # never raises — it falls back to select_top_12 on any failure, so the list
+    # can never break or go blank.
+    top_12 = curator.curate(scored, market_date=md)
     summary["selected"] = len(top_12)
+    summary["curator"] = "on" if os.environ.get(
+        "CATALYST_CURATOR_ENABLED", "0").lower() in ("1", "true", "yes") else "off"
 
     # Tier 1C: enrich top-12 with broader Twitter search before synthesis.
     # Bounded — skips tickers that already have ≥5 tweets from curated accounts.

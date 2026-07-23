@@ -218,6 +218,12 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     my_rank = next((i + 1 for i, c in enumerate(scored_sorted)
                     if c.get("ticker") == sym), None)
 
+    # Curator verdict (how the swing-trader/news-desk judgment layer ranked or
+    # cut this name in today's run). None when the curator is off or the name
+    # wasn't in the last curated pool.
+    from api.services.catalyst import curator as _curator
+    curator_verdict = _curator.get_curation(_today()).get(sym)
+
     return {
         "ticker": sym,
         "found": True,
@@ -225,6 +231,7 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
         "score": me.get("score"),
         "rank_among_scored": my_rank,
         "total_scored": len(scored),
+        "curator": curator_verdict,
         "signal_summary": {
             "gap_pct": me.get("gap_pct"),
             "vol_x": me.get("vol_x"),
