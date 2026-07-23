@@ -27,6 +27,7 @@ Endpoint:
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import threading
@@ -44,11 +45,29 @@ DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 
 flow_summary_router = APIRouter(prefix="/api/flow", tags=["flow"])
 
-# ── tiny in-memory TTL cache (board is cheap but recomputing per request is
-# wasteful when many dashboards poll at once) ───────────────────────────────
-_CACHE: dict = {}
-_CACHE_LOCK = threading.Lock()
-_CACHE_TTL = 60  # seconds
+# ── board cache: compute the FULL ranked board ONCE, slice per-limit ─────────
+# History (2026-07-23): the cache was keyed by `limit`, so every distinct limit
+# (dashboard tile=10, catalyst engine=20) cold-computed its OWN copy. Inside the
+# busy flow-worker process (sharing the event loop + thread pool with the OPRA
+# WS consumer + ingest), a cold ~5s compute of a 100k-row day balloons, and
+# abandoned/timed-out requests keep running — so concurrent cold computes pile
+# up and blow past ANY client timeout (a limit=20 catalyst read + a limit=10
+# dashboard read + the 45s warmer all fighting the GIL).
+#
+# Fix: ONE board is computed (deep, limit-agnostic), cached, persisted to disk,
+# and SLICED for any requested limit. The request path never computes in-band
+# once ANY board exists (fresh, stale, or loaded from disk) — it returns the
+# cached board immediately and refreshes in the background (single-flight, so at
+# most one compute ever runs). A truly-cold process (no memory + no disk board)
+# blocks exactly once, under the compute lock, and everyone else rides it.
+_BOARD_LOCK = threading.Lock()      # guards the fast in-memory board swap
+_COMPUTE_LOCK = threading.Lock()    # single-flight: at most ONE compute at a time
+_BOARD: tuple | None = None         # (computed_at, date, full_items_list)
+_BOARD_TTL = 60                     # seconds a board is "fresh"
+_BOARD_REFRESHING = False           # a background refresh is already in flight
+_BOARD_FILE = os.environ.get("FLOW_CONVICTION_CACHE_FILE",
+                             "/data/flow_conviction_board.json")
+_FULL_LIMIT = 250                   # compute deep enough to satisfy any request
 
 
 # ── parsing helpers (mirror OptionsFlow.jsx) ────────────────────────────────
@@ -325,8 +344,15 @@ def _fetch_latest_rows(source: str = "stocks") -> tuple[str | None, list[dict]]:
         latest = _latest_date(conn, source)
         if not latest:
             return None, []
+        # Pre-filter to sweeps/blocks (drop ML/ and everything else) in SQL so we
+        # pull ~2/3 the rows into Python. This is a strict SUPERSET of what
+        # compute_top_conviction keeps — a row it would keep (is_swp/is_blk and
+        # not is_ml) always matches this LIKE, so output is unchanged (verified
+        # identical live 2026-07-23); Python remains the final authority.
         cur = conn.execute(
-            "SELECT * FROM flow WHERE source = ? AND CreatedDate = ?",
+            "SELECT * FROM flow WHERE source = ? AND CreatedDate = ? "
+            "AND (UPPER(Type) LIKE '%SW%' OR UPPER(Type) LIKE '%BL%') "
+            "AND UPPER(Type) NOT LIKE 'ML/%'",
             (source, latest),
         )
         rows = [dict(r) for r in cur.fetchall()]
@@ -335,21 +361,113 @@ def _fetch_latest_rows(source: str = "stocks") -> tuple[str | None, list[dict]]:
         conn.close()
 
 
-def get_top_conviction(limit: int = 10) -> dict:
-    now = time.time()
-    with _CACHE_LOCK:
-        cached = _CACHE.get(limit)
-        if cached and now - cached[0] < _CACHE_TTL:
-            return cached[1]
+def _slice_board(board: tuple, limit: int) -> dict:
+    """Turn a cached (computed_at, date, full_items) board into the response
+    payload for a given limit — a cheap slice, no compute."""
+    _at, latest, full = board
+    items = full[:max(1, limit)]
+    return {"date": latest, "count": len(items), "items": items}
 
+
+def _compute_board() -> tuple:
+    """Compute the full ranked board once (deep enough for any limit)."""
     latest, rows = _fetch_latest_rows("stocks")
     today = datetime.now(ET).date()
-    items = compute_top_conviction(rows, today=today, limit=limit) if rows else []
-    payload = {"date": latest, "count": len(items), "items": items}
+    items = compute_top_conviction(rows, today=today, limit=_FULL_LIMIT) if rows else []
+    return (time.time(), latest, items)
 
-    with _CACHE_LOCK:
-        _CACHE[limit] = (now, payload)
-    return payload
+
+def _persist_board(board: tuple) -> None:
+    """Best-effort write of the board to disk so a fresh process starts warm."""
+    try:
+        _at, latest, items = board
+        tmp = _BOARD_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"at": _at, "date": latest, "items": items}, f)
+        os.replace(tmp, _BOARD_FILE)
+    except Exception:
+        pass
+
+
+def _load_board_from_disk() -> tuple | None:
+    """Load a persisted board (any age) so a cold process can serve immediately
+    while it refreshes in the background."""
+    try:
+        with open(_BOARD_FILE) as f:
+            d = json.load(f)
+        return (float(d.get("at") or 0), d.get("date"), d.get("items") or [])
+    except Exception:
+        return None
+
+
+def _refresh_board() -> tuple:
+    """Single-flight blocking recompute + cache + persist. Only one caller
+    actually computes; concurrent callers block on _COMPUTE_LOCK and then see
+    the fresh board without recomputing."""
+    global _BOARD, _BOARD_REFRESHING
+    with _COMPUTE_LOCK:
+        # Someone may have refreshed while we waited for the lock.
+        with _BOARD_LOCK:
+            cur = _BOARD
+        if cur and time.time() - cur[0] < _BOARD_TTL:
+            return cur
+        board = _compute_board()
+        with _BOARD_LOCK:
+            _BOARD = board
+            _BOARD_REFRESHING = False
+        _persist_board(board)
+        return board
+
+
+def _kick_background_refresh() -> None:
+    """Fire a single background refresh (stale-while-revalidate) if one isn't
+    already in flight, so the request path never blocks on a recompute."""
+    global _BOARD_REFRESHING
+    with _BOARD_LOCK:
+        if _BOARD_REFRESHING:
+            return
+        _BOARD_REFRESHING = True
+
+    def _bg():
+        try:
+            _refresh_board()
+        finally:
+            global _BOARD_REFRESHING
+            with _BOARD_LOCK:
+                _BOARD_REFRESHING = False
+
+    threading.Thread(target=_bg, daemon=True, name="flow-conviction-refresh").start()
+
+
+def get_top_conviction(limit: int = 10) -> dict:
+    """Per-ticker conviction board sliced to `limit`. Computes the full board at
+    most once per _BOARD_TTL, single-flight, stale-while-revalidate, disk-backed
+    — so a request NEVER runs a cold compute in-band when any board exists."""
+    global _BOARD
+    now = time.time()
+    with _BOARD_LOCK:
+        board = _BOARD
+
+    # Fresh in-memory board — slice + return.
+    if board and now - board[0] < _BOARD_TTL:
+        return _slice_board(board, limit)
+
+    # Stale in-memory board — serve it NOW, refresh in the background.
+    if board:
+        _kick_background_refresh()
+        return _slice_board(board, limit)
+
+    # Cold process — try disk before computing anything in-band.
+    disk = _load_board_from_disk()
+    if disk:
+        with _BOARD_LOCK:
+            _BOARD = disk
+        _kick_background_refresh()
+        return _slice_board(disk, limit)
+
+    # Truly cold (no memory + no disk) — block exactly once (single-flight).
+    board = _refresh_board()
+    return _slice_board(board, limit)
 
 
 @flow_summary_router.get("/top-conviction")
