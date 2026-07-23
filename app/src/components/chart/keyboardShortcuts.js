@@ -111,6 +111,7 @@ export const SHORTCUTS = [
   { keys: 'Alt+,', command: 'settings', description: 'Open chart settings' },
   { keys: 'Alt+Shift+A', command: 'addindicator', description: 'Add indicator (settings)' },
   { keys: 'Alt+S', command: 'screenshot', description: 'Screenshot chart (PNG)' },
+  { keys: 'Alt+G', command: 'gotodate', description: 'Go to date' },
   { keys: 'Alt+\\', command: 'gridcycle', description: 'Cycle grid layout (multi-chart)' },
   { keys: '?', command: 'help', description: 'Show this help overlay' },
 ];

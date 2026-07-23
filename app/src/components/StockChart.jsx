@@ -3007,6 +3007,12 @@ export default function StockChart({
           onOpenSettings()
           return
         }
+        // Alt+G → open the go-to-date box.
+        if (!e.shiftKey && e.code === 'KeyG') {
+          e.preventDefault()
+          setDateJumpOpen(true)
+          return
+        }
         // Alt+S → download a PNG screenshot of the chart (LWC panes: candles,
         // volume, indicators). Drawing overlays are not composited in v1.
         if (!e.shiftKey && e.code === 'KeyS') {
@@ -7359,6 +7365,23 @@ export default function StockChart({
   const trendDragCanvasRef = useRef(null)
   const trendDragStateRef = useRef(null)   // { startX, startY, a: { time, price } } while dragging
 
+  // ── Go to date (Alt+G): a tiny date box that scrolls the chart to a session ──
+  const [dateJumpOpen, setDateJumpOpen] = useState(false)
+  const jumpToDate = useCallback((dateStr) => {
+    const chart = chartRef.current
+    const arr = drawBarsRef.current || []
+    if (!chart || !arr.length || !dateStr) return
+    const target = new Date(dateStr + 'T12:00:00').getTime() / 1000
+    let bestIdx = 0, bestDiff = Infinity
+    for (let i = 0; i < arr.length; i++) {
+      const t = arr[i].t
+      const ts = typeof t === 'number' ? t : (new Date(String(t) + 'T12:00:00').getTime() / 1000)
+      const diff = Math.abs(ts - target)
+      if (diff < bestDiff) { bestDiff = diff; bestIdx = i }
+    }
+    try { chart.timeScale().setVisibleLogicalRange({ from: bestIdx - 50, to: bestIdx + 50 }) } catch { /* out of range */ }
+  }, [])
+
   // Plain mouse-drag pans (default). The Shift+drag measure locks scrolling only for
   // the duration of the drag (in onDown/end below); frozen (Setup Library) stays
   // non-pannable. This effect just holds the default so a data-poll re-applyOptions
@@ -8654,6 +8677,21 @@ export default function StockChart({
           ref={trendDragCanvasRef}
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 5 }}
         />
+      )}
+      {/* Go to date (Alt+G): pick a date, the chart scrolls to that session. */}
+      {dateJumpOpen && (
+        <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 30, display: 'flex', gap: 6, alignItems: 'center',
+          background: 'rgba(20,22,28,0.96)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, padding: '6px 8px', boxShadow: '0 8px 24px -12px rgba(0,0,0,0.7)' }}>
+          <span style={{ font: '11px "Instrument Sans", sans-serif', color: '#c9a84c', letterSpacing: '0.04em' }}>GO TO</span>
+          <input
+            type="date"
+            autoFocus
+            onChange={(e) => { if (e.target.value) { jumpToDate(e.target.value); setDateJumpOpen(false) } }}
+            onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setDateJumpOpen(false) } }}
+            onBlur={() => setDateJumpOpen(false)}
+            style={{ font: '12px "Instrument Sans", sans-serif', background: '#0c0d10', color: '#e8e6e0', border: '1px solid #333', borderRadius: 5, padding: '3px 6px' }}
+          />
+        </div>
       )}
       {dragMeasure && measureReadout && (
         <div style={{
