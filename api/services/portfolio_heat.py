@@ -89,6 +89,7 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
             account = float((_get_account_settings(user_id, account_id) or {}).get("account_size") or 0) or None
         except Exception:  # noqa: BLE001
             account = None
+    account_size_is_default = not account
     account = account or _DEFAULT_ACCOUNT
 
     try:
@@ -153,6 +154,8 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
         "placeholder_stops": placeholder_stops,
         "caps": {"per_trade_pct": _PER_TRADE_CAP_PCT, "aggregate_pct": round(agg_cap, 2),
                  "regime_ceiling_pct": ceiling},
+        "aggregate_cap_pct": round(agg_cap, 2),
+        "account_size_is_default": account_size_is_default,
         "room_to_add_pct": room,
         "regime": regime.get("regime"),
         "sources": [f"open positions ({len(positions)})",
