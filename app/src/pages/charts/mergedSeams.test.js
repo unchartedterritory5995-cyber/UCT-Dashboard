@@ -91,6 +91,29 @@ describe('applyVerticalDrag', () => {
   })
 })
 
+describe('fractional (smooth) drags', () => {
+  it('a fractional vertical delta keeps the board tiled and is re-findable as a seam', () => {
+    const { widgets, applied } = applyVerticalDrag(board, 12, 2.6, minW)
+    expect(applied).toBeCloseTo(2.6)
+    const by = Object.fromEntries(widgets.map(w => [w.id, w]))
+    expect(by.A.w).toBeCloseTo(14.6)
+    // Left end still meets right start EXACTLY (no gap/overlap) at the moved boundary.
+    expect(by.A.x + by.A.w).toBeCloseTo(by.B.x)
+    // The moved boundary is still discoverable (fractional-safe grouping).
+    const { vertical } = computeSeams(widgets, 24, 20)
+    expect(vertical).toHaveLength(1)
+    expect(vertical[0].c).toBeCloseTo(14.6)
+  })
+
+  it('rounding the applied delta on commit yields a clean integer layout', () => {
+    const preview = applyVerticalDrag(board, 12, 2.6, minW)     // smooth preview
+    const commit = applyVerticalDrag(board, 12, Math.round(preview.applied), minW)
+    const by = Object.fromEntries(commit.widgets.map(w => [w.id, w]))
+    expect(by.A.w).toBe(15)   // 12 + round(2.6)=3
+    expect(Number.isInteger(by.B.x)).toBe(true)
+  })
+})
+
 describe('applyHorizontalDrag', () => {
   it('grows top and shrinks bottom, staying tiled + min-clamped', () => {
     const { widgets, applied } = applyHorizontalDrag(board, 10, 4, minH)

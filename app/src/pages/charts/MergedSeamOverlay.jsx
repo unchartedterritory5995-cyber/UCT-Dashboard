@@ -34,23 +34,34 @@ export default function MergedSeamOverlay({
   // and survive the dragged bar remounting when the layout previews.
   const moveLogic = useRef(null)
   const upLogic = useRef(null)
+  // Preview uses a FRACTIONAL column/row delta (no rounding) so the drag is
+  // pixel-smooth instead of jumping grid-cell to grid-cell; we remember the
+  // clamped fractional delta and snap it to a clean integer only on release.
   moveLogic.current = (e) => {
     const d = dragRef.current
     if (!d) return
-    let next
+    let res
     if (d.type === 'v') {
-      const deltaCols = Math.round((e.clientX - d.startClient) / colWidth)
-      next = applyVerticalDrag(d.baseWidgets, d.line, deltaCols, minWFor).widgets
+      const deltaCols = (e.clientX - d.startClient) / colWidth
+      res = applyVerticalDrag(d.baseWidgets, d.line, deltaCols, minWFor)
     } else {
-      const deltaRows = Math.round((e.clientY - d.startClient) / rowHeight)
-      next = applyHorizontalDrag(d.baseWidgets, d.line, deltaRows, minHFor).widgets
+      const deltaRows = (e.clientY - d.startClient) / rowHeight
+      res = applyHorizontalDrag(d.baseWidgets, d.line, deltaRows, minHFor)
     }
-    d.lastWidgets = next
-    onResize(next, false)
+    d.lastApplied = res.applied
+    onResize(res.widgets, false)
   }
   upLogic.current = () => {
     const d = dragRef.current
-    if (d) onResize(d.lastWidgets, true)   // persist once, on release
+    if (d) {
+      // Snap to whole columns/rows for a clean, valid saved layout — a ≤½-cell
+      // settle at the very end, never a jump during the drag.
+      const intDelta = Math.round(d.lastApplied || 0)
+      const final = d.type === 'v'
+        ? applyVerticalDrag(d.baseWidgets, d.line, intDelta, minWFor).widgets
+        : applyHorizontalDrag(d.baseWidgets, d.line, intDelta, minHFor).widgets
+      onResize(final, true)   // persist once, on release
+    }
     finishDrag()
   }
 

@@ -8,14 +8,32 @@
 // the TC2000 divider-drag behavior. Widgets that merely SPAN across c are
 // untouched. All functions here are pure (no React, no DOM).
 
+// Group widgets by a (quantized) edge value. Quantizing to 1e-3 makes the
+// float-equality robust: after a FRACTIONAL seam drag the left widget's right
+// edge and the right widget's left edge are computed by different additions and
+// can differ by an ULP — rounding to 3 decimals collapses them to one key so the
+// boundary is still found (this is what lets the seam stay smooth mid-drag).
+function _groupByEdge(widgets, edgeFn) {
+  const m = new Map()
+  for (const w of widgets) {
+    const k = Math.round(edgeFn(w) * 1000) / 1000
+    if (!m.has(k)) m.set(k, [])
+    m.get(k).push(w)
+  }
+  return m
+}
+
 // Enumerate the draggable seams for a set of widgets on a cols×rows grid.
-// A boundary is a seam only when there are widgets on BOTH sides of it.
+// A boundary is a seam only when there are widgets on BOTH sides of it. Works
+// for fractional boundaries (mid-drag) as well as clean integer ones.
 export function computeSeams(widgets, cols, rows) {
   const vertical = []
-  for (let c = 1; c < cols; c++) {
-    const left = widgets.filter(w => (w.x + w.w) === c)
-    const right = widgets.filter(w => w.x === c)
-    if (!left.length || !right.length) continue
+  const rightEnds = _groupByEdge(widgets, w => w.x + w.w)
+  const leftStarts = _groupByEdge(widgets, w => w.x)
+  for (const [c, left] of rightEnds) {
+    if (c <= 0 || c >= cols) continue
+    const right = leftStarts.get(c)
+    if (!right) continue
     const parts = [...left, ...right]
     vertical.push({
       key: `v${c}`,
@@ -27,10 +45,12 @@ export function computeSeams(widgets, cols, rows) {
     })
   }
   const horizontal = []
-  for (let r = 1; r < rows; r++) {
-    const top = widgets.filter(w => (w.y + w.h) === r)
-    const bottom = widgets.filter(w => w.y === r)
-    if (!top.length || !bottom.length) continue
+  const bottomEnds = _groupByEdge(widgets, w => w.y + w.h)
+  const topStarts = _groupByEdge(widgets, w => w.y)
+  for (const [r, top] of bottomEnds) {
+    if (r <= 0 || r >= rows) continue
+    const bottom = topStarts.get(r)
+    if (!bottom) continue
     const parts = [...top, ...bottom]
     horizontal.push({
       key: `h${r}`,

@@ -1,9 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
 import { listIndicators, readEnabled, patchFor } from './indicatorRegistry'
+import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import styles from './ChartSettingsModal.module.css'
+
+// A user's saved chart-settings templates live in ONE global pref so they're
+// available from every chart/tab/grid cell. Applying a template routes through
+// the modal's onChange (→ the active surface's own settings), never the global
+// pref, so it lands on exactly the tab/widget you opened settings from.
+const CHART_TEMPLATES_KEY = 'chart_templates'
+const MAX_TEMPLATES = 40
 
 /**
  * Chart Settings — the new, centered, OLED-black settings modal for the Charts
@@ -137,7 +145,38 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const [confirmReset, setConfirmReset] = useState(false)
   const resetTimerRef = useRef(null)
 
-  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false) } }, [open]) // re-center on each open
+  // ── Settings templates (save the whole look, reuse on any tab) ──────────────
+  const { prefs, setPref } = usePreferences()
+  const templates = useMemo(() => {
+    const arr = parsePref(prefs?.[CHART_TEMPLATES_KEY], [])
+    return Array.isArray(arr) ? arr : []
+  }, [prefs])
+  const [tplMenuOpen, setTplMenuOpen] = useState(false)
+  const [savingTpl, setSavingTpl] = useState(false)   // inline "name your template" row is showing
+  const [tplName, setTplName] = useState('')
+  const tplInputRef = useRef(null)
+  useEffect(() => { if (savingTpl && tplInputRef.current) { tplInputRef.current.focus(); tplInputRef.current.select() } }, [savingTpl])
+
+  const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_TEMPLATES)))
+  const commitSaveTemplate = () => {
+    const name = tplName.trim().slice(0, 40)
+    if (!name) { setSavingTpl(false); setTplName(''); return }
+    // Snapshot the CURRENT settings as the template body. Overwrite a same-named
+    // template (case-insensitive) so re-saving updates in place instead of piling up.
+    const snapshot = JSON.parse(JSON.stringify({ ...settings, preset: 'custom' }))
+    const id = `tpl${Math.random().toString(36).slice(2, 9)}`
+    const without = templates.filter(t => (t.name || '').toLowerCase() !== name.toLowerCase())
+    persistTemplates([{ id, name, settings: snapshot }, ...without])
+    setSavingTpl(false); setTplName(''); setTplMenuOpen(false)
+  }
+  const applyTemplate = (t) => {
+    if (!t?.settings) return
+    onChange?.(JSON.parse(JSON.stringify({ ...t.settings, preset: 'custom' })))
+    setTplMenuOpen(false)
+  }
+  const deleteTemplate = (id) => persistTemplates(templates.filter(t => t.id !== id))
+
+  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setTplMenuOpen(false); setSavingTpl(false); setTplName('') } }, [open]) // re-center + reset transient UI on each open
 
   // Restore all chart settings to defaults. Two-click confirm (button shows
   // "Confirm?" for a moment) so an accidental tap can't wipe custom colors.
@@ -327,7 +366,11 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
   const setGridVisible = (v) => setSetting({ grid: { ...grid, visible: v } })
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
   const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
+  const setWmSize = (v) => setSetting({ watermark: { ...watermark, sizeScale: v } })
   const wmLines = watermark.lines || {}
+  const wmSize = watermark.sizeScale ?? 1.0
+  // Watermark size scale options (× the base per-role font). Shown as percent.
+  const WM_SIZES = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4]
   // Header tab.
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
@@ -374,6 +417,71 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
             >{confirmReset ? 'Confirm?' : '↺ Restore Defaults'}</button>
             <button type="button" data-modal-close className={styles.close} onClick={onClose} aria-label="Close" style={{ cursor: 'pointer' }}>✕</button>
           </div>
+        </div>
+
+        {/* Template bar: save the whole current look, or open a saved one. Applying
+            writes to THIS surface (the tab/widget you opened settings from) via
+            onChange — never the global blob. */}
+        <div className={styles.tplBar} onPointerDown={e => e.stopPropagation()}>
+          <div className={styles.tplMenuWrap}>
+            <button
+              type="button"
+              className={styles.tplBtn}
+              onClick={() => setTplMenuOpen(o => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={tplMenuOpen}
+              title="Open a saved chart-settings template"
+            >⌸ Templates{templates.length ? ` (${templates.length})` : ''} ▾</button>
+            {tplMenuOpen && (
+              <div className={styles.tplMenu} role="listbox">
+                {templates.length === 0 && (
+                  <div className={styles.tplEmpty}>No saved templates yet. Set up a chart, then “Save as Template”.</div>
+                )}
+                {templates.map(t => (
+                  <div key={t.id} className={styles.tplRow}>
+                    <button
+                      type="button"
+                      className={styles.tplApply}
+                      onClick={() => applyTemplate(t)}
+                      title={`Apply “${t.name}” to this chart`}
+                    >{t.name}</button>
+                    <button
+                      type="button"
+                      className={styles.tplDelete}
+                      onClick={() => deleteTemplate(t.id)}
+                      aria-label={`Delete template ${t.name}`}
+                      title="Delete template"
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {savingTpl ? (
+            <div className={styles.tplSaveRow}>
+              <input
+                ref={tplInputRef}
+                className={styles.tplInput}
+                value={tplName}
+                onChange={(e) => setTplName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); commitSaveTemplate() }
+                  else if (e.key === 'Escape') { e.preventDefault(); setSavingTpl(false); setTplName('') }
+                }}
+                placeholder="Template name"
+                maxLength={40}
+              />
+              <button type="button" className={styles.tplSaveBtn} onClick={commitSaveTemplate}>Save</button>
+              <button type="button" className={styles.tplCancelBtn} onClick={() => { setSavingTpl(false); setTplName('') }}>Cancel</button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={styles.tplBtn}
+              onClick={() => { setSavingTpl(true); setTplMenuOpen(false) }}
+              title="Save the current chart settings as a reusable template"
+            >＋ Save as Template</button>
+          )}
         </div>
 
         <div className={styles.tabs} role="tablist">
@@ -497,6 +605,17 @@ export default function ChartSettingsModal({ open, onClose, settings, onChange, 
                       >{label}</button>
                     ))}
                   </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Size</span>
+                  <select
+                    className={styles.sizeSelect}
+                    value={wmSize}
+                    onChange={(e) => setWmSize(Number(e.target.value))}
+                    aria-label="Watermark size"
+                  >
+                    {WM_SIZES.map((s) => <option key={s} value={s}>{Math.round(s * 100)}%</option>)}
+                  </select>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Color &amp; opacity</span>

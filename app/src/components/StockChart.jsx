@@ -258,6 +258,24 @@ function formatVolume(v) {
   return v.toLocaleString()
 }
 
+// Volume PRICE-SCALE label formatter — the abbreviated axis/last-value tag
+// ("150M", "33.23M", "1.2B"). Applied via priceFormat:{type:'custom'} on the
+// volume series so BOTH the built-in HistogramSeries (columns) AND the custom
+// ThinVolumeSeries (histogram/thin bars) format identically: the custom series
+// does NOT honor the library's built-in type:'volume' formatter, so its axis
+// rendered raw ("150000000.00") — this is the single source of truth for both.
+// Up to 2 decimals, trailing zeros trimmed (150M not 150.00M; 33.23M for a tag).
+function formatVolumeAxis(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return ''
+  const abs = Math.abs(n)
+  const trim = (x, suf) => (x.toFixed(2).replace(/\.?0+$/, '')) + suf
+  if (abs >= 1e9) return trim(n / 1e9, 'B')
+  if (abs >= 1e6) return trim(n / 1e6, 'M')
+  if (abs >= 1e3) return trim(n / 1e3, 'K')
+  return String(Math.round(n))
+}
+
 // Format dollar notional for dark pool bars: "$120.5M", "$1.2B", "$45K"
 function formatDpNotional(v) {
   if (!Number.isFinite(v) || v <= 0) return '$0'
@@ -5167,7 +5185,10 @@ export default function StockChart({
       }
       if (!volumeSeriesRef.current) {
         const volOpts = {
-          priceFormat: { type: 'volume' },
+          // Custom (not type:'volume') so the ThinVolumeSeries custom series
+          // abbreviates its axis too — see formatVolumeAxis. minMove:1 keeps the
+          // gridlines on whole-share intervals (identical look to type:'volume').
+          priceFormat: { type: 'custom', formatter: formatVolumeAxis, minMove: 1 },
           priceScaleId: volScaleId,
           // Model Book: no dashed last-volume price line / axis tag.
           priceLineVisible: !boldCandles && !hidePriceLine,
