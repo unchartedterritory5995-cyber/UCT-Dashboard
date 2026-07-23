@@ -12,6 +12,39 @@ def _w(name: str, default: float) -> float:
     return float(raw) if raw else default
 
 
+def _is_regional_bank_earnings(c: dict) -> bool:
+    """A small/mid regional bank whose only reason to be here is its earnings.
+
+    Regional-bank season (mid-July) reports in a tight cluster of low-beta
+    names that traders don't position around. The move gate in filters.py
+    already drops the dead-flat ones; this catches the mild movers (3-5% on
+    the report) that clear the gate but still aren't real trader catalysts,
+    so they can be pushed below the 5-slot earnings quota unless the print
+    is exceptionally strong.
+
+    Matches on the yfinance `industry` label (Banks—Regional / Banks—
+    Diversified etc.) via a robust 'bank' substring so em-dash / hyphen /
+    spacing variants all hit, gated below a cap floor so money-center
+    giants (JPM/BAC/WFC — always well above the floor) are left untouched.
+    Only fires for earnings-driven rows; a bank gapping on non-earnings
+    news is a legit catalyst and keeps its full score.
+    """
+    if not c.get("earnings_just_reported"):
+        return False
+    industry = (c.get("industry") or "").lower()
+    if "bank" not in industry:
+        return False
+    max_cap = float(os.environ.get("CATALYST_BANK_DEWEIGHT_MAX_CAP",
+                                   str(50_000_000_000)))
+    mc = c.get("market_cap")
+    # Money-center giants (cap at/above the floor) are exempt. Unknown cap
+    # falls through as "small" — a money-center's cap is reliably cached, so
+    # an unknown-cap bank in the pool is almost always a small regional.
+    if isinstance(mc, (int, float)) and mc > 0 and mc >= max_cap:
+        return False
+    return True
+
+
 # Per-category bonus for a Catalyst-Hunter-confirmed catalyst. Lets a real but
 # NOT-yet-moving name (0% gap) rank onto the board instead of sinking to ~0 in a
 # gap-dominated score. Decisive events (M&A/FDA/Halt) outweigh soft news.
@@ -47,6 +80,14 @@ def score(c: dict) -> float:
     # Earnings — huge bonus for AMC/BMO reporters
     if c.get("earnings_just_reported"):
         s += _w("EARNINGS_REPORTED", 20.0)
+
+    # Regional-bank earnings de-weight — mid-July bank season noise. A small/
+    # mid regional bank that only cleared the gate on a mild earnings move
+    # gets penalized so it ranks below the earnings quota cutoff unless the
+    # print is exceptionally strong (a big enough gap out-scores the penalty).
+    # Default -15 roughly cancels most of the +20 EARNINGS_REPORTED bonus.
+    if _is_regional_bank_earnings(c):
+        s += _w("REGIONAL_BANK", -15.0)
 
     # UCT scanner already flagged this — credit it
     if c.get("scanner_setup"):

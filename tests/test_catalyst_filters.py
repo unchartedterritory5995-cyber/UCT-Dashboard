@@ -205,8 +205,56 @@ def test_volume_surge_kept():
     assert passed is True
 
 
-def test_earnings_kept_even_when_flat():
-    passed, _ = is_real_catalyst(_a(gap_pct=0.1, vol_x=1.0, earnings_just_reported=True))
+def test_earnings_with_real_move_kept():
+    # A genuine post-earnings reaction (>= 3% gap) survives.
+    passed, reason = is_real_catalyst(
+        _a(gap_pct=8.0, vol_x=1.0, earnings_just_reported=True))
+    assert passed is True
+    assert reason is None
+
+
+def test_flat_earnings_dropped():
+    # The regional-bank-season noise: reported earnings but barely moved.
+    # Used to be an unconditional keep; now dropped as a sleepy print.
+    passed, reason = is_real_catalyst(
+        _a(gap_pct=0.1, vol_x=1.0, earnings_just_reported=True))
+    assert passed is False
+    assert "sleepy print" in reason.lower()
+
+
+def test_flat_earnings_not_rescued_by_volume():
+    # Report-day volume is always elevated; a 5x volume surge on a flat
+    # earnings print must NOT resurrect it (that's the whole bank problem).
+    passed, _ = is_real_catalyst(
+        _a(gap_pct=1.0, vol_x=5.0, earnings_just_reported=True))
+    assert passed is False
+
+
+def test_flat_earnings_kept_when_scanner_flags_it():
+    # An independent hard signal (UCT scanner) still keeps a flat earnings name.
+    passed, _ = is_real_catalyst(
+        _a(gap_pct=0.5, vol_x=1.0, earnings_just_reported=True,
+           scanner_setup={"setup_type": "PB"}))
+    assert passed is True
+
+
+def test_flat_earnings_kept_when_hunter_confirmed():
+    # A Catalyst-Hunter-confirmed hard catalyst keeps a flat earnings name.
+    passed, _ = is_real_catalyst(
+        _a(gap_pct=0.5, vol_x=1.0, earnings_just_reported=True,
+           hunter_confirmed=True))
+    assert passed is True
+
+
+def test_earnings_min_move_env_tunable(monkeypatch):
+    monkeypatch.setenv("CATALYST_EARNINGS_MIN_MOVE_PCT", "6")
+    # 4% earnings reaction now fails the stricter 6% earnings bar...
+    passed, _ = is_real_catalyst(
+        _a(gap_pct=4.0, vol_x=1.0, earnings_just_reported=True))
+    assert passed is False
+    # ...but a 7% reaction clears it.
+    passed, _ = is_real_catalyst(
+        _a(gap_pct=7.0, vol_x=1.0, earnings_just_reported=True))
     assert passed is True
 
 

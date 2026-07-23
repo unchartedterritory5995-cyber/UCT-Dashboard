@@ -6,6 +6,7 @@ const POINT_COUNT = {
   trendline: 2, ray: 2, extended: 2, horizontal: 1, hray: 1, vertical: 1,
   rect: 2, circle: 2, arrow: 2, text: 1, fib: 2, fibext: 2, channel: 3, measure: 2, avwap: 1,
   pitchfork: 3, advance: 2, cup: 3,
+  priceRange: 2, dateRange: 2, position: 3,
 }
 
 // Alt+<letter> → drawing tool (keyboard arm). Keyed on KeyboardEvent.code so it is
@@ -13,8 +14,10 @@ const POINT_COUNT = {
 const ALT_TOOL = {
   KeyT: 'trendline', KeyH: 'horizontal', KeyJ: 'hray', KeyV: 'vertical',
   KeyR: 'rect', KeyC: 'circle', KeyA: 'arrow', KeyF: 'fib', KeyE: 'fibext',
-  KeyW: 'avwap', KeyX: 'text',
+  KeyW: 'avwap', KeyX: 'text', KeyP: 'position',
 }
+// Alt+Shift+<letter> → the power-user tools.
+const ALT_SHIFT_TOOL = { KeyP: 'priceRange', KeyD: 'dateRange', KeyE: 'eraser' }
 
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
 const FIB_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa']
@@ -472,18 +475,58 @@ function renderMeasure(ctx, pts, drawing, pctOnly = false) {
     const pct = ((diff / p1Price) * 100).toFixed(2)
     const bars = drawing.barCount || ''
     const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2
+    const type = drawing.type
     ctx.font = 'bold 11px "Instrument Sans", sans-serif'
     ctx.fillStyle = ctx.strokeStyle
     ctx.textAlign = 'center'
     if (pctOnly) {
       // Just the % move — for marking the size of an index correction.
       ctx.fillText(`${diff >= 0 ? '+' : ''}${pct}%`, cx, cy + 4)
+    } else if (type === 'priceRange') {
+      // Price delta only: $ move + %.
+      ctx.fillText(`${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`, cx, cy + 4)
+    } else if (type === 'dateRange') {
+      // Horizontal span only: bar count.
+      ctx.fillText(bars ? `${bars} bars` : '', cx, cy + 4)
     } else {
       const line1 = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`
       const line2 = bars ? `${bars} bars` : ''
       ctx.fillText(line1, cx, cy - 4)
       if (line2) ctx.fillText(line2, cx, cy + 12)
     }
+    ctx.textAlign = 'start'
+  }
+}
+
+// Long/short position (risk-reward): 3 points — entry, stop, target. Shades the
+// risk zone (entry→stop) red and the reward zone (entry→target) green, and labels
+// the R multiple + per-share risk/reward.
+function renderPosition(ctx, pts) {
+  if (pts.length < 3) return
+  const [entry, stop, target] = pts
+  const xs = pts.map(p => p.x)
+  const xL = Math.min(...xs), xR = Math.max(...xs)
+  const wBox = Math.max(40, xR - xL)
+  ctx.save()
+  ctx.globalAlpha = 0.10
+  ctx.fillStyle = '#ef4444'
+  ctx.fillRect(xL, Math.min(entry.y, stop.y), wBox, Math.abs(stop.y - entry.y))
+  ctx.fillStyle = '#22c55e'
+  ctx.fillRect(xL, Math.min(entry.y, target.y), wBox, Math.abs(target.y - entry.y))
+  ctx.restore()
+  const line = (y, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5
+    ctx.beginPath(); ctx.moveTo(xL, y); ctx.lineTo(xL + wBox, y); ctx.stroke()
+  }
+  line(entry.y, '#c9a84c'); line(stop.y, '#ef4444'); line(target.y, '#22c55e')
+  const e = entry.rawPrice, s = stop.rawPrice, t = target.rawPrice
+  if (e != null && s != null && t != null) {
+    const risk = Math.abs(e - s), reward = Math.abs(t - e)
+    const rr = risk > 0 ? (reward / risk).toFixed(2) : '∞'
+    ctx.font = 'bold 11px "Instrument Sans", sans-serif'
+    ctx.fillStyle = '#e8e6e0'
+    ctx.textAlign = 'left'
+    ctx.fillText(`R:R ${rr} · risk ${risk.toFixed(2)} · reward ${reward.toFixed(2)}`, xL + 6, Math.min(entry.y, stop.y, target.y) - 6)
     ctx.textAlign = 'start'
   }
 }
@@ -658,11 +701,18 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
       }
       return false
     }
-    case 'measure': {
+    case 'measure':
+    case 'priceRange':
+    case 'dateRange': {
       if (pts.length < 2) return false
       const bx1 = Math.min(pts[0].x, pts[1].x), by1 = Math.min(pts[0].y, pts[1].y)
       const bx2 = Math.max(pts[0].x, pts[1].x), by2 = Math.max(pts[0].y, pts[1].y)
       return mx >= bx1 && mx <= bx2 && my >= by1 && my <= by2
+    }
+    case 'position': {
+      if (pts.length < 3) return false
+      const xs = pts.map(p => p.x), ys = pts.map(p => p.y)
+      return mx >= Math.min(...xs) && mx <= Math.max(...xs) && my >= Math.min(...ys) && my <= Math.max(...ys)
     }
     case 'avwap':
       return pts.length >= 1 && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD * 2
@@ -1204,6 +1254,9 @@ export default function ChartDrawingOverlay({
         case 'channel': renderChannel(ctx, pts, w, h); break
         case 'cup': renderCup(ctx, pts); break
         case 'measure': renderMeasure(ctx, pts, d, measurePctOnly); break
+        case 'priceRange': renderMeasure(ctx, pts, d); break
+        case 'dateRange': renderMeasure(ctx, pts, d); break
+        case 'position': renderPosition(ctx, pts); break
         case 'advance': {
           // Recompute the % from the live bars (candle mode) so EXISTING labels are
           // corrected — older ones were stored with a wrong formula (open→high,
@@ -1261,6 +1314,18 @@ export default function ChartDrawingOverlay({
             renderMeasure(ctx, previewPts, md, measurePctOnly)
             break
           }
+          case 'priceRange': renderMeasure(ctx, previewPts, { type: 'priceRange' }); break
+          case 'dateRange': {
+            const md = {
+              type: 'dateRange',
+              barCount: pendingPoints[0] && mouseCoords
+                ? Math.abs((timeToIndex.get(mouseCoords.time) || 0) - (timeToIndex.get(pendingPoints[0].time) || 0))
+                : 0,
+            }
+            renderMeasure(ctx, previewPts, md)
+            break
+          }
+          case 'position': renderPosition(ctx, previewPts); break
           case 'avwap': renderAnchoredVwap(ctx, pendingPoints[0] || mouseCoords, bars, timeToIndex, toPixel); break
           case 'advance': {
             renderTrendline(ctx, previewPts)   // faint connector so the span is visible while placing
@@ -1484,6 +1549,17 @@ export default function ChartDrawingOverlay({
 
     const coords = snap(toChart(pos.x, pos.y))
 
+    // ── ERASER: click a drawing to delete it (stays armed for more) ──
+    if (activeTool === 'eraser') {
+      e.preventDefault()
+      const hitId = hitTestAll(pos.x, pos.y)
+      if (hitId) {
+        const d = drawings.find(dr => dr.id === hitId)
+        if (d && !d.locked) { removeDrawing(hitId); if (selectedId === hitId) setSelectedId(null) }
+      }
+      return
+    }
+
     // ── CURSOR MODE: select + drag ──
     // Also the implicit no-tool case: the overlay only receives this pointerdown
     // (pointerEvents flipped to 'auto') because the mouse is hovering a drawing,
@@ -1563,7 +1639,7 @@ export default function ChartDrawingOverlay({
           lineWidth,
           lineStyle,   // 'solid' | 'dashed' — honored for line-type drawings
         }
-        if (activeTool === 'measure' && newPending.length >= 2) {
+        if ((activeTool === 'measure' || activeTool === 'dateRange') && newPending.length >= 2) {
           const idx0 = timeToIndex.get(newPending[0].time) || 0
           const idx1 = timeToIndex.get(newPending[newPending.length - 1].time) || 0
           drawingData.barCount = Math.abs(idx1 - idx0)
@@ -1598,7 +1674,7 @@ export default function ChartDrawingOverlay({
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, hoverActive, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging])
+  }, [activeTool, hoverActive, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging, removeDrawing, selectedId])
 
   const handlePointerMove = useCallback((e) => {
     const pos = getCanvasPos(e)
@@ -1903,6 +1979,11 @@ export default function ChartDrawingOverlay({
       if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && ALT_TOOL[e.code]) {
         e.preventDefault()
         setActiveTool(ALT_TOOL[e.code])
+        return
+      }
+      if (e.altKey && !e.ctrlKey && !e.metaKey && e.shiftKey && ALT_SHIFT_TOOL[e.code]) {
+        e.preventDefault()
+        setActiveTool(ALT_SHIFT_TOOL[e.code])
         return
       }
       // Tool shortcuts
