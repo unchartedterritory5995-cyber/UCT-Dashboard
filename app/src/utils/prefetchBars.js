@@ -197,6 +197,42 @@ export function prefetchBarsToIDB(tickers, tf = 'D') {
   _idbKickSoon()
 }
 
+// ── IDB → mem promotion (no network) ─────────────────────────────────────────
+// StockChart paints a ticker switch on the FIRST render only when the sync mem
+// cache has the (sym, tf) — its memPeek fallback. The durable warmers above
+// deliberately skip memPut for already-IDB-warm tickers, so while arrow-key
+// scanning a warmed list every switch still paid the async idbGet hop (~2-3
+// React commits + IDB latency = the perceptible "pop" delay). This promotes
+// already-durable bars straight into mem for a small window of tickers (the
+// scan neighbors) so the next press paints in the same frame. Zero network.
+//
+// Staleness: mirrors StockChart's idbStaleIntraday gate — an intraday entry
+// whose newest bar is older than max(6 tf-periods, 20min) is NOT promoted,
+// because the chart itself refuses to paint it (it full-refetches instead);
+// promoting it would flash an old session mid-scan. D/W/M always promote.
+const _INTRADAY_TFS = new Set(['1', '5', '15', '30', '60'])
+function _memPromoteFresh(tf, lastT) {
+  if (!_INTRADAY_TFS.has(String(tf))) return true
+  if (typeof lastT !== 'number') return false
+  const tfSec = Math.max(60, (Number(tf) || 5) * 60)
+  return (Date.now() / 1000 - lastT) <= Math.max(6 * tfSec, 20 * 60)
+}
+
+export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
+  if (!tickers?.length) return
+  for (const sym of tickers) {
+    if (!sym) continue
+    for (const tf of tfs) {
+      if (memHas(sym, tf)) continue        // already hot — pure no-op per press
+      idbGet(sym, tf).then(entry => {
+        if (entry?.bars?.length && !memHas(sym, tf) && _memPromoteFresh(tf, entry.lastT)) {
+          memPut(sym, tf, entry.bars)
+        }
+      }).catch(() => { /* best-effort accelerator; IDB stays the fallback */ })
+    }
+  }
+}
+
 // ── Intent prefetch (hover / keyboard focus) ─────────────────────────────────
 // Warms mem + IDB + SWR for ONE timeframe on hover/focus so the eventual click
 // paints instantly. Debounced (so brushing across a list doesn't fire), and a
@@ -207,6 +243,14 @@ const _intentTimers = new Map()
 async function _warmIntentNow(sym, tf) {
   if (memHas(sym, tf)) return
   try {
+    // IDB-first: a durable, fresh-enough entry promotes to mem with zero
+    // network — the hover/focus click then paints same-frame. Only a cold or
+    // stale-intraday miss pays the fetch.
+    const have = await idbGet(sym, tf)
+    if (have?.bars?.length && _memPromoteFresh(tf, have.lastT)) {
+      memPut(sym, tf, have.bars)
+      return
+    }
     const json = await preload(_url(sym, tf), fetcher) // dedupes + warms SWR cache
     if (json?.bars?.length && !json.delta) {
       memPut(sym, tf, json.bars)

@@ -3,7 +3,11 @@
 // in here paints in the SAME synchronous frame — no async idbGet hop, no
 // spinner flash. IDB stays the durable layer; this map is wiped on reload by
 // design (a small, hot, recency-bounded working set).
-const MEM_CACHE_MAX = 60
+// 200 (was 60): the watchlist scan-warm promotes ±6 neighbors × 5 TFs (~60
+// entries) around the selection — at 60 the promotion itself LRU-evicted the
+// rest of the working set. First-paint entries are ~600 bars (~50KB), so 200
+// entries stays around ~10MB worst-case.
+const MEM_CACHE_MAX = 200
 const _map = new Map() // insertion-ordered; delete+set marks most-recently-used
 
 function _key(sym, tf) {

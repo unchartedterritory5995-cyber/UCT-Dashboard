@@ -15,7 +15,7 @@ import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import useTagColors from '../hooks/useTagColors'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
-import { prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes } from '../utils/prefetchBars'
+import { prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes, warmMemFromIDB } from '../utils/prefetchBars'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
@@ -791,6 +791,38 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     prefetchBarsToIDB(visibleSymsFlat, chartPeriod)
     if (chartPeriod !== 'D') prefetchBarsToIDB(visibleSymsFlat, 'D')
   }, [visibleSymsFlat, chartPeriod])
+
+  // Same-frame scan paint: promote the ±6 arrow-nav neighbors' cached bars from
+  // IndexedDB into the synchronous mem cache (zero network) so the NEXT press
+  // paints on the first render via StockChart's memPeek fallback, instead of
+  // paying the async idbGet hop (the perceptible "pop" delay while scanning).
+  // Neighbors come from the DOM order (same derivation as the keydown handler)
+  // so this matches the on-screen rows under any active column sort; wrap-aware
+  // to mirror the nav's end-of-list wrap. memHas-skip inside warmMemFromIDB
+  // makes repeat presses ~free (only the new frontier ticker reads IDB).
+  useEffect(() => {
+    if (!selectedSym) return
+    let flat = []
+    const root = pageRef.current
+    if (root) {
+      const seen = new Set()
+      root.querySelectorAll('[data-watch-sym]').forEach(el => {
+        const s = el.getAttribute('data-watch-sym')
+        if (s && !seen.has(s)) { seen.add(s); flat.push(s) }
+      })
+    }
+    if (!flat.length) flat = visibleSymsFlat
+    const idx = flat.indexOf(selectedSym)
+    if (idx < 0 || flat.length < 2) return
+    const len = flat.length
+    const around = new Set()
+    for (let d = 1; d <= 6; d++) {
+      around.add(flat[(idx + d) % len])
+      around.add(flat[(idx - d + len) % len])
+    }
+    around.delete(selectedSym)
+    warmMemFromIDB([...around])
+  }, [selectedSym, visibleSymsFlat])
 
   // Prefetch all timeframes for current ticker + adjacent flagged tickers
   useEffect(() => {
