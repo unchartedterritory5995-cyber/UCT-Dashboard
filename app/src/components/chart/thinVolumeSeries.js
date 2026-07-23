@@ -37,8 +37,13 @@ class ThinVolumeRenderer {
       // Clamped: never wider than slot−1px (the gap must survive tight zooms),
       // never thinner than 1 device px (visible at extreme zoom-out).
       const slot = data.barSpacing * hpr
-      const ratio = Math.min(0.9, Math.max(0.1, Number(options.widthRatio) || 0.45))
+      const ratio = Math.min(0.9, Math.max(0.1, Number(options.widthRatio) || 0.62))
       let w = Math.round(slot * ratio)
+      // Floor of 2 device px when the slot allows it — a 1px sliver + dark gap
+      // reads as "50% opacity" next to the full-slot columns (owner report,
+      // 2026-07-22: pixel-probe showed IDENTICAL RGB in both styles; the dimness
+      // was pure perception from the bar:gap area ratio).
+      if (w < 2 && slot >= 4) w = 2
       if (w >= slot) w = Math.floor(slot) - 1
       if (w < 1) w = 1
       for (let i = data.visibleRange.from; i < data.visibleRange.to; i++) {
@@ -92,7 +97,10 @@ export class ThinVolumeSeries {
   defaultOptions() {
     return {
       color: '#1ae51a',
-      widthRatio: 0.45,   // bar width as a fraction of the bar slot (gap = the rest)
+      // Bar width as a fraction of the bar slot (gap = the rest). 0.62 keeps a
+      // clear gap while the bars carry enough area to match the columns style's
+      // visual weight (0.45 read ~"50% opacity" to the owner at daily zoom).
+      widthRatio: 0.62,
     }
   }
 }

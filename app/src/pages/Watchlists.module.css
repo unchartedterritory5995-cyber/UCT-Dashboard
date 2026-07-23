@@ -97,7 +97,11 @@
 .listBody {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  /* Columns wider than the widget scroll HORIZONTALLY (owner ask, 2026-07-22) —
+     a bottom scrollbar identical to the right-side one appears instead of the
+     old deliberate right-edge clip. Rows/header carry width:max-content so the
+     scrolled content spans the full column set. */
+  overflow-x: auto;
   /* No scrollbar-gutter reserve: the scrollbar (and its gutter) only appears when the
      list is long enough to scroll. On a short list the rows — and the selected-row
      gold tint — extend to the widget's right edge. The header + rows stay aligned
@@ -109,7 +113,7 @@
   scrollbar-width: thin;
   scrollbar-color: var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.14))) transparent;
 }
-.listBody::-webkit-scrollbar { width: 10px; }
+.listBody::-webkit-scrollbar { width: 10px; height: 10px; }
 .listBody::-webkit-scrollbar-track { background: transparent; }
 .listBody::-webkit-scrollbar-thumb {
   background: var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.14)));
@@ -135,6 +139,10 @@
   padding: 0 8px;
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
+  /* Span the FULL column set when it overflows the widget (h-scroll), but never
+     shrink below the scrollport so short column sets still fill edge-to-edge. */
+  width: max-content;
+  min-width: 100%;
   /* Follows the canvas like the rest of the widget chrome (see .listHeader). */
   background: var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated)));
   border-bottom: 1px solid var(--widget-divider, var(--wl-divider, var(--border)));
@@ -225,6 +233,10 @@
   border-bottom: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));  /* horizontal gridline */
   transition: background 0.1s;
   position: relative;
+  box-sizing: border-box;
+  /* Match .gridHead: full column set when overflowing (h-scroll), full-bleed otherwise. */
+  width: max-content;
+  min-width: 100%;
 }
 /* Vertical gridlines on the RIGHT of every column (so the LAST column gets one too),
    full-height (align-items:stretch) → they connect to the horizontal lines = one grid.

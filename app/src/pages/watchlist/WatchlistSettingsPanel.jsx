@@ -100,6 +100,9 @@ export default function WatchlistSettingsPanel({ settings: s, onChange, onReset,
       case 'bg': return s.bg
       case 'gradTop': return s.bgGradient.top
       case 'gradBottom': return s.bgGradient.bottom
+      // Unset = AUTO (canvas-derived) — show the dark default's derived line so
+      // the swatch reads as the current on-screen gridline, not a blank.
+      case 'gridColor': return s.gridColor || 'rgba(255,255,255,0.11)'
       default: return s[t]
     }
   }
@@ -183,6 +186,10 @@ export default function WatchlistSettingsPanel({ settings: s, onChange, onReset,
           <div className={styles.sectionLabel}>% Change</div>
           <Row label="Up">{swatch('upColor', 'Up')}</Row>
           <Row label="Down">{swatch('downColor', 'Down')}</Row>
+
+          {/* Gridlines */}
+          <div className={styles.sectionLabel}>Gridlines</div>
+          <Row label="Line color" hint="all column + row lines">{swatch('gridColor', 'Gridlines')}</Row>
 
           {/* Tick flash */}
           <div className={styles.sectionLabel}>Tick flash</div>

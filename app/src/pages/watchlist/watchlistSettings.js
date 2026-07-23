@@ -37,6 +37,12 @@ export const WATCHLIST_DEFAULTS = {
   // Company logos before the ticker in the Symbol column.
   showLogos: true,
 
+  // Gridline color for ALL watchlist gridlines (column + row hairlines + the
+  // scrollbar thumb, which is drawn from the same divider var). Empty string =
+  // AUTO: derive a contrast-matched line from the canvas (the long-standing
+  // behavior). An 8-digit hex keeps its alpha (the ColorPanel opacity slider).
+  gridColor: '',
+
   // Text size for the whole watchlist surface, in px, as shown in the settings
   // dropdown. This is the ROW text size (ticker/price/volume); every other element
   // on the surface (group headers, column labels, badges) sits at its own base size
@@ -104,6 +110,14 @@ export function watchlistStyleVars(s) {
   const divStrong = dividerFor(solid, { strong: true })
   if (div) vars['--wl-divider'] = div
   if (divStrong) vars['--wl-divider-strong'] = divStrong
+  // Explicit gridline color overrides the canvas-derived lines (both weights —
+  // the user picked ONE color for "all gridlines"). NB: inside the /charts
+  // workspace --widget-divider* wins over these vars, so ChartsWorkspace's
+  // widgetCanvasByType must mirror this override (it does — keep in sync).
+  if (s.gridColor) {
+    vars['--wl-divider'] = s.gridColor
+    vars['--wl-divider-strong'] = s.gridColor
+  }
 
   // Header text + gold accent, contrast-matched to the canvas (gold on white is barely
   // legible), and the row-hover fill — one small step AWAY from the canvas, so it's a

@@ -364,9 +364,18 @@ export default function ChartsWorkspace() {
       canvas, divider: dividerFor(canvas), dividerStrong: dividerFor(canvas, { strong: true }),
       chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
     })
+    // The watchlist's explicit gridline color (Watchlist Settings → Gridlines)
+    // must override the canvas-derived divider HERE too — inside the workspace
+    // the widget CSS reads --widget-divider* before --wl-divider* (keep in sync
+    // with watchlistStyleVars' identical override).
+    const watchlistEntry = entry(watchlist)
+    if (wl.gridColor) {
+      watchlistEntry.divider = wl.gridColor
+      watchlistEntry.dividerStrong = wl.gridColor
+    }
     return {
       chart: entry(chart),
-      watchlist: entry(watchlist),
+      watchlist: watchlistEntry,
       ...(ttCustom ? { themes: entry(themes) } : {}),
       ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
     }
