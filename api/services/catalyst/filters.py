@@ -107,9 +107,12 @@ def is_real_catalyst(c: dict) -> tuple[bool, Optional[str]]:
 
     Distinct from quality_gate (which judges the TICKER). This judges the
     SITUATION: a catalyst row should earn a slot only when there's a real
-    move, a real volume surge, or a hard catalyst (earnings just reported /
-    scanner setup). A dead-flat stock on normal volume with only vague prose
-    about it is NOT a catalyst — that's the PAR / MEDP / FTRE failure mode.
+    move, a real volume surge, or a hard catalyst (scanner setup / analyst
+    action / Hunter-confirmed event, or an earnings print that actually MOVED
+    the stock). A dead-flat stock on normal volume with only vague prose about
+    it is NOT a catalyst — that's the PAR / MEDP / FTRE failure mode, and it's
+    also every sleepy regional-bank earnings print that used to flood the list
+    in July.
 
     Deliberately keys on MOVE + VOLUME, not on whether fresh news exists: a
     big pre-market gap with no headline is often momentum / continuation from
@@ -120,18 +123,44 @@ def is_real_catalyst(c: dict) -> tuple[bool, Optional[str]]:
     """
     min_move = _f("CATALYST_MIN_MOVE_PCT", 3.0)
     min_volx = _f("CATALYST_MIN_VOLX", 2.0)
+    earnings_min_move = _f("CATALYST_EARNINGS_MIN_MOVE_PCT", 3.0)
 
     gap = c.get("gap_pct")
     gap_abs = abs(float(gap)) if isinstance(gap, (int, float)) else 0.0
     vol_x = c.get("vol_x")
     vol_f = float(vol_x) if isinstance(vol_x, (int, float)) else 0.0
 
+    # ── Earnings names must show a real price REACTION to earn a slot. ──
+    # "A company reported earnings" is NOT itself a catalyst a trader cares
+    # about — mid-July regional-bank season floods the EarningsWhispers
+    # calendar with names that report and barely move, and nobody is
+    # positioning around a dead-flat bank print. So an earnings row is kept
+    # only when it actually moved (earnings_min_move) OR carries an
+    # independent hard signal (scanner / analyst / Hunter-confirmed). Report-
+    # day volume is ALWAYS elevated, so we deliberately do NOT fall through to
+    # the volume-surge rescue below — volume alone must not resurrect a flat
+    # earnings name. (This replaces the old unconditional earnings pass.)
+    # earnings_min_move is env-tunable; note it only ever makes earnings
+    # STRICTER than the general move gate — a name gapping past min_move
+    # already qualifies as a normal mover regardless of earnings.
+    if c.get("earnings_just_reported"):
+        if gap_abs >= earnings_min_move:
+            return True, None                          # real earnings reaction
+        if c.get("scanner_setup"):
+            return True, None                          # independent hard signal
+        if c.get("analyst_meta"):
+            return True, None                          # independent hard signal
+        if c.get("hunter_confirmed"):
+            return True, None                          # Hunter-confirmed hard catalyst
+        return False, (
+            f"earnings reported but no real reaction "
+            f"(gap {gap_abs:.1f}% < {earnings_min_move:.0f}%) — sleepy print"
+        )
+
     if gap_abs >= min_move:
         return True, None                              # real move (incl. momentum)
     if vol_f >= min_volx:
         return True, None                              # real volume surge
-    if c.get("earnings_just_reported"):
-        return True, None                              # hard catalyst
     if c.get("scanner_setup"):
         return True, None                              # UCT scanner flagged it
     if c.get("analyst_meta"):
