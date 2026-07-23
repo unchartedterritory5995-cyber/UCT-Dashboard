@@ -1,10 +1,11 @@
 // app/src/pages/FlowRender.jsx — headless, token-gated "Notable Options Flow" export.
 //
-// Renders the prior session's biggest single-contract option orders as a branded
-// panel for the Morning Wire → Substack newsletter. Each row leads with the
-// contract (strike + call/put), then expiry, order size, and a vol/OI "×N" tag
-// when the order traded unusually vs the strike's open interest. A headless browser
-// navigates here, waits for window.__panelReady, and screenshots #panel-export.
+// The prior session's biggest single-contract option orders. Each row leads with the
+// contract (strike + call/put, the hero), plus: a quiet sentiment accent (stripe +
+// size-bar color, classified bull/bear from the buy/sell side), a relative-size bar,
+// the timeframe/urgency (near-dated vs LEAP), whether it was bought/sold, and a vol/OI
+// "×N" tag when unusual. A headless browser waits for window.__panelReady and
+// screenshots #panel-export.
 //
 // Public route (no AuthGuard). Data from /api/r/flow?token= (token-gated read of the
 // engine's wire["options_flow"]). ?token= checked vs VITE_CHART_RENDER_TOKEN.
@@ -14,27 +15,48 @@ import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
 const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
+const URG = {
+  hot: { c: '#ffd7a0', b: 'rgba(201,120,40,0.22)' },
+  near: { c: '#9aa7b4', b: 'rgba(255,255,255,0.05)' },
+  mid: { c: '#8b96a3', b: 'rgba(255,255,255,0.04)' },
+  leap: { c: '#6b7480', b: 'rgba(255,255,255,0.03)' },
+}
 
 function OrderRow({ o }) {
   const call = String(o.cp || '').toUpperCase() === 'C'
-  const color = call ? '#3fb950' : '#e5534b'
+  const bull = o.sentiment === 'bull'
+  const sentColor = bull ? '#3fb950' : '#e5534b'
+  const u = URG[o.urgency_cls] || URG.mid
   return (
     <div style={{
-      display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 14px',
-      background: '#121212', border: '1px solid #232323', borderRadius: 9, marginBottom: 7,
+      position: 'relative', display: 'flex', alignItems: 'baseline', gap: 13,
+      padding: '11px 14px 11px 16px', background: '#141414', border: '1px solid #202020',
+      borderRadius: 9, marginBottom: 7, overflow: 'hidden',
     }}>
-      <span style={{ minWidth: 66, fontWeight: 800, fontSize: 14, color: '#e8e8e8', fontFamily: "'IBM Plex Mono',monospace" }}>
+      {/* relative-size bar (faint, colored by sentiment) */}
+      <span style={{
+        position: 'absolute', inset: '0 auto 0 0', width: `${o.size_pct || 0}%`, zIndex: 0,
+        opacity: 0.12, borderRadius: 9,
+        background: `linear-gradient(90deg, ${sentColor}, transparent)`,
+      }} />
+      {/* quiet sentiment stripe */}
+      <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, zIndex: 2, background: sentColor, borderRadius: '9px 0 0 9px' }} />
+      <span style={{ position: 'relative', zIndex: 1, minWidth: 60, fontWeight: 700, fontSize: 13.5, color: '#e8e8e8', fontFamily: "'IBM Plex Mono',monospace" }}>
         {String(o.sym || '').toUpperCase()}
-        {o.er && <span style={{ marginLeft: 5, fontSize: 8.5, fontWeight: 700, color: '#c9a84c', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 3, padding: '0 3px', verticalAlign: 'middle' }}>ER</span>}
+        {o.er && <span style={{ marginLeft: 5, fontSize: 8, fontWeight: 700, color: '#c9a84c', border: '1px solid rgba(201,168,76,0.5)', borderRadius: 3, padding: '0 3px', verticalAlign: 'middle' }}>ER</span>}
       </span>
-      <span style={{ minWidth: 150, fontWeight: 800, fontSize: 17, color, fontFamily: "'IBM Plex Mono',monospace", letterSpacing: '0.2px' }}>
+      <span style={{ position: 'relative', zIndex: 1, minWidth: 146, fontWeight: 800, fontSize: 16, color: call ? '#3fb950' : '#e5534b', fontFamily: "'IBM Plex Mono',monospace", letterSpacing: '0.2px' }}>
         {o.strike_label} {o.call_put}
       </span>
-      <span style={{ minWidth: 66, fontSize: 13, color: '#8b96a3' }}>{o.exp_label}</span>
-      <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 14.5, color: '#e8e8e8' }}>{o.prem_spoken}</span>
-      {o.vol_oi_tag && (
-        <span style={{ minWidth: 44, textAlign: 'right', fontWeight: 800, fontSize: 13, color: '#c9a84c' }}>{o.vol_oi_tag}</span>
+      <span style={{ position: 'relative', zIndex: 1, minWidth: 56, fontSize: 12, color: '#8b96a3' }}>{o.exp_label}</span>
+      {o.urgency && (
+        <span style={{ position: 'relative', zIndex: 1, fontSize: 10.5, fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace", color: u.c, background: u.b, padding: '1px 6px', borderRadius: 5 }}>{o.urgency}</span>
       )}
+      <span style={{ position: 'relative', zIndex: 1, marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 12 }}>
+        {o.bought && <span style={{ fontSize: 10.5, color: '#6b7480', fontFamily: "'IBM Plex Mono',monospace" }}>{o.bought}</span>}
+        <span style={{ fontWeight: 700, fontSize: 14, color: '#e8e8e8' }}>{o.prem_spoken}</span>
+        {o.vol_oi_tag && <span style={{ minWidth: 38, textAlign: 'right', fontWeight: 800, fontSize: 13, color: '#c9a84c', fontFamily: "'IBM Plex Mono',monospace" }}>{o.vol_oi_tag}</span>}
+      </span>
     </div>
   )
 }
@@ -77,7 +99,7 @@ export default function FlowRender() {
         </div>
         <div style={{ padding: '14px 18px 8px' }}>
           <div style={{ color: '#7f8ea3', fontSize: 11.5, marginBottom: 12 }}>
-            Prior session · the biggest single-contract orders · <span style={{ color: '#c9a84c' }}>×</span> = volume vs open interest
+            Prior session · biggest single-contract orders · bar = relative size · <span style={{ color: '#c9a84c' }}>×</span> = volume vs open interest
           </div>
           {orders.length === 0 && <div style={{ color: '#888', padding: 12 }}>No notable flow.</div>}
           {orders.map((o, i) => <OrderRow key={i} o={o} />)}

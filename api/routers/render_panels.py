@@ -116,8 +116,8 @@ def render_earnings_history(token: str = "", syms: str = ""):
 # Public-safe flow fields — the structured conviction board the engine already
 # emits into wire["options_flow"]. Same board the FREE OptionsFlow page shows; the
 # rows are display-shaped (no raw signal-sourcing), so we pass them through capped.
-_FLOW_PUBLIC = ("sym", "cp", "call_put", "strike_label", "exp_label",
-                "prem_spoken", "vol_oi_tag", "er")
+_FLOW_PUBLIC = ("sym", "cp", "call_put", "strike_label", "exp_label", "prem_spoken",
+                "vol_oi_tag", "er", "sentiment", "urgency", "urgency_cls", "bought", "size_pct")
 
 
 @router.get("/r/flow")
