@@ -93,6 +93,7 @@ export const SHORTCUTS = [
   { keys: 'Alt+U', command: 'toggle:vwap', description: 'Toggle session VWAP' },
   { keys: 'Alt+Shift+W', command: 'toggle:watermark', description: 'Toggle symbol watermark' },
   { keys: 'Alt+I', command: 'toggle:invert', description: 'Invert price scale' },
+  { keys: 'Alt+Shift+I', command: 'toggle:hideindicators', description: 'Hide all indicators' },
 
   // Indicator toggles (Ctrl/Cmd held)
   { keys: 'Ctrl+I', command: 'toggle:rsi', description: 'Toggle RSI' },
@@ -112,6 +113,8 @@ export const SHORTCUTS = [
   { keys: 'Alt+Shift+A', command: 'addindicator', description: 'Add indicator (settings)' },
   { keys: 'Alt+S', command: 'screenshot', description: 'Screenshot chart (PNG)' },
   { keys: 'Alt+G', command: 'gotodate', description: 'Go to date' },
+  { keys: 'Alt+Q', command: 'addwatchlist', description: 'Add ticker to watchlist' },
+  { keys: 'Alt+N', command: 'pricealert', description: 'Price alert at cursor' },
   { keys: 'Alt+\\', command: 'gridcycle', description: 'Cycle grid layout (multi-chart)' },
   { keys: '?', command: 'help', description: 'Show this help overlay' },
 ];

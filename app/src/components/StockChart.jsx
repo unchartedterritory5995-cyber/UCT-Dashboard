@@ -2959,6 +2959,9 @@ export default function StockChart({
   // of truth. Covers timeframes, drawing tools, display toggles, indicator
   // toggles, replay controls, and the help overlay. Replaces the older
   // hand-rolled handler that lived here previously.
+  // Bridge for Alt-key actions whose callbacks are defined later in the component
+  // (the keydown effect is declared up here). Assigned each render further down.
+  const altActionsRef = useRef({})
   const hotkeysActiveRef = useRef(hotkeysActive)
   hotkeysActiveRef.current = hotkeysActive
   // Repeat-press timeframe cycling: remembers which timeframe key was pressed
@@ -3022,6 +3025,24 @@ export default function StockChart({
         if (!e.shiftKey && e.code === 'KeyG') {
           e.preventDefault()
           setDateJumpOpen(true)
+          return
+        }
+        // Alt+Shift+I → hide / show all indicators (declutter toggle).
+        if (e.shiftKey && e.code === 'KeyI') {
+          e.preventDefault()
+          altActionsRef.current.toggleIndicatorsHidden?.()
+          return
+        }
+        // Alt+Q → add the current ticker to a watchlist (quick picker).
+        if (!e.shiftKey && e.code === 'KeyQ') {
+          e.preventDefault()
+          altActionsRef.current.openAddList?.()
+          return
+        }
+        // Alt+N → drop a price alert at the cursor's price level.
+        if (!e.shiftKey && e.code === 'KeyN') {
+          e.preventDefault()
+          altActionsRef.current.createAlertAtCursor?.()
           return
         }
         // Alt+S → download a PNG screenshot of the chart (LWC panes: candles,
@@ -7405,6 +7426,80 @@ export default function StockChart({
     try { chart.timeScale().setVisibleLogicalRange({ from: bestIdx - 50, to: bestIdx + 50 }) } catch { /* out of range */ }
   }, [])
 
+  // ── Hide all indicators (Alt+Shift+I) · add-to-watchlist (Alt+Q) · alert (Alt+N) ──
+  const [indicatorsHidden, setIndicatorsHidden] = useState(false)
+  const [addListOpen, setAddListOpen] = useState(false)
+  const [addLists, setAddLists] = useState([])
+  const cursorPriceRef = useRef(null)
+  const [chartToast, setChartToast] = useState(null)
+  const chartToastTimer = useRef(null)
+  const showChartToast = useCallback((msg) => {
+    setChartToast(msg)
+    clearTimeout(chartToastTimer.current)
+    chartToastTimer.current = setTimeout(() => setChartToast(null), 1900)
+  }, [])
+
+  const openAddList = useCallback(async () => {
+    setAddListOpen(true)
+    try {
+      const r = await fetch('/api/watchlists')
+      if (r.ok) { const d = await r.json(); setAddLists(Array.isArray(d) ? d : (d.watchlists || d.lists || [])) }
+    } catch { /* offline / unauth */ }
+  }, [])
+  const addToList = useCallback(async (listId) => {
+    setAddListOpen(false)
+    try {
+      const r = await fetch(`/api/watchlists/${listId}/items`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sym, notes: '' }),
+      })
+      showChartToast(r.ok ? `${sym} added` : 'Could not add')
+    } catch { showChartToast('Could not add') }
+  }, [sym, showChartToast])
+  const createAlertAtCursor = useCallback(async () => {
+    const price = cursorPriceRef.current
+    if (price == null || !Number.isFinite(price) || !sym) { showChartToast('Hover the chart, then press Alt+N'); return }
+    const arr = drawBarsRef.current || []
+    const last = arr.length ? arr[arr.length - 1]?.c : null
+    const direction = (last != null && price < last) ? 'below' : 'above'
+    try {
+      const r = await fetch('/api/watchlist-alerts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sym, target_price: Number(price.toFixed(2)), direction }),
+      })
+      showChartToast(r.ok ? `Alert ${direction} ${price.toFixed(2)}` : 'Alert failed')
+    } catch { showChartToast('Alert failed') }
+  }, [sym, showChartToast])
+  altActionsRef.current = {
+    toggleIndicatorsHidden: () => setIndicatorsHidden(h => !h),
+    openAddList, createAlertAtCursor,
+  }
+
+  // Track the cursor's price level for the alert-at-cursor shortcut.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady) return undefined
+    const onMove = (ev) => {
+      const series = candleSeriesRef.current
+      if (!series) return
+      const r = el.getBoundingClientRect()
+      try { cursorPriceRef.current = series.coordinateToPrice(ev.clientY - r.top) } catch { /* disposed */ }
+    }
+    el.addEventListener('mousemove', onMove)
+    return () => el.removeEventListener('mousemove', onMove)
+  }, [chartReady])
+
+  // Apply hide/show to every indicator series. Re-runs when indicators are
+  // recreated (settings/overlays/tf/symbol change) so the hidden state sticks.
+  useEffect(() => {
+    if (!chartReady) return
+    const vis = !indicatorsHidden
+    const set = (ref) => { try { ref.current?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
+    ;[volumeSeriesRef, bbUpperRef, bbMiddleRef, bbLowerRef, vwapSeriesRef, rsiSeriesRef, macdLineRef, macdSignalRef, macdHistRef, overlayTailSeriesRef].forEach(set)
+    const ov = overlaySeriesRefs.current
+    if (Array.isArray(ov)) ov.forEach(s => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } })
+  }, [indicatorsHidden, chartReady, cs.indicators, resolvedOverlays, cs.volume, resolvedTf, sym])
+
   // Plain mouse-drag pans (default). The Shift+drag measure locks scrolling only for
   // the duration of the drag (in onDown/end below); frozen (Setup Library) stays
   // non-pannable. This effect just holds the default so a data-poll re-applyOptions
@@ -8714,6 +8809,36 @@ export default function StockChart({
             onBlur={() => setDateJumpOpen(false)}
             style={{ font: '12px "Instrument Sans", sans-serif', background: '#0c0d10', color: '#e8e6e0', border: '1px solid #333', borderRadius: 5, padding: '3px 6px' }}
           />
+        </div>
+      )}
+      {/* Add-to-watchlist picker (Alt+Q). */}
+      {addListOpen && (
+        <div
+          style={{ position: 'absolute', top: 8, left: 8, zIndex: 30, minWidth: 160, maxHeight: 260, overflowY: 'auto',
+            background: 'rgba(20,22,28,0.97)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, padding: 6, boxShadow: '0 8px 24px -12px rgba(0,0,0,0.7)' }}
+          onMouseLeave={() => setAddListOpen(false)}
+        >
+          <div style={{ font: '11px "Instrument Sans", sans-serif', color: '#c9a84c', letterSpacing: '0.04em', padding: '2px 6px 6px' }}>ADD {sym} TO…</div>
+          {addLists.length === 0 && <div style={{ font: '12px "Instrument Sans", sans-serif', color: '#8a8a8a', padding: '4px 6px' }}>No watchlists</div>}
+          {addLists.map(l => (
+            <button
+              key={l.id}
+              type="button"
+              onClick={() => addToList(l.id)}
+              style={{ display: 'block', width: '100%', textAlign: 'left', font: '12.5px "Instrument Sans", sans-serif',
+                background: 'transparent', color: '#e8e6e0', border: 0, borderRadius: 5, padding: '6px 8px', cursor: 'pointer' }}
+              onMouseEnter={(ev) => { ev.currentTarget.style.background = 'rgba(201,168,76,0.12)' }}
+              onMouseLeave={(ev) => { ev.currentTarget.style.background = 'transparent' }}
+            >{l.name || l.title || `List ${l.id}`}</button>
+          ))}
+        </div>
+      )}
+      {/* Brief action toast (add-to-list, alert). */}
+      {chartToast && (
+        <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
+          font: '600 12px "Instrument Sans", sans-serif', background: 'rgba(20,22,28,0.96)', color: '#e8e6e0',
+          border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, padding: '7px 14px', pointerEvents: 'none' }}>
+          {chartToast}
         </div>
       )}
       {dragMeasure && measureReadout && (
