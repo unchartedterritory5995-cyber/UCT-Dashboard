@@ -198,6 +198,17 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   re-registers under the current key + retries (no manual Disconnect).
 - `j2_positions.stop_price`/`entry_date` are NOT NULL → broker imports store placeholders;
   the UI renders "—"/"est." (don't show a fake stop / today's date).
+- **SINGLE-PROCESS assumptions (correct today, first thing to break on scale-out).**
+  The web pod is ONE uvicorn process, and these are all per-PROCESS state — they
+  are correctness guards, not caches, so a second instance silently doubles the
+  thing each one bounds: `sync._locks` (per-account `asyncio.Lock` — the
+  idempotency guard against concurrent syncs of one account) · `recent_orders._last_poll`
+  (SnapTrade's contractual ≤1 poll/5min/account) · `manual_refresh._last_trigger`
+  (BILLED refresh calls) · `notifications._failure_pinged` + `_spike_pinged` (alert
+  dedup) · `partner_health._cache`. Durable equivalents exist where a repeat is
+  genuinely costly (`j2_broker_member_stale_notify` for member email,
+  `j2_broker_digest_dedup` for the owner digest) — extend that pattern rather than
+  adding new module dicts if the web pod ever goes multi-instance.
 
 ## Journal 2.0 — Table & Analytics polish (2026-06-24)
 
