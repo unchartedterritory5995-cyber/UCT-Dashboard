@@ -553,6 +553,64 @@ def _industry_peers(seed_hy: str, n: int) -> dict | None:
         return None   # industry map hiccup => caller falls through to AI peers
 
 
+# ---------------------------------------------------------------------------
+# Index & Macro — a SYNTHETIC group (not a taxonomy theme).
+#
+# Typing a broad index ETF used to dead-end: it belongs to no theme, and its
+# Finviz industry is the catch-all "Exchange Traded Fund" (_NON_PEER_INDUSTRIES),
+# so the whole fallback chain returned nothing. This board answers "what kind of
+# tape is this?" — index proxies + vol + risk-appetite + cross-asset macro.
+#
+# It is NEVER a taxonomy theme: it must not appear in Theme Tracker, theme
+# performance, or the theme engine's loops, and it never touches theme_db.
+# ---------------------------------------------------------------------------
+MACRO_GROUP_ID = "index_macro"
+MACRO_GROUP_NAME = "Index & Macro"
+
+# The core four are ALWAYS on the board, ALWAYS in this order — ranking purely
+# by today's move would let SPY fall off a 3x3 on a quiet day.
+MACRO_CORE = ("SPY", "QQQ", "IWM", "DIA")
+# The rest, in curated fallback order. This order IS the cold-snapshot board, so
+# keep it meaningful: vol, risk-appetite, rates/credit, metals, dollar, breadth.
+MACRO_REST = ("VIXY", "SMH", "ARKK", "IBIT", "TLT", "HYG",
+              "GLD", "SLV", "UUP", "RSP", "XLK", "XLF")
+MACRO_ROSTER = MACRO_CORE + MACRO_REST
+
+# Typed symbols that route to the board. Deliberately WIDER than the roster
+# (VOO/UVXY/MDY aren't charted on it but should still land you here) and safe to
+# be generous, because macro routing runs only AFTER theme resolution fails.
+# SMH/ARKK/IBIT/XLF are intentionally ABSENT — they front real themes.
+MACRO_TRIGGERS = frozenset({
+    "SPY", "VOO", "IVV", "SPLG", "VTI", "QQQ", "QQQM", "QQQE",
+    "IWM", "IJR", "IJH", "DIA", "RSP", "MDY",
+    "VIXY", "VXX", "UVXY", "UVIX", "VIXM", "SVXY",
+    "TLT", "IEF", "SHY", "HYG", "LQD", "GLD", "SLV", "UUP", "UDN", "XLK",
+})
+
+
+def _macro_order(today: dict, seed: str = None) -> list:
+    """The full roster ordered for the grid.
+
+    seed first (so the cell you typed shows what you typed), then MACRO_CORE in
+    fixed order, then MACRO_REST by DESCENDING ABSOLUTE today's move — a -4% VIXY
+    day is as worth seeing as a +4% one. Names with no snapshot datum sink behind
+    the movers in curated order, so a cold/failed snapshot degrades to
+    MACRO_ROSTER verbatim rather than to something arbitrary.
+    """
+    def _rank(sym):
+        try:
+            return -abs(float(today.get(sym)))
+        except (TypeError, ValueError):
+            return float("inf")          # no data -> behind every mover
+
+    rest = sorted(MACRO_REST, key=lambda s: (_rank(s), MACRO_REST.index(s)))
+    out = list(MACRO_CORE) + rest
+    seed_hy = normalize_sym(seed) if seed else None
+    if seed_hy:
+        out = [seed_hy] + [s for s in out if s != seed_hy]
+    return out
+
+
 def resolve_peers(sym: str, n: int) -> dict:
     """Peers = the seed's primary theme's other chartable holdings, same
     sub-theme floated to the top, ranked by today's move. On a taxonomy miss,
