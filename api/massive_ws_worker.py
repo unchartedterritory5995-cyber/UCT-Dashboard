@@ -2909,6 +2909,100 @@ async def _run_session(ws):
                 logger.warning("[massive-ws] q_pool_events flush failed "
                                "(%d events dropped): %s", len(batch), e)
 
+    async def worker_metrics_flusher():
+        """Persist in-memory counters to FlowDB so the WEB service can read them.
+
+        (2026-07-23) The web service and this worker run in SEPARATE Railway
+        services and share no memory — `/api/live/massive/status` on web returns
+        web's own untouched `_state` (all zeros, enabled=False), which is why the
+        nbbo_age_* histogram was invisible there. FlowDB is the shared substrate
+        (same reasoning as _get_worker_status deriving liveness from row
+        recency), so snapshot the counters here and let the router read them.
+
+        Counters in `_state` are cumulative SINCE RESTART, so we store periodic
+        snapshots rather than one row: the reader can take the latest for
+        "current", or diff two snapshots for a windowed rate. Retention is
+        trimmed to 7 days on each flush — this is diagnostics, not history.
+        """
+        import sqlite3
+        from api.flow_db import FlowDB
+        db_path = FlowDB().db_path
+        try:
+            def _init():
+                with sqlite3.connect(db_path, timeout=10) as conn:
+                    conn.execute("""
+                        CREATE TABLE IF NOT EXISTS worker_metrics (
+                            id INTEGER PRIMARY KEY,
+                            ts_unix REAL NOT NULL,
+                            snap_date TEXT NOT NULL,
+                            nbbo_age_sub1s INTEGER,
+                            nbbo_age_1to5s INTEGER,
+                            nbbo_age_5to30s INTEGER,
+                            nbbo_age_over30s INTEGER,
+                            side_classified_nbbo INTEGER,
+                            side_classified_tick INTEGER,
+                            side_no_signal INTEGER,
+                            oi_stage2_skipped_total INTEGER,
+                            q_subscribed_count INTEGER,
+                            trades_received INTEGER,
+                            events_written INTEGER,
+                            staleness_sec REAL
+                        )
+                    """)
+                    conn.execute("CREATE INDEX IF NOT EXISTS ix_wm_ts "
+                                 "ON worker_metrics(ts_unix)")
+                    conn.commit()
+            await asyncio.to_thread(_init)
+            logger.info("[massive-ws] worker_metrics table ready")
+        except Exception as e:
+            logger.warning("[massive-ws] worker_metrics init failed "
+                           "(non-fatal): %s", e)
+
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=60.0)
+            except asyncio.TimeoutError:
+                pass
+            try:
+                from zoneinfo import ZoneInfo as _ZI
+                _now_et = datetime.now(_ZI("America/New_York"))
+                _snap_date = f"{_now_et.month}/{_now_et.day}/{_now_et.year}"
+                snap = (
+                    time.time(),
+                    _snap_date,
+                    int(_state.get("nbbo_age_sub1s") or 0),
+                    int(_state.get("nbbo_age_1to5s") or 0),
+                    int(_state.get("nbbo_age_5to30s") or 0),
+                    int(_state.get("nbbo_age_over30s") or 0),
+                    int(_state.get("last_side_classified_nbbo") or 0),
+                    int(_state.get("last_side_classified_tick") or 0),
+                    int(_state.get("last_side_no_signal") or 0),
+                    int(_state.get("oi_stage2_skipped_total") or 0),
+                    int(_state.get("q_subscribed_count") or 0),
+                    int(_state.get("trades_received") or 0),
+                    int((_state.get("events_written_stocks") or 0)
+                        + (_state.get("events_written_indexes") or 0)),
+                    float(NBBO_STALENESS_NS) / 1e9,
+                )
+
+                def _flush(row):
+                    with sqlite3.connect(db_path, timeout=10) as conn:
+                        conn.execute(
+                            "INSERT INTO worker_metrics "
+                            "(ts_unix, snap_date, nbbo_age_sub1s, nbbo_age_1to5s, "
+                            " nbbo_age_5to30s, nbbo_age_over30s, side_classified_nbbo, "
+                            " side_classified_tick, side_no_signal, "
+                            " oi_stage2_skipped_total, q_subscribed_count, "
+                            " trades_received, events_written, staleness_sec) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row)
+                        conn.execute(
+                            "DELETE FROM worker_metrics WHERE ts_unix < ?",
+                            (time.time() - 7 * 86400,))
+                        conn.commit()
+                await asyncio.to_thread(_flush, snap)
+            except Exception as e:
+                logger.warning("[massive-ws] worker_metrics flush failed: %s", e)
+
     async def reclassify_manager():
         """Post-NBBO reclassification re-pass (2026-07-11).
 
@@ -3086,6 +3180,7 @@ async def _run_session(ws):
     spot_mgr_task = asyncio.create_task(spot_fetch_manager())
     watchdog_task = asyncio.create_task(stale_connection_watchdog())
     q_log_flusher_task = asyncio.create_task(q_pool_log_flusher())
+    metrics_flusher_task = asyncio.create_task(worker_metrics_flusher())
     reclassify_task = asyncio.create_task(reclassify_manager())
     ondemand_quote_task = asyncio.create_task(ondemand_quote_manager())
     earnings_date_task = asyncio.create_task(earnings_date_manager())
@@ -3222,6 +3317,11 @@ async def _run_session(ws):
         try:
             q_log_flusher_task.cancel()
             await q_log_flusher_task
+        except (Exception, asyncio.CancelledError):
+            pass
+        try:
+            metrics_flusher_task.cancel()
+            await metrics_flusher_task
         except (Exception, asyncio.CancelledError):
             pass
         try:
