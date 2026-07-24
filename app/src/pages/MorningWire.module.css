@@ -648,13 +648,14 @@
   border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
 }
 .rundownWrap :global(.rd-rs-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
-.rundownWrap :global(.rd-rs-label) { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #6b7480; padding: 11px 16px 4px; }
-.rundownWrap :global(.rd-rs-row) { display: flex; align-items: baseline; gap: 10px; padding: 6px 16px; }
+.rundownWrap :global(.rd-rs-row) { display: flex; align-items: baseline; gap: 12px; padding: 9px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.rundownWrap :global(.rd-rs-row):last-child { border-bottom: none; }
 .rundownWrap :global(.rd-rs-sym) { font-family: var(--font-mono); font-weight: 700; min-width: 62px; color: #f3f3f3; }
 .rundownWrap :global(.rd-rs-setup) { font-size: 12.5px; color: #9aa7b4; flex: 1; }
-.rundownWrap :global(.rd-rs-score) { font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #c9a84c; }
-.rundownWrap :global(.rd-rs-highs) { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 16px 14px; }
-.rundownWrap :global(.rd-rs-chip) { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; color: #3fb950; background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.25); padding: 2px 8px; border-radius: 6px; }
+.rundownWrap :global(.rd-rs-chg) { font-family: var(--font-mono); font-weight: 700; font-size: 13px; }
+.rundownWrap :global(.rd-rs-up) { color: #3fb950; }
+.rundownWrap :global(.rd-rs-dn) { color: #e5534b; }
+.rundownWrap :global(.rd-rs-empty) { padding: 12px 16px; font-size: 13px; color: #9aa7b4; font-style: italic; }
 
 /* ── TODAY'S RISK CALENDAR ───────────────────────────────────── */
 .rundownWrap :global(.rd-cal) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
