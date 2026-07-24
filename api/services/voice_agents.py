@@ -485,6 +485,14 @@ _COMPASS_CORE_TOOLS: set[str] = {
     "find_my_trades", "get_my_setup_performance", "get_my_pnl",
     "get_my_psychology", "get_my_recent_mistakes", "get_my_calendar",
     "get_my_account_balance", "list_my_accounts",
+    # Added 2026-07-23 — drift repair, not a widening of scope. New tools land in
+    # the union and this hand-curated core was never updated to match, so voice
+    # silently lost reads it already had writes for. Both are cheap SQLite reads:
+    #   get_my_daily_note  — the READ half of core's add_daily_note (you could
+    #                        dictate a daily note by voice but never hear it back)
+    #   get_my_trade_review — per-trade post-mortem; same self-awareness family as
+    #                        get_my_recent_mistakes / get_my_psychology above
+    "get_my_daily_note", "get_my_trade_review",
     # Sizing / risk / verdict / discipline
     "calc_position_size", "validate_trade", "get_market_context", "detect_drift",
     # Writes (confirm-gated)
@@ -504,6 +512,8 @@ _COMPASS_CORE_TOOLS: set[str] = {
     # Briefings / proactive
     "morning_briefing", "closing_briefing", "plan_my_day",
     "whats_my_focus_today", "what_compass_noticed",
+    # Same drift repair: the weekly sibling of what_compass_noticed.
+    "what_compass_did_this_week",
 }
 
 
