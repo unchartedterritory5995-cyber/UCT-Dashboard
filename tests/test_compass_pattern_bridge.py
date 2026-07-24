@@ -213,14 +213,17 @@ def test_tools_in_voice_registry():
     assert "list_pattern_types" in _REGISTRY
 
 
-def test_tools_in_compass_allowlist():
+def test_tools_are_wired_into_compass():
+    """Wiring contract — the UNION, not the live allowlist. COMPASS_LEAN_TOOLS
+    trims the runtime set to _COMPASS_CORE_TOOLS; find_patterns_on_ticker and
+    scan_active_patterns are core, list_pattern_types is not (a tuning choice,
+    not a wiring bug)."""
     import api.services.voice_tool_impls  # noqa: F401
-    from api.services.voice_agents import get_agent
-    compass = get_agent("compass")
-    allow = compass["tool_allowlist"]
-    assert "find_patterns_on_ticker" in allow
-    assert "scan_active_patterns" in allow
-    assert "list_pattern_types" in allow
+    from api.services.voice_agents import _compass_tool_union
+    union = _compass_tool_union()
+    assert "find_patterns_on_ticker" in union
+    assert "scan_active_patterns" in union
+    assert "list_pattern_types" in union
 
 
 def test_tools_in_compass_chat_catalog():

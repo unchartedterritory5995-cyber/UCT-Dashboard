@@ -53,9 +53,27 @@ def test_compass_tool_union_includes_all_specialist_tools():
     assert "get_breadth_history" in union
 
 
-def test_compass_tool_allowlist_is_the_union():
-    compass = get_agent("compass")
-    assert compass["tool_allowlist"] == _compass_tool_union()
+def test_compass_tool_allowlist_is_the_lean_slice_of_the_union(monkeypatch):
+    """Compass's runtime allowlist is COMPASS_LEAN_TOOLS-gated.
+
+    Default (lean): a non-empty SUBSET of the union, every name registered.
+    COMPASS_LEAN_TOOLS=0: the full union again — the documented env-flip
+    rollback. (This asserted plain equality before lean tools shipped.)
+    """
+    from api.services.voice_agents import _compass_active_tools, _COMPASS_CORE_TOOLS
+    union = _compass_tool_union()
+
+    monkeypatch.delenv("COMPASS_LEAN_TOOLS", raising=False)
+    lean = _compass_active_tools()
+    assert lean, "lean tool set must never be empty"
+    assert lean <= union
+    assert lean == union & _COMPASS_CORE_TOOLS
+
+    monkeypatch.setenv("COMPASS_LEAN_TOOLS", "0")
+    assert _compass_active_tools() == union
+
+    # The agent dict is built at import time, so it carries the boot-time slice.
+    assert get_agent("compass")["tool_allowlist"] <= union
 
 
 def test_list_agents_only_returns_compass():

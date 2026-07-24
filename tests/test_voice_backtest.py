@@ -173,12 +173,16 @@ def test_by_month_breakdown():
 
 # ── Wiring ────────────────────────────────────────────────────────────────
 
-def test_tool_is_registered_in_compass_allowlist():
-    """The new tool must show up in Compass's allowlist + the registry."""
+def test_tool_is_wired_into_compass():
+    """The tool must be registered AND reachable by Compass.
+
+    Asserts the UNION rather than the live allowlist: COMPASS_LEAN_TOOLS
+    (default on) intersects the runtime set down to _COMPASS_CORE_TOOLS for
+    latency, so a non-core tool is absent from tool_allowlist by design.
+    """
     import api.services.voice_tool_impls  # noqa: F401  populate registry
     from api.services.voice_tools import _REGISTRY
-    from api.services.voice_agents import get_agent
+    from api.services.voice_agents import get_agent, _compass_tool_union
     assert "analyze_setup_in_period" in _REGISTRY
-    compass = get_agent("compass")
-    assert compass is not None
-    assert "analyze_setup_in_period" in compass["tool_allowlist"]
+    assert get_agent("compass") is not None
+    assert "analyze_setup_in_period" in _compass_tool_union()

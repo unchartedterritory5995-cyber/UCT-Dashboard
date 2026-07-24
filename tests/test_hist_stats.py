@@ -30,9 +30,21 @@ _SAMPLE_HIST_MOVES = {
     "n_quarters": 5,
 }
 
+def _target_date() -> str:
+    """Today (ET), so the enrichment date is always inside the compute window.
+
+    _compute_enrichment_for_date hard-gates on `abs(target - today) >
+    _ENRICH_WINDOW_DAYS` (14, i.e. current week +-2 weeks) and returns {} outside
+    it. A hardcoded date is therefore a time bomb: this suite pinned 2026-06-01
+    and started returning {} for every case once that fell out of the window.
+    """
+    from api.routers.calendar import _today_et
+    return _today_et().isoformat()
+
+
 _CALENDAR_WEEKLY = {
     "days": {
-        "2026-06-01": {
+        _target_date(): {
             "bmo": [{"sym": "AAPL"}],
             "amc": [{"sym": "NVDA"}],
         }
@@ -59,8 +71,9 @@ class TestHistStats:
         app.include_router(router)
         tc = TestClient(app)
 
+        target = _target_date()
         cache_data = {
-            "calendar_enrichment_2026-06-01": None,  # miss → build
+            f"calendar_enrichment_{target}": None,  # miss → build
         }
 
         def _cache_get(key):
@@ -84,7 +97,7 @@ class TestHistStats:
             mock_cache.get = _cache_get
             mock_cache.set = MagicMock()
 
-            r = tc.get("/api/calendar/enrichment?date=2026-06-01")
+            r = tc.get(f"/api/calendar/enrichment?date={target}")
 
         return r
 

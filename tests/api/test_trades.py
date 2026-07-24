@@ -4,6 +4,22 @@ import os
 from httpx import AsyncClient, ASGITransport
 from api.main import app
 
+# The /api/trades router was DEPRECATED 2026-06-02 (Model Book replaced the
+# personal trade log) and is commented out in api/main.py, kept only as a
+# rollback backup — so these endpoints legitimately 404 today.
+#
+# Gated on whether the router is actually mounted rather than deleted outright:
+# while it stays retired these skip, and if anyone restores the include_router
+# line for a rollback they light straight back up. Delete this file together
+# with api/routers/trades.py + data/trades.json when the backup is dropped.
+_TRADES_MOUNTED = any(
+    getattr(r, "path", "").startswith("/api/trades") for r in app.routes
+)
+pytestmark = pytest.mark.skipif(
+    not _TRADES_MOUNTED,
+    reason="/api/trades router is deprecated and not mounted (api/main.py)",
+)
+
 
 @pytest.mark.asyncio
 async def test_trades_get_returns_list():

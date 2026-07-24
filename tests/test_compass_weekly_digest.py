@@ -70,10 +70,13 @@ def test_days_param_clamps():
     assert out2["days"] >= 1
 
 
-def test_tool_in_compass_allowlist():
+def test_tool_is_wired_into_compass():
+    """Wiring contract — asserts the UNION, not the live allowlist. See the note
+    in test_voice_trade_review_tool: COMPASS_LEAN_TOOLS trims the runtime set to
+    _COMPASS_CORE_TOOLS, so a non-core tool is absent from tool_allowlist by
+    design."""
     import api.services.voice_tool_impls  # noqa: F401
     from api.services.voice_tools import _REGISTRY
-    from api.services.voice_agents import get_agent
+    from api.services.voice_agents import _compass_tool_union
     assert "what_compass_did_this_week" in _REGISTRY
-    compass = get_agent("compass")
-    assert "what_compass_did_this_week" in compass["tool_allowlist"]
+    assert "what_compass_did_this_week" in _compass_tool_union()

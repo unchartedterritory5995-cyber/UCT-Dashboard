@@ -22,10 +22,15 @@ FAKE_CHAIN = {
 
 @pytest.fixture
 def fake_chain(monkeypatch):
-    async def _fake_fetch(client, ticker):
+    # The chain fetch used to be an async `_fetch_chain_for_ticker(client, ticker)`;
+    # it is now the blocking `_fetch_chain_blocking(ticker)` that _fetch_oi_all_async
+    # drives through asyncio.to_thread. Patch the current seam — the behaviour under
+    # test (CALL/PUT from the flow table resolving against a C/P-keyed index) is
+    # unchanged.
+    def _fake_fetch(ticker):
         return dict(FAKE_CHAIN)
 
-    monkeypatch.setattr(mos, "_fetch_chain_for_ticker", _fake_fetch)
+    monkeypatch.setattr(mos, "_fetch_chain_blocking", _fake_fetch)
 
 
 def _run(batch):
