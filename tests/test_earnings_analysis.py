@@ -14,6 +14,24 @@ from api.services import engine
 from api.services.cache import cache
 
 
+@pytest.fixture(autouse=True)
+def _isolate_earnings_ai_store(tmp_path, monkeypatch):
+    """Give every test its own on-disk AI store, and a clean in-memory cache.
+
+    _generate_earnings_preview/_analysis are skip-if-stable: they read a
+    PERSISTED result (earnings_ai_store, DATA_DIR/earnings_ai_cache) and return
+    it verbatim when its signals_hash matches the current row. Every test here
+    uses sym="PL" with the same row, so without isolation the first test's
+    output is replayed to all the others — they never reach the mocked Claude
+    (an order-dependent pass) — and the suite writes into the real DATA_DIR.
+    """
+    from api.services import earnings_ai_store
+    monkeypatch.setattr(earnings_ai_store, "_DIR", str(tmp_path / "earnings_ai_cache"))
+    cache.clear()
+    yield
+    cache.clear()
+
+
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _make_quarters(eps_pairs):
@@ -30,7 +48,7 @@ def _mock_av_response(quarters):
 
 def _mock_anthropic_analysis(text="Test analysis text."):
     msg = MagicMock()
-    msg.content = [MagicMock(text=text)]
+    msg.content = [MagicMock(type="text", text=text)]
     return msg
 
 
@@ -210,7 +228,7 @@ def _mock_preview_response(preview="Solid setup heading into tonight.", bullets=
         bullets = ["Beat 3 of last 4 quarters; YoY EPS +12%.", "Watch revenue guide vs $78M est.", "Stock up +5.6% — bar is elevated."]
     payload = json.dumps({"preview": preview, "bullets": bullets})
     msg = MagicMock()
-    msg.content = [MagicMock(text=payload)]
+    msg.content = [MagicMock(type="text", text=payload)]
     return msg
 
 

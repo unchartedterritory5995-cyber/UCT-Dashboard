@@ -64,7 +64,7 @@ _PPLX_WEB_CONTEXT = "NVDA reported record revenue of $26B, beating estimates. Gu
 def _make_anthropic_response(text: str):
     """Build a minimal mock Anthropic messages.create response."""
     mock_resp = MagicMock()
-    mock_resp.content = [MagicMock(text=text)]
+    mock_resp.content = [MagicMock(type="text", text=text)]
     mock_resp.usage.input_tokens = 500
     mock_resp.usage.output_tokens = 300
     return mock_resp
