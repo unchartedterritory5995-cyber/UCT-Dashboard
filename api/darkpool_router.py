@@ -33,6 +33,7 @@ Both client-side and server-side caches invalidate in sync.
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Request, Depends
 from api.flow_admin_auth import require_flow_admin
 from fastapi.responses import JSONResponse, Response
+from fastapi.concurrency import run_in_threadpool
 from collections import OrderedDict
 from api.darkpool_db import (
     insert_csv_rows, stream_csv, get_available_dates,
@@ -301,6 +302,49 @@ async def upload_darkpool_text(body: dict, _auth: dict = Depends(require_flow_ad
 
 
 # ── Admin: DB stats ───────────────────────────────────────────────────────────
+# ── Admin: Massive ingest (manual trigger / backfill) ─────────────────────────
+@router.post("/massive-ingest")
+async def massive_ingest(
+    date: str = Query(None, description="M/D/YYYY — defaults to today ET"),
+    tickers: str = Query(None, description="Optional comma-separated override, e.g. SPY,QQQ"),
+    top_n: int = Query(None, ge=1, le=1000, description="Universe size (default env DARKPOOL_TOP_N_TICKERS)"),
+    dry_run: bool = Query(False, description="Fetch + report, do not write to the DB"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Run the Massive dark-pool ingest on demand.
+
+    Same code path as the nightly 19:20 ET job, but callable for backfilling a
+    specific date or proving the pipeline before arming the scheduler. Ignores
+    DARKPOOL_MASSIVE_INGEST_ENABLED (that gate only governs the cron job) so a
+    manual run always works.
+
+    Re-running a date is safe: darkpool_db dedups on
+    (date, timestamp, ticker, price, notional, message).
+
+    NOTE this is a long call — the tape is filtered client-side, so a 150-ticker
+    run pulls millions of prints. Use dry_run=true or a small `tickers` list to
+    sanity-check first.
+    """
+    try:
+        from api.darkpool_massive_ingest import run_ingest, TOP_N_TICKERS
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ingest module unavailable: {e}")
+    tk_list = [t.strip().upper() for t in tickers.split(",") if t.strip()] if tickers else None
+    try:
+        result = await run_in_threadpool(
+            run_ingest,
+            date_mdyyyy=date,
+            tickers=tk_list,
+            top_n=top_n or TOP_N_TICKERS,
+            dry_run=dry_run,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if result.get("ok") and not dry_run and result.get("inserted"):
+        _RESPONSE_CACHE.clear()
+    return JSONResponse(result)
+
+
 @router.get("/stats")
 async def darkpool_stats():
     """Return database statistics."""
