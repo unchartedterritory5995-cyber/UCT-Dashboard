@@ -4366,6 +4366,90 @@ def contract_debug(
         return {"error": str(e), "debug": debug}
 
 
+@router.get("/nbbo-histogram")
+def nbbo_histogram(
+    target_date: str = Query(default=None, description="M/D/YYYY (default today ET)"),
+):
+    """NBBO quote-age histogram + Stage-2 OI counters for a trading day.
+
+    (2026-07-23) These counters live in the flow-worker's in-memory `_state`,
+    which the WEB service cannot see — separate Railway services, separate
+    processes. `/status` on web returns web's own untouched copy (all zeros).
+    The worker now snapshots them to FlowDB every 60s (worker_metrics table);
+    this reads them back.
+
+    Counters are cumulative SINCE WORKER RESTART, so `session` reports the
+    delta between the first and last snapshot of the day — that's the number
+    to tune MASSIVE_NBBO_STALENESS_SEC against. A restart mid-day resets the
+    counters, which shows up as a negative delta; we clamp those to the last
+    snapshot's absolute values and flag it.
+
+    Read it as: sub1s/1to5s are quotes fresh enough to trust; 5to30s is the
+    band you'd give up by tightening; over30s plus `no_signal` is the coverage
+    gap (contract had no usable quote at all) — that one is NOT fixable by
+    tightening the window; it needs more Q subscription budget.
+    """
+    day = _resolve_date(target_date)
+    try:
+        with sqlite3.connect(DB_PATH, timeout=10) as c:
+            c.row_factory = sqlite3.Row
+            rows = c.execute(
+                "SELECT * FROM worker_metrics WHERE snap_date = ? "
+                "ORDER BY ts_unix ASC", (day,)).fetchall()
+    except sqlite3.Error as e:
+        return {"error": str(e), "hint": "worker_metrics table may not exist yet — "
+                                         "it is created on the worker's first flush "
+                                         "after deploying the 7/23 worker."}
+    if not rows:
+        return {"date": day, "snapshots": 0,
+                "hint": "No snapshots for this date. The worker writes one every "
+                        "60s while running; check it restarted after the 7/23 deploy."}
+
+    first, last = dict(rows[0]), dict(rows[-1])
+    fields = ["nbbo_age_sub1s", "nbbo_age_1to5s", "nbbo_age_5to30s",
+              "nbbo_age_over30s", "side_classified_nbbo", "side_classified_tick",
+              "side_no_signal", "oi_stage2_skipped_total"]
+    restarted = any((last.get(f) or 0) < (first.get(f) or 0) for f in fields)
+    session = {f: ((last.get(f) or 0) if restarted
+                   else (last.get(f) or 0) - (first.get(f) or 0)) for f in fields}
+
+    buckets = {k: session.get("nbbo_age_" + k, 0)
+               for k in ("sub1s", "1to5s", "5to30s", "over30s")}
+    total = sum(buckets.values())
+    pct = {k: (round(v / total * 100, 1) if total else 0.0) for k, v in buckets.items()}
+
+    if total:
+        fresh = pct["sub1s"] + pct["1to5s"]
+        if fresh >= 90:
+            rec = ("Tighten to 1s — ~%.0f%% of fills already classify against a "
+                   "sub-1s quote; you'd give up ~%.1f%% (the 1-5s band)."
+                   % (pct["sub1s"], pct["1to5s"]))
+        elif fresh >= 70:
+            rec = ("Tighten to 5s — %.0f%% classify within 5s; the %.1f%% in 5-30s "
+                   "would become neutral Size." % (fresh, pct["5to30s"]))
+        else:
+            rec = ("Hold at the current window — only %.0f%% classify within 5s. "
+                   "The tail is coverage, not staleness; add Q budget before "
+                   "tightening." % fresh)
+    else:
+        rec = "No classified fills recorded for this date."
+
+    return {
+        "date": day,
+        "snapshots": len(rows),
+        "counters_reset_midday": restarted,
+        "current_staleness_sec": last.get("staleness_sec"),
+        "buckets": buckets,
+        "pct": pct,
+        "total_classified": total,
+        "side": {k: session[k] for k in
+                 ("side_classified_nbbo", "side_classified_tick", "side_no_signal")},
+        "oi_stage2_skipped": session["oi_stage2_skipped_total"],
+        "q_subscribed_latest": last.get("q_subscribed_count"),
+        "recommendation": rec,
+    }
+
+
 @router.get("/side-diagnostic")
 def side_diagnostic(target_date: str = Query(default=None, description="Trading date M/D/YYYY (default today)")):
     """Diagnose unclassified-Side rate. Returns breakdown of Side values
