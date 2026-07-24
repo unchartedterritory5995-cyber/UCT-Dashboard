@@ -12,7 +12,7 @@ import re
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from api.services import education_service
+from api.services import desk_background_audio, education_service
 from api.services.youtube_client import YouTubeClient, YouTubeAuthError
 
 _ET = ZoneInfo("America/New_York")
@@ -215,6 +215,16 @@ import tempfile
 from api.services import desk_session_jobs
 
 
+def _maybe_extract_audio(mp4_path, youtube_id):
+    """Best-effort background-audio extraction; never raises."""
+    if not desk_background_audio.is_enabled():
+        return None
+    try:
+        return desk_background_audio.extract_and_store(mp4_path, youtube_id)
+    except Exception:
+        return None
+
+
 def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
     """Drain the recording queue: download -> upload -> publish -> delete.
     One job at a time. Idempotent (youtube_id guard + queue PK). Never raises;
@@ -239,12 +249,14 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
         title = f"{title_prefix} — {date_text}"
         vid = (job.get("youtube_id") or "").strip()
         tmp = None
+        audio_key = None
         try:
             if not vid:
                 fd, tmp = tempfile.mkstemp(suffix=".mp4"); os.close(fd)
                 zoom.stream_download(job["download_url"], job.get("download_token"), tmp)
                 vid = youtube.upload_unlisted(tmp, title)
                 desk_session_jobs.mark_uploaded(uuid, vid)   # persist before publish/delete
+                audio_key = _maybe_extract_audio(tmp, vid)
                 try:  # branded thumbnail — cosmetic, NEVER fail publish over it
                     from api.services.desk_thumbnail import render_session_thumbnail
                     youtube.set_thumbnail(
@@ -262,6 +274,11 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                 row = education_service.get_video_by_youtube_id(vid)
                 if row:
                     education_service.set_meeting_uuid(row["id"], uuid)
+                    if audio_key:
+                        try:
+                            education_service.set_audio(row["id"], audio_key)
+                        except Exception:
+                            pass
             except Exception as me:
                 print(f"[desk-sessions] set_meeting_uuid failed (non-fatal): {me}")
             # When chapters are enabled, DEFER the recording delete to the insights
