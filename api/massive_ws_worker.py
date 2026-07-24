@@ -2963,9 +2963,21 @@ async def _run_session(ws):
                             q_subscribed_count INTEGER,
                             trades_received INTEGER,
                             events_written INTEGER,
-                            staleness_sec REAL
+                            staleness_sec REAL,
+                            reclassified_total INTEGER,
+                            reclassify_buffer INTEGER
                         )
                     """)
+                    # The table may predate these two columns (created 7/24
+                    # before reclassify tracking was added). ALTER is the only
+                    # way to add them to an existing table; ignore "duplicate
+                    # column" so this stays idempotent across restarts.
+                    for _col in ("reclassified_total", "reclassify_buffer"):
+                        try:
+                            conn.execute(
+                                f"ALTER TABLE worker_metrics ADD COLUMN {_col} INTEGER")
+                        except Exception:
+                            pass
                     conn.execute("CREATE INDEX IF NOT EXISTS ix_wm_ts "
                                  "ON worker_metrics(ts_unix)")
                     conn.commit()
@@ -3000,6 +3012,12 @@ async def _run_session(ws):
                     int((_state.get("events_written_stocks") or 0)
                         + (_state.get("events_written_indexes") or 0)),
                     float(NBBO_STALENESS_NS) / 1e9,
+                    # Coverage RECOVERY: blank-side prints get tagged and sent
+                    # to the on-demand quote fetch, then re-classified once the
+                    # quote lands. Without this, side_no_signal looks like a
+                    # permanent gap when much of it is rescued moments later.
+                    int(_state.get("reclassified_total") or 0),
+                    int(_state.get("reclassify_buffer_size") or 0),
                 )
 
                 def _flush(row):
@@ -3010,8 +3028,9 @@ async def _run_session(ws):
                             " nbbo_age_5to30s, nbbo_age_over30s, side_classified_nbbo, "
                             " side_classified_tick, side_no_signal, "
                             " oi_stage2_skipped_total, q_subscribed_count, "
-                            " trades_received, events_written, staleness_sec) "
-                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row)
+                            " trades_received, events_written, staleness_sec, "
+                            " reclassified_total, reclassify_buffer) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row)
                         conn.execute(
                             "DELETE FROM worker_metrics WHERE ts_unix < ?",
                             (time.time() - 7 * 86400,))
