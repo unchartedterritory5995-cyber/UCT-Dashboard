@@ -468,4 +468,157 @@ describe('GlobalVideoLayer', () => {
       expect(store.getCurrentTime()).toBe(20) // from fakePlayer.getCurrentTime() stub, not the audio element
     })
   })
+
+  // Task 11: on foreground return (visibilitychange → 'visible'), the muted YT
+  // player gets one authoritative seekTo() back to the <audio> clock. The
+  // scrubber-poll effect also threshold-gates a periodic drift correction
+  // while visible: > 0.4s gap → seekTo, within tolerance → no-op.
+  describe('foreground resync + drift correction (Task 11)', () => {
+    const prevFlag = import.meta.env.VITE_DESK_BG_AUDIO_ENABLED
+    const prevMatchMedia = window.matchMedia
+    const prevVisibility = Object.getOwnPropertyDescriptor(document, 'visibilityState')
+
+    afterEach(() => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = prevFlag
+      window.matchMedia = prevMatchMedia
+      if (prevVisibility) Object.defineProperty(document, 'visibilityState', prevVisibility)
+      else delete document.visibilityState
+      vi.restoreAllMocks()
+    })
+
+    const setVisibility = (value) => {
+      Object.defineProperty(document, 'visibilityState', { value, configurable: true })
+    }
+
+    const renderWithAudioActive = async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      renderLayer()
+      await act(async () => {
+        store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+        await Promise.resolve() // flush audioRef.current.play().then(() => audioActiveRef.current = true)
+      })
+      return document.querySelector('audio[data-uct-video-audio]')
+    }
+
+    it('visibilitychange to visible does one authoritative seekTo back to the audio clock', async () => {
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(function () {
+        Object.defineProperty(this, 'paused', { value: false, configurable: true })
+        return Promise.resolve()
+      })
+      const audioEl = await renderWithAudioActive()
+      audioEl.currentTime = 42
+      setVisibility('visible')
+
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+
+      expect(lastPlayer.seekTo).toHaveBeenCalledWith(42, true)
+    })
+
+    it('also calls playVideo on resync when the audio clock is still playing', async () => {
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(function () {
+        Object.defineProperty(this, 'paused', { value: false, configurable: true })
+        return Promise.resolve()
+      })
+      await renderWithAudioActive()
+      const playVideoCallsBefore = lastPlayer.playVideo.mock.calls.length
+      setVisibility('visible')
+
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+
+      expect(lastPlayer.playVideo.mock.calls.length).toBeGreaterThan(playVideoCallsBefore)
+    })
+
+    it('does not call playVideo on resync when the audio clock is paused', async () => {
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(function () {
+        Object.defineProperty(this, 'paused', { value: true, configurable: true })
+        return Promise.resolve()
+      })
+      await renderWithAudioActive()
+      const playVideoCallsBefore = lastPlayer.playVideo.mock.calls.length
+      setVisibility('visible')
+
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+
+      expect(lastPlayer.seekTo).toHaveBeenCalled()
+      expect(lastPlayer.playVideo.mock.calls.length).toBe(playVideoCallsBefore)
+    })
+
+    it('does not resync while hidden', async () => {
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(function () {
+        Object.defineProperty(this, 'paused', { value: false, configurable: true })
+        return Promise.resolve()
+      })
+      const audioEl = await renderWithAudioActive()
+      audioEl.currentTime = 42
+      setVisibility('hidden')
+
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+
+      expect(lastPlayer.seekTo).not.toHaveBeenCalled()
+    })
+
+    it('with the flag off, no visibilitychange listener drives a resync', async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '0'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      renderLayer()
+      act(() => store.play(LIST, 0))
+      setVisibility('visible')
+
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+
+      expect(lastPlayer.seekTo).not.toHaveBeenCalled()
+    })
+
+    it('periodic poll corrects drift beyond the 0.4s threshold while visible', async () => {
+      vi.useFakeTimers()
+      try {
+        vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+        const audioEl = await renderWithAudioActive()
+        setVisibility('visible')
+        audioEl.currentTime = 21.0 // fakePlayer.getCurrentTime() stub returns 20 → 1.0s gap
+        lastPlayer.seekTo.mockClear()
+
+        act(() => { vi.advanceTimersByTime(300) })
+
+        expect(lastPlayer.seekTo).toHaveBeenCalledWith(21.0, true)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('periodic poll does NOT correct drift within the 0.4s tolerance', async () => {
+      vi.useFakeTimers()
+      try {
+        vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+        const audioEl = await renderWithAudioActive()
+        setVisibility('visible')
+        audioEl.currentTime = 20.2 // fakePlayer.getCurrentTime() stub returns 20 → 0.2s gap
+        lastPlayer.seekTo.mockClear()
+
+        act(() => { vi.advanceTimersByTime(300) })
+
+        expect(lastPlayer.seekTo).not.toHaveBeenCalled()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('periodic poll does not correct drift while hidden', async () => {
+      vi.useFakeTimers()
+      try {
+        vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+        const audioEl = await renderWithAudioActive()
+        setVisibility('hidden')
+        audioEl.currentTime = 21.0 // would be a correctable 1.0s gap if visible
+        lastPlayer.seekTo.mockClear()
+
+        act(() => { vi.advanceTimersByTime(300) })
+
+        expect(lastPlayer.seekTo).not.toHaveBeenCalled()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
 })

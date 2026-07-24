@@ -243,6 +243,12 @@ export default function GlobalVideoLayer() {
   }, [saveNow])
 
   // Poll playhead for the scrubber + time readout while a video is active.
+  // On the audio-primary path this also threshold-gates a periodic drift
+  // correction (Task 11): the muted iframe is a passenger, not the clock, and
+  // can wander from the <audio> element over time (rate limiting, tab
+  // throttling) even while foregrounded — a >0.4s gap gets one authoritative
+  // seekTo() back to the audio clock. Never corrects while the tab is hidden
+  // (a backgrounded iframe can't seek reliably and there's no point anyway).
   useEffect(() => {
     if (!active) return
     const id = setInterval(() => {
@@ -252,6 +258,14 @@ export default function GlobalVideoLayer() {
           const d = audioRef.current.duration || 0
           setProg((prev) => (prev.t === t && prev.d === d ? prev : { t, d }))
         } catch { /* ignore */ }
+        if (document.visibilityState === 'visible') {
+          try {
+            const p = playerRef.current
+            if (p && p.getCurrentTime && Math.abs(p.getCurrentTime() - audioRef.current.currentTime) > 0.4) {
+              p.seekTo(audioRef.current.currentTime, true)
+            }
+          } catch { /* ignore */ }
+        }
         return
       }
       const p = playerRef.current
@@ -264,6 +278,29 @@ export default function GlobalVideoLayer() {
     }, 300)
     return () => clearInterval(id)
   }, [active])
+
+  // Task 11: foreground resync — when the audio-primary path is engaged and
+  // the app returns to the foreground (screen unlock, tab refocus after the
+  // browser throttled/paused the backgrounded iframe), the muted YT player
+  // can be arbitrarily far from the <audio> clock. One authoritative seekTo()
+  // re-anchors it on every visible transition, and resumes play if the audio
+  // clock is still playing (the iframe may have been paused by the browser
+  // while backgrounded).
+  useEffect(() => {
+    if (!bgAudioEnabled) return
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return
+      const p = playerRef.current
+      const a = audioRef.current
+      if (!p || !a || !audioActiveRef.current) return
+      try {
+        p.seekTo(a.currentTime, true)
+        if (!a.paused) p.playVideo?.()
+      } catch { /* ignore */ }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [bgAudioEnabled])
 
   // Expose the live playhead so other surfaces (e.g. "add note at current time")
   // can read it on demand without re-rendering on every tick.
