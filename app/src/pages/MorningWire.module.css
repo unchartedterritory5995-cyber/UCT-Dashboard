@@ -433,21 +433,37 @@
   color: #7f8ea3;
   margin-left: 8px;
 }
-/* Notable ORDER rows: [sentiment stripe][size bar] SYM · $strike CALL/PUT (hero)
-   · exp · urgency · bought · $size · ×N vol/OI */
+/* Notable ORDERS — aligned grid: Stock · Strike · Exp · DTE · Vol/OI · Side · Premium
+   (shared column template on the header row + every order row so columns line up). */
+.rundownWrap :global(.rd-flowboard-headrow),
+.rundownWrap :global(.rd-flowboard-row) {
+  display: grid;
+  grid-template-columns: 74px 150px 58px 46px 50px 56px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 16px 10px 20px;
+}
+.rundownWrap :global(.rd-flowboard-headrow) {
+  padding-top: 9px;
+  padding-bottom: 9px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #6b7480;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.rundownWrap :global(.rd-flowboard-headrow) :global(.rd-col-r) { text-align: right; }
 .rundownWrap :global(.rd-flowboard-row) {
   position: relative;
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  padding: 10px 16px 10px 20px;
   font-size: 14px;
   overflow: hidden;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 .rundownWrap :global(.rd-flowboard-row):last-child { border-bottom: none; }
-.rundownWrap :global(.rd-flowboard-row) > * { position: relative; z-index: 1; }
-/* quiet sentiment accent + faint relative-size bar */
+.rundownWrap :global(.rd-flowboard-row) > span { position: relative; z-index: 1; }
+/* quiet sentiment accent + faint relative-size bar (absolute → out of grid flow) */
 .rundownWrap :global(.rd-order-stripe) {
   position: absolute; left: 0; top: 0; bottom: 0; width: 3px; z-index: 2;
 }
@@ -458,36 +474,26 @@
 .rundownWrap :global(.rd-sent-bear) :global(.rd-order-stripe) { background: #e5534b; }
 .rundownWrap :global(.rd-sent-bull) :global(.rd-order-bar) { background: linear-gradient(90deg, #3fb950, transparent); }
 .rundownWrap :global(.rd-sent-bear) :global(.rd-order-bar) { background: linear-gradient(90deg, #e5534b, transparent); }
-.rundownWrap :global(.rd-order-sym) {
-  min-width: 66px;
+.rundownWrap :global(.rd-order-sym) { font-family: var(--font-mono); font-weight: 700; color: #e8e8e8; }
+.rundownWrap :global(.rd-order-contract) {
   font-family: var(--font-mono);
-  font-weight: 700;
-  color: #e8e8e8;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.2px;
 }
-.rundownWrap :global(.rd-order-urg) {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 5px;
-}
-.rundownWrap :global(.rd-urg-hot)  { color: #ffd7a0; background: rgba(201, 120, 40, 0.22); }
-.rundownWrap :global(.rd-urg-near) { color: #9aa7b4; background: rgba(255, 255, 255, 0.05); }
-.rundownWrap :global(.rd-urg-mid)  { color: #8b96a3; background: rgba(255, 255, 255, 0.04); }
-.rundownWrap :global(.rd-urg-leap) { color: #6b7480; background: rgba(255, 255, 255, 0.03); }
-.rundownWrap :global(.rd-order-flow) {
-  margin-left: auto;
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-.rundownWrap :global(.rd-order-bought) {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: #6b7480;
-}
+.rundownWrap :global(.rd-order-call) :global(.rd-order-contract) { color: #3fb950; }
+.rundownWrap :global(.rd-order-put) :global(.rd-order-contract) { color: #e5534b; }
+.rundownWrap :global(.rd-order-exp) { font-size: 12.5px; color: #8b96a3; }
+.rundownWrap :global(.rd-order-dte) { font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
+.rundownWrap :global(.rd-urg-hot)  { color: #e8a34d; }
+.rundownWrap :global(.rd-urg-near) { color: #9aa7b4; }
+.rundownWrap :global(.rd-urg-mid)  { color: #8b96a3; }
+.rundownWrap :global(.rd-urg-leap) { color: #6b7480; }
+.rundownWrap :global(.rd-order-tag) { font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #c9a84c; }
+.rundownWrap :global(.rd-order-bought) { font-family: var(--font-mono); font-size: 11px; color: #8b96a3; }
+.rundownWrap :global(.rd-order-prem) { text-align: right; font-weight: 700; font-size: 14px; color: #e8e8e8; }
 .rundownWrap :global(.rd-flowboard-er) {
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 700;
   color: #c9a84c;
   border: 1px solid rgba(201, 168, 76, 0.5);
@@ -495,31 +501,14 @@
   padding: 0 3px;
   margin-left: 3px;
 }
-.rundownWrap :global(.rd-order-contract) {
-  min-width: 150px;
-  font-family: var(--font-mono);
-  font-weight: 800;
-  font-size: 16.5px;
-  letter-spacing: 0.2px;
-}
-.rundownWrap :global(.rd-order-call) :global(.rd-order-contract) { color: #3fb950; }
-.rundownWrap :global(.rd-order-put) :global(.rd-order-contract) { color: #e5534b; }
-.rundownWrap :global(.rd-order-exp) { min-width: 64px; font-size: 12.5px; color: #8b96a3; }
-.rundownWrap :global(.rd-order-prem) {
-  font-weight: 700;
-  font-size: 14px;
-  color: #e8e8e8;
-}
-.rundownWrap :global(.rd-order-tag) {
-  min-width: 40px;
-  text-align: right;
-  font-weight: 800;
-  font-size: 13px;
-  color: #c9a84c;
-}
 @media (max-width: 640px) {
-  .rundownWrap :global(.rd-order-contract) { min-width: 120px; font-size: 15px; }
+  .rundownWrap :global(.rd-flowboard-headrow),
+  .rundownWrap :global(.rd-flowboard-row) { grid-template-columns: 58px 120px 44px 44px 1fr; gap: 8px; }
+  .rundownWrap :global(.rd-order-bought),
+  .rundownWrap :global(.rd-flowboard-headrow) span:nth-child(6),
+  .rundownWrap :global(.rd-flowboard-headrow) span:nth-child(3) { display: none; }
   .rundownWrap :global(.rd-order-exp) { display: none; }
+  .rundownWrap :global(.rd-order-contract) { font-size: 14.5px; }
 }
 
 /* ── Top 5 Picks ─────────────────────────────────────────────── */
