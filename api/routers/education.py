@@ -301,7 +301,7 @@ def get_video_audio(video_id: int, _user: dict = Depends(require_paid)):
     row = svc.get_video(video_id)
     if not row or not row.get("audio_url"):
         raise HTTPException(404, "No background audio for this video")
-    url = data_sync.presigned_get(row["audio_url"])
+    url = data_sync.presigned_get(row["audio_url"], expires=8 * 3600)
     if not url:
         raise HTTPException(404, "Audio storage unavailable")
     return RedirectResponse(url, status_code=302)

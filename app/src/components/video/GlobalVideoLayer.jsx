@@ -381,7 +381,7 @@ export default function GlobalVideoLayer() {
     } catch { /* ignore */ }
     return () => { setVideoOwnsMediaSession(false) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id, audioActive, isPlaying])
+  }, [current?.id, audioActive])
 
   // Keep playbackState in sync with the audio element's real play/pause
   // state so lock-screen chrome (e.g. iOS's play/pause icon) never drifts

@@ -25,11 +25,11 @@ def audio_key(youtube_id: str) -> str:
     return f"desk_audio/{youtube_id}.m4a"
 
 
-def presigned_url(youtube_id: str, expires: int = 3600):
+def presigned_url(youtube_id: str, expires: int = 3600) -> str | None:
     return data_sync.presigned_get(audio_key(youtube_id), expires)
 
 
-def extract_and_store(mp4_path: str, youtube_id: str):
+def extract_and_store(mp4_path: str, youtube_id: str) -> str | None:
     """ffmpeg-extract 96k AAC from mp4_path, upload to R2, return the key or None."""
     out = None
     try:
