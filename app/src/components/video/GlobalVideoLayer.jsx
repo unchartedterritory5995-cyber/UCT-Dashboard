@@ -127,6 +127,10 @@ export default function GlobalVideoLayer() {
         iv_load_policy: 3, // no annotations
         cc_load_policy: 0,
         start: resumeSeconds(startId) || undefined,
+        // Audio-primary mobile path: born muted so the iframe can never
+        // autoplay audibly before onReady fires — the separate <audio>
+        // element is the sole audio source. Untouched (no key) otherwise.
+        ...(isAudioPrimary() ? { mute: 1 } : {}),
       },
       events: {
         onReady: (e) => {
@@ -135,6 +139,14 @@ export default function GlobalVideoLayer() {
             if (typeof v === 'number') setVolume(v)
             setMuted(!!e.target.isMuted?.())
           } catch { /* ignore */ }
+          // Authoritative mute/play: the player is command-ready here, unlike
+          // the synchronous call right after construction below (which can
+          // no-op on a real mobile browser and let the iframe autoplay
+          // audibly in parallel with the <audio> track — the double-audio
+          // bug this whole path exists to avoid).
+          if (isAudioPrimary()) {
+            try { e.target.mute(); e.target.playVideo() } catch { /* ignore */ }
+          }
         },
         onStateChange: (e) => {
           if (e.data === 0) {
