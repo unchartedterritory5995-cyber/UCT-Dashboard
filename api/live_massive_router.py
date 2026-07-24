@@ -291,6 +291,10 @@ DEFAULT_THRESHOLDS = {
     # deep-ITM asymmetry: BLOCKs at depth are structural, SWEEPs carry urgency.
     "deep_otm_pct_block": 30.0,
     "deep_otm_pct_sweep": 40.0,
+    # Multi-leg structure detection (2026-07-24): N+ distinct contracts on one
+    # underlying inside the window = a spread, not N directional bets.
+    "multileg_window_sec": 90.0,
+    "multileg_min_legs": 3,
     # Keep-as-Size floor (2026-07-20). When the side can't be trusted (deep-ITM
     # guard, ambiguous at-bid 'B', or blank single-venue NBBO) direction is None
     # and the row would be dropped. If premium clears this floor, KEEP it as a
@@ -2087,6 +2091,7 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
 
         # Net-flow demote: two-way contracts (MU-style ~54/46) -> neutral "UCT
         # Size", so the feed stops mislabeling them Bull/Bear. See the helper.
+        _demote_multileg_structures(all_alerts)
         _demote_two_way_flow(all_alerts)
 
         # ─── Contract-level dedupe (added 2026-07-05) ────────────────────
@@ -2440,6 +2445,7 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
     # of the Market Read bull/bear totals — same demote as the feed, so a churned
     # contract can't skew the macro read. Mutates _direction→None; the loop below
     # already skips None.
+    _demote_multileg_structures(classified)
     _demote_two_way_flow(classified)
 
     for a in classified:
@@ -3774,6 +3780,81 @@ def _net_flow_clean(alert: dict, flow_split: dict, min_ratio: float) -> bool:
     return dominant == d and (max(bull, bear) / total) >= min_ratio
 
 
+def _demote_multileg_structures(alerts: list) -> None:
+    """Demote legs of a multi-leg STRUCTURE to neutral — in place.
+
+    (2026-07-24) SNDK 8/7 $1370P, 341 @ 110.00, $3.75M fired **ALPHA GOLD BEAR**
+    — which auto-pushes. The BBS tape typed that exact print `ML/` (multileg);
+    Massive typed it SWEEP. Noise filter 3 already skips `Type='ML/'` with OI>0
+    from directional tiers for precisely this reason, but it keys on the TYPE
+    STRING, and Massive never sets it — so the guard never fired.
+
+    The surrounding tape made the structure obvious: at 12:40:45 two SNDK $1500
+    calls printed in the SAME SECOND, one 9/18 at the ask and one 8/7 at the bid
+    (a calendar), and at 12:40:52 two puts at adjacent strikes ($1070/$1040).
+    One desk working a position across the chain, with each leg being labelled
+    as independent conviction.
+
+    So detect it structurally instead of trusting the type: N+ DISTINCT contracts
+    on the same underlying inside a short window is a spread, not N directional
+    bets. Legs keep their place in the feed (size is still real) but lose the
+    Bull/Bear label, which also makes them ineligible for auto-push via the
+    existing `_directionUnconfirmed` guard.
+
+    Tunables: multileg_window_sec (default 90) and multileg_min_legs (default 3).
+    0 on either disables. Idempotent — reads timestamp/strike/exp, not _direction.
+
+    NOT caught by the defaults: the WDC 9/18+3/19 calendar pair (2 legs, 12s
+    apart) needs min_legs=2, which is likelier to catch unrelated prints on
+    liquid names. Left as a tuning decision rather than a default.
+    """
+    try:
+        _t = _load_thresholds()
+        window = float(_t.get("multileg_window_sec", 90.0) or 0)
+        min_legs = int(_t.get("multileg_min_legs", 3) or 0)
+    except Exception:
+        window, min_legs = 90.0, 3
+    if window <= 0 or min_legs <= 1 or not alerts:
+        return
+
+    by_ticker = {}
+    for a in alerts:
+        ts = a.get("timestamp") or 0
+        if not ts:
+            continue
+        by_ticker.setdefault(a.get("ticker", ""), []).append((ts, a))
+
+    for _tk, entries in by_ticker.items():
+        if len(entries) < min_legs:
+            continue
+        entries.sort(key=lambda e: e[0])
+        n = len(entries)
+        i = 0
+        while i < n:
+            # Widen while prints stay inside `window` of the cluster's first.
+            j = i + 1
+            while j < n and (entries[j][0] - entries[i][0]) <= window:
+                j += 1
+            cluster = entries[i:j]
+            contracts = {
+                f"{c[1].get('cp','')}|{c[1].get('strike','')}|{c[1].get('exp','')}"
+                for c in cluster
+            }
+            # Distinct CONTRACTS is the test, not print count — 5 fills on one
+            # strike is accumulation (a real signal), not a spread.
+            if len(contracts) >= min_legs:
+                for _ts, a in cluster:
+                    if (a.get("_direction") or "").strip() in ("Bull", "Bear"):
+                        a["_direction"] = None
+                        a["_directionUnconfirmed"] = True
+                        a["_multileg"] = True
+                        a["alertName"] = "UCT Size - Not Clean"
+                        a["_tierKey"] = "size"
+                i = j
+            else:
+                i += 1
+
+
 def _demote_two_way_flow(alerts: list) -> None:
     """Demote directional prints on TWO-WAY contracts to neutral "UCT Size" —
     in place. A contract whose OWN net flow (inclusive of at-bid selling) is
@@ -4115,6 +4196,8 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "sold_min_vol_oi",           # the V/OI multiple that counts as opening
         "deep_otm_pct_block",        # deep-OTM cutoff for BLOCK type
         "deep_otm_pct_sweep",        # deep-OTM cutoff for SWEEP type
+        "multileg_window_sec",       # cluster window for structure detection
+        "multileg_min_legs",         # distinct contracts that make it a structure
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
