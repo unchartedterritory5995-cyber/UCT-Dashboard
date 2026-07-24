@@ -656,6 +656,42 @@
 .rundownWrap :global(.rd-rs-highs) { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 16px 14px; }
 .rundownWrap :global(.rd-rs-chip) { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; color: #3fb950; background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.25); padding: 2px 8px; border-radius: 6px; }
 
+/* ── TODAY'S RISK CALENDAR ───────────────────────────────────── */
+.rundownWrap :global(.rd-cal) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
+.rundownWrap :global(.rd-cal-head) {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: #d4b45c; padding: 11px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
+}
+.rundownWrap :global(.rd-cal-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-cal-row) { display: flex; align-items: baseline; gap: 12px; padding: 7px 16px; font-size: 13.5px; }
+.rundownWrap :global(.rd-cal-key) { background: rgba(201, 120, 40, 0.08); }
+.rundownWrap :global(.rd-cal-key) :global(.rd-cal-ev) { color: #f0d9a8; font-weight: 600; }
+.rundownWrap :global(.rd-cal-time) { font-family: var(--font-mono); font-weight: 700; color: #c9a84c; min-width: 52px; }
+.rundownWrap :global(.rd-cal-ev) { color: #d6d6d6; }
+.rundownWrap :global(.rd-cal-est) { color: #8b96a3; font-size: 12px; }
+.rundownWrap :global(.rd-cal-fed) :global(.rd-cal-ev) { color: #9ab8e0; }
+.rundownWrap :global(.rd-cal-earn) { padding: 8px 16px; font-size: 13px; color: #9aa7b4; border-top: 1px solid rgba(255,255,255,0.04); }
+.rundownWrap :global(.rd-cal-elbl) { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7480; margin-right: 6px; }
+.rundownWrap :global(.rd-cal-tk) { font-family: var(--font-mono); color: #cfcfcf; }
+.rundownWrap :global(.rd-cal-more) { color: #6b7480; font-size: 12px; }
+
+/* ── KEY LEVELS TO WATCH ─────────────────────────────────────── */
+.rundownWrap :global(.rd-watch) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
+.rundownWrap :global(.rd-watch-head) {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: #d4b45c; padding: 11px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
+}
+.rundownWrap :global(.rd-watch-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-watch-row) { display: flex; align-items: baseline; gap: 12px; padding: 9px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13.5px; }
+.rundownWrap :global(.rd-watch-row):last-child { border-bottom: none; }
+.rundownWrap :global(.rd-watch-sym) { font-family: var(--font-mono); font-weight: 700; min-width: 62px; color: #f3f3f3; }
+.rundownWrap :global(.rd-watch-trig) { font-family: var(--font-mono); font-weight: 700; color: #d4b45c; min-width: 72px; }
+.rundownWrap :global(.rd-watch-dist) { flex: 1; color: #9aa7b4; font-size: 12.5px; }
+.rundownWrap :global(.rd-watch-live) :global(.rd-watch-dist) { color: #3fb950; font-weight: 600; }
+.rundownWrap :global(.rd-watch-setup) { font-size: 12px; color: #8b96a3; }
+
 /* ── Top 5 Picks ─────────────────────────────────────────────── */
 .rundownWrap :global(.rd-top-picks-grid) {
   display: flex;
