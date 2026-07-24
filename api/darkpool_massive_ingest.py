@@ -211,6 +211,76 @@ def _print_to_row(ticker: str, date_mdyyyy: str, t: dict) -> dict:
     }
 
 
+# ── background run-state (Cloudflare 524 workaround) ─────────────────────────
+# A full ingest takes minutes; Cloudflare cuts the origin off at ~100s and
+# returns its own HTML error page (observed 7/24: POST -> 524 + "<!DOCTYPE"
+# JSON parse error). So the HTTP path can't be synchronous. The router starts
+# `run_ingest_background` and polls `get_run_state`, mirroring the
+# dealer_positioning backfill pattern. The SCHEDULED job is unaffected — it
+# runs on the scheduler thread with no HTTP in the way.
+import threading
+
+_run_lock = threading.Lock()
+_run_state: dict = {
+    "running": False,
+    "started_at": None,
+    "finished_at": None,
+    "phase": None,          # e.g. "SPY (3/150)"
+    "last_result": None,
+    "last_error": None,
+}
+
+
+def get_run_state() -> dict:
+    with _run_lock:
+        return dict(_run_state)
+
+
+def _set_phase(phase: str) -> None:
+    with _run_lock:
+        _run_state["phase"] = phase
+
+
+def run_ingest_background(**kwargs) -> dict:
+    """Start an ingest in a daemon thread. Returns immediately.
+
+    Refuses to start a second concurrent run — the job is REST-heavy and two
+    overlapping passes would double the request load for no benefit.
+    """
+    with _run_lock:
+        if _run_state["running"]:
+            return {"started": False, "reason": "already running",
+                    "state": dict(_run_state)}
+        _run_state.update({
+            "running": True,
+            "started_at": datetime.datetime.now(ET).isoformat() if ET
+                          else datetime.datetime.now().isoformat(),
+            "finished_at": None, "phase": "starting",
+            "last_result": None, "last_error": None,
+        })
+
+    def _worker():
+        try:
+            result = run_ingest(**kwargs)
+            with _run_lock:
+                _run_state["last_result"] = result
+        except Exception as e:
+            logger.exception("[darkpool_ingest] background run failed")
+            with _run_lock:
+                _run_state["last_error"] = str(e)
+        finally:
+            with _run_lock:
+                _run_state["running"] = False
+                _run_state["phase"] = None
+                _run_state["finished_at"] = (
+                    datetime.datetime.now(ET).isoformat() if ET
+                    else datetime.datetime.now().isoformat())
+
+    threading.Thread(target=_worker, daemon=True,
+                     name="darkpool-massive-ingest").start()
+    return {"started": True, "poll": "GET /api/darkpool/massive-ingest/status"}
+
+
 # ── main entry ───────────────────────────────────────────────────────────────
 
 def run_ingest(date_mdyyyy: Optional[str] = None,
@@ -238,7 +308,8 @@ def run_ingest(date_mdyyyy: Optional[str] = None,
     stats = {"tickers_done": 0, "tickers_skipped": 0, "prints": 0,
              "scanned": 0, "truncated": [], "failed": []}
 
-    for tk in universe:
+    for idx, tk in enumerate(universe, 1):
+        _set_phase("%s (%d/%d)" % (tk, idx, len(universe)))
         if time.time() - started > time_budget_sec:
             stats["tickers_skipped"] = len(universe) - stats["tickers_done"]
             logger.warning("[darkpool_ingest] time budget %.0fs exhausted — %d tickers skipped",
