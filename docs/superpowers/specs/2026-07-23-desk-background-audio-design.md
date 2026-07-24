@@ -89,7 +89,7 @@ if audio_key:
     education_service.set_audio(row["id"], audio_key)
 ```
 
-- ffmpeg command: `ffmpeg -i <tmp.mp4> -vn -c:a aac -b:a 64k -ac 2 -movflags +faststart <out.m4a>` (mono `-ac 1` is an option to halve size; default stereo for safety).
+- ffmpeg command: `ffmpeg -i <tmp.mp4> -vn -c:a aac -b:a 96k -ac 2 -movflags +faststart <out.m4a>`. **96 kbps stereo** (not 64): because audio-primary means the member hears this track even while watching on-screen, so it must be transparent for speech + screen-share — 96k is, and it's still only ~0.7 MB/min (~13 GB for the full ~300-video backfill on R2). Mono `-ac 1` remains an option if storage ever matters more than a stereo screen-share.
 - **Caveat (documented):** extraction only sees a local mp4 on the *first* successful pass. A job reclaimed after upload (already has `youtube_id`) skips the download block, so it has no local mp4 — those, plus jobs that crash after upload, fall to the yt-dlp backfill. New-session audio must be captured on that first pass.
 
 ### 3. New module `api/services/desk_background_audio.py`
@@ -129,7 +129,7 @@ Add `RedirectResponse` to the `fastapi.responses` import (currently only `FileRe
 Add `"ffmpeg"` to `[phases.setup] nixPkgs` (currently `["python312","nodejs_20","nodePackages.npm"]`). **This is the only hard build change** — new-session extraction runs in-process on the **web** pod (that is where the desk queue drains). `yt-dlp` is **not** added to prod — it is local backfill tooling only.
 
 ### 7. One-time backfill (local, not prod) — `tools/desk_audio_backfill.py`
-Iterate `edu_videos WHERE audio_url IS NULL`; for each, `yt-dlp -f bestaudio -x --audio-format m4a <youtube_id>` (our own unlisted/owned uploads), transcode to 64k AAC, upload to R2, `set_audio`. Run from the owner's PC (avoids YouTube IP-blocking of Railway, keeps `yt-dlp` out of the prod image). Rate-limit + resumable (skip rows that already have `audio_url`). ~300 rows, one-time.
+Iterate `edu_videos WHERE audio_url IS NULL`; for each, `yt-dlp -f bestaudio -x --audio-format m4a <youtube_id>` (our own unlisted/owned uploads), transcode to 96k AAC (match the pipeline), upload to R2, `set_audio`. Run from the owner's PC (avoids YouTube IP-blocking of Railway, keeps `yt-dlp` out of the prod image). Rate-limit + resumable (skip rows that already have `audio_url`). ~300 rows, one-time.
 
 ## Frontend design (`app/src/components/video/GlobalVideoLayer.jsx`)
 
