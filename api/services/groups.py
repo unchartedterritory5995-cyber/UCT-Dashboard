@@ -611,6 +611,21 @@ def _macro_order(today: dict, seed: str = None) -> list:
     return out
 
 
+def macro_board(n: int, seed: str = None) -> list:
+    """The Index & Macro board, best-first, bounded to n cells.
+
+    ONE batched snapshot over the 16 roster names (`_today_map` is already
+    wall-clock bounded + briefly cached, so repeated typed commits reuse it).
+    A snapshot failure is swallowed — the curated roster order is always a valid
+    board, so this can never return empty or raise onto the request path.
+    """
+    try:
+        today = _today_map(list(MACRO_ROSTER))
+    except Exception:
+        today = {}
+    return _macro_order(today, seed)[: max(1, int(n))]
+
+
 def resolve_peers(sym: str, n: int) -> dict:
     """Peers = the seed's primary theme's other chartable holdings, same
     sub-theme floated to the top, ranked by today's move. On a taxonomy miss,

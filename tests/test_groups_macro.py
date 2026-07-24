@@ -49,3 +49,40 @@ def test_macro_order_seed_outside_the_roster_is_still_prepended():
     assert out[0] == "VOO"
     assert out[1:5] == list(groups.MACRO_CORE)
     assert len(out) == 17
+
+
+def test_macro_board_bounds_to_n_and_snapshots_the_whole_roster(monkeypatch):
+    seen = {}
+
+    def _fake_today(syms):
+        seen["syms"] = list(syms)
+        return {"GLD": 4.0}
+
+    monkeypatch.setattr(groups, "_today_map", _fake_today)
+    out = groups.macro_board(9)
+    assert len(out) == 9
+    assert out[:5] == ["SPY", "QQQ", "IWM", "DIA", "GLD"]
+    assert set(seen["syms"]) == set(groups.MACRO_ROSTER)   # ONE batch, 16 syms
+
+
+def test_macro_board_2x2_is_exactly_the_core_four(monkeypatch):
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {"VIXY": 20.0})
+    assert groups.macro_board(4) == ["SPY", "QQQ", "IWM", "DIA"]
+
+
+def test_macro_board_4x4_shows_all_16(monkeypatch):
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    assert groups.macro_board(16) == list(groups.MACRO_ROSTER)
+
+
+def test_macro_board_seed_leads(monkeypatch):
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    assert groups.macro_board(5, seed="TLT")[0] == "TLT"
+
+
+def test_macro_board_never_returns_empty_on_a_bad_snapshot(monkeypatch):
+    def _boom(_syms):
+        raise RuntimeError("massive down")
+
+    monkeypatch.setattr(groups, "_today_map", _boom)
+    assert groups.macro_board(9) == list(groups.MACRO_ROSTER)[:9]
