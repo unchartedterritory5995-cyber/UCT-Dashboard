@@ -5,6 +5,7 @@
 export function pauseOtherAudio() {
   if (typeof document === 'undefined') return
   document.querySelectorAll('audio').forEach((el) => {
+    if (el.hasAttribute('data-uct-video-audio')) return  // the Desk video's own audio track
     try { if (!el.paused) el.pause() } catch { /* ignore */ }
   })
   // Browser-native TTS (Compass chat, earnings-call Listen) is a separate audio
