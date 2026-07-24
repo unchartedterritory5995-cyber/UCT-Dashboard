@@ -373,6 +373,31 @@ describe('GlobalVideoLayer', () => {
       expect(audioEl.paused).toBe(false)
     })
 
+    it('play/pause also mirrors to the still-muted YT player (pauseVideo/playVideo) once audio is active', async () => {
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(function () {
+        Object.defineProperty(this, 'paused', { value: false, configurable: true })
+        return Promise.resolve()
+      })
+      vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(function () {
+        Object.defineProperty(this, 'paused', { value: true, configurable: true })
+      })
+
+      await renderWithAudioActive()
+      // The audio-primary onReady path already calls playVideo() once at
+      // construction (to born-mute-and-play the underlying iframe) — capture
+      // that baseline so the assertions below check for a NEW call from
+      // togglePlay, not the initial one.
+      const playVideoCallsBefore = lastPlayer.playVideo.mock.calls.length
+
+      // isPlaying starts true (useState(true)) → button reads "Pause".
+      fireEvent.click(screen.getByLabelText('Pause'))
+      expect(lastPlayer.pauseVideo).toHaveBeenCalled()
+      expect(lastPlayer.playVideo.mock.calls.length).toBe(playVideoCallsBefore)
+
+      fireEvent.click(screen.getByLabelText('Play'))
+      expect(lastPlayer.playVideo.mock.calls.length).toBe(playVideoCallsBefore + 1)
+    })
+
     it('the scrubber drag sets audioEl.currentTime AND mirrors to the YT player via seekTo', async () => {
       // Fake timers must be installed BEFORE the component mounts — the poll
       // effect's setInterval is created with whatever timer implementation is
