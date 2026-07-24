@@ -268,7 +268,26 @@ async def sync_due_accounts(
 
     results = await asyncio.gather(*(_one(a) for a in due)) if due else []
     ok = sum(1 for r in results if isinstance(r, dict) and "error" not in r)
-    return {"due": len(due), "synced": ok, "failed": len(results) - ok}
+    failed = len(results) - ok
+    _alert_if_failure_spike("scheduled due-sync", len(due), failed, results)
+    return {"due": len(due), "synced": ok, "failed": failed}
+
+
+def _alert_if_failure_spike(scope: str, due: int, failed: int,
+                            results: list[Any]) -> None:
+    """Many accounts failing in ONE sweep = a shared cause (our credentials,
+    the partner API, the network), not N member problems. Per-account rules
+    can't see that shape — see notifications.sweep_failure_spike."""
+    if failed <= 0:
+        return
+    sample = next((r["error"] for r in results
+                   if isinstance(r, dict) and r.get("error")), "")
+    try:
+        notifications.sweep_failure_spike(
+            scope, due=due, failed=failed, sample_error=sample)
+    except Exception:  # noqa: BLE001 — never break the sweep
+        import logging
+        logging.getLogger("broker_sync").exception("spike alert failed")
 
 
 def _user_is_paid(user_id: str, cache: dict[str, bool]) -> bool:
@@ -352,7 +371,12 @@ async def _nightly_reconcile() -> dict[str, Any]:
             except Exception as e:  # noqa: BLE001
                 return {"error": str(e)}
     results = await asyncio.gather(*(_one(a) for a in accts)) if accts else []
-    return {"reconciled": len(results)}
+    failed = sum(1 for r in results if isinstance(r, dict) and r.get("error"))
+    # The 2026-07-23 outage happened HERE — this sweep is the widest one we run
+    # (every active account, full=True), so it is also the earliest place a
+    # partner-side failure becomes visible as a shape rather than a single row.
+    _alert_if_failure_spike("nightly reconcile", len(results), failed, results)
+    return {"reconciled": len(results), "failed": failed}
 
 
 def _activity_count(user_id: str, broker_account_id: str) -> int:

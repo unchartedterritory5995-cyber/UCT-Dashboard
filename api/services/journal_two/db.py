@@ -543,6 +543,16 @@ CREATE TABLE IF NOT EXISTS j2_broker_member_stale_notify (
     broker_account_id TEXT PRIMARY KEY,
     notified_marker   TEXT NOT NULL
 );
+
+-- Durable once-per-ET-day dedup for the OWNER fleet-check Discord digest.
+-- Was in-process, so every redeploy re-armed it and a persistent problem
+-- re-pinged after each deploy (2026-07-23: the same 12-issue digest landed
+-- again in the evening). Single row, id='fleet_digest'.
+CREATE TABLE IF NOT EXISTS j2_broker_digest_dedup (
+    id           TEXT PRIMARY KEY,
+    fingerprint  TEXT NOT NULL,
+    et_day       TEXT NOT NULL
+);
 """
 
 

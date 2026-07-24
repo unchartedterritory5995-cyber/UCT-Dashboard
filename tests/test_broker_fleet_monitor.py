@@ -15,6 +15,8 @@ One digest ping per distinct finding-set per ET day.
 
 from __future__ import annotations
 
+import importlib
+
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -116,7 +118,7 @@ async def test_detects_stranded_connect(env):
 async def test_detects_stale_sync_and_still_broken(env):
     env["mk_user"]("u-stale"); env["mk_user"]("u-broken")
     _mk_conn_with_account(
-        "u-stale", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=30)))
+        "u-stale", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=72)))
     _mk_conn_with_account(
         "u-broken", status="broken",
         last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=1)))
@@ -145,7 +147,7 @@ async def test_member_emailed_once_per_stale_episode(env, monkeypatch):
                         lambda email, name, brokerage: sent.append((email, brokerage)) or True)
     env["mk_user"]("u-stale")
     ba = _mk_conn_with_account(
-        "u-stale", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=30)))
+        "u-stale", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=72)))
     _set_last_error(ba["id"], "SnapTrade rejected this connection")  # real, member-actionable
     await fleet_monitor.run_fleet_check()
     await fleet_monitor.run_fleet_check()  # same episode
@@ -165,7 +167,7 @@ async def test_stale_without_error_does_not_member_email(env, monkeypatch):
                         lambda *a: sent.append(a) or True)
     env["mk_user"]("u-stale2")
     _mk_conn_with_account(
-        "u-stale2", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=30)))
+        "u-stale2", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=72)))
     out = await fleet_monitor.run_fleet_check()
     assert any(f["kind"] == "stale_sync" for f in out["findings"])  # still detected
     assert sent == []  # but member NOT emailed
@@ -204,7 +206,7 @@ async def test_healthy_fleet_pings_nothing(env):
 async def test_same_findings_dedupe_per_day(env):
     env["mk_user"]("u-stale")
     _mk_conn_with_account(
-        "u-stale", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=30)))
+        "u-stale", last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=72)))
     await fleet_monitor.run_fleet_check()
     await fleet_monitor.run_fleet_check()
     assert len(env["pings"]) == 1
@@ -276,3 +278,70 @@ async def test_partner_auth_rejection_is_a_finding_even_when_api_status_is_green
     kinds = [f["kind"] for f in out["findings"]]
     assert "snaptrade_auth_failed" in kinds
     assert "snaptrade_unreachable" not in kinds  # provider itself was fine
+
+
+# ── stale threshold must never collide with the sync cadence ────────────────
+#
+# _STALE_SYNC_HOURS used to be hardcoded 24 while the per-account cadence is
+# also 24h (daily mode). An account synced at T is not due again until T+24h,
+# the scheduler ticks every ~20min jittered, and this check runs hourly — so a
+# healthy account sat over the threshold for up to an hour EVERY DAY. Chronic
+# false alarms are how the real 2026-07-23 digest went unread.
+
+def test_stale_threshold_exceeds_the_sync_interval(monkeypatch):
+    monkeypatch.delenv("BROKER_SYNC_INTERVAL_MIN", raising=False)
+    monkeypatch.delenv("BROKER_SYNC_MODE", raising=False)  # default = daily/1440
+    from api.services.journal_two.broker.sync import _default_interval_min
+    interval_h = _default_interval_min() / 60.0
+    assert fleet_monitor._stale_sync_hours() > interval_h
+
+
+def test_stale_threshold_tracks_a_changed_cadence(monkeypatch):
+    monkeypatch.setenv("BROKER_SYNC_INTERVAL_MIN", "600")  # 10h cadence
+    assert fleet_monitor._stale_sync_hours() == pytest.approx(15.0)
+
+
+def test_stale_threshold_has_a_floor_for_tiny_cadences(monkeypatch):
+    monkeypatch.setenv("BROKER_SYNC_INTERVAL_MIN", "20")
+    assert fleet_monitor._stale_sync_hours() == fleet_monitor._STALE_SYNC_HOURS_FLOOR
+
+
+@pytest.mark.asyncio
+async def test_healthy_account_synced_within_cadence_is_not_flagged(env):
+    """The regression rail: just past 24h is NOT stale under a 24h cadence."""
+    env["mk_user"]("u-fresh")
+    _mk_conn_with_account(
+        "u-fresh", status="active",
+        last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=25)))
+    out = await fleet_monitor.run_fleet_check()
+    assert [f for f in out["findings"] if f["kind"] == "stale_sync"] == []
+
+
+@pytest.mark.asyncio
+async def test_genuinely_stale_account_is_still_flagged(env):
+    env["mk_user"]("u-dead")
+    _mk_conn_with_account(
+        "u-dead", status="active",
+        last_sync_at=_iso(datetime.now(timezone.utc) - timedelta(hours=72)))
+    out = await fleet_monitor.run_fleet_check()
+    assert any(f["kind"] == "stale_sync" for f in out["findings"])
+
+
+# ── digest dedup survives a redeploy ────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_digest_dedup_is_durable_across_a_process_restart(env):
+    env["mk_user"]("u-broken")
+    _mk_conn_with_account("u-broken", status="broken")
+
+    first = await fleet_monitor.run_fleet_check()
+    assert first["pinged"] is True
+
+    # Simulate a redeploy: fresh process, empty module state. Previously this
+    # re-armed the dict and the identical digest pinged again.
+    importlib.reload(fleet_monitor)
+    fleet_monitor._post_discord = lambda *a, **k: env["pings"].append(a)
+
+    second = await fleet_monitor.run_fleet_check()
+    assert second["findings"], "same problem should still be detected"
+    assert second["pinged"] is False, "but must NOT re-ping after a redeploy"

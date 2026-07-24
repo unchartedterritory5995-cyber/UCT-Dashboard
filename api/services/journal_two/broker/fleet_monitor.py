@@ -32,7 +32,28 @@ from api.services.journal_two.broker.notifications import _post_discord as _noti
 logger = logging.getLogger("broker_fleet")
 
 _STRANDED_GRACE_MIN = 15     # portal round-trips + webhook imports settle fast
-_STALE_SYNC_HOURS = 24
+
+# How far past its OWN cadence an account may drift before we call it stale.
+# This must never be <= the sync interval: an account synced at T is not due
+# again until T+interval, the scheduler ticks every ~20min (jittered), and this
+# check runs hourly — so a threshold EQUAL to the interval flags every healthy
+# account for up to an hour a day. That is exactly the chronic false alarm that
+# trains you to ignore the digest, which is how the 2026-07-23 partner-auth
+# outage sat unread. Derived, not hardcoded, so changing BROKER_SYNC_MODE or
+# BROKER_SYNC_INTERVAL_MIN can never silently re-create the collision.
+_STALE_GRACE_MULTIPLIER = 1.5
+_STALE_SYNC_HOURS_FLOOR = 6.0
+
+
+def _stale_sync_hours() -> float:
+    """Staleness threshold in hours: 1.5x the configured per-account sync
+    cadence, floored so a very short cadence still allows a missed tick."""
+    try:
+        from api.services.journal_two.broker.sync import _default_interval_min
+        interval_h = max(0.0, _default_interval_min() / 60.0)
+    except Exception:  # noqa: BLE001 — monitor must never break on config reads
+        interval_h = 24.0
+    return max(_STALE_SYNC_HOURS_FLOOR, interval_h * _STALE_GRACE_MULTIPLIER)
 
 # Known internal/test users the owner has told us to keep out of the digest.
 # Extend at runtime via BROKER_FLEET_SUPPRESS (comma/space-separated user ids).
@@ -47,13 +68,54 @@ def _suppressed_user_ids() -> frozenset[str]:
     extra = (os.getenv("BROKER_FLEET_SUPPRESS") or "").replace(",", " ").split()
     return _DEFAULT_SUPPRESS | frozenset(extra)
 
-# ET-day of the last digest, keyed by a fingerprint of the finding set, so a
-# persistent problem pings once per day instead of hourly.
-_last_digest: dict[str, str] = {}
+# Once-per-ET-day digest dedup, keyed by a fingerprint of the finding set, so a
+# persistent problem pings once a day instead of hourly. DURABLE (auth.db) —
+# it used to be a module dict, so every redeploy re-armed it and the SAME digest
+# landed again after each deploy (2026-07-23: the 12-issue digest re-fired in
+# the evening). Deploys are frequent; alert fatigue is the failure mode that
+# makes a real digest invisible.
+_DIGEST_ID = "fleet_digest"
 
 
 def _reset_dedup_for_tests() -> None:
-    _last_digest.clear()
+    try:
+        conn = get_connection()
+        try:
+            conn.execute("DELETE FROM j2_broker_digest_dedup")
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001 — test helper, table may not exist yet
+        pass
+
+
+def _digest_already_sent(fingerprint: str, et_day: str) -> bool:
+    """True if this exact finding-set was already pinged today. Records the
+    (fingerprint, day) as a side effect when it is new, so the caller pings
+    at most once per distinct problem per ET day. Fails OPEN (returns False)
+    if the store is unavailable — a missed alert is worse than a repeat."""
+    try:
+        conn = get_connection()
+        try:
+            row = conn.execute(
+                "SELECT fingerprint, et_day FROM j2_broker_digest_dedup WHERE id = ?",
+                (_DIGEST_ID,),
+            ).fetchone()
+            if row and row["fingerprint"] == fingerprint and row["et_day"] == et_day:
+                return True
+            conn.execute(
+                "INSERT INTO j2_broker_digest_dedup (id, fingerprint, et_day) "
+                "VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET "
+                "fingerprint = excluded.fingerprint, et_day = excluded.et_day",
+                (_DIGEST_ID, fingerprint, et_day),
+            )
+            conn.commit()
+            return False
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001
+        logger.exception("digest dedup store unavailable — pinging anyway")
+        return False
 
 
 def _post_discord(title: str, description: str) -> None:  # patchable seam
@@ -106,6 +168,7 @@ def _user_is_paid(user_id: str, cache: dict[str, bool]) -> bool:
 
 def _collect_findings() -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc)
+    stale_hours = _stale_sync_hours()
     findings: list[dict[str, Any]] = []
     paid: dict[str, bool] = {}
     conn = get_connection()
@@ -141,7 +204,7 @@ def _collect_findings() -> list[dict[str, Any]]:
             if not _user_is_paid(a["user_id"], paid):
                 continue  # downgrade-paused accounts are legitimately stale
             ts = _parse_ts(a["last_sync_at"])
-            if ts is None or now - ts > timedelta(hours=_STALE_SYNC_HOURS):
+            if ts is None or now - ts > timedelta(hours=stale_hours):
                 findings.append({
                     "kind": "stale_sync", "userId": a["user_id"],
                     "accountId": a["id"], "brokerage": a["brokerage_name"],
@@ -227,9 +290,7 @@ async def run_fleet_check() -> dict[str, Any]:
     pinged = False
     if findings:
         key = "|".join(sorted(f"{f['kind']}:{f.get('userId')}" for f in findings))
-        today = _et_today()
-        if _last_digest.get(key) != today:
-            _last_digest[key] = today
+        if not _digest_already_sent(key, _et_today()):
             lines = [f"• [{f['kind']}] user {f.get('userId') or '—'} — {f['detail']}"
                      for f in findings[:15]]
             if len(findings) > 15:

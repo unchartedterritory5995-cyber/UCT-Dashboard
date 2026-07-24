@@ -115,6 +115,66 @@ def _do_broken(user_id: str, ba: dict[str, Any], error: str) -> None:
         logger.exception("owner discord ping (broken) failed")
 
 
+# ── Fleet-wide failure SPIKE: owner-only, the partner-outage detector ───────
+#
+# Every other detector here is per-ACCOUNT (this connection broke / went stale).
+# None of them recognise the shape of a PARTNER-side failure: many accounts
+# failing at once, in a single sweep, for the same reason. On 2026-07-23 all 11
+# connections 401'd inside 1.1 seconds and the first signal reached the owner
+# ~17 hours later, via a digest that read as 11 separate member problems.
+# This fires on the SHAPE, within one sweep, before any per-account rule trips.
+_SPIKE_COOLDOWN_SECONDS = 3600.0
+_spike_pinged: dict[str, float] = {}
+
+
+def _reset_spike_dedup_for_tests() -> None:
+    _spike_pinged.clear()
+
+
+def _spike_thresholds() -> tuple[int, float]:
+    def _num(name, default, cast):
+        try:
+            return cast(os.getenv(name, "") or default)
+        except (TypeError, ValueError):
+            return default
+    return _num("BROKER_SPIKE_MIN_ACCOUNTS", 3, int), \
+        _num("BROKER_SPIKE_MIN_RATIO", 0.5, float)
+
+
+def sweep_failure_spike(scope: str, *, due: int, failed: int,
+                        sample_error: str = "") -> bool:
+    """Ping the owner when a large FRACTION of one sweep failed together.
+
+    Returns True if a ping was dispatched (tests assert on this). Cooldown is
+    in-process and deliberately short (1h): during a real outage a repeat ping
+    after a redeploy is useful, not noise. Never raises.
+    """
+    try:
+        min_accounts, min_ratio = _spike_thresholds()
+        if due < min_accounts or failed <= 0 or (failed / due) < min_ratio:
+            return False
+        import time as _time
+        now = _time.monotonic()
+        if now - _spike_pinged.get(scope, -1e12) < _SPIKE_COOLDOWN_SECONDS:
+            return False
+        _spike_pinged[scope] = now
+        _spawn(
+            _post_discord,
+            f"⚠️ Broker sweep failure spike ({failed}/{due} accounts)",
+            f"scope: {scope}\n"
+            f"{failed} of {due} accounts failed in a SINGLE sweep — that shape "
+            f"means a shared cause (our SnapTrade credentials, the partner API, "
+            f"or the network), NOT {failed} separate member problems.\n"
+            f"sample error: {str(sample_error)[:300] or '(none captured)'}\n"
+            f"Triage: GET /api/j2/broker/admin/stats · "
+            f"POST /api/j2/broker/admin/reset-partner-auth-broken?dry_run=1",
+        )
+        return True
+    except Exception:  # noqa: BLE001 — an alert must never break a sweep
+        logger.exception("sweep failure spike ping failed")
+        return False
+
+
 # ── Repeated transient failures: owner-only, once per account per day ───────
 
 def sync_failed(user_id: str, ba: dict[str, Any] | None, error: str) -> None:

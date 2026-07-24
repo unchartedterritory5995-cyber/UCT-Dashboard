@@ -152,3 +152,72 @@ async def test_notification_failure_never_breaks_sync(env, monkeypatch):
         await sync.sync_account("u1", env["ba_id"])
     ba = connections.get_broker_account("u1", env["ba_id"])
     assert ba["status"] == "broken"
+
+
+# ── fleet-wide failure SPIKE (the partner-outage detector, 2026-07-23) ───────
+
+class _SpikeEnv:
+    def __init__(self, monkeypatch):
+        self.posts = []
+        monkeypatch.setattr(notifications, "_post_discord",
+                            lambda *a, **k: self.posts.append(a))
+        # Run notifiers inline so assertions don't race the daemon thread.
+        monkeypatch.setattr(notifications, "_spawn",
+                            lambda fn, *args: fn(*args))
+        notifications._reset_spike_dedup_for_tests()
+
+
+@pytest.fixture
+def spike(monkeypatch):
+    return _SpikeEnv(monkeypatch)
+
+
+def test_spike_fires_when_most_of_a_sweep_fails(spike):
+    assert notifications.sweep_failure_spike(
+        "nightly reconcile", due=11, failed=11,
+        sample_error="SnapTrade API error 401 (code 0000)") is True
+    assert len(spike.posts) == 1
+    title, body = spike.posts[0][0], spike.posts[0][1]
+    assert "11/11" in title
+    assert "code 0000" in body
+    assert "shared cause" in body
+
+
+def test_spike_silent_on_an_isolated_failure(spike):
+    # One member's connection breaking is NOT a fleet event.
+    assert notifications.sweep_failure_spike(
+        "scheduled due-sync", due=11, failed=1) is False
+    assert spike.posts == []
+
+
+def test_spike_silent_on_a_tiny_sweep(spike):
+    # 1-of-1 is 100% but proves nothing about a shared cause.
+    assert notifications.sweep_failure_spike(
+        "scheduled due-sync", due=1, failed=1) is False
+    assert spike.posts == []
+
+
+def test_spike_cooldown_prevents_per_tick_spam(spike):
+    assert notifications.sweep_failure_spike("s", due=10, failed=10) is True
+    assert notifications.sweep_failure_spike("s", due=10, failed=10) is False
+    assert len(spike.posts) == 1
+
+
+def test_spike_scopes_are_independent(spike):
+    assert notifications.sweep_failure_spike("due-sync", due=10, failed=10) is True
+    assert notifications.sweep_failure_spike("reconcile", due=10, failed=10) is True
+    assert len(spike.posts) == 2
+
+
+def test_spike_thresholds_are_env_tunable(spike, monkeypatch):
+    monkeypatch.setenv("BROKER_SPIKE_MIN_RATIO", "0.9")
+    assert notifications.sweep_failure_spike("s", due=10, failed=6) is False
+    monkeypatch.setenv("BROKER_SPIKE_MIN_RATIO", "0.5")
+    assert notifications.sweep_failure_spike("s", due=10, failed=6) is True
+
+
+def test_spike_never_raises_into_the_sweep(spike, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("discord down")
+    monkeypatch.setattr(notifications, "_spawn", boom)
+    assert notifications.sweep_failure_spike("s", due=10, failed=10) is False

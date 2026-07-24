@@ -413,3 +413,48 @@ async def test_sync_all_skips_broken_accounts(env):
     connections.set_status("u1", env["ba_id"], "broken", error="dead")
     out = await sync.sync_all_for_user("u1")
     assert out[env["ba_id"]] == {"skipped": True, "reason": "broken"}
+
+
+# ── the sweep must actually REPORT a fleet-wide failure (2026-07-23) ─────────
+
+def test_due_sweep_reports_a_failure_spike(monkeypatch):
+    """Wiring rail: sync_due_accounts must hand a mass failure to the spike
+    detector. Without this the 11-accounts-fail-at-once shape is invisible
+    until a per-account rule trips hours later."""
+    seen = {}
+
+    def fake_spike(scope, *, due, failed, sample_error=""):
+        seen.update(scope=scope, due=due, failed=failed, sample_error=sample_error)
+        return True
+
+    monkeypatch.setattr(sync.notifications, "sweep_failure_spike", fake_spike)
+    monkeypatch.setattr(sync.connections, "list_due_accounts",
+                        lambda interval: [{"userId": f"u{i}", "id": f"a{i}"}
+                                          for i in range(4)])
+    monkeypatch.setattr(sync, "_user_is_paid", lambda uid, cache: True)
+
+    async def boom(user_id, account_id, **kw):
+        raise RuntimeError("SnapTrade API error 401: Unauthorized (code 0000)")
+
+    monkeypatch.setattr(sync, "sync_account", boom)
+    out = asyncio.run(sync.sync_due_accounts())
+
+    assert out == {"due": 4, "synced": 0, "failed": 4}
+    assert seen["due"] == 4 and seen["failed"] == 4
+    assert "code 0000" in seen["sample_error"]
+
+
+def test_due_sweep_does_not_report_when_everything_succeeds(monkeypatch):
+    called = []
+    monkeypatch.setattr(sync.notifications, "sweep_failure_spike",
+                        lambda *a, **k: called.append(1))
+    monkeypatch.setattr(sync.connections, "list_due_accounts",
+                        lambda interval: [{"userId": "u1", "id": "a1"}])
+    monkeypatch.setattr(sync, "_user_is_paid", lambda uid, cache: True)
+
+    async def ok(user_id, account_id, **kw):
+        return {"ok": True}
+
+    monkeypatch.setattr(sync, "sync_account", ok)
+    asyncio.run(sync.sync_due_accounts())
+    assert called == []
