@@ -154,3 +154,56 @@ def test_theme_peers_payload_shape(monkeypatch):
     assert out["peers"] == ["AAA", "BBB"]          # seed excluded, ranked
     assert out["sources"] == {"AAA": "owner", "BBB": "engine"}
     assert out["also_in"] == []
+
+
+_ETF_THEMES = [
+    {"id": "semiconductors", "name": "Semiconductors", "sector_id": "tech",
+     "etf_ticker": "SMH", "sub_themes": [],
+     "holdings": [{"sym": "NVDA", "tier": "core"}, {"sym": "AVGO", "tier": "core"}]},
+    {"id": "financials_broad", "name": "Financials", "sector_id": "fin",
+     "etf_ticker": "XLF", "sub_themes": [], "holdings": [{"sym": "JPM", "tier": "core"}]},
+]
+
+
+def _stub_etf_themes(monkeypatch):
+    groups._ETF_THEME_CACHE["map"] = None
+    monkeypatch.setattr(groups, "_get_all_themes", lambda: {"themes": _ETF_THEMES})
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"NVDA", "AVGO", "JPM"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    monkeypatch.setattr(groups, "_themes_for_ticker", lambda s: [])
+
+
+def test_etf_theme_map_indexes_every_etf_backed_theme(monkeypatch):
+    _stub_etf_themes(monkeypatch)
+    m = groups._etf_theme_map()
+    assert m["SMH"] == ("semiconductors", "Semiconductors")
+    assert m["XLF"] == ("financials_broad", "Financials")
+
+
+def test_typing_a_theme_etf_resolves_to_that_theme(monkeypatch):
+    """SMH is a theme's etf_ticker, not a holding — before this it dead-ended."""
+    _stub_etf_themes(monkeypatch)
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    out = groups.resolve_peers("SMH", 8)
+    assert out["group_id"] == "semiconductors"
+    assert out["group_name"] == "Semiconductors"
+    assert out["source"] == "taxonomy"
+    assert set(out["peers"]) == {"NVDA", "AVGO"}
+
+
+def test_etf_front_never_overrides_a_real_membership(monkeypatch):
+    """A seed that is BOTH a holding and an etf_ticker (IBIT) keeps its
+    membership theme — step 1 wins over step 2."""
+    _stub_etf_themes(monkeypatch)
+    monkeypatch.setattr(groups, "resolve_primary_theme",
+                        lambda s: {"theme_id": "financials_broad",
+                                   "theme_name": "Financials", "sub_theme_id": None})
+    out = groups.resolve_peers("SMH", 8)
+    assert out["group_id"] == "financials_broad"
+
+
+def test_etf_front_is_case_and_dot_insensitive(monkeypatch):
+    _stub_etf_themes(monkeypatch)
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    assert groups.resolve_peers("smh", 8)["group_id"] == "semiconductors"

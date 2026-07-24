@@ -27,6 +27,9 @@ _CAP_TTL = 3600.0
 _SIZES_CACHE = {"map": None, "at": 0.0}
 _SIZES_TTL = 3600.0
 
+_ETF_THEME_CACHE = {"map": None, "at": 0.0}
+_ETF_THEME_TTL = 3600.0
+
 _AI_PEERS_MODEL = os.environ.get("GROUPS_AI_PEERS_MODEL", "claude-haiku-4-5")
 _AI_PEERS_TTL = 6 * 3600.0            # peers of a ticker barely change — cache 6h
 _AI_PEERS_VERSION = "v1"              # bump to invalidate the whole AI-peer cache
@@ -664,6 +667,29 @@ def _macro_top_n(n: int) -> dict:
     }
 
 
+def _etf_theme_map() -> dict:
+    """{ETF ticker (hyphen upper) -> (theme_id, theme_name)} for every ETF-backed
+    theme. A theme's etf_ticker is NOT stored as a holding, so `get_themes_for_ticker`
+    misses it entirely — typing SMH used to dead-end even though Semiconductors is
+    right there. Cached 1h; only a real (non-empty) map is cached, so a cold
+    taxonomy read retries next call. First ETF wins on the (unexpected) duplicate."""
+    now = time.monotonic()
+    if _ETF_THEME_CACHE["map"] is not None and (now - _ETF_THEME_CACHE["at"]) < _ETF_THEME_TTL:
+        return _ETF_THEME_CACHE["map"]
+    out = {}
+    try:
+        for t in _get_all_themes().get("themes", []):
+            etf = normalize_sym(t.get("etf_ticker") or "")
+            if etf and etf not in out:
+                out[etf] = (t["id"], t.get("name"))
+    except Exception:
+        out = {}
+    if out:
+        _ETF_THEME_CACHE["map"] = out
+        _ETF_THEME_CACHE["at"] = now
+    return out
+
+
 def _theme_peers_payload(theme_id: str, theme_name: str, seed_hy: str,
                          seed_sub: str, sym: str, n: int) -> dict:
     """The taxonomy peer-fill response for a theme.
@@ -714,6 +740,10 @@ def resolve_peers(sym: str, n: int) -> dict:
     seed_hy = normalize_sym(sym)
     row = resolve_primary_theme(sym)
     if not row:
+        # The seed FRONTS a theme (it is the theme's ETF, not a holding).
+        fronted = _etf_theme_map().get(seed_hy)
+        if fronted:
+            return _theme_peers_payload(fronted[0], fronted[1], seed_hy, None, sym, n)
         ind = _industry_peers(seed_hy, n)
         if ind and ind.get("peers"):
             return {"seed": seed_hy, "group_id": f"industry:{ind['industry']}",
