@@ -37,13 +37,36 @@ def test_layer_mem_on_warm_cache_hit(fresh):
 
 
 def test_layer_sqlite_on_fresh_stored_rows(fresh):
+    """Fresh INTRADAY rows serve straight from SQLite.
+
+    Uses an intraday tf deliberately. _needs_fresh() short-circuits D/W/M to
+    True unconditionally (`last_ts <= _last_weekday_yyyymmdd()`) because today's
+    daily bar keeps evolving all session — so for D/W/M the 'sqlite' layer is
+    unreachable and a stored daily row always takes the stale-swr path (pinned
+    by test_layer_stale_swr_on_daily_rows below). This test previously stored a
+    daily row and asserted 'sqlite', which that policy made impossible.
+    """
+    import time
+    now = int(time.time())
+    rows = [{"t": now, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]
+    bars_sqlite.put_bars("AAPL", "5", rows)
+    # bars=1 so the len>=bars*0.9 gate passes on the single fresh row.
+    bars_fetch._get_bars_inner("AAPL", "5", 1)
+    assert bars_fetch.get_serve_layer() == "sqlite"
+
+
+def test_layer_stale_swr_on_daily_rows(fresh):
+    """A stored DAILY row serves stale-swr + revalidates in the background.
+
+    Not a defect: _needs_fresh() treats every D/W/M bar as refreshable so
+    today's evolving open/high/low/close can't freeze at its first-cached value.
+    """
     import time
     today = time.strftime("%Y-%m-%d")
     rows = [{"t": today, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]
     bars_sqlite.put_bars("AAPL", "D", rows, date_tf=True)
-    # bars=1 so the len>=bars*0.9 gate passes on the single fresh row.
     bars_fetch._get_bars_inner("AAPL", "D", 1)
-    assert bars_fetch.get_serve_layer() == "sqlite"
+    assert bars_fetch.get_serve_layer() == "stale-swr"
 
 
 def test_layer_fetch_on_cold_ticker(fresh):

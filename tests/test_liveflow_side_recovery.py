@@ -108,7 +108,14 @@ def test_update_sides_idempotent_and_guarded(db):
 
 # ── _classify_events_side: method tagging + buffer eligibility ─────────
 
-def test_blind_print_is_tagged_none_and_buffered():
+def test_blind_print_is_tagged_none_and_buffered(monkeypatch):
+    """No NBBO and no raw-T history => no side, and the print is buffered.
+
+    ONDEMAND_QUOTE_ENABLED is forced OFF here so this keeps pinning the plain
+    terminal tag. With it on (the default), a big SWEEP/BLOCK is instead
+    diverted to the REST quote fetch — see the companion test below.
+    """
+    monkeypatch.setattr(mww, "ONDEMAND_QUOTE_ENABLED", False)
     evt = _evt()  # no NBBO history, no raw-T history => no signal at all
     mww._classify_events_side([evt])
     assert evt.side == ""
@@ -117,6 +124,21 @@ def test_blind_print_is_tagged_none_and_buffered():
     buffered = mww._RECLASSIFY_BUFFER[0]
     assert buffered["side"] == ""
     assert buffered["dedup_key"] == mww._event_dedup_key(evt, "stocks")
+
+
+def test_blind_large_print_is_tagged_ondemand_pending(monkeypatch):
+    """A large blind SWEEP/BLOCK is diverted to the on-demand quote fetch.
+
+    The flusher keys off this transient tag to REST-fetch a quote instead of
+    writing the print blank (the 77%-blank case); side stays "" until/unless
+    that fetch succeeds.
+    """
+    monkeypatch.setattr(mww, "ONDEMAND_QUOTE_ENABLED", True)
+    monkeypatch.setattr(mww, "ONDEMAND_QUOTE_PREMIUM", 100_000)
+    evt = _evt(type_="SWEEP", premium=1_080_000)
+    mww._classify_events_side([evt])
+    assert evt.side == ""
+    assert evt.side_method == "ondemand-pending"
 
 
 def test_nbbo_classified_print_is_not_buffered():

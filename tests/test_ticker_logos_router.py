@@ -25,4 +25,8 @@ def test_logo_miss_returns_transparent_and_schedules_resolve():
         r = client.get("/api/ticker-logo/ZZZZ")
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/png"
-    sched.assert_called_once_with("ZZZZ")
+    # schedule_resolve gained optional name=/alt= hints; assert the intent (one
+    # resolve scheduled for the missing symbol) rather than pinning the exact
+    # kwarg set, which made this fail on a purely additive signature change.
+    sched.assert_called_once()
+    assert sched.call_args.args[0] == "ZZZZ"
