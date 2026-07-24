@@ -139,11 +139,12 @@ export default function GlobalVideoLayer() {
             if (typeof v === 'number') setVolume(v)
             setMuted(!!e.target.isMuted?.())
           } catch { /* ignore */ }
-          // Authoritative mute/play: the player is command-ready here, unlike
-          // the synchronous call right after construction below (which can
-          // no-op on a real mobile browser and let the iframe autoplay
-          // audibly in parallel with the <audio> track — the double-audio
-          // bug this whole path exists to avoid).
+          // Authoritative mute/play: the player is command-ready here. This is
+          // the SOLE mute()/playVideo() call site on the audio-primary path —
+          // calling it synchronously right after construction (before the
+          // player is command-ready) can no-op on a real mobile browser and
+          // let the iframe autoplay audibly in parallel with the <audio>
+          // track — the double-audio bug this whole path exists to avoid.
           if (isAudioPrimary()) {
             try { e.target.mute(); e.target.playVideo() } catch { /* ignore */ }
           }
@@ -169,7 +170,6 @@ export default function GlobalVideoLayer() {
     if (isAudioPrimary() && audioRef.current) {
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
       audioRef.current.play().catch(() => {})
-      try { player.mute(); player.playVideo() } catch { /* ignore */ }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiReady, active, list, index, saveNow])

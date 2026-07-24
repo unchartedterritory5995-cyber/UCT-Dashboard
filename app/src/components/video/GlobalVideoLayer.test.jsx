@@ -233,11 +233,63 @@ describe('GlobalVideoLayer', () => {
       expect(playSpy).toHaveBeenCalled()
       // Born muted via playerVars — no audible-autoplay window before onReady.
       expect(lastPlayerVars.mute).toBe(1)
-      // Authoritative mute happens through the onReady-ready path (the fix):
-      // the mock invokes onReady synchronously post-construction, so this
-      // call can only have come from the onReady handler, not the raw ctor.
+      // Authoritative mute/play happens through the onReady path (the fix):
+      // there is no synchronous post-construction mute()/playVideo() call on
+      // this path anymore, so this can only have come from the onReady
+      // handler. See the ordering test below for a direct proof of that.
       expect(lastPlayer.mute).toHaveBeenCalled()
       expect(lastPlayer.playVideo).toHaveBeenCalled()
+    })
+
+    it('does not call mute/playVideo until onReady fires (guards against a re-introduced synchronous call)', () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+
+      // Local override of the global YT.Player mock: defers onReady instead
+      // of firing it synchronously in the constructor, so call order can be
+      // observed directly.
+      let fireOnReady = null
+      const prevYT = window.YT
+      window.YT = {
+        Player: class {
+          constructor(mount, opts) {
+            this.loadVideoById = vi.fn()
+            this.pauseVideo = vi.fn()
+            this.playVideo = vi.fn()
+            this.destroy = vi.fn()
+            this.seekTo = vi.fn()
+            this.setPlaybackRate = vi.fn()
+            this.mute = vi.fn()
+            this.unMute = vi.fn()
+            this.loadModule = vi.fn()
+            this.unloadModule = vi.fn()
+            this.setOption = vi.fn()
+            this.getOption = () => []
+            this.getCurrentTime = () => 20
+            this.getDuration = () => 0
+            lastPlayer = this
+            lastPlayerVars = opts.playerVars
+            fireOnReady = () => opts.events?.onReady?.({ target: this })
+          }
+        },
+      }
+
+      try {
+        renderLayer()
+        act(() => store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0))
+
+        // Constructed but not yet command-ready: no mute/play calls yet.
+        expect(lastPlayer.mute).not.toHaveBeenCalled()
+        expect(lastPlayer.playVideo).not.toHaveBeenCalled()
+
+        act(() => fireOnReady())
+
+        expect(lastPlayer.mute).toHaveBeenCalled()
+        expect(lastPlayer.playVideo).toHaveBeenCalled()
+      } finally {
+        window.YT = prevYT
+      }
     })
 
     it('does not touch the audio element when the flag is off (desktop-identical behavior)', () => {
