@@ -619,6 +619,43 @@
   .rundownWrap :global(.rd-gp-grid) { grid-template-columns: 84px 1fr; }
 }
 
+/* ── TRADE IDEA OF THE DAY (hero card) ───────────────────────── */
+.rundownWrap :global(.rd-tradeidea) {
+  margin: 20px 0;
+  border: 1px solid rgba(201, 168, 76, 0.45);
+  border-radius: 12px;
+  padding: 4px 0 14px;
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.07), rgba(201, 168, 76, 0.02));
+}
+.rundownWrap :global(.rd-ti-head) {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 800; letter-spacing: 2px;
+  text-transform: uppercase; color: #d4b45c; padding: 12px 16px 8px;
+}
+.rundownWrap :global(.rd-ti-name) { padding: 0 16px 8px; font-size: 15px; }
+.rundownWrap :global(.rd-ti-sym) { font-family: var(--font-mono); font-weight: 800; font-size: 19px; color: #f3f3f3; }
+.rundownWrap :global(.rd-ti-co) { color: #9aa7b4; font-size: 13.5px; }
+.rundownWrap :global(.rd-ti-rs) { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #3fb950; background: rgba(63,185,80,0.14); padding: 1px 7px; border-radius: 999px; margin-left: 4px; }
+.rundownWrap :global(.rd-ti-levels) { padding: 0 16px 10px; font-family: var(--font-mono); font-size: 13.5px; color: #cfcfcf; line-height: 1.9; }
+.rundownWrap :global(.rd-ti-lbl) { color: #6b7480; font-size: 11px; }
+.rundownWrap :global(.rd-ti-val) { color: #e8e8e8; font-weight: 700; }
+.rundownWrap :global(.rd-ti-thesis) { padding: 0 16px; font-size: 13.5px; line-height: 1.6; color: #d6d6d6; }
+
+/* ── RS LEADERS / FRESH BREAKOUTS ────────────────────────────── */
+.rundownWrap :global(.rd-rs) { margin: 18px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
+.rundownWrap :global(.rd-rs-head) {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: #d4b45c; padding: 11px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
+}
+.rundownWrap :global(.rd-rs-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-rs-label) { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #6b7480; padding: 11px 16px 4px; }
+.rundownWrap :global(.rd-rs-row) { display: flex; align-items: baseline; gap: 10px; padding: 6px 16px; }
+.rundownWrap :global(.rd-rs-sym) { font-family: var(--font-mono); font-weight: 700; min-width: 62px; color: #f3f3f3; }
+.rundownWrap :global(.rd-rs-setup) { font-size: 12.5px; color: #9aa7b4; flex: 1; }
+.rundownWrap :global(.rd-rs-score) { font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #c9a84c; }
+.rundownWrap :global(.rd-rs-highs) { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 16px 14px; }
+.rundownWrap :global(.rd-rs-chip) { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; color: #3fb950; background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.25); padding: 2px 8px; border-radius: 6px; }
+
 /* ── Top 5 Picks ─────────────────────────────────────────────── */
 .rundownWrap :global(.rd-top-picks-grid) {
   display: flex;
