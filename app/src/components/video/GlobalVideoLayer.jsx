@@ -73,6 +73,15 @@ export default function GlobalVideoLayer() {
   // (vs. merely present-but-not-yet-engaged, or fallen back to the YT iframe
   // after a 404). Set false again on audio error / session close / unmount.
   const audioActiveRef = useRef(false)
+  // True once the audio-primary path has failed to get sound out of the
+  // <audio> element (initial play() rejected, or a 404/onError) — the signal
+  // that tells onReady to leave the YT iframe AUDIBLE instead of muting it.
+  // Without this, a play()-rejection before onReady fires would unMute() a
+  // player that isn't command-ready yet (a no-op), and onReady's unconditional
+  // mute() would then silence the only remaining audio source — silence is a
+  // regression vs. today's audible-YouTube-only behavior, which this exists
+  // to prevent. Reset alongside audioActiveRef at every fresh-start site.
+  const audioFailedRef = useRef(false)
   // Reactive mirror of audioActiveRef — the ref alone can't retrigger a
   // re-render when it flips (it's set from inside a play().then() callback,
   // not an event handler), so effects that need to react to "audio just
@@ -116,6 +125,17 @@ export default function GlobalVideoLayer() {
   // on the audio track falls back to the muted YT iframe unmuting itself
   // instead, and every control site below must follow that fallback too.
   const audioOn = () => audioActiveRef.current && audioRef.current
+
+  // Degrade to today's behavior (audible YouTube) whenever the <audio>
+  // element can't carry sound — initial play() rejected, or a 404/onError.
+  // Uses the SAME player accessor as the existing onError handler
+  // (playerRef.current?.unMute?.()) so both failure sites agree on how to
+  // reach the player. A no-op here (player not yet command-ready) is fine —
+  // audioFailedRef is the durable signal onReady consults afterward.
+  const failToAudibleYT = () => {
+    audioFailedRef.current = true
+    try { playerRef.current?.unMute?.() } catch { /* ignore */ }
+  }
 
   const saveNow = useCallback(() => {
     const p = playerRef.current
@@ -174,7 +194,14 @@ export default function GlobalVideoLayer() {
           // let the iframe autoplay audibly in parallel with the <audio>
           // track — the double-audio bug this whole path exists to avoid.
           if (isAudioPrimary()) {
-            try { e.target.mute(); e.target.playVideo() } catch { /* ignore */ }
+            // If the <audio> element already failed (play() rejected, or a
+            // 404 fired) before onReady got here, leave the player audible —
+            // re-muting it now would silence the only working audio source.
+            try {
+              if (audioFailedRef.current) e.target.unMute()
+              else e.target.mute()
+              e.target.playVideo()
+            } catch { /* ignore */ }
           }
         },
         onStateChange: (e) => {
@@ -195,7 +222,7 @@ export default function GlobalVideoLayer() {
     tickerRef.current = setInterval(saveNow, 5000)
     if (isAudioPrimary() && audioRef.current) {
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
-      audioRef.current.play().then(() => { audioActiveRef.current = true; setAudioActive(true) }).catch(() => {})
+      audioRef.current.play().then(() => { audioActiveRef.current = true; setAudioActive(true) }).catch(() => failToAudibleYT())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiReady, active, list, index, saveNow])
@@ -215,8 +242,9 @@ export default function GlobalVideoLayer() {
       // the new track's own play() has resolved and re-armed it below.
       audioActiveRef.current = false
       setAudioActive(false)
+      audioFailedRef.current = false
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
-      audioRef.current.play().then(() => { audioActiveRef.current = true; setAudioActive(true) }).catch(() => {})
+      audioRef.current.play().then(() => { audioActiveRef.current = true; setAudioActive(true) }).catch(() => failToAudibleYT())
     }
     p.loadVideoById({ videoId: id, startSeconds: resumeSeconds(id) })
     if (isAudioPrimary()) {
@@ -230,6 +258,7 @@ export default function GlobalVideoLayer() {
     if (active) return
     audioActiveRef.current = false
     setAudioActive(false)
+    audioFailedRef.current = false
     try { pipRef.current?.pip?.close?.() } catch { /* ignore */ }
     const p = playerRef.current
     if (!p) return
@@ -740,7 +769,7 @@ export default function GlobalVideoLayer() {
         onError={() => {
           audioActiveRef.current = false
           setAudioActive(false)
-          try { playerRef.current?.unMute?.() } catch { /* ignore */ }
+          failToAudibleYT()
         }}
       />
       {!apiReady && <div className={styles.loading}>Loading…</div>}

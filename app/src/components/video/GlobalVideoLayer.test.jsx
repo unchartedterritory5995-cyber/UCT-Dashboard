@@ -759,4 +759,158 @@ describe('GlobalVideoLayer', () => {
       expect(videoOwnsMediaSession()).toBe(false)
     })
   })
+
+  // Production safety net: if the audio-primary <audio> element never gets
+  // sound out (initial play() rejects, or a 404/onError), the born-muted YT
+  // iframe must NOT be left silently muted — that's a regression vs. today's
+  // audible-YouTube-only behavior. It must degrade to audible YT instead.
+  describe('safe degrade to audible YT when audio-primary playback fails', () => {
+    const prevFlag = import.meta.env.VITE_DESK_BG_AUDIO_ENABLED
+    const prevMatchMedia = window.matchMedia
+    const prevMediaSession = navigator.mediaSession
+    const prevMediaMetadata = window.MediaMetadata
+
+    afterEach(() => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = prevFlag
+      window.matchMedia = prevMatchMedia
+      navigator.mediaSession = prevMediaSession
+      window.MediaMetadata = prevMediaMetadata
+      setVideoOwnsMediaSession(false)
+      vi.restoreAllMocks()
+    })
+
+    it('unmutes the YT player (never left silently muted) when audio.play() rejects', async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('NotAllowedError'))
+
+      renderLayer()
+      await act(async () => {
+        store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+        // Flush the rejected play() promise's .catch() microtask.
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      // Born muted via playerVars (no audible-autoplay window before onReady)...
+      expect(lastPlayerVars.mute).toBe(1)
+      // ...but the failure degrades it to audible instead of leaving it silent.
+      expect(lastPlayer.unMute).toHaveBeenCalled()
+    })
+
+    it('audio never becomes the playback clock when play() rejects (MediaSession stays unclaimed)', async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      navigator.mediaSession = { setActionHandler: vi.fn() }
+      window.MediaMetadata = class { constructor(opts) { Object.assign(this, opts) } }
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('NotAllowedError'))
+
+      renderLayer()
+      await act(async () => {
+        store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      // Task 12's MediaSession claim is gated on audioOn() (audioActiveRef &&
+      // audioRef) — it only fires once audio.play() has actually resolved, so
+      // its absence here is direct proof audioActive/audioActiveRef never
+      // flipped true on the rejected-play path.
+      expect(videoOwnsMediaSession()).toBe(false)
+      expect(navigator.mediaSession.setActionHandler).not.toHaveBeenCalled()
+    })
+
+    it('the happy path (play() resolves) still mutes the YT player and never unmutes it', async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+
+      renderLayer()
+      await act(async () => {
+        store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+        await Promise.resolve()
+      })
+
+      expect(lastPlayer.mute).toHaveBeenCalled()
+      expect(lastPlayer.unMute).not.toHaveBeenCalled()
+    })
+
+    it('onReady ordering: a play()-rejection that lands BEFORE onReady fires leaves the player unmuted (not re-muted by onReady)', async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('NotAllowedError'))
+
+      // Local override of the global YT.Player mock: defers onReady instead of
+      // firing it synchronously in the constructor, so the rejection can be
+      // made to land BEFORE onReady runs — the exact race the ordering fix
+      // (audioFailedRef consulted inside onReady) exists to handle.
+      let fireOnReady = null
+      const prevYT = window.YT
+      window.YT = {
+        Player: class {
+          constructor(mount, opts) {
+            this.loadVideoById = vi.fn()
+            this.pauseVideo = vi.fn()
+            this.playVideo = vi.fn()
+            this.destroy = vi.fn()
+            this.seekTo = vi.fn()
+            this.setPlaybackRate = vi.fn()
+            this.mute = vi.fn()
+            this.unMute = vi.fn()
+            this.loadModule = vi.fn()
+            this.unloadModule = vi.fn()
+            this.setOption = vi.fn()
+            this.getOption = () => []
+            this.getCurrentTime = () => 20
+            this.getDuration = () => 0
+            lastPlayer = this
+            lastPlayerVars = opts.playerVars
+            fireOnReady = () => opts.events?.onReady?.({ target: this })
+          }
+        },
+      }
+
+      try {
+        renderLayer()
+        await act(async () => {
+          store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+          // Flush the play() rejection's .catch() BEFORE onReady ever fires.
+          await Promise.resolve()
+          await Promise.resolve()
+        })
+
+        // The rejection already unmuted the player once (failToAudibleYT).
+        expect(lastPlayer.unMute).toHaveBeenCalledTimes(1)
+        expect(lastPlayer.mute).not.toHaveBeenCalled()
+
+        act(() => fireOnReady())
+
+        // onReady must respect audioFailedRef — unMute again (not mute).
+        expect(lastPlayer.unMute).toHaveBeenCalledTimes(2)
+        expect(lastPlayer.mute).not.toHaveBeenCalled()
+        expect(lastPlayer.playVideo).toHaveBeenCalled()
+      } finally {
+        window.YT = prevYT
+      }
+    })
+
+    it('an audio 404 (onError) after audio was active also unmutes the YT player', async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+
+      renderLayer()
+      await act(async () => {
+        store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+        await Promise.resolve()
+      })
+      expect(lastPlayer.mute).toHaveBeenCalled()
+      expect(lastPlayer.unMute).not.toHaveBeenCalled()
+
+      const audioEl = document.querySelector('audio[data-uct-video-audio]')
+      act(() => { fireEvent.error(audioEl) })
+
+      expect(lastPlayer.unMute).toHaveBeenCalled()
+    })
+  })
 })
