@@ -203,6 +203,10 @@ export default function GlobalVideoLayer() {
     setEnded(false)
     curIdRef.current = id
     if (isAudioPrimary() && audioRef.current) {
+      // Disarm audioOn() for the OLD track immediately — otherwise controls
+      // (togglePlay/seek/etc) can act on the audio element mid-load, before
+      // the new track's own play() has resolved and re-armed it below.
+      audioActiveRef.current = false
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
       audioRef.current.play().then(() => { audioActiveRef.current = true }).catch(() => {})
     }
@@ -432,12 +436,17 @@ export default function GlobalVideoLayer() {
   const togglePlay = () => {
     if (audioOn()) {
       // The audio element is the clock here — drive it directly and update
-      // isPlaying ourselves (nothing else will: the YT iframe stays muted
-      // and un-commanded underneath, so its onStateChange never fires from
-      // this action).
+      // isPlaying ourselves. The YT iframe stays muted throughout, but it is
+      // still VISIBLE underneath (only the <audio> element is display:none),
+      // so its play/pause state must mirror the audio element's or the muted
+      // video keeps animating while audio is paused.
       try {
         if (isPlaying) audioRef.current.pause()
         else audioRef.current.play().catch(() => {})
+      } catch { /* ignore */ }
+      const p = player()
+      try {
+        if (p) (isPlaying ? p.pauseVideo : p.playVideo)?.call(p)
       } catch { /* ignore */ }
       setIsPlaying(!isPlaying)
       return
