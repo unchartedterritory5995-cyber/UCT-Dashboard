@@ -282,6 +282,15 @@ DEFAULT_THRESHOLDS = {
     # approximate moneyness from price vs strike and drop the direction on
     # apparent deep-ITM. False restores the old fail-open behaviour.
     "spotless_itm_guard": True,
+    # Sell-side opening test (2026-07-24): at-bid flow only counts as writing
+    # when volume exceeds OI (proof of opening). Below that it may be a long
+    # position being closed — weak signal, so drop the direction to neutral.
+    "sold_requires_opening": True,
+    "sold_min_vol_oi": 1.0,
+    # Deep-OTM lottery/hedge thresholds, type-aware (2026-07-24). Mirrors the
+    # deep-ITM asymmetry: BLOCKs at depth are structural, SWEEPs carry urgency.
+    "deep_otm_pct_block": 30.0,
+    "deep_otm_pct_sweep": 40.0,
     # Keep-as-Size floor (2026-07-20). When the side can't be trusted (deep-ITM
     # guard, ambiguous at-bid 'B', or blank single-venue NBBO) direction is None
     # and the row would be dropped. If premium clears this floor, KEEP it as a
@@ -764,7 +773,7 @@ def _ts_from_row(created_date: str, created_time: str) -> float:
         return 0.0
 
 
-def _derive_direction(cp: str, side: str, type_: str = ""):
+def _derive_direction(cp: str, side: str, type_: str = "", vol=None, oi=None):
     """Bull/Bear from Side+CP. Returns None when the side classification
     is too ambiguous to call directional.
 
@@ -803,6 +812,23 @@ def _derive_direction(cp: str, side: str, type_: str = ""):
 
       Tunable via thresholds.sweep_empty_side_as_ask (default True).
       Set False to revert to strict "empty = drop" behavior.
+
+    Sell-side OPENING test (added 2026-07-24):
+      At-bid / below-bid flow is only genuine WRITING when it opens new
+      contracts. You cannot close more contracts than exist, so volume > OI
+      proves opening. At or below OI the same print could just as easily be
+      someone CLOSING a long position — a much weaker signal that shouldn't
+      carry a full directional label. Without this test the Bear tier fills
+      with covered-call overwriting and long-call liquidations (observed
+      7/24: COIN $155C, 669 @ 19.651 bid, V/OI 1.8 -> "Size Bears").
+
+      Applies to bid-side only; ask-side buying keeps its direction. Requires
+      `vol` and `oi` to be passed — omit them and the test is skipped, so
+      older call sites keep their previous behaviour.
+
+      Tunables: thresholds.sold_requires_opening (default True) and
+      thresholds.sold_min_vol_oi (default 1.0). OI of 0/None means a fresh
+      strike, which is opening by definition and stays directional.
 
     For PUT contracts, direction maps inversely as before.
     """
@@ -849,6 +875,24 @@ def _derive_direction(cp: str, side: str, type_: str = ""):
         else:
             # Unknown side string
             return None
+
+    # Sell-side opening test — see docstring. Only gates BID-side flow.
+    if side_is_bid and vol is not None:
+        try:
+            _t = _load_thresholds()
+            _req_open = _t.get("sold_requires_opening", True)
+            _min_voi = float(_t.get("sold_min_vol_oi", 1.0) or 0)
+        except Exception:
+            _req_open, _min_voi = True, 1.0
+        if _req_open and _min_voi > 0:
+            try:
+                _v = float(vol or 0)
+                _o = float(oi or 0)
+            except (TypeError, ValueError):
+                _v, _o = 0.0, 0.0
+            # OI 0/unknown => fresh strike => opening by definition, keep it.
+            if _o > 0 and _v <= _o * _min_voi:
+                return None
 
     if cp == "CALL":
         if side_is_ask: return "Bull"
@@ -1196,7 +1240,8 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
     money_pct, money_label = _moneyness(strike, spot, cp_full)
     premium = _parse_int(row["Premium"])
 
-    direction = _derive_direction(cp_full, side, row.get("Type", ""))
+    direction = _derive_direction(cp_full, side, row.get("Type", ""),
+                                  vol=_parse_int(row.get("Volume")), oi=_parse_int(row.get("OI")))
     # Deep-ITM side/direction guard (2026-07-20): on deeply-ITM contracts the
     # single-venue NBBO is unreliable (wide/stale books), so the A/B/AA/BB side —
     # and therefore bull/bear — is frequently wrong (AMAT/MU LEAP puts read the
@@ -1340,11 +1385,29 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
     # Legitimate deep-OTM LEAPS (DTE≥365) are institutional tail hedges
     # and should stay. Short-dated deep-OTM is retail gambling — high
     # noise, low signal. Matches OptionsFlow's deep-OTM guard.
+    #
+    # TYPE-AWARE (2026-07-24): the deep-ITM filter above already uses a tighter
+    # threshold for BLOCKs (10%) than SWEEPs (20%) — blocks at depth are
+    # usually spread legs or facilitation, not conviction. The OTM side used a
+    # flat 40% for both, so a single deep-OTM BLOCK read as directional:
+    # ORCL 12/18/26 $75P at spot $117.13 (36% OTM, $2.02M BLOCK) labelled Bear
+    # when it is far more likely a tail hedge or a spread leg. Mirror the ITM
+    # asymmetry — BLOCK filters at 30% OTM, SWEEP keeps the 40% bar because a
+    # sweep that far out still carries urgency.
     if spot > 0 and dte < 365:
-        if cp_full == "CALL" and strike > spot * 1.4:
-            return None  # >40% OTM call, short-dated → lottery
-        if cp_full == "PUT" and strike < spot * 0.6:
-            return None  # >40% OTM put, short-dated → lottery
+        try:
+            _t_otm = _load_thresholds()
+            _otm_blk = float(_t_otm.get("deep_otm_pct_block", 30.0) or 30.0)
+            _otm_swp = float(_t_otm.get("deep_otm_pct_sweep", 40.0) or 40.0)
+        except Exception:
+            _otm_blk, _otm_swp = 30.0, 40.0
+        _otm_lim = _otm_blk if is_block else _otm_swp
+        _up = 1.0 + (_otm_lim / 100.0)
+        _dn = 1.0 - (_otm_lim / 100.0)
+        if cp_full == "CALL" and strike > spot * _up:
+            return None  # deep-OTM call, short-dated → lottery / hedge
+        if cp_full == "PUT" and strike < spot * _dn:
+            return None  # deep-OTM put, short-dated → lottery / hedge
 
     # ─── Noise filter 3: BBS-format ML/ skip ─────────────────────────────────
     # Distinguish real multi-leg spreads from Massive's aggregation label:
@@ -2136,7 +2199,9 @@ def _build_diagnostic(today):
     for r in rows:
         cp = r["CallPut"]
         side = r["Side"] or ""
-        d = _derive_direction(cp, side, r.get("Type", ""))
+        d = _derive_direction(cp, side, r.get("Type", ""),
+                              vol=_parse_int(r["Volume"]) if "Volume" in r.keys() else None,
+                              oi=_parse_int(r["OI"]) if "OI" in r.keys() else None)
         if d is None:
             skipped_unclassified += 1
             continue
@@ -4046,6 +4111,10 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "net_flow_min_ratio",        # feed-side two-way-flow demote threshold
         "hide_sizeless",             # hide direction-unconfirmed rows from curated
         "spotless_itm_guard",        # fail closed on deep-ITM when spot is missing
+        "sold_requires_opening",     # at-bid direction requires vol > OI (opening)
+        "sold_min_vol_oi",           # the V/OI multiple that counts as opening
+        "deep_otm_pct_block",        # deep-OTM cutoff for BLOCK type
+        "deep_otm_pct_sweep",        # deep-OTM cutoff for SWEEP type
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
