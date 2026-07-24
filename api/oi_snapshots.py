@@ -881,6 +881,17 @@ def daily_snapshot_job() -> Dict:
     logger.info(f"[oi-snapshot] Starting daily snapshot for {today_iso}")
 
     run_id = start_run()
+    # Retention runs FIRST, unconditionally. It used to sit at the very end of
+    # this function, so the "no contracts" early return and the market-hours
+    # chunk-boundary abort both skipped it — the same cleanup-only-on-the-happy-
+    # path shape that killed the tape spool on 2026-07-23. Snapshots that are
+    # already expired are expired whether or not today's run gets anywhere.
+    try:
+        _pruned_early = prune_old()
+        if _pruned_early:
+            logger.info("[oi-snapshot] pruned %d expired snapshot row(s)", _pruned_early)
+    except Exception as e:
+        logger.warning("[oi-snapshot] prune failed (non-fatal): %s", e)
     try:
         contracts = get_distinct_contracts()
         if not contracts:
@@ -966,7 +977,10 @@ def daily_snapshot_job() -> Dict:
                 f"Running total: {total_successes}/{chunk_start + len(chunk)}"
             )
 
-        pruned = prune_old()
+        # Second sweep: today's inserts may themselves have pushed an older day
+        # past the window. Cheap, and the authoritative one is the pre-run call
+        # above, which happens even when this line is never reached.
+        pruned = _pruned_early + prune_old()
 
         # ── Dealer positioning attribution ──────────────────────────────
         # Run this AFTER the OI snapshots for today are persisted, so the

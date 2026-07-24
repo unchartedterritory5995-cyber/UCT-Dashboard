@@ -232,6 +232,15 @@ def _start_flow_schedulers():
                 log.info("[startup] tape-spool gap sweeps registered")
         except Exception as e:  # noqa: BLE001
             log.warning("tape-spool sweep scheduling failed: %s", e)
+        # Volume watchdog — this is the pod that ran out of disk on 2026-07-23
+        # while the only thing watching was the spool's own feature-scoped budget.
+        try:
+            from api.services import disk_watchdog
+            if disk_watchdog.start():
+                log.info("[startup] disk_watchdog started (warn=%s%% crit=%s%%)",
+                         disk_watchdog.WARN_PCT, disk_watchdog.CRIT_PCT)
+        except Exception as e:  # noqa: BLE001
+            log.warning("disk_watchdog start failed: %s", e)
         try:
             from api import flow_backup
             if flow_backup.register_jobs(sched):

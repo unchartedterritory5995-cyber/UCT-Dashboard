@@ -322,6 +322,29 @@ def reconciliation_status():
     return bars_reconciliation.get_state()
 
 
+@router.get("/api/admin/disk-status")
+def disk_status(live: bool = False):
+    """Volume usage + the largest consumers on this pod's /data (no auth — read-only).
+
+    Answers the question the 2026-07-23 incident could not: "what is actually
+    eating the disk?" Per-feature guards only ever report on themselves, so the
+    spool announced its own 4GB while 33GB of unpruned gap-fill backups next door
+    went unmentioned for a week.
+
+    `?live=1` re-walks the volume now instead of returning the watchdog's last
+    periodic reading — slower, but authoritative right after you delete something.
+    """
+    from api.services import disk_watchdog
+    out = disk_watchdog.get_status()
+    if live:
+        try:
+            out["last_report"] = disk_watchdog.snapshot()
+            out["live"] = True
+        except Exception as e:
+            out["live_error"] = str(e)
+    return out
+
+
 @router.get("/api/admin/bars-stream-status")
 def bars_stream_status():
     """Push-feed (Phase C) health (no auth — read-only). The ONLY way to answer, without an

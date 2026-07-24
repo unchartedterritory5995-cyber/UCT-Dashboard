@@ -99,3 +99,64 @@ def test_latest_report_returns_highest_run_id(tmp_cache, tmp_path, monkeypatch):
     rep = bars_audit.latest_report()
     assert rep is not None
     assert rep["run_id"] == 11  # NOT 9 (lexicographic) NOT 1 (FIFO)
+
+
+# --- Report retention (2026-07-23 disk incident) ------------------------------
+# /data/audits had NO retention: one JSON per run, kept forever. 11,850 files /
+# 1.0GB on the web volume, back to audit-1.json.
+
+import os as _os
+import time as _time
+
+from api.services import bars_audit as _ba
+
+
+def _report(d, run_id, size, age_days):
+    p = _os.path.join(d, f"audit-{run_id}.json")
+    with open(p, "wb") as f:
+        f.write(b"x" * size)
+    t = _time.time() - age_days * 86400
+    _os.utime(p, (t, t))
+    return p
+
+
+def test_prune_reports_keeps_newest_and_drops_expired(tmp_path, monkeypatch):
+    d = str(tmp_path / "audits")
+    _os.makedirs(d)
+    monkeypatch.setattr(_ba, "_AUDIT_DIR", d)
+    for i in range(10):
+        _report(d, i, 10, age_days=100 - i)        # all ancient, ascending recency
+    removed = _ba.prune_reports(keep=3, max_age_days=30)
+    assert removed == 7
+    left = sorted(_os.listdir(d))
+    assert len(left) == 3
+    assert "audit-9.json" in left                  # newest always survives
+
+
+def test_prune_reports_spares_recent_beyond_keep(tmp_path, monkeypatch):
+    """Age still gates deletion — a burst of runs this week isn't garbage."""
+    d = str(tmp_path / "audits")
+    _os.makedirs(d)
+    monkeypatch.setattr(_ba, "_AUDIT_DIR", d)
+    for i in range(10):
+        _report(d, i, 10, age_days=1)
+    assert _ba.prune_reports(keep=3, max_age_days=30) == 0
+    assert len(_os.listdir(d)) == 10
+
+
+def test_prune_reports_ignores_foreign_files(tmp_path, monkeypatch):
+    d = str(tmp_path / "audits")
+    _os.makedirs(d)
+    monkeypatch.setattr(_ba, "_AUDIT_DIR", d)
+    _report(d, 1, 10, age_days=999)
+    keep_me = _os.path.join(d, "NOTES.md")
+    with open(keep_me, "w") as f:
+        f.write("hand-written")
+    _os.utime(keep_me, (0, 0))                     # ancient, but not ours
+    _ba.prune_reports(keep=0, max_age_days=30)
+    assert _os.path.exists(keep_me)
+
+
+def test_prune_reports_missing_dir_is_a_noop(tmp_path, monkeypatch):
+    monkeypatch.setattr(_ba, "_AUDIT_DIR", str(tmp_path / "nope"))
+    assert _ba.prune_reports() == 0

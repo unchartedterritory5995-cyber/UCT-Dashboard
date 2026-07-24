@@ -452,6 +452,16 @@ def main():
         log.exception(f"bars SQLite init failed: {e}")
         sys.exit(1)
 
+    # Volume watchdog (see api/services/disk_watchdog.py). This pod holds the
+    # 12GB bars.db plus the bars_cache trees, so it has the most room to run away.
+    try:
+        from api.services import disk_watchdog
+        if disk_watchdog.start():
+            log.info("disk_watchdog started (warn=%s%% crit=%s%%)",
+                     disk_watchdog.WARN_PCT, disk_watchdog.CRIT_PCT)
+    except Exception as e:
+        log.warning(f"disk_watchdog start failed: {e}")
+
     # Purge stale Monday-keyed weekly rows (content-based, idempotent).
     # CRITICAL that this runs on the worker and not only in api.main's
     # lifespan: the worker's bars.db is the R2 snapshot source of truth — the

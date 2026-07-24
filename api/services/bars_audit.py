@@ -86,6 +86,48 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 _logger = logging.getLogger(__name__)
 _AUDIT_DIR = os.environ.get("AUDIT_DIR", "/data/audits")
 _DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
+# Reports had NO retention at all: one JSON per run, kept forever. By 2026-07-23
+# that was 11,850 files / 1.0GB on the web volume, dating back to audit-1.json.
+# The audit_runs table keeps the summary row regardless, so an expired report
+# costs the run's issue detail, not the fact that it happened.
+_AUDIT_KEEP = int(os.environ.get("AUDIT_REPORTS_KEEP", "200"))
+_AUDIT_MAX_AGE_DAYS = int(os.environ.get("AUDIT_REPORTS_MAX_AGE_DAYS", "30"))
+
+
+def prune_reports(keep: int = None, max_age_days: int = None) -> int:
+    """Keep the newest `keep` reports; drop the rest once past `max_age_days`.
+
+    🔒 Called unconditionally at the START of every run — NOT gated on the run
+    finding issues or completing. Coupling cleanup to the interesting branch is
+    exactly how the 2026-07-23 disk incident happened, twice.
+    """
+    keep = _AUDIT_KEEP if keep is None else keep
+    max_age = (_AUDIT_MAX_AGE_DAYS if max_age_days is None else max_age_days) * 86400
+    if not os.path.isdir(_AUDIT_DIR):
+        return 0
+    entries = []
+    for name in os.listdir(_AUDIT_DIR):
+        if not (name.startswith("audit-") and name.endswith(".json")):
+            continue
+        p = os.path.join(_AUDIT_DIR, name)
+        try:
+            entries.append((p, os.stat(p).st_mtime))
+        except OSError:
+            continue
+    entries.sort(key=lambda e: e[1], reverse=True)      # newest first
+    cutoff = time.time() - max_age
+    removed = 0
+    for p, mtime in entries[keep:]:
+        if mtime >= cutoff:
+            continue
+        try:
+            os.remove(p)
+            removed += 1
+        except OSError:
+            pass
+    if removed:
+        _logger.info("[bars_audit] pruned %d expired report(s)", removed)
+    return removed
 
 
 def _init_audit_runs_table():
@@ -138,6 +180,10 @@ def audit_universe(
     started_at = int(time.time())
     run_id = _record_audit_run(scope, scope_arg)
     os.makedirs(_AUDIT_DIR, exist_ok=True)
+    try:
+        prune_reports()
+    except Exception as e:                      # never let housekeeping kill a run
+        _logger.warning("[bars_audit] report prune failed (non-fatal): %s", e)
 
     all_issues: list[dict] = []
     bars_scanned = 0

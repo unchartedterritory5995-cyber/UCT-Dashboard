@@ -1268,6 +1268,20 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] fundamentals_monitor start failed")
 
+    # Volume-level disk watchdog. Runs on EVERY service (web/worker/flow-worker)
+    # because the 2026-07-23 incident proved per-feature disk guards can't see
+    # the neighbour that's actually eating the volume. DISK_WATCHDOG_ENABLED=0
+    # to disable.
+    try:
+        from api.services import disk_watchdog
+        if disk_watchdog.start():
+            logging.getLogger(__name__).info(
+                "[startup] disk_watchdog started (warn=%s%% crit=%s%% every %ss)",
+                disk_watchdog.WARN_PCT, disk_watchdog.CRIT_PCT,
+                disk_watchdog.CHECK_SECONDS)
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] disk_watchdog start failed")
+
     try:
         from api.services import realtime_candle
         import asyncio
