@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS catalyst_feedback (
   user_id      TEXT NOT NULL,
   market_date  TEXT NOT NULL,
   ticker       TEXT NOT NULL,
-  verdict      TEXT NOT NULL,          -- 'bad' | 'good'
+  verdict      TEXT NOT NULL,          -- 'bad' | 'good' | '' (note-only row)
+  note         TEXT,                   -- free-text owner directive about this row
   tag          TEXT,
   grade        TEXT,
   catalyst_type TEXT,
@@ -142,7 +143,8 @@ def _init_db() -> None:
         # Backwards-compat for the catalyst_feedback enrichment columns
         # (float/dollar_vol added for evidence-based auto-tuning).
         for col, decl in (("dollar_vol", "REAL"),
-                          ("float_shares", "INTEGER")):
+                          ("float_shares", "INTEGER"),
+                          ("note", "TEXT")):  # free-text owner directive
             try:
                 c.execute(f"ALTER TABLE catalyst_feedback ADD COLUMN {col} {decl}")
             except sqlite3.OperationalError as e:
@@ -199,10 +201,18 @@ def upsert_catalyst(row: dict) -> None:
 
 
 def record_feedback(*, user_id: str, market_date: str, ticker: str,
-                    verdict: str, row: Optional[dict] = None) -> None:
-    """Upsert a user's 👍/👎 on a catalyst row, capturing its feature vector.
-    `row` is the stored catalyst dict (from get_ticker_for_date) so we snapshot
-    the numbers as they were when flagged."""
+                    verdict: str = "", row: Optional[dict] = None,
+                    note: Optional[str] = None) -> None:
+    """Upsert a user's 👍/👎 and/or free-text NOTE on a catalyst row, capturing
+    its feature vector. `row` is the stored catalyst dict (from
+    get_ticker_for_date) so we snapshot the numbers as they were when flagged.
+
+    PARTIAL MERGE (the wire-feedback lesson): a note-only save must NOT clobber
+    an earlier thumb, and a thumb-only save must NOT clobber an earlier note.
+      verdict='' (or None) -> keep whatever verdict is already stored
+      note=None            -> keep whatever note is already stored
+      note=''              -> explicitly CLEAR the note
+    A note-only row stores verdict='' (the column is NOT NULL)."""
     row = row or {}
     price = row.get("price")
     # Best-effort metadata enrichment so the auto-tuner can mine the float +
@@ -220,7 +230,8 @@ def record_feedback(*, user_id: str, market_date: str, ticker: str,
         "user_id": user_id,
         "market_date": market_date,
         "ticker": ticker.upper(),
-        "verdict": verdict,
+        "verdict": verdict or "",
+        "note": note,
         "tag": row.get("tag"),
         "grade": row.get("grade"),
         "catalyst_type": row.get("catalyst_type"),
@@ -237,15 +248,20 @@ def record_feedback(*, user_id: str, market_date: str, ticker: str,
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute(
             """INSERT INTO catalyst_feedback
-               (user_id, market_date, ticker, verdict, tag, grade, catalyst_type,
+               (user_id, market_date, ticker, verdict, note, tag, grade, catalyst_type,
                 gap_pct, vol_x, price, market_cap, sector, thesis_text,
                 dollar_vol, float_shares, created_at)
-               VALUES (:user_id, :market_date, :ticker, :verdict, :tag, :grade,
+               VALUES (:user_id, :market_date, :ticker, :verdict, :note, :tag, :grade,
                        :catalyst_type, :gap_pct, :vol_x, :price, :market_cap,
                        :sector, :thesis_text, :dollar_vol, :float_shares,
                        :created_at)
                ON CONFLICT(user_id, ticker, market_date) DO UPDATE SET
-                 verdict       = excluded.verdict,
+                 -- partial merge: blank verdict keeps the stored thumb;
+                 -- NULL note keeps the stored note ('' explicitly clears it).
+                 verdict       = CASE WHEN excluded.verdict = ''
+                                      THEN catalyst_feedback.verdict
+                                      ELSE excluded.verdict END,
+                 note          = COALESCE(excluded.note, catalyst_feedback.note),
                  tag           = excluded.tag,
                  grade         = excluded.grade,
                  catalyst_type = excluded.catalyst_type,
@@ -261,6 +277,46 @@ def record_feedback(*, user_id: str, market_date: str, ticker: str,
             payload,
         )
         c.commit()
+
+
+def get_user_feedback(user_id: str, market_date: str) -> dict:
+    """This user's {ticker: {verdict, note}} for a date — lets the tile hydrate
+    the thumbs + note boxes on load. Never raises."""
+    try:
+        with contextlib.closing(_connect()) as c:
+            c.row_factory = sqlite3.Row
+            rows = c.execute(
+                """SELECT ticker, verdict, note FROM catalyst_feedback
+                   WHERE user_id = ? AND market_date = ?""",
+                (str(user_id), market_date),
+            ).fetchall()
+            return {r["ticker"]: {"verdict": r["verdict"] or None,
+                                  "note": r["note"] or ""} for r in rows}
+    except Exception:
+        return {}
+
+
+def get_recent_notes(days: int = 14, limit: int = 20) -> list[dict]:
+    """Owner free-text notes on catalyst rows, newest first, within a rolling
+    window. Feeds the curator's rubric as explicit directives AND the admin
+    review endpoint. Bounded (days + limit) so a long note history can never
+    bloat the prompt. Never raises — returns [] on any error."""
+    cutoff = int(time.time()) - max(1, int(days)) * 86400
+    try:
+        with contextlib.closing(_connect()) as c:
+            c.row_factory = sqlite3.Row
+            rows = c.execute(
+                """SELECT ticker, note, verdict, market_date, tag, grade,
+                          catalyst_type, gap_pct, created_at
+                   FROM catalyst_feedback
+                   WHERE note IS NOT NULL AND TRIM(note) != ''
+                     AND created_at >= ?
+                   ORDER BY created_at DESC LIMIT ?""",
+                (cutoff, max(1, int(limit))),
+            ).fetchall()
+            return [dict(r) for r in rows]
+    except Exception:
+        return []
 
 
 def recent_feedback(verdict: str, days: int = 30) -> list[dict]:

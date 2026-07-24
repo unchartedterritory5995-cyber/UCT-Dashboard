@@ -504,6 +504,69 @@
   border: 1px solid rgba(160, 160, 160, 0.35);
 }
 
+/* ── Per-row owner NOTE (✎) — free text that steers the curator ───────── */
+.noteBtnHas {
+  color: var(--ut-gold, #c9a84c);
+  border-color: rgba(201, 168, 76, 0.55);
+  background: rgba(201, 168, 76, 0.12);
+}
+.noteEditor {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.noteInput {
+  width: 100%;
+  resize: vertical;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  font-family: inherit;
+  color: var(--text-primary, #e8e8e8);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(201, 168, 76, 0.40);
+}
+.noteInput:focus {
+  outline: none;
+  border-color: rgba(201, 168, 76, 0.75);
+  background: rgba(255, 255, 255, 0.06);
+}
+.noteActions {
+  display: flex;
+  gap: 6px;
+}
+.noteSave, .noteCancel {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+}
+.noteSave {
+  color: #14140f;
+  background: var(--ut-gold, #c9a84c);
+  border: 1px solid var(--ut-gold, #c9a84c);
+}
+.noteCancel {
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid rgba(160, 160, 160, 0.35);
+}
+.noteSaved {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.45;
+  font-style: italic;
+  color: var(--ut-gold, #c9a84c);
+  background: rgba(201, 168, 76, 0.08);
+  border-left: 2px solid rgba(201, 168, 76, 0.55);
+}
+
 /* Flow chip — unusual options-flow conviction (net sweep/block premium). */
 .flowChip {
   display: inline-flex;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import useCatalysts from '../../hooks/useCatalysts'
 import useUserTickerSet from '../../hooks/useUserTickerSet'
 import useLivePrices from '../../hooks/useLivePrices'
@@ -186,6 +186,51 @@ function EdgeChip({ edge }) {
       <UIcon name="patterns" size={10} style={{ marginRight: 3, verticalAlign: '-1px' }} />
       {edge.setup} {wr}%
     </span>
+  )
+}
+
+// ✎ per-row NOTE. Free text that goes straight into the curator's rubric as an
+// owner directive ("stop showing me sleepy payment processors"), so it steers
+// what gets SELECTED — not just how this one row is graded. Gold when a note
+// exists. Mirrors the Morning Wire per-segment note affordance.
+function NoteButton({ ticker, hasNote, open, onToggle }) {
+  return (
+    <button
+      type="button"
+      className={`${styles.fbBtn} ${hasNote ? styles.noteBtnHas : ''}`}
+      title={hasNote ? 'Edit your note — steers what the curator picks'
+                     : 'Add a note — tell the curator what you want (steers future lists)'}
+      aria-expanded={open}
+      onClick={() => onToggle(open ? null : ticker)}
+    ><UIcon name="edit" size={14} /></button>
+  )
+}
+
+function NoteEditor({ ticker, marketDate, value, onSave, onCancel }) {
+  const [text, setText] = useState(value || '')
+  return (
+    <div className={styles.noteEditor}>
+      <textarea
+        className={styles.noteInput}
+        value={text}
+        autoFocus
+        rows={2}
+        maxLength={2000}
+        placeholder={`What should the desk do differently with names like $${ticker}?`}
+        onChange={e => setText(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Escape') { e.preventDefault(); onCancel() }
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault(); onSave(ticker, marketDate, text.trim())
+          }
+        }}
+      />
+      <div className={styles.noteActions}>
+        <button type="button" className={styles.noteSave}
+                onClick={() => onSave(ticker, marketDate, text.trim())}>Save note</button>
+        <button type="button" className={styles.noteCancel} onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
   )
 }
 
@@ -384,6 +429,9 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
   const [aOnly, setAOnly] = useState(false)
   // Local optimistic record of this session's 👍/👎 votes, keyed by ticker.
   const [votes, setVotes] = useState({})
+  // Per-row owner NOTES: {TICKER: "text"} + which row's editor is open.
+  const [notes, setNotes] = useState({})
+  const [noteOpen, setNoteOpen] = useState(null)
   // Which rows have their full thesis expanded (collapsed = one-line headline).
   const [expanded, setExpanded] = useState(() => new Set())
 
@@ -435,6 +483,46 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker, market_date: md, verdict: next }),
+      })
+    } catch {
+      /* best-effort — keep optimistic state */
+    }
+  }
+
+  // Hydrate this user's existing thumbs + notes for the shown date, so a note
+  // you wrote earlier is still there on reload (and the ✎ shows as filled).
+  const feedbackDate = data?.market_date || selectedDate
+  useEffect(() => {
+    if (!feedbackDate) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const r = await fetch(`/api/catalysts/my-feedback?market_date=${feedbackDate}`)
+        if (!r.ok) return
+        const j = await r.json()
+        if (cancelled || !j?.items) return
+        const v = {}, n = {}
+        for (const [tk, it] of Object.entries(j.items)) {
+          if (it.verdict) v[tk] = it.verdict
+          if (it.note) n[tk] = it.note
+        }
+        setVotes(prev => ({ ...v, ...prev }))   // don't stomp in-session clicks
+        setNotes(prev => ({ ...n, ...prev }))
+      } catch { /* best-effort hydration */ }
+    })()
+    return () => { cancelled = true }
+  }, [feedbackDate])
+
+  // Save (or clear) the free-text note for a row. Optimistic; the note feeds
+  // straight into the curator's rubric as an owner directive.
+  async function saveNote(ticker, md, text) {
+    setNotes(prev => ({ ...prev, [ticker]: text }))
+    setNoteOpen(null)
+    try {
+      await fetch('/api/catalysts/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker, market_date: md, note: text }),
       })
     } catch {
       /* best-effort — keep optimistic state */
@@ -766,15 +854,38 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
                               />
                             </button>
                             {isExp && (
-                              <div className={styles.thesisActions}>
-                                <CitationsPopover sources={parseSources(r.thesis_sources)} />
-                                <FeedbackButtons
-                                  ticker={r.ticker}
-                                  marketDate={marketDate}
-                                  verdict={votes[r.ticker]}
-                                  onVote={vote}
-                                />
-                              </div>
+                              <>
+                                <div className={styles.thesisActions}>
+                                  <CitationsPopover sources={parseSources(r.thesis_sources)} />
+                                  <FeedbackButtons
+                                    ticker={r.ticker}
+                                    marketDate={marketDate}
+                                    verdict={votes[r.ticker]}
+                                    onVote={vote}
+                                  />
+                                  <NoteButton
+                                    ticker={r.ticker}
+                                    hasNote={!!(notes[r.ticker] || '').trim()}
+                                    open={noteOpen === r.ticker}
+                                    onToggle={setNoteOpen}
+                                  />
+                                </div>
+                                {noteOpen === r.ticker && (
+                                  <NoteEditor
+                                    ticker={r.ticker}
+                                    marketDate={marketDate}
+                                    value={notes[r.ticker]}
+                                    onSave={saveNote}
+                                    onCancel={() => setNoteOpen(null)}
+                                  />
+                                )}
+                                {noteOpen !== r.ticker && (notes[r.ticker] || '').trim() && (
+                                  <div className={styles.noteSaved} title="Your note — steering the curator">
+                                    <UIcon name="edit" size={10} style={{ marginRight: 4, verticalAlign: '-1px' }} />
+                                    {notes[r.ticker]}
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         )

@@ -148,6 +148,53 @@ def _candidate_block(idx: int, c: dict) -> str:
     return "\n".join(lines)
 
 
+def _recent_notes() -> list[dict]:
+    """Owner notes feeding the curation steer. Bounded + never raises."""
+    if os.environ.get("CATALYST_NOTES_STEER", "1").lower() not in ("1", "true", "yes"):
+        return []
+    try:
+        return store.get_recent_notes(days=_intenv("CATALYST_NOTES_DAYS", 14),
+                                      limit=_intenv("CATALYST_NOTES_LIMIT", 20))
+    except Exception:
+        return []
+
+
+def _owner_notes_fingerprint() -> str:
+    """Stable fingerprint of the current owner-note set (for the pool hash)."""
+    notes = _recent_notes()
+    if not notes:
+        return "none"
+    raw = "|".join(f"{(n.get('ticker') or '').upper()}:{(n.get('note') or '').strip()}"
+                   for n in notes)
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
+
+
+def _owner_notes_block() -> str:
+    """The trader's own free-text notes on recent rows, injected as EXPLICIT
+    DIRECTIVES. These are the owner telling the desk what they actually want, so
+    they outweigh the generic rubric — the same treatment the Morning Wire gives
+    owner notes. Bounded (rolling window + count + per-note truncation) so a long
+    note history can never bloat or dominate the prompt. '' when there are none."""
+    notes = _recent_notes()
+    lines = []
+    for n in notes:
+        txt = (n.get("note") or "").strip().replace("\n", " ")[:280]
+        if not txt:
+            continue
+        t = (n.get("ticker") or "?").upper()
+        md = n.get("market_date") or ""
+        lines.append(f'  - ${t} ({md}): "{txt}"')
+    if not lines:
+        return ""
+    return (
+        "\n\nOWNER NOTES — the trader wrote these directly about recent rows. "
+        "Treat them as EXPLICIT DIRECTIVES about what this desk wants; they "
+        "OUTWEIGH the generic rubric above. Apply the general LESSON of each note "
+        "to similar names today, not only to the ticker it was written on:\n"
+        + "\n".join(lines)
+    )
+
+
 def _pool_hash(pool: list[dict]) -> str:
     """Fingerprint the pool so an unchanged pool skips a re-bill. Keys on the
     fields that would change the curator's judgment (ticker, move, signal
@@ -165,6 +212,10 @@ def _pool_hash(pool: list[dict]) -> str:
             "1" if c.get("hunter_confirmed") else "0",
             c.get("tag") or "",
         ]))
+    # Owner notes steer the curation, so they belong in the fingerprint: a NEW
+    # note must force a re-curation instead of being ignored until the pool
+    # happens to shift (otherwise a note you just wrote does nothing all day).
+    parts.append("notes:" + _owner_notes_fingerprint())
     return hashlib.sha1("\n".join(parts).encode("utf-8")).hexdigest()
 
 
@@ -220,7 +271,8 @@ def _call(model: str, prompt: str) -> tuple:
     max_tokens = _intenv("CATALYST_CURATOR_MAX_TOKENS", 3000)
     kwargs = dict(model=model, max_tokens=max_tokens, temperature=0.2,
                   thinking={"type": "disabled"},
-                  system=SYSTEM_PROMPT, messages=[{"role": "user", "content": prompt}])
+                  system=SYSTEM_PROMPT + _owner_notes_block(),
+                  messages=[{"role": "user", "content": prompt}])
     try:
         msg = client.messages.create(**kwargs)
     except Exception as e:

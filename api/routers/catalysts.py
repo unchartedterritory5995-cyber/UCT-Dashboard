@@ -257,23 +257,56 @@ def catalysts_feedback(
     body: dict = Body(...),
     user=Depends(get_current_user),
 ):
-    """Record a 👍/👎 on a catalyst row. The structured replacement for
-    'screenshot the lame ones' — snapshots the row's full feature vector so
-    the engine can learn which characteristics the trader considers garbage."""
+    """Record a 👍/👎 and/or a free-text NOTE on a catalyst row. The structured
+    replacement for 'screenshot the lame ones' — snapshots the row's full feature
+    vector so the engine can learn which characteristics the trader considers
+    garbage, and carries the owner's own words straight into the curator's rubric.
+
+    Either `verdict` or `note` may be sent (or both). A note-only save keeps any
+    existing thumb and vice-versa (partial merge in the store). Send note="" to
+    clear a note."""
     ticker = str(body.get("ticker") or "").upper().strip()
     verdict = str(body.get("verdict") or "").lower().strip()
     market_date = str(body.get("market_date") or _today()).strip()
+    has_note = "note" in body
+    note = body.get("note")
+    if note is not None:
+        note = str(note)[:2000]
     if not ticker or not ticker.isalpha() or len(ticker) > 6:
         raise HTTPException(400, "invalid ticker")
-    if verdict not in ("bad", "good"):
+    if verdict and verdict not in ("bad", "good"):
         raise HTTPException(400, "verdict must be 'bad' or 'good'")
+    if not verdict and not has_note:
+        raise HTTPException(400, "send a verdict and/or a note")
     if not _DATE_RE.match(market_date):
         raise HTTPException(400, "market_date must be YYYY-MM-DD")
 
     row = store.get_ticker_for_date(ticker, market_date) or {}
     store.record_feedback(user_id=str(user["id"]), market_date=market_date,
-                          ticker=ticker, verdict=verdict, row=row)
-    return {"ok": True, "ticker": ticker, "verdict": verdict}
+                          ticker=ticker, verdict=verdict, row=row,
+                          note=note if has_note else None)
+    return {"ok": True, "ticker": ticker, "verdict": verdict or None,
+            "note_saved": has_note}
+
+
+@router.get("/catalysts/my-feedback")
+def catalysts_my_feedback(market_date: str | None = None,
+                          user=Depends(get_current_user)):
+    """This user's verdicts + notes for a date, so the tile can hydrate the
+    thumbs and the ✎ note boxes on load."""
+    md = str(market_date or _today()).strip()
+    if not _DATE_RE.match(md):
+        raise HTTPException(400, "market_date must be YYYY-MM-DD")
+    return {"market_date": md, "items": store.get_user_feedback(str(user["id"]), md)}
+
+
+@router.get("/admin/catalyst-notes")
+def catalyst_notes(days: int = 14, limit: int = 100,
+                   user=Depends(require_admin)):
+    """Every owner NOTE in the window — the review surface. Used when the owner
+    says 'go read my notes and make the adjustments': recurring themes here get
+    turned into permanent rubric / threshold changes."""
+    return {"days": days, "notes": store.get_recent_notes(days=days, limit=limit)}
 
 
 @router.get("/admin/catalyst-feedback-summary")
