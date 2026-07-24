@@ -326,23 +326,35 @@ async def massive_ingest(
     sanity-check first.
     """
     try:
-        from api.darkpool_massive_ingest import run_ingest, TOP_N_TICKERS
+        from api.darkpool_massive_ingest import run_ingest_background, TOP_N_TICKERS
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ingest module unavailable: {e}")
     tk_list = [t.strip().upper() for t in tickers.split(",") if t.strip()] if tickers else None
-    try:
-        result = await run_in_threadpool(
-            run_ingest,
-            date_mdyyyy=date,
-            tickers=tk_list,
-            top_n=top_n or TOP_N_TICKERS,
-            dry_run=dry_run,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    if result.get("ok") and not dry_run and result.get("inserted"):
-        _RESPONSE_CACHE.clear()
+    # Fire-and-forget: a real ingest runs for minutes and Cloudflare kills the
+    # origin connection at ~100s (observed 7/24: 524 + an HTML error page that
+    # broke JSON parsing client-side). Start it in a thread and poll instead.
+    result = run_ingest_background(
+        date_mdyyyy=date,
+        tickers=tk_list,
+        top_n=top_n or TOP_N_TICKERS,
+        dry_run=dry_run,
+    )
     return JSONResponse(result)
+
+
+@router.get("/massive-ingest/status")
+async def massive_ingest_status():
+    """Progress + last result of the Massive dark-pool ingest.
+
+    `phase` shows the ticker currently being pulled (e.g. "QQQ (2/3)").
+    When `running` flips to false, `last_result` holds the summary — the same
+    dict the nightly job logs.
+    """
+    try:
+        from api.darkpool_massive_ingest import get_run_state
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ingest module unavailable: {e}")
+    return JSONResponse(get_run_state())
 
 
 @router.get("/stats")
