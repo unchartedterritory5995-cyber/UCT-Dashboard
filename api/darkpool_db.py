@@ -260,8 +260,17 @@ def get_stats() -> dict:
     total = conn.execute("SELECT COUNT(*) as c FROM darkpool_trades").fetchone()["c"]
     dates = conn.execute("SELECT COUNT(DISTINCT date) as c FROM darkpool_trades").fetchone()["c"]
     tickers = conn.execute("SELECT COUNT(DISTINCT ticker) as c FROM darkpool_trades").fetchone()["c"]
-    latest = conn.execute("SELECT date FROM darkpool_trades ORDER BY date DESC LIMIT 1").fetchone()
-    earliest = conn.execute("SELECT date FROM darkpool_trades ORDER BY date ASC LIMIT 1").fetchone()
+    # 2026-07-24: `date` is TEXT in M/D/YYYY, so ORDER BY date is a LEXICOGRAPHIC
+    # sort — "7/9/2026" beats "7/24/2026" because '9' > '2'. That made
+    # latest_date report 7/9 while the DB actually ran through 7/23, which is
+    # misleading precisely when you check it (confirming a nightly ingest ran).
+    # Every other function here already routes through parse_date_to_sortable();
+    # do the same by sorting the distinct dates in Python.
+    _all_dates = [r["date"] for r in
+                  conn.execute("SELECT DISTINCT date FROM darkpool_trades").fetchall()]
+    _all_dates.sort(key=parse_date_to_sortable)
+    latest = {"date": _all_dates[-1]} if _all_dates else None
+    earliest = {"date": _all_dates[0]} if _all_dates else None
     db_size = os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0
     conn.close()
     return {
