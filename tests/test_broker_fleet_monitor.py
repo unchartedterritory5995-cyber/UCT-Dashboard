@@ -59,7 +59,13 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("SNAPTRADE_CLIENT_ID", "cid")
     monkeypatch.setenv("SNAPTRADE_CONSUMER_KEY", "ck")
     snap.set_limiter(_NoThrottle())
-    snap.configure(_Group(api_status=_Group(check=lambda **kw: _Resp({"online": True}))))
+    # Both heartbeats must be stubbed: the UNAUTHENTICATED api_status probe and
+    # the partner-SIGNED get_partner_info probe (the one that actually notices
+    # our own credentials being rejected — prod 2026-07-23).
+    snap.configure(_Group(
+        api_status=_Group(check=lambda **kw: _Resp({"online": True})),
+        reference_data=_Group(get_partner_info=lambda **kw: _Resp({})),
+    ))
     # Fleet checks skip unpaid users; make test users admins.
     def mk_user(uid):
         c = auth_db.get_connection()
@@ -249,3 +255,24 @@ async def test_snaptrade_heartbeat_failure_is_a_finding(env):
     snap.configure(_Group(api_status=_Group(check=down)))
     out = await fleet_monitor.run_fleet_check()
     assert any(f["kind"] == "snaptrade_unreachable" for f in out["findings"])
+
+
+@pytest.mark.asyncio
+async def test_partner_auth_rejection_is_a_finding_even_when_api_status_is_green(env):
+    """The 2026-07-23 regression rail.
+
+    api_status.check is UNAUTHENTICATED — it stayed green for a full day while
+    every member connection 401'd, so the digest blamed the members. A rejected
+    partner-SIGNED call must surface as its own finding.
+    """
+    def rejected(**kw):
+        raise RuntimeError("SnapTrade API error 401: Unauthorized (code 0000) "
+                           "— Authentication credentials were not provided.")
+    snap.configure(_Group(
+        api_status=_Group(check=lambda **kw: _Resp({"online": True})),  # green
+        reference_data=_Group(get_partner_info=rejected),               # rejected
+    ))
+    out = await fleet_monitor.run_fleet_check()
+    kinds = [f["kind"] for f in out["findings"]]
+    assert "snaptrade_auth_failed" in kinds
+    assert "snaptrade_unreachable" not in kinds  # provider itself was fine

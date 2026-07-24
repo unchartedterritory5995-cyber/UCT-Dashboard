@@ -174,6 +174,21 @@ async def run_fleet_check() -> dict[str, Any]:
                 "kind": "snaptrade_unreachable", "userId": None,
                 "detail": str(e)[:200],
             })
+        # SIGNED heartbeat. api_status.check above is UNAUTHENTICATED, so it
+        # reports green even when our partner credentials are being rejected —
+        # which is exactly what happened on 2026-07-23: every member connection
+        # 401'd overnight while this monitor's only probe stayed happy, so the
+        # digest read as 12 member problems instead of "our API client is dead".
+        # get_partner_info is partner-signed (clientId + timestamp + Signature),
+        # so it fails when, and only when, OUR auth is broken.
+        try:
+            await snap.get_partner_info()
+        except Exception as e:  # noqa: BLE001
+            findings.append({
+                "kind": "snaptrade_auth_failed", "userId": None,
+                "detail": f"partner-signed call rejected — OUR credentials, "
+                          f"not the members': {str(e)[:160]}",
+            })
         # Per-broker operational flags for brokers our members actually have
         # connected — a degraded Webull explains "my data is stale" tickets
         # before they're filed.

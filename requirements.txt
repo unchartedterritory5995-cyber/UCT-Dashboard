@@ -28,7 +28,16 @@ scipy>=1.13.0
 Pillow>=10.0.0
 praw>=7.7.0  # Reddit API for r/wsb / r/stocks sentiment voice tool
 cryptography>=43.0.0  # Fernet — broker secret-at-rest encryption (api.services.crypto_box)
-snaptrade-python-sdk>=11.0.0  # Brokerage aggregator (read-only); see api/services/journal_two/broker/
+# Brokerage aggregator (read-only); see api/services/journal_two/broker/
+# UPPER BOUND IS LOAD-BEARING — every call site is verified against 11.0.x.
+# 12.0.0 changed SnapTrade.__init__ to (configuration=None, **kwargs), so our
+# SnapTrade(consumer_key=..., client_id=...) kwargs are SILENTLY swallowed —
+# no TypeError, the client just builds with no credentials and every signed
+# request goes out unauthenticated (401 code 0000 "Authentication credentials
+# were not provided"). That took the whole broker fleet down 2026-07-23.
+# Do not relax this without migrating _sdk() to the 12.x auth model AND
+# re-validating every call site.
+snaptrade-python-sdk>=11.0.0,<12
 tzlocal>=5.0
 orjson>=3.11.0  # fast + NaN-safe bars serialization (api/services/bars_fetch, api/routers/bars)
 json_repair

@@ -217,3 +217,71 @@ def test_auth_error_message_carries_code_and_detail():
     s = str(err)
     assert "1234" in s
     assert "Signature invalid" in s
+
+
+# ── SDK constructor contract (prod 2026-07-23 regression rail) ───────────────
+#
+# snaptrade-python-sdk 12.0.0 changed SnapTrade.__init__ to
+# (configuration=None, **kwargs). Our SnapTrade(consumer_key=..., client_id=...)
+# kwargs were then SILENTLY swallowed — no TypeError — so the client built with
+# no credentials and every signed request went out unauthenticated (401 code
+# 0000 "Authentication credentials were not provided"). All 11 member broker
+# connections were marked broken overnight. requirements.txt pins <12; _sdk()
+# additionally refuses to hand back a credential-less client.
+
+class _NoCredsSdk:
+    """Mimics a future SDK that ignores our constructor kwargs."""
+    def __init__(self, *a, **kw):
+        cfg = type("Cfg", (), {"consumer_key": None, "api_key": {}})()
+        self.authentication = type("Api", (), {
+            "api_client": type("AC", (), {"configuration": cfg})()
+        })()
+
+
+class _GoodSdk:
+    def __init__(self, consumer_key=None, client_id=None, **kw):
+        cfg = type("Cfg", (), {
+            "consumer_key": consumer_key,
+            "api_key": {"PartnerClientId": client_id},
+        })()
+        self.authentication = type("Api", (), {
+            "api_client": type("AC", (), {"configuration": cfg})()
+        })()
+
+
+def test_sdk_raises_when_constructor_silently_drops_credentials(monkeypatch):
+    monkeypatch.setenv("SNAPTRADE_CLIENT_ID", "cid")
+    monkeypatch.setenv("SNAPTRADE_CONSUMER_KEY", "ck")
+    sc.reset()
+    import snaptrade_client
+    monkeypatch.setattr(snaptrade_client, "SnapTrade", _NoCredsSdk)
+    with pytest.raises(sc.SnapNotConfigured) as ei:
+        sc._sdk()
+    assert "unauthenticated" in str(ei.value).lower()
+
+
+def test_sdk_accepts_a_client_that_applied_credentials(monkeypatch):
+    monkeypatch.setenv("SNAPTRADE_CLIENT_ID", "cid")
+    monkeypatch.setenv("SNAPTRADE_CONSUMER_KEY", "ck")
+    sc.reset()
+    import snaptrade_client
+    monkeypatch.setattr(snaptrade_client, "SnapTrade", _GoodSdk)
+    client = sc._sdk()
+    cfg = sc._sdk_configuration(client)
+    assert cfg.consumer_key == "ck"
+    assert cfg.api_key["PartnerClientId"] == "cid"
+
+
+def test_credential_guard_is_silent_when_internals_are_unrecognizable():
+    # Must never take broker sync down over a cosmetic SDK internals change.
+    sc._assert_credentials_applied(object())
+
+
+def test_installed_sdk_actually_applies_our_credentials():
+    """Guards the real installed SDK, not a fake — this is what would have
+    caught the 12.0.0 bump in CI before it reached production."""
+    from snaptrade_client import SnapTrade
+    cfg = sc._sdk_configuration(SnapTrade(consumer_key="ck", client_id="cid"))
+    assert cfg is not None, "SDK internals moved — update _sdk_configuration"
+    assert cfg.consumer_key == "ck"
+    assert cfg.api_key.get("PartnerClientId") == "cid"

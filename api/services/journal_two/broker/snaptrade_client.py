@@ -115,8 +115,53 @@ def _sdk() -> Any:
             "SNAPTRADE_CLIENT_ID / SNAPTRADE_CONSUMER_KEY not set"
         )
     from snaptrade_client import SnapTrade
-    _sdk_client = SnapTrade(consumer_key=consumer_key, client_id=client_id)
+    client = SnapTrade(consumer_key=consumer_key, client_id=client_id)
+    _assert_credentials_applied(client)
+    _sdk_client = client
     return _sdk_client
+
+
+def _sdk_configuration(client: Any) -> Any | None:
+    """Best-effort reach for the SDK's Configuration object. Returns None when
+    the SDK's internals don't look the way we expect — callers must treat that
+    as 'can't tell', never as 'broken'."""
+    for sub in ("authentication", "api_status", "connections"):
+        api = getattr(client, sub, None)
+        cfg = getattr(getattr(api, "api_client", None), "configuration", None)
+        if cfg is not None:
+            return cfg
+    return getattr(getattr(client, "api_client", None), "configuration", None)
+
+
+def _assert_credentials_applied(client: Any) -> None:
+    """Fail LOUDLY when the constructed SDK client carries no credentials.
+
+    The SnapTrade SDK takes its credentials as keyword arguments, and 12.0.0
+    changed `SnapTrade.__init__` to `(configuration=None, **kwargs)` — so our
+    kwargs were silently swallowed and every signed request went out with NO
+    auth at all (401 code 0000 "Authentication credentials were not provided").
+    Nothing raised; the whole broker fleet just got marked broken overnight
+    (prod 2026-07-23). requirements.txt now pins <12, and this is the belt to
+    that suspenders: any future SDK bump that stops honoring our constructor
+    call fails immediately and legibly instead of silently deauthenticating
+    every member.
+
+    Deliberately conservative: if we can't introspect the SDK's configuration
+    we do NOT raise (an internals change must not take broker sync down)."""
+    cfg = _sdk_configuration(client)
+    if cfg is None:
+        return  # can't tell — never block on introspection alone
+    consumer_key = getattr(cfg, "consumer_key", None)
+    api_key = getattr(cfg, "api_key", None) or {}
+    client_id = api_key.get("PartnerClientId") if hasattr(api_key, "get") else None
+    if not consumer_key or not client_id:
+        raise SnapNotConfigured(
+            "SnapTrade SDK ignored our credentials — the installed "
+            "snaptrade-python-sdk does not accept "
+            "SnapTrade(consumer_key=..., client_id=...). Every request would "
+            "go out unauthenticated. Pin snaptrade-python-sdk<12 or migrate "
+            "_sdk() to the installed SDK's auth model."
+        )
 
 
 # Lazily-created so tests can swap clock/sleep before first use if needed.
