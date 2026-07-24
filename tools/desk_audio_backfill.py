@@ -58,12 +58,12 @@ def main():
     ok = 0
     for i, v in enumerate(todo, 1):
         yid = v["youtube_id"]
-        print(f"[{i}/{len(todo)}] {yid} …")
+        print(f"[{i}/{len(todo)}] {yid} ...")
         key = _pull_and_store(yid)
         if key:
             education_service.set_audio(v["id"], key)
             ok += 1
-            print(f"  ✓ {key}")
+            print(f"  [ok] {key}")
         time.sleep(2)  # be polite to YouTube
     print(f"done: {ok}/{len(todo)} backfilled")
     return 0
