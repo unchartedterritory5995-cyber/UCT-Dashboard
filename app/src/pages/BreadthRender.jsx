@@ -21,23 +21,32 @@ const TIER_BG = {
   r3: 'rgba(55,6,6,0.97)', '': 'transparent',
 }
 
-// the exact columns + order in the Monitor screenshot, grouped
-const KEYS = [
-  'up_4pct_today', 'down_4pct_today', 'ratio_5day', 'up_20pct_5d', 'down_20pct_5d',
-  'up_25pct_quarter', 'down_25pct_quarter', 'up_25pct_month', 'down_25pct_month',
-  'pct_above_5sma', 'pct_above_20ema', 'pct_above_40sma', 'pct_above_50sma', 'pct_above_200sma',
-  'sp500_close', 'qqq_close', 'vix', 'hvc_52w', 'atr_ext_7',
-]
+// A 19-column table is illegible scaled to a newsletter column, so it's split into
+// two readable images: part 1 = Primary Breadth, part 2 = MA + Regime + Highs/Lows.
+// ?part=1|2 selects; anything else renders all columns (backward compatible).
+const PART_KEYS = {
+  1: ['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'up_20pct_5d', 'down_20pct_5d',
+      'up_25pct_quarter', 'down_25pct_quarter', 'up_25pct_month', 'down_25pct_month'],
+  2: ['pct_above_5sma', 'pct_above_20ema', 'pct_above_40sma', 'pct_above_50sma', 'pct_above_200sma',
+      'sp500_close', 'qqq_close', 'vix', 'hvc_52w', 'atr_ext_7'],
+}
+const ALL_KEYS = [...PART_KEYS[1], ...PART_KEYS[2]]
+const PART_TITLE = { 1: 'PRIMARY BREADTH', 2: 'MA · REGIME · HIGHS/LOWS' }
 const BY_KEY = Object.fromEntries(COLS.map((c) => [c.key, c]))
-const COLUMNS = KEYS.map((k) => BY_KEY[k]).filter(Boolean)
 
-// group spans for the top header row, in column order
-const GROUPS = []
-COLUMNS.forEach((c) => {
-  const last = GROUPS[GROUPS.length - 1]
-  if (last && last.name === c.group) last.span += 1
-  else GROUPS.push({ name: c.group, span: 1 })
-})
+function columnsFor(part) {
+  const keys = PART_KEYS[part] || ALL_KEYS
+  return keys.map((k) => BY_KEY[k]).filter(Boolean)
+}
+function groupsFor(columns) {
+  const g = []
+  columns.forEach((c) => {
+    const last = g[g.length - 1]
+    if (last && last.name === c.group) last.span += 1
+    else g.push({ name: c.group, span: 1 })
+  })
+  return g
+}
 
 function tierOf(col, row) {
   const t = col.rowColorFn ? col.rowColorFn(row) : col.colorFn ? col.colorFn(row[col.key]) : ''
@@ -53,6 +62,9 @@ export default function BreadthRender() {
   const [sp] = useSearchParams()
   const token = sp.get('token') || ''
   const days = Math.min(20, Math.max(3, parseInt(sp.get('days') || '10', 10)))
+  const part = sp.get('part') || ''
+  const COLUMNS = columnsFor(part)
+  const GROUPS = groupsFor(COLUMNS)
   const [rows, setRows] = useState(null)
   const [err, setErr] = useState('')
 
@@ -78,15 +90,18 @@ export default function BreadthRender() {
   if (err) return <div style={{ color: '#e74c3c', padding: 20 }}>{err}</div>
   if (rows == null) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>
 
-  const th = { padding: '5px 8px', fontSize: 10.5, fontWeight: 700, color: '#8b96a3', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #262626' }
-  const grpTh = { ...th, color: '#c9a84c', letterSpacing: '0.5px', textTransform: 'uppercase', fontSize: 10, borderBottom: '1px solid #333' }
-  const td = { padding: '6px 8px', fontSize: 12, textAlign: 'center', fontFamily: "'IBM Plex Mono',monospace", whiteSpace: 'nowrap' }
+  // bigger type when split (fewer columns → room to breathe → readable when scaled)
+  const big = !!PART_KEYS[part]
+  const th = { padding: big ? '8px 12px' : '5px 8px', fontSize: big ? 14 : 10.5, fontWeight: 700, color: '#8b96a3', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #262626' }
+  const grpTh = { ...th, color: '#c9a84c', letterSpacing: '0.5px', textTransform: 'uppercase', fontSize: big ? 13 : 10, borderBottom: '1px solid #333' }
+  const td = { padding: big ? '10px 12px' : '6px 8px', fontSize: big ? 17 : 12, textAlign: 'center', fontFamily: "'IBM Plex Mono',monospace", whiteSpace: 'nowrap' }
+  const title = PART_TITLE[part] ? `BREADTH — ${PART_TITLE[part]}` : 'BREADTH MONITOR'
 
   return (
     <div style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: "'Instrument Sans',-apple-system,'Segoe UI',sans-serif" }}>
-      <div id="panel-export" style={{ background: '#0a0a0a', color: '#e8e8e8', display: 'inline-block', minWidth: 900 }}>
-        <div style={{ height: 44, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 18px', justifyContent: 'space-between' }}>
-          <span style={{ color: '#e8e8e8', fontWeight: 800, fontSize: 15, letterSpacing: '0.6px' }}>BREADTH MONITOR — LAST {days} SESSIONS</span>
+      <div id="panel-export" style={{ background: '#0a0a0a', color: '#e8e8e8', display: 'inline-block', minWidth: 700 }}>
+        <div style={{ height: 46, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 20px', justifyContent: 'space-between' }}>
+          <span style={{ color: '#e8e8e8', fontWeight: 800, fontSize: 16, letterSpacing: '0.6px' }}>{title} · LAST {days} SESSIONS</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <img src={uctLogo} alt="" style={{ height: 18, opacity: 0.95 }} />
             <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 12, letterSpacing: '0.6px' }}>UCT INTELLIGENCE</span>
