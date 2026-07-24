@@ -59,12 +59,33 @@ async def get_partner_health(*, force: bool = False) -> dict[str, Any] | None:
     try:
         raw = await snap.get_partner_info()
     except Exception as e:  # noqa: BLE001 — health probe must never break callers
+        # Serve stale over nothing, but SAY it is stale. Returning last-known-good
+        # silently means a broker stuck in maintenance keeps reporting whatever
+        # flags we happened to cache hours ago, and no caller can tell the
+        # difference between "fresh: all clear" and "we haven't been able to ask
+        # since this morning". Same shape as the 2026-07-23 outage: a health
+        # signal that cannot distinguish healthy from unreachable.
         logger.warning("partner info probe failed: %s", e)
-        return _cache["data"]  # serve stale over nothing
+        return _mark_stale(_cache["data"], now)
     data = _normalize(raw)
     _cache["data"] = data
     _cache["at"] = now
     return data
+
+
+def _mark_stale(data: dict[str, Any] | None, now: float) -> dict[str, Any] | None:
+    """Return a shallow copy tagged with its age. Never mutates the cache."""
+    if data is None:
+        return None
+    age = max(0.0, now - float(_cache["at"] or 0.0))
+    return {**data, "stale": True, "ageSeconds": round(age, 1)}
+
+
+def is_stale(health: dict[str, Any] | None) -> bool:
+    """True when this payload came from cache after a failed refresh. Callers
+    that gate member-facing copy on broker flags should prefer silence over
+    asserting a stale 'all clear'."""
+    return bool(health and health.get("stale"))
 
 
 def broker_flags_for(health: dict[str, Any] | None,

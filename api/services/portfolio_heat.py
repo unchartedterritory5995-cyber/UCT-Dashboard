@@ -17,6 +17,30 @@ _PER_TRADE_CAP_PCT = 2.0
 _DEFAULT_AGG_CAP_PCT = 10.0
 
 
+# Broker imports store `stop_price = entry_price` as a placeholder because the
+# column is NOT NULL and the broker doesn't report a stop. Detecting that is
+# SAFETY-CRITICAL: a placeholder counted as a real stop reads as 0 risk, which
+# under-reports portfolio heat and can green-light an over-cap add.
+#
+# It used to be `stop == entry` — exact float equality. That happens to hold
+# today because the placeholder is a straight COPY of the same stored float,
+# but it is one refactor away from silently failing: any path that recomputes
+# rather than copies (a currency/unit conversion, a round-trip through a
+# calculation, a different provider's rounding) leaves the two a few ULPs apart
+# and the guard stops firing — with NO error, just quietly under-reported heat.
+# A relative tolerance costs nothing and removes that trapdoor.
+_PLACEHOLDER_STOP_REL_TOL = 1e-9
+
+
+def _is_placeholder_stop(stop: float, entry: float) -> bool:
+    """True when `stop` is a non-stop: unusable, or indistinguishable from entry."""
+    if stop <= 0:
+        return True
+    if entry <= 0:
+        return True
+    return abs(stop - entry) <= abs(entry) * _PLACEHOLDER_STOP_REL_TOL
+
+
 def _regime_ceiling_pct(exposure_rating) -> float:
     """UCT exposure rating (0-150) -> notional exposure ceiling %."""
     try:
@@ -115,7 +139,7 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
         # would let a confident over-cap add escape the no-GO guard).
         try:
             stop = float(p.get("stopPrice"))
-            is_placeholder = (stop == entry) or stop <= 0
+            is_placeholder = _is_placeholder_stop(stop, entry)
         except (TypeError, ValueError):
             stop, is_placeholder = entry, True
         risk = shares * abs(entry - stop)

@@ -16,18 +16,38 @@ matplotlib>=3.9.0
 mplfinance>=0.12.10b0
 slowapi==0.1.9
 sentry-sdk[fastapi]==2.23.1
-apscheduler>=3.10.4
+# ── CRITICAL deps: upper bounds are LOAD-BEARING ────────────────────────────
+# Railway resolves requirements at BUILD time, so an open `>=` lets a new MAJOR
+# in on any rebuild — days after the code that "works" was written, and only in
+# prod (local dev keeps the old resolved version). That is exactly how the whole
+# broker fleet died on 2026-07-23 (see the snaptrade pin below): the SDK took
+# credentials as **kwargs, a major bump silently swallowed them, and every
+# request went out unauthenticated with NO exception raised.
+#
+# Auditing the rest on 2026-07-23 found FOUR more that had ALREADY crossed
+# majors unnoticed in production — they simply happened not to break:
+#   stripe        >=8.0.0  -> running 15.3.1   (payments + webhooks)
+#   cryptography  >=43.0.0 -> running 49.0.0   (Fernet = broker secret decrypt)
+#   bcrypt        >=4.1.0  -> running 5.0.0    (password hashing)
+#   websockets    >=12.0   -> running 16.1.1   (live bars + OPRA consumer;
+#                                               13/14 reworked the asyncio API)
+# Bounds below are set at the CURRENTLY-RUNNING major, so a rebuild can never
+# silently cross another one. Raising a bound is a deliberate act: read that
+# project's migration notes, then re-validate our call sites.
+# Guarded by tests/test_requirements_pins.py.
+apscheduler>=3.10.4,<4   # 4.0 is a full API rewrite — every add_job/CronTrigger
+websockets>=12.0,<17     # live bars feed + massive_ws_worker + realtime_stream
+bcrypt>=4.1.0,<6         # auth: hashpw/checkpw on every login
+stripe>=8.0.0,<16        # payments; api shapes already drifted (see _safe_get)
+resend>=2.0.0,<3         # member email (verification, reconnect, digests)
+cryptography>=43.0.0,<50 # Fernet — broker secret-at-rest (api.services.crypto_box)
+# ── Non-critical: open bounds are fine (mature APIs, and they break LOUDLY) ──
 tzdata>=2024.1
-websockets>=12.0
-bcrypt>=4.1.0
-stripe>=8.0.0
 email-validator>=2.1.0
-resend>=2.0.0
 numpy>=1.26.0
 scipy>=1.13.0
 Pillow>=10.0.0
 praw>=7.7.0  # Reddit API for r/wsb / r/stocks sentiment voice tool
-cryptography>=43.0.0  # Fernet — broker secret-at-rest encryption (api.services.crypto_box)
 # Brokerage aggregator (read-only); see api/services/journal_two/broker/
 # UPPER BOUND IS LOAD-BEARING — every call site is verified against 11.0.x.
 # 12.0.0 changed SnapTrade.__init__ to (configuration=None, **kwargs), so our

@@ -96,3 +96,70 @@ def test_broker_flags_matching():
     assert partner_health.broker_flags_for(health, "WEBULL") is not None
     assert partner_health.broker_flags_for(health, "Fidelity") is None
     assert partner_health.broker_flags_for(None, "Webull") is None
+
+
+# ── stale-serving must SAY it is stale (2026-07-23 class) ───────────────────
+#
+# On a failed refresh the probe serves last-known-good. Doing that silently
+# means a broker stuck in maintenance keeps reporting whatever flags we cached
+# hours ago, and no caller can distinguish "fresh: all clear" from "we haven't
+# been able to ask since this morning" — the same shape as a health check that
+# reads green through an outage.
+
+@pytest.mark.asyncio
+async def test_failed_refresh_serves_stale_but_flags_it(monkeypatch):
+    partner_health._reset_cache_for_tests()
+    monkeypatch.setenv("SNAPTRADE_CLIENT_ID", "cid")
+    monkeypatch.setenv("SNAPTRADE_CONSUMER_KEY", "ck")
+    snap.set_limiter(_NoThrottle())
+
+    snap.configure(_Group(reference_data=_Group(
+        get_partner_info=lambda **kw: _Resp(RAW))))
+    fresh = await partner_health.get_partner_health(force=True)
+    assert fresh is not None
+    assert partner_health.is_stale(fresh) is False
+    assert "WEBULL" in fresh["brokers"]
+
+    def boom(**kw):
+        raise RuntimeError("partner API down")
+
+    snap.configure(_Group(reference_data=_Group(get_partner_info=boom)))
+    stale = await partner_health.get_partner_health(force=True)
+
+    assert stale is not None, "must still serve last-known-good"
+    assert partner_health.is_stale(stale) is True
+    assert stale["ageSeconds"] >= 0
+    # The payload is still USABLE — flags survive so degraded-broker logic works.
+    assert stale["brokers"] == fresh["brokers"]
+
+
+@pytest.mark.asyncio
+async def test_marking_stale_does_not_poison_the_cache(monkeypatch):
+    """The stale tag is on a COPY — a later successful refresh must come back
+    clean, and the cached object must never carry the flag."""
+    partner_health._reset_cache_for_tests()
+    monkeypatch.setenv("SNAPTRADE_CLIENT_ID", "cid")
+    monkeypatch.setenv("SNAPTRADE_CONSUMER_KEY", "ck")
+    snap.set_limiter(_NoThrottle())
+
+    snap.configure(_Group(reference_data=_Group(
+        get_partner_info=lambda **kw: _Resp(RAW))))
+    await partner_health.get_partner_health(force=True)
+
+    def boom(**kw):
+        raise RuntimeError("down")
+
+    snap.configure(_Group(reference_data=_Group(get_partner_info=boom)))
+    assert partner_health.is_stale(await partner_health.get_partner_health(force=True))
+    assert "stale" not in partner_health._cache["data"], "cache was mutated"
+
+    snap.configure(_Group(reference_data=_Group(
+        get_partner_info=lambda **kw: _Resp(RAW))))
+    recovered = await partner_health.get_partner_health(force=True)
+    assert partner_health.is_stale(recovered) is False
+
+
+def test_is_stale_handles_none_and_fresh():
+    assert partner_health.is_stale(None) is False
+    assert partner_health.is_stale({"brokers": {}}) is False
+    assert partner_health.is_stale({"brokers": {}, "stale": True}) is True
