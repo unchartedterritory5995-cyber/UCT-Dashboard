@@ -4477,7 +4477,7 @@ def nbbo_histogram(
     first, last = dict(rows[0]), dict(rows[-1])
     fields = ["nbbo_age_sub1s", "nbbo_age_1to5s", "nbbo_age_5to30s",
               "nbbo_age_over30s", "side_classified_nbbo", "side_classified_tick",
-              "side_no_signal", "oi_stage2_skipped_total"]
+              "side_no_signal", "oi_stage2_skipped_total", "reclassified_total"]
     restarted = any((last.get(f) or 0) < (first.get(f) or 0) for f in fields)
     session = {f: ((last.get(f) or 0) if restarted
                    else (last.get(f) or 0) - (first.get(f) or 0)) for f in fields}
@@ -4513,6 +4513,21 @@ def nbbo_histogram(
         "total_classified": total,
         "side": {k: session[k] for k in
                  ("side_classified_nbbo", "side_classified_tick", "side_no_signal")},
+        # Coverage recovery. side_no_signal counts prints blank AT CLASSIFY TIME;
+        # many are re-classified moments later once an on-demand quote lands, so
+        # the raw no_signal number overstates the permanent gap. Note
+        # side_classified_tick SHOULD read 0 — the tick fallback was deliberately
+        # disabled (it produced confident wrong sides, e.g. SNDK $1310P labelled
+        # ALPHA GOLD BULL on ~$25M of puts SOLD).
+        "recovery": {
+            "reclassified": session.get("reclassified_total", 0),
+            "buffer_now": last.get("reclassify_buffer"),
+            "unrecovered_no_signal": max(
+                session["side_no_signal"] - session.get("reclassified_total", 0), 0),
+            "recovery_pct": (round(session.get("reclassified_total", 0)
+                                   / session["side_no_signal"] * 100, 1)
+                             if session["side_no_signal"] else 0.0),
+        },
         "oi_stage2_skipped": session["oi_stage2_skipped_total"],
         "q_subscribed_latest": last.get("q_subscribed_count"),
         "recommendation": rec,
