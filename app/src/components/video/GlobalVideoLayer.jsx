@@ -41,6 +41,13 @@ function useViewport() {
 }
 
 export default function GlobalVideoLayer() {
+  // Mobile "audio-primary" playback: on a coarse-pointer device with the flag
+  // on, we stream the video's separate audio track through a hidden <audio>
+  // element (so it survives screen-lock/background like a podcast) and mute
+  // the muted YT iframe underneath. Read inside the component (not true
+  // module scope) so tests can flip import.meta.env before rendering — see
+  // the identical VITE_GRID_WARM_ENABLED pattern in MultiChartGrid.jsx.
+  const bgAudioEnabled = import.meta.env.VITE_DESK_BG_AUDIO_ENABLED === '1'
   const apiReady = useYouTubeApi()
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   const { vw, vh } = useViewport()
@@ -59,6 +66,7 @@ export default function GlobalVideoLayer() {
   const curIdRef = useRef(null)
   const pipRef = useRef(null)
   const kbRef = useRef({})
+  const audioRef = useRef(null)
   const [ended, setEnded] = useState(false)
   const [countdown, setCountdown] = useState(NEXT_COUNTDOWN)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -83,6 +91,12 @@ export default function GlobalVideoLayer() {
   dockRectRef.current = dockRect
   const fsFakeRef = useRef(fsFake)
   fsFakeRef.current = fsFake
+
+  // True when this device should get the audio-primary treatment: flag on +
+  // coarse pointer (phones/tablets). Desktop always plays through the YT
+  // iframe as before, flag off is always a no-op.
+  const isAudioPrimary = () =>
+    bgAudioEnabled && !!window.matchMedia?.('(pointer: coarse)')?.matches
 
   const saveNow = useCallback(() => {
     const p = playerRef.current
@@ -140,6 +154,12 @@ export default function GlobalVideoLayer() {
     })
     playerRef.current = player
     tickerRef.current = setInterval(saveNow, 5000)
+    if (isAudioPrimary() && audioRef.current) {
+      audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
+      audioRef.current.play().catch(() => {})
+      try { player.mute(); player.playVideo() } catch { /* ignore */ }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiReady, active, list, index, saveNow])
 
   // Switch the video in-place when the index/list changes after build.
@@ -151,7 +171,15 @@ export default function GlobalVideoLayer() {
     saveNow()
     setEnded(false)
     curIdRef.current = id
+    if (isAudioPrimary() && audioRef.current) {
+      audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
+      audioRef.current.play().catch(() => {})
+    }
     p.loadVideoById({ videoId: id, startSeconds: resumeSeconds(id) })
+    if (isAudioPrimary()) {
+      try { p.mute() } catch { /* ignore */ }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list, index, active, saveNow])
 
   // Tear down when the session closes.
@@ -495,6 +523,19 @@ export default function GlobalVideoLayer() {
   return (
     <div ref={hostElRef} className={cls} style={hostStyle} data-mode={mode}>
       <div ref={hostRef} className={styles.frame} />
+      {/* Mobile audio-primary track. Inert unless isAudioPrimary() is driving
+          it (flag off / desktop pointer => never gets a src). A 404 (no
+          separate audio track for this video) falls back to unmuting the
+          YT iframe so playback still has sound. */}
+      <audio
+        ref={audioRef}
+        data-uct-video-audio="1"
+        preload="metadata"
+        style={{ display: 'none' }}
+        onError={() => {
+          try { playerRef.current?.unMute?.() } catch { /* ignore */ }
+        }}
+      />
       {!apiReady && <div className={styles.loading}>Loading…</div>}
 
       {pipOn && (

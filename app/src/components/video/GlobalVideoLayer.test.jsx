@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import GlobalVideoLayer from './GlobalVideoLayer'
 import * as store from './videoStore'
 
@@ -202,5 +202,55 @@ describe('GlobalVideoLayer', () => {
     act(() => store.minimize())
     expect(document.documentElement.style.overflow).not.toBe('hidden')
     expect(container.firstChild.style.top).not.toBe('0px')
+  })
+
+  describe('mobile audio-primary playback', () => {
+    const prevFlag = import.meta.env.VITE_DESK_BG_AUDIO_ENABLED
+    const prevMatchMedia = window.matchMedia
+
+    afterEach(() => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = prevFlag
+      window.matchMedia = prevMatchMedia
+    })
+
+    it('starts the audio element muted-video on mobile when the flag is on', () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      const playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+
+      renderLayer()
+      act(() => store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0))
+
+      const audioEl = document.querySelector('audio[data-uct-video-audio]')
+      expect(audioEl).toBeTruthy()
+      expect(audioEl.getAttribute('src')).toMatch(/\/api\/education\/videos\/7\/audio$/)
+      expect(playSpy).toHaveBeenCalled()
+      expect(lastPlayer.mute).toHaveBeenCalled()
+    })
+
+    it('does not touch the audio element when the flag is off (desktop-identical behavior)', () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '0'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+
+      renderLayer()
+      act(() => store.play(LIST, 0))
+
+      const audioEl = document.querySelector('audio[data-uct-video-audio]')
+      expect(audioEl).toBeTruthy()
+      expect(audioEl.getAttribute('src')).toBeFalsy()
+      expect(lastPlayer.mute).not.toHaveBeenCalled()
+    })
+
+    it('does not touch the audio element on a mouse-pointer device even with the flag on', () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: false, addEventListener() {}, removeEventListener() {} })
+
+      renderLayer()
+      act(() => store.play(LIST, 0))
+
+      const audioEl = document.querySelector('audio[data-uct-video-audio]')
+      expect(audioEl.getAttribute('src')).toBeFalsy()
+      expect(lastPlayer.mute).not.toHaveBeenCalled()
+    })
   })
 })
