@@ -168,6 +168,13 @@ _ETF_THEMES = [
 def _stub_etf_themes(monkeypatch):
     groups._ETF_THEME_CACHE["map"] = None
     monkeypatch.setattr(groups, "_get_all_themes", lambda: {"themes": _ETF_THEMES})
+    # Holdings must be stubbed too: without this the test silently reads the REAL
+    # theme DB, and any earlier test that repoints theme_db (theme_engine /
+    # theme_curation conftests do) empties it -> peers == [] only in a full run.
+    monkeypatch.setattr(
+        groups, "_theme_holdings",
+        lambda tid: [dict(h) for h in next(
+            (t["holdings"] for t in _ETF_THEMES if t["id"] == tid), [])])
     monkeypatch.setattr(groups, "cap_universe_set", lambda: {"NVDA", "AVGO", "JPM"})
     monkeypatch.setattr(groups, "_today_map", lambda syms: {})
     monkeypatch.setattr(groups, "_rs_map", lambda: {})
