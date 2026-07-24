@@ -186,6 +186,33 @@ def _bucket() -> Optional[str]:
     return os.environ.get("DATA_SYNC_BUCKET")
 
 
+def presigned_get(key: str, expires: int = 3600):
+    """Presigned GET URL for an R2 object, or None if R2 is not configured."""
+    cl = _client()
+    if not cl:
+        return None
+    try:
+        return cl.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": _bucket(), "Key": key},
+            ExpiresIn=int(expires),
+        )
+    except Exception:
+        return None
+
+
+def put_bytes(key: str, data: bytes, content_type: str) -> bool:
+    """Upload bytes to R2. Returns False (no-op) when R2 is not configured."""
+    cl = _client()
+    if not cl:
+        return False
+    try:
+        cl.put_object(Bucket=_bucket(), Key=key, Body=data, ContentType=content_type)
+        return True
+    except Exception:
+        return False
+
+
 def credentials_ok() -> bool:
     """Public probe for misconfiguration. Returns True iff the env vars
     needed to talk to R2 are all set. Used by the worker's health endpoint
