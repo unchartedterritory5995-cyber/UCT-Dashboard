@@ -23,7 +23,7 @@ import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import (
@@ -31,6 +31,7 @@ from api.middleware.auth_middleware import (
     is_paid_user,
     require_admin,
 )
+from api.services import data_sync
 from api.services import education_service as svc
 
 router = APIRouter(prefix="/api/education", tags=["education"])
@@ -290,6 +291,20 @@ def get_video_poster(video_id: int, _user: dict = Depends(require_paid)):
     if not os.path.exists(path):
         raise HTTPException(404, "No recap poster for this video")
     return FileResponse(path, media_type="image/png")
+
+
+@router.get("/videos/{video_id}/audio")
+def get_video_audio(video_id: int, _user: dict = Depends(require_paid)):
+    """Redirect to the presigned R2 URL for a session's background audio track
+    (desk background-audio feature). 404 when the video is missing, has no
+    audio, or R2 is unconfigured/unreachable."""
+    row = svc.get_video(video_id)
+    if not row or not row.get("audio_url"):
+        raise HTTPException(404, "No background audio for this video")
+    url = data_sync.presigned_get(row["audio_url"])
+    if not url:
+        raise HTTPException(404, "Audio storage unavailable")
+    return RedirectResponse(url, status_code=302)
 
 
 # ── Per-user timestamped video notes (jot at MM:SS, jump back) ───────────────────
