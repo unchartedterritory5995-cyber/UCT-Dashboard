@@ -2710,7 +2710,14 @@ def _parse_mdy(s):
 
 
 def _build_by_contract(today: str, stock_etf: str, min_hits: int,
-                       exclude_algo: bool, lookback_days: int = 1) -> dict:
+                       exclude_algo: bool, lookback_days: int = 1,
+                       only_ticker: str = None) -> dict:
+    """Contract-level rollup. `only_ticker` (2026-07-24) narrows the SQL to one
+    underlying — force_push_discord's accumulation mode was rebuilding the FULL
+    rollup (up to 100k rows across the lookback, each through _row_to_alert)
+    purely to locate a single contract, which made manual By-Contract pushes
+    take seconds while By-Print pushes were instant. Feed callers pass None and
+    are unaffected."""
     thresholds = _load_thresholds()
     override_sql_floor = 500_000
     etf_enabled = thresholds.get("etf_enabled", False)
@@ -2757,15 +2764,20 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             conn.row_factory = sqlite3.Row
             subqueries, params = [], []
             date_ph = ",".join("?" for _ in target_dates)
+            _tk_clause = " AND Symbol = ? " if only_ticker else " "
             for s in sources:
                 subqueries.append(
                     f"SELECT * FROM ({select_cols} FROM flow "
-                    f"WHERE source = ? AND CreatedDate IN ({date_ph}) AND {color_gate} "
+                    f"WHERE source = ? AND CreatedDate IN ({date_ph}) AND {color_gate}"
+                    f"{_tk_clause}"
                     f"ORDER BY id DESC LIMIT ?)"
                 )
                 params.append(s)
                 params.extend(target_dates)
-                params.extend([override_sql_floor, cap])
+                params.append(override_sql_floor)
+                if only_ticker:
+                    params.append(only_ticker.strip().upper())
+                params.append(cap)
             cur = conn.execute(" UNION ALL ".join(subqueries), params)
             rows = cur.fetchall()
         finally:
@@ -4050,7 +4062,9 @@ def force_push_discord(
             # found the same way the radar surfaces them — a contract flagged for
             # its 3-day build won't necessarily clear min_hits on the target day
             # alone (that was the "contract not found" 404).
-            payload = _build_by_contract(target_date, se, 1, False, int(lookback_days))
+            payload = _build_by_contract(target_date, se, 1, False,
+                                         int(lookback_days),
+                                         only_ticker=ticker)
             cpU = cp.strip().upper()[:1]
             def _strike_eq(a, b):
                 try:
