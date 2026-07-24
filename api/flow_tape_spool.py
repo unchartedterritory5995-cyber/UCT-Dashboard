@@ -66,14 +66,20 @@ REPLAY_MAX_MIN = int(os.environ.get("FLOW_TAPE_REPLAY_MAX_MIN", "120"))
 SUB_WINDOW_MIN = 30               # insert txn granularity (review B4)
 RETENTION_HOURS = int(os.environ.get("FLOW_TAPE_SPOOL_RETENTION_HOURS", "26"))
 REPLAY_BOOT_DELAY_SEC = float(os.environ.get("FLOW_TAPE_REPLAY_BOOT_DELAY_SEC", "390"))
-MAX_SPOOL_BYTES = int(float(os.environ.get("FLOW_TAPE_SPOOL_MAX_GB", "4")) * (1 << 30))
+# 4GB was under a single RTH day of OPRA trade frames (2026-07-17 spooled ~3.5GB
+# across 8 hours), so the cap tripped mid-session on every busy day. 8GB clears
+# the 26h retention window with headroom.
+MAX_SPOOL_BYTES = int(float(os.environ.get("FLOW_TAPE_SPOOL_MAX_GB", "8")) * (1 << 30))
 MIN_FREE_BYTES = int(float(os.environ.get("FLOW_TAPE_SPOOL_MIN_FREE_GB", "2")) * (1 << 30))
+_PAUSED_REALERT_SEC = 6 * 3600    # re-nag while still paused (see _check_disk_budget)
 EDGE_SEC = 60                     # replay margin around each gap window
 _QUEUE_MAX = 50_000               # ~1-2 min of extreme-volume frames
 
 _q: deque = deque(maxlen=_QUEUE_MAX)
 _stats = {"frames_spooled": 0, "frames_dropped": 0, "writer_errors": 0,
-          "paused_no_space": False, "last_replay": None}
+          "paused_no_space": False, "last_replay": None,
+          "files_pruned": 0, "files_trimmed_over_cap": 0}
+_paused_alerted_at = 0.0          # monotonic-ish wall clock of the last PAUSED post
 _writer_started = False
 _start_lock = threading.Lock()
 _REPLAY_LOCK = threading.Lock()
@@ -152,36 +158,122 @@ def _writer_loop() -> None:
             time.sleep(5)
 
 
+def _spool_files() -> list:
+    """[(path, mtime, size)] for every spool file, oldest first."""
+    out = []
+    if not os.path.isdir(SPOOL_DIR):
+        return out
+    for f in os.listdir(SPOOL_DIR):
+        if not (f.startswith("tape-") or f.startswith("_tmp-")):
+            continue
+        p = os.path.join(SPOOL_DIR, f)
+        try:
+            st = os.stat(p)
+        except OSError:
+            continue
+        out.append((p, st.st_mtime, st.st_size))
+    out.sort(key=lambda e: e[1])
+    return out
+
+
+def _prune_old(entries=None) -> int:
+    """Drop files past RETENTION_HOURS. Returns the number removed.
+
+    🔒 MUST stay callable INDEPENDENT of the drain path. Until 2026-07-23 this
+    lived only inside _rotate_and_prune(), which the writer loop only reaches
+    after `if not _q: continue` — so a paused spool (spool_frame early-returns,
+    queue stays empty forever) never pruned, never fell back under the cap, and
+    stayed paused across restarts. Gap capture was dead 7/20-7/23 that way."""
+    entries = _spool_files() if entries is None else entries
+    cutoff = time.time() - RETENTION_HOURS * 3600
+    n = 0
+    for p, mtime, _size in entries:
+        if mtime >= cutoff:
+            break                       # sorted oldest-first
+        try:
+            os.remove(p)
+            n += 1
+        except OSError:
+            pass
+    if n:
+        _stats["files_pruned"] += n
+        logger.info("[tape-spool] pruned %d file(s) past %dh retention", n, RETENTION_HOURS)
+    return n
+
+
+def _trim_to_cap(entries=None) -> int:
+    """Delete OLDEST spool hours until the spool fits MAX_SPOOL_BYTES.
+
+    Deliberate trade-off: the oldest tape is the most replaceable (the T+1 flat
+    file owns anything past ~26h), whereas pausing capture forfeits TODAY's
+    prints, which nothing else can recover. So on a huge day we shed history and
+    keep recording rather than the reverse."""
+    entries = _spool_files() if entries is None else entries
+    total = sum(e[2] for e in entries)
+    n = 0
+    for p, _mtime, size in entries:
+        if total <= MAX_SPOOL_BYTES:
+            break
+        try:
+            os.remove(p)
+            total -= size
+            n += 1
+        except OSError:
+            pass
+    if n:
+        _stats["files_trimmed_over_cap"] += n
+        logger.warning("[tape-spool] trimmed %d oldest file(s) to stay under the "
+                       "%.1fGB cap", n, MAX_SPOOL_BYTES / (1 << 30))
+    return n
+
+
 def _check_disk_budget() -> None:
-    """Pause spooling when the spool exceeds its byte cap or the volume's
-    free space drops below the floor (protects flow.db WAL + backup bursts).
-    Resumes automatically once pruning/space recovers (review A3b)."""
+    """Enforce the spool's disk budget, then pause ONLY if that wasn't enough.
+
+    Order matters: prune expired → trim oldest to the cap → re-measure → pause
+    only on the volume free-space floor. Pausing is now the last resort (a full
+    volume we can't fix by deleting our own files), not the first response, and
+    it can always lift because the reclaim above runs unconditionally."""
+    global _paused_alerted_at
     try:
         import shutil
-        spool_bytes = 0
-        if os.path.isdir(SPOOL_DIR):
-            for f in os.listdir(SPOOL_DIR):
-                if f.startswith("tape-"):
-                    try:
-                        spool_bytes += os.path.getsize(os.path.join(SPOOL_DIR, f))
-                    except OSError:
-                        pass
+        _prune_old()
+        _trim_to_cap()
+        entries = _spool_files()
+        spool_bytes = sum(e[2] for e in entries)
         free = shutil.disk_usage(os.path.dirname(DB_PATH) or "/").free
         paused = spool_bytes > MAX_SPOOL_BYTES or free < MIN_FREE_BYTES
-        if paused and not _stats["paused_no_space"]:
-            logger.warning("[tape-spool] PAUSED: spool=%.1fGB free=%.1fGB",
-                           spool_bytes / (1 << 30), free / (1 << 30))
-            try:
-                from api.flow_gap_autofill import _post_discord
-                _post_discord(
-                    f"⚠️ TAPE-SPOOL PAUSED (disk budget): spool "
-                    f"{spool_bytes / (1 << 30):.1f}GB / free {free / (1 << 30):.1f}GB — "
-                    f"gap capture suspended until space recovers")
-            except Exception:
-                pass
+        was = _stats["paused_no_space"]
         _stats["paused_no_space"] = paused
+
+        if paused:
+            # Re-alert on a schedule: the one-shot edge let a stuck pause sit
+            # silent for three trading days.
+            now = time.time()
+            if not was or (now - _paused_alerted_at) > _PAUSED_REALERT_SEC:
+                _paused_alerted_at = now
+                logger.warning("[tape-spool] PAUSED: spool=%.1fGB free=%.1fGB",
+                               spool_bytes / (1 << 30), free / (1 << 30))
+                _post(f"⚠️ TAPE-SPOOL PAUSED (disk budget): spool "
+                      f"{spool_bytes / (1 << 30):.1f}GB / free {free / (1 << 30):.1f}GB — "
+                      f"gap capture suspended. Retention prune + over-cap trim already "
+                      f"ran, so this is the VOLUME, not the spool: free space on "
+                      f"{os.path.dirname(DB_PATH) or '/'}.")
+        elif was:
+            logger.info("[tape-spool] RESUMED: spool=%.1fGB free=%.1fGB",
+                        spool_bytes / (1 << 30), free / (1 << 30))
+            _post(f"✅ TAPE-SPOOL RESUMED: spool {spool_bytes / (1 << 30):.1f}GB / "
+                  f"free {free / (1 << 30):.1f}GB — gap capture is recording again")
     except Exception as e:
         logger.warning("[tape-spool] disk check failed: %s", e)
+
+
+def _post(msg: str) -> None:
+    try:
+        from api.flow_gap_autofill import _post_discord
+        _post_discord(msg)
+    except Exception:
+        pass
 
 
 def _rotate_and_prune(closed_path: str) -> None:
@@ -211,12 +303,7 @@ def _rotate_and_prune(closed_path: str) -> None:
             except OSError:
                 pass
     try:
-        cutoff = time.time() - RETENTION_HOURS * 3600
-        for f in os.listdir(SPOOL_DIR):
-            p = os.path.join(SPOOL_DIR, f)
-            if (f.startswith("tape-") or f.startswith("_tmp-")) \
-                    and os.path.getmtime(p) < cutoff:
-                os.remove(p)
+        _prune_old()
     except Exception:
         pass
 

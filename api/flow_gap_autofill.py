@@ -59,6 +59,11 @@ DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 BACKUP_DIR = os.environ.get(
     "FLOW_FILL_BACKUP_DIR",
     os.path.join(os.path.dirname(DB_PATH) or "/data", "flow_backups"))
+BACKUP_KEEP = int(os.environ.get("FLOW_FILL_BACKUP_KEEP", "3"))
+BACKUP_MAX_AGE_DAYS = int(os.environ.get("FLOW_FILL_BACKUP_MAX_AGE_DAYS", "14"))
+# Size ceiling, not just age: each snapshot is a full copy of flow.db (~2.3GB and
+# growing), so an age-only rule let them pile up faster than they expired.
+BACKUP_MAX_BYTES = int(float(os.environ.get("FLOW_FILL_BACKUP_MAX_GB", "10")) * (1 << 30))
 EDGE_MARGIN_SEC = 60          # ±60s covers any burst straddling a gap edge
 ARCHIVE_PRUNE_DAYS = 30
 ROLLBACK_MAX_AGE_DAYS = 7     # prune_expired interplay — never resurrect older
@@ -303,6 +308,50 @@ def _build_fill_rows(target: date):
 
 # --- Backup -------------------------------------------------------------------
 
+def _prune_backups() -> int:
+    """Keep BACKUP_KEEP newest snapshots; drop older ones past BACKUP_MAX_AGE_DAYS
+    OR whenever the directory exceeds BACKUP_MAX_BYTES (oldest first).
+
+    🔒 MUST be called on EVERY run, not just runs that take a backup. It used to
+    live inside _backup_db(), which only runs when gaps are found — so on a
+    healthy stretch (every run 'no_gaps') nothing ever pruned. Combined with the
+    age-only rule, 18 snapshots × ~2.3GB reached 33GB of a 46GB volume by
+    2026-07-23 and squeezed the tape spool off the disk."""
+    if not os.path.isdir(BACKUP_DIR):
+        return 0
+    entries = []
+    for f in os.listdir(BACKUP_DIR):
+        if not f.startswith("flow-pre-"):
+            continue
+        p = os.path.join(BACKUP_DIR, f)
+        try:
+            st = os.stat(p)
+        except OSError:
+            continue
+        entries.append((p, st.st_mtime, st.st_size))
+    entries.sort(key=lambda e: e[1], reverse=True)     # newest first
+
+    protected = entries[:BACKUP_KEEP]
+    candidates = entries[BACKUP_KEEP:]
+    total = sum(e[2] for e in entries)
+    cutoff = time.time() - BACKUP_MAX_AGE_DAYS * 86400
+    removed = 0
+    for p, mtime, size in reversed(candidates):        # oldest first
+        if mtime >= cutoff and total <= BACKUP_MAX_BYTES:
+            continue
+        try:
+            os.remove(p)
+            total -= size
+            removed += 1
+        except OSError:
+            pass
+    if removed:
+        print(f"[flow-gap-fill] pruned {removed} backup(s); kept "
+              f"{len(protected) + len(candidates) - removed}, dir now "
+              f"{total / (1 << 30):.1f}GB", flush=True)
+    return removed
+
+
 def _backup_db(run_id: int, target: date):
     os.makedirs(BACKUP_DIR, exist_ok=True)
     path = os.path.join(BACKUP_DIR, f"flow-pre-{run_id}-{target.isoformat()}.db")
@@ -315,18 +364,11 @@ def _backup_db(run_id: int, target: date):
             dst.close()
     finally:
         src.close()
-    # prune: keep 3 newest, delete anything older than 14 days
-    entries = sorted(
-        (os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
-         if f.startswith("flow-pre-")),
-        key=os.path.getmtime, reverse=True)
-    cutoff = time.time() - 14 * 86400
-    for p in entries[3:]:
-        if os.path.getmtime(p) < cutoff:
-            try:
-                os.remove(p)
-            except OSError:
-                pass
+    _prune_backups()
+    # Was missing: callers do `backup_path = _backup_db(...)`, so the run ledger
+    # stored NULL and the Discord summary read "backup SKIPPED" on runs that had
+    # in fact written one — i.e. the rollback file existed but was unfindable.
+    return path
     return path
 
 
@@ -500,6 +542,13 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
                 (mdy,))
             run_id = cur.lastrowid
             c.commit()
+
+        # Unconditional — a stretch of clean 'no_gaps' runs must still reclaim
+        # disk, or the snapshots outlive every retention rule (see _prune_backups).
+        try:
+            _prune_backups()
+        except Exception as e:
+            print(f"[flow-gap-fill] backup prune failed (non-fatal): {e}", flush=True)
 
         result = {"status": None, "run_id": run_id, "target_date": mdy,
                   "windows": [], "dry_run": dry_run}

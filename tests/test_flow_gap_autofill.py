@@ -335,3 +335,60 @@ def test_walkback_default_days_from_constant(db, monkeypatch):
     result = gf.run_fill_walkback(end_date=WALKBACK_ANCHOR, dry_run=True)
     assert result["days_checked"] == 2
     assert result["days"] == ["2026-07-06", "2026-07-02"]
+
+
+# --- Backup retention (2026-07-23 disk incident) ------------------------------
+# 18 snapshots × ~2.3GB = 33GB of a 46GB volume, because the prune only ran
+# inside _backup_db() — i.e. only on runs that FOUND gaps — and its rule was
+# age-only, so a run of healthy 'no_gaps' days reclaimed nothing.
+
+import os
+import time
+
+
+def _snap(d, run_id, size, age_days):
+    p = os.path.join(d, f"flow-pre-{run_id}-2026-07-17.db")
+    with open(p, "wb") as f:
+        f.write(b"x" * size)
+    t = time.time() - age_days * 86400
+    os.utime(p, (t, t))
+    return p
+
+
+def test_prune_backups_always_keeps_the_newest_n(tmp_path, monkeypatch):
+    d = str(tmp_path / "flow_backups")
+    os.makedirs(d)
+    monkeypatch.setattr(gf, "BACKUP_DIR", d)
+    monkeypatch.setattr(gf, "BACKUP_KEEP", 3)
+    monkeypatch.setattr(gf, "BACKUP_MAX_AGE_DAYS", 14)
+    monkeypatch.setattr(gf, "BACKUP_MAX_BYTES", 1 << 40)
+    for i in range(6):
+        _snap(d, i, 10, age_days=100 - i)          # all ancient
+    gf._prune_backups()
+    left = sorted(os.listdir(d))
+    assert len(left) == 3
+    assert "flow-pre-5-2026-07-17.db" in left      # newest survives
+
+
+def test_prune_backups_enforces_a_size_cap_not_just_age(tmp_path, monkeypatch):
+    """The age-only rule was the hole: every snapshot was <14d old, so nothing
+    was prunable while the directory ran away to 33GB."""
+    d = str(tmp_path / "flow_backups")
+    os.makedirs(d)
+    monkeypatch.setattr(gf, "BACKUP_DIR", d)
+    monkeypatch.setattr(gf, "BACKUP_KEEP", 3)
+    monkeypatch.setattr(gf, "BACKUP_MAX_AGE_DAYS", 14)
+    monkeypatch.setattr(gf, "BACKUP_MAX_BYTES", 5000)
+    for i in range(8):
+        _snap(d, i, 1000, age_days=i * 0.1)        # 8GB-equivalent, all fresh
+    gf._prune_backups()
+    left = os.listdir(d)
+    assert len(left) < 8, "size cap must bite even when nothing has expired"
+    total = sum(os.path.getsize(os.path.join(d, f)) for f in left)
+    assert total <= 5000
+    assert len(left) >= 3, "the newest KEEP snapshots are never sacrificed"
+
+
+def test_prune_backups_no_dir_is_a_noop(tmp_path, monkeypatch):
+    monkeypatch.setattr(gf, "BACKUP_DIR", str(tmp_path / "nope"))
+    assert gf._prune_backups() == 0

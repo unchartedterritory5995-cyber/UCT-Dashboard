@@ -241,3 +241,114 @@ def test_replay_window_edge_honesty(tmp_path, spool_dir, monkeypatch):
     with sqlite3.connect(dbp) as c:
         syms = [r[0] for r in c.execute("SELECT Symbol FROM flow")]
     assert syms == ["BBB"]
+
+
+# --- Disk budget: prune/trim must be reachable while PAUSED -------------------
+# Regression rail for the 2026-07-23 incident: the spool sat paused from 7/20
+# through 7/23 because pruning was only reachable from the queue-drain path,
+# which a paused spool never enters.
+
+def _mk(spool_dir, name, size, age_hours):
+    p = os.path.join(spool_dir, name)
+    with open(p, "wb") as f:
+        f.write(b"x" * size)
+    t = time.time() - age_hours * 3600
+    os.utime(p, (t, t))
+    return p
+
+
+def test_prune_old_drops_only_expired(spool_dir, monkeypatch):
+    monkeypatch.setattr(fts, "RETENTION_HOURS", 26)
+    old = _mk(spool_dir, "tape-20260716-18.jsonl.gz", 10, 100)
+    fresh = _mk(spool_dir, "tape-20260723-18.jsonl", 10, 1)
+    assert fts._prune_old() == 1
+    assert not os.path.exists(old)
+    assert os.path.exists(fresh)
+
+
+def test_trim_to_cap_sheds_oldest_first(spool_dir, monkeypatch):
+    monkeypatch.setattr(fts, "MAX_SPOOL_BYTES", 250)
+    oldest = _mk(spool_dir, "tape-20260722-13.jsonl", 200, 10)
+    mid = _mk(spool_dir, "tape-20260722-14.jsonl", 200, 5)
+    newest = _mk(spool_dir, "tape-20260723-15.jsonl", 200, 1)
+    assert fts._trim_to_cap() == 2
+    assert not os.path.exists(oldest) and not os.path.exists(mid)
+    assert os.path.exists(newest), "today's tape must survive; nothing else can recover it"
+
+
+def test_paused_spool_self_recovers_without_a_drain(spool_dir, monkeypatch):
+    """THE bug: paused => queue empty => rotation never runs => prune never runs
+    => still over cap => still paused, forever, across restarts."""
+    monkeypatch.setattr(fts, "RETENTION_HOURS", 26)
+    monkeypatch.setattr(fts, "MAX_SPOOL_BYTES", 1000)
+    monkeypatch.setattr(fts, "MIN_FREE_BYTES", 0)
+    monkeypatch.setattr(fts, "_post", lambda msg: None)
+    for i in range(4):
+        _mk(spool_dir, f"tape-2026071{i}-13.jsonl", 900, 100)   # all expired
+    fts._stats["paused_no_space"] = True
+    fts._q.clear()                                              # nothing to drain
+
+    fts._check_disk_budget()
+
+    assert fts._stats["paused_no_space"] is False
+    assert fts._spool_files() == []
+
+
+def test_pause_lifts_via_cap_trim_even_when_nothing_is_expired(spool_dir, monkeypatch):
+    monkeypatch.setattr(fts, "RETENTION_HOURS", 26)
+    monkeypatch.setattr(fts, "MAX_SPOOL_BYTES", 1000)
+    monkeypatch.setattr(fts, "MIN_FREE_BYTES", 0)
+    monkeypatch.setattr(fts, "_post", lambda msg: None)
+    for i in range(3):
+        _mk(spool_dir, f"tape-2026072{i}-13.jsonl", 900, i + 1)  # all fresh
+    fts._stats["paused_no_space"] = True
+
+    fts._check_disk_budget()
+
+    assert fts._stats["paused_no_space"] is False
+    assert len(fts._spool_files()) == 1
+
+
+def test_still_paused_when_the_volume_itself_is_full(spool_dir, monkeypatch):
+    """Trimming our own files can't fix someone else filling the volume — that
+    case must still pause AND still alert."""
+    import shutil
+    monkeypatch.setattr(fts, "MIN_FREE_BYTES", 1 << 62)
+    posts = []
+    monkeypatch.setattr(fts, "_post", lambda msg: posts.append(msg))
+    fts._stats["paused_no_space"] = False
+    fts._paused_alerted_at = 0.0
+
+    fts._check_disk_budget()
+
+    assert fts._stats["paused_no_space"] is True
+    assert posts and "PAUSED" in posts[0]
+
+
+def test_resume_is_announced(spool_dir, monkeypatch):
+    monkeypatch.setattr(fts, "MIN_FREE_BYTES", 0)
+    monkeypatch.setattr(fts, "MAX_SPOOL_BYTES", 1 << 40)
+    posts = []
+    monkeypatch.setattr(fts, "_post", lambda msg: posts.append(msg))
+    fts._stats["paused_no_space"] = True
+
+    fts._check_disk_budget()
+
+    assert fts._stats["paused_no_space"] is False
+    assert posts and "RESUMED" in posts[0]
+
+
+def test_paused_realerts_so_it_cannot_go_quiet_for_days(spool_dir, monkeypatch):
+    monkeypatch.setattr(fts, "MIN_FREE_BYTES", 1 << 62)
+    posts = []
+    monkeypatch.setattr(fts, "_post", lambda msg: posts.append(msg))
+    fts._stats["paused_no_space"] = False
+    fts._paused_alerted_at = 0.0
+
+    fts._check_disk_budget()
+    fts._check_disk_budget()                       # still paused, within window
+    assert len(posts) == 1
+
+    fts._paused_alerted_at = time.time() - fts._PAUSED_REALERT_SEC - 1
+    fts._check_disk_budget()
+    assert len(posts) == 2
