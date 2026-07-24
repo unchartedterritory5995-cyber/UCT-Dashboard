@@ -319,4 +319,128 @@ describe('GlobalVideoLayer', () => {
       expect(lastPlayerVars.mute).toBeUndefined()
     })
   })
+
+  // Task 10: once the <audio> element's own play() has resolved (audioActiveRef
+  // flips true), it becomes the playback CLOCK — controls read/write it first
+  // and mirror seeks/rate to the still-muted YT player. jsdom's HTMLMediaElement
+  // exposes `duration` and `paused` as GETTER-ONLY (no setter) per spec, so
+  // tests stub them via Object.defineProperty on the element instance rather
+  // than plain assignment.
+  describe('audio element as the clock (Task 10)', () => {
+    const prevFlag = import.meta.env.VITE_DESK_BG_AUDIO_ENABLED
+    const prevMatchMedia = window.matchMedia
+
+    afterEach(() => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = prevFlag
+      window.matchMedia = prevMatchMedia
+      // vi.spyOn on an already-spied HTMLMediaElement.prototype method reuses
+      // the SAME mock (call history included) across tests — restore so each
+      // test's play()/pause() spy starts from a clean call count.
+      vi.restoreAllMocks()
+    })
+
+    // Renders with the audio-primary path engaged and waits for the initial
+    // play() (from the "build the player" effect) to resolve, so audioActiveRef
+    // is true and audioOn() reads truthy for the rest of the test.
+    const renderWithAudioActive = async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      renderLayer()
+      await act(async () => {
+        store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+        await Promise.resolve() // flush audioRef.current.play().then(() => audioActiveRef.current = true)
+      })
+      return document.querySelector('audio[data-uct-video-audio]')
+    }
+
+    it('play/pause toggles the audio element (audioEl.paused) once audio is active', async () => {
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(function () {
+        Object.defineProperty(this, 'paused', { value: false, configurable: true })
+        return Promise.resolve()
+      })
+      vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(function () {
+        Object.defineProperty(this, 'paused', { value: true, configurable: true })
+      })
+
+      const audioEl = await renderWithAudioActive()
+      expect(audioEl.paused).toBe(false) // engaged by the initial play()
+
+      // isPlaying starts true (useState(true)) → button reads "Pause".
+      fireEvent.click(screen.getByLabelText('Pause'))
+      expect(audioEl.paused).toBe(true)
+
+      fireEvent.click(screen.getByLabelText('Play'))
+      expect(audioEl.paused).toBe(false)
+    })
+
+    it('the scrubber drag sets audioEl.currentTime AND mirrors to the YT player via seekTo', async () => {
+      // Fake timers must be installed BEFORE the component mounts — the poll
+      // effect's setInterval is created with whatever timer implementation is
+      // active at that moment; installing fake timers afterward doesn't
+      // retarget an already-scheduled real interval.
+      vi.useFakeTimers()
+      try {
+        vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+        const audioEl = await renderWithAudioActive()
+        Object.defineProperty(audioEl, 'duration', { value: 100, configurable: true })
+
+        // Let the 300ms poll effect pick up the new duration into prog.d so
+        // the Scrubber component (gated on its own `duration` prop) accepts a seek.
+        act(() => { vi.advanceTimersByTime(300) })
+
+        const slider = screen.getByRole('slider', { name: 'Seek' })
+        vi.spyOn(slider, 'getBoundingClientRect').mockReturnValue({
+          left: 0, right: 200, top: 0, bottom: 0, width: 200, height: 20, x: 0, y: 0, toJSON() {},
+        })
+        fireEvent.pointerDown(slider, { clientX: 100, pointerId: 1 }) // 50% of 200px track → frac 0.5
+
+        expect(audioEl.currentTime).toBe(50)
+        expect(lastPlayer.seekTo).toHaveBeenCalledWith(50, true)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('the speed button sets audioEl.playbackRate AND fakePlayer.setPlaybackRate', async () => {
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+      const audioEl = await renderWithAudioActive()
+
+      fireEvent.click(screen.getByLabelText('Playback speed'))
+
+      expect(audioEl.playbackRate).toBe(1.25)
+      expect(lastPlayer.setPlaybackRate).toHaveBeenCalledWith(1.25)
+    })
+
+    it("the registered time getter returns audioEl.currentTime once audio is active", async () => {
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+      const audioEl = await renderWithAudioActive()
+      audioEl.currentTime = 42
+
+      expect(store.getCurrentTime()).toBe(42)
+    })
+
+    it('with the flag off, none of the audio-clock paths run (today\'s YT-only behavior)', async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '0'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      const playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+
+      renderLayer()
+      await act(async () => {
+        store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+        await Promise.resolve()
+      })
+
+      // The audio element never even got a src, let alone play() called on it.
+      expect(playSpy).not.toHaveBeenCalled()
+
+      // Every control still drives the YT player exactly as before.
+      fireEvent.click(screen.getByLabelText('Pause'))
+      expect(lastPlayer.pauseVideo).toHaveBeenCalled()
+
+      fireEvent.click(screen.getByLabelText('Playback speed'))
+      expect(lastPlayer.setPlaybackRate).toHaveBeenCalledWith(1.25)
+
+      expect(store.getCurrentTime()).toBe(20) // from fakePlayer.getCurrentTime() stub, not the audio element
+    })
+  })
 })

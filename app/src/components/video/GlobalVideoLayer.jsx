@@ -67,6 +67,11 @@ export default function GlobalVideoLayer() {
   const pipRef = useRef(null)
   const kbRef = useRef({})
   const audioRef = useRef(null)
+  // True only after the audio element's own play() has resolved — the single
+  // source of truth for "is the <audio> element actually the clock right now"
+  // (vs. merely present-but-not-yet-engaged, or fallen back to the YT iframe
+  // after a 404). Set false again on audio error / session close / unmount.
+  const audioActiveRef = useRef(false)
   const [ended, setEnded] = useState(false)
   const [countdown, setCountdown] = useState(NEXT_COUNTDOWN)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -98,6 +103,13 @@ export default function GlobalVideoLayer() {
   const isAudioPrimary = () =>
     bgAudioEnabled && !!window.matchMedia?.('(pointer: coarse)')?.matches
 
+  // The <audio> element is the playback clock only once ITS OWN play() has
+  // actually resolved (audioActiveRef) — not merely because isAudioPrimary()
+  // is true (that's just "this device wants the audio-primary path"). A 404
+  // on the audio track falls back to the muted YT iframe unmuting itself
+  // instead, and every control site below must follow that fallback too.
+  const audioOn = () => audioActiveRef.current && audioRef.current
+
   const saveNow = useCallback(() => {
     const p = playerRef.current
     if (!p || !p.getCurrentTime || !p.getDuration) return
@@ -106,6 +118,15 @@ export default function GlobalVideoLayer() {
       const d = p.getDuration()
       if (d > 0) recordProgress(curIdRef.current, t, d)
     } catch { /* ignore */ }
+  }, [])
+
+  // Shared "video finished" handling — driven by YT onStateChange (state 0)
+  // normally, and by the <audio> element's own `ended` event on the
+  // audio-primary path (the audio clock decides when playback is over there).
+  const handleEnded = useCallback(() => {
+    markWatched(curIdRef.current)
+    setEnded(true)
+    setIsPlaying(false)
   }, [])
 
   // Build the player once, when a video first becomes active.
@@ -151,9 +172,7 @@ export default function GlobalVideoLayer() {
         },
         onStateChange: (e) => {
           if (e.data === 0) {
-            markWatched(curIdRef.current)
-            setEnded(true)
-            setIsPlaying(false)
+            handleEnded()
           } else if (e.data === 1) {
             pauseOtherAudio()
             saveNow()
@@ -169,7 +188,7 @@ export default function GlobalVideoLayer() {
     tickerRef.current = setInterval(saveNow, 5000)
     if (isAudioPrimary() && audioRef.current) {
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
-      audioRef.current.play().catch(() => {})
+      audioRef.current.play().then(() => { audioActiveRef.current = true }).catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiReady, active, list, index, saveNow])
@@ -185,7 +204,7 @@ export default function GlobalVideoLayer() {
     curIdRef.current = id
     if (isAudioPrimary() && audioRef.current) {
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
-      audioRef.current.play().catch(() => {})
+      audioRef.current.play().then(() => { audioActiveRef.current = true }).catch(() => {})
     }
     p.loadVideoById({ videoId: id, startSeconds: resumeSeconds(id) })
     if (isAudioPrimary()) {
@@ -197,6 +216,7 @@ export default function GlobalVideoLayer() {
   // Tear down when the session closes.
   useEffect(() => {
     if (active) return
+    audioActiveRef.current = false
     try { pipRef.current?.pip?.close?.() } catch { /* ignore */ }
     const p = playerRef.current
     if (!p) return
@@ -209,6 +229,7 @@ export default function GlobalVideoLayer() {
 
   // Flush + destroy on unmount (full app teardown only — never during routing).
   useEffect(() => () => {
+    audioActiveRef.current = false
     try { pipRef.current?.pip?.close?.() } catch { /* ignore */ }
     const p = playerRef.current
     if (!p) return
@@ -221,6 +242,14 @@ export default function GlobalVideoLayer() {
   useEffect(() => {
     if (!active) return
     const id = setInterval(() => {
+      if (audioOn()) {
+        try {
+          const t = audioRef.current.currentTime || 0
+          const d = audioRef.current.duration || 0
+          setProg((prev) => (prev.t === t && prev.d === d ? prev : { t, d }))
+        } catch { /* ignore */ }
+        return
+      }
       const p = playerRef.current
       if (!p || !p.getCurrentTime) return
       try {
@@ -236,6 +265,7 @@ export default function GlobalVideoLayer() {
   // can read it on demand without re-rendering on every tick.
   useEffect(() => {
     registerTimeGetter(() => {
+      if (audioOn()) return audioRef.current.currentTime || 0
       const p = playerRef.current
       return p && p.getCurrentTime ? p.getCurrentTime() : 0
     })
@@ -249,6 +279,10 @@ export default function GlobalVideoLayer() {
     const p = playerRef.current
     if (!p || !p.seekTo) return
     try {
+      if (audioOn()) {
+        audioRef.current.currentTime = req.sec
+        audioRef.current.play().catch(() => {})
+      }
       p.seekTo(req.sec, true)
       p.playVideo && p.playVideo()
       saveNow()
@@ -396,6 +430,18 @@ export default function GlobalVideoLayer() {
 
   const player = () => playerRef.current
   const togglePlay = () => {
+    if (audioOn()) {
+      // The audio element is the clock here — drive it directly and update
+      // isPlaying ourselves (nothing else will: the YT iframe stays muted
+      // and un-commanded underneath, so its onStateChange never fires from
+      // this action).
+      try {
+        if (isPlaying) audioRef.current.pause()
+        else audioRef.current.play().catch(() => {})
+      } catch { /* ignore */ }
+      setIsPlaying(!isPlaying)
+      return
+    }
     const p = player(); if (!p) return
     try { (isPlaying ? p.pauseVideo : p.playVideo).call(p) } catch { /* ignore */ }
   }
@@ -403,6 +449,17 @@ export default function GlobalVideoLayer() {
     const p = player()
     if (!p || !p.getCurrentTime || !p.seekTo) return
     try {
+      if (audioOn()) {
+        const ae = audioRef.current
+        const ad = ae.duration || 0
+        let atarget = (ae.currentTime || 0) + delta
+        if (atarget < 0) atarget = 0
+        if (ad > 0 && atarget > ad) atarget = ad
+        ae.currentTime = atarget
+        p.seekTo(atarget, true)
+        saveNow()
+        return
+      }
       const d = p.getDuration ? p.getDuration() : 0
       let target = (p.getCurrentTime() || 0) + delta
       if (target < 0) target = 0
@@ -414,15 +471,34 @@ export default function GlobalVideoLayer() {
   const seekFrac = (frac) => {
     const p = player()
     if (!p || !p.seekTo) return
+    if (audioOn()) {
+      const ae = audioRef.current
+      const t = frac * (ae.duration || 0)
+      try {
+        ae.currentTime = t
+        p.seekTo(t, true)
+      } catch { /* ignore */ }
+      return
+    }
     const d = (p.getDuration && p.getDuration()) || prog.d
     if (d > 0) { try { p.seekTo(frac * d, true) } catch { /* ignore */ } }
   }
   const cycleRate = () => {
     const r = nextRate(rate)
     setRate(r)
+    if (audioOn()) {
+      try { audioRef.current.playbackRate = r } catch { /* ignore */ }
+    }
     try { player()?.setPlaybackRate?.(r) } catch { /* ignore */ }
   }
   const toggleMute = () => {
+    if (audioOn()) {
+      // Never unmute the YT player on this path — the <audio> element is the
+      // sole audio source; it stays muted permanently underneath.
+      try { audioRef.current.muted = !muted } catch { /* ignore */ }
+      setMuted(!muted)
+      return
+    }
     const p = player(); if (!p) return
     try { (muted ? p.unMute : p.mute).call(p) } catch { /* ignore */ }
     setMuted(!muted)
@@ -431,6 +507,15 @@ export default function GlobalVideoLayer() {
   // stay coherent. Used by the slider AND the scroll-wheel handler.
   const applyVolume = (v) => {
     const nv = Math.round(Math.max(0, Math.min(100, v)))
+    if (audioOn()) {
+      try {
+        audioRef.current.volume = nv / 100
+        audioRef.current.muted = nv === 0
+      } catch { /* ignore */ }
+      setMuted(nv === 0)
+      setVolume(nv)
+      return
+    }
     const p = player()
     try {
       p?.setVolume?.(nv)
@@ -544,7 +629,9 @@ export default function GlobalVideoLayer() {
         data-uct-video-audio="1"
         preload="metadata"
         style={{ display: 'none' }}
+        onEnded={handleEnded}
         onError={() => {
+          audioActiveRef.current = false
           try { playerRef.current?.unMute?.() } catch { /* ignore */ }
         }}
       />
