@@ -138,7 +138,7 @@ def render_flow(token: str = "", n: int = 10):
 
 
 @router.get("/r/themes")
-def render_themes(token: str = "", period: str = "1W", n: int = 6):
+def render_themes(token: str = "", period: str = "1W", n: int = 6, holds: int = 6):
     """Theme leaders & laggards for the newsletter — each with its top holdings.
     Token-gated public read over the engine's pushed wire["themes"]."""
     _check_token(token)
@@ -149,6 +149,7 @@ def render_themes(token: str = "", period: str = "1W", n: int = 6):
         wire = {}
     themes = (wire.get("themes") or {}) if isinstance(wire, dict) else {}
     period = period if period in ("1D", "1W", "1M", "3M", "1Y", "YTD") else "1W"
+    hn = max(1, min(int(holds or 6), 10))
     rows = []
     for k, v in themes.items():
         if not isinstance(v, dict):
@@ -156,9 +157,9 @@ def render_themes(token: str = "", period: str = "1W", n: int = 6):
         ret = v.get(period)
         if not isinstance(ret, (int, float)):
             continue
-        holds = [h.get("sym") for h in (v.get("holdings") or [])
-                 if isinstance(h, dict) and h.get("sym")][:3]
-        rows.append({"name": v.get("name") or k, "ret": round(float(ret), 1), "holdings": holds})
+        holds_list = [h.get("sym") for h in (v.get("holdings") or [])
+                      if isinstance(h, dict) and h.get("sym")][:hn]
+        rows.append({"name": v.get("name") or k, "ret": round(float(ret), 1), "holdings": holds_list})
     rows.sort(key=lambda r: r["ret"], reverse=True)
     n = max(3, min(int(n or 6), 10))
     leaders = rows[:n]
