@@ -1965,7 +1965,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
     let cur = next;
     for (let i = 0; i < path.length - 1; i++) cur = cur[path[i]];
     cur[path[path.length - 1]] = value;
-    onChange(next);
+    onChange(next, path);
   };
 
   // Live preview — count how many of current alerts would pass Curated
@@ -2146,6 +2146,66 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
           <div style={{ color: P.dm, fontSize: 10, fontStyle: "italic" }}>
             0 = premium alone OK · 1 = +1 confirmer · 3 = strictest
           </div>
+        </div>
+      </div>
+
+      {/* Side classification & direction guards (2026-07-24).
+          These backend tunables existed in DEFAULT_THRESHOLDS but had no UI, so
+          they could only be changed by POSTing JSON by hand. Worse, the panel
+          fetches thresholds ONCE per visit — so an out-of-band change made
+          while the panel was open would be silently reverted by the next Save.
+          Rendering them here removes both problems. */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ color: P.ac, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+          SIDE CLASSIFICATION &amp; DIRECTION GUARDS
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 18, alignItems: "flex-start" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
+            <input type="checkbox"
+              checked={thresholds.derive_strict_bid_only_bb ?? true}
+              onChange={e => setPath(["derive_strict_bid_only_bb"], e.target.checked)} />
+            <span>Strict bid (<code>BB</code> only)</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
+            <input type="checkbox"
+              checked={thresholds.sweep_empty_side_as_ask ?? false}
+              onChange={e => setPath(["sweep_empty_side_as_ask"], e.target.checked)} />
+            <span>Blank-side sweeps → ASK</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
+            <input type="checkbox"
+              checked={thresholds.spotless_itm_guard ?? true}
+              onChange={e => setPath(["spotless_itm_guard"], e.target.checked)} />
+            <span>Guard deep-ITM when spot missing</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
+            <input type="checkbox"
+              checked={thresholds.hide_sizeless ?? false}
+              onChange={e => setPath(["hide_sizeless"], e.target.checked)} />
+            <span>Hide neutral “Not Clean” rows</span>
+          </label>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginTop: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.mt }}>
+            <span>Direction max ITM %</span>
+            <NumberInput value={thresholds.direction_max_itm_pct ?? 20}
+              onChange={v => setPath(["direction_max_itm_pct"], v)} step={1} min={0} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.mt }}>
+            <span>Keep-as-Size min premium</span>
+            <NumberInput value={thresholds.keep_sizeless_min_premium ?? 1000000}
+              onChange={v => setPath(["keep_sizeless_min_premium"], v)} step={250000} min={0} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.mt }}>
+            <span>Net-flow min ratio</span>
+            <NumberInput value={thresholds.net_flow_min_ratio ?? 0.67}
+              onChange={v => setPath(["net_flow_min_ratio"], v)} step={0.01} min={0} />
+          </div>
+        </div>
+        <div style={{ color: P.dm, fontSize: 10, fontStyle: "italic", marginTop: 6 }}>
+          Strict bid OFF counts a plain <code>B</code> as sold (call sold = bear, put sold = bull) —
+          this is what surfaces at-bid flow instead of leaving it neutral. Net-flow ratio 0 disables the
+          two-way demote.
         </div>
       </div>
 
@@ -3006,16 +3066,50 @@ export default function LiveFlowMassive() {
 
   // Tuning panel handlers. Edit→dirty; Save POSTs to backend; Reset wipes
   // the saved file (factory defaults) and reloads.
-  const handleThresholdsChange = (next) => {
+  // Paths the user has actually touched this visit. Save re-fetches the
+  // server's current thresholds and replays ONLY these onto it, instead of
+  // POSTing the whole local snapshot. The panel fetches once per visit, so a
+  // stale snapshot would otherwise silently revert any change made elsewhere
+  // while it sat open — e.g. a tunable flipped by hand or by another admin.
+  const editedPathsRef = useRef([]);
+  const handleThresholdsChange = (next, path) => {
+    if (path) {
+      const key = JSON.stringify(path);
+      if (!editedPathsRef.current.some(p => JSON.stringify(p) === key)) {
+        editedPathsRef.current.push(path);
+      }
+    }
     setThresholds(next);
     setThresholdsDirty(true);
   };
   const handleThresholdsSave = async () => {
     try {
+      // Merge-on-save: start from what the server has RIGHT NOW, then replay
+      // only the fields edited in this session. Anything changed out-of-band
+      // survives. Falls back to the local snapshot if the re-fetch fails.
+      let payload = thresholds;
+      try {
+        const cur = await fetch("/api/live/massive/thresholds").then(x => x.json());
+        if (cur && cur.thresholds) {
+          const merged = JSON.parse(JSON.stringify(cur.thresholds));
+          for (const path of editedPathsRef.current) {
+            let src = thresholds, dst = merged, ok = true;
+            for (let i = 0; i < path.length - 1; i++) {
+              src = src?.[path[i]];
+              if (dst[path[i]] === undefined || dst[path[i]] === null) dst[path[i]] = {};
+              dst = dst[path[i]];
+              if (src === undefined) { ok = false; break; }
+            }
+            if (ok && src !== undefined) dst[path[path.length - 1]] = src[path[path.length - 1]];
+          }
+          payload = merged;
+        }
+      } catch (_e) { /* offline / race — fall back to the local snapshot */ }
+
       const r = await fetch("/api/live/massive/thresholds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(thresholds),
+        body: JSON.stringify(payload),
       });
       if (!r.ok) {
         const t = await r.text();
@@ -3024,6 +3118,7 @@ export default function LiveFlowMassive() {
       }
       const d = await r.json();
       if (d.thresholds) setThresholds(d.thresholds);
+      editedPathsRef.current = [];
       setThresholdsDirty(false);
     } catch (e) {
       alert(`Save error: ${e.message || e}`);
