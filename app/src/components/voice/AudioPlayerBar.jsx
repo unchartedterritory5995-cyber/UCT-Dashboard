@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useVoice } from '../../context/VoiceContext'
 import { setProgress } from '../../utils/readAloudProgress'
+import { videoOwnsMediaSession } from '../video/mediaSessionOwner'
 import UIcon from '../ui/UIcon'
 import styles from './AudioPlayerBar.module.css'
 
@@ -166,6 +167,7 @@ export default function AudioPlayerBar() {
   // Lock-screen / headphone-button controls via the Media Session API.
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
+    if (videoOwnsMediaSession()) return // Desk video owns the lock screen while its audio is live
     if (voice.status === 'idle') {
       try { navigator.mediaSession.metadata = null } catch {}
       return

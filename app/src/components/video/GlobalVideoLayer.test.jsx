@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import GlobalVideoLayer from './GlobalVideoLayer'
 import * as store from './videoStore'
+import { videoOwnsMediaSession, setVideoOwnsMediaSession } from './mediaSessionOwner'
 
 vi.mock('../../pages/desk/useYouTubeApi', () => ({ useYouTubeApi: () => true }))
 
@@ -219,13 +220,19 @@ describe('GlobalVideoLayer', () => {
       window.matchMedia = prevMatchMedia
     })
 
-    it('starts the audio element muted-video on mobile when the flag is on', () => {
+    it('starts the audio element muted-video on mobile when the flag is on', async () => {
       import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
       window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
       const playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
 
       renderLayer()
-      act(() => store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0))
+      // Flush the audio element's play().then() microtask under act() (it now
+      // also flips the Task 12 `audioActive` state) so React doesn't warn
+      // about an update outside act().
+      await act(async () => {
+        store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+        await Promise.resolve()
+      })
 
       const audioEl = document.querySelector('audio[data-uct-video-audio]')
       expect(audioEl).toBeTruthy()
@@ -241,7 +248,7 @@ describe('GlobalVideoLayer', () => {
       expect(lastPlayer.playVideo).toHaveBeenCalled()
     })
 
-    it('does not call mute/playVideo until onReady fires (guards against a re-introduced synchronous call)', () => {
+    it('does not call mute/playVideo until onReady fires (guards against a re-introduced synchronous call)', async () => {
       import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
       window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
       vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
@@ -277,7 +284,13 @@ describe('GlobalVideoLayer', () => {
 
       try {
         renderLayer()
-        act(() => store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0))
+        // Flush the audio element's play().then() microtask under act() (it
+        // now also flips the Task 12 `audioActive` state) so React doesn't
+        // warn about an update outside act().
+        await act(async () => {
+          store.play([{ id: 7, youtube_id: 'abc', audio_url: 'desk_audio/abc.m4a' }], 0)
+          await Promise.resolve()
+        })
 
         // Constructed but not yet command-ready: no mute/play calls yet.
         expect(lastPlayer.mute).not.toHaveBeenCalled()
@@ -619,6 +632,131 @@ describe('GlobalVideoLayer', () => {
       } finally {
         vi.useRealTimers()
       }
+    })
+  })
+
+  // Task 12: MediaSession lock-screen controls, claimed only while the
+  // <audio> element is actually the playback clock (mobile audio-primary
+  // path), plus the video/voice arbiter flag.
+  describe('MediaSession lock-screen controls (Task 12)', () => {
+    const prevFlag = import.meta.env.VITE_DESK_BG_AUDIO_ENABLED
+    const prevMatchMedia = window.matchMedia
+    const prevMediaSession = navigator.mediaSession
+    const prevMediaMetadata = window.MediaMetadata
+
+    afterEach(() => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = prevFlag
+      window.matchMedia = prevMatchMedia
+      navigator.mediaSession = prevMediaSession
+      window.MediaMetadata = prevMediaMetadata
+      setVideoOwnsMediaSession(false)
+      vi.restoreAllMocks()
+    })
+
+    const stubMediaSession = () => {
+      navigator.mediaSession = { setActionHandler: vi.fn() }
+      window.MediaMetadata = class {
+        constructor(opts) { Object.assign(this, opts) }
+      }
+    }
+
+    const renderWithAudioActive = async (video = {
+      id: 7, youtube_id: 'abcXYZ1234', title: 'Live Trading Session', audio_url: 'desk_audio/abc.m4a',
+    }) => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      stubMediaSession()
+      vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue()
+      renderLayer()
+      await act(async () => {
+        store.play([video], 0)
+        await Promise.resolve() // flush audioRef.current.play().then(() => audioActiveRef.current = true)
+      })
+      return document.querySelector('audio[data-uct-video-audio]')
+    }
+
+    it('sets MediaSession metadata (title + artwork containing the youtube_id) once audio is active', async () => {
+      await renderWithAudioActive()
+
+      expect(navigator.mediaSession.metadata).toBeTruthy()
+      expect(navigator.mediaSession.metadata.title).toBe('Live Trading Session')
+      expect(navigator.mediaSession.metadata.artist).toBe('UCT Intelligence')
+      expect(navigator.mediaSession.metadata.artwork[0].src).toContain('abcXYZ1234')
+    })
+
+    it('registers play/pause/seekbackward/seekforward/seekto but NOT nexttrack or previoustrack', async () => {
+      await renderWithAudioActive()
+
+      const registered = navigator.mediaSession.setActionHandler.mock.calls.map((c) => c[0])
+      expect(registered).toEqual(expect.arrayContaining(['play', 'pause', 'seekbackward', 'seekforward', 'seekto']))
+      expect(registered).not.toContain('nexttrack')
+      expect(registered).not.toContain('previoustrack')
+    })
+
+    it('the seekbackward/seekforward/seekto handlers drive the audio element directly', async () => {
+      const audioEl = await renderWithAudioActive()
+      Object.defineProperty(audioEl, 'duration', { value: 100, configurable: true })
+      audioEl.currentTime = 40
+
+      const handlerFor = (name) =>
+        navigator.mediaSession.setActionHandler.mock.calls.find((c) => c[0] === name)[1]
+
+      handlerFor('seekforward')()
+      expect(audioEl.currentTime).toBe(55)
+
+      handlerFor('seekbackward')()
+      expect(audioEl.currentTime).toBe(40)
+
+      handlerFor('seekto')({ seekTime: 12 })
+      expect(audioEl.currentTime).toBe(12)
+    })
+
+    it('the play/pause handlers drive the audio element play()/pause()', async () => {
+      const audioEl = await renderWithAudioActive()
+      const pauseSpy = vi.spyOn(audioEl, 'pause').mockImplementation(() => {})
+
+      const handlerFor = (name) =>
+        navigator.mediaSession.setActionHandler.mock.calls.find((c) => c[0] === name)[1]
+
+      handlerFor('pause')()
+      expect(pauseSpy).toHaveBeenCalled()
+
+      const playCallsBefore = window.HTMLMediaElement.prototype.play.mock.calls.length
+      handlerFor('play')()
+      expect(window.HTMLMediaElement.prototype.play.mock.calls.length).toBe(playCallsBefore + 1)
+    })
+
+    it('marks this layer as the MediaSession owner while audio is active, releasing it on close', async () => {
+      expect(videoOwnsMediaSession()).toBe(false)
+      await renderWithAudioActive()
+      expect(videoOwnsMediaSession()).toBe(true)
+
+      act(() => store.close())
+      expect(videoOwnsMediaSession()).toBe(false)
+    })
+
+    it('does not claim MediaSession when the flag is off (desktop-identical behavior)', async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '0'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      stubMediaSession()
+
+      renderLayer()
+      act(() => store.play(LIST, 0))
+
+      expect(navigator.mediaSession.setActionHandler).not.toHaveBeenCalled()
+      expect(videoOwnsMediaSession()).toBe(false)
+    })
+
+    it('does not claim MediaSession on a mouse-pointer device even with the flag on', async () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: false, addEventListener() {}, removeEventListener() {} })
+      stubMediaSession()
+
+      renderLayer()
+      act(() => store.play(LIST, 0))
+
+      expect(navigator.mediaSession.setActionHandler).not.toHaveBeenCalled()
+      expect(videoOwnsMediaSession()).toBe(false)
     })
   })
 })

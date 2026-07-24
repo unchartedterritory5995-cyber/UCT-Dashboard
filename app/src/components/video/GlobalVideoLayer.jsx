@@ -16,6 +16,7 @@ import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { fmtTime, nextRate } from './playerUtils'
 import { pauseOtherAudio } from './audioExclusivity'
 import { pipSupported, openPip } from './documentPip'
+import { setVideoOwnsMediaSession } from './mediaSessionOwner'
 import Scrubber from './Scrubber'
 import brandMark from '../intro/assets/compass-mark.png'
 import { PlayIcon } from '../../pages/education/icons'
@@ -72,6 +73,12 @@ export default function GlobalVideoLayer() {
   // (vs. merely present-but-not-yet-engaged, or fallen back to the YT iframe
   // after a 404). Set false again on audio error / session close / unmount.
   const audioActiveRef = useRef(false)
+  // Reactive mirror of audioActiveRef — the ref alone can't retrigger a
+  // re-render when it flips (it's set from inside a play().then() callback,
+  // not an event handler), so effects that need to react to "audio just
+  // became active" (Task 12's MediaSession claim) read this instead of the
+  // ref directly. The ref remains the source of truth for imperative reads.
+  const [audioActive, setAudioActive] = useState(false)
   const [ended, setEnded] = useState(false)
   const [countdown, setCountdown] = useState(NEXT_COUNTDOWN)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -188,7 +195,7 @@ export default function GlobalVideoLayer() {
     tickerRef.current = setInterval(saveNow, 5000)
     if (isAudioPrimary() && audioRef.current) {
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
-      audioRef.current.play().then(() => { audioActiveRef.current = true }).catch(() => {})
+      audioRef.current.play().then(() => { audioActiveRef.current = true; setAudioActive(true) }).catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiReady, active, list, index, saveNow])
@@ -207,8 +214,9 @@ export default function GlobalVideoLayer() {
       // (togglePlay/seek/etc) can act on the audio element mid-load, before
       // the new track's own play() has resolved and re-armed it below.
       audioActiveRef.current = false
+      setAudioActive(false)
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
-      audioRef.current.play().then(() => { audioActiveRef.current = true }).catch(() => {})
+      audioRef.current.play().then(() => { audioActiveRef.current = true; setAudioActive(true) }).catch(() => {})
     }
     p.loadVideoById({ videoId: id, startSeconds: resumeSeconds(id) })
     if (isAudioPrimary()) {
@@ -221,6 +229,7 @@ export default function GlobalVideoLayer() {
   useEffect(() => {
     if (active) return
     audioActiveRef.current = false
+    setAudioActive(false)
     try { pipRef.current?.pip?.close?.() } catch { /* ignore */ }
     const p = playerRef.current
     if (!p) return
@@ -329,6 +338,58 @@ export default function GlobalVideoLayer() {
       saveNow()
     } catch { /* ignore */ }
   }, [snap.seekReq, active, saveNow])
+
+  // Task 12: MediaSession lock-screen controls — only while the <audio>
+  // element is actually driving playback (mobile audio-primary path).
+  // Registers metadata + play/pause/seek handlers on the audio element and
+  // marks this layer as the MediaSession owner so AudioPlayerBar's
+  // read-aloud controls don't reclaim the lock screen while a Desk video's
+  // audio is live. Deliberately does NOT register previoustrack/nexttrack —
+  // iOS shows seek OR prev/next, never both, and ±15s seek is more useful
+  // here. Depends on `audioActive` (the reactive mirror of audioActiveRef,
+  // not the ref itself) so this effect actually re-runs once the audio
+  // element's own play() resolves — a plain ref read wouldn't retrigger it.
+  useEffect(() => {
+    if (!audioOn() || !('mediaSession' in navigator)) return
+    setVideoOwnsMediaSession(true)
+    try {
+      if (window.MediaMetadata) {
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: current?.title || 'The Desk',
+          artist: 'UCT Intelligence',
+          album: 'The Desk',
+          artwork: [{
+            src: `https://i.ytimg.com/vi/${current?.youtube_id}/hqdefault.jpg`,
+            sizes: '480x360',
+            type: 'image/jpeg',
+          }],
+        })
+      }
+      const a = audioRef.current
+      const S = 15
+      navigator.mediaSession.setActionHandler('play', () => { a.play().catch(() => {}) })
+      navigator.mediaSession.setActionHandler('pause', () => { a.pause() })
+      navigator.mediaSession.setActionHandler('seekbackward', () => {
+        a.currentTime = Math.max(0, (a.currentTime || 0) - S)
+      })
+      navigator.mediaSession.setActionHandler('seekforward', () => {
+        a.currentTime = (a.currentTime || 0) + S
+      })
+      navigator.mediaSession.setActionHandler('seekto', (d) => {
+        if (d.seekTime != null) a.currentTime = d.seekTime
+      })
+    } catch { /* ignore */ }
+    return () => { setVideoOwnsMediaSession(false) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id, audioActive, isPlaying])
+
+  // Keep playbackState in sync with the audio element's real play/pause
+  // state so lock-screen chrome (e.g. iOS's play/pause icon) never drifts
+  // from what's actually playing.
+  useEffect(() => {
+    if (!audioOn() || !('mediaSession' in navigator)) return
+    try { navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused' } catch { /* ignore */ }
+  }, [isPlaying])
 
   // Track real fullscreen state (Esc, F11, etc). Safari fires the webkit-
   // prefixed event/element. On phones/tablets, entering fullscreen also locks
@@ -678,6 +739,7 @@ export default function GlobalVideoLayer() {
         onEnded={handleEnded}
         onError={() => {
           audioActiveRef.current = false
+          setAudioActive(false)
           try { playerRef.current?.unMute?.() } catch { /* ignore */ }
         }}
       />
