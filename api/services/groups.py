@@ -664,23 +664,13 @@ def _macro_top_n(n: int) -> dict:
     }
 
 
-def resolve_peers(sym: str, n: int) -> dict:
-    """Peers = the seed's primary theme's other chartable holdings, same
-    sub-theme floated to the top, ranked by today's move. On a taxonomy miss,
-    falls back to the seed's INDUSTRY cohort, then to grounded-Haiku AI peers."""
-    seed_hy = normalize_sym(sym)
-    row = resolve_primary_theme(sym)
-    if not row:
-        ind = _industry_peers(seed_hy, n)
-        if ind and ind.get("peers"):
-            return {"seed": seed_hy, "group_id": f"industry:{ind['industry']}",
-                    "group_name": ind["industry"], "peers": ind["peers"], "source": "industry"}
-        ai = _ai_peers(seed_hy, n)
-        return {"seed": seed_hy, "group_id": None,
-                "peers": ai, "source": "ai" if ai else "none"}
+def _theme_peers_payload(theme_id: str, theme_name: str, seed_hy: str,
+                         seed_sub: str, sym: str, n: int) -> dict:
+    """The taxonomy peer-fill response for a theme.
 
-    theme_id = row.get("theme_id")
-    seed_sub = row.get("sub_theme_id")
+    Extracted so the ETF-front path (a seed that FRONTS a theme rather than
+    belonging to it) returns a byte-identical shape to the membership path.
+    """
     holdings = _theme_holdings(theme_id)
     # sub-theme float now lives in rank_holdings (seed_sub) so it composes with
     # the swing gate in one pass — liquidity floor first, then sub-theme, then momentum.
@@ -710,8 +700,27 @@ def resolve_peers(sym: str, n: int) -> dict:
         "group_id": theme_id,
         # The theme's display name — without it the frontend header inherits the
         # PREVIOUS group's name on a taxonomy fill (verified mislabel bug).
-        "group_name": row.get("theme_name"),
+        "group_name": theme_name,
         "peers": ranked[: max(1, int(n))],
         "sources": {s: src_by_sym.get(s, "owner") for s in ranked},
         "source": "taxonomy",
     }
+
+
+def resolve_peers(sym: str, n: int) -> dict:
+    """Peers = the seed's primary theme's other chartable holdings, same
+    sub-theme floated to the top, ranked by today's move. On a taxonomy miss,
+    falls back to the seed's INDUSTRY cohort, then to grounded-Haiku AI peers."""
+    seed_hy = normalize_sym(sym)
+    row = resolve_primary_theme(sym)
+    if not row:
+        ind = _industry_peers(seed_hy, n)
+        if ind and ind.get("peers"):
+            return {"seed": seed_hy, "group_id": f"industry:{ind['industry']}",
+                    "group_name": ind["industry"], "peers": ind["peers"], "source": "industry"}
+        ai = _ai_peers(seed_hy, n)
+        return {"seed": seed_hy, "group_id": None,
+                "peers": ai, "source": "ai" if ai else "none"}
+
+    return _theme_peers_payload(row.get("theme_id"), row.get("theme_name"),
+                                seed_hy, row.get("sub_theme_id"), sym, n)

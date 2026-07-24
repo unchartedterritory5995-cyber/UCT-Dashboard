@@ -133,3 +133,24 @@ def test_top_n_macro_never_touches_theme_db(monkeypatch):
     monkeypatch.setattr(groups, "_today_map", lambda syms: {})
     monkeypatch.setattr(groups, "_ranked_as_of", lambda: "closed")
     assert groups.top_n(groups.MACRO_GROUP_ID, 4)["syms"] == list(groups.MACRO_CORE)
+
+
+def test_theme_peers_payload_shape(monkeypatch):
+    holdings = [
+        {"sym": "AAA", "tier": "core", "source": "owner"},
+        {"sym": "BBB", "tier": "core", "source": "engine"},
+        {"sym": "SEED", "tier": "core", "source": "owner"},
+    ]
+    monkeypatch.setattr(groups, "_theme_holdings", lambda tid: holdings)
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"AAA", "BBB", "SEED"})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {"AAA": 3.0, "BBB": 1.0})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    monkeypatch.setattr(groups, "_themes_for_ticker", lambda s: [])
+    out = groups._theme_peers_payload("space", "Space", "SEED", None, "SEED", 8)
+    assert out["group_id"] == "space"
+    assert out["group_name"] == "Space"
+    assert out["seed"] == "SEED"
+    assert out["source"] == "taxonomy"
+    assert out["peers"] == ["AAA", "BBB"]          # seed excluded, ranked
+    assert out["sources"] == {"AAA": "owner", "BBB": "engine"}
+    assert out["also_in"] == []
