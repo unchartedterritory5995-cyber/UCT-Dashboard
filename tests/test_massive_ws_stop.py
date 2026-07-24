@@ -217,7 +217,12 @@ def test_maxconn_strikes_reset_on_auth_success(worker):
     worker.mode = "normal"
     assert _wait_for(lambda: mww._state["connected"], timeout=10.0), \
         "never recovered after mode flip"
-    assert mww._state["maxconn_strikes"] == 0, "strikes must reset on auth_success"
+    # Wait on the state actually being asserted, not on `connected` as a proxy.
+    # The worker thread sets connected and clears maxconn_strikes at slightly
+    # different moments, so a bare read here raced: it passed on an idle machine
+    # and failed under full-suite load (observed 2 == 0).
+    assert _wait_for(lambda: mww._state["maxconn_strikes"] == 0, timeout=10.0), \
+        "strikes must reset on auth_success"
 
 
 def test_young_process_cap(worker, monkeypatch):
