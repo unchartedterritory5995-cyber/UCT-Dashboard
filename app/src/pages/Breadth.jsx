@@ -101,7 +101,7 @@ const G = {
 // pctColor / pairedUpColor / pairedDnColor / getMaStackTier moved to
 // breadth/heatmapMetrics.js (imported above) — shared with the /charts widget.
 
-const COLS = [
+export const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
   { key: 'breadth_score', label: 'Health', group: G.SCORE,
     fmt: v => fmtDec(v, 0),
