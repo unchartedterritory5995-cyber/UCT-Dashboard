@@ -451,15 +451,20 @@ def test_industry_peers_blocklists_catch_all_pseudo_industries(monkeypatch):
 
 
 def test_resolve_peers_etf_seed_falls_through_to_ai(monkeypatch):
-    # SPY (a default grid cell) is in no theme; its Finviz industry is the
-    # 'Exchange Traded Fund' catch-all — resolve_peers must skip the industry
-    # branch entirely and land on the AI path (seed stays solo when AI is empty).
+    # An ETF in no theme: its Finviz industry is the 'Exchange Traded Fund'
+    # catch-all — resolve_peers must skip the industry branch entirely and land
+    # on the AI path (seed stays solo when AI is empty).
+    # NOTE: the seed here must be an ETF that is neither a macro trigger nor a
+    # theme's etf_ticker. SPY (the original seed) now fills the Index & Macro
+    # board instead — see tests/test_groups_macro.py.
     from api.services import industry_map
     monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    monkeypatch.setattr(groups, "_etf_theme_map", lambda: {})
     monkeypatch.setattr(industry_map, "get_industries",
                         lambda syms: {s: "Exchange Traded Fund" for s in syms})
     monkeypatch.setattr(groups, "_ai_peers", lambda seed, n: [])
-    out = groups.resolve_peers("SPY", 5)
+    assert "ZZZETF" not in groups.MACRO_TRIGGERS
+    out = groups.resolve_peers("ZZZETF", 5)
     assert out["source"] == "none"
     assert out["peers"] == []
     assert out["group_id"] is None

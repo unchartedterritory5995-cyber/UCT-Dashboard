@@ -667,6 +667,24 @@ def _macro_top_n(n: int) -> dict:
     }
 
 
+def _macro_peers(seed_hy: str, n: int) -> dict:
+    """Peer-fill for a broad index / macro ETF, or None when the seed isn't one.
+
+    Asks for n+1 names and drops the seed, so the caller always gets exactly n
+    peers whether or not the seed is a roster member (VOO is a trigger but not a
+    member; SPY is both)."""
+    if seed_hy not in MACRO_TRIGGERS:
+        return None
+    peers = [s for s in macro_board(int(n) + 1, seed_hy) if s != seed_hy]
+    return {
+        "seed": seed_hy,
+        "group_id": MACRO_GROUP_ID,
+        "group_name": MACRO_GROUP_NAME,
+        "peers": peers[: max(1, int(n))],
+        "source": "macro",
+    }
+
+
 def _etf_theme_map() -> dict:
     """{ETF ticker (hyphen upper) -> (theme_id, theme_name)} for every ETF-backed
     theme. A theme's etf_ticker is NOT stored as a holding, so `get_themes_for_ticker`
@@ -744,6 +762,12 @@ def resolve_peers(sym: str, n: int) -> dict:
         fronted = _etf_theme_map().get(seed_hy)
         if fronted:
             return _theme_peers_payload(fronted[0], fronted[1], seed_hy, None, sym, n)
+        # A broad index / macro ETF: its Finviz industry is the catch-all
+        # "Exchange Traded Fund", so the industry fallback below would refuse it
+        # and the seed would sit alone. Check macro FIRST.
+        macro = _macro_peers(seed_hy, n)
+        if macro:
+            return macro
         ind = _industry_peers(seed_hy, n)
         if ind and ind.get("peers"):
             return {"seed": seed_hy, "group_id": f"industry:{ind['industry']}",

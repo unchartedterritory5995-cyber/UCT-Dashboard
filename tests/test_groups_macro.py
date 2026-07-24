@@ -207,3 +207,65 @@ def test_etf_front_is_case_and_dot_insensitive(monkeypatch):
     _stub_etf_themes(monkeypatch)
     monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
     assert groups.resolve_peers("smh", 8)["group_id"] == "semiconductors"
+
+
+def _stub_orphan(monkeypatch):
+    """Seed resolves to no theme, no ETF-front, and the industry/AI fallbacks
+    would fire — so anything that lands on macro got there on purpose."""
+    groups._ETF_THEME_CACHE["map"] = None
+    monkeypatch.setattr(groups, "resolve_primary_theme", lambda s: None)
+    monkeypatch.setattr(groups, "_etf_theme_map", lambda: {})
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_industry_peers",
+                        lambda s, n: {"industry": "Banks - Regional", "peers": ["WAL"]})
+    monkeypatch.setattr(groups, "_ai_peers", lambda s, n: [])
+
+
+def test_typing_spy_fills_the_macro_board(monkeypatch):
+    _stub_orphan(monkeypatch)
+    out = groups.resolve_peers("SPY", 8)
+    assert out["group_id"] == "index_macro"
+    assert out["group_name"] == "Index & Macro"
+    assert out["source"] == "macro"
+    assert out["seed"] == "SPY"
+    assert out["peers"] == ["QQQ", "IWM", "DIA", "VIXY", "SMH", "ARKK", "IBIT", "TLT"]
+    assert "SPY" not in out["peers"]          # seed never duplicated into a peer cell
+
+
+def test_typing_a_macro_trigger_outranks_the_industry_cohort(monkeypatch):
+    """TLT's industry cohort would otherwise win — macro must be checked first."""
+    _stub_orphan(monkeypatch)
+    out = groups.resolve_peers("TLT", 8)
+    assert out["group_id"] == "index_macro"
+    assert out["peers"][:4] == ["SPY", "QQQ", "IWM", "DIA"]
+
+
+def test_a_non_trigger_orphan_still_falls_through_to_industry(monkeypatch):
+    _stub_orphan(monkeypatch)
+    out = groups.resolve_peers("WAL", 8)
+    assert out["group_id"] == "industry:Banks - Regional"
+    assert out["source"] == "industry"
+
+
+def test_macro_never_outranks_a_real_theme_membership(monkeypatch):
+    """XLK is a macro trigger; if it ever GAINS a theme membership the theme wins."""
+    _stub_orphan(monkeypatch)
+    monkeypatch.setattr(groups, "resolve_primary_theme",
+                        lambda s: {"theme_id": "software", "theme_name": "Software",
+                                   "sub_theme_id": None})
+    monkeypatch.setattr(groups, "_theme_holdings",
+                        lambda tid: [{"sym": "MSFT", "tier": "core"}])
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"MSFT"})
+    monkeypatch.setattr(groups, "_rs_map", lambda: {})
+    monkeypatch.setattr(groups, "_themes_for_ticker", lambda s: [])
+    out = groups.resolve_peers("XLK", 8)
+    assert out["group_id"] == "software"
+
+
+def test_macro_peers_returns_none_for_a_non_trigger():
+    assert groups._macro_peers("NVDA", 8) is None
+
+
+def test_macro_peers_respects_n(monkeypatch):
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    assert len(groups._macro_peers("SPY", 3)["peers"]) == 3
