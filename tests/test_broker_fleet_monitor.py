@@ -345,3 +345,99 @@ async def test_digest_dedup_is_durable_across_a_process_restart(env):
     second = await fleet_monitor.run_fleet_check()
     assert second["findings"], "same problem should still be detected"
     assert second["pinged"] is False, "but must NOT re-ping after a redeploy"
+
+
+# ── canary asserts OUTCOMES, not just absence of exceptions ─────────────────
+#
+# The original canary checked only for an `error` key or an empty result. Three
+# states where the pipeline is demonstrably broken returned neither, so the
+# canary reported green — including the single most important one: a connection
+# sitting in status='broken' comes back as {"skipped": True, "reason": "broken"}.
+
+def test_canary_flags_a_skipped_connection():
+    """The hole that mattered most: 'broken' is reported as skipped, not error."""
+    problems = fleet_monitor.canary_failures(
+        {"acct-1": {"skipped": True, "reason": "broken"}})
+    assert len(problems) == 1
+    assert "SKIPPED" in problems[0] and "broken" in problems[0]
+
+
+def test_canary_flags_stale_holdings():
+    problems = fleet_monitor.canary_failures(
+        {"acct-1": {"fetched": 12, "balancesError": "rate limited"}})
+    assert len(problems) == 1
+    assert "stale" in problems[0]
+
+
+def test_canary_flags_fifo_reconstruction_errors():
+    problems = fleet_monitor.canary_failures(
+        {"acct-1": {"fetched": 12, "fifoErrors": 3, "balancesError": None}})
+    assert len(problems) == 1
+    assert "FIFO" in problems[0]
+
+
+def test_canary_flags_an_explicit_error():
+    problems = fleet_monitor.canary_failures({"acct-1": {"error": "boom"}})
+    assert len(problems) == 1 and "boom" in problems[0]
+
+
+def test_canary_flags_no_accounts():
+    assert fleet_monitor.canary_failures({}) == [
+        "no accounts synced — the canary user has no syncable connection"]
+
+
+def test_canary_passes_a_genuinely_healthy_sync():
+    assert fleet_monitor.canary_failures({
+        "acct-1": {"fetched": 12, "newActivities": 2, "imported": 1,
+                   "fifoErrors": 0, "balancesError": None, "openPositions": 3},
+    }) == []
+
+
+def test_canary_reports_every_bad_account_not_just_the_first():
+    problems = fleet_monitor.canary_failures({
+        "acct-1": {"skipped": True, "reason": "broken"},
+        "acct-2": {"fetched": 1, "balancesError": "timeout"},
+        "acct-3": {"fetched": 1, "fifoErrors": 0, "balancesError": None},
+    })
+    assert len(problems) == 2
+
+
+def test_canary_is_a_noop_when_unarmed(monkeypatch):
+    monkeypatch.delenv("BROKER_CANARY_USER_ID", raising=False)
+    posts = []
+    monkeypatch.setattr(fleet_monitor, "_post_discord",
+                        lambda *a: posts.append(a))
+    fleet_monitor.run_canary_sync_blocking()
+    assert posts == []
+
+
+def test_canary_pings_on_a_skipped_connection_end_to_end(monkeypatch):
+    monkeypatch.setenv("BROKER_CANARY_USER_ID", "u-canary")
+    posts = []
+    monkeypatch.setattr(fleet_monitor, "_post_discord",
+                        lambda *a: posts.append(a))
+
+    async def fake_sync(user_id, **kw):
+        return {"acct-1": {"skipped": True, "reason": "broken"}}
+
+    import api.services.journal_two.broker.sync as _sync
+    monkeypatch.setattr(_sync, "sync_all_for_user", fake_sync)
+    fleet_monitor.run_canary_sync_blocking()
+    assert len(posts) == 1
+    assert "FAILED" in posts[0][0]
+    assert "SKIPPED" in posts[0][1]
+
+
+def test_canary_silent_on_a_healthy_sync_end_to_end(monkeypatch):
+    monkeypatch.setenv("BROKER_CANARY_USER_ID", "u-canary")
+    posts = []
+    monkeypatch.setattr(fleet_monitor, "_post_discord",
+                        lambda *a: posts.append(a))
+
+    async def fake_sync(user_id, **kw):
+        return {"acct-1": {"fetched": 5, "fifoErrors": 0, "balancesError": None}}
+
+    import api.services.journal_two.broker.sync as _sync
+    monkeypatch.setattr(_sync, "sync_all_for_user", fake_sync)
+    fleet_monitor.run_canary_sync_blocking()
+    assert posts == []

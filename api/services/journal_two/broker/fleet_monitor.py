@@ -316,10 +316,58 @@ def run_fleet_check_blocking() -> None:
         logger.warning("fleet check failed: %s", e)
 
 
+def canary_failures(results: dict[str, Any]) -> list[str]:
+    """Assert the canary sync actually WORKED — not merely that it didn't raise.
+
+    The original check looked only for an `error` key or an empty result, which
+    left three silent-success holes. All three are states where the pipeline is
+    demonstrably not working while the canary reported green:
+
+      • skipped — `sync_all_for_user` returns {"skipped": True, "reason": ...}
+        for a broken / disabled / sync-disabled connection. No `error` key, so
+        the ONE failure the canary exists to catch made it silent.
+      • balancesError — activities imported but the holdings/balances refresh
+        failed, so equity, cash and positions are STALE. Returns a normal
+        summary dict.
+      • fifoErrors — the ledger was fetched but trade reconstruction produced
+        errors, i.e. the numbers a member sees are wrong.
+
+    Returns a list of human-readable problems (empty = healthy)."""
+    if not results:
+        return ["no accounts synced — the canary user has no syncable connection"]
+    problems: list[str] = []
+    for acct_id, r in results.items():
+        short = str(acct_id)[:8]
+        if not isinstance(r, dict):
+            problems.append(f"{short}: unexpected result {r!r}")
+            continue
+        if r.get("error"):
+            problems.append(f"{short}: error — {str(r['error'])[:160]}")
+            continue
+        if r.get("skipped"):
+            problems.append(
+                f"{short}: SKIPPED ({r.get('reason') or 'unknown'}) — this "
+                f"connection is not syncing at all")
+            continue
+        if r.get("balancesError"):
+            problems.append(
+                f"{short}: holdings/balances NOT refreshed (equity + positions "
+                f"are stale) — {str(r['balancesError'])[:160]}")
+        if r.get("fifoErrors"):
+            problems.append(
+                f"{short}: {r['fifoErrors']} FIFO reconstruction error(s) — "
+                f"imported trades may be wrong")
+    return problems
+
+
 def run_canary_sync_blocking() -> None:
-    """Nightly synthetic canary: full-sync the designated robot user's
-    (test-brokerage) connection end-to-end; Discord on ANY failure. No-op
-    until BROKER_CANARY_USER_ID is set. Never raises into the scheduler."""
+    """Nightly canary: full-sync the designated canary user's connection
+    end-to-end and assert it actually produced data; Discord on ANY failure.
+
+    `BROKER_CANARY_USER_ID` may be ANY user id with a live connection — a
+    dedicated robot account is the tidiest option but is NOT required, and
+    pointing it at a connection the owner already controls costs nothing.
+    No-op until the var is set. Never raises into the scheduler."""
     import asyncio
     import os
     canary = os.getenv("BROKER_CANARY_USER_ID")
@@ -328,12 +376,16 @@ def run_canary_sync_blocking() -> None:
     try:
         from api.services.journal_two.broker.sync import sync_all_for_user
         results = asyncio.run(sync_all_for_user(canary, full=True))
-        errors = {k: v for k, v in results.items()
-                  if isinstance(v, dict) and v.get("error")}
-        if not results or errors:
+        problems = canary_failures(results)
+        if problems:
             _post_discord(
                 "Broker canary FAILED",
-                f"user {canary}: {errors or 'no accounts synced'}",
+                f"user {canary} — the end-to-end pipeline did NOT complete "
+                f"cleanly on a known-good connection, so this is OUR side or "
+                f"the partner's, not a member action:\n"
+                + "\n".join(f"• {p}" for p in problems[:10])
+                + "\n(if this connection was simply disconnected on purpose, "
+                  "repoint BROKER_CANARY_USER_ID)",
             )
     except Exception as e:  # noqa: BLE001
         try:
