@@ -2433,6 +2433,24 @@ async def lifespan(app: FastAPI):
         except Exception as _e_sig:
             print(f"[startup] floor signal job skip: {_e_sig}")
 
+        # -- Dark pool: nightly Massive ingest (2026-07-24) --------------------
+        # Replaces the manual BBS CSV loop (download -> app/public -> redeploy).
+        # 19:20 ET weekdays: after the 19:00 window close, so the full session
+        # incl. the closing cross is settled. Runs on WEB because web owns
+        # /data/darkpool.db and is the only service serving /api/darkpool/*.
+        # Self-gates on DARKPOOL_MASSIVE_INGEST_ENABLED=1 — a deploy alone will
+        # not start pulling. Bounded by ticker cap + page cap + wall clock.
+        try:
+            from api.darkpool_massive_ingest import scheduled_run as _dp_ingest_run
+            _scheduler.add_job(
+                _dp_ingest_run,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=19, minute=20, timezone=_ET),
+                id="darkpool_massive_ingest", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600)
+            print("[startup] darkpool Massive ingest scheduled (weekdays 19:20 ET)")
+        except Exception as _e_dpi:
+            print(f"[startup] darkpool Massive ingest job skip: {_e_dpi}")
+
         _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50, timezone=_ET), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15, timezone=_ET), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45, timezone=_ET), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
