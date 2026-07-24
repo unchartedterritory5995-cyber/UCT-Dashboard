@@ -78,7 +78,15 @@ def test_uppercases_and_dedupes(imap):
     assert out == {"NVDA": "Semiconductors"}
 
 
-def test_prewarm_bulk_loads_when_empty(imap):
+def test_prewarm_bulk_loads_when_empty(imap, monkeypatch):
+    # prewarm() gained a second phase (warm_universe_gaps) that walks the
+    # ~3.7k-ticker cap_universe and resolves every Finviz miss through the LIVE
+    # per-ticker fallback with a 0.4s sleep between calls. Unstubbed, this one
+    # test fired ~1450 real yfinance/Finnhub requests, ran for ~10 minutes, and
+    # left 1453 rows instead of 3. Gap-warming has its own test below
+    # (test_warm_universe_gaps_fills_finviz_misses) -- here we assert only that
+    # prewarm performs the Finviz bulk load when the map is empty.
+    monkeypatch.setattr(imap, "warm_universe_gaps", lambda *a, **k: 0)
     assert imap._count() == 0
     imap.prewarm()
     assert imap._count() == 3
