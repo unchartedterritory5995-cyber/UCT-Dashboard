@@ -494,6 +494,58 @@ def set_status(
     )
 
 
+# Signatures of a PARTNER-side auth failure (OUR credentials rejected), as
+# opposed to a member-side one (their token lapsed). Matched against
+# j2_broker_accounts.last_error. `code 0000` is SnapTrade's
+# "Authentication credentials were not provided" — a request that carried no
+# auth at all, which can only be our client misbuilding (prod 2026-07-23,
+# snaptrade-python-sdk 12.0.0). Deliberately does NOT include the
+# user-secret-invalid shapes: those are real reconnects.
+_PARTNER_AUTH_ERROR_SIGNATURES = ("code 0000",)
+
+
+def reset_partner_auth_broken(*, dry_run: bool = False) -> dict[str, Any]:
+    """Flip accounts broken by a partner-side auth failure back to 'active'.
+
+    Returns {reset, resetAccounts, skipped, skippedAccounts}. Accounts broken
+    for any OTHER reason are reported under `skipped` and left untouched — a
+    member whose token genuinely lapsed must still reconnect.
+    """
+    like = [f"%{s}%" for s in _PARTNER_AUTH_ERROR_SIGNATURES]
+    where_match = " OR ".join(["last_error LIKE ?"] * len(like))
+    conn = get_connection()
+    try:
+        def _rows(sql: str, params: tuple) -> list[dict[str, Any]]:
+            return [{"userId": r["user_id"], "accountId": r["id"],
+                     "brokerage": r["brokerage_name"],
+                     "masked": r["account_number_masked"],
+                     "lastError": (r["last_error"] or "")[:160]}
+                    for r in conn.execute(sql, params).fetchall()]
+
+        cols = ("id, user_id, brokerage_name, account_number_masked, last_error")
+        targets = _rows(
+            f"SELECT {cols} FROM j2_broker_accounts "
+            f"WHERE status='broken' AND ({where_match})", tuple(like))
+        skipped = _rows(
+            f"SELECT {cols} FROM j2_broker_accounts "
+            f"WHERE status='broken' AND NOT ({where_match})", tuple(like))
+
+        if not dry_run and targets:
+            conn.execute(
+                f"UPDATE j2_broker_accounts SET status='active', last_error=NULL, "
+                f"updated_at=? WHERE status='broken' AND ({where_match})",
+                (_now_iso(), *like),
+            )
+            conn.commit()
+        return {
+            "dryRun": dry_run,
+            "reset": len(targets), "resetAccounts": targets,
+            "skipped": len(skipped), "skippedAccounts": skipped,
+        }
+    finally:
+        conn.close()
+
+
 def update_cursor(
     user_id: str, broker_account_id: str, cursor: str | None,
     conn: sqlite3.Connection | None = None,

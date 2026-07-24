@@ -143,3 +143,52 @@ def test_bad_status_rejected(db):
     ba = db.map_snaptrade_account("u1", _raw_account())
     with pytest.raises(ValueError):
         db.set_status("u1", ba["id"], "nonsense")
+
+
+# ── partner-auth repair (prod 2026-07-23) ───────────────────────────────────
+#
+# When OUR SnapTrade credentials are rejected, every member connection fails at
+# once and sync marks each one broken. Both list_due_accounts and
+# sync_all_for_user EXCLUDE broken accounts, so fixing the root cause does not
+# bring them back — the rows must be reset. The reset must be NARROW: a member
+# whose own token genuinely lapsed still has to reconnect.
+
+_PARTNER_401 = ("SnapTrade API error 401: Unauthorized (code 0000) "
+                "— Authentication credentials were not provided.")
+
+
+def test_reset_partner_auth_broken_only_touches_partner_auth_failures(db):
+    victim = db.map_snaptrade_account("u1", _raw_account(snap_id="S1", number="1111"))
+    genuine = db.map_snaptrade_account("u2", _raw_account(snap_id="S2", number="2222"))
+    healthy = db.map_snaptrade_account("u3", _raw_account(snap_id="S3", number="3333"))
+    db.set_status("u1", victim["id"], "broken", error=_PARTNER_401)
+    db.set_status("u2", genuine["id"], "broken", error="user secret invalid")
+
+    out = db.reset_partner_auth_broken()
+
+    assert out["reset"] == 1
+    assert out["resetAccounts"][0]["accountId"] == victim["id"]
+    assert out["skipped"] == 1
+    assert out["skippedAccounts"][0]["accountId"] == genuine["id"]
+
+    assert db.get_broker_account("u1", victim["id"])["status"] == "active"
+    assert db.get_broker_account("u1", victim["id"])["lastError"] is None
+    # The genuinely-broken one must NOT be resurrected into a sync loop.
+    assert db.get_broker_account("u2", genuine["id"])["status"] == "broken"
+    assert db.get_broker_account("u3", healthy["id"])["status"] == "active"
+
+
+def test_reset_partner_auth_broken_dry_run_writes_nothing(db):
+    ba = db.map_snaptrade_account("u1", _raw_account())
+    db.set_status("u1", ba["id"], "broken", error=_PARTNER_401)
+
+    out = db.reset_partner_auth_broken(dry_run=True)
+
+    assert out["dryRun"] is True and out["reset"] == 1
+    assert db.get_broker_account("u1", ba["id"])["status"] == "broken"
+
+
+def test_reset_partner_auth_broken_is_a_noop_when_nothing_is_broken(db):
+    db.map_snaptrade_account("u1", _raw_account())
+    out = db.reset_partner_auth_broken()
+    assert out["reset"] == 0 and out["skipped"] == 0

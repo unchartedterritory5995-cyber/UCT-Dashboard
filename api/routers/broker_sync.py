@@ -224,6 +224,40 @@ async def admin_user_debug(user_id: str, user: dict = Depends(require_admin)) ->
     return await broker_service.admin_user_debug(user_id)
 
 
+@router.post("/admin/reset-partner-auth-broken")
+async def admin_reset_partner_auth_broken(
+    request: Request, resync: bool = True, dry_run: bool = False,
+) -> dict[str, Any]:
+    """Repair connections marked broken by a PARTNER-side auth failure.
+
+    When our own SnapTrade credentials are rejected, every member connection
+    fails at once and `sync` marks each one status='broken' — and because
+    `list_due_accounts` AND `sync_all_for_user` both EXCLUDE broken accounts,
+    nothing ever retries. Fixing the root cause does NOT bring them back; the
+    rows must be reset. That is exactly what stranded all 11 connections on
+    2026-07-23 (snaptrade-python-sdk 12.0.0 silently dropped our credentials).
+
+    NARROW BY CONSTRUCTION: only rows whose `last_error` carries a
+    partner-auth signature are touched, so a genuinely broken connection
+    (invalid user secret, revoked authorization) is never wrongly resurrected
+    into a sync loop. `dry_run=1` reports the split without writing.
+
+    Gated by the PUSH_SECRET bearer (mirrors /api/desk/sessions-status) so it
+    can be driven from an ops shell without a browser session.
+    """
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(auth, f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    from api.services.journal_two.broker import connections as _conns
+    result = _conns.reset_partner_auth_broken(dry_run=dry_run)
+    if resync and not dry_run and result["reset"]:
+        from api.services.journal_two.broker import sync as _sync
+        result["resync"] = await _sync.sync_due_accounts(interval_minutes=0)
+    return result
+
+
 @router.get("/admin/fidelity-audit")
 async def admin_fidelity_audit(user_id: str, raw: bool = False,
                                user: dict = Depends(require_admin)) -> dict[str, Any]:
