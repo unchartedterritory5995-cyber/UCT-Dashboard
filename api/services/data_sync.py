@@ -201,6 +201,42 @@ def presigned_get(key: str, expires: int = 3600):
         return None
 
 
+_OBJECT_EXISTS_TTL_SECONDS = 60
+# In-process cache of recent object_exists() results: {key: (exists_bool, expiry_ts)}.
+# Plain dict is fine here — the web service is a single process, and a HEAD is
+# cheap/idempotent so a rare cross-thread race just means one extra HEAD, not
+# corruption. Caches BOTH True and False so a not-yet-backfilled key doesn't
+# get HEAD'd on every serve, while still re-checking within a minute once the
+# backfill lands.
+_object_exists_cache: dict = {}
+
+
+def object_exists(key: str) -> bool:
+    """True if the R2 object exists. Cheap HEAD, cached briefly (60s) to avoid
+    HEAD storms when the same video is served repeatedly. False when R2 is
+    unconfigured or the key is absent — never raises."""
+    now = time.time()
+    cached = _object_exists_cache.get(key)
+    if cached is not None and cached[1] > now:
+        return cached[0]
+
+    cl = _client()
+    if not cl:
+        _object_exists_cache[key] = (False, now + _OBJECT_EXISTS_TTL_SECONDS)
+        return False
+
+    try:
+        cl.head_object(Bucket=_bucket(), Key=key)
+        exists = True
+    except Exception:
+        # Covers botocore ClientError (404/NoSuchKey/403) and anything else —
+        # a HEAD failure of any kind means "treat as not present."
+        exists = False
+
+    _object_exists_cache[key] = (exists, now + _OBJECT_EXISTS_TTL_SECONDS)
+    return exists
+
+
 def put_bytes(key: str, data: bytes, content_type: str) -> bool:
     """Upload bytes to R2. Returns False (no-op) when R2 is not configured."""
     cl = _client()

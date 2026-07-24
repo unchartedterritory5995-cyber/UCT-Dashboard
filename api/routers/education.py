@@ -296,12 +296,19 @@ def get_video_poster(video_id: int, _user: dict = Depends(require_paid)):
 @router.get("/videos/{video_id}/audio")
 def get_video_audio(video_id: int, _user: dict = Depends(require_paid)):
     """Redirect to the presigned R2 URL for a session's background audio track
-    (desk background-audio feature). 404 when the video is missing, has no
-    audio, or R2 is unconfigured/unreachable."""
+    (desk background-audio feature). The R2 key is deterministic
+    (`desk_audio/<youtube_id>.m4a`), so this serves by that key + an R2
+    existence check rather than gating on the stamped `audio_url` column —
+    a one-time local backfill can upload audio to the shared bucket without
+    ever stamping production's `education.db` row. 404 when the video is
+    missing, no object exists at the key, or R2 is unconfigured/unreachable."""
     row = svc.get_video(video_id)
-    if not row or not row.get("audio_url"):
+    if not row:
         raise HTTPException(404, "No background audio for this video")
-    url = data_sync.presigned_get(row["audio_url"], expires=8 * 3600)
+    key = row.get("audio_url") or f"desk_audio/{row['youtube_id']}.m4a"
+    if not data_sync.object_exists(key):
+        raise HTTPException(404, "No background audio for this video")
+    url = data_sync.presigned_get(key, expires=8 * 3600)
     if not url:
         raise HTTPException(404, "Audio storage unavailable")
     return RedirectResponse(url, status_code=302)
