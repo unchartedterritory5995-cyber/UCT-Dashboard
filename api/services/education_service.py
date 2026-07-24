@@ -87,6 +87,8 @@ _EXTRA_COLUMNS = (
     ("key_levels", "TEXT"),        # DEPRECATED (removed 2026-07-11): dormant, no longer written/read
     ("setups", "TEXT"),            # JSON: [{setup, note, t}] firm-taxonomy setups taught
     ("poster", "INTEGER"),         # 1 once the branded recap poster PNG has been rendered
+    ("audio_url", "TEXT"),         # R2 object key for the extracted background-audio track (NULL = none yet)
+    ("audio_at", "INTEGER"),       # epoch when the audio track was produced
 )
 
 
@@ -409,6 +411,17 @@ def set_meeting_uuid(video_id: int, meeting_uuid: str) -> None:
         c.execute(
             "UPDATE edu_videos SET meeting_uuid = ?, updated_at = ? WHERE id = ?",
             (mu, int(time.time()), int(video_id)),
+        )
+        c.commit()
+
+
+def set_audio(video_id: int, audio_key: str) -> None:
+    """Record the R2 key of the extracted background-audio track for a video."""
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            "UPDATE edu_videos SET audio_url = ?, audio_at = ?, updated_at = ? WHERE id = ?",
+            (audio_key, now, now, int(video_id)),
         )
         c.commit()
 
