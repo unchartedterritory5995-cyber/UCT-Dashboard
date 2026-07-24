@@ -6,15 +6,17 @@ import * as store from './videoStore'
 
 vi.mock('../../pages/desk/useYouTubeApi', () => ({ useYouTubeApi: () => true }))
 
-let lastPlayer, lastOnStateChange
+let lastPlayer, lastOnStateChange, lastPlayerVars
 beforeEach(() => {
   store.__reset()
   lastPlayer = null
   lastOnStateChange = null
+  lastPlayerVars = null
   window.YT = {
     Player: class {
       constructor(mount, opts) {
         lastOnStateChange = opts.events?.onStateChange
+        lastPlayerVars = opts.playerVars
         this.loadVideoById = vi.fn()
         this.pauseVideo = vi.fn()
         this.playVideo = vi.fn()
@@ -30,6 +32,10 @@ beforeEach(() => {
         this.getCurrentTime = () => 20
         this.getDuration = () => 0
         lastPlayer = this
+        // Mirror real YT.Player behavior: onReady fires once the player is
+        // actually command-ready. Calling it here (post-construction, all
+        // spies wired) lets tests exercise the onReady-driven mute/play path.
+        opts.events?.onReady?.({ target: this })
       }
     },
   }
@@ -225,7 +231,13 @@ describe('GlobalVideoLayer', () => {
       expect(audioEl).toBeTruthy()
       expect(audioEl.getAttribute('src')).toMatch(/\/api\/education\/videos\/7\/audio$/)
       expect(playSpy).toHaveBeenCalled()
+      // Born muted via playerVars — no audible-autoplay window before onReady.
+      expect(lastPlayerVars.mute).toBe(1)
+      // Authoritative mute happens through the onReady-ready path (the fix):
+      // the mock invokes onReady synchronously post-construction, so this
+      // call can only have come from the onReady handler, not the raw ctor.
       expect(lastPlayer.mute).toHaveBeenCalled()
+      expect(lastPlayer.playVideo).toHaveBeenCalled()
     })
 
     it('does not touch the audio element when the flag is off (desktop-identical behavior)', () => {
@@ -239,6 +251,7 @@ describe('GlobalVideoLayer', () => {
       expect(audioEl).toBeTruthy()
       expect(audioEl.getAttribute('src')).toBeFalsy()
       expect(lastPlayer.mute).not.toHaveBeenCalled()
+      expect(lastPlayerVars.mute).toBeUndefined()
     })
 
     it('does not touch the audio element on a mouse-pointer device even with the flag on', () => {
@@ -251,6 +264,7 @@ describe('GlobalVideoLayer', () => {
       const audioEl = document.querySelector('audio[data-uct-video-audio]')
       expect(audioEl.getAttribute('src')).toBeFalsy()
       expect(lastPlayer.mute).not.toHaveBeenCalled()
+      expect(lastPlayerVars.mute).toBeUndefined()
     })
   })
 })
