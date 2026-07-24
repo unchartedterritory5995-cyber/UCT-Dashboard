@@ -188,7 +188,9 @@ def list_groups() -> list:
         return v
 
     rows.sort(key=lambda r: (_rank(r), r["name"]))
-    return rows
+    # Index & Macro is PINNED first: it has no rotation-signal entry, so without
+    # this it would sink into the alphabetical tail of 100+ themes.
+    return [_macro_group_row()] + rows
 
 
 def _today_map(syms: list) -> dict:
@@ -343,6 +345,8 @@ def _theme_etf(theme_id: str) -> str | None:
 
 
 def top_n(theme_id: str, n: int, by: str = "today") -> dict:
+    if theme_id == MACRO_GROUP_ID:
+        return _macro_top_n(n)
     holdings = _theme_holdings(theme_id)
     scores = {}
     ranked = rank_holdings(holdings, by=by, scores_out=scores)
@@ -624,6 +628,40 @@ def macro_board(n: int, seed: str = None) -> list:
     except Exception:
         today = {}
     return _macro_order(today, seed)[: max(1, int(n))]
+
+
+def _macro_group_row() -> dict:
+    """The picker row. Shaped exactly like a theme row so GroupPicker,
+    MultiChartMenu prev/next, and refresh all treat it as an ordinary group."""
+    return {
+        "id": MACRO_GROUP_ID,
+        "name": MACRO_GROUP_NAME,
+        "sector_id": "macro",
+        "etf_ticker": None,
+        "total": len(MACRO_ROSTER),
+        "chartable": len(MACRO_ROSTER),
+        "sub_theme_count": 0,
+    }
+
+
+def _macro_top_n(n: int) -> dict:
+    """top_n() for the synthetic group — same response contract, no theme_db."""
+    syms = macro_board(n)
+    return {
+        "group_id": MACRO_GROUP_ID,
+        "syms": syms,
+        "rows": [{
+            "sym": s,
+            "tier": "core" if s in MACRO_CORE else "relevant",
+            "rationale": "",
+            "gate_score": None,
+            "source": "owner",
+        } for s in syms],
+        "etf": None,
+        "total": len(MACRO_ROSTER),
+        "by": "today",
+        "ranked_as_of": _ranked_as_of(),
+    }
 
 
 def resolve_peers(sym: str, n: int) -> dict:

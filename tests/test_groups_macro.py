@@ -86,3 +86,50 @@ def test_macro_board_never_returns_empty_on_a_bad_snapshot(monkeypatch):
 
     monkeypatch.setattr(groups, "_today_map", _boom)
     assert groups.macro_board(9) == list(groups.MACRO_ROSTER)[:9]
+
+
+def _stub_themes(monkeypatch, rows):
+    monkeypatch.setattr(groups, "_get_all_themes", lambda: {"sectors": [], "themes": rows})
+    monkeypatch.setattr(groups, "_rotation_order", lambda: {})
+
+
+def test_list_groups_pins_macro_first(monkeypatch):
+    _stub_themes(monkeypatch, [
+        {"id": "space", "name": "Space", "sector_id": "innovation", "etf_ticker": "UFO",
+         "sub_themes": [], "holdings": [{"sym": "RKLB"}]},
+    ])
+    monkeypatch.setattr(groups, "cap_universe_set", lambda: {"RKLB"})
+    out = groups.list_groups()
+    assert out[0]["id"] == groups.MACRO_GROUP_ID
+    assert out[0]["name"] == "Index & Macro"
+    assert out[0]["sector_id"] == "macro"
+    assert out[0]["etf_ticker"] is None
+    assert out[0]["total"] == 16 and out[0]["chartable"] == 16
+    assert out[0]["sub_theme_count"] == 0
+    assert [r["id"] for r in out[1:]] == ["space"]      # themes still follow
+
+
+def test_top_n_serves_the_macro_board(monkeypatch):
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_ranked_as_of", lambda: "closed")
+    out = groups.top_n(groups.MACRO_GROUP_ID, 9)
+    assert out["group_id"] == groups.MACRO_GROUP_ID
+    assert out["syms"] == list(groups.MACRO_ROSTER)[:9]
+    assert out["etf"] is None                           # pinEtf must be a no-op
+    assert out["total"] == 16
+    assert out["by"] == "today"
+    assert [r["sym"] for r in out["rows"]] == out["syms"]
+    assert [r["tier"] for r in out["rows"][:4]] == ["core"] * 4
+    assert out["rows"][4]["tier"] == "relevant"
+    assert all(r["source"] == "owner" for r in out["rows"])   # no engine dot
+
+
+def test_top_n_macro_never_touches_theme_db(monkeypatch):
+    """A macro top_n must not query holdings — it isn't a theme."""
+    def _boom(_id):
+        raise AssertionError("theme_db must not be queried for the macro group")
+
+    monkeypatch.setattr(groups, "_theme_holdings", _boom)
+    monkeypatch.setattr(groups, "_today_map", lambda syms: {})
+    monkeypatch.setattr(groups, "_ranked_as_of", lambda: "closed")
+    assert groups.top_n(groups.MACRO_GROUP_ID, 4)["syms"] == list(groups.MACRO_CORE)
