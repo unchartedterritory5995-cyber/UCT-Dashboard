@@ -182,6 +182,17 @@ _state = {
     # contracts that used to stall the tape; now they don't.
     "oi_stage2_skipped_last": 0,
     "oi_stage2_skipped_total": 0,
+    # Cumulative side-classification totals (2026-07-24). The last_side_*
+    # fields above are PER-BATCH — they're overwritten every flush, so
+    # sampling them on a timer (as the metrics flusher does) reports whatever
+    # the most recent batch happened to contain, which is ~0 whenever the tape
+    # is quiet. These accumulate for the life of the process so a session's
+    # coverage can actually be measured against the nbbo_age_* histogram.
+    "side_total_lookup": 0,
+    "side_total_classified": 0,
+    "side_total_nbbo": 0,
+    "side_total_tick": 0,
+    "side_total_no_signal": 0,
     # Phase 3: retroactive spot backfill on startup — fills blank Spot on
     # today's rows written by prior worker processes that died before
     # the async spot fetcher could resolve their symbols. See
@@ -1062,6 +1073,12 @@ def _classify_events_side(events: list) -> None:
     _state["last_side_mid_market"] = mid_market
     _state["last_side_no_signal"] = no_signal
     _state["last_side_sample_misses"] = sample_misses
+    # Cumulative mirrors — see the note in _state.
+    _state["side_total_lookup"] = _state.get("side_total_lookup", 0) + len(events)
+    _state["side_total_classified"] = _state.get("side_total_classified", 0) + classified
+    _state["side_total_nbbo"] = _state.get("side_total_nbbo", 0) + classified_nbbo
+    _state["side_total_tick"] = _state.get("side_total_tick", 0) + classified_tick
+    _state["side_total_no_signal"] = _state.get("side_total_no_signal", 0) + no_signal
 
     # Subscribe-lag recovery: queue the tick/empty prints so the reclassify
     # re-pass can upgrade their Side once NBBO fills in for the contract.
@@ -2974,9 +2991,9 @@ async def _run_session(ws):
                     int(_state.get("nbbo_age_1to5s") or 0),
                     int(_state.get("nbbo_age_5to30s") or 0),
                     int(_state.get("nbbo_age_over30s") or 0),
-                    int(_state.get("last_side_classified_nbbo") or 0),
-                    int(_state.get("last_side_classified_tick") or 0),
-                    int(_state.get("last_side_no_signal") or 0),
+                    int(_state.get("side_total_nbbo") or 0),
+                    int(_state.get("side_total_tick") or 0),
+                    int(_state.get("side_total_no_signal") or 0),
                     int(_state.get("oi_stage2_skipped_total") or 0),
                     int(_state.get("q_subscribed_count") or 0),
                     int(_state.get("trades_received") or 0),
