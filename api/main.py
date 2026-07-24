@@ -764,6 +764,7 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
+    return True
 
 
 def register_wire_watchdog_job(scheduler):
