@@ -511,6 +511,114 @@
   .rundownWrap :global(.rd-order-contract) { font-size: 14.5px; }
 }
 
+/* ── THE GAME PLAN cockpit (top of wire) ─────────────────────── */
+.rundownWrap :global(.rd-gameplan) {
+  margin: 4px 0 18px;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(201, 168, 76, 0.04);
+}
+.rundownWrap :global(.rd-gp-head) {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #d4b45c;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.3);
+  background: rgba(201, 168, 76, 0.08);
+}
+.rundownWrap :global(.rd-gp-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-gp-grid) { display: grid; grid-template-columns: 104px 1fr; }
+.rundownWrap :global(.rd-gp-k) {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #6b7480;
+  padding: 10px 16px;
+  align-self: center;
+}
+.rundownWrap :global(.rd-gp-v) { padding: 10px 16px; font-size: 14.5px; line-height: 1.5; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.rundownWrap :global(.rd-gp-exp) { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; padding: 1px 8px; border-radius: 999px; }
+.rundownWrap :global(.rd-gp-green) { color: #3fb950; background: rgba(63, 185, 80, 0.15); }
+.rundownWrap :global(.rd-gp-amber) { color: #e8a34d; background: rgba(201, 120, 40, 0.18); }
+.rundownWrap :global(.rd-gp-red) { color: #e5534b; background: rgba(229, 83, 75, 0.16); }
+.rundownWrap :global(.rd-gp-tk) { font-family: var(--font-mono); font-weight: 700; color: #d4b45c; }
+.rundownWrap :global(.rd-gp-play) {
+  margin: 10px 16px 14px;
+  padding: 11px 14px;
+  background: rgba(201, 168, 76, 0.09);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 9px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.rundownWrap :global(.rd-gp-play) b { color: #e8a34d; }
+
+/* ── KEY INDEX LEVELS ────────────────────────────────────────── */
+.rundownWrap :global(.rd-levels) { margin: 18px 0; border: 1px solid var(--rd-line, rgba(255,255,255,0.1)); border-radius: 12px; overflow: hidden; border-color: rgba(255,255,255,0.1); }
+.rundownWrap :global(.rd-levels-head) {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: #d4b45c; padding: 11px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02);
+}
+.rundownWrap :global(.rd-levels-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-levels-row) {
+  display: grid; grid-template-columns: 56px 66px 100px 66px 1fr 150px; gap: 10px;
+  align-items: baseline; padding: 10px 16px; font-family: var(--font-mono); font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.rundownWrap :global(.rd-levels-row):last-child { border-bottom: none; }
+.rundownWrap :global(.rd-levels-hr) {
+  font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7480; font-weight: 700;
+}
+.rundownWrap :global(.rd-lv-sym) { font-weight: 800; color: #f3f3f3; }
+.rundownWrap :global(.rd-lv-px) { font-weight: 700; color: #e8e8e8; }
+.rundownWrap :global(.rd-lv-sup) { color: #3fb950; }
+.rundownWrap :global(.rd-lv-piv) { color: #d4b45c; font-weight: 700; }
+.rundownWrap :global(.rd-lv-res) { color: #e5534b; }
+.rundownWrap :global(.rd-lv-read) { font-family: var(--font-sans); font-size: 12px; }
+.rundownWrap :global(.rd-lv-bull) :global(.rd-lv-read) { color: #3fb950; }
+.rundownWrap :global(.rd-lv-bear) :global(.rd-lv-read) { color: #e5534b; }
+.rundownWrap :global(.rd-lv-chop) :global(.rd-lv-read) { color: #9aa7b4; }
+
+/* ── WHAT'S IN FAVOR (rotation) ──────────────────────────────── */
+.rundownWrap :global(.rd-rotation) { margin: 18px 0; }
+.rundownWrap :global(.rd-rotation-head) {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: #d4b45c; margin-bottom: 10px;
+}
+.rundownWrap :global(.rd-rotation-sub) { font-weight: 500; letter-spacing: 0.6px; text-transform: none; color: #7f8ea3; margin-left: 8px; }
+.rundownWrap :global(.rd-rotation-chips) { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.rundownWrap :global(.rd-rot-chip) { font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; padding: 4px 11px; border-radius: 7px; }
+.rundownWrap :global(.rd-rot-in) { color: #3fb950; background: rgba(63, 185, 80, 0.12); border: 1px solid rgba(63, 185, 80, 0.3); }
+.rundownWrap :global(.rd-rot-out) { color: #e5534b; background: rgba(229, 83, 75, 0.1); border: 1px solid rgba(229, 83, 75, 0.28); }
+.rundownWrap :global(.rd-rotation-note) { color: #9aa7b4; font-size: 13px; }
+
+/* ── DISCIPLINE / RISK CHECK ─────────────────────────────────── */
+.rundownWrap :global(.rd-discipline) {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  margin: 0 0 16px; padding: 9px 14px; border-radius: 9px; font-size: 13.5px;
+}
+.rundownWrap :global(.rd-disc-amber) { background: rgba(201, 120, 40, 0.12); border: 1px solid rgba(201, 120, 40, 0.35); }
+.rundownWrap :global(.rd-disc-green) { background: rgba(63, 185, 80, 0.1); border: 1px solid rgba(63, 185, 80, 0.3); }
+.rundownWrap :global(.rd-disc-red) { background: rgba(229, 83, 75, 0.1); border: 1px solid rgba(229, 83, 75, 0.3); }
+.rundownWrap :global(.rd-disc-tag) {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 800; letter-spacing: 1px;
+  color: #0a0a0a; background: #c9a84c; border-radius: 4px; padding: 2px 6px;
+}
+.rundownWrap :global(.rd-disc-tier) { font-family: var(--font-mono); font-weight: 700; font-size: 12.5px; color: #e8e8e8; }
+.rundownWrap :global(.rd-disc-line) { color: #cfcfcf; }
+@media (max-width: 640px) {
+  .rundownWrap :global(.rd-levels-row) { grid-template-columns: 46px 58px 1fr 58px; gap: 8px; }
+  .rundownWrap :global(.rd-lv-res), .rundownWrap :global(.rd-levels-hr) span:nth-child(5) { display: none; }
+  .rundownWrap :global(.rd-lv-read) { display: none; }
+  .rundownWrap :global(.rd-gp-grid) { grid-template-columns: 84px 1fr; }
+}
+
 /* ── Top 5 Picks ─────────────────────────────────────────────── */
 .rundownWrap :global(.rd-top-picks-grid) {
   display: flex;
