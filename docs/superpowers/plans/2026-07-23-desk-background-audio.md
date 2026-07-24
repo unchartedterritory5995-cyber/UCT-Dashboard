@@ -951,6 +951,8 @@ Not a code task, but the deploy gate. After a DARK deploy with `DESK_BACKGROUND_
 2. **Android Chrome:** same, plus notification-shade controls.
 3. **No-audio fallback:** a video whose `audio_url` is still NULL plays exactly as today (no console errors, screen-lock stops it as before — no regression).
 4. **Voice coexistence:** start read-aloud, then a Desk video → video takes the lock screen; stop the video → read-aloud’s own controls behave normally. Confirm no "stuck audio."
+5. **[MUST-PASS — iOS gesture activation]** `audio.play()` is issued from a post-commit effect, not synchronously inside the tap handler — iOS Safari's user-activation window may reject it, in which case `audioActive` never flips and playback silently falls through to the muted iframe (no audio). On a real iPhone, tap-to-play a Desk video and CONFIRM you hear the app audio track (not silence). If it fails: restructure so `audioRef.current.play()` is called synchronously within the click handler (before the store/effect round-trip). This is jsdom-invisible; it is the single most likely on-device failure.
+6. **[MUST-PASS — long-session TTL]** The audio serve endpoint 302s to a presigned R2 URL (TTL now 8h). Play a full-length (>1h) session screen-locked and confirm audio does NOT stall mid-playback (an expired presigned URL 403s later Range requests). If any stall appears near a TTL boundary, raise `expires` further or add re-signing on `<audio>` error.
 
 ## Rollout order
 
