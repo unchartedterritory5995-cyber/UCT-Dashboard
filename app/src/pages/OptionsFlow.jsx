@@ -1218,6 +1218,15 @@ function buildCharts(cc) {
 
 
 
+// Heavy-block premium floor (2026-07-24). A BLOCK at or above this notional is
+// treated as NON-DIRECTIONAL: a single negotiated print at one exchange is
+// facilitation, repositioning, or the option leg of a delta-hedged package —
+// not a directional bet. Verified case: SMH 7/31 $530P, 60,200 @ 9.249 =
+// $55.7M at 3:47:34, matched 93% on delta by a 1,500,000-share dark-pool
+// print 44 seconds later. The row is KEPT (premium/volume still count toward
+// contract totals and Top Trades) — only its bull/bear vote is withdrawn.
+const HEAVY_BLOCK_PREMIUM = 10e6;
+
 // ─── Data Processing ───────────────────────────────────────────────────────────
 function processFlowData(rows, erSoonSet) {
   const rawTrades = rows.map(r => {
@@ -1270,6 +1279,7 @@ function processFlowData(rows, erSoonSet) {
     // Direction logic per flow rules
     let confirmed = color === "YELLOW" || color === "MAGENTA";
     let direction = null;
+    let heavyBlock = false;
     // "Primarily look for Ask/Above Ask for directional bets"
     // B trades = ambiguous (closing, repositioning, hedging) - never directional
     // BB Blocks = repositioning/institutional - never directional
@@ -1283,6 +1293,13 @@ function processFlowData(rows, erSoonSet) {
         if (side === "AA" || side === "A") direction = "BEAR";
         else if (side === "BB" && isSWP) direction = "BULL"; // BB sweep put = selling puts = bullish
         // B Put / BB Block Put = ambiguous/repositioning, no direction
+      }
+      // Heavy-block filter (2026-07-24). Mirrors the "BB Blocks =
+      // repositioning/institutional - never directional" rule above, extended
+      // to the ask side: past a size threshold a BLOCK stops being a bet.
+      if (direction && isBLK && premium >= HEAVY_BLOCK_PREMIUM) {
+        direction = null;
+        heavyBlock = true;
       }
       // Lottery ticket filter: way OTM + short DTE = noise, not conviction
       // Uses live DTE (from expiry date vs today), not historical CSV DTE
@@ -1302,7 +1319,7 @@ function processFlowData(rows, erSoonSet) {
       CP:cp, K:strike, V:volume, P:premium, price,
       E:expStr, expiry, Si:side, Co:color, DTE:dte, Dt:dt,
       D:direction, OI:oi, IV:iv, Spot:spot, isML, confirmed,
-      mktcap, sector, uoa, isDeep, pctFromSpot,
+      mktcap, sector, uoa, isDeep, pctFromSpot, heavyBlock,
       er:(erSoonSet instanceof Set)
         ? erSoonSet.has((r.ticker||"").toUpperCase().trim())
         : ((r.er||"").toUpperCase().trim() === "T"),
@@ -1872,8 +1889,13 @@ function processFlowData(rows, erSoonSet) {
     }
     const ck = t.CP+"|"+t.K+"|"+t.E;
     if (!tk.consMap[ck]) tk.consMap[ck] = { S:t.S, CP:t.CP, K:t.K, E:t.E, H:0, P:0, V:0, D:t.D,
-      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, bullPrem:0, bearPrem:0, maxOI:0 };
+      hasSweep:false, hasBlock:false, oiExceeded:false, dirs:new Set(), clean:true, bullPrem:0, bearPrem:0, maxOI:0, rep:null };
     tk.consMap[ck].H++; tk.consMap[ck].P+=t.P; tk.consMap[ck].V+=t.V;
+    // Per-contract display representative (2026-07-24). One comparison per
+    // trade, no sorting — same pattern as maxOI below — so EVERY contract has
+    // a rep and Top Trades no longer drops contracts that missed the ticker's
+    // top-10 single-print cache.
+    if (!tk.consMap[ck].rep || t.P > tk.consMap[ck].rep.P) tk.consMap[ck].rep = t;
     if ((t.OI||0) > tk.consMap[ck].maxOI) tk.consMap[ck].maxOI = t.OI||0;
     if (t.D === "BULL") tk.consMap[ck].bullPrem += t.P;
     if (t.D === "BEAR") tk.consMap[ck].bearPrem += t.P;
@@ -1976,8 +1998,15 @@ function processFlowData(rows, erSoonSet) {
         return Object.values(tk.consMap)
           .map(c => {
             const k = c.CP + "|" + c.K + "|" + c.E;
-            const rep = repByContract[k];
-            if (!rep) return null; // contract whose biggest single trade fell below per-ticker top-10 cutoff
+            // 2026-07-24: fall back to the contract's own biggest print. The
+            // old `if (!rep) return null` dropped any contract whose largest
+            // trade wasn't among the ticker's ten biggest — membership was
+            // decided by all-time print SIZE while the number displayed is
+            // window-scoped premium. Two unrelated criteria, so contracts like
+            // NBIS 7/31 $177.5P ($3.55M, 37% of that day's bear flow) could
+            // never appear. topTrades stays the preferred rep when present.
+            const rep = repByContract[k] || c.rep;
+            if (!rep) return null; // no prints on this contract at all
             // Direction from NET premium (bull vs bear dollars on the contract),
             // not the single largest trade's side — so a contract whose biggest
             // print was side-ambiguous still reads BULL/BEAR when its net flow is
@@ -8552,6 +8581,16 @@ export default function OptionsFlowDashboard() {
               const _uncappedAllDir = _uncapped
                 ? _scopeAllDirectional(_uncapped.all_directional || [])
                 : null;
+              // 2026-07-24: Top Trades shows the contract's TOTAL in-window
+              // premium, not only its directional prints. Sourcing from
+              // all_directional valued every non-directional print at $0, so
+              // unsided blocks (NBIS 8/7 $170P, $32.65M) and blocks demoted by
+              // HEAVY_BLOCK_PREMIUM disappeared from the table. The Dir column
+              // still derives from bullPrem/bearPrem, so these rows now show
+              // real size with a neutral direction instead of vanishing.
+              const _uncappedAllTrades = _uncapped
+                ? _scopeAllDirectional(_uncapped.all_trades || [])
+                : null;
               const tk = (_uncapped && _uncapped.TICKER_DB && _uncapped.TICKER_DB.find(t => t.s === selectedTicker.s))
                 || (D && D.TICKER_DB || []).find(t => t.s === selectedTicker.s)
                 || selectedTicker;
@@ -8566,7 +8605,7 @@ export default function OptionsFlowDashboard() {
               // (OI / maxOI / Live OI / Status / DTE) stays from tk.t, so the Status
               // column remains range-independent (still-open is a separate lens via
               // the "Still-open flow" toggle).
-              const _tkScopedPrints = (_uncappedAllDir !== null ? _uncappedAllDir : (D.all_directional || []))
+              const _tkScopedPrints = (_uncappedAllTrades !== null ? _uncappedAllTrades : (D.all_trades || []))
                 .filter(t => t.S === tk.s && !t._rescueDerived);
               const _scopedByContract = {};
               for (const _t of _tkScopedPrints) {
