@@ -8648,9 +8648,17 @@ export default function OptionsFlowDashboard() {
                   const _d = (_w.bull > _w.bear && _w.bull / _tot >= _DIR_SHARE_MIN) ? "BULL"
                            : (_w.bear > _w.bull && _w.bear / _tot >= _DIR_SHARE_MIN) ? "BEAR"
                            : null;
+                  // Premium column: for a DIRECTIONAL row show the scoped
+                  // directional premium so the table ties out to the
+                  // Bullish/Bearish cards; for a neutral row leave dirPrem null
+                  // so TT falls through to r.P, the scoped TOTAL — the only way
+                  // undirected size (heavy blocks, unsided prints) is visible at
+                  // all. v3 nulled it unconditionally, which made a row read
+                  // "BULL $2.3M" while the Bullish card said $482K.
                   return { ..._w.rep, P: _w.P, V: _w.V, maxOI: _w.maxOI,
                            bullPrem: _w.bull, bearPrem: _w.bear,
-                           dirPrem: null, dispD: _d };
+                           dirPrem: _d === "BULL" ? _w.bull : _d === "BEAR" ? _w.bear : null,
+                           dispD: _d };
                 })
                 .sort((_a, _b) => _b.P - _a.P)
                 .slice(0, 10);
