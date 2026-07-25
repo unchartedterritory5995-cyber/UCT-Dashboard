@@ -100,6 +100,14 @@ class FlowDB:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            # ts_ns migration (2026-07-25): persist the trade's nanosecond
+            # timestamp so the nightly side-heal can query the exact-ns NBBO
+            # (flow.db previously kept only second-precision CreatedTime).
+            # Guarded ALTER covers the existing DB; harmless on a fresh one.
+            try:
+                conn.execute("ALTER TABLE flow ADD COLUMN ts_ns INTEGER")
+            except sqlite3.OperationalError:
+                pass  # column already exists
             # Index for fast queries
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_source ON flow(source)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_date ON flow(CreatedDate)")
@@ -209,6 +217,14 @@ class FlowDB:
 
         with self._conn() as conn:
             for row in reader:
+                # ts_ns (2026-07-25): optional 23rd column = the trade's nanosecond
+                # timestamp (worker emits it; BBS/gap-fill CSVs omit it -> NULL).
+                # Read BEFORE the COLUMNS filter strips unknown keys.
+                _ts_raw = (row.get("ts_ns") or "").strip()
+                try:
+                    _ts_ns = int(_ts_raw) if _ts_raw else None
+                except ValueError:
+                    _ts_ns = None
                 # Normalize: strip whitespace from all values
                 row = {k: (v or "").strip() for k, v in row.items() if k in COLUMNS}
                 if not row.get("Symbol") or not row.get("CreatedDate"):
@@ -224,8 +240,8 @@ class FlowDB:
                             source, CreatedDate, CreatedTime, Symbol, Type, Volume,
                             Price, Side, CallPut, Strike, Spot, Premium,
                             ExpirationDate, Color, ImpliedVolatility, Dte, ER,
-                            StockEtf, Sector, Uoa, Weekly, MktCap, OI, dedup_key
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            StockEtf, Sector, Uoa, Weekly, MktCap, OI, ts_ns, dedup_key
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (
                             source,
                             row.get("CreatedDate", ""),
@@ -250,6 +266,7 @@ class FlowDB:
                             row.get("Weekly", ""),
                             row.get("MktCap", ""),
                             row.get("OI", ""),
+                            _ts_ns,
                             dedup_key,
                         ),
                     )
