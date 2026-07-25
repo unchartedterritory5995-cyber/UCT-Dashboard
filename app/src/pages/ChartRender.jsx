@@ -16,6 +16,8 @@ import uctLogo from '../components/intro/assets/compass-mark.png'
 
 const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '60': '1 hr', D: 'Daily', W: 'Weekly', M: 'Monthly' }
+
 export default function ChartRender() {
   const [sp] = useSearchParams()
   const sym = (sp.get('sym') || '').toUpperCase()
@@ -65,7 +67,7 @@ export default function ChartRender() {
         <div style={{ height: 40, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 16px', color: '#888', fontSize: 14, position: 'relative' }}>
           <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 18 }}>{sym}</span>
           {company && <span style={{ marginLeft: 8, color: '#9aa08f', fontSize: 13 }}>({company})</span>}
-          <span style={{ marginLeft: 12 }}>{tf}</span>
+          <span style={{ marginLeft: 12 }}>{TF_LABEL[tf] || tf}</span>
           {price > 0 && <span style={{ marginLeft: 12, color: '#fff' }}>${price.toFixed(2)}</span>}
           {Number.isFinite(chg) && <span style={{ marginLeft: 8, color: chg >= 0 ? '#22c55e' : '#ef4444' }}>{chg >= 0 ? '+' : ''}{chg.toFixed(2)}%</span>}
           <span style={{ position: 'absolute', left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none' }}>
