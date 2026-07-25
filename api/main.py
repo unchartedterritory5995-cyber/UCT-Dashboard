@@ -2451,6 +2451,25 @@ async def lifespan(app: FastAPI):
         except Exception as _e_dpi:
             print(f"[startup] darkpool Massive ingest job skip: {_e_dpi}")
 
+        # -- Nightly T+1 side-heal (2026-07-25) --------------------------------
+        # After the close (and after the 19:20 darkpool ingest), re-side the
+        # day's blank prints at EXACT-ns via REST /v3/quotes, reading ts_ns
+        # straight from flow.db. Writes flow.db, so it MUST run on the service
+        # that owns it (flow-worker) — self-gates on MASSIVE_NIGHTLY_HEAL_ENABLED
+        # (set =1 on flow-worker ONLY; on any other service scheduled_run()
+        # returns before touching FlowDB). Automated replacement for the manual
+        # Colab t1_side_heal script.
+        try:
+            from api.nightly_side_heal import scheduled_run as _nightly_heal_run
+            _scheduler.add_job(
+                _nightly_heal_run,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=19, minute=30, timezone=_ET),
+                id="nightly_side_heal", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600)
+            print("[startup] nightly side-heal scheduled (weekdays 19:30 ET)")
+        except Exception as _e_nsh:
+            print(f"[startup] nightly side-heal job skip: {_e_nsh}")
+
         _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50, timezone=_ET), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15, timezone=_ET), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45, timezone=_ET), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
