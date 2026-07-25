@@ -54,9 +54,28 @@ def _check_token(token: str) -> None:
     _rate_limit()
 
 
+# Thesis phrasings the synthesizer uses when it found NOTHING — a non-catalyst
+# must never occupy one of the newsletter's few catalyst slots (quality=1).
+_NO_CATALYST_PHRASES = ("no clear catalyst", "no company-specific catalyst",
+                        "no company-specific news", "no fresh company-specific",
+                        "no identifiable catalyst", "catalyst identifiable in the signal")
+
+
+def _first_sentences(text: str, k: int = 2) -> str:
+    import re as _re
+    parts = _re.split(r"(?<=[.!?])\s+", str(text or "").strip())
+    return " ".join(parts[:k]).strip()
+
+
 @router.get("/r/catalysts")
-def render_catalysts(token: str = "", n: int = 3, date: str = ""):
-    """Top-N ranked Stock Catalysts for today (or `date`) — public-safe fields only."""
+def render_catalysts(token: str = "", n: int = 3, date: str = "",
+                     quality: int = 0, compact: int = 0):
+    """Top-N ranked Stock Catalysts for today (or `date`) — public-safe fields only.
+
+    quality=1 drops rows whose thesis says no real catalyst was found (the
+    newsletter wants stories, not confessions); compact=1 clamps each thesis to
+    its first two sentences (email-density mode).
+    """
     _check_token(token)
     md = date or _et_today()
     rows = catalyst_store.get_for_date(md) or []
@@ -69,8 +88,15 @@ def render_catalysts(token: str = "", n: int = 3, date: str = ""):
             if rows:
                 md = prev
                 break
+    if int(quality or 0):
+        rows = [r for r in rows
+                if not any(p in str(r.get("thesis_text") or "").lower()
+                           for p in _NO_CATALYST_PHRASES)]
     n = max(1, min(int(n or 3), 40))
     public = [{k: r.get(k) for k in _CATALYST_PUBLIC} for r in rows[:n]]
+    if int(compact or 0):
+        for r in public:
+            r["thesis_text"] = _first_sentences(r.get("thesis_text"))
     return {"market_date": md, "rows": public}
 
 
@@ -133,7 +159,14 @@ def render_flow(token: str = "", n: int = 10):
     flow = (wire.get("options_flow") or {}) if isinstance(wire, dict) else {}
     rows = flow.get("orders") or []
     n = max(1, min(int(n or 10), 16))
-    public = [{k: r.get(k) for k in _FLOW_PUBLIC} for r in rows[:n]]
+    rows = rows[:n]
+    # Same-underlying rows adjacent (first-appearance order preserved): the MU put
+    # beside the MU call reads as one straddle story, not two orphans.
+    first: dict = {}
+    for i, r in enumerate(rows):
+        first.setdefault(str(r.get("sym", "")), i)
+    rows = sorted(enumerate(rows), key=lambda t: (first[str(t[1].get("sym", ""))], t[0]))
+    public = [{k: r.get(k) for k in _FLOW_PUBLIC} for _, r in rows]
     return {"session": flow.get("session"), "orders": public}
 
 
@@ -184,7 +217,24 @@ def render_tweets(token: str = "", n: int = 5, hours: int = 18):
     except Exception:  # noqa: BLE001
         rows = []
     with_tickers = [t for t in rows if t.get("tickers")]
-    picked = (with_tickers or rows)[: max(1, min(int(n or 5), 10))]
+
+    # Near-duplicate collapse: wire services repeat one story minutes apart
+    # ("QCOM tells customers prices going up" ×2). Key = tickers + the first 40
+    # normalized chars; the NEWEST occurrence (rows are newest-first) survives.
+    import re as _re
+    seen_keys = set()
+    deduped = []
+    for t in (with_tickers or rows):
+        norm = _re.sub(r"https?://\S+", "", str(t.get("text") or "").lower())
+        norm = _re.sub(r"[^a-z0-9 ]", "", norm)
+        norm = _re.sub(r"\s+", " ", norm).strip()
+        key = (tuple(sorted(t.get("tickers") or [])), norm[:40])
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        deduped.append(t)
+
+    picked = deduped[: max(1, min(int(n or 5), 10))]
     out = [{
         "text": t.get("text"),
         "tickers": t.get("tickers", []),

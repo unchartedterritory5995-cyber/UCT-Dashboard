@@ -69,17 +69,20 @@ export default function CatalystsRender() {
   const token = sp.get('token') || ''
   const n = Math.min(6, Math.max(1, parseInt(sp.get('n') || '3', 10)))
   const w = Math.min(1400, Math.max(600, parseInt(sp.get('w') || '1000', 10)))
+  const quality = sp.get('quality') || ''   // 1 = drop "no catalyst found" rows
+  const compact = sp.get('compact') || ''   // 1 = clamp thesis to 2 sentences
   const [rows, setRows] = useState(null)
   const [err, setErr] = useState('')
 
   useEffect(() => {
     window.__panelReady = false
     if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
-    fetch(`/api/r/catalysts?token=${encodeURIComponent(token)}&n=${n}`)
+    const extra = `${quality ? `&quality=${quality}` : ''}${compact ? `&compact=${compact}` : ''}`
+    fetch(`/api/r/catalysts?token=${encodeURIComponent(token)}&n=${n}${extra}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => setRows(Array.isArray(d.rows) ? d.rows : []))
       .catch(() => setErr('data unavailable'))
-  }, [token, n])
+  }, [token, n, quality, compact])
 
   // Signal readiness once rows are in + logos have had time to resolve/paint.
   useEffect(() => {

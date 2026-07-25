@@ -18,7 +18,15 @@ import { TREEMAP_DEF } from './breadth/heatmapMetrics'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
 const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
-const VISIBLE_KEYS = new Set((TREEMAP_DEF?.[0]?.items || []).map((i) => i.metricKey))
+// Newsletter export: drop treemap tiles that DUPLICATE the live exposure card
+// directly above it (score/exposure/index closes). The treemap reads yesterday's
+// breadth-collector snapshot, so those tiles can contradict the live card inside
+// one image (hero "38" vs tile "43", QQQ 688 vs 691) — the rest of the metrics
+// have no live twin and stay. The real /breadth page is untouched.
+const NEWSLETTER_DUP_KEYS = new Set(['breadth_score', 'uct_exposure', 'sp500_close', 'qqq_close'])
+const VISIBLE_KEYS = new Set(
+  (TREEMAP_DEF?.[0]?.items || []).map((i) => i.metricKey).filter((k) => !NEWSLETTER_DUP_KEYS.has(k)),
+)
 
 function Panel({ title, w, children, footer }) {
   return (

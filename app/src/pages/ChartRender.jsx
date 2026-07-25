@@ -79,7 +79,13 @@ export default function ChartRender() {
           <StockChart sym={sym} tf={tf} height={`${chartH}px`} priceLines={priceLines} />
         </div>
         <div style={{ height: 20, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 16px', color: '#666', fontSize: 10 }}>
-          <span>{new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC</span>
+          {/* Traders read ET — a "03:20 UTC" stamp on a 7:35am letter reads broken. */}
+          <span>
+            {new Intl.DateTimeFormat('en-US', {
+              timeZone: 'America/New_York', month: 'short', day: 'numeric',
+              hour: 'numeric', minute: '2-digit',
+            }).format(new Date())} ET
+          </span>
           <span style={{ marginLeft: 'auto', color: '#c9a84c' }}>uctintelligence.com</span>
         </div>
       </div>

@@ -93,7 +93,7 @@ export default function FlowRender() {
         </div>
         <div style={{ padding: '14px 18px 8px' }}>
           <div style={{ color: '#7f8ea3', fontSize: 11.5, marginBottom: 12 }}>
-            Prior session · biggest single-contract orders · bar = relative size · <span style={{ color: '#c9a84c' }}>×</span> = volume vs open interest
+            Prior session · biggest single-contract orders · bar = relative size · <span style={{ color: '#c9a84c' }}>×</span> = volume vs open interest · <span style={{ color: '#c9a84c' }}>ER</span> = reports soon
           </div>
           {orders.length === 0 && <div style={{ color: '#888', padding: 12 }}>No notable flow.</div>}
           {orders.length > 0 && <HeaderRow />}

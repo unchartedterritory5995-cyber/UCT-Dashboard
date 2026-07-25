@@ -38,21 +38,40 @@ function Row({ e, sess }) {
   )
 }
 
+const etToday = () => {
+  // ET calendar date, not the browser's — the renderer may run late evening.
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
+  return p // en-CA gives YYYY-MM-DD
+}
+
 export default function CalendarRender() {
   const [sp] = useSearchParams()
   const token = sp.get('token') || ''
   const w = Math.min(1200, Math.max(560, parseInt(sp.get('w') || '900', 10)))
+  // from=today (newsletter default): drop past days and extend into next week —
+  // a Friday letter shows Fri + Mon + Tue, not the Wed/Thu that already reported.
+  const fromToday = (sp.get('from') || 'today') === 'today'
+  const maxDays = Math.min(7, Math.max(2, parseInt(sp.get('days') || '5', 10)))
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
 
   useEffect(() => {
     window.__panelReady = false
     if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
-    fetch('/api/calendar')
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then(setData)
+    const jobs = [fetch('/api/calendar').then((r) => (r.ok ? r.json() : Promise.reject(r.status)))]
+    if (fromToday) {
+      const nextMon = new Date()
+      nextMon.setDate(nextMon.getDate() + ((8 - nextMon.getDay()) % 7 || 7))
+      jobs.push(
+        fetch(`/api/calendar?week=${nextMon.toISOString().slice(0, 10)}`)
+          .then((r) => (r.ok ? r.json() : { days: {} }))
+          .catch(() => ({ days: {} })),
+      )
+    }
+    Promise.all(jobs)
+      .then(([cur, next]) => setData({ days: { ...(cur?.days || {}), ...((next && next.days) || {}) } }))
       .catch(() => setErr('data unavailable'))
-  }, [token])
+  }, [token, fromToday])
 
   useEffect(() => {
     if (data == null) return
@@ -64,21 +83,25 @@ export default function CalendarRender() {
   if (data == null) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>
 
   const days = data.days || {}
-  const dates = Object.keys(days).sort()
+  const today = etToday()
+  const dates = Object.keys(days).sort().filter((ds) => !fromToday || ds >= today)
   const rendered = dates
     .map((ds) => {
       const d = days[ds] || {}
       const bmo = [...(d.bmo || [])].filter((e) => e.sym).sort(byCap).slice(0, PER_SESSION)
       const amc = [...(d.amc || [])].filter((e) => e.sym).sort(byCap).slice(0, PER_SESSION)
-      return { ds, label: d.label || ds, is_today: d.is_today, bmo, amc }
+      return { ds, label: d.label || ds, is_today: d.is_today || ds === today, bmo, amc }
     })
     .filter((d) => d.bmo.length || d.amc.length)
+    .slice(0, maxDays)
 
   return (
     <div style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: "'Instrument Sans',-apple-system,'Segoe UI',sans-serif" }}>
       <div id="panel-export" style={{ width: w, background: '#0a0a0a', color: '#fff' }}>
         <div style={{ height: 44, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 18px', position: 'relative' }}>
-          <span style={{ color: '#e8e8e8', fontWeight: 800, fontSize: 15, letterSpacing: '0.6px' }}>THIS WEEK'S EARNINGS</span>
+          <span style={{ color: '#e8e8e8', fontWeight: 800, fontSize: 15, letterSpacing: '0.6px' }}>
+            {fromToday ? 'EARNINGS — THE SESSIONS AHEAD' : "THIS WEEK'S EARNINGS"}
+          </span>
           <span style={{ position: 'absolute', right: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
             <img src={uctLogo} alt="" style={{ height: 18, opacity: 0.95 }} />
             <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 12, letterSpacing: '0.6px' }}>UCT INTELLIGENCE</span>
