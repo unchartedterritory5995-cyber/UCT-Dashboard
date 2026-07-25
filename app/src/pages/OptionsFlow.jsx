@@ -2017,8 +2017,16 @@ function processFlowData(rows, erSoonSet) {
             return { ...rep, P: c.P, V: c.V, bullPrem: c.bullPrem, bearPrem: c.bearPrem, dirPrem, dispD: netD, maxOI: c.maxOI };
           })
           .filter(x => x !== null)
-          .sort((a, b) => b.dirPrem - a.dirPrem)
-          .slice(0, 10);
+          // 2026-07-24: rank CANDIDATES by total contract premium, not all-time
+          // directional premium. The old key decided table membership by how
+          // much directional flow a contract accumulated across the whole
+          // payload, which pushed out contracts whose size is recent or
+          // undirected — NBIS 8/7 $170P ($48.5M in one day, nearly all unsided)
+          // ranked on ~$624K and fell off the list. The window-aware top-10 is
+          // applied later in _tkTradesScoped; this wider cap only keeps enough
+          // candidates alive for that sort to choose from.
+          .sort((a, b) => (b.P || 0) - (a.P || 0))
+          .slice(0, 40);
       })(),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
@@ -8610,19 +8618,41 @@ export default function OptionsFlowDashboard() {
               const _scopedByContract = {};
               for (const _t of _tkScopedPrints) {
                 const _ck = _t.CP + "|" + _t.K + "|" + _t.E;
-                const _e = _scopedByContract[_ck] || (_scopedByContract[_ck] = { P: 0, V: 0 });
+                const _e = _scopedByContract[_ck] || (_scopedByContract[_ck] = { P: 0, V: 0, bull: 0, bear: 0 });
                 _e.P += _t.P; _e.V += _t.V;
+                if (_t.D === "BULL") _e.bull += _t.P;
+                else if (_t.D === "BEAR") _e.bear += _t.P;
               }
+              // 2026-07-24 (v2): override EVERY direction-derived field from the
+              // scoped prints, not just P/V. TT renders dirPrem when present
+              // (dispP = r.dirPrem != null ? r.dirPrem : r.P), so leaving it
+              // alone put an ALL-TIME directional figure next to a window-scoped
+              // Vol — NBIS 8/21 $200C read $13.6M against 282 contracts.
+              // dirPrem is nulled so Premium falls through to the window-scoped
+              // TOTAL premium (the size actually traded in range), and dispD is
+              // recomputed from scoped bull/bear with a minimum share so a
+              // contract that is almost entirely undirected reads "—" rather
+              // than claiming a side off a sliver of directional flow.
+              // The top-N slice happens HERE, after window sorting — tk.t's own
+              // slice ranks by all-time premium and cannot see the window.
+              const _DIR_SHARE_MIN = 0.20;
               const _tkTradesScoped = (tk && tk.t ? tk.t : [])
                 .map(_c => { const _w = _scopedByContract[_c.CP + "|" + _c.K + "|" + _c.E];
-                             return _w ? { ..._c, P: _w.P, V: _w.V } : null; })
+                             if (!_w) return null;
+                             const _tot = _w.P || 1;
+                             const _d = (_w.bull > _w.bear && _w.bull / _tot >= _DIR_SHARE_MIN) ? "BULL"
+                                      : (_w.bear > _w.bull && _w.bear / _tot >= _DIR_SHARE_MIN) ? "BEAR"
+                                      : null;
+                             return { ..._c, P: _w.P, V: _w.V, bullPrem: _w.bull, bearPrem: _w.bear,
+                                      dirPrem: null, dispD: _d }; })
                 .filter(Boolean)
-                .sort((_a, _b) => _b.P - _a.P);
+                .sort((_a, _b) => _b.P - _a.P)
+                .slice(0, 10);
               // All-time per-contract list (range-independent) for "Still open (all)"
               // mode: shows positions regardless of when they opened, so an older
               // still-open build (e.g. a Jan-2028 put opened months ago) still
               // appears; the Status column marks which are open. 2026-07-21.
-              const _tkTradesFull = (tk && tk.t ? tk.t.slice() : []).sort((_a, _b) => (_b.P||0) - (_a.P||0));
+              const _tkTradesFull = (tk && tk.t ? tk.t.slice() : []).sort((_a, _b) => (_b.P||0) - (_a.P||0)).slice(0, 10);
               const _rangeLabel = (dateFrom && dateTo) ? (dateFrom + "\u2013" + dateTo)
                 : dateFilter === "All" ? "all dates"
                 : (typeof dateFilter === "string" && dateFilter.startsWith("Last")) ? ("last " + dateFilter.slice(4) + " days")
