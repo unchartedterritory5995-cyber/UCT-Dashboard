@@ -808,7 +808,7 @@ def _events_to_csv(events: list, source: str, ticker_meta: dict = None,
     spot_map = spot_map or {}
     er_map = er_map or {}
     buf = StringIO()
-    buf.write(",".join(COLUMNS) + "\n")
+    buf.write(",".join(COLUMNS) + ",ts_ns\n")
     for i, evt in enumerate(events):
         meta = ticker_meta.get(evt.root, {})
         oi = oi_map.get(i, 0)
@@ -825,7 +825,7 @@ def _events_to_csv(events: list, source: str, ticker_meta: dict = None,
             er_flag=er_flag,
         )
         line = ",".join(str(row.get(c, "")) for c in COLUMNS)
-        buf.write(line + "\n")
+        buf.write(line + "," + str(getattr(evt, "first_ts_ns", "") or "") + "\n")
     return buf.getvalue()
 
 
