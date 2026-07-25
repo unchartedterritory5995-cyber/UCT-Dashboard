@@ -2026,7 +2026,7 @@ function processFlowData(rows, erSoonSet) {
           // applied later in _tkTradesScoped; this wider cap only keeps enough
           // candidates alive for that sort to choose from.
           .sort((a, b) => (b.P || 0) - (a.P || 0))
-          .slice(0, 40);
+          .slice(0, 10);
       })(),
       c:Object.values(tk.consMap).filter(c=>c.H>=2).map(c => {
         c.clean = c.dirs.size <= 1;
@@ -8618,34 +8618,40 @@ export default function OptionsFlowDashboard() {
               const _scopedByContract = {};
               for (const _t of _tkScopedPrints) {
                 const _ck = _t.CP + "|" + _t.K + "|" + _t.E;
-                const _e = _scopedByContract[_ck] || (_scopedByContract[_ck] = { P: 0, V: 0, bull: 0, bear: 0 });
+                const _e = _scopedByContract[_ck] || (_scopedByContract[_ck] = { P: 0, V: 0, bull: 0, bear: 0, maxOI: 0, rep: null });
                 _e.P += _t.P; _e.V += _t.V;
                 if (_t.D === "BULL") _e.bull += _t.P;
                 else if (_t.D === "BEAR") _e.bear += _t.P;
+                if ((_t.OI || 0) > _e.maxOI) _e.maxOI = _t.OI || 0;
+                if (!_e.rep || _t.P > _e.rep.P) _e.rep = _t;
               }
-              // 2026-07-24 (v2): override EVERY direction-derived field from the
-              // scoped prints, not just P/V. TT renders dirPrem when present
-              // (dispP = r.dirPrem != null ? r.dirPrem : r.P), so leaving it
-              // alone put an ALL-TIME directional figure next to a window-scoped
-              // Vol — NBIS 8/21 $200C read $13.6M against 282 contracts.
-              // dirPrem is nulled so Premium falls through to the window-scoped
-              // TOTAL premium (the size actually traded in range), and dispD is
-              // recomputed from scoped bull/bear with a minimum share so a
-              // contract that is almost entirely undirected reads "—" rather
-              // than claiming a side off a sliver of directional flow.
-              // The top-N slice happens HERE, after window sorting — tk.t's own
-              // slice ranks by all-time premium and cannot see the window.
+              // 2026-07-24 (v3): build the rows FROM THE WINDOW'S OWN PRINTS.
+              // v2 still mapped over tk.t, which is assembled and truncated
+              // inside processFlowData with no knowledge of the selected range —
+              // so membership was decided by all-time premium and Day/Entry/OI
+              // were carried from an all-time representative print. That is why
+              // a "LAST 1 DAYS" view listed rows dated 6/26 and 3/19, and why
+              // NBIS 7/31 $177.5P ($5.8M on 7/24) never appeared: more than
+              // forty NBIS contracts beat its $6.1M all-time total, so it never
+              // became a candidate however much traded today.
+              // Now every contract with in-window flow is a row, its display
+              // fields come from its biggest IN-WINDOW print, and Premium/Vol/OI
+              // are the window's own sums. dirPrem is nulled so TT's
+              // `dispP = r.dirPrem != null ? r.dirPrem : r.P` falls through to
+              // the scoped total, and dispD needs a real share of directional
+              // premium before it will claim a side.
               const _DIR_SHARE_MIN = 0.20;
-              const _tkTradesScoped = (tk && tk.t ? tk.t : [])
-                .map(_c => { const _w = _scopedByContract[_c.CP + "|" + _c.K + "|" + _c.E];
-                             if (!_w) return null;
-                             const _tot = _w.P || 1;
-                             const _d = (_w.bull > _w.bear && _w.bull / _tot >= _DIR_SHARE_MIN) ? "BULL"
-                                      : (_w.bear > _w.bull && _w.bear / _tot >= _DIR_SHARE_MIN) ? "BEAR"
-                                      : null;
-                             return { ..._c, P: _w.P, V: _w.V, bullPrem: _w.bull, bearPrem: _w.bear,
-                                      dirPrem: null, dispD: _d }; })
-                .filter(Boolean)
+              const _tkTradesScoped = Object.values(_scopedByContract)
+                .filter(_w => _w.rep)
+                .map(_w => {
+                  const _tot = _w.P || 1;
+                  const _d = (_w.bull > _w.bear && _w.bull / _tot >= _DIR_SHARE_MIN) ? "BULL"
+                           : (_w.bear > _w.bull && _w.bear / _tot >= _DIR_SHARE_MIN) ? "BEAR"
+                           : null;
+                  return { ..._w.rep, P: _w.P, V: _w.V, maxOI: _w.maxOI,
+                           bullPrem: _w.bull, bearPrem: _w.bear,
+                           dirPrem: null, dispD: _d };
+                })
                 .sort((_a, _b) => _b.P - _a.P)
                 .slice(0, 10);
               // All-time per-contract list (range-independent) for "Still open (all)"
