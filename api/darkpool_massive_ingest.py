@@ -373,13 +373,38 @@ def run_ingest(date_mdyyyy: Optional[str] = None,
 
 
 def scheduled_run() -> None:
-    """APScheduler entry point. No-op unless explicitly enabled."""
+    """APScheduler entry point. No-op unless explicitly enabled.
+
+    Routes through run_ingest_background() rather than calling run_ingest()
+    directly. A direct call left the shared _run_state untouched, which caused
+    two problems on the first live night (7/24):
+
+      * `last_result`/`last_error`/`finished_at` were never recorded, so the
+        summary reached ONLY the Railway log and the status endpoint returned
+        null — the morning check needed log access. Now the endpoint carries it.
+      * `running` was never set True, so the concurrency guard in
+        run_ingest_background only ever blocked manual-vs-manual overlaps; a
+        manual POST during the 19:20 window would collide with the nightly job
+        and double the REST load. Going through the wrapper closes that hole —
+        the guard now covers the nightly slot too.
+
+    The wrapper spawns a daemon thread and returns immediately, so the
+    scheduler worker is freed at once instead of being held for up to an hour;
+    run_ingest still logs its own one-line completion summary (see the
+    logger.info near the end of run_ingest), which is the grep target for a
+    log-based check.
+    """
     if not ENABLED:
         logger.info("[darkpool_ingest] disabled "
                     "(set DARKPOOL_MASSIVE_INGEST_ENABLED=1 to arm)")
         return
-    try:
-        summary = run_ingest()
-        logger.info("[darkpool_ingest] nightly run: %s", summary)
-    except Exception:
-        logger.exception("[darkpool_ingest] nightly run failed")
+    started = run_ingest_background()
+    if started.get("started"):
+        logger.info("[darkpool_ingest] nightly run started in background thread")
+    else:
+        # The only way start is refused is the concurrency guard: a manual run
+        # was already in flight at fire time. Skipping is correct (don't double
+        # the REST load) but must be visible, or the night silently ingests
+        # nothing while the endpoint shows the manual run's result.
+        logger.warning("[darkpool_ingest] nightly run SKIPPED — %s (state=%s)",
+                       started.get("reason"), started.get("state"))
