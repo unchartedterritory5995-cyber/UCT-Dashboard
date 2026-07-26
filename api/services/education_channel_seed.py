@@ -152,22 +152,8 @@ SEED_VIDEOS_CHANNEL: list[dict] = [
         "duration": '1:03:02',
         "sort_order": 0,
     },
-    {
-        "youtube_id": 'BMndiYMujQA',
-        "title": 'Uncharted Territory - AlexJonesIA',
-        "description": '',
-        "category": 'Options & Flow',
-        "duration": '0:57',
-        "sort_order": 1,
-    },
-    {
-        "youtube_id": 'KDZvB2NB0b4',
-        "title": 'Uncharted Territory - AlexJonesIA',
-        "description": '',
-        "category": 'Options & Flow',
-        "duration": '2:36',
-        "sort_order": 2,
-    },
+    # BMndiYMujQA + KDZvB2NB0b4 (AlexJonesIA 0:57 / 2:36 stubs) removed 2026-07-26:
+    # near-silent test recordings, owner-approved deletion — do not re-seed.
     {
         "youtube_id": '8s-VruwzmxE',
         "title": 'Chat w/ George Coyle',

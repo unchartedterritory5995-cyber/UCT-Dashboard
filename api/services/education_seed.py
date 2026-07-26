@@ -219,14 +219,8 @@ SEED_VIDEOS: list[dict] = [
         "duration": '38:53',
         "sort_order": 12,
     },
-    {
-        "youtube_id": 'rC4J8QA7hM0',
-        "title": 'Analyzing Market Breadth Change Using Multiple Time Frames to See the Whole Big Picture',
-        "description": 'Market showed signs of distribution and failed breakouts\nNvidia, QQQ, and SPY offered textbook short setups with flat-bottom breakdowns\nTrend lesson: how lower time frames flip first before higher ones confirm\nMost charts show similar bearish structure—focus is on short setups\nKey tactic: trail winners, avoid chasing, and align trades with broader trend',
-        "category": 'Market Analysis & Breadth',
-        "duration": '',
-        "sort_order": 13,
-    },
+    # rC4J8QA7hM0 ('Analyzing Market Breadth Change…') removed 2026-07-26: its
+    # YouTube upload is deleted (unplayable), owner-approved — do not re-seed.
     {
         "youtube_id": 'Rn1Z4dSy6Mk',
         "title": 'Trading During a Market Correction',
