@@ -71,16 +71,25 @@ async def massive_stream_sse(request: Request):
 def massive_stream_test(request: Request):
     """Push a synthetic 'ZZTEST' print through the live stream — proves the
     tailer→broadcast→SSE→browser path without needing live market flow. Gated by
-    PUSH_SECRET (Bearer header or ?token=). Harmless: fake ticker, huge synthetic
-    id so it never collides with a real row."""
+    PUSH_SECRET (Authorization: Bearer header ONLY). Harmless: fake ticker, huge
+    synthetic id so it never collides with a real row.
+
+    The ?token= form was removed 2026-07-26. PUSH_SECRET is not a narrow token —
+    flow_admin_auth._push_secret_ok treats it as unconditional admin for BOTH
+    require_flow_admin and require_flow_user, and it is the HMAC key for the whole
+    web->worker proxy vouch. Query strings are logged by Cloudflare and Railway and
+    leak through Referer headers, so a URL is the worst place to carry it. Nothing
+    called the query form."""
     import os
     import time as _t
 
     secret = os.environ.get("PUSH_SECRET", "")
     auth = request.headers.get("authorization", "")
-    token = request.query_params.get("token", "")
-    if not secret or (auth != f"Bearer {secret}" and token != secret):
-        return JSONResponse({"error": "unauthorized"}, status_code=403)
+    if not secret or auth != f"Bearer {secret}":
+        return JSONResponse(
+            {"error": "unauthorized", "detail": "Authorization: Bearer <PUSH_SECRET> required"},
+            status_code=403,
+        )
 
     now = _t.time()
     fake = {

@@ -42,6 +42,7 @@ from fastapi import APIRouter, Query, Request, HTTPException, Depends
 # already used by darkpool_router / dealer_positioning_router / flow_gap_autofill.
 from api.flow_admin_auth import require_flow_admin, require_flow_user
 from datetime import date, datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 import sqlite3
 import os
 import time
@@ -53,7 +54,12 @@ import logging
 router = APIRouter(prefix="/api/live/massive", tags=["live-flow-massive"])
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
-ET = timezone(timedelta(hours=-4))
+# DST-aware. This was a hard-coded timezone(timedelta(hours=-4)) — correct only
+# from March to November. Every winter it made the liveness badge read
+# "WORKER IDLE" on a healthy tape, shifted every printed timestamp an hour early,
+# and left "LAST HOUR" permanently empty. Matches main.py / daily_tracker /
+# deploy_log, which have always used ZoneInfo.
+ET = ZoneInfo("America/New_York")
 
 # Market session bounds, ET minutes-since-midnight. Also duplicated locally in
 # the restart-log endpoint (MARKET_OPEN_ET_HHMM); worth collapsing to these.
@@ -5473,8 +5479,8 @@ def _worker_history_impl(target_date, min_gap_minutes):
     # multi-hour downtime window at the tail. (Bug caught mid-session
     # 7/6/2026 when a legitimate ~80-minute downtime finding was
     # buried under a bogus 160-minute future-hours "gap".)
-    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
-    _now_et = _dt.now(_tz.utc) + _td(hours=-4)  # July DST
+    from datetime import datetime as _dt
+    _now_et = _dt.now(ET)   # DST-aware; a fixed -4 invented a ~60min gap all winter
     _today_str = f"{_now_et.month}/{_now_et.day}/{_now_et.year}"
     if today == _today_str:
         scan_end = min(MARKET_CLOSE, _now_et.hour * 60 + _now_et.minute)
@@ -5707,13 +5713,11 @@ def restart_log(
     # for the whole platform).
     try:
         m, d, y = today.split("/")
-        from datetime import datetime, timezone, timedelta
-        # ET is UTC-4 during DST (Mar-Nov), UTC-5 otherwise. July is DST.
-        et_offset = timedelta(hours=-4)  # US Eastern DST
-        day_start_et = datetime(int(y), int(m), int(d), 0, 0, 0)
-        day_end_et = datetime(int(y), int(m), int(d), 23, 59, 59)
-        day_start_ts = (day_start_et - et_offset).replace(tzinfo=timezone.utc).timestamp()
-        day_end_ts = (day_end_et - et_offset).replace(tzinfo=timezone.utc).timestamp()
+        from datetime import datetime
+        # ZoneInfo resolves the offset for THAT date, so this is right on both
+        # sides of the DST boundary (and on the transition days themselves).
+        day_start_ts = datetime(int(y), int(m), int(d), 0, 0, 0, tzinfo=ET).timestamp()
+        day_end_ts = datetime(int(y), int(m), int(d), 23, 59, 59, tzinfo=ET).timestamp()
     except Exception as e:
         raise HTTPException(status_code=400,
                             detail=f"bad target_date, expected M/D/YYYY: {e}")
@@ -5723,13 +5727,13 @@ def restart_log(
 
     def _to_et_hhmm(unix_ts: float) -> int:
         """Return minute-of-day in ET for a Unix timestamp (July DST)."""
-        from datetime import datetime, timezone, timedelta
-        dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc) + timedelta(hours=-4)
+        from datetime import datetime
+        dt = datetime.fromtimestamp(unix_ts, tz=ET)
         return dt.hour * 60 + dt.minute
 
     def _to_et_str(unix_ts: float) -> str:
-        from datetime import datetime, timezone, timedelta
-        dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc) + timedelta(hours=-4)
+        from datetime import datetime
+        dt = datetime.fromtimestamp(unix_ts, tz=ET)
         h = dt.hour
         ampm = "AM" if h < 12 else "PM"
         h12 = h if 1 <= h <= 12 else (h - 12 if h > 12 else 12)
