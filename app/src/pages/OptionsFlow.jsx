@@ -20,31 +20,11 @@ import {
   filterByCap,
 } from "./optionsFlow/flowCompute";  // moved out of this file 2026-07-25 — see that file
 import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded, computeCsv } from "./optionsFlow/flowWorkerClient";
-import "./OptionsFlow.mobile.css";
-
-// ─── FD-in-worker rollout ───────────────────────────────────────────────────
-// `FD` (the Stocks/Indexes + cap-band charts) rebuilds on the MAIN THREAD on
-// every data change and every cap click. Measured in production: a cap chip does
-// no fetch and no worker call yet blocks the UI thread for 989ms. The worker can
-// build those charts instead — but its Stocks-vs-Indexes split has to match the
-// page's exactly, and the page's isETF() closes over a FETCHED remoteETFSet. If
-// they diverge the Stocks tab silently includes ETFs or drops real stocks, which
-// is worse than being slow.
-//
-//   'off'    — main thread only (current behaviour, the default)
-//   'verify' — ask the worker too, compare, log any mismatch, STILL RENDER the
-//              main-thread result. Proves equivalence at zero risk.
-//   'on'     — render the worker's charts; skips the main-thread rebuild.
-//
-// Override per browser without a deploy:
-//   localStorage.setItem('uct.fdWorker','verify')   // or 'on' / 'off'
-const FD_WORKER_MODE = (() => {
-  try {
-    const o = localStorage.getItem("uct.fdWorker");
-    if (o === "off" || o === "verify" || o === "on") return o;
-  } catch { /* private mode */ }
-  return "off";
-})();  // phone layer — rides on .of-mroot, @media ≤640 only
+// View-layer decisions live in a module because THIS file is edited through the
+// GitHub web UI and stale-tab saves have reverted shipped work four times.
+// A clobber that drops these call sites also drops this import -> CI fails.
+import { flowBaseFor, gexPayloadDte, gexDteLabel, applyStillOpenOverlay, capNoticeFor } from "./optionsFlow/flowViewPolicy";
+import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
 // Mirror of the logic in DarkPool.jsx so the chart modal can fetch + filter
@@ -670,6 +650,8 @@ export default function OptionsFlowDashboard() {
   const [gexData, setGexData] = useState(null);
   const [gexLoading, setGexLoading] = useState(false);
   const [gexDte, setGexDte] = useState("all");
+  // Monotonic id so a slow earlier GEX reply can never overwrite a newer one.
+  const _gexReq = useRef(0);
   const [gexAdjusted, setGexAdjusted] = useState(false); // false = naive OI GEX, true = trade-aware (dealer_positioning est_dealer_net)
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
@@ -896,7 +878,15 @@ export default function OptionsFlowDashboard() {
   // share of history: 7/16 showed 511 trades of 128,525 actually in flow.db.
   // With date_from/date_to the server scopes the query and caps on the RANGE's
   // own length, so a one-day pick streams that day whole.
-  const _base = dataMode === "index" ? "/api/flow/indexes-data" : "/api/flow/data";
+  // GEX and Dark Pool have their own endpoints and never read the flow CSV, but
+  // `_base` used to fall through to the STOCKS url for any mode that was not
+  // "index" -- so entering GEX/Dark Pool from Indexes changed csvFile and fired
+  // a full ~12.4MB stocks download the user can never see, evicting the index
+  // dataset the worker held. Pinning to the last real FLOW mode keeps csvFile
+  // stable across the excursion. See flowViewPolicy.flowBaseFor.
+  const _lastFlowMode = useRef("stocks");
+  if (dataMode === "stocks" || dataMode === "index") _lastFlowMode.current = dataMode;
+  const { base: _base, effective: _flowMode } = flowBaseFor(dataMode, _lastFlowMode.current);
   const csvFile = (dateFrom && dateTo)
     ? `${_base}?date_from=${dateFrom}&date_to=${dateTo}`
     : (fetchDays === 0 ? `${_base}?all_data=true` : `${_base}?days=${fetchDays}`);
@@ -999,11 +989,6 @@ export default function OptionsFlowDashboard() {
   const _processedOnce = useRef(false);
   // One-shot: a lost worker triggers exactly one silent re-fetch, never a loop.
   const _workerReloaded = useRef(false);
-  // Charts the worker built for a specific (dataMode, capFilter). Kept in refs,
-  // not state: they always arrive WITH the D they belong to, so storing them
-  // separately would risk rendering one against the other.
-  const _workerTabCharts = useRef(null);
-  const _workerTabFor = useRef(null);
   useEffect(() => {
     if (!rowCount) return;
     // Skip processing if a fetch is in-flight that will replace parsedRows.
@@ -1019,10 +1004,9 @@ export default function OptionsFlowDashboard() {
       const res = await processFlow(
         { dateFilter, dateFrom, dateTo },
         erSoonArr,
-        FD_WORKER_MODE === "off" ? undefined : {
-          dataMode, capFilter,
-          etfExtra: remoteETFSet ? [...remoteETFSet] : null,
-        },
+        undefined,   // tabCharts opts — the worker chart-rebuild experiment was
+                     // removed after an A/B showed no difference (the 989ms it
+                     // targeted was a hidden-tab timer artifact, not real work).
         // WHICH dataset these numbers must come from. The worker holds exactly
         // one; without this it would aggregate whatever it still has — e.g. the
         // stocks feed rendered under the INDEX header while the index CSV is
@@ -1051,8 +1035,6 @@ export default function OptionsFlowDashboard() {
       const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
       console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${res.filteredCount} rows${res.usedWorker ? ", worker" : ", MAIN THREAD"})`);
       _processedOnce.current = true;
-      _workerTabCharts.current = res.tabCharts || null;
-      _workerTabFor.current = res.tabCharts ? `${dataMode}|${capFilter}` : null;
       setD(res.D);
     };
 
@@ -1279,13 +1261,6 @@ export default function OptionsFlowDashboard() {
     const needsTabFilter = dataMode === "stocks" || dataMode === "index";
     if (capFilter === "All" && !needsTabFilter) return D;
 
-    // The worker may have already built exactly these charts. Only trust them
-    // when they were built for THIS (dataMode, capFilter) and arrived with this
-    // very D — see _workerTabCharts.
-    const fresh = _workerTabFor.current === `${dataMode}|${capFilter}`
-      ? _workerTabCharts.current : null;
-    if (FD_WORKER_MODE === "on" && fresh) return { ...D, ...fresh };
-
     let cc = D.clean_confirmed;
     if (needsTabFilter) {
       cc = cc.filter(t => {
@@ -1295,22 +1270,6 @@ export default function OptionsFlowDashboard() {
     }
     if (capFilter !== "All") cc = filterByCap(cc, capFilter);
     const charts = buildCharts(cc);
-
-    if (FD_WORKER_MODE === "verify" && fresh) {
-      // Compare, then render the MAIN-THREAD result regardless. A divergence here
-      // would mean the worker's Stocks/Indexes split disagrees with the page's —
-      // the silent-wrong-data case this whole flag exists to rule out.
-      try {
-        const a = JSON.stringify(charts), b = JSON.stringify(fresh);
-        if (a === b) {
-          console.log(`[fd-verify] MATCH ${dataMode}/${capFilter} — ${cc.length} trades, worker charts identical`);
-        } else {
-          const keys = [...new Set([...Object.keys(charts), ...Object.keys(fresh)])];
-          const bad = keys.filter(k => JSON.stringify(charts[k]) !== JSON.stringify(fresh[k]));
-          console.error(`[fd-verify] MISMATCH ${dataMode}/${capFilter} — differing keys:`, bad);
-        }
-      } catch (e) { console.error("[fd-verify] compare threw", e); }
-    }
     return { ...D, ...charts };
   }, [D, capFilter, dataMode, isETF]);
 
@@ -2654,8 +2613,30 @@ export default function OptionsFlowDashboard() {
   }
 
   // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
+  // The loading state used to be a bare centered spinner, which WIPED the mode
+  // tabs for the whole load — on a cold multi-day range the user was stranded
+  // with no way to switch to GEX/Dark Pool (which don't even need this data) or
+  // step back to 1d. The error state below always kept its tabs; this one should
+  // too. Same tab bar, same handler, so the page never becomes a dead end.
   if (csvLoading && !D) return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
+    <div style={{background:"#06090f",minHeight:"100vh",fontFamily:"'JetBrains Mono',monospace",paddingTop:24}}>
+      <div className="of-tabs" style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:60 }}>
+        {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
+          <button key={m} onClick={()=>{
+            if (m === "liveflow") { window.open("/live-massive", "_blank", "noopener,noreferrer"); return; }
+            if(dataMode!==m) {
+              const wasFlow = dataMode === "stocks" || dataMode === "index";
+              const toFlow = m === "stocks" || m === "index";
+              if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setRowCount(0); setAvailableDates([]); setLoadedFetchDays(null); }
+              setDataMode(m);
+            }
+          }} style={{
+            padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
+            fontSize:14, fontWeight:800, fontFamily:"inherit",
+            background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
+          }}>{label}</button>
+        ))}
+      </div>
       <div style={{textAlign:"center"}}>
         <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Loading flow data...</div>
@@ -3003,20 +2984,34 @@ export default function OptionsFlowDashboard() {
 
   async function fetchGex(ticker, dte, adjusted=false) {
     if (!ticker) return;
+    // Out-of-order guard. Clicking 0DTE then Month can resolve Month FIRST if
+    // 0DTE is slower, and the later reply then overwrites the newer data -- the
+    // panel would show one expiry's gamma walls labelled as another, and those
+    // are levels people set stops against. Only the newest request may publish.
+    const myReq = ++_gexReq.current;
     setGexLoading(true);
     try {
       const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}&adjusted=${adjusted?"true":"false"}`);
+      if (myReq !== _gexReq.current) return;          // superseded -- drop it
       if (resp.ok) {
         const data = await resp.json();
+        if (myReq !== _gexReq.current) return;
         data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
+        // Stamp what this payload IS, so the panel labels it from the response
+        // rather than from live UI state. (The API echoes `dteFilter`, but that
+        // comes back null on an empty result -- e.g. no 0DTE contracts on a
+        // weekend -- so the request params are the reliable source.)
+        data._reqDte = dte;
+        data._reqTicker = ticker;
         setGexData(data);
       } else {
-        setGexData({ error: `API error: ${resp.status}` });
+        setGexData({ error: `API error: ${resp.status}`, _reqDte: dte, _reqTicker: ticker });
       }
     } catch(e) {
-      setGexData({ error: e.message });
+      if (myReq !== _gexReq.current) return;
+      setGexData({ error: e.message, _reqDte: dte, _reqTicker: ticker });
     }
-    setGexLoading(false);
+    if (myReq === _gexReq.current) setGexLoading(false);
   }
 
   async function fetchIdeaGex(sym) {
@@ -3248,6 +3243,28 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
+        {/* Cap disclosure. Production runs FLOW_CSV_CAP_DAYS=2, so days>=2 all
+            return the top FLOW_CSV_CAP_ROWS (50,000) trades BY PREMIUM — a "90d"
+            view is not more data than a "2d" view, it is the same budget spread
+            thinner, missing the small-premium tail. The UI never said so, and a
+            trader reading "20d" reasonably believes they are seeing 20 days of
+            flow. This changes nothing about what is served; it just stops the
+            page implying completeness it does not have. See
+            flowViewPolicy.capNoticeFor. */}
+        {dataMode !== "gex" && dataMode !== "darkpool" && (()=>{
+          const notice = capNoticeFor({ fetchDays: loadedFetchDays, dateFrom, dateTo, rowCount });
+          if (!notice) return null;
+          return (
+            <div style={{ display:"flex", justifyContent:"center", marginTop:-4, marginBottom:10 }}>
+              <span title={notice.title}
+                    style={{ fontSize:9, color:P.dm, letterSpacing:0.3, cursor:"help",
+                             borderBottom:"1px dotted "+P.bd, paddingBottom:1 }}>
+                showing {notice.text} · 1d is uncapped
+              </span>
+            </div>
+          );
+        })()}
+
         {dataMode==="gex" && (()=>{
           const fmtGex = v => {
             if (v === null || v === undefined || isNaN(v)) return "—";
@@ -3475,7 +3492,11 @@ export default function OptionsFlowDashboard() {
                   if (!sp || !cw || !pw) return null;
                   const cwStrike = cw.strike, pwStrike = pw.strike, cwGex = cw.gex, pwGex = Math.abs(pw.gex);
                   const SG = "#0a8f55", SR = "#c43030"; // darker bar fills for summary
-                  const isIntraday = gexDte === "0dte" || gexDte === "1dte";
+                  // Key off the payload, not live UI state -- otherwise the
+                  // "today"/"this week" wording can describe data it did not
+                  // come from.
+                  const _dDte = gexPayloadDte(gexData, gexDte);
+                  const isIntraday = _dDte === "0dte" || _dDte === "1dte";
                   const timeframe = isIntraday ? "today" : "this week";
 
                   // Net delta tracking — store all readings for daily trend sparkline
@@ -3893,7 +3914,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                       <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
-                      <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
+                      <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDteLabel(gexPayloadDte(gexData, gexDte))}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     {gexData.adjusted && (()=>{
                       const cov=Math.round((gexData.coveragePct||0)*100), conf=Math.round((gexData.avgConfidence||0)*100), days=gexData.attributionDays||0;
@@ -5458,6 +5479,11 @@ export default function OptionsFlowDashboard() {
 
         {/* Leaderboard */}
         {tab==="Leaderboard" && FD && (()=>{
+          // Still-open overlay state, shared with the toggle render further down.
+          // _lbOpenApplied stays false when NOTHING could be priced, so the board
+          // keeps its raw figures instead of rendering empty with no explanation.
+          let _lbOpenApplied = false;
+          let _lbOpenCoverage = { priced: 0, total: 0 };
           // Use all_directional (not clean_confirmed) so Bull/Bear totals match
           // the Search tab. clean_confirmed is the strict methodology — only
           // YELLOW/MAGENTA confirmed clusters — which excludes "dirty-dominant"
@@ -5628,21 +5654,22 @@ export default function OptionsFlowDashboard() {
           // raw is broken. Off (or before OI fetch) → untouched, identical to
           // today.
           if (lbStillOpenOnly) {
-            Object.values(tkMap).forEach(tk => {
-              const so = computeStillOpen(tk._trades);
-              tk._bullRaw = tk.bull; tk._bearRaw = tk.bear;
-              tk._stillOpenComputable = so.computable;
-              tk.bull = Math.round(so.bullOpen);
-              tk.bear = Math.round(so.bearOpen);
-              const _tot = tk.bull + tk.bear;
-              tk.bullPct = _tot > 0 ? Math.round(tk.bull / _tot * 100) : 50;
-            });
+            // computeStillOpen contributes 0 for any contract with no live quote,
+            // so applying it blindly UNDERSTATED premium -- and the board is then
+            // re-sorted and Bull% recomputed off those understated figures, making
+            // a ticker's RANK a function of quote coverage rather than of its flow.
+            // applyStillOpenOverlay overlays only computable tickers, and returns
+            // applied:false when NOTHING is priced so the raw board stands instead
+            // of rendering empty. See flowViewPolicy.applyStillOpenOverlay.
+            const _ov = applyStillOpenOverlay(Object.values(tkMap), computeStillOpen);
+            _lbOpenApplied = _ov.applied;
+            _lbOpenCoverage = { priced: _ov.priced, total: _ov.total };
           }
           let allTickers = Object.values(tkMap);
           // When still-open is on, drop tickers with zero still-open flow (their
           // positions all closed, or no live OI to confirm) — the leaderboard
           // should show what's ACTUALLY still open, not stale closed flow.
-          if (lbStillOpenOnly) allTickers = allTickers.filter(t => (t.bull + t.bear) > 0);
+          if (lbStillOpenOnly && _lbOpenApplied) allTickers = allTickers.filter(t => (t.bull + t.bear) > 0);
           // Conviction % filter
           if (cPct === "90bull") allTickers = allTickers.filter(t => t.bullPct >= 90);
           else if (cPct === "80bull") allTickers = allTickers.filter(t => t.bullPct >= 80);
@@ -5964,6 +5991,22 @@ export default function OptionsFlowDashboard() {
                             </button>
                           );
                         })()}
+                        {/* Coverage. computeStillOpen can only confirm contracts with
+                            a live quote, so without this the trader cannot tell
+                            "this position closed out" from "we never priced it". */}
+                        {lbStillOpenOnly && (
+                          _lbOpenApplied ? (
+                            <div style={{ fontSize:9, color:P.dm }}
+                                 title="Still-open premium can only be confirmed for contracts with live OI. Tickers without it are excluded from this ranking rather than ranked on raw premium.">
+                              {_lbOpenCoverage.priced}/{_lbOpenCoverage.total} tickers have live OI
+                            </div>
+                          ) : (
+                            <div style={{ fontSize:9, color:P.ye, fontWeight:700 }}
+                                 title="No contract on this board has live OI yet, so still-open premium cannot be computed. Showing raw premium instead of an empty board.">
+                              ⚠ no live OI for these tickers — showing raw
+                            </div>
+                          )
+                        )}
                         <div style={{ fontSize: 9, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
                       </div>
                     </div>
