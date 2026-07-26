@@ -414,40 +414,60 @@ def list_category_meta() -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def upsert_category(name: str, kind: str | None = None,
-                    sort_order: Optional[int] = None,
-                    blurb: Optional[str] = None) -> dict:
-    """Create or update a category meta row. On create, missing sort_order
-    appends at the tail of its kind. On update, only non-None fields change."""
+def _validate_category_input(name: str, kind: str | None) -> str:
+    """Shared validation for a category upsert: non-empty name, kind (if given)
+    is one of _CATEGORY_KINDS. Returns the trimmed name. Raises ValueError."""
     nm = (name or "").strip()
     if not nm:
         raise ValueError("category name required")
     if kind is not None and kind not in _CATEGORY_KINDS:
         raise ValueError(f"kind must be one of {_CATEGORY_KINDS}")
+    return nm
+
+
+def _upsert_category_conn(c: sqlite3.Connection, name: str, kind: str | None = None,
+                          sort_order: Optional[int] = None,
+                          blurb: Optional[str] = None) -> dict:
+    """Create-or-update a category meta row on a CALLER-OWNED connection/
+    transaction. No locking, no commit — the caller holds _WRITE_LOCK (if
+    needed) and commits. Same semantics as upsert_category(); factored out so
+    bulk_apply_taxonomy can upsert N categories inside its own single
+    transaction without re-entering _WRITE_LOCK (NOT reentrant)."""
+    nm = _validate_category_input(name, kind)
+    row = c.execute("SELECT * FROM edu_categories WHERE name = ?", (nm,)).fetchone()
+    if row is None:
+        k = kind or "library"
+        if sort_order is None:
+            mx = c.execute(
+                "SELECT COALESCE(MAX(sort_order), -1) AS m FROM edu_categories WHERE kind = ?",
+                (k,)).fetchone()["m"]
+            sort_order = int(mx) + 1
+        c.execute(
+            "INSERT INTO edu_categories (name, kind, sort_order, blurb, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (nm, k, int(sort_order), blurb, int(time.time())))
+    else:
+        sets, vals = [], []
+        for col, val in (("kind", kind), ("sort_order", sort_order), ("blurb", blurb)):
+            if val is not None:
+                sets.append(f"{col} = ?"); vals.append(val)
+        if sets:
+            c.execute(f"UPDATE edu_categories SET {', '.join(sets)} WHERE name = ?",
+                      (*vals, nm))
+    return dict(c.execute("SELECT name, kind, sort_order, blurb FROM edu_categories "
+                          "WHERE name = ?", (nm,)).fetchone())
+
+
+def upsert_category(name: str, kind: str | None = None,
+                    sort_order: Optional[int] = None,
+                    blurb: Optional[str] = None) -> dict:
+    """Create or update a category meta row. On create, missing sort_order
+    appends at the tail of its kind. On update, only non-None fields change."""
+    _validate_category_input(name, kind)
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
-        row = c.execute("SELECT * FROM edu_categories WHERE name = ?", (nm,)).fetchone()
-        if row is None:
-            k = kind or "library"
-            if sort_order is None:
-                mx = c.execute(
-                    "SELECT COALESCE(MAX(sort_order), -1) AS m FROM edu_categories WHERE kind = ?",
-                    (k,)).fetchone()["m"]
-                sort_order = int(mx) + 1
-            c.execute(
-                "INSERT INTO edu_categories (name, kind, sort_order, blurb, created_at) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (nm, k, int(sort_order), blurb, int(time.time())))
-        else:
-            sets, vals = [], []
-            for col, val in (("kind", kind), ("sort_order", sort_order), ("blurb", blurb)):
-                if val is not None:
-                    sets.append(f"{col} = ?"); vals.append(val)
-            if sets:
-                c.execute(f"UPDATE edu_categories SET {', '.join(sets)} WHERE name = ?",
-                          (*vals, nm))
+        result = _upsert_category_conn(c, name, kind=kind, sort_order=sort_order, blurb=blurb)
         c.commit()
-        return dict(c.execute("SELECT name, kind, sort_order, blurb FROM edu_categories "
-                              "WHERE name = ?", (nm,)).fetchone())
+        return result
 
 
 def rename_category(old: str, new: str) -> int:
@@ -482,13 +502,23 @@ def set_video_tags(video_id: int, tags: list[str]) -> None:
 
 def bulk_apply_taxonomy(categories: list[dict], assignments: list[dict]) -> dict:
     """One-shot taxonomy apply (PUSH_SECRET rail). Upserts category meta, then
-    sets category+tags per video id. Missing ids are reported, not fatal."""
-    for cat in categories or []:
-        upsert_category(cat["name"], kind=cat.get("kind"),
-                        sort_order=cat.get("sort_order"), blurb=cat.get("blurb"))
+    sets category+tags per video id — ALL of it in ONE transaction under ONE
+    _WRITE_LOCK acquisition, so a bad category (or any other failure) leaves
+    the DB completely unchanged rather than partially applied. Every category
+    name/kind is validated BEFORE any connection is opened, so a bad row later
+    in the list can't let earlier rows land first. Missing video ids are
+    reported, not fatal (they don't roll back the transaction — only a raised
+    exception does, via the implicit rollback-on-close of an uncommitted
+    sqlite3 transaction)."""
+    cats = categories or []
+    for cat in cats:
+        _validate_category_input(cat.get("name"), cat.get("kind"))
     applied, missing = 0, []
     now = int(time.time())
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        for cat in cats:
+            _upsert_category_conn(c, cat["name"], kind=cat.get("kind"),
+                                  sort_order=cat.get("sort_order"), blurb=cat.get("blurb"))
         for a in assignments or []:
             vid = int(a["id"])
             tags = _json.dumps([str(t).strip() for t in (a.get("tags") or []) if str(t).strip()])
@@ -500,7 +530,7 @@ def bulk_apply_taxonomy(categories: list[dict], assignments: list[dict]) -> dict
             else:
                 applied += 1
         c.commit()
-    return {"categories": len(categories or []), "videos": applied, "missing_ids": missing}
+    return {"categories": len(cats), "videos": applied, "missing_ids": missing}
 
 
 def grouped_videos_payload() -> dict:

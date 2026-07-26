@@ -91,3 +91,18 @@ def test_bulk_apply_taxonomy_transactional(svc):
     assert res["videos"] == 2 and res["missing_ids"] == [99999]
     assert svc.get_video(v1["id"])["category"] == "Setups & Strategies"
     assert json.loads(svc.get_video(v1["id"])["tags"]) == ["vcp"]
+
+
+def test_bulk_apply_taxonomy_rolls_back_whole_batch_on_bad_category(svc):
+    v3 = _add(svc, "C", "General", yt="bulkC")
+    with pytest.raises(ValueError):
+        svc.bulk_apply_taxonomy(
+            categories=[{"name": "Good Cat", "kind": "show", "sort_order": 0},
+                        {"name": "Bad Cat", "kind": "bogus"}],
+            assignments=[{"id": v3["id"], "category": "Good Cat", "tags": ["x"]}],
+        )
+    # Nothing landed: neither category row was created (not even the valid one
+    # that appeared first in the list) and the video's category/tags are untouched.
+    assert {m["name"] for m in svc.list_category_meta()} == set()
+    assert svc.get_video(v3["id"])["category"] == "General"
+    assert svc.get_video(v3["id"])["tags"] is None
