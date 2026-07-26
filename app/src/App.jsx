@@ -75,6 +75,7 @@ const ThemesRender = lazy(() => import('./pages/ThemesRender'))
 const BookRender = lazy(() => import('./pages/BookRender'))
 const EconRender = lazy(() => import('./pages/EconRender'))
 const EarnCardsRender = lazy(() => import('./pages/EarnCardsRender'))
+const MoversRender = lazy(() => import('./pages/MoversRender'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
 const Patterns = lazy(() => import('./pages/Patterns'))
 const CatalystsHistory = lazy(() => import('./pages/CatalystsHistory'))
@@ -166,7 +167,7 @@ export default function App() {
         {/* Cinematic intro overlay — plays on page load for the APP, but never
             on public marketing routes: a cold visitor clicking through to the
             landing page must see it immediately, not a 9-second brand film. */}
-        {!['/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy', '/r/chart', '/r/catalysts', '/r/calendar', '/r/internals', '/r/tweets', '/r/flow', '/r/breadth', '/r/themes', '/r/book', '/r/econ', '/r/earncards'].includes(window.location.pathname) && (
+        {!['/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy', '/r/chart', '/r/catalysts', '/r/calendar', '/r/internals', '/r/tweets', '/r/flow', '/r/breadth', '/r/themes', '/r/book', '/r/econ', '/r/earncards', '/r/movers'].includes(window.location.pathname) && (
           <IntroAnimation />
         )}
         {/* Global right-click → "+ Add to Portfolio" on every StockChart.
@@ -223,6 +224,7 @@ export default function App() {
             <Route path="/r/book" element={<BookRender />} />
             <Route path="/r/econ" element={<EconRender />} />
             <Route path="/r/earncards" element={<EarnCardsRender />} />
+            <Route path="/r/movers" element={<MoversRender />} />
 
             {/* Protected routes — require authentication */}
             <Route element={<AuthGuard />}>
