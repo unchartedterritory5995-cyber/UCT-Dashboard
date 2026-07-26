@@ -15,9 +15,11 @@ import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import { LEARNING_PATHS } from './learningPaths'
 import DeskHero from './DeskHero'
-import ShowRail from './ShowRail'
+import ShowRail, { CardImage } from './ShowRail'
 import LibraryGrid from './LibraryGrid'
+import UIcon from '../../components/ui/UIcon'
 import styles from '../EducationalVideos.module.css'
+import s from './VideosSection.module.css'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -145,25 +147,33 @@ export default function VideosSection() {
   const landing = !query.trim() && !activeCat
 
   // "Continue watching" renders in both modes (landing: right under the hero).
+  // Same bordered-card vocabulary as the show rails so the landing reads as one
+  // system — narrower cards + gold resume line mark it as the resume shelf.
   const continueBlock = !isLoading && continueWatching.length > 0 && (
-    <div className={styles.continueRow}>
-      <div className={styles.continueHead}>Continue watching</div>
-      <div className={styles.upNextRail}>
+    <div className={s.continueSection}>
+      <span className={s.stripHead}>
+        <UIcon name="clock" size={13} />
+        Continue watching
+      </span>
+      <div className={s.rail} role="list" aria-label="Continue watching">
         {continueWatching.map((cw) => (
-          <button
-            key={cw.video.youtube_id}
-            className={styles.upNextItem}
-            onClick={() => playVideo(cw.list, cw.index)}
-          >
-            <span className={styles.upNextThumbWrap}>
-              <img className={styles.upNextThumb} src={thumb(cw.video.youtube_id)} alt="" loading="lazy" />
-              <span className={styles.upNextPlay} aria-hidden="true"><PlayIcon /></span>
-              <span className={styles.progressBar}>
-                <span className={styles.progressFill} style={{ width: `${cw.pct}%` }} />
+          <div role="listitem" key={cw.video.youtube_id} className={`${s.railItem} ${s.continueItem}`}>
+            <button
+              className={s.railCard}
+              onClick={() => playVideo(cw.list, cw.index)}
+              aria-label={`Resume ${cw.video.title}`}
+            >
+              <span className={s.railThumbWrap}>
+                <CardImage video={cw.video} />
+                {cw.video.duration && <span className={s.railDuration}>{cw.video.duration}</span>}
+                <span className={s.railProgress}>
+                  <span className={s.railProgressFill} style={{ width: `${cw.pct}%` }} />
+                </span>
               </span>
-            </span>
-            <span className={styles.upNextTitle}>{cw.video.title}</span>
-          </button>
+              <span className={s.railTitle}>{cw.video.title}</span>
+              <span className={s.resumeNote}>{cw.pct > 0 ? `Resume · ${cw.pct}% watched` : 'Resume'}</span>
+            </button>
+          </div>
         ))}
       </div>
     </div>
@@ -287,19 +297,22 @@ export default function VideosSection() {
           )}
 
           {paths.length > 0 && (
-            <div className={styles.pathsRow}>
-              <div className={styles.continueHead}>Learning paths</div>
-              <div className={styles.pathsGrid}>
+            <div className={s.pathsSection}>
+              <span className={s.stripHead}>
+                <UIcon name="compass" size={13} />
+                Learning paths
+              </span>
+              <div className={s.pathsGrid}>
                 {paths.map((p) => (
                   <button
                     key={p.id}
-                    className={styles.pathCard}
+                    className={s.pathCard}
                     onClick={() => playVideo(p.videos, 0)}
                   >
-                    <div className={styles.pathName}>{p.name}</div>
-                    <div className={styles.pathBlurb}>{p.blurb}</div>
-                    <div className={styles.pathMeta}>
-                      <span className={styles.pathPlay} aria-hidden="true"><PlayIcon /></span>
+                    <div className={s.pathName}>{p.name}</div>
+                    <div className={s.pathBlurb}>{p.blurb}</div>
+                    <div className={s.pathMeta}>
+                      <UIcon name="play" size={14} />
                       Start path · {p.videos.length} videos
                     </div>
                   </button>

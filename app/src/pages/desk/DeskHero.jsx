@@ -19,16 +19,30 @@ const fmtDate = (epoch) => {
   }
 }
 
-// Poster-first backdrop: /poster 404s until generated → fall back to the
-// YouTube thumb. Eager (not lazy) — it's the above-the-fold image.
+// Poster-first backdrop with a sharpness ladder: branded /poster (404s until
+// generated) → YouTube maxresdefault (1280×720 — hqdefault upscaled across the
+// full-width band is visibly soft) → hqdefault. maxresdefault is the classic
+// YouTube trap: when a video has none it 200s with a 120×90 grey placeholder,
+// so the fallback advances on onError OR a tiny naturalWidth. Eager (not
+// lazy) — it's the above-the-fold image. Keyed by video.id in DeskHero so the
+// ladder resets when the flagship episode changes.
 function HeroImage({ video }) {
-  const [src, setSrc] = useState(`/api/education/videos/${video.id}/poster`)
+  const [stage, setStage] = useState(0)
+  const sources = [
+    `/api/education/videos/${video.id}/poster`,
+    `https://i.ytimg.com/vi/${video.youtube_id}/maxresdefault.jpg`,
+    `https://i.ytimg.com/vi/${video.youtube_id}/hqdefault.jpg`,
+  ]
+  const advance = () => setStage((n) => Math.min(n + 1, sources.length - 1))
   return (
     <img
       className={s.heroMedia}
-      src={src}
+      src={sources[stage]}
       alt=""
-      onError={() => setSrc(`https://i.ytimg.com/vi/${video.youtube_id}/hqdefault.jpg`)}
+      onError={advance}
+      onLoad={(e) => {
+        if (stage === 1 && e.currentTarget.naturalWidth <= 120) advance()
+      }}
     />
   )
 }
@@ -42,7 +56,7 @@ export default function DeskHero({ video, list, index, onPlay, progress, showNam
 
   return (
     <section className={s.hero} aria-label={`Latest episode: ${video.title}`}>
-      <HeroImage video={video} />
+      <HeroImage key={video.id} video={video} />
       <div className={s.heroScrim} aria-hidden="true" />
       <div className={s.heroContent}>
         <span className={s.heroEyebrow}>

@@ -114,6 +114,19 @@
   gap: 8px;
   margin: 0 0 var(--space-xl);
 }
+/* Phone: 13 categories wrap into ~8 rows and bury the landing hero — collapse
+   to a single row scrolling inside its own box (same pattern as the library
+   tag row; the page never scrolls horizontally). */
+@media (max-width: 640px) {
+  .catBar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .catChip { white-space: nowrap; flex-shrink: 0; }
+}
 .catChip {
   display: inline-flex;
   align-items: center;
@@ -247,6 +260,19 @@
 }
 .adminLink { color: var(--ut-gold); }
 .adminLinkDanger { color: var(--loss); }
+/* Touch: the text-link Edit/Delete admin affordances are far under the 44px
+   tap minimum (22×15) — give them a real hit area on coarse-pointer widths.
+   Admin-only, so the visual cost is nil for members. */
+@media (max-width: 1024px) {
+  .adminLink, .adminLinkDanger {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cardAdmin { padding-bottom: var(--space-sm); }
+}
 
 /* ── Player ── */
 .playerWrap { padding: var(--space-md); }

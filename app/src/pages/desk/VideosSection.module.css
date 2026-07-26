@@ -26,7 +26,11 @@
 .heroScrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(14, 15, 13, 0.92), rgba(14, 15, 13, 0.25));
+  /* Two layers: a left ink band under the copy + a bottom anchor so the title,
+     date, and CTA stay legible over bright chart-heavy posters. */
+  background:
+    linear-gradient(0deg, rgba(14, 15, 13, 0.82) 0%, rgba(14, 15, 13, 0) 55%),
+    linear-gradient(90deg, rgba(14, 15, 13, 0.94) 0%, rgba(14, 15, 13, 0.55) 46%, rgba(14, 15, 13, 0.12) 100%);
 }
 .heroContent {
   position: relative;
@@ -51,6 +55,11 @@
   line-height: 1.25;
   letter-spacing: var(--ls-tight);
   color: var(--text-heading);
+  /* Long AI recap headlines: cap at two lines instead of growing the band. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .heroDate {
   font-size: var(--text-sm);
@@ -325,6 +334,82 @@
     padding-bottom: 4px;
     scrollbar-width: thin;
   }
+}
+
+/* ── Continue watching + Learning paths — restyled to the landing language ──
+   Shared gold marquee label (same register as .libraryHead / .showName), then
+   the same bordered-card vocabulary as the show rails. */
+.stripHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  margin: 0 0 var(--space-md);
+}
+.continueSection { margin: 0 0 var(--space-2xl); }
+/* Continue cards ride the .rail/.railItem/.railCard system; slightly narrower
+   so the strip reads as a resume shelf, not another show. */
+.continueItem { flex-basis: 200px; }
+.resumeNote {
+  padding: 0 10px;
+  font-size: var(--text-sm);
+  color: var(--ut-gold);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pathsSection { margin: 0 0 var(--space-2xl); }
+.pathsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.pathCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  padding: var(--space-lg);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  background:
+    linear-gradient(135deg, rgba(230, 207, 134, 0.07), rgba(201, 168, 76, 0.02) 55%),
+    var(--bg-surface);
+  border: 1px solid var(--border);
+  min-height: var(--tap-min);
+  transition: border-color var(--duration-fast) ease, transform var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
+}
+.pathCard:hover {
+  border-color: var(--border-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 0 14px var(--ut-gold-glow);
+}
+.pathName {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.pathBlurb {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.pathMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ut-gold);
 }
 
 .libBlock { margin: 0 0 var(--space-2xl); }
