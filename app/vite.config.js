@@ -25,6 +25,27 @@ function comingSoonMeta() {
   // otherwise hand crawlers index.html).
   const IMAGE = 'https://uctintelligence.com/og-coming-soon.png'
 
+  // The JSON-LD block declares two purchasable Offers ($200/mo, $2000/yr) and a
+  // 7-day free trial. That is machine-readable "you can buy this now" that
+  // Google can surface as a rich result with prices — while /checkout is 403.
+  // Pre-launch it keeps the brand entity and drops every offer.
+  const JSONLD = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'UCT Intelligence',
+    applicationCategory: 'FinanceApplication',
+    url: 'https://uctintelligence.com/',
+    description:
+      'A daily intelligence desk for traders — the Morning Wire brief at 7:35 AM, '
+      + 'the UCT 20, live market breadth, and a coach that reviews every trade. '
+      + 'Launching soon.',
+    publisher: {
+      '@type': 'Organization',
+      name: 'Uncharted Territory',
+      url: 'https://uctintelligence.com/',
+    },
+  }, null, 2)
+
   return {
     name: 'uct-coming-soon-meta',
     transformIndexHtml(html) {
@@ -58,6 +79,10 @@ function comingSoonMeta() {
         .replace(
           /(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
           `$1${IMAGE}$2`,
+        )
+        .replace(
+          /(<script type="application\/ld\+json">)[\s\S]*?(<\/script>)/,
+          `$1\n${JSONLD}\n    $2`,
         )
     },
   }
