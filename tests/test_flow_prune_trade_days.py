@@ -72,7 +72,7 @@ def test_a_days_short_dated_flow_is_no_longer_deleted_out_from_under_it(db):
     long_gone = NOW - timedelta(days=2)          # contract expired yesterday
     _seed(db, recent, 500, expiry=long_gone)
 
-    db.prune_old_trade_days(retain_days=90)
+    db.prune_old_trade_days(retain_days=90, dry_run=False)
 
     assert _rows_on(db, recent) == 500, (
         "expired contracts were pruned out of a recent trading day — that day "
@@ -90,7 +90,7 @@ def test_a_day_is_removed_whole_or_not_at_all(db):
     # never-delete-the-newest guard (correctly) protects it.
     _seed(db, NOW, 1, expiry=NOW)
 
-    db.prune_old_trade_days(retain_days=90)
+    db.prune_old_trade_days(retain_days=90, dry_run=False)
 
     # The LEAP rows are exactly what used to survive and keep the day "available".
     assert _rows_on(db, old) == 0, "an out-of-window day left a residue behind"
@@ -99,7 +99,7 @@ def test_a_day_is_removed_whole_or_not_at_all(db):
 def test_days_inside_the_window_are_untouched(db):
     inside = NOW - timedelta(days=30)
     _seed(db, inside, 100, expiry=NOW - timedelta(days=25))
-    res = db.prune_old_trade_days(retain_days=90)
+    res = db.prune_old_trade_days(retain_days=90, dry_run=False)
     assert res["pruned"] == 0
     assert _rows_on(db, inside) == 100
 
@@ -115,7 +115,7 @@ def test_retain_days_zero_disables_pruning_and_does_not_wipe_everything(db):
     old = NOW - timedelta(days=900)
     _seed(db, old, 10, expiry=NOW)
     for bad in (0, -1, -9999):
-        res = db.prune_old_trade_days(retain_days=bad)
+        res = db.prune_old_trade_days(retain_days=bad, dry_run=False)
         assert res["pruned"] == 0, f"retain_days={bad} deleted rows"
         assert res["cutoff"] == "disabled"
     assert _rows_on(db, old) == 10
@@ -129,7 +129,7 @@ def test_the_newest_session_is_never_deletable(db):
     """
     only_day = NOW - timedelta(days=500)
     _seed(db, only_day, 25, expiry=NOW)
-    res = db.prune_old_trade_days(retain_days=1)
+    res = db.prune_old_trade_days(retain_days=1, dry_run=False)
     assert _rows_on(db, only_day) == 25, "the newest trading day was pruned"
     assert res["pruned"] == 0
 
@@ -139,7 +139,7 @@ def test_newest_survives_even_when_older_days_go(db):
     older = NOW - timedelta(days=500)
     _seed(db, newest, 5, expiry=NOW)
     _seed(db, older, 7, expiry=NOW)
-    db.prune_old_trade_days(retain_days=30)
+    db.prune_old_trade_days(retain_days=30, dry_run=False)
     assert _rows_on(db, newest) == 5
     assert _rows_on(db, older) == 0
 
@@ -155,7 +155,7 @@ def test_unparseable_trade_dates_are_never_deleted(db):
         )
     _seed(db, NOW - timedelta(days=1), 3, expiry=NOW)
     before = db.data_signature()[1]
-    db.prune_old_trade_days(retain_days=30)
+    db.prune_old_trade_days(retain_days=30, dry_run=False)
     assert db.data_signature()[1] == before, "a row with an unparseable date was deleted"
 
 
@@ -174,7 +174,7 @@ def test_reports_which_days_it_removed(db):
     _seed(db, a, 2, expiry=NOW)
     _seed(db, b, 3, expiry=NOW)
     _seed(db, NOW, 1, expiry=NOW)
-    res = db.prune_old_trade_days(retain_days=90)
+    res = db.prune_old_trade_days(retain_days=90, dry_run=False)
     assert set(res["days_removed"]) == {_mdy(a), _mdy(b)}
     assert res["pruned"] == 5
 
@@ -216,3 +216,67 @@ def test_prune_expired_no_longer_deletes_by_expiry(db):
     _seed(db, day, 77, expiry=NOW - timedelta(days=4))
     db.prune_expired(buffer_days=1)
     assert _rows_on(db, day) == 77
+
+
+# ── unarmed-by-default + blast radius ───────────────────────────────────────
+
+def test_retention_is_unarmed_by_default(db):
+    """Deploying the fix must STOP the hollowing without ALSO deleting history.
+
+    The scoping fix is the bug fix. Actually removing days is a separate,
+    irreversible decision — and there is no restore path: R2 backups run 02:30 ET
+    AFTER the 20:00 ET prune, so every snapshot is already post-prune, and
+    flow_backup.py has no restore function at all. The first armed run would
+    otherwise be the largest delete this table has ever seen, triggered by a
+    deploy rather than by a decision.
+    """
+    old = NOW - timedelta(days=300)
+    _seed(db, old, 40, expiry=NOW)
+    _seed(db, NOW, 5, expiry=NOW)
+
+    res = db.prune_old_trade_days(retain_days=90)   # no dry_run passed
+
+    assert res["armed"] is False
+    assert res["dry_run"] is True, "retention armed itself on a default call"
+    assert _rows_on(db, old) == 40, "an unarmed run deleted rows"
+    assert res["pruned"] == 40, "an unarmed run must still REPORT what it would remove"
+
+
+def test_per_run_cap_bounds_the_blast_radius(db):
+    """A wrong retain_days may only take max_days per run, oldest first."""
+    for age in range(300, 310):
+        _seed(db, NOW - timedelta(days=age), 2, expiry=NOW)
+    _seed(db, NOW, 1, expiry=NOW)
+
+    res = db.prune_old_trade_days(retain_days=90, dry_run=False, max_days=3)
+
+    assert len(res["days_removed"]) == 3
+    assert res["backlog_days"] == 10, "the undrained backlog must stay visible"
+    assert res["pruned"] == 6
+
+
+def test_the_cap_takes_the_OLDEST_days_not_a_lexical_slice(db):
+    """M/D/YYYY sorts lexically — "11/3" lands before "5/1".
+
+    The cap slices the ordered list, so a lexical order would delete the wrong
+    days: newer ones first, while the genuinely stale ones linger.
+    """
+    # All must be safely in the PAST, or they never enter the doomed set and the
+    # test proves nothing. (First version of this test used 11/3/2026 — a future
+    # date on the day it was written — so a lexical-ordering mutant passed it.)
+    nov = datetime(2025, 11, 3)
+    may = datetime(2025, 5, 1)
+    jan = datetime(2025, 1, 15)
+    assert max(nov, may, jan) < NOW - timedelta(days=30), "fixture dates must be past"
+    # Lexically: '1/15/2025' < '11/3/2025' < '5/1/2025'
+    # Chronologically: 1/15 < 5/1 < 11/3        <- the two differ, which is the point
+    for d in (nov, may, jan):
+        _seed(db, d, 1, expiry=NOW)
+    _seed(db, NOW, 1, expiry=NOW)                       # newest, never deletable
+
+    res = db.prune_old_trade_days(retain_days=1, dry_run=False, max_days=2)
+
+    assert res["days_removed"] == ["1/15/2025", "5/1/2025"], (
+        f"cap took {res['days_removed']} — expected the two OLDEST days. "
+        "A lexical sort would have taken 11/3/2025 as the second."
+    )

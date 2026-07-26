@@ -49,6 +49,19 @@ from contextlib import contextmanager
 # misconfigured value is "keep", never "delete everything".
 FLOW_RETAIN_TRADE_DAYS = int(os.environ.get("FLOW_RETAIN_TRADE_DAYS", "90"))
 
+# Retention is UNARMED until this is set. Shipping the scoping fix stops the
+# hollowing immediately; actually DELETING history is a separate decision, and
+# there is no restore path (R2 backups run at 02:30 ET, after the 20:00 ET
+# prune, so every snapshot is already post-prune, and flow_backup.py has no
+# restore function at all). Unarmed, the nightly job reports precisely what it
+# would remove.
+FLOW_PRUNE_ENABLED = os.environ.get("FLOW_PRUNE_ENABLED", "0").lower() in ("1", "true", "yes")
+
+# Blast radius: the most WHOLE DAYS one run may delete, oldest first. Bounds a
+# misconfigured retain_days to a slow bleed that is visible in the logs for many
+# nights, rather than a single catastrophic tick.
+FLOW_PRUNE_MAX_DAYS_PER_RUN = int(os.environ.get("FLOW_PRUNE_MAX_DAYS_PER_RUN", "5"))
+
 # CSV columns in BBS export order
 COLUMNS = [
     "CreatedDate", "CreatedTime", "Symbol", "Type", "Volume", "Price",
@@ -468,7 +481,8 @@ class FlowDB:
         return "".join(self.stream_csv(source=source, days=None))
 
     def prune_old_trade_days(self, retain_days: int | None = None,
-                             dry_run: bool = False) -> dict:
+                             dry_run: bool | None = None,
+                             max_days: int | None = None) -> dict:
         """Delete WHOLE trading days older than the retention window.
 
         REPLACES the old expiry-based prune (2026-07-26). That version ran
@@ -514,13 +528,26 @@ class FlowDB:
             coin.
           - dry_run reports exactly what would go without touching anything.
 
-        Returns {"pruned", "days_removed", "days_kept", "cutoff", "dry_run"}.
+        Returns {"pruned", "days_removed", "days_kept", "backlog_days",
+        "cutoff", "dry_run", "armed"}. `backlog_days` is the FULL count past the
+        window before the per-run cap, so an undrained backlog stays visible
+        instead of looking like steady state.
         """
         if retain_days is None:
             retain_days = FLOW_RETAIN_TRADE_DAYS
+        if max_days is None:
+            max_days = FLOW_PRUNE_MAX_DAYS_PER_RUN
+        if dry_run is None:
+            # UNARMED BY DEFAULT. Deploying this stops the hollowing — that is
+            # the actual bug fix — and deletes nothing. Arming retention is a
+            # SECOND, deliberate act, because there is no restore path and the
+            # first armed run would otherwise be the largest delete this table
+            # has ever seen, executed by a deploy rather than by a decision.
+            dry_run = not FLOW_PRUNE_ENABLED
 
         result = {"pruned": 0, "days_removed": [], "days_kept": 0,
-                  "cutoff": None, "dry_run": dry_run}
+                  "backlog_days": 0, "cutoff": None, "dry_run": dry_run,
+                  "armed": FLOW_PRUNE_ENABLED}
 
         if retain_days is None or retain_days <= 0:
             result["cutoff"] = "disabled"
@@ -544,12 +571,25 @@ class FlowDB:
 
             # Never prune the newest session, regardless of retention config.
             newest = max(d for d, _ in parsed)
-            doomed = [raw for d, raw in parsed if d < cutoff and d != newest]
+            # Sort on the PARSED date, never the raw string: "M/D/YYYY" sorts
+            # lexically, so "11/3/2026" lands before "5/1/2026". Everything below
+            # is oldest-first, and the per-run cap slices this list — on a
+            # lexical order the cap would delete the wrong days.
+            doomed_all = sorted((d, raw) for d, raw in parsed
+                                if d < cutoff and d != newest)
+            result["backlog_days"] = len(doomed_all)
+
+            # Blast radius. A wrong retain_days can only take max_days per run,
+            # so a misconfiguration is visible for many nights before it becomes
+            # expensive, instead of emptying the tape on the first tick.
+            if max_days and max_days > 0:
+                doomed_all = doomed_all[:max_days]
+            doomed = [raw for _, raw in doomed_all]
 
             if not doomed:
                 return result
 
-            result["days_removed"] = sorted(doomed)
+            result["days_removed"] = [raw for _, raw in doomed_all]
             result["days_kept"] = len(parsed) - len(doomed)
 
             if dry_run:

@@ -290,12 +290,14 @@ def _start_flow_schedulers():
             try:
                 from api.flow_db import FlowDB, FLOW_RETAIN_TRADE_DAYS
                 res = FlowDB().prune_old_trade_days()
-                log.info("[scheduler] flow retention: retain=%sd cutoff=%s "
-                         "removed_days=%d pruned_rows=%d days_kept=%d",
-                         FLOW_RETAIN_TRADE_DAYS, res["cutoff"],
-                         len(res["days_removed"]), res["pruned"], res["days_kept"])
+                log.info("[scheduler] flow retention: armed=%s retain=%sd "
+                         "cutoff=%s would_remove_days=%d rows=%d backlog=%d kept=%d",
+                         res["armed"], FLOW_RETAIN_TRADE_DAYS, res["cutoff"],
+                         len(res["days_removed"]), res["pruned"],
+                         res["backlog_days"], res["days_kept"])
                 if res["days_removed"]:
-                    log.info("[scheduler] flow retention dropped: %s",
+                    log.info("[scheduler] flow retention %s: %s",
+                             "DROPPED" if res["armed"] else "would drop (UNARMED)",
                              ", ".join(res["days_removed"]))
             except Exception as e:  # noqa: BLE001
                 log.warning("[scheduler] Flow DB prune error: %s", e)

@@ -567,7 +567,20 @@ async def prune_expired(request: Request, _auth: dict = Depends(require_flow_adm
         except (ValueError, TypeError):
             retain_days = None
 
-    res = db.prune_old_trade_days(retain_days=retain_days, dry_run=dry_run)
+    max_days = None
+    raw_max = request.query_params.get("max_days")
+    if raw_max is not None:
+        try:
+            max_days = max(0, min(400, int(raw_max)))
+        except (ValueError, TypeError):
+            max_days = None
+
+    # dry_run=None means "use the FLOW_PRUNE_ENABLED default" (unarmed). Only an
+    # explicit ?dry_run=0 arms a manual call.
+    explicit = request.query_params.get("dry_run")
+    res = db.prune_old_trade_days(retain_days=retain_days,
+                                  dry_run=(dry_run if explicit is not None else None),
+                                  max_days=max_days)
     if res["pruned"] and not dry_run:
         # Retention changed the data — invalidate the in-memory cache and move
         # the version so clients refetch instead of holding a payload whose days
@@ -577,8 +590,10 @@ async def prune_expired(request: Request, _auth: dict = Depends(require_flow_adm
         "pruned": res["pruned"],
         "days_removed": res["days_removed"],
         "days_kept": res["days_kept"],
+        "backlog_days": res["backlog_days"],
         "cutoff": res["cutoff"],
         "dry_run": res["dry_run"],
+        "armed": res["armed"],
         "ignored_buffer_days": request.query_params.get("buffer_days"),
     })
 
