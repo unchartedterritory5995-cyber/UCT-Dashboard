@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
-import { planDelta, adoptVersion, readSnapshot, writeSnapshot, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow } from "./optionsFlow/flowLoadPolicy";
+import { planDelta, adoptVersion, readSnapshot, writeSnapshot, snapshotKey } from "./optionsFlow/flowLoadPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -1606,23 +1606,18 @@ function processFlowData(rows, erSoonSet) {
   });
 
   // Heavy-block non-directional rule (user 7/25):
-  // A large BLOCK with NO sweep tied to the same contract is negotiated/
-  // facilitated size (single large trade at one exchange per the BBS spec),
-  // not someone lifting an offer — so it should NOT count as directional flow.
-  // Strip its direction (D=null) so it drops out of the bull/bear lean, but
-  // leave the print in `filtered` so it still shows as SIZE (consMap sums P/V
-  // unconditionally). A block WITH a sweep at the same strike is real
-  // conviction (sweep+block) and keeps its direction — same principle the
-  // deep-OTM arb filter already uses.
+  // A large BLOCK is negotiated/facilitated size (single large trade at one
+  // exchange per the BBS spec) and is usually a dark-pool hedge leg, not a
+  // directional bet — so the BLOCK PRINT ITSELF never counts toward the bull/
+  // bear lean. Any SWEEPS at the same strike are real urgency and DO still
+  // count on their own (they're separate prints with their own t.D). This
+  // deliberately does NOT rescue the block when a sweep shares the strike: a
+  // small sweep shouldn't launder a $30M+ facilitation block into "conviction."
+  // The block stays in `filtered` so it still shows as SIZE (consMap sums P/V
+  // unconditionally); only its DIRECTION is stripped.
   const HEAVY_BLOCK_PREMIUM = 10e6; // $10M; tune here
-  const _hbSweepKeys = new Set();
   filtered.forEach(t => {
-    if (t.Ty === "SWP") _hbSweepKeys.add(t.S+"|"+t.CP+"|"+t.K+"|"+t.E);
-  });
-  filtered.forEach(t => {
-    if (t.D && t.Ty === "BLK" && t.P >= HEAVY_BLOCK_PREMIUM) {
-      if (!_hbSweepKeys.has(t.S+"|"+t.CP+"|"+t.K+"|"+t.E)) { t.D = null; t.heavyBlock = true; }
-    }
+    if (t.D && t.Ty === "BLK" && t.P >= HEAVY_BLOCK_PREMIUM) { t.D = null; t.heavyBlock = true; }
   });
 
   // Mega cap premium filter
@@ -2275,12 +2270,8 @@ export default function OptionsFlowDashboard() {
   // shows ER months after reporting). Gate every ER badge on the live earnings
   // calendar: a ticker is "ER" only if it reports within 14 days. null until
   // loaded -> falls back to the row flag, so behavior only ever improves.
-  // Seeded synchronously from the session cache so a remount already has it —
-  // otherwise the calendar round trips land AFTER the (now instant) snapshot
-  // hydrate and re-run the entire aggregation. See setErCache().
-  const [erSoonSet, setErSoonSet] = useState(() => getErCache());
+  const [erSoonSet, setErSoonSet] = useState(null);
   useEffect(() => {
-    if (getErCache()) return;  // already resolved this session
     let cancelled = false;
     (async () => {
       try {
@@ -2298,24 +2289,12 @@ export default function OptionsFlowDashboard() {
         if (!base) return;
         const map = {}; flatten(base, map);
         const ws = (base.week_start || "").slice(0, 10);
-        // The two look-ahead weeks depend only on base.week_start, not on each
-        // other — fetch them CONCURRENTLY. Serially they were 3 round trips
-        // (~403ms), which raced the CSV pipeline: whenever erSoonSet landed
-        // AFTER parsedRows it changed a dependency of the processing effect and
-        // re-ran the ENTIRE 96k-row processFlowData a second time (~1,351ms,
-        // measured on prod 2026-07-25) purely to refresh an ER badge. In
-        // parallel it settles in ~270ms, comfortably ahead of the CSV
-        // (fetch+parse ≈ 840ms), so the first process already has it.
-        // (Deliberately still null on failure — the row-flag fallback is the
-        // documented behaviour, and settling to an empty Set would itself
-        // change the dependency and trigger the very reprocess this avoids.)
-        const weeks = [];
         for (let k = 1; k <= 2 && ws; k++) {
           const nm = new Date(ws + "T00:00:00Z"); nm.setUTCDate(nm.getUTCDate() + 7 * k);
-          weeks.push(fetch(`/api/calendar?week=${nm.toISOString().slice(0, 10)}`)
-            .then(r => r.ok ? r.json() : null).catch(() => null));
+          const p = await fetch(`/api/calendar?week=${nm.toISOString().slice(0, 10)}`)
+            .then(r => r.ok ? r.json() : null).catch(() => null);
+          if (p) flatten(p, map);
         }
-        for (const p of await Promise.all(weeks)) if (p) flatten(p, map);
         const now = new Date();
         const t0 = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
         const soon = new Set();
@@ -2324,7 +2303,6 @@ export default function OptionsFlowDashboard() {
           const days = Math.round((Date.UTC(y, m - 1, dd) - t0) / 86400000);
           if (days >= 0 && days <= 14) soon.add(sym);
         }
-        setErCache(soon);           // survives remount — see the seed above
         if (!cancelled) setErSoonSet(soon);
       } catch (e) { /* keep null -> row-flag fallback */ }
     })();
@@ -2413,31 +2391,25 @@ export default function OptionsFlowDashboard() {
         .then(d => { if (d && d.version != null) setDataVersion(String(d.version)); })
         .catch(() => {});
     };
-    // One gate for BOTH triggers. The focus handler used to be ungated, and
-    // because the version is a 60-SECOND TIME BUCKET (not a content hash) every
-    // alt-tab back to the app rolled it -> refetch-base -> a full ~1,350ms
-    // main-thread processFlowData. On prod 2026-07-25 that showed up as a
-    // re-process every 30-40s, indefinitely, with the market CLOSED.
-    let lastVerAt = null;
-    const maybeFetchVer = () => {
-      const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-      if (!shouldFetchVersion({
-        inMarketWindow: inFlowMarketWindow(nowET),
-        visible: document.visibilityState === "visible",
-        now: Date.now(),
-        lastFetchAt: lastVerAt,
-      })) return;
-      lastVerAt = Date.now();
-      fetchVer();
-    };
+    fetchVer();
+    const onFocus = () => fetchVer();
+    window.addEventListener("focus", onFocus);
 
-    fetchVer();  // mount: always establish the version once
-    lastVerAt = Date.now();
-    window.addEventListener("focus", maybeFetchVer);
-    const intervalId = setInterval(maybeFetchVer, 60_000);
+    // Periodic polling during market hours, visible tabs only
+    const intervalId = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      // Market hours gate: 9:30 AM – 4:15 PM ET, Mon-Fri.
+      // Add a 15-min after-close grace window so late prints still surface.
+      const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const day = nowET.getDay();
+      if (day === 0 || day === 6) return;  // Sat/Sun
+      const mins = nowET.getHours() * 60 + nowET.getMinutes();
+      if (mins < 9 * 60 + 30 || mins > 16 * 60 + 15) return;  // outside window
+      fetchVer();
+    }, 60_000);
 
     return () => {
-      window.removeEventListener("focus", maybeFetchVer);
+      window.removeEventListener("focus", onFocus);
       clearInterval(intervalId);
     };
   }, []);
@@ -2703,8 +2675,7 @@ export default function OptionsFlowDashboard() {
     // csvFile is version-stable and the response carries max-age=300, so a
     // plain fetch would hand back the very bytes we are trying to replace.
     // (This is the freshness the delta-merge used to provide via no-store.)
-    fetch(baseFetchUrl(csvFile, baseNonce, dataVersionRef.current),
-          baseNonce > 0 ? { cache: "no-store" } : undefined)
+    fetch(csvFile, baseNonce > 0 ? { cache: "no-store" } : undefined)
         .then(res => {
           console.log(`[perf] CSV fetch: ${(performance.now()-t0).toFixed(0)}ms`);
           if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
