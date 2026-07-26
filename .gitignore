@@ -28,5 +28,8 @@ tools/_local_backend.log
 tools/.snaptrade_smoke_state.json
 tools/.snaptrade_captures/
 
+# Desk video taxonomy dump/apply working files (local only)
+tools/taxonomy_out/
+
 # Local Python virtual environment (local dev only)
 .venv/
