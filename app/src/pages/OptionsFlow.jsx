@@ -5461,6 +5461,11 @@ export default function OptionsFlowDashboard() {
 
         {/* Leaderboard */}
         {tab==="Leaderboard" && FD && (()=>{
+          // Still-open overlay state, shared with the toggle's render further down.
+          // _lbOpenApplied stays false when NOTHING could be priced, so the board
+          // keeps its raw figures instead of rendering empty with no explanation.
+          let _lbOpenApplied = false;
+          let _lbOpenCoverage = { priced: 0, total: 0 };
           // Use all_directional (not clean_confirmed) so Bull/Bear totals match
           // the Search tab. clean_confirmed is the strict methodology — only
           // YELLOW/MAGENTA confirmed clusters — which excludes "dirty-dominant"
@@ -5631,21 +5636,42 @@ export default function OptionsFlowDashboard() {
           // raw is broken. Off (or before OI fetch) → untouched, identical to
           // today.
           if (lbStillOpenOnly) {
-            Object.values(tkMap).forEach(tk => {
-              const so = computeStillOpen(tk._trades);
-              tk._bullRaw = tk.bull; tk._bearRaw = tk.bear;
-              tk._stillOpenComputable = so.computable;
-              tk.bull = Math.round(so.bullOpen);
-              tk.bear = Math.round(so.bearOpen);
-              const _tot = tk.bull + tk.bear;
-              tk.bullPct = _tot > 0 ? Math.round(tk.bull / _tot * 100) : 50;
-            });
+            // 2026-07-26: only overlay tickers we can ACTUALLY compute.
+            // computeStillOpen contributes 0 for any contract with no live quote,
+            // so applying it blindly UNDERSTATED premium — and the board is then
+            // re-sorted and Bull% recomputed off those understated figures, which
+            // made a ticker's rank a function of quote coverage rather than flow.
+            const _all = Object.values(tkMap);
+            const _computable = _all.filter(tk => computeStillOpen(tk._trades).computable);
+            _lbOpenCoverage = { priced: _computable.length, total: _all.length };
+            if (_computable.length === 0) {
+              // Nothing priced. The honest answer is "can't tell yet", NOT an empty
+              // board — the enable gate only checks that priceCache is non-empty,
+              // and it is shared with every other tab, so it can be satisfied by a
+              // fetch that never touched these tickers.
+              _lbOpenApplied = false;
+            } else {
+              _lbOpenApplied = true;
+              _computable.forEach(tk => {
+                const so = computeStillOpen(tk._trades);
+                tk._bullRaw = tk.bull; tk._bearRaw = tk.bear;
+                tk._stillOpenComputable = true;
+                tk.bull = Math.round(so.bullOpen);
+                tk.bear = Math.round(so.bearOpen);
+                const _tot = tk.bull + tk.bear;
+                tk.bullPct = _tot > 0 ? Math.round(tk.bull / _tot * 100) : 50;
+              });
+              // Un-priced tickers drop OUT of the ranking rather than being ranked
+              // on raw premium against still-open rows — that comparison is
+              // meaningless, and the coverage line below says how many were left out.
+              _all.forEach(tk => { if (tk._stillOpenComputable !== true) { tk.bull = 0; tk.bear = 0; } });
+            }
           }
           let allTickers = Object.values(tkMap);
           // When still-open is on, drop tickers with zero still-open flow (their
           // positions all closed, or no live OI to confirm) — the leaderboard
           // should show what's ACTUALLY still open, not stale closed flow.
-          if (lbStillOpenOnly) allTickers = allTickers.filter(t => (t.bull + t.bear) > 0);
+          if (lbStillOpenOnly && _lbOpenApplied) allTickers = allTickers.filter(t => (t.bull + t.bear) > 0);
           // Conviction % filter
           if (cPct === "90bull") allTickers = allTickers.filter(t => t.bullPct >= 90);
           else if (cPct === "80bull") allTickers = allTickers.filter(t => t.bullPct >= 80);
@@ -5967,6 +5993,22 @@ export default function OptionsFlowDashboard() {
                             </button>
                           );
                         })()}
+                        {/* Coverage. computeStillOpen can only confirm contracts that
+                            have a live quote, so without this the trader cannot tell
+                            "this position closed out" from "we never priced it". */}
+                        {lbStillOpenOnly && (
+                          _lbOpenApplied ? (
+                            <div style={{ fontSize:9, color:P.dm }}
+                                 title="Still-open premium can only be confirmed for contracts with live OI. Tickers without it are excluded from this ranking rather than ranked on raw premium.">
+                              {_lbOpenCoverage.priced}/{_lbOpenCoverage.total} tickers have live OI
+                            </div>
+                          ) : (
+                            <div style={{ fontSize:9, color:P.ye, fontWeight:700 }}
+                                 title="No contract on this board has live OI yet, so still-open premium cannot be computed. Showing raw premium instead of an empty board.">
+                              ⚠ no live OI for these tickers — showing raw
+                            </div>
+                          )
+                        )}
                         <div style={{ fontSize: 9, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
                       </div>
                     </div>
