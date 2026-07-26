@@ -123,6 +123,32 @@ def list_waitlist(
     return {"total": total, "entries": [dict(r) for r in rows]}
 
 
+class DeleteBody(BaseModel):
+    email: EmailStr
+
+
+@router.post("/admin/delete")
+def delete_waitlist_entry(
+    body: DeleteBody,
+    _admin: Any = Depends(require_admin),
+) -> dict[str, Any]:
+    """Remove one address from the launch list.
+
+    Needed before the launch mailing: a public unauthenticated form collects
+    typos, bot submissions and test entries, and there was previously no way to
+    take any of them back out. POST rather than DELETE-with-path so an address
+    containing characters that need escaping can't be mangled by the router.
+    """
+    email = body.email.strip().lower()
+    with closing(get_connection()) as conn:
+        cur = conn.execute("DELETE FROM waitlist WHERE email = ?", (email,))
+        conn.commit()
+        removed = cur.rowcount
+        total = conn.execute("SELECT COUNT(*) AS c FROM waitlist").fetchone()["c"]
+    logger.info("[waitlist] admin removed %s (rows=%s)", email, removed)
+    return {"ok": True, "removed": removed, "total": total}
+
+
 @router.get("/admin/export.csv")
 def export_waitlist(_admin: Any = Depends(require_admin)) -> StreamingResponse:
     """Full list as CSV — what you'd paste into an email tool at launch."""

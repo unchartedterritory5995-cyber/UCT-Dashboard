@@ -223,6 +223,37 @@ def test_admin_export_requires_auth(client):
     assert client.get("/api/waitlist/admin/export.csv").status_code in (401, 403)
 
 
+def test_admin_delete_requires_auth(client):
+    resp = client.post("/api/waitlist/admin/delete", json={"email": "trader@example.com"})
+    assert resp.status_code in (401, 403)
+
+
+def test_admin_delete_removes_the_row(client, monkeypatch):
+    """Admin-gated, so the auth dependency is overridden rather than faked with
+    a real session."""
+    from api.main import app
+    from api.middleware.auth_middleware import require_admin
+    app.dependency_overrides[require_admin] = lambda: {"id": "x", "role": "admin"}
+    try:
+        client.post("/api/waitlist", json={"email": "keep@example.com"})
+        client.post("/api/waitlist", json={"email": "remove@example.com"})
+        assert len(_rows(client)) == 2
+
+        resp = client.post("/api/waitlist/admin/delete", json={"email": "REMOVE@example.com"})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True, "removed": 1, "total": 1}
+
+        remaining = [r["email"] for r in _rows(client)]
+        assert remaining == ["keep@example.com"]
+
+        # Deleting something absent is a no-op, not an error.
+        again = client.post("/api/waitlist/admin/delete", json={"email": "remove@example.com"})
+        assert again.status_code == 200
+        assert again.json()["removed"] == 0
+    finally:
+        app.dependency_overrides.pop(require_admin, None)
+
+
 # ── Pre-launch gating ────────────────────────────────────────────────────────
 
 def test_signup_is_closed_while_coming_soon(client):
