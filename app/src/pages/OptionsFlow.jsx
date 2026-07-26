@@ -846,7 +846,18 @@ export default function OptionsFlowDashboard() {
         .then(d => { if (d && d.version != null) setDataVersion(String(d.version)); })
         .catch(() => {});
     };
-    fetchVer();
+    // Mount: establish the version — but if the worker already holds rows and the
+    // market is shut, reuse the version they carry. /api/flow/version is a
+    // 60-SECOND CLOCK TICK, so re-fetching it on every remount made minutes-old
+    // rows look stale and triggered a full refetch of data that provably had not
+    // changed. Inside the window we still check, unchanged.
+    const _heldOnMount = getLoadedMeta();
+    const _nowEtMount = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    if (_heldOnMount && _heldOnMount.version != null && !inFlowMarketWindow(_nowEtMount)) {
+      setDataVersion(_heldOnMount.version);
+    } else {
+      fetchVer();
+    }
     // One gate for BOTH triggers. The focus handler was ungated, and the version
     // is a 60-SECOND TIME BUCKET (not a content hash), so every alt-tab back to
     // the app rolled it -> refetch -> a full aggregation. On prod that was a

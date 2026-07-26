@@ -37,15 +37,27 @@ import {
 
 let ROWS = null           // the parsed dataset — never leaves unless asked
 let DATES = []
+// Memoised last aggregate. Same rows + same filter + same ER set is the same
+// answer, and recomputing it costs ~1.9s — which is what a re-entry was paying
+// to arrive at a byte-identical result. Invalidated whenever ROWS changes.
+let CACHE = null          // { key, D, filteredCount }
 
 const toSet = (erSoon) => (erSoon && erSoon.length ? new Set(erSoon) : null)
 
 function aggregate(filter, erSoon) {
+  const key = JSON.stringify([
+    filter && filter.dateFilter, filter && filter.dateFrom, filter && filter.dateTo,
+    ROWS ? ROWS.length : 0, erSoon ? erSoon.length : -1,
+  ])
+  if (CACHE && CACHE.key === key) {
+    return { D: CACHE.D, filteredCount: CACHE.filteredCount, ms: 0, cached: true }
+  }
   const t0 = performance.now()
   const filtered = filterRowsByDate(ROWS, { ...filter, availableDates: DATES })
   // The page renders an empty state for this; null is the same signal it used
   // when it did the filtering itself.
   const D = filtered.length === 0 ? null : processFlowData(filtered, toSet(erSoon))
+  CACHE = { key, D, filteredCount: filtered.length }
   return { D, filteredCount: filtered.length, ms: performance.now() - t0 }
 }
 
@@ -64,6 +76,7 @@ self.onmessage = (e) => {
           return
         }
         ROWS = incoming
+        CACHE = null
       } else {
         // Delta merge: replace every row whose date appears in the delta.
         if (!ROWS || !ROWS.length || !incoming || !incoming.length) {
@@ -73,6 +86,7 @@ self.onmessage = (e) => {
         const days = new Set(incoming.map(r => (r.date || '').trim()).filter(Boolean))
         if (!days.size) { self.postMessage({ id, ok: false, error: 'delta had no dates' }); return }
         ROWS = ROWS.filter(r => !days.has((r.date || '').trim())).concat(incoming)
+        CACHE = null
       }
 
       DATES = availableDatesFrom(ROWS)
