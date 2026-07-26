@@ -116,7 +116,7 @@ function fbAggregate(filter, erSoon) {
 
 /** Parse a CSV and keep it. Aggregation is a separate call — see processFlow. */
 export async function loadFlow(csv, filter, erSoon, key) {
-  const res = await post({ type: 'load', csv, filter, erSoon })
+  const res = await post({ type: 'load', csv, filter, erSoon, key: key ?? null })
   if (res && res.ok) {
     loadedKey = key ?? null
     loadedMeta = { rowCount: res.rowCount, availableDates: res.availableDates }
@@ -137,27 +137,41 @@ export async function loadFlow(csv, filter, erSoon, key) {
 }
 
 /** Re-aggregate the already-loaded rows under a different date selection. */
-export async function processFlow(filter, erSoon, view) {
-  const res = await post({ type: 'process', filter, erSoon, view })
+export async function processFlow(filter, erSoon, view, expectKey) {
+  const res = await post({ type: 'process', filter, erSoon, view, expectKey })
   if (res && res.ok) return { ...res, usedWorker: true }
+  // The worker is holding a different dataset than the caller expects (a mode or
+  // range switch is still in flight). NOT an error and NOT a fallback case: the
+  // main-thread copy would be just as wrong. The pending load will re-trigger.
+  if (res && res.staleDataset) return { ok: false, staleDataset: true, usedWorker: true }
   // The rows live in the worker, so if it died mid-session the fallback has
   // nothing to work from. That is NOT an error to show the user — ask the page
   // to re-fetch, which repopulates the main-thread copy (workerDead is now set,
   // so loadFlow takes the fallback) and everything keeps working, just slower.
   if (!fbRows) return { ok: false, error: 'worker lost the dataset', needsReload: true, usedWorker: false }
+  // The fallback needs the SAME identity guarantee as the worker. A browser with
+  // no Worker support — or one whose worker died — must not be the single place
+  // that still renders the previous mode's feed under the new header.
+  if (expectKey != null && loadedKey !== expectKey) {
+    return { ok: false, staleDataset: true, usedWorker: false }
+  }
   // Fallback deliberately returns NO tabCharts — the page then uses its own
   // main-thread FD path, which is the behaviour this replaces.
   return { ok: true, ...fbAggregate(filter || {}, erSoon), usedWorker: false }
 }
 
 /** Splice today's rows in (replacing that date) and re-aggregate. */
-export async function mergeToday(csv, filter, erSoon) {
-  const res = await post({ type: 'merge', csv, filter, erSoon })
+export async function mergeToday(csv, filter, erSoon, expectKey) {
+  const res = await post({ type: 'merge', csv, filter, erSoon, expectKey })
   if (res && res.ok) {
     loadedMeta = { rowCount: res.rowCount, availableDates: res.availableDates }
     return { ...res, usedWorker: true }
   }
+  if (res && res.staleDataset) return { ok: false, staleDataset: true, usedWorker: true }
   if (!fbRows) return { ok: false, error: 'worker lost the dataset', needsReload: true, usedWorker: false }
+  if (expectKey != null && loadedKey !== expectKey) {
+    return { ok: false, staleDataset: true, usedWorker: false }
+  }
   const incoming = parseCSV(csv)
   if (!incoming || !incoming.length) return { ok: false, error: 'delta had no rows', usedWorker: false }
   const days = new Set(incoming.map(r => (r.date || '').trim()).filter(Boolean))

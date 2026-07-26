@@ -1022,8 +1022,17 @@ export default function OptionsFlowDashboard() {
           dataMode, capFilter,
           etfExtra: remoteETFSet ? [...remoteETFSet] : null,
         },
+        // WHICH dataset these numbers must come from. The worker holds exactly
+        // one; without this it would aggregate whatever it still has — e.g. the
+        // stocks feed rendered under the INDEX header while the index CSV is
+        // still downloading.
+        snapshotKey(csvFile),
       );
       if (cancelled) return;
+      // The worker is still holding the PREVIOUS mode/range. Rendering that under
+      // the new header is the wrong-but-plausible failure this guard exists to
+      // stop; the in-flight load will publish a new rowCount and re-run us.
+      if (res.staleDataset) return;
       if (!res.ok) {
         // The worker died and took the dataset with it. Re-fetch once rather
         // than showing the user an error — loadFlow will run on the main thread
@@ -1249,7 +1258,7 @@ export default function OptionsFlowDashboard() {
         if (cancelled || !text || text.trim().startsWith("<")) return;
         // The worker owns the dataset, so it does the splice: rows for the
         // delta's date(s) are REPLACED, not appended.
-        const res = await mergeToday(text, { dateFilter, dateFrom, dateTo }, erSoonArr);
+        const res = await mergeToday(text, { dateFilter, dateFrom, dateTo }, erSoonArr, snapshotKey(csvFile));
         if (cancelled || !res.ok) return;
         _lastMergedVer.current = dataVersion;
         setAvailableDates(res.availableDates);

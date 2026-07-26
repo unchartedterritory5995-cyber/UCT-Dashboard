@@ -203,3 +203,40 @@ describe('computeCsv — the Search drill-in', () => {
     expect(res.D).toBeNull()
   })
 })
+
+describe('dataset identity — the wrong-feed-under-the-right-header bug', () => {
+  // AUDIT FINDING (critical): the worker holds exactly ONE dataset and neither
+  // process nor merge checked WHICH one. Switching Stocks -> Indexes, or coming
+  // back from GEX/Dark Pool, left a window where a process call aggregated the
+  // PREVIOUS feed's rows and the page painted them under the new header. No
+  // error, and rowCount still reconciled, so nothing looked wrong.
+  beforeEach(() => _resetFlowWorker())
+
+  it('refuses to aggregate when the caller expects a different dataset', async () => {
+    await loadFlow(CSV, FILTER, null, '/api/flow/data?days=1')
+    const wrong = await processFlow(FILTER, null, undefined, '/api/flow/indexes-data?days=1')
+    expect(wrong.ok).toBe(false)
+    expect(wrong.staleDataset, 'must flag a dataset mismatch, not silently aggregate').toBe(true)
+    expect(wrong.D, 'must not hand back numbers from the other feed').toBeUndefined()
+  })
+
+  it('aggregates normally when the dataset matches', async () => {
+    await loadFlow(CSV, FILTER, null, '/api/flow/data?days=1')
+    const right = await processFlow(FILTER, null, undefined, '/api/flow/data?days=1')
+    expect(right.ok).toBe(true)
+    expect(right.D).not.toBeNull()
+  })
+
+  it('still works when no key is supplied (back-compat)', async () => {
+    await loadFlow(CSV, FILTER, null, 'k')
+    const res = await processFlow(FILTER, null)
+    expect(res.ok).toBe(true)
+  })
+
+  it('refuses to splice a delta into a different dataset', async () => {
+    await loadFlow(CSV, FILTER, null, '/api/flow/data?days=1')
+    const m = await mergeToday(CSV, FILTER, null, '/api/flow/indexes-data?days=1')
+    expect(m.ok).toBe(false)
+    expect(m.staleDataset).toBe(true)
+  })
+})
