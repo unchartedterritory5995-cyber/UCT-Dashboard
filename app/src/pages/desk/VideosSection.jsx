@@ -1,22 +1,24 @@
 // app/src/pages/desk/VideosSection.jsx
-// The Educational Videos library — now the "Videos" section of The Desk hub.
+// The Educational Videos library — the "Videos" section of The Desk hub, laid
+// out as a clean custom-YouTube library: one chip bar (+ a Filters toggle for
+// tag chips), a slim featured strip for the latest flagship episode, then one
+// shelf per category (Continue Watching first). Plain YouTube thumbnails
+// everywhere on the landing — AI recap posters appear only inside the theater.
 // Videos live unlisted on YouTube; we embed via youtube-nocookie.com. Admins
 // manage the catalog inline (add/edit/remove) — no code edits to add a video.
 import { useState, useMemo, useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
-import { GraduationIcon, PlayIcon, PlusIcon, SearchIcon } from '../education/icons'
+import { GraduationIcon, PlusIcon, SearchIcon } from '../education/icons'
 import VideoDockSlot from '../../components/video/VideoDockSlot'
-import BrandBadge from '../../components/video/BrandBadge'
 import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import { LEARNING_PATHS } from './learningPaths'
-import DeskHero from './DeskHero'
-import ShowRail, { CardImage } from './ShowRail'
-import LibraryGrid from './LibraryGrid'
+import FeaturedStrip from './FeaturedStrip'
+import Shelf, { YTCard } from './Shelf'
 import UIcon from '../../components/ui/UIcon'
 import styles from '../EducationalVideos.module.css'
 import s from './VideosSection.module.css'
@@ -24,7 +26,7 @@ import s from './VideosSection.module.css'
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
-const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+const MAX_TAGS = 18
 
 export default function VideosSection() {
   const { user } = useAuth()
@@ -34,6 +36,7 @@ export default function VideosSection() {
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState(null) // null = All
   const [activeTag, setActiveTag] = useState(null) // library tag-chip filter
+  const [filtersOpen, setFiltersOpen] = useState(false) // tag row visibility
   const [editing, setEditing] = useState(null)
   const progress = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
@@ -43,15 +46,13 @@ export default function VideosSection() {
   // Server-ordered categories — shows first, then library, each by sort_order
   // (see api/routers/education.py). No client re-sort; render verbatim.
   const categories = useMemo(() => data?.categories || [], [data])
-  // Shows/Library split for the landing components (kind === 'show' vs
-  // everything else). Downstream consumers below keep using `categories`.
   const shows = useMemo(() => categories.filter((c) => c.kind === 'show'), [categories])
   const library = useMemo(() => categories.filter((c) => c.kind !== 'show'), [categories])
   const total = data?.total ?? 0
 
-  // Hero = the newest episode of the first (flagship) show. Sessions append
-  // chronologically, so newest = highest id. The hero plays against the same
-  // newest-first list its ShowRail renders, keeping Up-Next coherent.
+  // Featured strip = the newest episode of the first (flagship) show. Sessions
+  // append chronologically, so newest = highest id. It plays against the same
+  // newest-first list its shelf renders, keeping Up-Next coherent.
   const heroShow = shows[0] || null
   const heroList = useMemo(
     () => (heroShow ? [...(heroShow.videos || [])].sort((a, b) => b.id - a.id) : []),
@@ -90,18 +91,67 @@ export default function VideosSection() {
 
   // "Continue watching": started-but-unfinished videos, newest first. Each opens
   // the player inside its own category so the Up Next rail keeps working.
-  const continueWatching = useMemo(() => {
+  const continueEntries = useMemo(() => {
     const items = []
     for (const cat of categories) {
       cat.videos.forEach((v, i) => {
         const e = progress[v.youtube_id]
         if (e && !e.done && e.t >= 8) {
-          items.push({ video: v, list: cat.videos, index: i, at: e.at || 0, pct: e.d ? Math.min(100, Math.round((e.t / e.d) * 100)) : 0 })
+          items.push({
+            video: v, list: cat.videos, index: i,
+            kind: cat.kind === 'show' ? 'show' : 'library',
+            at: e.at || 0,
+          })
         }
       })
     }
     return items.sort((a, b) => b.at - a.at).slice(0, 8)
   }, [categories, progress])
+
+  // Show shelves display (and play against) newest-first lists.
+  const showShelves = useMemo(
+    () =>
+      shows.map((show) => {
+        const list = [...(show.videos || [])].sort((a, b) => b.id - a.id)
+        return {
+          name: show.name,
+          entries: list.map((v, i) => ({ video: v, list, index: i, kind: 'show' })),
+        }
+      }),
+    [shows],
+  )
+
+  // Tag universe: union of video.tags across the library, with counts, capped
+  // to the most frequent (ties break alphabetically for stability).
+  const tags = useMemo(() => {
+    const counts = new Map()
+    for (const cat of library) {
+      for (const v of cat.videos || []) {
+        for (const t of v.tags || []) counts.set(t, (counts.get(t) || 0) + 1)
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, MAX_TAGS)
+  }, [library])
+
+  // Library shelves keep server order; the tag filter narrows each shelf and
+  // hides shelves with zero matches.
+  const libraryShelves = useMemo(
+    () =>
+      library
+        .map((cat) => {
+          const list = !activeTag
+            ? cat.videos || []
+            : (cat.videos || []).filter((v) => (v.tags || []).includes(activeTag))
+          return {
+            name: cat.name,
+            entries: list.map((v, i) => ({ video: v, list, index: i, kind: 'library' })),
+          }
+        })
+        .filter((shelf) => shelf.entries.length > 0),
+    [library, activeTag],
+  )
 
   // Resolve curated learning paths against the loaded library (skip unknown ids).
   const paths = useMemo(() => {
@@ -142,41 +192,23 @@ export default function VideosSection() {
     [mutate],
   )
 
-  // Landing = no search text and no category chip → hero / rails / library.
+  // Landing = no search text and no category chip → featured strip + shelves.
   // Any query or category filter swaps in the flat filtered grid (as before).
   const landing = !query.trim() && !activeCat
 
-  // "Continue watching" renders in both modes (landing: right under the hero).
-  // Same bordered-card vocabulary as the show rails so the landing reads as one
-  // system — narrower cards + gold resume line mark it as the resume shelf.
-  const continueBlock = !isLoading && continueWatching.length > 0 && (
-    <div className={s.continueSection}>
-      <span className={s.stripHead}>
-        <UIcon name="clock" size={13} />
-        Continue watching
-      </span>
-      <div className={s.rail} role="list" aria-label="Continue watching">
-        {continueWatching.map((cw) => (
-          <div role="listitem" key={cw.video.youtube_id} className={`${s.railItem} ${s.continueItem}`}>
-            <button
-              className={s.railCard}
-              onClick={() => playVideo(cw.list, cw.index)}
-              aria-label={`Resume ${cw.video.title}`}
-            >
-              <span className={s.railThumbWrap}>
-                <CardImage video={cw.video} />
-                {cw.video.duration && <span className={s.railDuration}>{cw.video.duration}</span>}
-                <span className={s.railProgress}>
-                  <span className={s.railProgressFill} style={{ width: `${cw.pct}%` }} />
-                </span>
-              </span>
-              <span className={s.railTitle}>{cw.video.title}</span>
-              <span className={s.resumeNote}>{cw.pct > 0 ? `Resume · ${cw.pct}% watched` : 'Resume'}</span>
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
+  // Continue Watching — the first shelf, same card language as everything else.
+  const continueShelf = !isLoading && continueEntries.length > 0 && (
+    <Shelf
+      name="Continue watching"
+      entries={continueEntries}
+      onPlay={playVideo}
+      progress={progress}
+      deskThreads={deskThreads}
+      isAdmin={isAdmin}
+      onEdit={setEditing}
+      onDelete={handleDelete}
+      expandable={false}
+    />
   )
 
   return (
@@ -221,28 +253,65 @@ export default function VideosSection() {
         </div>
       </div>
 
+      {/* One chip bar: All + categories in a single scrollable row, with the
+          Filters toggle (tag chips, default hidden) pinned at the right end. */}
       {!isLoading && total > 0 && categories.length > 1 && (
-        <div className={styles.catBar} role="tablist" aria-label="Filter videos by category">
-          <button
-            className={`${styles.catChip} ${!activeCat ? styles.catChipActive : ''}`}
-            onClick={() => setActiveCat(null)}
-            role="tab"
-            aria-selected={!activeCat}
-          >
-            All <span className={styles.catCount}>{total}</span>
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.name}
-              className={`${styles.catChip} ${activeCat === c.name ? styles.catChipActive : ''}`}
-              onClick={() => setActiveCat(activeCat === c.name ? null : c.name)}
-              role="tab"
-              aria-selected={activeCat === c.name}
-            >
-              {c.name} <span className={styles.catCount}>{c.videos.length}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          <div className={s.chipBar}>
+            <div className={s.chips} role="tablist" aria-label="Filter videos by category">
+              <button
+                className={`${s.chip} ${!activeCat ? s.chipActive : ''}`}
+                onClick={() => setActiveCat(null)}
+                role="tab"
+                aria-selected={!activeCat}
+              >
+                All <span className={s.chipCount}>{total}</span>
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c.name}
+                  className={`${s.chip} ${activeCat === c.name ? s.chipActive : ''}`}
+                  onClick={() => setActiveCat(activeCat === c.name ? null : c.name)}
+                  role="tab"
+                  aria-selected={activeCat === c.name}
+                >
+                  {c.name} <span className={s.chipCount}>{c.videos.length}</span>
+                </button>
+              ))}
+            </div>
+            {landing && tags.length > 0 && (
+              <button
+                className={`${s.chip} ${s.filtersBtn} ${activeTag ? s.chipActive : ''}`}
+                onClick={() => setFiltersOpen((o) => !o)}
+                aria-expanded={filtersOpen}
+              >
+                <UIcon name="screener" size={13} gold={false} />
+                Filters
+              </button>
+            )}
+          </div>
+          {landing && filtersOpen && tags.length > 0 && (
+            <div className={s.tagRow} role="group" aria-label="Filter the library by tag">
+              <button
+                className={`${s.chip} ${!activeTag ? s.chipActive : ''}`}
+                aria-pressed={!activeTag}
+                onClick={() => setActiveTag(null)}
+              >
+                All
+              </button>
+              {tags.map(([tag, count]) => (
+                <button
+                  key={tag}
+                  className={`${s.chip} ${activeTag === tag ? s.chipActive : ''}`}
+                  aria-pressed={activeTag === tag}
+                  onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                >
+                  {tag} <span className={s.chipCount}>{count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {isLoading && <DeskSectionSkeleton cards={8} />}
@@ -252,12 +321,12 @@ export default function VideosSection() {
         <EmptyState isAdmin={isAdmin} onAdd={() => setEditing({})} />
       )}
 
-      {/* ── Landing (no search / no category chip): hero → continue watching
-             → one rail per show → tag chips + library → learning paths. ── */}
+      {/* ── Landing: featured strip → Continue Watching → one shelf per
+             category (shows, then library) → learning paths. ── */}
       {!isLoading && total > 0 && landing && (
         <>
           {heroVideo && (
-            <DeskHero
+            <FeaturedStrip
               video={heroVideo}
               list={heroList}
               index={0}
@@ -267,12 +336,13 @@ export default function VideosSection() {
             />
           )}
 
-          {continueBlock}
+          {continueShelf}
 
-          {shows.map((show) => (
-            <ShowRail
-              key={show.name}
-              show={show}
+          {showShelves.map((shelf) => (
+            <Shelf
+              key={shelf.name}
+              name={shelf.name}
+              entries={shelf.entries}
               onPlay={playVideo}
               progress={progress}
               deskThreads={deskThreads}
@@ -282,11 +352,15 @@ export default function VideosSection() {
             />
           ))}
 
-          {library.length > 0 && (
-            <LibraryGrid
-              categories={library}
-              activeTag={activeTag}
-              onTagChange={setActiveTag}
+          {activeTag && libraryShelves.length === 0 && (
+            <div className={styles.note}>No library videos tagged “{activeTag}”.</div>
+          )}
+
+          {libraryShelves.map((shelf) => (
+            <Shelf
+              key={shelf.name}
+              name={shelf.name}
+              entries={shelf.entries}
               onPlay={playVideo}
               progress={progress}
               deskThreads={deskThreads}
@@ -294,14 +368,14 @@ export default function VideosSection() {
               onEdit={setEditing}
               onDelete={handleDelete}
             />
-          )}
+          ))}
 
           {paths.length > 0 && (
-            <div className={s.pathsSection}>
-              <span className={s.stripHead}>
-                <UIcon name="compass" size={13} />
-                Learning paths
-              </span>
+            <section className={s.shelf}>
+              <div className={s.shelfHead}>
+                <h2 className={s.shelfName}>Learning paths</h2>
+                <span className={s.shelfCount}>{paths.length}</span>
+              </div>
               <div className={s.pathsGrid}>
                 {paths.map((p) => (
                   <button
@@ -309,78 +383,48 @@ export default function VideosSection() {
                     className={s.pathCard}
                     onClick={() => playVideo(p.videos, 0)}
                   >
-                    <div className={s.pathName}>{p.name}</div>
-                    <div className={s.pathBlurb}>{p.blurb}</div>
-                    <div className={s.pathMeta}>
-                      <UIcon name="play" size={14} />
+                    <span className={s.pathName}>{p.name}</span>
+                    <span className={s.pathBlurb}>{p.blurb}</span>
+                    <span className={s.pathMeta}>
+                      <UIcon name="play" size={12} gold={false} />
                       Start path · {p.videos.length} videos
-                    </div>
+                    </span>
                   </button>
                 ))}
               </div>
-            </div>
+            </section>
           )}
         </>
       )}
 
-      {/* ── Search / category filter active: today's flat filtered grid. ── */}
+      {/* ── Search / category filter active: flat filtered grid, same cards. ── */}
       {!isLoading && total > 0 && !landing && (
         <>
-          {continueBlock}
+          {continueShelf}
 
           {filtered.length === 0 && (
             <div className={styles.note}>No videos match “{query}”.</div>
           )}
 
           {filtered.map((cat) => (
-            <section key={cat.name} className={styles.section}>
-              <h2 className={styles.sectionTitle}>{cat.name}</h2>
-              <div className={styles.grid}>
+            <section key={cat.name} className={s.shelf}>
+              <div className={s.shelfHead}>
+                <h2 className={s.shelfName}>{cat.name}</h2>
+                <span className={s.shelfCount}>{cat.videos.length}</span>
+              </div>
+              <div className={s.shelfGrid}>
                 {cat.videos.map((v, vi) => (
-                  <article key={v.id} className={styles.card}>
-                    <button
-                      className={styles.thumbBtn}
-                      onClick={() => playVideo(cat.videos, vi)}
-                      aria-label={`Play ${v.title}`}
-                    >
-                      <img className={styles.thumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
-                      <BrandBadge />
-                      <span className={styles.playOverlay} aria-hidden="true"><PlayIcon /></span>
-                      {v.duration && <span className={styles.duration}>{v.duration}</span>}
-                      {progress[v.youtube_id]?.done && (
-                        <span className={styles.watchedBadge} aria-label="Watched">✓ Watched</span>
-                      )}
-                      {!progress[v.youtube_id]?.done && progress[v.youtube_id]?.t >= 8 && progress[v.youtube_id]?.d > 0 && (
-                        <span className={styles.progressBar}>
-                          <span
-                            className={styles.progressFill}
-                            style={{ width: `${Math.min(100, Math.round((progress[v.youtube_id].t / progress[v.youtube_id].d) * 100))}%` }}
-                          />
-                        </span>
-                      )}
-                    </button>
-                    <div className={styles.cardBody}>
-                      <div className={styles.cardTitle}>{v.title}</div>
-                      {v.description && <div className={styles.cardDesc}>{v.description}</div>}
-                      {deskThreads?.[String(v.id)] && (
-                        <Link
-                          to={`/community/${deskThreads[String(v.id)].thread_id}`}
-                          className={styles.discussLink}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Discussion ({deskThreads[String(v.id)].reply_count})
-                        </Link>
-                      )}
-                    </div>
-                    {isAdmin && (
-                      <div className={styles.cardAdmin}>
-                        <button className={styles.adminLink} onClick={() => setEditing(v)}>Edit</button>
-                        <button className={styles.adminLinkDanger} onClick={() => handleDelete(v)}>
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </article>
+                  <YTCard
+                    key={v.id}
+                    video={v}
+                    kind={cat.kind === 'show' ? 'show' : 'library'}
+                    onClick={() => playVideo(cat.videos, vi)}
+                    progress={progress}
+                    deskThreads={deskThreads}
+                    isAdmin={isAdmin}
+                    onEdit={setEditing}
+                    onDelete={handleDelete}
+                  />
                 ))}
               </div>
             </section>
