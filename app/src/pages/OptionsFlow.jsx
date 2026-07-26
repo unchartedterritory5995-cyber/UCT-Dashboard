@@ -2646,6 +2646,9 @@ export default function OptionsFlowDashboard() {
       const snap = readSnapshot(snapshotKey(csvFile));
       if (snap) {
         _baseFetchedVer.current = snap.version;
+        // Never adopt a version onto rows restored from a previous visit — a
+        // snapshot can be minutes old, so it must take the refetch path.
+        _baseVerPending.current = false;
         _hasRows.current = true;
         setParsedRows(snap.rows);
         setLoadedFetchDays(fetchDaysAtStart);
