@@ -46,6 +46,13 @@ ALLOWED_EVENTS = {
     "compare_view",
     "compare_cta_signup_click",
     "compare_cta_switch_click",
+    # Pre-launch COMING SOON page
+    "coming_soon_view",
+    "waitlist_submit",          # pressed the button
+    "waitlist_joined",          # server accepted it
+    "founder_contact_click",    # props: {channel: x|email|phone}
+    "substack_click",
+    "coming_soon_login_click",
 }
 
 
@@ -148,10 +155,45 @@ async def summary(
             cta_clicks,
         ).fetchone()
 
+        # Pre-launch funnel. The hardcoded CTA list above belongs to the full
+        # marketing landing page; while COMING_SOON is on, the only conversion
+        # that exists is view -> joined the list, so it gets its own numbers
+        # rather than being averaged into a funnel it isn't part of.
+        cs = conn.execute(
+            "SELECT"
+            "  COUNT(DISTINCT CASE WHEN event = 'coming_soon_view' THEN visitor_id END) AS views,"
+            "  COUNT(DISTINCT CASE WHEN event = 'waitlist_joined' THEN visitor_id END) AS joined,"
+            "  COUNT(DISTINCT CASE WHEN event = 'founder_contact_click' THEN visitor_id END) AS founder_clickers,"
+            "  COUNT(DISTINCT CASE WHEN event = 'substack_click' THEN visitor_id END) AS substack_clickers"
+            f" FROM landing_events"
+            f" WHERE created_at >= datetime('now', '-{days} days')"
+        ).fetchone()
+        cs_views = cs["views"] or 0
+
+        # Which contact route people actually reach for — the thing that tells
+        # you whether the phone number is earning its place on the page.
+        by_channel = conn.execute(
+            "SELECT json_extract(props, '$.channel') AS channel, COUNT(*) AS n"
+            " FROM landing_events"
+            " WHERE event = 'founder_contact_click'"
+            f"  AND created_at >= datetime('now', '-{days} days')"
+            " GROUP BY channel ORDER BY n DESC"
+        ).fetchall()
+
         return {
             "days": days,
             "events": [dict(r) for r in events],
             "daily": [dict(r) for r in daily],
+            "coming_soon": {
+                "views": cs_views,
+                "joined": cs["joined"] or 0,
+                "join_rate": (
+                    round((cs["joined"] or 0) / cs_views, 4) if cs_views else 0.0
+                ),
+                "founder_clickers": cs["founder_clickers"] or 0,
+                "substack_clickers": cs["substack_clickers"] or 0,
+                "founder_by_channel": [dict(r) for r in by_channel],
+            },
             "funnel": {
                 "views": funnel["views"] or 0,
                 "cta_clickers": funnel["cta_clickers"] or 0,

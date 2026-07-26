@@ -110,7 +110,10 @@ describe('ComingSoon', () => {
   it('does not submit an empty email', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /notify me/i }))
-    expect(fetch).not.toHaveBeenCalled()
+    // Not "fetch was never called" — the analytics tracker also posts through
+    // fetch (jsdom has no sendBeacon), so assert on the waitlist call itself.
+    const waitlistCalls = fetch.mock.calls.filter(([url]) => url === '/api/waitlist')
+    expect(waitlistCalls).toHaveLength(0)
     expect(screen.getByRole('alert')).toHaveTextContent(/enter an email/i)
   })
 
@@ -119,6 +122,18 @@ describe('ComingSoon', () => {
     // Rendered from a future default target, so a day figure is always present.
     expect(screen.getByText(/^days?$/i)).toBeInTheDocument()
     expect(screen.getByText('hrs')).toBeInTheDocument()
+  })
+
+  it('links published work as proof, not just a claim', () => {
+    renderPage()
+    const proof = document.querySelector('a[href^="https://unchartedterritoryy.substack.com"]')
+    expect(proof).toBeInTheDocument()
+    expect(proof).toHaveAttribute('target', '_blank')
+    expect(proof).toHaveAttribute('rel', expect.stringContaining('noopener'))
+    // Names what is actually published there — the Morning Wire stages as a
+    // draft, so pointing people at it would send them somewhere it isn't.
+    expect(proof.textContent).toMatch(/sunday scans/i)
+    expect(proof.textContent).not.toMatch(/morning wire/i)
   })
 
   it('never says "opening bell" — the launch date is a Saturday', () => {

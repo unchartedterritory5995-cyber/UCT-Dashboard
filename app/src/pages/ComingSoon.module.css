@@ -340,13 +340,42 @@
   animation: riseIn 700ms ease-out 720ms forwards;
 }
 
+/* ── Proof link ─────────────────────────────────────────────────────────── */
+
+/* Quiet on purpose: it must not compete with the waitlist CTA, but it is the
+   only thing on the page a sceptic can verify before acting. */
+.proof {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: clamp(8px, 1.1vw, 11px) 0 0;
+  font-size: clamp(12px, 1.2vw, 13px);
+  color: var(--text-muted, #8c8674);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 180ms ease, border-color 180ms ease;
+  opacity: 0;
+  animation: riseIn 700ms ease-out 780ms forwards;
+}
+
+.proof:hover {
+  color: var(--ut-gold, #c9a84c);
+  border-bottom-color: rgba(201, 168, 76, 0.45);
+}
+
+.proofArrow {
+  transition: transform 180ms ease;
+}
+
+.proof:hover .proofArrow { transform: translateX(3px); }
+
 /* ── Countdown ──────────────────────────────────────────────────────────── */
 
 .clock {
   display: flex;
   align-items: flex-end;
   gap: clamp(14px, 2vw, 22px);
-  margin: clamp(18px, 2.4vw, 26px) 0 0;
+  margin: clamp(16px, 2.1vw, 22px) 0 0;
   opacity: 0;
   animation: riseIn 700ms ease-out 840ms forwards;
 }
@@ -654,6 +683,8 @@
    are ~18px tall — well under the 44px --tap-min this codebase enforces. Give
    each one a full-width row target with a hairline divider. */
 @media (max-width: 1024px) {
+  .proof { min-height: var(--tap-min, 44px); }
+
   .contacts { gap: 0; }
 
   .contact { width: 100%; }
@@ -681,6 +712,7 @@
   .eyebrow  { margin-bottom: 8px; letter-spacing: 4.4px; }
   .tagline  { margin-top: 14px; font-size: 15px; }
   .blurb    { margin-top: 10px; font-size: 13px; line-height: 1.55; }
+  .proof    { margin-top: 8px; font-size: 12px; }
   .clock    { margin-top: 16px; }
   .num      { font-size: 30px; }
   .form     { margin-top: 16px; }

@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { track } from '../utils/landingTrack'
 import styles from './ComingSoon.module.css'
+
+// The firm's public Substack. What is actually PUBLISHED there is the weekly
+// Sunday Scans (the Morning Wire stages as a draft), so the copy says Sunday
+// Scans — linking "today's Morning Wire" would send people somewhere it isn't.
+const SUBSTACK_URL = 'https://unchartedterritoryy.substack.com'
 
 // Launch target: Sat Sep 5 2026, 9am ET (owner's date). Deliberately NOT
 // labelled "opening bell" anywhere — Sep 5 is a Saturday, so there is no
@@ -217,11 +223,11 @@ function CurveMarks({ still, terminus, herePoint }) {
 // No "X:" / "Email:" / "Phone:" prefixes — an @handle, an address and a phone
 // number each already say what they are, and the labels cost a line each.
 const CONTACTS = [
-  { label: '@TSDR_Trading', href: 'https://x.com/TSDR_Trading' },
-  { label: '@Braczyy',      href: 'https://x.com/Braczyy' },
+  { label: '@TSDR_Trading', href: 'https://x.com/TSDR_Trading', channel: 'x-tsdr' },
+  { label: '@Braczyy',      href: 'https://x.com/Braczyy',      channel: 'x-bracco' },
   { label: 'unchartedterritory5995@gmail.com',
-    href: 'mailto:unchartedterritory5995@gmail.com' },
-  { label: '(612) 730-0632', href: 'tel:+16127300632' },
+    href: 'mailto:unchartedterritory5995@gmail.com',            channel: 'email' },
+  { label: '(612) 730-0632', href: 'tel:+16127300632',          channel: 'phone' },
 ]
 
 function FounderAccess() {
@@ -235,11 +241,12 @@ function FounderAccess() {
         Open now, at a rate locked for as long as you stay. To claim it, reach out:
       </p>
       <ul className={styles.contacts}>
-        {CONTACTS.map(({ label, href }) => (
+        {CONTACTS.map(({ label, href, channel }) => (
           <li key={href} className={styles.contact}>
             <a
               className={styles.contactLink}
               href={href}
+              onClick={() => track('founder_contact_click', { channel })}
               {...(href.startsWith('http')
                 ? { target: '_blank', rel: 'noopener noreferrer' }
                 : {})}
@@ -272,6 +279,7 @@ function Waitlist() {
     }
     setState('sending')
     setMessage('')
+    track('waitlist_submit')
     try {
       const res = await fetch('/api/waitlist', {
         method: 'POST',
@@ -286,6 +294,8 @@ function Waitlist() {
       }
       setState('done')
       setMessage(body.already ? "You're already on the list." : "You're on the list.")
+      // Only a genuinely new row counts as a conversion.
+      if (!body.already) track('waitlist_joined')
     } catch {
       setState('error')
       setMessage('No connection. Try again in a moment.')
@@ -354,6 +364,9 @@ export default function ComingSoon() {
     return () => clearInterval(id)
   }, [])
 
+  // One view event per mount, so join-rate has a denominator.
+  useEffect(() => { track('coming_soon_view') }, [])
+
   const left = remaining(target, now)
   const terminus = useMemo(() => terminusLabel(target), [target])
   const seam = seamFraction(target, now)
@@ -385,7 +398,11 @@ export default function ComingSoon() {
           <span className={styles.brandMark} aria-hidden="true">⊕</span>
           <span className={styles.brandName}>Uncharted Territory</span>
         </div>
-        <Link to="/login" className={styles.login}>Log in</Link>
+        <Link
+          to="/login"
+          className={styles.login}
+          onClick={() => track('coming_soon_login_click')}
+        >Log in</Link>
       </header>
 
       <main className={styles.center}>
@@ -406,6 +423,20 @@ export default function ComingSoon() {
           UCT&nbsp;20, live market breadth, and a coach that reviews every trade
           you take.
         </p>
+
+        {/* Proof, not a claim. A stranger arriving from social has no reason to
+            believe any of the above — this is already-published work they can
+            go read before handing over an email or making a call. */}
+        <a
+          className={styles.proof}
+          href={SUBSTACK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => track('substack_click')}
+        >
+          Already publishing weekly — read the Sunday Scans
+          <span className={styles.proofArrow} aria-hidden="true">→</span>
+        </a>
 
         {left && (
           <div className={styles.clock} aria-label="Time until launch">

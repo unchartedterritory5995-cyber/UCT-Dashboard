@@ -104,6 +104,9 @@ from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTr
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
 from api.routers import waitlist as waitlist_router  # pre-launch COMING SOON capture
+# landing_analytics existed but was never mounted, so the landing page's track()
+# calls and the /admin/landing-analytics page had no backend at all.
+from api.routers import landing_analytics as landing_analytics_router
 from api.flow_router import flow_router
 from api.flow_summary import flow_summary_router
 from api.oi_snapshot_router import router as oi_snapshot_router
@@ -3788,6 +3791,7 @@ app.include_router(calendar_router.router)
 app.include_router(insider_router.router)
 app.include_router(auth_router.router)
 app.include_router(waitlist_router.router)
+app.include_router(landing_analytics_router.router)
 app.include_router(support_status_router.router)
 app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
