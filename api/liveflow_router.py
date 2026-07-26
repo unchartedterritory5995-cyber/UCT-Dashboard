@@ -286,7 +286,7 @@ def update_user_blocklist(payload: UserBlocklistPayload,
 
 
 @router.api_route("/test-discord-post", methods=["GET", "POST"])
-async def test_discord_post():
+async def test_discord_post(_auth: dict = Depends(require_flow_admin)):
     """
     Manually fire a test Discord post to verify the webhook + embed rendering
     end-to-end. Synthesizes a realistic aggregate, runs it through the actual
@@ -416,6 +416,10 @@ async def test_discord_post():
 
 @router.api_route("/admin/clear-before-date", methods=["GET", "POST"])
 def admin_clear_before_date(
+    # The confirm token below is NOT a secret — the endpoint's own error body
+    # spells it out to anonymous callers, and the route accepts GET, so before
+    # this gate a single URL could wipe the alert history.
+    _auth: dict = Depends(require_flow_admin),
     cutoff: str = Query(..., description="ISO date YYYY-MM-DD; deletes rows where date_iso < cutoff"),
     confirm: str = Query("", description="Must equal YES_DELETE_ALL_BEFORE for the deletion to actually run"),
     dry_run: int = Query(default=0, description="If 1, returns what WOULD be deleted without deleting"),

@@ -42,14 +42,23 @@ import os
 import sqlite3
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
+
+# Same gate every sibling flow router uses (accepts PUSH_SECRET bearer, a session
+# cookie, or the HMAC vouch flow_proxy injects — the last is how it authenticates
+# ON the flow-worker, which has no copy of auth.db).
+from api.flow_admin_auth import require_flow_admin
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/flow-reconcile", tags=["flow-reconcile"])
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+
+# Ceiling on /preview. It is a diagnostic for eyeballing reconcile rows, never a
+# bulk export; an unbounded fetchall() here can OOM the flow-worker.
+_PREVIEW_MAX_ROWS = int(os.environ.get("FLOW_RECONCILE_PREVIEW_MAX", "5000"))
 
 
 class ReconcileRow(BaseModel):
@@ -95,7 +104,8 @@ class ReconcileResult(BaseModel):
 
 
 @router.post("/insert", response_model=ReconcileResult)
-def reconcile_insert(payload: ReconcilePayload) -> ReconcileResult:
+def reconcile_insert(payload: ReconcilePayload,
+                     _auth: dict = Depends(require_flow_admin)) -> ReconcileResult:
     """Insert reconcile rows into flow.db. Idempotent on
     (CreatedDate, Symbol, CallPut, Strike, ExpirationDate, source)."""
     # Normalize date for the source tag: 7/6/2026 -> reconcile_2026_07_06
@@ -198,21 +208,27 @@ def reconcile_insert(payload: ReconcilePayload) -> ReconcileResult:
 
 
 @router.get("/preview")
-def reconcile_preview(source_tag: Optional[str] = None) -> dict:
+def reconcile_preview(source_tag: Optional[str] = None,
+                      _auth: dict = Depends(require_flow_admin)) -> dict:
     """Show what reconcile rows currently exist in flow.db.
     Optionally filter to one source_tag (e.g. reconcile_2026_07_06)."""
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
         if source_tag:
+            # HARD BOUND. `source_tag` is caller-supplied, so without a LIMIT
+            # ?source_tag=stocks selects the ENTIRE production tape (~1.45M rows)
+            # and fetchall()s it into memory on the pod that owns the OPRA
+            # websocket. This endpoint only ever needs to eyeball reconcile rows.
             cur = conn.execute(
-                "SELECT * FROM flow WHERE source = ? ORDER BY CreatedTime",
-                (source_tag,),
+                "SELECT * FROM flow WHERE source = ? ORDER BY CreatedTime LIMIT ?",
+                (source_tag, _PREVIEW_MAX_ROWS),
             )
         else:
             cur = conn.execute(
                 "SELECT * FROM flow WHERE source LIKE 'reconcile_%' "
-                "ORDER BY source, CreatedTime"
+                "ORDER BY source, CreatedTime LIMIT ?",
+                (_PREVIEW_MAX_ROWS,),
             )
         rows = [dict(r) for r in cur.fetchall()]
     finally:
