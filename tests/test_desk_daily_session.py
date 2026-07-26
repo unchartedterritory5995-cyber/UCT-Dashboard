@@ -344,7 +344,7 @@ def test_notify_published_embeds_thumbnail_and_section(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Task 3: show auto-registration (guarded upsert_category before publish)
+# Task 3: show auto-registration (guarded register_category_if_missing before publish)
 # ---------------------------------------------------------------------------
 
 def test_process_pending_jobs_registers_show_category(edu_db, jobs_db):
@@ -354,13 +354,25 @@ def test_process_pending_jobs_registers_show_category(edu_db, jobs_db):
     assert cats.get("Post-Market Recaps") == "show"
 
 
-def test_process_pending_jobs_survives_upsert_category_failure(edu_db, jobs_db, monkeypatch):
+def test_process_pending_jobs_survives_register_category_failure(edu_db, jobs_db, monkeypatch):
     # Meta registration must never break publish, even if it raises.
-    monkeypatch.setattr(edu, "upsert_category", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(edu, "register_category_if_missing",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     jobs_db.enqueue("U5", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     out = dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     assert len(out) == 1
     assert edu.list_videos()[0]["youtube_id"] == "VIDX"
+
+
+def test_process_pending_jobs_preserves_existing_library_kind(edu_db, jobs_db):
+    # Admin has re-taxonomized "Workshops & Fireside Chats" to 'library' — the
+    # publish path must NEVER flip it back to 'show' on the next matching
+    # recording (that's the whole point of the create-only registration).
+    edu.upsert_category("Workshops & Fireside Chats", kind="library")
+    jobs_db.enqueue("U6", "Workshop with X", "2026-06-24T20:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    cats = {c["name"]: c["kind"] for c in edu.list_category_meta()}
+    assert cats.get("Workshops & Fireside Chats") == "library"
 
 
 def test_publish_new_sessions_registers_show_category(edu_db):
@@ -371,10 +383,22 @@ def test_publish_new_sessions_registers_show_category(edu_db):
     assert cats.get("Live Trading Sessions") == "show"
 
 
-def test_publish_new_sessions_survives_upsert_category_failure(edu_db, monkeypatch):
-    monkeypatch.setattr(edu, "upsert_category", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+def test_publish_new_sessions_survives_register_category_failure(edu_db, monkeypatch):
+    monkeypatch.setattr(edu, "register_category_if_missing",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     client = _FakeClient([{"video_id": "VIDM", "title": "raw",
                            "started_at": "2026-06-24T13:30:00Z"}])
     created = dds.publish_new_sessions(client=client, now=_NOW)
     assert len(created) == 1
     assert created[0]["youtube_id"] == "VIDM"
+
+
+def test_publish_new_sessions_preserves_existing_library_kind(edu_db, monkeypatch):
+    # Live Trading Sessions was re-taxonomized to 'library' by an admin — the
+    # daily publish job must never flip it back to 'show'.
+    edu.upsert_category("Live Trading Sessions", kind="library")
+    client = _FakeClient([{"video_id": "VIDN", "title": "raw",
+                           "started_at": "2026-06-24T13:30:00Z"}])
+    dds.publish_new_sessions(client=client, now=_NOW)
+    cats = {c["name"]: c["kind"] for c in edu.list_category_meta()}
+    assert cats.get("Live Trading Sessions") == "library"

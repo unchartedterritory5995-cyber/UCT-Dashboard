@@ -470,6 +470,25 @@ def upsert_category(name: str, kind: str | None = None,
         return result
 
 
+def register_category_if_missing(name: str, kind: str = "library") -> None:
+    """Create a category meta row iff none exists yet — appended at the tail of
+    its kind via the same create-path as `_upsert_category_conn`. NEVER updates
+    an existing row (any field) — unlike `upsert_category()`, a repeat call on
+    a category an admin has since retaxonomized (e.g. flipped a curated show
+    to 'library') can never flip it back. For publish-path "does this category
+    exist yet?" registration, where the caller only wants a sane default kind
+    for a brand-new name and must never fight an admin's correction on every
+    subsequent matching recording. One `_WRITE_LOCK` acquisition (non-reentrant
+    — never call this while already holding the lock)."""
+    nm = _validate_category_input(name, kind)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT 1 FROM edu_categories WHERE name = ?", (nm,)).fetchone()
+        if row is not None:
+            return
+        _upsert_category_conn(c, nm, kind=kind)
+        c.commit()
+
+
 def rename_category(old: str, new: str) -> int:
     """Move every video from `old` to `new` + retire the old meta row. If `new`
     has no meta row, the old row's kind/blurb carry over. Returns rows moved."""
@@ -533,11 +552,25 @@ def bulk_apply_taxonomy(categories: list[dict], assignments: list[dict]) -> dict
     return {"categories": len(cats), "videos": applied, "missing_ids": missing}
 
 
+# Fields present on every list_videos() row that no frontend consumer of the
+# /videos payload reads — a single video's transcript alone can run to 600k
+# chars (~294 videos and counting). The theater fetches insights per-video via
+# /videos/{id}/insights instead. Stripped in grouped_videos_payload() AFTER the
+# kind-inference below (which still needs meeting_uuid) — order matters.
+_GROUPED_PAYLOAD_STRIP_KEYS = (
+    "transcript", "chapters", "ticker_moments", "summary", "setups",
+    "key_levels", "meeting_uuid",
+)
+
+
 def grouped_videos_payload() -> dict:
     """The /api/education/videos payload: categories ordered shows-first by
     sort_order, each with its videos (sort_order, id). Categories present on
     videos but missing a meta row are auto-registered at the tail (kind='show'
-    when any member is a Zoom session, else 'library') so nothing ever hides."""
+    when any member is a Zoom session, else 'library') so nothing ever hides.
+    Heavyweight per-video fields (see _GROUPED_PAYLOAD_STRIP_KEYS) are dropped
+    before returning — cheap/useful fields (tags, headline, audio_url, poster,
+    …) are kept."""
     vids = list_videos()
     by_cat: dict[str, list[dict]] = {}
     for v in vids:
@@ -548,6 +581,9 @@ def grouped_videos_payload() -> dict:
         if name not in meta:
             kind = "show" if any(m.get("meeting_uuid") for m in members) else "library"
             meta[name] = upsert_category(name, kind=kind)
+    for v in vids:
+        for k in _GROUPED_PAYLOAD_STRIP_KEYS:
+            v.pop(k, None)
     ordered = [m for m in list_category_meta() if m["name"] in by_cat]
     return {
         "categories": [{**m, "videos": by_cat[m["name"]]} for m in ordered],

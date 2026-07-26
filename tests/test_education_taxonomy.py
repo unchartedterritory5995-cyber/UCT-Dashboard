@@ -39,6 +39,24 @@ def test_upsert_category_rejects_bad_kind(svc):
         svc.upsert_category("X", kind="playlist")
 
 
+def test_register_category_if_missing_creates_new_at_tail(svc):
+    svc.upsert_category("Live Trading Sessions", kind="show")
+    svc.register_category_if_missing("Post-Market Recaps", kind="show")
+    meta = {m["name"]: m for m in svc.list_category_meta()}
+    assert meta["Post-Market Recaps"]["kind"] == "show"
+    # appended at the tail of its kind, not clobbering the existing show row
+    assert meta["Post-Market Recaps"]["sort_order"] > meta["Live Trading Sessions"]["sort_order"]
+
+
+def test_register_category_if_missing_never_updates_existing_row(svc):
+    svc.upsert_category("Workshops & Fireside Chats", kind="library", sort_order=3, blurb="Recorded workshops")
+    svc.register_category_if_missing("Workshops & Fireside Chats", kind="show")
+    got = next(m for m in svc.list_category_meta() if m["name"] == "Workshops & Fireside Chats")
+    assert got["kind"] == "library"          # NOT flipped to "show"
+    assert got["sort_order"] == 3             # untouched
+    assert got["blurb"] == "Recorded workshops"  # untouched
+
+
 def test_set_video_tags_roundtrip(svc):
     v = _add(svc, "Risk 101", "Risk & Trade Management")
     svc.set_video_tags(v["id"], ["risk", "starter"])
@@ -56,6 +74,39 @@ def test_grouped_payload_orders_shows_first_then_library(svc):
     assert out["categories"][0]["kind"] == "show"
     assert out["total"] == 2
     assert out["categories"][1]["videos"][0]["tags"] == []
+
+
+def test_grouped_payload_strips_heavyweight_fields(svc):
+    svc.upsert_category("Live Trading Sessions", kind="show")
+    v = _add(svc, "Session Jul 24", "Live Trading Sessions", yt="ltsB")
+    svc.set_video_insights(
+        v["id"], transcript="x" * 10, chapters=[{"t": 0, "title": "Open"}],
+        ticker_moments=[{"ticker": "NVDA", "t": 1}], headline="Recap",
+        summary=["bullet"], setups=[{"setup": "VCP"}])
+    out = svc.grouped_videos_payload()
+    vid = out["categories"][0]["videos"][0]
+    for key in ("transcript", "chapters", "ticker_moments", "summary", "setups",
+                "key_levels", "meeting_uuid"):
+        assert key not in vid
+    # cheap/useful fields survive untouched
+    assert vid["id"] == v["id"]
+    assert vid["youtube_id"] == "ltsB"
+    assert vid["title"] == "Session Jul 24"
+    assert vid["category"] == "Live Trading Sessions"
+    assert vid["tags"] == []
+    assert vid["headline"] == "Recap"
+
+
+def test_grouped_payload_kind_inference_still_uses_meeting_uuid_before_strip(svc):
+    # A session video (has meeting_uuid) in an unregistered category should
+    # still auto-register that category as kind='show' even though
+    # meeting_uuid itself is stripped from the returned video dict.
+    v = _add(svc, "Mystery Session", "Tonight", yt="mysC")
+    svc.set_meeting_uuid(v["id"], "zoom-uuid-1")
+    out = svc.grouped_videos_payload()
+    meta = {m["name"]: m for m in svc.list_category_meta()}
+    assert meta["Tonight"]["kind"] == "show"
+    assert "meeting_uuid" not in out["categories"][0]["videos"][0]
 
 
 def test_grouped_payload_auto_registers_unknown_category_at_tail(svc):

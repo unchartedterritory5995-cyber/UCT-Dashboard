@@ -116,7 +116,7 @@ def publish_new_sessions(client=None, *, now=None) -> list[dict]:
         if b_dt.date() < floor:
             continue
         try:
-            education_service.upsert_category(_category(), kind="show")
+            education_service.register_category_if_missing(_category(), kind="show")
         except Exception:
             pass  # never break publish over meta registration
         row = education_service.create_video({
@@ -276,7 +276,7 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             created_now = vid not in education_service.existing_youtube_ids()
             if created_now:
                 try:
-                    education_service.upsert_category(section, kind="show")
+                    education_service.register_category_if_missing(section, kind="show")
                 except Exception:
                     pass  # never break publish over meta registration
                 education_service.create_video({
