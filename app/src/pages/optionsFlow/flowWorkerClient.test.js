@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadFlow, processFlow, mergeToday, tickerFlow, getLoadedKey, getLoadedMeta, setLoadedVersion, _resetFlowWorker } from './flowWorkerClient'
+import { loadFlow, processFlow, mergeToday, tickerFlow, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded, _resetFlowWorker } from './flowWorkerClient'
 import { parseCSV, processFlowData } from './flowCompute'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -116,5 +116,49 @@ describe('flowWorkerClient — main-thread fallback', () => {
     expect(res.ok).toBe(true)
     expect(res.rowCount).toBe(0)
     expect(res.D).toBeNull()
+  })
+})
+
+describe('worker dies mid-session', () => {
+  // THE GAP THIS SUITE MISSED: every other test runs the fallback from the very
+  // start, so fbRows is always populated. In production the WORKER does the load,
+  // which means the main thread never holds the rows — and if the worker then
+  // dies, the fallback has nothing. processFlow used to return
+  // {ok:false,'no rows loaded'} and the page rendered that as an ERROR SCREEN,
+  // which is exactly what "the page must never break because of the worker" was
+  // supposed to prevent.
+  beforeEach(() => _resetFlowWorker())
+
+  it('asks the page to re-fetch instead of erroring when the dataset is gone', async () => {
+    // Simulate the worker having owned the data: nothing was ever loaded on the
+    // main thread, so there is no fallback copy.
+    const res = await processFlow({ dateFilter: 'All' }, null)
+    expect(res.ok).toBe(false)
+    expect(res.needsReload, 'must signal a reload, not a user-facing error').toBe(true)
+  })
+
+  it('signals a reload from mergeToday and tickerFlow too', async () => {
+    const m = await mergeToday(CSV, { dateFilter: 'All' }, null)
+    expect(m.needsReload).toBe(true)
+    const t = await tickerFlow('NVDA', null)
+    expect(t.needsReload).toBe(true)
+  })
+
+  it('forgetLoaded clears the key so a re-entry cannot skip the refetch', async () => {
+    await loadFlow(CSV, FILTER, null, 'k')
+    expect(getLoadedKey()).toBe('k')
+    forgetLoaded()
+    expect(getLoadedKey()).toBeNull()
+    expect(getLoadedMeta()).toBeNull()
+  })
+
+  it('recovers fully once the page re-fetches', async () => {
+    // The re-fetch runs loadFlow, which repopulates the main-thread copy.
+    const lost = await processFlow({ dateFilter: 'All' }, null)
+    expect(lost.needsReload).toBe(true)
+    await loadFlow(CSV, FILTER, null, 'k')
+    const ok = await processFlow(FILTER, null)
+    expect(ok.ok).toBe(true)
+    expect(ok.D).not.toBeNull()
   })
 })

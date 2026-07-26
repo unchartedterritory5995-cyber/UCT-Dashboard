@@ -15,7 +15,7 @@ import {
   processFlowData,
   THEMES_DEF,
 } from "./optionsFlow/flowCompute";  // moved out of this file 2026-07-25 — see that file
-import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoadedVersion } from "./optionsFlow/flowWorkerClient";
+import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded } from "./optionsFlow/flowWorkerClient";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -998,6 +998,8 @@ export default function OptionsFlowDashboard() {
   // _processedOnce gates the one-time initial coalesce.
   const _lastMergedVer = useRef(null);
   const _processedOnce = useRef(false);
+  // One-shot: a lost worker triggers exactly one silent re-fetch, never a loop.
+  const _workerReloaded = useRef(false);
   useEffect(() => {
     if (!rowCount) return;
     // Skip processing if a fetch is in-flight that will replace parsedRows.
@@ -1012,7 +1014,19 @@ export default function OptionsFlowDashboard() {
       const t2 = performance.now();
       const res = await processFlow({ dateFilter, dateFrom, dateTo }, erSoonArr);
       if (cancelled) return;
-      if (!res.ok) { console.error("processFlowData error:", res.error); setCsvError(res.error); return; }
+      if (!res.ok) {
+        // The worker died and took the dataset with it. Re-fetch once rather
+        // than showing the user an error — loadFlow will run on the main thread
+        // this time. Guarded so a genuinely broken feed cannot loop.
+        if (res.needsReload && !_workerReloaded.current) {
+          _workerReloaded.current = true;
+          console.warn("[flow] worker lost the dataset — re-fetching on the main thread");
+          forgetLoaded();
+          setBaseNonce(n => n + 1);
+          return;
+        }
+        console.error("processFlowData error:", res.error); setCsvError(res.error); return;
+      }
       if (res.D == null) { setD(null); return; }   // nothing in range
       const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
       console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${res.filteredCount} rows${res.usedWorker ? ", worker" : ", MAIN THREAD"})`);

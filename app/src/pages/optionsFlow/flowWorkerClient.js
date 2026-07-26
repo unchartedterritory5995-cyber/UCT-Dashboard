@@ -89,7 +89,7 @@ function getWorker() {
   }
 }
 
-function post(msg, timeoutMs = 60000) {
+function post(msg, timeoutMs = 20000) {   // a real parse is ~2s; 60s stalled the spinner for a minute
   const w = getWorker()
   if (!w) return Promise.resolve(null)
   const id = ++seq
@@ -140,7 +140,11 @@ export async function loadFlow(csv, filter, erSoon, key) {
 export async function processFlow(filter, erSoon) {
   const res = await post({ type: 'process', filter, erSoon })
   if (res && res.ok) return { ...res, usedWorker: true }
-  if (!fbRows) return { ok: false, error: 'no rows loaded', usedWorker: false }
+  // The rows live in the worker, so if it died mid-session the fallback has
+  // nothing to work from. That is NOT an error to show the user — ask the page
+  // to re-fetch, which repopulates the main-thread copy (workerDead is now set,
+  // so loadFlow takes the fallback) and everything keeps working, just slower.
+  if (!fbRows) return { ok: false, error: 'worker lost the dataset', needsReload: true, usedWorker: false }
   return { ok: true, ...fbAggregate(filter || {}, erSoon), usedWorker: false }
 }
 
@@ -151,7 +155,7 @@ export async function mergeToday(csv, filter, erSoon) {
     loadedMeta = { rowCount: res.rowCount, availableDates: res.availableDates }
     return { ...res, usedWorker: true }
   }
-  if (!fbRows) return { ok: false, error: 'no rows loaded', usedWorker: false }
+  if (!fbRows) return { ok: false, error: 'worker lost the dataset', needsReload: true, usedWorker: false }
   const incoming = parseCSV(csv)
   if (!incoming || !incoming.length) return { ok: false, error: 'delta had no rows', usedWorker: false }
   const days = new Set(incoming.map(r => (r.date || '').trim()).filter(Boolean))
@@ -166,11 +170,17 @@ export async function mergeToday(csv, filter, erSoon) {
 export async function tickerFlow(sym, erSoon) {
   const res = await post({ type: 'ticker', sym, erSoon })
   if (res && res.ok) return { ...res, usedWorker: true }
-  if (!fbRows) return { ok: false, error: 'no rows loaded', usedWorker: false }
+  if (!fbRows) return { ok: false, error: 'worker lost the dataset', needsReload: true, usedWorker: false }
   const s = String(sym || '').toUpperCase().trim()
   const rows = fbRows.filter(r => (r.ticker || '').toUpperCase().trim() === s)
   return { ok: true, D: rows.length ? processFlowData(rows, toSet(erSoon)) : null, rowCount: rows.length, usedWorker: false }
 }
+
+/**
+ * The worker no longer holds a usable dataset. Clearing the key stops a re-entry
+ * from believing it does and skipping the fetch that has to happen.
+ */
+export function forgetLoaded() { loadedKey = null; loadedMeta = null }
 
 /** Test seam — drop worker + fallback state. */
 export function _resetFlowWorker() {

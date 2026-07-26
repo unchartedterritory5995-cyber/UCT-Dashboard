@@ -19,9 +19,11 @@
  * quickly can leave more than one job in flight and a late reply for an
  * abandoned range must be discardable:
  *
- *   { id, type:'load',   csv, erSoon, filter }  -> { id, ok, rowCount, availableDates, D, timing }
+ *   { id, type:'load',   csv }                  -> { id, ok, rowCount, availableDates, timing }
  *   { id, type:'process', erSoon, filter }      -> { id, ok, D, filteredCount, timing }
- *   { id, type:'merge',  csv, erSoon, filter }  -> { id, ok, rowCount, availableDates, D, timing }
+ *   { id, type:'merge',  csv }                  -> { id, ok, rowCount, availableDates, timing }
+ *
+ * 'load' and 'merge' deliberately do NOT aggregate — that is 'process's job.
  *   { id, type:'ticker', sym, erSoon }          -> { id, ok, D }
  *   { id, type:'rows' }                         -> { id, ok, rows }   // escape hatch
  *   any failure                                 -> { id, ok:false, error }
@@ -45,9 +47,13 @@ let CACHE = null          // { key, D, filteredCount }
 const toSet = (erSoon) => (erSoon && erSoon.length ? new Set(erSoon) : null)
 
 function aggregate(filter, erSoon) {
+  // Key on the ER set's CONTENT, not its length: two different sets of equal
+  // size are not the same answer, and a cache key should not rely on erSoonSet
+  // happening to be resolved only once per session.
   const key = JSON.stringify([
     filter && filter.dateFilter, filter && filter.dateFrom, filter && filter.dateTo,
-    ROWS ? ROWS.length : 0, erSoon ? erSoon.length : -1,
+    ROWS ? ROWS.length : 0,
+    erSoon ? erSoon.slice().sort().join(',') : null,
   ])
   if (CACHE && CACHE.key === key) {
     return { D: CACHE.D, filteredCount: CACHE.filteredCount, ms: 0, cached: true }
