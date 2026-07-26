@@ -99,24 +99,92 @@ _FORCE_BUMP_OFFSET = 0
 # endpoint is the heavier day/multi-day CSV, where ≤60s staleness is invisible.)
 _VERSION_BUCKET_SEC = 60
 
+# ── Change gate (2026-07-26) ────────────────────────────────────────────────
+# The time bucket alone makes the version a CLOCK, not a change signal: it
+# advances every 60s whether or not a single row moved. Clients treat a new
+# version as "refetch", so a quiet tape (lunch, a halted name, an ingest
+# outage, and every minute outside RTH) still cost every user a full multi-MB
+# CSV download per minute for byte-identical data.
+#
+# So the bucket is now GATED on the data actually having changed. The gate is
+# deliberately cheap and deliberately conservative — a false "changed" costs
+# one rebuild, a false "unchanged" serves STALE DATA, so every uncertain path
+# below fails OPEN (advance).
+#
+# Signature is (MAX(rowid), COUNT(*)):
+#   MAX(rowid) catches inserts and is essentially free — SQLite special-cases
+#     it to a seek of the rowid btree's rightmost leaf. Measured on a real
+#     flow.db: 0.003 ms.
+#   COUNT(*) catches DELETES, which MAX(rowid) alone would miss entirely when
+#     the prune job removes OLD rows (max rowid unchanged → version frozen →
+#     pruned rows served forever). 0.006 ms measured.
+# Both together are ~250× cheaper than the single DISTINCT scan that made the
+# original db.stats() version so expensive, and they are probed at most once
+# per _SIG_PROBE_SEC no matter how many requests arrive.
+_SIG_PROBE_SEC = 5.0
+_SIG_LOCK = threading.Lock()
+_SIG_LAST = None        # last observed (max_rowid, row_count)
+_SIG_VERSION = None     # version last handed out for that signature
+_SIG_PROBED_AT = 0.0
+
+
+def _data_signature():
+    """Cheap (max_rowid, row_count) probe, or None if it cannot be taken.
+
+    None means 'unknown' and callers MUST fail open — never freeze on it."""
+    try:
+        return db.data_signature()
+    except Exception:
+        return None
+
 
 def _current_version() -> int:
-    """Cache-invalidation key for the CSV responses. O(1): a coarse time bucket
-    plus the manual bump offset — NO per-request DB work.
+    """Cache-invalidation key for the CSV responses. Effectively O(1): a coarse
+    time bucket, gated on the data having actually changed.
 
     Prior implementation called db.stats() (3× COUNT(*) + a DISTINCT scan over
     ~835K rows ≈ 300ms) on EVERY /version poll and EVERY /data request, AND
     returned the live row count, which changes every few seconds as the WS
     worker ingests — so during market hours the in-memory cache was permanently
     stale and each of ~200 users refetched the full multi-MB CSV every 60s
-    (the 2026-07-01 524 outage class; 2026-07-06 audit finding B1).
+    (the 2026-07-01 524 outage class; 2026-07-06 audit finding B1). Do NOT go
+    back to a row-count version — that IS the outage.
 
-    Now: a request in a given 60s window sees a stable version, so the first
-    request rebuilds+gzips once and the rest serve from the LRU / CF edge.
-    Admin mutations (upload/prune/in-place updates) call bump_data_version(),
-    which shifts the offset and clears the cache for an immediate refresh —
-    they never wait for the bucket."""
-    return int(time.time() // _VERSION_BUCKET_SEC) + _FORCE_BUMP_OFFSET * 10_000_000
+    Now: within a 60s window every request sees a stable version, so the first
+    rebuilds+gzips once and the rest serve from the LRU / CF edge — AND the
+    version only moves to a new bucket once the underlying rows have changed,
+    so identical data keeps its version (and its caches) indefinitely.
+
+    Fails OPEN: if the signature can't be read, or hasn't been read yet, the
+    raw bucket is returned. Serving a needless rebuild is cheap; serving stale
+    data is not. Admin mutations call bump_data_version(), which releases the
+    freeze explicitly — see there for why that is required, not optional."""
+    global _SIG_LAST, _SIG_VERSION, _SIG_PROBED_AT
+
+    bucket = int(time.time() // _VERSION_BUCKET_SEC) + _FORCE_BUMP_OFFSET * 10_000_000
+
+    now = time.monotonic()
+    with _SIG_LOCK:
+        # Inside the probe window, reuse the last decision. Never extend the
+        # freeze on an unprobed signature — if we have no version yet, fail open.
+        if _SIG_VERSION is not None and (now - _SIG_PROBED_AT) < _SIG_PROBE_SEC:
+            return _SIG_VERSION
+
+        sig = _data_signature()
+        _SIG_PROBED_AT = now
+
+        if sig is None:                     # unknown → fail open
+            _SIG_LAST, _SIG_VERSION = None, None
+            return bucket
+
+        if sig != _SIG_LAST or _SIG_VERSION is None:
+            _SIG_LAST, _SIG_VERSION = sig, bucket
+            return bucket
+
+        # Unchanged data: hold the version so clients (and Cloudflare) keep
+        # what they already have. Monotonic by construction — _SIG_VERSION is
+        # only ever assigned a bucket, and buckets only increase.
+        return _SIG_VERSION
 
 
 def bump_data_version() -> int:
@@ -134,10 +202,20 @@ def bump_data_version() -> int:
       2. Clears _RESPONSE_CACHE → even concurrent requests with the same
          version key get a fresh build.
 
+      3. Releases the change-gate freeze. This is REQUIRED, not belt-and-
+         braces: the whole reason this function exists is in-place updates that
+         leave row count unchanged — which means they also leave the
+         (MAX(rowid), COUNT(*)) signature unchanged, so the gate in
+         _current_version() would hold the OLD version and silently swallow the
+         bump. Clearing the signature forces the next call to re-adopt the
+         current bucket.
+
     Returns the new version number (useful for endpoint responses)."""
-    global _FORCE_BUMP_OFFSET
+    global _FORCE_BUMP_OFFSET, _SIG_LAST, _SIG_VERSION, _SIG_PROBED_AT
     _FORCE_BUMP_OFFSET += 1
     _RESPONSE_CACHE.clear()
+    with _SIG_LOCK:
+        _SIG_LAST, _SIG_VERSION, _SIG_PROBED_AT = None, None, 0.0
     return _current_version()
 
 

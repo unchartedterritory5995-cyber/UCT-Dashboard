@@ -197,3 +197,32 @@ export function baseFetchUrl(csvFile, nonce, dataVersion) {
 export function processedKey(dateFilter, dateFrom, dateTo) {
   return `${dateFilter || ''}|${dateFrom || ''}|${dateTo || ''}`
 }
+
+/**
+ * Does clicking a range chip need a REFETCH, or can we filter what's loaded?
+ *
+ * The old rule was `days > fetchDays && fetchDays !== 0` — refetch only when
+ * strictly WIDENING, and never once "All" was loaded. It assumed a wider range
+ * is a superset of a narrower one, so narrowing could just slice the rows
+ * already in memory.
+ *
+ * That assumption is false in production. FLOW_CSV_CAP_DAYS=2 means every range
+ * of 2+ days returns the top FLOW_CSV_CAP_ROWS (50,000) trades BY PREMIUM
+ * across the WHOLE window — not every print in it. So the wide payload is a
+ * premium-filtered SAMPLE, and slicing it to one day yields that day's share of
+ * a global top-50k rather than that day.
+ *
+ * Concretely: load "All", click "1d". No refetch fired, and the day rendered
+ * from ~500 of its ~96,000 trades — while still labelled "1 trading day". The
+ * surviving rows are the highest-premium ones, so every total, rank and
+ * bull/bear split looked entirely plausible. flow_router's own docstring
+ * documents this exact failure for the CALENDAR path ("511 rows of 128,525 for
+ * 7/16") and fixed it by sending date_from/date_to; the range-CHIP path was
+ * never fixed.
+ *
+ * So: any change of window refetches. A capped superset is not a superset.
+ * The 1d view is the only uncapped one, and it cannot be narrowed further.
+ */
+export function shouldRefetchRange(days, fetchDays) {
+  return days !== fetchDays
+}

@@ -135,6 +135,17 @@ describe('Options Flow correctness guard', () => {
       'the still-open filter is ungated again — an unpriced board renders empty' + FIX).toBe(false)
   })
 
+  it('still refetches when a range chip NARROWS the window', () => {
+    // The old rule refetched only when widening, treating a wide payload as a
+    // superset. It is not: 2+ day ranges are the top 50,000 BY PREMIUM, so
+    // "All" then "1d" sliced ~500 rows out of that day's ~96,000 and labelled
+    // it "1 trading day".
+    expect(CODE.includes('shouldRefetchRange('),
+      'shouldRefetchRange is gone — narrowing a range will render a premium-capped sample as a full day' + FIX).toBe(true)
+    expect(/days > fetchDays && fetchDays !== 0/.test(CODE),
+      'the old widen-only needsFetch rule is back' + FIX).toBe(false)
+  })
+
   it('still discloses the premium cap on multi-day ranges', () => {
     // Production runs FLOW_CSV_CAP_DAYS=2: every range of 2+ days returns the top
     // 50,000 trades BY PREMIUM, not every print. Saying "90d" without saying that

@@ -473,6 +473,27 @@ class FlowDB:
 
         return pruned
 
+    def data_signature(self) -> tuple:
+        """(max_rowid, row_count) — a cheap 'has anything changed' fingerprint.
+
+        Used by flow_router._current_version() to gate the cache version on the
+        data actually changing, so a quiet tape stops costing every client a
+        full CSV refetch every 60s. Deliberately NOT stats(): that does 3×
+        COUNT(*) plus a DISTINCT scan (~300ms on the production table) and is
+        far too heavy for the request path — that cost is what the 60s bucket
+        was introduced to escape.
+
+        Both halves are needed. MAX(rowid) is what SQLite special-cases to a
+        seek of the rowid btree's rightmost leaf (0.003 ms measured) and it
+        catches inserts, but it does NOT move when the prune job deletes OLD
+        rows — that alone would freeze the version and serve pruned rows
+        forever. COUNT(*) (0.006 ms measured) closes that.
+        """
+        with self._conn() as conn:
+            mx = conn.execute("SELECT MAX(rowid) FROM flow").fetchone()[0]
+            ct = conn.execute("SELECT COUNT(*) FROM flow").fetchone()[0]
+        return (mx, ct)
+
     def stats(self) -> dict:
         """Get database statistics for admin display."""
         with self._conn() as conn:

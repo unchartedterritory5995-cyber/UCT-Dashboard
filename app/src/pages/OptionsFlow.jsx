@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
-import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow } from "./optionsFlow/flowLoadPolicy";
+import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
 import {
   P,
   gradeCluster,
@@ -3104,7 +3104,13 @@ export default function OptionsFlowDashboard() {
               ].map(({key, label, days}) => {
                 const filterKey = days === 0 ? "All" : "Last" + days;
                 const isActive = !dateFrom && !dateTo && dateFilter === filterKey;
-                const needsFetch = days === 0 ? fetchDays !== 0 : days > fetchDays && fetchDays !== 0;
+                // Any change of window refetches. The old rule only refetched when
+                // WIDENING, assuming a wider range is a superset — but production
+                // caps every 2+ day range at the top 50,000 BY PREMIUM, so the wide
+                // payload is a premium-filtered SAMPLE. Slicing it to 1d rendered
+                // ~500 of that day's ~96,000 trades, still labelled "1 trading day".
+                // See flowLoadPolicy.shouldRefetchRange.
+                const needsFetch = shouldRefetchRange(days, fetchDays);
                 return (
                   <button key={key} onClick={()=>{
                     if (needsFetch) setFetchDays(days);

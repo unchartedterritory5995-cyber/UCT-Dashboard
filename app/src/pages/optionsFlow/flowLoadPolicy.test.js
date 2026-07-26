@@ -9,6 +9,7 @@ import {
   writeSnapshot,
   clearSnapshots,
   snapshotKey,
+  shouldRefetchRange,
 } from './flowLoadPolicy'
 
 // Baseline: a mounted page that has finished its base fetch for the default
@@ -203,5 +204,30 @@ describe('snapshot cache — instant re-entry', () => {
     writeSnapshot(key, { rows, version: '1', processed: { D: 1 }, processedFor: 'Last1||' })
     expect(readSnapshot(key).processed).toEqual({ D: 1 })
     expect(readSnapshot(key).processedFor).toBe('Last1||')
+  })
+})
+
+describe('shouldRefetchRange — a capped superset is not a superset', () => {
+  it('refetches when widening (unchanged behaviour)', () => {
+    expect(shouldRefetchRange(5, 1)).toBe(true)
+    expect(shouldRefetchRange(0, 20)).toBe(true)
+  })
+
+  it('ALSO refetches when narrowing — the bug', () => {
+    // Production caps every 2+ day range at the top 50,000 BY PREMIUM, so the
+    // wide payload is a premium-filtered SAMPLE. The old rule sliced it instead
+    // of refetching: "All" then "1d" rendered ~500 of that day's ~96,000 trades
+    // while still labelled "1 trading day", and because the survivors are the
+    // highest-premium rows every total and rank looked plausible.
+    expect(shouldRefetchRange(1, 0), '1d after All must refetch').toBe(true)
+    expect(shouldRefetchRange(1, 90), '1d after 90d must refetch').toBe(true)
+    expect(shouldRefetchRange(5, 20), '5d after 20d must refetch').toBe(true)
+    expect(shouldRefetchRange(20, 60)).toBe(true)
+  })
+
+  it('does not refetch when the window is already loaded', () => {
+    expect(shouldRefetchRange(1, 1)).toBe(false)
+    expect(shouldRefetchRange(0, 0)).toBe(false)
+    expect(shouldRefetchRange(20, 20)).toBe(false)
   })
 })
