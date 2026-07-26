@@ -3,6 +3,8 @@ import {
   planDelta,
   adoptVersion,
   baseFetchUrl,
+  shouldFetchVersion,
+  inFlowMarketWindow,
   readSnapshot,
   writeSnapshot,
   clearSnapshots,
@@ -121,6 +123,43 @@ describe('baseFetchUrl — must be CF-cache correct', () => {
 
   it('does not append when no version is known yet', () => {
     expect(baseFetchUrl('/api/flow/data?days=1', 1, null)).toBe('/api/flow/data?days=1')
+  })
+})
+
+describe('shouldFetchVersion — the alt-tab re-process loop', () => {
+  // Prod 2026-07-25, market CLOSED: processFlowData re-ran every 30-40s forever
+  // (1,456 / 1,519 / 1,366 / 1,285 / 1,316 ms). The version is a 60s TIME
+  // BUCKET, so every window focus rolled it -> refetch-base -> full reprocess.
+  const t = 1_000_000
+
+  it('never polls outside market hours — the data cannot have changed', () => {
+    expect(shouldFetchVersion({ inMarketWindow: false, now: t, lastFetchAt: null })).toBe(false)
+  })
+
+  it('polls inside market hours on a fresh page', () => {
+    expect(shouldFetchVersion({ inMarketWindow: true, now: t, lastFetchAt: null })).toBe(true)
+  })
+
+  it('rate-limits rapid focus/blur so alt-tabbing cannot thrash the tape', () => {
+    expect(shouldFetchVersion({ inMarketWindow: true, now: t, lastFetchAt: t - 5000 })).toBe(false)
+    expect(shouldFetchVersion({ inMarketWindow: true, now: t, lastFetchAt: t - 45000 })).toBe(true)
+  })
+
+  it('never polls a hidden tab', () => {
+    expect(shouldFetchVersion({ inMarketWindow: true, visible: false, now: t, lastFetchAt: null })).toBe(false)
+  })
+})
+
+describe('inFlowMarketWindow', () => {
+  const et = (dow, h, m) => { const d = new Date(2026, 6, 20 + dow, h, m); return d }
+  it('is open on a weekday inside 9:30-16:15', () => {
+    expect(inFlowMarketWindow(et(1, 10, 0))).toBe(true)   // Tue 10:00
+    expect(inFlowMarketWindow(et(1, 16, 15))).toBe(true)  // grace edge
+  })
+  it('is closed before the open, after the grace, and on weekends', () => {
+    expect(inFlowMarketWindow(et(1, 9, 29))).toBe(false)
+    expect(inFlowMarketWindow(et(1, 16, 16))).toBe(false)
+    expect(inFlowMarketWindow(et(6, 11, 0))).toBe(false)  // Sunday
   })
 })
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
-import { planDelta, adoptVersion, readSnapshot, writeSnapshot, snapshotKey, getErCache, setErCache, baseFetchUrl } from "./optionsFlow/flowLoadPolicy";
+import { planDelta, adoptVersion, readSnapshot, writeSnapshot, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow } from "./optionsFlow/flowLoadPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -2413,25 +2413,31 @@ export default function OptionsFlowDashboard() {
         .then(d => { if (d && d.version != null) setDataVersion(String(d.version)); })
         .catch(() => {});
     };
-    fetchVer();
-    const onFocus = () => fetchVer();
-    window.addEventListener("focus", onFocus);
-
-    // Periodic polling during market hours, visible tabs only
-    const intervalId = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      // Market hours gate: 9:30 AM – 4:15 PM ET, Mon-Fri.
-      // Add a 15-min after-close grace window so late prints still surface.
+    // One gate for BOTH triggers. The focus handler used to be ungated, and
+    // because the version is a 60-SECOND TIME BUCKET (not a content hash) every
+    // alt-tab back to the app rolled it -> refetch-base -> a full ~1,350ms
+    // main-thread processFlowData. On prod 2026-07-25 that showed up as a
+    // re-process every 30-40s, indefinitely, with the market CLOSED.
+    let lastVerAt = null;
+    const maybeFetchVer = () => {
       const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-      const day = nowET.getDay();
-      if (day === 0 || day === 6) return;  // Sat/Sun
-      const mins = nowET.getHours() * 60 + nowET.getMinutes();
-      if (mins < 9 * 60 + 30 || mins > 16 * 60 + 15) return;  // outside window
+      if (!shouldFetchVersion({
+        inMarketWindow: inFlowMarketWindow(nowET),
+        visible: document.visibilityState === "visible",
+        now: Date.now(),
+        lastFetchAt: lastVerAt,
+      })) return;
+      lastVerAt = Date.now();
       fetchVer();
-    }, 60_000);
+    };
+
+    fetchVer();  // mount: always establish the version once
+    lastVerAt = Date.now();
+    window.addEventListener("focus", maybeFetchVer);
+    const intervalId = setInterval(maybeFetchVer, 60_000);
 
     return () => {
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", maybeFetchVer);
       clearInterval(intervalId);
     };
   }, []);

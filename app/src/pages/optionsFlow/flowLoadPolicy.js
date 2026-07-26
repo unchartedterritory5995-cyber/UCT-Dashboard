@@ -94,6 +94,34 @@ export function adoptVersion({ pending, dataVersion, current }) {
   return { baseFetchedVer: current, pending }
 }
 
+/**
+ * Should we re-poll /api/flow/version?
+ *
+ * `_current_version()` is a 60-SECOND TIME BUCKET, not a content hash — it rolls
+ * whether or not any trade arrived. The interval poll was already gated to
+ * market hours, but the `focus` handler was NOT: every alt-tab back to the app
+ * rolled the version, which now means a full base refetch and a ~1,350ms
+ * main-thread processFlowData. Observed on prod 2026-07-25 as a re-process every
+ * 30-40s, indefinitely, with the market CLOSED.
+ *
+ * Outside the window the flow data cannot change, so the answer is simply no.
+ * Inside it, rate-limit so rapid focus/blur can't thrash the tape.
+ */
+export function shouldFetchVersion({ inMarketWindow, visible = true, now, lastFetchAt, minGapMs = 30000 }) {
+  if (!visible) return false
+  if (!inMarketWindow) return false
+  if (lastFetchAt != null && now - lastFetchAt < minGapMs) return false
+  return true
+}
+
+/** Weekday 9:30am-4:15pm ET (the 15min grace matches the existing poll gate). */
+export function inFlowMarketWindow(nowEt) {
+  const day = nowEt.getDay()
+  if (day === 0 || day === 6) return false
+  const mins = nowEt.getHours() * 60 + nowEt.getMinutes()
+  return mins >= 9 * 60 + 30 && mins <= 16 * 60 + 15
+}
+
 // ── Snapshot cache ──────────────────────────────────────────────────────────
 // `parsedRows` and the processed dataset are component state, so leaving the
 // page throws them away and coming back replays fetch + parse + process in
