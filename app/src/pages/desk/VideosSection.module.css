@@ -342,6 +342,12 @@
   font-weight: 600;
   letter-spacing: 0.3px;
   color: var(--text-bright);
+  /* Contain long category names: without min-width:0 the flex auto-minimum is
+     full min-content width, and at ≤640px (blurb hidden) a long name would
+     force the row — and the page — to scroll horizontally. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .libBlockCount {
