@@ -78,6 +78,19 @@ describe('processFlowData — golden shape', () => {
   })
 })
 
+describe('erSoonSet is display-only', () => {
+  // The ER set is now cached for the session and therefore reaches the FIRST
+  // aggregation, where before it often arrived late. That is only safe if it
+  // cannot change WHAT gets confirmed — otherwise caching it would quietly
+  // change the numbers a trader reads.
+  it('does not change the confirmed count', () => {
+    const a = processFlowData(parseCSV(CSV), null)
+    const syms = [...new Set(parseCSV(CSV).map(r => (r.ticker || '').toUpperCase()))].slice(0, 5)
+    const b = processFlowData(parseCSV(CSV), new Set(syms))
+    expect(b.clean_confirmed.length).toBe(a.clean_confirmed.length)
+  })
+})
+
 describe('the pure helpers the worker also relies on', () => {
   it('capBand splits on the documented thresholds', () => {
     expect(capBand(600e9)).toBe('Mega')

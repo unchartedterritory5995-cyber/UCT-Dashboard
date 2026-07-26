@@ -1616,3 +1616,60 @@ export function processFlowData(rows, erSoonSet) {
     confirmedCount:confirmed_trades.length,
   };
 }
+
+// ─── Date helpers + row filtering ────────────────────────────────────────────
+// Added 2026-07-25 (not moved). These were component-scoped arrow consts in
+// OptionsFlow.jsx; the WORKER needs the identical logic to filter rows before
+// aggregating them, and two copies of a date parser is how a "why is 7/16
+// showing 7/17 data" bug gets born. One implementation, imported by both.
+
+/** "M/D/YYYY" -> "YYYY-MM-DD" */
+export const mdyToIso = (mdy) => {
+  const p = mdy.split("/").map(Number);
+  if (p.length < 3) return "";
+  const y = p[2] < 100 ? p[2] + 2000 : p[2];
+  return `${y}-${String(p[0]).padStart(2,"0")}-${String(p[1]).padStart(2,"0")}`;
+};
+/** "YYYY-MM-DD" -> Date (local midnight) */
+export const isoToDate = (iso) => { const p = iso.split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); };
+/** "M/D/YYYY" -> Date (local midnight) */
+export const mdyToDate = (mdy) => { const p = mdy.split("/").map(Number); const y = p.length>=3?(p[2]<100?p[2]+2000:p[2]):new Date().getFullYear(); return new Date(y, p[0]-1, p[1]||1); };
+
+/** Distinct trading dates present in `rows`, chronological. */
+export function availableDatesFrom(rows) {
+  if (!rows || rows.length === 0) return [];
+  const dateSet = new Set();
+  rows.forEach(r => { if (r.date) dateSet.add(r.date.trim()); });
+  return [...dateSet].sort((a, b) => {
+    const pa = a.split("/").map(Number);
+    const pb = b.split("/").map(Number);
+    const ya = pa.length >= 3 ? (pa[2] < 100 ? pa[2] + 2000 : pa[2]) : new Date().getFullYear();
+    const yb = pb.length >= 3 ? (pb[2] < 100 ? pb[2] + 2000 : pb[2]) : new Date().getFullYear();
+    return new Date(ya, pa[0] - 1, pa[1] || 1) - new Date(yb, pb[0] - 1, pb[1] || 1);
+  });
+}
+
+/**
+ * The exact date selection the page applies before aggregating. Mirrors what
+ * lived inline in the processing effect — an explicit calendar range wins, then
+ * "All", then a "LastN" window over the available dates, else a single date.
+ */
+export function filterRowsByDate(rows, { dateFilter, dateFrom, dateTo, availableDates }) {
+  if (dateFrom && dateTo) {
+    const from = isoToDate(dateFrom);
+    const to = isoToDate(dateTo);
+    to.setHours(23, 59, 59);           // include end date fully
+    return rows.filter(r => {
+      if (!r.date) return false;
+      const d = mdyToDate(r.date.trim());
+      return d >= from && d <= to;
+    });
+  }
+  if (dateFilter === "All") return rows;
+  if (dateFilter && dateFilter.startsWith("Last")) {
+    const n = parseInt(dateFilter.replace("Last", "")) || 3;
+    const recent = new Set((availableDates || availableDatesFrom(rows)).slice(-n));
+    return rows.filter(r => r.date && recent.has(r.date.trim()));
+  }
+  return rows.filter(r => r.date && r.date.trim() === dateFilter);
+}
