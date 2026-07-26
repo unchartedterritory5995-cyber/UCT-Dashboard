@@ -23,7 +23,13 @@ function comingSoonMeta() {
   // new card show up — and it leaves the launch card untouched for launch day.
   // Served by an explicit route in api/main.py (the SPA catch-all would
   // otherwise hand crawlers index.html).
-  const IMAGE = 'https://uctintelligence.com/og-coming-soon.png'
+  //
+  // ⚠️ BUMP ?v= EVERY TIME THE CARD IS REGENERATED. The route sets
+  // max-age=86400, so Cloudflare pins the old bytes at the edge for a day
+  // (observed: cf-cache-status HIT serving the previous card after deploy) and
+  // X/Discord/iMessage cache their copy far longer. Both key on the FULL url,
+  // so the query string is what actually busts them. FastAPI ignores the param.
+  const IMAGE = 'https://uctintelligence.com/og-coming-soon.png?v=sep5'
 
   // The JSON-LD block declares two purchasable Offers ($200/mo, $2000/yr) and a
   // 7-day free trial. That is machine-readable "you can buy this now" that

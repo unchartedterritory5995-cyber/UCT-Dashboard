@@ -10,6 +10,12 @@ a hand-drawn approximation drifts from the page it is supposed to preview.
 
 Re-run after changing the launch date:
     python tools/make_og_coming_soon.py --date "September 5, 2026"
+
+⚠️ THEN BUMP `?v=` IN THE `IMAGE` CONSTANT IN app/vite.config.js. The route
+serves this with max-age=86400, so Cloudflare keeps handing out the previous
+card for a day after deploy, and X/Discord/iMessage cache their own copy for
+much longer. They all key on the full URL — bumping the query string is the
+only thing that reliably makes the new card appear.
 """
 
 import argparse
