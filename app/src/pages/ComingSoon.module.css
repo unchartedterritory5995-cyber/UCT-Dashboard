@@ -62,10 +62,10 @@
   animation: fadeIn 1400ms ease-out 600ms forwards;
 }
 
-/* Shipped. Draws left to right. */
+/* Shipped. Draws left to right, stopping at today's seam.
+   stroke-dasharray + stroke-dashoffset are set INLINE (time-derived, see
+   ComingSoon.jsx) — the `draw` keyframe only animates the offset to 0. */
 .past {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
   opacity: 0.5;
   animation: draw 1500ms cubic-bezier(0.33, 0.9, 0.35, 1) 150ms forwards;
 }
@@ -630,7 +630,7 @@
 }
 
 @keyframes march {
-  to { stroke-dashoffset: -0.033; }
+  to { stroke-dashoffset: -0.007; }   /* exactly one dash period → seamless loop */
 }
 
 @keyframes riseIn {
@@ -799,7 +799,6 @@
   transform: none;
 }
 
-.still .past { stroke-dashoffset: 0; }
 .still .ahead { opacity: 0.42; }
 .still .here,
 .still .end { opacity: 1; }
@@ -818,7 +817,6 @@
   .grid, .fill, .top, .eyebrow, .monumentLine,
   .tagline, .blurb, .clock, .form, .done, .foot { opacity: 1; }
 
-  .past { stroke-dashoffset: 0; }
   .ahead { opacity: 0.42; }
   .here, .end { opacity: 1; }
 }

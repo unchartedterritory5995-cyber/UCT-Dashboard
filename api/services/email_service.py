@@ -145,7 +145,7 @@ def send_waitlist_confirmation(email: str) -> bool:
 <h1 style="font-size:20px;font-weight:600;color:#e8e6df;text-align:center;margin:0 0 4px 0;">You're on the list</h1>
 <p style="font-size:14px;color:#a8a290;text-align:center;margin:0 0 24px 0;">We'll email you the morning the desk opens.</p>
 <p style="font-size:13px;color:#a8a290;line-height:1.7;margin:0 0 16px 0;">UCT Intelligence is a daily intelligence desk for traders &mdash; the Morning Wire at 7:35, the UCT&nbsp;20, live market breadth, and a coach that reviews every trade you take.</p>
-<p style="font-size:13px;color:#a8a290;line-height:1.7;margin:0 0 20px 0;">Nothing else will land in your inbox until then.</p>
+<p style="font-size:13px;color:#a8a290;line-height:1.7;margin:0 0 20px 0;">Until then we'll keep it to launch news and the occasional update. Nothing else.</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #2a2b28;margin:0 0 4px 0;"><tr><td style="padding-top:20px;">
   <p style="font-size:11px;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;color:#c9a84c;margin:0 0 8px 0;">Founder access</p>
   <p style="font-size:13px;color:#a8a290;line-height:1.7;margin:0 0 12px 0;">Founder access is open now, at a rate locked for as long as you stay. If you want in before the doors open, reach out:</p>

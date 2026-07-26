@@ -15,7 +15,7 @@ function launchDate() {
   return Number.isNaN(d.getTime()) ? new Date(FALLBACK_LAUNCH) : d
 }
 
-// Short "SEP 8" label for the terminus annotation on the curve.
+// Short "SEP 5" label for the terminus annotation on the curve.
 function terminusLabel(d) {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York', month: 'short', day: 'numeric',
@@ -49,26 +49,55 @@ const prefersReducedMotion = () =>
 
 const VB = { w: 1600, h: 800 }
 
-// Seam between shipped and ahead, and the terminus at the opening bell.
-const HERE = { x: 1140, y: 330 }
-const END  = { x: 1450, y: 176 }
+// Terminus: the launch itself, at the end of the path.
+const END = { x: 1450, y: 176 }
 
+// How far along the path the "you are here" seam may travel. NOT 0→1: the
+// product is largely built, so the solid portion always dominates, and the
+// seam has to stay clear of the copy block on the left and of the terminus
+// label on the right. Verified at both ends in a browser.
+const SEAM_MIN = 0.56
+const SEAM_MAX = 0.74
+
+// Where the seam sits if the browser can't measure the path (jsdom, ancient
+// engines). Roughly the SEAM_MIN point — the marker shows in a sane place
+// rather than disappearing.
+const SEAM_FALLBACK = { x: 1010, y: 470 }
+
+// The countdown window the seam maps onto — how long the page has been up.
+// Anchored, not open-ended, so the seam advances at a steady, honest rate.
+const JOURNEY_START = new Date('2026-07-25T00:00:00-04:00')
+
+/** Fraction of the path that is "already travelled", from real elapsed time.
+ *  This is what makes the marker mean something: it is the actual position
+ *  between the day the page went up and the day the doors open. */
+function seamFraction(target, now) {
+  const span = target.getTime() - JOURNEY_START.getTime()
+  if (span <= 0) return SEAM_MAX
+  const elapsed = now - JOURNEY_START.getTime()
+  const t = Math.min(1, Math.max(0, elapsed / span))
+  return SEAM_MIN + (SEAM_MAX - SEAM_MIN) * t
+}
+
+// ONE continuous path from the start of the journey to the launch. Rendering
+// it once (dotted) with a second solid copy on top — dash-clipped to the seam
+// fraction — is what lets the shipped/ahead split move with real time instead
+// of being frozen at a hardcoded point.
+//
 // Deliberately shallow on the left: the copy block occupies roughly the first
 // 46% of the frame, so the curve stays under it and does the climbing out in
 // the open space on the right.
-const PAST_D =
+const FULL_D =
   'M -30 776 C 96 772, 196 764, 292 758 S 424 748, 500 762 ' +
   'C 570 774, 646 744, 726 710 C 806 676, 856 616, 916 556 ' +
-  `S 1016 462, 1068 430 C 1106 408, 1122 368, ${HERE.x} ${HERE.y}`
+  'S 1016 462, 1068 430 C 1106 408, 1122 368, 1140 330 ' +
+  `C 1214 276, 1268 268, 1338 224 S 1418 190, ${END.x} ${END.y}`
 
-const PAST_FILL_D = `${PAST_D} L ${HERE.x} ${VB.h} L -30 ${VB.h} Z`
-
-const AHEAD_D =
-  `M ${HERE.x} ${HERE.y} C 1214 276, 1268 268, 1338 224 S 1418 190, ${END.x} ${END.y}`
+const FILL_D = `${FULL_D} L ${END.x} ${VB.h} L -30 ${VB.h} Z`
 
 const pct = (v, total) => `${(v / total) * 100}%`
 
-function Curve({ still }) {
+function Curve({ still, seam, pathRef }) {
   return (
     <svg
       className={`${styles.curve} ${still ? styles.curveStill : ''}`}
@@ -82,10 +111,10 @@ function Curve({ still }) {
           <stop offset="0%"   stopColor="#c9a84c" stopOpacity="0" />
           <stop offset="100%" stopColor="#c9a84c" stopOpacity="0.11" />
         </linearGradient>
-        {/* The fill has to be fully transparent BEFORE the seam, or the path's
-            closing edge draws a hard vertical wall down to the floor at
-            HERE.x. Hence the fade completing at 66% — comfortably left of the
-            seam at 71%. */}
+        {/* The fill's closing edge would otherwise draw a hard vertical wall
+            down to the floor at the end of the path, so it fades out well
+            before then — and before SEAM_MIN, so it never competes with the
+            travelling marker either. */}
         <linearGradient id="cs-fade" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%"  stopColor="#fff" stopOpacity="0" />
           <stop offset="14%" stopColor="#fff" stopOpacity="1" />
@@ -99,30 +128,49 @@ function Curve({ still }) {
 
       <path
         className={styles.fill}
-        d={PAST_FILL_D}
+        d={FILL_D}
         fill="url(#cs-fill)"
         mask="url(#cs-fill-mask)"
       />
 
-      <path
-        className={styles.past}
-        d={PAST_D}
-        pathLength="1"
-        fill="none"
-        stroke="#c9a84c"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-
+      {/* The whole journey, dotted. The solid layer below covers the part
+          already travelled, so this only ever reads as "what's ahead". */}
       <path
         className={styles.ahead}
-        d={AHEAD_D}
+        d={FULL_D}
         pathLength="1"
         fill="none"
         stroke="#c9a84c"
         strokeWidth="1.5"
         strokeLinecap="round"
-        strokeDasharray="0.016 0.021"
+        // Tuned against the FULL path length, not the ahead segment: these are
+        // fractions of the whole journey (pathLength=1), so the old values —
+        // sized for the short ahead-only path — rendered as long dashes here.
+        strokeDasharray="0.003 0.004"
+      />
+
+      {/* Travelled. `dasharray: seam, (1 - seam)` with pathLength=1 draws one
+          solid run from the start to exactly the seam, then nothing — so the
+          split follows real elapsed time. The draw-in animation is a separate
+          dashoffset on top (see .past), which is why this is inline. */}
+      <path
+        ref={pathRef}
+        className={styles.past}
+        d={FULL_D}
+        pathLength="1"
+        fill="none"
+        stroke="#c9a84c"
+        strokeWidth="2"
+        strokeLinecap="round"
+        style={{
+          strokeDasharray: `${seam} ${1 - seam}`,
+          // Offset by the seam hides the run entirely; the `draw` keyframe
+          // brings it to 0, so the line strokes on from the left to exactly
+          // today's position. Inline because both numbers are time-derived —
+          // and inline beats the class rule, so reduced motion must be
+          // resolved here too rather than by a `.still` override.
+          strokeDashoffset: still ? 0 : seam,
+        }}
       />
     </svg>
   )
@@ -131,12 +179,12 @@ function Curve({ still }) {
 /* The two annotations on the curve. Plain HTML so the type stays true while
    the curve beneath it stretches. Coordinates come from the same constants
    the path is drawn from. */
-function CurveMarks({ still, terminus }) {
+function CurveMarks({ still, terminus, herePoint }) {
   return (
     <div className={`${styles.marks} ${still ? styles.marksStill : ''}`} aria-hidden="true">
       <div
         className={styles.here}
-        style={{ left: pct(HERE.x, VB.w), top: pct(HERE.y, VB.h) }}
+        style={{ left: pct(herePoint.x, VB.w), top: pct(herePoint.y, VB.h) }}
       >
         <span className={styles.dot} />
         <span className={styles.halo} />
@@ -283,7 +331,10 @@ function Waitlist() {
         className={`${styles.msg} ${state === 'error' ? styles.msgError : ''}`}
         role={state === 'error' ? 'alert' : undefined}
       >
-        {message || 'One email when we open. Nothing else.'}
+        {/* Deliberately NOT "one email, nothing else" — people sign up under
+            whatever this says, so promising total silence would make any
+            build-up email over the next six weeks a bait-and-switch. */}
+        {message || 'Launch news and the occasional update. Nothing else.'}
       </p>
     </form>
   )
@@ -295,6 +346,8 @@ export default function ComingSoon() {
   const target = useMemo(launchDate, [])
   const [now, setNow] = useState(() => Date.now())
   const still = useMemo(prefersReducedMotion, [])
+  const pathRef = useRef(null)
+  const [herePoint, setHerePoint] = useState(SEAM_FALLBACK)
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000)
@@ -303,13 +356,29 @@ export default function ComingSoon() {
 
   const left = remaining(target, now)
   const terminus = useMemo(() => terminusLabel(target), [target])
+  const seam = seamFraction(target, now)
+
+  // Ask the rendered path where the seam actually falls, rather than keeping a
+  // second hardcoded copy of the geometry in sync by hand. getPointAtLength
+  // returns viewBox units, which map straight to a percentage of the box
+  // because the SVG uses preserveAspectRatio="none".
+  useEffect(() => {
+    const el = pathRef.current
+    if (!el) return
+    try {
+      const p = el.getPointAtLength(el.getTotalLength() * seam)
+      if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) setHerePoint({ x: p.x, y: p.y })
+    } catch {
+      /* no path metrics (jsdom, ancient engines) — keep SEAM_FALLBACK */
+    }
+  }, [seam])
 
   return (
     <div className={`${styles.page} ${still ? styles.still : ''}`}>
       <div className={styles.grid} aria-hidden="true" />
-      <Curve still={still} />
+      <Curve still={still} seam={seam} pathRef={pathRef} />
       <div className={styles.vignette} aria-hidden="true" />
-      <CurveMarks still={still} terminus={terminus} />
+      <CurveMarks still={still} terminus={terminus} herePoint={herePoint} />
 
       <header className={styles.top}>
         <div className={styles.brand}>
