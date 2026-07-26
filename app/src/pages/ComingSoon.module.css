@@ -213,7 +213,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: clamp(20px, 3.4vw, 34px) clamp(20px, 5vw, 56px);
+  padding: clamp(14px, 2.4vw, 24px) clamp(20px, 5vw, 56px);
   opacity: 0;
   animation: riseIn 700ms ease-out 150ms forwards;
 }
@@ -278,7 +278,7 @@
 }
 
 .eyebrow {
-  margin: 0 0 clamp(14px, 2.2vw, 22px);
+  margin: 0 0 clamp(10px, 1.6vw, 16px);
   font-size: clamp(11px, 1.15vw, 13px);
   font-weight: 600;
   letter-spacing: 5.2px;
@@ -294,7 +294,7 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  font-size: clamp(52px, 9.4vw, 132px);
+  font-size: clamp(50px, 8.6vw, 116px);
   font-weight: 700;
   line-height: 0.92;
   letter-spacing: clamp(2px, 0.9vw, 13px);
@@ -319,7 +319,7 @@
 }
 
 .tagline {
-  margin: clamp(20px, 3vw, 30px) 0 0;
+  margin: clamp(14px, 2.2vw, 22px) 0 0;
   padding-left: 15px;
   border-left: 2px solid rgba(201, 168, 76, 0.55);
   font-size: clamp(14px, 1.5vw, 17px);
@@ -331,7 +331,7 @@
 }
 
 .blurb {
-  margin: clamp(16px, 2.2vw, 22px) 0 0;
+  margin: clamp(12px, 1.6vw, 16px) 0 0;
   max-width: 46ch;
   font-size: clamp(13px, 1.35vw, 15px);
   line-height: 1.62;
@@ -346,7 +346,7 @@
   display: flex;
   align-items: flex-end;
   gap: clamp(14px, 2vw, 22px);
-  margin: clamp(26px, 3.6vw, 38px) 0 0;
+  margin: clamp(18px, 2.4vw, 26px) 0 0;
   opacity: 0;
   animation: riseIn 700ms ease-out 840ms forwards;
 }
@@ -391,7 +391,7 @@
 .form {
   width: 100%;
   max-width: 480px;
-  margin: clamp(26px, 3.4vw, 36px) 0 0;
+  margin: clamp(18px, 2.4vw, 26px) 0 0;
   opacity: 0;
   animation: riseIn 700ms ease-out 960ms forwards;
 }
@@ -495,6 +495,77 @@
   color: var(--text-muted, #8c8674);
 }
 
+/* ── Founder access ─────────────────────────────────────────────────────── */
+
+.founder {
+  width: 100%;
+  max-width: 540px;
+  margin: clamp(16px, 2vw, 22px) 0 0;
+  padding: clamp(12px, 1.6vw, 16px) 0 0;
+  border-top: 1px solid var(--border, #2e3127);
+  opacity: 0;
+  animation: riseIn 700ms ease-out 1080ms forwards;
+}
+
+.founderHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3.2px;
+  text-transform: uppercase;
+  color: var(--ut-gold, #c9a84c);
+}
+
+/* Same mark as the curve's terminus. */
+.founderDia {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--ut-gold, #c9a84c);
+  transform: rotate(45deg);
+  box-shadow: 0 0 10px 1px rgba(201, 168, 76, 0.5);
+}
+
+.founderCopy {
+  margin: 0 0 11px;
+  max-width: 52ch;
+  font-size: clamp(12.5px, 1.25vw, 14px);
+  line-height: 1.6;
+  color: var(--text-muted, #8c8674);
+}
+
+/* Inline + wrapping: four stacked rows cost ~90px of a single-screen layout.
+   No separator glyphs — with wrapping, a separator strands at the start (or
+   end) of a wrapped line and reads as a stray bullet. The gap plus each link's
+   own underline already separates them. */
+.contacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contactLink {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-bright, #e0dac8);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.3);
+  transition: color 180ms ease, border-color 180ms ease;
+  overflow-wrap: anywhere;
+}
+
+.contactLink:hover {
+  color: var(--ut-gold, #c9a84c);
+  border-bottom-color: var(--ut-gold, #c9a84c);
+}
+
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 
 .foot {
@@ -505,7 +576,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px 20px;
-  padding: 20px clamp(20px, 5vw, 56px) clamp(20px, 3vw, 30px);
+  padding: 14px clamp(20px, 5vw, 56px) clamp(14px, 2.2vw, 22px);
   font-size: 11px;
   color: #6a6656;
   opacity: 0;
@@ -577,6 +648,48 @@
   50%      { opacity: 0.14; transform: scale(1.5); }
 }
 
+/* ── Touch (phone + tablet) ─────────────────────────────────────────────── */
+
+/* The contact links are the primary actions on touch, and as inline text they
+   are ~18px tall — well under the 44px --tap-min this codebase enforces. Give
+   each one a full-width row target with a hairline divider. */
+@media (max-width: 1024px) {
+  .contacts { gap: 0; }
+
+  .contact { width: 100%; }
+
+  .contactLink {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: var(--tap-min, 44px);
+    border-bottom: none;
+    border-top: 1px solid rgba(201, 168, 76, 0.14);
+  }
+
+  .contact:first-child .contactLink { border-top: none; }
+}
+
+/* ── Short desktop viewports ────────────────────────────────────────────── */
+
+/* 1366x768 and similar laptops: the page is designed as one screen, and the
+   founder CTA is the last thing on it — letting it fall below the fold is the
+   one thing that actually costs conversions. Scale the type down rather than
+   drop anything. */
+@media (min-width: 1025px) and (max-height: 830px) {
+  .monument { font-size: clamp(46px, 6.4vw, 88px); }
+  .eyebrow  { margin-bottom: 8px; letter-spacing: 4.4px; }
+  .tagline  { margin-top: 14px; font-size: 15px; }
+  .blurb    { margin-top: 10px; font-size: 13px; line-height: 1.55; }
+  .clock    { margin-top: 16px; }
+  .num      { font-size: 30px; }
+  .form     { margin-top: 16px; }
+  .founder  { margin-top: 14px; padding-top: 12px; }
+  .founderCopy { margin-bottom: 9px; }
+  .top      { padding-top: 14px; padding-bottom: 14px; }
+  .center   { padding-bottom: 14px; }
+}
+
 /* ── Tablet ─────────────────────────────────────────────────────────────── */
 
 @media (min-width: 641px) and (max-width: 1024px) {
@@ -606,14 +719,14 @@
 
   .curve { opacity: 0.8; }
 
-  /* The dot and diamond survive — they carry the whole idea (shipped →
-     ahead → the bell). Their leader lines and labels do not: at 390px the
-     "YOU ARE HERE" label would run past the right edge, and the date is
-     already stated by the countdown directly above. */
-  .hereLead,
-  .hereLabel,
-  .endLead,
-  .endLabel { display: none; }
+  /* Markers are hidden at this size. They used to survive here to carry the
+     idea, but the founder-access block now occupies the lower band and the
+     bright dot/diamond landed on top of its text. Content beats decoration —
+     the curve line itself stays as background texture. */
+  .here,
+  .end { display: none; }
+
+  .contactLink { font-size: 14px; }
 
   .grid {
     -webkit-mask-image: radial-gradient(ellipse 100% 60% at 50% 38%, #000 20%, transparent 100%);

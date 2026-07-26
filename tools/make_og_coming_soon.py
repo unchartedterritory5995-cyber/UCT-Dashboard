@@ -9,7 +9,7 @@ brand face (Instrument Sans) and the same curve geometry as the live page —
 a hand-drawn approximation drifts from the page it is supposed to preview.
 
 Re-run after changing the launch date:
-    python tools/make_og_coming_soon.py --date "September 8, 2026"
+    python tools/make_og_coming_soon.py --date "September 5, 2026"
 """
 
 import argparse
@@ -131,14 +131,14 @@ HTML = """<!doctype html>
       <h1>Coming<span class="s">Soon</span></h1>
       <div class="tag">Navigate the market, effectively.</div>
     </div>
-    <div class="foot"><span class="date">{date}</span><span class="dsub">Opening bell</span></div>
+    <div class="foot"><span class="date">{date}</span><span class="dsub">Founder access open</span></div>
   </div>
 </body></html>"""
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--date", default="September 8, 2026",
+    ap.add_argument("--date", default="September 5, 2026",
                     help="launch date shown on the card")
     args = ap.parse_args()
 

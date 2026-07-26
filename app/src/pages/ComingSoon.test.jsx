@@ -120,4 +120,41 @@ describe('ComingSoon', () => {
     expect(screen.getByText(/^days?$/i)).toBeInTheDocument()
     expect(screen.getByText('hrs')).toBeInTheDocument()
   })
+
+  it('never says "opening bell" — the launch date is a Saturday', () => {
+    const { container } = renderPage()
+    expect(container.textContent).not.toMatch(/opening bell/i)
+  })
+
+  describe('founder access', () => {
+    it('offers every contact route', () => {
+      renderPage()
+      const hrefs = [...document.querySelectorAll('a')].map(a => a.getAttribute('href'))
+      expect(hrefs).toEqual(expect.arrayContaining([
+        'https://x.com/TSDR_Trading',
+        'https://x.com/Braczyy',
+        'mailto:unchartedterritory5995@gmail.com',
+        'tel:+16127300632',
+      ]))
+    })
+
+    it('states the rate lock', () => {
+      renderPage()
+      expect(screen.getByRole('heading', { name: /founder access/i })).toBeInTheDocument()
+      expect(screen.getByText(/locked for as long as you stay/i)).toBeInTheDocument()
+    })
+
+    it('opens external profiles safely', () => {
+      renderPage()
+      const x = document.querySelector('a[href="https://x.com/TSDR_Trading"]')
+      expect(x).toHaveAttribute('target', '_blank')
+      expect(x).toHaveAttribute('rel', expect.stringContaining('noopener'))
+    })
+
+    it('keeps mail and tel links in-place, not new tabs', () => {
+      renderPage()
+      expect(document.querySelector('a[href^="mailto:"]')).not.toHaveAttribute('target')
+      expect(document.querySelector('a[href^="tel:"]')).not.toHaveAttribute('target')
+    })
+  })
 })

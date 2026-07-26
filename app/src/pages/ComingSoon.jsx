@@ -2,14 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import styles from './ComingSoon.module.css'
 
-// Launch target. Defaults to the opening bell on Tue Sep 8 2026 — the first
-// full session after Labor Day. Override without a code change by setting
-// VITE_LAUNCH_DATE to any ISO-8601 string with an explicit offset.
-const LAUNCH_ISO = import.meta.env.VITE_LAUNCH_DATE || '2026-09-08T09:30:00-04:00'
+// Launch target: Sat Sep 5 2026, 9am ET (owner's date). Deliberately NOT
+// labelled "opening bell" anywhere — Sep 5 is a Saturday, so there is no
+// session that morning; members onboard over the long weekend (Sep 7 is Labor
+// Day) and the first live Morning Wire lands Tue Sep 8.
+// Override without a code change via VITE_LAUNCH_DATE (ISO-8601 with offset).
+const FALLBACK_LAUNCH = '2026-09-05T09:00:00-04:00'
+const LAUNCH_ISO = import.meta.env.VITE_LAUNCH_DATE || FALLBACK_LAUNCH
 
 function launchDate() {
   const d = new Date(LAUNCH_ISO)
-  return Number.isNaN(d.getTime()) ? new Date('2026-09-08T09:30:00-04:00') : d
+  return Number.isNaN(d.getTime()) ? new Date(FALLBACK_LAUNCH) : d
 }
 
 // Short "SEP 8" label for the terminus annotation on the curve.
@@ -149,10 +152,56 @@ function CurveMarks({ still, terminus }) {
         <span className={styles.endLead} />
         <span className={styles.endLabel}>
           <span className={styles.endDate}>{terminus}</span>
-          <span className={styles.endSub}>Opening bell</span>
+          {/* NOT "opening bell" — the launch date is a Saturday. */}
+          <span className={styles.endSub}>Doors open</span>
         </span>
       </div>
     </div>
+  )
+}
+
+/* ── Founder access ─────────────────────────────────────────────────────────
+   The high-intent path, deliberately placed AFTER the waitlist: the email
+   field is the low-friction default, this is for people who want in now.
+   The diamond rhymes with the curve's terminus marker — same shape for
+   "where this is going" and "what you get for coming early". */
+
+// No "X:" / "Email:" / "Phone:" prefixes — an @handle, an address and a phone
+// number each already say what they are, and the labels cost a line each.
+const CONTACTS = [
+  { label: '@TSDR_Trading', href: 'https://x.com/TSDR_Trading' },
+  { label: '@Braczyy',      href: 'https://x.com/Braczyy' },
+  { label: 'unchartedterritory5995@gmail.com',
+    href: 'mailto:unchartedterritory5995@gmail.com' },
+  { label: '(612) 730-0632', href: 'tel:+16127300632' },
+]
+
+function FounderAccess() {
+  return (
+    <section className={styles.founder} aria-labelledby="cs-founder">
+      <h2 className={styles.founderHead} id="cs-founder">
+        <span className={styles.founderDia} aria-hidden="true" />
+        Founder access
+      </h2>
+      <p className={styles.founderCopy}>
+        Open now, at a rate locked for as long as you stay. To claim it, reach out:
+      </p>
+      <ul className={styles.contacts}>
+        {CONTACTS.map(({ label, href }) => (
+          <li key={href} className={styles.contact}>
+            <a
+              className={styles.contactLink}
+              href={href}
+              {...(href.startsWith('http')
+                ? { target: '_blank', rel: 'noopener noreferrer' }
+                : {})}
+            >
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -309,6 +358,7 @@ export default function ComingSoon() {
         )}
 
         <Waitlist />
+        <FounderAccess />
       </main>
 
       <footer className={styles.foot}>
