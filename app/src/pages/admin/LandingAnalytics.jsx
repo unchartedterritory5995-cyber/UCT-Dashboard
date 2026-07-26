@@ -31,6 +31,15 @@ export default function LandingAnalytics() {
   const funnel = data?.funnel
   const ctr = funnel ? Math.round((funnel.click_through_rate || 0) * 1000) / 10 : 0
 
+  // Pre-launch numbers. While the COMING SOON page is the front door, none of
+  // the marketing-page CTA events below can fire, so that funnel reads 0/0/0%
+  // and looks broken. Show this one instead whenever there is any pre-launch
+  // traffic, and only fall back to the CTA funnel once the real landing page
+  // is back.
+  const cs = data?.coming_soon
+  const csActive = !!cs && (cs.views > 0 || cs.joined > 0)
+  const joinRate = cs ? Math.round((cs.join_rate || 0) * 1000) / 10 : 0
+
   return (
     <div className={styles.page}>
       <div className={styles.head}>
@@ -60,22 +69,64 @@ export default function LandingAnalytics() {
       {!loading && !error && data && (
         <>
           {/* ── Funnel ── */}
-          <div className={styles.funnel}>
-            <div className={styles.stat}>
-              <div className={styles.statLbl}>Unique visitors</div>
-              <div className={styles.statVal}>{funnel?.views ?? 0}</div>
+          {csActive ? (
+            <>
+              <div className={styles.funnel}>
+                <div className={styles.stat}>
+                  <div className={styles.statLbl}>Saw Coming Soon</div>
+                  <div className={styles.statVal}>{cs.views}</div>
+                </div>
+                <div className={styles.funnelArrow}>→</div>
+                <div className={styles.stat}>
+                  <div className={styles.statLbl}>Joined the list</div>
+                  <div className={styles.statVal}>{cs.joined}</div>
+                </div>
+                <div className={styles.funnelArrow}>→</div>
+                <div className={`${styles.stat} ${styles.statHighlight}`}>
+                  <div className={styles.statLbl}>Join rate</div>
+                  <div className={styles.statVal}>{joinRate}<span className={styles.statUnit}>%</span></div>
+                </div>
+              </div>
+
+              <div className={styles.funnel}>
+                <div className={styles.stat}>
+                  <div className={styles.statLbl}>Tapped a founder contact</div>
+                  <div className={styles.statVal}>{cs.founder_clickers}</div>
+                </div>
+                <div className={styles.stat}>
+                  <div className={styles.statLbl}>Opened the Substack</div>
+                  <div className={styles.statVal}>{cs.substack_clickers}</div>
+                </div>
+                <div className={styles.stat}>
+                  <div className={styles.statLbl}>Contact route used</div>
+                  <div className={styles.statVal}>
+                    {(cs.founder_by_channel || []).length === 0
+                      ? <span className={styles.muted}>—</span>
+                      : cs.founder_by_channel
+                          .map((c) => `${c.channel || 'unknown'} ${c.n}`)
+                          .join(' · ')}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className={styles.funnel}>
+              <div className={styles.stat}>
+                <div className={styles.statLbl}>Unique visitors</div>
+                <div className={styles.statVal}>{funnel?.views ?? 0}</div>
+              </div>
+              <div className={styles.funnelArrow}>→</div>
+              <div className={styles.stat}>
+                <div className={styles.statLbl}>Clicked any CTA</div>
+                <div className={styles.statVal}>{funnel?.cta_clickers ?? 0}</div>
+              </div>
+              <div className={styles.funnelArrow}>→</div>
+              <div className={`${styles.stat} ${styles.statHighlight}`}>
+                <div className={styles.statLbl}>Click-through rate</div>
+                <div className={styles.statVal}>{ctr}<span className={styles.statUnit}>%</span></div>
+              </div>
             </div>
-            <div className={styles.funnelArrow}>→</div>
-            <div className={styles.stat}>
-              <div className={styles.statLbl}>Clicked any CTA</div>
-              <div className={styles.statVal}>{funnel?.cta_clickers ?? 0}</div>
-            </div>
-            <div className={styles.funnelArrow}>→</div>
-            <div className={`${styles.stat} ${styles.statHighlight}`}>
-              <div className={styles.statLbl}>Click-through rate</div>
-              <div className={styles.statVal}>{ctr}<span className={styles.statUnit}>%</span></div>
-            </div>
-          </div>
+          )}
 
           {/* ── Per-event counts ── */}
           <div className={styles.panel}>
