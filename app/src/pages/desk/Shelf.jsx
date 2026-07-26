@@ -19,6 +19,22 @@ import s from './VideosSection.module.css'
 
 export const ytThumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 
+// Per-show header glyph (UIcon name). Curated by show name — matched on a
+// normalized key so punctuation/case variants ("Post-Market Recaps" vs "Post
+// Market Recap") share one entry. Unknown/future shows fall back to 'play'.
+// Library headers stay glyph-free — the glyph IS the shows/library
+// differentiator, so never call this for kind !== 'show'.
+const _normShow = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+export const showGlyphName = (name) => {
+  const key = _normShow(name)
+  if (key.includes('livetrading')) return 'chart' // candlesticks — the live tape
+  if (key.includes('mentalgame')) return 'compass' // mind / navigation
+  if (key.includes('postmarket')) return 'markets' // trend recap of the day
+  if (key.includes('thought')) return 'chat' // spoken thoughts
+  if (key.includes('evening')) return 'moon' // evening update
+  return 'play'
+}
+
 export const fmtShortDate = (epoch) => {
   if (!epoch) return ''
   try {
@@ -187,9 +203,14 @@ export function YTCard({
 // category while category shelves point at their own display-order list.
 // updatedAt (show shelves): newest episode created_at → "· updated Jul 24"
 // header micro-meta. timeLeftMeta (Continue Watching): cards show minutes left.
+// icon (show shelves only): UIcon name rendered 16px gold INSIDE the h2, so it
+// rides the name's own ellipsis container — shrink-safe on the tight phone
+// expanded header. Cross-cut shelves (Continue/Recently) pass no icon even
+// when their first entry happens to be a show video.
 export default function Shelf({
   name, entries, onPlay, progress, deskThreads, isAdmin, onEdit, onDelete,
   expandable = true, showCount = true, updatedAt = 0, timeLeftMeta = false,
+  icon = null,
 }) {
   const [expanded, setExpanded] = useState(false)
   // Expanded-grid sort. Local per expansion (reset on collapse/expand), never
@@ -238,7 +259,12 @@ export default function Shelf({
       {/* shelfHeadExpanded: phone hides the updated micro-meta while the sort
           toggle occupies the row — one line must always fit at 390px. */}
       <div className={expanded ? `${s.shelfHead} ${s.shelfHeadExpanded}` : s.shelfHead}>
-        <h2 className={s.shelfName}>{name}</h2>
+        <h2 className={s.shelfName}>
+          {icon && (
+            <UIcon name={icon} size={16} className={s.shelfGlyph} data-glyph={icon} />
+          )}
+          {name}
+        </h2>
         {showCount && <span className={s.shelfCount}>{entries.length}</span>}
         {updatedAt > 0 && (
           <span className={s.shelfUpdated}>· updated {fmtMonthDay(updatedAt)}</span>

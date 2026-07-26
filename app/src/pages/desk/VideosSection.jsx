@@ -18,7 +18,7 @@ import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import { LEARNING_PATHS } from './learningPaths'
 import FeaturedStrip from './FeaturedStrip'
-import Shelf, { YTCard, useScrollEdges, pageScroller } from './Shelf'
+import Shelf, { YTCard, useScrollEdges, pageScroller, showGlyphName } from './Shelf'
 import UIcon from '../../components/ui/UIcon'
 import styles from '../EducationalVideos.module.css'
 import s from './VideosSection.module.css'
@@ -34,7 +34,6 @@ export default function VideosSection() {
 
   const { data, error, isLoading, mutate } = useSWR('/api/education/videos', fetcher)
   const [query, setQuery] = useState('')
-  const [activeCat, setActiveCat] = useState(null) // null = All
   const [activeTag, setActiveTag] = useState(null) // library tag-chip filter
   const [filtersOpen, setFiltersOpen] = useState(false) // tag row visibility
   const [editing, setEditing] = useState(null)
@@ -72,7 +71,7 @@ export default function VideosSection() {
   // the catalog loads (session-recap links in Discord/email point here). Fires
   // at most once per mount so it can't re-hijack the player after the user
   // closes it or picks something else.
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const deepLinkDone = useRef(false)
   useEffect(() => {
     if (deepLinkDone.current || !categories.length) return
@@ -84,6 +83,69 @@ export default function VideosSection() {
     }
     deepLinkDone.current = true
   }, [categories, searchParams])
+
+  // Category filter lives in the URL: ?cat=<name> (URL-decoded by
+  // URLSearchParams). The URL is the single source of truth — no shadow state
+  // to drift. An unknown/stale name is ignored gracefully (reads as All).
+  // Coexists with ?v= (deep-link above, untouched) and ?section= (Desk.jsx).
+  const catParam = searchParams.get('cat')
+  const activeCat = useMemo(
+    () => (catParam && categories.some((c) => c.name === catParam) ? catParam : null),
+    [catParam, categories],
+  )
+  // Chip writes MERGE into the existing params (never clobber section=/v=)
+  // with replace:true — chip clicks are a view filter, not navigation, so they
+  // deliberately create NO history entries (Back leaves the page, it doesn't
+  // replay every chip the member tried).
+  const setActiveCat = useCallback(
+    (name) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (name) next.set('cat', name)
+          else next.delete('cat')
+          return next
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams],
+  )
+
+  // `/` focuses the search input (YouTube's own shortcut) and suppresses the
+  // browser quick-find. Guards: never while typing in an input/textarea/
+  // contenteditable (the search box itself included — a typed "/" must land as
+  // a character) and never while the admin VideoForm sheet is open. Reads
+  // `editing` through a ref so the window listener registers exactly once per
+  // mount — and is ALWAYS removed on unmount (a leaked listener would stack
+  // one per route change).
+  const searchRef = useRef(null)
+  const editingRef = useRef(null)
+  editingRef.current = editing
+  useEffect(() => {
+    const onSlash = (e) => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return
+      const el = document.activeElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (editingRef.current) return // Sheet/modal open (admin VideoForm)
+      if (!searchRef.current) return // no catalog yet → no search input
+      e.preventDefault()
+      searchRef.current.focus()
+    }
+    window.addEventListener('keydown', onSlash)
+    return () => window.removeEventListener('keydown', onSlash)
+  }, [])
+
+  // Escape inside the search input is two-stage: clear the query first, blur
+  // second. Both stages stop propagation so the window-level Escape handlers
+  // (theater close, intro skip) never double-act on the same press — Escape
+  // behavior everywhere else is untouched.
+  const onSearchKeyDown = useCallback((e) => {
+    if (e.key !== 'Escape') return
+    e.stopPropagation()
+    if (e.currentTarget.value) setQuery('')
+    else e.currentTarget.blur()
+  }, [])
 
   // Community "Discussion" links: one batch lookup of desk-seeded threads for
   // every video on the page. Flag-off → endpoint 503s → fetcher returns null →
@@ -224,6 +286,11 @@ export default function VideosSection() {
   // Any query or category filter swaps in the flat filtered grid (as before).
   const landing = !query.trim() && !activeCat
 
+  // Flat-grid result count — one dim line over the search results ("3 videos"
+  // / "1 video"). Query-only: a bare category chip's section header already
+  // carries its own count.
+  const resultCount = filtered.reduce((n, c) => n + c.videos.length, 0)
+
   // Continue Watching — the first shelf, same card language as everything else.
   // Cards show remaining time ("23 min left") instead of a date/percent.
   const continueShelf = !isLoading && continueEntries.length > 0 && (
@@ -266,11 +333,13 @@ export default function VideosSection() {
             <label className={styles.searchWrap}>
               <span className={styles.searchIcon} aria-hidden="true"><SearchIcon /></span>
               <input
+                ref={searchRef}
                 className={styles.search}
                 type="search"
                 placeholder="Search videos…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={onSearchKeyDown}
                 aria-label="Search educational videos"
               />
             </label>
@@ -424,6 +493,7 @@ export default function VideosSection() {
             <Shelf
               key={shelf.name}
               name={shelf.name}
+              icon={showGlyphName(shelf.name)}
               entries={shelf.entries}
               updatedAt={shelf.updatedAt}
               onPlay={playVideo}
@@ -489,6 +559,12 @@ export default function VideosSection() {
         <>
           {continueShelf}
 
+          {query.trim() && resultCount > 0 && (
+            <div className={s.resultCount}>
+              {resultCount} video{resultCount === 1 ? '' : 's'}
+            </div>
+          )}
+
           {filtered.length === 0 && (
             <div className={styles.note}>No videos match “{query}”.</div>
           )}
@@ -496,7 +572,17 @@ export default function VideosSection() {
           {filtered.map((cat) => (
             <section key={cat.name} className={s.shelf}>
               <div className={s.shelfHead}>
-                <h2 className={s.shelfName}>{cat.name}</h2>
+                <h2 className={s.shelfName}>
+                  {cat.kind === 'show' && (
+                    <UIcon
+                      name={showGlyphName(cat.name)}
+                      size={16}
+                      className={s.shelfGlyph}
+                      data-glyph={showGlyphName(cat.name)}
+                    />
+                  )}
+                  {cat.name}
+                </h2>
                 <span className={s.shelfCount}>{cat.videos.length}</span>
               </div>
               <div className={s.shelfGrid}>

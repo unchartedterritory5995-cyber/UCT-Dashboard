@@ -5,7 +5,7 @@
 // index) with THAT category's display-order list.
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { vi, beforeEach, test, expect } from 'vitest'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 
 // Stub the responsive Sheet so modals render plainly in jsdom.
 vi.mock('../../components/mobile/Sheet', () => ({
@@ -46,7 +46,7 @@ vi.mock('../../components/video/VideoDockSlot', () => ({
 }))
 
 import VideosSection from './VideosSection'
-import Shelf from './Shelf'
+import Shelf, { showGlyphName } from './Shelf'
 import { play } from '../../components/video/videoStore'
 
 const fixture = () => ({
@@ -100,7 +100,18 @@ beforeEach(() => {
   play.mockClear()
 })
 
-const renderSection = () => render(<MemoryRouter><VideosSection /></MemoryRouter>)
+// Optional initialEntries → deep-link/URL-state tests share one entry point.
+const renderSection = (entries) =>
+  render(
+    <MemoryRouter initialEntries={entries || ['/']}>
+      <VideosSection />
+    </MemoryRouter>,
+  )
+
+// Reads the live URL search string from inside the same router.
+function LocationProbe() {
+  return <div data-testid="loc">{useLocation().search}</div>
+}
 
 test('featured strip carries the newest first-show episode and plays it', () => {
   renderSection()
@@ -439,4 +450,198 @@ test('search still flat-filters across shows and library', () => {
   expect(screen.getByText('Breadth basics')).toBeTruthy() // library match
   expect(screen.queryByText('Welcome to the Desk')).toBeNull()
   expect(screen.queryByText('Position sizing rules')).toBeNull()
+})
+
+/* ── `/` shortcut — focus search, with the input/modal guards ───────────── */
+
+test('pressing / focuses the search input and suppresses browser quick-find', () => {
+  renderSection()
+  const search = screen.getByLabelText('Search educational videos')
+  expect(document.activeElement).not.toBe(search)
+  // fireEvent returns false when preventDefault was called — the quick-find kill.
+  const notPrevented = fireEvent.keyDown(window, { key: '/' })
+  expect(notPrevented).toBe(false)
+  expect(document.activeElement).toBe(search)
+})
+
+test('/ does NOT fire while focus is already in an input (the search box itself)', () => {
+  renderSection()
+  const search = screen.getByLabelText('Search educational videos')
+  search.focus()
+  const notPrevented = fireEvent.keyDown(search, { key: '/' })
+  expect(notPrevented).toBe(true) // default kept — "/" lands as a typed character
+  expect(document.activeElement).toBe(search)
+})
+
+test('/ does NOT fire while the admin VideoForm sheet is open', () => {
+  mockRole = 'admin'
+  renderSection()
+  fireEvent.click(screen.getByRole('button', { name: 'Add video' }))
+  expect(screen.getByTestId('sheet')).toBeTruthy()
+  const search = screen.getByLabelText('Search educational videos')
+  const notPrevented = fireEvent.keyDown(window, { key: '/' })
+  expect(notPrevented).toBe(true)
+  expect(document.activeElement).not.toBe(search)
+})
+
+test('/ with a modifier held is left to the browser', () => {
+  renderSection()
+  const search = screen.getByLabelText('Search educational videos')
+  expect(fireEvent.keyDown(window, { key: '/', ctrlKey: true })).toBe(true)
+  expect(document.activeElement).not.toBe(search)
+})
+
+test('the / window listener is removed on unmount (no per-route stacking)', () => {
+  const addSpy = vi.spyOn(window, 'addEventListener')
+  const removeSpy = vi.spyOn(window, 'removeEventListener')
+  try {
+    const { unmount } = renderSection()
+    const added = addSpy.mock.calls.filter(([t]) => t === 'keydown').map(([, fn]) => fn)
+    expect(added.length).toBeGreaterThanOrEqual(1)
+    unmount()
+    const removed = removeSpy.mock.calls.filter(([t]) => t === 'keydown').map(([, fn]) => fn)
+    for (const fn of added) expect(removed).toContain(fn)
+  } finally {
+    addSpy.mockRestore()
+    removeSpy.mockRestore()
+  }
+})
+
+/* ── Escape in the search input — two-stage: clear, then blur ───────────── */
+
+test('Escape clears a non-empty query first, then blurs on the second press', () => {
+  renderSection()
+  const search = screen.getByLabelText('Search educational videos')
+  search.focus()
+  fireEvent.change(search, { target: { value: 'breadth' } })
+  expect(screen.queryByRole('list')).toBeNull() // flat grid active
+  fireEvent.keyDown(search, { key: 'Escape' })
+  expect(search.value).toBe('')
+  expect(document.activeElement).toBe(search) // stage 1 keeps focus
+  expect(screen.getByRole('list', { name: 'Recently added' })).toBeTruthy() // landing back
+  fireEvent.keyDown(search, { key: 'Escape' })
+  expect(document.activeElement).not.toBe(search) // stage 2 blurs
+})
+
+/* ── Flat-grid result count — dim "N videos" line, query-only ───────────── */
+
+test('an active query shows a result count with plural/singular handled', () => {
+  renderSection()
+  const search = screen.getByLabelText('Search educational videos')
+  fireEvent.change(search, { target: { value: 'breadth' } })
+  expect(screen.getByText('2 videos')).toBeTruthy()
+  fireEvent.change(search, { target: { value: 'Position sizing' } })
+  expect(screen.getByText('1 video')).toBeTruthy()
+  fireEvent.change(search, { target: { value: 'zzz-no-match' } })
+  expect(screen.queryByText(/^\d+ videos?$/)).toBeNull() // no count under the no-match note
+  // Chip-only filtering (no query) shows no count line either.
+  fireEvent.change(search, { target: { value: '' } })
+  fireEvent.click(screen.getByRole('tab', { name: 'Getting Started' }))
+  expect(screen.queryByText(/^\d+ videos?$/)).toBeNull()
+})
+
+/* ── Per-show glyphs — show headers only, curated names + default ───────── */
+
+test('showGlyphName maps the curated shows and defaults unknown names to play', () => {
+  expect(showGlyphName('Live Trading Sessions')).toBe('chart')
+  expect(showGlyphName('The Mental Game')).toBe('compass')
+  expect(showGlyphName('Post-Market Recaps')).toBe('markets')
+  expect(showGlyphName('Post Market Recap')).toBe('markets') // punctuation variant
+  expect(showGlyphName('Thoughts on the Market')).toBe('chat')
+  expect(showGlyphName('Evening Update')).toBe('moon')
+  expect(showGlyphName('Some Future Show')).toBe('play')
+  expect(showGlyphName('')).toBe('play')
+})
+
+test('show shelf headers carry a glyph inside the name; library and cross-cut headers stay bare', () => {
+  mockProgress = { lts0000000a: { t: 600, d: 2400, at: 99, done: false } }
+  renderSection()
+  const glyphOf = (name) =>
+    screen.getByRole('heading', { level: 2, name }).querySelector('svg[data-glyph]')
+  expect(glyphOf('Live Trading Sessions')?.getAttribute('data-glyph')).toBe('chart')
+  expect(glyphOf('Evening Update')?.getAttribute('data-glyph')).toBe('moon')
+  expect(glyphOf('Getting Started')).toBeNull()
+  expect(glyphOf('Risk Management')).toBeNull()
+  expect(glyphOf('Continue watching')).toBeNull() // cross-cuts never carry glyphs
+  expect(glyphOf('Recently added')).toBeNull()
+})
+
+test('an unknown show still gets the default glyph (future shows are covered)', () => {
+  const data = fixture()
+  data.categories[1].name = 'Brand New Show'
+  data.categories[1].videos = data.categories[1].videos.map((v) => ({
+    ...v, category: 'Brand New Show',
+  }))
+  mockData = data
+  renderSection()
+  const heading = screen.getByRole('heading', { level: 2, name: 'Brand New Show' })
+  expect(heading.querySelector('svg[data-glyph]')?.getAttribute('data-glyph')).toBe('play')
+})
+
+test('the flat grid keeps the glyph on show sections only', () => {
+  renderSection()
+  fireEvent.click(screen.getByRole('tab', { name: 'Live Trading Sessions' }))
+  let heading = screen.getByRole('heading', { level: 2, name: 'Live Trading Sessions' })
+  expect(heading.querySelector('svg[data-glyph]')?.getAttribute('data-glyph')).toBe('chart')
+  fireEvent.click(screen.getByRole('tab', { name: 'Live Trading Sessions' })) // back to All
+  fireEvent.click(screen.getByRole('tab', { name: 'Getting Started' }))
+  heading = screen.getByRole('heading', { level: 2, name: 'Getting Started' })
+  expect(heading.querySelector('svg[data-glyph]')).toBeNull()
+})
+
+/* ── ?cat= URL state — preselect, unknown-graceful, param merge ─────────── */
+
+test('loading with ?cat= pre-selects the chip and renders the filtered view', () => {
+  renderSection(['/desk?section=videos&cat=Getting%20Started'])
+  expect(
+    screen.getByRole('tab', { name: 'Getting Started' }).getAttribute('aria-selected'),
+  ).toBe('true')
+  expect(screen.queryByRole('list')).toBeNull() // flat grid, not shelves
+  expect(screen.getByRole('heading', { level: 2, name: 'Getting Started' })).toBeTruthy()
+  expect(screen.queryByRole('heading', { level: 2, name: 'Risk Management' })).toBeNull()
+})
+
+test('an unknown ?cat= is ignored gracefully — landing renders as All', () => {
+  renderSection(['/desk?cat=Not%20A%20Category'])
+  expect(screen.getByRole('tab', { name: 'All' }).getAttribute('aria-selected')).toBe('true')
+  expect(screen.getByText('SHOWS')).toBeTruthy() // full landing, no crash
+  expect(screen.getByRole('list', { name: 'Recently added' })).toBeTruthy()
+})
+
+test('chip clicks write ?cat= by MERGING params (section=videos preserved); All removes it', () => {
+  render(
+    <MemoryRouter initialEntries={['/desk?section=videos']}>
+      <VideosSection />
+      <LocationProbe />
+    </MemoryRouter>,
+  )
+  const params = () => new URLSearchParams(screen.getByTestId('loc').textContent)
+  fireEvent.click(screen.getByRole('tab', { name: 'Getting Started' }))
+  expect(params().get('cat')).toBe('Getting Started')
+  expect(params().get('section')).toBe('videos') // merged, not clobbered
+  fireEvent.click(screen.getByRole('tab', { name: 'All' }))
+  expect(params().get('cat')).toBeNull()
+  expect(params().get('section')).toBe('videos')
+})
+
+/* ── ?v= deep link — byte-unchanged behavior, alone and beside ?cat= ────── */
+
+test('?v= still auto-plays once against its own category list', () => {
+  renderSection(['/desk?section=videos&v=lib0000000a'])
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5]) // server-order category list
+  expect(indexArg).toBe(0)
+})
+
+test('?v= and ?cat= coexist: autoplay fires AND the chip filter applies', () => {
+  renderSection(['/desk?v=lib0000000b&cat=Live%20Trading%20Sessions'])
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5])
+  expect(indexArg).toBe(1)
+  expect(
+    screen.getByRole('tab', { name: 'Live Trading Sessions' }).getAttribute('aria-selected'),
+  ).toBe('true')
+  expect(screen.getByRole('heading', { level: 2, name: 'Live Trading Sessions' })).toBeTruthy()
 })

@@ -252,6 +252,22 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+/* Show-shelf glyph — 16px gold UIcon riding INSIDE the h2 (an inline svg in
+   the name's own ellipsis container), so the tight phone expanded header
+   shrinks the name, never the row. Library headers stay glyph-free — the
+   glyph is the shows/library differentiator. */
+.shelfGlyph {
+  flex-shrink: 0;
+  margin-right: 8px;
+  vertical-align: -2px;
+}
+/* Search result count — one dim line over the flat results grid, same muted
+   micro-meta register as .shelfCount. */
+.resultCount {
+  margin: 0 0 var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
 /* Show-shelf micro-meta: "· updated Jul 24" from the newest episode. */
 .shelfUpdated {
   flex-shrink: 0;
