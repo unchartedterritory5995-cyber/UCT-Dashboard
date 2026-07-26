@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
-import { planDelta, adoptVersion, readSnapshot, writeSnapshot, snapshotKey } from "./optionsFlow/flowLoadPolicy";
+import { planDelta, adoptVersion, readSnapshot, writeSnapshot, snapshotKey, getErCache, setErCache } from "./optionsFlow/flowLoadPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -2275,8 +2275,12 @@ export default function OptionsFlowDashboard() {
   // shows ER months after reporting). Gate every ER badge on the live earnings
   // calendar: a ticker is "ER" only if it reports within 14 days. null until
   // loaded -> falls back to the row flag, so behavior only ever improves.
-  const [erSoonSet, setErSoonSet] = useState(null);
+  // Seeded synchronously from the session cache so a remount already has it —
+  // otherwise the calendar round trips land AFTER the (now instant) snapshot
+  // hydrate and re-run the entire aggregation. See setErCache().
+  const [erSoonSet, setErSoonSet] = useState(() => getErCache());
   useEffect(() => {
+    if (getErCache()) return;  // already resolved this session
     let cancelled = false;
     (async () => {
       try {
@@ -2320,6 +2324,7 @@ export default function OptionsFlowDashboard() {
           const days = Math.round((Date.UTC(y, m - 1, dd) - t0) / 86400000);
           if (days >= 0 && days <= 14) soon.add(sym);
         }
+        setErCache(soon);           // survives remount — see the seed above
         if (!cancelled) setErSoonSet(soon);
       } catch (e) { /* keep null -> row-flag fallback */ }
     })();

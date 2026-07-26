@@ -123,6 +123,26 @@ export function writeSnapshot(key, value) {
 
 export function clearSnapshots() {
   _snap = null
+  _erSet = null
+}
+
+// ── Earnings-soon set ───────────────────────────────────────────────────────
+// erSoonSet drives a per-row ER badge but is a DEPENDENCY of the processing
+// effect, so it landing after parsedRows re-runs the whole 96k-row aggregation
+// (~1,351ms). Parallelising its calendar fetches wins that race on a cold load
+// — but NOT on a snapshot-hydrated return visit, where parsedRows is available
+// in ~0ms and the calendar round trips can never beat it. Caching the set for
+// the session makes it available synchronously on remount, so a return visit
+// processes exactly once. Earnings dates don't change intraday, so one fetch
+// per session is the right granularity.
+let _erSet = null
+
+export function getErCache() {
+  return _erSet
+}
+
+export function setErCache(set) {
+  if (set instanceof Set) _erSet = set
 }
 
 /**
