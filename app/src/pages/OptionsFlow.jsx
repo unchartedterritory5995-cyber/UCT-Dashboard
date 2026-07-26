@@ -897,7 +897,19 @@ export default function OptionsFlowDashboard() {
   // share of history: 7/16 showed 511 trades of 128,525 actually in flow.db.
   // With date_from/date_to the server scopes the query and caps on the RANGE's
   // own length, so a one-day pick streams that day whole.
-  const _base = dataMode === "index" ? "/api/flow/indexes-data" : "/api/flow/data";
+  // GEX and Dark Pool do not read the flow CSV at all — they have their own
+  // endpoints. But `_base` used to fall through to the STOCKS url for any mode
+  // that wasn't "index", so entering GEX/Dark Pool from Indexes changed csvFile
+  // and fired a full ~12.4MB stocks download plus a worker parse that the user
+  // could never see, evicting the index dataset the worker was holding. Coming
+  // back then had to re-download it. Pinning to the last real FLOW mode keeps
+  // csvFile stable across the excursion, so nothing refetches and the return is
+  // instant. (The dataset-identity guard already stops the WRONG feed rendering;
+  // this stops the pointless round trips that made it reachable.)
+  const _lastFlowMode = useRef("stocks");
+  if (dataMode === "stocks" || dataMode === "index") _lastFlowMode.current = dataMode;
+  const _flowMode = (dataMode === "stocks" || dataMode === "index") ? dataMode : _lastFlowMode.current;
+  const _base = _flowMode === "index" ? "/api/flow/indexes-data" : "/api/flow/data";
   const csvFile = (dateFrom && dateTo)
     ? `${_base}?date_from=${dateFrom}&date_to=${dateTo}`
     : (fetchDays === 0 ? `${_base}?all_data=true` : `${_base}?days=${fetchDays}`);
