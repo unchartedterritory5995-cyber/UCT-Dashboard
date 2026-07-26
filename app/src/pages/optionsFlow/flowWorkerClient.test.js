@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadFlow, processFlow, mergeToday, tickerFlow, getLoadedKey, _resetFlowWorker } from './flowWorkerClient'
+import { loadFlow, processFlow, mergeToday, tickerFlow, getLoadedKey, getLoadedMeta, _resetFlowWorker } from './flowWorkerClient'
 import { parseCSV, processFlowData } from './flowCompute'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -44,6 +44,25 @@ describe('flowWorkerClient — main-thread fallback', () => {
     expect(res.D.clean_confirmed.length).toBe(direct.clean_confirmed.length)
     expect(res.D.clean_confirmed.map(t => `${t.S}|${t.D}|${t.P}`).join(','))
       .toBe(direct.clean_confirmed.map(t => `${t.S}|${t.D}|${t.P}`).join(','))
+  })
+
+  it('publishes rowCount + dates for a re-entry, not just that it holds them', async () => {
+    // THE RE-ENTRY HANG (shipped and caught live 2026-07-25): a remount resets
+    // component state, so knowing the worker still HOLDS the rows is not enough.
+    // Without rowCount coming back the processing effect's `if (!rowCount) return`
+    // guard never fires and the page sits on "Processing flow data..." forever.
+    expect(getLoadedMeta()).toBeNull()
+    await loadFlow(CSV, FILTER, null, 'k')
+    const meta = getLoadedMeta()
+    expect(meta).not.toBeNull()
+    expect(meta.rowCount).toBe(3419)
+    expect(meta.availableDates.length).toBeGreaterThan(0)
+  })
+
+  it('keeps the published meta in step after a delta merge', async () => {
+    await loadFlow(CSV, FILTER, null, 'k')
+    await mergeToday(CSV, FILTER, null)
+    expect(getLoadedMeta().rowCount).toBe(3419)
   })
 
   it('re-aggregates a loaded dataset under a new date selection', async () => {

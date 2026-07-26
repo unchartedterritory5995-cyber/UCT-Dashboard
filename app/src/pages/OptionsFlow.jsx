@@ -15,7 +15,7 @@ import {
   processFlowData,
   THEMES_DEF,
 } from "./optionsFlow/flowCompute";  // moved out of this file 2026-07-25 — see that file
-import { loadFlow, processFlow, mergeToday, getLoadedKey } from "./optionsFlow/flowWorkerClient";
+import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta } from "./optionsFlow/flowWorkerClient";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -1068,9 +1068,14 @@ export default function OptionsFlowDashboard() {
     // Instant re-entry. The WORKER keeps the parsed dataset across remounts, so
     // if it already holds this exact range there is nothing to fetch and nothing
     // to parse — publish the counts and let the processing effect aggregate.
-    if (!silent && getLoadedKey() === snapshotKey(csvFile)) {
+    const held = !silent && getLoadedKey() === snapshotKey(csvFile) ? getLoadedMeta() : null;
+    if (held && held.rowCount) {
       _baseVerPending.current = false;
       _hasRows.current = true;
+      // A remount reset these to 0/[] — restore them, or the processing effect's
+      // `if (!rowCount) return` guard leaves the page on the spinner forever.
+      setRowCount(held.rowCount);
+      setAvailableDates(held.availableDates);
       setLoadedFetchDays(fetchDaysAtStart);
       setCsvError(null);
       setCsvLoading(false);

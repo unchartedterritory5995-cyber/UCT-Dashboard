@@ -33,9 +33,20 @@ const pending = new Map()
 let fbRows = null
 let fbDates = []
 let loadedKey = null      // which range the worker currently holds
+let loadedMeta = null     // ...and what the page needs to render it
 
 /** Key of the dataset the worker already has, so a re-entry can skip the fetch. */
 export function getLoadedKey() { return loadedKey }
+
+/**
+ * { rowCount, availableDates } for the held dataset.
+ *
+ * A remount resets component state to its initial values, so it is not enough to
+ * know THAT the worker still holds the rows — the page has to get rowCount and
+ * availableDates back too, or the processing effect's `if (!rowCount) return`
+ * guard leaves it sitting on the spinner forever.
+ */
+export function getLoadedMeta() { return loadedMeta }
 
 function getWorker() {
   if (workerDead) return null
@@ -97,7 +108,11 @@ function fbAggregate(filter, erSoon) {
 /** Parse a CSV and keep it. Aggregation is a separate call — see processFlow. */
 export async function loadFlow(csv, filter, erSoon, key) {
   const res = await post({ type: 'load', csv, filter, erSoon })
-  if (res && res.ok) { loadedKey = key ?? null; return { ...res, usedWorker: true } }
+  if (res && res.ok) {
+    loadedKey = key ?? null
+    loadedMeta = { rowCount: res.rowCount, availableDates: res.availableDates }
+    return { ...res, usedWorker: true }
+  }
   if (res && res.ok === false && res.error && !workerDead) {
     return { ok: false, error: res.error, usedWorker: true }   // a real data error, not a worker failure
   }
@@ -108,6 +123,7 @@ export async function loadFlow(csv, filter, erSoon, key) {
   fbRows = rows
   fbDates = availableDatesFrom(rows)
   loadedKey = key ?? null
+  loadedMeta = { rowCount: rows.length, availableDates: fbDates }
   return { ok: true, rowCount: rows.length, availableDates: fbDates, usedWorker: false }
 }
 
@@ -122,7 +138,10 @@ export async function processFlow(filter, erSoon) {
 /** Splice today's rows in (replacing that date) and re-aggregate. */
 export async function mergeToday(csv, filter, erSoon) {
   const res = await post({ type: 'merge', csv, filter, erSoon })
-  if (res && res.ok) return { ...res, usedWorker: true }
+  if (res && res.ok) {
+    loadedMeta = { rowCount: res.rowCount, availableDates: res.availableDates }
+    return { ...res, usedWorker: true }
+  }
   if (!fbRows) return { ok: false, error: 'no rows loaded', usedWorker: false }
   const incoming = parseCSV(csv)
   if (!incoming || !incoming.length) return { ok: false, error: 'delta had no rows', usedWorker: false }
@@ -130,6 +149,7 @@ export async function mergeToday(csv, filter, erSoon) {
   if (!days.size) return { ok: false, error: 'delta had no dates', usedWorker: false }
   fbRows = fbRows.filter(r => !days.has((r.date || '').trim())).concat(incoming)
   fbDates = availableDatesFrom(fbRows)
+  loadedMeta = { rowCount: fbRows.length, availableDates: fbDates }
   return { ok: true, rowCount: fbRows.length, availableDates: fbDates, usedWorker: false }
 }
 
@@ -147,5 +167,5 @@ export async function tickerFlow(sym, erSoon) {
 export function _resetFlowWorker() {
   try { if (worker) worker.terminate() } catch { /* ignore */ }
   worker = null; workerDead = false; pending.clear(); seq = 0
-  fbRows = null; fbDates = []; loadedKey = null
+  fbRows = null; fbDates = []; loadedKey = null; loadedMeta = null
 }
