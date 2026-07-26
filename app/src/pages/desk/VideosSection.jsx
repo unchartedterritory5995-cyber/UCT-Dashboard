@@ -14,6 +14,9 @@ import BrandBadge from '../../components/video/BrandBadge'
 import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import { LEARNING_PATHS } from './learningPaths'
+import DeskHero from './DeskHero'
+import ShowRail from './ShowRail'
+import LibraryGrid from './LibraryGrid'
 import styles from '../EducationalVideos.module.css'
 
 const fetcher = (url) =>
@@ -28,6 +31,7 @@ export default function VideosSection() {
   const { data, error, isLoading, mutate } = useSWR('/api/education/videos', fetcher)
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState(null) // null = All
+  const [activeTag, setActiveTag] = useState(null) // library tag-chip filter
   const [editing, setEditing] = useState(null)
   const progress = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
@@ -37,13 +41,21 @@ export default function VideosSection() {
   // Server-ordered categories — shows first, then library, each by sort_order
   // (see api/routers/education.py). No client re-sort; render verbatim.
   const categories = useMemo(() => data?.categories || [], [data])
-  // Shows/Library split for the Task 6 landing components (kind === 'show' vs
+  // Shows/Library split for the landing components (kind === 'show' vs
   // everything else). Downstream consumers below keep using `categories`.
-  // eslint-disable-next-line no-unused-vars -- consumed by Task 6's landing components
   const shows = useMemo(() => categories.filter((c) => c.kind === 'show'), [categories])
-  // eslint-disable-next-line no-unused-vars -- consumed by Task 6's landing components
   const library = useMemo(() => categories.filter((c) => c.kind !== 'show'), [categories])
   const total = data?.total ?? 0
+
+  // Hero = the newest episode of the first (flagship) show. Sessions append
+  // chronologically, so newest = highest id. The hero plays against the same
+  // newest-first list its ShowRail renders, keeping Up-Next coherent.
+  const heroShow = shows[0] || null
+  const heroList = useMemo(
+    () => (heroShow ? [...(heroShow.videos || [])].sort((a, b) => b.id - a.id) : []),
+    [heroShow],
+  )
+  const heroVideo = heroList[0] || null
 
   // Deep link: /desk?section=videos&v=<youtube_id> auto-plays that video once
   // the catalog loads (session-recap links in Discord/email point here). Fires
@@ -128,6 +140,35 @@ export default function VideosSection() {
     [mutate],
   )
 
+  // Landing = no search text and no category chip → hero / rails / library.
+  // Any query or category filter swaps in the flat filtered grid (as before).
+  const landing = !query.trim() && !activeCat
+
+  // "Continue watching" renders in both modes (landing: right under the hero).
+  const continueBlock = !isLoading && continueWatching.length > 0 && (
+    <div className={styles.continueRow}>
+      <div className={styles.continueHead}>Continue watching</div>
+      <div className={styles.upNextRail}>
+        {continueWatching.map((cw) => (
+          <button
+            key={cw.video.youtube_id}
+            className={styles.upNextItem}
+            onClick={() => playVideo(cw.list, cw.index)}
+          >
+            <span className={styles.upNextThumbWrap}>
+              <img className={styles.upNextThumb} src={thumb(cw.video.youtube_id)} alt="" loading="lazy" />
+              <span className={styles.upNextPlay} aria-hidden="true"><PlayIcon /></span>
+              <span className={styles.progressBar}>
+                <span className={styles.progressFill} style={{ width: `${cw.pct}%` }} />
+              </span>
+            </span>
+            <span className={styles.upNextTitle}>{cw.video.title}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
   return (
     <div className={styles.page}>
       <VideoDockSlot />
@@ -170,52 +211,6 @@ export default function VideosSection() {
         </div>
       </div>
 
-      {!isLoading && !activeCat && !query.trim() && paths.length > 0 && (
-        <div className={styles.pathsRow}>
-          <div className={styles.continueHead}>Learning paths</div>
-          <div className={styles.pathsGrid}>
-            {paths.map((p) => (
-              <button
-                key={p.id}
-                className={styles.pathCard}
-                onClick={() => playVideo(p.videos, 0)}
-              >
-                <div className={styles.pathName}>{p.name}</div>
-                <div className={styles.pathBlurb}>{p.blurb}</div>
-                <div className={styles.pathMeta}>
-                  <span className={styles.pathPlay} aria-hidden="true"><PlayIcon /></span>
-                  Start path · {p.videos.length} videos
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!isLoading && continueWatching.length > 0 && (
-        <div className={styles.continueRow}>
-          <div className={styles.continueHead}>Continue watching</div>
-          <div className={styles.upNextRail}>
-            {continueWatching.map((cw) => (
-              <button
-                key={cw.video.youtube_id}
-                className={styles.upNextItem}
-                onClick={() => playVideo(cw.list, cw.index)}
-              >
-                <span className={styles.upNextThumbWrap}>
-                  <img className={styles.upNextThumb} src={thumb(cw.video.youtube_id)} alt="" loading="lazy" />
-                  <span className={styles.upNextPlay} aria-hidden="true"><PlayIcon /></span>
-                  <span className={styles.progressBar}>
-                    <span className={styles.progressFill} style={{ width: `${cw.pct}%` }} />
-                  </span>
-                </span>
-                <span className={styles.upNextTitle}>{cw.video.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {!isLoading && total > 0 && categories.length > 1 && (
         <div className={styles.catBar} role="tablist" aria-label="Filter videos by category">
           <button
@@ -247,63 +242,138 @@ export default function VideosSection() {
         <EmptyState isAdmin={isAdmin} onAdd={() => setEditing({})} />
       )}
 
-      {!isLoading && total > 0 && filtered.length === 0 && (
-        <div className={styles.note}>No videos match “{query}”.</div>
+      {/* ── Landing (no search / no category chip): hero → continue watching
+             → one rail per show → tag chips + library → learning paths. ── */}
+      {!isLoading && total > 0 && landing && (
+        <>
+          {heroVideo && (
+            <DeskHero
+              video={heroVideo}
+              list={heroList}
+              index={0}
+              onPlay={playVideo}
+              progress={progress}
+              showName={heroShow.name}
+            />
+          )}
+
+          {continueBlock}
+
+          {shows.map((show) => (
+            <ShowRail
+              key={show.name}
+              show={show}
+              onPlay={playVideo}
+              progress={progress}
+              deskThreads={deskThreads}
+              isAdmin={isAdmin}
+              onEdit={setEditing}
+              onDelete={handleDelete}
+            />
+          ))}
+
+          {library.length > 0 && (
+            <LibraryGrid
+              categories={library}
+              activeTag={activeTag}
+              onTagChange={setActiveTag}
+              onPlay={playVideo}
+              progress={progress}
+              deskThreads={deskThreads}
+              isAdmin={isAdmin}
+              onEdit={setEditing}
+              onDelete={handleDelete}
+            />
+          )}
+
+          {paths.length > 0 && (
+            <div className={styles.pathsRow}>
+              <div className={styles.continueHead}>Learning paths</div>
+              <div className={styles.pathsGrid}>
+                {paths.map((p) => (
+                  <button
+                    key={p.id}
+                    className={styles.pathCard}
+                    onClick={() => playVideo(p.videos, 0)}
+                  >
+                    <div className={styles.pathName}>{p.name}</div>
+                    <div className={styles.pathBlurb}>{p.blurb}</div>
+                    <div className={styles.pathMeta}>
+                      <span className={styles.pathPlay} aria-hidden="true"><PlayIcon /></span>
+                      Start path · {p.videos.length} videos
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      {filtered.map((cat) => (
-        <section key={cat.name} className={styles.section}>
-          <h2 className={styles.sectionTitle}>{cat.name}</h2>
-          <div className={styles.grid}>
-            {cat.videos.map((v, vi) => (
-              <article key={v.id} className={styles.card}>
-                <button
-                  className={styles.thumbBtn}
-                  onClick={() => playVideo(cat.videos, vi)}
-                  aria-label={`Play ${v.title}`}
-                >
-                  <img className={styles.thumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
-                  <BrandBadge />
-                  <span className={styles.playOverlay} aria-hidden="true"><PlayIcon /></span>
-                  {v.duration && <span className={styles.duration}>{v.duration}</span>}
-                  {progress[v.youtube_id]?.done && (
-                    <span className={styles.watchedBadge} aria-label="Watched">✓ Watched</span>
-                  )}
-                  {!progress[v.youtube_id]?.done && progress[v.youtube_id]?.t >= 8 && progress[v.youtube_id]?.d > 0 && (
-                    <span className={styles.progressBar}>
-                      <span
-                        className={styles.progressFill}
-                        style={{ width: `${Math.min(100, Math.round((progress[v.youtube_id].t / progress[v.youtube_id].d) * 100))}%` }}
-                      />
-                    </span>
-                  )}
-                </button>
-                <div className={styles.cardBody}>
-                  <div className={styles.cardTitle}>{v.title}</div>
-                  {v.description && <div className={styles.cardDesc}>{v.description}</div>}
-                  {deskThreads?.[String(v.id)] && (
-                    <Link
-                      to={`/community/${deskThreads[String(v.id)].thread_id}`}
-                      className={styles.discussLink}
-                      onClick={(e) => e.stopPropagation()}
+      {/* ── Search / category filter active: today's flat filtered grid. ── */}
+      {!isLoading && total > 0 && !landing && (
+        <>
+          {continueBlock}
+
+          {filtered.length === 0 && (
+            <div className={styles.note}>No videos match “{query}”.</div>
+          )}
+
+          {filtered.map((cat) => (
+            <section key={cat.name} className={styles.section}>
+              <h2 className={styles.sectionTitle}>{cat.name}</h2>
+              <div className={styles.grid}>
+                {cat.videos.map((v, vi) => (
+                  <article key={v.id} className={styles.card}>
+                    <button
+                      className={styles.thumbBtn}
+                      onClick={() => playVideo(cat.videos, vi)}
+                      aria-label={`Play ${v.title}`}
                     >
-                      Discussion ({deskThreads[String(v.id)].reply_count})
-                    </Link>
-                  )}
-                </div>
-                {isAdmin && (
-                  <div className={styles.cardAdmin}>
-                    <button className={styles.adminLink} onClick={() => setEditing(v)}>Edit</button>
-                    <button className={styles.adminLinkDanger} onClick={() => handleDelete(v)}>
-                      Delete
+                      <img className={styles.thumb} src={thumb(v.youtube_id)} alt="" loading="lazy" />
+                      <BrandBadge />
+                      <span className={styles.playOverlay} aria-hidden="true"><PlayIcon /></span>
+                      {v.duration && <span className={styles.duration}>{v.duration}</span>}
+                      {progress[v.youtube_id]?.done && (
+                        <span className={styles.watchedBadge} aria-label="Watched">✓ Watched</span>
+                      )}
+                      {!progress[v.youtube_id]?.done && progress[v.youtube_id]?.t >= 8 && progress[v.youtube_id]?.d > 0 && (
+                        <span className={styles.progressBar}>
+                          <span
+                            className={styles.progressFill}
+                            style={{ width: `${Math.min(100, Math.round((progress[v.youtube_id].t / progress[v.youtube_id].d) * 100))}%` }}
+                          />
+                        </span>
+                      )}
                     </button>
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
-        </section>
-      ))}
+                    <div className={styles.cardBody}>
+                      <div className={styles.cardTitle}>{v.title}</div>
+                      {v.description && <div className={styles.cardDesc}>{v.description}</div>}
+                      {deskThreads?.[String(v.id)] && (
+                        <Link
+                          to={`/community/${deskThreads[String(v.id)].thread_id}`}
+                          className={styles.discussLink}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Discussion ({deskThreads[String(v.id)].reply_count})
+                        </Link>
+                      )}
+                    </div>
+                    {isAdmin && (
+                      <div className={styles.cardAdmin}>
+                        <button className={styles.adminLink} onClick={() => setEditing(v)}>Edit</button>
+                        <button className={styles.adminLinkDanger} onClick={() => handleDelete(v)}>
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))}
+        </>
+      )}
 
       {editing && (
         <VideoForm

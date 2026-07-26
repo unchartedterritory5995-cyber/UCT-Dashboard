@@ -108,6 +108,8 @@ test('renders categories in server-provided order, not the old pin list', () => 
     ],
   }
   render(<MemoryRouter><EducationalVideos /></MemoryRouter>)
+  // The landing prepends a hero headline (the newest first-show episode);
+  // the category headers after it must remain in server-verbatim order.
   const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
-  expect(headings).toEqual(['Live Trading Sessions', 'Options & Flow'])
+  expect(headings).toEqual(['Session 1', 'Live Trading Sessions', 'Options & Flow'])
 })
