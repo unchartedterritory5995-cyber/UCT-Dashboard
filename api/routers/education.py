@@ -36,6 +36,7 @@ from api.middleware.auth_middleware import (
     require_admin,
 )
 from api.services import data_sync
+from api.services import education_search
 from api.services import education_service as svc
 
 router = APIRouter(prefix="/api/education", tags=["education"])
@@ -59,6 +60,7 @@ class InsightsStoreIn(BaseModel):
     headline: Optional[str] = None
     summary: Optional[list] = None
     setups: Optional[list] = None
+    episode_label: Optional[str] = None
 
 
 @router.get("/insights-backfill/pending")
@@ -124,6 +126,7 @@ def insights_store(video_id: int, body: InsightsStoreIn, _: None = Depends(requi
         headline=body.headline,
         summary=body.summary,
         setups=body.setups,
+        episode_label=body.episode_label,
     )
     return {"ok": True,
             "chapters": len(body.chapters or []),
@@ -243,6 +246,17 @@ def get_videos(_user: dict = Depends(require_paid)):
 @router.get("/categories")
 def get_categories(_user: dict = Depends(require_paid)):
     return {"categories": svc.list_categories()}
+
+
+# Literal /search registered ahead of every parameterized sibling below
+# (/videos/{video_id}/*, /by-youtube/{youtube_id}, /categories/{name}) —
+# same defensive-ordering convention as /categories/rename further down.
+@router.get("/search")
+def search_library(q: str = "", limit: int = 30, _user: dict = Depends(require_paid)):
+    """Deep content search across the library: title, headline, chapter titles,
+    and transcript text. Returns one result per video (best field wins) with a
+    highlighted snippet + seek timestamp for chapter/transcript matches."""
+    return education_search.search(q, limit=limit)
 
 
 @router.get("/by-youtube/{youtube_id}")

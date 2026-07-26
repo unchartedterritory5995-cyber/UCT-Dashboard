@@ -152,3 +152,25 @@ def test_rename_route_not_shadowed_by_patch_category(admin_client, svc):
                           json={"from_name": "Old Name", "to_name": "New Name"})
     assert r.status_code == 200
     assert r.json() == {"moved": 1}
+
+
+# ── POST /videos/{id}/insights-store — episode_label passthrough (round 6) ───
+
+def test_insights_store_accepts_episode_label(push_client, svc):
+    v = svc.create_video({"youtube_id": "epi_r1", "title": "MG episode",
+                          "category": "The Mental Game"})
+    r = push_client.post(f"/api/education/videos/{v['id']}/insights-store",
+                         json={"episode_label": "S3 · E51"})
+    assert r.status_code == 200
+    assert svc.get_video(v["id"])["episode_label"] == "S3 · E51"
+
+
+def test_insights_store_without_episode_label_keeps_existing(push_client, svc):
+    v = svc.create_video({"youtube_id": "epi_r2", "title": "MG episode 2",
+                          "category": "The Mental Game"})
+    push_client.post(f"/api/education/videos/{v['id']}/insights-store",
+                     json={"episode_label": "E14"})
+    push_client.post(f"/api/education/videos/{v['id']}/insights-store",
+                     json={"headline": "recap only"})
+    got = svc.get_video(v["id"])
+    assert got["episode_label"] == "E14" and got["headline"] == "recap only"

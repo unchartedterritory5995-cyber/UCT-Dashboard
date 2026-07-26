@@ -22,6 +22,19 @@ from typing import Optional
 _DB_PATH = os.environ.get("EDUCATION_DB_PATH", "/data/education.db")
 _WRITE_LOCK = threading.Lock()
 
+# Deep-search index staleness flag (see api/services/education_search.py).
+# Write paths only SET this — they never rebuild the index synchronously
+# (rebuild acquires _WRITE_LOCK, which is NON-reentrant and already held by
+# every writer). The next search() call notices the flag and rebuilds.
+# Starts True so a fresh process always rebuilds on its first search (covers
+# writes from a prior process that died before searching).
+_search_dirty = True
+
+
+def _mark_search_dirty() -> None:
+    global _search_dirty
+    _search_dirty = True
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS edu_videos (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,6 +111,7 @@ _EXTRA_COLUMNS = (
     ("audio_url", "TEXT"),         # R2 object key for the extracted background-audio track (NULL = none yet)
     ("audio_at", "INTEGER"),       # epoch when the audio track was produced
     ("tags", "TEXT"),              # JSON: ["risk", ...] — filter chips
+    ("episode_label", "TEXT"),     # normalized "S12 · E9" / "E42.4" self-identified episode tag
 )
 
 
@@ -190,6 +204,7 @@ def create_video(payload: dict) -> dict:
         )
         c.commit()
         new_id = cur.lastrowid
+    _mark_search_dirty()
     return get_video(new_id)
 
 
@@ -210,6 +225,7 @@ def update_video(video_id: int, payload: dict) -> Optional[dict]:
         c.commit()
         if cur.rowcount == 0:
             return None
+    _mark_search_dirty()
     return get_video(video_id)
 
 
@@ -217,7 +233,10 @@ def delete_video(video_id: int) -> bool:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute("DELETE FROM edu_videos WHERE id = ?", (int(video_id),))
         c.commit()
-        return cur.rowcount > 0
+        deleted = cur.rowcount > 0
+    if deleted:
+        _mark_search_dirty()
+    return deleted
 
 
 def reorder_category(category: str, ordered_ids: list[int]) -> None:
@@ -549,6 +568,7 @@ def bulk_apply_taxonomy(categories: list[dict], assignments: list[dict]) -> dict
             else:
                 applied += 1
         c.commit()
+    _mark_search_dirty()
     return {"categories": len(cats), "videos": applied, "missing_ids": missing}
 
 
@@ -766,9 +786,12 @@ def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
                        headline: Optional[str] = None,
                        summary: Optional[list] = None,
                        setups: Optional[list] = None,
-                       poster: Optional[bool] = None) -> None:
+                       poster: Optional[bool] = None,
+                       episode_label: Optional[str] = None) -> None:
     """Store generated insights (chapters / ticker-moments / transcript / recap
-    headline + summary / setups / poster flag) + stamp insights_at."""
+    headline + summary / setups / poster flag / episode label) + stamp
+    insights_at. Only provided (non-None) fields are written — omitting a
+    field never clobbers an existing value."""
     sets = {"insights_at": int(time.time()), "updated_at": int(time.time())}
     if transcript is not None:
         sets["transcript"] = transcript
@@ -784,11 +807,14 @@ def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
         sets["setups"] = _json.dumps(setups)
     if poster is not None:
         sets["poster"] = 1 if poster else 0
+    if episode_label is not None:
+        sets["episode_label"] = episode_label
     clause = ", ".join(f"{k} = :{k}" for k in sets)
     sets["id"] = int(video_id)
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute(f"UPDATE edu_videos SET {clause} WHERE id = :id", sets)
         c.commit()
+    _mark_search_dirty()
 
 
 def mark_insights_attempt(video_id: int) -> None:

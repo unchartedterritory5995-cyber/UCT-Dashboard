@@ -157,3 +157,35 @@ def test_bulk_apply_taxonomy_rolls_back_whole_batch_on_bad_category(svc):
     assert {m["name"] for m in svc.list_category_meta()} == set()
     assert svc.get_video(v3["id"])["category"] == "General"
     assert svc.get_video(v3["id"])["tags"] is None
+
+
+# ── episode_label (backfill rail, round 6) ────────────────────────────────────
+
+def test_episode_label_column_exists_after_init(svc):
+    import contextlib
+    with contextlib.closing(svc._connect()) as c:
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(edu_videos)")}
+    assert "episode_label" in cols
+
+
+def test_set_video_insights_episode_label_roundtrip(svc):
+    v = _add(svc, "Mental Game S12E9", "The Mental Game", yt="epi1")
+    svc.set_video_insights(v["id"], episode_label="S12 · E9")
+    assert svc.get_video(v["id"])["episode_label"] == "S12 · E9"
+
+
+def test_set_video_insights_omitting_episode_label_never_clobbers(svc):
+    v = _add(svc, "Mental Game S12E9", "The Mental Game", yt="epi2")
+    svc.set_video_insights(v["id"], episode_label="S12 · E9")
+    svc.set_video_insights(v["id"], headline="A recap")  # episode_label omitted
+    got = svc.get_video(v["id"])
+    assert got["episode_label"] == "S12 · E9"
+    assert got["headline"] == "A recap"
+
+
+def test_grouped_payload_carries_episode_label(svc):
+    v = _add(svc, "Sharpening Trading Skills 42.4", "The Mental Game", yt="epi3")
+    svc.set_video_insights(v["id"], episode_label="E42.4")
+    out = svc.grouped_videos_payload()
+    vid = next(x for c in out["categories"] for x in c["videos"] if x["id"] == v["id"])
+    assert vid["episode_label"] == "E42.4"
