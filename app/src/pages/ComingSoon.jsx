@@ -38,6 +38,24 @@ function remaining(target, now) {
   }
 }
 
+/** What the countdown slot says once the launch moment has passed.
+ *
+ *  Without this the countdown simply vanishes and the page sits there saying
+ *  COMING SOON beside a date that has already gone — for however long it takes
+ *  a human to flip the env vars. The flags are deliberately NOT auto-cleared:
+ *  that would open signups and Stripe billing unattended, which is a decision
+ *  a person should make.
+ */
+function passedLabel(target, now) {
+  const dayOf = (d) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d)
+  return dayOf(new Date(now)) === dayOf(target)
+    ? 'Doors open today.'
+    : 'Opening imminently.'
+}
+
 const prefersReducedMotion = () =>
   typeof window !== 'undefined'
   && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -437,6 +455,10 @@ export default function ComingSoon() {
           Already publishing weekly — read the Sunday Scans
           <span className={styles.proofArrow} aria-hidden="true">→</span>
         </a>
+
+        {!left && (
+          <p className={styles.opening} role="status">{passedLabel(target, now)}</p>
+        )}
 
         {left && (
           <div className={styles.clock} aria-label="Time until launch">

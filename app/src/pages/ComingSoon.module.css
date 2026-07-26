@@ -415,6 +415,18 @@
   );
 }
 
+/* Replaces the countdown once the launch moment passes, so the page never
+   sits next to an expired date with an empty slot where the clock was. */
+.opening {
+  margin: clamp(16px, 2.1vw, 22px) 0 0;
+  font-size: clamp(20px, 2.4vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--ut-gold, #c9a84c);
+  opacity: 0;
+  animation: riseIn 700ms ease-out 840ms forwards;
+}
+
 /* ── Waitlist ───────────────────────────────────────────────────────────── */
 
 .form {
