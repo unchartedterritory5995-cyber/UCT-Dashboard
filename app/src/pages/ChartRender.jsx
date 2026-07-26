@@ -28,6 +28,15 @@ export default function ChartRender() {
   const w = Math.min(2000, Math.max(600, parseInt(sp.get('w') || '1200', 10)))
   const h = Math.min(1200, Math.max(400, parseInt(sp.get('h') || '620', 10)))
   const token = sp.get('token') || ''
+  // Export-only view controls. Absent = today's behavior exactly.
+  //   ?bars=N  widen the default zoom (hourly defaults to 65, which spans only
+  //            ~4 days once pre/post-market candles are counted)
+  //   ?ext=0   REGULAR HOURS ONLY - drops the pre/post shading bands AND the
+  //            pre/post candles. The headless page has no saved chart settings,
+  //            so it silently inherited `extendedHoursShading ?? true`.
+  const barsOverride = (() => { const v = parseInt(sp.get('bars') || '', 10); return Number.isFinite(v) && v > 0 ? Math.min(1200, v) : null })()
+  const extParam = sp.get('ext')
+  const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
 
   const lvl = (k) => { const v = parseFloat(sp.get(k) || ''); return Number.isFinite(v) && v > 0 ? v : null }
   const entry = lvl('entry'), stop = lvl('stop'), t1 = lvl('t1'), t2 = lvl('t2')
@@ -76,7 +85,15 @@ export default function ChartRender() {
           </span>
         </div>
         <div style={{ width: w, height: chartH }}>
-          <StockChart sym={sym} tf={tf} height={`${chartH}px`} priceLines={priceLines} />
+          <StockChart
+            sym={sym}
+            tf={tf}
+            height={`${chartH}px`}
+            priceLines={priceLines}
+            visibleBarsOverride={barsOverride}
+            forceExtendedHours={forceExt}
+            liveUpdates={false}
+          />
         </div>
         <div style={{ height: 20, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 16px', color: '#666', fontSize: 10 }}>
           {/* Traders read ET — a "03:20 UTC" stamp on a 7:35am letter reads broken. */}

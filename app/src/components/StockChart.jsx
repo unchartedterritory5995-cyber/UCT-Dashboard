@@ -81,8 +81,13 @@ function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
 // a CONSTANT fraction (LAST_CANDLE_POS) of the plot width, showing the timeframe's
 // default history. Shared by the initial framing, the snap-back safety guard, and
 // the right-click "Reset view" so all three land on the exact same window.
-function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3 } = {}) {
-  const visibleBars = (tf === 'D' && dailyDefaultBars) ? dailyDefaultBars : (DEFAULT_VISIBLE_BARS[tf] || 65)
+function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null } = {}) {
+  // visibleBarsOverride wins on ANY timeframe (the Sunday Scan hourly export
+  // wants a wider window than the interactive default); dailyDefaultBars stays
+  // Daily-only so the Charts workspace is untouched.
+  const visibleBars = (visibleBarsOverride && visibleBarsOverride > 0)
+    ? visibleBarsOverride
+    : ((tf === 'D' && dailyDefaultBars) ? dailyDefaultBars : (DEFAULT_VISIBLE_BARS[tf] || 65))
   // Always size the window to `visibleBars` and anchor the newest candle at
   // LAST_CANDLE_POS. For a SHORT-history ticker (IPO/new ETF like SPCX/DRAM,
   // barsLen < visibleBars) `from` goes NEGATIVE → the few bars keep a normal
@@ -821,6 +826,8 @@ export default function StockChart({
   exitDate = null,          // ISO date string — end of holding period zoom
   priceScaleTopMargin = null, // override the default 0.30 top headroom (0..0.9)
   dailyDefaultBars = null,  // override the Daily default-zoom bar count (Charts workspace: ~126 ≈ 6 months). Daily only; other TFs keep their own defaults.
+  visibleBarsOverride = null, // override the default-zoom bar count on ANY timeframe. null = each TF keeps its own default. Used by the headless /r/chart export, where the hourly default (65 bars) spans only ~4 days once pre/post-market candles are included.
+  forceExtendedHours = null,  // null = follow the user's extendedHoursShading setting (today's behavior). false = REGULAR HOURS ONLY, true = force extended. The headless export has no saved settings, so it silently took the ?? true default and rendered pre/post shading bands the owner does not publish.
   ema9MatchCandle = false,  // Charts workspace: paint the 9-EMA overlay in the candle up-color (MB_UP) so the fast MA matches the candles. Reliable regardless of saved overlay colors; scoped so Model Book is unaffected.
   carryDragPlacement = true, // carry the user's drag-repositioned vertical candle placement across ticker switches. false = each ticker autoscales fresh to the default margins (Charts workspace: prevents the price scale ballooning to a sliver and STICKING when scrolling tickers).
   keepPresentOnSymbolChange = false, // on a symbol switch, keep the zoom LEVEL but re-anchor the newest candle to the right so a newly-typed ticker always loads at present day (never inherits the prior symbol's scrolled-back/past view). Charts workspace opts in.
@@ -1644,7 +1651,12 @@ export default function StockChart({
   // gaps — the pre/post PRICE DATA is filtered out, not just the shading.
   // handleToggleExtended (the toolbar EXT/RTH button) is defined just below,
   // after handleUpdateChartSettings, and writes the same setting.
-  const showExtended = cs.extendedHoursShading ?? true
+  // forceExtendedHours (when not null) overrides the saved setting. This is the
+  // ONE place the flag is derived, and it drives both the shading primitive AND
+  // the pre/post PRICE FILTER, so false gives an RTH-only chart in one move.
+  const showExtended = (forceExtendedHours === null || forceExtendedHours === undefined)
+    ? (cs.extendedHoursShading ?? true)
+    : !!forceExtendedHours
   // Latest showExtended, read by the live-tick writers (which are callbacks and
   // would otherwise close over a stale value). When false (RTH), the live path
   // must not paint pre/post-market intraday bars — mirroring the sessionBars fetch
@@ -1894,7 +1906,7 @@ export default function StockChart({
         const ts = chartRef.current?.timeScale(); if (!ts) return
         const len = lastBarCountRef.current || 0
         if (len > 1) {
-          const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars })
+          const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride })
           ts.setVisibleLogicalRange({ from, to })
         } else {
           ts.resetTimeScale()
@@ -6028,7 +6040,7 @@ export default function StockChart({
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
             const { from: _from, to: _to } = computeDefaultLogicalRange(
-              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars }
+              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride }
             )
             chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
           }
@@ -6082,7 +6094,7 @@ export default function StockChart({
           from = to - _pt.width
         } else {
           ;({ from, to } = computeDefaultLogicalRange(
-            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars }
+            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride }
           ))
         }
         try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
@@ -6180,7 +6192,7 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, indicatorData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -8007,7 +8019,7 @@ export default function StockChart({
               const ts = chartRef.current?.timeScale(); if (!ts) return
               const len = lastBarCountRef.current || 0
               if (len > 1) {
-                const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars })
+                const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride })
                 ts.setVisibleLogicalRange({ from, to })
               } else {
                 ts.resetTimeScale()
