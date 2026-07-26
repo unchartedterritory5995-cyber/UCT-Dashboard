@@ -145,6 +145,38 @@ SINGLE_LEG_CONDITIONS = frozenset({
 SWEEP_BREADTH_OVERRIDE = 4
 
 
+def _as_conditions(v) -> tuple[int, ...]:
+    """Normalize a print's OPRA condition code(s) to a tuple of ints.
+
+    Accepts a scalar (a single code), an iterable (the full OPRA condition
+    array), or NaN/None (no codes). Non-numeric / missing entries are dropped.
+    Introduced 2026-07-26: RawTrade.conditions was a single int built from only
+    the FIRST code, so cancel/ISO/ML/single-leg checks silently missed any code
+    not in position 0. Threading the full tuple lets the existing classifier see
+    every code.
+    """
+    if v is None:
+        return ()
+    if isinstance(v, (list, tuple, set, frozenset)) or (
+        hasattr(v, "__iter__") and not isinstance(v, (str, bytes))
+    ):
+        out = []
+        for c in v:
+            try:
+                if c != c:  # NaN element
+                    continue
+                out.append(int(c))
+            except (TypeError, ValueError):
+                continue
+        return tuple(out)
+    try:
+        if v != v:  # scalar NaN
+            return ()
+        return (int(v),)
+    except (TypeError, ValueError):
+        return ()
+
+
 @dataclass
 class RawTrade:
     """A single OPRA trade print, normalized from Massive (Flat Files or WS)."""
@@ -152,7 +184,7 @@ class RawTrade:
     price: float
     size: int
     exchange: int
-    conditions: int
+    conditions: tuple[int, ...]
     ts_ns: int  # nanoseconds since epoch, UTC
 
 
@@ -310,7 +342,7 @@ class TradeAggregator:
         # Phase 2e: drop cancelled prints. Their condition code says they
         # were retracted -- including them in aggregation would attribute
         # premium/volume to trades that never actually happened.
-        if trade.conditions in CANCEL_CONDITIONS:
+        if any(c in CANCEL_CONDITIONS for c in trade.conditions):
             self._stats['dropped_cancelled'] = self._stats.get('dropped_cancelled', 0) + 1
             return
         self._stats['added'] += 1
@@ -424,7 +456,7 @@ class TradeAggregator:
         # still authoritative for genuine 1-2 venue blocks, but a print
         # spanning 4+ venues can't be a real single-leg trade -- it's a sweep
         # that a stray 227-231 print was bucketed into. See HUBS 7/8.
-        conditions_seen = {t.conditions for t in trades}
+        conditions_seen = {c for t in trades for c in t.conditions}
         if conditions_seen & MULTI_LEG_CONDITIONS:
             type_ = 'ML/'
         elif ISO_CONDITION in conditions_seen:
@@ -630,15 +662,12 @@ def batch_process(
     last_ts = 0
 
     for i, row in enumerate(df.itertuples(index=False)):
-        cond = row.conditions
-        if pd.isna(cond):
-            cond = -1
         agg.add_trade(RawTrade(
             ticker=row.ticker,
             price=float(row.price),
             size=int(row.size),
             exchange=int(row.exchange),
-            conditions=int(cond),
+            conditions=_as_conditions(row.conditions),
             ts_ns=int(row.sip_timestamp),
         ))
         last_ts = int(row.sip_timestamp)
