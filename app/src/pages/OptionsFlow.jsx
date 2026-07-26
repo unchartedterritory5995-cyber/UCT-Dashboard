@@ -5360,7 +5360,7 @@ export default function OptionsFlowDashboard() {
             {/* ─── Chart Modal (uses StockChart — same colors as renderDetailPanel) ─── */}
             {chartModal && chartModal.sym && (() => {
               const sym = chartModal.sym;
-              const tk = D && D.TICKER_DB ? D.TICKER_DB.find(t => t.s === sym) : null;
+              const tk = FD && FD.TICKER_DB ? FD.TICKER_DB.find(t => t.s === sym) : null;
               const tkBull = tk ? ((tk.b||0) >= (tk.r||0)) : true;
               const dirC = tkBull ? P.bu : P.be;
               return (
