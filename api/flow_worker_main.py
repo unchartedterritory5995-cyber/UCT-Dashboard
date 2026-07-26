@@ -150,6 +150,17 @@ def _build_app() -> FastAPI:
     # thread on" took an hour to infer from /proc; this answers it in one call).
     from api import debug_dump_router
     app.include_router(debug_dump_router.router)
+
+    # Auth-surface audit. THIS pod is the one that matters: the flow surface is
+    # proxied, so a gate added on web never reaches this router copy without its
+    # own `railway up -s flow-worker`. Reads the mounted route objects only —
+    # no request, no handler, no side effect (an anonymous probe would EXECUTE
+    # the endpoint in exactly the case it exists to detect).
+    try:
+        from api.auth_surface_check import run_startup_audit
+        run_startup_audit(app, service="flow-worker")
+    except Exception as e:
+        print(f"[startup] auth-surface audit skipped: {e}")
     return app
 
 

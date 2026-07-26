@@ -174,3 +174,65 @@ def test_clear_before_date_is_gated():
         "clear-before-date is destructive and GET-reachable; a confirm string "
         "that the endpoint itself prints is not access control"
     )
+
+
+def test_stream_test_keeps_its_inline_push_secret_gate():
+    """POST /api/live/massive/stream-test is gated INLINE, not by Depends().
+
+    auth_surface_check.ALLOWED_OPEN carries an entry for it so the boot-time
+    runtime audit does not cry wolf — and a crying-wolf alert is one people stop
+    reading. But that entry is a promise the runtime audit cannot keep by
+    itself: delete the inline check and the allow-list would still report OK,
+    leaving an endpoint that broadcasts arbitrary synthetic prints to every
+    connected member's live tape wide open.
+
+    This is the assertion that keeps the promise honest.
+    """
+    src = (API / "routers" / "massive_stream_router.py").read_text(encoding="utf-8")
+    body = src[src.index("def massive_stream_test"):]
+    body = body[:body.index("\n@router")] if "\n@router" in body else body
+
+    assert 'os.environ.get("PUSH_SECRET"' in body, \
+        "stream-test no longer reads PUSH_SECRET — it is now genuinely unauthenticated"
+    assert 'request.headers.get("authorization"' in body, \
+        "stream-test no longer reads the Authorization header"
+    assert "status_code=403" in body, \
+        "stream-test no longer rejects unauthorized callers"
+    # The ?token= form was deliberately removed 2026-07-26 — query strings are
+    # logged by Cloudflare/Railway and leak via Referer, and PUSH_SECRET is
+    # unconditional admin plus the web->worker proxy HMAC key.
+    assert "query_params" not in body, \
+        "stream-test accepts a ?token= again — PUSH_SECRET must never ride in a URL"
+
+
+def test_every_allowed_open_entry_has_a_reason():
+    """No silent exemptions."""
+    from api.auth_surface_check import ALLOWED_OPEN
+    for key, reason in ALLOWED_OPEN.items():
+        assert reason and len(reason) > 20, f"{key} is exempted without a real reason"
+
+
+def test_flow_backup_run_keeps_its_inline_push_secret_gate():
+    """POST /api/flow-backup/run is gated INLINE, not by Depends().
+
+    Same promise-keeping role as the stream-test assertion above: the runtime
+    audit's ALLOWED_OPEN entry cannot notice the inline check disappearing.
+    Ungated, this endpoint lets anyone spawn a full R2 backup of the ~800MB
+    flow.db on demand — unbounded egress and heavy IO on the pod that owns the
+    single-slot OPRA websocket.
+    """
+    src = (API / "flow_backup.py").read_text(encoding="utf-8")
+    body = src[src.index('@router.post("/run")'):]
+    body = body[:body.index("\n@router")] if "\n@router" in body else body[:1200]
+    assert "_require_push_secret(" in body, \
+        "flow-backup /run lost its inline PUSH_SECRET gate — anyone can trigger a full DB backup"
+
+
+def test_confirmation_map_is_gated():
+    """POST /api/oi/confirmation-map answered batched OI-snapshot queries for
+    anonymous callers until 2026-07-26. It is a members-only Search feature."""
+    src = (API / "main.py").read_text(encoding="utf-8")
+    i = src.index("async def _oi_confirmation_map")
+    sig = src[src.index("@app.post(\"/api/oi/confirmation-map\")"):i + 200]
+    assert "get_current_user" in sig, \
+        "confirmation-map is unauthenticated again"

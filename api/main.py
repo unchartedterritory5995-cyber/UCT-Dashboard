@@ -34,7 +34,8 @@ for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
                "websockets.protocol", "asyncio", "uvicorn.access"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
+from api.middleware.auth_middleware import get_current_user
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, Response
 from slowapi import _rate_limit_exceeded_handler
@@ -1816,6 +1817,19 @@ async def lifespan(app: FastAPI):
         "heartbeat=named watchdog_renotify=10s idle_sleep=250ms "
         "status_endpoint=/api/admin/bars-stream-status (frontend rollout% in StockChart.BARS_PUSH_ROLLOUT_PCT)"
     )
+
+    # Auth-surface audit — does THIS RUNNING app gate its mutating flow routes?
+    # tests/test_flow_auth_surface.py proves the source is right; its own
+    # docstring names what it cannot prove ("NOT that production is protected"),
+    # because the flow surface is proxied and a web deploy does not reach the
+    # flow-worker's copy. This inspects the mounted route objects — no request is
+    # sent, since an anonymous probe of a mutating endpoint is only safe when the
+    # gate works, and RUNS the handler in the one case it exists to catch.
+    try:
+        from api.auth_surface_check import run_startup_audit
+        run_startup_audit(app, service="web")
+    except Exception as e:
+        print(f"[startup] auth-surface audit skipped: {e}")
 
     # SIP trade-condition filter — keep ghost prints (odd-lot / out-of-sequence /
     # form-T / average-priced) out of the live candle's high/low + last, on both
@@ -5347,7 +5361,15 @@ async def _oi_create_indexes():
 
 
 @app.post("/api/oi/confirmation-map")
-async def _oi_confirmation_map(request: Request):
+async def _oi_confirmation_map(request: Request,
+                               _user: dict = Depends(get_current_user)):
+    # Gated 2026-07-26 (boot-time auth-surface audit). Read-only and already
+    # bounded at 5,000 contracts, so this is not the flow-reconcile class of
+    # hole — but it is a members-only Search feature that was answering batched
+    # OI-snapshot queries for anonymous callers, and there is no reason for it
+    # to be public. The caller is OptionsFlow's Search tab, which is behind
+    # AuthGuard and issues a same-origin fetch (cookies sent by default), so
+    # the session cookie is always present for a legitimate user.
     """Return OI-growth confirmation status for a batch of contracts.
 
     Used by Search to filter historical flow to only trades whose contract
