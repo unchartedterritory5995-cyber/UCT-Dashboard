@@ -170,6 +170,73 @@ def render_flow(token: str = "", n: int = 10):
     return {"session": flow.get("session"), "orders": public}
 
 
+_PRICE_TXT_RE = None  # built lazily in _levels_for_book
+
+
+def _levels_for_book(r: dict) -> dict:
+    """entry/stop/t1/t2 for a leadership row, comma-safe and sanity-checked.
+
+    Mirrors the newsletter's compute_levels contract: prefer the engine-baked
+    *_px fields, but re-parse the prose when they're insane (the "$1,020"→1.0
+    comma bug class) so the book image can never show placeholder levels.
+    """
+    import re as _re
+    global _PRICE_TXT_RE
+    if _PRICE_TXT_RE is None:
+        _PRICE_TXT_RE = _re.compile(
+            r"\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|[0-9]+(?:\.[0-9]+)?)")
+
+    def _f(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _parse(text):
+        m = _PRICE_TXT_RE.search(str(text or ""))
+        return float(m.group(1).replace(",", "")) if m else 0.0
+
+    price = _f(r.get("price"))
+    e, s = _f(r.get("entry_px")), _f(r.get("stop_px"))
+    t1, t2 = _f(r.get("t1_px")), _f(r.get("t2_px"))
+    sane = (e > 0 and s > 0 and s < e and t1 >= e * 0.98
+            and (not price or abs(e - price) / price <= 0.35))
+    if not sane:
+        e, s = _parse(r.get("entry")), _parse(r.get("stop"))
+        t1, t2 = _parse(r.get("target_1")), _parse(r.get("target_2"))
+    return {"entry": e or None, "stop": s or None, "t1": t1 or None, "t2": t2 or None}
+
+
+@router.get("/r/book")
+def render_book(token: str = "", part: int = 0):
+    """The Full Book — the 20 leadership names for the newsletter's rendered
+    board image. part=1 → ranks 1-10, part=2 → 11-20, 0 → all. Fields shown are
+    exactly what the letter already publishes daily (no internal scoring leaks
+    beyond the public UCT score)."""
+    _check_token(token)
+    try:
+        from api.services import engine as _eng
+        wire = _eng._load_wire_data() or {}
+    except Exception:  # noqa: BLE001
+        wire = {}
+    rows = sorted((wire.get("leadership") or []) if isinstance(wire, dict) else [],
+                  key=lambda r: r.get("score", 0) or 0, reverse=True)
+    out = []
+    for i, r in enumerate(rows[:20], start=1):
+        lv = _levels_for_book(r)
+        out.append({
+            "rank": i,
+            "sym": (r.get("sym") or "").upper(),
+            "theme": r.get("theme") or r.get("sector") or "",
+            "score": r.get("score"),
+            "setup": r.get("setup_type") or "",
+            **lv,
+        })
+    if part in (1, 2):
+        out = out[:10] if part == 1 else out[10:20]
+    return {"date": wire.get("date"), "part": part, "rows": out}
+
+
 @router.get("/r/themes")
 def render_themes(token: str = "", period: str = "1W", n: int = 6, holds: int = 6):
     """Theme leaders & laggards for the newsletter — each with its top holdings.
