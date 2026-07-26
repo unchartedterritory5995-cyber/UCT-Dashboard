@@ -669,6 +669,8 @@ export default function OptionsFlowDashboard() {
   const [gexData, setGexData] = useState(null);
   const [gexLoading, setGexLoading] = useState(false);
   const [gexDte, setGexDte] = useState("all");
+  // Monotonic id so a slow earlier GEX reply can never overwrite a newer one.
+  const _gexReq = useRef(0);
   const [gexAdjusted, setGexAdjusted] = useState(false); // false = naive OI GEX, true = trade-aware (dealer_positioning est_dealer_net)
   const [showGexSummary, setShowGexSummary] = useState(false);
   const [showGexChart, setShowGexChart] = useState(false);
@@ -3002,20 +3004,34 @@ export default function OptionsFlowDashboard() {
 
   async function fetchGex(ticker, dte, adjusted=false) {
     if (!ticker) return;
+    // Out-of-order guard. Clicking 0DTE then Month can resolve Month FIRST if
+    // 0DTE is slower, and the later reply then overwrites the newer data — the
+    // panel would show one expiry's gamma walls labelled as another. Only the
+    // most recent request is allowed to publish.
+    const myReq = ++_gexReq.current;
     setGexLoading(true);
     try {
       const resp = await fetch(`/api/gex/data?ticker=${encodeURIComponent(ticker)}&dte=${dte}&adjusted=${adjusted?"true":"false"}`);
+      if (myReq !== _gexReq.current) return;          // superseded — drop it
       if (resp.ok) {
         const data = await resp.json();
+        if (myReq !== _gexReq.current) return;
         data.fetchedAt = new Date().toLocaleString("en-US", { timeZone:"America/New_York", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true });
+        // Stamp what this payload IS, so the panel labels it from the response
+        // rather than from live UI state. (The API echoes `dteFilter`, but it
+        // comes back null on an empty result — e.g. no 0DTE contracts — so the
+        // request params are the reliable source.)
+        data._reqDte = dte;
+        data._reqTicker = ticker;
         setGexData(data);
       } else {
-        setGexData({ error: `API error: ${resp.status}` });
+        setGexData({ error: `API error: ${resp.status}`, _reqDte: dte, _reqTicker: ticker });
       }
     } catch(e) {
-      setGexData({ error: e.message });
+      if (myReq !== _gexReq.current) return;
+      setGexData({ error: e.message, _reqDte: dte, _reqTicker: ticker });
     }
-    setGexLoading(false);
+    if (myReq === _gexReq.current) setGexLoading(false);
   }
 
   async function fetchIdeaGex(sym) {
@@ -3474,7 +3490,11 @@ export default function OptionsFlowDashboard() {
                   if (!sp || !cw || !pw) return null;
                   const cwStrike = cw.strike, pwStrike = pw.strike, cwGex = cw.gex, pwGex = Math.abs(pw.gex);
                   const SG = "#0a8f55", SR = "#c43030"; // darker bar fills for summary
-                  const isIntraday = gexDte === "0dte" || gexDte === "1dte";
+                  // Key off the payload, not live UI state — otherwise the
+                  // "today" vs "this week" wording can describe data it did
+                  // not come from.
+                  const _dDte = gexData._reqDte ?? gexData.dteFilter ?? gexDte;
+                  const isIntraday = _dDte === "0dte" || _dDte === "1dte";
                   const timeframe = isIntraday ? "today" : "this week";
 
                   // Net delta tracking — store all readings for daily trend sparkline
@@ -3892,7 +3912,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                       <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
-                      <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDte==="0dte"?"0DTE":gexDte==="1dte"?"1DTE":gexDte==="2dte"?"2DTE":gexDte==="3dte"?"3DTE":gexDte==="week"?"Weekly":gexDte==="month"?"Monthly":"All"}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
+                      <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {(d=>d==="0dte"?"0DTE":d==="1dte"?"1DTE":d==="2dte"?"2DTE":d==="3dte"?"3DTE":d==="week"?"Weekly":d==="month"?"Monthly":"All")(gexData._reqDte ?? gexData.dteFilter ?? gexDte)}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     {gexData.adjusted && (()=>{
                       const cov=Math.round((gexData.coveragePct||0)*100), conf=Math.round((gexData.avgConfidence||0)*100), days=gexData.attributionDays||0;

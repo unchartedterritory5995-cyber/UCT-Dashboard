@@ -2145,6 +2145,19 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated):
             deduped.sort(key=lambda a: a.get("timestamp") or 0, reverse=True)
         all_alerts = deduped
 
+    # ── Demote BEFORE auto-push, for curated AND all-flow alike ──────────
+    # 2026-07-26: both demotes lived INSIDE `if curated:` (above) while
+    # _apply_auto_push sits out here and runs for BOTH modes. So on ALL FLOW a
+    # spread/calendar leg kept its Bull/Bear label and auto-pushed to Discord as
+    # top-tier directional conviction — the exact defect
+    # _demote_multileg_structures was written to prevent (see its docstring: the
+    # SNDK 8/7 $1370P that fired ALPHA GOLD BEAR). The demotes are documented
+    # idempotent, so re-running them after the curated pass is a no-op; this only
+    # closes the all-flow hole. Auto-push relies on the resulting
+    # `_directionUnconfirmed` to make a leg ineligible, so it MUST run first.
+    _demote_multileg_structures(all_alerts)
+    _demote_two_way_flow(all_alerts)
+
     # Auto-push scan: mark already-pushed alerts (POSTED persists) and, when the
     # master switch is on, claim + fire newly-qualifying ones. On the FULL set so
     # no client's tier/limit filter hides a qualifier; dedup via the log.
