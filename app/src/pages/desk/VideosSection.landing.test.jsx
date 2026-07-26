@@ -46,6 +46,7 @@ vi.mock('../../components/video/VideoDockSlot', () => ({
 }))
 
 import VideosSection from './VideosSection'
+import Shelf from './Shelf'
 import { play } from '../../components/video/videoStore'
 
 const fixture = () => ({
@@ -243,6 +244,35 @@ test('NEW badge marks only videos created within the last 5 days', () => {
   const staleCard = within(lib).getByRole('button', { name: 'Play Breadth basics' })
   expect(within(freshCard).getByText('NEW')).toBeTruthy()
   expect(within(staleCard).queryByText('NEW')).toBeNull()
+})
+
+test('shelf paddles track content-only changes (useScrollEdges contentKey dep)', () => {
+  // Simulate layout in jsdom: every box is 600px wide, each row child 300px —
+  // so 5 cards overflow (1500 > 600) and 2 cards fit exactly (600 = 600).
+  const swSpy = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get')
+    .mockImplementation(function () { return this.children.length * 300 })
+  const cwSpy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+    .mockImplementation(() => 600)
+  try {
+    const mk = (n) =>
+      Array.from({ length: n }, (_, i) => ({
+        video: { id: i + 1, youtube_id: `vid${i}`, title: `V${i}` },
+        list: [], index: i, kind: 'library',
+      }))
+    const props = { name: 'T', onPlay: () => {}, progress: {} }
+    const { rerender } = render(<Shelf {...props} entries={mk(5)} />)
+    expect(screen.getByRole('button', { name: 'Scroll T forward' })).toBeTruthy()
+    // Content-only shrink (same row node, no resize event — the tag-filter
+    // case): the paddle must disappear because the row no longer overflows.
+    rerender(<Shelf {...props} entries={mk(2)} />)
+    expect(screen.queryByRole('button', { name: 'Scroll T forward' })).toBeNull()
+    // And grow back: the paddle returns.
+    rerender(<Shelf {...props} entries={mk(6)} />)
+    expect(screen.getByRole('button', { name: 'Scroll T forward' })).toBeTruthy()
+  } finally {
+    swSpy.mockRestore()
+    cwSpy.mockRestore()
+  }
 })
 
 test('watched videos dim the thumbnail and carry a Watched tag', () => {

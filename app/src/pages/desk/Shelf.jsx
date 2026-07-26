@@ -86,7 +86,7 @@ export function useScrollEdges(el, contentKey = 0) {
       ro?.disconnect()
       window.removeEventListener('resize', update)
     }
-  }, [el])
+  }, [el, contentKey])
   return edges
 }
 
@@ -163,7 +163,9 @@ export default function Shelf({
 }) {
   const [expanded, setExpanded] = useState(false)
   const [rowEl, setRowEl] = useState(null)
-  const edges = useScrollEdges(rowEl, entries.length)
+  // Content key = the exact id set, not just the count: a tag filter can swap
+  // a row to a different same-size subset without the node remounting.
+  const edges = useScrollEdges(rowEl, entries.map((en) => en.video.id).join(','))
   if (!entries.length) return null
 
   const card = (en) => (
@@ -211,7 +213,7 @@ export default function Shelf({
             <button
               className={`${s.shelfNav} ${s.shelfNavL}`}
               aria-label={`Scroll ${name} back`}
-              onClick={() => pageScroller(rowEl,-1, 0.8)}
+              onClick={() => pageScroller(rowEl, -1, 0.8)}
             >
               <span className={s.flipX} aria-hidden="true">
                 <UIcon name="chevronRight" size={18} gold={false} />
@@ -222,7 +224,7 @@ export default function Shelf({
             <button
               className={`${s.shelfNav} ${s.shelfNavR}`}
               aria-label={`Scroll ${name} forward`}
-              onClick={() => pageScroller(rowEl,1, 0.8)}
+              onClick={() => pageScroller(rowEl, 1, 0.8)}
             >
               <UIcon name="chevronRight" size={18} gold={false} />
             </button>

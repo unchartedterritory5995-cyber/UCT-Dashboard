@@ -54,7 +54,9 @@ export default function VideosSection() {
   // row mounts only after the catalog loads, so edge detection must re-arm
   // when the element actually appears.
   const [chipRowEl, setChipRowEl] = useState(null)
-  const chipEdges = useScrollEdges(chipRowEl, categories.length)
+  // Content key = the joined names (chip widths are name-driven, so a rename
+  // at equal count still moves scrollWidth).
+  const chipEdges = useScrollEdges(chipRowEl, categories.map((c) => c.name).join(','))
 
   // Featured strip = the newest episode of the first (flagship) show. Sessions
   // append chronologically, so newest = highest id. It plays against the same
@@ -319,7 +321,7 @@ export default function VideosSection() {
                 <button
                   className={`${s.chipNav} ${s.chipNavL}`}
                   aria-label="Scroll categories back"
-                  onClick={() => pageScroller(chipRowEl,-1, 0.5)}
+                  onClick={() => pageScroller(chipRowEl, -1, 0.5)}
                 >
                   <span className={s.flipX} aria-hidden="true">
                     <UIcon name="chevronRight" size={15} gold={false} />
@@ -330,7 +332,7 @@ export default function VideosSection() {
                 <button
                   className={`${s.chipNav} ${s.chipNavR}`}
                   aria-label="Scroll categories forward"
-                  onClick={() => pageScroller(chipRowEl,1, 0.5)}
+                  onClick={() => pageScroller(chipRowEl, 1, 0.5)}
                 >
                   <UIcon name="chevronRight" size={15} gold={false} />
                 </button>
