@@ -12,7 +12,7 @@
 //             that page it by ~80% of the visible width.
 // Every play routes through onPlay(list, index) with the shelf's display-order
 // list so the theater's Up-Next rail keeps working.
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import s from './VideosSection.module.css'
@@ -28,6 +28,28 @@ export const fmtShortDate = (epoch) => {
   } catch {
     return ''
   }
+}
+
+// Short "Jul 24" form for header micro-meta (no year — it's always recent).
+export const fmtMonthDay = (epoch) => {
+  if (!epoch) return ''
+  try {
+    return new Date(epoch * 1000).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric',
+    })
+  } catch {
+    return ''
+  }
+}
+
+// Continue-Watching meta: minutes remaining from the progress entry. Unknown
+// duration → '' (no meta beats a wrong guess); floored at 1 so a nearly-done
+// video never reads "0 min left".
+export const timeLeftLabel = (progress, video) => {
+  const e = progress?.[video?.youtube_id]
+  if (!e || !(e.d > 0)) return ''
+  const mins = Math.max(1, Math.round((e.d - (e.t || 0)) / 60))
+  return `${mins} min left`
 }
 
 // NEW = published within the last 5 days (pure frontend off created_at).
@@ -101,12 +123,18 @@ export const pageScroller = (el, dir, fraction) => {
 
 // One borderless YouTube-style card. kind='show' → meta is the publish date;
 // anything else → duration (already pinned on the thumb, so meta may be empty).
-export function YTCard({ video, onClick, progress, kind, deskThreads, isAdmin, onEdit, onDelete }) {
+// timeLeftMeta (Continue Watching) swaps the meta line for remaining minutes.
+export function YTCard({
+  video, onClick, progress, kind, deskThreads, isAdmin, onEdit, onDelete,
+  timeLeftMeta = false,
+}) {
   const pct = progressPct(progress, video)
   const watched = !!progress?.[video.youtube_id]?.done
   const isNew = isNewVideo(video.created_at)
   const thread = deskThreads?.[String(video.id)]
-  const meta = kind === 'show' ? fmtShortDate(video.created_at) : ''
+  const meta = timeLeftMeta
+    ? timeLeftLabel(progress, video)
+    : kind === 'show' ? fmtShortDate(video.created_at) : ''
   return (
     <article className={s.card}>
       <button className={s.thumbBtn} onClick={onClick} aria-label={`Play ${video.title}`}>
@@ -157,15 +185,38 @@ export function YTCard({ video, onClick, progress, kind, deskThreads, isAdmin, o
 // entries: [{ video, list, index, kind }] in display order — list/index is the
 // exact playVideo target so Continue Watching can point each card into its own
 // category while category shelves point at their own display-order list.
+// updatedAt (show shelves): newest episode created_at → "· updated Jul 24"
+// header micro-meta. timeLeftMeta (Continue Watching): cards show minutes left.
 export default function Shelf({
   name, entries, onPlay, progress, deskThreads, isAdmin, onEdit, onDelete,
-  expandable = true, showCount = true,
+  expandable = true, showCount = true, updatedAt = 0, timeLeftMeta = false,
 }) {
   const [expanded, setExpanded] = useState(false)
+  // Expanded-grid sort. Local per expansion (reset on collapse/expand), never
+  // persisted. null = the shelf's own default order; shows read that default
+  // as Newest (their rail is already newest-first), library keeps server order.
+  const [sortDir, setSortDir] = useState(null)
   const [rowEl, setRowEl] = useState(null)
   // Content key = the exact id set, not just the count: a tag filter can swap
   // a row to a different same-size subset without the node remounting.
   const edges = useScrollEdges(rowEl, entries.map((en) => en.video.id).join(','))
+  const isShowShelf = entries[0]?.kind === 'show'
+  const effSort = sortDir ?? (isShowShelf ? 'new' : null)
+  // Sorted view for the expanded grid. Rebuilds list/index so plays route
+  // through the order the member is actually looking at (Up Next coherence) —
+  // safe because every expandable shelf's entries share one display list.
+  const gridEntries = useMemo(() => {
+    if (!expanded || !effSort) return entries
+    const dir = effSort === 'new' ? -1 : 1
+    const vids = [...entries]
+      .sort((a, b) => {
+        const ka = a.video.created_at || 0
+        const kb = b.video.created_at || 0
+        return dir * ((ka - kb) || (a.video.id - b.video.id))
+      })
+      .map((en) => en.video)
+    return vids.map((v, i) => ({ video: v, list: vids, index: i, kind: entries[0].kind }))
+  }, [entries, expanded, effSort])
   if (!entries.length) return null
 
   const card = (en) => (
@@ -178,6 +229,7 @@ export default function Shelf({
       isAdmin={isAdmin}
       onEdit={onEdit}
       onDelete={onDelete}
+      timeLeftMeta={timeLeftMeta}
     />
   )
 
@@ -186,10 +238,32 @@ export default function Shelf({
       <div className={s.shelfHead}>
         <h2 className={s.shelfName}>{name}</h2>
         {showCount && <span className={s.shelfCount}>{entries.length}</span>}
+        {updatedAt > 0 && (
+          <span className={s.shelfUpdated}>· updated {fmtMonthDay(updatedAt)}</span>
+        )}
+        {expandable && expanded && (
+          <span className={s.sortToggle} role="group" aria-label={`Sort ${name}`}>
+            <button
+              className={`${s.sortBtn} ${effSort === 'new' ? s.sortBtnActive : ''}`}
+              aria-pressed={effSort === 'new'}
+              onClick={() => setSortDir('new')}
+            >
+              Newest
+            </button>
+            <span className={s.sortSep} aria-hidden="true">·</span>
+            <button
+              className={`${s.sortBtn} ${effSort === 'old' ? s.sortBtnActive : ''}`}
+              aria-pressed={effSort === 'old'}
+              onClick={() => setSortDir('old')}
+            >
+              Oldest
+            </button>
+          </span>
+        )}
         {expandable && (
           <button
             className={s.viewAll}
-            onClick={() => setExpanded((e) => !e)}
+            onClick={() => { setExpanded((e) => !e); setSortDir(null) }}
             aria-expanded={expanded}
           >
             {expanded ? 'Collapse' : 'View all'}
@@ -198,7 +272,7 @@ export default function Shelf({
       </div>
       {expanded ? (
         <div className={s.shelfGrid}>
-          {entries.map((en) => <div key={en.video.id}>{card(en)}</div>)}
+          {gridEntries.map((en) => <div key={en.video.id}>{card(en)}</div>)}
         </div>
       ) : (
         <div className={s.shelfRowWrap}>

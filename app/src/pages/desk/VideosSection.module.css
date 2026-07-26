@@ -196,6 +196,36 @@
   .featuredCta { margin-top: var(--space-sm); }
 }
 
+/* ── Zone seams — SHOWS / LIBRARY eyebrow + hairline (a seam, not a banner) ──
+   House eyebrow register (11px, letter-spaced, gold) with a rule that fades
+   right — enough to read the page's two zones without adding chrome. */
+.zoneMark {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  margin: 0 0 var(--space-lg);
+}
+.zoneLabel {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  opacity: 0.8;
+}
+.zoneRule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    rgba(201, 168, 76, 0.32),
+    rgba(201, 168, 76, 0.07) 55%,
+    transparent
+  );
+}
+
 /* ── Shelves — plain header + one snap-scrolling row (or expanded grid) ──── */
 .shelf { margin: 0 0 var(--space-2xl); }
 .shelfHead {
@@ -221,6 +251,48 @@
   flex-shrink: 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+/* Show-shelf micro-meta: "· updated Jul 24" from the newest episode. */
+.shelfUpdated {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* Expanded-grid sort — two plain text buttons, the active one reads gold.
+   Color-only active state (no weight change) so toggling never shifts layout. */
+.sortToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  align-self: center;
+  flex-shrink: 0;
+}
+.sortToggle + .viewAll { margin-left: 0; }
+.sortBtn {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  min-height: 32px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 999px;
+  transition: color var(--duration-fast) ease;
+}
+.sortBtn:hover { color: var(--text-bright); }
+.sortBtnActive,
+.sortBtnActive:hover { color: var(--ut-gold); }
+.sortSep {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+@media (max-width: 1024px) {
+  .sortBtn { min-height: var(--tap-min); }
 }
 .viewAll {
   flex-shrink: 0;

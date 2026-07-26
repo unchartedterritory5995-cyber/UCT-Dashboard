@@ -134,13 +134,15 @@ export default function VideosSection() {
     return top.map((e, i) => ({ video: e.video, list, index: i, kind: e.kind }))
   }, [categories])
 
-  // Show shelves display (and play against) newest-first lists.
+  // Show shelves display (and play against) newest-first lists. updatedAt =
+  // the newest episode's created_at → "· updated Jul 24" header micro-meta.
   const showShelves = useMemo(
     () =>
       shows.map((show) => {
         const list = [...(show.videos || [])].sort((a, b) => b.id - a.id)
         return {
           name: show.name,
+          updatedAt: list.reduce((m, v) => Math.max(m, v.created_at || 0), 0),
           entries: list.map((v, i) => ({ video: v, list, index: i, kind: 'show' })),
         }
       }),
@@ -223,6 +225,7 @@ export default function VideosSection() {
   const landing = !query.trim() && !activeCat
 
   // Continue Watching — the first shelf, same card language as everything else.
+  // Cards show remaining time ("23 min left") instead of a date/percent.
   const continueShelf = !isLoading && continueEntries.length > 0 && (
     <Shelf
       name="Continue watching"
@@ -234,6 +237,7 @@ export default function VideosSection() {
       onEdit={setEditing}
       onDelete={handleDelete}
       expandable={false}
+      timeLeftMeta
     />
   )
 
@@ -412,11 +416,16 @@ export default function VideosSection() {
             />
           )}
 
+          {showShelves.some((sh) => sh.entries.length > 0) && (
+            <ZoneMarker label="SHOWS" />
+          )}
+
           {showShelves.map((shelf) => (
             <Shelf
               key={shelf.name}
               name={shelf.name}
               entries={shelf.entries}
+              updatedAt={shelf.updatedAt}
               onPlay={playVideo}
               progress={progress}
               deskThreads={deskThreads}
@@ -425,6 +434,10 @@ export default function VideosSection() {
               onDelete={handleDelete}
             />
           ))}
+
+          {(libraryShelves.length > 0 || (activeTag && library.length > 0)) && (
+            <ZoneMarker label="LIBRARY" />
+          )}
 
           {activeTag && libraryShelves.length === 0 && (
             <div className={styles.note}>No library videos tagged “{activeTag}”.</div>
@@ -517,6 +530,19 @@ export default function VideosSection() {
           knownCategories={categories.map((c) => c.name)}
         />
       )}
+    </div>
+  )
+}
+
+// Quiet zone seam — house eyebrow (11px letter-spaced gold) + a hairline rule
+// fading right. Marks where the shows zone ends and the library begins, the way
+// YouTube seams a channel page. Cross-cut shelves (Continue watching, Recently
+// added) deliberately float ABOVE the first seam: they're views, not zones.
+function ZoneMarker({ label }) {
+  return (
+    <div className={s.zoneMark}>
+      <span className={s.zoneLabel}>{label}</span>
+      <span className={s.zoneRule} aria-hidden="true" />
     </div>
   )
 }

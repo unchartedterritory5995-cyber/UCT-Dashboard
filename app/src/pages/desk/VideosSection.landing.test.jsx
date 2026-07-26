@@ -293,6 +293,141 @@ test('VideoDockSlot is still the first rendered child of the section', () => {
   expect(page.firstChild).toBe(screen.getByTestId('dock-slot'))
 })
 
+test('zone markers: SHOWS and LIBRARY seams render in order, cross-cuts float above SHOWS', () => {
+  mockProgress = { lts0000000a: { t: 600, d: 2400, at: 99, done: false } }
+  renderSection()
+  const shows = screen.getByText('SHOWS')
+  const library = screen.getByText('LIBRARY')
+  const after = (a, b) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+  // Continue Watching + Recently added are cross-cuts — ABOVE the SHOWS seam.
+  expect(after(screen.getByRole('list', { name: 'Continue watching' }), shows)).toBe(true)
+  expect(after(screen.getByRole('list', { name: 'Recently added' }), shows)).toBe(true)
+  // SHOWS opens the show zone; LIBRARY sits between the last show shelf and
+  // the first library shelf.
+  expect(after(shows, screen.getByRole('list', { name: 'Live Trading Sessions' }))).toBe(true)
+  expect(after(screen.getByRole('list', { name: 'Evening Update' }), library)).toBe(true)
+  expect(after(library, screen.getByRole('list', { name: 'Getting Started' }))).toBe(true)
+})
+
+test('zone markers render in landing mode only', () => {
+  renderSection()
+  fireEvent.click(screen.getByRole('tab', { name: 'Getting Started' }))
+  expect(screen.queryByText('SHOWS')).toBeNull()
+  expect(screen.queryByText('LIBRARY')).toBeNull()
+  fireEvent.click(screen.getByRole('tab', { name: 'Getting Started' })) // back to All
+  expect(screen.getByText('SHOWS')).toBeTruthy()
+  expect(screen.getByText('LIBRARY')).toBeTruthy()
+  fireEvent.change(screen.getByLabelText('Search educational videos'), {
+    target: { value: 'breadth' },
+  })
+  expect(screen.queryByText('SHOWS')).toBeNull()
+  expect(screen.queryByText('LIBRARY')).toBeNull()
+})
+
+test('View-all sort: shows default to Newest; Oldest reorders the grid AND the play list; collapse resets', () => {
+  renderSection()
+  const section = screen
+    .getByRole('heading', { level: 2, name: 'Live Trading Sessions' })
+    .closest('section')
+  fireEvent.click(within(section).getByRole('button', { name: 'View all' }))
+  const oldest = within(section).getByRole('button', { name: 'Oldest' })
+  expect(
+    within(section).getByRole('button', { name: 'Newest' }).getAttribute('aria-pressed'),
+  ).toBe('true') // show shelves default = Newest (matches the rail)
+  let cards = within(section).getAllByRole('button', { name: /^Play / })
+  expect(cards.map((b) => b.getAttribute('aria-label'))).toEqual([
+    'Play Session — July 24 breadth day',
+    'Play Session — July 21',
+  ])
+  fireEvent.click(oldest)
+  expect(oldest.getAttribute('aria-pressed')).toBe('true')
+  cards = within(section).getAllByRole('button', { name: /^Play / })
+  expect(cards.map((b) => b.getAttribute('aria-label'))).toEqual([
+    'Play Session — July 21',
+    'Play Session — July 24 breadth day',
+  ])
+  // Plays route through the SORTED display list (Up Next coherence).
+  fireEvent.click(cards[0])
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([1, 2])
+  expect(indexArg).toBe(0)
+  // Sort is per-expansion state: collapse + re-expand returns to the default.
+  fireEvent.click(within(section).getByRole('button', { name: 'Collapse' }))
+  fireEvent.click(within(section).getByRole('button', { name: 'View all' }))
+  expect(
+    within(section).getByRole('button', { name: 'Newest' }).getAttribute('aria-pressed'),
+  ).toBe('true')
+})
+
+test('library View-all keeps server order by default (neither sort pressed); toggle still works', () => {
+  renderSection()
+  const section = screen
+    .getByRole('heading', { level: 2, name: 'Getting Started' })
+    .closest('section')
+  fireEvent.click(within(section).getByRole('button', { name: 'View all' }))
+  expect(
+    within(section).getByRole('button', { name: 'Newest' }).getAttribute('aria-pressed'),
+  ).toBe('false')
+  expect(
+    within(section).getByRole('button', { name: 'Oldest' }).getAttribute('aria-pressed'),
+  ).toBe('false')
+  let cards = within(section).getAllByRole('button', { name: /^Play / })
+  expect(cards.map((b) => b.getAttribute('aria-label'))).toEqual([
+    'Play Welcome to the Desk',
+    'Play Breadth basics',
+  ])
+  fireEvent.click(within(section).getByRole('button', { name: 'Newest' }))
+  cards = within(section).getAllByRole('button', { name: /^Play / })
+  // Library fixture carries no created_at → newest falls back to id desc.
+  expect(cards.map((b) => b.getAttribute('aria-label'))).toEqual([
+    'Play Breadth basics',
+    'Play Welcome to the Desk',
+  ])
+})
+
+test('Continue Watching meta is time-left: rounded minutes, 1-min floor, nothing when duration unknown', () => {
+  mockProgress = {
+    lts0000000a: { t: 600, d: 2400, at: 30, done: false }, // (2400-600)/60 = 30
+    lib0000000a: { t: 2380, d: 2400, at: 20, done: false }, // rounds to 0 → floors at 1
+    evn0000000a: { t: 100, at: 10, done: false }, // no d → no meta at all
+  }
+  renderSection()
+  const rail = screen.getByRole('list', { name: 'Continue watching' })
+  const cardOf = (label) =>
+    within(rail).getByRole('button', { name: label }).closest('article')
+  expect(within(cardOf('Play Session — July 21')).getByText('30 min left')).toBeTruthy()
+  expect(within(cardOf('Play Welcome to the Desk')).getByText('1 min left')).toBeTruthy()
+  const unknown = cardOf('Play Evening Update — July 23')
+  expect(within(unknown).queryByText(/min left/)).toBeNull()
+  expect(within(unknown).queryByText('Jul 23, 2025')).toBeNull() // no date fallback either
+  // The show's own shelf keeps its date meta — time-left is Continue-only.
+  const evnRail = screen.getByRole('list', { name: 'Evening Update' })
+  expect(within(evnRail).queryByText(/min left/)).toBeNull()
+  expect(within(evnRail).getByText('Jul 23, 2025')).toBeTruthy()
+})
+
+test('show shelf headers carry "· updated MMM D" from the newest episode; library headers unchanged', () => {
+  renderSection()
+  const headOf = (name) =>
+    screen.getByRole('heading', { level: 2, name }).parentElement.textContent
+  expect(headOf('Live Trading Sessions')).toContain('· updated Jul 24')
+  expect(headOf('Evening Update')).toContain('· updated Jul 23')
+  expect(headOf('Getting Started')).not.toContain('updated')
+  expect(headOf('Risk Management')).not.toContain('updated')
+})
+
+test('show header updated fragment is omitted when no episode carries created_at', () => {
+  const data = fixture()
+  data.categories[1].videos = data.categories[1].videos.map(
+    ({ created_at, ...v }) => v,
+  )
+  mockData = data
+  renderSection()
+  const head = screen.getByRole('heading', { level: 2, name: 'Evening Update' }).parentElement
+  expect(head.textContent).not.toContain('updated')
+})
+
 test('search still flat-filters across shows and library', () => {
   renderSection()
   fireEvent.change(screen.getByLabelText('Search educational videos'), {
