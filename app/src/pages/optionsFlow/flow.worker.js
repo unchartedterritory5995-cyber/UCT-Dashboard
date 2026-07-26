@@ -23,10 +23,13 @@
  *   { id, type:'process', erSoon, filter }      -> { id, ok, D, filteredCount, timing }
  *   { id, type:'merge',  csv }                  -> { id, ok, rowCount, availableDates, timing }
  *
- * 'load' and 'merge' deliberately do NOT aggregate — that is 'process's job.
  *   { id, type:'ticker', sym, erSoon }          -> { id, ok, D }
+ *   { id, type:'compute', csv, erSoon }         -> { id, ok, D, rowCount }   // one-shot, does NOT store
  *   { id, type:'rows' }                         -> { id, ok, rows }   // escape hatch
  *   any failure                                 -> { id, ok:false, error }
+ *
+ * 'load' and 'merge' deliberately do NOT aggregate — that is 'process's job.
+ * Having both aggregate would recreate the duplicate pass this exists to remove.
  *
  * `filter` is { dateFilter, dateFrom, dateTo }.
  */
@@ -119,6 +122,19 @@ self.onmessage = (e) => {
       const sym = String(msg.sym || '').toUpperCase().trim()
       const rows = ROWS.filter(r => (r.ticker || '').toUpperCase().trim() === sym)
       self.postMessage({ id, ok: true, D: rows.length ? processFlowData(rows, toSet(msg.erSoon)) : null, rowCount: rows.length })
+      return
+    }
+
+    if (type === 'compute') {
+      // One-shot: parse + aggregate a CSV the page already has, WITHOUT touching
+      // the stored dataset. Used by the Search drill-in, whose per-ticker feed
+      // deliberately contains history the loaded range does not.
+      const rows = parseCSV(msg.csv)
+      self.postMessage({
+        id, ok: true,
+        D: rows && rows.length ? processFlowData(rows, toSet(msg.erSoon)) : null,
+        rowCount: rows ? rows.length : 0,
+      })
       return
     }
 

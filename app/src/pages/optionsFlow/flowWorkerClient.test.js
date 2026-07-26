@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadFlow, processFlow, mergeToday, tickerFlow, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded, _resetFlowWorker } from './flowWorkerClient'
+import { loadFlow, processFlow, mergeToday, tickerFlow, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded, computeCsv, _resetFlowWorker } from './flowWorkerClient'
 import { parseCSV, processFlowData } from './flowCompute'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -160,5 +160,46 @@ describe('worker dies mid-session', () => {
     const ok = await processFlow(FILTER, null)
     expect(ok.ok).toBe(true)
     expect(ok.D).not.toBeNull()
+  })
+})
+
+describe('computeCsv — the Search drill-in', () => {
+  // Clicking a ticker in Search fetches that symbol's UNCAPPED history from
+  // /api/flow/ticker — NVDA is ~64k lines, about a second of frozen UI if parsed
+  // and aggregated on the main thread. It cannot reuse tickerFlow (which filters
+  // the STORED rows) because that feed deliberately contains history the loaded
+  // range does not.
+  beforeEach(() => _resetFlowWorker())
+
+  it('aggregates an arbitrary CSV the caller already holds', async () => {
+    const res = await computeCsv(CSV, null)
+    expect(res.ok).toBe(true)
+    expect(res.rowCount).toBe(3419)
+    expect(res.D).not.toBeNull()
+  })
+
+  it('matches what the page would have computed inline', async () => {
+    const res = await computeCsv(CSV, null)
+    const direct = processFlowData(parseCSV(CSV), null)
+    expect(res.D.clean_confirmed.map(t => `${t.S}|${t.D}|${t.P}`).join(','))
+      .toBe(direct.clean_confirmed.map(t => `${t.S}|${t.D}|${t.P}`).join(','))
+  })
+
+  it('does NOT disturb the loaded dataset', async () => {
+    await loadFlow(CSV, FILTER, null, 'k')
+    const before = getLoadedMeta().rowCount
+    const NL = String.fromCharCode(10)
+    await computeCsv(['CreatedDate,CreatedTime,Symbol', '7/24/2026,9:30,ZZZZ', ''].join(NL), null)
+    expect(getLoadedMeta().rowCount, 'a one-shot must not replace the stored rows').toBe(before)
+    expect(getLoadedKey()).toBe('k')
+    const still = await processFlow(FILTER, null)
+    expect(still.ok).toBe(true)
+    expect(still.filteredCount).toBe(before)
+  })
+
+  it('returns a null aggregate for an empty feed rather than throwing', async () => {
+    const res = await computeCsv(['CreatedDate,Symbol', ''].join(String.fromCharCode(10)), null)
+    expect(res.ok).toBe(true)
+    expect(res.D).toBeNull()
   })
 })

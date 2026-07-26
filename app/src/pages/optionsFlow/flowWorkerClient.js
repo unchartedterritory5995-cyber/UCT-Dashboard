@@ -182,6 +182,24 @@ export async function tickerFlow(sym, erSoon) {
  */
 export function forgetLoaded() { loadedKey = null; loadedMeta = null }
 
+/**
+ * Parse + aggregate a CSV the caller already holds, without disturbing the loaded
+ * dataset. The Search drill-in uses this: its per-ticker feed is uncapped history
+ * the loaded range does not contain, and on a busy symbol it is ~64k rows — about
+ * a second of frozen UI if done on the main thread.
+ */
+export async function computeCsv(csv, erSoon) {
+  const res = await post({ type: 'compute', csv, erSoon })
+  if (res && res.ok) return { ...res, usedWorker: true }
+  const rows = parseCSV(csv)
+  return {
+    ok: true,
+    D: rows && rows.length ? processFlowData(rows, toSet(erSoon)) : null,
+    rowCount: rows ? rows.length : 0,
+    usedWorker: false,
+  }
+}
+
 /** Test seam — drop worker + fallback state. */
 export function _resetFlowWorker() {
   try { if (worker) worker.terminate() } catch { /* ignore */ }

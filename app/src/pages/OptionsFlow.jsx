@@ -15,7 +15,7 @@ import {
   processFlowData,
   THEMES_DEF,
 } from "./optionsFlow/flowCompute";  // moved out of this file 2026-07-25 — see that file
-import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded } from "./optionsFlow/flowWorkerClient";
+import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded, computeCsv } from "./optionsFlow/flowWorkerClient";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -773,6 +773,13 @@ export default function OptionsFlowDashboard() {
   // costs ~1,027ms of structured clone, which would undo the whole point. The
   // page keeps only what it renders from: a count and the dates.
   const [rowCount, setRowCount] = useState(0);
+  // Bumped on every successful load/merge. rowCount alone is NOT enough to
+  // retrigger aggregation: a delta that replaces today's rows with the same
+  // NUMBER of rows but different content (a heal rewriting Color/Side, a
+  // cancel patch) leaves rowCount identical, so the effect would never re-run
+  // and the page would show stale aggregates over fresh data. The old code got
+  // this for free from parsedRows' array identity.
+  const [dataEpoch, setDataEpoch] = useState(0);
   const [availableDates, setAvailableDates] = useState([]);
   // Tracks which fetchDays value the current parsedRows represents. Used to
   // skip the processing effect when a new fetch is in flight that will deliver
@@ -959,10 +966,9 @@ export default function OptionsFlowDashboard() {
     const src = dataMode === "index" ? "indexes" : "stocks";
     fetch(`/api/flow/ticker/${encodeURIComponent(sym)}?source=${src}`, { cache: "no-store" })
       .then(r => (r.ok ? r.text() : null))
-      .then(text => {
+      .then(async text => {
         if (cancelled) return;
         if (!text) { setSearchFull(prev => (prev && prev.sym === sym && prev.data) ? prev : { sym, data: null }); return; }
-        const rows = parseCSV(text);
         // ZERO-OUT FIX (2026-07-18): do NOT scope to availableDates here, and do
         // NOT depend on it. This is the uncapped per-ticker fetch — it returns
         // the ticker's FULL history, which legitimately includes dates the main
@@ -973,7 +979,11 @@ export default function OptionsFlowDashboard() {
         // that matched nothing, so the cards rendered correctly then collapsed to
         // $0 / NEUTRAL. The render-time _scopeAllDirectional (in the Search block)
         // applies the SELECTED day range; this effect just supplies full history.
-        const _data = rows.length ? processFlowData(rows, erSoonSet) : null;
+        // Parsed + aggregated in the WORKER: a busy symbol's uncapped feed is
+        // ~64k rows, which froze the UI for about a second on every Search click.
+        const _res = await computeCsv(text, erSoonArr);
+        if (cancelled) return;
+        const _data = _res.D;
         if (_data) _lastUncappedRef.current[sym] = _data;   // cache last-good uncapped
         // Sticky (2026-07-25): keep the last good uncapped data if a re-fetch
         // yields nothing, so the Search view never collapses back to the capped
@@ -984,7 +994,7 @@ export default function OptionsFlowDashboard() {
       })
       .catch(() => { if (!cancelled) setSearchFull(prev => (prev && prev.sym === sym && prev.data) ? prev : { sym, data: null }); });
     return () => { cancelled = true; };
-  }, [selectedTicker, dataMode, erSoonSet]);
+  }, [selectedTicker, dataMode, erSoonArr]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
@@ -1064,7 +1074,7 @@ export default function OptionsFlowDashboard() {
     }
     run();
     return () => { cancelled = true; };
-  }, [rowCount, dateFilter, dateFrom, dateTo, loadedFetchDays, fetchDays, erSoonArr]);
+  }, [rowCount, dataEpoch, dateFilter, dateFrom, dateTo, loadedFetchDays, fetchDays, erSoonArr]);
 
   useEffect(() => {
     // Fetch on mount and whenever csvFile changes (range/mode). csvFile is now
@@ -1102,6 +1112,7 @@ export default function OptionsFlowDashboard() {
       // `if (!rowCount) return` guard leaves the page on the spinner forever.
       setRowCount(held.rowCount);
       setAvailableDates(held.availableDates);
+      setDataEpoch(n => n + 1);
       // Restore the version these rows represent too. Without it planDelta reads
       // them as stale and refetches the whole range we just avoided fetching.
       _baseFetchedVer.current = held.version ?? null;
@@ -1179,6 +1190,7 @@ export default function OptionsFlowDashboard() {
             setCsvError(null);
             setAvailableDates(res.availableDates);
             setRowCount(res.rowCount);
+            setDataEpoch(n => n + 1);
             setLoadedFetchDays(fetchDaysAtStart);
             setCsvLoading(false);
           })();
@@ -1239,7 +1251,8 @@ export default function OptionsFlowDashboard() {
         if (cancelled || !res.ok) return;
         _lastMergedVer.current = dataVersion;
         setAvailableDates(res.availableDates);
-        setRowCount(res.rowCount);   // re-triggers the processing effect once
+        setRowCount(res.rowCount);
+        setDataEpoch(n => n + 1);    // re-triggers aggregation even if the count is unchanged
       })
       .catch(() => {});
     return () => { cancelled = true; };
