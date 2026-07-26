@@ -761,6 +761,50 @@ test('fail-silent: a network error or non-OK response renders nothing; titles st
   expect(screen.queryByText('Found inside videos')).toBeNull()
 })
 
+test('a LATER genuine failure clears earlier results — no stale rows under new text', async () => {
+  deepSetup()
+  okSearch(deepResults())
+  renderSection()
+  typeSearch('breadth')
+  await settleDeep()
+  expect(screen.getByText('Found inside videos')).toBeTruthy() // query A rendered
+  // Query B's fetch genuinely fails (network) → A's rows must NOT survive.
+  stubSearch(() => Promise.reject(new Error('network down')))
+  typeSearch('breadth day')
+  await settleDeep()
+  expect(screen.queryByText('Found inside videos')).toBeNull()
+  // Same for a later non-OK response (500).
+  okSearch(deepResults())
+  typeSearch('breadth')
+  await settleDeep()
+  expect(screen.getByText('Found inside videos')).toBeTruthy()
+  stubSearch(() => Promise.resolve({ ok: false, json: () => Promise.resolve({}) }))
+  typeSearch('breadth day')
+  await settleDeep()
+  expect(screen.queryByText('Found inside videos')).toBeNull()
+})
+
+test('an ABORT (superseded keystroke) keeps the current rows — no clear-then-repaint flicker', async () => {
+  deepSetup()
+  okSearch(deepResults())
+  renderSection()
+  typeSearch('breadth')
+  await settleDeep() // query A rendered
+  // Query B hangs until aborted — rejecting with AbortError, exactly like a
+  // real fetch when the next keystroke's cleanup calls ctrl.abort().
+  stubSearch((url, opts) =>
+    new Promise((_, reject) => {
+      opts.signal.addEventListener('abort', () =>
+        reject(new DOMException('The operation was aborted.', 'AbortError')))
+    }),
+  )
+  typeSearch('breadth da')
+  await settleDeep() // B's fetch fires and hangs
+  typeSearch('breadth day') // supersede → cleanup aborts B mid-flight
+  await act(async () => {}) // flush the AbortError rejection
+  expect(screen.getByText('Found inside videos')).toBeTruthy() // A's rows held
+})
+
 test('renderSnippet escapes everything outside <b> markers (no HTML injection)', () => {
   const { container } = render(
     <div>{renderSnippet('x <img src=y> before <b>hit</b> after')}</div>,
@@ -768,6 +812,23 @@ test('renderSnippet escapes everything outside <b> markers (no HTML injection)',
   expect(container.querySelector('img')).toBeNull() // raw HTML stays text
   expect(container.querySelector('b').textContent).toBe('hit')
   expect(container.textContent).toBe('x <img src=y> before hit after')
+})
+
+test('renderSnippet: unbalanced/nested markers render as text — never crash, no HTML', () => {
+  // Nested opener inside a match: lazy split captures 'a<b>b'; the inner
+  // marker is CONTENT of the one <b> element (escaped text), not an element.
+  const nested = render(<div>{renderSnippet('x <b>a<b>b</b>c')}</div>).container
+  expect(nested.querySelectorAll('b')).toHaveLength(1)
+  expect(nested.querySelector('b').textContent).toBe('a<b>b')
+  expect(nested.textContent).toBe('x a<b>bc')
+  // Unclosed marker: no pair → one plain text node, marker included verbatim.
+  const open = render(<div>{renderSnippet('<b>open')}</div>).container
+  expect(open.querySelector('b')).toBeNull()
+  expect(open.textContent).toBe('<b>open')
+  // Stray closer only: same — plain text.
+  const close = render(<div>{renderSnippet('shut</b> it')}</div>).container
+  expect(close.querySelector('b')).toBeNull()
+  expect(close.textContent).toBe('shut</b> it')
 })
 
 test('fmtSeekTime formats mm:ss under an hour and h:mm:ss over', () => {

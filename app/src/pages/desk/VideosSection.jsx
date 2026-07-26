@@ -56,8 +56,11 @@ export const renderSnippet = (snippet) =>
     .map((part, i) => (i % 2 === 1 ? <b key={i}>{part}</b> : part))
 
 // Debounced (400ms) + AbortController'd fetch — never per-keystroke. Errors,
-// non-OK responses and malformed payloads all resolve to [] (fail-silent:
-// title search keeps working, the deep section just doesn't render).
+// non-OK responses and malformed payloads all clear to [] (fail-silent: title
+// search keeps working, the deep section just doesn't render) — a genuine
+// failure must never leave a PREVIOUS query's rows standing under new text.
+// Only an abort (superseded keystroke / unmount) keeps the current rows, so
+// mid-typing there's no clear-then-repaint flicker.
 function useDeepSearch(query) {
   const [results, setResults] = useState([])
   const q = query.trim()
@@ -73,9 +76,13 @@ function useDeepSearch(query) {
         credentials: 'include',
         signal: ctrl.signal,
       })
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => (r.ok ? r.json() : null)) // non-OK → null → [] below
         .then((j) => setResults(Array.isArray(j?.results) ? j.results : []))
-        .catch(() => {}) // abort or network error — render nothing
+        .catch((e) => {
+          // Abort = superseded or unmounted → keep what's rendered.
+          // Anything else is a real failure → drop stale rows.
+          if (e?.name !== 'AbortError') setResults([])
+        })
     }, DEEP_DEBOUNCE_MS)
     return () => {
       clearTimeout(timer)
