@@ -569,17 +569,14 @@ export default function VideosSection() {
             <div className={styles.note}>No videos match “{query}”.</div>
           )}
 
-          {filtered.map((cat) => (
+          {filtered.map((cat) => {
+            const glyph = cat.kind === 'show' ? showGlyphName(cat.name) : null
+            return (
             <section key={cat.name} className={s.shelf}>
               <div className={s.shelfHead}>
                 <h2 className={s.shelfName}>
-                  {cat.kind === 'show' && (
-                    <UIcon
-                      name={showGlyphName(cat.name)}
-                      size={16}
-                      className={s.shelfGlyph}
-                      data-glyph={showGlyphName(cat.name)}
-                    />
+                  {glyph && (
+                    <UIcon name={glyph} size={16} className={s.shelfGlyph} data-glyph={glyph} />
                   )}
                   {cat.name}
                 </h2>
@@ -601,7 +598,8 @@ export default function VideosSection() {
                 ))}
               </div>
             </section>
-          ))}
+            )
+          })}
         </>
       )}
 

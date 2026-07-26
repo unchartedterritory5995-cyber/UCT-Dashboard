@@ -49,6 +49,12 @@ export default function IntroAnimation() {
     }
   }, [phase, reducedMotion, finish])
 
+  // CAPTURE phase on window: the intro is a full-screen takeover, so its skip
+  // keys must run before any component handler can stopPropagation them away
+  // (e.g. the Desk search input owns Escape while focused — a bubble-phase
+  // listener here would be swallowed). Capture fires first by construction,
+  // making the skip immune to that whole class of bug. Keys we don't handle
+  // pass through untouched (no preventDefault/stopPropagation).
   useEffect(() => {
     if (phase !== 'playing') return
     const handleKey = (e) => {
@@ -57,8 +63,8 @@ export default function IntroAnimation() {
         finish()
       }
     }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
+    window.addEventListener('keydown', handleKey, true)
+    return () => window.removeEventListener('keydown', handleKey, true)
   }, [phase, finish])
 
   if (phase !== 'playing') return null
