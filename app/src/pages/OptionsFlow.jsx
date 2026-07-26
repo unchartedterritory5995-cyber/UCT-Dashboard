@@ -2507,7 +2507,7 @@ export default function OptionsFlowDashboard() {
       .then(r => (r.ok ? r.text() : null))
       .then(text => {
         if (cancelled) return;
-        if (!text) { setSearchFull({ sym, data: null }); return; }
+        if (!text) { setSearchFull(prev => (prev && prev.sym === sym && prev.data) ? prev : { sym, data: null }); return; }
         const rows = parseCSV(text);
         // ZERO-OUT FIX (2026-07-18): do NOT scope to availableDates here, and do
         // NOT depend on it. This is the uncapped per-ticker fetch — it returns
@@ -2519,9 +2519,15 @@ export default function OptionsFlowDashboard() {
         // that matched nothing, so the cards rendered correctly then collapsed to
         // $0 / NEUTRAL. The render-time _scopeAllDirectional (in the Search block)
         // applies the SELECTED day range; this effect just supplies full history.
-        setSearchFull({ sym, data: rows.length ? processFlowData(rows, erSoonSet) : null });
+        const _data = rows.length ? processFlowData(rows, erSoonSet) : null;
+        // Sticky (2026-07-25): keep the last good uncapped data if a re-fetch
+        // yields nothing, so the Search view never collapses back to the capped
+        // bulk feed. This is what caused the "6 rows flash then drop to 2" flicker
+        // — the erSoonSet-triggered re-fetch (calendar loads ~1s after search)
+        // occasionally returned empty and nulled searchFull.data → fell back to bulk.
+        setSearchFull(prev => (_data || !(prev && prev.sym === sym && prev.data)) ? { sym, data: _data } : prev);
       })
-      .catch(() => { if (!cancelled) setSearchFull({ sym, data: null }); });
+      .catch(() => { if (!cancelled) setSearchFull(prev => (prev && prev.sym === sym && prev.data) ? prev : { sym, data: null }); });
     return () => { cancelled = true; };
   }, [selectedTicker, dataMode, erSoonSet]);
 
