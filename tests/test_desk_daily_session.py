@@ -402,3 +402,18 @@ def test_publish_new_sessions_preserves_existing_library_kind(edu_db, monkeypatc
     dds.publish_new_sessions(client=client, now=_NOW)
     cats = {c["name"]: c["kind"] for c in edu.list_category_meta()}
     assert cats.get("Live Trading Sessions") == "library"
+
+
+def test_sunday_scans_routes_to_its_own_section():
+    # The Zoom webinar name drives everything. Pinning "sunday scan" keeps the
+    # section/title stable across the plural and any capitalisation the host
+    # types, instead of auto-deriving a new section per spelling.
+    for topic in ("Sunday Scans", "sunday scans", "SUNDAY SCAN"):
+        assert dds._route(topic) == (
+            "Sunday Scans", "Sunday Scans", "SUNDAY SCANS"), topic
+
+
+def test_sunday_scans_title_uses_the_pinned_prefix():
+    section, prefix, eyebrow = dds._route("Sunday Scans")
+    assert f"{prefix} — {dds._session_date_text('2026-07-26T14:00:00Z')}".startswith(
+        "Sunday Scans — July 26, 2026")

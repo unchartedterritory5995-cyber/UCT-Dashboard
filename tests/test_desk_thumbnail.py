@@ -247,3 +247,73 @@ def test_gen_trend_bounds_over_many_seeds():
         deltas = [b - a for a, b in zip(vals, vals[1:])]
         assert all(-0.125 <= d <= 0.225 for d in deltas), (s, deltas)
         assert 2 <= sum(1 for d in deltas if d < 0) <= 4
+
+
+# --- Sunday Scans (dawn horizon + scanner results strip) --------------------
+
+def _px(data, xy):
+    return Image.open(io.BytesIO(data)).convert("RGB").getpixel(xy)
+
+
+def test_sunday_scans_eyebrow_routes_to_sunday():
+    assert t._resolve_theme(None, "SUNDAY SCANS").layout == "sunday"
+    assert t._resolve_theme(None, "Sunday Scan").layout == "sunday"
+    # A weekday show must NOT get pulled into the dawn card.
+    assert t._resolve_theme(None, "LIVE TRADING SESSION").layout == "classic"
+
+
+def test_sunday_variant_override_routes_to_sunday():
+    assert t._resolve_theme("sunday", "LIVE TRADING SESSION").layout == "sunday"
+    assert t._resolve_theme("scans", "LIVE TRADING SESSION").layout == "sunday"
+
+
+def test_sunday_render_is_1280x720_jpeg_under_2mb_and_distinct():
+    data = t.render_session_thumbnail("July 26, 2026", eyebrow_label="SUNDAY SCANS")
+    im = Image.open(io.BytesIO(data))
+    assert im.size == (1280, 720) and im.format == "JPEG"
+    assert len(data) < 2_000_000            # YouTube thumbnails.set hard limit
+    default = t.render_session_thumbnail("July 26, 2026", eyebrow_label="LIVE TRADING SESSION")
+    assert data != default
+
+
+def test_sunday_paints_a_warm_horizon_over_a_dark_ground():
+    # The card's whole identity is "light low, not high": a warm dawn band at the
+    # horizon with dark ground beneath it. Assert the rendered PIXELS, so a
+    # gradient/stop regression that flattens the scene actually fails here.
+    data = t.render_session_thumbnail("July 26, 2026", eyebrow_label="SUNDAY SCANS")
+    hr, hg, hb = _px(data, (640, 508))      # just above the horizon line
+    assert hr > 150 and hr > hg > hb        # warm amber, red-dominant
+    # Ground, just below the horizon on the SAME column. The sun's glow bleeds
+    # a little past the horizon by design, so assert the drop relative to the
+    # dawn band rather than an absolute floor.
+    gr, gg, gb = _px(data, (640, 536))
+    assert gr < hr * 0.6                    # ground clearly darker than the band
+    # Off to the side, clear of the sun, the ground is properly dark.
+    assert max(_px(data, (120, 536))) < 70
+    tr, tg, tb = _px(data, (4, 4))          # upper sky stays deep indigo
+    assert tb > tr and max(tr, tg, tb) < 90
+
+
+def test_sunday_scan_tiles_are_translucent_not_solid_gold():
+    # Regression: translucent ink drawn STRAIGHT onto the RGBA base sets the
+    # pixel alpha instead of blending, so the tiles came out as solid gold
+    # blocks after convert("RGB"). They must composite as faint gold over the
+    # dark ground. Sample inside the first tile, below its sparkline.
+    data = t.render_session_thumbnail("July 26, 2026", eyebrow_label="SUNDAY SCANS")
+    r, g, b = _px(data, (110, 641))
+    assert (r, g, b) != (201, 168, 76)
+    assert r < 90 and g < 85, f"tile interior rendered opaque: {(r, g, b)}"
+
+
+def test_sunday_is_deterministic_for_the_same_episode():
+    a = t.render_session_thumbnail("July 26, 2026", eyebrow_label="SUNDAY SCANS")
+    b = t.render_session_thumbnail("July 26, 2026", eyebrow_label="SUNDAY SCANS")
+    assert a == b
+    c = t.render_session_thumbnail("August 2, 2026", eyebrow_label="SUNDAY SCANS")
+    assert c != a                            # a different week varies the strip
+
+
+def test_sunday_handles_a_long_eyebrow_without_clipping():
+    data = t.render_session_thumbnail(
+        "July 26, 2026", eyebrow_label="SUNDAY SCANS WITH THE WHOLE DESK TEAM AND FRIENDS")
+    assert Image.open(io.BytesIO(data)).size == (1280, 720)

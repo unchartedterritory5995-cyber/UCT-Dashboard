@@ -34,6 +34,7 @@ _RULES = [
     ("market thoughts", "Thoughts on the Market", "Thoughts on the Market", "THOUGHTS ON THE MARKET"),
     ("post market", "Post-Market Recaps", "Post-Market Recap", "POST-MARKET RECAP"),
     ("post-market", "Post-Market Recaps", "Post-Market Recap", "POST-MARKET RECAP"),
+    ("sunday scan", "Sunday Scans", "Sunday Scans", "SUNDAY SCANS"),
     ("workshop", "Workshops & Fireside Chats", "Workshop", "WORKSHOP"),
 ]
 _DEFAULT_ROUTE = ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")

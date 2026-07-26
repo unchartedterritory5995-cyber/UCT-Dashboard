@@ -23,6 +23,11 @@ recoloured:
     date plaque floating over the sky/water, themed for the evening show.
   - "WORKSHOP WITH CHARTMASTER" -> plate: pre-made cinematic artwork with a
     stamped date plaque, for ChartMaster workshops.
+  - "SUNDAY SCANS" -> sunday: a pre-dawn indigo->amber horizon (the week hasn't
+    opened yet) over a dark ground carrying a scanner RESULTS STRIP of mini
+    sparkline tiles, one picked out by a soft scan beam. Deliberately inverts
+    the Live Trading card (light low instead of high, many small charts instead
+    of one big uptrend) so the two never read alike in the library.
 
 Theme/layout is picked from the eyebrow label (auto-derived from the Zoom webinar
 name) so a new content type needs no code change here; pass `variant` to override.
@@ -126,6 +131,21 @@ _ZEN_THEME = Theme(
     layout="zen",
 )
 
+# "Sunday Scans" — the weekend prep read, so the card is DAWN: an indigo->amber
+# pre-dawn horizon (the week hasn't opened yet) over a dark ground carrying a
+# scanner RESULTS STRIP of mini sparkline tiles. Deliberately the inverse of the
+# Live Trading card's night skyline: light at the bottom, many small charts
+# instead of one big uptrend, so the two never read alike in the library.
+_SUNDAY_THEME = Theme(
+    bg_top=(11, 15, 38),
+    bg_bottom=(4, 4, 8),
+    wordmark=(238, 232, 244),
+    eyebrow=_GOLD,
+    date=(250, 240, 220),
+    tagline=(176, 166, 186),
+    layout="sunday",
+)
+
 _THEMES = {
     "default": _DEFAULT_THEME,
     "live": _DEFAULT_THEME,
@@ -134,6 +154,8 @@ _THEMES = {
     "evening": _EVENING_THEME,
     "chartmaster": _CHARTMASTER_THEME,
     "zen": _ZEN_THEME,
+    "sunday": _SUNDAY_THEME,
+    "scans": _SUNDAY_THEME,
 }
 
 
@@ -151,6 +173,9 @@ def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
         return _EVENING_THEME
     if "thought" in low:
         return _EMERALD_THEME
+    # "Sunday Scans" (and any "Sunday …" weekend show) — the dawn scanner card.
+    if "sunday" in low:
+        return _SUNDAY_THEME
     return _DEFAULT_THEME
 
 
@@ -1086,6 +1111,137 @@ def _render_zen(theme: Theme, date_text: str, eyebrow_label: str, *,
     return _grain(out, alpha=4.0, seed=7 + seed)
 
 
+# ---------------------------------------------------------------------------
+# Sunday (Sunday Scans) — pre-dawn horizon + scanner results strip, super-sampled
+# ---------------------------------------------------------------------------
+
+def _scan_tiles(size: tuple, x0: int, y0: int, x1: int, y1: int,
+                n: int, seed: int, S: int) -> tuple:
+    """Row of `n` mini sparkline tiles — the scanner's results strip. Returns
+    `(layer, (hot_centre_x, hot_width))`; the caller alpha_composites the layer
+    and aims the scan beam at the hot tile. Drawn on its own transparent layer
+    because writing translucent ink DIRECTLY onto an RGBA image sets the pixel
+    alpha instead of blending (it would come out solid gold after convert("RGB")).
+    Seeded, so a given episode always renders the same strip."""
+    img = Image.new("RGBA", size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rng = random.Random(seed)
+    gap = (x1 - x0) * 0.018
+    tw = ((x1 - x0) - gap * (n - 1)) / n
+    th = y1 - y0
+    # Never the end tiles — a beam hard against the canvas edge reads as a light
+    # leak rather than a deliberate scan.
+    hot = rng.randrange(1, n - 1) if n >= 3 else 0
+    boxes = []
+    for i in range(n):
+        tx = x0 + i * (tw + gap)
+        bright = i == hot
+        d.rounded_rectangle(
+            [tx, y0, tx + tw, y1], radius=int(7 * S),
+            fill=(*_GOLD, 34 if bright else 14),
+            outline=(*_GOLD, 190 if bright else 92),
+            width=max(1, int(1.6 * S)),
+        )
+        # Mini sparkline: mostly-constructive walks (this is a scan for setups),
+        # every step bounded so a tile can never blow out of its own box.
+        pts = []
+        k = 9
+        v = rng.uniform(0.25, 0.60)
+        up = rng.random() < 0.72
+        for j in range(k):
+            v += rng.uniform(-0.15, 0.26 if up else 0.11)
+            v = min(0.92, max(0.08, v))
+            pts.append((tx + tw * 0.12 + tw * 0.76 * (j / (k - 1)),
+                        y1 - th * 0.18 - th * 0.60 * v))
+        col = (*_GOLD_HI, 255) if bright else (*_GOLD_HI, 205)
+        d.line(pts, fill=col, width=max(1, int(2.4 * S)), joint="curve")
+        r = 3.0 * S
+        d.ellipse([pts[-1][0] - r, pts[-1][1] - r, pts[-1][0] + r, pts[-1][1] + r], fill=col)
+        boxes.append((tx + tw / 2, tw))
+    return img, boxes[hot]
+
+
+def _render_sunday(theme: Theme, date_text: str, eyebrow_label: str, *,
+                   seed: int = 7) -> Image.Image:
+    """Sunday Scans: a pre-dawn indigo->amber horizon (the week hasn't opened
+    yet) with a scanner results strip of mini sparkline tiles on the dark ground
+    below, a soft scan beam picking one out. Rendered at 2x and downscaled
+    (super-sampled). `seed` drives the strip + beam + grain, so every week's
+    card differs but reproduces exactly."""
+    S = 2
+    size = (_W * S, _H * S)
+
+    def s(v):
+        return int(round(v * S))
+
+    horizon = 0.722
+    stops = [
+        (0.00, (11, 15, 38)),
+        (0.26, (34, 30, 68)),
+        (0.50, (92, 56, 84)),
+        (0.66, (176, 94, 72)),
+        (horizon, (238, 158, 76)),           # first light, right at the horizon
+        (horizon + 0.0008, (9, 8, 15)),      # hard cut to the dark ground
+        (1.00, (4, 4, 8)),
+    ]
+    img = _sky_gradient(stops, size).convert("RGBA")
+    cx = size[0] // 2
+    hy = int(size[1] * horizon)
+
+    # The rising sun: a tight core at the horizon plus a wide low wash.
+    img = Image.alpha_composite(img, _radial(cx, hy, s(210), (255, 205, 130), 120, size))
+    img = Image.alpha_composite(img, _radial(cx, hy, s(520), _GOLD, 66, size))
+
+    # Horizon hairline (own layer — translucent ink must be composited, not
+    # written straight onto the RGBA base).
+    rule = Image.new("RGBA", size, (0, 0, 0, 0))
+    ImageDraw.Draw(rule).line(
+        [(0, hy), (size[0], hy)], fill=(*_GOLD_HI, 120), width=max(1, int(1.4 * S)))
+    img = Image.alpha_composite(img, rule)
+
+    # Scanner results strip on the ground below the horizon.
+    strip_top, strip_bot = s(556), s(648)
+    tiles, (beam_cx, beam_w) = _scan_tiles(
+        size, s(74), strip_top, s(_W - 74), strip_bot, 7, seed, S)
+    img = Image.alpha_composite(img, tiles)
+
+    # The scan beam: a soft vertical column of light over the tile it landed on.
+    beam = Image.new("RGBA", size, (0, 0, 0, 0))
+    ImageDraw.Draw(beam).rectangle(
+        [beam_cx - beam_w * 0.62, hy, beam_cx + beam_w * 0.62, size[1]],
+        fill=(*_GOLD_HI, 46))
+    img = Image.alpha_composite(img, beam.filter(ImageFilter.GaussianBlur(s(14))))
+
+    # Darken the upper sky so the type block reads cleanly over it.
+    img = Image.alpha_composite(img, _band_scrim(size, 0, s(360), 150, top_down=True))
+
+    # Brand kit + type, centered in the upper sky.
+    mark = _compass(s(78))
+    if mark is not None:
+        img.alpha_composite(mark, (cx - s(39), s(36)))
+    _shadow_center(img, cx, s(126), _WORDMARK,
+                   _font("DejaVuSans-Bold.ttf", 28 * S), theme.wordmark, 8 * S)
+
+    draw = ImageDraw.Draw(img)
+    eyebrow_text = f"— {eyebrow_label} —"
+    eb_tracking = 5 * S
+    eb_font, eyebrow_text = _fit_tracked(draw, eyebrow_text, "DejaVuSans-Bold.ttf",
+                                         20 * S, 10 * S, s(_W - 120), eb_tracking)
+    _shadow_center(img, cx, s(174), eyebrow_text, eb_font, theme.eyebrow, eb_tracking)
+
+    date_up = date_text.upper()
+    dt_font, date_up = _fit_tracked(draw, date_up, "DejaVuSerif-Bold.ttf",
+                                    84 * S, 46 * S, s(_W - 160), 0)
+    _gold_center(img, cx, s(214), date_up, dt_font)
+
+    _shadow_center(img, cx, s(680), _TAGLINE,
+                   _font("DejaVuSans.ttf", 20 * S), theme.tagline, 0)
+
+    img = Image.alpha_composite(img, _vignette(0.5, size))
+    out = img.convert("RGB").resize(_SIZE, Image.LANCZOS)
+    return _grain(out, alpha=5.0, seed=7 + seed)
+
+
 def render_session_thumbnail(
     date_text: str,
     eyebrow_label: str = "LIVE TRADING SESSION",
@@ -1102,6 +1258,8 @@ def render_session_thumbnail(
         img = _render_plate(theme, date_text, eyebrow_label)
     elif theme.layout == "zen":
         img = _render_zen(theme, date_text, eyebrow_label, seed=seed)
+    elif theme.layout == "sunday":
+        img = _render_sunday(theme, date_text, eyebrow_label, seed=seed)
     else:
         img = _render_classic(theme, date_text, eyebrow_label, seed=seed)
     buf = io.BytesIO()
