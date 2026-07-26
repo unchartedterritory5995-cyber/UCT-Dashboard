@@ -255,7 +255,9 @@ def get_categories(_user: dict = Depends(require_paid)):
 def search_library(q: str = "", limit: int = 30, _user: dict = Depends(require_paid)):
     """Deep content search across the library: title, headline, chapter titles,
     and transcript text. Returns one result per video (best field wins) with a
-    highlighted snippet + seek timestamp for chapter/transcript matches."""
+    snippet + seek timestamp for chapter/transcript matches. `snippet` is PLAIN
+    TEXT with <b>…</b> match markers — the client parses the markers into
+    styled nodes and renders the rest as text nodes; it is NOT HTML."""
     return education_search.search(q, limit=limit)
 
 

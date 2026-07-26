@@ -126,6 +126,21 @@ def test_limit_default_30_and_cap_50(svc):
     assert srch.search("momentum", limit=999)["total"] == 50  # capped
 
 
+def test_snippet_marker_contract_neutralizes_preexisting_markers(svc):
+    # Snippet is PLAIN TEXT + <b>…</b> markers (parsed client-side into nodes,
+    # NOT HTML): literal <b>/</b> in source text must be removed so marker
+    # parsing stays unambiguous; everything else passes through byte-for-byte.
+    tr = "[0:30] before <b>bold</b> & <script>alert(1)</script> riskmatch after"
+    _vid(svc, "Marker video", "mk1", transcript=tr)
+    out = srch.search("riskmatch")
+    assert out["total"] == 1
+    snip = out["results"][0]["snippet"]
+    assert snip.count("<b>") == 1 and snip.count("</b>") == 1  # exactly one pair
+    assert "<b>riskmatch</b>" in snip                          # around the true match
+    # & and <script> are NOT escaped/stripped — they ride through as plain text
+    assert "before bold & <script>alert(1)</script> <b>riskmatch</b> after" in snip
+
+
 def test_fts_syntax_is_treated_as_literal(svc):
     _vid(svc, 'Weird "quoted" OR title', "inj1")
     # must not raise, and OR/quotes must not act as FTS operators
@@ -184,6 +199,35 @@ def test_bulk_apply_taxonomy_marks_dirty(svc):
     assert svc._search_dirty is True
     # category served fresh from edu_videos on the next search
     assert srch.search("bulk")["results"][0]["category"] == "Shows"
+
+
+def test_rebuild_index_double_checked_noop_when_clean(svc, monkeypatch):
+    # N concurrent post-write searches race into rebuild_index(); only the
+    # first may rebuild — the flags are re-checked AFTER acquiring the lock.
+    _vid(svc, "Something searchable", "dc1")
+    assert srch.search("searchable")["total"] == 1  # builds; flags settle
+    assert svc._search_dirty is False and srch._index_built is True
+    conns = []
+    real_connect = svc._connect
+    monkeypatch.setattr(svc, "_connect",
+                        lambda: (conns.append(1), real_connect())[1])
+    srch.rebuild_index()          # clean + built → no-op, no connection at all
+    assert conns == []
+    srch.rebuild_index(force=True)  # explicit force still rebuilds
+    assert len(conns) == 1
+    assert srch.search("searchable")["total"] == 1  # index intact after force
+
+
+def test_steady_state_search_opens_single_connection(svc, monkeypatch):
+    _vid(svc, "Connection probe video", "cc1")
+    srch.search("probe")  # first search builds the index
+    conns = []
+    real_connect = svc._connect
+    monkeypatch.setattr(svc, "_connect",
+                        lambda: (conns.append(1), real_connect())[1])
+    out = srch.search("probe")
+    assert out["total"] == 1
+    assert len(conns) == 1  # no per-search readiness COUNT probe
 
 
 # ── LIKE fallback (same signature, %/_ escaped) ───────────────────────────────
