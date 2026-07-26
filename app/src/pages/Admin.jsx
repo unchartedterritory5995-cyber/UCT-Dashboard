@@ -4,6 +4,7 @@ import UIcon from '../components/ui/UIcon'
 import TwitterAccountsPanel from '../components/admin/TwitterAccountsPanel'
 import CommunityReportsPanel from '../components/admin/CommunityReportsPanel'
 import AiSearchInsightsPanel from '../components/admin/AiSearchInsightsPanel'
+import CatalystRulesPanel from '../components/admin/CatalystRulesPanel'
 import { formatETDate } from '../utils/timeAgo'
 
 // ── Constants ──
@@ -2006,6 +2007,9 @@ export default function Admin() {
 
       {/* ── Section 6d: Community Reports (The Floor) ── */}
       <CommunityReportsPanel />
+
+      {/* ── Section 6e: Catalyst Curator learned rules (notes → durable rules) ── */}
+      <CatalystRulesPanel />
 
       {/* ── Section 7: System Health ── */}
       <div className={styles.healthSection}>
