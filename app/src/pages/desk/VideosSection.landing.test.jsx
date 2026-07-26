@@ -32,6 +32,14 @@ vi.mock('swr', () => ({
 // The playback contract: everything must route through videoStore.play.
 vi.mock('../../components/video/videoStore', () => ({ play: vi.fn() }))
 
+// Controllable watch-progress store (keyed by youtube_id).
+let mockProgress = {}
+vi.mock('./videoProgress', () => ({
+  subscribe: () => () => {},
+  getSnapshot: () => mockProgress,
+  hydrateFromServer: vi.fn(),
+}))
+
 // The theater slot — stubbed so we can assert its position structurally.
 vi.mock('../../components/video/VideoDockSlot', () => ({
   default: () => <div data-testid="dock-slot" />,
@@ -87,6 +95,7 @@ const fixture = () => ({
 beforeEach(() => {
   mockRole = null
   mockData = fixture()
+  mockProgress = {}
   play.mockClear()
 })
 
@@ -105,12 +114,38 @@ test('featured strip carries the newest first-show episode and plays it', () => 
   expect(indexArg).toBe(0)
 })
 
-test('every category renders as a shelf (role=list) in server order', () => {
+test('every category renders as a shelf (role=list) in server order, after Recently added', () => {
   renderSection()
   const names = screen.getAllByRole('list').map((l) => l.getAttribute('aria-label'))
   expect(names).toEqual([
+    'Recently added',
     'Live Trading Sessions', 'Evening Update', 'Getting Started', 'Risk Management',
   ])
+})
+
+test('Recently added holds the newest videos across categories and plays within its own list', () => {
+  renderSection()
+  const rail = screen.getByRole('list', { name: 'Recently added' })
+  // Fixture created_at ordering: id 2 (Jul 24) > id 3 (Jul 23) > id 1 (Jul 21);
+  // library videos carry no created_at so they never join the cross-cut.
+  const cards = within(rail).getAllByRole('button', { name: /^Play / })
+  expect(cards.map((b) => b.getAttribute('aria-label'))).toEqual([
+    'Play Session — July 24 breadth day',
+    'Play Evening Update — July 23',
+    'Play Session — July 21',
+  ])
+  fireEvent.click(cards[1])
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([2, 3, 1]) // the recently-added list itself
+  expect(indexArg).toBe(1)
+})
+
+test('Recently added shows no count in its header', () => {
+  renderSection()
+  const heading = screen.getByRole('heading', { level: 2, name: 'Recently added' })
+  // The header row holds only the name — no count node, no View all.
+  expect(heading.parentElement.textContent).toBe('Recently added')
 })
 
 test('clicking a show shelf card plays with that show list, newest-first', () => {
@@ -153,22 +188,73 @@ test('category chip filters to the flat grid; shelves disappear', () => {
 
 test('tag chips are hidden until the Filters toggle reveals them', () => {
   renderSection()
-  expect(screen.queryByRole('button', { name: 'risk 1' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'risk' })).toBeNull()
   const filters = screen.getByRole('button', { name: 'Filters' })
   expect(filters.getAttribute('aria-expanded')).toBe('false')
   fireEvent.click(filters)
   expect(filters.getAttribute('aria-expanded')).toBe('true')
-  expect(screen.getByRole('button', { name: 'risk 1' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'risk' })).toBeTruthy()
 })
 
 test('selecting a tag hides untagged library videos but not the shows', () => {
   renderSection()
   fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
-  fireEvent.click(screen.getByRole('button', { name: 'risk 1' }))
+  fireEvent.click(screen.getByRole('button', { name: 'risk' }))
   expect(screen.queryByText('Welcome to the Desk')).toBeNull()
   expect(screen.queryByText('Breadth basics')).toBeNull()
   expect(screen.getByText('Position sizing rules')).toBeTruthy()
   expect(screen.getByRole('list', { name: 'Live Trading Sessions' })).toBeTruthy()
+})
+
+test('chips carry no count numbers — accessible names are the bare category names', () => {
+  renderSection()
+  const tabNames = screen.getAllByRole('tab').map((t) => t.textContent)
+  expect(tabNames).toEqual([
+    'All', 'Live Trading Sessions', 'Evening Update', 'Getting Started', 'Risk Management',
+  ])
+  for (const name of tabNames) expect(name).not.toMatch(/\d/)
+})
+
+test('active chip semantics: selection inverts aria-selected and toggles off', () => {
+  renderSection()
+  const all = screen.getByRole('tab', { name: 'All' })
+  const cat = screen.getByRole('tab', { name: 'Getting Started' })
+  expect(all.getAttribute('aria-selected')).toBe('true')
+  expect(cat.getAttribute('aria-selected')).toBe('false')
+  fireEvent.click(cat)
+  expect(cat.getAttribute('aria-selected')).toBe('true')
+  expect(screen.getByRole('tab', { name: 'All' }).getAttribute('aria-selected')).toBe('false')
+  fireEvent.click(cat) // second click deselects back to All
+  expect(screen.getByRole('tab', { name: 'All' }).getAttribute('aria-selected')).toBe('true')
+})
+
+test('NEW badge marks only videos created within the last 5 days', () => {
+  const now = Math.floor(Date.now() / 1000)
+  const data = fixture()
+  // Fresh library video (2 days old) + stale sibling (10 days old). Library
+  // videos with created_at also join Recently added, so the fresh one shows
+  // its badge in BOTH rails.
+  data.categories[2].videos[0].created_at = now - 2 * 86400 // Welcome to the Desk
+  data.categories[2].videos[1].created_at = now - 10 * 86400 // Breadth basics
+  mockData = data
+  renderSection()
+  const lib = screen.getByRole('list', { name: 'Getting Started' })
+  const freshCard = within(lib).getByRole('button', { name: 'Play Welcome to the Desk' })
+  const staleCard = within(lib).getByRole('button', { name: 'Play Breadth basics' })
+  expect(within(freshCard).getByText('NEW')).toBeTruthy()
+  expect(within(staleCard).queryByText('NEW')).toBeNull()
+})
+
+test('watched videos dim the thumbnail and carry a Watched tag', () => {
+  mockProgress = { lib0000000a: { done: true, t: 500, d: 600, at: 10 } }
+  renderSection()
+  const lib = screen.getByRole('list', { name: 'Getting Started' })
+  const watchedCard = within(lib).getByRole('button', { name: 'Play Welcome to the Desk' })
+  expect(within(watchedCard).getByText('Watched')).toBeTruthy()
+  expect(watchedCard.querySelector('img').className).toMatch(/thumbWatched/)
+  const otherCard = within(lib).getByRole('button', { name: 'Play Breadth basics' })
+  expect(within(otherCard).queryByText('Watched')).toBeNull()
+  expect(otherCard.querySelector('img').className).not.toMatch(/thumbWatched/)
 })
 
 test('VideoDockSlot is still the first rendered child of the section', () => {

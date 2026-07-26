@@ -5,12 +5,23 @@
    Theater-era classes stay in ../EducationalVideos.module.css untouched.
    Breakpoints: canonical 640 / 1024 only (styles/breakpoints.css). */
 
-/* ── Chip bar — All + categories, single row; Filters toggle pinned right ── */
+/* ── Chip bar — All + categories, single row; Filters toggle pinned right ──
+   YouTube-recognizable register: FILLED soft-dark rounded-rects (elevated
+   surface tone, 8px radius, ~32px tall, no borders, no counts — counts live
+   in the shelf headers). The active chip inverts to gold with near-black
+   text. Overflow gets an edge fade + small circular paddle buttons. */
 .chipBar {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 0 0 var(--space-lg);
+}
+.chipScroll {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
 }
 .chips {
   display: flex;
@@ -23,32 +34,70 @@
   scrollbar-width: none;
   padding: 2px 0;
 }
+/* Edge fades — masks, so they read correctly on any theme background. */
+.chipsFadeR {
+  mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent);
+}
+.chipsFadeL {
+  mask-image: linear-gradient(to right, transparent, #000 56px);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 56px);
+}
+.chipsFadeL.chipsFadeR {
+  mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+}
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  padding: 0 13px;
-  min-height: 34px;
-  border-radius: 999px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
+  padding: 0 16px;
+  min-height: 32px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: none;
+  color: var(--text-bright);
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
 }
-.chip:hover { color: var(--text-bright); border-color: var(--border-accent); }
-.chipActive {
-  background: var(--ut-gold-dim);
-  border-color: var(--ut-gold);
-  color: var(--ut-gold);
+.chip:hover { background: var(--border-accent); }
+.chipActive,
+.chipActive:hover {
+  background: var(--ut-gold);
+  color: #0e0f0d;
 }
-.chipCount { font-size: var(--text-xs); opacity: 0.75; }
-.chipActive .chipCount { opacity: 1; }
+/* Overflow paddles — small circles floating over the faded edge. Touch keeps
+   plain swipe (paddles hidden), mirroring the shelf arrows. */
+.chipNav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.chipNav:hover { background: var(--border-accent); }
+.chipNavL { left: 0; }
+.chipNavR { right: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .chipNav { display: inline-flex; }
+}
+.flipX { display: inline-flex; transform: scaleX(-1); }
 .filtersBtn { flex-shrink: 0; gap: 7px; }
 @media (max-width: 1024px) {
   .chip { min-height: var(--tap-min); }
@@ -195,7 +244,11 @@
   .viewAll { min-height: var(--tap-min); }
 }
 
-/* The row scrolls inside its own box — the page never scrolls horizontally. */
+/* The row scrolls inside its own box — the page never scrolls horizontally.
+   On hover-capable pointers, floating circular arrows page the row; they show
+   on shelf hover (or keyboard focus) and hide at the reached end. Touch keeps
+   plain swipe. */
+.shelfRowWrap { position: relative; }
 .shelfRow {
   display: flex;
   gap: var(--space-lg);
@@ -204,6 +257,34 @@
   scroll-snap-type: x mandatory;
   padding: 2px 2px 8px;
   scrollbar-width: thin;
+}
+.shelfNav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-58%); /* optically centered on the thumbnail band */
+  z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+.shelfNav:hover { background: var(--border-accent); }
+.shelfNavL { left: 6px; }
+.shelfNavR { right: 6px; }
+@media (hover: hover) and (pointer: fine) {
+  .shelfNav { display: flex; }
+  .shelfRowWrap:hover .shelfNav,
+  .shelfNav:focus-visible { opacity: 1; }
 }
 .shelfItem {
   flex: 0 0 280px;
@@ -220,7 +301,10 @@
   .shelfGrid { grid-template-columns: 1fr 1fr; gap: var(--space-lg) var(--space-md); }
 }
 
-/* ── The card — borderless YouTube style, page background carries the body ── */
+/* ── The card — borderless YouTube style, page background carries the body ──
+   Hover life (hover-capable pointers only): the thumb wrapper sharpens
+   12px→8px + lifts scale(1.02), the title brightens. Reduced motion keeps
+   everything still. */
 .card { display: flex; flex-direction: column; }
 .thumbBtn {
   position: relative;
@@ -229,16 +313,55 @@
   aspect-ratio: 16 / 9;
   padding: 0;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   background: #000;
   cursor: pointer;
+  transition: border-radius 0.18s ease, transform 0.18s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .thumbBtn {
+    border-radius: 8px;
+    transform: scale(1.02);
+  }
+  .card:hover .cardTitle { color: var(--text-heading); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thumbBtn { transition: none; }
+  .card:hover .thumbBtn { transform: none; border-radius: 12px; }
 }
 .thumb {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+}
+/* Watched: the thumb dims + a small tag sits bottom-left (bar stays full). */
+.thumbWatched { filter: brightness(0.55); }
+.watchedTag {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: rgba(14, 15, 13, 0.85);
+  color: var(--text-bright);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+/* NEW (created_at within 5 days): gold-outline tag, top-left of the thumb. */
+.newBadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--ut-gold);
+  border-radius: 4px;
+  background: rgba(14, 15, 13, 0.72);
+  color: var(--ut-gold);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
 }
 .duration {
   position: absolute;
@@ -271,6 +394,7 @@
   font-weight: 500;
   line-height: 1.4;
   color: var(--text-bright);
+  transition: color var(--duration-fast) ease;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

@@ -18,7 +18,7 @@ import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import { LEARNING_PATHS } from './learningPaths'
 import FeaturedStrip from './FeaturedStrip'
-import Shelf, { YTCard } from './Shelf'
+import Shelf, { YTCard, useScrollEdges, pageScroller } from './Shelf'
 import UIcon from '../../components/ui/UIcon'
 import styles from '../EducationalVideos.module.css'
 import s from './VideosSection.module.css'
@@ -49,6 +49,12 @@ export default function VideosSection() {
   const shows = useMemo(() => categories.filter((c) => c.kind === 'show'), [categories])
   const library = useMemo(() => categories.filter((c) => c.kind !== 'show'), [categories])
   const total = data?.total ?? 0
+
+  // Chip-row overflow edges. Callback-ref STATE (not a ref object): the chip
+  // row mounts only after the catalog loads, so edge detection must re-arm
+  // when the element actually appears.
+  const [chipRowEl, setChipRowEl] = useState(null)
+  const chipEdges = useScrollEdges(chipRowEl, categories.length)
 
   // Featured strip = the newest episode of the first (flagship) show. Sessions
   // append chronologically, so newest = highest id. It plays against the same
@@ -107,6 +113,24 @@ export default function VideosSection() {
     }
     return items.sort((a, b) => b.at - a.at).slice(0, 8)
   }, [categories, progress])
+
+  // "Recently added": the 10 newest videos by created_at across ALL categories
+  // — a cross-cut view (no dedupe against other shelves by design). Clicking a
+  // card plays within the recently-added list itself so Up Next walks the same
+  // newest-first cross-section the member is looking at.
+  const recentEntries = useMemo(() => {
+    const all = []
+    for (const cat of categories) {
+      const kind = cat.kind === 'show' ? 'show' : 'library'
+      for (const v of cat.videos || []) {
+        if (v.created_at) all.push({ video: v, kind })
+      }
+    }
+    all.sort((a, b) => (b.video.created_at || 0) - (a.video.created_at || 0))
+    const top = all.slice(0, 10)
+    const list = top.map((e) => e.video)
+    return top.map((e, i) => ({ video: e.video, list, index: i, kind: e.kind }))
+  }, [categories])
 
   // Show shelves display (and play against) newest-first lists.
   const showShelves = useMemo(
@@ -253,31 +277,64 @@ export default function VideosSection() {
         </div>
       </div>
 
-      {/* One chip bar: All + categories in a single scrollable row, with the
-          Filters toggle (tag chips, default hidden) pinned at the right end. */}
+      {/* One chip bar: All + categories in a single scrollable row (filled
+          YouTube-style chips — counts live in the shelf headers, not here),
+          edge-faded with paddle buttons when overflowed, and the Filters
+          toggle (tag chips, default hidden) pinned at the right end. */}
       {!isLoading && total > 0 && categories.length > 1 && (
         <>
           <div className={s.chipBar}>
-            <div className={s.chips} role="tablist" aria-label="Filter videos by category">
-              <button
-                className={`${s.chip} ${!activeCat ? s.chipActive : ''}`}
-                onClick={() => setActiveCat(null)}
-                role="tab"
-                aria-selected={!activeCat}
+            <div className={s.chipScroll}>
+              <div
+                className={[
+                  s.chips,
+                  chipEdges.left ? s.chipsFadeL : '',
+                  chipEdges.right ? s.chipsFadeR : '',
+                ].join(' ')}
+                ref={setChipRowEl}
+                role="tablist"
+                aria-label="Filter videos by category"
               >
-                All <span className={s.chipCount}>{total}</span>
-              </button>
-              {categories.map((c) => (
                 <button
-                  key={c.name}
-                  className={`${s.chip} ${activeCat === c.name ? s.chipActive : ''}`}
-                  onClick={() => setActiveCat(activeCat === c.name ? null : c.name)}
+                  className={`${s.chip} ${!activeCat ? s.chipActive : ''}`}
+                  onClick={() => setActiveCat(null)}
                   role="tab"
-                  aria-selected={activeCat === c.name}
+                  aria-selected={!activeCat}
                 >
-                  {c.name} <span className={s.chipCount}>{c.videos.length}</span>
+                  All
                 </button>
-              ))}
+                {categories.map((c) => (
+                  <button
+                    key={c.name}
+                    className={`${s.chip} ${activeCat === c.name ? s.chipActive : ''}`}
+                    onClick={() => setActiveCat(activeCat === c.name ? null : c.name)}
+                    role="tab"
+                    aria-selected={activeCat === c.name}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+              {chipEdges.left && (
+                <button
+                  className={`${s.chipNav} ${s.chipNavL}`}
+                  aria-label="Scroll categories back"
+                  onClick={() => pageScroller(chipRowEl,-1, 0.5)}
+                >
+                  <span className={s.flipX} aria-hidden="true">
+                    <UIcon name="chevronRight" size={15} gold={false} />
+                  </span>
+                </button>
+              )}
+              {chipEdges.right && (
+                <button
+                  className={`${s.chipNav} ${s.chipNavR}`}
+                  aria-label="Scroll categories forward"
+                  onClick={() => pageScroller(chipRowEl,1, 0.5)}
+                >
+                  <UIcon name="chevronRight" size={15} gold={false} />
+                </button>
+              )}
             </div>
             {landing && tags.length > 0 && (
               <button
@@ -299,14 +356,14 @@ export default function VideosSection() {
               >
                 All
               </button>
-              {tags.map(([tag, count]) => (
+              {tags.map(([tag]) => (
                 <button
                   key={tag}
                   className={`${s.chip} ${activeTag === tag ? s.chipActive : ''}`}
                   aria-pressed={activeTag === tag}
                   onClick={() => setActiveTag(activeTag === tag ? null : tag)}
                 >
-                  {tag} <span className={s.chipCount}>{count}</span>
+                  {tag}
                 </button>
               ))}
             </div>
@@ -337,6 +394,21 @@ export default function VideosSection() {
           )}
 
           {continueShelf}
+
+          {recentEntries.length > 0 && (
+            <Shelf
+              name="Recently added"
+              entries={recentEntries}
+              onPlay={playVideo}
+              progress={progress}
+              deskThreads={deskThreads}
+              isAdmin={isAdmin}
+              onEdit={setEditing}
+              onDelete={handleDelete}
+              expandable={false}
+              showCount={false}
+            />
+          )}
 
           {showShelves.map((shelf) => (
             <Shelf
