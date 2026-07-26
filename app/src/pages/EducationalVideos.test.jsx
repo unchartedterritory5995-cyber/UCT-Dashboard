@@ -28,9 +28,12 @@ beforeEach(() => {
     categories: [
       {
         name: 'Getting Started',
+        kind: 'library',
+        sort_order: 0,
+        blurb: '',
         videos: [
-          { id: 1, youtube_id: 'abc12345678', title: 'Welcome', description: 'Start here', category: 'Getting Started', duration: '5:00' },
-          { id: 2, youtube_id: 'def12345678', title: 'The Basics', description: '', category: 'Getting Started' },
+          { id: 1, youtube_id: 'abc12345678', title: 'Welcome', description: 'Start here', category: 'Getting Started', duration: '5:00', tags: [] },
+          { id: 2, youtube_id: 'def12345678', title: 'The Basics', description: '', category: 'Getting Started', tags: [] },
         ],
       },
     ],
@@ -74,4 +77,37 @@ test('empty state shows coming-soon for non-admins', () => {
   render(<MemoryRouter><EducationalVideos /></MemoryRouter>)
   expect(screen.getByText(/being loaded in/i)).toBeTruthy()
   expect(screen.queryByText(/add the first video/i)).toBeNull()
+})
+
+test('renders categories in server-provided order, not the old pin list', () => {
+  // "Live Trading Sessions" (a show) is NOT in the legacy CATEGORY_ORDER pin
+  // list and would have sunk to the bottom under the old client re-sort.
+  // "Options & Flow" (a library category) WAS in that pin list near the top.
+  // The payload lists the show first — server order must win verbatim.
+  mockData = {
+    total: 2,
+    categories: [
+      {
+        name: 'Live Trading Sessions',
+        kind: 'show',
+        sort_order: 0,
+        blurb: '',
+        videos: [
+          { id: 10, youtube_id: 'lts1abcdefg', title: 'Session 1', description: '', category: 'Live Trading Sessions', tags: [] },
+        ],
+      },
+      {
+        name: 'Options & Flow',
+        kind: 'library',
+        sort_order: 1,
+        blurb: '',
+        videos: [
+          { id: 11, youtube_id: 'opt1abcdefg', title: 'Options Basics', description: '', category: 'Options & Flow', tags: [] },
+        ],
+      },
+    ],
+  }
+  render(<MemoryRouter><EducationalVideos /></MemoryRouter>)
+  const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+  expect(headings).toEqual(['Live Trading Sessions', 'Options & Flow'])
 })

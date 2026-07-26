@@ -21,28 +21,6 @@ const fetcher = (url) =>
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 
-// Curated learning-path order for the firm's library sections. Categories not
-// listed here fall to the end, alphabetically (the API returns them A→Z).
-const CATEGORY_ORDER = [
-  'Mindset & Psychology',
-  'The Mental Game',
-  'Market Analysis & Breadth',
-  'Setups & Strategies',
-  'Technical Analysis & Relative Strength',
-  'Risk & Trade Management',
-  'Scanning, Watchlists & Stock Selection',
-  'Options & Flow',
-  'Workshops & Fireside Chats',
-  'Interviews',
-  'Post-Market Recaps',
-  'Evening Update',
-  'Live Sessions',
-]
-const orderRank = (name) => {
-  const i = CATEGORY_ORDER.indexOf(name)
-  return i === -1 ? CATEGORY_ORDER.length : i
-}
-
 export default function VideosSection() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -56,13 +34,15 @@ export default function VideosSection() {
   // Pull cross-device watch progress once on mount (merges into the local store).
   useEffect(() => { hydrateFromServer() }, [])
 
-  // Categories in curated learning-path order.
-  const categories = useMemo(() => {
-    const cats = data?.categories || []
-    return [...cats].sort(
-      (a, b) => orderRank(a.name) - orderRank(b.name) || a.name.localeCompare(b.name),
-    )
-  }, [data])
+  // Server-ordered categories — shows first, then library, each by sort_order
+  // (see api/routers/education.py). No client re-sort; render verbatim.
+  const categories = useMemo(() => data?.categories || [], [data])
+  // Shows/Library split for the Task 6 landing components (kind === 'show' vs
+  // everything else). Downstream consumers below keep using `categories`.
+  // eslint-disable-next-line no-unused-vars -- consumed by Task 6's landing components
+  const shows = useMemo(() => categories.filter((c) => c.kind === 'show'), [categories])
+  // eslint-disable-next-line no-unused-vars -- consumed by Task 6's landing components
+  const library = useMemo(() => categories.filter((c) => c.kind !== 'show'), [categories])
   const total = data?.total ?? 0
 
   // Deep link: /desk?section=videos&v=<youtube_id> auto-plays that video once
