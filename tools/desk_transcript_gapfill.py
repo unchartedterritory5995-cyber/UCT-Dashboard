@@ -55,6 +55,13 @@ _PROBE_CUSHION = 0
 _SWEEP_SLEEP = 0.15
 
 
+class AuthFailure(Exception):
+    """Raised when insights-store returns 401/403. Auth is SYSTEMIC (one
+    broken PUSH_SECRET breaks every video, not just this one) — the caller
+    aborts the rest of the batch instead of burning CPU transcribing 20 more
+    videos that are all going to fail the same way."""
+
+
 def _get(path: str, **params):
     """GET with a short retry — a live sweep of ~300 sequential requests hits
     the occasional transient 502/network blip; without a retry, that id
@@ -86,6 +93,9 @@ def resolve_video_map() -> dict:
     transcript never arrived (chapters set, transcript NULL, poster usually
     already set too) is invisible to all three — such an id will show up as
     a gap (empty /transcript-cues) but with no resolvable youtube_id here.
+    As of 2026-07-25 the known members of this class are 267/273/276/286 —
+    `--ids 267` (etc.) against any of them silently no-ops (prints under
+    UNRESOLVED) rather than guessing a youtube_id from the untrusted local DB.
 
     NOTE: id -> youtube_id is deliberately NOT sourced from the local
     C:\\data\\education.db copy — a spot-check found its `id` column doesn't
@@ -161,25 +171,53 @@ def fetch_audio(yt: str, dest: str) -> bool:
     return True
 
 
-def transcribe(path: str) -> list[dict]:
+def load_whisper_model():
+    """Load the whisper model ONCE for the whole batch. Instantiating
+    WhisperModel per video (the original skeleton) reloads weights from disk
+    on every single one of the ~20 videos — wasted work that only gets worse
+    the longer the unattended run goes."""
     from faster_whisper import WhisperModel
-    model = WhisperModel("base.en", device="cpu", compute_type="int8")
+    return WhisperModel("base.en", device="cpu", compute_type="int8")
+
+
+def transcribe(model, path: str) -> list[dict]:
     segments, _info = model.transcribe(path, word_timestamps=False, vad_filter=True)
     return [{"t": int(seg.start), "text": seg.text.strip()} for seg in segments if seg.text.strip()]
 
 
-def process_one(vid: int, yt: str, title: str) -> None:
+def process_one(vid: int, yt: str, title: str, model) -> bool:
+    """Process one gap video end-to-end. Returns True iff the transcript was
+    successfully stored (POST < 300). Never raises for a per-video failure
+    (dropped R2 stream, corrupt audio, a bad whisper decode, generate_insights
+    erroring) — those are caught here, printed, and reported as a skip so one
+    bad video can't kill an unattended multi-video run. AuthFailure is the
+    one exception that's meant to propagate: a 401/403 is systemic, not
+    per-video, and the caller should stop the batch rather than keep going."""
     from api.services.desk_session_insights import _timestamped_block, generate_insights
 
     with tempfile.TemporaryDirectory() as td:
         m4a = os.path.join(td, "a.m4a")
-        if not fetch_audio(yt, m4a):
+
+        try:
+            got_audio = fetch_audio(yt, m4a)
+        except Exception as e:
+            print(f"  id={vid} ({yt}): fetch_audio raised ({type(e).__name__}: "
+                  f"{str(e)[:160]}) — skip")
+            return False
+        if not got_audio:
             print(f"  id={vid} ({yt}): NO R2 AUDIO — skip (yt-dlp fallback needed)")
-            return
-        cues = transcribe(m4a)
+            return False
+
+        try:
+            cues = transcribe(model, m4a)
+        except Exception as e:
+            print(f"  id={vid} ({yt}): whisper transcribe raised ({type(e).__name__}: "
+                  f"{str(e)[:160]}) — skip")
+            return False
         if not cues:
             print(f"  id={vid} ({yt}): whisper produced no cues — skip")
-            return
+            return False
+
         # Mirrors api.services.desk_session_insights._timestamped_block exactly
         # (same function, imported directly) — the "[h:mm:ss] text" block form
         # that _parse_timestamped_block can recover cues from later, 600k cap.
@@ -192,32 +230,47 @@ def process_one(vid: int, yt: str, title: str) -> None:
                   f"{str(e)[:120]}) — storing transcript alone")
             ins = {}
 
+        # Mirrors scripts/backfill_video_insights.py's payload shape exactly —
+        # ticker_moments is part of the SAME generate_insights() call and the
+        # SAME insights-store body there. Without it, chip data is gone for
+        # good: these are old library videos with no meeting_uuid, so they
+        # can never enter the meeting_uuid-gated ticker-backfill loop later.
         body = {
             "transcript": block,
             "chapters": ins.get("chapters") or [],
+            "ticker_moments": ins.get("ticker_moments") or [],
             "headline": ins.get("headline") or "",
             "summary": ins.get("summary") or [],
         }
         # insights-store is the load-bearing write — prod has shown transient
         # 502s during this sweep, and losing the store after a full local
         # whisper transcribe (minutes of CPU work) would be an expensive
-        # silent loss, so retry a few times before giving up.
+        # silent loss, so retry a few times before giving up. A 401/403 is
+        # NOT retried — it means PUSH_SECRET/auth is broken for every video,
+        # not just this one, so we raise and let the caller stop the batch.
         r = None
         for attempt in range(3):
             try:
                 r = requests.post(f"{BASE}/api/education/videos/{vid}/insights-store",
                                   headers=HDRS, json=body, timeout=60)
-                if r.status_code < 500:
-                    break
             except requests.RequestException as e:
                 print(f"  id={vid} ({yt}): insights-store attempt {attempt + 1} "
                       f"raised ({type(e).__name__}) — retrying")
                 r = None
+            else:
+                if r.status_code in (401, 403):
+                    raise AuthFailure(
+                        f"insights-store returned {r.status_code} for id={vid} "
+                        f"({yt}) — PUSH_SECRET/auth is broken"
+                    )
+                if r.status_code < 500:
+                    break
             if attempt < 2:
                 time.sleep(3 * (attempt + 1))
         status = r.status_code if r is not None else "EXCEPTION"
         print(f"  id={vid} ({yt}): cues={len(cues)} chapters={len(body['chapters'])} "
               f"POST={status}")
+        return isinstance(status, int) and status < 300
 
 
 def main():
@@ -258,8 +311,27 @@ def main():
     if args.dry_run:
         return 0
 
-    for vid, yt, title in targets:
-        process_one(vid, yt, title)
+    model = load_whisper_model()  # once for the whole batch, not per video
+    failed_ids = []
+    for i, (vid, yt, title) in enumerate(targets):
+        try:
+            if not process_one(vid, yt, title, model):
+                failed_ids.append(vid)
+        except AuthFailure as e:
+            # Systemic — every remaining video would fail the same way.
+            # Stop burning CPU transcribing them; report them all as failed.
+            print(f"  ABORTING BATCH — {e}")
+            failed_ids.extend(t[0] for t in targets[i:])
+            break
+        except Exception as e:
+            print(f"  id={vid} ({yt}): UNEXPECTED ERROR ({type(e).__name__}: "
+                  f"{str(e)[:200]}) — skipping, continuing batch")
+            failed_ids.append(vid)
+
+    if failed_ids:
+        print(f"\n{len(failed_ids)} failed / skipped: {failed_ids}")
+    else:
+        print(f"\nall {len(targets)} processed cleanly")
 
     return 0
 
