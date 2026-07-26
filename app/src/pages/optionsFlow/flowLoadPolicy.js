@@ -146,6 +146,23 @@ export function setErCache(set) {
 }
 
 /**
+ * URL for a base fetch.
+ *
+ * First paint uses the bare, version-STABLE URL so it can be served from a
+ * shared cache. A version-driven refresh (`nonce > 0`) appends the version,
+ * which is REQUIRED for correctness once Cloudflare caches this endpoint:
+ * `cache:"no-store"` is only a *request* directive, and Cloudflare deliberately
+ * ignores client no-cache to prevent cache-busting — so an unversioned refetch
+ * would be answered from the edge with the very bytes it is trying to replace.
+ * A versioned URL is a distinct cache key, so the refresh is guaranteed fresh
+ * (and is itself cacheable, so one member's refresh warms it for everyone).
+ */
+export function baseFetchUrl(csvFile, nonce, dataVersion) {
+  if (!nonce || dataVersion == null) return csvFile
+  return `${csvFile}${csvFile.includes('?') ? '&' : '?'}v=${dataVersion}`
+}
+
+/**
  * Identity for a processed dataset, so a cached `D` is only reused when the
  * filters that produced it are unchanged.
  */

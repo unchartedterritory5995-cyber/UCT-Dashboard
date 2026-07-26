@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import {
   planDelta,
   adoptVersion,
+  baseFetchUrl,
   readSnapshot,
   writeSnapshot,
   clearSnapshots,
@@ -105,6 +106,21 @@ describe('adoptVersion — the base/version race', () => {
   it('stays pending while the version is still unknown', () => {
     expect(adoptVersion({ pending: true, dataVersion: null, current: null }))
       .toEqual({ baseFetchedVer: null, pending: true })
+  })
+})
+
+describe('baseFetchUrl — must be CF-cache correct', () => {
+  it('uses the bare version-stable URL for first paint so the edge can serve it', () => {
+    expect(baseFetchUrl('/api/flow/data?days=1', 0, '29750502')).toBe('/api/flow/data?days=1')
+  })
+
+  it('appends the version on a refresh — cache:"no-store" alone would get the stale edge copy', () => {
+    expect(baseFetchUrl('/api/flow/data?days=1', 1, '29750502'))
+      .toBe('/api/flow/data?days=1&v=29750502')
+  })
+
+  it('does not append when no version is known yet', () => {
+    expect(baseFetchUrl('/api/flow/data?days=1', 1, null)).toBe('/api/flow/data?days=1')
   })
 })
 

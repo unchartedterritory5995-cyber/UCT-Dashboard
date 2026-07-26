@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
-import { planDelta, adoptVersion, readSnapshot, writeSnapshot, snapshotKey, getErCache, setErCache } from "./optionsFlow/flowLoadPolicy";
+import { planDelta, adoptVersion, readSnapshot, writeSnapshot, snapshotKey, getErCache, setErCache, baseFetchUrl } from "./optionsFlow/flowLoadPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -2697,7 +2697,8 @@ export default function OptionsFlowDashboard() {
     // csvFile is version-stable and the response carries max-age=300, so a
     // plain fetch would hand back the very bytes we are trying to replace.
     // (This is the freshness the delta-merge used to provide via no-store.)
-    fetch(csvFile, baseNonce > 0 ? { cache: "no-store" } : undefined)
+    fetch(baseFetchUrl(csvFile, baseNonce, dataVersionRef.current),
+          baseNonce > 0 ? { cache: "no-store" } : undefined)
         .then(res => {
           console.log(`[perf] CSV fetch: ${(performance.now()-t0).toFixed(0)}ms`);
           if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
