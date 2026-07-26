@@ -3249,8 +3249,7 @@ async def _run_session(ws):
                         size = int(evt["s"])
                         exch = int(evt["x"])
                         ts_ms = int(evt["t"])
-                        conds = evt.get("c") or []
-                        cond = int(conds[0]) if conds else -1
+                        conds = tuple(int(c) for c in (evt.get("c") or []))
                     except (KeyError, ValueError, TypeError) as e:
                         logger.debug("[massive-ws] skip malformed T: %s (%s)",
                                      evt, e)
@@ -3261,7 +3260,7 @@ async def _run_session(ws):
                         price=price,
                         size=size,
                         exchange=exch,
-                        conditions=cond,
+                        conditions=conds,
                         ts_ns=ts_ms * 1_000_000,  # ms -> ns
                     ))
                     _state["trades_received"] += 1
