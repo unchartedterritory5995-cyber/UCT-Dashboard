@@ -2294,12 +2294,24 @@ export default function OptionsFlowDashboard() {
         if (!base) return;
         const map = {}; flatten(base, map);
         const ws = (base.week_start || "").slice(0, 10);
+        // The two look-ahead weeks depend only on base.week_start, not on each
+        // other — fetch them CONCURRENTLY. Serially they were 3 round trips
+        // (~403ms), which raced the CSV pipeline: whenever erSoonSet landed
+        // AFTER parsedRows it changed a dependency of the processing effect and
+        // re-ran the ENTIRE 96k-row processFlowData a second time (~1,351ms,
+        // measured on prod 2026-07-25) purely to refresh an ER badge. In
+        // parallel it settles in ~270ms, comfortably ahead of the CSV
+        // (fetch+parse ≈ 840ms), so the first process already has it.
+        // (Deliberately still null on failure — the row-flag fallback is the
+        // documented behaviour, and settling to an empty Set would itself
+        // change the dependency and trigger the very reprocess this avoids.)
+        const weeks = [];
         for (let k = 1; k <= 2 && ws; k++) {
           const nm = new Date(ws + "T00:00:00Z"); nm.setUTCDate(nm.getUTCDate() + 7 * k);
-          const p = await fetch(`/api/calendar?week=${nm.toISOString().slice(0, 10)}`)
-            .then(r => r.ok ? r.json() : null).catch(() => null);
-          if (p) flatten(p, map);
+          weeks.push(fetch(`/api/calendar?week=${nm.toISOString().slice(0, 10)}`)
+            .then(r => r.ok ? r.json() : null).catch(() => null));
         }
+        for (const p of await Promise.all(weeks)) if (p) flatten(p, map);
         const now = new Date();
         const t0 = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
         const soon = new Set();
