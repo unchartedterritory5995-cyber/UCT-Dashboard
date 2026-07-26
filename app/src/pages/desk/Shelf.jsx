@@ -235,7 +235,9 @@ export default function Shelf({
 
   return (
     <section className={s.shelf}>
-      <div className={s.shelfHead}>
+      {/* shelfHeadExpanded: phone hides the updated micro-meta while the sort
+          toggle occupies the row — one line must always fit at 390px. */}
+      <div className={expanded ? `${s.shelfHead} ${s.shelfHeadExpanded}` : s.shelfHead}>
         <h2 className={s.shelfName}>{name}</h2>
         {showCount && <span className={s.shelfCount}>{entries.length}</span>}
         {updatedAt > 0 && (

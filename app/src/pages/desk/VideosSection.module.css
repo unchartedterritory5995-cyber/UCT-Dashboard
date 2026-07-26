@@ -259,6 +259,13 @@
   color: var(--text-muted);
   white-space: nowrap;
 }
+/* Phone + expanded: the header also hosts the sort toggle — drop the updated
+   micro-meta so the row always fits in one line (the dated cards are right
+   below; it returns on collapse). Everything but .shelfName is flex-shrink:0,
+   so without this the four fragments can force real horizontal scroll. */
+@media (max-width: 640px) {
+  .shelfHeadExpanded .shelfUpdated { display: none; }
+}
 /* Expanded-grid sort — two plain text buttons, the active one reads gold.
    Color-only active state (no weight change) so toggling never shifts layout. */
 .sortToggle {
