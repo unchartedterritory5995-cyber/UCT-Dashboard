@@ -277,13 +277,26 @@ def _start_flow_schedulers():
             log.warning("flat-files scheduling failed: %s", e)
 
         def _nightly_flow_prune():
-            # Mirrors web's 20:00 ET job (api/main.py): expired contracts must
-            # be pruned from the LIVE flow.db, which lives here post-cutover.
+            # Retention on the LIVE flow.db, which lives here post-cutover.
+            #
+            # This used to prune by CONTRACT EXPIRY, which deleted a trade the
+            # night its contract expired regardless of when it printed — so
+            # historical days hollowed out to only their still-unexpired
+            # contracts while still being advertised as complete sessions
+            # (measured: a January day served 986 of ~96,178 rows). It now drops
+            # WHOLE days past FLOW_RETAIN_TRADE_DAYS. Log the day list, not just
+            # a row count — a count of 0 cannot distinguish "nothing to do" from
+            # "never ran", and this job silently ate the tape for months.
             try:
-                from api.flow_db import FlowDB
-                pruned = FlowDB().prune_expired(buffer_days=1)
-                if pruned:
-                    log.info("[scheduler] Flow DB pruned %d expired rows", pruned)
+                from api.flow_db import FlowDB, FLOW_RETAIN_TRADE_DAYS
+                res = FlowDB().prune_old_trade_days()
+                log.info("[scheduler] flow retention: retain=%sd cutoff=%s "
+                         "removed_days=%d pruned_rows=%d days_kept=%d",
+                         FLOW_RETAIN_TRADE_DAYS, res["cutoff"],
+                         len(res["days_removed"]), res["pruned"], res["days_kept"])
+                if res["days_removed"]:
+                    log.info("[scheduler] flow retention dropped: %s",
+                             ", ".join(res["days_removed"]))
             except Exception as e:  # noqa: BLE001
                 log.warning("[scheduler] Flow DB prune error: %s", e)
 

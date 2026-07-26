@@ -5,7 +5,8 @@ Handles:
 - Inserting CSV uploads (stocks + indexes) with automatic deduplication
 - Querying by date range, serving as CSV to the frontend
 - Streaming CSV responses (avoids building 27MB+ strings in memory)
-- Auto-pruning expired contracts
+- Retention: dropping WHOLE trading days past the window (never partial days —
+  see prune_old_trade_days for what the old expiry-based prune was doing)
 - Stats for admin visibility
 
 Usage:
@@ -24,6 +25,29 @@ import io
 import os
 from datetime import datetime, timedelta
 from contextlib import contextmanager
+
+# How many CALENDAR days of TRADE DATE to retain. Days are dropped whole, so the
+# tape never contains a partial session presented as a complete one.
+#
+# Default 90 covers the widest UI range chip.
+#
+# Sizing (production, 2026-07-26). Careful with the obvious arithmetic here:
+# db_size_mb/rows = 2725.8MB / 2,107,351 = ~1,293 B/row is an ARTIFACT, not a
+# measurement. flow.db is never VACUUMed (nothing in the repo vacuums it — the
+# one VACUUM, admin_purge.py, targets patterns.db), and auto_vacuum is unset, so
+# that figure is a high-water mark carrying every page freed by the millions of
+# rows the old expiry prune deleted. The dense cost is ~526 B/row (27 TEXT
+# columns + the duplicated dedup_key); the exported CSV is 135 B/row.
+#
+# At ~526 B/row and ~140k rows/day (stocks+indexes), 90 days is ~6.6GB and
+# retaining ALL 138 available days would be ~10GB — against a flow-worker volume
+# of 50GB with ~35GB free. Retention here is a product choice about how far back
+# the calendar goes, NOT a disk constraint. Nothing was ever gained by the
+# destruction this replaces.
+#
+# <= 0 disables pruning entirely. For a delete path the fail-safe reading of a
+# misconfigured value is "keep", never "delete everything".
+FLOW_RETAIN_TRADE_DAYS = int(os.environ.get("FLOW_RETAIN_TRADE_DAYS", "90"))
 
 # CSV columns in BBS export order
 COLUMNS = [
@@ -443,35 +467,121 @@ class FlowDB:
         """Query ALL data for the given source. Use with caution on large DBs."""
         return "".join(self.stream_csv(source=source, days=None))
 
-    def prune_expired(self, buffer_days: int = 7) -> int:
+    def prune_old_trade_days(self, retain_days: int | None = None,
+                             dry_run: bool = False) -> dict:
+        """Delete WHOLE trading days older than the retention window.
+
+        REPLACES the old expiry-based prune (2026-07-26). That version ran
+
+            DELETE FROM flow WHERE ExpirationDate IN (<everything expired>)
+
+        with NO CreatedDate scoping, so a trade PRINTED on 7/16 on a contract
+        EXPIRING 7/18 was deleted once 7/18 passed. Historical days therefore
+        hollowed out to only their still-unexpired contracts — while
+        get_available_dates() kept advertising them, because SOME rows survived.
+        The day rendered as a complete session.
+
+        Measured on production before the fix (rows returned for one trade day,
+        against a full session of ~96,178):
+
+            Fri 7/24   96,179   100%
+            Fri 7/10   54,043    56%
+            Wed 6/24   13,022    14%
+            Fri 5/22    3,909     4%
+            Fri 3/13    1,205   1.3%
+            Thu 1/15      986   1.0%
+
+        Short-dated flow dies first, and 0DTE/weeklies are the majority of the
+        tape on index and megacap names — so the surviving rows were also the
+        least representative. Every one of those days was pickable in the
+        calendar and captioned as a full day.
+
+        There was never a disk reason for it. Production density is ~1,293
+        bytes/row including indexes; retaining EVERY row of all 138 days is
+        ~25GB, and 90 days is ~16GB, on a 50GB volume that had ~35GB free.
+
+        Pruning by trade date instead means a day is either wholly present or
+        wholly absent — never a plausible-looking fraction.
+
+        SAFETY (this is a DELETE on the production tape):
+          - retain_days <= 0 DISABLES pruning. A misconfigured "0" must never
+            read as "delete everything"; for a delete path the fail-safe
+            direction is always to keep.
+          - The newest trade date is NEVER deletable, whatever the config says.
+          - A CreatedDate that will not parse is never deleted. Skipping a row
+            keeps data; the old code's equivalent skip on ExpirationDate made
+            those rows immortal, which is the harmless direction of the same
+            coin.
+          - dry_run reports exactly what would go without touching anything.
+
+        Returns {"pruned", "days_removed", "days_kept", "cutoff", "dry_run"}.
         """
-        Remove rows where ExpirationDate has passed (+ buffer).
-        Returns number of rows pruned.
-        """
-        cutoff = datetime.now() - timedelta(days=buffer_days)
-        pruned = 0
+        if retain_days is None:
+            retain_days = FLOW_RETAIN_TRADE_DAYS
+
+        result = {"pruned": 0, "days_removed": [], "days_kept": 0,
+                  "cutoff": None, "dry_run": dry_run}
+
+        if retain_days is None or retain_days <= 0:
+            result["cutoff"] = "disabled"
+            return result
+
+        cutoff = datetime.now() - timedelta(days=retain_days)
+        result["cutoff"] = cutoff.strftime("%Y-%m-%d")
 
         with self._conn() as conn:
+            rows = conn.execute("SELECT DISTINCT CreatedDate FROM flow").fetchall()
+
+            parsed = []
+            for (raw,) in rows:
+                d = self._parse_date_mdy(raw or "")
+                if d is not None:                   # unparseable => never delete
+                    parsed.append((d, raw))
+
+            result["days_kept"] = len(parsed)
+            if not parsed:
+                return result
+
+            # Never prune the newest session, regardless of retention config.
+            newest = max(d for d, _ in parsed)
+            doomed = [raw for d, raw in parsed if d < cutoff and d != newest]
+
+            if not doomed:
+                return result
+
+            result["days_removed"] = sorted(doomed)
+            result["days_kept"] = len(parsed) - len(doomed)
+
+            if dry_run:
+                placeholders = ",".join(["?"] * len(doomed))
+                result["pruned"] = conn.execute(
+                    f"SELECT COUNT(*) FROM flow WHERE CreatedDate IN ({placeholders})",
+                    doomed,
+                ).fetchone()[0]
+                return result
+
+            placeholders = ",".join(["?"] * len(doomed))
             cursor = conn.execute(
-                "SELECT DISTINCT ExpirationDate FROM flow"
+                f"DELETE FROM flow WHERE CreatedDate IN ({placeholders})",
+                doomed,
             )
-            all_exps = [r[0] for r in cursor.fetchall()]
+            result["pruned"] = cursor.rowcount
 
-            expired_dates = []
-            for exp in all_exps:
-                parsed = self._parse_date_mdy(exp)
-                if parsed and parsed < cutoff:
-                    expired_dates.append(exp)
+        return result
 
-            if expired_dates:
-                placeholders = ",".join(["?"] * len(expired_dates))
-                cursor = conn.execute(
-                    f"DELETE FROM flow WHERE ExpirationDate IN ({placeholders})",
-                    expired_dates,
-                )
-                pruned = cursor.rowcount
+    def prune_expired(self, buffer_days: int = 7) -> int:
+        """DEPRECATED NAME — kept so the six existing callers keep working.
 
-        return pruned
+        The expiry-based delete this used to perform was destroying historical
+        trading days (see prune_old_trade_days). `buffer_days` is intentionally
+        IGNORED: it described a contract-expiry buffer, a concept that no longer
+        exists here, and silently reinterpreting it as a trade-date retention
+        would turn `buffer_days=1` — what the nightly cron passes — into "keep
+        one day of tape and delete everything else".
+
+        Returns the row count, as before, so callers that log it are unaffected.
+        """
+        return self.prune_old_trade_days()["pruned"]
 
     def data_signature(self) -> tuple:
         """(max_rowid, row_count) — a cheap 'has anything changed' fingerprint.

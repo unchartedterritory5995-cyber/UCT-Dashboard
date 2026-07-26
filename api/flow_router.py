@@ -546,16 +546,41 @@ async def bump_version_endpoint(_auth: dict = Depends(require_flow_admin)):
 
 @flow_router.post("/prune")
 async def prune_expired(request: Request, _auth: dict = Depends(require_flow_admin)):
-    """Manually prune expired contracts."""
-    try:
-        buffer_str = request.query_params.get("buffer_days", "7")
-        buffer_days = max(0, min(90, int(buffer_str)))
-    except (ValueError, TypeError):
-        buffer_days = 7
-    pruned = db.prune_expired(buffer_days=buffer_days)
-    # Prune changed the data — invalidate the in-memory cache
-    _RESPONSE_CACHE.clear()
-    return JSONResponse({"pruned": pruned})
+    """Apply trade-date retention: drop WHOLE trading days past the window.
+
+    ?retain_days=N — override FLOW_RETAIN_TRADE_DAYS for this call. 0 disables.
+    ?dry_run=1     — report what WOULD go, delete nothing. Use this first.
+
+    The legacy ?buffer_days is accepted and IGNORED (it described a contract-
+    expiry buffer — the behaviour that was hollowing out historical days). It is
+    deliberately not remapped onto retain_days: the nightly job passed
+    buffer_days=1, which as a retention would mean "keep one day, delete the
+    tape".
+    """
+    dry_run = request.query_params.get("dry_run", "").lower() in ("1", "true", "yes")
+
+    retain_days = None
+    raw = request.query_params.get("retain_days")
+    if raw is not None:
+        try:
+            retain_days = max(0, min(3650, int(raw)))
+        except (ValueError, TypeError):
+            retain_days = None
+
+    res = db.prune_old_trade_days(retain_days=retain_days, dry_run=dry_run)
+    if res["pruned"] and not dry_run:
+        # Retention changed the data — invalidate the in-memory cache and move
+        # the version so clients refetch instead of holding a payload whose days
+        # no longer exist.
+        bump_data_version()
+    return JSONResponse({
+        "pruned": res["pruned"],
+        "days_removed": res["days_removed"],
+        "days_kept": res["days_kept"],
+        "cutoff": res["cutoff"],
+        "dry_run": res["dry_run"],
+        "ignored_buffer_days": request.query_params.get("buffer_days"),
+    })
 
 
 @flow_router.get("/dates")
