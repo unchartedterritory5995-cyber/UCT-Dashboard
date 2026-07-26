@@ -1604,6 +1604,26 @@ function processFlowData(rows, erSoonSet) {
     return true;
   });
 
+  // Heavy-block non-directional rule (user 7/25):
+  // A large BLOCK with NO sweep tied to the same contract is negotiated/
+  // facilitated size (single large trade at one exchange per the BBS spec),
+  // not someone lifting an offer — so it should NOT count as directional flow.
+  // Strip its direction (D=null) so it drops out of the bull/bear lean, but
+  // leave the print in `filtered` so it still shows as SIZE (consMap sums P/V
+  // unconditionally). A block WITH a sweep at the same strike is real
+  // conviction (sweep+block) and keeps its direction — same principle the
+  // deep-OTM arb filter already uses.
+  const HEAVY_BLOCK_PREMIUM = 10e6; // $10M; tune here
+  const _hbSweepKeys = new Set();
+  filtered.forEach(t => {
+    if (t.Ty === "SWP") _hbSweepKeys.add(t.S+"|"+t.CP+"|"+t.K+"|"+t.E);
+  });
+  filtered.forEach(t => {
+    if (t.D && t.Ty === "BLK" && t.P >= HEAVY_BLOCK_PREMIUM) {
+      if (!_hbSweepKeys.has(t.S+"|"+t.CP+"|"+t.K+"|"+t.E)) { t.D = null; t.heavyBlock = true; }
+    }
+  });
+
   // Mega cap premium filter
   filtered = filtered.filter(t => premiumFilter(t.P, t.mktcap));
 
