@@ -8721,17 +8721,43 @@ export default function OptionsFlowDashboard() {
               // the "Still-open flow" toggle).
               const _tkScopedPrints = (_uncappedAllDir !== null ? _uncappedAllDir : (D.all_directional || []))
                 .filter(t => t.S === tk.s && !t._rescueDerived);
+              // Aggregate EVERY contract with in-window directional flow for this
+              // ticker (premium, vol, net direction, OI, DTE, avg price). 2026-07-25:
+              // was `tk.t.map(...)`, which only kept contracts whose biggest SINGLE
+              // print made the ticker's all-time top-10 rep cache — so accumulation
+              // names (many small prints, no single top-10 print, e.g. S) and any
+              // ticker whose uncapped data momentarily raced showed an EMPTY table.
+              // On the Search tab the user has explicitly picked the ticker, so
+              // ranking its OWN contracts by directional premium is exactly right
+              // (no cross-ticker "notable" gate needed — that gate belongs on the
+              // leaderboard). tk.t metadata (grade/entry/status/OI) is merged in
+              // where the contract has it; contracts tk.t missed get built from
+              // their prints so the table still shows them.
+              const _tkByContract = {};
+              if (tk && tk.t) for (const _c of tk.t) _tkByContract[_c.CP + "|" + _c.K + "|" + _c.E] = _c;
               const _scopedByContract = {};
               for (const _t of _tkScopedPrints) {
                 const _ck = _t.CP + "|" + _t.K + "|" + _t.E;
-                const _e = _scopedByContract[_ck] || (_scopedByContract[_ck] = { P: 0, V: 0 });
+                const _e = _scopedByContract[_ck] || (_scopedByContract[_ck] = { P:0, V:0, bull:0, bear:0, OI:0, DTE:_t.DTE, Dt:_t.Dt, pxSum:0, pxN:0 });
                 _e.P += _t.P; _e.V += _t.V;
+                if (_t.D === "BULL") _e.bull += _t.P; else if (_t.D === "BEAR") _e.bear += _t.P;
+                if ((_t.OI||0) > _e.OI) _e.OI = _t.OI||0;
+                if (_t.price > 0) { _e.pxSum += _t.price; _e.pxN++; }
+                if (_t.Dt) { _e.Dt = _t.Dt; _e.DTE = _t.DTE; }
               }
-              const _tkTradesScoped = (tk && tk.t ? tk.t : [])
-                .map(_c => { const _w = _scopedByContract[_c.CP + "|" + _c.K + "|" + _c.E];
-                             return _w ? { ..._c, P: _w.P, V: _w.V } : null; })
-                .filter(Boolean)
-                .sort((_a, _b) => _b.P - _a.P);
+              const _tkTradesScoped = Object.entries(_scopedByContract)
+                .map(([_ck, _w]) => {
+                  const _netD = _w.bull > _w.bear ? "BULL" : _w.bear > _w.bull ? "BEAR" : null;
+                  const _dirPrem = _netD === "BULL" ? _w.bull : _netD === "BEAR" ? _w.bear : _w.P;
+                  const _meta = _tkByContract[_ck];
+                  if (_meta) return { ..._meta, P: _w.P, V: _w.V, dirPrem: _dirPrem, dispD: _netD };
+                  const _p = _ck.split("|");
+                  return { S: tk.s, CP: _p[0], K: parseFloat(_p[1]), E: _p[2], P: _w.P, V: _w.V,
+                           dirPrem: _dirPrem, dispD: _netD, OI: _w.OI, maxOI: _w.OI, DTE: _w.DTE, Dt: _w.Dt,
+                           price: _w.pxN ? _w.pxSum / _w.pxN : 0 };
+                })
+                .sort((_a, _b) => (_b.dirPrem != null ? _b.dirPrem : _b.P) - (_a.dirPrem != null ? _a.dirPrem : _a.P))
+                .slice(0, 20);
               // All-time per-contract list (range-independent) for "Still open (all)"
               // mode: shows positions regardless of when they opened, so an older
               // still-open build (e.g. a Jan-2028 put opened months ago) still
