@@ -15,7 +15,7 @@ import {
   processFlowData,
   THEMES_DEF,
 } from "./optionsFlow/flowCompute";  // moved out of this file 2026-07-25 — see that file
-import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta } from "./optionsFlow/flowWorkerClient";
+import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoadedVersion } from "./optionsFlow/flowWorkerClient";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -826,6 +826,7 @@ export default function OptionsFlowDashboard() {
     });
     _baseFetchedVer.current = r.baseFetchedVer;
     _baseVerPending.current = r.pending;
+    if (r.baseFetchedVer != null) setLoadedVersion(r.baseFetchedVer);
     dataVersionRef.current = dataVersion;
   }, [dataVersion]);
 
@@ -1076,6 +1077,9 @@ export default function OptionsFlowDashboard() {
       // `if (!rowCount) return` guard leaves the page on the spinner forever.
       setRowCount(held.rowCount);
       setAvailableDates(held.availableDates);
+      // Restore the version these rows represent too. Without it planDelta reads
+      // them as stale and refetches the whole range we just avoided fetching.
+      _baseFetchedVer.current = held.version ?? null;
       setLoadedFetchDays(fetchDaysAtStart);
       setCsvError(null);
       setCsvLoading(false);
@@ -1107,8 +1111,13 @@ export default function OptionsFlowDashboard() {
     // (This is the freshness the delta-merge used to provide via no-store.)
     // A version-driven refresh MUST carry the version in the URL — CF ignores
     // client no-cache, so an unversioned refetch gets the stale edge copy.
-    fetch(baseFetchUrl(csvFile, baseNonce, dataVersionRef.current),
-          baseNonce > 0 ? { cache: "no-store" } : undefined)
+    // Only a refresh of the SAME range carries the version. A range CHANGE is a
+    // navigation and should use the bare, shared, Cloudflare-cacheable URL —
+    // baseNonce never returns to 0, so keying off it alone gave every later range
+    // switch a fresh per-60s cache key and defeated edge caching for that range.
+    const versionedRefresh = sameRange && baseNonce > 0;
+    fetch(baseFetchUrl(csvFile, versionedRefresh ? baseNonce : 0, dataVersionRef.current),
+          versionedRefresh ? { cache: "no-store" } : undefined)
         .then(res => {
           console.log(`[perf] CSV fetch: ${(performance.now()-t0).toFixed(0)}ms`);
           if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
@@ -1140,6 +1149,7 @@ export default function OptionsFlowDashboard() {
             const ver = dataVersionRef.current;
             _baseFetchedVer.current = ver;
             _baseVerPending.current = (ver == null);
+            setLoadedVersion(ver);      // so a remount can restore it
             _hasRows.current = true;
             setCsvError(null);
             setAvailableDates(res.availableDates);

@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadFlow, processFlow, mergeToday, tickerFlow, getLoadedKey, getLoadedMeta, _resetFlowWorker } from './flowWorkerClient'
+import { loadFlow, processFlow, mergeToday, tickerFlow, getLoadedKey, getLoadedMeta, setLoadedVersion, _resetFlowWorker } from './flowWorkerClient'
 import { parseCSV, processFlowData } from './flowCompute'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -57,6 +57,15 @@ describe('flowWorkerClient — main-thread fallback', () => {
     expect(meta).not.toBeNull()
     expect(meta.rowCount).toBe(3419)
     expect(meta.availableDates.length).toBeGreaterThan(0)
+  })
+
+  it('publishes the data VERSION too, so a re-entry does not refetch what it just skipped', async () => {
+    // Found by the live sweep: re-entry restored the rows but reported no
+    // version, so planDelta read them as stale and refetched the whole 12.4MB
+    // range we had just avoided downloading.
+    await loadFlow(CSV, FILTER, null, 'k')
+    setLoadedVersion('29750502')
+    expect(getLoadedMeta().version).toBe('29750502')
   })
 
   it('keeps the published meta in step after a delta merge', async () => {

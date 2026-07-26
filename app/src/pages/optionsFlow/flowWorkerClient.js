@@ -48,6 +48,15 @@ export function getLoadedKey() { return loadedKey }
  */
 export function getLoadedMeta() { return loadedMeta }
 
+/**
+ * Record the data version the held rows represent.
+ *
+ * A remount gives the component fresh refs, so without this the re-entry path
+ * restores the rows but reports "no version", planDelta reads that as stale and
+ * fires a full refetch — we skip the download and then do it anyway.
+ */
+export function setLoadedVersion(v) { if (loadedMeta) loadedMeta.version = v }
+
 function getWorker() {
   if (workerDead) return null
   if (worker) return worker

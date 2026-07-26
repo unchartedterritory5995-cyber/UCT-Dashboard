@@ -1,0 +1,58 @@
+# Options Flow wiring guard.
+#
+# OptionsFlow.jsx is edited through the GitHub web UI. Twice on 2026-07-25 a save
+# from a long-open browser tab landed as a stale-buffer commit and silently
+# reverted the performance work — the page kept working, it just went back to
+# freezing for ~2 seconds on every visit. Nothing surfaced it.
+#
+# This puts a red X on any commit that removes the wiring, so it is noticed
+# immediately instead of weeks later.
+#
+# Scope is deliberately narrow: only the optionsFlow guard + unit tests. The full
+# suite has a couple of timing-sensitive specs that flake under parallel CI load
+# (ModelBook, useAnimatedNumber), and a workflow that cries wolf gets ignored —
+# which would defeat the entire point of this file.
+name: Options Flow guard
+
+on:
+  push:
+    paths:
+      - 'app/src/pages/OptionsFlow.jsx'
+      - 'app/src/pages/optionsFlow/**'
+  pull_request:
+    paths:
+      - 'app/src/pages/OptionsFlow.jsx'
+      - 'app/src/pages/optionsFlow/**'
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        working-directory: app
+        run: npm ci
+
+      - name: Options Flow guard + unit tests
+        working-directory: app
+        run: npx vitest run src/pages/optionsFlow/
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::The Options Flow performance wiring is missing or the compute layer changed behaviour."
+          echo ""
+          echo "If you edited OptionsFlow.jsx in the GitHub web UI, your tab was probably"
+          echo "open before the last change landed, so your save reverted it."
+          echo ""
+          echo "  1. Refresh the file page on GitHub and check the diff on your commit."
+          echo "  2. Recovery procedure: docs/OPTIONS-FLOW-RECOVERY.md"
+          echo "  3. The flow logic now lives in app/src/pages/optionsFlow/flowCompute.js"
+          echo "     — edit it THERE, not in OptionsFlow.jsx."
