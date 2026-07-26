@@ -195,7 +195,7 @@ def _post_apply(payload: dict) -> requests.Response:
                 continue
             raise last_err
         return r  # 2xx or 4xx — no retry, caller inspects status/body
-    raise last_err  # pragma: no cover — loop always returns or raises above
+    raise AssertionError("unreachable: retry loop exited without return or raise")  # pragma: no cover
 
 
 def main() -> int:
@@ -228,6 +228,17 @@ def main() -> int:
     print_summary(data)
     print(f"\nEndpoint (POST, fires only on --execute): {APPLY_ENDPOINT}")
 
+    # --backup-done gate MUST be checked before ANY network I/O (including the
+    # --check preflight GET) when --execute is requested — an operator running
+    # `--execute --check` without having run the backup must see a refusal
+    # with ZERO network calls made, not a --check GET fired first.
+    if args.execute and not args.backup_done:
+        print("\nREFUSING to --execute without --backup-done.")
+        print(f"Run the backup FIRST, from the linked main repo dir ({MAIN_REPO_DIR}):\n")
+        print(f"  {_BACKUP_CMD}")
+        print("\nThen re-run this tool with --execute --backup-done.")
+        return 1
+
     needs_secret = args.check or args.execute
     if needs_secret and not os.environ.get("PUSH_SECRET"):
         print(f"\nPUSH_SECRET not set (checked env + {MAIN_REPO_DIR}\\.env) — "
@@ -243,14 +254,7 @@ def main() -> int:
         print("\n[dry-run] No taxonomy-apply POST was made.")
         return 0 if check_ok else 1
 
-    # ── --execute ────────────────────────────────────────────────────────
-    if not args.backup_done:
-        print("\nREFUSING to --execute without --backup-done.")
-        print(f"Run the backup FIRST, from the linked main repo dir ({MAIN_REPO_DIR}):\n")
-        print(f"  {_BACKUP_CMD}")
-        print("\nThen re-run this tool with --execute --backup-done.")
-        return 1
-
+    # ── --execute (backup_done already confirmed True above) ──────────────
     if not check_ok:
         print("\n--check failed — aborting --execute (fix connectivity/auth first).")
         return 1
@@ -276,10 +280,12 @@ def main() -> int:
         print(f"[execute] Could not parse JSON response: {e}\nRaw: {r.text[:2000]}")
         return 1
 
-    print(f"[execute] Response: {result}")
-
-    missing = result.get("missing_ids") or []
+    categories_applied = result.get("categories")
     videos = result.get("videos")
+    missing = result.get("missing_ids") or []
+    print(f"[execute] Response: categories={categories_applied} videos={videos} "
+          f"missing_ids={missing}")
+
     problems = []
     if missing:
         problems.append(f"missing_ids non-empty: {missing}")
@@ -290,7 +296,7 @@ def main() -> int:
         return 1
 
     print(f"[execute] OK — applied {videos} video rows across "
-          f"{result.get('categories')} categories, 0 missing.")
+          f"{categories_applied} categories, 0 missing.")
     return 0
 
 
