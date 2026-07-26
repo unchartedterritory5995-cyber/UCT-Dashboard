@@ -2,8 +2,55 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 
+/** Pre-launch metadata swap.
+ *
+ * index.html's title/description/OG tags sell the product and promise a
+ * 7-day free trial. While VITE_COMING_SOON=1 there is nothing to sign up for,
+ * and this metadata is exactly what a social link preview shows — so it has to
+ * change with the page. It must happen at BUILD time, not runtime: crawlers
+ * (X, Discord, iMessage, Slack) read the served HTML and never execute JS.
+ *
+ * Unset the flag and the original marketing metadata comes back untouched.
+ */
+function comingSoonMeta() {
+  const TITLE = 'UCT Intelligence — Coming soon'
+  const DESC =
+    'A daily intelligence desk for traders. The Morning Wire at 7:35, the '
+    + 'UCT 20, live market breadth, and a coach that reviews every trade you '
+    + 'take. Join the launch list.'
+
+  return {
+    name: 'uct-coming-soon-meta',
+    transformIndexHtml(html) {
+      if (process.env.VITE_COMING_SOON !== '1') return html
+      return html
+        .replace(/<title>[\s\S]*?<\/title>/, `<title>${TITLE}</title>`)
+        .replace(
+          /(<meta\s+name="description"\s+content=")[^"]*(")/,
+          `$1${DESC}$2`,
+        )
+        .replace(
+          /(<meta\s+property="og:title"\s+content=")[^"]*(")/,
+          `$1${TITLE}$2`,
+        )
+        .replace(
+          /(<meta\s+property="og:description"\s+content=")[^"]*(")/,
+          `$1${DESC}$2`,
+        )
+        .replace(
+          /(<meta\s+name="twitter:title"\s+content=")[^"]*(")/,
+          `$1${TITLE}$2`,
+        )
+        .replace(
+          /(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
+          `$1${DESC}$2`,
+        )
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), comingSoonMeta()],
   build: {
     chunkSizeWarningLimit: 4000,
     rollupOptions: {

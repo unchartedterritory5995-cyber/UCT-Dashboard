@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { COMING_SOON } from '../utils/comingSoon'
 import styles from './AuthForm.module.css'
 
 export default function Login() {
@@ -146,8 +147,14 @@ export default function Login() {
           </button>
         </form>
 
+        {/* Pre-launch there is nothing to sign up for — point people at the
+            waitlist on the holding page instead of a route that redirects. */}
         <p className={styles.switchText}>
-          Don't have an account? <Link to="/signup" className={styles.switchLink}>Sign up</Link>
+          {COMING_SOON ? (
+            <>Not a member yet? <Link to="/" className={styles.switchLink}>Join the launch list</Link></>
+          ) : (
+            <>Don't have an account? <Link to="/signup" className={styles.switchLink}>Sign up</Link></>
+          )}
         </p>
       </div>
     </div>

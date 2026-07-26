@@ -138,6 +138,18 @@ def send_welcome_email(email: str, display_name: str) -> bool:
     return send_email(email, "Welcome to UCT Intelligence", html)
 
 
+def send_waitlist_confirmation(email: str) -> bool:
+    """Sent once when someone joins the pre-launch list from the COMING SOON
+    page. Deliberately short — it confirms and gets out of the way."""
+    html = _wrap_html("""\
+<h1 style="font-size:20px;font-weight:600;color:#e8e6df;text-align:center;margin:0 0 4px 0;">You're on the list</h1>
+<p style="font-size:14px;color:#a8a290;text-align:center;margin:0 0 24px 0;">We'll email you the morning the desk opens.</p>
+<p style="font-size:13px;color:#a8a290;line-height:1.7;margin:0 0 16px 0;">UCT Intelligence is a daily intelligence desk for traders &mdash; the Morning Wire at 7:35, the UCT&nbsp;20, live market breadth, and a coach that reviews every trade you take.</p>
+<p style="font-size:13px;color:#a8a290;line-height:1.7;margin:0 0 0 0;">Nothing else will land in your inbox until then.</p>
+<p style="font-size:13px;color:#c9a84c;text-align:center;font-weight:500;margin:24px 0 0 0;">Navigate the market, effectively.</p>""")
+    return send_email(email, "You're on the list — UCT Intelligence", html)
+
+
 def send_broker_reconnect_email(email: str, display_name: str, brokerage: str) -> bool:
     """One-per-incident nudge when a member's brokerage connection breaks —
     the only broker-sync email members ever receive (transient failures never

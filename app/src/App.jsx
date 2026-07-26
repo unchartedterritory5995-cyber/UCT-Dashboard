@@ -5,6 +5,7 @@ import { SWRConfig } from 'swr'
 // land while user has old HTML loaded). Wraps React.lazy with a one-shot
 // retry that hard-reloads the page instead of hanging on a missing chunk.
 import lazy from './utils/lazyWithRetry'
+import { COMING_SOON } from './utils/comingSoon'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { VoiceProvider } from './context/VoiceContext'
@@ -19,6 +20,7 @@ import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 
 const Landing = lazy(() => import('./pages/Landing'))
+const ComingSoon = lazy(() => import('./pages/ComingSoon'))
 const Login = lazy(() => import('./pages/Login'))
 const Signup = lazy(() => import('./pages/Signup'))
 const Subscribe = lazy(() => import('./pages/Subscribe'))
@@ -124,6 +126,17 @@ function PublicOnly({ children }) {
   return children
 }
 
+/** Pre-launch: send every marketing / account-creation route back to the
+ *  COMING SOON page. Logged-in members bypass it entirely and go to their home,
+ *  so an existing member who bookmarked /pricing still lands somewhere useful. */
+function PreLaunchGate({ children }) {
+  const { user, isPaid, loading } = useAuth()
+  if (!COMING_SOON) return children
+  if (loading) return null
+  if (user) return <Navigate to={isPaid ? '/dashboard' : '/morning-wire'} replace />
+  return <Navigate to="/" replace />
+}
+
 // Global SWR defaults. The library defaults (revalidateOnFocus:true,
 // dedupingInterval:2000) caused a refetch STORM on every page navigation and
 // every window-focus regain — the "switching tabs is slow" symptom. Live data
@@ -167,7 +180,15 @@ export default function App() {
         {/* Cinematic intro overlay — plays on page load for the APP, but never
             on public marketing routes: a cold visitor clicking through to the
             landing page must see it immediately, not a 9-second brand film. */}
-        {!['/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy', '/r/chart', '/r/catalysts', '/r/calendar', '/r/internals', '/r/tweets', '/r/flow', '/r/breadth', '/r/themes', '/r/book', '/r/econ', '/r/earncards', '/r/movers'].includes(window.location.pathname) && (
+        {![
+          '/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy',
+          '/r/chart', '/r/catalysts', '/r/calendar', '/r/internals', '/r/tweets',
+          '/r/flow', '/r/breadth', '/r/themes', '/r/book', '/r/econ',
+          '/r/earncards', '/r/movers',
+          // Pre-launch, "/" is the COMING SOON holding page — same reasoning as
+          // the marketing routes above: social traffic must not wait 9 seconds.
+          ...(COMING_SOON ? ['/'] : []),
+        ].includes(window.location.pathname) && (
           <IntroAnimation />
         )}
         {/* Global right-click → "+ Add to Portfolio" on every StockChart.
@@ -182,15 +203,21 @@ export default function App() {
             <BrandSplash label="Loading page" />
           }>
             <Routes>
-            {/* Public routes — redirect to dashboard if already logged in */}
-            <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
+            {/* Public routes — redirect to dashboard if already logged in.
+                Pre-launch, "/" serves the COMING SOON holding page instead of
+                the full marketing Landing (which stays mounted at /landing and
+                returns here the moment VITE_COMING_SOON is off). */}
+            <Route
+              path="/"
+              element={<PublicOnly>{COMING_SOON ? <ComingSoon /> : <Landing />}</PublicOnly>}
+            />
             {/* Always-public marketing landing page — reachable from the
                 in-app logo even while logged in (unlike "/", which redirects
                 authenticated users to their home). */}
-            <Route path="/landing" element={<Landing />} />
+            <Route path="/landing" element={<PreLaunchGate><Landing /></PreLaunchGate>} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/subscribe" element={<Subscribe />} />
+            <Route path="/signup" element={<PreLaunchGate><Signup /></PreLaunchGate>} />
+            <Route path="/subscribe" element={<PreLaunchGate><Subscribe /></PreLaunchGate>} />
             <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -200,14 +227,14 @@ export default function App() {
             {/* Public marketing comparison page (UCT vs. TradeZella/TraderSync/
                 Tradervue). Not in FREE_PAGES — that gates logged-in nav; this is
                 a fully public page reachable while logged out or in. */}
-            <Route path="/compare" element={<Compare />} />
+            <Route path="/compare" element={<PreLaunchGate><Compare /></PreLaunchGate>} />
             {/* Public "Verified Sync" marketing page — the broker-trust surface.
                 Static content only (no user data), so it is safe to serve
                 logged-out, outside AuthGuard. */}
-            <Route path="/brokers" element={<BrokersPage />} />
+            <Route path="/brokers" element={<PreLaunchGate><BrokersPage /></PreLaunchGate>} />
             {/* Public pricing page — the ONE plan, 7-day
                 no-card trial, honest scope. Adapts CTA to auth state. */}
-            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/pricing" element={<PreLaunchGate><Pricing /></PreLaunchGate>} />
 
             {/* Headless, token-gated chart export for the Morning Wire → Substack
                 renderer (and future Discord charts). Renders the real StockChart

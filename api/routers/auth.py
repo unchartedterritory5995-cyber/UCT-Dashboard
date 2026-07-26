@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, EmailStr
 
 from api.limiter import limiter
+from api.routers.waitlist import coming_soon_mode
 from api.services import totp_service
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
@@ -132,6 +133,13 @@ def _access_payload(user: dict, plan: str) -> dict:
 @router.post("/signup")
 @limiter.limit("3/minute")
 def signup(request: Request, req: SignupRequest, response: Response):
+    # Pre-launch: the public site is the COMING SOON page and account creation
+    # is closed. Login is deliberately NOT gated — existing members keep access.
+    if coming_soon_mode():
+        raise HTTPException(
+            status_code=403,
+            detail="Accounts aren't open yet. Join the launch list at uctintelligence.com.",
+        )
     if len(req.password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     try:
@@ -1581,6 +1589,9 @@ def checkout(user: dict = Depends(get_current_user), body: Optional[CheckoutRequ
     First-ever subscribers get the 7-day card-required free trial
     (subscription_data.trial_period_days — the landing/Terms promise); anyone
     who has held a subscription before pays from day one."""
+    # Pre-launch: nobody is billed while the public site says COMING SOON.
+    if coming_soon_mode():
+        raise HTTPException(status_code=403, detail="Subscriptions open at launch.")
     from api.services.stripe_service import TRIAL_PERIOD_DAYS, is_trial_eligible
     billing = body.plan if (body and body.plan in ("monthly", "annual")) else "monthly"
     trial_days = TRIAL_PERIOD_DAYS if is_trial_eligible(user["id"]) else None

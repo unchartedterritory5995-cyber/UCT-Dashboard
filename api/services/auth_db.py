@@ -456,6 +456,20 @@ CREATE TABLE IF NOT EXISTS deletion_requests (
     created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_deletion_requests_user ON deletion_requests(user_id);
+
+-- Pre-launch waitlist. Populated by the public COMING SOON page while
+-- COMING_SOON_MODE is on; read by the owner to email everyone at launch.
+-- email is stored lower-cased and is the natural key, so a repeat signup
+-- is a no-op rather than a duplicate row.
+CREATE TABLE IF NOT EXISTS waitlist (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    email        TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    referrer     TEXT,
+    ip_prefix    TEXT,                -- /24 prefix only (privacy), matches landing_events
+    notified_at  TIMESTAMP,           -- set when the launch email goes out
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_waitlist_created ON waitlist(created_at DESC);
 """
 
 

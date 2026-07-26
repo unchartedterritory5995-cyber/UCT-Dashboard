@@ -1,0 +1,711 @@
+/* UCT Intelligence — COMING SOON holding page.
+
+   One idea: an equity curve drawn solid for what's shipped, dotted for the
+   weeks ahead, with the marker sitting on the seam. Uncharted territory,
+   literally. Everything else on the page stays quiet so that reads first.
+
+   Type is Instrument Sans throughout (the product's only loaded family) —
+   roles are separated by weight, size and tracking rather than by swapping
+   in a second face. */
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg, #0e0f0d);
+  color: var(--text, #b6b09d);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  isolation: isolate;
+}
+
+/* ── Ground ─────────────────────────────────────────────────────────────── */
+
+/* Cartographer's cross-hatch. Barely there — it reads as paper tooth, not
+   as a grid. Masked so it never reaches the edges. */
+.grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(0deg,   rgba(201, 168, 76, 0.055) 0 1px, transparent 1px 68px),
+    repeating-linear-gradient(90deg,  rgba(201, 168, 76, 0.055) 0 1px, transparent 1px 68px);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, #000 30%, transparent 100%);
+  opacity: 0;
+  animation: fadeIn 1200ms ease-out 100ms forwards;
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 120% 90% at 30% 40%, transparent 40%, rgba(6, 7, 6, 0.62) 100%);
+}
+
+/* ── The curve ──────────────────────────────────────────────────────────── */
+
+.curve {
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.fill {
+  opacity: 0;
+  animation: fadeIn 1400ms ease-out 600ms forwards;
+}
+
+/* Shipped. Draws left to right. */
+.past {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0.5;
+  animation: draw 1500ms cubic-bezier(0.33, 0.9, 0.35, 1) 150ms forwards;
+}
+
+/* The six weeks ahead. Fades in, then the dots march slowly toward the bell. */
+.ahead {
+  opacity: 0;
+  animation:
+    fadeAhead 700ms ease-out 1500ms forwards,
+    march 2.6s linear 2200ms infinite;
+}
+
+/* ── Curve annotations (HTML, positioned from the SVG's own coordinates) ─── */
+
+/* CRITICAL: .marks must occupy exactly the same box as .curve at every
+   breakpoint. The markers are positioned as a percentage of this box using the
+   same viewBox coordinates the path is drawn from, so if the two boxes ever
+   diverge the labels slide off the curve. Any media query that moves one must
+   move the other — hence the shared selector below. */
+.marks {
+  z-index: 3;
+  pointer-events: none;
+}
+
+.curve,
+.marks {
+  position: absolute;
+  inset: 0;
+}
+
+.here,
+.end {
+  position: absolute;
+  opacity: 0;
+  animation: popIn 600ms cubic-bezier(0.2, 1.3, 0.4, 1) forwards;
+}
+
+.here { animation-delay: 1400ms; }
+.end  { animation-delay: 2050ms; }
+
+/* Seam marker: today. Everything left of it is shipped. */
+.dot,
+.halo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  background: var(--ut-gold, #c9a84c);
+  box-shadow: 0 0 14px 2px rgba(201, 168, 76, 0.75);
+}
+
+.halo {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ut-gold, #c9a84c);
+  animation: breathe 3.4s ease-in-out 2100ms infinite;
+}
+
+/* L-shaped leader: down from the dot, then out to the label. */
+.hereLead {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 26px;
+  height: 34px;
+  border-left: 1px solid rgba(201, 168, 76, 0.45);
+  border-bottom: 1px solid rgba(201, 168, 76, 0.45);
+}
+
+.hereLabel {
+  position: absolute;
+  top: 40px;
+  left: 34px;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2.6px;
+  text-transform: uppercase;
+  color: var(--ut-gold, #c9a84c);
+}
+
+/* Terminus: the opening bell. Label sits to the LEFT — the marker is close
+   to the right edge and a right-hand label would run off-screen. */
+.diamond {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  background: var(--ut-gold, #c9a84c);
+  transform: translate(-50%, -50%) rotate(45deg);
+  box-shadow: 0 0 16px 3px rgba(201, 168, 76, 0.6);
+}
+
+.endLead {
+  position: absolute;
+  top: 0;
+  right: 10px;
+  width: 34px;
+  height: 1px;
+  background: rgba(201, 168, 76, 0.45);
+}
+
+.endLabel {
+  position: absolute;
+  top: 0;
+  right: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.endDate {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2.6px;
+  text-transform: uppercase;
+  color: var(--ut-gold, #c9a84c);
+}
+
+.endSub {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.5);
+}
+
+/* ── Chrome ─────────────────────────────────────────────────────────────── */
+
+.top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: clamp(20px, 3.4vw, 34px) clamp(20px, 5vw, 56px);
+  opacity: 0;
+  animation: riseIn 700ms ease-out 150ms forwards;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brandMark {
+  font-size: 17px;
+  line-height: 1;
+  color: var(--ut-gold, #c9a84c);
+}
+
+.brandName {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: var(--text-muted, #8c8674);
+  white-space: nowrap;
+}
+
+.login {
+  flex: none;
+  padding: 9px 18px;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text, #b6b09d);
+  text-decoration: none;
+  transition: border-color 180ms ease, color 180ms ease, background-color 180ms ease;
+}
+
+.login:hover {
+  border-color: rgba(201, 168, 76, 0.55);
+  background: rgba(201, 168, 76, 0.06);
+  color: var(--text-heading, #f0ead8);
+}
+
+/* ── Centre block ───────────────────────────────────────────────────────── */
+
+/* Left-aligned and held to the left half of the frame: the curve rises into
+   the empty upper-right, where its annotations live. Nothing overlaps. */
+.center {
+  position: relative;
+  z-index: 3;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  max-width: 660px;
+  padding: 8px clamp(20px, 5vw, 56px) 24px;
+  margin-right: auto;
+}
+
+.eyebrow {
+  margin: 0 0 clamp(14px, 2.2vw, 22px);
+  font-size: clamp(11px, 1.15vw, 13px);
+  font-weight: 600;
+  letter-spacing: 5.2px;
+  text-transform: uppercase;
+  color: var(--ut-gold, #c9a84c);
+  opacity: 0;
+  animation: riseIn 700ms ease-out 260ms forwards;
+}
+
+/* The monument. Wide tracking on a geometric sans reads as instrument
+   panel / navigational signage rather than as a marketing headline. */
+.monument {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(52px, 9.4vw, 132px);
+  font-weight: 700;
+  line-height: 0.92;
+  letter-spacing: clamp(2px, 0.9vw, 13px);
+  text-transform: uppercase;
+  color: var(--text-heading, #f0ead8);
+}
+
+.monumentLine {
+  display: block;
+  opacity: 0;
+  animation: riseIn 900ms cubic-bezier(0.2, 0.75, 0.3, 1) forwards;
+}
+
+.monumentLine:nth-child(1) { animation-delay: 340ms; }
+.monumentLine:nth-child(2) { animation-delay: 440ms; }
+
+/* Second line indents to sit under the first line's optical centre and is
+   tinted gold — the word that carries the promise. */
+.monumentLine:nth-child(2) {
+  color: var(--ut-gold, #c9a84c);
+  margin-left: 0.09em;
+}
+
+.tagline {
+  margin: clamp(20px, 3vw, 30px) 0 0;
+  padding-left: 15px;
+  border-left: 2px solid rgba(201, 168, 76, 0.55);
+  font-size: clamp(14px, 1.5vw, 17px);
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--text-bright, #e0dac8);
+  opacity: 0;
+  animation: riseIn 700ms ease-out 620ms forwards;
+}
+
+.blurb {
+  margin: clamp(16px, 2.2vw, 22px) 0 0;
+  max-width: 46ch;
+  font-size: clamp(13px, 1.35vw, 15px);
+  line-height: 1.62;
+  color: var(--text-muted, #8c8674);
+  opacity: 0;
+  animation: riseIn 700ms ease-out 720ms forwards;
+}
+
+/* ── Countdown ──────────────────────────────────────────────────────────── */
+
+.clock {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(14px, 2vw, 22px);
+  margin: clamp(26px, 3.6vw, 38px) 0 0;
+  opacity: 0;
+  animation: riseIn 700ms ease-out 840ms forwards;
+}
+
+.unit {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.num {
+  font-size: clamp(26px, 3.2vw, 40px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.5px;
+  color: var(--text-heading, #f0ead8);
+  font-variant-numeric: tabular-nums;
+}
+
+.lab {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: var(--text-muted, #8c8674);
+}
+
+.sep {
+  width: 1px;
+  height: clamp(24px, 3vw, 34px);
+  margin-bottom: 4px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(201, 168, 76, 0.4) 45%,
+    transparent
+  );
+}
+
+/* ── Waitlist ───────────────────────────────────────────────────────────── */
+
+.form {
+  width: 100%;
+  max-width: 480px;
+  margin: clamp(26px, 3.4vw, 36px) 0 0;
+  opacity: 0;
+  animation: riseIn 700ms ease-out 960ms forwards;
+}
+
+.field {
+  display: flex;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 15px;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 2px;
+  background: rgba(14, 15, 13, 0.72);
+  color: var(--text-bright, #e0dac8);
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+
+.input::placeholder { color: #6a6656; }
+
+.input:hover { border-color: var(--border-accent, #3a3d32); }
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--ut-gold, #c9a84c);
+  background: rgba(201, 168, 76, 0.05);
+}
+
+.input[aria-invalid='true'] { border-color: rgba(231, 76, 60, 0.7); }
+
+.submit {
+  flex: none;
+  min-height: 46px;
+  padding: 0 22px;
+  border: 1px solid var(--ut-gold, #c9a84c);
+  border-radius: 2px;
+  background: var(--ut-gold, #c9a84c);
+  color: #14150f;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: #dcbc5c;
+  box-shadow: 0 0 22px rgba(201, 168, 76, 0.3);
+}
+
+.submit:disabled { opacity: 0.55; cursor: default; }
+
+.msg {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  letter-spacing: 0.2px;
+  color: var(--text-muted, #8c8674);
+}
+
+.msgError { color: #e08a80; }
+
+.done {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  width: 100%;
+  max-width: 480px;
+  margin: clamp(26px, 3.4vw, 36px) 0 0;
+  padding: 17px 20px;
+  border: 1px solid rgba(201, 168, 76, 0.34);
+  border-radius: 2px;
+  background: rgba(201, 168, 76, 0.055);
+  animation: riseIn 500ms ease-out forwards;
+}
+
+.doneTick {
+  flex: none;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--ut-gold, #c9a84c);
+}
+
+.doneTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-heading, #f0ead8);
+}
+
+.doneSub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted, #8c8674);
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+
+.foot {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 20px clamp(20px, 5vw, 56px) clamp(20px, 3vw, 30px);
+  font-size: 11px;
+  color: #6a6656;
+  opacity: 0;
+  animation: fadeIn 800ms ease-out 1100ms forwards;
+}
+
+.footLinks {
+  display: flex;
+  gap: 20px;
+}
+
+.footLinks a {
+  color: #6a6656;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.footLinks a:hover { color: var(--text, #b6b09d); }
+
+.copy { letter-spacing: 0.2px; }
+
+/* ── Shared ─────────────────────────────────────────────────────────────── */
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.page :focus-visible {
+  outline: 2px solid var(--ut-gold, #c9a84c);
+  outline-offset: 3px;
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+@keyframes fadeAhead {
+  to { opacity: 0.42; }
+}
+
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes march {
+  to { stroke-dashoffset: -0.033; }
+}
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.55); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.5;  transform: scale(1); }
+  50%      { opacity: 0.14; transform: scale(1.5); }
+}
+
+/* ── Tablet ─────────────────────────────────────────────────────────────── */
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .center { max-width: 520px; }
+
+  /* Tighter labels so they still clear the copy block at this width. */
+  .hereLabel,
+  .endDate { letter-spacing: 1.8px; }
+
+  .endSub { display: none; }
+}
+
+/* ── Phone ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .page { min-height: 100dvh; }
+
+  /* Drop the curve to a band in the open space beneath the form so it never
+     sits behind the type. .marks moves WITH it (see the note at .marks) — the
+     markers stay pinned to the curve at this size too. */
+  .curve,
+  .marks {
+    top: auto;
+    bottom: 0;
+    height: 38%;
+  }
+
+  .curve { opacity: 0.8; }
+
+  /* The dot and diamond survive — they carry the whole idea (shipped →
+     ahead → the bell). Their leader lines and labels do not: at 390px the
+     "YOU ARE HERE" label would run past the right edge, and the date is
+     already stated by the countdown directly above. */
+  .hereLead,
+  .hereLabel,
+  .endLead,
+  .endLabel { display: none; }
+
+  .grid {
+    -webkit-mask-image: radial-gradient(ellipse 100% 60% at 50% 38%, #000 20%, transparent 100%);
+    mask-image: radial-gradient(ellipse 100% 60% at 50% 38%, #000 20%, transparent 100%);
+  }
+
+  .vignette {
+    background:
+      radial-gradient(ellipse 130% 70% at 50% 34%, transparent 42%, rgba(6, 7, 6, 0.72) 100%);
+  }
+
+  .center {
+    justify-content: flex-start;
+    padding-top: clamp(12px, 5vw, 34px);
+    padding-bottom: 34px;
+  }
+
+  .monument { letter-spacing: 2px; }
+
+  .field { flex-direction: column; }
+
+  .input,
+  .submit { width: 100%; min-height: 48px; }
+
+  .foot {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 720px) {
+  /* Short phones: let the page scroll rather than crushing the type. */
+  .page { overflow-y: auto; }
+  .center { justify-content: flex-start; }
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+
+.still .grid,
+.still .fill,
+.still .past,
+.still .ahead,
+.still .here,
+.still .end,
+.still .halo,
+.still .top,
+.still .eyebrow,
+.still .monumentLine,
+.still .tagline,
+.still .blurb,
+.still .clock,
+.still .form,
+.still .done,
+.still .foot {
+  animation: none;
+}
+
+.still .grid,
+.still .fill,
+.still .top,
+.still .eyebrow,
+.still .monumentLine,
+.still .tagline,
+.still .blurb,
+.still .clock,
+.still .form,
+.still .done,
+.still .foot {
+  opacity: 1;
+  transform: none;
+}
+
+.still .past { stroke-dashoffset: 0; }
+.still .ahead { opacity: 0.42; }
+.still .here,
+.still .end { opacity: 1; }
+.still .halo { opacity: 0.4; }
+
+@media (prefers-reduced-motion: reduce) {
+  .page *,
+  .page *::before,
+  .page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .grid, .fill, .top, .eyebrow, .monumentLine,
+  .tagline, .blurb, .clock, .form, .done, .foot { opacity: 1; }
+
+  .past { stroke-dashoffset: 0; }
+  .ahead { opacity: 0.42; }
+  .here, .end { opacity: 1; }
+}
