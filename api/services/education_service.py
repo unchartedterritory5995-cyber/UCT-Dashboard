@@ -57,6 +57,14 @@ CREATE TABLE IF NOT EXISTS edu_video_notes (
 );
 CREATE INDEX IF NOT EXISTS idx_edu_video_notes_user_vid
   ON edu_video_notes(user_id, youtube_id, t_seconds);
+
+CREATE TABLE IF NOT EXISTS edu_categories (
+  name        TEXT PRIMARY KEY,
+  kind        TEXT NOT NULL DEFAULT 'library',   -- 'show' | 'library'
+  sort_order  INTEGER NOT NULL DEFAULT 0,        -- within kind
+  blurb       TEXT,
+  created_at  INTEGER NOT NULL
+);
 """
 
 # Fields a client may set (id, created_at, updated_at managed here).
@@ -89,6 +97,7 @@ _EXTRA_COLUMNS = (
     ("poster", "INTEGER"),         # 1 once the branded recap poster PNG has been rendered
     ("audio_url", "TEXT"),         # R2 object key for the extracted background-audio track (NULL = none yet)
     ("audio_at", "INTEGER"),       # epoch when the audio track was produced
+    ("tags", "TEXT"),              # JSON: ["risk", ...] — filter chips
 )
 
 
@@ -388,6 +397,140 @@ def _migrate_seed_categories_once() -> None:
 # skipped by the backfill and these reads return empty.
 
 import json as _json  # local alias; module already minimal
+
+
+# ── Category metadata (Shows + Library taxonomy) ────────────────────────────────
+
+_CATEGORY_KINDS = ("show", "library")
+
+
+def list_category_meta() -> list[dict]:
+    """All category meta rows: shows first, then library, each by sort_order."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT name, kind, sort_order, blurb FROM edu_categories
+               ORDER BY CASE kind WHEN 'show' THEN 0 ELSE 1 END, sort_order ASC, name ASC"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def upsert_category(name: str, kind: str | None = None,
+                    sort_order: Optional[int] = None,
+                    blurb: Optional[str] = None) -> dict:
+    """Create or update a category meta row. On create, missing sort_order
+    appends at the tail of its kind. On update, only non-None fields change."""
+    nm = (name or "").strip()
+    if not nm:
+        raise ValueError("category name required")
+    if kind is not None and kind not in _CATEGORY_KINDS:
+        raise ValueError(f"kind must be one of {_CATEGORY_KINDS}")
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM edu_categories WHERE name = ?", (nm,)).fetchone()
+        if row is None:
+            k = kind or "library"
+            if sort_order is None:
+                mx = c.execute(
+                    "SELECT COALESCE(MAX(sort_order), -1) AS m FROM edu_categories WHERE kind = ?",
+                    (k,)).fetchone()["m"]
+                sort_order = int(mx) + 1
+            c.execute(
+                "INSERT INTO edu_categories (name, kind, sort_order, blurb, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (nm, k, int(sort_order), blurb, int(time.time())))
+        else:
+            sets, vals = [], []
+            for col, val in (("kind", kind), ("sort_order", sort_order), ("blurb", blurb)):
+                if val is not None:
+                    sets.append(f"{col} = ?"); vals.append(val)
+            if sets:
+                c.execute(f"UPDATE edu_categories SET {', '.join(sets)} WHERE name = ?",
+                          (*vals, nm))
+        c.commit()
+        return dict(c.execute("SELECT name, kind, sort_order, blurb FROM edu_categories "
+                              "WHERE name = ?", (nm,)).fetchone())
+
+
+def rename_category(old: str, new: str) -> int:
+    """Move every video from `old` to `new` + retire the old meta row. If `new`
+    has no meta row, the old row's kind/blurb carry over. Returns rows moved."""
+    o, n = (old or "").strip(), (new or "").strip()
+    if not o or not n or o == n:
+        raise ValueError("distinct old and new category names required")
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        old_meta = c.execute("SELECT * FROM edu_categories WHERE name = ?", (o,)).fetchone()
+        new_meta = c.execute("SELECT * FROM edu_categories WHERE name = ?", (n,)).fetchone()
+        if new_meta is None:
+            k = old_meta["kind"] if old_meta else "library"
+            so = old_meta["sort_order"] if old_meta else 0
+            bl = old_meta["blurb"] if old_meta else None
+            c.execute("INSERT INTO edu_categories (name, kind, sort_order, blurb, created_at) "
+                      "VALUES (?, ?, ?, ?, ?)", (n, k, so, bl, int(time.time())))
+        cur = c.execute("UPDATE edu_videos SET category = ?, updated_at = ? WHERE category = ?",
+                        (n, int(time.time()), o))
+        c.execute("DELETE FROM edu_categories WHERE name = ?", (o,))
+        c.commit()
+        return cur.rowcount
+
+
+def set_video_tags(video_id: int, tags: list[str]) -> None:
+    clean = [str(t).strip() for t in (tags or []) if str(t).strip()]
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE edu_videos SET tags = ?, updated_at = ? WHERE id = ?",
+                  (_json.dumps(clean), int(time.time()), int(video_id)))
+        c.commit()
+
+
+def bulk_apply_taxonomy(categories: list[dict], assignments: list[dict]) -> dict:
+    """One-shot taxonomy apply (PUSH_SECRET rail). Upserts category meta, then
+    sets category+tags per video id. Missing ids are reported, not fatal."""
+    for cat in categories or []:
+        upsert_category(cat["name"], kind=cat.get("kind"),
+                        sort_order=cat.get("sort_order"), blurb=cat.get("blurb"))
+    applied, missing = 0, []
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        for a in assignments or []:
+            vid = int(a["id"])
+            tags = _json.dumps([str(t).strip() for t in (a.get("tags") or []) if str(t).strip()])
+            cur = c.execute(
+                "UPDATE edu_videos SET category = ?, tags = ?, updated_at = ? WHERE id = ?",
+                ((a["category"] or "General").strip() or "General", tags, now, vid))
+            if cur.rowcount == 0:
+                missing.append(vid)
+            else:
+                applied += 1
+        c.commit()
+    return {"categories": len(categories or []), "videos": applied, "missing_ids": missing}
+
+
+def grouped_videos_payload() -> dict:
+    """The /api/education/videos payload: categories ordered shows-first by
+    sort_order, each with its videos (sort_order, id). Categories present on
+    videos but missing a meta row are auto-registered at the tail (kind='show'
+    when any member is a Zoom session, else 'library') so nothing ever hides."""
+    vids = list_videos()
+    by_cat: dict[str, list[dict]] = {}
+    for v in vids:
+        v["tags"] = _parse_json_list(v.get("tags"))
+        by_cat.setdefault(v["category"], []).append(v)
+    meta = {m["name"]: m for m in list_category_meta()}
+    for name, members in by_cat.items():
+        if name not in meta:
+            kind = "show" if any(m.get("meeting_uuid") for m in members) else "library"
+            meta[name] = upsert_category(name, kind=kind)
+    ordered = [m for m in list_category_meta() if m["name"] in by_cat]
+    return {
+        "categories": [{**m, "videos": by_cat[m["name"]]} for m in ordered],
+        "total": len(vids),
+    }
+
+
+def _parse_json_list(raw) -> list:
+    try:
+        v = _json.loads(raw) if raw else []
+        return v if isinstance(v, list) else []
+    except Exception:
+        return []
 
 
 def get_video_by_youtube_id(youtube_id: str) -> Optional[dict]:
