@@ -18,6 +18,12 @@ function comingSoonMeta() {
     'A daily intelligence desk for traders. The Morning Wire at 7:35, the '
     + 'UCT 20, live market breadth, and a coach that reviews every trade you '
     + 'take. Join the launch list.'
+  // A DIFFERENT filename, not a replacement of og-image.png: social platforms
+  // cache preview images hard by URL, so a new path is what actually makes the
+  // new card show up — and it leaves the launch card untouched for launch day.
+  // Served by an explicit route in api/main.py (the SPA catch-all would
+  // otherwise hand crawlers index.html).
+  const IMAGE = 'https://uctintelligence.com/og-coming-soon.png'
 
   return {
     name: 'uct-coming-soon-meta',
@@ -44,6 +50,14 @@ function comingSoonMeta() {
         .replace(
           /(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
           `$1${DESC}$2`,
+        )
+        .replace(
+          /(<meta\s+property="og:image"\s+content=")[^"]*(")/,
+          `$1${IMAGE}$2`,
+        )
+        .replace(
+          /(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
+          `$1${IMAGE}$2`,
         )
     },
   }

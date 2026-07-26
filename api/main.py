@@ -5868,6 +5868,17 @@ if os.path.exists(DIST):
             headers={"Cache-Control": "public, max-age=86400"},
         )
 
+    # Pre-launch social card (app/public/og-coming-soon.png). Referenced by the
+    # meta tags only while VITE_COMING_SOON=1; needs its own route for exactly
+    # the reason above. Regenerate with tools/make_og_coming_soon.py.
+    @app.get("/og-coming-soon.png", include_in_schema=False)
+    def _serve_og_coming_soon():
+        return FileResponse(
+            os.path.join(DIST, "og-coming-soon.png"),
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
     @app.get("/robots.txt", include_in_schema=False)
     def _serve_robots():
         return FileResponse(os.path.join(DIST, "robots.txt"), media_type="text/plain; charset=utf-8")
