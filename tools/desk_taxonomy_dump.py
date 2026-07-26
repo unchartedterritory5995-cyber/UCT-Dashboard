@@ -248,8 +248,10 @@ def main() -> int:
     ap.add_argument("--print-regen-cmd", action="store_true",
                     help="Print the railway ssh regen command and exit "
                          "without running anything.")
-    ap.add_argument("--out", default=_DEFAULT_OUT,
-                    help=f"Output path (default: {_DEFAULT_OUT}).")
+    ap.add_argument("--out", default="",
+                    help=f"Output path (default: {_DEFAULT_OUT}; auto-suffixed "
+                         f"'.partial.json' when --limit is set and --out is "
+                         f"omitted, so a debug run never clobbers the real dump).")
     ap.add_argument("--limit", type=int, default=0,
                     help="Debug only: sweep transcripts for just the first N rows.")
     args = ap.parse_args()
@@ -279,6 +281,19 @@ def main() -> int:
         print(f"PUSH_SECRET not set (checked env + {MAIN_REPO_DIR}\\.env)")
         return 1
 
+    # Resolve the output path AFTER --limit is known: a --limit debug run with
+    # no explicit --out gets auto-suffixed so it can never clobber the real
+    # full-library dump (a prior bug — a 3-row smoke test would silently
+    # truncate the good 295-row videos_dump.json the classification workflow
+    # is reading).
+    if args.out:
+        out_path = args.out
+    elif args.limit:
+        root, ext = os.path.splitext(_DEFAULT_OUT)
+        out_path = f"{root}.partial{ext or '.json'}"
+    else:
+        out_path = _DEFAULT_OUT
+
     targets = meta[: args.limit] if args.limit else meta
     print(f"[cues] sweeping transcript-cues for {len(targets)} videos "
           f"(paced {_SWEEP_SLEEP}s apart) …")
@@ -286,21 +301,40 @@ def main() -> int:
 
     merged = merge(targets, cues_by_id)
 
-    out_dir = os.path.dirname(args.out) or "."
+    # Atomic write: build the ~39MB payload in a sibling .tmp file, then
+    # os.replace() into place. A mid-write kill (this tool's own first run
+    # died silently mid-sweep) must never leave videos_dump.json half-written
+    # or destroy a previously-good dump — os.replace is a single filesystem
+    # rename, so readers always see either the old complete file or the new
+    # complete file, never a truncated one.
+    out_dir = os.path.dirname(out_path) or "."
     os.makedirs(out_dir, exist_ok=True)
-    with open(args.out, "w", encoding="utf-8") as f:
+    tmp_path = out_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(merged, f, indent=2, ensure_ascii=False)
+    os.replace(tmp_path, out_path)
 
     with_cues = sum(1 for r in merged if r["transcript_cues"])
     cueless_ids = [r["id"] for r in merged if not r["transcript_cues"]]
 
-    print(f"\nWrote {args.out}")
+    print(f"\nWrote {out_path}")
     print(f"rows={len(merged)} with_cues={with_cues} cueless={len(cueless_ids)}")
     if cueless_ids:
         print(f"cueless ids: {cueless_ids}")
     if failed_probe:
-        print(f"probe failures (fetch never succeeded, counted in cueless above, "
-              f"re-run to retry): {failed_probe}")
+        # A non-empty failed_probe is NOT distinguishable from a genuine
+        # cueless video by looking at transcript_cues alone (both are []) —
+        # this is the ONLY signal that some ids' cue status is UNKNOWN rather
+        # than confirmed-empty. Exit nonzero so a stale PUSH_SECRET (every
+        # request 401s -> every row silently "cueless") or a Cloudflare block
+        # can't produce a complete-looking dump that a caller trusts at exit
+        # 0 (the failure shape behind the recent scanner NO_DATA incident).
+        print(f"\n!!! {len(failed_probe)}/{len(targets)} PROBE FAILURES — never "
+              f"got a clean transcript-cues response even after retries. Cue "
+              f"coverage for these ids is UNKNOWN, not confirmed-empty (a stale "
+              f"PUSH_SECRET or a Cloudflare block looks EXACTLY like this — every "
+              f"request fails the same way). FAILED IDS: {failed_probe}")
+        return 1
     return 0
 
 
