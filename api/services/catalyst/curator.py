@@ -169,6 +169,57 @@ def _owner_notes_fingerprint() -> str:
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
 
 
+def _active_learned_rules() -> list[dict]:
+    """Durable rules the nightly learner distilled from owner notes. Bounded +
+    never raises. Empty when the reader is disabled or none exist."""
+    if os.environ.get("CATALYST_LEARNED_RULES_ENABLED", "1").lower() not in ("1", "true", "yes"):
+        return []
+    try:
+        return store.get_active_learned_rules(
+            limit=_intenv("CATALYST_LEARNED_RULES_MAX", 12))
+    except Exception:
+        return []
+
+
+def _learned_rules_fingerprint() -> str:
+    """Fingerprint of the active learned-rule set (for the pool hash) so a newly
+    learned rule forces a re-curation instead of waiting for the pool to shift."""
+    rules = _active_learned_rules()
+    if not rules:
+        return "none"
+    raw = "|".join(f"{r.get('id')}:{(r.get('rule_text') or '').strip()}" for r in rules)
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
+
+
+def _learned_rules_block() -> str:
+    """The desk's DURABLE rulebook — permanent directives the learner distilled
+    from the owner's notes over time. Injected as firmly as the built-in
+    CUT/KEEP rules. '' when there are none. Also bumps each rule's hit_count for
+    usage telemetry."""
+    rules = _active_learned_rules()
+    if not rules:
+        return ""
+    lines = []
+    ids = []
+    for r in rules:
+        txt = (r.get("rule_text") or "").strip().replace("\n", " ")
+        if not txt:
+            continue
+        lines.append(f"  - {txt}")
+        ids.append(int(r["id"]))
+    if not lines:
+        return ""
+    try:
+        store.bump_learned_rule_hits(ids)
+    except Exception:
+        pass
+    return (
+        "\n\nLEARNED RULES — the desk's DURABLE rulebook, distilled from the "
+        "trader's own feedback over time. Apply these as firmly as the CUT/KEEP "
+        "rules above; when one applies, follow it:\n" + "\n".join(lines)
+    )
+
+
 def _owner_notes_block() -> str:
     """The trader's own free-text notes on recent rows, injected as EXPLICIT
     DIRECTIVES. These are the owner telling the desk what they actually want, so
@@ -216,6 +267,9 @@ def _pool_hash(pool: list[dict]) -> str:
     # note must force a re-curation instead of being ignored until the pool
     # happens to shift (otherwise a note you just wrote does nothing all day).
     parts.append("notes:" + _owner_notes_fingerprint())
+    # Learned rules steer selection too, so a NEW durable rule must also force a
+    # re-curation instead of waiting for the pool to shift.
+    parts.append("learned:" + _learned_rules_fingerprint())
     return hashlib.sha1("\n".join(parts).encode("utf-8")).hexdigest()
 
 
@@ -273,7 +327,7 @@ def _call(model: str, prompt: str) -> tuple:
     max_tokens = _intenv("CATALYST_CURATOR_MAX_TOKENS", 3000)
     kwargs = dict(model=model, max_tokens=max_tokens, temperature=0.2,
                   thinking={"type": "disabled"},
-                  system=SYSTEM_PROMPT + _owner_notes_block(),
+                  system=SYSTEM_PROMPT + _learned_rules_block() + _owner_notes_block(),
                   messages=[{"role": "user", "content": prompt}])
     try:
         msg = client.messages.create(**kwargs)

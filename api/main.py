@@ -2837,6 +2837,22 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="20", minute="15", timezone=_ET),
                 id="catalyst_coverage_audit", max_instances=1, replace_existing=True)
 
+            # Nightly rule-learner: 8:30 PM ET weekdays — after the AMC burst +
+            # coverage audit, so all of the day's owner notes are in. Distills
+            # recurring themes in the trader's free-text notes into DURABLE
+            # curator rules (stored in the DB, applied at runtime, revertible
+            # without a deploy). Honors CATALYST_RULE_LEARNER_ENABLED; wrapped so
+            # a failure never breaks the scheduler.
+            def _cat_rule_learn():
+                try:
+                    from api.services.catalyst import rule_learner
+                    rule_learner.run_learn()
+                except Exception as _e:
+                    print(f"[scheduler] catalyst rule-learner failed (non-fatal): {_e}")
+            _scheduler.add_job(_cat_rule_learn,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="20", minute="30", timezone=_ET),
+                id="catalyst_rule_learner", max_instances=1, replace_existing=True)
+
             # Evidence-based auto-tune: once daily at 5:00 AM ET. Reviews recent
             # catalyst outcomes and nudges scoring/gate thresholds. run_autotune()
             # itself honors CATALYST_AUTOTUNE_ENABLED, so this is a no-op when
@@ -2866,7 +2882,7 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="7,8,9", minute="0", timezone=_ET),
                 id="catalyst_premarket_health", max_instances=1, replace_existing=True)
 
-            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + premarket health 7/8/9 AM ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + autotune 5 AM ET)")
+            print("[scheduler] catalyst engine jobs registered (premarket 6-9:30 ET every 30m + pre-open burst 9:10/9:20 ET + premarket health 7/8/9 AM ET + AMC burst 4-4:30 ET every 5m + coverage audit 8:15 PM ET + rule-learner 8:30 PM ET + autotune 5 AM ET)")
 
         # -- Morning Catalyst Digest (the brief reaches you) ---------------
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays

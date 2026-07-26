@@ -309,6 +309,51 @@ def catalyst_notes(days: int = 14, limit: int = 100,
     return {"days": days, "notes": store.get_recent_notes(days=days, limit=limit)}
 
 
+@router.get("/admin/catalyst-learned-rules")
+def catalyst_learned_rules(include_retired: bool = True,
+                           user=Depends(require_admin)):
+    """The durable rulebook the nightly learner distilled from owner notes —
+    active + retired — plus the learner watermark. The observability surface for
+    'what has the curator taught itself?'."""
+    return {
+        "active": store.get_active_learned_rules(limit=50),
+        "all": store.list_learned_rules(include_retired=include_retired, limit=200),
+        "learn_state": store.get_learn_state(),
+        "reader_enabled": os.environ.get("CATALYST_LEARNED_RULES_ENABLED", "1").lower()
+                          in ("1", "true", "yes"),
+        "learner_enabled": os.environ.get("CATALYST_RULE_LEARNER_ENABLED", "1").lower()
+                           in ("1", "true", "yes"),
+    }
+
+
+@router.post("/admin/catalyst-learned-rules/{rule_id}/retire")
+def catalyst_retire_learned_rule(rule_id: int = Path(...),
+                                 user=Depends(require_admin)):
+    """Instantly revert a learned rule — the curator stops reading it on the next
+    curation, no redeploy."""
+    ok = store.retire_learned_rule(rule_id)
+    return {"ok": ok, "rule_id": rule_id}
+
+
+@router.post("/admin/catalyst-learned-rules/add")
+def catalyst_add_learned_rule(body: dict = Body(...),
+                              user=Depends(require_admin)):
+    """Hand-add a durable curator rule (owner or me applying a note directly)."""
+    text = str(body.get("rule") or body.get("rule_text") or "").strip()
+    if len(text) < 8:
+        raise HTTPException(400, "rule text too short")
+    rid = store.add_learned_rule(text, str(body.get("rationale") or ""),
+                                 {"source": "manual"})
+    return {"ok": rid is not None, "id": rid}
+
+
+@router.post("/admin/catalyst-learn-now")
+def catalyst_learn_now(user=Depends(require_admin)):
+    """Run the nightly rule-learner on demand (distill notes → durable rules)."""
+    from api.services.catalyst import rule_learner
+    return rule_learner.run_learn()
+
+
 @router.get("/admin/catalyst-feedback-summary")
 def catalyst_feedback_summary(user=Depends(require_admin)):
     """Aggregate traits of 👎 rows so the operator can spot what 'lame'
@@ -351,6 +396,14 @@ def catalyst_stats(user=Depends(require_admin)):
         "today_ranked": len([r for r in today_rows if r["rank"] is not None]),
         "last_refresh_at": last_refresh_at,
         "curator": curator_status,
+        "learned_rules": {
+            "active": len(store.get_active_learned_rules(limit=50)),
+            "reader_enabled": os.environ.get(
+                "CATALYST_LEARNED_RULES_ENABLED", "1").lower() in ("1", "true", "yes"),
+            "learner_enabled": os.environ.get(
+                "CATALYST_RULE_LEARNER_ENABLED", "1").lower() in ("1", "true", "yes"),
+            "last_run_at": store.get_learn_state().get("last_run_at"),
+        },
     }
 
 

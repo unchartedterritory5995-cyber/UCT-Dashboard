@@ -108,6 +108,33 @@ CREATE TABLE IF NOT EXISTS catalyst_gate_rejections (
   market_cap    REAL
 );
 CREATE INDEX IF NOT EXISTS idx_gate_rej_date ON catalyst_gate_rejections(market_date, ts DESC);
+
+-- Durable "learned rules": the nightly rule-learner distills recurring themes
+-- in the owner's free-text notes into permanent curator directives. These are
+-- the PERMANENT counterpart to the rolling 14-day note-steer — they live in the
+-- DB (NOT in code), so the curator reads them at runtime and any one is
+-- reverted by flipping `active` to 0 (no redeploy). Bounded + deduped by the
+-- learner so the set can't sprawl or contradict itself into mush.
+CREATE TABLE IF NOT EXISTS catalyst_learned_rules (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  rule_text     TEXT NOT NULL,          -- the directive the curator reads
+  rationale     TEXT,                   -- why it was learned (for the audit trail)
+  source_json   TEXT,                   -- {tickers:[...], sample_note:"..."} provenance
+  active        INTEGER NOT NULL DEFAULT 1,
+  created_at    INTEGER NOT NULL,
+  retired_at    INTEGER,                -- set when deactivated / superseded
+  hit_count     INTEGER NOT NULL DEFAULT 0   -- times injected into a curation
+);
+CREATE INDEX IF NOT EXISTS idx_learned_active ON catalyst_learned_rules(active, created_at DESC);
+
+-- Single-row watermark for the learner: the newest note timestamp it has
+-- already distilled, so each note is learned once (an edited note bumps its
+-- created_at past the mark and is re-learned).
+CREATE TABLE IF NOT EXISTS catalyst_learn_state (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  last_note_ts  INTEGER NOT NULL DEFAULT 0,
+  last_run_at   INTEGER
+);
 """
 
 
@@ -317,6 +344,137 @@ def get_recent_notes(days: int = 14, limit: int = 20) -> list[dict]:
             return [dict(r) for r in rows]
     except Exception:
         return []
+
+
+# ── learned-rules + learner watermark (the nightly note-distiller) ──────────
+def get_notes_since(ts: int, limit: int = 100) -> list[dict]:
+    """Owner notes written/edited strictly AFTER unix `ts` (the learner
+    watermark), oldest first so distillation reads them chronologically. Never
+    raises."""
+    try:
+        with contextlib.closing(_connect()) as c:
+            rows = c.execute(
+                """SELECT ticker, note, verdict, market_date, tag, grade,
+                          catalyst_type, gap_pct, created_at
+                   FROM catalyst_feedback
+                   WHERE note IS NOT NULL AND TRIM(note) != '' AND created_at > ?
+                   ORDER BY created_at ASC LIMIT ?""",
+                (int(ts), max(1, int(limit))),
+            ).fetchall()
+            return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+def get_learn_state() -> dict:
+    """Read the learner watermark row (creating it if absent)."""
+    try:
+        with contextlib.closing(_connect()) as c:
+            row = c.execute(
+                "SELECT last_note_ts, last_run_at FROM catalyst_learn_state WHERE id = 1"
+            ).fetchone()
+            if row:
+                return dict(row)
+    except Exception:
+        pass
+    return {"last_note_ts": 0, "last_run_at": None}
+
+
+def set_learn_state(last_note_ts: int, last_run_at: int) -> None:
+    """Advance the learner watermark (single row, id=1). Never raises."""
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            c.execute(
+                """INSERT INTO catalyst_learn_state (id, last_note_ts, last_run_at)
+                   VALUES (1, ?, ?)
+                   ON CONFLICT(id) DO UPDATE SET
+                     last_note_ts = excluded.last_note_ts,
+                     last_run_at  = excluded.last_run_at""",
+                (int(last_note_ts), int(last_run_at)),
+            )
+            c.commit()
+    except Exception:
+        pass
+
+
+def get_active_learned_rules(limit: int = 50) -> list[dict]:
+    """Active durable rules, NEWEST first, for the curator + admin. Never raises."""
+    try:
+        with contextlib.closing(_connect()) as c:
+            rows = c.execute(
+                """SELECT id, rule_text, rationale, source_json, created_at, hit_count
+                   FROM catalyst_learned_rules
+                   WHERE active = 1 ORDER BY created_at DESC LIMIT ?""",
+                (max(1, int(limit)),),
+            ).fetchall()
+            return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+def list_learned_rules(include_retired: bool = True, limit: int = 100) -> list[dict]:
+    """Full learned-rule ledger (active + retired) for the admin surface."""
+    try:
+        with contextlib.closing(_connect()) as c:
+            sql = ("SELECT id, rule_text, rationale, source_json, active, "
+                   "created_at, retired_at, hit_count FROM catalyst_learned_rules")
+            if not include_retired:
+                sql += " WHERE active = 1"
+            sql += " ORDER BY active DESC, created_at DESC LIMIT ?"
+            return [dict(r) for r in c.execute(sql, (max(1, int(limit)),)).fetchall()]
+    except Exception:
+        return []
+
+
+def add_learned_rule(rule_text: str, rationale: str = "",
+                     source: Optional[dict] = None) -> Optional[int]:
+    """Insert one durable rule. Returns its id, or None on failure."""
+    import json as _json
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            cur = c.execute(
+                """INSERT INTO catalyst_learned_rules
+                   (rule_text, rationale, source_json, active, created_at)
+                   VALUES (?, ?, ?, 1, ?)""",
+                (rule_text.strip(), (rationale or "").strip(),
+                 _json.dumps(source or {}, default=str), int(time.time())),
+            )
+            c.commit()
+            return cur.lastrowid
+    except Exception:
+        return None
+
+
+def retire_learned_rule(rule_id: int) -> bool:
+    """Deactivate a rule (instant revert — the curator stops reading it on the
+    next curation, no redeploy). Returns True if a row changed."""
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            cur = c.execute(
+                "UPDATE catalyst_learned_rules SET active = 0, retired_at = ? "
+                "WHERE id = ? AND active = 1",
+                (int(time.time()), int(rule_id)),
+            )
+            c.commit()
+            return cur.rowcount > 0
+    except Exception:
+        return False
+
+
+def bump_learned_rule_hits(rule_ids: list[int]) -> None:
+    """Increment hit_count for rules that were injected into a curation (usage
+    telemetry). Best-effort; never raises."""
+    if not rule_ids:
+        return
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            c.executemany(
+                "UPDATE catalyst_learned_rules SET hit_count = hit_count + 1 WHERE id = ?",
+                [(int(i),) for i in rule_ids],
+            )
+            c.commit()
+    except Exception:
+        pass
 
 
 def recent_feedback(verdict: str, days: int = 30) -> list[dict]:
