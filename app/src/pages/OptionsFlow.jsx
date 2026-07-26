@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
-import { planDelta, readSnapshot, writeSnapshot, snapshotKey } from "./optionsFlow/flowLoadPolicy";
+import { planDelta, adoptVersion, readSnapshot, writeSnapshot, snapshotKey } from "./optionsFlow/flowLoadPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -2364,7 +2364,21 @@ export default function OptionsFlowDashboard() {
   // dataVersion in the base effect's deps would re-download the whole range
   // every minute.
   const dataVersionRef = useRef(null);
-  useEffect(() => { dataVersionRef.current = dataVersion; }, [dataVersion]);
+  // True when the base rows landed before /api/flow/version resolved — see
+  // adoptVersion(). Without this the base is stamped null, reads as stale, and
+  // refetches itself immediately (three base fetches on one load, observed on
+  // prod 2026-07-25).
+  const _baseVerPending = useRef(false);
+  useEffect(() => {
+    const r = adoptVersion({
+      pending: _baseVerPending.current,
+      dataVersion,
+      current: _baseFetchedVer.current,
+    });
+    _baseFetchedVer.current = r.baseFetchedVer;
+    _baseVerPending.current = r.pending;
+    dataVersionRef.current = dataVersion;
+  }, [dataVersion]);
 
 // Fetch DB version on mount + when tab regains focus (so a fresh upload in
   // another tab is picked up immediately). Version is the row count; when it
@@ -2659,7 +2673,11 @@ export default function OptionsFlowDashboard() {
     // handlers that own those actions.
     const t0 = performance.now();
 
-    fetch(csvFile)  // versioned via &v= from /api/flow/version — see useEffect above; CF can cache safely
+    // A version-driven refresh (baseNonce > 0) MUST bypass the browser cache.
+    // csvFile is version-stable and the response carries max-age=300, so a
+    // plain fetch would hand back the very bytes we are trying to replace.
+    // (This is the freshness the delta-merge used to provide via no-store.)
+    fetch(csvFile, baseNonce > 0 ? { cache: "no-store" } : undefined)
         .then(res => {
           console.log(`[perf] CSV fetch: ${(performance.now()-t0).toFixed(0)}ms`);
           if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
@@ -2692,6 +2710,9 @@ export default function OptionsFlowDashboard() {
                 // covering the current version and refetch the whole range.
                 const ver = dataVersionRef.current;
                 _baseFetchedVer.current = ver;
+                // If the version has not resolved yet, these rows are current
+                // anyway — adopt the first version we learn (see adoptVersion).
+                _baseVerPending.current = (ver == null);
                 // Keep this range in memory so returning to the page is instant.
                 writeSnapshot(snapshotKey(csvFile), { rows, version: ver });
                 _hasRows.current = true;

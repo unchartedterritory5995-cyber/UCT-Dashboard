@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   planDelta,
+  adoptVersion,
   readSnapshot,
   writeSnapshot,
   clearSnapshots,
@@ -81,6 +82,29 @@ describe('planDelta — ordering and guards', () => {
     expect(first.action).toBe('refetch-base')
     const after = planDelta({ ...stale, lastMergedVer: first.mergedVer })
     expect(after).toEqual({ action: 'none' })
+  })
+})
+
+describe('adoptVersion — the base/version race', () => {
+  // Observed on prod after the first fix: /api/flow/data is browser-cached
+  // (max-age=300) so the base can land in ~50ms, BEFORE /api/flow/version
+  // resolves. The base was then stamped `null`, planDelta read that as "base
+  // does not cover the current version", and fired a full refetch — three
+  // base fetches on one page load. A base that landed before the version was
+  // known IS current; the first version we learn is the one it represents.
+  it('adopts the first known version for a base that landed before the version did', () => {
+    expect(adoptVersion({ pending: true, dataVersion: '29750502', current: null }))
+      .toEqual({ baseFetchedVer: '29750502', pending: false })
+  })
+
+  it('does not adopt once a real version is already stamped', () => {
+    expect(adoptVersion({ pending: false, dataVersion: '29750999', current: '29750502' }))
+      .toEqual({ baseFetchedVer: '29750502', pending: false })
+  })
+
+  it('stays pending while the version is still unknown', () => {
+    expect(adoptVersion({ pending: true, dataVersion: null, current: null }))
+      .toEqual({ baseFetchedVer: null, pending: true })
   })
 })
 

@@ -77,6 +77,23 @@ export function planDelta({
     : { action: 'refetch-base', mergedVer: dataVersion }
 }
 
+/**
+ * Resolve the version a freshly-landed base fetch represents.
+ *
+ * `/api/flow/data` is browser-cached (max-age=300), so the base can land in
+ * ~50ms — BEFORE `/api/flow/version` resolves. Stamping `null` then reads as
+ * "the base does not cover the current version" and triggers a full refetch;
+ * on prod that produced three base fetches on a single page load. A base that
+ * landed before the version was known IS current, so the first version we
+ * learn is the one it represents.
+ */
+export function adoptVersion({ pending, dataVersion, current }) {
+  if (pending && dataVersion != null) {
+    return { baseFetchedVer: dataVersion, pending: false }
+  }
+  return { baseFetchedVer: current, pending }
+}
+
 // ── Snapshot cache ──────────────────────────────────────────────────────────
 // `parsedRows` and the processed dataset are component state, so leaving the
 // page throws them away and coming back replays fetch + parse + process in
