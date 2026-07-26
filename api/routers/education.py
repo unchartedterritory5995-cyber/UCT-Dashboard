@@ -9,12 +9,16 @@ content. Writes (adding / editing / removing videos, building categories) are
 admin-only. Mirrors the auth pattern in api/routers/modelbook.py.
 
 Routes:
-    GET    /api/education/videos              → {categories: [{name, videos[]}]}  (paid)
+    GET    /api/education/videos              → {categories: [{name, kind, sort_order,
+                                                  blurb, videos[]}], total}          (paid)
     GET    /api/education/categories          → ["Getting Started", ...]          (paid)
     POST   /api/education/videos              → add a video                       (admin)
     PATCH  /api/education/videos/{video_id}   → edit a video                      (admin)
     DELETE /api/education/videos/{video_id}   → remove a video                    (admin)
     POST   /api/education/reorder             → reorder a category                (admin)
+    POST   /api/education/taxonomy-apply      → bulk category+tag apply     (PUSH_SECRET)
+    POST   /api/education/categories/rename   → rename a category + move rows     (admin)
+    PATCH  /api/education/categories/{name}   → patch category meta               (admin)
 """
 from __future__ import annotations
 
@@ -126,6 +130,41 @@ def insights_store(video_id: int, body: InsightsStoreIn, _: None = Depends(requi
             "tickers": len(body.ticker_moments or [])}
 
 
+# ── Taxonomy apply (PUSH_SECRET; used by the local classification pipeline to
+#    push an admin-approved category/tag taxonomy in one all-or-nothing shot). ──
+
+class TaxonomyCategoryIn(BaseModel):
+    name: str
+    kind: Optional[str] = None
+    sort_order: Optional[int] = None
+    blurb: Optional[str] = None
+
+
+class TaxonomyAssignmentIn(BaseModel):
+    id: int
+    category: str
+    tags: list[str] = []
+
+
+class TaxonomyApplyIn(BaseModel):
+    categories: list[TaxonomyCategoryIn] = []
+    assignments: list[TaxonomyAssignmentIn] = []
+
+
+@router.post("/taxonomy-apply")
+def taxonomy_apply(body: TaxonomyApplyIn, _: None = Depends(require_push_secret)):
+    """One-shot taxonomy apply: upsert category meta + set category/tags per
+    video id, all in a single transaction (bulk_apply_taxonomy is all-or-nothing
+    — a bad category rolls back the whole batch)."""
+    try:
+        return svc.bulk_apply_taxonomy(
+            [c.model_dump() for c in body.categories],
+            [a.model_dump() for a in body.assignments],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # ── Access: paid (pro/premium/lifetime) + admin ────────────────────────────────
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -195,18 +234,10 @@ class ReorderIn(BaseModel):
 
 @router.get("/videos")
 def get_videos(_user: dict = Depends(require_paid)):
-    """All videos grouped by category, ready for the library view."""
-    videos = svc.list_videos()
-    by_cat: dict[str, list] = {}
-    order: list[str] = []
-    for v in videos:
-        cat = v.get("category") or "General"
-        if cat not in by_cat:
-            by_cat[cat] = []
-            order.append(cat)
-        by_cat[cat].append(v)
-    return {"categories": [{"name": c, "videos": by_cat[c]} for c in order],
-            "total": len(videos)}
+    """All videos grouped by category (shows first, then library, each by
+    sort_order), ready for the library view. Each category also carries its
+    kind/sort_order/blurb taxonomy meta; each video's tags are a parsed list."""
+    return svc.grouped_videos_payload()
 
 
 @router.get("/categories")
@@ -390,6 +421,41 @@ def remove_video(video_id: int, _admin: dict = Depends(require_admin)):
 def reorder(body: ReorderIn, _admin: dict = Depends(require_admin)):
     svc.reorder_category(body.category, body.ordered_ids)
     return {"ok": True}
+
+
+# ── Category admin ops (rename / meta patch) ────────────────────────────────────
+# NOTE: the literal-path "/categories/rename" is registered before the
+# parameterized "/categories/{name}" below — defensive ordering so a literal
+# segment can never be swallowed by a wildcard route (they're also different
+# HTTP methods here, so it isn't strictly load-bearing today, but keep the
+# convention if a same-method literal/parameterized pair is ever added).
+
+class CategoryRenameIn(BaseModel):
+    from_name: str
+    to_name: str
+
+
+@router.post("/categories/rename")
+def category_rename(body: CategoryRenameIn, _admin: dict = Depends(require_admin)):
+    try:
+        return {"moved": svc.rename_category(body.from_name, body.to_name)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class CategoryPatchIn(BaseModel):
+    kind: Optional[str] = None
+    sort_order: Optional[int] = None
+    blurb: Optional[str] = None
+
+
+@router.patch("/categories/{name}")
+def category_patch(name: str, body: CategoryPatchIn, _admin: dict = Depends(require_admin)):
+    try:
+        return svc.upsert_category(
+            name, kind=body.kind, sort_order=body.sort_order, blurb=body.blurb)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Watch progress (cross-device; any paid user) ────────────────────────────────
