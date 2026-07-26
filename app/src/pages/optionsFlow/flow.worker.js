@@ -20,7 +20,12 @@
  * abandoned range must be discardable:
  *
  *   { id, type:'load',   csv }                  -> { id, ok, rowCount, availableDates, timing }
- *   { id, type:'process', erSoon, filter }      -> { id, ok, D, filteredCount, timing }
+ *   { id, type:'process', erSoon, filter, view } -> { id, ok, D, tabCharts, filteredCount, timing }
+ *
+ * `view` is { dataMode, capFilter, etfExtra[] } and is OPTIONAL. When present the
+ * worker also returns `tabCharts` — the Stocks/Indexes + cap-band filtered charts
+ * the page otherwise rebuilds on the MAIN THREAD (measured at 989ms per change).
+ * `etfExtra` is the page's fetched remoteETFSet, so both sides classify alike.
  *   { id, type:'merge',  csv }                  -> { id, ok, rowCount, availableDates, timing }
  *
  *   { id, type:'ticker', sym, erSoon }          -> { id, ok, D }
@@ -38,6 +43,9 @@ import {
   processFlowData,
   availableDatesFrom,
   filterRowsByDate,
+  buildCharts,
+  filterByCap,
+  isETFSymbol,
 } from './flowCompute'
 
 let ROWS = null           // the parsed dataset — never leaves unless asked
@@ -49,6 +57,28 @@ let CACHE = null          // { key, D, filteredCount }
 
 const toSet = (erSoon) => (erSoon && erSoon.length ? new Set(erSoon) : null)
 
+/**
+ * The Stocks/Indexes + cap-band charts the page's `FD` memo otherwise rebuilds on
+ * the main thread. Mirrors that memo exactly, including the order of operations:
+ * tab filter first, then cap band, then buildCharts.
+ */
+function viewCharts(D, view) {
+  if (!view || !D || !D.clean_confirmed) return null
+  const { dataMode, capFilter, etfExtra } = view
+  const needsTabFilter = dataMode === 'stocks' || dataMode === 'index'
+  if (capFilter === 'All' && !needsTabFilter) return null   // page short-circuits to D
+  const extra = etfExtra && etfExtra.length ? new Set(etfExtra) : null
+  const isEtf = (sym, stocketf) =>
+    isETFSymbol(sym, stocketf) || !!(extra && extra.has(String(sym || '').toUpperCase()))
+  const t0 = performance.now()
+  let cc = D.clean_confirmed
+  if (needsTabFilter) {
+    cc = cc.filter(t => (dataMode === 'stocks' ? !isEtf(t.S, t.stocketf) : isEtf(t.S, t.stocketf)))
+  }
+  if (capFilter !== 'All') cc = filterByCap(cc, capFilter)
+  return { charts: buildCharts(cc), count: cc.length, ms: performance.now() - t0 }
+}
+
 function aggregate(filter, erSoon) {
   // Key on the ER set's CONTENT, not its length: two different sets of equal
   // size are not the same answer, and a cache key should not rely on erSoonSet
@@ -58,6 +88,9 @@ function aggregate(filter, erSoon) {
     ROWS ? ROWS.length : 0,
     erSoon ? erSoon.slice().sort().join(',') : null,
   ])
+  // NOTE: the view (dataMode/capFilter/etfExtra) is deliberately NOT part of this
+  // key — this cache holds the AGGREGATE only. viewCharts runs per request off
+  // agg.D, so a cap change still gets freshly-filtered charts from a cached D.
   if (CACHE && CACHE.key === key) {
     return { D: CACHE.D, filteredCount: CACHE.filteredCount, ms: 0, cached: true }
   }
@@ -113,7 +146,13 @@ self.onmessage = (e) => {
     if (type === 'process') {
       if (!ROWS) { self.postMessage({ id, ok: false, error: 'no rows loaded' }); return }
       const agg = aggregate(msg.filter || {}, msg.erSoon)
-      self.postMessage({ id, ok: true, D: agg.D, filteredCount: agg.filteredCount, timing: { process: agg.ms } })
+      const tab = agg.D ? viewCharts(agg.D, msg.view) : null
+      self.postMessage({
+        id, ok: true, D: agg.D, tabCharts: tab && tab.charts,
+        tabCount: tab && tab.count,
+        filteredCount: agg.filteredCount,
+        timing: { process: agg.ms, view: tab ? tab.ms : 0 },
+      })
       return
     }
 

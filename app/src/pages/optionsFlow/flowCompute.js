@@ -1673,3 +1673,55 @@ export function filterRowsByDate(rows, { dateFilter, dateFrom, dateTo, available
   }
   return rows.filter(r => r.date && r.date.trim() === dateFilter);
 }
+
+// ─── ETF / cap classification ───────────────────────────────────────────────
+// Moved verbatim out of OptionsFlow.jsx 2026-07-26 so the WORKER can apply the
+// same Stocks-vs-Indexes and cap-band filter the page does. The page's isETF()
+// wraps isETFSymbol with a fetched remoteETFSet; the worker is handed that set
+// as an array so both sides classify identically. If they ever diverge the
+// Stocks tab would silently include ETFs (or drop real stocks), so
+// FD_WORKER_MODE='verify' asserts the two agree before anything relies on it.
+
+export function filterByCap(trades, cap) {
+  if (!cap || cap === "All") return trades;
+  return trades.filter(t => capBand(t.mktcap) === cap);
+}
+
+// ─── ETF / Index Detection ────────────────────────────────────────────────────
+// BBS CSV rows have stocketf === "ETF"/"INDEX" populated correctly. Massive
+// live-worker rows come through without that field, so we fall back to this
+// hardcoded set. Any change here also needs to be reflected in the backend
+// stocketf tagging (long term fix: populate stocketf in the Massive processor).
+export const KNOWN_ETF_TICKERS = new Set([
+  "SPY","QQQ","IWM","IWR","DIA","MDY","SMH","SOXL","SOXS","TQQQ","SQQQ",
+  "TECL","TECS","LABU","LABD","FAS","FAZ","TZA","UPRO","SPXU","URTY","SRTY",
+  "XBI","XLE","XLF","XLK","XLV","XLI","XLU","XLC","XLY","XLP","XLB","XLRE",
+  "XLC","XSD","XPH","XRT","XHB","XME","XOP","XPP",
+  "VIX","VXX","UVXY","SVXY","VIXY",
+  "GLD","SLV","USO","UNG","GDX","GDXJ","SLX",
+  "EEM","EFA","VEA","VWO","EWZ","FXI","INDA","EWJ","EWY","EWT",
+  "AGG","BND","TLT","TMF","TMV","IEF","SHY","LQD","HYG","JNK",
+  "JEPQ","QYLD","JEPI","SCHD","VIG","VYM","VOO","VTI","VT",
+  "ARKK","ARKG","ARKW","ARKF","ARKQ",
+  "DUST","NUGT","JDST","JNUG","GDXU","GDXD",
+  "SPXL","SPXS","UVIX","SVIX","BITX","BITI","FBTC","IBIT","GBTC","ETHE",
+  "KRE","KBE","AMLP","MLPX","REM","VNQ","IYR",
+]);
+
+// Tickers frequently misclassified as ETF/INDEX by external data providers
+// (Massive's ticker_types, etc.) that ARE regular equities. Whitelisted here
+// so they never get filtered from the Stocks tab regardless of upstream tags.
+// SPCX: SpaceX-tracking company, trades as regular stock. Add tickers here
+// as we discover them being incorrectly dropped from the watchlist.
+export const STOCK_OVERRIDE_TICKERS = new Set([
+  "SPCX",
+]);
+
+export function isETFSymbol(sym, stocketf) {
+  const upper = (sym||"").toUpperCase();
+  if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;
+  const s = (stocketf||"").toUpperCase();
+  if (s === "ETF" || s === "INDEX") return true;
+  if (KNOWN_ETF_TICKERS.has(upper)) return true;
+  return false;
+}

@@ -14,9 +14,37 @@ import {
   buildCharts,
   processFlowData,
   THEMES_DEF,
+  KNOWN_ETF_TICKERS,
+  STOCK_OVERRIDE_TICKERS,
+  isETFSymbol,
+  filterByCap,
 } from "./optionsFlow/flowCompute";  // moved out of this file 2026-07-25 — see that file
 import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded, computeCsv } from "./optionsFlow/flowWorkerClient";
-import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
+import "./OptionsFlow.mobile.css";
+
+// ─── FD-in-worker rollout ───────────────────────────────────────────────────
+// `FD` (the Stocks/Indexes + cap-band charts) rebuilds on the MAIN THREAD on
+// every data change and every cap click. Measured in production: a cap chip does
+// no fetch and no worker call yet blocks the UI thread for 989ms. The worker can
+// build those charts instead — but its Stocks-vs-Indexes split has to match the
+// page's exactly, and the page's isETF() closes over a FETCHED remoteETFSet. If
+// they diverge the Stocks tab silently includes ETFs or drops real stocks, which
+// is worse than being slow.
+//
+//   'off'    — main thread only (current behaviour, the default)
+//   'verify' — ask the worker too, compare, log any mismatch, STILL RENDER the
+//              main-thread result. Proves equivalence at zero risk.
+//   'on'     — render the worker's charts; skips the main-thread rebuild.
+//
+// Override per browser without a deploy:
+//   localStorage.setItem('uct.fdWorker','verify')   // or 'on' / 'off'
+const FD_WORKER_MODE = (() => {
+  try {
+    const o = localStorage.getItem("uct.fdWorker");
+    if (o === "off" || o === "verify" || o === "on") return o;
+  } catch { /* private mode */ }
+  return "off";
+})();  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
 // Mirror of the logic in DarkPool.jsx so the chart modal can fetch + filter
@@ -425,48 +453,8 @@ function expToISO(expStr) {
 }
 
 
-function filterByCap(trades, cap) {
-  if (!cap || cap === "All") return trades;
-  return trades.filter(t => capBand(t.mktcap) === cap);
-}
 
-// ─── ETF / Index Detection ────────────────────────────────────────────────────
-// BBS CSV rows have stocketf === "ETF"/"INDEX" populated correctly. Massive
-// live-worker rows come through without that field, so we fall back to this
-// hardcoded set. Any change here also needs to be reflected in the backend
-// stocketf tagging (long term fix: populate stocketf in the Massive processor).
-const KNOWN_ETF_TICKERS = new Set([
-  "SPY","QQQ","IWM","IWR","DIA","MDY","SMH","SOXL","SOXS","TQQQ","SQQQ",
-  "TECL","TECS","LABU","LABD","FAS","FAZ","TZA","UPRO","SPXU","URTY","SRTY",
-  "XBI","XLE","XLF","XLK","XLV","XLI","XLU","XLC","XLY","XLP","XLB","XLRE",
-  "XLC","XSD","XPH","XRT","XHB","XME","XOP","XPP",
-  "VIX","VXX","UVXY","SVXY","VIXY",
-  "GLD","SLV","USO","UNG","GDX","GDXJ","SLX",
-  "EEM","EFA","VEA","VWO","EWZ","FXI","INDA","EWJ","EWY","EWT",
-  "AGG","BND","TLT","TMF","TMV","IEF","SHY","LQD","HYG","JNK",
-  "JEPQ","QYLD","JEPI","SCHD","VIG","VYM","VOO","VTI","VT",
-  "ARKK","ARKG","ARKW","ARKF","ARKQ",
-  "DUST","NUGT","JDST","JNUG","GDXU","GDXD",
-  "SPXL","SPXS","UVIX","SVIX","BITX","BITI","FBTC","IBIT","GBTC","ETHE",
-  "KRE","KBE","AMLP","MLPX","REM","VNQ","IYR",
-]);
-// Tickers frequently misclassified as ETF/INDEX by external data providers
-// (Massive's ticker_types, etc.) that ARE regular equities. Whitelisted here
-// so they never get filtered from the Stocks tab regardless of upstream tags.
-// SPCX: SpaceX-tracking company, trades as regular stock. Add tickers here
-// as we discover them being incorrectly dropped from the watchlist.
-const STOCK_OVERRIDE_TICKERS = new Set([
-  "SPCX",
-]);
 
-function isETFSymbol(sym, stocketf) {
-  const upper = (sym||"").toUpperCase();
-  if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;
-  const s = (stocketf||"").toUpperCase();
-  if (s === "ETF" || s === "INDEX") return true;
-  if (KNOWN_ETF_TICKERS.has(upper)) return true;
-  return false;
-}
 
 
 
@@ -1010,6 +998,11 @@ export default function OptionsFlowDashboard() {
   const _processedOnce = useRef(false);
   // One-shot: a lost worker triggers exactly one silent re-fetch, never a loop.
   const _workerReloaded = useRef(false);
+  // Charts the worker built for a specific (dataMode, capFilter). Kept in refs,
+  // not state: they always arrive WITH the D they belong to, so storing them
+  // separately would risk rendering one against the other.
+  const _workerTabCharts = useRef(null);
+  const _workerTabFor = useRef(null);
   useEffect(() => {
     if (!rowCount) return;
     // Skip processing if a fetch is in-flight that will replace parsedRows.
@@ -1022,7 +1015,14 @@ export default function OptionsFlowDashboard() {
     let cancelled = false;
     const run = async () => {
       const t2 = performance.now();
-      const res = await processFlow({ dateFilter, dateFrom, dateTo }, erSoonArr);
+      const res = await processFlow(
+        { dateFilter, dateFrom, dateTo },
+        erSoonArr,
+        FD_WORKER_MODE === "off" ? undefined : {
+          dataMode, capFilter,
+          etfExtra: remoteETFSet ? [...remoteETFSet] : null,
+        },
+      );
       if (cancelled) return;
       if (!res.ok) {
         // The worker died and took the dataset with it. Re-fetch once rather
@@ -1041,6 +1041,8 @@ export default function OptionsFlowDashboard() {
       const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
       console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${res.filteredCount} rows${res.usedWorker ? ", worker" : ", MAIN THREAD"})`);
       _processedOnce.current = true;
+      _workerTabCharts.current = res.tabCharts || null;
+      _workerTabFor.current = res.tabCharts ? `${dataMode}|${capFilter}` : null;
       setD(res.D);
     };
 
@@ -1266,6 +1268,14 @@ export default function OptionsFlowDashboard() {
     if (!D) return null;
     const needsTabFilter = dataMode === "stocks" || dataMode === "index";
     if (capFilter === "All" && !needsTabFilter) return D;
+
+    // The worker may have already built exactly these charts. Only trust them
+    // when they were built for THIS (dataMode, capFilter) and arrived with this
+    // very D — see _workerTabCharts.
+    const fresh = _workerTabFor.current === `${dataMode}|${capFilter}`
+      ? _workerTabCharts.current : null;
+    if (FD_WORKER_MODE === "on" && fresh) return { ...D, ...fresh };
+
     let cc = D.clean_confirmed;
     if (needsTabFilter) {
       cc = cc.filter(t => {
@@ -1275,6 +1285,22 @@ export default function OptionsFlowDashboard() {
     }
     if (capFilter !== "All") cc = filterByCap(cc, capFilter);
     const charts = buildCharts(cc);
+
+    if (FD_WORKER_MODE === "verify" && fresh) {
+      // Compare, then render the MAIN-THREAD result regardless. A divergence here
+      // would mean the worker's Stocks/Indexes split disagrees with the page's —
+      // the silent-wrong-data case this whole flag exists to rule out.
+      try {
+        const a = JSON.stringify(charts), b = JSON.stringify(fresh);
+        if (a === b) {
+          console.log(`[fd-verify] MATCH ${dataMode}/${capFilter} — ${cc.length} trades, worker charts identical`);
+        } else {
+          const keys = [...new Set([...Object.keys(charts), ...Object.keys(fresh)])];
+          const bad = keys.filter(k => JSON.stringify(charts[k]) !== JSON.stringify(fresh[k]));
+          console.error(`[fd-verify] MISMATCH ${dataMode}/${capFilter} — differing keys:`, bad);
+        }
+      } catch (e) { console.error("[fd-verify] compare threw", e); }
+    }
     return { ...D, ...charts };
   }, [D, capFilter, dataMode, isETF]);
 

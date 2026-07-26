@@ -137,14 +137,16 @@ export async function loadFlow(csv, filter, erSoon, key) {
 }
 
 /** Re-aggregate the already-loaded rows under a different date selection. */
-export async function processFlow(filter, erSoon) {
-  const res = await post({ type: 'process', filter, erSoon })
+export async function processFlow(filter, erSoon, view) {
+  const res = await post({ type: 'process', filter, erSoon, view })
   if (res && res.ok) return { ...res, usedWorker: true }
   // The rows live in the worker, so if it died mid-session the fallback has
   // nothing to work from. That is NOT an error to show the user — ask the page
   // to re-fetch, which repopulates the main-thread copy (workerDead is now set,
   // so loadFlow takes the fallback) and everything keeps working, just slower.
   if (!fbRows) return { ok: false, error: 'worker lost the dataset', needsReload: true, usedWorker: false }
+  // Fallback deliberately returns NO tabCharts — the page then uses its own
+  // main-thread FD path, which is the behaviour this replaces.
   return { ok: true, ...fbAggregate(filter || {}, erSoon), usedWorker: false }
 }
 
