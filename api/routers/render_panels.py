@@ -237,6 +237,41 @@ def render_book(token: str = "", part: int = 0):
     return {"date": wire.get("date"), "part": part, "rows": out}
 
 
+@router.get("/r/econ")
+def render_econ(token: str = ""):
+    """Today's calendar (econ prints + Fed speakers + tonight's AMC reporters)
+    for the newsletter's rendered panel — token-gated public read over the
+    engine's pushed wire["risk_calendar"]. Rows come back CHRONOLOGICAL."""
+    _check_token(token)
+    try:
+        from api.services import engine as _eng
+        wire = _eng._load_wire_data() or {}
+    except Exception:  # noqa: BLE001
+        wire = {}
+    rc = (wire.get("risk_calendar") or {}) if isinstance(wire, dict) else {}
+
+    def _tkey(t):
+        try:
+            hh, mm = str(t or "").strip().split(":")[:2]
+            return (int(hh), int(mm[:2]))
+        except (ValueError, AttributeError):
+            return (99, 99)
+
+    rows = []
+    for e in rc.get("econ") or []:
+        rows.append({"time": e.get("time") or "", "kind": "econ",
+                     "event": e.get("event") or "", "estimate": e.get("estimate") or "",
+                     "is_key": bool(e.get("is_key"))})
+    for f in rc.get("fed") or []:
+        rows.append({"time": f.get("time") or "", "kind": "fed",
+                     "event": f.get("event") or "", "note": f.get("note") or "",
+                     "is_key": True})
+    rows.sort(key=lambda r: _tkey(r["time"]))
+    amc = [s for s in (rc.get("amc") or []) if s]
+    return {"date": wire.get("date"), "rows": rows,
+            "amc": amc, "amc_count": rc.get("amc_count", len(amc))}
+
+
 @router.get("/r/themes")
 def render_themes(token: str = "", period: str = "1W", n: int = 6, holds: int = 6):
     """Theme leaders & laggards for the newsletter — each with its top holdings.
