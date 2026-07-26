@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import StockChart from "../components/StockChart";
 import DarkPool from "./DarkPool";
+import { planDelta, readSnapshot, writeSnapshot, snapshotKey } from "./optionsFlow/flowLoadPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
@@ -2334,6 +2335,18 @@ export default function OptionsFlowDashboard() {
   // different data — avoids 1-4s of wasted processFlowData on every range
   // expansion (Last5 → Last20, Last60 → All, etc).
   const [loadedFetchDays, setLoadedFetchDays] = useState(null);
+  // Bumping this re-runs the base fetch. It is how a days=1 view refreshes on a
+  // version bump: at days=1 the base fetch IS today's data, so refreshing
+  // through it costs ONE download + ONE parse + ONE processFlowData, where the
+  // delta-merge path cost a second of each for the identical rows.
+  const [baseNonce, setBaseNonce] = useState(0);
+  // dataVersion in effect at the moment the current base rows were fetched.
+  const _baseFetchedVer = useRef(null);
+  // csvFile the base effect last ran for, + whether we currently hold rows.
+  // Together these mark a run as a SILENT background refresh, so a version-bump
+  // refetch never blanks a page the user is already reading.
+  const _lastCsvFile = useRef(null);
+  const _hasRows = useRef(false);
   const [dateFilter, setDateFilter] = useState("Last1");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -2346,6 +2359,12 @@ export default function OptionsFlowDashboard() {
   const [D, setD] = useState(null);
 
   const [dataVersion, setDataVersion] = useState(null);
+  // Mirror of dataVersion for the base fetch effect. It is read, never depended
+  // on: /api/flow/version is a 60-SECOND time bucket server-side, so listing
+  // dataVersion in the base effect's deps would re-download the whole range
+  // every minute.
+  const dataVersionRef = useRef(null);
+  useEffect(() => { dataVersionRef.current = dataVersion; }, [dataVersion]);
 
 // Fetch DB version on mount + when tab regains focus (so a fresh upload in
   // another tab is picked up immediately). Version is the row count; when it
@@ -2562,10 +2581,21 @@ export default function OptionsFlowDashboard() {
     // today's fresh rows already included. A fallback timeout guards against a
     // delta that never lands (failed/empty) so the page can't hang. Every later
     // change (range switch, live version bump) processes immediately.
+    //
+    // 2026-07-25: only wait when a delta is ACTUALLY coming. This effect is
+    // declared before the delta effect, so on the first commit after the base
+    // lands it ran with _lastMergedVer still null and always paid the 600ms —
+    // including on the days=1 default view, where planDelta now issues no delta
+    // at all. Same pure decision function as the delta effect, so the two
+    // cannot disagree.
     const deltaPending = !_processedOnce.current
-      && dataVersion != null
-      && _lastMergedVer.current !== dataVersion
-      && dataMode !== "gex" && dataMode !== "darkpool";
+      && planDelta({
+        dataVersion,
+        lastMergedVer: _lastMergedVer.current,
+        baseFetchedVer: _baseFetchedVer.current,
+        baseRowCount: parsedRows ? parsedRows.length : 0,
+        dateFrom, dateTo, loadedFetchDays, dataMode,
+      }).action === "fetch-delta";
     if (deltaPending) {
       const id = setTimeout(run, 600);
       return () => clearTimeout(id);
@@ -2584,14 +2614,43 @@ export default function OptionsFlowDashboard() {
     // represents — even if user clicks a different range mid-fetch.
     const fetchDaysAtStart = fetchDays;
     let cancelled = false;
-    setCsvLoading(true);
-    setCsvError(null);
-    setSelectedConv(null);
-    setSelectedItem(null);
-    setSelectedTicker(null);
-    setSearch("");
-    setOiSearch("");
-    setCapFilter("All");
+
+    // A run for the SAME range while we already hold rows is a background
+    // refresh (a version bump), not a navigation. Skip the reset block so the
+    // page the user is reading doesn't blank out or lose their selection.
+    const sameRange = _lastCsvFile.current === csvFile;
+    const silent = sameRange && _hasRows.current;
+    _lastCsvFile.current = csvFile;
+
+    // Instant re-entry. parsedRows lives in component state, so leaving the page
+    // throws away the whole dataset and coming back re-ran fetch + parse +
+    // processFlowData from scratch — the "3-8 seconds every time I click Options
+    // Flow" complaint. If we still hold this exact range from a previous visit,
+    // paint from memory now; the version check below refreshes it in the
+    // background without blanking anything.
+    if (!silent) {
+      const snap = readSnapshot(snapshotKey(csvFile));
+      if (snap) {
+        _baseFetchedVer.current = snap.version;
+        _hasRows.current = true;
+        setParsedRows(snap.rows);
+        setLoadedFetchDays(fetchDaysAtStart);
+        setCsvError(null);
+        setCsvLoading(false);
+        return;
+      }
+    }
+
+    if (!silent) {
+      setCsvLoading(true);
+      setCsvError(null);
+      setSelectedConv(null);
+      setSelectedItem(null);
+      setSelectedTicker(null);
+      setSearch("");
+      setOiSearch("");
+      setCapFilter("All");
+    }
     // 7/9: Preserve current tab across data refetches. This effect fires
     // whenever csvFile changes, which includes background dataVersion bumps
     // (e.g. after gap-fill or nightly rebuild). Resetting the tab bounced
@@ -2625,15 +2684,30 @@ export default function OptionsFlowDashboard() {
               const rows = parseCSV(text);
               console.log(`[perf] CSV parsed: ${(performance.now()-t1).toFixed(0)}ms (${rows.length} rows)`);
               if (!rows || rows.length === 0) throw new Error("CSV parsed but contained 0 valid rows. Check file format.");
-              if (!cancelled) { setParsedRows(rows); setLoadedFetchDays(fetchDaysAtStart); setCsvLoading(false); }
+              if (!cancelled) {
+                // Stamp the version these rows represent — on ARRIVAL, not on
+                // dispatch. /api/flow/version resolves ~80ms after mount while
+                // this fetch takes ~2.6s; stamping at dispatch would record
+                // `null`, and the delta effect would then read the base as not
+                // covering the current version and refetch the whole range.
+                const ver = dataVersionRef.current;
+                _baseFetchedVer.current = ver;
+                // Keep this range in memory so returning to the page is instant.
+                writeSnapshot(snapshotKey(csvFile), { rows, version: ver });
+                _hasRows.current = true;
+                setCsvError(null);  // a silent refresh skips the reset block, so clear here
+                setParsedRows(rows); setLoadedFetchDays(fetchDaysAtStart); setCsvLoading(false);
+              }
             } catch(err) {
-              if (!cancelled) { setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); }
+              if (!cancelled) { if (!silent) setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); }
             }
           }, 0);
         })
-        .catch(err => { if (!cancelled) { setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); } });
+        // A background refresh that fails must leave the data the user is
+        // already reading on screen — never swap it for the error state.
+        .catch(err => { if (!cancelled) { if (!silent) setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); } });
     return () => { cancelled = true; };
-  }, [csvFile]);
+  }, [csvFile, baseNonce]);
 
   // ─── Incremental live update (today-delta merge) ─────────────────────────
   // When the DB version bumps during the session, refetch ONLY today's trades
@@ -2645,10 +2719,32 @@ export default function OptionsFlowDashboard() {
   // and Cloudflare-cached; today's freshness comes from this small delta.
   // (_lastMergedVer is declared up by the processing effect, which coalesces the
   // first merge into a single pass.)
+  //
+  // 2026-07-25: the delta is only worth a second request when the base range is
+  // WIDER than today. On the DEFAULT view (days=1) the base fetch and this one
+  // are the same query, so this effect was re-downloading the identical 12.7MB
+  // / 96k-row payload (cache:"no-store", so not even servable from cache) and
+  // forcing a second parseCSV + a second full processFlowData — measured at
+  // 2,718ms + 541ms + 1,661ms on top of the base pass, on every mount AND every
+  // 60s version bucket AND every window focus. planDelta collapses that case to
+  // a single pass, and defers the delta until the base rows have actually
+  // landed (it used to fire ~80ms after mount, 2.5s before the base arrived,
+  // then discard the merge because parsedRows was still empty).
   useEffect(() => {
-    if (dataVersion == null) return;
-    if (_lastMergedVer.current === dataVersion) return;
-    if (dataMode === "gex" || dataMode === "darkpool") return;  // non-flow views
+    const plan = planDelta({
+      dataVersion,
+      lastMergedVer: _lastMergedVer.current,
+      baseFetchedVer: _baseFetchedVer.current,
+      baseRowCount: parsedRows ? parsedRows.length : 0,
+      dateFrom, dateTo, loadedFetchDays, dataMode,
+    });
+    if (plan.action === "none") return;
+    if (plan.action === "skip") { _lastMergedVer.current = plan.mergedVer; return; }
+    if (plan.action === "refetch-base") {
+      _lastMergedVer.current = plan.mergedVer;
+      setBaseNonce(n => n + 1);
+      return;
+    }
     let cancelled = false;
     const url = dataMode === "index"
       ? `/api/flow/indexes-data?days=1&v=${dataVersion}`
@@ -2667,12 +2763,16 @@ export default function OptionsFlowDashboard() {
           if (!prev || !prev.length) return prev;  // base not loaded yet — skip
           _lastMergedVer.current = dataVersion;
           const base = prev.filter(r => !todayDates.has((r.date || "").trim()));
-          return base.concat(todayRows);
+          const merged = base.concat(todayRows);
+          // Cache the MERGED set, not the pre-delta base, so a re-entry paints
+          // the same rows the user was just looking at.
+          writeSnapshot(snapshotKey(csvFile), { rows: merged, version: dataVersion });
+          return merged;
         });
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [dataVersion, dataMode]);
+  }, [dataVersion, dataMode, parsedRows, dateFrom, dateTo, loadedFetchDays, csvFile]);
 
 
   // Cap-filtered view: recompute charts using only the selected cap band's
