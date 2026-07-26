@@ -28,7 +28,13 @@ def _category() -> str:
 # everything from the name itself; an empty topic falls back to the default type.
 _RULES = [
     ("live trading", "Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION"),
+    ("daily session", "Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION"),
     ("thoughts on the market", "Thoughts on the Market", "Thoughts on the Market", "THOUGHTS ON THE MARKET"),
+    ("thoughts on the mkt", "Thoughts on the Market", "Thoughts on the Market", "THOUGHTS ON THE MARKET"),
+    ("market thoughts", "Thoughts on the Market", "Thoughts on the Market", "THOUGHTS ON THE MARKET"),
+    ("post market", "Post-Market Recaps", "Post-Market Recap", "POST-MARKET RECAP"),
+    ("post-market", "Post-Market Recaps", "Post-Market Recap", "POST-MARKET RECAP"),
+    ("workshop", "Workshops & Fireside Chats", "Workshop", "WORKSHOP"),
 ]
 _DEFAULT_ROUTE = ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
 
@@ -109,6 +115,10 @@ def publish_new_sessions(client=None, *, now=None) -> list[dict]:
         b_dt = _to_et(b.get("started_at"), now=now)
         if b_dt.date() < floor:
             continue
+        try:
+            education_service.upsert_category(_category(), kind="show")
+        except Exception:
+            pass  # never break publish over meta registration
         row = education_service.create_video({
             "youtube_id": vid,
             "title": _session_title(b.get("started_at")),
@@ -265,6 +275,10 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                     print(f"[desk-sessions] thumbnail set failed (non-fatal): {te}")
             created_now = vid not in education_service.existing_youtube_ids()
             if created_now:
+                try:
+                    education_service.upsert_category(section, kind="show")
+                except Exception:
+                    pass  # never break publish over meta registration
                 education_service.create_video({
                     "youtube_id": vid, "title": title, "description": "",
                     "category": section, "sort_order": 0})

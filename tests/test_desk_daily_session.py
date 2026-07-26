@@ -249,11 +249,28 @@ def test_process_does_not_notify_on_idempotent_rerun(edu_db, jobs_db, monkeypatc
 def test_route_known_auto_and_default():
     assert dds._route("live trading today") == (
         "Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
-    assert dds._route("Post Market Recap") == (
-        "Post Market Recap", "Post Market Recap", "POST MARKET RECAP")
+    # "Post Market Recap" is now a curated alias -> Post-Market Recaps section
+    # (see test_route_aliases below); an UNLISTED name still auto-derives.
     assert dds._route("Thoughts on Current Market") == (
         "Thoughts on Current Market", "Thoughts on Current Market", "THOUGHTS ON CURRENT MARKET")
     assert dds._route("") == ("Live Trading Sessions", "Live Trading Session", "LIVE TRADING SESSION")
+
+
+@pytest.mark.parametrize("topic,section", [
+    ("Live Trading Today", "Live Trading Sessions"),
+    ("Daily Session", "Live Trading Sessions"),
+    ("Thoughts on the Market", "Thoughts on the Market"),
+    ("Market thoughts w/ Bracco & BucketHead", "Thoughts on the Market"),
+    ("Thoughts on the mkt TSDR", "Thoughts on the Market"),
+    ("Post Market Recap", "Post-Market Recaps"),
+    ("Post-Market Wrap", "Post-Market Recaps"),
+    ("Workshop with Zen", "Workshops & Fireside Chats"),
+    ("Evening Update from Bracco", "Evening Update"),
+    ("", "Live Trading Sessions"),
+    ("Brand New Show", "Brand New Show"),   # auto-derive stays
+])
+def test_route_aliases(topic, section):
+    assert dds._route(topic)[0] == section
 
 
 def test_route_evening_update_is_host_aware():
@@ -266,11 +283,21 @@ def test_route_evening_update_is_host_aware():
 
 
 def test_process_routes_by_webinar_name(edu_db, jobs_db):
-    jobs_db.enqueue("U2", "Post Market Recap", "2026-06-24T20:30:00Z", "http://dl", "tok")
+    # "Sector Rotation Briefing" isn't a curated alias -> auto-derives its own section.
+    jobs_db.enqueue("U2", "Sector Rotation Briefing", "2026-06-24T20:30:00Z", "http://dl", "tok")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
     v = edu.list_videos()[0]
-    assert v["title"] == "Post Market Recap — June 24, 2026"
-    assert v["category"] == "Post Market Recap"
+    assert v["title"] == "Sector Rotation Briefing — June 24, 2026"
+    assert v["category"] == "Sector Rotation Briefing"
+
+
+def test_process_routes_curated_alias_to_shared_section(edu_db, jobs_db):
+    # "Post Market Recap" is a curated alias -> canonical "Post-Market Recaps" section.
+    jobs_db.enqueue("U2b", "Post Market Recap", "2026-06-24T20:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    v = edu.list_videos()[0]
+    assert v["title"] == "Post-Market Recap — June 24, 2026"
+    assert v["category"] == "Post-Market Recaps"
 
 
 def test_process_evening_update_publishes_with_section(edu_db, jobs_db):
@@ -314,3 +341,40 @@ def test_notify_published_embeds_thumbnail_and_section(monkeypatch):
     assert "Evening Update — June 29, 2026" in sent["title"]
     assert "Evening Update" in sent["description"]
     assert "uctintelligence.com" in sent["description"]
+
+
+# ---------------------------------------------------------------------------
+# Task 3: show auto-registration (guarded upsert_category before publish)
+# ---------------------------------------------------------------------------
+
+def test_process_pending_jobs_registers_show_category(edu_db, jobs_db):
+    jobs_db.enqueue("U4", "Post Market Recap", "2026-06-24T20:30:00Z", "http://dl", "tok")
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    cats = {c["name"]: c["kind"] for c in edu.list_category_meta()}
+    assert cats.get("Post-Market Recaps") == "show"
+
+
+def test_process_pending_jobs_survives_upsert_category_failure(edu_db, jobs_db, monkeypatch):
+    # Meta registration must never break publish, even if it raises.
+    monkeypatch.setattr(edu, "upsert_category", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    jobs_db.enqueue("U5", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    out = dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_FakeYT())
+    assert len(out) == 1
+    assert edu.list_videos()[0]["youtube_id"] == "VIDX"
+
+
+def test_publish_new_sessions_registers_show_category(edu_db):
+    client = _FakeClient([{"video_id": "VIDL", "title": "raw",
+                           "started_at": "2026-06-24T13:30:00Z"}])
+    dds.publish_new_sessions(client=client, now=_NOW)
+    cats = {c["name"]: c["kind"] for c in edu.list_category_meta()}
+    assert cats.get("Live Trading Sessions") == "show"
+
+
+def test_publish_new_sessions_survives_upsert_category_failure(edu_db, monkeypatch):
+    monkeypatch.setattr(edu, "upsert_category", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    client = _FakeClient([{"video_id": "VIDM", "title": "raw",
+                           "started_at": "2026-06-24T13:30:00Z"}])
+    created = dds.publish_new_sessions(client=client, now=_NOW)
+    assert len(created) == 1
+    assert created[0]["youtube_id"] == "VIDM"
