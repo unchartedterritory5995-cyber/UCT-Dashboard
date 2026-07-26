@@ -60,9 +60,15 @@ def test_layer_stale_swr_on_daily_rows(fresh):
 
     Not a defect: _needs_fresh() treats every D/W/M bar as refreshable so
     today's evolving open/high/low/close can't freeze at its first-cached value.
+
+    Dated to the last TRADING day, not the calendar day. The rule is
+    `last_ts <= _last_weekday_yyyymmdd()`, so a Sat/Sun-dated row is *newer*
+    than the last session and correctly reads as fresh — which made this test
+    pass Mon-Fri and fail every weekend. A real stored daily bar always carries
+    a session date anyway.
     """
-    import time
-    today = time.strftime("%Y-%m-%d")
+    session = str(bars_fetch._last_weekday_yyyymmdd())
+    today = f"{session[:4]}-{session[4:6]}-{session[6:]}"
     rows = [{"t": today, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]
     bars_sqlite.put_bars("AAPL", "D", rows, date_tf=True)
     bars_fetch._get_bars_inner("AAPL", "D", 1)

@@ -31,15 +31,28 @@ _SAMPLE_HIST_MOVES = {
 }
 
 def _target_date() -> str:
-    """Today (ET), so the enrichment date is always inside the compute window.
+    """A date the ROUTER considers part of the current week.
 
-    _compute_enrichment_for_date hard-gates on `abs(target - today) >
-    _ENRICH_WINDOW_DAYS` (14, i.e. current week +-2 weeks) and returns {} outside
-    it. A hardcoded date is therefore a time bomb: this suite pinned 2026-06-01
-    and started returning {} for every case once that fell out of the window.
+    Not a hardcoded date, and deliberately not `today` either — both are time
+    bombs, and this suite has now been bitten by each:
+
+      1. Pinned 2026-06-01, which returned {} for every case once it fell out
+         of the compute window.
+      2. Switched to `today`, which passes Mon-Fri and fails every Sat/Sun.
+
+    (2) happens because the two week helpers disagree on a weekend by design:
+    `_week_dates()` rolls FORWARD to next Monday (the product shows the
+    upcoming week once the current one is over) while `_monday_of()` snaps
+    BACK. `_days_for_date` only reads the `calendar_weekly` cache — the one
+    these tests mock — when `_monday_of(target) == _week_dates()[0]`, so on a
+    weekend `today` falls through to the unmocked per-week paging path and the
+    payload comes back empty.
+
+    `_week_dates()[0]` is the router's own idea of the current Monday, so this
+    identity holds on every day of the week.
     """
-    from api.routers.calendar import _today_et
-    return _today_et().isoformat()
+    from api.routers.calendar import _week_dates
+    return _week_dates()[0].isoformat()
 
 
 _CALENDAR_WEEKLY = {
