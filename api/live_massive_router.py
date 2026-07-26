@@ -307,6 +307,13 @@ DEFAULT_THRESHOLDS = {
     # neutral Size row instead — real size shouldn't vanish on an uncertain side
     # (UW's own doc: a fill at the bid is "not necessarily a sell"). 0 disables.
     "keep_sizeless_min_premium": 1000000,
+    # Heavy-block hedge de-direction (2026-07-26). A single BLOCK of this premium
+    # or larger is treated as a dark-pool hedge / structural print, not a
+    # directional bet: its Bull/Bear is dropped so it surfaces as a neutral
+    # "UCT Size - Hedge Block" (Keep-as-Size preserves it) and it leaves the
+    # Market Read bull/bear math. Mirrors the OptionsFlow HEAVY_BLOCK_PREMIUM
+    # rule ($10M). 0 disables.
+    "heavy_block_premium": 10_000_000,
     # Net-flow demote (2026-07-21): in the curated feed, a directional print on a
     # contract whose OWN net flow is < this fraction one-sided (dominant/total,
     # at-bid selling counted) is demoted to neutral "UCT Size" — drops the
@@ -1252,6 +1259,24 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
 
     direction = _derive_direction(cp_full, side, row.get("Type", ""),
                                   vol=_parse_int(row.get("Volume")), oi=_parse_int(row.get("OI")))
+    # Heavy-block hedge de-direction (2026-07-26): mirrors the OptionsFlow
+    # heavy-block rule (flowCompute HEAVY_BLOCK_PREMIUM). A single BLOCK of
+    # institutional size ($10M+ premium) is a dark-pool hedge / structural print,
+    # not a directional bet -- the apparent bull/bear is offset by an unseen leg
+    # (stock hedge, spread). Drop its direction so Keep-as-Size below surfaces it
+    # as a neutral "UCT Size - Hedge Block" instead of "UCT Size Bulls/Bears",
+    # and it leaves the Market Read bull/bear math. Tunable; 0 disables.
+    _heavy_block = False
+    if direction is not None and premium:
+        _type_up_hb = (row.get("Type", "") or "").upper().strip().strip("/")
+        if ("BLOCK" in _type_up_hb) or _type_up_hb in ("BLK", "BL", "BT"):
+            try:
+                _hb_floor = _load_thresholds().get("heavy_block_premium", 10_000_000)
+            except Exception:
+                _hb_floor = 10_000_000
+            if _hb_floor and premium >= _hb_floor:
+                direction = None
+                _heavy_block = True
     # Deep-ITM side/direction guard (2026-07-20): on deeply-ITM contracts the
     # single-venue NBBO is unreliable (wide/stale books), so the A/B/AA/BB side —
     # and therefore bull/bear — is frequently wrong (AMAT/MU LEAP puts read the
@@ -1466,9 +1491,11 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
         }
 
     if _sizeless:
-        # Untrustworthy side but premium cleared the floor → neutral Size row,
-        # no Bull/Bear label (see keep_sizeless_min_premium).
-        result = ("UCT Size - Not Clean", "size", TIER_PRIORITY["size"])
+        # Untrustworthy side (or a heavy hedge BLOCK) but premium cleared the
+        # floor → neutral Size row, no Bull/Bear label (see
+        # keep_sizeless_min_premium / heavy_block_premium).
+        result = (("UCT Size - Hedge Block" if _heavy_block else "UCT Size - Not Clean"),
+                  "size", TIER_PRIORITY["size"])
     else:
         result = _derive_alert_name(row, direction, money_pct=money_pct)
     if result is None:
@@ -4222,6 +4249,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         # sweep_empty_side_as_ask above (missing 7/3 → 7/16).
         "direction_max_itm_pct",     # deep-ITM cap above which direction is dropped
         "keep_sizeless_min_premium", # premium floor to keep a direction-less print as neutral Size
+        "heavy_block_premium",       # $10M+ BLOCK => drop direction, show as neutral hedge Size
         "net_flow_min_ratio",        # feed-side two-way-flow demote threshold
         "hide_sizeless",             # hide direction-unconfirmed rows from curated
         "spotless_itm_guard",        # fail closed on deep-ITM when spot is missing
