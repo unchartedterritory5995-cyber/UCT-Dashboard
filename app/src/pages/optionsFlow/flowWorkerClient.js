@@ -32,6 +32,10 @@ const pending = new Map()
 // Main-thread mirror of the worker's state, used only on the fallback path.
 let fbRows = null
 let fbDates = []
+let loadedKey = null      // which range the worker currently holds
+
+/** Key of the dataset the worker already has, so a re-entry can skip the fetch. */
+export function getLoadedKey() { return loadedKey }
 
 function getWorker() {
   if (workerDead) return null
@@ -90,10 +94,10 @@ function fbAggregate(filter, erSoon) {
   }
 }
 
-/** Parse a CSV, keep it, and aggregate it. */
-export async function loadFlow(csv, filter, erSoon) {
+/** Parse a CSV and keep it. Aggregation is a separate call — see processFlow. */
+export async function loadFlow(csv, filter, erSoon, key) {
   const res = await post({ type: 'load', csv, filter, erSoon })
-  if (res && res.ok) return { ...res, usedWorker: true }
+  if (res && res.ok) { loadedKey = key ?? null; return { ...res, usedWorker: true } }
   if (res && res.ok === false && res.error && !workerDead) {
     return { ok: false, error: res.error, usedWorker: true }   // a real data error, not a worker failure
   }
@@ -103,8 +107,8 @@ export async function loadFlow(csv, filter, erSoon) {
   }
   fbRows = rows
   fbDates = availableDatesFrom(rows)
-  const agg = fbAggregate(filter || {}, erSoon)
-  return { ok: true, rowCount: rows.length, availableDates: fbDates, ...agg, usedWorker: false }
+  loadedKey = key ?? null
+  return { ok: true, rowCount: rows.length, availableDates: fbDates, usedWorker: false }
 }
 
 /** Re-aggregate the already-loaded rows under a different date selection. */
@@ -126,7 +130,7 @@ export async function mergeToday(csv, filter, erSoon) {
   if (!days.size) return { ok: false, error: 'delta had no dates', usedWorker: false }
   fbRows = fbRows.filter(r => !days.has((r.date || '').trim())).concat(incoming)
   fbDates = availableDatesFrom(fbRows)
-  return { ok: true, rowCount: fbRows.length, availableDates: fbDates, ...fbAggregate(filter || {}, erSoon), usedWorker: false }
+  return { ok: true, rowCount: fbRows.length, availableDates: fbDates, usedWorker: false }
 }
 
 /** Aggregate one ticker's prints (the Search drill-in). */
@@ -143,5 +147,5 @@ export async function tickerFlow(sym, erSoon) {
 export function _resetFlowWorker() {
   try { if (worker) worker.terminate() } catch { /* ignore */ }
   worker = null; workerDead = false; pending.clear(); seq = 0
-  fbRows = null; fbDates = []
+  fbRows = null; fbDates = []; loadedKey = null
 }

@@ -76,11 +76,13 @@ self.onmessage = (e) => {
       }
 
       DATES = availableDatesFrom(ROWS)
-      const agg = aggregate(msg.filter || {}, msg.erSoon)
+      // Deliberately does NOT aggregate. The page's processing effect owns
+      // aggregation and reacts to rowCount/filter changes; having 'load'
+      // aggregate too would reproduce the exact duplicate pass this whole
+      // exercise exists to remove.
       self.postMessage({
         id, ok: true, rowCount: ROWS.length, availableDates: DATES,
-        D: agg.D, filteredCount: agg.filteredCount,
-        timing: { parse: parseMs, process: agg.ms },
+        timing: { parse: parseMs },
       })
       return
     }

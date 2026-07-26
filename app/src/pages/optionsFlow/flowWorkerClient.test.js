@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadFlow, processFlow, mergeToday, tickerFlow, _resetFlowWorker } from './flowWorkerClient'
+import { loadFlow, processFlow, mergeToday, tickerFlow, getLoadedKey, _resetFlowWorker } from './flowWorkerClient'
 import { parseCSV, processFlowData } from './flowCompute'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -20,17 +20,26 @@ const FILTER = { dateFilter: 'All', dateFrom: '', dateTo: '' }
 describe('flowWorkerClient — main-thread fallback', () => {
   beforeEach(() => _resetFlowWorker())
 
-  it('loads and aggregates without a Worker present', async () => {
-    const res = await loadFlow(CSV, FILTER, null)
+  it('loads without a Worker present, and does NOT aggregate', async () => {
+    const res = await loadFlow(CSV, FILTER, null, 'k')
     expect(res.ok).toBe(true)
     expect(res.usedWorker).toBe(false)      // proves we are on the fallback
     expect(res.rowCount).toBe(3419)
     expect(res.availableDates.length).toBeGreaterThan(0)
-    expect(res.D).not.toBeNull()
+    // Aggregation is processFlow's job. If load aggregated too, the page would
+    // do the duplicate pass this whole exercise exists to remove.
+    expect(res.D).toBeUndefined()
+  })
+
+  it('remembers which range it holds, so a re-entry can skip the fetch', async () => {
+    expect(getLoadedKey()).toBeNull()
+    await loadFlow(CSV, FILTER, null, '/api/flow/data?days=1')
+    expect(getLoadedKey()).toBe('/api/flow/data?days=1')
   })
 
   it('produces byte-for-byte the same aggregate the page would compute directly', async () => {
-    const res = await loadFlow(CSV, FILTER, null)
+    await loadFlow(CSV, FILTER, null, 'k')
+    const res = await processFlow(FILTER, null)
     const direct = processFlowData(parseCSV(CSV), null)
     expect(res.D.clean_confirmed.length).toBe(direct.clean_confirmed.length)
     expect(res.D.clean_confirmed.map(t => `${t.S}|${t.D}|${t.P}`).join(','))
@@ -38,7 +47,7 @@ describe('flowWorkerClient — main-thread fallback', () => {
   })
 
   it('re-aggregates a loaded dataset under a new date selection', async () => {
-    await loadFlow(CSV, FILTER, null)
+    await loadFlow(CSV, FILTER, null, 'k')
     const all = await processFlow({ dateFilter: 'All', dateFrom: '', dateTo: '' }, null)
     const one = await processFlow({ dateFilter: 'Last1', dateFrom: '', dateTo: '' }, null)
     expect(all.ok && one.ok).toBe(true)
@@ -57,7 +66,7 @@ describe('flowWorkerClient — main-thread fallback', () => {
   })
 
   it('merges a delta by REPLACING that date, not appending duplicates', async () => {
-    const first = await loadFlow(CSV, FILTER, null)
+    const first = await loadFlow(CSV, FILTER, null, 'k')
     // Feed the identical CSV back as "today's" delta: every date matches, so the
     // row count must stay put. Appending instead of replacing would double it.
     const merged = await mergeToday(CSV, FILTER, null)
@@ -66,7 +75,7 @@ describe('flowWorkerClient — main-thread fallback', () => {
   })
 
   it('aggregates a single ticker for the search drill-in', async () => {
-    await loadFlow(CSV, FILTER, null)
+    await loadFlow(CSV, FILTER, null, 'k')
     const sym = parseCSV(CSV)[0].ticker.toUpperCase().trim()
     const res = await tickerFlow(sym, null)
     expect(res.ok).toBe(true)
@@ -74,7 +83,7 @@ describe('flowWorkerClient — main-thread fallback', () => {
   })
 
   it('returns a miss, not a throw, for a ticker that is not in the data', async () => {
-    await loadFlow(CSV, FILTER, null)
+    await loadFlow(CSV, FILTER, null, 'k')
     const res = await tickerFlow('ZZZZNOTREAL', null)
     expect(res.ok).toBe(true)
     expect(res.rowCount).toBe(0)

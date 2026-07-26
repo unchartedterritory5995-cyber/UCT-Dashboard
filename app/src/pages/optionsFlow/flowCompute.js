@@ -1617,11 +1617,11 @@ export function processFlowData(rows, erSoonSet) {
   };
 }
 
-// ─── Date helpers + row filtering ────────────────────────────────────────────
+// ─── Date helpers + row filtering ──────────────────────────────────────────
 // Added 2026-07-25 (not moved). These were component-scoped arrow consts in
 // OptionsFlow.jsx; the WORKER needs the identical logic to filter rows before
 // aggregating them, and two copies of a date parser is how a "why is 7/16
-// showing 7/17 data" bug gets born. One implementation, imported by both.
+// showing 7/17 data" bug gets born. One implementation, used by both.
 
 /** "M/D/YYYY" -> "YYYY-MM-DD" */
 export const mdyToIso = (mdy) => {
