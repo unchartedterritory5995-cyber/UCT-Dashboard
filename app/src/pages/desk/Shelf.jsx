@@ -148,9 +148,12 @@ export function YTCard({
   const watched = !!progress?.[video.youtube_id]?.done
   const isNew = isNewVideo(video.created_at)
   const thread = deskThreads?.[String(video.id)]
-  const meta = timeLeftMeta
+  const baseMeta = timeLeftMeta
     ? timeLeftLabel(progress, video)
     : kind === 'show' ? fmtShortDate(video.created_at) : ''
+  // Episode label ("S12 · E9" / "E42.4") prepends the meta line wherever the
+  // card renders: "S12 · E9 · Jul 24, 2025". No label → meta unchanged.
+  const meta = [video.episode_label, baseMeta].filter(Boolean).join(' · ')
   return (
     <article className={s.card}>
       <button className={s.thumbBtn} onClick={onClick} aria-label={`Play ${video.title}`}>
@@ -173,7 +176,7 @@ export function YTCard({
         <div className={s.cardTitle}>{video.title}</div>
         {(meta || thread) && (
           <div className={s.cardMeta}>
-            {meta && <span>{meta}</span>}
+            {meta && <span className={s.cardMetaText}>{meta}</span>}
             {thread && (
               <Link
                 to={`/community/${thread.thread_id}`}

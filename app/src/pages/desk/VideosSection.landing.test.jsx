@@ -3,8 +3,8 @@
 // the tag chips. The theater/player contract is untouched: VideoDockSlot stays
 // the first rendered child and every play routes through videoStore.play(list,
 // index) with THAT category's display-order list.
-import { render, screen, fireEvent, within } from '@testing-library/react'
-import { vi, beforeEach, test, expect } from 'vitest'
+import { render, screen, fireEvent, within, act } from '@testing-library/react'
+import { vi, beforeEach, afterEach, test, expect } from 'vitest'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 
 // Stub the responsive Sheet so modals render plainly in jsdom.
@@ -45,7 +45,7 @@ vi.mock('../../components/video/VideoDockSlot', () => ({
   default: () => <div data-testid="dock-slot" />,
 }))
 
-import VideosSection from './VideosSection'
+import VideosSection, { fmtSeekTime, renderSnippet } from './VideosSection'
 import Shelf, { showGlyphName } from './Shelf'
 import { play } from '../../components/video/videoStore'
 
@@ -644,4 +644,157 @@ test('?v= and ?cat= coexist: autoplay fires AND the chip filter applies', () => 
     screen.getByRole('tab', { name: 'Live Trading Sessions' }).getAttribute('aria-selected'),
   ).toBe('true')
   expect(screen.getByRole('heading', { level: 2, name: 'Live Trading Sessions' })).toBeTruthy()
+})
+
+/* ── r6: "Found inside videos" — deep search below the title-match grid ─── */
+
+// Deep tests fake ONLY setTimeout/clearTimeout (the debounce) — Date stays
+// real so date meta / NEW-badge logic is untouched — and stub global fetch.
+const deepResults = () => [
+  // id 2 is a visible title match for "breadth" → must be DEDUPED out.
+  { id: 2, youtube_id: 'lts0000000b', title: 'Session — July 24 breadth day', category: 'Live Trading Sessions', match_field: 'title', snippet: 'Session — July 24 <b>breadth</b> day', t: null },
+  { id: 6, youtube_id: 'lib0000000c', title: 'Position sizing rules', category: 'Risk Management', match_field: 'transcript', snippet: '…hold the <b>breadth</b> line into the close…', t: 872 },
+  { id: 3, youtube_id: 'evn0000000a', title: 'Evening Update — July 23', category: 'Evening Update', match_field: 'chapter', snippet: 'Market <b>breadth</b> check', t: 3725 },
+  { id: 4, youtube_id: 'lib0000000a', title: 'Welcome to the Desk', category: 'Getting Started', match_field: 'headline', snippet: 'the <b>breadth</b> engine', t: null },
+]
+
+const stubSearch = (impl) => {
+  const fn = vi.fn(impl)
+  vi.stubGlobal('fetch', fn)
+  return fn
+}
+const okSearch = (results) =>
+  stubSearch(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ results, total: results.length, mode: 'fts' }) }),
+  )
+
+const typeSearch = (value) =>
+  fireEvent.change(screen.getByLabelText('Search educational videos'), { target: { value } })
+
+const settleDeep = () => act(async () => { await vi.advanceTimersByTimeAsync(450) })
+
+const deepSetup = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
+
+test('deep section renders from /search, dedupes visible grid matches, formats seek chips', async () => {
+  deepSetup()
+  const fetchFn = okSearch(deepResults())
+  renderSection()
+  typeSearch('breadth')
+  await settleDeep()
+  // One debounced request, query threaded through.
+  expect(fetchFn).toHaveBeenCalledTimes(1)
+  expect(fetchFn.mock.calls[0][0]).toBe('/api/education/search?q=breadth&limit=30')
+  const section = screen.getByRole('heading', { level: 2, name: 'Found inside videos' }).closest('section')
+  // id 2 is already in the title-match grid → excluded; the other 3 render.
+  expect(within(section).getByText('3')).toBeTruthy()
+  expect(within(section).queryByRole('button', { name: 'Play Session — July 24 breadth day' })).toBeNull()
+  const row = within(section).getByRole('button', { name: 'Play Position sizing rules' })
+  // Snippet <b> emphasis is parsed into a real element (no innerHTML), and the
+  // transcript timestamp renders mm:ss.
+  expect(within(row).getByText('breadth').tagName).toBe('B')
+  expect(within(row).getByText('14:32')).toBeTruthy()
+  // Chapter match ≥1h renders h:mm:ss; a t-less match renders no chip.
+  const chapterRow = within(section).getByRole('button', { name: 'Play Evening Update — July 23' })
+  expect(within(chapterRow).getByText('1:02:05')).toBeTruthy()
+  const headlineRow = within(section).getByRole('button', { name: 'Play Welcome to the Desk' })
+  expect(within(headlineRow).queryByText(/^\d+:\d\d/)).toBeNull()
+  // The deep section sits BELOW the title-match grid.
+  const grid = screen.getByRole('heading', { level: 2, name: 'Getting Started' }).closest('section')
+  expect(grid.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+test('clicking a deep row plays a minimal one-video list via playVideo(list, 0)', async () => {
+  deepSetup()
+  okSearch(deepResults())
+  renderSection()
+  typeSearch('breadth')
+  await settleDeep()
+  fireEvent.click(screen.getByRole('button', { name: 'Play Position sizing rules' }))
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(indexArg).toBe(0)
+  expect(listArg).toHaveLength(1)
+  expect(listArg[0]).toEqual({
+    id: 6, youtube_id: 'lib0000000c', title: 'Position sizing rules', category: 'Risk Management',
+  })
+})
+
+test('debounce: rapid typing fires ONE fetch for the final query only', async () => {
+  deepSetup()
+  const fetchFn = okSearch(deepResults())
+  renderSection()
+  typeSearch('bre')
+  typeSearch('brea')
+  typeSearch('breadth')
+  await settleDeep()
+  expect(fetchFn).toHaveBeenCalledTimes(1)
+  expect(fetchFn.mock.calls[0][0]).toContain('q=breadth')
+})
+
+test('queries under 3 chars never fetch and render no deep section', async () => {
+  deepSetup()
+  const fetchFn = stubSearch(() => Promise.reject(new Error('must not be called')))
+  renderSection()
+  await settleDeep() // landing (empty query)
+  typeSearch('br') // flat grid, but below the deep threshold
+  await settleDeep()
+  expect(fetchFn).not.toHaveBeenCalled()
+  expect(screen.queryByText('Found inside videos')).toBeNull()
+})
+
+test('fail-silent: a network error or non-OK response renders nothing; titles still work', async () => {
+  deepSetup()
+  stubSearch(() => Promise.reject(new Error('boom')))
+  renderSection()
+  typeSearch('breadth')
+  await settleDeep()
+  expect(screen.queryByText('Found inside videos')).toBeNull()
+  expect(screen.getByText('Breadth basics')).toBeTruthy() // title grid unharmed
+  // Non-OK (e.g. 500) is equally silent.
+  stubSearch(() => Promise.resolve({ ok: false, json: () => Promise.resolve({}) }))
+  typeSearch('breadth day')
+  await settleDeep()
+  expect(screen.queryByText('Found inside videos')).toBeNull()
+})
+
+test('renderSnippet escapes everything outside <b> markers (no HTML injection)', () => {
+  const { container } = render(
+    <div>{renderSnippet('x <img src=y> before <b>hit</b> after')}</div>,
+  )
+  expect(container.querySelector('img')).toBeNull() // raw HTML stays text
+  expect(container.querySelector('b').textContent).toBe('hit')
+  expect(container.textContent).toBe('x <img src=y> before hit after')
+})
+
+test('fmtSeekTime formats mm:ss under an hour and h:mm:ss over', () => {
+  expect(fmtSeekTime(0)).toBe('0:00')
+  expect(fmtSeekTime(59)).toBe('0:59')
+  expect(fmtSeekTime(872)).toBe('14:32')
+  expect(fmtSeekTime(3600)).toBe('1:00:00')
+  expect(fmtSeekTime(3725)).toBe('1:02:05')
+})
+
+/* ── r6: episode labels on card meta ────────────────────────────────────── */
+
+test('episode_label prepends the card meta line with a · separator', () => {
+  const data = fixture()
+  data.categories[0].videos[0].episode_label = 'S12 · E9' // show + date meta
+  data.categories[2].videos[0].episode_label = 'E42.4' // library, no date meta
+  mockData = data
+  renderSection()
+  const showRail = screen.getByRole('list', { name: 'Live Trading Sessions' })
+  expect(within(showRail).getByText('S12 · E9 · Jul 21, 2025')).toBeTruthy()
+  const libRail = screen.getByRole('list', { name: 'Getting Started' })
+  expect(within(libRail).getByText('E42.4')).toBeTruthy() // label alone — no stray separator
+})
+
+test('cards without episode_label keep their meta byte-unchanged', () => {
+  renderSection()
+  const showRail = screen.getByRole('list', { name: 'Live Trading Sessions' })
+  expect(within(showRail).getByText('Jul 24, 2025')).toBeTruthy()
+  expect(within(showRail).queryByText(/·/)).toBeNull() // no separator sneaks in
 })

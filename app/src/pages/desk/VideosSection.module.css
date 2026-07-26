@@ -503,7 +503,16 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+/* Meta text ("S12 · E9 · Jul 24, 2025") stays ONE line — ellipsis, never a
+   second clamp line; the Discussion link keeps its full width beside it. */
+.cardMetaText {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .cardMetaLink {
+  flex-shrink: 0;
   color: var(--text-muted);
   text-decoration: none;
 }
@@ -535,6 +544,96 @@
     justify-content: center;
   }
   .cardAdmin { margin-top: 0; }
+}
+
+/* ── "Found inside videos" — deep-search ROWS under the flat results grid ──
+   Same shelf-header register up top; each result is one quiet row (thumb ·
+   title / snippet) on the page background, hover lifting to the surface tone.
+   The matched term(s) render <b> brighter — never gold; the only extra piece
+   is a dim tabular seek chip when the match carries a timestamp. */
+.deepList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.deepRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  margin: 0 -8px;           /* hover surface bleeds; text stays grid-aligned */
+  border: none;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--duration-fast) ease;
+}
+.deepRow:hover { background: var(--bg-surface); }
+/* Explicit width (not flex-basis): an <img> flex item's min-width:auto is its
+   intrinsic width (480px), which would override any basis and blow the row out. */
+.deepThumb {
+  flex: 0 0 auto;
+  width: 120px;
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #000;
+}
+.deepBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.deepTitle {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.deepSnippetLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.deepSnippet {
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.deepSnippet b {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.deepTime {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+@media (max-width: 1024px) {
+  .deepRow { min-height: var(--tap-min); }
+}
+@media (max-width: 640px) {
+  .deepRow { margin: 0; padding: 6px 4px; }
+  .deepThumb { width: 104px; }
 }
 
 /* ── Learning paths — quiet single-surface cards under a plain header ────── */

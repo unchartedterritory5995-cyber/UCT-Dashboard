@@ -18,7 +18,7 @@ import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import { LEARNING_PATHS } from './learningPaths'
 import FeaturedStrip from './FeaturedStrip'
-import Shelf, { YTCard, useScrollEdges, pageScroller, showGlyphName } from './Shelf'
+import Shelf, { YTCard, useScrollEdges, pageScroller, showGlyphName, ytThumb } from './Shelf'
 import UIcon from '../../components/ui/UIcon'
 import styles from '../EducationalVideos.module.css'
 import s from './VideosSection.module.css'
@@ -27,6 +27,63 @@ const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
 const MAX_TAGS = 18
+
+/* ── Deep library search — "Found inside videos" (r6) ──────────────────────
+   Content matches (headline / chapter / transcript, plus any title matches
+   the flat grid didn't surface) from GET /api/education/search, rendered as
+   quiet rows below the title-match grid. Query < 3 chars → nothing. */
+
+const DEEP_MIN_CHARS = 3
+const DEEP_MAX_ROWS = 12
+const DEEP_DEBOUNCE_MS = 400
+
+// "14:32" / "1:02:05" for the seek chip (t = integer seconds).
+export const fmtSeekTime = (t) => {
+  const s = Math.max(0, Math.floor(Number(t) || 0))
+  const two = (n) => String(n).padStart(2, '0')
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return h > 0 ? `${h}:${two(m)}:${two(s % 60)}` : `${m}:${two(s % 60)}`
+}
+
+// The backend wraps matched terms in literal <b>…</b> markers. We parse those
+// markers OURSELVES and emit React nodes — every non-marker fragment becomes a
+// plain text node React escapes, so no dangerouslySetInnerHTML and no reliance
+// on upstream HTML-escaping (education_search._snippet does not escape).
+export const renderSnippet = (snippet) =>
+  String(snippet || '')
+    .split(/<b>(.*?)<\/b>/g)
+    .map((part, i) => (i % 2 === 1 ? <b key={i}>{part}</b> : part))
+
+// Debounced (400ms) + AbortController'd fetch — never per-keystroke. Errors,
+// non-OK responses and malformed payloads all resolve to [] (fail-silent:
+// title search keeps working, the deep section just doesn't render).
+function useDeepSearch(query) {
+  const [results, setResults] = useState([])
+  const q = query.trim()
+  const active = q.length >= DEEP_MIN_CHARS
+  useEffect(() => {
+    if (!active) {
+      setResults([])
+      return
+    }
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => {
+      fetch(`/api/education/search?q=${encodeURIComponent(q)}&limit=30`, {
+        credentials: 'include',
+        signal: ctrl.signal,
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => setResults(Array.isArray(j?.results) ? j.results : []))
+        .catch(() => {}) // abort or network error — render nothing
+    }, DEEP_DEBOUNCE_MS)
+    return () => {
+      clearTimeout(timer)
+      ctrl.abort()
+    }
+  }, [q, active])
+  return active ? results : []
+}
 
 export default function VideosSection() {
   const { user } = useAuth()
@@ -285,6 +342,16 @@ export default function VideosSection() {
   // Landing = no search text and no category chip → featured strip + shelves.
   // Any query or category filter swaps in the flat filtered grid (as before).
   const landing = !query.trim() && !activeCat
+
+  // Deep results, minus anything the title-match grid is already showing
+  // (no dupes), capped to a quiet dozen. Empty on landing (query gate).
+  const deepResults = useDeepSearch(query)
+  const deepRows = useMemo(() => {
+    if (!deepResults.length) return []
+    const visible = new Set()
+    for (const c of filtered) for (const v of c.videos) visible.add(v.id)
+    return deepResults.filter((r) => !visible.has(r.id)).slice(0, DEEP_MAX_ROWS)
+  }, [deepResults, filtered])
 
   // Flat-grid result count — one dim line over the search results ("3 videos"
   // / "1 video"). Query-only: a bare category chip's section header already
@@ -600,6 +667,10 @@ export default function VideosSection() {
             </section>
             )
           })}
+
+          {/* Deep content matches live ONLY here (flat/search mode) — the
+              landing branch above is untouched. */}
+          <DeepResults rows={deepRows} onPlay={playVideo} />
         </>
       )}
 
@@ -615,6 +686,44 @@ export default function VideosSection() {
         />
       )}
     </div>
+  )
+}
+
+// "Found inside videos" — quiet ROWS (not cards) under the same shelf-header
+// register: small 16:9 thumb, one-line title, one snippet line with the match
+// emphasized, and a dim seek chip when the match carries a timestamp. Clicking
+// a row plays the video from the top (the theater's transcript panel already
+// owns search-and-seek); the minimal video object is all the player needs.
+function DeepResults({ rows, onPlay }) {
+  if (!rows.length) return null
+  return (
+    <section className={s.shelf} aria-label="Found inside videos">
+      <div className={s.shelfHead}>
+        <h2 className={s.shelfName}>Found inside videos</h2>
+        <span className={s.shelfCount}>{rows.length}</span>
+      </div>
+      <div className={s.deepList}>
+        {rows.map((r) => (
+          <button
+            key={r.id}
+            className={s.deepRow}
+            aria-label={`Play ${r.title}`}
+            onClick={() =>
+              onPlay([{ id: r.id, youtube_id: r.youtube_id, title: r.title, category: r.category }], 0)
+            }
+          >
+            <img className={s.deepThumb} src={ytThumb(r.youtube_id)} alt="" loading="lazy" />
+            <span className={s.deepBody}>
+              <span className={s.deepTitle}>{r.title}</span>
+              <span className={s.deepSnippetLine}>
+                {r.t != null && <span className={s.deepTime}>{fmtSeekTime(r.t)}</span>}
+                <span className={s.deepSnippet}>{renderSnippet(r.snippet)}</span>
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 
