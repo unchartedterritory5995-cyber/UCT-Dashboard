@@ -41,6 +41,31 @@ def notify_signup(email: str, display_name: str = ""):
     })
 
 
+def notify_waitlist_signup(email: str, total: int | None = None, referrer: str = ""):
+    """Someone joined the pre-launch waitlist from the COMING SOON page.
+
+    Gold rather than the green of `notify_signup` so a launch-list join is
+    never mistaken for a real account (accounts are closed pre-launch).
+
+    `total` is the running list size and is deliberately in every message: if a
+    burst of signups trips Discord's webhook rate limit and some pings are
+    dropped, the next one that lands still carries the true count.
+    """
+    fields = [{"name": "Email", "value": email, "inline": True}]
+    if total is not None:
+        fields.append({"name": "List size", "value": str(total), "inline": True})
+    if referrer:
+        fields.append({"name": "Came from", "value": referrer[:180], "inline": False})
+
+    _send_webhook({
+        "title": "📋 Waitlist Signup",
+        "description": f"**#{total}** on the launch list" if total else "New launch-list signup",
+        "fields": fields,
+        "color": 0xC9A84C,  # UCT gold
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+
 def notify_subscription(email: str, event: str):
     """Subscription event: checkout_completed, canceled, payment_failed."""
     titles = {

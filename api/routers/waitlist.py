@@ -22,6 +22,7 @@ from pydantic import BaseModel, EmailStr, Field
 from api.limiter import limiter
 from api.middleware.auth_middleware import require_admin
 from api.services.auth_db import get_connection
+from api.services.discord_notify import notify_waitlist_signup
 from api.services.email_service import send_waitlist_confirmation
 from api.services.request_ip import client_ip
 
@@ -66,6 +67,7 @@ def join(request: Request, body: JoinBody) -> dict[str, Any]:
     than leaking whether that address is already on the list.
     """
     email = body.email.strip().lower()
+    total: int | None = None
 
     try:
         with closing(get_connection()) as conn:
@@ -77,6 +79,8 @@ def join(request: Request, body: JoinBody) -> dict[str, Any]:
                     (email, (body.referrer or None), _ip_prefix(client_ip(request))),
                 )
                 conn.commit()
+                row = conn.execute("SELECT COUNT(*) AS c FROM waitlist").fetchone()
+                total = row["c"] if row else None
     except sqlite3.IntegrityError:
         # Raced with a concurrent identical submit — still a success for the caller.
         already = True
@@ -84,13 +88,20 @@ def join(request: Request, body: JoinBody) -> dict[str, Any]:
         logger.exception("[waitlist] failed to record %s", email)
         raise HTTPException(status_code=500, detail="Could not save that. Try again in a moment.")
 
-    # Best-effort confirmation. A mail failure must never fail the signup —
-    # the address is already safely stored.
+    # Everything below is best-effort and only fires for a genuinely new entry.
+    # The row is already committed, so neither a mail outage nor a Discord
+    # outage can cost a signup — each is caught separately so one failing does
+    # not skip the other.
     if not already:
         try:
             send_waitlist_confirmation(email)
         except Exception:
             logger.exception("[waitlist] confirmation email failed for %s", email)
+
+        try:
+            notify_waitlist_signup(email, total=total, referrer=(body.referrer or ""))
+        except Exception:
+            logger.exception("[waitlist] discord ping failed for %s", email)
 
     return {"ok": True, "already": already}
 

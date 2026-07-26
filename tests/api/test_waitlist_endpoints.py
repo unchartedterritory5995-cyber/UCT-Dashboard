@@ -120,6 +120,101 @@ def test_rate_limit_actually_fires(client, monkeypatch):
     limiter.reset()
 
 
+# ── Discord ping ─────────────────────────────────────────────────────────────
+
+def test_new_signup_pings_discord_with_the_running_total(client, monkeypatch):
+    import api.routers.waitlist as wl
+    calls = []
+    monkeypatch.setattr(wl, "notify_waitlist_signup",
+                        lambda email, total=None, referrer="": calls.append((email, total)))
+
+    client.post("/api/waitlist", json={"email": "one@example.com"})
+    client.post("/api/waitlist", json={"email": "two@example.com"})
+
+    assert calls == [("one@example.com", 1), ("two@example.com", 2)]
+
+
+def test_repeat_signup_does_not_ping(client, monkeypatch):
+    """The ping means "someone new joined" — a resubmit is not news."""
+    import api.routers.waitlist as wl
+    calls = []
+    monkeypatch.setattr(wl, "notify_waitlist_signup",
+                        lambda email, total=None, referrer="": calls.append(email))
+
+    client.post("/api/waitlist", json={"email": "trader@example.com"})
+    client.post("/api/waitlist", json={"email": "TRADER@example.com"})
+
+    assert calls == ["trader@example.com"]
+
+
+def test_discord_failure_does_not_lose_the_signup(client, monkeypatch):
+    import api.routers.waitlist as wl
+
+    def boom(*_a, **_k):
+        raise RuntimeError("discord is down")
+
+    monkeypatch.setattr(wl, "notify_waitlist_signup", boom)
+
+    resp = client.post("/api/waitlist", json={"email": "trader@example.com"})
+    assert resp.status_code == 200
+    assert len(_rows(client)) == 1
+
+
+def test_email_failure_does_not_skip_the_discord_ping(client, monkeypatch):
+    """The two notifications are independent — one failing must not silence
+    the other, or an SMTP outage would also hide every signup from the owner."""
+    import api.routers.waitlist as wl
+    pinged = []
+
+    def bad_mail(_email):
+        raise RuntimeError("resend is down")
+
+    monkeypatch.setattr(wl, "send_waitlist_confirmation", bad_mail)
+    monkeypatch.setattr(wl, "notify_waitlist_signup",
+                        lambda email, total=None, referrer="": pinged.append(email))
+
+    client.post("/api/waitlist", json={"email": "trader@example.com"})
+    assert pinged == ["trader@example.com"]
+
+
+def test_discord_embed_carries_email_and_count(monkeypatch):
+    """The embed is posted from a daemon thread that swallows every error, so a
+    malformed payload would fail completely silently in production. Pin it."""
+    import api.services.discord_notify as dn
+    sent = {}
+    monkeypatch.setattr(dn, "_send_webhook", lambda embed: sent.update(embed))
+
+    dn.notify_waitlist_signup("trader@example.com", total=42, referrer="x.com")
+
+    assert "42" in sent["description"]
+    flat = {f["name"]: f["value"] for f in sent["fields"]}
+    assert flat["Email"] == "trader@example.com"
+    assert flat["List size"] == "42"
+    assert flat["Came from"] == "x.com"
+    # Gold, not the green used for real account signups — accounts are closed.
+    assert sent["color"] == 0xC9A84C
+
+
+def test_discord_embed_survives_a_missing_total(monkeypatch):
+    import api.services.discord_notify as dn
+    sent = {}
+    monkeypatch.setattr(dn, "_send_webhook", lambda embed: sent.update(embed))
+
+    dn.notify_waitlist_signup("trader@example.com")
+
+    assert sent["description"]  # no "#None"
+    assert "None" not in sent["description"]
+    assert [f["name"] for f in sent["fields"]] == ["Email"]
+
+
+def test_discord_notify_is_inert_without_a_webhook(monkeypatch):
+    """Local dev and any env without DISCORD_WEBHOOK_URL must no-op silently,
+    not raise or block."""
+    import api.services.discord_notify as dn
+    monkeypatch.setattr(dn, "DISCORD_ADMIN_WEBHOOK", "")
+    dn.notify_waitlist_signup("trader@example.com", total=3)  # must not raise
+
+
 def test_admin_list_requires_auth(client):
     assert client.get("/api/waitlist/admin").status_code in (401, 403)
 
