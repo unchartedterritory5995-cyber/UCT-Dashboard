@@ -509,3 +509,115 @@ def post_progress(body: ProgressIn, user: dict = Depends(require_paid)):
         duration=body.duration or 0, done=bool(body.done),
     )
     return {"ok": True}
+
+
+# ── Learning Paths / Courses (edu_paths + edu_path_steps) ─────────────────────
+# Reads: paid (member-facing, enabled-only). Writes: admin, except paths-apply
+# which is the PUSH_SECRET bulk-curation rail (mirrors taxonomy-apply above).
+
+class PathIn(BaseModel):
+    slug: str
+    name: str
+    blurb: Optional[str] = None
+    kind: Optional[str] = "track"
+    sort_order: Optional[int] = 0
+    enabled: Optional[bool] = True
+
+
+class PathPatchIn(BaseModel):
+    name: Optional[str] = None
+    blurb: Optional[str] = None
+    kind: Optional[str] = None
+    sort_order: Optional[int] = None
+    enabled: Optional[bool] = None
+
+
+class PathStepIn(BaseModel):
+    youtube_id: str
+    module_label: Optional[str] = None
+    note: Optional[str] = None
+
+
+class PathStepsIn(BaseModel):
+    steps: list[PathStepIn] = []
+
+
+@router.get("/paths")
+def get_paths(_user: dict = Depends(require_paid)):
+    """Enabled paths only (member-facing) — each with its steps ordered."""
+    return {"paths": svc.list_paths()}
+
+
+@router.post("/paths")
+def add_path(body: PathIn, _admin: dict = Depends(require_admin)):
+    try:
+        return svc.create_path(body.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.patch("/paths/{path_id}")
+def edit_path(path_id: int, body: PathPatchIn, _admin: dict = Depends(require_admin)):
+    try:
+        # exclude_unset preserves the create/PATCH-vs-explicit-null distinction
+        # update_path relies on (e.g. {"kind": null} must 400, an omitted kind
+        # must not touch the column).
+        updated = svc.update_path(path_id, body.model_dump(exclude_unset=True))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not updated:
+        raise HTTPException(404, "Path not found")
+    return updated
+
+
+@router.delete("/paths/{path_id}")
+def remove_path(path_id: int, _admin: dict = Depends(require_admin)):
+    if not svc.delete_path(path_id):
+        raise HTTPException(404, "Path not found")
+    return {"ok": True}
+
+
+@router.put("/paths/{path_id}/steps")
+def put_path_steps(path_id: int, body: PathStepsIn, _admin: dict = Depends(require_admin)):
+    """Bulk-replace a path's steps (the editor's whole-list save). Existence is
+    checked explicitly so a missing path cleanly 404s rather than surfacing as
+    the ValueError replace_path_steps raises for that case (which otherwise
+    would be indistinguishable from a step-validation 400)."""
+    if not svc.get_path(path_id):
+        raise HTTPException(404, "Path not found")
+    try:
+        count = svc.replace_path_steps(path_id, [s.model_dump() for s in body.steps])
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"steps": count}
+
+
+class PathApplyStepIn(BaseModel):
+    youtube_id: str
+    module_label: Optional[str] = None
+    note: Optional[str] = None
+
+
+class PathApplyIn(BaseModel):
+    slug: str
+    name: str
+    blurb: Optional[str] = None
+    kind: Optional[str] = None
+    sort_order: Optional[int] = None
+    enabled: Optional[bool] = True
+    steps: list[PathApplyStepIn] = []
+
+
+class PathsApplyIn(BaseModel):
+    paths: list[PathApplyIn] = []
+
+
+@router.post("/paths-apply")
+def paths_apply(body: PathsApplyIn, _: None = Depends(require_push_secret)):
+    """One-shot transactional apply of the curated path set: upsert-by-slug +
+    full step replacement, all in a single transaction (bulk_apply_paths is
+    all-or-nothing — a bad entry anywhere rolls back the whole batch)."""
+    try:
+        return svc.bulk_apply_paths([p.model_dump() for p in body.paths])
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
