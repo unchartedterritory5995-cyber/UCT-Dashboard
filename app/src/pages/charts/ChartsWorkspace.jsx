@@ -378,6 +378,13 @@ export default function ChartsWorkspace() {
   // chart's color into every widget — do NOT hoist it back up.)
   // Resolution mirrors each surface's own: a gradient contributes its TOP stop, since
   // that's the edge the header actually meets; otherwise the solid color.
+  // ── Pop-out state (declared up here so the per-widget chrome map below can
+  // include popped widgets — a popped-out layout's widgets are removed from
+  // layout.widgets, so without this their canvas-colored borders reverted to the
+  // default when popped). Both kinds are React portals owned by this tab.
+  const [poppedWidgetIds, setPoppedWidgetIds] = useState([])
+  const [poppedLayouts, setPoppedLayouts] = useState([])
+
   const widgetCanvasByType = useMemo(() => {
     const cs = mergeChartSettings(prefs.chart_settings)
     const chart = chartsTheme === 'sunrise'
@@ -429,12 +436,16 @@ export default function ChartsWorkspace() {
   // chrome, matching the isolated list/chart surfaces.
   const widgetCanvasById = useMemo(() => {
     const out = {}
-    for (const w of layout.widgets || []) {
+    // Include popped-out layout widgets too — they're removed from layout.widgets
+    // while popped, but their per-widget chrome (canvas-colored border) must still
+    // resolve in the popped window's WidgetHost.
+    const all = [...(layout.widgets || []), ...poppedLayouts.flatMap(pl => pl.widgets || [])]
+    for (const w of all) {
       const entry = widgetOwnChrome(w, chartsTheme)
       if (entry) out[w.id] = entry
     }
     return out
-  }, [layout.widgets, chartsTheme])
+  }, [layout.widgets, poppedLayouts, chartsTheme])
 
   const workspaceValue = useMemo(
     () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
@@ -780,11 +791,6 @@ export default function ChartsWorkspace() {
 
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
-  // ── Pop-out: widgets and whole boards in their own OS windows ──────────────
-  // Both kinds are React portals owned by this tab (see PopoutWindow), so every
-  // monitor shares this tab's single live-price/bars stream pool.
-  const [poppedWidgetIds, setPoppedWidgetIds] = useState([])
-  const [poppedLayouts, setPoppedLayouts] = useState([])
   const [popoutNotice, setPopoutNotice] = useState(null)
 
   // A popped widget stays in layout.widgets — it's only hidden from the grid — so
