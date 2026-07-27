@@ -149,6 +149,45 @@ def test_one_bad_ticker_mid_session_is_still_held_back(session_closes):
     assert "AAPL" not in out, "a stale close leaked into a live session"
 
 
+def test_premarket_volume_uses_accumulated_min_av(session_closes):
+    """Pre-market volume must come from `min.av`, not the 0 `day.v`.
+
+    The real Monday-morning payload: an active pre-market name has day.v == 0
+    (the regular-session aggregate hasn't started) but min.av carries the
+    accumulated pre-market volume. Reading day.v reported 0 on every poll, so the
+    column kept snapping back to 0 as REST overwrote the SSE stream's value.
+    """
+    premarket = {
+        "ticker": "NBIS",
+        "day": {"o": 0, "h": 0, "l": 0, "c": 0, "v": 0},   # RTH aggregate not started
+        "min": {"av": 371936, "v": 2528},                   # accumulated pre-market
+        "prevDay": {"c": 187.52, "o": 190, "h": 195, "l": 185, "v": 24_095_349},
+        "lastTrade": {"p": 198.20},
+        "todaysChangePerc": 5.87,
+        "todaysChange": 11.0,
+    }
+    out = lp._fetch_snapshots(_ClosedClient(premarket), ["NBIS"], "pre_market")
+    row = out["NBIS"]
+    assert row["volume"] == 371936              # min.av, not 0
+    assert row["price"] == 198.20               # pre-market last trade
+    assert "market_closed" not in row           # a live pre-market row, not a stale close
+
+
+def test_regular_session_volume_still_prefers_day_v(session_closes):
+    """During RTH day.v is authoritative and wins over min.av (they track anyway)."""
+    rth = {
+        "ticker": "AAPL",
+        "day": {"o": 330, "h": 335, "l": 329, "c": 333.02, "v": 40_000_000},
+        "min": {"av": 39_950_000, "v": 1000},
+        "prevDay": {"c": 321.66},
+        "lastTrade": {"p": 333.10},
+        "todaysChangePerc": 3.53,
+        "todaysChange": 11.36,
+    }
+    out = lp._fetch_snapshots(_ClosedClient(rth), ["AAPL"], "regular")
+    assert out["AAPL"]["volume"] == 40_000_000
+
+
 def test_zero_prev_close_is_not_served(session_closes):
     """Nothing usable in prevDay either → still omit rather than invent a 0.00 price."""
     out = lp._fetch_snapshots(

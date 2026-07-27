@@ -214,9 +214,17 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         day = t.get("day", {})
         prev_day = t.get("prevDay", {})
         last_trade = t.get("lastTrade", {})
+        minute = t.get("min", {})
 
         price = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
-        volume = int(day.get("v") or 0)
+        # `day.v` is the REGULAR-session aggregate and stays 0 until the 9:30
+        # open, so in pre-market every name reported volume 0 and the column
+        # kept snapping back to 0 on each 2s poll (the SSE stream would briefly
+        # set a real number, then REST stomped it). `min.av` is today's
+        # ACCUMULATED volume — during pre/post it holds the extended-hours total,
+        # and during RTH it tracks day.v — so it's the right fallback when the
+        # regular aggregate hasn't started.
+        volume = int(day.get("v") or minute.get("av") or 0)
 
         # The day % must be the REGULAR-SESSION move — day close vs prev close, the
         # exact thing the chart's close-vs-prev-close legend shows. Massive's
