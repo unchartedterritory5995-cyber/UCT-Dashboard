@@ -913,4 +913,45 @@ describe('GlobalVideoLayer', () => {
       expect(lastPlayer.unMute).toHaveBeenCalled()
     })
   })
+
+  // ── play(..., { startAt }) — course lessons that begin mid-video ──────────
+  describe('startAt consumption', () => {
+    it('a fresh play with startAt builds the player at that second AND routes one seek through the seek rail', () => {
+      renderLayer()
+      act(() => store.play(LIST, 0, { startAt: 1340 }))
+      // Player born at the clip start (no flash of 0:00)…
+      expect(lastPlayerVars.start).toBe(1340)
+      // …and the onReady-driven storeSeekTo landed through the seekReq effect
+      // (the same rail chapter chips use — keeps YT + audio clock in sync).
+      expect(lastPlayer.seekTo).toHaveBeenCalledWith(1340, true)
+      // Consumed exactly once — nothing left armed.
+      expect(store.getSnapshot().startAtReq).toBeNull()
+    })
+
+    it('switching videos with startAt loads the new video at that second', () => {
+      renderLayer()
+      act(() => store.play(LIST, 0))
+      act(() => store.play(LIST, 1, { startAt: 90 }))
+      expect(lastPlayer.loadVideoById).toHaveBeenCalledWith({ videoId: 'bbbbbbbbbbb', startSeconds: 90 })
+      expect(lastPlayer.seekTo).toHaveBeenCalledWith(90, true)
+    })
+
+    it('re-picking the ALREADY-loaded video with startAt seeks without reloading', () => {
+      renderLayer()
+      act(() => store.play(LIST, 0))
+      act(() => store.play(LIST, 0, { startAt: 75 }))
+      expect(lastPlayer.loadVideoById).not.toHaveBeenCalled()
+      expect(lastPlayer.seekTo).toHaveBeenCalledWith(75, true)
+      expect(store.getSnapshot().startAtReq).toBeNull()
+    })
+
+    it('a later plain play never re-applies an old startAt', () => {
+      renderLayer()
+      act(() => store.play(LIST, 0, { startAt: 75 }))
+      lastPlayer.seekTo.mockClear()
+      act(() => store.play(LIST, 1))
+      expect(lastPlayer.loadVideoById).toHaveBeenCalledWith({ videoId: 'bbbbbbbbbbb', startSeconds: 0 })
+      expect(lastPlayer.seekTo).not.toHaveBeenCalledWith(75, true)
+    })
+  })
 })

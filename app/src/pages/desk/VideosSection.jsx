@@ -455,6 +455,17 @@ export default function VideosSection() {
     return best
   }, [courseStats])
 
+  // Day-one variant of the same slot: with ZERO course progress anywhere, the
+  // strip becomes an on-ramp — "New here? Start with <first course>". The
+  // first entry of the member-visible set IS the pick: list_paths() orders
+  // kind='course' first, then sort_order, so a flagship course leads whenever
+  // one exists and the first track leads otherwise. Any progress at all
+  // (including a fully finished course — that member isn't new) hides it.
+  const starterCourse = useMemo(
+    () => (courseStats.length && courseStats.every((cs) => !cs.started) ? courseStats[0] : null),
+    [courseStats],
+  )
+
   // Course open lives in the URL: ?path=<slug>. DELIBERATE contrast with
   // ?cat's replace:true — a chip is a view filter (no history), but opening a
   // course is a NAVIGATION, so replace:false gives it a history entry and
@@ -807,6 +818,32 @@ export default function VideosSection() {
               >
                 <UIcon name="play" size={12} gold={false} />
                 Resume
+              </button>
+            </section>
+          )}
+
+          {/* Day-one on-ramp — the SAME slot and CSS as the resume strip, so
+              a brand-new member gets a first step instead of empty space.
+              Start NAVIGATES to the course page (?path=<slug>); it never
+              autoplays — the syllabus keeps ownership of the first play. */}
+          {!continueCourse && starterCourse && (
+            <section className={s.courseStrip} aria-label="Start your first course">
+              <div className={s.courseStripBody}>
+                <span className={s.courseStripEyebrow}>New here?</span>
+                <span className={s.courseStripLine}>
+                  <span className={s.courseStripNext}>Start with</span>
+                  <span className={s.courseStripName}>{starterCourse.path.name}</span>
+                  <span className={s.courseStripNext}>
+                    Lesson 1: {starterCourse.path.videos[0].title}
+                  </span>
+                </span>
+              </div>
+              <button
+                className={s.courseStripResume}
+                onClick={() => openPath(starterCourse.path.slug)}
+              >
+                <UIcon name="play" size={12} gold={false} />
+                Start
               </button>
             </section>
           )}

@@ -24,15 +24,43 @@ import { SkeletonLine, SkeletonPill } from '../../components/Skeleton'
 // Deliberate module cycle (VideosSection ⇄ PathView): the helpers are only
 // called at render time, long after both modules finish evaluating — and the
 // landing tests pin these exports to VideosSection, so they stay there.
-import { parseDuration, fmtCourseDuration, DURATION_COVERAGE_MIN } from './VideosSection'
+import { parseDuration, fmtCourseDuration, fmtSeekTime, DURATION_COVERAGE_MIN } from './VideosSection'
 import p from './PathView.module.css'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
+// Admin time-input grammar for a step's clip window: "mm:ss" / "h:mm:ss"
+// (same shape parseDuration accepts) OR a bare integer second count ("1340").
+// '' → null (no clip boundary); anything else → undefined (invalid — the
+// editor blocks the save inline rather than shipping garbage).
+export const parseTimeInput = (str) => {
+  const t = String(str || '').trim()
+  if (!t) return null
+  if (/^\d+$/.test(t)) return parseInt(t, 10)
+  const m = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(t)
+  if (!m) return undefined
+  const [, h, mm, ss] = m
+  if (+ss > 59 || (h != null && +mm > 59)) return undefined
+  return (h ? +h * 3600 : 0) + +mm * 60 + +ss
+}
+
+// { startAt } for playing this lesson — its clip start, UNLESS the member is
+// mid-lesson (t ≥ 8, not done): an explicit resume must land where they left
+// off, never yank them back to the clip boundary. Fresh and done (rewatch)
+// picks both start at the clip. Returns undefined when there's nothing to seek.
+const startAtOptsFor = (lesson, progress) => {
+  const sec = lesson?.step?.start_seconds
+  if (!(Number.isFinite(sec) && sec > 0)) return undefined
+  const e = progress[lesson.video.youtube_id]
+  const inProgress = !!e && !e.done && e.t >= 8 // the store's resume threshold
+  return inProgress ? undefined : { startAt: sec }
+}
+
 // The editable draft mirrors path meta + ALL authored steps — including steps
 // whose youtube_id doesn't resolve against the loaded library. Dropping those
 // on save would silently destroy curation, so they ride along (flagged
-// "not in library" in the editor) and land back in the PUT untouched.
+// "not in library" in the editor) and land back in the PUT untouched. Stored
+// clip seconds surface as editable mm:ss / h:mm:ss text (start/end).
 const draftFromPath = (path) => ({
   name: path.name || '',
   blurb: path.blurb || '',
@@ -41,6 +69,8 @@ const draftFromPath = (path) => ({
     youtube_id: st.youtube_id,
     module_label: st.module_label || '',
     note: st.note || '',
+    start: st.start_seconds != null ? fmtSeekTime(st.start_seconds) : '',
+    end: st.end_seconds != null ? fmtSeekTime(st.end_seconds) : '',
   })),
 })
 
@@ -119,6 +149,14 @@ export default function PathView({
   const ctaLabel = allDone ? 'Rewatch' : stats?.started ? 'Continue' : 'Start'
   const resumeIndex =
     allDone || stats == null || stats.nextIndex < 0 ? 0 : stats.nextIndex
+  // The CTA plays the resume lesson exactly like clicking its row — including
+  // its clip start when it hasn't been started yet. lessons[i].index === i by
+  // construction (each lesson consumed exactly one video, in order).
+  const ctaPlay = () => {
+    const opts = startAtOptsFor(lessons[resumeIndex], progress)
+    if (opts) onPlay(path.videos, resumeIndex, opts)
+    else onPlay(path.videos, resumeIndex)
+  }
 
   // ── Admin editor state — draft != null IS edit mode ─────────────────────
   const [draft, setDraft] = useState(() =>
@@ -160,7 +198,7 @@ export default function PathView({
   const addStep = (video) =>
     setDraft((d) => ({
       ...d,
-      steps: [...d.steps, { youtube_id: video.youtube_id, module_label: '', note: '' }],
+      steps: [...d.steps, { youtube_id: video.youtube_id, module_label: '', note: '', start: '', end: '' }],
     }))
 
   // Save = PATCH meta only when something actually changed (partial body of
@@ -173,6 +211,30 @@ export default function PathView({
     if (!name) {
       setSaveErr('Name is required.')
       return
+    }
+    // Parse + validate every clip window BEFORE any network call — a bad time
+    // string blocks the whole save inline (the draft survives untouched), so
+    // the PUT can never half-land around a 400.
+    const steps = []
+    for (let i = 0; i < draft.steps.length; i++) {
+      const s = draft.steps[i]
+      const start = parseTimeInput(s.start)
+      const end = parseTimeInput(s.end)
+      if (start === undefined || end === undefined) {
+        setSaveErr(`Lesson ${i + 1}: times are mm:ss, h:mm:ss, or plain seconds.`)
+        return
+      }
+      if (start != null && end != null && end <= start) {
+        setSaveErr(`Lesson ${i + 1}: the end time must be after the start time.`)
+        return
+      }
+      steps.push({
+        youtube_id: s.youtube_id,
+        module_label: s.module_label.trim() || null,
+        note: s.note.trim() || null,
+        start_seconds: start,
+        end_seconds: end,
+      })
     }
     setBusy(true)
     setSaveErr('')
@@ -195,11 +257,6 @@ export default function PathView({
           throw new Error(j.detail || 'Save failed')
         }
       }
-      const steps = draft.steps.map((s) => ({
-        youtube_id: s.youtube_id,
-        module_label: s.module_label.trim() || null,
-        note: s.note.trim() || null,
-      }))
       const r2 = await fetch(`/api/education/paths/${path.id}/steps`, {
         method: 'PUT',
         credentials: 'include',
@@ -325,6 +382,27 @@ export default function PathView({
                         aria-label={`Note for lesson ${i + 1}`}
                         disabled={busy}
                       />
+                      {/* Clip window — where this lesson starts/ends inside
+                          the video. Accepts mm:ss / h:mm:ss / bare seconds
+                          (parseTimeInput); blank = whole video. */}
+                      <input
+                        className={`${p.editField} ${p.editFieldTime}`}
+                        value={st.start}
+                        onChange={(e) => setStep(i, 'start', e.target.value)}
+                        placeholder="Start"
+                        title="Where this lesson starts — mm:ss, h:mm:ss, or seconds"
+                        aria-label={`Start time for lesson ${i + 1}`}
+                        disabled={busy}
+                      />
+                      <input
+                        className={`${p.editField} ${p.editFieldTime}`}
+                        value={st.end}
+                        onChange={(e) => setStep(i, 'end', e.target.value)}
+                        placeholder="End"
+                        title="Where this lesson ends (shown on the row; playback doesn’t auto-stop)"
+                        aria-label={`End time for lesson ${i + 1}`}
+                        disabled={busy}
+                      />
                     </span>
                   </span>
                   <span className={p.editOps}>
@@ -410,10 +488,7 @@ export default function PathView({
         {path.blurb && <p className={p.blurb}>{path.blurb}</p>}
         {total > 0 && (
           <div className={p.actions}>
-            <button
-              className={p.cta}
-              onClick={() => onPlay(path.videos, resumeIndex)}
-            >
+            <button className={p.cta} onClick={ctaPlay}>
               <UIcon name="play" size={12} gold={false} />
               {ctaLabel}
             </button>
@@ -521,8 +596,9 @@ function AddLessonSearch({ allVideos, existingIds, onAdd, disabled }) {
 }
 
 // One lesson row — a full-width button (44px touch): course-wide index, state
-// slot (gold check when done), title, dim AI headline, italic per-step note,
-// thin gold progress bar while in progress, duration on the right.
+// slot (gold check when done), title, mono clip chip when the lesson begins
+// mid-video, dim AI headline, italic per-step note, thin gold progress bar
+// while in progress, duration on the right.
 function LessonRow({ lesson, videos, progress, onPlay }) {
   const { video: v, step, index } = lesson
   const e = progress[v.youtube_id]
@@ -531,12 +607,31 @@ function LessonRow({ lesson, videos, progress, onPlay }) {
   const pct =
     active && e.d > 0 ? Math.min(100, Math.max(4, Math.round((e.t / e.d) * 100))) : 4
 
+  // Clip window chip — information, not decoration: "22:20 – 41:05" when both
+  // ends are authored, "starts at 22:20" with a start alone. end_seconds is
+  // v1 display-only (playback never auto-stops — a player behavior change is
+  // deliberately out of scope).
+  const startSec = Number.isFinite(step?.start_seconds) ? step.start_seconds : null
+  const endSec = Number.isFinite(step?.end_seconds) ? step.end_seconds : null
+  const clipLabel =
+    startSec != null && endSec != null
+      ? `${fmtSeekTime(startSec)} – ${fmtSeekTime(endSec)}`
+      : startSec > 0
+        ? `starts at ${fmtSeekTime(startSec)}`
+        : null
+
+  const handlePlay = () => {
+    const opts = startAtOptsFor(lesson, progress)
+    if (opts) onPlay(videos, index, opts)
+    else onPlay(videos, index)
+  }
+
   return (
     <li className={p.rowItem}>
       <button
         className={p.row}
         aria-label={`Play ${v.title}`}
-        onClick={() => onPlay(videos, index)}
+        onClick={handlePlay}
       >
         <span className={p.rowIndex} aria-hidden="true">
           {index + 1}
@@ -548,6 +643,7 @@ function LessonRow({ lesson, videos, progress, onPlay }) {
         </span>
         <span className={p.rowBody}>
           <span className={`${p.rowTitle} ${isDone ? p.rowTitleDone : ''}`}>{v.title}</span>
+          {clipLabel && <span className={p.rowClip}>{clipLabel}</span>}
           {v.headline ? <span className={p.rowHeadline}>{v.headline}</span> : null}
           {step.note ? <span className={p.rowNote}>{step.note}</span> : null}
           {active && (

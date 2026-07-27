@@ -10,7 +10,7 @@ import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from '
 import { useNavigate } from 'react-router-dom'
 import { useYouTubeApi } from '../../pages/desk/useYouTubeApi'
 import { recordProgress, markWatched, resumeSeconds } from '../../pages/desk/videoProgress'
-import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos, registerTimeGetter, getDockEl } from './videoStore'
+import { subscribe, getSnapshot, next as storeNext, minimize, expand as storeExpand, close as storeClose, setPos, registerTimeGetter, getDockEl, seekTo as storeSeekTo, consumeStartAt } from './videoStore'
 import { computeHostStyle, dockPinTransform } from './hostStyle'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { fmtTime, nextRate } from './playerUtils'
@@ -161,6 +161,13 @@ export default function GlobalVideoLayer() {
     if (!apiReady || !active || playerRef.current || !hostRef.current) return
     const startId = list[index].youtube_id
     curIdRef.current = startId
+    // A course lesson that begins mid-video ("watch from 22:20") — consumed
+    // exactly once here. The `start` playerVar positions the iframe with no
+    // 0:00 flash; onReady additionally routes ONE storeSeekTo through the
+    // seekReq effect (the same rail as chapter chips) so the audio-primary
+    // <audio> clock is aligned too when it's active. startAt beats
+    // resumeSeconds by design: an explicit lesson pick restarts at the clip.
+    const startAt = consumeStartAt(startId)
     const mount = document.createElement('div')
     hostRef.current.appendChild(mount)
     const player = new window.YT.Player(mount, {
@@ -174,7 +181,7 @@ export default function GlobalVideoLayer() {
         fs: 0, // our own fullscreen button
         iv_load_policy: 3, // no annotations
         cc_load_policy: 0,
-        start: resumeSeconds(startId) || undefined,
+        start: startAt ?? (resumeSeconds(startId) || undefined),
         // Audio-primary mobile path: born muted so the iframe can never
         // autoplay audibly before onReady fires — the separate <audio>
         // element is the sole audio source. Untouched (no key) otherwise.
@@ -203,6 +210,10 @@ export default function GlobalVideoLayer() {
               e.target.playVideo()
             } catch { /* ignore */ }
           }
+          // The player is command-ready — land the lesson clip start through
+          // the shared seek rail (no-op for YT, which was born at `start`,
+          // but it aligns the audio element when audio-primary is active).
+          if (startAt != null) storeSeekTo(startAt)
         },
         onStateChange: (e) => {
           if (e.data === 0) {
@@ -236,6 +247,10 @@ export default function GlobalVideoLayer() {
     saveNow()
     setEnded(false)
     curIdRef.current = id
+    // Lesson clip start for the incoming video (consumed once; null when the
+    // pick was plain). Beats resumeSeconds — an explicit "watch from 22:20"
+    // pick restarts at the clip, not wherever the member last paused.
+    const startAt = consumeStartAt(id)
     if (isAudioPrimary() && audioRef.current) {
       // Disarm audioOn() for the OLD track immediately — otherwise controls
       // (togglePlay/seek/etc) can act on the audio element mid-load, before
@@ -246,12 +261,29 @@ export default function GlobalVideoLayer() {
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
       audioRef.current.play().then(() => { audioActiveRef.current = true; setAudioActive(true) }).catch(() => failToAudibleYT())
     }
-    p.loadVideoById({ videoId: id, startSeconds: resumeSeconds(id) })
+    p.loadVideoById({ videoId: id, startSeconds: startAt ?? resumeSeconds(id) })
     if (isAudioPrimary()) {
       try { p.mute() } catch { /* ignore */ }
     }
+    // One storeSeekTo through the shared rail — a YT no-op (loadVideoById
+    // already starts there) that keeps the audio-primary clock aligned.
+    if (startAt != null) storeSeekTo(startAt)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list, index, active, saveNow])
+
+  // A play(..., { startAt }) aimed at the ALREADY-loaded video (re-clicking a
+  // "starts at 22:20" lesson row): neither the build nor the switch effect
+  // re-runs (same list/index), so consume it here as an ordinary seek.
+  // consumeStartAt reads LIVE store state, so when a build/switch in this same
+  // commit already consumed the request this is a clean no-op — never a
+  // double seek.
+  useEffect(() => {
+    const req = snap.startAtReq
+    if (!req || !active || !playerRef.current) return
+    if (curIdRef.current !== req.youtube_id) return // build/switch owns it
+    const sec = consumeStartAt(req.youtube_id)
+    if (sec != null) storeSeekTo(sec)
+  }, [snap.startAtReq, active])
 
   // Tear down when the session closes.
   useEffect(() => {

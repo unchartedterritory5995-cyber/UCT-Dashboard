@@ -193,6 +193,23 @@
   text-overflow: ellipsis;
 }
 .rowTitleDone { color: var(--text-muted); }
+/* Clip-window chip — "starts at 22:20" / "22:20 – 41:05". Data, not
+   decoration: mono-set tabular digits in a hairline pill, same muted ink as
+   the duration column so it reads as part of the ledger's timekeeping. */
+.rowClip {
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* Dim one-line AI headline from the library video. */
 .rowHeadline {
   min-width: 0;
@@ -417,6 +434,12 @@
   outline: none;
   border-bottom-style: solid;
   border-bottom-color: var(--ut-gold-glow);
+}
+/* Clip-window inputs — narrow, tabular; the Module/Note pair keeps the flex. */
+.editFieldTime {
+  flex: 0 0 76px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 .editOps {
   flex-shrink: 0;

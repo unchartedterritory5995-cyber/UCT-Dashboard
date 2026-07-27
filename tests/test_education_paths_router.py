@@ -91,7 +91,8 @@ def test_get_paths_includes_steps(paid_client, svc):
     svc.replace_path_steps(p["id"], [{"youtube_id": "yt1", "module_label": "M1", "note": "n"}])
     r = paid_client.get("/api/education/paths")
     steps = r.json()["paths"][0]["steps"]
-    assert steps == [{"youtube_id": "yt1", "module_label": "M1", "note": "n"}]
+    assert steps == [{"youtube_id": "yt1", "module_label": "M1", "note": "n",
+                      "start_seconds": None, "end_seconds": None}]
 
 
 # ── POST /paths — admin ──────────────────────────────────────────────────────
@@ -218,6 +219,45 @@ def test_put_steps_missing_youtube_id_returns_400(admin_client, svc):
     assert svc.get_path(p["id"])["steps"] == []
 
 
+def test_put_steps_carries_start_end_seconds_through(admin_client, paid_client, svc):
+    """The clip-window fields round-trip: PUT → service → member-facing GET."""
+    p = svc.create_path({"slug": "clip", "name": "Clip", "enabled": True})
+    r = admin_client.put(f"/api/education/paths/{p['id']}/steps", json={"steps": [
+        {"youtube_id": "yt1", "start_seconds": 1340, "end_seconds": 2465},
+        {"youtube_id": "yt2"},
+    ]})
+    assert r.status_code == 200 and r.json() == {"steps": 2}
+    got = paid_client.get("/api/education/paths").json()["paths"][0]["steps"]
+    assert got[0]["start_seconds"] == 1340 and got[0]["end_seconds"] == 2465
+    assert got[1]["start_seconds"] is None and got[1]["end_seconds"] is None
+
+
+def test_put_steps_end_not_after_start_returns_400(admin_client, svc):
+    p = svc.create_path({"slug": "clip2", "name": "Clip 2"})
+    r = admin_client.put(f"/api/education/paths/{p['id']}/steps", json={"steps": [
+        {"youtube_id": "yt1", "start_seconds": 100, "end_seconds": 100},
+    ]})
+    assert r.status_code == 400
+    assert svc.get_path(p["id"])["steps"] == []  # nothing landed
+
+
+def test_put_steps_negative_start_returns_400(admin_client, svc):
+    p = svc.create_path({"slug": "clip3", "name": "Clip 3"})
+    r = admin_client.put(f"/api/education/paths/{p['id']}/steps", json={"steps": [
+        {"youtube_id": "yt1", "start_seconds": -4},
+    ]})
+    assert r.status_code == 400
+
+
+def test_put_steps_non_integer_start_returns_422(admin_client, svc):
+    # Pydantic owns the type gate — a non-numeric string never reaches the service.
+    p = svc.create_path({"slug": "clip4", "name": "Clip 4"})
+    r = admin_client.put(f"/api/education/paths/{p['id']}/steps", json={"steps": [
+        {"youtube_id": "yt1", "start_seconds": "not-a-number"},
+    ]})
+    assert r.status_code == 422
+
+
 # ── POST /paths-apply — PUSH_SECRET ──────────────────────────────────────────
 
 def test_paths_apply_requires_push_secret(client, monkeypatch):
@@ -251,6 +291,16 @@ def test_paths_apply_is_transactional_via_router(push_client, svc):
     ]})
     assert r.status_code == 400
     assert svc.list_paths(include_disabled=True) == []
+
+
+def test_paths_apply_carries_start_end_seconds(push_client, svc):
+    r = push_client.post("/api/education/paths-apply", json={"paths": [
+        {"slug": "clipped", "name": "Clipped", "kind": "track",
+         "steps": [{"youtube_id": "yt1", "start_seconds": 90, "end_seconds": 300}]},
+    ]})
+    assert r.status_code == 200
+    step = svc.list_paths()[0]["steps"][0]
+    assert step["start_seconds"] == 90 and step["end_seconds"] == 300
 
 
 def test_paths_apply_upserts_by_slug(push_client, svc):

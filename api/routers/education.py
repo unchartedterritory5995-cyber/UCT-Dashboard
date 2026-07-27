@@ -536,6 +536,11 @@ class PathStepIn(BaseModel):
     youtube_id: str
     module_label: Optional[str] = None
     note: Optional[str] = None
+    # Lesson clip window ("watch from 22:20"). Range/ordering rules live in the
+    # service (_validate_step_seconds) → ValueError → 400 here; pydantic owns
+    # only the type gate (non-int → 422).
+    start_seconds: Optional[int] = None
+    end_seconds: Optional[int] = None
 
 
 class PathStepsIn(BaseModel):
@@ -596,6 +601,8 @@ class PathApplyStepIn(BaseModel):
     youtube_id: str
     module_label: Optional[str] = None
     note: Optional[str] = None
+    start_seconds: Optional[int] = None
+    end_seconds: Optional[int] = None
 
 
 class PathApplyIn(BaseModel):

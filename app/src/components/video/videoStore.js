@@ -21,6 +21,7 @@ let state = {
   dockRect: null, // { top, left, width, height } of the Desk slot, or null
   playing: false,
   selectSeq: 0, // bumps on every explicit user pick — the theater scrolls itself into view on change
+  startAtReq: null, // one-shot { sec, youtube_id, nonce } from play(..., { startAt }) — see consumeStartAt
 }
 const listeners = new Set()
 
@@ -36,10 +37,31 @@ function set(patch) {
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────
-export function play(list, index = 0) {
+// `opts.startAt` (seconds > 0): the picked entry is a course lesson that
+// begins mid-video ("watch from 22:20"). Recorded as a one-shot request keyed
+// to the picked video's youtube_id; GlobalVideoLayer consumes it exactly once
+// (consumeStartAt) and routes it through its existing seek rail so the YT
+// iframe and the audio-primary <audio> clock stay in sync. A plain play()
+// CLEARS any stale request — it can never leak onto an unrelated video.
+let _startAtNonce = 0
+export function play(list, index = 0, opts = undefined) {
   if (!Array.isArray(list) || !list.length) return
   const i = Math.max(0, Math.min(index, list.length - 1))
-  set({ list, index: i, mode: 'docked', playing: true, selectSeq: state.selectSeq + 1 })
+  const sec = Number(opts?.startAt)
+  const startAtReq = Number.isFinite(sec) && sec > 0
+    ? { sec: Math.floor(sec), youtube_id: list[i].youtube_id, nonce: ++_startAtNonce }
+    : null
+  set({ list, index: i, mode: 'docked', playing: true, selectSeq: state.selectSeq + 1, startAtReq })
+}
+
+// One-shot read of a pending startAt request. Returns the seconds and clears
+// the request when it targets `youtubeId`; a mismatched id returns null and
+// leaves the request armed for the consumer that IS loading that video.
+export function consumeStartAt(youtubeId) {
+  const req = state.startAtReq
+  if (!req || req.youtube_id !== youtubeId) return null
+  set({ startAtReq: null })
+  return req.sec
 }
 
 // Request the player seek to `sec` (used by chapter rows + ticker-moment chips).
@@ -81,7 +103,7 @@ export function expand() {
 
 export function close() {
   _dockEl = null
-  set({ list: [], index: 0, mode: 'closed', dockRect: null, playing: false })
+  set({ list: [], index: 0, mode: 'closed', dockRect: null, playing: false, startAtReq: null })
 }
 
 // Free-drag: park the mini at any { x, y } (top-left, viewport px); persisted.
@@ -128,6 +150,6 @@ export function getSnapshot() {
 
 export function __reset() {
   _dockEl = null
-  state = { list: [], index: 0, mode: 'closed', pos: readPos(), dockRect: null, playing: false, selectSeq: 0 }
+  state = { list: [], index: 0, mode: 'closed', pos: readPos(), dockRect: null, playing: false, selectSeq: 0, startAtReq: null }
   listeners.clear()
 }

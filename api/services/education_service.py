@@ -94,12 +94,14 @@ CREATE TABLE IF NOT EXISTS edu_paths (
 CREATE INDEX IF NOT EXISTS idx_edu_paths_kind_sort ON edu_paths(kind, sort_order, name);
 
 CREATE TABLE IF NOT EXISTS edu_path_steps (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  path_id       INTEGER NOT NULL REFERENCES edu_paths(id) ON DELETE CASCADE,
-  youtube_id    TEXT    NOT NULL,
-  sort_order    INTEGER NOT NULL,
-  module_label  TEXT,
-  note          TEXT
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  path_id        INTEGER NOT NULL REFERENCES edu_paths(id) ON DELETE CASCADE,
+  youtube_id     TEXT    NOT NULL,
+  sort_order     INTEGER NOT NULL,
+  module_label   TEXT,
+  note           TEXT,
+  start_seconds  INTEGER,           -- lesson begins here ("watch from 22:20"); NULL = 0:00
+  end_seconds    INTEGER            -- display-only clip end; NULL = end of video
 );
 CREATE INDEX IF NOT EXISTS idx_edu_path_steps_path ON edu_path_steps(path_id, sort_order);
 """
@@ -149,6 +151,23 @@ def _migrate_columns(c: sqlite3.Connection) -> None:
             c.execute(f"ALTER TABLE edu_videos ADD COLUMN {name} {decl}")
 
 
+# Additive columns on edu_path_steps introduced after its original CREATE (the
+# lesson clip window — "watch from 22:20"). Same ALTER-if-missing idiom as
+# _EXTRA_COLUMNS above: the CREATE covers fresh DBs, this covers DBs that
+# already had the table. Both nullable → existing rows read as "whole video".
+_PATH_STEP_EXTRA_COLUMNS = (
+    ("start_seconds", "INTEGER"),
+    ("end_seconds", "INTEGER"),
+)
+
+
+def _migrate_path_step_columns(c: sqlite3.Connection) -> None:
+    have = {r["name"] for r in c.execute("PRAGMA table_info(edu_path_steps)").fetchall()}
+    for name, decl in _PATH_STEP_EXTRA_COLUMNS:
+        if name not in have:
+            c.execute(f"ALTER TABLE edu_path_steps ADD COLUMN {name} {decl}")
+
+
 def _init_db() -> None:
     parent = os.path.dirname(_DB_PATH)
     if parent:
@@ -156,6 +175,7 @@ def _init_db() -> None:
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
         _migrate_columns(c)
+        _migrate_path_step_columns(c)
         c.commit()
 
 
@@ -631,11 +651,31 @@ def _validate_path_input(slug: str, name: str, kind: str | None) -> tuple[str, s
 
 def _path_steps_conn(c: sqlite3.Connection, path_id: int) -> list[dict]:
     rows = c.execute(
-        "SELECT youtube_id, module_label, note FROM edu_path_steps "
-        "WHERE path_id = ? ORDER BY sort_order ASC, id ASC",
+        "SELECT youtube_id, module_label, note, start_seconds, end_seconds "
+        "FROM edu_path_steps WHERE path_id = ? ORDER BY sort_order ASC, id ASC",
         (path_id,),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def _validate_step_seconds(start, end, ctx: str) -> tuple[Optional[int], Optional[int]]:
+    """Shared validation for a step's clip window: each side is either None or
+    an int ≥ 0 (bools rejected — True is an int in Python), and when BOTH are
+    present end must be strictly greater than start. end_seconds alone is
+    valid ("watch until"). Returns (start, end). Raises ValueError."""
+    def norm(v, name):
+        if v is None:
+            return None
+        if isinstance(v, bool) or not isinstance(v, int):
+            raise ValueError(f"{ctx} {name} must be an integer number of seconds")
+        if v < 0:
+            raise ValueError(f"{ctx} {name} must be >= 0")
+        return v
+    s = norm(start, "start_seconds")
+    e = norm(end, "end_seconds")
+    if s is not None and e is not None and e <= s:
+        raise ValueError(f"{ctx} end_seconds must be greater than start_seconds")
+    return s, e
 
 
 def list_paths(include_disabled: bool = False) -> list[dict]:
@@ -752,12 +792,16 @@ def replace_path_steps(path_id: int, steps: list[dict]) -> int:
         yt = (s.get("youtube_id") or "").strip()
         if not yt:
             raise ValueError(f"step {i} missing youtube_id")
+        start, end = _validate_step_seconds(
+            s.get("start_seconds"), s.get("end_seconds"), f"step {i}")
         clean.append({
             "path_id": pid,
             "youtube_id": yt,
             "sort_order": i,
             "module_label": (s.get("module_label") or None),
             "note": (s.get("note") or None),
+            "start_seconds": start,
+            "end_seconds": end,
         })
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         if c.execute("SELECT 1 FROM edu_paths WHERE id = ?", (pid,)).fetchone() is None:
@@ -765,8 +809,10 @@ def replace_path_steps(path_id: int, steps: list[dict]) -> int:
         c.execute("DELETE FROM edu_path_steps WHERE path_id = ?", (pid,))
         for s in clean:
             c.execute(
-                """INSERT INTO edu_path_steps (path_id, youtube_id, sort_order, module_label, note)
-                   VALUES (:path_id, :youtube_id, :sort_order, :module_label, :note)""",
+                """INSERT INTO edu_path_steps
+                   (path_id, youtube_id, sort_order, module_label, note, start_seconds, end_seconds)
+                   VALUES (:path_id, :youtube_id, :sort_order, :module_label, :note,
+                           :start_seconds, :end_seconds)""",
                 s,
             )
         c.commit()
@@ -816,11 +862,15 @@ def bulk_apply_paths(paths: list[dict]) -> dict:
             yt = (s.get("youtube_id") or "").strip()
             if not yt:
                 raise ValueError(f"path {slug!r} step {i} missing youtube_id")
+            start, end = _validate_step_seconds(
+                s.get("start_seconds"), s.get("end_seconds"), f"path {slug!r} step {i}")
             steps.append({
                 "youtube_id": yt,
                 "sort_order": i,
                 "module_label": s.get("module_label") or None,
                 "note": s.get("note") or None,
+                "start_seconds": start,
+                "end_seconds": end,
             })
         cleaned.append({
             "slug": slug,
@@ -839,9 +889,11 @@ def bulk_apply_paths(paths: list[dict]) -> dict:
             c.execute("DELETE FROM edu_path_steps WHERE path_id = ?", (path_id,))
             for s in p["steps"]:
                 c.execute(
-                    """INSERT INTO edu_path_steps (path_id, youtube_id, sort_order, module_label, note)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (path_id, s["youtube_id"], s["sort_order"], s["module_label"], s["note"]),
+                    """INSERT INTO edu_path_steps
+                       (path_id, youtube_id, sort_order, module_label, note, start_seconds, end_seconds)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (path_id, s["youtube_id"], s["sort_order"], s["module_label"], s["note"],
+                     s["start_seconds"], s["end_seconds"]),
                 )
                 step_count += 1
             path_count += 1

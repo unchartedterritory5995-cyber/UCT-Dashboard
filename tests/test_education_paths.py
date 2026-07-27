@@ -232,6 +232,93 @@ def test_replace_path_steps_can_clear_to_empty(svc):
     assert svc.get_path(p["id"])["steps"] == []
 
 
+# ── start_seconds / end_seconds (lesson clip window) ─────────────────────────
+
+def _step_cols(svc):
+    with contextlib.closing(svc._connect()) as c:
+        return {r["name"] for r in c.execute("PRAGMA table_info(edu_path_steps)")}
+
+
+def test_path_steps_schema_has_start_end_seconds_columns(svc):
+    cols = _step_cols(svc)
+    assert "start_seconds" in cols
+    assert "end_seconds" in cols
+
+
+def test_init_db_alters_start_end_onto_a_pre_existing_table(tmp_path, monkeypatch):
+    """An existing DB created before the columns landed gets them ALTER-added
+    on the next _init_db() boot (the edu_videos _EXTRA_COLUMNS idiom)."""
+    import sqlite3
+    from api.services import education_service as es
+    db = str(tmp_path / "old.db")
+    with contextlib.closing(sqlite3.connect(db)) as c:
+        c.execute("""CREATE TABLE edu_path_steps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path_id INTEGER NOT NULL,
+            youtube_id TEXT NOT NULL,
+            sort_order INTEGER NOT NULL,
+            module_label TEXT,
+            note TEXT)""")
+        c.execute("""INSERT INTO edu_path_steps (path_id, youtube_id, sort_order)
+                     VALUES (1, 'aaaaaaaaaaa', 0)""")
+        c.commit()
+    monkeypatch.setattr(es, "_DB_PATH", db)
+    es._init_db()
+    with contextlib.closing(es._connect()) as c:
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(edu_path_steps)")}
+        assert {"start_seconds", "end_seconds"} <= cols
+        row = c.execute("SELECT start_seconds, end_seconds FROM edu_path_steps").fetchone()
+    assert row["start_seconds"] is None and row["end_seconds"] is None  # old rows untouched
+
+
+def test_replace_path_steps_round_trips_start_end_seconds(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [
+        {"youtube_id": "aaaaaaaaaaa", "start_seconds": 1340, "end_seconds": 2465},
+        {"youtube_id": "bbbbbbbbbbb"},  # omitted → NULL, not 0
+        {"youtube_id": "ccccccccccc", "start_seconds": 0},  # 0 is a valid start
+    ])
+    steps = svc.get_path(p["id"])["steps"]
+    assert steps[0]["start_seconds"] == 1340 and steps[0]["end_seconds"] == 2465
+    assert steps[1]["start_seconds"] is None and steps[1]["end_seconds"] is None
+    assert steps[2]["start_seconds"] == 0 and steps[2]["end_seconds"] is None
+
+
+def test_list_paths_steps_carry_start_end_seconds(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [{"youtube_id": "aaaaaaaaaaa", "start_seconds": 90}])
+    got = next(x for x in svc.list_paths() if x["id"] == p["id"])
+    assert got["steps"][0]["start_seconds"] == 90
+    assert got["steps"][0]["end_seconds"] is None
+
+
+@pytest.mark.parametrize("bad", [
+    {"start_seconds": -1},
+    {"end_seconds": -5},
+    {"start_seconds": 12.5},
+    {"start_seconds": "1340"},
+    {"start_seconds": True},
+    {"start_seconds": 100, "end_seconds": 100},  # end must be strictly greater
+    {"start_seconds": 100, "end_seconds": 40},
+])
+def test_replace_path_steps_rejects_bad_seconds_and_leaves_existing_untouched(svc, bad):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [{"youtube_id": "aaaaaaaaaaa", "start_seconds": 5}])
+    with pytest.raises(ValueError):
+        svc.replace_path_steps(p["id"], [dict({"youtube_id": "bbbbbbbbbbb"}, **bad)])
+    # validate-before-write: the pre-existing step is exactly as it was
+    steps = svc.get_path(p["id"])["steps"]
+    assert [s["youtube_id"] for s in steps] == ["aaaaaaaaaaa"]
+    assert steps[0]["start_seconds"] == 5
+
+
+def test_replace_path_steps_end_seconds_alone_is_valid(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [{"youtube_id": "aaaaaaaaaaa", "end_seconds": 300}])
+    steps = svc.get_path(p["id"])["steps"]
+    assert steps[0]["start_seconds"] is None and steps[0]["end_seconds"] == 300
+
+
 # ── bulk_apply_paths ─────────────────────────────────────────────────────────
 
 def test_bulk_apply_paths_upserts_by_slug_and_replaces_steps(svc):
@@ -286,6 +373,29 @@ def test_bulk_apply_paths_rolls_back_whole_batch_on_bad_step(svc):
 
 def test_bulk_apply_paths_empty_list_is_noop(svc):
     assert svc.bulk_apply_paths([]) == {"paths": 0, "steps": 0}
+
+
+def test_bulk_apply_paths_carries_start_end_seconds(svc):
+    svc.bulk_apply_paths([
+        {"slug": "clips", "name": "Clips", "kind": "track",
+         "steps": [{"youtube_id": "aaaaaaaaaaa", "start_seconds": 1340, "end_seconds": 2465},
+                   {"youtube_id": "bbbbbbbbbbb"}]},
+    ])
+    p = next(x for x in svc.list_paths() if x["slug"] == "clips")
+    assert p["steps"][0]["start_seconds"] == 1340
+    assert p["steps"][0]["end_seconds"] == 2465
+    assert p["steps"][1]["start_seconds"] is None
+
+
+def test_bulk_apply_paths_rolls_back_whole_batch_on_bad_seconds(svc):
+    with pytest.raises(ValueError):
+        svc.bulk_apply_paths([
+            {"slug": "good", "name": "Good", "kind": "track",
+             "steps": [{"youtube_id": "aaaaaaaaaaa", "start_seconds": 10}]},
+            {"slug": "bad", "name": "Bad", "kind": "track",
+             "steps": [{"youtube_id": "bbbbbbbbbbb", "start_seconds": 50, "end_seconds": 20}]},
+        ])
+    assert svc.list_paths(include_disabled=True) == []
 
 
 # ── ensure_default_paths (flag-file one-shot migration) ──────────────────────

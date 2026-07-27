@@ -99,3 +99,52 @@ describe('videoStore', () => {
     unsub()
   })
 })
+
+describe('videoStore — startAt (lesson clip window)', () => {
+  it('play(list, i, { startAt }) records a one-shot request keyed to the picked video', () => {
+    v.play(LIST, 1, { startAt: 1340 })
+    const req = v.getSnapshot().startAtReq
+    expect(req.sec).toBe(1340)
+    expect(req.youtube_id).toBe('bbbbbbbbbbb')
+  })
+
+  it('startAt is floored; zero/negative/non-finite requests are ignored', () => {
+    v.play(LIST, 0, { startAt: 90.9 })
+    expect(v.getSnapshot().startAtReq.sec).toBe(90)
+    v.close()
+    v.play(LIST, 0, { startAt: 0 })
+    expect(v.getSnapshot().startAtReq).toBeNull()
+    v.close()
+    v.play(LIST, 0, { startAt: -5 })
+    expect(v.getSnapshot().startAtReq).toBeNull()
+    v.close()
+    v.play(LIST, 0, { startAt: NaN })
+    expect(v.getSnapshot().startAtReq).toBeNull()
+  })
+
+  it('a plain play() clears a stale request — it can never leak onto the next video', () => {
+    v.play(LIST, 0, { startAt: 75 })
+    expect(v.getSnapshot().startAtReq).toBeTruthy()
+    v.play(LIST, 1)
+    expect(v.getSnapshot().startAtReq).toBeNull()
+  })
+
+  it('consumeStartAt returns the seconds exactly once', () => {
+    v.play(LIST, 0, { startAt: 75 })
+    expect(v.consumeStartAt('aaaaaaaaaaa')).toBe(75)
+    expect(v.getSnapshot().startAtReq).toBeNull()
+    expect(v.consumeStartAt('aaaaaaaaaaa')).toBeNull()
+  })
+
+  it('consumeStartAt for a DIFFERENT video returns null and leaves the request armed', () => {
+    v.play(LIST, 0, { startAt: 75 })
+    expect(v.consumeStartAt('bbbbbbbbbbb')).toBeNull()
+    expect(v.getSnapshot().startAtReq.sec).toBe(75)
+  })
+
+  it('close() drops any pending request', () => {
+    v.play(LIST, 0, { startAt: 75 })
+    v.close()
+    expect(v.getSnapshot().startAtReq).toBeNull()
+  })
+})
