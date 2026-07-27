@@ -138,6 +138,15 @@ def _build_app() -> FastAPI:
     def internal_health():
         return _health()
 
+    # railway.json (SHARED by web + worker + flow-worker) points healthcheckPath
+    # at /api/ready. The flow-worker has no user-facing warm gates, so it is
+    # ready as soon as it can answer. Without this route its deploys would fail
+    # their healthcheck outright -- and a failed flow-worker deploy costs the
+    # OPRA tape a WS handoff, which does not replay.
+    @app.get("/api/ready")
+    def ready():
+        return {"ready": True, "service": "flow-worker", "pending": []}
+
     # Mount every flow.db / consumer-state router (reuses the reviewed mounter).
     # Dedicated module (2026-07-17) — NOT worker_main.py: importing the mounter
     # from the shared bars-worker entry made a pure-charts change to that file
