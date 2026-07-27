@@ -1716,7 +1716,21 @@ export default function StockChart({
       c = lp.price
     }
     let vol = last.v
-    if ((!vol || vol === 0) && lp?.volume) vol = lp.volume
+    if (lp?.volume != null && Number.isFinite(lp.volume) && lp.volume > 0) {
+      if (!vol || vol === 0) {
+        vol = lp.volume
+      } else {
+        // First-paint staleness: /api/bars' fetched developing-bar volume can be a
+        // few seconds behind, so the volume pane briefly showed a low value that
+        // corrected ~1s later once a live tick landed. The live feed's day volume
+        // is as-fresh-or-fresher, and intraday volume only grows, so take the
+        // larger — but ONLY for TODAY's developing bar (a historical last bar, e.g.
+        // Friday on a weekend, must keep its own volume, not today's live total).
+        const _barDay = Math.floor(adjustTime(last.t) / 86400)
+        const _nowDay = Math.floor(adjustTime(Math.floor(Date.now() / 1000)) / 86400)
+        if (_barDay === _nowDay && lp.volume > vol) vol = lp.volume
+      }
+    }
     // Change is close-vs-PREVIOUS-BAR-close ON THE CURRENT TIMEFRAME, so the
     // legend reflects the selected TF (weekly = vs last week, 5m = vs the prior
     // 5m bar), not always "today". DAILY is the special case where the prior bar
