@@ -188,6 +188,64 @@ def test_regular_session_volume_still_prefers_day_v(session_closes):
     assert out["AAPL"]["volume"] == 40_000_000
 
 
+@pytest.fixture
+def no_exvol_warm(monkeypatch):
+    """Silence the async aggregate warm so tests don't spawn threads/network."""
+    monkeypatch.setattr(lp, "_warm_extended_volumes_async", lambda tickers: None)
+
+
+_PREMARKET_NBIS = {
+    "ticker": "NBIS",
+    "day": {"o": 0, "h": 0, "l": 0, "c": 0, "v": 0},
+    "min": {"av": 436865, "v": 2528},      # over-counts vs the aggregate
+    "prevDay": {"c": 187.52, "v": 24_095_349},
+    "lastTrade": {"p": 198.20},
+    "todaysChangePerc": 5.87,
+    "todaysChange": 11.0,
+}
+
+
+def test_extended_volume_uses_cached_aggregate_when_warm(session_closes, no_exvol_warm):
+    """A warmed aggregate total (the chart's number) replaces the min.av over-count."""
+    lp.cache.set(lp._exvol_key("NBIS"), 332_241, ttl=60)
+    try:
+        out = lp._fetch_snapshots(_ClosedClient(_PREMARKET_NBIS), ["NBIS"], "pre_market")
+        assert out["NBIS"]["volume"] == 332_241     # aggregate, not min.av's 436_865
+    finally:
+        lp.cache.invalidate(lp._exvol_key("NBIS"))
+
+
+def test_extended_volume_placeholder_until_warm_then_schedules(session_closes, monkeypatch):
+    """Before the aggregate is cached, min.av stands in AND the ticker is queued to warm."""
+    lp.cache.invalidate(lp._exvol_key("NBIS"))
+    warmed = {}
+    monkeypatch.setattr(lp, "_warm_extended_volumes_async", lambda tickers: warmed.setdefault("t", tickers))
+
+    out = lp._fetch_snapshots(_ClosedClient(_PREMARKET_NBIS), ["NBIS"], "pre_market")
+    assert out["NBIS"]["volume"] == 436865       # min.av placeholder
+    assert warmed["t"] == ["NBIS"]               # queued for the aggregate warm
+
+
+def test_fetch_extended_volume_sums_hourly_bars():
+    """The aggregate helper sums every bar's volume for the day."""
+    class _AggClient:
+        _api_key = "k"
+        def _get(self, url, timeout=None):
+            return {"results": [{"v": 100000}, {"v": 130000}, {"v": 102241}], "status": "OK"}
+
+    assert lp._fetch_extended_volume(_AggClient(), "NBIS") == 332241
+
+
+def test_fetch_extended_volume_none_when_no_bars():
+    """No bars (market closed / no trades) → None so the caller keeps its placeholder."""
+    class _EmptyClient:
+        _api_key = "k"
+        def _get(self, url, timeout=None):
+            return {"results": [], "status": "OK"}
+
+    assert lp._fetch_extended_volume(_EmptyClient(), "NBIS") is None
+
+
 def test_zero_prev_close_is_not_served(session_closes):
     """Nothing usable in prevDay either → still omit rather than invent a 0.00 price."""
     out = lp._fetch_snapshots(

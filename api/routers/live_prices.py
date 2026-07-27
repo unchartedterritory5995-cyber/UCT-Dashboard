@@ -146,6 +146,81 @@ def _session_closes() -> tuple[dict, dict]:
     return _session_closes_val
 
 
+# ── Extended-hours volume (match the chart) ─────────────────────────────────
+# The watchlist and the chart's volume pane must agree. The chart sums today's
+# intraday AGGREGATES; the snapshot's `min.av` counts every trade condition
+# (odd-lots, off-exchange) and over-states it — pre-market NBIS read 418k on
+# min.av vs the chart's ~330k. So in extended hours we replace the volume with
+# the same aggregate total the chart uses.
+#
+# It's per-ticker (no bulk pre-market aggregate exists — the grouped/daily
+# endpoints return nothing until RTH), so it rides a shared per-ticker cache and
+# a bounded async warm, exactly like the session-close maps: the 2s poll never
+# blocks on it, it just reads the warm value. Volume is additive across
+# granularities (verified 1/5/30/60-min all equal), so we sum COARSE hourly bars
+# — a whole day is ~8 tiny rows.
+_EXVOL_TTL = 60
+_EXVOL_SEM = threading.Semaphore(4)
+_EXVOL_WARMING: set[str] = set()
+_EXVOL_WARM_LOCK = threading.Lock()
+
+
+def _exvol_key(tk: str) -> str:
+    return f"live_exvol_{tk}"
+
+
+def _fetch_extended_volume(client, ticker: str) -> int | None:
+    """Today's total traded volume from hourly aggregates — the chart's tally.
+
+    Returns None when there are no bars yet (market closed / no trades), so the
+    caller keeps its placeholder rather than showing a hard 0.
+    """
+    day = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    url = (
+        f"https://api.massive.com/v2/aggs/ticker/{ticker}/range/60/minute/"
+        f"{day}/{day}?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
+    )
+    try:
+        data = client._get(url, timeout=5.0)
+    except Exception:
+        return None
+    res = data.get("results") or []
+    if not res:
+        return None
+    return int(sum(_f(r.get("v")) or 0 for r in res))
+
+
+def _warm_extended_volumes_async(tickers: list[str]) -> None:
+    with _EXVOL_WARM_LOCK:
+        todo = [t for t in tickers if t not in _EXVOL_WARMING]
+        _EXVOL_WARMING.update(todo)
+    if not todo:
+        return
+
+    def _build():
+        try:
+            client = _get_client()
+        except Exception:
+            client = None
+        for t in todo:
+            try:
+                if client is not None and cache.get(_exvol_key(t)) is None:
+                    if _EXVOL_SEM.acquire(timeout=3.0):
+                        try:
+                            v = _fetch_extended_volume(client, t)
+                            if v is not None:
+                                cache.set(_exvol_key(t), v, ttl=_EXVOL_TTL)
+                        finally:
+                            _EXVOL_SEM.release()
+            except Exception:
+                pass
+            finally:
+                with _EXVOL_WARM_LOCK:
+                    _EXVOL_WARMING.discard(t)
+
+    threading.Thread(target=_build, daemon=True, name="live-prices-exvol").start()
+
+
 def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> dict | None:
     """Build a quote from prevDay when the live feed is empty (market closed).
 
@@ -207,6 +282,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
 
     out: dict = {}
     degraded: dict = {}
+    need_exvol: list[str] = []   # active extended-hours tickers awaiting an aggregate warm
     for t in data.get("tickers", []):
         ticker = t.get("ticker", "")
         if not ticker:
@@ -218,12 +294,9 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
 
         price = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
         # `day.v` is the REGULAR-session aggregate and stays 0 until the 9:30
-        # open, so in pre-market every name reported volume 0 and the column
-        # kept snapping back to 0 on each 2s poll (the SSE stream would briefly
-        # set a real number, then REST stomped it). `min.av` is today's
-        # ACCUMULATED volume — during pre/post it holds the extended-hours total,
-        # and during RTH it tracks day.v — so it's the right fallback when the
-        # regular aggregate hasn't started.
+        # open. `min.av` (today's accumulated) is the pre-open placeholder, but it
+        # OVER-counts vs the chart, so in extended hours it's replaced below with
+        # the chart-matching aggregate total once that's warmed.
         volume = int(day.get("v") or minute.get("av") or 0)
 
         # The day % must be the REGULAR-SESSION move — day close vs prev close, the
@@ -261,6 +334,18 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
                 ext_price = round(float(lt_price), 2)
                 ext_session = session
 
+        # Extended hours: swap in the chart-matching aggregate total. day.v is 0
+        # pre-market and RTH-only post-market, and min.av over-counts, so pre/post
+        # we use the summed intraday aggregate (per-ticker, cached + async-warmed).
+        # Only ACTIVE names reach here — degraded/weekend rows already `continue`d
+        # to the last-session path above, so they never trigger a warm.
+        if session != "regular":
+            ev = cache.get(_exvol_key(ticker))
+            if ev is not None:
+                volume = ev
+            else:
+                need_exvol.append(ticker)   # warmed after the loop; placeholder stands meanwhile
+
         out[ticker] = {
             "price": round(float(price), 2),
             # Recomputed above from day/prev close when Massive's field is a
@@ -289,6 +374,11 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             row = _last_session_row(ticker, t, last_map, prior_map)
             if row is not None:
                 out[ticker] = row
+
+    # Warm the aggregate volume for any extended-hours ticker still on its
+    # placeholder; the next poll reads the chart-matching value from cache.
+    if need_exvol:
+        _warm_extended_volumes_async(need_exvol)
     return out
 
 
