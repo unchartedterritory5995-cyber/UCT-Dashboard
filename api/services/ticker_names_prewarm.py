@@ -10,6 +10,8 @@ Design notes:
   ~10 seconds because the cache is already warm.
 - Never raises — backfill is best-effort. The autocomplete still works
   with whatever subset has been warmed.
+- Repeatedly-unresolvable tickers back off exponentially (see below) so a
+  handful of dead symbols can't tax every cold start.
 """
 import json
 import logging
@@ -18,6 +20,90 @@ import threading
 import time
 
 _logger = logging.getLogger(__name__)
+
+# --- dead-ticker backoff -------------------------------------------------
+# `ticker_meta._base_meta` only persists a disk entry `if any(data.values())`,
+# so a symbol that resolves to nothing at BOTH yfinance and Finnhub leaves no
+# trace and is re-fetched on EVERY boot forever. Production 2026-07-26:
+#   [ticker-names-prewarm] done in 46.6s — warmed=0 skipped=3722 failed=20
+# ~20 dead symbols (ASGN, ATGE, CCCS, MPW, NWAX-U, EXPI, PSTG, XWIN…) cost 47s
+# of every cold start, and there were 40 cold starts that day.
+#
+# This is deliberately BACKOFF, not a blacklist. A permanent dead-list is the
+# trap that made tools/detect_dead_tickers.py unsafe -- self-induced load made
+# it false-flag LIVE megacaps as delisted. Here every ticker is always retried
+# eventually (wait is capped), and a single success wipes the record, so a
+# rename/relisting or a transient provider outage self-heals.
+_BASE_BACKOFF_SECONDS = 2 * 3600        # 1st failure -> skip for 2h
+_MAX_BACKOFF_SECONDS = 30 * 24 * 3600   # cap: retried at least monthly
+
+
+def _backoff_path() -> str:
+    # Resolved per call so DATA_DIR overrides (and tests) take effect.
+    return os.path.join(
+        os.environ.get("DATA_DIR", "/data"), "ticker_names_prewarm_backoff.json"
+    )
+
+
+def _load_backoff() -> dict:
+    try:
+        with open(_backoff_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        # Missing or corrupt -> behave as if nothing is backed off. Degrading
+        # toward "attempt it" is the safe direction: worst case we pay the
+        # fetch, we never wrongly suppress a live ticker.
+        return {}
+
+
+def _save_backoff(data: dict) -> None:
+    try:
+        path = _backoff_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        os.replace(tmp, path)
+    except Exception as e:
+        _logger.info("[ticker-names-prewarm] backoff save failed: %s", e)
+
+
+def _should_attempt(ticker: str, now: float | None = None) -> bool:
+    now = time.time() if now is None else now
+    entry = _load_backoff().get(ticker)
+    if not entry:
+        return True
+    try:
+        return now >= float(entry.get("next_attempt", 0))
+    except Exception:
+        return True
+
+
+def _record_failure(ticker: str, now: float | None = None) -> None:
+    now = time.time() if now is None else now
+    data = _load_backoff()
+    entry = data.get(ticker) or {}
+    try:
+        fails = int(entry.get("fails", 0)) + 1
+    except Exception:
+        fails = 1
+    # 2h, 4h, 8h, ... capped at 30d. Cap the exponent first so a long-dead
+    # ticker can't overflow the shift.
+    wait = min(_BASE_BACKOFF_SECONDS * (2 ** min(fails - 1, 20)), _MAX_BACKOFF_SECONDS)
+    data[ticker] = {"fails": fails, "next_attempt": now + wait, "last_failed": now}
+    _save_backoff(data)
+
+
+def _record_success(ticker: str) -> None:
+    data = _load_backoff()
+    if data.pop(ticker, None) is not None:
+        _save_backoff(data)
+
+
+def _sleep_between_calls() -> None:
+    """Politeness delay between live fetches (patched out in tests)."""
+    time.sleep(0.25)
 
 
 def _resolve_universe_path() -> str:
@@ -70,6 +156,7 @@ def _run_pass():
     skipped = 0
     warmed = 0
     failed = 0
+    backed_off = 0
     started = time.time()
     _logger.info("[ticker-names-prewarm] starting pass over %d tickers", len(universe))
 
@@ -77,25 +164,33 @@ def _run_pass():
         if _has_fresh_disk_entry(ticker):
             skipped += 1
             continue
+        # Known-unresolvable and still inside its backoff window — skip WITHOUT
+        # a network call. This is the whole point: it keeps ~20 dead symbols
+        # from costing 47s on every cold start.
+        if not _should_attempt(ticker):
+            backed_off += 1
+            continue
         ok = _warm_one(ticker)
         if ok:
             warmed += 1
+            _record_success(ticker)
         else:
             failed += 1
+            _record_failure(ticker)
         # Be polite to yfinance / Finnhub — 250ms between live fetches is
         # gentle enough to avoid sustained 429s while still finishing the
         # full universe in well under an hour.
-        time.sleep(0.25)
+        _sleep_between_calls()
         if i % 200 == 0:
             _logger.info(
-                "[ticker-names-prewarm] progress %d/%d (warmed=%d skipped=%d failed=%d)",
-                i, len(universe), warmed, skipped, failed,
+                "[ticker-names-prewarm] progress %d/%d (warmed=%d skipped=%d failed=%d backed_off=%d)",
+                i, len(universe), warmed, skipped, failed, backed_off,
             )
 
     elapsed = time.time() - started
     _logger.info(
-        "[ticker-names-prewarm] done in %.1fs — warmed=%d skipped=%d failed=%d",
-        elapsed, warmed, skipped, failed,
+        "[ticker-names-prewarm] done in %.1fs — warmed=%d skipped=%d failed=%d backed_off=%d",
+        elapsed, warmed, skipped, failed, backed_off,
     )
 
 
