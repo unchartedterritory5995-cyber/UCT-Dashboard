@@ -9,10 +9,10 @@ function nextColor(c) {
   return COLORS[(i + 1) % COLORS.length]
 }
 
-export default function WidgetHeader({ label, color, onColorChange, onRemove, onPopOut, atBottom = false }) {
+export default function WidgetHeader({ label, color, onColorChange, onRemove, onPopOut, atBottom = false, style }) {
   const isNone = color === 'N'
   return (
-    <div className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}`}>
+    <div className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}`} style={style}>
       <span className={`${styles.dragGrip} charts-widget-drag-handle`} aria-hidden="true">⋮⋮</span>
       <button
         type="button"

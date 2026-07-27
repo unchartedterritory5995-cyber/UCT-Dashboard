@@ -72,6 +72,26 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       }
     : undefined
 
+  // When this widget's header docks at the BOTTOM (another widget sits directly
+  // above it) and the canvas is a GRADIENT, override the header's canvas/divider to
+  // the gradient's BOTTOM stop so the bar matches the bottom of the gradient it caps
+  // — not the top color the rest of the widget chrome uses.
+  const bottomChrome = headerAtBottom ? chrome?.bottom : null
+  const headerStyle = bottomChrome?.canvas
+    ? {
+        '--widget-canvas': bottomChrome.canvas,
+        ...(bottomChrome.divider ? { '--widget-divider': bottomChrome.divider } : {}),
+        ...(bottomChrome.dividerStrong ? { '--widget-divider-strong': bottomChrome.dividerStrong } : {}),
+        ...(bottomChrome.chrome ? {
+          '--widget-text': bottomChrome.chrome.text,
+          '--widget-text-strong': bottomChrome.chrome.textStrong,
+          '--widget-accent': bottomChrome.chrome.accent,
+          '--widget-accent-bg': bottomChrome.chrome.accentBg,
+          '--widget-row-hover': bottomChrome.rowHover,
+        } : {}),
+      }
+    : undefined
+
   const header = (
     <WidgetHeader
       label={TYPE_LABEL[widget.type] || widget.type}
@@ -80,6 +100,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       onRemove={onRemove}
       onPopOut={onPopOut}
       atBottom={headerAtBottom}
+      style={headerStyle}
     />
   )
   const body = (

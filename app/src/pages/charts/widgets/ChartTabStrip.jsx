@@ -21,7 +21,9 @@ export default function ChartTabStrip({
 }) {
   const [editingId, setEditingId] = useState(null)
   const [draft, setDraft] = useState('')
+  const [confirmingId, setConfirmingId] = useState(null)  // close-x armed on this tab
   const inputRef = useRef(null)
+  const confirmTimer = useRef(null)
 
   useEffect(() => {
     if (editingId && inputRef.current) {
@@ -30,7 +32,21 @@ export default function ChartTabStrip({
     }
   }, [editingId])
 
-  const startRename = (tab) => { setEditingId(tab.id); setDraft(tab.label) }
+  // Clear the pending timer on unmount.
+  useEffect(() => () => clearTimeout(confirmTimer.current), [])
+
+  const cancelConfirm = () => { clearTimeout(confirmTimer.current); setConfirmingId(null) }
+
+  // Two-stage close so a stray click never nukes a tab: first click arms (the ×
+  // becomes a red "remove?" check), a second click within 3s actually closes.
+  const handleCloseClick = (tabId) => {
+    if (confirmingId === tabId) { cancelConfirm(); onClose(tabId); return }
+    clearTimeout(confirmTimer.current)
+    setConfirmingId(tabId)
+    confirmTimer.current = setTimeout(() => setConfirmingId(null), 3000)
+  }
+
+  const startRename = (tab) => { cancelConfirm(); setEditingId(tab.id); setDraft(tab.label) }
   const commitRename = () => {
     if (editingId != null) onRename(editingId, draft)
     setEditingId(null)
@@ -49,7 +65,7 @@ export default function ChartTabStrip({
             role="tab"
             aria-selected={active}
             className={`${styles.chartTab} ${active ? styles.chartTabActive : ''}`}
-            onClick={() => { if (!editing) onSelect(i) }}
+            onClick={() => { if (!editing) { cancelConfirm(); onSelect(i) } }}
             onDoubleClick={() => startRename(tab)}
             title={tab.isMain ? 'Main chart — double-click to rename' : 'Double-click to rename'}
           >
@@ -83,12 +99,12 @@ export default function ChartTabStrip({
             )}
             {!tab.isMain && !editing && (
               <span
-                className={styles.chartTabClose}
+                className={`${styles.chartTabClose}${confirmingId === tab.id ? ' ' + styles.chartTabCloseConfirm : ''}`}
                 role="button"
-                aria-label={`Close ${tab.label} tab`}
-                title="Close tab"
-                onClick={(e) => { e.stopPropagation(); onClose(tab.id) }}
-              >×</span>
+                aria-label={confirmingId === tab.id ? `Confirm close ${tab.label} tab` : `Close ${tab.label} tab`}
+                title={confirmingId === tab.id ? 'Click again to close tab' : 'Close tab'}
+                onClick={(e) => { e.stopPropagation(); handleCloseClick(tab.id) }}
+              >{confirmingId === tab.id ? '✓' : '×'}</span>
             )}
           </div>
         )

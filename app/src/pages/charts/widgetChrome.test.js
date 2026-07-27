@@ -46,6 +46,26 @@ describe('widgetOwnChrome — per-widget chrome isolation', () => {
     expect(entry.dividerStrong).toBe('#ff0000')
   })
 
+  it('exposes a gradient chart widget bottom stop for a bottom-docked header', () => {
+    const w = { type: 'chart', opts: { settings: { bgMode: 'gradient', bgGradient: { top: '#0a2540', bottom: '#0a3a1f' } } } }
+    const entry = widgetOwnChrome(w, null)
+    expect(entry.canvas).toBe('#0a2540')          // top stop drives the main chrome
+    expect(entry.bottom.canvas).toBe('#0a3a1f')   // bottom stop for the docked-at-bottom header
+  })
+
+  it('no bottom entry for a solid chart canvas', () => {
+    const w = { type: 'chart', opts: { settings: { background: '#101010', bgMode: 'solid' } } }
+    expect(widgetOwnChrome(w, null).bottom).toBeUndefined()
+  })
+
+  it('exposes a gradient watchlist bottom stop (and mirrors its gridline override)', () => {
+    const w = { type: 'watchlist', opts: { settings: { bgMode: 'gradient', bgGradient: { top: '#0d1b2a', bottom: '#14331f' }, gridColor: '#ff0000' } } }
+    const entry = widgetOwnChrome(w, null)
+    expect(entry.canvas).toBe('#0d1b2a')
+    expect(entry.bottom.canvas).toBe('#14331f')
+    expect(entry.bottom.divider).toBe('#ff0000')
+  })
+
   it('canvasEntry returns the derived chrome variable bundle', () => {
     const e = canvasEntry('#0e0f0d')
     expect(e.canvas).toBe('#0e0f0d')
