@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -78,6 +79,29 @@ CREATE TABLE IF NOT EXISTS edu_categories (
   blurb       TEXT,
   created_at  INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS edu_paths (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug        TEXT    NOT NULL UNIQUE,
+  name        TEXT    NOT NULL,
+  blurb       TEXT,
+  kind        TEXT    NOT NULL DEFAULT 'track' CHECK(kind IN ('course','track')),
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  enabled     INTEGER NOT NULL DEFAULT 1,
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_edu_paths_kind_sort ON edu_paths(kind, sort_order, name);
+
+CREATE TABLE IF NOT EXISTS edu_path_steps (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  path_id       INTEGER NOT NULL REFERENCES edu_paths(id) ON DELETE CASCADE,
+  youtube_id    TEXT    NOT NULL,
+  sort_order    INTEGER NOT NULL,
+  module_label  TEXT,
+  note          TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_edu_path_steps_path ON edu_path_steps(path_id, sort_order);
 """
 
 # Fields a client may set (id, created_at, updated_at managed here).
@@ -89,6 +113,9 @@ def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(_DB_PATH, timeout=10.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    # Needed for edu_path_steps' ON DELETE CASCADE (modelbook_service.py
+    # precedent) — harmless for the older tables, none of which declare FKs.
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
@@ -570,6 +597,287 @@ def bulk_apply_taxonomy(categories: list[dict], assignments: list[dict]) -> dict
         c.commit()
     _mark_search_dirty()
     return {"categories": len(cats), "videos": applied, "missing_ids": missing}
+
+
+# ── Learning Paths / Courses (edu_paths + edu_path_steps) ───────────────────────
+# Curated multi-video sequences that turn the library into courses/tracks.
+# Mirrors the edu_categories block above: same _WRITE_LOCK + contextlib.closing
+# discipline, same _upsert_*_conn no-lock-helper idiom for bulk-apply, same
+# validate-all-then-one-transaction shape as bulk_apply_taxonomy. edu_path_steps
+# cascades on edu_paths delete via PRAGMA foreign_keys=ON (set per-connection in
+# _connect(), modelbook_service.py precedent) + ON DELETE CASCADE in the schema.
+
+_PATH_KINDS = ("course", "track")
+_PATH_FIELDS = ("name", "blurb", "kind", "sort_order", "enabled")  # slug immutable after create
+_SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+
+def _validate_path_input(slug: str, name: str, kind: str | None) -> tuple[str, str]:
+    """Shared validation for a path create/apply: kebab-case slug, non-empty
+    name, kind (if given) is one of _PATH_KINDS. Returns (slug, name), both
+    trimmed. Raises ValueError."""
+    sl = (slug or "").strip()
+    nm = (name or "").strip()
+    if not sl:
+        raise ValueError("slug required")
+    if not _SLUG_RE.match(sl):
+        raise ValueError(f"slug must be kebab-case (lowercase letters/digits/hyphens): {slug!r}")
+    if not nm:
+        raise ValueError("name required")
+    if kind is not None and kind not in _PATH_KINDS:
+        raise ValueError(f"kind must be one of {_PATH_KINDS}")
+    return sl, nm
+
+
+def _path_steps_conn(c: sqlite3.Connection, path_id: int) -> list[dict]:
+    rows = c.execute(
+        "SELECT youtube_id, module_label, note FROM edu_path_steps "
+        "WHERE path_id = ? ORDER BY sort_order ASC, id ASC",
+        (path_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_paths(include_disabled: bool = False) -> list[dict]:
+    """Every path (kind='course' first, then sort_order, then name), each with
+    its steps ordered by sort_order. `include_disabled=False` (default) hides
+    enabled=0 rows — the member-facing /paths read; admin views pass True."""
+    where = "" if include_disabled else "WHERE enabled = 1"
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            f"""SELECT * FROM edu_paths {where}
+               ORDER BY CASE kind WHEN 'course' THEN 0 ELSE 1 END, sort_order ASC, name ASC"""
+        ).fetchall()
+        paths = [dict(r) for r in rows]
+        for p in paths:
+            p["steps"] = _path_steps_conn(c, p["id"])
+        return paths
+
+
+def get_path(path_id: int) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM edu_paths WHERE id = ?", (int(path_id),)).fetchone()
+        if row is None:
+            return None
+        p = dict(row)
+        p["steps"] = _path_steps_conn(c, p["id"])
+        return p
+
+
+def create_path(payload: dict) -> dict:
+    """Insert a course/track. Returns the created row (with empty steps)."""
+    slug, name = _validate_path_input(payload.get("slug"), payload.get("name"), payload.get("kind"))
+    now = int(time.time())
+    data = {
+        "slug": slug,
+        "name": name,
+        "blurb": payload.get("blurb"),
+        "kind": payload.get("kind") or "track",
+        "sort_order": payload.get("sort_order") or 0,
+        "enabled": 1 if payload.get("enabled", True) else 0,
+        "created_at": now,
+        "updated_at": now,
+    }
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        if c.execute("SELECT 1 FROM edu_paths WHERE slug = ?", (slug,)).fetchone() is not None:
+            raise ValueError(f"slug already exists: {slug}")
+        cur = c.execute(
+            """INSERT INTO edu_paths
+               (slug, name, blurb, kind, sort_order, enabled, created_at, updated_at)
+               VALUES (:slug, :name, :blurb, :kind, :sort_order, :enabled, :created_at, :updated_at)""",
+            data,
+        )
+        c.commit()
+        new_id = cur.lastrowid
+    return get_path(new_id)
+
+
+def update_path(path_id: int, payload: dict) -> Optional[dict]:
+    """Patch any provided path fields. `slug` is immutable (omitted from
+    _PATH_FIELDS, so a caller-supplied slug is silently ignored). None if the
+    path doesn't exist."""
+    fields = {f: payload[f] for f in _PATH_FIELDS if f in payload}
+    if not fields:
+        return get_path(path_id)
+    if "name" in fields:
+        nm = (fields["name"] or "").strip()
+        if not nm:
+            raise ValueError("name required")
+        fields["name"] = nm
+    if "kind" in fields and fields["kind"] is not None and fields["kind"] not in _PATH_KINDS:
+        raise ValueError(f"kind must be one of {_PATH_KINDS}")
+    if "enabled" in fields:
+        fields["enabled"] = 1 if fields["enabled"] else 0
+    fields["updated_at"] = int(time.time())
+    set_clause = ", ".join(f"{k} = :{k}" for k in fields)
+    fields["id"] = int(path_id)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(f"UPDATE edu_paths SET {set_clause} WHERE id = :id", fields)
+        c.commit()
+        if cur.rowcount == 0:
+            return None
+    return get_path(path_id)
+
+
+def delete_path(path_id: int) -> bool:
+    """Delete a path and (via FK cascade) all its steps."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("DELETE FROM edu_paths WHERE id = ?", (int(path_id),))
+        c.commit()
+        return cur.rowcount > 0
+
+
+def replace_path_steps(path_id: int, steps: list[dict]) -> int:
+    """Full replacement of a path's steps, sort_order assigned from array
+    order. Every step's youtube_id must be non-empty — validated BEFORE any
+    write, so a bad entry leaves the existing steps completely untouched.
+    Returns the new step count."""
+    pid = int(path_id)
+    clean = []
+    for i, s in enumerate(steps or []):
+        yt = (s.get("youtube_id") or "").strip()
+        if not yt:
+            raise ValueError(f"step {i} missing youtube_id")
+        clean.append({
+            "path_id": pid,
+            "youtube_id": yt,
+            "sort_order": i,
+            "module_label": (s.get("module_label") or None),
+            "note": (s.get("note") or None),
+        })
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        if c.execute("SELECT 1 FROM edu_paths WHERE id = ?", (pid,)).fetchone() is None:
+            raise ValueError(f"path not found: {pid}")
+        c.execute("DELETE FROM edu_path_steps WHERE path_id = ?", (pid,))
+        for s in clean:
+            c.execute(
+                """INSERT INTO edu_path_steps (path_id, youtube_id, sort_order, module_label, note)
+                   VALUES (:path_id, :youtube_id, :sort_order, :module_label, :note)""",
+                s,
+            )
+        c.commit()
+    return len(clean)
+
+
+def _upsert_path_conn(c: sqlite3.Connection, slug: str, name: str, blurb: Optional[str],
+                      kind: str, sort_order: int, enabled) -> int:
+    """Create-or-update an edu_paths row by slug on a CALLER-OWNED connection/
+    transaction. No locking, no commit — same no-lock-helper idiom as
+    `_upsert_category_conn`, so bulk_apply_paths can upsert N paths inside its
+    own single transaction without re-entering _WRITE_LOCK (NOT reentrant).
+    Returns the path id."""
+    now = int(time.time())
+    en = 1 if enabled else 0
+    row = c.execute("SELECT id FROM edu_paths WHERE slug = ?", (slug,)).fetchone()
+    if row is None:
+        cur = c.execute(
+            """INSERT INTO edu_paths (slug, name, blurb, kind, sort_order, enabled, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (slug, name, blurb, kind, sort_order, en, now, now),
+        )
+        return cur.lastrowid
+    path_id = row["id"]
+    c.execute(
+        """UPDATE edu_paths SET name = ?, blurb = ?, kind = ?, sort_order = ?,
+           enabled = ?, updated_at = ? WHERE id = ?""",
+        (name, blurb, kind, sort_order, en, now, path_id),
+    )
+    return path_id
+
+
+def bulk_apply_paths(paths: list[dict]) -> dict:
+    """One-shot transactional apply of the whole curated path set (the
+    paths-apply rail, mirrors bulk_apply_taxonomy). Validates every path's
+    slug/name/kind and every step's youtube_id BEFORE opening a connection,
+    then does the whole upsert-by-slug + step replacement in ONE transaction
+    under ONE _WRITE_LOCK acquisition — a bad entry anywhere in the list
+    leaves the DB completely unchanged. Full step replacement is the contract
+    for this rail (not a merge) — documented in the design spec."""
+    items = paths or []
+    cleaned = []
+    for p in items:
+        slug, name = _validate_path_input(p.get("slug"), p.get("name"), p.get("kind"))
+        steps = []
+        for i, s in enumerate(p.get("steps") or []):
+            yt = (s.get("youtube_id") or "").strip()
+            if not yt:
+                raise ValueError(f"path {slug!r} step {i} missing youtube_id")
+            steps.append({
+                "youtube_id": yt,
+                "sort_order": i,
+                "module_label": s.get("module_label") or None,
+                "note": s.get("note") or None,
+            })
+        cleaned.append({
+            "slug": slug,
+            "name": name,
+            "blurb": p.get("blurb"),
+            "kind": p.get("kind") or "track",
+            "sort_order": p.get("sort_order") or 0,
+            "enabled": p.get("enabled", True),
+            "steps": steps,
+        })
+    path_count, step_count = 0, 0
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        for p in cleaned:
+            path_id = _upsert_path_conn(c, p["slug"], p["name"], p["blurb"],
+                                        p["kind"], p["sort_order"], p["enabled"])
+            c.execute("DELETE FROM edu_path_steps WHERE path_id = ?", (path_id,))
+            for s in p["steps"]:
+                c.execute(
+                    """INSERT INTO edu_path_steps (path_id, youtube_id, sort_order, module_label, note)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (path_id, s["youtube_id"], s["sort_order"], s["module_label"], s["note"]),
+                )
+                step_count += 1
+            path_count += 1
+        c.commit()
+    return {"paths": path_count, "steps": step_count}
+
+
+_PATHS_MIGRATE_VERSION = "v1"
+
+
+def ensure_default_paths() -> None:
+    """Idempotently seed the six existing LEARNING_PATHS entries
+    (api/services/education_paths_seed.py → SEED_PATHS) into edu_paths, once.
+    Flag-file `.edu_paths_migrate_v1` (mirrors `_migrate_seed_categories_once`):
+    once the flag exists, this is a no-op on every future boot. On a flagless
+    boot, seeds ONLY when edu_paths is still completely empty (an admin/prior
+    boot that already added a path is never touched) — kind='track',
+    enabled=1, sort_order = file order. Writes the flag after a successful
+    attempt either way (seeded, or skipped because non-empty) so it never
+    re-checks. Never raises."""
+    flag = os.path.join(os.path.dirname(_DB_PATH) or ".",
+                        f".edu_paths_migrate_{_PATHS_MIGRATE_VERSION}")
+    try:
+        if os.path.exists(flag):
+            return
+        with contextlib.closing(_connect()) as c:
+            has_rows = c.execute("SELECT 1 FROM edu_paths LIMIT 1").fetchone() is not None
+        if not has_rows:
+            from api.services.education_paths_seed import SEED_PATHS
+            now = int(time.time())
+            with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+                for i, p in enumerate(SEED_PATHS):
+                    cur = c.execute(
+                        """INSERT INTO edu_paths
+                           (slug, name, blurb, kind, sort_order, enabled, created_at, updated_at)
+                           VALUES (?, ?, ?, 'track', ?, 1, ?, ?)""",
+                        (p["slug"], p["name"], p.get("blurb"), i, now, now),
+                    )
+                    path_id = cur.lastrowid
+                    for j, yt in enumerate(p.get("steps") or []):
+                        c.execute(
+                            """INSERT INTO edu_path_steps (path_id, youtube_id, sort_order)
+                               VALUES (?, ?, ?)""",
+                            (path_id, yt, j),
+                        )
+                c.commit()
+        with open(flag, "w") as f:
+            f.write(_PATHS_MIGRATE_VERSION)
+    except Exception:
+        pass
 
 
 # Fields present on every list_videos() row that no frontend consumer of the
