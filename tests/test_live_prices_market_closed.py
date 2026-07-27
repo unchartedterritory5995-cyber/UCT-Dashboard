@@ -194,6 +194,14 @@ def no_exvol_warm(monkeypatch):
     monkeypatch.setattr(lp, "_warm_extended_volumes_async", lambda tickers: None)
 
 
+@pytest.fixture(autouse=True)
+def _clean_exvol_last():
+    """Reset the cross-request last-known aggregate store between tests."""
+    lp._EXVOL_LAST.clear()
+    yield
+    lp._EXVOL_LAST.clear()
+
+
 _PREMARKET_NBIS = {
     "ticker": "NBIS",
     "day": {"o": 0, "h": 0, "l": 0, "c": 0, "v": 0},
@@ -215,15 +223,38 @@ def test_extended_volume_uses_cached_aggregate_when_warm(session_closes, no_exvo
         lp.cache.invalidate(lp._exvol_key("NBIS"))
 
 
-def test_extended_volume_placeholder_until_warm_then_schedules(session_closes, monkeypatch):
-    """Before the aggregate is cached, min.av stands in AND the ticker is queued to warm."""
+def test_extended_volume_placeholder_only_when_never_warmed(session_closes, monkeypatch):
+    """A ticker never warmed today shows min.av AND is queued to warm."""
     lp.cache.invalidate(lp._exvol_key("NBIS"))
     warmed = {}
     monkeypatch.setattr(lp, "_warm_extended_volumes_async", lambda tickers: warmed.setdefault("t", tickers))
 
     out = lp._fetch_snapshots(_ClosedClient(_PREMARKET_NBIS), ["NBIS"], "pre_market")
-    assert out["NBIS"]["volume"] == 436865       # min.av placeholder
+    assert out["NBIS"]["volume"] == 436865       # min.av placeholder (first ever)
     assert warmed["t"] == ["NBIS"]               # queued for the aggregate warm
+
+
+def test_extended_volume_serves_last_known_instead_of_flapping(session_closes, monkeypatch):
+    """The flap fix: fresh cache expired but a last-known aggregate exists → serve
+    THAT, never the min.av placeholder. (This is the "correct on refresh then wrong
+    a few seconds later" bug — a poll catching the re-warm window must not regress.)"""
+    lp.cache.invalidate(lp._exvol_key("NBIS"))          # fresh cache expired
+    lp._EXVOL_LAST["NBIS"] = (lp._today_yyyymmdd(), 332_241)
+    warmed = {}
+    monkeypatch.setattr(lp, "_warm_extended_volumes_async", lambda tickers: warmed.setdefault("t", tickers))
+
+    out = lp._fetch_snapshots(_ClosedClient(_PREMARKET_NBIS), ["NBIS"], "pre_market")
+    assert out["NBIS"]["volume"] == 332_241     # last-known aggregate, NOT min.av 436_865
+    assert warmed["t"] == ["NBIS"]              # still refreshes in the background
+
+
+def test_extended_volume_last_known_from_a_prior_day_is_ignored(session_closes, no_exvol_warm):
+    """Yesterday's total must never bleed into today — the store is date-guarded."""
+    lp.cache.invalidate(lp._exvol_key("NBIS"))
+    lp._EXVOL_LAST["NBIS"] = (lp._today_yyyymmdd() - 1, 999_999)   # stale day
+
+    out = lp._fetch_snapshots(_ClosedClient(_PREMARKET_NBIS), ["NBIS"], "pre_market")
+    assert out["NBIS"]["volume"] == 436865       # falls back to min.av, not yesterday's 999_999
 
 
 def test_fetch_extended_volume_sums_hourly_bars():

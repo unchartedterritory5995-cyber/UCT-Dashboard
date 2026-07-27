@@ -159,10 +159,20 @@ def _session_closes() -> tuple[dict, dict]:
 # blocks on it, it just reads the warm value. Volume is additive across
 # granularities (verified 1/5/30/60-min all equal), so we sum COARSE hourly bars
 # — a whole day is ~8 tiny rows.
-_EXVOL_TTL = 60
+_EXVOL_TTL = 45
 _EXVOL_SEM = threading.Semaphore(4)
 _EXVOL_WARMING: set[str] = set()
 _EXVOL_WARM_LOCK = threading.Lock()
+# Last-known aggregate per ticker, {tk: (yyyymmdd, volume)}. Survives the TTL
+# cache's expiry so a poll landing in the ~1-2s re-warm window serves the last
+# good aggregate instead of flapping back to the min.av placeholder (the "correct
+# on refresh, wrong a few seconds later" bug). Date-stamped so yesterday's total
+# is never served today. Bounded by the watched-ticker universe; fine unpruned.
+_EXVOL_LAST: dict[str, tuple[int, int]] = {}
+
+
+def _today_yyyymmdd() -> int:
+    return int(datetime.now(ZoneInfo("America/New_York")).strftime("%Y%m%d"))
 
 
 def _exvol_key(tk: str) -> str:
@@ -202,6 +212,7 @@ def _warm_extended_volumes_async(tickers: list[str]) -> None:
             client = _get_client()
         except Exception:
             client = None
+        today = _today_yyyymmdd()
         for t in todo:
             try:
                 if client is not None and cache.get(_exvol_key(t)) is None:
@@ -210,6 +221,7 @@ def _warm_extended_volumes_async(tickers: list[str]) -> None:
                             v = _fetch_extended_volume(client, t)
                             if v is not None:
                                 cache.set(_exvol_key(t), v, ttl=_EXVOL_TTL)
+                                _EXVOL_LAST[t] = (today, v)   # survives the TTL expiry
                         finally:
                             _EXVOL_SEM.release()
             except Exception:
@@ -283,6 +295,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     out: dict = {}
     degraded: dict = {}
     need_exvol: list[str] = []   # active extended-hours tickers awaiting an aggregate warm
+    _today = _today_yyyymmdd()    # for the date-guarded last-known aggregate
     for t in data.get("tickers", []):
         ticker = t.get("ticker", "")
         if not ticker:
@@ -340,11 +353,19 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         # Only ACTIVE names reach here — degraded/weekend rows already `continue`d
         # to the last-session path above, so they never trigger a warm.
         if session != "regular":
-            ev = cache.get(_exvol_key(ticker))
-            if ev is not None:
-                volume = ev
+            fresh = cache.get(_exvol_key(ticker))
+            if fresh is not None:
+                volume = fresh
             else:
-                need_exvol.append(ticker)   # warmed after the loop; placeholder stands meanwhile
+                # Fresh cache expired → refresh in the background, but serve the
+                # LAST-KNOWN aggregate meanwhile so we never flap back to the
+                # min.av placeholder (which over-counts ~30%). Only a ticker that
+                # has never been warmed today keeps the min.av placeholder, and
+                # only until its first warm lands a second or two later.
+                need_exvol.append(ticker)
+                last = _EXVOL_LAST.get(ticker)
+                if last is not None and last[0] == _today:
+                    volume = last[1]
 
         out[ticker] = {
             "price": round(float(price), 2),
