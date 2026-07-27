@@ -17,6 +17,9 @@ simultaneous Massive fetches and exhaust the shared threadpool (the launch-day
 """
 import hashlib
 import threading
+import time
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from api.services.cache import TTLCache
@@ -38,9 +41,154 @@ _CACHE_TTL = 15     # seconds — applies to both the whole-set and per-ticker c
 _MASSIVE_SEM = threading.Semaphore(6)
 _SEM_WAIT_S = 8.0
 
+# Closed-market fallback: settled daily closes for the last two sessions, used to
+# show the last session's real % move once the live feed goes empty. Immutable
+# once a session settles, so this caches hard; one build at a time.
+#
+# Deliberately module state and NOT the TTLCache above: these are two
+# whole-market maps (~12k entries each) and the shared per-ticker price keys can
+# push that cache to its 1000-entry LRU limit, which would evict them and make
+# every closed-market poll re-fetch multi-MB grouped responses.
+_SESSION_CLOSES_TTL = 3600
+_SESSION_CLOSES_LOCK = threading.Lock()
+_session_closes_at = 0.0
+_session_closes_val: tuple[dict, dict] = ({}, {})
+_GROUPED_LOOKBACK_DAYS = 10   # enough to clear a long holiday weekend
+_GROUPED_TIMEOUT_S = 20.0     # multi-MB whole-market response, off the request path
+
 
 def _px_key(tk: str) -> str:
     return f"live_px1_{tk}"
+
+
+def _f(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _grouped_closes(client, day) -> dict:
+    """{ticker: close} for one date — the whole US market in a single call.
+
+    Returns {} for a non-trading day (the endpoint answers with zero results),
+    which is what makes the session walk below holiday-proof.
+    """
+    url = (
+        f"https://api.massive.com/v2/aggs/grouped/locale/us/market/stocks/"
+        f"{day.isoformat()}?adjusted=true&apiKey={client._api_key}"
+    )
+    try:
+        data = client._get(url, timeout=_GROUPED_TIMEOUT_S)
+    except Exception:
+        return {}
+    out = {}
+    for r in (data.get("results") or []):
+        tk, c = r.get("T"), _f(r.get("c"))
+        if tk and c:
+            out[tk] = c
+    return out
+
+
+def _build_session_closes() -> tuple[dict, dict]:
+    """(closes of the last completed session, closes of the one before it)."""
+    try:
+        client = _get_client()
+    except Exception:
+        return ({}, {})
+    maps: list[dict] = []
+    day = datetime.now(ZoneInfo("America/New_York")).date()
+    for _ in range(_GROUPED_LOOKBACK_DAYS):
+        if len(maps) >= 2:
+            break
+        m = _grouped_closes(client, day)
+        if m:
+            maps.append(m)
+        day -= timedelta(days=1)
+    return (maps[0] if maps else {}, maps[1] if len(maps) > 1 else {})
+
+
+def _warm_session_closes_async() -> None:
+    """Build the session-close maps off the request path.
+
+    Each grouped call is a multi-MB response and the walk can take several of
+    them, which is far too long to hold an anyio threadpool worker inside the
+    Semaphore(6) valve (the launch-day 524 class). So the first closed-market
+    poll returns without a % and the next one — 2s later, and for the hour after
+    that — reads a warm cache.
+    """
+    if not _SESSION_CLOSES_LOCK.acquire(blocking=False):
+        return  # a build is already in flight
+
+    def _build():
+        global _session_closes_at, _session_closes_val
+        try:
+            built = _build_session_closes()
+            if built[0]:
+                _session_closes_val = built
+                _session_closes_at = time.monotonic()
+        except Exception:
+            pass
+        finally:
+            _SESSION_CLOSES_LOCK.release()
+
+    threading.Thread(target=_build, daemon=True,
+                     name="live-prices-session-closes").start()
+
+
+def _session_closes() -> tuple[dict, dict]:
+    if _session_closes_val[0] and (time.monotonic() - _session_closes_at) < _SESSION_CLOSES_TTL:
+        return _session_closes_val
+    # Stale or never built — kick off a refresh and serve what we have. An
+    # expired-but-present map is still the right last session until the market
+    # reopens, so it keeps being served rather than blanking the % column.
+    _warm_session_closes_async()
+    return _session_closes_val
+
+
+def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> dict | None:
+    """Build a quote from prevDay when the live feed is empty (market closed).
+
+    Massive zeroes `day` and `lastTrade` outside trading hours but keeps
+    `prevDay` populated with the last completed session, so a weekend row can
+    still show that session's close, volume and OHLC instead of a blank.
+    """
+    prev_day = t.get("prevDay") or {}
+    close = _f(prev_day.get("c"))
+    if not close or close <= 0:
+        return None
+
+    # Only trust the prior close once the settled grouped data for the last
+    # session AGREES with this snapshot's prevDay. That proves both maps are
+    # aligned to the session being displayed, so the % can't silently become a
+    # multi-session move mislabelled as a one-day change.
+    prior = None
+    settled = last_map.get(ticker)
+    if settled and abs(settled - close) / close < 0.001:
+        prior = prior_map.get(ticker)
+
+    if prior and prior > 0:
+        chg_abs = close - prior
+        chg_pct = chg_abs / prior * 100.0
+    else:
+        prior, chg_abs, chg_pct = None, 0.0, 0.0
+
+    return {
+        "price": round(close, 2),
+        "change_pct": round(chg_pct, 4),
+        "change": round(chg_abs, 4),
+        "volume": int(prev_day.get("v") or 0),
+        "day_open": round(float(prev_day.get("o") or 0), 2),
+        "day_high": round(float(prev_day.get("h") or 0), 2),
+        "day_low": round(float(prev_day.get("l") or 0), 2),
+        "prev_close": round(prior, 2) if prior else 0.0,
+        "day_close": round(close, 2),
+        "ext_price": None,
+        "ext_session": None,
+        # Marks a row served from the last completed session rather than a live
+        # feed. Price alerts skip these so a weekend poll can't re-fire Friday.
+        "market_closed": True,
+    }
 
 
 def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
@@ -57,13 +205,8 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     # herd, exhaust the 64-worker pool (the launch-day 524 class). 5s caps that.
     data = client._get(url, timeout=5.0)
 
-    def _f(v):
-        try:
-            return float(v)
-        except (TypeError, ValueError):
-            return None
-
     out: dict = {}
+    degraded: dict = {}
     for t in data.get("tickers", []):
         ticker = t.get("ticker", "")
         if not ticker:
@@ -89,9 +232,17 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         else:
             chg_pct = _f(t.get("todaysChangePerc"))
             chg_abs = _f(t.get("todaysChange"))
-            # No day close AND no real change → too degraded to trust. OMIT the
-            # ticker so callers keep their last-good value instead of a 0.00% blank.
+            # No day close AND no real change. MID-SESSION that means a degraded
+            # read we must not trust — serving it would flash a live row to a
+            # spurious 0.00% — so the ticker is held back and the caller keeps
+            # its last-good value.
+            #
+            # But when the market is CLOSED the ENTIRE feed looks like this
+            # (day + lastTrade zeroed, prevDay intact), so holding every ticker
+            # back emptied the response completely → 503 → every Price/Vol/%Chg
+            # cell blank all weekend. Those are rebuilt from prevDay below.
             if chg_pct is None or chg_pct == 0.0:
+                degraded[ticker] = t
                 continue
 
         ext_price = None
@@ -119,6 +270,17 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             "ext_price": ext_price,
             "ext_session": ext_session,
         }
+
+    # Serve last-session values for the held-back tickers when the market isn't
+    # open. `not out` covers the cases _detect_session() can't know about — market
+    # holidays and early closes, where the clock says "regular" but the feed is
+    # uniformly empty. A mid-session one-off degraded ticker still gets held back.
+    if degraded and (session != "regular" or not out):
+        last_map, prior_map = _session_closes()
+        for ticker, t in degraded.items():
+            row = _last_session_row(ticker, t, last_map, prior_map)
+            if row is not None:
+                out[ticker] = row
     return out
 
 
@@ -198,9 +360,13 @@ def get_live_prices(
 
     # Price alerts run once per freshly-built set (mirrors the pre-refactor cadence
     # of running only on a cache miss, not on every repeated poll).
+    # Closed-market rows are Friday's close replayed on every poll — evaluating
+    # alerts against them would re-test targets the live session already settled.
     try:
         from api.services.watchlist_alert_service import run_alert_check
-        run_alert_check(result)
+        live_only = {k: v for k, v in result.items() if not v.get("market_closed")}
+        if live_only:
+            run_alert_check(live_only)
     except Exception:
         pass
 
