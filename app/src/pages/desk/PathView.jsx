@@ -10,7 +10,15 @@
 // FULL course-order list, so the theater's Up Next walks the syllabus. This
 // component never autoplays — the ?v= deep-link effect in VideosSection keeps
 // sole ownership of autoplay.
-import { useMemo } from 'react'
+//
+// Admin edit mode (Task 6) — the syllabus UNLOCKED, not a form: inputs keep
+// the exact type of the text they replace (underline fields on the page
+// background), the ledger keeps its geometry (index column stays; row ops sit
+// where the duration sat), and gold stays reserved for Save. The draft is
+// LOCAL state: Save = PATCH meta (only-when-changed) + PUT the whole ordered
+// step list; any failure shows inline and PRESERVES the draft. Members see
+// zero change — every edit affordance is isAdmin-gated.
+import { useMemo, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
 import { SkeletonLine, SkeletonPill } from '../../components/Skeleton'
 // Deliberate module cycle (VideosSection ⇄ PathView): the helpers are only
@@ -19,7 +27,34 @@ import { SkeletonLine, SkeletonPill } from '../../components/Skeleton'
 import { parseDuration, fmtCourseDuration, DURATION_COVERAGE_MIN } from './VideosSection'
 import p from './PathView.module.css'
 
-export default function PathView({ path, stats, progress, onBack, onPlay }) {
+const JSON_HEADERS = { 'Content-Type': 'application/json' }
+
+// The editable draft mirrors path meta + ALL authored steps — including steps
+// whose youtube_id doesn't resolve against the loaded library. Dropping those
+// on save would silently destroy curation, so they ride along (flagged
+// "not in library" in the editor) and land back in the PUT untouched.
+const draftFromPath = (path) => ({
+  name: path.name || '',
+  blurb: path.blurb || '',
+  kind: path.kind === 'course' ? 'course' : 'track',
+  steps: (path.steps || []).map((st) => ({
+    youtube_id: st.youtube_id,
+    module_label: st.module_label || '',
+    note: st.note || '',
+  })),
+})
+
+export default function PathView({
+  path,
+  stats,
+  progress,
+  onBack,
+  onPlay,
+  isAdmin = false,
+  allVideos = [],
+  onSaved,
+  initialEdit = false,
+}) {
   // Pair each resolved video with its authoring step (module_label / note).
   // path.videos is exactly path.steps resolved in order minus unknown ids, so
   // one pointer walk reconstructs the pairing — duplicates included, and a
@@ -80,6 +115,252 @@ export default function PathView({ path, stats, progress, onBack, onPlay }) {
   const resumeIndex =
     allDone || stats == null || stats.nextIndex < 0 ? 0 : stats.nextIndex
 
+  // ── Admin editor state — draft != null IS edit mode ─────────────────────
+  const [draft, setDraft] = useState(() =>
+    isAdmin && initialEdit ? draftFromPath(path) : null,
+  )
+  const [busy, setBusy] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
+  const editing = isAdmin && draft != null
+
+  const videoById = useMemo(() => {
+    const m = {}
+    for (const v of allVideos) m[v.youtube_id] = v
+    return m
+  }, [allVideos])
+
+  const beginEdit = () => {
+    setSaveErr('')
+    setDraft(draftFromPath(path))
+  }
+  const cancelEdit = () => {
+    setDraft(null)
+    setSaveErr('')
+  }
+  const setStep = (i, field, value) =>
+    setDraft((d) => ({
+      ...d,
+      steps: d.steps.map((s, j) => (j === i ? { ...s, [field]: value } : s)),
+    }))
+  const moveStep = (i, dir) =>
+    setDraft((d) => {
+      const j = i + dir
+      if (j < 0 || j >= d.steps.length) return d
+      const steps = [...d.steps]
+      ;[steps[i], steps[j]] = [steps[j], steps[i]]
+      return { ...d, steps }
+    })
+  const removeStep = (i) =>
+    setDraft((d) => ({ ...d, steps: d.steps.filter((_, j) => j !== i) }))
+  const addStep = (video) =>
+    setDraft((d) => ({
+      ...d,
+      steps: [...d.steps, { youtube_id: video.youtube_id, module_label: '', note: '' }],
+    }))
+
+  // Save = PATCH meta only when something actually changed (partial body of
+  // just the changed fields — slug is immutable and never sent), then PUT the
+  // whole ordered step list from the draft. Failure at either stage keeps the
+  // draft intact behind an inline error; success closes the editor and lets
+  // the parent revalidate /paths.
+  const save = async () => {
+    const name = draft.name.trim()
+    if (!name) {
+      setSaveErr('Name is required.')
+      return
+    }
+    setBusy(true)
+    setSaveErr('')
+    try {
+      const meta = {}
+      if (name !== path.name) meta.name = name
+      if ((draft.blurb || '').trim() !== (path.blurb || '')) meta.blurb = draft.blurb.trim()
+      if (draft.kind !== (path.kind === 'course' ? 'course' : 'track')) meta.kind = draft.kind
+      if (Object.keys(meta).length > 0) {
+        const r = await fetch(`/api/education/paths/${path.id}`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: JSON_HEADERS,
+          body: JSON.stringify(meta),
+        })
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}))
+          throw new Error(j.detail || 'Save failed')
+        }
+      }
+      const steps = draft.steps.map((s) => ({
+        youtube_id: s.youtube_id,
+        module_label: s.module_label.trim() || null,
+        note: s.note.trim() || null,
+      }))
+      const r2 = await fetch(`/api/education/paths/${path.id}/steps`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ steps }),
+      })
+      if (!r2.ok) {
+        const j = await r2.json().catch(() => ({}))
+        throw new Error(j.detail || 'Save failed')
+      }
+      setDraft(null)
+      onSaved?.()
+    } catch (e) {
+      setSaveErr(e.message || 'Save failed') // draft preserved — no data loss
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <section className={p.page} aria-label={`Edit ${path.name}`}>
+        <button className={p.back} onClick={onBack}>
+          <span className={p.flipX} aria-hidden="true">
+            <UIcon name="chevronRight" size={14} gold={false} />
+          </span>
+          Back to videos
+        </button>
+
+        <header className={p.head}>
+          <div className={p.kindRow}>
+            <select
+              className={p.kindSelect}
+              value={draft.kind}
+              onChange={(e) => setDraft((d) => ({ ...d, kind: e.target.value }))}
+              aria-label="Path kind"
+              disabled={busy}
+            >
+              <option value="course">Course</option>
+              <option value="track">Track</option>
+            </select>
+          </div>
+          <input
+            className={p.nameInput}
+            value={draft.name}
+            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+            aria-label="Name"
+            placeholder="Course name"
+            disabled={busy}
+          />
+          <textarea
+            className={p.blurbInput}
+            value={draft.blurb}
+            onChange={(e) => setDraft((d) => ({ ...d, blurb: e.target.value }))}
+            aria-label="Blurb"
+            placeholder="One-line blurb (optional)"
+            rows={2}
+            disabled={busy}
+          />
+          <div className={p.editActions}>
+            <button
+              className={p.cta}
+              onClick={save}
+              disabled={busy || !draft.name.trim()}
+            >
+              {busy ? 'Saving…' : 'Save'}
+            </button>
+            <button className={p.editCancel} onClick={cancelEdit} disabled={busy}>
+              Cancel
+            </button>
+            {saveErr && (
+              <span className={p.editErr} role="alert">
+                {saveErr}
+              </span>
+            )}
+          </div>
+        </header>
+
+        {/* The draft ledger — one flat ordered list (module seams re-group on
+            save; grouping while reordering across seams would mislead). */}
+        <ol className={p.rows} aria-label="Lessons (draft order)">
+          {draft.steps.map((st, i) => {
+            const v = videoById[st.youtube_id]
+            const title = v?.title || st.youtube_id
+            return (
+              <li key={`${st.youtube_id}-${i}`} className={p.rowItem}>
+                <div className={p.editRow}>
+                  <span className={p.rowIndex} aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <span className={p.editBody}>
+                    <span className={p.editTitleLine}>
+                      <span className={p.rowTitle}>{title}</span>
+                      {v?.duration ? (
+                        <span className={p.rowDuration}>{v.duration}</span>
+                      ) : null}
+                      {!v && <span className={p.editMissing}>not in library</span>}
+                    </span>
+                    <span className={p.editFields}>
+                      <input
+                        className={p.editField}
+                        value={st.module_label}
+                        onChange={(e) => setStep(i, 'module_label', e.target.value)}
+                        placeholder="Module"
+                        aria-label={`Module for lesson ${i + 1}`}
+                        disabled={busy}
+                      />
+                      <input
+                        className={p.editField}
+                        value={st.note}
+                        onChange={(e) => setStep(i, 'note', e.target.value)}
+                        placeholder="Teaching note"
+                        aria-label={`Note for lesson ${i + 1}`}
+                        disabled={busy}
+                      />
+                    </span>
+                  </span>
+                  <span className={p.editOps}>
+                    <button
+                      type="button"
+                      className={p.opBtn}
+                      onClick={() => moveStep(i, -1)}
+                      disabled={busy || i === 0}
+                      aria-label={`Move ${title} up`}
+                    >
+                      <span className={p.flipY} aria-hidden="true">
+                        <UIcon name="chevronDown" size={15} gold={false} />
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={p.opBtn}
+                      onClick={() => moveStep(i, 1)}
+                      disabled={busy || i === draft.steps.length - 1}
+                      aria-label={`Move ${title} down`}
+                    >
+                      <UIcon name="chevronDown" size={15} gold={false} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`${p.opBtn} ${p.opDanger}`}
+                      onClick={() => removeStep(i)}
+                      disabled={busy}
+                      aria-label={`Remove ${title}`}
+                    >
+                      <UIcon name="x" size={14} gold={false} />
+                    </button>
+                  </span>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+        {draft.steps.length === 0 && (
+          <p className={p.editEmpty}>
+            No lessons yet — search the library below to add the first one.
+          </p>
+        )}
+        <AddLessonSearch
+          allVideos={allVideos}
+          existingIds={new Set(draft.steps.map((s) => s.youtube_id))}
+          onAdd={addStep}
+          disabled={busy}
+        />
+      </section>
+    )
+  }
+
   return (
     <section className={p.page} aria-label={path.name}>
       <button className={p.back} onClick={onBack}>
@@ -90,24 +371,34 @@ export default function PathView({ path, stats, progress, onBack, onPlay }) {
       </button>
 
       <header className={p.head}>
-        <div className={`${p.kind} ${path.kind === 'course' ? p.kindCourse : ''}`}>
-          {path.kind === 'course' ? 'COURSE' : 'TRACK'}
+        <div className={p.kindRow}>
+          <div className={`${p.kind} ${path.kind === 'course' ? p.kindCourse : ''}`}>
+            {path.kind === 'course' ? 'COURSE' : 'TRACK'}
+          </div>
+          {isAdmin && (
+            <button className={p.editBtn} onClick={beginEdit}>
+              <UIcon name="edit" size={13} gold={false} />
+              Edit
+            </button>
+          )}
         </div>
         <h2 className={p.name}>{path.name}</h2>
         {path.blurb && <p className={p.blurb}>{path.blurb}</p>}
-        <div className={p.actions}>
-          <button
-            className={p.cta}
-            onClick={() => onPlay(path.videos, resumeIndex)}
-          >
-            <UIcon name="play" size={12} gold={false} />
-            {ctaLabel}
-          </button>
-          <span className={p.meta}>
-            {done} of {total}
-            {remainingLabel ? ` · ${remainingLabel}` : ''}
-          </span>
-        </div>
+        {total > 0 && (
+          <div className={p.actions}>
+            <button
+              className={p.cta}
+              onClick={() => onPlay(path.videos, resumeIndex)}
+            >
+              <UIcon name="play" size={12} gold={false} />
+              {ctaLabel}
+            </button>
+            <span className={p.meta}>
+              {done} of {total}
+              {remainingLabel ? ` · ${remainingLabel}` : ''}
+            </span>
+          </div>
+        )}
       </header>
 
       <div className={p.syllabus}>
@@ -134,6 +425,68 @@ export default function PathView({ path, stats, progress, onBack, onPlay }) {
         ))}
       </div>
     </section>
+  )
+}
+
+// Predictive add-lesson search — a filtered dropdown over the LOADED library
+// (title substring, capped at 8), the same client-side idiom the admin
+// VideoForm uses for categories. Picking a match appends it to the draft and
+// clears the query; Enter takes the top match; Escape clears (stopPropagation
+// so the theater's window-level Escape never double-acts). Duplicates are
+// allowed by the data model — an already-in-course match is marked, not
+// blocked.
+function AddLessonSearch({ allVideos, existingIds, onAdd, disabled }) {
+  const [q, setQ] = useState('')
+  const matches = useMemo(() => {
+    const t = q.trim().toLowerCase()
+    if (!t) return []
+    return allVideos.filter((v) => (v.title || '').toLowerCase().includes(t)).slice(0, 8)
+  }, [q, allVideos])
+  const pick = (v) => {
+    onAdd(v)
+    setQ('')
+  }
+  return (
+    <div className={p.addWrap}>
+      <input
+        className={p.addInput}
+        type="text"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Add a lesson — search the library by title…"
+        aria-label="Add a lesson"
+        disabled={disabled}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation()
+            setQ('')
+          } else if (e.key === 'Enter' && matches.length > 0) {
+            e.preventDefault()
+            pick(matches[0])
+          }
+        }}
+      />
+      {matches.length > 0 && (
+        <div className={p.addMenu}>
+          {matches.map((v) => (
+            <button
+              key={v.youtube_id}
+              type="button"
+              className={p.addOption}
+              onClick={() => pick(v)}
+            >
+              <span className={p.addOptTitle}>{v.title}</span>
+              {existingIds.has(v.youtube_id) && (
+                <span className={p.addOptIn}>in course</span>
+              )}
+              <span className={p.addOptMeta}>
+                {[v.duration, v.category].filter(Boolean).join(' · ')}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

@@ -646,6 +646,88 @@
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--space-md);
 }
+/* ── Admin course management (Task 6) — quiet hairline pills in the shelf
+   header + the Delete sheet's rows. Members never render any of this. ──── */
+.shelfAdminActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.shelfAdminBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+.shelfAdminBtn:hover { color: var(--text-bright); border-color: var(--ut-gold-glow); }
+@media (max-width: 1024px) {
+  .shelfAdminBtn { min-height: var(--tap-min); }
+}
+.pathsEmptyNote {
+  margin: 0 0 var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.manageRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.manageRow:last-of-type { border-bottom: none; }
+.manageRowBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.manageRowName {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.manageRowMeta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.manageRowDelete {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 4px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--loss);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease;
+}
+.manageRowDelete:hover:not(:disabled) { border-color: var(--loss); }
+.manageRowDelete:disabled { opacity: 0.5; cursor: default; }
+@media (max-width: 1024px) {
+  .manageRowDelete { min-height: var(--tap-min); }
+}
 .pathCard {
   display: flex;
   flex-direction: column;

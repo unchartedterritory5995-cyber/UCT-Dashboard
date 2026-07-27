@@ -72,6 +72,21 @@ export const fmtCourseDuration = (secs) => {
   return `~${m}m`
 }
 
+// Course name → kebab slug ("Tape Reading 101" → "tape-reading-101"). Must
+// land inside the backend's _SLUG_RE (^[a-z0-9]+(-[a-z0-9]+)*$): lowercase,
+// accents folded, every non-alphanumeric run collapsed to one hyphen, no
+// leading/trailing hyphens. The slug is IMMUTABLE after create, so the New
+// sheet shows it and keeps it editable until the POST.
+export const slugifyPathName = (name) =>
+  String(name || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+const PATH_SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
 // The backend wraps matched terms in literal <b>…</b> markers. We parse those
 // markers OURSELVES and emit React nodes — every non-marker fragment becomes a
 // plain text node React escapes, so no dangerouslySetInnerHTML and no reliance
@@ -127,6 +142,11 @@ export default function VideosSection() {
   const [activeTag, setActiveTag] = useState(null) // library tag-chip filter
   const [filtersOpen, setFiltersOpen] = useState(false) // tag row visibility
   const [editing, setEditing] = useState(null)
+  // Admin course management (Task 6): the New/Delete sheets on the landing +
+  // the slug PathView should open in edit mode (set right after a create).
+  const [newPathOpen, setNewPathOpen] = useState(false)
+  const [managePathsOpen, setManagePathsOpen] = useState(false)
+  const [editSlug, setEditSlug] = useState(null)
   const progress = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   // Pull cross-device watch progress once on mount (merges into the local store).
@@ -211,13 +231,13 @@ export default function VideosSection() {
   // one per route change).
   const searchRef = useRef(null)
   const editingRef = useRef(null)
-  editingRef.current = editing
+  editingRef.current = !!editing || newPathOpen || managePathsOpen
   useEffect(() => {
     const onSlash = (e) => {
       if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return
       const el = document.activeElement
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
-      if (editingRef.current) return // Sheet/modal open (admin VideoForm)
+      if (editingRef.current) return // Sheet/modal open (VideoForm / New / Delete)
       if (!searchRef.current) return // no catalog yet → no search input
       e.preventDefault()
       searchRef.current.focus()
@@ -336,20 +356,43 @@ export default function VideosSection() {
   // Courses/tracks come from the DB now (GET /api/education/paths, seeded with
   // the six old Learning Paths on day one). Steps resolve against the loaded
   // library exactly as the old hardcoded memo did: unknown youtube_ids are
-  // skipped, and a path that resolves fewer than 2 lessons is hidden.
-  const { data: pathsData } = useSWR('/api/education/paths', fetcher)
-  const paths = useMemo(() => {
+  // skipped, and a path that resolves fewer than 2 lessons is hidden from
+  // MEMBERS. Admins additionally see the unfiltered set (resolvedPaths) — the
+  // editor must reach brand-new/sub-2-lesson paths, and the Delete sheet must
+  // list them.
+  const { data: pathsData, mutate: mutatePaths } = useSWR('/api/education/paths', fetcher)
+  const resolvedPaths = useMemo(() => {
     const list = Array.isArray(pathsData?.paths) ? pathsData.paths : []
     if (!list.length || !categories.length) return []
     const byId = {}
     for (const cat of categories) for (const v of cat.videos || []) byId[v.youtube_id] = v
-    return list
-      .map((p) => ({
-        ...p,
-        videos: (p.steps || []).map((st) => byId[st.youtube_id]).filter(Boolean),
-      }))
-      .filter((p) => p.videos.length >= 2)
+    return list.map((p) => ({
+      ...p,
+      videos: (p.steps || []).map((st) => byId[st.youtube_id]).filter(Boolean),
+    }))
   }, [pathsData, categories])
+  const paths = useMemo(
+    () => resolvedPaths.filter((p) => p.videos.length >= 2),
+    [resolvedPaths],
+  )
+
+  // Flat catalog for the editor's add-lesson search (steps may reference any
+  // loaded video — shows included, exactly like the seeded paths do).
+  const allVideos = useMemo(
+    () => categories.flatMap((c) => c.videos || []),
+    [categories],
+  )
+
+  // New paths land after the current highest sort_order (course-first display
+  // ordering is the server's; sort_order only breaks ties within a kind).
+  const nextSortOrder = useMemo(
+    () =>
+      resolvedPaths.reduce(
+        (m, p) => Math.max(m, Number.isFinite(p.sort_order) ? p.sort_order : -1),
+        -1,
+      ) + 1,
+    [resolvedPaths],
+  )
 
   // Per-path progress + duration stats, all client-side from the existing
   // progress store (done flag, t/d per youtube_id). "In progress" = t≥8 and
@@ -418,9 +461,12 @@ export default function VideosSection() {
   // Back returns to the landing. Both writes MERGE via the functional
   // setSearchParams form (section=/v=/cat= are never clobbered).
   const pathParam = searchParams.get('path')
+  // Members resolve against the ≥2-lesson set (unchanged); admins resolve
+  // against ALL paths so a just-created empty course opens for editing.
+  const openablePaths = isAdmin ? resolvedPaths : paths
   const activePath = useMemo(
-    () => (pathParam ? paths.find((p) => p.slug === pathParam) || null : null),
-    [pathParam, paths],
+    () => (pathParam ? openablePaths.find((p) => p.slug === pathParam) || null : null),
+    [pathParam, openablePaths],
   )
   const openPath = useCallback(
     (slug) => {
@@ -436,6 +482,7 @@ export default function VideosSection() {
     [setSearchParams],
   )
   const closePath = useCallback(() => {
+    setEditSlug(null) // a reopened course starts in view mode
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev)
@@ -680,11 +727,19 @@ export default function VideosSection() {
              ?v= effect keeps sole autoplay ownership). ── */}
       {!isLoading && total > 0 && activePath && (
         <PathView
+          key={activePath.slug}
           path={activePath}
           stats={activeStats}
           progress={progress}
           onBack={closePath}
           onPlay={playVideo}
+          isAdmin={isAdmin}
+          allVideos={allVideos}
+          onSaved={() => {
+            setEditSlug(null) // consumed — a later reopen starts in view mode
+            return mutatePaths()
+          }}
+          initialEdit={isAdmin && editSlug === activePath.slug}
         />
       )}
 
@@ -800,12 +855,42 @@ export default function VideosSection() {
               one-line blurb, lesson count (+ ~total when enough durations
               parse), and a thin gold bar + "n of M" once started. Click
               navigates to the course (?path=<slug>) — it does NOT autoplay. */}
-          {courseStats.length > 0 && (
+          {(courseStats.length > 0 || isAdmin) && (
             <section className={s.shelf}>
               <div className={s.shelfHead}>
                 <h2 className={s.shelfName}>Courses</h2>
-                <span className={s.shelfCount}>{courseStats.length}</span>
+                {courseStats.length > 0 && (
+                  <span className={s.shelfCount}>{courseStats.length}</span>
+                )}
+                {/* Admin course management — quiet hairline pills; members
+                    never see them (the section itself only renders for
+                    members when publishable cards exist, as before). */}
+                {isAdmin && (
+                  <span className={s.shelfAdminActions}>
+                    <button
+                      className={s.shelfAdminBtn}
+                      onClick={() => setNewPathOpen(true)}
+                    >
+                      <UIcon name="plus" size={12} gold={false} />
+                      New course
+                    </button>
+                    {resolvedPaths.length > 0 && (
+                      <button
+                        className={s.shelfAdminBtn}
+                        onClick={() => setManagePathsOpen(true)}
+                      >
+                        Delete path
+                      </button>
+                    )}
+                  </span>
+                )}
               </div>
+              {courseStats.length === 0 && isAdmin && (
+                <div className={s.pathsEmptyNote}>
+                  A course appears to members once it holds at least two
+                  library lessons.
+                </div>
+              )}
               <div className={s.pathsGrid}>
                 {courseStats.map(({ path: p, done, total: count, started, pct, durLabel }) => (
                   <button
@@ -904,6 +989,27 @@ export default function VideosSection() {
             mutate()
           }}
           knownCategories={categories.map((c) => c.name)}
+        />
+      )}
+
+      {isAdmin && newPathOpen && (
+        <NewPathSheet
+          onClose={() => setNewPathOpen(false)}
+          nextSortOrder={nextSortOrder}
+          onCreated={async (created) => {
+            setNewPathOpen(false)
+            await mutatePaths() // the new path must resolve before ?path opens
+            setEditSlug(created.slug)
+            openPath(created.slug)
+          }}
+        />
+      )}
+
+      {isAdmin && managePathsOpen && (
+        <DeletePathsSheet
+          paths={resolvedPaths}
+          onClose={() => setManagePathsOpen(false)}
+          onDeleted={() => mutatePaths()}
         />
       )}
     </div>
@@ -1076,6 +1182,181 @@ function VideoForm({ video, onClose, onSaved, knownCategories }) {
             {busy ? 'Saving…' : isNew ? 'Add video' : 'Save changes'}
           </button>
         </div>
+      </div>
+    </Sheet>
+  )
+}
+
+// New course/track — the VideoForm idiom (Sheet + inline error + busy). The
+// slug auto-kebabs from the name until the admin touches it (it's the course
+// URL and IMMUTABLE after create, so it stays visible and editable here).
+// Create POSTs, then the parent revalidates /paths and opens ?path=<slug> in
+// edit mode so lessons can be added immediately.
+function NewPathSheet({ onClose, onCreated, nextSortOrder }) {
+  const [form, setForm] = useState({ name: '', slug: '', kind: 'course', blurb: '' })
+  const [slugTouched, setSlugTouched] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const slugOk = PATH_SLUG_RE.test(form.slug)
+
+  const submit = async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      const r = await fetch('/api/education/paths', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug: form.slug,
+          name: form.name.trim(),
+          blurb: form.blurb.trim() || null,
+          kind: form.kind,
+          sort_order: nextSortOrder,
+        }),
+      })
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}))
+        throw new Error(j.detail || 'Create failed')
+      }
+      onCreated(await r.json())
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet open onClose={onClose} variant="auto" title="New course or track">
+      <div className={styles.form}>
+        <label className={styles.field}>
+          <span className={styles.label}>Name</span>
+          <input
+            className={styles.input}
+            value={form.name}
+            onChange={(e) => {
+              const name = e.target.value
+              setForm((f) => ({
+                ...f,
+                name,
+                slug: slugTouched ? f.slug : slugifyPathName(name),
+              }))
+            }}
+            placeholder="e.g. Tape Reading 101"
+          />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Slug — the course URL; permanent after create</span>
+          <input
+            className={styles.input}
+            value={form.slug}
+            onChange={(e) => {
+              setSlugTouched(true)
+              setForm((f) => ({ ...f, slug: e.target.value }))
+            }}
+            placeholder="tape-reading-101"
+          />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Kind</span>
+          <select
+            className={styles.input}
+            value={form.kind}
+            onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value }))}
+          >
+            <option value="course">Course</option>
+            <option value="track">Track</option>
+          </select>
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Blurb (optional)</span>
+          <textarea
+            className={styles.textarea}
+            rows={2}
+            value={form.blurb}
+            onChange={(e) => setForm((f) => ({ ...f, blurb: e.target.value }))}
+          />
+        </label>
+        {err && <div className={styles.formErr}>{err}</div>}
+        <div className={styles.formActions}>
+          <button className={styles.cancelBtn} onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className={styles.saveBtn}
+            onClick={submit}
+            disabled={busy || !form.name.trim() || !slugOk}
+          >
+            {busy ? 'Creating…' : 'Create'}
+          </button>
+        </div>
+      </div>
+    </Sheet>
+  )
+}
+
+// Delete a path — a confirm-gated list of EVERY path (including sub-2-lesson
+// drafts members never see), each row name + kind + authored-step count.
+// window.confirm mirrors the handleDelete idiom; the sheet stays open so
+// several drafts can be cleared in one visit.
+function DeletePathsSheet({ paths, onClose, onDeleted }) {
+  const [busyId, setBusyId] = useState(null)
+  const [err, setErr] = useState('')
+
+  const del = async (path) => {
+    if (
+      !window.confirm(
+        `Delete “${path.name}”? Members lose the course page — the videos stay in the library.`,
+      )
+    )
+      return
+    setBusyId(path.id)
+    setErr('')
+    try {
+      const r = await fetch(`/api/education/paths/${path.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}))
+        throw new Error(j.detail || 'Delete failed')
+      }
+      onDeleted()
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <Sheet open onClose={onClose} variant="auto" title="Delete a path">
+      <div className={styles.form}>
+        {paths.length === 0 && (
+          <div className={s.pathsEmptyNote}>No courses or tracks yet.</div>
+        )}
+        {paths.map((path) => (
+          <div key={path.id} className={s.manageRow}>
+            <span className={s.manageRowBody}>
+              <span className={s.manageRowName}>{path.name}</span>
+              <span className={s.manageRowMeta}>
+                {path.kind === 'course' ? 'Course' : 'Track'} ·{' '}
+                {(path.steps || []).length} lesson
+                {(path.steps || []).length === 1 ? '' : 's'}
+              </span>
+            </span>
+            <button
+              className={s.manageRowDelete}
+              onClick={() => del(path)}
+              disabled={busyId != null}
+              aria-label={`Delete ${path.name}`}
+            >
+              Delete
+            </button>
+          </div>
+        ))}
+        {err && <div className={styles.formErr}>{err}</div>}
       </div>
     </Sheet>
   )
