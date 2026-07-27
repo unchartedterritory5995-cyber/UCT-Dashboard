@@ -37,6 +37,7 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
+import { publishChartReadout } from '../lib/chartReadoutStore'
 import { shouldApplyRange } from '../pages/charts/grid/rangeGuard'
 // Beyond this, a Massive bar tick is considered stale and the legend falls back
 // to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
@@ -2842,9 +2843,20 @@ export default function StockChart({
   const _inExtWindow = marketSession === 'pre' || marketSession === 'post'
   const _sessionLive = sym ? livePrices?.[sym] : null
   // Live extended-hours print (null until the feed flags a real pre/post trade).
+  // PREFER the fast Massive trade tick (liveTickRef, sub-second — the same feed
+  // the legend uses) over the slow Finnhub `ext_price` (updated ~1-2x/min). This
+  // is what makes the D/W/M "Pre"/"Post" tag + the preview candle + the right-edge
+  // price label tick in real time in pre/post-market instead of crawling — and it
+  // keeps them identical to the legend + the mirrored watchlist. The feed's
+  // ext_session flag still gates whether we're in a real extended print at all;
+  // we only swap in the fresher value for it.
+  const _extTick = liveTickRef.current
+  const _extTickPx = (_extTick && _extTick.price != null
+    && _extTick.price > 0 && (Date.now() - _extTick.ts) < LIVE_TICK_FRESH_MS)
+    ? _extTick.price : null
   const sessionExtPrice = (_sessionLive && _sessionLive.ext_session
     && Number.isFinite(_sessionLive.ext_price) && _sessionLive.ext_price > 0)
-    ? _sessionLive.ext_price : null
+    ? (_extTickPx ?? _sessionLive.ext_price) : null
   // Include-mode: synthesize/extend the D/W/M candle from extended-hours data.
   const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode
   // Regular-mode post-market: freeze today's candle at the 4pm close (don't let
@@ -7349,6 +7361,33 @@ export default function StockChart({
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alwaysShowLegend, chartReady, sym])
+
+  // Publish the chart's EXACT displayed price + volume so the watchlist row for
+  // this symbol can mirror it (real-time, to-the-share) instead of drifting on
+  // its own polling feed. computeLatestCrosshair() is the same value the legend /
+  // "Pre" tag / volume pane show; it's safe to call from an effect.
+  //
+  // Gated hard so we never poison the store with a value the watchlist can't
+  // mean: only LIVE charts (not Model Book / replay historical) and only on the
+  // DAILY timeframe, where the developing bar's volume IS today's session total
+  // and its close IS the current price — matching the watchlist's daily columns.
+  // Weekly/monthly bars carry a multi-day volume; intraday bars carry a single
+  // bar's volume — neither is "today's volume", so those TFs don't publish.
+  useEffect(() => {
+    if (!chartReady || !liveUpdates) return undefined
+    const id = setInterval(() => {
+      if (replayMode || resolvedTfRef.current !== 'D') return
+      const r = computeLatestCrosshair()
+      if (!r || !Number.isFinite(r.close)) return
+      publishChartReadout(symRef.current, {
+        price: r.close,
+        volume: Number.isFinite(r.volume) ? r.volume : null,
+        changePct: (r.changePct != null && r.changePct !== '') ? Number(r.changePct) : null,
+      })
+    }, 500)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartReady, liveUpdates, sym])
 
   // ── Multi-chart sync: report visible time-range changes to parent (Task 5 Step 3) ──
   // No-op when onTimeRangeChange is absent. Uses Lightweight Charts'

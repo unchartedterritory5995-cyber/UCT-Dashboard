@@ -12,6 +12,7 @@ import useWatchlistThemes from '../hooks/useWatchlistThemes'
 import { menuThemeVars } from '../utils/dividerColor'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
+import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
 import StockChart from '../components/StockChart'
 import SymbolSearch from '../components/chart/SymbolSearch'
@@ -620,7 +621,37 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return tickers
   }, [activeTab, flagged, tags, myLists, communityLists, expandedLists])
 
-  const { prices } = useRealtimePrices(allTickers)
+  const { prices: feedPrices } = useRealtimePrices(allTickers)
+  // Mirror the chart: when a StockChart of the same ticker is open, its published
+  // readout (the EXACT price/volume/%chg its legend + "Pre" tag + volume pane
+  // show) overrides the watchlist's own polling feed, so the two never disagree.
+  // Throttled to ~1/s (charts publish every 500ms) to match the live cadence
+  // without extra re-render churn; non-charted rows keep the feed untouched.
+  const [readoutTick, setReadoutTick] = useState(0)
+  const readoutThrottleRef = useRef(0)
+  useEffect(() => subscribeChartReadouts(() => {
+    const now = Date.now()
+    if (now - readoutThrottleRef.current >= 900) {
+      readoutThrottleRef.current = now
+      setReadoutTick(t => t + 1)
+    }
+  }), [])
+  const prices = useMemo(() => {
+    void readoutTick   // recompute when a fresh readout arrives
+    if (!hasFreshReadouts()) return feedPrices
+    const merged = { ...feedPrices }
+    for (const sym of Object.keys(merged)) {
+      const r = getChartReadout(sym)
+      if (!r) continue
+      merged[sym] = {
+        ...merged[sym],
+        ...(r.price != null ? { price: r.price } : {}),
+        ...(r.volume != null ? { volume: r.volume } : {}),
+        ...(r.changePct != null ? { change_pct: r.changePct } : {}),
+      }
+    }
+    return merged
+  }, [feedPrices, readoutTick])
   // Column config (persisted per-user in localStorage) — declared HERE, above the
   // perf/theme fetches, so those can gate on which columns are shown.
   const [colCfg, setColCfg] = useState(() => {
