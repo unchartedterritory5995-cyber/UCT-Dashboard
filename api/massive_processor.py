@@ -143,6 +143,12 @@ SINGLE_LEG_CONDITIONS = frozenset({
 # $2.3M) was vetoed to BLOCK by two stray 227 prints, which then cost it the
 # empty-side ASK rescue and hid it. KEEP IN SYNC with build_gap_fill_csv.py.
 SWEEP_BREADTH_OVERRIDE = 4
+# Size-weight the ML tag (2026-07-27): stray tiny multi-leg prints must not
+# hijack a large sweep's type. Only call a burst 'ML/' if the multi-leg prints
+# carry >= this fraction of the cluster's total size. 0 = presence-based (old).
+# Trigger: AMD 480C 7/31 — a 1150ct/18-venue 209 sweep was tagged ML/ by 17ct
+# of stray [233]/[236]. Extends the 7/10 breadth override (single-leg only) to ML.
+ML_MIN_SIZE_FRAC = float(os.environ.get("ML_MIN_SIZE_FRAC", "0.20"))
 
 
 def _as_conditions(v) -> tuple[int, ...]:
@@ -457,7 +463,11 @@ class TradeAggregator:
         # spanning 4+ venues can't be a real single-leg trade -- it's a sweep
         # that a stray 227-231 print was bucketed into. See HUBS 7/8.
         conditions_seen = {c for t in trades for c in t.conditions}
-        if conditions_seen & MULTI_LEG_CONDITIONS:
+        # Size-weighted ML: a stray tiny multi-leg print can't hijack a large
+        # sweep's type (see ML_MIN_SIZE_FRAC). ml_size==0 => not ML.
+        _total_sz = sum(t.size for t in trades) or 1
+        _ml_sz = sum(t.size for t in trades if MULTI_LEG_CONDITIONS.intersection(t.conditions))
+        if _ml_sz > 0 and _ml_sz >= _total_sz * ML_MIN_SIZE_FRAC:
             type_ = 'ML/'
         elif ISO_CONDITION in conditions_seen:
             type_ = 'SWEEP'
