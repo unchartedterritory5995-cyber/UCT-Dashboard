@@ -422,6 +422,14 @@ def _build_app() -> FastAPI:
     def health_alias():
         return _health_payload()
 
+    # railway.json (SHARED by web + worker + flow-worker) points healthcheckPath
+    # at /api/ready. The worker serves no user traffic and has no warm gates, so
+    # it is ready as soon as it can answer. Without this route the worker's
+    # deploys would fail their healthcheck outright.
+    @app.get("/api/ready")
+    def ready():
+        return {"ready": True, "service": "worker", "pending": []}
+
     # P5 (dark): once this worker owns the Massive consumer + flow.db, serve the
     # flow-family read/upload endpoints locally so web can reverse-proxy them.
     # Gated (WORKER_SERVES_FLOW=1) + lazy-imported so the worker's boot path is

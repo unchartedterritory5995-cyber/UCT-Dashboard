@@ -610,6 +610,7 @@ def _start_deploy_smoke_background(delay_seconds: int = 30) -> None:
 # Module-level imports for hot tier warm helpers -- bound at module scope so
 # tests can patch via `api.main.bars_disk_cache.get` and `api.main.bars_hot_tier.set`.
 from api.services import bars_hot_tier, bars_disk_cache  # noqa: E402
+from api.services import readiness  # noqa: E402
 
 
 def _warm_hot_tier_now() -> None:
@@ -647,7 +648,9 @@ def _start_hot_tier_warm_background(delay_seconds: int = 45) -> None:
     def _delayed():
         import time
         time.sleep(delay_seconds)
-        _warm_hot_tier_now()
+        # readiness gate: charts are cold until this finishes (see readiness.py)
+        with readiness.gate("hot_tier"):
+            _warm_hot_tier_now()
     threading.Thread(target=_delayed, daemon=True, name="hot-tier-warmer").start()
 
 
@@ -736,14 +739,17 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             warm_recent(limit=10000, min_grade="D", target_date=None,
                         sort_by="recent", tier=None, curated=True)
 
-        _warm("flow-tape", _flow_tape_critical)   # FIRST — the tape is the priority surface
-        _warm("movers", _movers)
-        _warm("themes", _themes)
-        _warm("news", _news)
-        _warm("breadth", _breadth)
-        _warm("calendar", _calendar)
-        _warm("earnings-previews", _earnings_previews)  # after calendar (it reads the week)
-        _warm("flow-curated", _flow_tape_curated)  # LAST — heavy 100K scan, non-critical
+        # readiness gate: these are the "sections" that read cold-slow (3-5s
+        # recompute each) until this block finishes (see readiness.py).
+        with readiness.gate("dashboard"):
+            _warm("flow-tape", _flow_tape_critical)   # FIRST — the tape is the priority surface
+            _warm("movers", _movers)
+            _warm("themes", _themes)
+            _warm("news", _news)
+            _warm("breadth", _breadth)
+            _warm("calendar", _calendar)
+            _warm("earnings-previews", _earnings_previews)  # after calendar (it reads the week)
+            _warm("flow-curated", _flow_tape_curated)  # LAST — heavy 100K scan, non-critical
 
     threading.Thread(target=_delayed, daemon=True, name="dashboard-warmer").start()
 
@@ -775,6 +781,11 @@ def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
                 first = False
             except Exception:
                 logging.getLogger(__name__).exception("[rs-rankings] warm failed")
+            finally:
+                # Release the readiness gate after the FIRST attempt (success or
+                # not). Later iterations are re-warms, not boot readiness.
+                # mark_done is idempotent, so calling it each loop is harmless.
+                readiness.mark_done("rs_rankings")
             time.sleep(3000)  # 50 min, under the 3600s cache TTL
     threading.Thread(target=_delayed, daemon=True, name="rs-rankings-warmer").start()
 
@@ -1319,22 +1330,34 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
 
+    # Readiness gates -- /api/ready (railway.json healthcheckPath) stays 503
+    # until each of these warmers finishes, so Railway keeps serving from the
+    # OLD warm pod instead of cutting traffic to a cold one. Each gate is
+    # registered immediately before its warmer starts and released in the
+    # `except` if the warmer could not even be scheduled, so a scheduling
+    # failure can never hold a deploy hostage.
     try:
+        readiness.register("hot_tier")
         _start_hot_tier_warm_background()
         logging.getLogger(__name__).info("[startup] hot tier warm scheduled (~45s after boot)")
     except Exception:
+        readiness.mark_done("hot_tier")
         logging.getLogger(__name__).exception("[startup] failed to schedule hot tier warm")
 
     try:
+        readiness.register("dashboard")
         _start_dashboard_warm_background()
         logging.getLogger(__name__).info("[startup] dashboard warm scheduled (~20s after boot)")
     except Exception:
+        readiness.mark_done("dashboard")
         logging.getLogger(__name__).exception("[startup] failed to schedule dashboard warm")
 
     try:
+        readiness.register("rs_rankings")
         _start_rs_rankings_warm_background()
         logging.getLogger(__name__).info("[startup] rs-rankings warm scheduled (~120s after boot)")
     except Exception:
+        readiness.mark_done("rs_rankings")
         logging.getLogger(__name__).exception("[startup] failed to schedule rs-rankings warm")
 
     try:
@@ -3719,6 +3742,22 @@ def health():
         "thread_count": threading.active_count(),
         "rss_mb": _process_rss_mb(),
     }
+
+
+@app.get("/api/ready")
+def ready():
+    """Readiness probe -- railway.json `healthcheckPath` points here.
+
+    Returns 503 until every warm gate has finished, so Railway holds live
+    traffic on the OLD (already warm) pod instead of cutting over to a cold
+    one. See api/services/readiness.py for the full why.
+
+    This is deliberately SEPARATE from /api/health (liveness): that route is
+    polled by worker_main's down-alert monitor, which posts a red "site down"
+    alert to Discord, and must not fail during a normal warm window.
+    """
+    snap = readiness.snapshot()
+    return JSONResponse(status_code=200 if snap["ready"] else 503, content=snap)
 
 
 @app.get("/api/health/threads")
