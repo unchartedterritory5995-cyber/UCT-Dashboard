@@ -26,18 +26,38 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
   // corrected to this window's own size. It must never start empty — a board
   // that renders nothing until a measure lands would stay blank entirely wherever
   // ResizeObserver is missing.
-  const bodyRef = useRef(null)
+  // Callback ref (not useRef): fires when the popoutBody actually attaches to the
+  // popped document, which happens a beat AFTER this component mounts (PopoutWindow
+  // creates the container asynchronously). A plain-ref effect ran too early — the
+  // node was null and it bailed, so the width was never measured.
+  const [bodyEl, setBodyEl] = useState(null)
   const [rowHeight, setRowHeight] = useState(initialRowHeight)
+  const [gridWidth, setGridWidth] = useState(0)
   useEffect(() => {
-    const el = bodyRef.current
-    if (!el) return
-    const measure = () => setRowHeight(computeRowHeight(el.clientHeight))
+    const el = bodyEl
+    const win = el?.ownerDocument?.defaultView
+    if (!el || !win) return
+    const measure = () => {
+      const w = win.innerWidth
+      const h = win.innerHeight
+      if (w > 200) {
+        setGridWidth(w - 12)          // popoutBody padding (6px each side)
+        setRowHeight(computeRowHeight(h))
+      }
+    }
     measure()
-    if (typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [computeRowHeight])
+    win.addEventListener('resize', measure)
+    let ro
+    try { ro = new win.ResizeObserver(measure); ro.observe(el) } catch { /* no RO in popup realm */ }
+    const timers = [100, 400, 1000].map(ms => win.setTimeout(measure, ms))
+    return () => {
+      try {
+        win.removeEventListener('resize', measure)
+        timers.forEach(t => win.clearTimeout(t))
+      } catch { /* window gone */ }
+      if (ro) ro.disconnect()
+    }
+  }, [bodyEl, computeRowHeight])
 
   // onClose needs the widgets as they stand when the window actually closes, not
   // as they were when the handler was created.
@@ -88,8 +108,8 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
       onClose={handleClose}
       onBlocked={handleBlocked}
     >
-      <PopoutShell theme={theme} bodyRef={bodyRef}>
-        {renderGrid(widgets, handlers, rowHeight)}
+      <PopoutShell theme={theme} bodyRef={setBodyEl}>
+        {renderGrid(widgets, handlers, rowHeight, gridWidth)}
       </PopoutShell>
     </PopoutWindow>
   )
