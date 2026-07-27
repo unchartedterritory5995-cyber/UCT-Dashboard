@@ -1716,20 +1716,15 @@ export default function StockChart({
       c = lp.price
     }
     let vol = last.v
-    if (lp?.volume != null && Number.isFinite(lp.volume) && lp.volume > 0) {
-      if (!vol || vol === 0) {
-        vol = lp.volume
-      } else {
-        // First-paint staleness: /api/bars' fetched developing-bar volume can be a
-        // few seconds behind, so the volume pane briefly showed a low value that
-        // corrected ~1s later once a live tick landed. The live feed's day volume
-        // is as-fresh-or-fresher, and intraday volume only grows, so take the
-        // larger — but ONLY for TODAY's developing bar (a historical last bar, e.g.
-        // Friday on a weekend, must keep its own volume, not today's live total).
-        const _barDay = Math.floor(adjustTime(last.t) / 86400)
-        const _nowDay = Math.floor(adjustTime(Math.floor(Date.now() / 1000)) / 86400)
-        if (_barDay === _nowDay && lp.volume > vol) vol = lp.volume
-      }
+    // The developing bar's volume comes from /api/bars and does NOT tick live —
+    // it only refreshes on the slow SWR interval, so the legend/pane lagged the
+    // (live, 2s) watchlist by millions of shares intraday. The live feed's day
+    // volume is as-fresh-or-fresher, and intraday volume only grows, so take the
+    // larger. Safe on ANY bar without a date check: for a historical last bar
+    // (e.g. Friday on a weekend) the feed carries that same last session's volume,
+    // never a larger "today" value — so max() can't over-count it.
+    if (lp?.volume != null && Number.isFinite(lp.volume) && lp.volume > (vol || 0)) {
+      vol = lp.volume
     }
     // Change is close-vs-PREVIOUS-BAR-close ON THE CURRENT TIMEFRAME, so the
     // legend reflects the selected TF (weekly = vs last week, 5m = vs the prior
@@ -3613,6 +3608,10 @@ export default function StockChart({
     if (!hve || !inYear(hve)) return null
     return { goldTimes: new Set([hve.t]) }
   }, [markVolumeExtremes, filteredBars, entryDate, exitDate])
+  // Live day volume for THIS symbol (RTH day.v / pre-market aggregate). Used to
+  // keep the developing volume bar + its pane label live instead of frozen at the
+  // slow-SWR fetched value (which lagged the watchlist by millions intraday).
+  const liveVolForSym = Number(livePrices?.[sym]?.volume)
   const volData = useMemo(() => {
     if (!sessionAppliedBars?.length) return []
     // Volume bars track the candle palette EXACTLY so the red/green of the
@@ -3621,6 +3620,7 @@ export default function StockChart({
     const upC = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
     const downC = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
     const gold = '#e6b800'
+    const lastIdx = sessionAppliedBars.length - 1
     return sessionAppliedBars.map((b, i) => {
       // Up/down follows the SAME rule as the candles: net change (close vs the
       // PREVIOUS close) when colorByNetChange is on, else close-vs-open. This is
@@ -3628,9 +3628,14 @@ export default function StockChart({
       // a GREEN volume bar — it's up on net change. First bar has no prior close.
       const prevC = i > 0 ? sessionAppliedBars[i - 1].c : b.o
       const isUp = colorByNetChange ? (b.c >= prevC) : (b.c >= b.o)
+      // Developing (last) bar: prefer the live feed volume when it's ahead of the
+      // fetched value (intraday volume only grows), so the pane tracks the
+      // watchlist in real time. Historical bars keep their own volume.
+      const value = (i === lastIdx && Number.isFinite(liveVolForSym) && liveVolForSym > (b.v || 0))
+        ? liveVolForSym : b.v
       return {
         time: adjustTime(b.t),
-        value: b.v,
+        value,
         color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
           ? gold
           : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
@@ -3638,7 +3643,7 @@ export default function StockChart({
             : isUp ? upC : downC,
       }
     })
-  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme])
+  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym])
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
   // re-tint effect lives AFTER updateChart (below) so its setData wins over
