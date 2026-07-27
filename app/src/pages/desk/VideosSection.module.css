@@ -803,46 +803,4 @@
   .courseStripNext { max-width: 100%; }
 }
 
-/* ── ?path course view — Task 4 PLACEHOLDER (Task 5 builds the real PathView:
-   syllabus header, module groups, lesson rows, admin editing). Only the Back
-   affordance + name register here are meant to survive. */
-.pathView { padding: var(--space-md) 0 var(--space-2xl); }
-.pathBackBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 var(--space-lg) -8px;
-  padding: 4px 8px;
-  min-height: 32px;
-  border: none;
-  border-radius: 999px;
-  background: none;
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: color var(--duration-fast) ease;
-}
-.pathBackBtn:hover { color: var(--text-bright); }
-@media (max-width: 1024px) {
-  .pathBackBtn { min-height: var(--tap-min); }
-}
-.pathViewName {
-  margin: 4px 0 6px;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: var(--ls-tight);
-  color: var(--text-heading);
-}
-.pathViewBlurb {
-  margin: 0 0 var(--space-md);
-  max-width: 640px;
-  font-size: var(--text-base);
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-.pathViewNote {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
+/* The ?path course view lives in PathView.jsx + PathView.module.css. */

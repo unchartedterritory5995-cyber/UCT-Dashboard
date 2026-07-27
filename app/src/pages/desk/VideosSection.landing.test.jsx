@@ -1055,9 +1055,9 @@ test('a sub-8-second dabble does not count as started (no strip, no card bar)', 
   expect(courseCard('Foundations').querySelector('[class*="pathBarFill"]')).toBeNull()
 })
 
-/* ── ?path=<slug> — card click navigates; placeholder + Back (Task 5 stub) ── */
+/* ── ?path=<slug> — card click opens the PathView syllabus (Task 5) ──────── */
 
-test('card click writes ?path=<slug> by MERGING params and opens the placeholder', () => {
+test('card click writes ?path=<slug> by MERGING params and opens the syllabus', () => {
   mockPaths = pathsFixture()
   render(
     <MemoryRouter initialEntries={['/desk?section=videos']}>
@@ -1069,10 +1069,11 @@ test('card click writes ?path=<slug> by MERGING params and opens the placeholder
   fireEvent.click(courseCard('Foundations'))
   expect(params().get('path')).toBe('foundations')
   expect(params().get('section')).toBe('videos') // merged, not clobbered
-  // Placeholder replaces the landing (TODO-Task-5 renders the real PathView).
+  // The real PathView replaces the landing: header + every lesson row.
   expect(screen.getByRole('heading', { level: 2, name: 'Foundations' })).toBeTruthy()
-  expect(screen.getByText('Syllabus coming next.')).toBeTruthy()
-  expect(screen.queryByRole('list')).toBeNull() // shelves gone
+  expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy()
+  expect(screen.getAllByRole('button', { name: /^Play / })).toHaveLength(3)
+  expect(screen.queryByRole('list', { name: 'Recently added' })).toBeNull() // shelves gone
   expect(screen.queryByRole('tab')).toBeNull() // chip bar gone
   // Back clears ?path (still merging) and restores the landing.
   fireEvent.click(screen.getByRole('button', { name: /Back to videos/ }))
@@ -1081,20 +1082,22 @@ test('card click writes ?path=<slug> by MERGING params and opens the placeholder
   expect(screen.getByRole('list', { name: 'Recently added' })).toBeTruthy()
 })
 
-test('loading with ?path= directly opens the placeholder; kind eyebrow reads TRACK', () => {
+test('loading with ?path= directly opens the syllabus; kind eyebrow reads TRACK', () => {
   mockPaths = pathsFixture()
   renderSection(['/desk?section=videos&path=risk'])
   expect(screen.getByRole('heading', { level: 2, name: 'Risk & Discipline' })).toBeTruthy()
   expect(screen.getByText('TRACK')).toBeTruthy()
   expect(screen.getByText('Protect capital first.')).toBeTruthy()
-  expect(screen.queryByRole('list')).toBeNull()
+  // Its two resolved lessons render as rows; the landing shelves do not.
+  expect(screen.getAllByRole('button', { name: /^Play / })).toHaveLength(2)
+  expect(screen.queryByRole('list', { name: 'Recently added' })).toBeNull()
 })
 
 test('an unknown ?path= slug is ignored gracefully — the landing renders', () => {
   mockPaths = pathsFixture()
   renderSection(['/desk?path=not-a-course'])
   expect(screen.getByRole('list', { name: 'Recently added' })).toBeTruthy()
-  expect(screen.queryByText('Syllabus coming next.')).toBeNull()
+  expect(screen.queryByRole('button', { name: /Back to videos/ })).toBeNull()
 })
 
 test('VideoDockSlot stays the FIRST child while a course is open', () => {
@@ -1106,11 +1109,185 @@ test('VideoDockSlot stays the FIRST child while a course is open', () => {
 test('?v= deep link still autoplays once even with ?path= present (v wins autoplay)', () => {
   mockPaths = pathsFixture()
   renderSection(['/desk?v=lib0000000a&path=foundations'])
+  // Exactly ONE play — the ?v= effect. PathView itself never autoplays.
   expect(play).toHaveBeenCalledTimes(1)
   const [listArg, indexArg] = play.mock.calls[0]
   expect(listArg.map((v) => v.id)).toEqual([4, 5]) // its own category list
   expect(indexArg).toBe(0)
-  expect(screen.getByText('Syllabus coming next.')).toBeTruthy() // placeholder up too
+  expect(screen.getByRole('heading', { level: 2, name: 'Foundations' })).toBeTruthy() // syllabus up too
+})
+
+/* ── PathView (Task 5) — module groups, lesson rows, CTA math, skeleton ──── */
+
+test('consecutive module_label runs become quiet groups; a null run renders no header', () => {
+  const data = pathsFixture()
+  data.paths[0].steps = [
+    { youtube_id: 'lib0000000a', module_label: 'Module 1 — Orientation', note: null },
+    { youtube_id: 'lib0000000b', module_label: 'Module 1 — Orientation', note: null },
+    { youtube_id: 'lts0000000a', module_label: null, note: null },
+  ]
+  mockPaths = data
+  renderSection(['/desk?path=foundations'])
+  const headers = screen.getAllByRole('heading', { level: 3 })
+  expect(headers.map((h) => h.textContent)).toEqual(['Module 1 — Orientation'])
+  const labeled = screen.getByRole('list', { name: 'Module 1 — Orientation' })
+  expect(within(labeled).getAllByRole('button', { name: /^Play / })).toHaveLength(2)
+  // The trailing null-label run is its own headerless group.
+  const tail = screen.getByRole('list', { name: 'Foundations lessons' })
+  expect(within(tail).getByRole('button', { name: 'Play Session — July 21' })).toBeTruthy()
+})
+
+test('a module label returning after a break starts a NEW group — runs, not global buckets', () => {
+  const data = pathsFixture()
+  data.paths[0].steps = [
+    { youtube_id: 'lib0000000a', module_label: 'Basics', note: null },
+    { youtube_id: 'lib0000000b', module_label: null, note: null },
+    { youtube_id: 'lts0000000a', module_label: 'Basics', note: null },
+  ]
+  mockPaths = data
+  renderSection(['/desk?path=foundations'])
+  expect(screen.getAllByRole('heading', { level: 3, name: 'Basics' })).toHaveLength(2)
+})
+
+test('all-null module labels render one headerless ledger (the seeded six paths)', () => {
+  mockPaths = pathsFixture() // fixture steps all carry module_label: null
+  renderSection(['/desk?path=foundations'])
+  expect(screen.queryByRole('heading', { level: 3 })).toBeNull()
+  expect(screen.getAllByRole('button', { name: /^Play / })).toHaveLength(3)
+})
+
+test('lesson rows: course-wide index, duration, dim AI headline, italic per-step note', () => {
+  const data = fixture()
+  data.categories[2].videos[0].headline = 'Why breadth leads price'
+  data.categories[2].videos[0].duration = '10:00'
+  mockData = data
+  const pd = pathsFixture()
+  pd.paths[0].steps[0].note = 'Watch before anything else.'
+  mockPaths = pd
+  renderSection(['/desk?path=foundations'])
+  const row = screen.getByRole('button', { name: 'Play Welcome to the Desk' })
+  expect(within(row).getByText('1')).toBeTruthy() // index
+  expect(within(row).getByText('10:00')).toBeTruthy() // duration
+  expect(within(row).getByText('Why breadth leads price')).toBeTruthy() // AI headline
+  const note = within(row).getByText('Watch before anything else.')
+  expect(note.className).toMatch(/rowNote/) // the italic per-step register
+  // Numbering is course-wide, continuous across rows.
+  const row3 = screen.getByRole('button', { name: 'Play Session — July 21' })
+  expect(within(row3).getByText('3')).toBeTruthy()
+})
+
+test('clicking a lesson row plays the FULL course list at that index — Up Next walks the syllabus', () => {
+  mockPaths = pathsFixture()
+  renderSection(['/desk?path=foundations'])
+  fireEvent.click(screen.getByRole('button', { name: 'Play Session — July 21' }))
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5, 1]) // full course order
+  expect(indexArg).toBe(2)
+})
+
+test('lesson state: gold check when done, thin progress bar in progress, quiet otherwise', () => {
+  mockPaths = pathsFixture()
+  mockProgress = {
+    lib0000000a: { done: true, t: 600, d: 610, at: 5 },
+    lib0000000b: { done: false, t: 300, d: 1200, at: 9 },
+  }
+  renderSection(['/desk?path=foundations'])
+  const doneRow = screen.getByRole('button', { name: 'Play Welcome to the Desk' })
+  expect(doneRow.querySelector('[data-lesson-state="done"]')).toBeTruthy()
+  expect(doneRow.querySelector('[data-lesson-state="active"]')).toBeNull()
+  const activeRow = screen.getByRole('button', { name: 'Play Breadth basics' })
+  expect(activeRow.querySelector('[data-lesson-state="done"]')).toBeNull()
+  const bar = activeRow.querySelector('[data-lesson-state="active"]')
+  expect(bar).toBeTruthy()
+  expect(bar.firstChild.style.width).toBe('25%') // 300/1200
+  const quietRow = screen.getByRole('button', { name: 'Play Session — July 21' })
+  expect(quietRow.querySelector('[data-lesson-state]')).toBeNull()
+})
+
+test('header CTA: unstarted course reads Start and plays lesson 1 with the full list', () => {
+  mockPaths = pathsFixture()
+  renderSection(['/desk?path=foundations'])
+  fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5, 1])
+  expect(indexArg).toBe(0)
+})
+
+test('header CTA: Continue prefers the most recent in-progress step over first-not-done', () => {
+  mockPaths = pathsFixture()
+  mockProgress = {
+    lib0000000a: { done: true, t: 600, d: 610, at: 5 },
+    lts0000000a: { done: false, t: 100, d: 3731, at: 9 }, // in progress, index 2
+  }
+  renderSection(['/desk?path=foundations'])
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5, 1])
+  expect(indexArg).toBe(2) // not firstNotDone (1)
+})
+
+test('header CTA: Continue falls back to the first not-done step', () => {
+  mockPaths = pathsFixture()
+  mockProgress = { lib0000000a: { done: true, t: 600, d: 610, at: 5 } }
+  renderSection(['/desk?path=foundations'])
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5, 1])
+  expect(indexArg).toBe(1)
+})
+
+test('all lessons done → Rewatch plays from the top; meta reads "n of M" with no remainder', () => {
+  mockPaths = pathsFixture()
+  mockProgress = {
+    lib0000000a: { done: true, t: 1, d: 2, at: 1 },
+    lib0000000b: { done: true, t: 1, d: 2, at: 2 },
+    lts0000000a: { done: true, t: 1, d: 2, at: 3 },
+  }
+  renderSection(['/desk?path=foundations'])
+  expect(screen.getByText('3 of 3')).toBeTruthy()
+  expect(screen.queryByText(/left/)).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Rewatch' }))
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5, 1])
+  expect(indexArg).toBe(0)
+})
+
+test('header meta shows "~Xh Ym left" from UNWATCHED durations when coverage ≥70%', () => {
+  const data = fixture()
+  data.categories[2].videos[0].duration = '10:00' // lib0000000a (done below)
+  data.categories[2].videos[1].duration = '20:00' // lib0000000b
+  mockData = data // lts0000000a already carries 1:02:11 → 3/3 coverage
+  mockPaths = pathsFixture()
+  mockProgress = { lib0000000a: { done: true, t: 600, d: 610, at: 5 } }
+  renderSection(['/desk?path=foundations'])
+  // Remaining = 1200 + 3731 = 4931s → 82 min → "~1h 22m" (done lesson excluded).
+  expect(screen.getByText('1 of 3 · ~1h 22m left')).toBeTruthy()
+})
+
+test('below the 70% duration bar the meta is the bare count — no remaining estimate', () => {
+  mockPaths = pathsFixture() // base fixture: 1/3 lessons carries a duration
+  renderSection(['/desk?path=foundations'])
+  expect(screen.getByText('0 of 3')).toBeTruthy()
+  expect(screen.queryByText(/left/)).toBeNull()
+})
+
+test('?path with /paths still loading renders the course skeleton — never the landing', () => {
+  mockPaths = undefined // SWR still in flight (data === undefined)
+  renderSection(['/desk?section=videos&path=foundations'])
+  expect(screen.getByRole('status')).toBeTruthy()
+  expect(screen.getByText('Loading course')).toBeTruthy()
+  expect(screen.queryByRole('list', { name: 'Recently added' })).toBeNull() // no landing flash
+  expect(screen.queryByRole('tab')).toBeNull() // chip bar suppressed too
+  expect(play).not.toHaveBeenCalled()
+})
+
+test('a failed /paths fetch (null) falls open to the landing — no permanent skeleton', () => {
+  mockPaths = null // fetcher resolves non-OK responses to null
+  renderSection(['/desk?path=foundations'])
+  expect(screen.getByRole('list', { name: 'Recently added' })).toBeTruthy()
+  expect(screen.queryByRole('status')).toBeNull()
 })
 
 /* ── Duration helpers + the deleted learningPaths module ────────────────── */

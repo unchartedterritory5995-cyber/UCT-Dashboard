@@ -17,6 +17,7 @@ import VideoDockSlot from '../../components/video/VideoDockSlot'
 import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
 import FeaturedStrip from './FeaturedStrip'
+import PathView, { PathViewSkeleton } from './PathView'
 import Shelf, { YTCard, useScrollEdges, pageScroller, showGlyphName, ytThumb } from './Shelf'
 import UIcon from '../../components/ui/UIcon'
 import styles from '../EducationalVideos.module.css'
@@ -51,7 +52,7 @@ export const fmtSeekTime = (t) => {
    one — a mostly-unknown total would be a lie, so below the threshold the
    meta line quietly shows the lesson count alone. */
 
-const DURATION_COVERAGE_MIN = 0.7 // ≥70% of resolved steps must parse
+export const DURATION_COVERAGE_MIN = 0.7 // ≥70% of resolved steps must parse
 
 // "mm:ss" or "h:mm:ss" → seconds; anything else → null (never NaN).
 export const parseDuration = (str) => {
@@ -445,6 +446,20 @@ export default function VideosSection() {
     )
   }, [setSearchParams])
 
+  // PathView reuses the card stats (resume target, done count) — one source
+  // of truth for the progress math.
+  const activeStats = useMemo(
+    () =>
+      activePath ? courseStats.find((cs) => cs.path.slug === activePath.slug) || null : null,
+    [courseStats, activePath],
+  )
+
+  // ?path is set but GET /paths hasn't resolved yet (data === undefined; a
+  // failed fetch resolves to null and falls open to the landing). Rendering
+  // the landing here would flash-and-swap once the course arrives — show the
+  // PathView skeleton instead and suppress the landing chrome.
+  const pathPending = !!pathParam && !activePath && pathsData === undefined
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return categories
@@ -559,8 +574,9 @@ export default function VideosSection() {
           YouTube-style chips — counts live in the shelf headers, not here),
           edge-faded with paddle buttons when overflowed, and the Filters
           toggle (tag chips, default hidden) pinned at the right end.
-          Hidden while a course (?path) is open — that's its own page. */}
-      {!isLoading && total > 0 && categories.length > 1 && !activePath && (
+          Hidden while a course (?path) is open — that's its own page — and
+          while ?path is waiting on /paths (no landing-chrome flash). */}
+      {!isLoading && total > 0 && categories.length > 1 && !activePath && !pathPending && (
         <>
           <div className={s.chipBar}>
             <div className={s.chipScroll}>
@@ -650,40 +666,36 @@ export default function VideosSection() {
         </>
       )}
 
-      {isLoading && <DeskSectionSkeleton cards={8} />}
+      {/* While the catalog itself loads, a ?path deep-link gets the course
+          silhouette instead of the card grid — the page keeps its shape. */}
+      {isLoading && (pathParam ? <PathViewSkeleton /> : <DeskSectionSkeleton cards={8} />)}
       {error && <div className={styles.note}>Couldn’t load videos. Try again shortly.</div>}
 
       {!isLoading && total === 0 && (
         <EmptyState isAdmin={isAdmin} onAdd={() => setEditing({})} />
       )}
 
-      {/* ── ?path=<slug> — a course is open. TODO(Task-5): this is a minimal
-             PLACEHOLDER proving the URL contract (name renders, Back works);
-             Task 5 replaces it with the real PathView syllabus (module
-             groups, lesson rows, Start/Continue CTA, admin editing). ── */}
+      {/* ── ?path=<slug> — a course is open: the PathView syllabus. The dock
+             slot above stays the first child; PathView never autoplays (the
+             ?v= effect keeps sole autoplay ownership). ── */}
       {!isLoading && total > 0 && activePath && (
-        <section className={s.pathView} aria-label={activePath.name}>
-          <button className={s.pathBackBtn} onClick={closePath}>
-            <span className={s.flipX} aria-hidden="true">
-              <UIcon name="chevronRight" size={14} gold={false} />
-            </span>
-            Back to videos
-          </button>
-          <div
-            className={`${s.pathKind} ${activePath.kind === 'course' ? s.pathKindCourse : ''}`}
-          >
-            {activePath.kind === 'course' ? 'COURSE' : 'TRACK'}
-          </div>
-          <h2 className={s.pathViewName}>{activePath.name}</h2>
-          {activePath.blurb && <p className={s.pathViewBlurb}>{activePath.blurb}</p>}
-          <div className={s.pathViewNote}>Syllabus coming next.</div>
-        </section>
+        <PathView
+          path={activePath}
+          stats={activeStats}
+          progress={progress}
+          onBack={closePath}
+          onPlay={playVideo}
+        />
       )}
+
+      {/* ?path set, /paths still in flight → the course silhouette, never a
+          landing flash (Task 4's known gap). */}
+      {!isLoading && total > 0 && !activePath && pathPending && <PathViewSkeleton />}
 
       {/* ── Landing: featured strip → continue-your-course → Continue
              Watching → one shelf per category (shows, then library) →
              courses. ── */}
-      {!isLoading && total > 0 && !activePath && landing && (
+      {!isLoading && total > 0 && !activePath && !pathPending && landing && (
         <>
           {heroVideo && (
             <FeaturedStrip
@@ -831,7 +843,7 @@ export default function VideosSection() {
       )}
 
       {/* ── Search / category filter active: flat filtered grid, same cards. ── */}
-      {!isLoading && total > 0 && !activePath && !landing && (
+      {!isLoading && total > 0 && !activePath && !pathPending && !landing && (
         <>
           {continueShelf}
 
