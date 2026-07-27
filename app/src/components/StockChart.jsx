@@ -2843,20 +2843,9 @@ export default function StockChart({
   const _inExtWindow = marketSession === 'pre' || marketSession === 'post'
   const _sessionLive = sym ? livePrices?.[sym] : null
   // Live extended-hours print (null until the feed flags a real pre/post trade).
-  // PREFER the fast Massive trade tick (liveTickRef, sub-second — the same feed
-  // the legend uses) over the slow Finnhub `ext_price` (updated ~1-2x/min). This
-  // is what makes the D/W/M "Pre"/"Post" tag + the preview candle + the right-edge
-  // price label tick in real time in pre/post-market instead of crawling — and it
-  // keeps them identical to the legend + the mirrored watchlist. The feed's
-  // ext_session flag still gates whether we're in a real extended print at all;
-  // we only swap in the fresher value for it.
-  const _extTick = liveTickRef.current
-  const _extTickPx = (_extTick && _extTick.price != null
-    && _extTick.price > 0 && (Date.now() - _extTick.ts) < LIVE_TICK_FRESH_MS)
-    ? _extTick.price : null
   const sessionExtPrice = (_sessionLive && _sessionLive.ext_session
     && Number.isFinite(_sessionLive.ext_price) && _sessionLive.ext_price > 0)
-    ? (_extTickPx ?? _sessionLive.ext_price) : null
+    ? _sessionLive.ext_price : null
   // Include-mode: synthesize/extend the D/W/M candle from extended-hours data.
   const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode
   // Regular-mode post-market: freeze today's candle at the 4pm close (don't let
@@ -7379,6 +7368,16 @@ export default function StockChart({
       if (replayMode || resolvedTfRef.current !== 'D') return
       const r = computeLatestCrosshair()
       if (!r || !Number.isFinite(r.close)) return
+      // ONLY publish today's live developing bar. A regular-hours daily chart (or
+      // the brief moment a freshly-clicked ticker shows its last bar before the
+      // pre-market developing bar loads) has a FROZEN prior-session bar as its
+      // last bar — publishing it reverted the watchlist row to Friday's
+      // close/volume. Compare ET day-indices (adjustTime is the chart's own
+      // display shift; r.time is Unix seconds).
+      if (typeof r.time !== 'number') return
+      const barDay = Math.floor(adjustTime(r.time) / 86400)
+      const nowDay = Math.floor(adjustTime(Math.floor(Date.now() / 1000)) / 86400)
+      if (barDay !== nowDay) return
       publishChartReadout(symRef.current, {
         price: r.close,
         volume: Number.isFinite(r.volume) ? r.volume : null,
