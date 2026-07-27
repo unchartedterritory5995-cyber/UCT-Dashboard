@@ -59,6 +59,13 @@ def test_backoff_is_capped_so_it_is_never_a_permanent_blacklist(store):
     assert wait == tnp._MAX_BACKOFF_SECONDS, "should have saturated at the cap"
 
 
+def test_cap_keeps_every_ticker_retried_at_least_daily():
+    """Production showed the failing set includes LIVE names (BK, MMC, PSTG…),
+    not just delisted ones — a flaky provider looks identical to a dead symbol
+    here. So the cap must guarantee a retry within a day, not a month."""
+    assert tnp._MAX_BACKOFF_SECONDS <= 24 * 3600
+
+
 def test_expired_backoff_is_retried(store):
     tnp._record_failure("DEADCO", now=1000.0)
     nxt = tnp._load_backoff()["DEADCO"]["next_attempt"]

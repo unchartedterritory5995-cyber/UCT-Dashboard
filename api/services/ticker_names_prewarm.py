@@ -34,8 +34,18 @@ _logger = logging.getLogger(__name__)
 # it false-flag LIVE megacaps as delisted. Here every ticker is always retried
 # eventually (wait is capped), and a single success wipes the record, so a
 # rename/relisting or a transient provider outage self-heals.
+#
+# PRODUCTION EVIDENCE (2026-07-26, first pass after shipping this): of the 20
+# symbols that failed, several are unmistakably LIVE companies -- BK (BNY
+# Mellon), MMC (Marsh & McLennan), PSTG (Pure Storage), LC, MPW, SJW, NR --
+# alongside genuinely unresolvable ones (NWAX-U, XWIN, GIG) and VIX, which is an
+# index and never resolves as an equity. So "failed here" does NOT mean
+# "delisted"; it mostly means the provider was flaky for that symbol. That is
+# why the cap is ONE DAY, not a month: a live-but-flaky ticker must get another
+# chance within 24h, while a permanently-dead one still drops from ~40
+# attempts/day to 1. Nearly all of the saving, almost none of the risk.
 _BASE_BACKOFF_SECONDS = 2 * 3600        # 1st failure -> skip for 2h
-_MAX_BACKOFF_SECONDS = 30 * 24 * 3600   # cap: retried at least monthly
+_MAX_BACKOFF_SECONDS = 24 * 3600        # cap: every ticker retried at least daily
 
 
 def _backoff_path() -> str:
