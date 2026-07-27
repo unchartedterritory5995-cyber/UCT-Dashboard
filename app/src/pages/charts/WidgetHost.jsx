@@ -32,7 +32,7 @@ function WidgetBody({ widget, onOptsChange }) {
   }
 }
 
-export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, headerAtBottom = false, merged = false }) {
+export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, onPopOut, headerAtBottom = false, merged = false }) {
   // Publish THIS widget's own canvas color to its own subtree, so its chrome (panel,
   // border, header bar, and its interior top rows) matches the surface it wraps.
   // Scoped per widget on purpose: only types with a user-facing canvas setting appear
@@ -74,6 +74,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       color={widget.color}
       onColorChange={onColorChange}
       onRemove={onRemove}
+      onPopOut={onPopOut}
       atBottom={headerAtBottom}
     />
   )

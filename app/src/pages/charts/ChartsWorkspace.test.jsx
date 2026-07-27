@@ -341,3 +341,100 @@ test('grid mode renders MultiChartGrid when multichart_state has mode:"grid"', (
   expect(screen.getByRole('button', { name: /open layout/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /Multi Chart/ })).toBeInTheDocument()
 })
+
+// ── Pop-out ────────────────────────────────────────────────────────────────
+// Widgets and whole boards open in their own OS windows so they can be dragged
+// onto other monitors. They're portals owned by this tab, so the assertions
+// below check the popped DOM in a SEPARATE document from the main board's.
+
+/** Stand-in for the window `window.open` returns. */
+function makeFakeWindow() {
+  const doc = document.implementation.createHTMLDocument('popup')
+  const listeners = {}
+  return {
+    document: doc,
+    closed: false,
+    KeyboardEvent: window.KeyboardEvent,
+    addEventListener: (t, fn) => { (listeners[t] ||= []).push(fn) },
+    removeEventListener: (t, fn) => { listeners[t] = (listeners[t] || []).filter(f => f !== fn) },
+    close: vi.fn(function () { this.closed = true }),
+    _fire: (t) => (listeners[t] || []).forEach(fn => fn()),
+  }
+}
+
+function popped(fake, type) {
+  return fake.document.querySelector(`[data-testid="body-${type}"]`)
+}
+
+test('popping out the layout empties the main board and moves the widgets into the window', () => {
+  const fake = makeFakeWindow()
+  const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+  try {
+    renderWS()
+    expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+
+    act(() => { screen.getByRole('button', { name: /pop out layout/i }).click() })
+
+    // Main goes back to a blank board, ready for the next layout.
+    expect(screen.queryByTestId('body-chart')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('body-watchlist')).not.toBeInTheDocument()
+    // ...and the whole board is now living in the popped window.
+    expect(popped(fake, 'chart')).toBeTruthy()
+    expect(popped(fake, 'watchlist')).toBeTruthy()
+    expect(popped(fake, 'themes')).toBeTruthy()
+  } finally { openSpy.mockRestore() }
+})
+
+test('closing a popped-out layout docks its widgets back into the main board', () => {
+  const fake = makeFakeWindow()
+  const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+  try {
+    renderWS()
+    act(() => { screen.getByRole('button', { name: /pop out layout/i }).click() })
+    expect(screen.queryByTestId('body-chart')).not.toBeInTheDocument()
+
+    act(() => { fake._fire('beforeunload') })
+
+    expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+    expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
+  } finally { openSpy.mockRestore() }
+})
+
+test('a blocked popup leaves the board intact instead of losing the layout', () => {
+  // window.open returns null when blocked. Without the dock-on-blocked path the
+  // widgets would have been cleared off main with nowhere to have gone.
+  const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+  try {
+    renderWS()
+    act(() => { screen.getByRole('button', { name: /pop out layout/i }).click() })
+
+    expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/blocked/i)
+  } finally { openSpy.mockRestore() }
+})
+
+test('pop out layout is disabled while the board is empty', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  renderWS()
+  expect(screen.getByRole('button', { name: /pop out layout/i })).toBeDisabled()
+})
+
+test('a popped-out layout is not disturbed by opening a different layout on the main tab', () => {
+  const fake = makeFakeWindow()
+  const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+  try {
+    renderWS()
+    act(() => { screen.getByRole('button', { name: /pop out layout/i }).click() })
+    expect(popped(fake, 'chart')).toBeTruthy()
+
+    // Load a fresh layout into the now-blank main tab.
+    act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+    act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+
+    // Main has its own board again...
+    expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+    // ...and the board on the other monitor still stands.
+    expect(popped(fake, 'chart')).toBeTruthy()
+    expect(popped(fake, 'watchlist')).toBeTruthy()
+  } finally { openSpy.mockRestore() }
+})

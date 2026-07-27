@@ -21,6 +21,9 @@ import { findPlacement } from './findOpenSlot'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
+import PopoutWindow from './popout/PopoutWindow'
+import PopoutShell from './popout/PopoutShell'
+import PoppedLayout from './popout/PoppedLayout'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -104,6 +107,10 @@ const WIDGET_DEFAULTS = {
   breadth:   { w: 8,  h: 10, minW: 4, minH: 4 },
   aisearch:  { w: 7,  h: 10, minW: 3, minH: 3 },
 }
+
+// A blocked window.open returns null with no error, so this is the only way the
+// user learns why their board didn't appear on the other monitor.
+const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
 
 const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch']
 const WIDGET_LABELS = {
@@ -238,32 +245,40 @@ export default function ChartsWorkspace() {
   // pixels to whole grid columns. Merged has no body padding, so the grid inner
   // width IS the body width; unmerged we still track it (harmless, unused there).
   const [gridWidth, setGridWidth] = useState(0)
+
+  // The viewport-lock row-height math, extracted so a popped-out board can run
+  // it against ITS OWN window. Sharing the main tab's rowHeight would size a
+  // board on a second monitor to the main window's height — the 20 rows would
+  // either overflow it or leave dead space.
+  const computeRowHeight = useCallback((clientHeight) => {
+    // Merged view removes the body padding (below) so the blended surface fills
+    // to the outer edge — the row-height math must drop it too, or the grid
+    // overflows/clips by the padding it no longer has.
+    const bodyPad = merged ? 0 : BODY_PAD
+    const available = (clientHeight - bodyPad * 2) - gridGap * (FIXED_ROWS - 1)
+    // 20 rows rarely tile an arbitrary pixel height evenly. Unmerged we floor
+    // (the leftover hides in the dark margins). MERGED there are no margins, so
+    // flooring left a dead black strip at the bottom — round UP so the grid
+    // fills to the edge; the ≤(FIXED_ROWS-1)px excess is absorbed by the body's
+    // overflow:hidden (no scrollbar — the viewport-lock still holds).
+    return merged
+      ? Math.max(12, Math.ceil(available / FIXED_ROWS))
+      : Math.max(12, Math.floor(available / FIXED_ROWS))
+  }, [gridGap, merged])
+
   useEffect(() => {
     const el = bodyRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
     const measure = () => {
-      // Merged view removes the body padding (below) so the blended surface fills
-      // to the outer edge — the row-height math must drop it too, or the grid
-      // overflows/clips by the padding it no longer has.
       const bodyPad = merged ? 0 : BODY_PAD
-      const h = el.clientHeight - bodyPad * 2
-      const available = h - gridGap * (FIXED_ROWS - 1)
-      // 20 rows rarely tile an arbitrary pixel height evenly. Unmerged we floor
-      // (the leftover hides in the dark margins). MERGED there are no margins, so
-      // flooring left a dead black strip at the bottom — round UP so the grid
-      // fills to the edge; the ≤(FIXED_ROWS-1)px excess is absorbed by the body's
-      // overflow:hidden (no scrollbar — the viewport-lock still holds).
-      const rh = merged
-        ? Math.max(12, Math.ceil(available / FIXED_ROWS))
-        : Math.max(12, Math.floor(available / FIXED_ROWS))
-      setRowHeight(rh)
+      setRowHeight(computeRowHeight(el.clientHeight))
       setGridWidth(el.clientWidth - bodyPad * 2)
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [gridGap, merged])
+  }, [computeRowHeight, merged])
 
   // Layout state — seed from prefs or default.
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
@@ -765,6 +780,65 @@ export default function ChartsWorkspace() {
 
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
+  // ── Pop-out: widgets and whole boards in their own OS windows ──────────────
+  // Both kinds are React portals owned by this tab (see PopoutWindow), so every
+  // monitor shares this tab's single live-price/bars stream pool.
+  const [poppedWidgetIds, setPoppedWidgetIds] = useState([])
+  const [poppedLayouts, setPoppedLayouts] = useState([])
+  const [popoutNotice, setPopoutNotice] = useState(null)
+
+  // A popped widget stays in layout.widgets — it's only hidden from the grid — so
+  // its position survives the trip and it docks straight back where it was.
+  const handlePopOutWidget = useCallback((id) => {
+    setPoppedWidgetIds(prev => (prev.includes(id) ? prev : [...prev, id]))
+  }, [])
+  const handleDockWidget = useCallback((id) => {
+    setPoppedWidgetIds(prev => prev.filter(x => x !== id))
+  }, [])
+  // Closing a widget from inside its own window should delete it, not dock it.
+  const handleRemovePoppedWidget = useCallback((id) => {
+    setPoppedWidgetIds(prev => prev.filter(x => x !== id))
+    handleRemoveWidget(id)
+  }, [handleRemoveWidget])
+
+  // Deliberately NOT done inside a setLayout updater: React invokes updaters
+  // twice under StrictMode, which would queue a second popped board and open a
+  // duplicate window.
+  const handlePopOutLayout = useCallback(() => {
+    const live = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id))
+    if (!live.length) return
+    setPoppedLayouts(ls => [...ls, { id: `pl-${Date.now()}`, widgets: live }])
+    // Main goes back to a blank board so another layout can be built and popped
+    // onto the next monitor.
+    const next = { ...layout, widgets: layout.widgets.filter(w => poppedWidgetIds.includes(w.id)) }
+    setLayout(next)
+    scheduleSave(next)
+  }, [layout, poppedWidgetIds, scheduleSave])
+
+  const handleDockLayout = useCallback((popId, returning) => {
+    setPoppedLayouts(ls => ls.filter(l => l.id !== popId))
+    setLayout(prev => {
+      // Straight back into an empty board. If a new layout has been built here
+      // meanwhile, re-place the returning widgets so they don't land on top of it.
+      let widgets
+      if (!prev.widgets.length) {
+        widgets = returning
+      } else {
+        widgets = [...prev.widgets]
+        for (const w of returning) {
+          // minW/minH come from the type defaults, but w/h must be the widget's
+          // OWN size — spreading the defaults last would resize every docking
+          // widget back to its type's default dimensions.
+          const spec = { ...(WIDGET_DEFAULTS[w.type] || {}), w: w.w, h: w.h }
+          widgets.push({ ...w, ...findPlacement(widgets, spec, COLS.lg, FIXED_ROWS) })
+        }
+      }
+      const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
   const mc = useMultiChartState()
   const [mcMenuOpen, setMcMenuOpen] = useState(false)
@@ -818,14 +892,80 @@ export default function ChartsWorkspace() {
     )
   }
 
-  const rglLayouts = {
-    lg: layout.widgets.map(w => {
-      const defaults = WIDGET_DEFAULTS[w.type] || {}
-      return {
-        i: w.id, x: w.x, y: w.y, w: w.w, h: w.h,
-        minW: defaults.minW || 4, minH: defaults.minH || 3,
-      }
-    }),
+  // A popped-out widget is hidden from the board but KEPT in layout.widgets: its
+  // slot frees up and the grid recompacts while it's away, and its stored
+  // position is still there to dock back into.
+  const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id))
+  const poppedWidgets = layout.widgets.filter(w => poppedWidgetIds.includes(w.id))
+
+  // ONE grid renderer, shared by the main board and every popped-out board. The
+  // RGL configuration (viewport lock, 24 columns, computed row height) is
+  // defined once here so a board on another monitor can't drift out of sync with
+  // the workspace it came from.
+  const renderGrid = (widgets, h, rowHeightOverride) => (
+    <ResponsiveGridLayout
+      className="layout"
+      layouts={{
+        lg: widgets.map(w => {
+          const defaults = WIDGET_DEFAULTS[w.type] || {}
+          return {
+            i: w.id, x: w.x, y: w.y, w: w.w, h: w.h,
+            minW: defaults.minW || 4, minH: defaults.minH || 3,
+          }
+        }),
+      }}
+      breakpoints={BREAKPOINTS}
+      cols={COLS}
+      rowHeight={rowHeightOverride ?? rowHeight}
+      maxRows={FIXED_ROWS}
+      isBounded={true}
+      onLayoutChange={h.onLayoutChange}
+      draggableHandle=".charts-widget-drag-handle"
+      isDraggable={!merged}
+      isResizable={!merged}
+      compactType="vertical"
+      margin={[gridGap, gridGap]}
+      resizeHandles={['nw', 'ne', 'sw', 'se']}
+      /* Position grid items with top/left, NOT transform: translate().
+         RGL's default CSS-transform positioning composites each widget's
+         chart <canvas> onto a GPU layer that, under fractional Windows
+         display scaling, gets resampled at a non-integer device-pixel
+         offset — blurring + desaturating the candles. top/left keeps the
+         canvas on the root layer so it paints crisp (matches Setup Library). */
+      useCSSTransforms={false}
+    >
+      {widgets.map(w => {
+        // Another widget sits DIRECTLY above this one (its bottom edge touches
+        // this widget's top edge and their columns overlap) → drop this widget's
+        // header to the bottom so the two blend at the seam.
+        const hasAbove = widgets.some(o =>
+          o.id !== w.id
+          && (o.y + o.h) === w.y
+          && o.x < w.x + w.w && w.x < o.x + o.w,
+        )
+        return (
+          <div key={w.id}>
+            <WidgetHost
+              widget={w}
+              headerAtBottom={hasAbove}
+              merged={merged}
+              onRemove={() => h.onRemove(w.id)}
+              onColorChange={(c) => h.onColorChange(w.id, c)}
+              onOptsChange={(opts) => h.onOptsChange(w.id, opts)}
+              onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
+            />
+          </div>
+        )
+      })}
+    </ResponsiveGridLayout>
+  )
+
+  const mainGridHandlers = {
+    onLayoutChange: handleLayoutChange,
+    onRemove: handleRemoveWidget,
+    onColorChange: handleColorChange,
+    onOptsChange: handleOptsChange,
+    onPopOut: handlePopOutWidget,
   }
 
   return (
@@ -1008,6 +1148,21 @@ export default function ChartsWorkspace() {
             >{merged ? '⧉ Unmerge widgets' : '⧉ Merge widgets'}</button>
           )}
 
+          {/* Pop the whole board into its own window to drag onto another
+              monitor. Main returns to a blank board so the next layout can be
+              built and popped onto the monitor after that. */}
+          {!gridMode && (
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              onClick={handlePopOutLayout}
+              disabled={!visibleWidgets.length}
+              title={visibleWidgets.length
+                ? 'Open this whole layout in its own window you can drag to another monitor'
+                : 'Add a widget first — there is no layout to pop out'}
+            >⧉ Pop out layout</button>
+          )}
+
           {gridMode && (
             <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
               Workspace
@@ -1017,61 +1172,14 @@ export default function ChartsWorkspace() {
         <main className={`${styles.workspaceBody} ${merged ? styles.workspaceBodyMerged : ''}`} ref={bodyRef}>
           {gridMode ? (
             <MultiChartGrid mc={mc} />
-          ) : (
-          <ResponsiveGridLayout
-            className="layout"
-            layouts={rglLayouts}
-            breakpoints={BREAKPOINTS}
-            cols={COLS}
-            rowHeight={rowHeight}
-            maxRows={FIXED_ROWS}
-            isBounded={true}
-            onLayoutChange={handleLayoutChange}
-            draggableHandle=".charts-widget-drag-handle"
-            isDraggable={!merged}
-            isResizable={!merged}
-            compactType="vertical"
-            margin={[gridGap, gridGap]}
-            resizeHandles={['nw', 'ne', 'sw', 'se']}
-            /* Position grid items with top/left, NOT transform: translate().
-               RGL's default CSS-transform positioning composites each widget's
-               chart <canvas> onto a GPU layer that, under fractional Windows
-               display scaling, gets resampled at a non-integer device-pixel
-               offset — blurring + desaturating the candles. top/left keeps the
-               canvas on the root layer so it paints crisp (matches Setup Library). */
-            useCSSTransforms={false}
-          >
-            {layout.widgets.map(w => {
-              // Another widget sits DIRECTLY above this one (its bottom edge touches
-              // this widget's top edge and their columns overlap) → drop this widget's
-              // header to the bottom so the two blend at the seam.
-              const hasAbove = layout.widgets.some(o =>
-                o.id !== w.id
-                && (o.y + o.h) === w.y
-                && o.x < w.x + w.w && w.x < o.x + o.w,
-              )
-              return (
-                <div key={w.id}>
-                  <WidgetHost
-                    widget={w}
-                    headerAtBottom={hasAbove}
-                    merged={merged}
-                    onRemove={() => handleRemoveWidget(w.id)}
-                    onColorChange={(c) => handleColorChange(w.id, c)}
-                    onOptsChange={(opts) => handleOptsChange(w.id, opts)}
-                  />
-                </div>
-              )
-            })}
-          </ResponsiveGridLayout>
-          )}
+          ) : renderGrid(visibleWidgets, mainGridHandlers)}
           {/* Merged mode: draggable seams between adjacent widgets (TC2000-style
               split-pane resize). RGL's own drag/resize is off while merged, so
               these bars are the only way to resize — grow one widget, shrink its
               neighbor, board stays gapless. */}
           {merged && !gridMode && gridWidth > 0 && (
             <MergedSeamOverlay
-              widgets={layout.widgets}
+              widgets={visibleWidgets}
               cols={GRID_COLS}
               rows={FIXED_ROWS}
               colWidth={gridWidth / GRID_COLS}
@@ -1082,6 +1190,52 @@ export default function ChartsWorkspace() {
             />
           )}
         </main>
+
+        {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders
+            through a portal into its own OS window, while its state, hooks and
+            data subscriptions stay in this tab. That's what lets every monitor
+            share this tab's single live-price/bars stream pool. */}
+        {poppedWidgets.map(w => (
+          <PopoutWindow
+            key={w.id}
+            title={`UCT — ${WIDGET_LABELS[w.type] || w.type}`}
+            width={900}
+            height={700}
+            onClose={() => handleDockWidget(w.id)}
+            onBlocked={() => { handleDockWidget(w.id); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+          >
+            <PopoutShell theme={chartsTheme}>
+              <WidgetHost
+                widget={w}
+                merged={false}
+                onRemove={() => handleRemovePoppedWidget(w.id)}
+                onColorChange={(c) => handleColorChange(w.id, c)}
+                onOptsChange={(opts) => handleOptsChange(w.id, opts)}
+              />
+            </PopoutShell>
+          </PopoutWindow>
+        ))}
+
+        {poppedLayouts.map(pl => (
+          <PoppedLayout
+            key={pl.id}
+            title="UCT — Layout"
+            theme={chartsTheme}
+            initialWidgets={pl.widgets}
+            renderGrid={renderGrid}
+            computeRowHeight={computeRowHeight}
+            initialRowHeight={rowHeight}
+            onClose={(widgets) => handleDockLayout(pl.id, widgets)}
+            onBlocked={(widgets) => { handleDockLayout(pl.id, widgets); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+          />
+        ))}
+
+        {popoutNotice && (
+          <div className={styles.popoutNotice} role="alert">
+            {popoutNotice}
+            <button type="button" onClick={() => setPopoutNotice(null)} aria-label="Dismiss">✕</button>
+          </div>
+        )}
       </div>
     </WorkspaceContext.Provider>
   )

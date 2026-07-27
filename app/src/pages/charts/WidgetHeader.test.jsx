@@ -38,3 +38,17 @@ test('close button calls onRemove', () => {
   screen.getByRole('button', { name: /close/i }).click()
   expect(onRemove).toHaveBeenCalledTimes(1)
 })
+
+test('pop-out button calls onPopOut', () => {
+  const onPopOut = vi.fn()
+  render(<WidgetHeader label="W" color="A" onColorChange={() => {}} onRemove={() => {}} onPopOut={onPopOut} />)
+  screen.getByRole('button', { name: /pop out/i }).click()
+  expect(onPopOut).toHaveBeenCalledTimes(1)
+})
+
+test('no pop-out button when the surface does not support it', () => {
+  // Widgets already inside a popped-out board don't offer it — the window is
+  // itself the "move this to another monitor" unit.
+  render(<WidgetHeader label="W" color="A" onColorChange={() => {}} onRemove={() => {}} />)
+  expect(screen.queryByRole('button', { name: /pop out/i })).toBeNull()
+})

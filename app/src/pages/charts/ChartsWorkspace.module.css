@@ -48,6 +48,41 @@
 }
 .closeBtn:hover { color: var(--text, #e5e7eb); }
 
+/* Pop-out control, sitting just left of the widget's ✕. */
+.popOutBtn {
+  background: transparent; border: none; color: var(--text-muted, #6b7280);
+  cursor: pointer; padding: 0 4px; font-size: 12px; line-height: 1;
+}
+.popOutBtn:hover { color: var(--ut-gold, #c9a84c); }
+
+/* Fills a popped-out window: the grid inside is viewport-locked the same way the
+   main board is, so it needs a definite height to divide into rows rather than
+   collapsing to its content. */
+.popoutBody {
+  flex: 1;
+  min-height: 0;
+  padding: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Popup-blocked warning — the one failure mode the user can't otherwise see,
+   since a blocked window.open returns null silently. */
+.popoutNotice {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 9000; display: flex; align-items: center; gap: 10px;
+  background: var(--bg-elevated, #0f141b);
+  border: 1px solid var(--ut-gold, #c9a84c);
+  color: var(--text, #e5e7eb);
+  border-radius: 4px; padding: 8px 12px; font-size: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+.popoutNotice button {
+  background: transparent; border: none; color: var(--text-muted, #6b7280);
+  cursor: pointer; font-size: 12px;
+}
+.popoutNotice button:hover { color: var(--text, #e5e7eb); }
+
 .widget {
   background: var(--widget-canvas, var(--bg-elevated, #0f141b));
   border: 1px solid var(--border, #1f2937);
