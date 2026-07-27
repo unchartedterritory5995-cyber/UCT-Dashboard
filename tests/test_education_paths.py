@@ -125,6 +125,37 @@ def test_update_path_rejects_blank_name(svc):
         svc.update_path(p["id"], {"name": "   "})
 
 
+def test_update_path_kind_none_raises(svc):
+    # kind is NOT NULL — an explicit null must raise ValueError (→ 400 at the
+    # router), not fall through to an uncaught sqlite3.IntegrityError.
+    p = _path(svc)
+    with pytest.raises(ValueError):
+        svc.update_path(p["id"], {"kind": None})
+    assert svc.get_path(p["id"])["kind"] == "track"  # nothing landed
+
+
+def test_update_path_sort_order_none_raises(svc):
+    p = _path(svc)
+    with pytest.raises(ValueError):
+        svc.update_path(p["id"], {"sort_order": None})
+    assert svc.get_path(p["id"])["sort_order"] == 0  # nothing landed
+
+
+def test_update_path_enabled_none_is_ignored_not_disabled(svc):
+    p = _path(svc)
+    assert p["enabled"] == 1
+    updated = svc.update_path(p["id"], {"name": "Renamed", "enabled": None})
+    assert updated["name"] == "Renamed"
+    assert updated["enabled"] == 1  # untouched, NOT coerced to 0
+
+
+def test_update_path_enabled_none_alone_is_full_noop(svc):
+    p = _path(svc)
+    updated = svc.update_path(p["id"], {"enabled": None})
+    assert updated == svc.get_path(p["id"])
+    assert updated["enabled"] == 1
+
+
 # ── list_paths ordering + shape ──────────────────────────────────────────────
 
 def test_list_paths_orders_course_first_then_sort_order_then_name(svc):

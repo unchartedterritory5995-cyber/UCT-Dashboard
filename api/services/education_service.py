@@ -694,9 +694,18 @@ def create_path(payload: dict) -> dict:
 
 def update_path(path_id: int, payload: dict) -> Optional[dict]:
     """Patch any provided path fields. `slug` is immutable (omitted from
-    _PATH_FIELDS, so a caller-supplied slug is silently ignored). None if the
-    path doesn't exist."""
+    _PATH_FIELDS, so a caller-supplied slug is silently ignored). Explicit
+    None for `kind` or `sort_order` raises ValueError — both are NOT NULL
+    columns, so without this guard a `{"kind": null}` PATCH body would fall
+    through to an uncaught sqlite3.IntegrityError (500) instead of a clean
+    400 at the router. Explicit None for `enabled` is treated as NOT
+    provided (dropped before the empty-fields check) rather than coerced to
+    disabled — a partial-patch payload that happens to carry
+    `"enabled": null` must not silently disable the path. None if the path
+    doesn't exist."""
     fields = {f: payload[f] for f in _PATH_FIELDS if f in payload}
+    if "enabled" in fields and fields["enabled"] is None:
+        del fields["enabled"]
     if not fields:
         return get_path(path_id)
     if "name" in fields:
@@ -704,8 +713,13 @@ def update_path(path_id: int, payload: dict) -> Optional[dict]:
         if not nm:
             raise ValueError("name required")
         fields["name"] = nm
-    if "kind" in fields and fields["kind"] is not None and fields["kind"] not in _PATH_KINDS:
-        raise ValueError(f"kind must be one of {_PATH_KINDS}")
+    if "kind" in fields:
+        if fields["kind"] is None:
+            raise ValueError("kind cannot be null")
+        if fields["kind"] not in _PATH_KINDS:
+            raise ValueError(f"kind must be one of {_PATH_KINDS}")
+    if "sort_order" in fields and fields["sort_order"] is None:
+        raise ValueError("sort_order cannot be null")
     if "enabled" in fields:
         fields["enabled"] = 1 if fields["enabled"] else 0
     fields["updated_at"] = int(time.time())
