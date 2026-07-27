@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.routers.education as edu_router
-from api.middleware.auth_middleware import require_admin
+from api.middleware.auth_middleware import require_admin, get_current_user
 
 
 @pytest.fixture()
@@ -36,9 +36,19 @@ def client():
 
 @pytest.fixture()
 def paid_client():
-    """Paid-but-NOT-admin — the auth tier that should fail every admin write."""
+    """Paid-but-NOT-admin — the auth tier that should fail every admin write
+    with 403 (not 401). Overrides BOTH edu_router.require_paid (the
+    router-local paid gate used by GET /paths) AND the shared
+    get_current_user — require_admin depends directly on get_current_user
+    (`Depends(get_current_user)`), which is NOT reached by overriding
+    require_paid alone. Without this second override, get_current_user runs
+    for REAL (no session cookie) and 401s before the role check ever
+    executes, so every admin-write negative test below would actually be
+    asserting "unauthenticated" rather than "authenticated paid-non-admin"."""
     app = _app()
-    app.dependency_overrides[edu_router.require_paid] = lambda: {"id": "u1", "email": "t@t.dev"}
+    paid_non_admin = {"id": "u1", "email": "t@t.dev", "role": "member"}
+    app.dependency_overrides[edu_router.require_paid] = lambda: paid_non_admin
+    app.dependency_overrides[get_current_user] = lambda: paid_non_admin
     return TestClient(app)
 
 
@@ -89,7 +99,7 @@ def test_get_paths_includes_steps(paid_client, svc):
 def test_create_path_requires_admin(client, paid_client):
     body = {"slug": "new-track", "name": "New Track"}
     assert client.post("/api/education/paths", json=body).status_code in (401, 403)
-    assert paid_client.post("/api/education/paths", json=body).status_code in (401, 403)
+    assert paid_client.post("/api/education/paths", json=body).status_code == 403
 
 
 def test_create_path_happy_path(admin_client, svc):
@@ -118,7 +128,7 @@ def test_patch_path_requires_admin(client, paid_client, svc):
     p = svc.create_path({"slug": "p1", "name": "P1"})
     body = {"name": "Renamed"}
     assert client.patch(f"/api/education/paths/{p['id']}", json=body).status_code in (401, 403)
-    assert paid_client.patch(f"/api/education/paths/{p['id']}", json=body).status_code in (401, 403)
+    assert paid_client.patch(f"/api/education/paths/{p['id']}", json=body).status_code == 403
 
 
 def test_patch_path_happy_path(admin_client, svc):
@@ -159,7 +169,7 @@ def test_patch_path_explicit_null_enabled_is_ignored(admin_client, svc):
 def test_delete_path_requires_admin(client, paid_client, svc):
     p = svc.create_path({"slug": "d1", "name": "D1"})
     assert client.delete(f"/api/education/paths/{p['id']}").status_code in (401, 403)
-    assert paid_client.delete(f"/api/education/paths/{p['id']}").status_code in (401, 403)
+    assert paid_client.delete(f"/api/education/paths/{p['id']}").status_code == 403
 
 
 def test_delete_path_happy_path(admin_client, svc):
@@ -180,7 +190,7 @@ def test_put_steps_requires_admin(client, paid_client, svc):
     p = svc.create_path({"slug": "s1", "name": "S1"})
     body = {"steps": [{"youtube_id": "yt1"}]}
     assert client.put(f"/api/education/paths/{p['id']}/steps", json=body).status_code in (401, 403)
-    assert paid_client.put(f"/api/education/paths/{p['id']}/steps", json=body).status_code in (401, 403)
+    assert paid_client.put(f"/api/education/paths/{p['id']}/steps", json=body).status_code == 403
 
 
 def test_put_steps_happy_path(admin_client, svc):
