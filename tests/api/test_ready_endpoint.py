@@ -59,6 +59,27 @@ async def test_health_stays_200_while_warming(fresh_gate):
     assert r.json()["status"] == "ok"
 
 
+@pytest.mark.asyncio
+async def test_ready_answers_with_json_not_the_spa_catch_all(fresh_gate):
+    """GUARD against a gate that cannot fail.
+
+    Observed in production 2026-07-26: on an image WITHOUT this route, GET
+    /api/ready returns `200 text/html` -- the SPA catch-all serves index.html
+    for the unknown path (same class as
+    lesson_dashboard_root_public_files_need_explicit_route). Railway's
+    healthcheck would read that as a healthy pod, so if the readiness route ever
+    stopped being registered the gate would silently become inert while
+    APPEARING to pass. Assert we get real JSON from the real handler.
+    """
+    fresh_gate.register("hot_tier")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/api/ready")
+    assert "application/json" in r.headers.get("content-type", ""), (
+        "readiness answered with non-JSON — the SPA catch-all is shadowing the route"
+    )
+    assert set(r.json()) >= {"ready", "pending", "deadline_exceeded"}
+
+
 def test_railway_healthcheck_points_at_the_readiness_route():
     """The gate only does anything if railway.json actually uses it."""
     root = os.path.join(os.path.dirname(__file__), "..", "..")
