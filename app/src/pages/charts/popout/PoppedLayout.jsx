@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import PopoutWindow from './PopoutWindow'
 import PopoutShell from './PopoutShell'
 
@@ -28,17 +28,34 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
   // ResizeObserver is missing.
   const bodyRef = useRef(null)
   const [rowHeight, setRowHeight] = useState(initialRowHeight)
-  useEffect(() => {
+  const [gridWidth, setGridWidth] = useState(0)
+  // Layout effect so the measured width lands BEFORE first paint (no 0-width flash).
+  useLayoutEffect(() => {
     const el = bodyRef.current
     if (!el) return
-    const measure = () => setRowHeight(computeRowHeight(el.clientHeight))
+    const win = el.ownerDocument.defaultView   // the POPPED window
+    // popoutBody has 6px padding on each side; the grid gets the content width.
+    const measure = () => {
+      setRowHeight(computeRowHeight(el.clientHeight))
+      setGridWidth(Math.max(0, el.clientWidth - 12))
+    }
     measure()
-    if (typeof ResizeObserver === 'undefined') return
-    // ResizeObserver comes from the opener's realm but observes the element
-    // itself, so it tracks the popped window's resizes fine.
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
+    // Track resize in the POPPED window's OWN realm. A ResizeObserver created in
+    // the opener does NOT reliably fire for nodes living in another document, so
+    // the grid stayed frozen at the window's opening size and left blank space
+    // when the user maximized it. The popped window's resize event + its own
+    // ResizeObserver both fire correctly for its nodes.
+    if (!win) return
+    win.addEventListener('resize', measure)
+    let ro
+    if (typeof win.ResizeObserver !== 'undefined') {
+      ro = new win.ResizeObserver(measure)
+      ro.observe(el)
+    }
+    return () => {
+      try { win.removeEventListener('resize', measure) } catch { /* window gone */ }
+      if (ro) ro.disconnect()
+    }
   }, [computeRowHeight])
 
   // onClose needs the widgets as they stand when the window actually closes, not
@@ -83,7 +100,7 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
       onBlocked={handleBlocked}
     >
       <PopoutShell theme={theme} bodyRef={bodyRef}>
-        {renderGrid(widgets, handlers, rowHeight)}
+        {renderGrid(widgets, handlers, rowHeight, gridWidth)}
       </PopoutShell>
     </PopoutWindow>
   )

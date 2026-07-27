@@ -29,7 +29,11 @@ test('color dot click cycles A → B → C → D → A', () => {
 
   rerender(<WidgetHeader label="W" color="D" onColorChange={onColorChange} onRemove={() => {}} />)
   screen.getByRole('button', { name: /color group/i }).click()
-  expect(onColorChange).toHaveBeenLastCalledWith('A')
+  expect(onColorChange).toHaveBeenLastCalledWith('N')   // D → N (grey "not linked")
+
+  rerender(<WidgetHeader label="W" color="N" onColorChange={onColorChange} onRemove={() => {}} />)
+  screen.getByRole('button', { name: /not linked/i }).click()
+  expect(onColorChange).toHaveBeenLastCalledWith('A')   // N → A (back to the start)
 })
 
 test('close button calls onRemove', () => {

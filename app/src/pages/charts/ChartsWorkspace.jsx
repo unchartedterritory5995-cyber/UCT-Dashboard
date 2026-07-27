@@ -902,9 +902,18 @@ export default function ChartsWorkspace() {
   // RGL configuration (viewport lock, 24 columns, computed row height) is
   // defined once here so a board on another monitor can't drift out of sync with
   // the workspace it came from.
-  const renderGrid = (widgets, h, rowHeightOverride) => (
-    <ResponsiveGridLayout
+  // widthOverride is passed for a POPPED-OUT board, which must be measured against
+  // ITS OWN window (RGL's WidthProvider uses an opener-realm ResizeObserver that
+  // doesn't fire for another document's nodes, so it froze at the opening size).
+  // For those we render the bare Responsive with an explicit width; the main board
+  // keeps WidthProvider's auto-measurement.
+  const renderGrid = (widgets, h, rowHeightOverride, widthOverride) => {
+    const GridComp = widthOverride != null ? Responsive : ResponsiveGridLayout
+    const widthProps = widthOverride != null ? { width: widthOverride } : {}
+    return (
+    <GridComp
       className="layout"
+      {...widthProps}
       layouts={{
         lg: widgets.map(w => {
           const defaults = WIDGET_DEFAULTS[w.type] || {}
@@ -957,8 +966,9 @@ export default function ChartsWorkspace() {
           </div>
         )
       })}
-    </ResponsiveGridLayout>
-  )
+    </GridComp>
+    )
+  }
 
   const mainGridHandlers = {
     onLayoutChange: handleLayoutChange,

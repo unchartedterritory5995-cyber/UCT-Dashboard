@@ -20,14 +20,18 @@ const TYPE_LABEL = {
 }
 
 function WidgetBody({ widget, onOptsChange }) {
+  // Color 'N' = "not linked": give the widget a UNIQUE per-widget group key so it
+  // reads/writes its own ticker instead of sharing a color group with anything
+  // else (every widget links purely off this `color` prop via groupSyms[color]).
+  const color = widget.color === 'N' ? `N:${widget.id}` : widget.color
   switch (widget.type) {
-    case 'chart':     return <ChartWidget     color={widget.color} opts={widget.opts} onOptsChange={onOptsChange} />
-    case 'watchlist': return <WatchlistWidget color={widget.color} opts={widget.opts} onOptsChange={onOptsChange} />
-    case 'themes':    return <ThemesWidget    color={widget.color} opts={widget.opts} />
-    case 'scanner':   return <ScannerWidget   color={widget.color} opts={widget.opts} />
-    case 'fundamentals': return <FundamentalsWidget color={widget.color} opts={widget.opts} onOptsChange={onOptsChange} />
+    case 'chart':     return <ChartWidget     color={color} opts={widget.opts} onOptsChange={onOptsChange} />
+    case 'watchlist': return <WatchlistWidget color={color} opts={widget.opts} onOptsChange={onOptsChange} />
+    case 'themes':    return <ThemesWidget    color={color} opts={widget.opts} />
+    case 'scanner':   return <ScannerWidget   color={color} opts={widget.opts} />
+    case 'fundamentals': return <FundamentalsWidget color={color} opts={widget.opts} onOptsChange={onOptsChange} />
     case 'breadth':   return <BreadthWidget opts={widget.opts} onOptsChange={onOptsChange} />
-    case 'aisearch':  return <AiSearchWidget color={widget.color} />
+    case 'aisearch':  return <AiSearchWidget color={color} />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {widget.type}</div>
   }
 }

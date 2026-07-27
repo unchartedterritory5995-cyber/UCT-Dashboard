@@ -28,6 +28,8 @@
 .colorDotB { background: #60a5fa; }
 .colorDotC { background: #4ade80; }
 .colorDotD { background: #c084fc; }
+/* Grey "not linked": this widget's ticker syncs with nothing. */
+.colorDotN { background: #6b7280; }
 /* Visually hidden but kept in the DOM for screen readers + tests.
    The widget's identity is already conveyed by its color dot + content. */
 .widgetLabel {
