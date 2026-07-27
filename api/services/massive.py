@@ -442,6 +442,8 @@ def _yfinance_snapshot(ticker: str) -> dict:
         return {}
 
 
+# NOTE: unused since 2026-07-27 — its only caller was the index-futures snapshot
+# path, which was removed. Kept because it is the only .info-based quote helper.
 def _yf_quote_info(ticker: str) -> dict:
     """Accurate quote via Yahoo's regularMarket* fields.
 
@@ -689,10 +691,10 @@ def get_snapshot() -> dict:
 
     # QQQ/SPY/IWM/DIA → Massive equities API (real-time)
     etf_tickers = ["QQQ", "SPY", "IWM", "DIA"]
-    # Index FUTURES → yfinance .info (regularMarket* fields, so the day-change is
-    # measured against the prior settlement). Futures trade nearly 24h, so these
-    # tiles keep moving after the cash close. ES/NQ/YM/RTY = continuous front-months.
-    index_futures = {"ES": "ES=F", "NQ": "NQ=F", "YM": "YM=F", "RTY": "RTY=F"}
+    # Index futures (ES/NQ/YM/RTY) removed 2026-07-27 — owner call. Nothing renders
+    # them any more, and yfinance's futures previous_close is a session stale, so
+    # their day-change was measured off the wrong baseline. Four fewer yfinance
+    # calls on a 15s-cached endpoint that every dashboard page polls.
     # BTC + VIX → the lighter fast_info snapshot (accurate for these; Yahoo's
     # regularMarketChangePercent is unreliable for ^VIX). VIX rides in the etfs dict.
     fast_targets = {"BTC": "BTC-USD", "VIX": "^VIX"}
@@ -714,21 +716,19 @@ def get_snapshot() -> dict:
             etfs[ticker] = dict(_EMPTY)
 
     # Fetch all yfinance quotes in parallel so the extra calls don't serialize.
-    jobs = [(lbl, yft, True) for lbl, yft in index_futures.items()] \
-         + [(lbl, yft, False) for lbl, yft in fast_targets.items()]
+    jobs = list(fast_targets.items())
 
     def _fetch(job):
-        lbl, yft, use_info = job
-        return lbl, (_yf_quote_info(yft) if use_info else _yfinance_snapshot(yft))
+        lbl, yft = job
+        return lbl, _yfinance_snapshot(yft)
 
     with _cf.ThreadPoolExecutor(max_workers=len(jobs), thread_name_prefix="snap-yf") as ex:
         yf_snaps = dict(ex.map(_fetch, jobs))
 
     etfs["VIX"] = _make_entry(yf_snaps["VIX"]) if yf_snaps.get("VIX") else dict(_EMPTY)
-    futures = {
-        label: (_make_entry(yf_snaps[label]) if yf_snaps.get(label) else dict(_EMPTY))
-        for label in (*index_futures, "BTC")
-    }
+    # "futures" is now BTC only. The key name stays because MorningWireIndexes,
+    # MarketStatusBar and FuturesStrip all read BTC from data.futures.BTC.
+    futures = {"BTC": _make_entry(yf_snaps["BTC"]) if yf_snaps.get("BTC") else dict(_EMPTY)}
 
     data = {"futures": futures, "etfs": etfs}
     cache.set("snapshot", data, ttl=15)

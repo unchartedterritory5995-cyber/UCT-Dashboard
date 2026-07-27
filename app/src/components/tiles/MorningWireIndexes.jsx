@@ -9,13 +9,17 @@ import styles from './MorningWireIndexes.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
-// Index futures (ES/NQ/YM/RTY) + BTC live in data.futures; VIX in data.etfs.
-// Futures keep moving nearly 24h, so these tiles stay live after the cash close.
-const LEFT  = ['ES', 'NQ', 'YM']
-const RIGHT = ['RTY', 'BTC', 'VIX']
+// Index ETFs + VIX live in data.etfs; BTC is the lone survivor of data.futures.
+// Index futures (ES/NQ/YM/RTY) were dropped 2026-07-27 (owner call): yfinance's
+// futures previous_close is a session stale, so their day-change was measured off
+// the wrong baseline — the wire published "NQ down 1.41%" against a real -0.29%.
+// The corrected moves just tracked SPY/QQQ/IWM anyway. This also restores the
+// layout this file's own header comment has always described.
+const LEFT  = ['SPY', 'QQQ', 'DIA']
+const RIGHT = ['IWM', 'BTC', 'VIX']
 const ALL   = [...LEFT, ...RIGHT]
 
-const pick = (data, sym) => (sym === 'VIX' ? data.etfs?.VIX : data.futures?.[sym])
+const pick = (data, sym) => (sym === 'BTC' ? data.futures?.BTC : data.etfs?.[sym])
 
 function cell(data, sym) {
   const d = pick(data, sym)
