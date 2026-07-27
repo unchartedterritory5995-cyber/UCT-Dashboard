@@ -34,24 +34,24 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
     const el = bodyRef.current
     if (!el) return
     const win = el.ownerDocument.defaultView   // the POPPED window
-    // Measure the WINDOW's viewport, not the element. The popup's stylesheets are
-    // copied in asynchronously, so el.clientWidth is briefly a collapsed value at
-    // first paint (which jammed all 24 columns into a ~90px sliver). innerWidth/
-    // innerHeight are correct immediately and independent of inner-CSS timing.
-    // The board fills the window minus popoutBody's 6px padding each side (12).
+    if (!win) return undefined
+    // Measure the WINDOW's viewport primarily: the popup's stylesheets are copied
+    // in asynchronously, so el.clientWidth is briefly a COLLAPSED value at first
+    // paint (which jammed all 24 columns into a ~90px sliver). Take the LARGEST of
+    // every source and refuse to apply a collapsed value, then re-measure a few
+    // times as the window + CSS settle, so we never latch the sliver.
     const measure = () => {
-      const w = win.innerWidth || el.clientWidth
-      const h = win.innerHeight || el.clientHeight
-      setRowHeight(computeRowHeight(h))
-      setGridWidth(Math.max(0, w - 12))
+      const w = Math.max(win.innerWidth || 0, el.clientWidth || 0)
+      const h = Math.max(win.innerHeight || 0, el.clientHeight || 0)
+      if (w > 120) setGridWidth(w - 12)   // minus popoutBody's 6px padding each side
+      if (h > 120) setRowHeight(computeRowHeight(h))
     }
     measure()
-    // Track resize in the POPPED window's OWN realm. A ResizeObserver created in
-    // the opener does NOT reliably fire for nodes living in another document, so
-    // the grid stayed frozen at the window's opening size and left blank space
-    // when the user maximized it. The popped window's resize event + its own
-    // ResizeObserver both fire correctly for its nodes.
-    if (!win) return
+    const raf = win.requestAnimationFrame ? win.requestAnimationFrame(measure) : null
+    const timers = [50, 200, 500, 1000].map(ms => win.setTimeout(measure, ms))
+    // Track resize in the POPPED window's OWN realm — a ResizeObserver created in
+    // the opener does NOT reliably fire for nodes in another document (that's why
+    // the grid froze at the opening size and left blank space when maximized).
     win.addEventListener('resize', measure)
     let ro
     if (typeof win.ResizeObserver !== 'undefined') {
@@ -59,7 +59,11 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
       ro.observe(el)
     }
     return () => {
-      try { win.removeEventListener('resize', measure) } catch { /* window gone */ }
+      try {
+        if (raf) win.cancelAnimationFrame(raf)
+        timers.forEach(t => win.clearTimeout(t))
+        win.removeEventListener('resize', measure)
+      } catch { /* window gone */ }
       if (ro) ro.disconnect()
     }
   }, [computeRowHeight])
