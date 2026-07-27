@@ -1692,7 +1692,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
           "GOVT","MBB","VCIT","VCSH","VTIP","VGIT","VUSB","VCLT","SHY","BNDX","VWOB","EMB","JNK","SPHY","FALN","BKLN","SJNK","SRLN",
           "SUB","MUB","TFI","BSCS","BSCT","NEAR","ICSH","JIVI","MINT","SHV","FLOT","GBIL","BILS",
         ]);
-        const isJunk = (it) => USUAL_EXPANDED.has(it.t) ||
+        const isJunk = (it) => USUAL_EXPANDED.has(it.t) || isFundSecurity(it) ||
           it.cat === "Bond ETFs" || it.cat === "Commodity ETFs" || it.cat === "Intl/EM ETFs" || it.cat === "Sector ETFs";
 
         // Compute regime: what % of notional is "junk" (passive/bonds)
@@ -1718,6 +1718,10 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
         const notableStocks = allItems
           .filter(i => ["Large Cap","Mid Cap","Small Cap"].includes(i.cat))
           .filter(i => !USUAL_EXPANDED.has(i.t))
+          // classifyTicker only knows the curated ETF sets, so funds the tape
+          // has never seen (SCMB, FLJP) fall through to a cap bucket and land in
+          // a list whose own caption promises bonds/index ETFs are filtered out.
+          .filter(i => !isFundSecurity(i))
           .filter(i => (i.signals || []).length > 0)
           .sort((a,b) => ((b.signals||[]).length - (a.signals||[]).length) || ((b.bigPrintN||0) - (a.bigPrintN||0)))
           .slice(0, 10);
@@ -1769,8 +1773,13 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
 
             {/* 1b. Standouts strip — today's big-and-unusual names as cards, up top */}
             {notableStocks.length > 0 && (() => {
+              // Rank by the dollars on the card, not by % of average volume.
+              // %AvgVol favours whatever barely trades — a $54M print in a
+              // sleepy name scores 234% while AMGN's $448M scores 46% and never
+              // shows. Dollars first keeps the hero row on the real size, and
+              // leaves the SIZE badge (%AvgVol ≥ 20) meaning something again.
               const standouts = [...notableStocks]
-                .sort((a,b) => ((b.bigPrintPctAvgVol||0) - (a.bigPrintPctAvgVol||0)) || ((b.bigPrintN||0) - (a.bigPrintN||0)))
+                .sort((a,b) => ((b.bigPrintN||0) - (a.bigPrintN||0)) || ((b.bigPrintPctAvgVol||0) - (a.bigPrintPctAvgVol||0)))
                 .slice(0,4);
               return (
                 <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:10, marginBottom:2}}>
@@ -2384,6 +2393,23 @@ const CAT_DESC = {
   "Commodity ETFs": "Commodity ETFs including gold, oil, and natural resources",
 };
 
+// The feed's SecurityType column is the only reliable ETF-vs-stock tell we get.
+// The curated ETF sets above are hand-maintained and always trail the tape (SCMB,
+// FLJP et al. were never in them), and sector/industry can NOT stand in — real
+// equities like CCL and FER ship with a blank sector, so a blank-sector rule
+// would quietly drop actual stocks. Anything the provider calls a fund is a fund.
+const FUND_SECURITY_TYPES = new Set([
+  "etf", "etf/fund", "fund", "open-end mutual fund",
+  "closed-end fund", "structured products", "unit investment trust",
+]);
+// Older cached aggregations predate the securityType field. Missing ⇒ unknown ⇒
+// treat as NOT a fund, so a stale payload degrades to the previous behaviour
+// rather than blanking a section.
+function isFundSecurity(it){
+  const st = ((it && it.securityType) || "").trim().toLowerCase();
+  return st ? FUND_SECURITY_TYPES.has(st) : false;
+}
+
 function classifyTicker(tk, totalNotional, numDates){
   const t = tk.toUpperCase();
   if(INDEXES.has(t)) return "Indexes";
@@ -2474,7 +2500,8 @@ function parseCSVtoD(rows){
       const pctAvgVol = avgVolM ? parseFloat(avgVolM[1]) : 0;
       const industry = (r.Industry||"").trim();
       const sector = (r.Sector||"").trim();
-      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol, industry, sector});
+      const securityType = (r.SecurityType||"").trim();
+      tradeRows.push({ticker:tk, dateKey:fmtDateKey(d), price, notional, message:msg, avg30, pctAvgVol, industry, sector, securityType});
     }catch(e){}
   }
 
@@ -2484,14 +2511,16 @@ function parseCSVtoD(rows){
   const tickerAvg30={};  // tk → avg 30-day volume (last seen value)
   const tickerIndustry={};// tk → industry (most common)
   const tickerSector={};  // tk → sector (most common)
+  const tickerSecType={}; // tk → SecurityType (first seen)
 
   for(const tr of tradeRows){
-    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol,industry,sector}=tr;
+    const {ticker:tk,dateKey:dk,price:p,notional:n,avg30,pctAvgVol,industry,sector,securityType}=tr;
     if(!tickerTrades[tk]) tickerTrades[tk]=[];
     tickerTrades[tk].push({p,n,dk,pctAvgVol});
     if(avg30>0) tickerAvg30[tk]=avg30;
     if(industry && !tickerIndustry[tk]) tickerIndustry[tk]=industry;
     if(sector && !tickerSector[tk]) tickerSector[tk]=sector;
+    if(securityType && !tickerSecType[tk]) tickerSecType[tk]=securityType;
     if(!tickerDaily[tk]) tickerDaily[tk]={};
     if(!tickerDaily[tk][dk]) tickerDaily[tk][dk]={notional:0,volNotional:0,count:0};
     tickerDaily[tk][dk].notional+=n;
@@ -2549,9 +2578,10 @@ function parseCSVtoD(rows){
     const avg30=tickerAvg30[tk]||0;
     const industry=tickerIndustry[tk]||"";
     const sector=tickerSector[tk]||"";
+    const securityType=tickerSecType[tk]||"";
     // Accumulation vs Distribution: big print above VWAP = Acc, below = Dist
     const accDist = bigPrint!=null && vwap>0 ? (bigPrint>=vwap?"Acc":"Dist") : null;
-    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,industry,sector,accDist,mktcap:0,signals:[]});
+    itemsAll.push({t:tk,cat,n:Math.round(totalN),lo,hi,last,vwap,c:trades.length,days,pos,pct,u:uoaTickers.has(tk),prices:pricesArr,w:wArr,top5,bigPrint,bigPrintN,bigPrintDk,bigPrintDate,bigPrintPctAvgVol,avg30,industry,sector,securityType,accDist,mktcap:0,signals:[]});
   }
 
   // ── Signal Detection (tight thresholds — only truly unusual prints) ─────────

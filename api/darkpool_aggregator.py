@@ -191,7 +191,7 @@ def aggregate(days=None, all_data=False):
         if all_data or days is None:
             cursor = conn.execute(
                 "SELECT date, ticker, price, notional, message, type, "
-                "industry, sector, avg30day FROM darkpool_trades"
+                "security_type, industry, sector, avg30day FROM darkpool_trades"
             )
         else:
             selected_dates = _resolve_dates(conn, days)
@@ -200,7 +200,7 @@ def aggregate(days=None, all_data=False):
             placeholders = ",".join(["?"] * len(selected_dates))
             cursor = conn.execute(
                 f"SELECT date, ticker, price, notional, message, type, "
-                f"industry, sector, avg30day FROM darkpool_trades "
+                f"security_type, industry, sector, avg30day FROM darkpool_trades "
                 f"WHERE date IN ({placeholders})",
                 selected_dates,
             )
@@ -309,10 +309,12 @@ def aggregate(days=None, all_data=False):
             pct_avg_vol = float(avgvol_m.group(1)) if avgvol_m else 0.0
             industry = (row["industry"] or "").strip()
             sector   = (row["sector"] or "").strip()
+            security_type = (row["security_type"] or "").strip()
             trade_rows.append({
                 "ticker": tk, "dateKey": dk, "price": p, "notional": n,
                 "message": msg, "avg30": avg30, "pctAvgVol": pct_avg_vol,
                 "industry": industry, "sector": sector,
+                "securityType": security_type,
             })
     finally:
         conn.close()
@@ -330,6 +332,7 @@ def aggregate(days=None, all_data=False):
     ticker_avg30    = {}
     ticker_industry = {}
     ticker_sector   = {}
+    ticker_sectype  = {}
 
     for tr in trade_rows:
         tk = tr["ticker"]; dk = tr["dateKey"]; p = tr["price"]; n = tr["notional"]
@@ -340,6 +343,8 @@ def aggregate(days=None, all_data=False):
             ticker_industry[tk] = tr["industry"]
         if tr["sector"] and tk not in ticker_sector:
             ticker_sector[tk] = tr["sector"]
+        if tr["securityType"] and tk not in ticker_sectype:
+            ticker_sectype[tk] = tr["securityType"]
         de = ticker_daily[tk][dk]
         de["notional"]    += n
         de["volNotional"] += p * n
@@ -418,6 +423,7 @@ def aggregate(days=None, all_data=False):
         avg30 = ticker_avg30.get(tk, 0)
         industry = ticker_industry.get(tk, "")
         sector   = ticker_sector.get(tk, "")
+        sectype  = ticker_sectype.get(tk, "")
         acc_dist = None
         if big_print is not None and vwap and vwap > 0:
             acc_dist = "Acc" if big_print >= vwap else "Dist"
@@ -434,6 +440,10 @@ def aggregate(days=None, all_data=False):
             "bigPrintDk": big_print_dk, "bigPrintDate": big_print_date,
             "bigPrintPctAvgVol": big_print_pct_avg_vol,
             "avg30": avg30, "industry": industry, "sector": sector,
+            # Provider's SecurityType ("Equity" / "ETF/Fund" / "ADR" / …). The
+            # only reliable ETF-vs-stock tell in this feed — sector/industry
+            # can't stand in for it (real names like CCL and FER ship blank).
+            "securityType": sectype,
             "accDist": acc_dist,
             "mktcap": 0, "signals": [],
         })
@@ -656,7 +666,7 @@ CACHE_DIR = os.path.join(os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "/data"), "
 # a code version an old (possibly buggy) cached result keeps being served until
 # the next data upload. Prefixing the sig with AGG_CODE_VERSION makes every
 # window auto-rebuild on the first request after a logic change ships.
-AGG_CODE_VERSION = "2"
+AGG_CODE_VERSION = "3"
 COMMON_WINDOWS = [1, 5, 20, 60, 90]  # plus "all"
 # Build order: the page default (90d — DarkPool.jsx fetchDays=90) FIRST, so
 # the first visitor after a rebuild lands on a warm default window instead of
