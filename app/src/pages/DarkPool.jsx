@@ -1767,6 +1767,40 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
               )}
             </div>
 
+            {/* 1b. Standouts strip — today's big-and-unusual names as cards, up top */}
+            {notableStocks.length > 0 && (() => {
+              const standouts = [...notableStocks]
+                .sort((a,b) => ((b.bigPrintPctAvgVol||0) - (a.bigPrintPctAvgVol||0)) || ((b.bigPrintN||0) - (a.bigPrintN||0)))
+                .slice(0,4);
+              return (
+                <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:10, marginBottom:2}}>
+                  {standouts.map(s => {
+                    const av = s.bigPrintPctAvgVol||0;
+                    const avColor = av>=50?C.pink:av>=20?C.amber:av>0?C.tx2:C.tx3;
+                    return (
+                      <div key={s.t} onClick={()=>onJumpTo&&onJumpTo(s.t)}
+                        style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderLeft:`3px solid ${C.amber}`,
+                          borderRadius:"0 8px 8px 0", padding:"11px 13px", cursor:"pointer"}}>
+                        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4}}>
+                          <span style={{fontWeight:700, fontSize:14, color:CAT_COLORS[s.cat]||C.tx,
+                            fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{s.t}</span>
+                          {av>=20 && <span style={{fontSize:8, fontWeight:700, color:C.bg, background:C.amber,
+                            borderRadius:4, padding:"1px 5px", letterSpacing:"0.04em"}}>SIZE</span>}
+                        </div>
+                        <div style={{fontSize:19, fontWeight:700, color:C.tx,
+                          fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{s.bigPrintN?fmt(s.bigPrintN):"—"}</div>
+                        <div style={{fontSize:10, color:C.tx3, marginTop:2,
+                          fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
+                          {s.bigPrint?`@ $${s.bigPrint.toFixed(2)}`:""}
+                          {av>0 ? <span> · <span style={{color:avColor}}>{av.toFixed(0)}% avg</span></span> : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             {/* 2. Notable Stocks — tradeable equities with signals, plain-English tags */}
             {notableStocks.length > 0 && (
               <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
