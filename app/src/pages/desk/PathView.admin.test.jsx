@@ -99,7 +99,7 @@ const fixture = () => ({
 const pathsFixture = () => ({
   paths: [
     {
-      id: 1, slug: 'foundations', name: 'Foundations', kind: 'course', sort_order: 0,
+      id: 1, slug: 'foundations', name: 'Foundations', kind: 'track', sort_order: 0,
       blurb: 'The essentials, in order.',
       steps: [
         { youtube_id: 'lib0000000a', module_label: null, note: null },
@@ -188,7 +188,7 @@ test('a member sees no Edit on PathView and no New/Delete on the landing', () =>
   expect(document.querySelector('[class*="kindRow"]')).toBeNull()
   first.unmount()
   renderSection(['/desk'])
-  expect(screen.getByRole('heading', { level: 2, name: 'Courses' })).toBeTruthy()
+  expect(screen.getByRole('heading', { level: 2, name: 'Learning Paths' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: /New course/ })).toBeNull()
   expect(screen.queryByRole('button', { name: 'Delete path' })).toBeNull()
 })
@@ -216,7 +216,7 @@ test('Edit unlocks the syllabus: meta inputs + per-row controls; Cancel discards
   enterEdit()
   expect(screen.getByLabelText('Name').value).toBe('Foundations')
   expect(screen.getByLabelText('Blurb').value).toBe('The essentials, in order.')
-  expect(screen.getByLabelText('Path kind').value).toBe('course')
+  expect(screen.getByLabelText('Path kind').value).toBe('track')
   expect(screen.getAllByRole('button', { name: /^Remove / })).toHaveLength(3)
   expect(screen.getByRole('button', { name: 'Move Welcome to the Desk up' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Move Session — July 21 down' })).toBeDisabled()
@@ -283,11 +283,11 @@ test('meta PATCH fires only when changed and carries ONLY the changed fields', a
   renderSection(['/desk?path=foundations'])
   enterEdit()
   fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Foundations II' } })
-  fireEvent.change(screen.getByLabelText('Path kind'), { target: { value: 'track' } })
+  fireEvent.change(screen.getByLabelText('Path kind'), { target: { value: 'course' } })
   await clickSave()
   const patches = callsTo('PATCH', '/api/education/paths/1')
   expect(patches).toHaveLength(1)
-  expect(bodyOf(patches[0])).toEqual({ name: 'Foundations II', kind: 'track' }) // blurb omitted
+  expect(bodyOf(patches[0])).toEqual({ name: 'Foundations II', kind: 'course' }) // blurb omitted
   expect(callsTo('PUT', '/api/education/paths/1/steps')).toHaveLength(1)
 })
 
@@ -432,7 +432,7 @@ test('slugifyPathName: kebab-case, punctuation collapsed, accents folded, edges 
 test('an admin with zero publishable courses still gets the section + New (Delete hidden with nothing to delete)', () => {
   mockPaths = { paths: [] }
   renderSection(['/desk'])
-  expect(screen.getByRole('heading', { level: 2, name: 'Courses' })).toBeTruthy()
+  expect(screen.getByRole('heading', { level: 2, name: 'Learning Paths' })).toBeTruthy()
   expect(screen.getByRole('button', { name: /New course/ })).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Delete path' })).toBeNull()
 })
@@ -444,8 +444,7 @@ test('Delete path: confirm gates the DELETE; success revalidates /paths', async 
   fireEvent.click(screen.getByRole('button', { name: 'Delete path' }))
   const sheet = screen.getByTestId('sheet')
   expect(within(sheet).getByText('Foundations')).toBeTruthy()
-  expect(within(sheet).getByText('Course · 3 lessons')).toBeTruthy()
-  expect(within(sheet).getByText('Track · 3 lessons')).toBeTruthy() // authored steps, not resolved
+  expect(within(sheet).getAllByText('Track · 3 lessons')).toHaveLength(2) // authored steps, not resolved
   const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
   try {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Delete Foundations' }))

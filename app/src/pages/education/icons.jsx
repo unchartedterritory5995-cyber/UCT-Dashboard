@@ -42,6 +42,28 @@ export function GraduationIcon({ size = 24 }) {
   )
 }
 
+// Stacked syllabus — the Courses section: an open outline with lesson rows.
+export function CourseIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+      <GoldDefs id="edu-course" />
+      <rect
+        x="4" y="3.5" width="16" height="17" rx="2.2"
+        stroke="url(#edu-course)"
+        strokeWidth="1.6"
+        fill="none"
+      />
+      <path
+        d="M8 8.2h8M8 12h8M8 15.8h5"
+        stroke="url(#edu-course)"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  )
+}
+
 // Play triangle inside a soft ring — the watch affordance.
 export function PlayIcon({ size = 22 }) {
   return (

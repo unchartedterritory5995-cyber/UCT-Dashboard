@@ -4,16 +4,18 @@
 import { lazy, Suspense, useState, useEffect } from 'react'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import { useSearchParams } from 'react-router-dom'
-import { GraduationIcon, ArticleIcon, PostIcon, TeamIcon } from '../education/icons'
+import { GraduationIcon, CourseIcon, ArticleIcon, PostIcon, TeamIcon } from '../education/icons'
 import styles from './Desk.module.css'
 
 const VideosSection = lazy(() => import('./VideosSection'))
+const CoursesSection = lazy(() => import('./CoursesSection'))
 const ArticlesSection = lazy(() => import('./ArticlesSection'))
 const PostsSection = lazy(() => import('./PostsSection'))
 const TeamSection = lazy(() => import('./TeamSection'))
 
 const SECTIONS = [
   { key: 'videos', label: 'Videos', Icon: GraduationIcon, Comp: VideosSection },
+  { key: 'courses', label: 'Courses', Icon: CourseIcon, Comp: CoursesSection },
   { key: 'articles', label: 'Articles', Icon: ArticleIcon, Comp: ArticlesSection },
   { key: 'posts', label: 'Posts', Icon: PostIcon, Comp: PostsSection },
   { key: 'team', label: 'Team', Icon: TeamIcon, Comp: TeamSection },

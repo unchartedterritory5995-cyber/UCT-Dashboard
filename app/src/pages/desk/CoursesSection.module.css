@@ -1,0 +1,38 @@
+/* COURSES — the Desk's dedicated course-programs section. The card grid and
+   card styles are shared with VideosSection.module.css (same product family);
+   this file owns only the page frame and header. */
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 0 var(--space-2xl);
+}
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  margin: var(--space-md) 0 var(--space-lg);
+}
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  color: var(--text-bright);
+  letter-spacing: 0.2px;
+}
+.sub {
+  margin: 0;
+  max-width: 560px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.empty {
+  margin: var(--space-lg) 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+@media (max-width: 640px) {
+  .head { margin-top: var(--space-sm); }
+  .title { font-size: 20px; }
+}

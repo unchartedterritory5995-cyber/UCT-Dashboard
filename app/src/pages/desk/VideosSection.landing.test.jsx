@@ -109,7 +109,7 @@ const fixture = () => ({
 const pathsFixture = () => ({
   paths: [
     {
-      id: 1, slug: 'foundations', name: 'Foundations', kind: 'course', sort_order: 0,
+      id: 1, slug: 'foundations', name: 'Foundations', kind: 'track', sort_order: 0,
       blurb: 'The essentials, in order.',
       steps: [
         { youtube_id: 'lib0000000a', module_label: null, note: null },
@@ -906,15 +906,15 @@ const courseCard = (name) =>
 test('course cards render from /paths: kind eyebrow, name, 1-line blurb, lesson count; unknown ids skipped', () => {
   mockPaths = pathsFixture()
   renderSection()
-  const head = screen.getByRole('heading', { level: 2, name: 'Courses' })
+  const head = screen.getByRole('heading', { level: 2, name: 'Learning Paths' })
   expect(head.parentElement.textContent).toContain('2') // section count
   const foundations = courseCard('Foundations')
-  expect(within(foundations).getByText('COURSE')).toBeTruthy()
+  expect(within(foundations).getByText('TRACK')).toBeTruthy()
   expect(within(foundations).getByText('The essentials, in order.')).toBeTruthy()
   expect(within(foundations).getByText('3 lessons')).toBeTruthy()
   // 'risk' carries one unknown youtube_id → skipped → 2 resolved lessons.
   const risk = courseCard('Risk & Discipline')
-  expect(within(risk).getByText('TRACK')).toBeTruthy()
+  expect(within(risk).getAllByText('TRACK').length).toBeGreaterThan(0)
   expect(within(risk).getByText('2 lessons')).toBeTruthy()
   // Cards never autoplay — clicking is navigation (covered below), not play.
   expect(play).not.toHaveBeenCalled()
@@ -930,12 +930,12 @@ test('a path resolving fewer than 2 lessons is hidden; all-hidden drops the sect
   mockPaths = data
   renderSection()
   expect(screen.queryByRole('button', { name: /Foundations/ })).toBeNull()
-  const head = screen.getByRole('heading', { level: 2, name: 'Courses' })
+  const head = screen.getByRole('heading', { level: 2, name: 'Learning Paths' })
   expect(head.parentElement.textContent).toContain('1') // risk survives
   // Nothing resolves ≥2 → the whole section disappears.
   mockPaths = { paths: [data.paths[0]] }
   renderSection()
-  expect(screen.queryAllByRole('heading', { level: 2, name: 'Courses' })).toHaveLength(1) // only 1st render's
+  expect(screen.queryAllByRole('heading', { level: 2, name: 'Learning Paths' })).toHaveLength(1) // only 1st render's
 })
 
 test('duration total appears at ≥70% parseable coverage and hides below it', () => {

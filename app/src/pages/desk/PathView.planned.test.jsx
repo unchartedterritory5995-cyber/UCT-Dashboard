@@ -121,12 +121,12 @@ test('admin fetches /paths?all=1; member fetches the plain member key', () => {
   expect(requestedPathsKeys).not.toContain('/api/education/paths?all=1')
 })
 
-/* ── Landing card ────────────────────────────────────────────────────────── */
+/* ── Landing split ───────────────────────────────────────────────────────── */
 
-test('admin card shows DRAFT badge + "N to record" count for an unpublished course', () => {
+test('a kind=course path never cards on the Videos landing (it lives on the Courses section)', () => {
   renderSection(['/desk'])
-  expect(screen.getByText('DRAFT')).toBeTruthy()
-  expect(screen.getByText(/2 lessons · 1 to record/)).toBeTruthy()
+  expect(screen.queryByText('DRAFT')).toBeNull()
+  expect(screen.queryByRole('button', { name: /UCT Foundations/ })).toBeNull()
 })
 
 test('a draft course never claims the starter strip', () => {

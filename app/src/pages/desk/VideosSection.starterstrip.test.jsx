@@ -76,7 +76,7 @@ const fixture = () => ({
 const pathsFixture = () => ({
   paths: [
     {
-      id: 1, slug: 'foundations', name: 'Foundations', kind: 'course', sort_order: 0,
+      id: 1, slug: 'foundations', name: 'Foundations', kind: 'track', sort_order: 0,
       blurb: 'The essentials, in order.',
       steps: [
         { youtube_id: 'lib0000000a', module_label: null, note: null },

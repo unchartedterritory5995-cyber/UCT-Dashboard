@@ -87,6 +87,71 @@ export const slugifyPathName = (name) =>
 
 const PATH_SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
+// Per-path progress + duration stats, all client-side from the progress store
+// (done flag, t/d per youtube_id). "In progress" = t≥8 and not done (the
+// store's own resume threshold). nextIndex = the most recently touched
+// in-progress lesson if any, else the first not-done one. Shared by the
+// Videos landing (Learning Paths block) and the Desk's Courses section.
+export const computeCourseStats = (cardPaths, progress) =>
+  cardPaths.map((p) => {
+    let done = 0
+    let lastAt = 0
+    let firstNotDone = -1
+    let nextInProgress = -1
+    let nextInProgressAt = -1
+    p.videos.forEach((v, i) => {
+      const e = progress[v.youtube_id]
+      if (e?.done) {
+        done += 1
+        lastAt = Math.max(lastAt, e.at || 0)
+        return
+      }
+      if (firstNotDone === -1) firstNotDone = i
+      if (e && e.t >= 8) {
+        lastAt = Math.max(lastAt, e.at || 0)
+        if ((e.at || 0) > nextInProgressAt) {
+          nextInProgressAt = e.at || 0
+          nextInProgress = i
+        }
+      }
+    })
+    const total = p.videos.length
+    const started = done > 0 || nextInProgress !== -1
+    const parsed = p.videos.map((v) => parseDuration(v.duration)).filter((x) => x != null)
+    return {
+      path: p,
+      done,
+      total,
+      started,
+      mid: started && done < total, // some progress, not finished
+      nextIndex: nextInProgress !== -1 ? nextInProgress : firstNotDone,
+      lastAt,
+      pct: total ? Math.round((done / total) * 100) : 0,
+      durLabel:
+        total > 0 && parsed.length / total >= DURATION_COVERAGE_MIN
+          ? fmtCourseDuration(parsed.reduce((a, b) => a + b, 0))
+          : '',
+    }
+  })
+
+// Shared by the Videos landing and the Courses section: resolve raw
+// GET /paths rows against the loaded library — playable videos in step
+// order (unknown ids skipped) + a count of planned "to record" slots.
+export const resolvePathRows = (rows, categories) => {
+  const list = Array.isArray(rows) ? rows : []
+  if (!list.length || !categories.length) return []
+  const byId = {}
+  for (const cat of categories) for (const v of cat.videos || []) byId[v.youtube_id] = v
+  return list.map((p) => ({
+    ...p,
+    videos: (p.steps || [])
+      .filter((st) => !st.planned_title)
+      .map((st) => byId[st.youtube_id])
+      .filter(Boolean),
+    plannedCount: (p.steps || []).filter((st) => st.planned_title).length,
+  }))
+}
+
 // The backend wraps matched terms in literal <b>…</b> markers. We parse those
 // markers OURSELVES and emit React nodes — every non-marker fragment becomes a
 // plain text node React escapes, so no dangerouslySetInnerHTML and no reliance
@@ -367,19 +432,10 @@ export default function VideosSection() {
     isAdmin ? '/api/education/paths?all=1' : '/api/education/paths',
     fetcher,
   )
-  const resolvedPaths = useMemo(() => {
-    const list = Array.isArray(pathsData?.paths) ? pathsData.paths : []
-    if (!list.length || !categories.length) return []
-    const byId = {}
-    for (const cat of categories) for (const v of cat.videos || []) byId[v.youtube_id] = v
-    return list.map((p) => ({
-      ...p,
-      videos: (p.steps || []).map((st) => byId[st.youtube_id]).filter(Boolean),
-      // Planned lessons ("to be recorded" slots) never resolve to videos —
-      // they surface as placeholder rows and count separately on the card.
-      plannedCount: (p.steps || []).filter((st) => st.planned_title).length,
-    }))
-  }, [pathsData, categories])
+  const resolvedPaths = useMemo(
+    () => resolvePathRows(pathsData?.paths, categories),
+    [pathsData, categories],
+  )
   const paths = useMemo(
     () => resolvedPaths.filter((p) => p.videos.length >= 2),
     [resolvedPaths],
@@ -408,51 +464,18 @@ export default function VideosSection() {
   // not done (the store's own resume threshold). next = the most recently
   // touched in-progress lesson if any, else the first not-done one — the
   // truest "where I left off" in course order.
-  // Admin cards cover ALL paths (drafts included — the only route to a course
-  // being populated); member cards keep the publishable ≥2-lesson set.
-  const cardPaths = isAdmin ? resolvedPaths : paths
+  // The Videos landing shows LEARNING PATHS only (kind='track' — curated
+  // sequences of existing library videos). kind='course' lives on the Desk's
+  // dedicated Courses section; courses stay REACHABLE here via a direct
+  // ?path= link (admin editor, legacy URLs) but never render on this landing.
+  // Admin cards cover all tracks (drafts included); member cards keep the
+  // publishable ≥2-lesson set.
+  const cardPaths = useMemo(
+    () => (isAdmin ? resolvedPaths : paths).filter((p) => p.kind !== 'course'),
+    [isAdmin, resolvedPaths, paths],
+  )
   const courseStats = useMemo(
-    () =>
-      cardPaths.map((p) => {
-        let done = 0
-        let lastAt = 0
-        let firstNotDone = -1
-        let nextInProgress = -1
-        let nextInProgressAt = -1
-        p.videos.forEach((v, i) => {
-          const e = progress[v.youtube_id]
-          if (e?.done) {
-            done += 1
-            lastAt = Math.max(lastAt, e.at || 0)
-            return
-          }
-          if (firstNotDone === -1) firstNotDone = i
-          if (e && e.t >= 8) {
-            lastAt = Math.max(lastAt, e.at || 0)
-            if ((e.at || 0) > nextInProgressAt) {
-              nextInProgressAt = e.at || 0
-              nextInProgress = i
-            }
-          }
-        })
-        const total = p.videos.length
-        const started = done > 0 || nextInProgress !== -1
-        const parsed = p.videos.map((v) => parseDuration(v.duration)).filter((x) => x != null)
-        return {
-          path: p,
-          done,
-          total,
-          started,
-          mid: started && done < total, // some progress, not finished
-          nextIndex: nextInProgress !== -1 ? nextInProgress : firstNotDone,
-          lastAt,
-          pct: total ? Math.round((done / total) * 100) : 0,
-          durLabel:
-            total > 0 && parsed.length / total >= DURATION_COVERAGE_MIN
-              ? fmtCourseDuration(parsed.reduce((a, b) => a + b, 0))
-              : '',
-        }
-      }),
+    () => computeCourseStats(cardPaths, progress),
     [cardPaths, progress],
   )
 
@@ -934,7 +957,7 @@ export default function VideosSection() {
           {(courseStats.length > 0 || isAdmin) && (
             <section className={s.shelf}>
               <div className={s.shelfHead}>
-                <h2 className={s.shelfName}>Courses</h2>
+                <h2 className={s.shelfName}>Learning Paths</h2>
                 {courseStats.length > 0 && (
                   <span className={s.shelfCount}>{courseStats.length}</span>
                 )}
@@ -1270,8 +1293,10 @@ function VideoForm({ video, onClose, onSaved, knownCategories }) {
 // URL and IMMUTABLE after create, so it stays visible and editable here).
 // Create POSTs, then the parent revalidates /paths and opens ?path=<slug> in
 // edit mode so lessons can be added immediately.
-function NewPathSheet({ onClose, onCreated, nextSortOrder }) {
-  const [form, setForm] = useState({ name: '', slug: '', kind: 'course', blurb: '' })
+export function NewPathSheet({ onClose, onCreated, nextSortOrder, lockKind }) {
+  // lockKind pins the kind (the Courses section only creates kind='course';
+  // the Videos landing keeps the free select).
+  const [form, setForm] = useState({ name: '', slug: '', kind: lockKind || 'course', blurb: '' })
   const [slugTouched, setSlugTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -1291,6 +1316,9 @@ function NewPathSheet({ onClose, onCreated, nextSortOrder }) {
           blurb: form.blurb.trim() || null,
           kind: form.kind,
           sort_order: nextSortOrder,
+          // A course outline starts as a DRAFT (populate → then publish);
+          // free-kind creates keep the historical publish-on-create default.
+          ...(lockKind ? { enabled: false } : {}),
         }),
       })
       if (!r.ok) {
@@ -1336,17 +1364,19 @@ function NewPathSheet({ onClose, onCreated, nextSortOrder }) {
             placeholder="tape-reading-101"
           />
         </label>
-        <label className={styles.field}>
-          <span className={styles.label}>Kind</span>
-          <select
-            className={styles.input}
-            value={form.kind}
-            onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value }))}
-          >
-            <option value="course">Course</option>
-            <option value="track">Track</option>
-          </select>
-        </label>
+        {!lockKind && (
+          <label className={styles.field}>
+            <span className={styles.label}>Kind</span>
+            <select
+              className={styles.input}
+              value={form.kind}
+              onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value }))}
+            >
+              <option value="course">Course</option>
+              <option value="track">Track</option>
+            </select>
+          </label>
+        )}
         <label className={styles.field}>
           <span className={styles.label}>Blurb (optional)</span>
           <textarea
