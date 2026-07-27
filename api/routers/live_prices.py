@@ -305,7 +305,16 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         last_trade = t.get("lastTrade", {})
         minute = t.get("min", {})
 
-        price = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
+        # Live price. During RTH the actual LAST TRADE is the current price;
+        # `day.c` (the day aggregate's close) LAGS the last trade intraday by
+        # cents-to-dollars, so serving it made the chart's developing bar snap back
+        # to that stale value on every 2s poll while the fast tick showed the real
+        # price (the "keeps jumping to one price" bug). Pre/post keep day.c-first so
+        # the main price stays the frozen RTH close (ext price is served separately).
+        if session == "regular":
+            price = last_trade.get("p") or day.get("c") or prev_day.get("c") or 0.0
+        else:
+            price = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
         # `day.v` is the REGULAR-session aggregate and stays 0 until the 9:30
         # open. `min.av` (today's accumulated) is the pre-open placeholder, but it
         # OVER-counts vs the chart, so in extended hours it's replaced below with
