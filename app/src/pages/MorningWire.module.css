@@ -414,6 +414,9 @@
   border-radius: 12px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.015);
+  /* the board sizes its own columns off its own width — see the @container below */
+  container-type: inline-size;
+  container-name: flowboard;
 }
 .rundownWrap :global(.rd-flowboard-head) {
   font-family: var(--font-mono);
@@ -434,14 +437,37 @@
   margin-left: 8px;
 }
 /* Notable ORDERS — aligned grid: Stock · Strike · Exp · DTE · Vol/OI · Side · Premium
-   (shared column template on the header row + every order row so columns line up). */
+   (shared column template on the header row + every order row so columns line up).
+   Tracks are minmax(floor, ideal): they hold the ideal width when there's room and
+   shrink to the floor when the board is squeezed, so the row can never overflow or
+   spill onto a second grid line at an in-between width. */
 .rundownWrap :global(.rd-flowboard-headrow),
 .rundownWrap :global(.rd-flowboard-row) {
   display: grid;
-  grid-template-columns: 74px 150px 58px 46px 50px 56px 1fr;
+  grid-template-columns:
+    minmax(56px, 74px) minmax(104px, 150px) minmax(44px, 58px)
+    minmax(36px, 46px) minmax(38px, 50px) minmax(42px, 56px) minmax(64px, 1fr);
   gap: 10px;
-  align-items: baseline;
+  /* center, NOT baseline: the cells below are overflow:hidden (for ellipsis), and an
+     overflow-clipped box synthesizes its baseline from the bottom edge — with mixed
+     font sizes across the row that would misalign every cell. */
+  align-items: center;
+  /* pin the line box: without this the rows inherit the rundown's prose line-height
+     (~1.75), which reads loose for a data table AND let the ER badge push its row 1px
+     taller than the rest. Fixed here, every row is the same height. */
+  line-height: 1.2;
   padding: 10px 16px 10px 20px;
+}
+/* one line per cell, ellipsis on overflow — a long contract can never widen a track.
+   NOTE: the :not() arguments live INSIDE :global(). A bare `.rd-order-bar` there would
+   be treated as a local CSS-Modules class and compiled to a hashed name, which the
+   engine-injected HTML never carries — the exclusion would silently never match. */
+.rundownWrap :global(.rd-flowboard-headrow > span),
+.rundownWrap :global(.rd-flowboard-row > span:not(.rd-order-bar):not(.rd-order-stripe)) {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .rundownWrap :global(.rd-flowboard-headrow) {
   padding-top: 9px;
@@ -462,7 +488,15 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 .rundownWrap :global(.rd-flowboard-row):last-child { border-bottom: none; }
-.rundownWrap :global(.rd-flowboard-row) > span { position: relative; z-index: 1; }
+/* Lift the CONTENT cells above the size bar. The two decoration spans are excluded by
+   name: this rule is (0,2,1) and out-specifies the (0,2,0) `position: absolute` below,
+   so without the :not()s it forced the bar + stripe back into `position: relative` —
+   they then took grid columns 1-2, shoving every cell two columns right and wrapping
+   Side/Premium onto a second line. Any new decoration span must be excluded here too. */
+.rundownWrap :global(.rd-flowboard-row > span:not(.rd-order-bar):not(.rd-order-stripe)) {
+  position: relative;
+  z-index: 1;
+}
 /* quiet sentiment accent + faint relative-size bar (absolute → out of grid flow) */
 .rundownWrap :global(.rd-order-stripe) {
   position: absolute; left: 0; top: 0; bottom: 0; width: 3px; z-index: 2;
@@ -501,14 +535,29 @@
   padding: 0 3px;
   margin-left: 3px;
 }
-@media (max-width: 640px) {
+/* Narrow tier keys off the BOARD's own width, not the viewport (`.rd-flowboard` is
+   declared a query container above). The brief sits in a content column that is
+   narrower than the window by the sidebar + page padding, so a viewport @media kept
+   the 7-column layout on a board that no longer had room for it. Self-contained: it
+   works wherever the fragment is mounted. Drops Exp + Side → 5 columns. */
+@container flowboard (max-width: 600px) {
   .rundownWrap :global(.rd-flowboard-headrow),
-  .rundownWrap :global(.rd-flowboard-row) { grid-template-columns: 58px 120px 44px 44px 1fr; gap: 8px; }
+  .rundownWrap :global(.rd-flowboard-row) {
+    /* Floors sum to 218px + 24px gaps + 24px padding = 266px, so the board still
+       fits the narrowest real phone (320px viewport → ~304px board at the 8px
+       page padding) with room to spare. */
+    grid-template-columns:
+      minmax(38px, 58px) minmax(72px, 120px) minmax(30px, 44px)
+      minmax(30px, 44px) minmax(48px, 1fr);
+    gap: 6px;
+    padding: 10px 10px 10px 14px;
+  }
   .rundownWrap :global(.rd-order-bought),
   .rundownWrap :global(.rd-flowboard-headrow) span:nth-child(6),
   .rundownWrap :global(.rd-flowboard-headrow) span:nth-child(3) { display: none; }
   .rundownWrap :global(.rd-order-exp) { display: none; }
   .rundownWrap :global(.rd-order-contract) { font-size: 14.5px; }
+  .rundownWrap :global(.rd-flowboard-head) { padding: 10px 12px; }
 }
 
 /* ── THE GAME PLAN cockpit (top of wire) ─────────────────────── */
