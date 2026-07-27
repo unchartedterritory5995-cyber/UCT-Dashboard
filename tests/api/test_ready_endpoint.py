@@ -80,12 +80,31 @@ async def test_ready_answers_with_json_not_the_spa_catch_all(fresh_gate):
     assert set(r.json()) >= {"ready", "pending", "deadline_exceeded"}
 
 
-def test_railway_healthcheck_points_at_the_readiness_route():
-    """The gate only does anything if railway.json actually uses it."""
+def test_railway_healthcheck_must_not_gate_on_readiness():
+    """REGRESSION GUARD -- do NOT point healthcheckPath at /api/ready.
+
+    Tried in production 2026-07-26 (deploy 650865d5) and it caused a ~3 MINUTE
+    OUTAGE. The premise was that Railway keeps the OLD pod serving while the new
+    one healthchecks. It does not -- the old pod is already gone, so a
+    503-until-warm readiness probe does not "hold traffic on the warm pod", it
+    takes the site DOWN until the gate releases:
+
+        Path: /api/ready
+        Attempt #1..#8 failed with service unavailable
+        -> https://uctintelligence.com/ returned 502 for ~3 min
+
+    That is strictly worse than the cold-cache slowness it was meant to fix
+    (slow-but-serving beats hard-down). /api/ready remains mounted as
+    OBSERVABILITY -- it is genuinely useful for "is this pod warm yet" -- but
+    nothing may gate a deploy on it.
+    """
     root = os.path.join(os.path.dirname(__file__), "..", "..")
     with open(os.path.join(root, "railway.json")) as f:
         cfg = json.load(f)
-    assert cfg["deploy"]["healthcheckPath"] == "/api/ready"
+    assert cfg["deploy"]["healthcheckPath"] == "/api/health", (
+        "gating the Railway healthcheck on readiness causes a multi-minute "
+        "outage on every deploy — see this test's docstring"
+    )
 
 
 @pytest.mark.asyncio
