@@ -478,7 +478,9 @@ export default function VideosSection() {
   // one exists and the first track leads otherwise. Any progress at all
   // (including a fully finished course — that member isn't new) hides it.
   const starterCourse = useMemo(() => {
-    const live = courseStats.filter((cs) => cs.path.enabled !== 0)
+    // cs.total > 0: an admin's courseStats can include a zero-lesson path
+    // (cardPaths is unfiltered for admins) — nothing to start there.
+    const live = courseStats.filter((cs) => cs.path.enabled !== 0 && cs.total > 0)
     return live.length && live.every((cs) => !cs.started) ? live[0] : null
   }, [courseStats])
 

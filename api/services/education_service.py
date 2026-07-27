@@ -695,6 +695,13 @@ def _normalize_step(s: dict, i: int, ctx: str) -> dict:
     planned = (s.get("planned_title") or "").strip() or None
     yt = (s.get("youtube_id") or "").strip()
     if planned:
+        # A REAL youtube_id alongside planned_title is ambiguous (did the
+        # caller mean to attach the video, or keep the slot planned?) —
+        # reject rather than silently discard either. Empty and gap: shapes
+        # are the two legitimate planned forms (fresh row / GET echo).
+        if yt and not yt.startswith("gap:"):
+            raise ValueError(
+                f"{ctx} has both youtube_id and planned_title — clear planned_title to attach the video")
         yt = f"gap:{i}"
         start = end = None
     else:
@@ -853,11 +860,17 @@ def _upsert_path_conn(c: sqlite3.Connection, slug: str, name: str, blurb: Option
     transaction. No locking, no commit — same no-lock-helper idiom as
     `_upsert_category_conn`, so bulk_apply_paths can upsert N paths inside its
     own single transaction without re-entering _WRITE_LOCK (NOT reentrant).
+
+    `enabled` is TRI-STATE: True/False set the bit; None PRESERVES the stored
+    value on update (new rows default to enabled). The published/draft bit is
+    the whole members-never-see-drafts property — a re-apply payload that
+    doesn't mention `enabled` must never silently publish a draft or unpublish
+    a live path (the same trap update_path guards for PATCH).
     Returns the path id."""
     now = int(time.time())
-    en = 1 if enabled else 0
     row = c.execute("SELECT id FROM edu_paths WHERE slug = ?", (slug,)).fetchone()
     if row is None:
+        en = 1 if (enabled is None or enabled) else 0
         cur = c.execute(
             """INSERT INTO edu_paths (slug, name, blurb, kind, sort_order, enabled, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -865,11 +878,18 @@ def _upsert_path_conn(c: sqlite3.Connection, slug: str, name: str, blurb: Option
         )
         return cur.lastrowid
     path_id = row["id"]
-    c.execute(
-        """UPDATE edu_paths SET name = ?, blurb = ?, kind = ?, sort_order = ?,
-           enabled = ?, updated_at = ? WHERE id = ?""",
-        (name, blurb, kind, sort_order, en, now, path_id),
-    )
+    if enabled is None:
+        c.execute(
+            """UPDATE edu_paths SET name = ?, blurb = ?, kind = ?, sort_order = ?,
+               updated_at = ? WHERE id = ?""",
+            (name, blurb, kind, sort_order, now, path_id),
+        )
+    else:
+        c.execute(
+            """UPDATE edu_paths SET name = ?, blurb = ?, kind = ?, sort_order = ?,
+               enabled = ?, updated_at = ? WHERE id = ?""",
+            (name, blurb, kind, sort_order, 1 if enabled else 0, now, path_id),
+        )
     return path_id
 
 
@@ -895,7 +915,9 @@ def bulk_apply_paths(paths: list[dict]) -> dict:
             "blurb": p.get("blurb"),
             "kind": p.get("kind") or "track",
             "sort_order": p.get("sort_order") or 0,
-            "enabled": p.get("enabled", True),
+            # Tri-state: absent/None = preserve the stored published/draft bit
+            # on upsert (new rows default enabled) — see _upsert_path_conn.
+            "enabled": p.get("enabled"),
             "steps": steps,
         })
     path_count, step_count = 0, 0

@@ -32,8 +32,14 @@ LIVE_SLUGS = {"foundations", "risk", "reading-market", "setups-playbook",
               "options-flow", "mental-game-s1"}
 SLUG_RENAMES = {"options-flow": "options-flow-v2"}
 
-# First "Watch from H:MM:SS" / "Watch from MM:SS" in a chapter note → seconds.
-_WATCH_RE = re.compile(r"[Ww]atch (?:again )?from (\d+):(\d{2})(?::(\d{2}))?")
+# First authored start point in a chapter note → seconds. The notes use many
+# phrasings ("Watch from 22:20", "Watch 16:45", "Skip to 1:05:00", "jump to
+# 1:24", "begins at 1:00", "starts at 13:20") — all mean "seek here". Only a
+# leading verb phrase matches, so incidental times mid-sentence never do.
+_WATCH_RE = re.compile(
+    r"(?:[Ww]atch(?:\s+again)?(?:\s+from)?|[Ss]kip\s+to|[Jj]ump\s+to|"
+    r"[Bb]egin(?:s)?\s+at|[Ss]tart(?:s|ing)?\s+(?:at|from))\s+"
+    r"(\d+):(\d{2})(?::(\d{2}))?")
 
 
 def _start_seconds(note: str):
@@ -111,6 +117,9 @@ def build_payload() -> dict:
         })
 
     # ── Gates: fail loudly before anything could ship ─────────────────────
+    slugs = [p["slug"] for p in paths]
+    if len(set(slugs)) != len(slugs):
+        problems.append(f"duplicate slugs within the payload: {sorted(s for s in slugs if slugs.count(s) > 1)}")
     for p in paths:
         if p["slug"] in LIVE_SLUGS:
             problems.append(f"slug {p['slug']!r} collides with a LIVE member path")
@@ -128,17 +137,37 @@ def build_payload() -> dict:
     return {"paths": paths}
 
 
+# One-shot stamp: after the drafts land in prod, the DB is the source of
+# truth (the owner edits/attaches/enables in the PathView editor). A re-run
+# of --execute would clobber every owner edit and re-disable an enabled
+# course (the rail is full-replace by slug), so it refuses behind the stamp.
+APPLIED_STAMP = os.path.join(TOUT, ".curriculum_paths_applied")
+
+
 def main() -> None:
+    # Windows consoles default to cp1252 — never let a success print crash
+    # the apply rail over an arrow character.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     payload = build_payload()
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:
         json.dump(payload, f, indent=1, ensure_ascii=False)
     total = sum(len(p["steps"]) for p in payload["paths"])
     seeks = sum(1 for p in payload["paths"] for s in p["steps"] if s.get("start_seconds"))
-    print(f"payload OK → {OUT}")
+    print(f"payload OK -> {OUT}")
     print(f"paths: {len(payload['paths'])} (all drafts) | steps: {total} | planned: 20 | start_seconds: {seeks}")
     if "--execute" not in sys.argv:
         print("dry build only — pass --execute to POST to prod (AFTER the code deploy is live)")
         return
+    if os.path.exists(APPLIED_STAMP) and "--force" not in sys.argv:
+        raise SystemExit(
+            "REFUSED: the curriculum drafts were already applied "
+            f"({APPLIED_STAMP} exists). Re-applying would WIPE every owner edit "
+            "made in the PathView editor and re-disable any enabled course. "
+            "Edit courses in the product, not by re-running this script. "
+            "If you truly mean to reset prod to this payload, pass --force.")
     import requests
     from dotenv import load_dotenv
     load_dotenv(r"C:\Users\Patrick\uct-dashboard\.env")
@@ -153,6 +182,9 @@ def main() -> None:
         timeout=120,
     )
     print("HTTP", r.status_code, r.text[:300])
+    if r.status_code == 200:
+        with open(APPLIED_STAMP, "w", encoding="utf-8") as f:
+            f.write("applied\n")
     sys.exit(0 if r.status_code == 200 else 1)
 
 

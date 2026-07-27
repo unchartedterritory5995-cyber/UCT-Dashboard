@@ -134,6 +134,20 @@ test('a draft course never claims the starter strip', () => {
   expect(screen.queryByText(/New here\?/)).toBeNull()
 })
 
+test('an ENABLED zero-lesson path (admin view) does not crash the landing or claim the starter', () => {
+  mockPaths = {
+    paths: [
+      {
+        id: 9, slug: 'empty-live', name: 'Empty Live', kind: 'track',
+        sort_order: 0, enabled: 1,
+        steps: [{ youtube_id: 'zzUNRESOLVEDz', module_label: null, note: null, planned_title: null }],
+      },
+    ],
+  }
+  renderSection(['/desk'])
+  expect(screen.queryByText(/New here\?/)).toBeNull()
+})
+
 /* ── Syllabus (view mode) ────────────────────────────────────────────────── */
 
 test('planned row renders inert with its title, note, and To-record chip — and is not playable', () => {

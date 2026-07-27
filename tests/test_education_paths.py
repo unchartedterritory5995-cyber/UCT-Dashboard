@@ -461,10 +461,20 @@ def test_planned_step_stores_gap_sentinel_and_round_trips(svc):
                         "planned_title": "Reading the Regime Dial"}
 
 
-def test_planned_step_forces_canonical_sentinel_over_supplied_youtube_id(svc):
+def test_planned_step_with_real_youtube_id_is_ambiguous_and_rejected(svc):
+    p = _path(svc)
+    with pytest.raises(ValueError, match="both youtube_id and planned_title"):
+        svc.replace_path_steps(p["id"], [
+            {"youtube_id": "realvid12345", "planned_title": "Planned"},
+        ])
+
+
+def test_planned_step_gap_echo_renormalizes_to_position(svc):
+    # A GET echo sends the stored gap:<pos> back — legitimate, and the
+    # sentinel re-derives from the CURRENT position after any reorder.
     p = _path(svc)
     svc.replace_path_steps(p["id"], [
-        {"youtube_id": "stale-id", "planned_title": "Planned"},
+        {"youtube_id": "gap:5", "planned_title": "Planned"},
     ])
     step = svc.list_paths(include_disabled=True)[0]["steps"][0]
     assert step["youtube_id"] == "gap:0"
@@ -553,3 +563,58 @@ def test_init_db_alters_planned_title_onto_a_pre_existing_table(tmp_path, monkey
     with contextlib.closing(es._connect()) as c:
         cols = {r["name"] for r in c.execute("PRAGMA table_info(edu_path_steps)")}
     assert "planned_title" in cols and "start_seconds" in cols
+
+
+# ── bulk_apply enabled tri-state (draft-safety, 2026-07-27 review fix) ───────
+
+def test_bulk_apply_omitted_enabled_preserves_draft_state(svc):
+    svc.bulk_apply_paths([
+        {"slug": "draft", "name": "Draft", "kind": "course", "enabled": False,
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    # A steps-only re-apply (no enabled key) must NOT publish the draft.
+    svc.bulk_apply_paths([
+        {"slug": "draft", "name": "Draft v2", "kind": "course",
+         "steps": [{"youtube_id": "ok123456789"}, {"youtube_id": "ok223456789"}]},
+    ])
+    p = svc.list_paths(include_disabled=True)[0]
+    assert p["enabled"] == 0 and p["name"] == "Draft v2" and len(p["steps"]) == 2
+    assert svc.list_paths() == []
+
+
+def test_bulk_apply_none_enabled_preserves_live_state(svc):
+    svc.bulk_apply_paths([
+        {"slug": "live", "name": "Live", "kind": "track", "enabled": True,
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    # Explicit None (a JSON null) is "not specified", NEVER "disable".
+    svc.bulk_apply_paths([
+        {"slug": "live", "name": "Live", "kind": "track", "enabled": None,
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    assert svc.list_paths()[0]["enabled"] == 1
+
+
+def test_bulk_apply_explicit_enabled_still_sets_both_ways(svc):
+    svc.bulk_apply_paths([
+        {"slug": "p", "name": "P", "kind": "track", "enabled": False,
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    svc.bulk_apply_paths([
+        {"slug": "p", "name": "P", "kind": "track", "enabled": True,
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    assert svc.list_paths()[0]["enabled"] == 1
+    svc.bulk_apply_paths([
+        {"slug": "p", "name": "P", "kind": "track", "enabled": False,
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    assert svc.list_paths() == []
+
+
+def test_bulk_apply_new_path_without_enabled_defaults_live(svc):
+    svc.bulk_apply_paths([
+        {"slug": "fresh", "name": "Fresh", "kind": "track",
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    assert svc.list_paths()[0]["enabled"] == 1

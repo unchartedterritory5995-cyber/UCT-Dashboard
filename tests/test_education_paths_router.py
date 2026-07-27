@@ -374,3 +374,29 @@ def test_paths_apply_carries_planned_steps(push_client, svc):
     p = svc.list_paths(include_disabled=True)[0]
     assert p["enabled"] == 0
     assert p["steps"][1]["planned_title"] == "Welcome to UCT Foundations"
+
+
+def test_paths_apply_omitted_and_null_enabled_preserve_stored_state(push_client, svc):
+    svc.bulk_apply_paths([
+        {"slug": "draft", "name": "Draft", "kind": "course", "enabled": False,
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    # Omitted key through the ROUTER (pydantic default) must preserve draft.
+    r = push_client.post("/api/education/paths-apply", json={"paths": [
+        {"slug": "draft", "name": "Draft", "kind": "course",
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ]})
+    assert r.status_code == 200
+    assert svc.list_paths(include_disabled=True)[0]["enabled"] == 0
+    # Explicit JSON null likewise preserves (never coerces to disable).
+    svc.bulk_apply_paths([
+        {"slug": "live", "name": "Live", "kind": "track", "enabled": True,
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    r2 = push_client.post("/api/education/paths-apply", json={"paths": [
+        {"slug": "live", "name": "Live", "kind": "track", "enabled": None,
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ]})
+    assert r2.status_code == 200
+    slugs = {p["slug"]: p["enabled"] for p in svc.list_paths(include_disabled=True)}
+    assert slugs["live"] == 1 and slugs["draft"] == 0

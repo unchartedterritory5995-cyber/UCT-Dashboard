@@ -621,7 +621,11 @@ class PathApplyIn(BaseModel):
     blurb: Optional[str] = None
     kind: Optional[str] = None
     sort_order: Optional[int] = None
-    enabled: Optional[bool] = True
+    # Tri-state: omitted OR null = PRESERVE the stored published/draft bit on
+    # an existing path (new paths default enabled). Explicit true/false sets
+    # it. A steps-only re-apply must never silently publish a draft (19
+    # placeholder rows to every member) or unpublish a live course.
+    enabled: Optional[bool] = None
     steps: list[PathApplyStepIn] = []
 
 
