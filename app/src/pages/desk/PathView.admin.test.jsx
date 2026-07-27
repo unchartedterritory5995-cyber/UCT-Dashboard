@@ -179,6 +179,9 @@ test('a member sees no Edit on PathView and no New/Delete on the landing', () =>
   const first = renderSection(['/desk?path=foundations'])
   expect(screen.getByRole('heading', { level: 2, name: 'Foundations' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+  // The member header DOM is byte-identical to pre-Task-6: the admin-only
+  // kindRow wrapper (host of the Edit pill) must not exist at all.
+  expect(document.querySelector('[class*="kindRow"]')).toBeNull()
   first.unmount()
   renderSection(['/desk'])
   expect(screen.getByRole('heading', { level: 2, name: 'Courses' })).toBeTruthy()
@@ -204,6 +207,8 @@ test('a member cannot open a sub-2-lesson path; an admin can (editor reachabilit
 
 test('Edit unlocks the syllabus: meta inputs + per-row controls; Cancel discards the draft', () => {
   renderSection(['/desk?path=foundations'])
+  // The admin view-mode header hosts the Edit pill inside the kindRow wrapper.
+  expect(document.querySelector('[class*="kindRow"]')).toBeTruthy()
   enterEdit()
   expect(screen.getByLabelText('Name').value).toBe('Foundations')
   expect(screen.getByLabelText('Blurb').value).toBe('The essentials, in order.')
@@ -279,6 +284,17 @@ test('meta PATCH fires only when changed and carries ONLY the changed fields', a
   const patches = callsTo('PATCH', '/api/education/paths/1')
   expect(patches).toHaveLength(1)
   expect(bodyOf(patches[0])).toEqual({ name: 'Foundations II', kind: 'track' }) // blurb omitted
+  expect(callsTo('PUT', '/api/education/paths/1/steps')).toHaveLength(1)
+})
+
+test('a stored blurb with incidental whitespace fires NO spurious PATCH on an untouched Save', async () => {
+  const data = pathsFixture()
+  data.paths[0].blurb = '  The essentials, in order.  ' // whitespace in store
+  mockPaths = data
+  renderSection(['/desk?path=foundations'])
+  enterEdit()
+  await clickSave()
+  expect(callsTo('PATCH', '/api/education/paths/1')).toHaveLength(0) // both sides trimmed
   expect(callsTo('PUT', '/api/education/paths/1/steps')).toHaveLength(1)
 })
 

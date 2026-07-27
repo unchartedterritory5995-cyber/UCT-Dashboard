@@ -174,7 +174,9 @@ export default function PathView({
     try {
       const meta = {}
       if (name !== path.name) meta.name = name
-      if ((draft.blurb || '').trim() !== (path.blurb || '')) meta.blurb = draft.blurb.trim()
+      // Trim BOTH sides: a stored blurb with incidental whitespace must not
+      // fire a spurious PATCH on an untouched Save.
+      if ((draft.blurb || '').trim() !== (path.blurb || '').trim()) meta.blurb = draft.blurb.trim()
       if (draft.kind !== (path.kind === 'course' ? 'course' : 'track')) meta.kind = draft.kind
       if (Object.keys(meta).length > 0) {
         const r = await fetch(`/api/education/paths/${path.id}`, {
@@ -371,17 +373,24 @@ export default function PathView({
       </button>
 
       <header className={p.head}>
-        <div className={p.kindRow}>
-          <div className={`${p.kind} ${path.kind === 'course' ? p.kindCourse : ''}`}>
-            {path.kind === 'course' ? 'COURSE' : 'TRACK'}
-          </div>
-          {isAdmin && (
+        {/* The kindRow wrapper exists ONLY for admins (it hosts the Edit
+            pill). Members keep the exact pre-Task-6 DOM — the whole container
+            is gated, mirroring shelfAdminActions on the landing. */}
+        {isAdmin ? (
+          <div className={p.kindRow}>
+            <div className={`${p.kind} ${path.kind === 'course' ? p.kindCourse : ''}`}>
+              {path.kind === 'course' ? 'COURSE' : 'TRACK'}
+            </div>
             <button className={p.editBtn} onClick={beginEdit}>
               <UIcon name="edit" size={13} gold={false} />
               Edit
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className={`${p.kind} ${path.kind === 'course' ? p.kindCourse : ''}`}>
+            {path.kind === 'course' ? 'COURSE' : 'TRACK'}
+          </div>
+        )}
         <h2 className={p.name}>{path.name}</h2>
         {path.blurb && <p className={p.blurb}>{path.blurb}</p>}
         {total > 0 && (
