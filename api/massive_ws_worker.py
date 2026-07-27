@@ -2251,6 +2251,11 @@ async def _run_session(ws):
     _q_cumulative_premium.clear()
     _q_pending_subscribe.clear()
     _q_pending_unsubscribe.clear()
+    # Size-print pins are per-session too. Their deadlines are time.monotonic()-based
+    # so stale entries read as expired (non-sticky) and can't mis-pin a new session --
+    # but without this clear the dict is the ONE pool structure never pruned on reset,
+    # growing one entry per >=Q_STICKY_PREMIUM contract for the life of the process.
+    _q_sticky_until.clear()
     _state["q_subscribed_count"] = 0
     _state["quotes_received"] = 0
 
