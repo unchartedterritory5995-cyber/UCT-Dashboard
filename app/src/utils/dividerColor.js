@@ -125,7 +125,7 @@ export function panelFor(canvasColor) {
  *  on a light canvas, the dark OLED look on a dark one. Returns a style object of
  *  `--menu-*` vars (or null when the color can't be parsed → caller keeps its dark
  *  defaults). The menus' CSS reads these with `var(--menu-x, <dark default>)`. */
-export function menuThemeVars(canvasColor) {
+export function menuThemeVars(canvasColor, opts = {}) {
   const rgb = parseColor(canvasColor)
   if (!rgb) return null
   const light = luminance(rgb) > 0.5
@@ -133,7 +133,7 @@ export function menuThemeVars(canvasColor) {
   const surface    = light ? mix(rgb, W, 0.42) : mix(rgb, W, 0.055)
   const surfaceTop = light ? mix(rgb, W, 0.58) : mix(rgb, W, 0.10)
   const input      = light ? mix(rgb, W, 0.62) : mix(rgb, K, 0.30)
-  return {
+  const base = {
     '--menu-bg': rgbStr(surface),
     '--menu-bg-top': rgbStr(surfaceTop),
     '--menu-input-bg': rgbStr(input),
@@ -147,6 +147,48 @@ export function menuThemeVars(canvasColor) {
     '--menu-hover': light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.055)',
     '--menu-shadow': light ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.7)',
   }
+
+  // GRADIENT canvas: an opaque single-color surface (above) sat as a solid slab
+  // that ignored the canvas gradient — e.g. a green-top/blue-bottom canvas gave a
+  // flat green menu. Instead the menu paints a SEMI-TRANSPARENT copy of the same
+  // canvas gradient as its `--menu-surface`, so the identical green→blue ramp
+  // reads through the popup wherever it opens, and the real background shows
+  // through the alpha. Sub-surfaces (header/inputs/hover) become subtle glass
+  // overlays rather than opaque canvas slabs, so the whole menu stays coherent
+  // instead of dropping solid blocks onto the see-through body. `--menu-surface`
+  // is a separate var (not `--menu-bg`) so the many places that use `--menu-bg`
+  // as a color stop / solid fallback never receive a gradient value.
+  const g = opts.gradient
+  if (g) {
+    const A = parseColor(g.top)
+    const B = parseColor(g.bottom)
+    if (A && B) {
+      const a = Number.isFinite(opts.alpha) ? opts.alpha : 0.55
+      const rgba = (c, al) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${al})`
+      const mid = A.map((v, i) => Math.round((v + B[i]) / 2))
+      const gLight = luminance(mid) > 0.5
+      return {
+        ...base,
+        '--menu-surface': `linear-gradient(to bottom, ${rgba(A, a)} 0%, ${rgba(B, a)} 100%)`,
+        // Header second-stop / solid fallbacks: the gradient's midpoint at the
+        // same alpha, so anything reading --menu-bg tints with the menu instead
+        // of punching an opaque hole in it.
+        '--menu-bg': rgba(mid, a),
+        '--menu-bg-top': rgba(A, Math.min(1, a + 0.1)),
+        '--menu-input-bg': gLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)',
+        '--menu-hover':    gLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.12)',
+        '--menu-border':   gLight ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.16)',
+        '--menu-divider':  gLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.12)',
+        // Ink follows the gradient's overall luminance; the 0.55 tint pulls both
+        // ends toward the midpoint so one color reads on the whole ramp.
+        '--menu-text':       gLight ? '#12202e' : '#f2f2f4',
+        '--menu-text-dim':   gLight ? '#33404d' : '#d0d0d6',
+        '--menu-text-faint': gLight ? '#55626f' : '#a6a6ae',
+        '--menu-shadow': 'rgba(0,0,0,0.45)',
+      }
+    }
+  }
+  return base
 }
 
 /** Divider color for hairlines drawn ON `canvasColor`.

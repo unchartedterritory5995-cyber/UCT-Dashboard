@@ -8548,7 +8548,12 @@ export default function StockChart({
           sym={sym}
           beatColor={cs.markers?.earningsBeat || '#1ae51a'}
           missColor={cs.markers?.earningsMiss || '#c41f2d'}
-          themeVars={menuThemeVars(canvasSample.top) || undefined}
+          themeVars={menuThemeVars(
+            canvasSample.top,
+            (userCanvas && cs.bgMode === 'gradient' && canvasTheme !== 'sunrise')
+              ? { gradient: { top: cs.bgGradient?.top || MB_BG, bottom: cs.bgGradient?.bottom || MB_BG } }
+              : undefined,
+          ) || undefined}
           onClose={() => setEarningsPopup(null)}
         />
       )}

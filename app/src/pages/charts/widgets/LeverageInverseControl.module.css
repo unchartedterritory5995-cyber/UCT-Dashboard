@@ -133,12 +133,16 @@
   width: 316px;
   display: flex;
   flex-direction: column;
-  background: #0c0c0e;
-  border: 1px solid #26262a;
+  /* Canvas-matched via --menu-* vars (set from menuThemeVars), like the other
+     chart popups; the hardcoded values are the dark defaults kept as fallbacks so
+     an unparseable/absent canvas renders unchanged. --menu-surface carries the
+     translucent gradient on a gradient canvas. */
+  background: var(--menu-surface, var(--menu-bg, #0c0c0e));
+  border: 1px solid var(--menu-border, #26262a);
   border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.6));
   font-family: var(--font-sans);
-  color: #e6e6e8;
+  color: var(--menu-text, #e6e6e8);
   overflow: hidden;
   animation: liPanelIn 110ms ease-out;
 }
@@ -160,7 +164,7 @@
   text-transform: uppercase;
   padding: 5px 6px 1px;
 }
-.groupStock { color: #c9a84c; opacity: 0.75; }
+.groupStock { color: var(--menu-accent, #c9a84c); opacity: 0.75; }
 .groupLong { color: var(--li-up, #1ae51a); opacity: 0.75; }
 .groupShort { color: var(--li-down, #ff3b47); opacity: 0.75; }
 
@@ -178,10 +182,10 @@
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  color: #d4d4d6;
+  color: var(--menu-text, #d4d4d6);
 }
-.row:hover { background: #16161a; }
-.rowCurrent { background: #1c1a12; }
+.row:hover { background: var(--menu-hover, #16161a); }
+.rowCurrent { background: var(--menu-accent-bg, #1c1a12); }
 
 .rowTicker {
   flex-shrink: 0;
@@ -192,7 +196,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.3px;
-  color: #c9a84c;
+  color: var(--menu-accent, #c9a84c);
 }
 .rowName {
   flex: 1;
@@ -201,7 +205,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
-  color: #8f8f96;
+  color: var(--menu-text-dim, #8f8f96);
 }
 .rowFactor {
   flex-shrink: 0;
@@ -210,7 +214,7 @@
   letter-spacing: 0.4px;
   padding: 1px 4px;
   border-radius: 3px;
-  border: 1px solid #2b2b2d;
+  border: 1px solid var(--menu-border, #2b2b2d);
 }
 .rowFactorLong { color: #6fbf82; }
 .rowFactorShort { color: #d07a83; }
@@ -221,7 +225,7 @@
   text-align: right;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  color: #9a9aa0;
+  color: var(--menu-text-dim, #9a9aa0);
 }
 .rowBest {
   flex-shrink: 0;
@@ -229,7 +233,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: #c9a84c;
+  color: var(--menu-accent, #c9a84c);
   white-space: nowrap;
 }
 .rowBestPad { flex-shrink: 0; width: 68px; }
@@ -244,6 +248,6 @@
   background: transparent;
 }
 .rowDotOn {
-  background: #c9a84c;
+  background: var(--menu-accent, #c9a84c);
   box-shadow: 0 0 4px rgba(201, 168, 76, 0.6);
 }

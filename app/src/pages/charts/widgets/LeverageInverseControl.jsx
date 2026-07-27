@@ -36,7 +36,7 @@ const PANEL_ROW_H = 30
 const GUTTER = 8
 const GAP = 4
 
-export default function LeverageInverseControl({ sym, onSelect }) {
+export default function LeverageInverseControl({ sym, onSelect, themeVars = null }) {
   const { family, hasFamily } = useSingleStockEtfs(sym)
   // Panel state carries the sym it was opened FOR: `open` derives false the
   // moment the ticker changes under us (via this control or any other path),
@@ -217,7 +217,7 @@ export default function LeverageInverseControl({ sym, onSelect }) {
         <div
           ref={panelRef}
           className={styles.panel}
-          style={{ top: panel.top, left: panel.left, maxHeight: panel.maxHeight }}
+          style={{ ...(themeVars || {}), top: panel.top, left: panel.left, maxHeight: panel.maxHeight }}
           role="menu"
           aria-label={`${family.underlying} single-stock ETFs`}
         >

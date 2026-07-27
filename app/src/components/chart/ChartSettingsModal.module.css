@@ -21,7 +21,9 @@
   height: min(568px, 88vh);
   display: flex;
   flex-direction: column;
-  background: var(--menu-bg, #0e0e10);
+  /* --menu-surface = translucent canvas gradient (gradient canvas only); solid
+     canvases leave it unset and fall back to the opaque --menu-bg. */
+  background: var(--menu-surface, var(--menu-bg, #0e0e10));
   border: 1px solid var(--menu-border, #242426);
   border-radius: 12px;
   box-shadow:

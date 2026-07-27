@@ -216,7 +216,16 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const menuCanvasColor = chartsTheme === 'sunrise'
     ? '#eaf3fb'
     : (chartCs.bgMode === 'gradient' ? (chartCs.bgGradient?.top || chartCs.background) : chartCs.background)
-  const menuVars = useMemo(() => menuThemeVars(menuCanvasColor) || {}, [menuCanvasColor])
+  // On a user GRADIENT canvas the popups paint a translucent copy of that same
+  // gradient so they read as part of the chart wherever they open, instead of a
+  // flat slab of the top color. Sunrise keeps its solid light treatment.
+  const menuGradient = (chartsTheme !== 'sunrise' && chartCs.bgMode === 'gradient' && chartCs.bgGradient)
+    ? { top: chartCs.bgGradient.top, bottom: chartCs.bgGradient.bottom }
+    : null
+  const menuVars = useMemo(
+    () => menuThemeVars(menuCanvasColor, menuGradient ? { gradient: menuGradient } : undefined) || {},
+    [menuCanvasColor, menuGradient?.top, menuGradient?.bottom],
+  )
 
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
@@ -575,7 +584,7 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
         )}
         <div className={styles.tfBarRight}>
           {!themeIdx.isIndex && (
-            <LeverageInverseControl sym={sym} onSelect={handleSymbolChange} />
+            <LeverageInverseControl sym={sym} onSelect={handleSymbolChange} themeVars={menuVars} />
           )}
           {/* Add-tab entry point — only when the strip isn't showing yet (0 extra
               tabs). Once a tab exists, the strip's own + button takes over. */}

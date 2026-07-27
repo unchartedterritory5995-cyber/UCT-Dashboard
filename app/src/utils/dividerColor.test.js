@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseColor, luminance, dividerFor, panelFor, toolbarFor, sampleGradient } from './dividerColor'
+import { parseColor, luminance, dividerFor, panelFor, toolbarFor, sampleGradient, menuThemeVars } from './dividerColor'
 
 // Gridlines/hairlines were authored as fixed near-white and vanish on a light canvas.
 // dividerFor picks the contrasting side. The null return is load-bearing: it means
@@ -174,5 +174,51 @@ describe('sampleGradient', () => {
   it('returns null if either stop is unparseable', () => {
     expect(sampleGradient('#000000', 'nope', 0.5)).toBeNull()
     expect(sampleGradient(null, '#ffffff', 0.5)).toBeNull()
+  })
+})
+
+
+describe('menuThemeVars — gradient canvas', () => {
+  it('solid canvas is unchanged: opaque --menu-bg, no --menu-surface', () => {
+    const v = menuThemeVars('#0e0f0d')
+    expect(v['--menu-surface']).toBeUndefined()
+    expect(v['--menu-bg']).toMatch(/^rgb\(/)            // opaque, not rgba
+  })
+
+  it('gradient canvas paints a translucent gradient surface at the given alpha', () => {
+    const v = menuThemeVars('#0e5a1a', { gradient: { top: '#0e5a1a', bottom: '#001e5a' }, alpha: 0.55 })
+    // The green→blue ramp, both stops at 0.55, is what reads through the popup.
+    expect(v['--menu-surface']).toBe(
+      'linear-gradient(to bottom, rgba(14, 90, 26, 0.55) 0%, rgba(0, 30, 90, 0.55) 100%)',
+    )
+    // --menu-bg is now translucent (the midpoint) so anything using it as a solid
+    // fallback tints with the glass instead of punching an opaque hole.
+    expect(v['--menu-bg']).toMatch(/^rgba\(.*0\.55\)$/)
+  })
+
+  it('defaults alpha to 0.55 when unspecified', () => {
+    const v = menuThemeVars('#0e5a1a', { gradient: { top: '#0e5a1a', bottom: '#001e5a' } })
+    expect(v['--menu-surface']).toContain('0.55')
+  })
+
+  it('a dark-ish gradient gets light ink', () => {
+    const v = menuThemeVars('#0e5a1a', { gradient: { top: '#0e5a1a', bottom: '#001e5a' } })
+    expect(v['--menu-text']).toBe('#f2f2f4')
+  })
+
+  it('a light gradient gets dark ink', () => {
+    const v = menuThemeVars('#eaf1fa', { gradient: { top: '#eaf1fa', bottom: '#ffffff' } })
+    expect(v['--menu-text']).toBe('#12202e')
+  })
+
+  it('unparseable gradient stops fall back to the solid surface', () => {
+    const v = menuThemeVars('#0e0f0d', { gradient: { top: 'var(--x)', bottom: '#001e5a' } })
+    expect(v['--menu-surface']).toBeUndefined()
+    expect(v['--menu-bg']).toMatch(/^rgb\(/)
+  })
+
+  it('keeps the gold accent through the gradient branch', () => {
+    const v = menuThemeVars('#0e5a1a', { gradient: { top: '#0e5a1a', bottom: '#001e5a' } })
+    expect(v['--menu-accent']).toBe('#c9a84c')
   })
 })

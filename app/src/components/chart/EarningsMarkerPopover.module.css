@@ -6,7 +6,9 @@
   position: fixed;
   z-index: 9200;
   width: 232px;
-  background: var(--menu-bg, #0c0c0e);
+  /* --menu-surface carries the translucent canvas gradient (gradient canvas
+     only); solid canvases leave it unset and fall back to the opaque --menu-bg. */
+  background: var(--menu-surface, var(--menu-bg, #0c0c0e));
   border: 1px solid var(--menu-border, #26262a);
   border-radius: 10px;
   box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.6));
