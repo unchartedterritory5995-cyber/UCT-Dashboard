@@ -163,7 +163,7 @@ export function menuThemeVars(canvasColor, opts = {}) {
     const A = parseColor(g.top)
     const B = parseColor(g.bottom)
     if (A && B) {
-      const a = Number.isFinite(opts.alpha) ? opts.alpha : 0.55
+      const a = Number.isFinite(opts.alpha) ? opts.alpha : 0.82
       const rgba = (c, al) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${al})`
       const mid = A.map((v, i) => Math.round((v + B[i]) / 2))
       const gLight = luminance(mid) > 0.5

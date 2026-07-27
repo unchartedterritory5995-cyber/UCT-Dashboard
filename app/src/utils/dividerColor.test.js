@@ -196,9 +196,9 @@ describe('menuThemeVars — gradient canvas', () => {
     expect(v['--menu-bg']).toMatch(/^rgba\(.*0\.55\)$/)
   })
 
-  it('defaults alpha to 0.55 when unspecified', () => {
+  it('defaults alpha to 0.82 when unspecified', () => {
     const v = menuThemeVars('#0e5a1a', { gradient: { top: '#0e5a1a', bottom: '#001e5a' } })
-    expect(v['--menu-surface']).toContain('0.55')
+    expect(v['--menu-surface']).toContain('0.82')
   })
 
   it('a dark-ish gradient gets light ink', () => {
