@@ -34,10 +34,16 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
     const el = bodyRef.current
     if (!el) return
     const win = el.ownerDocument.defaultView   // the POPPED window
-    // popoutBody has 6px padding on each side; the grid gets the content width.
+    // Measure the WINDOW's viewport, not the element. The popup's stylesheets are
+    // copied in asynchronously, so el.clientWidth is briefly a collapsed value at
+    // first paint (which jammed all 24 columns into a ~90px sliver). innerWidth/
+    // innerHeight are correct immediately and independent of inner-CSS timing.
+    // The board fills the window minus popoutBody's 6px padding each side (12).
     const measure = () => {
-      setRowHeight(computeRowHeight(el.clientHeight))
-      setGridWidth(Math.max(0, el.clientWidth - 12))
+      const w = win.innerWidth || el.clientWidth
+      const h = win.innerHeight || el.clientHeight
+      setRowHeight(computeRowHeight(h))
+      setGridWidth(Math.max(0, w - 12))
     }
     measure()
     // Track resize in the POPPED window's OWN realm. A ResizeObserver created in
