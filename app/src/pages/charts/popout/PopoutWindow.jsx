@@ -48,6 +48,8 @@ export default function PopoutWindow({
     }
 
     win.document.title = title
+    relabelAddressBar(win)
+
     const mount = win.document.createElement('div')
     mount.className = 'uct-popout-root'
     win.document.body.appendChild(mount)
@@ -97,6 +99,26 @@ export default function PopoutWindow({
   }, [container, title])
 
   return container ? createPortal(children, container) : null
+}
+
+/**
+ * Relabel the popup's address strip from "about:blank" to the app's own URL.
+ *
+ * Chrome shows the origin on every popup as anti-spoofing protection and a page
+ * cannot hide it (`location=no` has been ignored for years), so the strip stays
+ * either way. But an about:blank popup opened by same-origin script INHERITS the
+ * opener's origin, which makes a same-origin replaceState legal — it rewrites
+ * what the strip displays without navigating. Navigating for real would load the
+ * SPA and boot a second copy of the app in every popped window, each with its own
+ * stream pool, which is the whole thing the portal approach avoids.
+ */
+function relabelAddressBar(win) {
+  try {
+    win.history.replaceState({}, '', `${window.location.origin}/charts`)
+  } catch {
+    // Some browsers refuse replaceState on about:blank — the strip just keeps
+    // its default text, which is cosmetic only.
+  }
 }
 
 /**

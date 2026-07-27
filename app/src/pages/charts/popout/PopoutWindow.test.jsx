@@ -14,6 +14,7 @@ function makeFakeWindow() {
     removeEventListener: (type, fn) => {
       listeners[type] = (listeners[type] || []).filter(f => f !== fn)
     },
+    history: { replaceState: vi.fn() },
     close: vi.fn(function () { this.closed = true }),
     _fire: (type) => (listeners[type] || []).forEach(fn => fn()),
   }
@@ -115,6 +116,30 @@ describe('PopoutWindow', () => {
 
     expect(openSpy).toHaveBeenCalledTimes(1)
     expect(fake.document.body.textContent).toContain('c')
+  })
+
+  it('relabels the address strip to the app URL instead of about:blank', () => {
+    const fake = makeFakeWindow()
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+
+    render(<PopoutWindow><p>x</p></PopoutWindow>)
+
+    // Chrome won't let the strip be hidden, so it's relabelled in place. It must
+    // be a replaceState, NOT a navigation — loading the URL would boot a second
+    // copy of the app in the popup.
+    expect(fake.history.replaceState).toHaveBeenCalledWith(
+      {}, '', `${window.location.origin}/charts`,
+    )
+  })
+
+  it('still opens the window if relabelling the strip is refused', () => {
+    const fake = makeFakeWindow()
+    fake.history.replaceState = vi.fn(() => { throw new Error('SecurityError') })
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+
+    render(<PopoutWindow><p>cosmetic only</p></PopoutWindow>)
+
+    expect(fake.document.body.textContent).toContain('cosmetic only')
   })
 
   it('copies the opener stylesheets so the popup is not unstyled', () => {
