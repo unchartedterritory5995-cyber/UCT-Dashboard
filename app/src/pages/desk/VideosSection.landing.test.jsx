@@ -18,11 +18,17 @@ vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({ user: { role: mockRole || 'pro-user' } }),
 }))
 
-// Controllable SWR payload per test (desk-threads and other keys stay empty).
+// Controllable SWR payloads per test (desk-threads and other keys stay empty).
 let mockData = null
+let mockPaths = null
 vi.mock('swr', () => ({
   default: (key) => ({
-    data: key === '/api/education/videos' ? mockData : null,
+    data:
+      key === '/api/education/videos'
+        ? mockData
+        : key === '/api/education/paths'
+          ? mockPaths
+          : null,
     error: null,
     isLoading: false,
     mutate: vi.fn(),
@@ -45,7 +51,9 @@ vi.mock('../../components/video/VideoDockSlot', () => ({
   default: () => <div data-testid="dock-slot" />,
 }))
 
-import VideosSection, { fmtSeekTime, renderSnippet } from './VideosSection'
+import VideosSection, {
+  fmtSeekTime, renderSnippet, parseDuration, fmtCourseDuration,
+} from './VideosSection'
 import Shelf, { showGlyphName } from './Shelf'
 import { play } from '../../components/video/videoStore'
 
@@ -93,9 +101,37 @@ const fixture = () => ({
   ],
 })
 
+// Courses fixture — steps resolve against the video fixture's youtube_ids.
+// 'foundations' resolves 3 lessons; 'risk' carries one unknown id (skipped →
+// 2 lessons). Video durations in the base fixture: only the two Live Trading
+// videos carry one, so neither path clears the 70% duration-coverage bar.
+const pathsFixture = () => ({
+  paths: [
+    {
+      id: 1, slug: 'foundations', name: 'Foundations', kind: 'course', sort_order: 0,
+      blurb: 'The essentials, in order.',
+      steps: [
+        { youtube_id: 'lib0000000a', module_label: null, note: null },
+        { youtube_id: 'lib0000000b', module_label: null, note: null },
+        { youtube_id: 'lts0000000a', module_label: null, note: null },
+      ],
+    },
+    {
+      id: 2, slug: 'risk', name: 'Risk & Discipline', kind: 'track', sort_order: 1,
+      blurb: 'Protect capital first.',
+      steps: [
+        { youtube_id: 'lib0000000c', module_label: null, note: null },
+        { youtube_id: 'zzUNKNOWNzz', module_label: null, note: null },
+        { youtube_id: 'evn0000000a', module_label: null, note: null },
+      ],
+    },
+  ],
+})
+
 beforeEach(() => {
   mockRole = null
   mockData = fixture()
+  mockPaths = { paths: [] } // course tests opt in explicitly
   mockProgress = {}
   play.mockClear()
 })
@@ -858,4 +894,251 @@ test('cards without episode_label keep their meta byte-unchanged', () => {
   const showRail = screen.getByRole('list', { name: 'Live Trading Sessions' })
   expect(within(showRail).getByText('Jul 24, 2025')).toBeTruthy()
   expect(within(showRail).queryByText(/·/)).toBeNull() // no separator sneaks in
+})
+
+/* ── Courses (Task 4) — DB-backed paths replace the Learning Paths block ─── */
+
+const courseCard = (name) =>
+  screen.getByRole('button', { name: new RegExp(name) })
+
+test('course cards render from /paths: kind eyebrow, name, 1-line blurb, lesson count; unknown ids skipped', () => {
+  mockPaths = pathsFixture()
+  renderSection()
+  const head = screen.getByRole('heading', { level: 2, name: 'Courses' })
+  expect(head.parentElement.textContent).toContain('2') // section count
+  const foundations = courseCard('Foundations')
+  expect(within(foundations).getByText('COURSE')).toBeTruthy()
+  expect(within(foundations).getByText('The essentials, in order.')).toBeTruthy()
+  expect(within(foundations).getByText('3 lessons')).toBeTruthy()
+  // 'risk' carries one unknown youtube_id → skipped → 2 resolved lessons.
+  const risk = courseCard('Risk & Discipline')
+  expect(within(risk).getByText('TRACK')).toBeTruthy()
+  expect(within(risk).getByText('2 lessons')).toBeTruthy()
+  // Cards never autoplay — clicking is navigation (covered below), not play.
+  expect(play).not.toHaveBeenCalled()
+})
+
+test('a path resolving fewer than 2 lessons is hidden; all-hidden drops the section', () => {
+  const data = pathsFixture()
+  data.paths[0].steps = [
+    { youtube_id: 'lib0000000a', module_label: null, note: null },
+    { youtube_id: 'zzMISSINGzz', module_label: null, note: null },
+    { youtube_id: 'zzMISSING2z', module_label: null, note: null },
+  ] // only 1 resolves → hidden
+  mockPaths = data
+  renderSection()
+  expect(screen.queryByRole('button', { name: /Foundations/ })).toBeNull()
+  const head = screen.getByRole('heading', { level: 2, name: 'Courses' })
+  expect(head.parentElement.textContent).toContain('1') // risk survives
+  // Nothing resolves ≥2 → the whole section disappears.
+  mockPaths = { paths: [data.paths[0]] }
+  renderSection()
+  expect(screen.queryAllByRole('heading', { level: 2, name: 'Courses' })).toHaveLength(1) // only 1st render's
+})
+
+test('duration total appears at ≥70% parseable coverage and hides below it', () => {
+  const data = fixture()
+  data.categories[2].videos[0].duration = '10:00' // lib0000000a
+  data.categories[2].videos[1].duration = '20:00' // lib0000000b
+  mockData = data // lts0000000a already carries 1:02:11 → 3/3 parseable
+  mockPaths = pathsFixture()
+  renderSection()
+  // 600 + 1200 + 3731 = 5531s → 92 min → "~1h 32m".
+  expect(within(courseCard('Foundations')).getByText('3 lessons · ~1h 32m')).toBeTruthy()
+  // risk: 0/2 parseable → bare lesson count.
+  expect(within(courseCard('Risk & Discipline')).getByText('2 lessons')).toBeTruthy()
+})
+
+test('duration coverage of 2/3 (66.7%) is under the 70% bar — no total shown', () => {
+  const data = fixture()
+  data.categories[2].videos[0].duration = '10:00'
+  data.categories[2].videos[1].duration = '20:00'
+  data.categories[0].videos[0].duration = undefined // lts0000000a loses its duration
+  mockData = data
+  mockPaths = pathsFixture()
+  renderSection()
+  expect(within(courseCard('Foundations')).getByText('3 lessons')).toBeTruthy()
+  expect(within(courseCard('Foundations')).queryByText(/~/)).toBeNull()
+})
+
+test('progress math: unstarted cards carry no bar/count; partial shows "n of M" + bar width; all-done shows full', () => {
+  mockPaths = pathsFixture()
+  mockProgress = { lib0000000a: { done: true, t: 600, d: 610, at: 5 } }
+  renderSection()
+  const foundations = courseCard('Foundations')
+  expect(within(foundations).getByText('1 of 3')).toBeTruthy()
+  expect(foundations.querySelector('[class*="pathBarFill"]').style.width).toBe('33%')
+  // risk untouched → no progress row at all.
+  const risk = courseCard('Risk & Discipline')
+  expect(within(risk).queryByText(/ of /)).toBeNull()
+  expect(risk.querySelector('[class*="pathBarFill"]')).toBeNull()
+  // All three done → "3 of 3", full bar (and the strip hides — tested below).
+  mockProgress = {
+    lib0000000a: { done: true, t: 1, d: 2, at: 1 },
+    lib0000000b: { done: true, t: 1, d: 2, at: 2 },
+    lts0000000a: { done: true, t: 1, d: 2, at: 3 },
+  }
+  renderSection()
+  const cards = screen.getAllByRole('button', { name: /Foundations/ })
+  const doneCard = cards[cards.length - 1] // second render
+  expect(within(doneCard).getByText('3 of 3')).toBeTruthy()
+  expect(doneCard.querySelector('[class*="pathBarFill"]').style.width).toBe('100%')
+})
+
+/* ── Continue-your-course strip — mid-progress only, resumes correctly ───── */
+
+const strip = () => screen.queryByRole('region', { name: 'Continue your course' })
+
+test('strip is hidden with no progress and hidden again once every lesson is done', () => {
+  mockPaths = pathsFixture()
+  renderSection()
+  expect(strip()).toBeNull() // nothing started
+  mockProgress = {
+    lib0000000a: { done: true, t: 1, d: 2, at: 1 },
+    lib0000000b: { done: true, t: 1, d: 2, at: 2 },
+    lts0000000a: { done: true, t: 1, d: 2, at: 3 },
+  }
+  renderSection()
+  expect(strip()).toBeNull() // foundations complete, risk untouched
+})
+
+test('mid-course strip shows the course + first not-done lesson and resumes at its index', () => {
+  mockPaths = pathsFixture()
+  mockProgress = { lib0000000a: { done: true, t: 600, d: 610, at: 5 } }
+  renderSection()
+  const region = strip()
+  expect(region).toBeTruthy()
+  expect(within(region).getByText('Foundations')).toBeTruthy()
+  expect(within(region).getByText('Next: Breadth basics')).toBeTruthy() // first not-done
+  fireEvent.click(within(region).getByRole('button', { name: /Resume/ }))
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5, 1]) // full course order
+  expect(indexArg).toBe(1)
+})
+
+test('an in-progress lesson (t≥8, not done) is preferred over the first not-done', () => {
+  mockPaths = pathsFixture()
+  mockProgress = {
+    lib0000000a: { done: true, t: 600, d: 610, at: 5 },
+    lts0000000a: { done: false, t: 100, d: 3731, at: 9 }, // in progress, index 2
+  }
+  renderSection()
+  const region = strip()
+  expect(within(region).getByText('Next: Session — July 21')).toBeTruthy()
+  fireEvent.click(within(region).getByRole('button', { name: /Resume/ }))
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5, 1])
+  expect(indexArg).toBe(2) // the in-progress step, not firstNotDone (1)
+})
+
+test('with two mid-progress courses the most recently touched one owns the strip', () => {
+  mockPaths = pathsFixture()
+  mockProgress = {
+    lib0000000a: { done: true, t: 600, d: 610, at: 5 }, // foundations, older
+    lib0000000c: { done: false, t: 50, d: 100, at: 99 }, // risk, newer
+  }
+  renderSection()
+  const region = strip()
+  expect(within(region).getByText('Risk & Discipline')).toBeTruthy()
+  fireEvent.click(within(region).getByRole('button', { name: /Resume/ }))
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([6, 3]) // risk's resolved lessons
+  expect(indexArg).toBe(0) // its in-progress step
+})
+
+test('a sub-8-second dabble does not count as started (no strip, no card bar)', () => {
+  mockPaths = pathsFixture()
+  mockProgress = { lib0000000a: { done: false, t: 5, d: 600, at: 5 } }
+  renderSection()
+  expect(strip()).toBeNull()
+  expect(courseCard('Foundations').querySelector('[class*="pathBarFill"]')).toBeNull()
+})
+
+/* ── ?path=<slug> — card click navigates; placeholder + Back (Task 5 stub) ── */
+
+test('card click writes ?path=<slug> by MERGING params and opens the placeholder', () => {
+  mockPaths = pathsFixture()
+  render(
+    <MemoryRouter initialEntries={['/desk?section=videos']}>
+      <VideosSection />
+      <LocationProbe />
+    </MemoryRouter>,
+  )
+  const params = () => new URLSearchParams(screen.getByTestId('loc').textContent)
+  fireEvent.click(courseCard('Foundations'))
+  expect(params().get('path')).toBe('foundations')
+  expect(params().get('section')).toBe('videos') // merged, not clobbered
+  // Placeholder replaces the landing (TODO-Task-5 renders the real PathView).
+  expect(screen.getByRole('heading', { level: 2, name: 'Foundations' })).toBeTruthy()
+  expect(screen.getByText('Syllabus coming next.')).toBeTruthy()
+  expect(screen.queryByRole('list')).toBeNull() // shelves gone
+  expect(screen.queryByRole('tab')).toBeNull() // chip bar gone
+  // Back clears ?path (still merging) and restores the landing.
+  fireEvent.click(screen.getByRole('button', { name: /Back to videos/ }))
+  expect(params().get('path')).toBeNull()
+  expect(params().get('section')).toBe('videos')
+  expect(screen.getByRole('list', { name: 'Recently added' })).toBeTruthy()
+})
+
+test('loading with ?path= directly opens the placeholder; kind eyebrow reads TRACK', () => {
+  mockPaths = pathsFixture()
+  renderSection(['/desk?section=videos&path=risk'])
+  expect(screen.getByRole('heading', { level: 2, name: 'Risk & Discipline' })).toBeTruthy()
+  expect(screen.getByText('TRACK')).toBeTruthy()
+  expect(screen.getByText('Protect capital first.')).toBeTruthy()
+  expect(screen.queryByRole('list')).toBeNull()
+})
+
+test('an unknown ?path= slug is ignored gracefully — the landing renders', () => {
+  mockPaths = pathsFixture()
+  renderSection(['/desk?path=not-a-course'])
+  expect(screen.getByRole('list', { name: 'Recently added' })).toBeTruthy()
+  expect(screen.queryByText('Syllabus coming next.')).toBeNull()
+})
+
+test('VideoDockSlot stays the FIRST child while a course is open', () => {
+  mockPaths = pathsFixture()
+  const { container } = renderSection(['/desk?path=foundations'])
+  expect(container.firstChild.firstChild).toBe(screen.getByTestId('dock-slot'))
+})
+
+test('?v= deep link still autoplays once even with ?path= present (v wins autoplay)', () => {
+  mockPaths = pathsFixture()
+  renderSection(['/desk?v=lib0000000a&path=foundations'])
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5]) // its own category list
+  expect(indexArg).toBe(0)
+  expect(screen.getByText('Syllabus coming next.')).toBeTruthy() // placeholder up too
+})
+
+/* ── Duration helpers + the deleted learningPaths module ────────────────── */
+
+test('parseDuration handles mm:ss and h:mm:ss, rejects everything else', () => {
+  expect(parseDuration('12:34')).toBe(754)
+  expect(parseDuration('58:00')).toBe(3480)
+  expect(parseDuration('1:02:11')).toBe(3731)
+  expect(parseDuration('0:59')).toBe(59)
+  expect(parseDuration('')).toBeNull()
+  expect(parseDuration(undefined)).toBeNull()
+  expect(parseDuration('12')).toBeNull()
+  expect(parseDuration('1:99')).toBeNull()
+  expect(parseDuration('1:99:00')).toBeNull()
+  expect(parseDuration('x:yy')).toBeNull()
+})
+
+test('fmtCourseDuration renders ~Xh Ym with sane rounding', () => {
+  expect(fmtCourseDuration(5531)).toBe('~1h 32m')
+  expect(fmtCourseDuration(3600)).toBe('~1h')
+  expect(fmtCourseDuration(3590)).toBe('~1h') // 59.8 min rounds to 60 → 1h, not 60m
+  expect(fmtCourseDuration(754)).toBe('~13m')
+  expect(fmtCourseDuration(20)).toBe('~1m') // floor at a minute
+})
+
+test('learningPaths.js is fully deleted — no module remains beside VideosSection', () => {
+  // vite statically resolves the glob at transform time: a lingering file (or
+  // its test) would reappear here and fail the build-time contract.
+  const mods = import.meta.glob('./learningPaths*')
+  expect(Object.keys(mods)).toEqual([])
 })

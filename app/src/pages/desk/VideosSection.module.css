@@ -636,44 +636,213 @@
   .deepThumb { width: 104px; }
 }
 
-/* ── Learning paths — quiet single-surface cards under a plain header ────── */
+/* ── Courses — hairline cards on the page background (Learning Paths v2) ───
+   Typography does the work: kind eyebrow, name, one-line blurb, dim meta.
+   Gold is information here, never decoration — the eyebrow reads gold ONLY
+   for the flagship 'course' kind (tracks stay muted), and the thin progress
+   baseline + "n of M" appear once the member has started. */
 .pathsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--space-md);
 }
 .pathCard {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 5px;
+  align-items: stretch;
+  gap: 6px;
   text-align: left;
-  padding: var(--space-lg);
-  border: none;
-  border-radius: 10px;
+  padding: 14px var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   cursor: pointer;
   font-family: var(--font-sans);
-  background: var(--bg-surface);
+  background: none;
   min-height: var(--tap-min);
-  transition: background var(--duration-fast) ease;
+  min-width: 0;
+  transition: background var(--duration-fast) ease, border-color var(--duration-fast) ease;
 }
-.pathCard:hover { background: var(--bg-elevated); }
+.pathCard:hover {
+  background: var(--bg-surface);
+  border-color: var(--border-accent);
+}
+.pathKind {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pathKindCourse { color: var(--ut-gold); }
 .pathName {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-bright);
+}
+.pathBlurb {
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.45;
+  white-space: nowrap; /* one line — the syllabus page tells the full story */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pathMeta {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.pathProgressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  min-width: 0;
+}
+.pathBar {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.pathBarFill {
+  display: block;
+  height: 100%;
+  background: var(--ut-gold);
+}
+.pathCount {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* ── Continue-your-course strip — one quiet surface above Continue Watching ─
+   Gold eyebrow carries the identity; Resume stays a quiet elevated pill (the
+   featured strip right above keeps the landing's single gold CTA). */
+.courseStrip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  min-width: 0;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  padding: 12px var(--space-lg);
+  margin: 0 0 var(--space-xl);
+}
+.courseStripBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.courseStripEyebrow {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ut-gold);
+  opacity: 0.85;
+}
+.courseStripLine {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.courseStripName {
+  flex-shrink: 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-bright);
 }
-.pathBlurb {
+.courseStripNext {
+  min-width: 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
-  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.pathMeta {
+.courseStripResume {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast) ease;
+}
+.courseStripResume:hover { background: var(--border-accent); }
+@media (max-width: 1024px) {
+  .courseStripResume { min-height: var(--tap-min); }
+}
+@media (max-width: 640px) {
+  /* Stack name over next-lesson; both ellipsize inside the strip — the page
+     never scrolls horizontally. */
+  .courseStripLine { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .courseStripName {
+    flex-shrink: 1;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .courseStripNext { max-width: 100%; }
+}
+
+/* ── ?path course view — Task 4 PLACEHOLDER (Task 5 builds the real PathView:
+   syllabus header, module groups, lesson rows, admin editing). Only the Back
+   affordance + name register here are meant to survive. */
+.pathView { padding: var(--space-md) 0 var(--space-2xl); }
+.pathBackBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 3px;
+  margin: 0 0 var(--space-lg) -8px;
+  padding: 4px 8px;
+  min-height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
   font-weight: 500;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+.pathBackBtn:hover { color: var(--text-bright); }
+@media (max-width: 1024px) {
+  .pathBackBtn { min-height: var(--tap-min); }
+}
+.pathViewName {
+  margin: 4px 0 6px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: var(--ls-tight);
+  color: var(--text-heading);
+}
+.pathViewBlurb {
+  margin: 0 0 var(--space-md);
+  max-width: 640px;
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.pathViewNote {
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }

@@ -16,7 +16,6 @@ import { GraduationIcon, PlusIcon, SearchIcon } from '../education/icons'
 import VideoDockSlot from '../../components/video/VideoDockSlot'
 import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot, hydrateFromServer } from './videoProgress'
-import { LEARNING_PATHS } from './learningPaths'
 import FeaturedStrip from './FeaturedStrip'
 import Shelf, { YTCard, useScrollEdges, pageScroller, showGlyphName, ytThumb } from './Shelf'
 import UIcon from '../../components/ui/UIcon'
@@ -44,6 +43,32 @@ export const fmtSeekTime = (t) => {
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
   return h > 0 ? `${h}:${two(m)}:${two(s % 60)}` : `${m}:${two(s % 60)}`
+}
+
+/* ── Courses (DB-backed paths) — duration helpers ───────────────────────────
+   Video durations are display strings ("12:34" / "1:02:11"). A course card
+   shows a "~Xh Ym" total only when enough of its lessons carry a parseable
+   one — a mostly-unknown total would be a lie, so below the threshold the
+   meta line quietly shows the lesson count alone. */
+
+const DURATION_COVERAGE_MIN = 0.7 // ≥70% of resolved steps must parse
+
+// "mm:ss" or "h:mm:ss" → seconds; anything else → null (never NaN).
+export const parseDuration = (str) => {
+  const m = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(String(str || '').trim())
+  if (!m) return null
+  const [, h, mm, ss] = m
+  if (+ss > 59 || (h != null && +mm > 59)) return null
+  return (h ? +h * 3600 : 0) + +mm * 60 + +ss
+}
+
+// Total seconds → "~2h 5m" / "~2h" / "~45m" (floored at 1 minute).
+export const fmtCourseDuration = (secs) => {
+  const mins = Math.max(1, Math.round((Number(secs) || 0) / 60))
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h > 0) return m > 0 ? `~${h}h ${m}m` : `~${h}h`
+  return `~${m}m`
 }
 
 // The backend wraps matched terms in literal <b>…</b> markers. We parse those
@@ -307,14 +332,118 @@ export default function VideosSection() {
     [library, activeTag],
   )
 
-  // Resolve curated learning paths against the loaded library (skip unknown ids).
+  // Courses/tracks come from the DB now (GET /api/education/paths, seeded with
+  // the six old Learning Paths on day one). Steps resolve against the loaded
+  // library exactly as the old hardcoded memo did: unknown youtube_ids are
+  // skipped, and a path that resolves fewer than 2 lessons is hidden.
+  const { data: pathsData } = useSWR('/api/education/paths', fetcher)
   const paths = useMemo(() => {
+    const list = Array.isArray(pathsData?.paths) ? pathsData.paths : []
+    if (!list.length || !categories.length) return []
     const byId = {}
-    for (const cat of categories) for (const v of cat.videos) byId[v.youtube_id] = v
-    return LEARNING_PATHS
-      .map((p) => ({ ...p, videos: p.steps.map((id) => byId[id]).filter(Boolean) }))
+    for (const cat of categories) for (const v of cat.videos || []) byId[v.youtube_id] = v
+    return list
+      .map((p) => ({
+        ...p,
+        videos: (p.steps || []).map((st) => byId[st.youtube_id]).filter(Boolean),
+      }))
       .filter((p) => p.videos.length >= 2)
-  }, [categories])
+  }, [pathsData, categories])
+
+  // Per-path progress + duration stats, all client-side from the existing
+  // progress store (done flag, t/d per youtube_id). "In progress" = t≥8 and
+  // not done (the store's own resume threshold). next = the most recently
+  // touched in-progress lesson if any, else the first not-done one — the
+  // truest "where I left off" in course order.
+  const courseStats = useMemo(
+    () =>
+      paths.map((p) => {
+        let done = 0
+        let lastAt = 0
+        let firstNotDone = -1
+        let nextInProgress = -1
+        let nextInProgressAt = -1
+        p.videos.forEach((v, i) => {
+          const e = progress[v.youtube_id]
+          if (e?.done) {
+            done += 1
+            lastAt = Math.max(lastAt, e.at || 0)
+            return
+          }
+          if (firstNotDone === -1) firstNotDone = i
+          if (e && e.t >= 8) {
+            lastAt = Math.max(lastAt, e.at || 0)
+            if ((e.at || 0) > nextInProgressAt) {
+              nextInProgressAt = e.at || 0
+              nextInProgress = i
+            }
+          }
+        })
+        const total = p.videos.length
+        const started = done > 0 || nextInProgress !== -1
+        const parsed = p.videos.map((v) => parseDuration(v.duration)).filter((x) => x != null)
+        return {
+          path: p,
+          done,
+          total,
+          started,
+          mid: started && done < total, // some progress, not finished
+          nextIndex: nextInProgress !== -1 ? nextInProgress : firstNotDone,
+          lastAt,
+          pct: total ? Math.round((done / total) * 100) : 0,
+          durLabel:
+            total > 0 && parsed.length / total >= DURATION_COVERAGE_MIN
+              ? fmtCourseDuration(parsed.reduce((a, b) => a + b, 0))
+              : '',
+        }
+      }),
+    [paths, progress],
+  )
+
+  // The continue-strip surfaces ONE course: the most recently touched
+  // mid-progress path (ties keep list order — course-first, then sort_order).
+  const continueCourse = useMemo(() => {
+    let best = null
+    for (const cs of courseStats) {
+      if (!cs.mid || cs.nextIndex === -1) continue
+      if (!best || cs.lastAt > best.lastAt) best = cs
+    }
+    return best
+  }, [courseStats])
+
+  // Course open lives in the URL: ?path=<slug>. DELIBERATE contrast with
+  // ?cat's replace:true — a chip is a view filter (no history), but opening a
+  // course is a NAVIGATION, so replace:false gives it a history entry and
+  // Back returns to the landing. Both writes MERGE via the functional
+  // setSearchParams form (section=/v=/cat= are never clobbered).
+  const pathParam = searchParams.get('path')
+  const activePath = useMemo(
+    () => (pathParam ? paths.find((p) => p.slug === pathParam) || null : null),
+    [pathParam, paths],
+  )
+  const openPath = useCallback(
+    (slug) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.set('path', slug)
+          return next
+        },
+        { replace: false },
+      )
+    },
+    [setSearchParams],
+  )
+  const closePath = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('path')
+        return next
+      },
+      { replace: false },
+    )
+  }, [setSearchParams])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -429,8 +558,9 @@ export default function VideosSection() {
       {/* One chip bar: All + categories in a single scrollable row (filled
           YouTube-style chips — counts live in the shelf headers, not here),
           edge-faded with paddle buttons when overflowed, and the Filters
-          toggle (tag chips, default hidden) pinned at the right end. */}
-      {!isLoading && total > 0 && categories.length > 1 && (
+          toggle (tag chips, default hidden) pinned at the right end.
+          Hidden while a course (?path) is open — that's its own page. */}
+      {!isLoading && total > 0 && categories.length > 1 && !activePath && (
         <>
           <div className={s.chipBar}>
             <div className={s.chipScroll}>
@@ -527,9 +657,33 @@ export default function VideosSection() {
         <EmptyState isAdmin={isAdmin} onAdd={() => setEditing({})} />
       )}
 
-      {/* ── Landing: featured strip → Continue Watching → one shelf per
-             category (shows, then library) → learning paths. ── */}
-      {!isLoading && total > 0 && landing && (
+      {/* ── ?path=<slug> — a course is open. TODO(Task-5): this is a minimal
+             PLACEHOLDER proving the URL contract (name renders, Back works);
+             Task 5 replaces it with the real PathView syllabus (module
+             groups, lesson rows, Start/Continue CTA, admin editing). ── */}
+      {!isLoading && total > 0 && activePath && (
+        <section className={s.pathView} aria-label={activePath.name}>
+          <button className={s.pathBackBtn} onClick={closePath}>
+            <span className={s.flipX} aria-hidden="true">
+              <UIcon name="chevronRight" size={14} gold={false} />
+            </span>
+            Back to videos
+          </button>
+          <div
+            className={`${s.pathKind} ${activePath.kind === 'course' ? s.pathKindCourse : ''}`}
+          >
+            {activePath.kind === 'course' ? 'COURSE' : 'TRACK'}
+          </div>
+          <h2 className={s.pathViewName}>{activePath.name}</h2>
+          {activePath.blurb && <p className={s.pathViewBlurb}>{activePath.blurb}</p>}
+          <div className={s.pathViewNote}>Syllabus coming next.</div>
+        </section>
+      )}
+
+      {/* ── Landing: featured strip → continue-your-course → Continue
+             Watching → one shelf per category (shows, then library) →
+             courses. ── */}
+      {!isLoading && total > 0 && !activePath && landing && (
         <>
           {heroVideo && (
             <FeaturedStrip
@@ -540,6 +694,33 @@ export default function VideosSection() {
               progress={progress}
               showName={heroShow.name}
             />
+          )}
+
+          {/* Continue-your-course — one quiet surface, only while a course is
+              mid-progress (something done or in progress, not everything).
+              Resume plays the next lesson against the full course list so the
+              theater's Up Next keeps walking the syllabus. */}
+          {continueCourse && (
+            <section className={s.courseStrip} aria-label="Continue your course">
+              <div className={s.courseStripBody}>
+                <span className={s.courseStripEyebrow}>Continue your course</span>
+                <span className={s.courseStripLine}>
+                  <span className={s.courseStripName}>{continueCourse.path.name}</span>
+                  <span className={s.courseStripNext}>
+                    Next: {continueCourse.path.videos[continueCourse.nextIndex].title}
+                  </span>
+                </span>
+              </div>
+              <button
+                className={s.courseStripResume}
+                onClick={() =>
+                  playVideo(continueCourse.path.videos, continueCourse.nextIndex)
+                }
+              >
+                <UIcon name="play" size={12} gold={false} />
+                Resume
+              </button>
+            </section>
           )}
 
           {continueShelf}
@@ -601,25 +782,46 @@ export default function VideosSection() {
             />
           ))}
 
-          {paths.length > 0 && (
+          {/* Courses — the Learning Paths block's successor, same landing
+              position. Quiet hairline cards: kind eyebrow (gold ONLY for the
+              flagship 'course' kind — information, not decoration), name,
+              one-line blurb, lesson count (+ ~total when enough durations
+              parse), and a thin gold bar + "n of M" once started. Click
+              navigates to the course (?path=<slug>) — it does NOT autoplay. */}
+          {courseStats.length > 0 && (
             <section className={s.shelf}>
               <div className={s.shelfHead}>
-                <h2 className={s.shelfName}>Learning paths</h2>
-                <span className={s.shelfCount}>{paths.length}</span>
+                <h2 className={s.shelfName}>Courses</h2>
+                <span className={s.shelfCount}>{courseStats.length}</span>
               </div>
               <div className={s.pathsGrid}>
-                {paths.map((p) => (
+                {courseStats.map(({ path: p, done, total: count, started, pct, durLabel }) => (
                   <button
-                    key={p.id}
+                    key={p.slug}
                     className={s.pathCard}
-                    onClick={() => playVideo(p.videos, 0)}
+                    onClick={() => openPath(p.slug)}
                   >
-                    <span className={s.pathName}>{p.name}</span>
-                    <span className={s.pathBlurb}>{p.blurb}</span>
-                    <span className={s.pathMeta}>
-                      <UIcon name="play" size={12} gold={false} />
-                      Start path · {p.videos.length} videos
+                    <span
+                      className={`${s.pathKind} ${p.kind === 'course' ? s.pathKindCourse : ''}`}
+                    >
+                      {p.kind === 'course' ? 'COURSE' : 'TRACK'}
                     </span>
+                    <span className={s.pathName}>{p.name}</span>
+                    {p.blurb && <span className={s.pathBlurb}>{p.blurb}</span>}
+                    <span className={s.pathMeta}>
+                      {count} lesson{count === 1 ? '' : 's'}
+                      {durLabel ? ` · ${durLabel}` : ''}
+                    </span>
+                    {started && (
+                      <span className={s.pathProgressRow}>
+                        <span className={s.pathBar} aria-hidden="true">
+                          <span className={s.pathBarFill} style={{ width: `${pct}%` }} />
+                        </span>
+                        <span className={s.pathCount}>
+                          {done} of {count}
+                        </span>
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -629,7 +831,7 @@ export default function VideosSection() {
       )}
 
       {/* ── Search / category filter active: flat filtered grid, same cards. ── */}
-      {!isLoading && total > 0 && !landing && (
+      {!isLoading && total > 0 && !activePath && !landing && (
         <>
           {continueShelf}
 
