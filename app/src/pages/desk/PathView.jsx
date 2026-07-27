@@ -44,15 +44,21 @@ export const parseTimeInput = (str) => {
   return (h ? +h * 3600 : 0) + +mm * 60 + +ss
 }
 
+// The progress store's resume threshold (mirrors videoProgress MIN_RESUME —
+// not imported from there because tests widely mock that module): a lesson
+// with t ≥ this and not done counts as "in progress". Shared by
+// startAtOptsFor and LessonRow's active state.
+export const RESUME_MIN_SECONDS = 8
+
 // { startAt } for playing this lesson — its clip start, UNLESS the member is
-// mid-lesson (t ≥ 8, not done): an explicit resume must land where they left
+// mid-lesson (in progress): an explicit resume must land where they left
 // off, never yank them back to the clip boundary. Fresh and done (rewatch)
 // picks both start at the clip. Returns undefined when there's nothing to seek.
 const startAtOptsFor = (lesson, progress) => {
   const sec = lesson?.step?.start_seconds
   if (!(Number.isFinite(sec) && sec > 0)) return undefined
   const e = progress[lesson.video.youtube_id]
-  const inProgress = !!e && !e.done && e.t >= 8 // the store's resume threshold
+  const inProgress = !!e && !e.done && e.t >= RESUME_MIN_SECONDS
   return inProgress ? undefined : { startAt: sec }
 }
 
@@ -603,7 +609,7 @@ function LessonRow({ lesson, videos, progress, onPlay }) {
   const { video: v, step, index } = lesson
   const e = progress[v.youtube_id]
   const isDone = !!e?.done
-  const active = !isDone && !!e && e.t >= 8 // the store's own resume threshold
+  const active = !isDone && !!e && e.t >= RESUME_MIN_SECONDS
   const pct =
     active && e.d > 0 ? Math.min(100, Math.max(4, Math.round((e.t / e.d) * 100))) : 4
 

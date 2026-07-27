@@ -916,6 +916,15 @@ describe('GlobalVideoLayer', () => {
 
   // ── play(..., { startAt }) — course lessons that begin mid-video ──────────
   describe('startAt consumption', () => {
+    const prevFlag = import.meta.env.VITE_DESK_BG_AUDIO_ENABLED
+    const prevMatchMedia = window.matchMedia
+
+    afterEach(() => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = prevFlag
+      window.matchMedia = prevMatchMedia
+      vi.restoreAllMocks()
+    })
+
     it('a fresh play with startAt builds the player at that second AND routes one seek through the seek rail', () => {
       renderLayer()
       act(() => store.play(LIST, 0, { startAt: 1340 }))
@@ -952,6 +961,71 @@ describe('GlobalVideoLayer', () => {
       act(() => store.play(LIST, 1))
       expect(lastPlayer.loadVideoById).toHaveBeenCalledWith({ videoId: 'bbbbbbbbbbb', startSeconds: 0 })
       expect(lastPlayer.seekTo).not.toHaveBeenCalledWith(75, true)
+    })
+
+    // Real YT onReady fires ASYNC (hundreds of ms). If the member switches
+    // lessons in that window, the build effect's deferred storeSeekTo must
+    // NOT fire — it would yank the NEW video to the OLD lesson's clip start.
+    // Uses the file's deferred-onReady mock pattern (see the mute/play
+    // ordering test above) so the race is actually observable.
+    it('a stale onReady never seeks a DIFFERENT video switched to before ready (freshness guard)', () => {
+      let fireOnReady = null
+      const prevYT = window.YT
+      window.YT = {
+        Player: class {
+          constructor(mount, opts) {
+            this.loadVideoById = vi.fn()
+            this.pauseVideo = vi.fn()
+            this.playVideo = vi.fn()
+            this.destroy = vi.fn()
+            this.seekTo = vi.fn()
+            this.setPlaybackRate = vi.fn()
+            this.mute = vi.fn()
+            this.unMute = vi.fn()
+            this.loadModule = vi.fn()
+            this.unloadModule = vi.fn()
+            this.setOption = vi.fn()
+            this.getOption = () => []
+            this.getCurrentTime = () => 20
+            this.getDuration = () => 0
+            lastPlayer = this
+            lastPlayerVars = opts.playerVars
+            fireOnReady = () => opts.events?.onReady?.({ target: this })
+          }
+        },
+      }
+      try {
+        renderLayer()
+        act(() => store.play(LIST, 0, { startAt: 1340 })) // clip lesson picked…
+        expect(lastPlayerVars.start).toBe(1340)
+        act(() => store.play(LIST, 1)) // …but the member switches before onReady
+        expect(lastPlayer.loadVideoById).toHaveBeenCalledWith({ videoId: 'bbbbbbbbbbb', startSeconds: 0 })
+        act(() => fireOnReady()) // the stale closure fires now
+        expect(lastPlayer.seekTo).not.toHaveBeenCalled() // new video NOT yanked to 1340
+      } finally {
+        window.YT = prevYT
+      }
+    })
+
+    // Audio-primary clock race: if onReady fires before audio.play() resolves,
+    // audioOn() is still false → the seekReq rail skips the <audio> element →
+    // when audio activates at ~0 the drift corrector snaps the correctly-
+    // seeked YT clock BACK toward zero. The clock must be seeded synchronously
+    // at src-set time, before play().
+    it('audio-primary: the <audio> clock is seeded to startAt BEFORE play() resolves', () => {
+      import.meta.env.VITE_DESK_BG_AUDIO_ENABLED = '1'
+      window.matchMedia = (q) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} })
+      const playSpy = vi
+        .spyOn(window.HTMLMediaElement.prototype, 'play')
+        .mockImplementation(() => new Promise(() => {})) // deliberately never resolves here
+
+      renderLayer()
+      act(() => store.play([{ id: 7, youtube_id: 'abc' }], 0, { startAt: 1340 }))
+
+      const audioEl = document.querySelector('audio[data-uct-video-audio]')
+      expect(playSpy).toHaveBeenCalled()
+      expect(audioEl.currentTime).toBe(1340) // seeded synchronously, pre-resolve
+      expect(lastPlayerVars.start).toBe(1340) // YT and audio agree on the clip start
     })
   })
 })

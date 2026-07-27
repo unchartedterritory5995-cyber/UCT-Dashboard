@@ -213,7 +213,11 @@ export default function GlobalVideoLayer() {
           // The player is command-ready — land the lesson clip start through
           // the shared seek rail (no-op for YT, which was born at `start`,
           // but it aligns the audio element when audio-primary is active).
-          if (startAt != null) storeSeekTo(startAt)
+          // FRESHNESS GUARD: real onReady fires async (hundreds of ms) — if
+          // the member switched lessons in that window, this stale closure
+          // must NOT yank the NEW video to the OLD lesson's clip start.
+          // Same curIdRef check the same-video effect below uses.
+          if (startAt != null && curIdRef.current === startId) storeSeekTo(startAt)
         },
         onStateChange: (e) => {
           if (e.data === 0) {
@@ -233,6 +237,15 @@ export default function GlobalVideoLayer() {
     tickerRef.current = setInterval(saveNow, 5000)
     if (isAudioPrimary() && audioRef.current) {
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
+      // Seed the audio CLOCK synchronously, before play(): if onReady fires
+      // first, audioOn() is still false so the seekReq rail skips the
+      // element — audio would then activate at 0 and the drift corrector
+      // would snap the correctly-positioned YT clock back toward zero.
+      // Setting currentTime pre-metadata records the default playback start
+      // position (applied once metadata loads). Seeds resume positions too —
+      // the same race existed for resumeSeconds before startAt shipped.
+      const audioSeed = startAt ?? resumeSeconds(startId)
+      if (audioSeed) audioRef.current.currentTime = audioSeed
       audioRef.current.play().then(() => { audioActiveRef.current = true; setAudioActive(true) }).catch(() => failToAudibleYT())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -259,6 +272,10 @@ export default function GlobalVideoLayer() {
       setAudioActive(false)
       audioFailedRef.current = false
       audioRef.current.src = `/api/education/videos/${list[index].id}/audio`
+      // Same pre-play clock seed as the build effect — clip start (or resume
+      // position) lands on the <audio> element before its play() resolves.
+      const audioSeed = startAt ?? resumeSeconds(id)
+      if (audioSeed) audioRef.current.currentTime = audioSeed
       audioRef.current.play().then(() => { audioActiveRef.current = true; setAudioActive(true) }).catch(() => failToAudibleYT())
     }
     p.loadVideoById({ videoId: id, startSeconds: startAt ?? resumeSeconds(id) })
