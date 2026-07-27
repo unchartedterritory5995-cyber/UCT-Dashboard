@@ -86,6 +86,11 @@ export default function PathView({
       if (last && last.label === label) last.lessons.push(lesson)
       else gs.push({ label, lessons: [lesson] })
     }
+    // Multiple headerless runs would all read as "<name> lessons" to assistive
+    // tech — number them ("…, part N") only when there is more than one, so
+    // the common single-ledger shape keeps its plain accessible name.
+    const headerless = gs.filter((g) => !g.label)
+    if (headerless.length > 1) headerless.forEach((g, i) => { g.part = i + 1 })
     return gs
   }, [lessons])
 
@@ -206,7 +211,17 @@ export default function PathView({
         throw new Error(j.detail || 'Save failed')
       }
       setDraft(null)
-      onSaved?.()
+      // Hand the parent exactly what the server now holds so it can mutate
+      // the /paths cache optimistically — the syllabus repaints with the
+      // saved values instantly instead of flashing the pre-save data for one
+      // revalidation round-trip.
+      onSaved?.({
+        id: path.id,
+        name,
+        blurb: draft.blurb.trim() || null,
+        kind: draft.kind,
+        steps,
+      })
     } catch (e) {
       setSaveErr(e.message || 'Save failed') // draft preserved — no data loss
     } finally {
@@ -419,7 +434,13 @@ export default function PathView({
                 <span className={p.groupRule} aria-hidden="true" />
               </div>
             )}
-            <ol className={p.rows} aria-label={g.label || `${path.name} lessons`}>
+            <ol
+              className={p.rows}
+              aria-label={
+                g.label ||
+                (g.part ? `${path.name} lessons, part ${g.part}` : `${path.name} lessons`)
+              }
+            >
               {g.lessons.map((lesson) => (
                 <LessonRow
                   key={`${lesson.index}-${lesson.video.youtube_id}`}

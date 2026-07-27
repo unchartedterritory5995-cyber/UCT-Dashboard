@@ -133,7 +133,11 @@ beforeEach(() => {
   mockPathsNext = null
   mockProgress = {}
   play.mockClear()
-  pathsMutate = vi.fn(async () => {
+  pathsMutate = vi.fn(async (updater) => {
+    // Mirror SWR's bound mutate: a function argument transforms the cached
+    // data in place (the optimistic-save path); mockPathsNext still simulates
+    // the post-create server revalidation when set.
+    if (typeof updater === 'function') mockPaths = updater(mockPaths) ?? mockPaths
     if (mockPathsNext) {
       mockPaths = mockPathsNext
       mockPathsNext = null
@@ -285,6 +289,40 @@ test('meta PATCH fires only when changed and carries ONLY the changed fields', a
   expect(patches).toHaveLength(1)
   expect(bodyOf(patches[0])).toEqual({ name: 'Foundations II', kind: 'track' }) // blurb omitted
   expect(callsTo('PUT', '/api/education/paths/1/steps')).toHaveLength(1)
+})
+
+test('save mutates the /paths cache OPTIMISTICALLY — the syllabus shows the saved values with no revalidation round-trip', async () => {
+  const view = renderSection(['/desk?path=foundations'])
+  enterEdit()
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Foundations II' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Move Welcome to the Desk down' }))
+  await clickSave()
+  // The mutate carried a cache UPDATER + explicit background revalidation —
+  // not a bare refetch that would leave the pre-save data on screen for one
+  // round-trip.
+  expect(typeof pathsMutate.mock.calls[0][0]).toBe('function')
+  expect(pathsMutate.mock.calls[0][1]).toEqual({ revalidate: true })
+  // The harness mock applied the updater to mockPaths; the cache now holds
+  // the saved values with NO server payload staged (mockPathsNext unset) —
+  // a pure row merge that left the sibling path and the slug untouched.
+  expect(mockPaths.paths).toHaveLength(2)
+  expect(mockPaths.paths[0]).toMatchObject({ id: 1, slug: 'foundations', name: 'Foundations II' })
+  expect(mockPaths.paths[0].steps.map((s) => s.youtube_id)).toEqual([
+    'lib0000000b', 'lib0000000a', 'lts0000000a',
+  ])
+  expect(mockPaths.paths[1].name).toBe('Risk & Discipline')
+  // SWR's cache write is what repaints subscribers; the harness stands that
+  // in with an explicit re-render — the syllabus shows the saved values.
+  view.rerender(
+    <MemoryRouter initialEntries={['/desk?path=foundations']}>
+      <VideosSection />
+      <LocationProbe />
+    </MemoryRouter>,
+  )
+  expect(screen.getByRole('heading', { level: 2, name: 'Foundations II' })).toBeTruthy()
+  expect(
+    screen.getAllByRole('button', { name: /^Play / }).map((b) => b.getAttribute('aria-label')),
+  ).toEqual(['Play Breadth basics', 'Play Welcome to the Desk', 'Play Session — July 21'])
 })
 
 test('a stored blurb with incidental whitespace fires NO spurious PATCH on an untouched Save', async () => {

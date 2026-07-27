@@ -21,6 +21,7 @@ vi.mock('../../context/AuthContext', () => ({
 // Controllable SWR payloads per test (desk-threads and other keys stay empty).
 let mockData = null
 let mockPaths = null
+let mockPathsError = null // a THROWING /paths fetcher (SWR error state)
 vi.mock('swr', () => ({
   default: (key) => ({
     data:
@@ -29,7 +30,7 @@ vi.mock('swr', () => ({
         : key === '/api/education/paths'
           ? mockPaths
           : null,
-    error: null,
+    error: key === '/api/education/paths' ? mockPathsError : null,
     isLoading: false,
     mutate: vi.fn(),
   }),
@@ -132,6 +133,7 @@ beforeEach(() => {
   mockRole = null
   mockData = fixture()
   mockPaths = { paths: [] } // course tests opt in explicitly
+  mockPathsError = null
   mockProgress = {}
   play.mockClear()
 })
@@ -1154,6 +1156,24 @@ test('all-null module labels render one headerless ledger (the seeded six paths)
   renderSection(['/desk?path=foundations'])
   expect(screen.queryByRole('heading', { level: 3 })).toBeNull()
   expect(screen.getAllByRole('button', { name: /^Play / })).toHaveLength(3)
+  // A single headerless ledger keeps its plain accessible name (no ", part 1").
+  expect(screen.getByRole('list', { name: 'Foundations lessons' })).toBeTruthy()
+})
+
+test('MULTIPLE headerless runs get distinct accessible names — "lessons, part N"', () => {
+  const data = pathsFixture()
+  data.paths[0].steps = [
+    { youtube_id: 'lib0000000a', module_label: null, note: null },
+    { youtube_id: 'lib0000000b', module_label: 'Middle', note: null },
+    { youtube_id: 'lts0000000a', module_label: null, note: null },
+  ]
+  mockPaths = data
+  renderSection(['/desk?path=foundations'])
+  const part1 = screen.getByRole('list', { name: 'Foundations lessons, part 1' })
+  const part2 = screen.getByRole('list', { name: 'Foundations lessons, part 2' })
+  expect(within(part1).getByRole('button', { name: 'Play Welcome to the Desk' })).toBeTruthy()
+  expect(within(part2).getByRole('button', { name: 'Play Session — July 21' })).toBeTruthy()
+  expect(screen.queryByRole('list', { name: 'Foundations lessons' })).toBeNull()
 })
 
 test('lesson rows: course-wide index, duration, dim AI headline, italic per-step note', () => {
@@ -1288,6 +1308,14 @@ test('a failed /paths fetch (null) falls open to the landing — no permanent sk
   renderSection(['/desk?path=foundations'])
   expect(screen.getByRole('list', { name: 'Recently added' })).toBeTruthy()
   expect(screen.queryByRole('status')).toBeNull()
+})
+
+test('a THROWING /paths fetcher (SWR error, data undefined) also falls open — the skeleton contract survives a fetcher change', () => {
+  mockPaths = undefined // never resolved…
+  mockPathsError = new Error('network down') // …because the fetcher threw
+  renderSection(['/desk?path=foundations'])
+  expect(screen.getByRole('list', { name: 'Recently added' })).toBeTruthy()
+  expect(screen.queryByRole('status')).toBeNull() // no stuck skeleton
 })
 
 /* ── Duration helpers + the deleted learningPaths module ────────────────── */

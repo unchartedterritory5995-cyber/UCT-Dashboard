@@ -360,7 +360,7 @@ export default function VideosSection() {
   // MEMBERS. Admins additionally see the unfiltered set (resolvedPaths) — the
   // editor must reach brand-new/sub-2-lesson paths, and the Delete sheet must
   // list them.
-  const { data: pathsData, mutate: mutatePaths } = useSWR('/api/education/paths', fetcher)
+  const { data: pathsData, error: pathsError, mutate: mutatePaths } = useSWR('/api/education/paths', fetcher)
   const resolvedPaths = useMemo(() => {
     const list = Array.isArray(pathsData?.paths) ? pathsData.paths : []
     if (!list.length || !categories.length) return []
@@ -504,8 +504,12 @@ export default function VideosSection() {
   // ?path is set but GET /paths hasn't resolved yet (data === undefined; a
   // failed fetch resolves to null and falls open to the landing). Rendering
   // the landing here would flash-and-swap once the course arrives — show the
-  // PathView skeleton instead and suppress the landing chrome.
-  const pathPending = !!pathParam && !activePath && pathsData === undefined
+  // PathView skeleton instead and suppress the landing chrome. The !pathsError
+  // guard keeps the skeleton from sticking forever if the fetcher ever changes
+  // to THROW on failure instead of resolving null — either failure shape now
+  // falls open to the landing.
+  const pathPending =
+    !!pathParam && !activePath && pathsData === undefined && !pathsError
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -735,8 +739,25 @@ export default function VideosSection() {
           onPlay={playVideo}
           isAdmin={isAdmin}
           allVideos={allVideos}
-          onSaved={() => {
+          onSaved={(saved) => {
             setEditSlug(null) // consumed — a later reopen starts in view mode
+            // Optimistic close: paint the just-saved meta + steps into the
+            // /paths cache immediately (the syllabus re-renders from it — no
+            // one-round-trip stale flash), then revalidate to server truth.
+            if (saved) {
+              return mutatePaths(
+                (cur) =>
+                  cur && Array.isArray(cur.paths)
+                    ? {
+                        ...cur,
+                        paths: cur.paths.map((row) =>
+                          row.id === saved.id ? { ...row, ...saved } : row,
+                        ),
+                      }
+                    : cur,
+                { revalidate: true },
+              )
+            }
             return mutatePaths()
           }}
           initialEdit={isAdmin && editSlug === activePath.slug}
