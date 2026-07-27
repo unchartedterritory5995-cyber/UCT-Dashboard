@@ -1,0 +1,1033 @@
+{
+ "course": "The UCT Method — The Complete Swing Trading System",
+ "modules": [
+  {
+   "label": "M1 · The Game and the Loop",
+   "lessons": [
+    {
+     "title": "The Loop: One Real Trade Through Regime → Scan → Setup → Size → Manage → Review",
+     "minutes": 14,
+     "note": "Walks one actual closed trade through all six stations on screen — that morning's dial reading, the scan hit, the setup name from the catalog, the sizing math, each management decision, and the finished journal entry. Artifact: the printable six-station LOOP card that every later lesson plugs into.",
+     "chapters": [
+      "Six stations or nothing — open on the finished trade's chart and its completed journal entry, then rewind to the morning it began and promise to rebuild the whole trade one station at a time.",
+      "Regime and Scan: permission before tickers — replay that morning's dashboard on screen: the actual 0-150 UCT Exposure Rating reading with its GREEN/YELLOW/ORANGE state, then the nightly scan hit that put this exact name on the list.",
+      "Setup and Size: name it from the catalog, then do the math — call the setup by its catalog name and family, mark the entry and stop on the chart, and work Account Risk % = Position Size % × Stop Distance % out loud down to the exact share count.",
+      "Manage and Review: the decisions and the receipt — step through each hold/trim/exit decision at the bar where it actually happened, then show the finished journal entry that graded the trade — the loop closing on itself.",
+      "Your LOOP card — hand over the printable six-station LOOP card and state the course's architecture out loud: every lesson from here on plugs into exactly one of these six boxes, and you'll know which one before each lesson starts."
+     ]
+    },
+    {
+     "title": "Casino Math: Why a 45% Win Rate at 2R Prints Money",
+     "minutes": 14,
+     "note": "R-multiples and expectancy computed live for three trader profiles, including the 90%-win-rate trader who loses money — then a 20-trade on-camera marble-game draw so the member feels 6+ consecutive losers occur inside a profitable system. Artifact: the R-multiple ledger worksheet reused in Module 5.",
+     "chapters": [
+      "The house loses 48% of the hands — open with the question 'what was your last trade worth in R?' and the claim that a casino never predicts the next hand, it just owns the math of ten thousand of them.",
+      "R: price every trade in units of risk — define the R-multiple on one real trade (risk $500, make $1,100 = +2.2R), then re-denominate three past trades from dollars into R on screen so the unit sticks.",
+      "Three traders, one equation — compute expectancy live for a 45% winner at 2R, a 60% winner at 1R, and the 90%-win-rate trader who loses money, and let the arithmetic — not opinion — name who eats.",
+      "Twenty marbles, on camera — run the live 20-trade marble draw at 45%/2R and keep drawing until a streak of 6-plus losers lands, naming the feeling in your gut before revealing the ledger still finishes green.",
+      "Your R-multiple ledger — fill the first rows of the R-ledger worksheet from the marble draw on screen, and assign it as the standing log you will bring back, filled in, when this exact sheet returns in Module 5."
+     ]
+    },
+    {
+     "title": "EARLY WIN: Read Today's UCT Exposure Rating and Write Your Exposure Plan",
+     "minutes": 12,
+     "note": "Screen-records the live dashboard: read today's actual 0-150 UCT Exposure Rating, name its GREEN/YELLOW/ORANGE state, and learn the doctrine that the state is a permission band, not a prediction. Artifact: the one-page max-exposure plan the member re-fills every Monday for the rest of the course.",
+     "chapters": [
+      "A real skill in the first sitting — promise the early win up front: in the next ten minutes you make a live exposure call off the same dial the firm reads every single morning.",
+      "Reading the dial live — screen-record the live dashboard, find today's actual 0-150 UCT Exposure Rating, and say the number out loud with where it sits on the scale.",
+      "Name the state — translate today's score into its GREEN, YELLOW, or ORANGE band on camera and give the band its correct name: a permission band that grants and revokes rights.",
+      "Permission, not prediction — state the doctrine plainly: GREEN does not mean the market goes up, it means more of your playbook is authorized — and show a GREEN day that closed red without costing a rule-follower anything.",
+      "The Monday exposure plan — fill in the one-page max-exposure plan live against today's real reading, then install the ritual: this page gets re-filled every Monday morning for the rest of the course, no exceptions."
+     ]
+    },
+    {
+     "title": "Where Breakeven Traders Bleed: The Five Leaks and Your Placement Diagnostic",
+     "minutes": 10,
+     "note": "The five leaks that keep a trader at breakeven — no regime filter, oversizing, moved stops, setup-hopping, no review — each shown on a real anonymized trade. Artifact: the 10-question placement diagnostic the capstone reads back. Closes by installing the course guardrail on camera: pilot size or paper ONLY until the M5 sizing gate clears, and no setup traded live until its family drill is passed — the stop is an appointment, not a debate, from day one.",
+     "chapters": [
+      "Breakeven is a diagnosis, not bad luck — open on the flat equity curve of a real breakeven trader and the claim that five specific, nameable leaks — not one big flaw — are holding it at zero.",
+      "Leak one and two: no regime filter, oversizing — show a real anonymized trade opened long into a hostile tape, then one where a single oversized loss erased eleven disciplined wins, naming each leak at the bar where it bled.",
+      "Leak three and four: moved stops, setup-hopping — a real trade whose stop got moved twice on the way to a −3R exit, then a journal that cycled four setups in six weeks with none of them mastered.",
+      "Leak five, then your placement diagnostic — the no-review trader repeating an identical mistake three months running, then take the 10-question placement diagnostic live and file the result — the capstone reads this exact page back to you.",
+      "The guardrail, installed on camera — state the course rules and sign them: pilot size or paper ONLY until the Module 5 sizing gate clears, no setup traded live until its family drill is passed, and from day one the stop is an appointment, not a debate."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M2 · Chart Literacy: Reading the Display",
+   "lessons": [
+    {
+     "title": "One Bar, One Auction: Candles, Close Position, and the Volume Witness",
+     "minutes": 13,
+     "note": "OHLC anatomy, close-position quality (a close in the top 40% of the range means buyers won the day), and volume as the witness — the same +5% day on 3× average volume versus 0.4×, and why only one is evidence. Closes with 10 cover-the-answer reps calling buyer vs seller control.",
+     "chapters": [
+      "One glyph, one full auction — open on a single candle and make the claim: this shape records an entire day's fight between buyers and sellers, and by the end of this lesson you can read the verdict at a glance.",
+      "OHLC anatomy — dissect a real bar on screen into open, high, low, close, body, and wicks, saying what each piece reveals about who held control and when they lost it.",
+      "Close position is the verdict — teach the quality rule with three real bars closing top, middle, and bottom of range: a close in the top 40% of the day's range means buyers won the day.",
+      "Volume is the witness — put the same +5% day on screen twice, once on 3× average volume and once on 0.4×, and explain why only one of those two days counts as evidence of anything.",
+      "Ten reps: who won the day — run 10 cover-the-answer bars calling buyer versus seller control before each reveal, and set the pass bar: the call should be fast and felt, not deliberated."
+     ]
+    },
+    {
+     "title": "The Moving-Average Stack: 9 EMA, 20 EMA, 50 SMA, 200 SMA — What Each Line Is For",
+     "minutes": 12,
+     "note": "The firm's four lines and their distinct jobs — 9 EMA momentum leash, 20 EMA swing trend, 50 SMA institutional line, 200 SMA bull/bear divide — shown stacked on a leader and tangled on a chopfest. Artifact: the exact four-slot MA template configured live on the dashboard chart.",
+     "chapters": [
+      "Four lines, four different jobs — open on a naked chart and add the firm's four lines one at a time, promising that by the end each one carries a distinct job title, not decoration.",
+      "The fast pair: 9 EMA and 20 EMA — show the 9 EMA as the momentum leash a hot leader rides and the 20 EMA as the swing-trend line beneath it, each doing its job on a real advancing stock.",
+      "The slow pair: 50 SMA and 200 SMA — the 50 SMA as the institutional line where big money defends its inventory, and the 200 SMA as the bull/bear divide that no serious long trade fights.",
+      "Stacked versus tangled — put a leader with 9 over 20 over 50 over 200 in clean rising order beside a chopfest where all four braid together, and read the verdict: stacked means tradeable, tangled means walk away.",
+      "Build your template — configure the exact four-slot MA template live on the dashboard chart, slot by slot, so every chart the member opens for the rest of the course wears these four lines."
+     ]
+    },
+    {
+     "title": "Three Lines That Matter: Trend, Support, Resistance — and None That Don't",
+     "minutes": 12,
+     "note": "Drawing discipline on five real charts, including overhead supply and why a breakout into it fails; over-annotation diagnosed as a named beginner failure. Ends with 10 draw-it-yourself reps checked against the reveal.",
+     "chapters": [
+      "Three lines beat thirty — open on the same chart twice, one buried under a spiderweb of drawings and one wearing exactly three lines, and ask which trader knows what to do at tomorrow's open.",
+      "Drawing discipline, charts one through three — draw the trendline, support, and resistance on three real charts while stating the rules: most-touched levels win, zones beat exact prices, and a line no one traded at is not a level.",
+      "Overhead supply: the ceiling of trapped buyers — chart four: shade the zone of old holders waiting to sell out even, then show the breakout that ran straight into that ceiling and died.",
+      "The over-annotation autopsy — chart five: name the spiderweb as the beginner failure it is, then erase it live, line by line, down to the three that actually govern the trade.",
+      "Ten charts, your pen — run 10 draw-it-yourself reps with the answer covered, checking each against the reveal, with the pass bar stated: your three lines land inside the instructor's zones, every time."
+     ]
+    },
+    {
+     "title": "The Weekly Decides, the Daily Times: Multi-Timeframe Alignment",
+     "minutes": 12,
+     "note": "The same stock on weekly, daily, and 60-minute with the rule stated plainly: no daily-timeframe entry against a weekly downtrend. Eight aligned-or-not drills with the answer covered.",
+     "chapters": [
+      "Same stock, three different stories — open the identical ticker on weekly, daily, and 60-minute side by side and let the member feel the verdict flip with the zoom before any rule is named.",
+      "The weekly decides — read the weekly chart first and ask it exactly one question: is this stock in an uptrend I am permitted to buy, or not — nothing else lives on this timeframe.",
+      "The daily times, the 60-minute sharpens — with the weekly's permission granted, drop to the daily to locate the entry and to the 60-minute to refine it, all on the same stock's real move.",
+      "The rule, and the trade it saves you from — state it plainly: no daily-timeframe entry against a weekly downtrend, then show a seductive daily setup that died for exactly that reason.",
+      "Eight alignment drills — run eight aligned-or-not calls with the answer covered, each graded on one binary question: does this daily entry have weekly permission, yes or no."
+     ]
+    },
+    {
+     "title": "The Winners Gallery: 25 Monster Charts, No Rules Yet",
+     "minutes": 15,
+     "note": "Pure perception training on 25 annotated past monsters — repeated exposure to what right looks like before a single buy rule exists — then 10 guess-before-you-check reps. Artifact: the downloadable 25-chart Winners Gallery model book, re-annotated in the capstone and recycled in the Module 10 drill. Build the gallery inside the product's Model Book (year-organized curated monsters) rather than a static download, and run the guess-before-you-check reps on Model Book charts with the setup labels hidden.",
+     "chapters": [
+      "See it a hundred times before you name it — open with the training claim: your eyes learn what right looks like through repeated exposure, and this whole lesson happens before a single buy rule exists.",
+      "Your gallery lives in the Model Book — tour the product's Model Book of year-organized curated monsters and show that the 25-chart Winners Gallery is built inside it, a living artifact, not a PDF that dies in a downloads folder.",
+      "First pass: just look — page through the first dozen annotated monsters saying almost nothing beyond the recurring shape: quiet base, tightening range, ignition, sustained advance.",
+      "Second pass: the signature — walk the remaining charts and let the common tells surface on their own: volume drying up before the move, closes stacking in the top of their ranges, the four lines falling into order underneath.",
+      "Ten guesses, labels hidden — run 10 guess-before-you-check reps on Model Book charts with the setup labels hidden, then set the standing appointment: this gallery gets re-annotated in the capstone and its charts return in the Module 10 placement drill."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M3 · The Regime Engine: Stages, the Dial, and the Permission System",
+   "lessons": [
+    {
+     "title": "The Four Stages of Any Stock: One Life Cycle on One Chart",
+     "minutes": 13,
+     "note": "Stage 1-4 traced across a single three-year chart of a recent monster — basing, advancing, topping, declining as one perceptual gestalt, no buy rules yet. Artifact: the one-page life-cycle diagram members annotate on three more tickers as homework.",
+     "chapters": [
+      "Every monster has the same biography — open on the ending: the full three-year chart of the recent monster zoomed out to its entire run, and promise that by the end of this lesson the member can name the four chapters of that story on any chart, no buy rules required.",
+      "Stage 1, basing: the boring part everyone skips — scrub back to the flat left edge of the same chart and show price chopping sideways across a flattening 200 SMA, naming neglect and quiet accumulation as one visual gestalt.",
+      "Stage 2 and Stage 3: the advance and the top — trace the advancing phase where price rides a rising 50 above a rising 200, then the topping churn where the averages flatten and wide, sloppy swings replace clean pullbacks.",
+      "Stage 4, decline: why 'it's cheap now' is the trap — walk the decline under a falling 200 SMA and mark the three spots a bargain-hunter buys on the way down, the lesson's built-in counter-example.",
+      "The life-cycle diagram and your three-ticker homework — hand over the one-page Stage 1-4 diagram artifact and assign the drill: annotate the complete cycle on three more tickers before the Stage-2 Gate lesson."
+     ]
+    },
+    {
+     "title": "The Stage-2 Gate: Eight Yes/No Questions — Fail One, Skip the Stock",
+     "minutes": 12,
+     "note": "The purely mechanical trend gate: eight binary criteria (price above a rising 50 and 200, 200-day rising for a month+, within striking distance of highs, RS confirming, etc.) with zero judgment allowed. Runs five live tickers through the printed gate card, including two that fail on exactly one criterion.",
+     "chapters": [
+      "Why a gate and not an opinion — open with two charts that both 'look great,' reveal one is actually Stage 3 topping, and state the premise: eyes lie, binary questions don't, and this gate allows zero judgment.",
+      "The eight yes/no questions, read off the card — walk the printed gate card line by line: price above a rising 50 and 200, the 200-day rising for a month-plus, within striking distance of highs, RS confirming, and the rest — each answerable only yes or no.",
+      "Five live tickers through the gate — run five current-market names through the card at speed on camera, stamping all eight boxes for each in real time.",
+      "The two one-criterion failures — slow down on the two tickers that fail on exactly one line and enforce the doctrine out loud: fail one, skip the stock — there is no 'but it's close.'",
+      "Your gate reps: ten names, card in hand — close with the assignment: run ten tickers from tonight's scan through the printed card, and the pass bar is that every skip cites the exact criterion that failed."
+     ]
+    },
+    {
+     "title": "Same Lens, Bigger Chart: Staging the Indexes",
+     "minutes": 10,
+     "note": "The stage lens lifted to SPY, QQQ, and IWM — perceptual index staging as its own graded skill, with two historical sequences called stage by stage. Sets up the mechanical counts, which get their own lesson next.",
+     "chapters": [
+      "The market is just a bigger stock — open by placing the Module lesson-one life-cycle diagram beside a SPY weekly and showing the same four chapters playing out at index scale.",
+      "Staging SPY, QQQ, and IWM today — call the current stage of all three indexes live on the dashboard, narrating the 50/200 structure and slope evidence behind each call.",
+      "Historical sequence one, called stage by stage — replay a past index cycle from top through decline into the new base, stamping each stage transition at the bar where the evidence actually turned.",
+      "Historical sequence two: when the indexes disagree — work a second sequence where QQQ and IWM sit in different stages on the same day, and what a split tape means for which stocks are even eligible.",
+      "Perception graded, mechanics next — grade the member's own stage calls on two covered index charts, then name what's coming: the distribution and follow-through counts that turn this perceptual skill into arithmetic."
+     ]
+    },
+    {
+     "title": "Distribution Days and Follow-Through Days: The Counts That Call Tops and Bottoms",
+     "minutes": 11,
+     "note": "The mechanical rules on their own: the cluster rule (4-6 distribution days inside ~25 sessions kills an uptrend) and the follow-through day (day 4-7 off the low, up big on higher volume). One fully-worked historical top and one bottom, counts stamped bar by bar — this is the module's drill material.",
+     "chapters": [
+      "Tops don't ring a bell — they count down: open with a market top that looked perfectly healthy on price alone, then reveal the distribution days that had been stacking underneath it for weeks.",
+      "The distribution day and the cluster rule — define an index down-day on volume heavier than the prior session, then state the kill rule as arithmetic: 4-6 distribution days inside ~25 sessions ends an uptrend, no opinion involved.",
+      "One historical top, counts stamped bar by bar — replay the full topping sequence stamping D1, D2, D3 on each qualifying bar until the cluster fires, marking the exact session the uptrend legally died.",
+      "The follow-through day: how bottoms announce themselves — define day 4-7 off the low, up big on higher volume, then stamp a real historical bottom the same way — including the earlier rally attempt that never followed through and failed.",
+      "Your count drills — this is the module's rep material: assign the member to stamp both counts on two fresh covered sequences, feeding directly into the 12-turn graded drill in the Permission System lesson."
+     ]
+    },
+    {
+     "title": "Inside the UCT Regime Dial: What Feeds the 0-150 Exposure Rating and What Flips It",
+     "minutes": 18,
+     "note": "The proprietary engine end-to-end: the breadth, distribution-count, and index MA-structure inputs behind the daily 0-150 score, read on two replayed real dashboard mornings — one GREEN, one ORANGE — naming exactly what changed between them. Core doctrine on camera: GREEN means more of your playbook is authorized, not that the market goes up.",
+     "chapters": [
+      "One number before any stock — open the live dashboard on today's 0-150 UCT Exposure Rating and state the claim: everything built in this module compresses into this dial every single morning.",
+      "What feeds the engine — walk the input families one at a time: breadth participation, the distribution-day count from last lesson, and index MA structure, showing where each one lives on the dashboard.",
+      "A GREEN morning, replayed — re-open a real recorded GREEN dashboard morning and read the inputs aloud: what breadth said, what the count said, what the MA structure said, and the score they combined into.",
+      "The ORANGE morning, and exactly what changed — replay the real ORANGE morning beside it and name, input by input, what flipped between the two dates so the score stops being a black box.",
+      "GREEN is permission, not prophecy — close with the core doctrine straight to camera: GREEN means more of your playbook is authorized, not that the market goes up — and a member who trades GREEN as a prediction has missed the module."
+     ]
+    },
+    {
+     "title": "The Permission System: What GREEN, YELLOW, and ORANGE Each Let You Do — Plus 12 Regime Turns",
+     "minutes": 15,
+     "note": "Each state mapped to concrete rights — position count, size ceiling, and whether you may open new names at all (the full sizing table lands verbatim in Module 13). Ends with 12 historical regime turns as cover-the-answer drills graded on a printed rubric, 80% to close the module.",
+     "chapters": [
+      "Three states, three sets of rights — open with the same A+ chart shown under GREEN and again under ORANGE, and land the punchline: the chart didn't change, your permissions did.",
+      "What each band lets you do — map GREEN, YELLOW, and ORANGE to their concrete rights: position count, size ceiling, and whether you may open new names at all, noting the full regime-by-grade sizing table lands verbatim in Module 13.",
+      "One turn traded correctly — walk a single historical regime turn end to end, showing rights expanding rung by rung as the state improved and contracting the day it downgraded.",
+      "The 12-turn drill — run 12 historical regime turns cover-the-answer style, calling the state and the rights it grants at each turn, graded against the printed rubric.",
+      "The 80% bar closes the module — score the drill on camera, state the pass bar of 80% on the rubric to proceed, and prescribe the remediation loop for misses: rewatch the counts lesson, retake the turns you got wrong."
+     ]
+    },
+    {
+     "title": "Cash Is a Position: The Off-Season Playbook",
+     "minutes": 12,
+     "note": "What you actually DO through a months-long ORANGE tape: the scorecard and nightly scan still run, the A-list stays fresh, reps continue on replay — but exposure stays parked. The discipline math of missing nothing (the leaders that set up in the base of a bear are caught by the routine, not by being positioned), and the trap of boredom trades quantified with one real drawdown-avoidance example. (~12 min)",
+     "chapters": [
+      "The months where doing nothing is the trade — open on a real months-long ORANGE stretch in the dial's history and say the uncomfortable part out loud: this system will sometimes tell you to hold no stocks for a quarter.",
+      "The off-season routine, unchanged — show that the five-number scorecard and the nightly scan still run every day and the A-list stays fresh, while exposure stays parked: the work continues, the risk doesn't.",
+      "You miss nothing: leaders base in the bear — pull two past leaders whose bases formed during the ORANGE tape and show the nightly routine catching both long before the follow-through day, no position required.",
+      "The boredom trade, quantified — price one real boredom trade against the drawdown the routine-only trader avoided by sitting out, putting an actual dollar figure on the itch to 'just do something.'",
+      "Reps continue on replay — close with the off-season assignment: keep the scan, the scorecard, and chart-replay reps running through the next ORANGE stretch, and the artifact is a fresh, ranked A-list on the day the dial turns."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M4 · Breadth, Relative Strength, and Leadership: The Confirmation Layer",
+   "lessons": [
+    {
+     "title": "The Market's X-Ray: Percent of Stocks Above the 50-Day and 200-Day",
+     "minutes": 13,
+     "note": "Reading the internal participation the index price hides, with the working thresholds (sub-20% = washout territory, 70%+ = overheated) on the dashboard's Breadth Monitor. Includes two historical extremes where the internals diverged from the index before the index moved.",
+     "chapters": [
+      "The index price hides the patient's vitals — open with a session where the index closed green while most stocks fell, and introduce % above the 50-day and 200-day as the X-ray underneath the price.",
+      "The working thresholds — draw the two lines on the dashboard's Breadth Monitor history: sub-20% is washout territory, 70%+ is overheated, and locate today's actual reading between them.",
+      "Historical extreme one: internals bottom before price — replay a washout where % above the 50-day turned up from under 20 while the index was still making lower lows, marked to the exact sessions.",
+      "Historical extreme two: rot under a rising index — walk the mirror case where participation bled for weeks beneath the index's new highs before the break, the divergence price alone never showed.",
+      "Read it every morning in ten seconds — close on the Breadth Monitor as the daily habit: where both percentages live on the dashboard and how this number slots into the five-number scorecard built at module's end."
+     ]
+    },
+    {
+     "title": "The Leading Edge: Net New Highs/Lows and the 4% Up/Down Day Count",
+     "minutes": 12,
+     "note": "New highs minus new lows as the earliest regime tell — one bottom where net new highs flipped positive before price confirmed, marked to the session — plus the specific warning of expanding new lows underneath a rising index, and the daily 4%-up vs 4%-down count as the day's true character.",
+     "chapters": [
+      "The earliest tell in the toolkit — open with the claim that net new highs minus new lows flips before price does, and promise one historical bottom marked to the exact session as proof.",
+      "The bottom, marked to the session — replay that low on camera: stamp the bar where net new highs flipped positive, then the later bar where price finally confirmed, and measure the lead time between them.",
+      "The warning underneath a rising index — show expanding new lows while the index climbed, the specific divergence that says an advance is hollowing out from beneath.",
+      "The 4% up/down day count: the day's true character — define the daily 4%-up versus 4%-down count and read a deceptive session where the index finished flat but the count screamed one-sided.",
+      "Two more numbers for the scorecard — add net new highs/lows and the 4% counts to the member's morning read, then run cover-the-answer reps on three covered tapes calling which side actually led each day."
+     ]
+    },
+    {
+     "title": "The RS Line: Divide by SPY, Spot Leadership Before Price Confirms",
+     "minutes": 12,
+     "note": "Constructing the RS line and reading its slope, with the highest-value tell in the toolkit: the RS-line new high arriving roughly two weeks before the price new high, shown on three real leaders. Eight leader-or-laggard cover-the-answer reps.",
+     "chapters": [
+      "Leadership shows in the ratio before it shows in price — open with the highest-value tell in the toolkit: the RS-line new high arriving roughly two weeks before the price new high.",
+      "Build the line: divide by SPY — construct the RS line on camera as price divided by SPY and teach slope reading, including the gold case: an RS line rising while the market falls.",
+      "Three real leaders, three early tells — mark the RS-line new high and the later price new high on each of three real leaders, measuring the roughly two-week lead every time.",
+      "The laggard that looked strong — counter-example: a stock printing price highs on a flat-to-down RS line, and why the missing witness disqualifies it from the A-list.",
+      "Eight leader-or-laggard reps — close with the drill: eight charts with answers covered, call leader or laggard from the RS line alone before each reveal, and review every miss by naming which slope cue was misread."
+     ]
+    },
+    {
+     "title": "Volume as the Witness: Confirmation as Its Own Verdict",
+     "minutes": 11,
+     "note": "Confirmation graded as a standalone skill: does this signal have a witness? Breakouts, gaps, and reclaims each shown twice — once with expanding volume, once without — and the pass/fail verdicts that follow. The dry-up-then-expansion sequence as the single most reliable tell in the system. Records once, serves both courses (fills UCT Foundations' volume-witness slot).",
+     "chapters": [
+      "Does this signal have a witness? — open with the standing question this lesson installs, and the same breakout shown twice: once with a crowd behind it, once in an empty room.",
+      "Breakouts on trial — the identical pivot break on 3× average volume versus 0.4×, with the verdict spoken for each: one is evidence, one is noise, and only one gets traded.",
+      "Gaps and reclaims, same court — run a gap and a reclaimed level each twice, with and without expanding volume, issuing the pass/fail verdict on all four exhibits.",
+      "Dry-up then expansion: the single most reliable tell — trace the sequence on a real base where volume bled dry into the lows and expanded through the break, and name it the system's highest-confidence witness.",
+      "Confirmation is its own graded skill — close with five covered signals where the member must issue the pass/fail verdict from the volume pane alone, and the bar is committing to the verdict BEFORE seeing what price did next."
+     ]
+    },
+    {
+     "title": "Group Before Stock: Rank the Themes, Then Build the Five-Number Morning Scorecard",
+     "minutes": 14,
+     "note": "The Theme Tracker workflow — rank sectors and themes by RS, pick the two hunting grounds, pull the top names inside each — then assemble the permanent morning habit: dial score, % above the 50-day, net new highs/lows, 4% counts, distribution-day count — five numbers in under three minutes. Artifact: the scorecard worksheet filled live against that morning's real data. Record against the live Morning Wire: build the five numbers by hand once for understanding, then show the Wire shipping every one of them at 7:35 AM — the Wire is your scorecard, filled in.",
+     "chapters": [
+      "Hunt where the food is — open with a mediocre chart from a leading theme outrunning a beautiful chart from a lagging one: the case for ranking groups before picking stocks.",
+      "The Theme Tracker workflow — rank sectors and themes by RS on the dashboard live, pick the two hunting grounds, and pull the top names inside each from that morning's real data.",
+      "Assemble the five numbers by hand — build the scorecard once manually against a running clock: dial score, % above the 50-day, net new highs/lows, the 4% counts, and the distribution-day count, finished in under three minutes.",
+      "The Wire is your scorecard, filled in — open that morning's live Morning Wire at 7:35 AM and show it shipping every one of the five numbers, so the daily habit costs a glance, not a spreadsheet.",
+      "The permanent morning habit — fill the scorecard worksheet artifact on camera against that morning's data and set the standing assignment: five numbers before the open, every trading day, feeding THE LOOP's Regime station."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M5 · Risk Math, First Pass: R, the Formula, and the 2% Ceiling",
+   "lessons": [
+    {
+     "title": "The 2% Ceiling and the Arithmetic of Ruin",
+     "minutes": 14,
+     "note": "Why 2% account risk is the hard max (prefer under 1%): the recovery table (−25% needs +33%, −50% needs +100%) and losing-streak survival math at 2% versus 10% risk per trade. Artifact: the printable ruin table members keep beside their platform. Includes the gap-risk segment the stop cannot protect: the worked case where a 5% stop yields a 20% position at 1% account risk — then the stock gaps −30% overnight and the realized loss is 6× plan. That arithmetic, not the stop, is why the sizing table caps position size at all.",
+     "chapters": [
+      "Right on the stock, dead in the account — open with the trader who nailed the thesis and still blew up on size, and name the module's claim: survival is arithmetic, not talent.",
+      "The recovery table, drawn by hand — build the hole-vs-climb-out table live (−10% needs +11%, −25% needs +33%, −50% needs +100%) and mark the line where recovery stops being realistic.",
+      "Ten losers at 2% vs 10% — run the same 10-loss streak at both risk levels on screen (2% leaves you at −18%, 10% leaves you at −65%) and show that only one of those accounts still gets to play the next hand.",
+      "The loss the stop cannot catch — work the gap case in full: 1% account risk on a 5% stop yields a 20% position, the stock gaps −30% overnight, and the realized hit is −6% of the account — 6× plan — which is why the sizing table caps position size at all.",
+      "The ruin table you keep beside your platform — hand over the printable ruin table artifact and lock in the rule as spoken doctrine: 2% is the hard ceiling, under 1% is the preference, no market opinion ever overrides it."
+     ]
+    },
+    {
+     "title": "The Formula: Account Risk % = Position Size % × Stop Distance % — Worked Five Times",
+     "minutes": 16,
+     "note": "The firm's exact formula worked on five real tickers at 1% account risk — the canonical case: a 5% stop yields a 20% position; a 10% stop yields a 10% position — with size always derived FROM the stop, never the reverse. Artifact: the position-size calculator sheet with five solved rows and three blank rows to complete before the next lesson.",
+     "chapters": [
+      "Size is an answer, not a feeling — open with two traders buying the same breakout, one sizing on conviction and one on arithmetic, and state the whole lesson in one line: Account Risk % = Position Size % × Stop Distance %.",
+      "The canonical pair — derive the formula on the whiteboard and work the two anchor cases at 1% account risk: a 5% stop yields a 20% position, a 10% stop yields a 10% position — wider stop, smaller size, same dollars at risk.",
+      "Five real tickers, five real stops — work the formula on five live charts spanning a tight-stop liquid leader to a wide-stop high-ADR mover, saying the same three-step sequence out loud each time: stop first, distance second, size last.",
+      "The reversal that kills accounts — demonstrate the inverted version (pick the position size you want, then back-fit a stop inside the noise to justify it) and show on one of the same five charts how that stop gets hit by ordinary wiggle.",
+      "Your calculator sheet: five solved, three blank — walk the position-size calculator artifact row by row, then assign the three blank rows as required homework to complete before the Sizing Gate checkpoint."
+     ]
+    },
+    {
+     "title": "Checkpoint: The Sizing Gate — Ten Problems, 100% to Pass",
+     "minutes": 10,
+     "note": "The course's hard gate on its most dangerous skill: ten worked sizing problems — mixed stop widths, mixed account sizes, one deliberate skip-because-the-structural-stop-is-too-wide case — solved on camera after the member attempts each cold. The bar is 100%: any miss means rewatch the formula lesson and retake. Nothing after this module is traded live until this gate clears.",
+     "chapters": [
+      "Why this gate is 100%, not 80% — open by naming what this checkpoint really is: the course's hard gate on its most dangerous skill, because a trader who sizes wrong one time in ten is not 90% safe, he is unsafe.",
+      "How the gate works — explain the mechanics before problem one: pause the video, solve each problem cold on your own sheet, then watch it solved on camera; copying the on-screen work is passing someone else's gate.",
+      "Problems 1–5: mixed stop widths — work five problems live at a fixed account size with stops from 3% to 12%, narrating the same stop-distance-size sequence every time until it sounds boring.",
+      "Problems 6–10 and the trap — work four problems across different account sizes ($5K to $250K to prove the formula doesn't care), then the deliberate trap: a structural stop so wide that the only correct answer is skip the trade, not shrink the stop.",
+      "The pass bar and the retake — state the gate terms to camera: 10 for 10 or it's a miss, any miss means rewatch the formula lesson and retake with fresh numbers, and nothing after this module gets traded live until this gate clears."
+     ]
+    },
+    {
+     "title": "Where the Stop Actually Goes: Structure, Percent, ATR — Invalidation, Not Comfort",
+     "minutes": 14,
+     "note": "The same entry sized three ways under a structure stop, a fixed-percent stop, and an ATR stop, unified by the iron rule: the stop marks the price where the thesis is wrong, then the size is derived. Includes the case where the structural stop is too wide for 2R and the correct answer is skip, not shrink the stop.",
+     "chapters": [
+      "The stop marks where you're wrong — open with the iron rule spoken plainly: a stop is the price at which the trade's thesis is dead, never the loss that feels tolerable, and everything else in this lesson is just three ways to find that price.",
+      "The structure stop — on a real breakout chart, place the stop under the pivot-area low where the pattern is objectively broken, then derive the position size from it with the formula on screen.",
+      "Percent and ATR on the same entry — size the identical entry two more ways (a fixed-percent stop and an ATR-multiple stop), line all three sizes up in one table, and show that the entry never changed — only the invalidation logic did.",
+      "Comfort-stop surgery — show the failure case: dragging the stop tighter so the formula spits out a bigger position, placing it inside normal noise, and getting stopped on a wiggle that never threatened the thesis.",
+      "Too wide means skip — work the case where the honest structural stop is so far away the trade can't pay 2R, and close on the decision sequence the member leaves with: invalidation first, size second, and if the two can't agree, the answer is no trade."
+     ]
+    },
+    {
+     "title": "Only Take Trades That Pay: The 2R Minimum, Expectancy, and the One Commandment",
+     "minutes": 14,
+     "note": "Expectancy = (win% × avg win in R) − (loss% × avg loss in R), computed on the Module 1 marble log including a 38%-win-rate system that prints money, installing the entry filter: no trade without 2R to the first target. Closes with the zero-exception commandment — never add to losers — and the account math of one doubled-down loser versus ten disciplined stops.",
+     "chapters": [
+      "The 38% system that prints money — open with the provocation: a system that loses 62% of the time made money all year, and prove it on screen with (38% × 2.5R wins) − (62% × 1R losses) = +0.33R per trade.",
+      "Expectancy from your own marble log — bring back the Module 1 marble-game log and compute Expectancy = (win% × avg win in R) − (loss% × avg loss in R) on its actual numbers, so the member grades a system they personally traded.",
+      "The 2R entry filter — install the rule live on a chart: measure entry-to-stop, project it 2× to the first target, and if 2R doesn't fit under the nearest resistance, the trade is declined before it ever gets sized.",
+      "One doubled-down loser vs ten disciplined stops — run the account math side by side: ten honest 1R stops cost −10R, while one loser averaged down and gapped through the stop erases more than all ten combined.",
+      "The commandment with no exceptions — close by writing 'never add to losers' as the single zero-exception rule of the entire system, and tie it back to expectancy: adding to a loser is manually growing the avg-loss term of your own equation."
+     ]
+    },
+    {
+     "title": "Running This System Under $25K: PDT, Cash Accounts, and Settlement",
+     "minutes": 10,
+     "note": "The pattern-day-trader rule and how this course's own doctrine consumes day trades (a breakout bought at 10 AM and stopped at 2 PM is one), cash-account settlement timing as the workaround, and the honest adjustments for a small account: fewer concurrent names, wider-timeframe stops, and why the 2% ceiling matters MORE, not less, when the account is small. (~10 min)",
+     "chapters": [
+      "The rule that punishes your discipline — open with the trap: under $25K in a margin account, the pattern-day-trader rule allows 3 day trades per rolling 5 days, and a correctly executed stop can be the thing that burns one.",
+      "How our own doctrine consumes day trades — walk the concrete case from the note: a breakout bought at 10 AM and stopped out at 2 PM the same day is one day trade, so the system's best practice (honor the stop fast) collides with the rule.",
+      "The cash-account workaround — show settlement mechanics on a real example: cash accounts have no PDT rule, but sale proceeds must settle before reuse, so the workaround is splitting capital into rotating settled tranches and never spending unsettled funds.",
+      "The honest small-account adjustments — lay out the three adaptations without sugarcoating: fewer concurrent names, stops planned on the daily/weekly timeframe so exits rarely happen same-day, and patience as a structural requirement rather than a virtue.",
+      "Why 2% matters MORE when you're small — close on the psychology-and-math of small accounts: the temptation is to oversize your way to $25K faster, but the ruin table from lesson one shows the small account is exactly the one that cannot afford the drawdown."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M6 · The Scan Engine: Watchlists That Feed the Loop",
+   "lessons": [
+    {
+     "title": "The Nightly Scan: 3,700 Tickers to 10 Names in 20 Minutes",
+     "minutes": 18,
+     "note": "The actual filter chain run live on the Screener with a running clock — Stage-2 pass, ADR% ≥ 4 (low-ADR names filtered entirely), a dollar-volume floor, RS trend up, tightening ranges — explaining each filter by showing the garbage it removes. Artifact: the exact filter settings plus that night's real 10-name output list.",
+     "chapters": [
+      "3,700 tickers, 20 minutes, clock starts now — open by starting a visible on-screen timer over the full Screener universe and framing the promise: this funnel replaces years of unstructured chart flipping with a repeatable nightly workflow.",
+      "The Stage-2 gate — apply the Stage-2 trend pass first and scroll through what it removed: downtrends, basing wrecks, and Stage-4 falling knives that no setup lesson will ever make buyable.",
+      "ADR% ≥ 4 and the dollar-volume floor — layer on the movement filter (low-ADR names filtered entirely — a stock that can't move 4% a day can't pay 2R on a swing) plus the dollar-volume floor, showing the illiquid and the comatose getting cut.",
+      "RS trend up, ranges tightening — add the final two filters and watch the list collapse to the survivors: names outperforming the market whose pullbacks are contracting into a coiled, scannable pivot.",
+      "The settings and tonight's ten — stop the clock, hand over the exact filter-settings artifact plus that night's real 10-name output list, and assign the drill: run this exact chain yourself tonight and bring your ten to the next lesson."
+     ]
+    },
+    {
+     "title": "Watchlist Architecture: A-List, B-List, and the Weekend Deep Scan",
+     "minutes": 15,
+     "note": "A-list = at a pivot within 1-2 days with an alert set at the exact trigger price; B-list = right pattern, needs time — plus the full Sunday routine (theme review, weekly-chart sweep, ten charts annotated with exact entry and stop levels) that produces Monday's plan. Artifact: the weekend scan template built live from a real Friday close.",
+     "chapters": [
+      "A watchlist is a promotion system, not a pile — open with the 80-ticker graveyard list every member already has, and replace it with the two-tier architecture where every name has a status and an expiry.",
+      "The A-list: at the pivot, alert armed — define the A-list precisely on a live chart: within 1-2 days of a drawn pivot, with an alert set at the exact trigger price, so the market interrupts you instead of you staring at it.",
+      "The B-list and the promotion rules — define the B-list (right pattern, needs time) and demonstrate both moves: a B-name tightening into its pivot gets promoted, and an A-name that broke structure gets deleted, not demoted.",
+      "The Sunday deep scan — walk the full weekend routine in order: theme and sector review, the weekly-chart sweep of the universe, then ten charts annotated on camera with exact entry and stop levels — which IS Monday's plan.",
+      "The weekend template, built from a real Friday close — build the weekend scan template artifact live from an actual Friday close, and set the standing drill: this routine runs every Sunday, and Monday morning you only trade what it produced."
+     ]
+    },
+    {
+     "title": "From Alert to Fill: Order Types, Buy-Stops, and Slippage",
+     "minutes": 13,
+     "note": "Every entry trigger in the catalog presupposes you can place a buy-stop — this lesson finally teaches it. Market vs limit vs stop vs stop-limit on a real platform, the buy-stop-above-the-pivot workflow with an alert as backup, where slippage actually comes from, and the two fills — one clean, one chased — with their cost difference in R terms.",
+     "chapters": [
+      "The order nobody taught you — open with the gap this lesson closes: every entry trigger in the setup catalog says 'buy above the pivot,' which silently presupposes an order type most retail traders have never placed — the buy-stop.",
+      "Four order types on a live platform — place a market, limit, stop, and stop-limit order on a real platform on camera, stating in one sentence each what it guarantees and what it sacrifices (price certainty vs fill certainty).",
+      "The buy-stop-above-the-pivot workflow — run the full A-list workflow live: draw the pivot, set the buy-stop a few cents above it, arm the price alert as the backup, and let the trigger fire without you watching the tape.",
+      "Where slippage actually comes from — break slippage into its real sources on screen — spread, thin books, fast tape, and market orders chasing a running price — and show which order types are exposed to each.",
+      "Two fills, priced in R — compare the two real fills from the note side by side: the clean buy-stop fill at the pivot versus the chased entry 3% higher, and translate the difference into R terms to show the chase silently shrank the trade's payoff before it began."
+     ]
+    },
+    {
+     "title": "The 30-Minute Premarket Routine",
+     "minutes": 14,
+     "note": "The full sequence with a clock: five-number scorecard → Exposure Rating → gaps and movers → earnings check → A-list trigger confirmation → a 3-5 name focus list with alerts armed. Artifact: the timestamped one-page daily prep sheet used in every trade walkthrough that follows. Anchor the routine to the product: Morning Wire first, scanner candidates second, your A-list alerts last — the member's routine IS the dashboard walk.",
+     "chapters": [
+      "Your routine IS the dashboard walk — open with the on-screen clock at 0:00 and the anchor rule: Morning Wire first, scanner candidates second, your A-list alerts last — the same walk every morning, in the same order.",
+      "Five numbers before the open — fill the five-number market-health scorecard live from the Morning Wire and read the Exposure Rating, so the day's permission level is decided before any individual chart is opened.",
+      "Gaps, movers, earnings — sweep the gaps-and-movers feed and the scanner candidates for anything that changed overnight, then run the earnings check to confirm nothing on your list reports today or tomorrow undisclosed.",
+      "Confirm the A-list, arm the alerts — re-verify each A-list trigger against premarket price, cut the list to a 3-5 name focus list, and confirm every survivor has its alert armed at the exact trigger price.",
+      "The prep sheet at minute 30 — stop the clock and hand over the timestamped one-page daily prep sheet artifact — the same sheet every trade walkthrough in the following modules will open with — and set the drill: run the full 30-minute routine five market mornings in a row."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M7 · Setup Family I: Bases & Breakouts",
+   "lessons": [
+    {
+     "title": "How to Learn a Setup: The Five-Field Card, Setup Functions, and the Four Entry Triggers",
+     "minutes": 14,
+     "note": "Every play in the catalog gets the same card — context, pattern, trigger, stop, failure mode — is classified by function (opens a position, adds to a winner, or exits one), and fires as one of the firm's four entry types: BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM, or RED TO GREEN. Artifact: the full setup-to-entry-type mapping table members pin above their desk.",
+     "chapters": [
+      "One catalog, one skeleton — open the full setup catalog on screen and make the promise: master this one card format today and every setup lesson that follows is just five blanks filled in differently.",
+      "The five-field card, filled in live — write a complete card for the Flat Base Breakout on camera (context, pattern, trigger, stop, failure mode) and show why each field must be falsifiable, not a vibe.",
+      "What is this setup FOR? The three functions — sort a handful of catalog names into the three piles on screen (opens a position, adds to a winner, exits one), answering the question every member asks: when would I ever use this one?",
+      "The four entry triggers, drawn to the dollar — mark BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM, and RED TO GREEN on four real daily charts, each with the exact price where the order goes in.",
+      "Build the wall chart — assemble the full setup-to-entry-type mapping table live, row by row, and tell members to print it and pin it above their desk before the flagship lesson."
+     ]
+    },
+    {
+     "title": "Field Weeks: How You'll Trade This Course — Pilot Size, Paper, and the Family Assignments",
+     "minutes": 8,
+     "note": "The application protocol for the whole setup tier: after each family module, one field week — run the nightly scan, find 2-3 live candidates of THAT family, write the five-field card and entry/stop for each, log them in the Journal, and grade the outcome against plan. Pilot size or paper only until the M5 sizing gate and the family's own drill are both cleared. This is where watching becomes trading.",
+     "chapters": [
+      "Why watching never made anyone a trader — open with the honest claim: the setup tier is graded on what you DO in the live market each week, not on videos completed.",
+      "The field-week protocol, all five steps — walk the loop on screen: run the nightly scan, find 2-3 live candidates of THIS family, write the five-field card with entry and stop for each, log them in the Journal, grade the outcome against plan.",
+      "Pilot size or paper — the hard rule — state the gate plainly: no real size until BOTH the Module 5 sizing gate and the family's own drill are cleared, and define exactly what pilot size means in dollars of risk.",
+      "One real field-log entry, graded — open an actual Journal entry from a field week and grade it on camera: the card, the entry/stop, what happened, and the verdict versus plan.",
+      "Your family assignments — lay out the calendar (one field week after each of the four family modules) and close on the line that names the stakes: this is where watching becomes trading."
+     ]
+    },
+    {
+     "title": "FLAGSHIP — Flat Base Breakout: Contractions, Dry-Up, Pivot, and the Tick-Exact Buy",
+     "minutes": 24,
+     "note": "Full anatomy of the coil: each pullback smaller than the last, volume drying up into the base, drawing the pivot to the tick, buying the break on the volume threshold, initial stop under the final contraction low sized through the Module 5 formula. Three real trades: two winners and one failed breakout where the 1R loss is taken on camera. Script in three chaptered segments with a micro-check between each — one recording, three sittings if needed.",
+     "chapters": [
+      "Segment 1 — the coil, read left to right — trace a real base contraction by contraction, showing each pullback smaller than the last and volume drying up into the base, then set the micro-check: mark the contractions on a fresh chart before continuing.",
+      "Segment 2 — drawing the pivot to the tick — put the exact pivot price on the chart and define the volume threshold that makes the break buyable versus the break you walk away from.",
+      "Stop and size in one motion — place the initial stop under the final contraction low and size it live through Account Risk % = Position Size % × Stop Distance % (2% hard max), then set the micro-check: recompute the size with a wider stop.",
+      "Segment 3 — two winners, end to end — walk both real winning trades from scan hit through pivot buy to exit, narrating each management decision at the bar it happened.",
+      "The failed breakout, 1R paid on camera — work the third real trade to its failure, take the planned 1R loss without flinching, and name the lesson: the loss was the system working, not the system breaking."
+     ]
+    },
+    {
+     "title": "Bull Flag: The Flagpole, the Quiet Drift, and the Trendline Break",
+     "minutes": 12,
+     "note": "A sharp advance, then a brief orderly pullback on lighter volume, entered on the break of the flag's upper trendline with the stop under the flag low — with the numeric depth and duration bounds that separate a flag from a rollover. One textbook flag next to one that lost the 20 EMA: the disqualifier, not a dip to buy.",
+     "chapters": [
+      "The flagpole earns the trade — open with why a sharp advance followed by a rest is the market's most natural continuation, and why the pole's strength is half the setup.",
+      "A flag by the numbers — state the numeric depth and duration bounds that separate a brief orderly pullback on lighter volume from a rollover, and show one chart of each.",
+      "The trendline break entry — draw the flag's upper trendline on a real chart, mark the exact break entry, and place the stop under the flag low sized through the Module 5 formula.",
+      "One textbook flag, worked — walk the real winner from flagpole through drift to breakout and exit, checking every field of the five-field card as it fills.",
+      "The 20 EMA loss is a disqualifier — put the failed chart beside the textbook one and hammer the rule: a flag that loses the 20 EMA is a dead setup, not a better price to buy."
+     ]
+    },
+    {
+     "title": "Cup & Handle: The Multi-Week Base and the Handle's Low-Volume Shakeout",
+     "minutes": 12,
+     "note": "The rounded recovery to prior highs and the shallow low-volume handle, bought over the handle high — with the measured criteria (minimum cup duration in weeks, handle forming in the upper half of the base). One real multi-week example annotated week by week so the member sees how slowly a good base actually builds.",
+     "chapters": [
+      "The pattern that pays you for patience — open with why the biggest breakouts come from the longest bases, and what the rounded recovery to prior highs says about supply changing hands.",
+      "The cup, measured — state the minimum cup duration in weeks and the recovery-to-prior-highs requirement, and disqualify one too-short, too-sharp imposter on screen.",
+      "The handle's low-volume shakeout — define the handle as a shallow drift forming in the upper half of the base on drying volume, and show why a deep or low-in-base handle kills the setup.",
+      "One real base, annotated week by week — step through the actual multi-week example one weekly bar at a time so the member feels in real time how slowly a good base builds.",
+      "Buy over the handle high — mark the exact trigger above the handle high, place the stop, run the sizing formula, and fill the five-field card as the leave-with artifact."
+     ]
+    },
+    {
+     "title": "IPO Base: A New Issue's First Consolidation — Short, Shallow, Explosive",
+     "minutes": 12,
+     "note": "Why IPO bases resolve violently (no overhead supply, small float) and the adjusted rules: shorter base tolerance, wider ADR, smaller size, plus the still-locked-up float risk. One recent IPO winner worked from listing day through its first breakout, and one failed IPO base beside it.",
+     "chapters": [
+      "Why IPO bases explode — open with the structural reason: no overhead supply and a small float mean nobody above is waiting to sell at breakeven, so resolution is violent in both directions.",
+      "The adjusted rulebook — walk the three deviations from the standard base rules on screen: shorter base tolerance, wider ADR allowance, and smaller position size to pay for the volatility.",
+      "The lock-up landmine — show where to find the lock-up expiration date and the still-locked float, and make checking it a mandatory pre-entry step on the card.",
+      "One winner, from listing day — work the recent real IPO from its first day of trading through its first consolidation and breakout, marking pivot, entry, and stop.",
+      "The failed IPO base beside it — put the real failure next to the winner, show where it broke plan, and demonstrate how the smaller-size rule turned a violent move into a survivable loss."
+     ]
+    },
+    {
+     "title": "Launchpad: Consolidating on Top of the Stacked Averages, Then Launching",
+     "minutes": 12,
+     "note": "A momentum burst, then a rest that sits on the full stacked 9>20>50>200 cluster; higher-low entry with the stop below the pad. The stack-check comes first — the same pattern without stacked, rising MAs is explicitly NOT a Launchpad — and one current-market candidate is assessed live.",
+     "chapters": [
+      "The rarest kind of rest — open with the image: after a momentum burst, price parks flat on top of the full moving-average cluster like a rocket on its pad.",
+      "The stack-check comes first — verify 9 over 20 over 50 over 200, all rising, on screen, and show the identical-looking pattern WITHOUT the stack that is explicitly NOT a Launchpad.",
+      "Anatomy of the pad — trace the burst-then-rest sequence on a real chart, showing the tightening range sitting on the averages while volume goes quiet.",
+      "The higher-low entry, stop below the pad — mark the higher-low trigger, place the stop under the pad, and size it through Account Risk % = Position Size % × Stop Distance %.",
+      "Live grade: a current candidate — pull up a current-market chart cold and run the full Launchpad checklist on camera, ending with a stated pass or fail and why."
+     ]
+    },
+    {
+     "title": "Base Failure Modes + 20 Replay Reps",
+     "minutes": 15,
+     "note": "The three killers — late-stage bases, wide-and-loose structure, breakouts into overhead supply — each on a real failed chart, plus the shakeout-versus-failure decision rule for the day after entry. Module gate: 20 graded chart-replay reps against the family rubric at 80%, opening with a 60-second sizing recall to keep the formula warm. Then the field week: one week live — scan nightly, card 2-3 real candidates of this family with entry/stop, log them in the Journal, grade outcome vs plan. 80% on the drill plus a completed field log opens the next family.",
+     "chapters": [
+      "60-second sizing recall — open cold: recite and work Account Risk % = Position Size % × Stop Distance % (2% max) on one ticker in under a minute, keeping the Module 5 formula warm before anything else.",
+      "The three killers on real charts — walk one real failed chart each for late-stage bases, wide-and-loose structure, and breakouts into overhead supply, naming the tell that was visible BEFORE entry.",
+      "Shakeout or failure? The day-after rule — teach the decision rule for the morning after entry: what price action says hold through the shake versus take the stop now, on two contrasting real examples.",
+      "The 20-rep replay drill — demonstrate the mechanics live: chart replay with the answer covered, grade each rep against the family rubric, and state the pass bar of 80% to close the module.",
+      "Your base-family field week — assign the week: scan nightly, card 2-3 real candidates of this family with entry and stop, log them in the Journal, grade outcome versus plan — 80% on the drill plus the completed field log opens Family II."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M8 · Setup Family II: Momentum & Trend",
+   "lessons": [
+    {
+     "title": "FLAGSHIP — 20 EMA Pullback: Qualify the Touch, Buy the 9 EMA Remount",
+     "minutes": 20,
+     "note": "The family's core motion at full depth: a bullish trend pulls back to the rising 20 EMA, a candle holds it, and the remount of the 9 EMA is the buy — qualifying checklist (trend intact, volume quiet on the pullback, RS line holding), stop under the pullback low, tennis-ball action separating leaders from laggards. Includes one chart that kept slicing the 20 EMA: the skip signal, not a better price. Artifact: the pullback-qualification checklist.",
+     "chapters": [
+      "Tennis balls and eggs — open with the family's core image on two real charts: a leader hits the rising 20 EMA and bounces like a tennis ball, a laggard hits it and splats — this lesson teaches you to tell them apart before the bounce.",
+      "Qualify the touch: the three checks — run the qualifying checklist on a real pullback: trend intact, volume quiet on the pullback, RS line holding — and reject one candidate that fails a single check.",
+      "The hold candle and the 9 EMA remount buy — mark the candle that holds the 20 EMA, buy the remount of the 9 EMA to the tick on a real winning trade, and place the stop under the pullback low sized through the formula.",
+      "The slicer: skip signal, not sale price — walk the chart that kept slicing through the 20 EMA and name the doctrine: repeated slicing disqualifies the name entirely, it does not offer a better entry.",
+      "The pullback-qualification checklist — build the artifact on screen field by field and assign it: no 20 EMA Pullback gets bought in your field week without this checklist filled in first."
+     ]
+    },
+    {
+     "title": "EMA Crossback: The Re-Entry After the Extension",
+     "minutes": 12,
+     "note": "Kell's re-entry: after an extension, price crosses back into the 9/20 EMAs and either reclaims them (the long re-entry) or rejects them (the short) — both directions worked on the same template. Framed as the tool for re-entering a trend you exited too early: the most common regret trade, done correctly.",
+     "chapters": [
+      "The regret trade — open with the most common story in trading: you sold the leader too early, watched it run, and either chased it or sulked; Kell's crossback is the third option, done correctly.",
+      "The template: extension, then cross back in — define what qualifies as an extension away from the 9/20 EMAs and mark the moment price crosses back into the EMA zone, where the decision window opens.",
+      "The reclaim: the long re-entry — work a real chart where price crosses back and RECLAIMS the 9/20 EMAs, entering the re-entry with trigger and stop on screen.",
+      "The reject: the short side of the same template — on the same template, show price rejecting the EMAs instead, and name it as the short — every rule identical, direction inverted.",
+      "When re-entry is earned — close with the discipline rule: the crossback re-enters a still-intact trend you exited early; if the trend checks fail, your early exit was right and the card stays blank."
+     ]
+    },
+    {
+     "title": "Wedge Pop & Wedge Drop: One Coil, Two Resolutions",
+     "minutes": 16,
+     "note": "The descending coil taught once, then both resolutions on the same chart's full cycle — the Wedge Pop that starts the up-cycle and the Wedge Drop mirror that breaks the down-cycle open, every rule inverted side by side. Recognition only on the short side here: short-side EXECUTION (sizing smallest, buy-stop protection, borrow mechanics) waits for M10, where shorts formally arrive.",
+     "chapters": [
+      "One coil, two doors — open on the same chart's full cycle and make the claim: the tightening wedge is the market's turn signal at BOTH ends of a move, and you're about to learn it once for both.",
+      "The coil, taught once — draw the descending wedge anatomy against the 9/20 EMAs: the tightening range, the shrinking bars, and the averages flattening overhead.",
+      "The Wedge Pop: starting the up-cycle — on the cycle chart, work the pop that reclaims the averages and opens the new up-cycle, with trigger, stop, and the sized entry.",
+      "The Wedge Drop: every rule inverted — scroll the same chart forward to the rally's end and lay the Drop beside the Pop rule-for-rule: bounce wedging upward beneath the averages, then the break that opens the down-cycle.",
+      "Recognition now, execution in M10 — set the boundary explicitly: members must name the Wedge Drop on sight from today, but short-side execution (smallest sizing, buy-stop protection, borrow mechanics) formally arrives in Module 10 — then drill it by marking both wedges on a fresh cycle chart."
+     ]
+    },
+    {
+     "title": "Adding to Winners + 20 Family Reps",
+     "minutes": 14,
+     "note": "The ADD doctrine: when a continuation setup in a name you already own means pyramiding smaller — only once the core position is above breakeven, with the combined risk still inside the 2% formula and the stop moved to protect the blend. Closes with 20 replay reps mixing all four family members, recycling two Stage-2 gate questions from Module 3. Then the field week: one week live — scan nightly, card 2-3 real candidates of this family with entry/stop, log them in the Journal, grade outcome vs plan. 80% on the drill plus a completed field log opens the next family.",
+     "chapters": [
+      "Same pattern, different function — open with the reframe from the five-field card's function column: a 20 EMA Pullback in a name you ALREADY own isn't a new trade, it's an ADD — and adds have their own rules.",
+      "The three ADD gates — state the doctrine on screen: the core position must be above breakeven, the add is pyramided SMALLER than the core, and the combined risk must still fit inside Account Risk % = Position Size % × Stop Distance % under the 2% cap.",
+      "Protecting the blend — work a real add with numbers: compute the blended cost basis, move the stop to protect the blend, and show the disaster version where an unmoved stop turns a winner into a full loser.",
+      "The 20-rep family drill — run the drill mechanics live: 20 replay reps mixing all four family members (20 EMA Pullback, EMA Crossback, Wedge Pop, Wedge Drop) plus two recycled Stage-2 gate questions from Module 3, graded at the 80% bar.",
+      "Your momentum-family field week — assign the closing week: scan nightly, card 2-3 real candidates of this family with entry and stop, log them in the Journal, grade outcome versus plan — 80% on the drill plus the completed field log opens Family III."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M9 · Setup Family III: Gaps & Catalysts",
+   "lessons": [
+    {
+     "title": "FLAGSHIP — Episodic Pivot: Day One of a New Trend",
+     "minutes": 24,
+     "note": "A neglected stock gaps 10%+ on massive volume from a surprise the market has not priced: the premarket homework (float, overhead supply, does the gap clear the base), the opening-range-high entry, the day-low stop, partials into strength, trailing on the 10/20-day — with the pacing rule delivered on camera: EP mastery is measured in earnings seasons, not weeks. Artifact: the premarket gap checklist; two winners plus one faded EP taken for the planned loss. Script the premarket-homework segment (float, overhead supply, gap-clears-base, season clock) as a clean self-contained chapter — it doubles as UCT Foundations' premarket-homework lesson via a clip.",
+     "chapters": [
+      "Day one, on screen — open on a neglected stock the morning it gapped 10%+ on massive volume from a surprise the market had not priced, then fast-forward the months-long trend it started, and name the thesis: you are not chasing a gap, you are buying day one.",
+      "The premarket homework (a self-contained segment) — work float, overhead supply, and does-the-gap-clear-the-base on one real premarket gap while filling the premarket gap checklist on camera, and start the season clock out loud: this homework is the whole edge.",
+      "Opening-range-high entry, day-low stop — mark the opening range on the intraday chart, buy the break of its high on volume, set the stop at the day low, and size it live through Account Risk % = Position Size % × Stop Distance % under the 2% max.",
+      "Two winners and one faded EP — replay both winners with partials into strength and the trail on the 10/20-day, then the faded gap exited for exactly the planned loss, managed with the same calm as the winners.",
+      "The mastery clock and your checklist — deliver the pacing rule to camera (EP mastery is measured in earnings seasons, three to four of them, not weeks — the membership is where those reps happen) and hand off the premarket gap checklist as the artifact the member fills every gap morning."
+     ]
+    },
+    {
+     "title": "Power Earnings Gap: Institutions Repricing in Real Time",
+     "minutes": 13,
+     "note": "Blowout numbers gap an established leader above its base on huge volume — what separates a PEG from an ordinary earnings pop (magnitude of beat, guidance raise, gap clearing the entire base) and from an EP (known leader vs neglected name, which changes the hold horizon). One real earnings morning walked from the print to the entry, next to one ordinary pop that faded.",
+     "chapters": [
+      "Why institutions can't finish in one day — open on a real established leader gapping above its base on blowout numbers and huge volume, and frame the PEG: funds repricing a business in real time, which is why the move continues.",
+      "PEG versus an ordinary earnings pop — the three separators on the chart: magnitude of the beat, a guidance raise, and the gap clearing the ENTIRE base, with each one checked against the live example.",
+      "PEG versus EP — known leader versus neglected name, and how that single difference changes the hold horizon from a day-one trend trade to a position add on a stock the market already trusts.",
+      "One real earnings morning, print to entry — walk the actual sequence on screen: the numbers hit, the premarket gap forms above the base, the open, and the exact entry with stop and size from the formula.",
+      "The pop that faded — put the ordinary earnings pop beside the PEG, show it failing the separators (small beat, no raise, gap dies inside the base), and close with the rule: if it doesn't clear the base on a raised guide, it's not a PEG, skip it."
+     ]
+    },
+    {
+     "title": "News/Earnings Gapper: Trade the First Pullback and Reclaim, Not the Open",
+     "minutes": 12,
+     "note": "The headline-driven gap that holds its range, entered off the first controlled pullback and reclaim rather than the emotional open — the exact reclaim trigger and stop marked on one worked example. The number-one gapper mistake shown on a real chased-open loser with the R damage computed.",
+     "chapters": [
+      "The open lies — replay the first fifteen minutes of a real headline gap whipsawing both directions, and state the doctrine: the emotional open is where amateurs pay; your trade is the first controlled pullback and reclaim.",
+      "The gap that qualifies — a headline-driven gap that HOLDS its range on real volume versus one that starts bleeding immediately, and the tell that separates them before you ever plan an entry.",
+      "The reclaim trigger, marked to the tick — on the worked example, mark the first controlled pullback, the exact reclaim trigger, and the stop under the pullback low, then size it through the Module 5 formula.",
+      "The number-one gapper mistake, in R — a real chased-open loser on screen with the damage computed in R terms against what the patient reclaim entry on the same chart would have paid.",
+      "The five-field card — fill context, pattern, trigger, stop, and failure mode for the gapper on camera, closing on the one-line rule the member repeats: never the open, always the reclaim."
+     ]
+    },
+    {
+     "title": "The Level the Tape Remembers: High Volume Edge & Gap Support",
+     "minutes": 14,
+     "note": "One principle, two flavors: a high-conviction event creates a line price must defend. The highest-volume day's close and the prior up-gap zone, each traded the same way — the candle that holds the zone, entry over its high, stop under the zone, invalidated when the level fully fails. Two real charts, one per flavor, with the institutional-memory logic that makes both work.",
+     "chapters": [
+      "Institutional memory — open with the principle both flavors share: a high-conviction event creates a line price must defend, because the institutions who acted there defend their own cost.",
+      "Flavor one: High Volume Edge — on a real chart, mark the highest-volume day's close as the level, and watch price return to it and hold, with the who-bought-there logic narrated.",
+      "Flavor two: Gap Support — on a second real chart, mark the prior up-gap zone, and show the first controlled pullback into it holding, the same defended-line logic in gap clothing.",
+      "One trade template for both — the candle that holds the zone, entry over its high, stop under the zone, sized through Account Risk % = Position Size % × Stop Distance %.",
+      "When the level fully fails — walk a zone break where the defense never shows up, name it as the invalidation (not a dip to average into), and close by restating the principle: one line, two flavors, same trade."
+     ]
+    },
+    {
+     "title": "Kicker Candle: The Trap That Closes Above Yesterday's High",
+     "minutes": 10,
+     "note": "The prior day closes weak and looks broken — then a catalyst gaps the stock to close above that day's high, trapping every short who leaned on the breakdown; the cleanest RED TO GREEN entry in the catalog. One real squeeze with the short-interest context and the short-covering fuel visible in the volume.",
+     "chapters": [
+      "Yesterday looked broken — open on the prior day's weak close on a real chart and voice the short seller's thesis out loud, because their conviction is the fuel for this setup.",
+      "The kicker — the catalyst gaps the stock up to CLOSE above that weak day's high, trapping every short who leaned on the breakdown, with the trapped cohort circled on the chart.",
+      "The cleanest RED TO GREEN in the catalog — map the kicker to its entry type from the Module 7 table, mark the trigger and the stop, and size it through the formula.",
+      "One real squeeze, fuel visible — replay the squeeze with the short-interest context stated up front and the short-covering fuel pointed out bar by bar in the volume pane.",
+      "The card and the counter-check — fill the five-field card, flag the failure mode (a kicker that closes back inside yesterday's range is dead), and close on the doctrine: you're not buying news, you're buying trapped shorts."
+     ]
+    },
+    {
+     "title": "Catalyst Taxonomy + the Earnings-Season Game Plan + 15 Gap Reps",
+     "minutes": 15,
+     "note": "Which catalysts have legs — earnings, FDA, contracts, guidance raises — versus PR fluff that fades by 10:30, ranked by historical follow-through so the member stops treating all gaps as equal. Artifact: the earnings-season prep sheet; closes with 15 mixed gap reps, answer covered, recycling one RS-line question from Module 4. Then the field week: one week live — scan nightly, card 2-3 real candidates of this family with entry/stop, log them in the Journal, grade outcome vs plan. 80% on the drill plus a completed field log opens the next family.",
+     "chapters": [
+      "Not all gaps are equal — rank the catalysts by historical follow-through on screen: earnings, FDA, contracts, and guidance raises have legs; PR fluff fades by 10:30, with one real fluff-fade chart as proof.",
+      "The earnings-season game plan — fill the earnings-season prep sheet live against the actual upcoming reporting calendar: which names, which nights, and which gap setups each could produce.",
+      "The witness still rules — recycle one RS-line question from Module 4 cold, then show why a gap without the RS and volume witness is a lower-grade trade no matter how loud the headline.",
+      "15 mixed gap reps, answer covered — run the reps across EP, PEG, gapper, HVE/Gap Support, and Kicker: name the setup, the entry, and the stop before each reveal.",
+      "The gate and the field week — state the pass bar (80% on the reps), then the field week mechanics: scan nightly, card 2-3 live candidates of THIS family with entry and stop, log them in the Journal, grade outcome versus plan — drill plus completed field log opens the next family."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M10 · Setup Family IV: Reversals & Reclaims — and the Short-Side Mirror",
+   "lessons": [
+    {
+     "title": "FLAGSHIP — U&R (Undercut & Rally): The Shakeout You Buy",
+     "minutes": 20,
+     "note": "Price briefly undercuts a prominent prior low — stopping out weak holders, luring shorts — then reclaims it: the PREV LOW RECLAIM entry with the stop back under the undercut low, the tightest stop in the playbook, and the family-wide rule that counter-trend trades size smallest. Two winners with the trapped-participant logic narrated bar by bar, plus one reclaim that failed the same day, exited at plan.",
+     "chapters": [
+      "Buying other people's stop-outs — open on a real prominent prior low and narrate what lives there: resting stops below, shorts waiting to press, and the family doctrine up front — counter-trend trades size smallest.",
+      "The trap, bar by bar — walk the undercut candle in slow motion: weak holders stopped out, shorts lured in below the low, and then the reclaim that turns both crowds into forced buyers.",
+      "PREV LOW RECLAIM, the tightest stop in the playbook — mark the entry as the reclaim of the undercut low, the stop just back under it, and show how that tiny stop distance sizes through Account Risk % = Position Size % × Stop Distance %.",
+      "Two winners, narrated — replay both real U&R winners with the trapped-participant logic voiced at every bar: who is being squeezed, who is covering, and where the fuel runs out.",
+      "The reclaim that failed the same day — the third chart loses the low again within hours and is exited exactly at plan, closing on the point: the tight stop is WHY you can afford to be wrong fast and small."
+     ]
+    },
+    {
+     "title": "2B Reversal — and Oops, Its Gap-Open Variant",
+     "minutes": 14,
+     "note": "The trap skeleton taught once: a break of a prior extreme that fails and snaps back through it — trapped cohort as fuel, the reclaim as trigger, the stop just beyond the trap's extreme. Then Oops as the gap-open variant of the identical mechanics: gap below the prior low, close back above it, same entry and stop logic. One real 2B and one real Oops, both with the trapped-volume read.",
+     "chapters": [
+      "One trap skeleton — teach the mechanics once on a clean diagram: price breaks a prior extreme, fails to follow through, and snaps back through it, with the trapped cohort named as the fuel.",
+      "Trigger and stop — the reclaim of the broken extreme is the trigger, the stop sits just beyond the trap's extreme, and both are marked to the tick before any real chart appears.",
+      "One real 2B — work the trade on a real chart with the trapped-volume read: the heavy volume on the failed break IS the trapped crowd, and their unwinding drives the snap-back.",
+      "Oops: the same trap, gapped — the gap opens below the prior day's low and closes back above it, and every rule maps one-to-one: same trapped cohort, same reclaim trigger, same beyond-the-extreme stop.",
+      "One real Oops, then the card — work the real Oops with its trapped-volume read, then close by filling one five-field card that covers both: one skeleton, two costumes, identical trade."
+     ]
+    },
+    {
+     "title": "Remount: Shake Out Below the Line, Retake It with Authority",
+     "minutes": 12,
+     "note": "A leader slips below its moving average, flushes weak hands, then remounts with a wide-range candle — 'with authority' defined numerically by range and volume thresholds on the remount bar, and explicitly contrasted with the 20 EMA Pullback: this is loss-and-RECLAIM of the line, a different trigger with a different stop. One authoritative remount against one feeble drift-back that failed.",
+     "chapters": [
+      "The leader that loses its line — open on a real leader slipping below its moving average and pose the only question that matters: is this a shakeout flushing weak hands, or the start of the decline?",
+      "'With authority,' in numbers — define the remount bar numerically on screen: the range and volume thresholds it must clear, because a wide-range high-volume retake is institutions, and a quiet drift is nobody.",
+      "This is NOT the 20 EMA Pullback — side-by-side with Module 8's flagship: the pullback HOLDS the line, the Remount LOSES and RECLAIMS it — a different trigger with a different stop below the shakeout low.",
+      "One authoritative remount, worked — entry over the remount bar, stop below the flush low, sized through the formula, and managed to its first target on a real chart.",
+      "The feeble drift-back that failed — the counter-example crawls back above the line on shrinking volume and rolls over, closing on the rule: no authority, no trade."
+     ]
+    },
+    {
+     "title": "Slingshot: Recapture the 4-EMA of the Highs — Buy Momentum Resuming, Not the Low",
+     "minutes": 12,
+     "note": "A strong uptrend pulls back, stabilizes, then recaptures the 4-EMA of the highs — the entry is the resumption, never the guess at the bottom. Configures the non-standard 4-EMA-of-highs overlay on screen, then one clean recapture plus the anticipation entry that got run over.",
+     "chapters": [
+      "You are not buying the low — open with the doctrine: bottom-guessers get run over, and the Slingshot's entire design is to buy momentum RESUMING, never the guess at the turn.",
+      "Configure the 4-EMA of the highs — build the non-standard overlay live on the dashboard chart (an EMA on the HIGHS, not the closes) so every member leaves with the exact same line on their screen.",
+      "The anatomy — a strong uptrend pulls back, stabilizes below the line, and the RECAPTURE of the 4-EMA of the highs is the entry, with the stop under the stabilization low.",
+      "One clean recapture, worked — the real trade entry-to-target with the stop and size run through Account Risk % = Position Size % × Stop Distance %, narrating why the recapture proves the buyers are back.",
+      "The anticipation entry that got run over — the counter-example bought DURING the pullback before any recapture, stopped out as the low broke, closing on the line: the recapture is the permission slip."
+     ]
+    },
+    {
+     "title": "Failed H&S / Rounded Top: When the Breakdown Everyone Sees Never Comes",
+     "minutes": 10,
+     "note": "The most-watched topping pattern fails to break down and the crowded short becomes squeeze fuel for the next leg up — entry over the right-shoulder high. One famous historical example with the short-covering volume signature marked: the clearest lesson in trading other people's textbooks against them.",
+     "chapters": [
+      "The most-watched pattern in the textbook — draw the head-and-shoulders every retail short is staring at, and state the setup's premise: when EVERYONE sees the top, the trade is on the other side.",
+      "Failure is fuel — walk the mechanics: the neckline break never comes, the crowded short is trapped at bad prices, and their forced covering becomes the buying power for the next leg up.",
+      "Entry over the right-shoulder high — mark the trigger, place the stop back inside the pattern, and size it through the formula — you are long the moment the pattern officially fails.",
+      "The famous one — replay the historical example with the short-covering volume signature marked bar by bar: the surge that isn't new buyers, it's trapped shorts paying any price to leave.",
+      "Trading other people's textbooks against them — close with the transferable lesson and the five-field card: the more obvious the topping pattern, the more explosive its failure."
+     ]
+    },
+    {
+     "title": "Parabolic Long: Riding the Vertical, Bar by Bar",
+     "minutes": 12,
+     "note": "The runaway move managed candle by candle as the angle goes vertical — no fixed target, a pre-agreed give-back rule decided before entry, exits keyed to climax signals (largest spread, biggest gap, heaviest volume of the run). One full parabolic ridden from base to blow-off with each daily hold/trim decision narrated.",
+     "chapters": [
+      "The runaway — open on a real parabolic in progress and name why every normal tool breaks here: no base, no fixed target, an angle going vertical, and a crowd in full euphoria.",
+      "The give-back rule, decided BEFORE entry — pre-commit on camera to the exact give-back that ends the trade, because the one decision you cannot make honestly mid-parabola is when to leave.",
+      "The climax checklist — the three exit signals defined and drawn: the largest spread of the run, the biggest gap of the run, the heaviest volume of the run — any of them means the crowd's last buy is in.",
+      "The full ride, narrated daily — replay one complete parabolic from base to blow-off with every daily hold-or-trim decision spoken: what the bar showed, what the rule said, what was done.",
+      "The blow-off day — the exit fires on the climax signals, the give-back rule caps the damage of imperfect timing, and the close compares what was kept versus the round-trip the euphoric holder took."
+     ]
+    },
+    {
+     "title": "Parabolic Short: Shorting the Crack of a 3-5 Day Blow-Off",
+     "minutes": 15,
+     "note": "The hardest setup in the book and the true short-side mirror: a 3-5 day blow-off stretched miles above the averages, shorted only as it cracks — never into strength — with buy-stop protection above and the snap back to the 9 EMA as target, every long rule inverted on screen one at a time. States the patience rules: appears a handful of times a year, smallest size in the catalog. Artifact: the long-rules/short-rules mirror table.",
+     "chapters": [
+      "The hardest setup in the book — open with the honest framing: a 3-5 day blow-off stretched miles above the averages, a handful of appearances a year, and the smallest size in the entire catalog.",
+      "Never into strength — the iron rule on a real blow-off: you short ONLY as it cracks, and every early short into the vertical is shown getting squeezed carried out on the same chart.",
+      "The mechanics — the crack entry, buy-stop protection placed ABOVE (the short side's stop is a buy), the snap back to the 9 EMA as the target, and the smallest-size rule run through the 2% formula.",
+      "The mirror, one rule at a time — invert every long rule on screen while building the long-rules/short-rules mirror table live: trigger, stop direction, target, sizing, each flipped and written into its row.",
+      "Patience is the position — close with the patience doctrine (it appears a handful of times a year; forcing it is how shorts blow up) and hand off the completed mirror table as the lesson's artifact."
+     ]
+    },
+    {
+     "title": "Four-Family Placement Drill: 20 Mixed Charts",
+     "minutes": 15,
+     "note": "The setup tier's capstone gate: 20 cover-the-answer charts interleaving all four swing families — name the family, then the setup, then the entry type, before naming the trade — graded at 80% to proceed. Deliberately recycles two Winners Gallery charts from Module 2 and one regime question from Module 3, because mastery is perishable. Then the field week: one week live — scan nightly, card 2-3 real candidates of this family with entry/stop, log them in the Journal, grade outcome vs plan. 80% on the drill plus a completed field log opens the next family.",
+     "chapters": [
+      "Why interleaved — open with the perishability point: you can ace each family in isolation and still freeze on a live chart, so this gate mixes all four swing families in one deck.",
+      "The placement sequence, demonstrated — work three charts on camera in the strict order: name the FAMILY, then the SETUP, then the ENTRY TYPE (BASE BREAKOUT / PREV DAY HIGH BREAK / PREV LOW RECLAIM / RED TO GREEN), and only then the trade.",
+      "The 20-chart deck, answer covered — run the drill guess-before-you-check, deliberately recycling two Winners Gallery charts from Module 2 and one regime question from Module 3, because mastery is perishable.",
+      "Grading and the 80% bar — score against the printed rubric on camera, and show what a miss means: not a retake-loop, but targeted remediation back to the family whose reps failed.",
+      "The field week that closes the tier — the mechanics and the pass bar: one week live, scan nightly, card 2-3 real candidates with entry and stop, log them in the Journal, grade outcome versus plan — 80% on the drill plus a completed field log opens the next tier."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M11 · The Intraday Toolkit: Timing the Swing Entry",
+   "lessons": [
+    {
+     "title": "Reading the Open: ORB and the 30-Minute Pivot — Two Range-Break Timers",
+     "minutes": 16,
+     "note": "Read the first minutes of the session, then the two range-break entry timers on one replayed open: the aggressive opening-range break and its patient sibling — consolidate under the first half-hour high, break with volume. When each fits a swing entry, the pass case, and the chase case that violates both. Includes the volume-confirmation bar both timers share.",
+     "chapters": [
+      "An execution timer, not a day trade — open on the trap: the swing was picked last night on the daily chart, and the only question the first 30 minutes answers is whether today puts the day's trend behind the entry.",
+      "The first minutes, replayed — run the replayed open bar by bar and narrate the auction live: the opening range drawing itself, where the volume is landing, and what a real bid looks like versus churn.",
+      "ORB, the aggressive timer — on the same replayed open, draw the opening-range high and take the break with momentum: the pass case, entry the tick it clears, and why this timer fits a swing entry only when the daily setup work was already done.",
+      "The 30-Minute Pivot, the patient sibling — mark the first half-hour's high, show price consolidating UNDER it, then the break with volume; name when patience beats aggression: gappy opens, thinner names, a YELLOW tape.",
+      "One volume bar, one chase — show the volume-confirmation bar both timers share (the break bar must expand clearly above the morning's prior bars), then the chase case that violates both — extended, mid-range, no volume — and the walk-away rule."
+     ]
+    },
+    {
+     "title": "Go Signal: The Catalyst Gap That Digests into the 9 EMA, Then Engulfs",
+     "minutes": 12,
+     "note": "A catalyst gap digests into the 9 EMA, then one wide candle engulfs the pullback and closes above the catalyst high — the intraday confirmation layer for EP and Power Earnings Gap entries. One day where it fired and one where it never came, both annotated.",
+     "chapters": [
+      "Why EP entries need a go signal — open with the blind-open buy that gets shaken out at the day's lows, and frame the Go Signal as the intraday confirmation layer that sits under Episodic Pivot and Power Earnings Gap entries.",
+      "The digestion into the 9 EMA — annotate the catalyst gap holding its range and drifting back into the 9 EMA on fading volume, and name it correctly: the market re-loading, not the gap failing.",
+      "The engulf above the catalyst high — freeze on the trigger bar: one wide candle that engulfs the entire pullback and closes above the catalyst high — entry there, stop under the digestion low, sized by the normal R math.",
+      "The day it fired — replay a real annotated session start to finish: gap, digestion, engulfing trigger, the fill, and where the swing stop and first target sat by the closing bell.",
+      "The day it never came — replay a real annotated session where the digestion broke the 9 EMA and the engulf never printed: the no-trade IS the win, and the card reads one line — no engulf, no entry."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M12 · Selling and Trade Management",
+   "lessons": [
+    {
+     "title": "Selling Because You Were Wrong: The Stop Is an Appointment, Not a Debate",
+     "minutes": 14,
+     "note": "Pre-commitment mechanics (hard GTC stops versus alert-and-act) and the base re-entry rule: cut at least half the moment a breakout falls back into its base. One narrated real stop-out taken exactly at plan — presented as a WIN of process — with the counterfactual computed on screen: the same trade at −2.5R when the stop gets moved once.",
+     "chapters": [
+      "A different kind of sell — open on the split that organizes this whole module: selling because you were wrong is its own psychological event, and the stop is an appointment you made before the trade, not a debate you hold during it.",
+      "Pre-commitment mechanics: hard GTC versus alert-and-act — show both order setups on screen, who each style fits, and the non-negotiable they share: the exit price exists in writing before the entry order does.",
+      "The base re-entry rule — the moment a breakout falls back into its base you cut at least half, without waiting for the stop; draw the base boundary on a real chart and mark the exact bar that triggers the cut.",
+      "A real stop-out, narrated as a win — replay the actual trade taken out precisely at plan for −1R, and grade it on camera as an A trade: right size, right stop, appointment kept.",
+      "The moved-stop counterfactual — recompute the same trade live with the stop moved just once: −1R becomes −2.5R on screen, and that single number is why the appointment can never become a debate."
+     ]
+    },
+    {
+     "title": "Selling Because You Were Right: Partials into Strength, Trailing into Weakness",
+     "minutes": 14,
+     "note": "Two distinct skills with two different feelings: a third off into strength at 2-3R while the crowd is euphoric, trail the remainder into weakness. The same real winner worked three ways (all-out early, all-or-nothing hold, partials) with the final R of each path compared. Artifact: the partials playbook card (first third, second third, runner rules).",
+     "chapters": [
+      "Two skills, two feelings — open on the paradox: selling because you were right splits into selling into euphoria (feels too early) and holding into weakness (feels too late), and the two are trained as separate skills.",
+      "A third off into strength — the 2-3R partial taken while the crowd is euphoric: show what strength looks like on the tape, place the exact order, and explain how that sale funds the patience for everything after it.",
+      "Trailing the remainder into weakness — hand the runner to the moving average and let the market close the trade: what a normal give-back looks like, and why the trail exit always feels worse and pays better.",
+      "One winner, three ways — rework the same real winner three times on screen — all-out early, all-or-nothing hold, partials — and put the final R of each path side by side to show why partials win the long game.",
+      "The partials playbook card — close on the artifact: first-third rules (2-3R into strength), second-third rules (trail or structure break), runner rules for the piece you let run — the card members trade from."
+     ]
+    },
+    {
+     "title": "The Rules Between Entry and Exit: Breakeven Rule, Trails by Timeframe, Time Stops",
+     "minutes": 14,
+     "note": "The point after which a trade must never again become a loser (roughly +1R or the first higher low); trails matched to the setup family that produced the trade — 10-day for fast movers, 10/20-day for EPs, 20/50-day for position holds, with the wrong trail's give-back quantified; and the N-day dead-money rule where nothing happening is itself the exit signal. Each rule stamped on a real chart at the bar where it fired.",
+     "chapters": [
+      "Where R leaks out — open on the dead zone between entry and exit where unmanaged winners round-trip to zero, and name the three mid-trade rules this lesson installs: breakeven, trails by timeframe, time stops.",
+      "The breakeven rule — the point after which a trade must never again become a loser — roughly +1R or the first higher low — stamped on a real chart at the exact bar where the stop moves up.",
+      "Trails matched to the setup family — 10-day for fast movers, 10/20-day for EPs, 20/50-day for position holds: the trail is chosen by the setup family that produced the trade, each one stamped on a real chart at the bar it fired.",
+      "The wrong trail's give-back, quantified — run the fast mover on the slow 50-day trail and compute the give-back in R on screen, then overlay the 10-day exit bar that would have kept it.",
+      "Time stops: when nothing happening is the signal — the N-day dead-money rule stamped at the bar it fired, closing with the three rules assembled into one mid-trade checklist the member runs on every open position."
+     ]
+    },
+    {
+     "title": "The Earnings Decision: Hold Through, Trim, or Step Aside",
+     "minutes": 14,
+     "note": "The most recurring swing decision the course must answer: you hold a +2R winner and it reports in three days. The mechanical rule set: check the implied move on the Calendar, compare it to your open profit cushion in R, then hold-full / trim-to-house-money / exit-and-re-enter by rule, never by feel. Two real positions worked — one held through with a cushion, one stepped aside — plus the hard rule for NEW entries inside the pre-report window.",
+     "chapters": [
+      "The decision every swing trader keeps meeting — open on the live scenario: you hold a +2R winner and it reports in three days, and the answer must come from a rule set, never from feel.",
+      "Implied move versus cushion, in R — pull the implied move off the Calendar on camera and convert your open profit cushion into R, so the whole decision collapses into two numbers side by side.",
+      "The three-branch rule — cushion clears the implied move: hold full; partial cover: trim to house money; no cover: exit and re-enter by rule after the print — each branch stated as a mechanical threshold, not a judgment call.",
+      "Two real positions worked — replay one position held through with a cushion and one stepped aside, show what the report did to each, and prove both were the RIGHT call at decision time regardless of outcome.",
+      "The hard rule for new entries — no NEW position inside the pre-report window, full stop; close with the earnings-decision card: check the date, check the implied move, run the branch."
+     ]
+    },
+    {
+     "title": "Two Complete Trades, Candle by Candle — Plus the Post-Exit Protocol",
+     "minutes": 25,
+     "note": "The module's mini-capstone: a winner and a loser replayed full-cycle with the sizing math, a mid-trade regime check, partial exits, and the finished journal entry for each — the loser managed exactly as well as the winner. Closes by performing the 60-second post-exit ritual (screenshot, setup tag, one-line verdict) on both exits, installing the habit before Module 14 formalizes it. Script in three chaptered segments with a micro-check between each — one recording, three sittings if needed.",
+     "chapters": [
+      "The winner, sized and entered — segment one opens the mini-capstone: run the sizing math on camera (Account Risk % = Position Size % × Stop Distance %, under the 2% ceiling), check the regime dial, and take the entry candle by candle.",
+      "The winner, managed and journaled — partial a third at 2-3R into strength, trail the remainder into weakness, then fill in the finished journal entry on screen; micro-check one before moving to the loser.",
+      "The loser, entered with identical rigor — segment two: same sizing math, same checklist, a perfectly valid entry — then the mid-trade regime check that dims from GREEN toward YELLOW while the trade stalls.",
+      "The loser, managed exactly as well — the stop taken at plan candle by candle, and the finished journal entry graded as highly as the winner's: the outcome differed, the process did not; micro-check two.",
+      "The 60-second post-exit ritual — segment three, performed live on BOTH exits: screenshot the chart, tag the setup, write the one-line verdict — installing the habit Module 14 will formalize into the review engine."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M13 · Portfolio Command: Sizing, Second Pass",
+   "lessons": [
+    {
+     "title": "Grading the Setup: A+, A, B, C — The Grade That Keys the Table",
+     "minutes": 14,
+     "note": "The rubric that turns 'I like this chart' into a letter with reasons — regime alignment, family-rubric score, RS rank, catalyst quality, cleanliness of the stop — because the firm's sizing table cannot be used until a setup has a grade. Six real candidates graded and defended live, including one seductive B that a beginner would call an A+.",
+     "chapters": [
+      "Two charts, one feeling, two very different sizes — open on two real candidates the gut would size identically, then reveal the firm's sizing table and show that neither can be sized at all until it carries a letter grade.",
+      "The five rubric lines that earn the letter — walk regime alignment, family-rubric score, RS rank, catalyst quality, and cleanliness of the stop one at a time, stating what an A+ demands on each line and what drops it to a B or C.",
+      "Six real candidates, graded and defended — pull six live watchlist charts and assign each its letter on camera, naming the rubric line that decided the grade out loud before moving to the next.",
+      "The seductive B — dissect the one chart a beginner would stamp A+ and show the two lines that quietly fail it: a stop that isn't clean and an RS rank that's already fading under the pretty pattern.",
+      "No letter, no size — close by grading tonight's actual watchlist and installing the standing rule the next lesson runs on: the grade is the key that opens a cell in the sizing table, and an ungraded chart opens nothing."
+     ]
+    },
+    {
+     "title": "The Table, Verbatim: GREEN+A+ = 20-25%, YELLOW+A+ = 15%, ORANGE+A+ = 8%, B-in-ORANGE = Skip",
+     "minutes": 16,
+     "note": "The firm's sizing table stated exactly and worked live: the same A+ setup sized on a fixed account once under GREEN and once under ORANGE with the dollar-risk difference computed, plus the universal floor restated in every cell — Account Risk % = Position Size % × Stop Distance %, 2% max, prefer under 1%. Includes what pulls you out of a cell mid-trade: a regime downgrade or the −5%/−10% equity triggers firing.",
+     "chapters": [
+      "The table, read aloud cell by cell — put the full grid on screen and state it verbatim: GREEN+A+ = 20-25%, YELLOW+A+ = 15%, ORANGE+A+ = 8%, B-in-ORANGE = skip, and no cell is negotiable.",
+      "The floor under every cell — restate the universal law, Account Risk % = Position Size % × Stop Distance %, 2% max and prefer under 1%, then prove on screen that even a 25% GREEN+A+ position obeys it when the stop is tight.",
+      "Same A+ setup, GREEN versus ORANGE — size the identical chart on the same fixed account twice, compute shares and dollar risk both ways on camera, and let the dollar difference make the regime argument better than any speech.",
+      "What pulls you out of a cell mid-trade — walk the two evictions live: a regime downgrade while you hold, and the −5%/−10% equity triggers firing, with exactly what happens to open positions and new buys in each case.",
+      "Print it, pin it, size only from it — close with the table as the take-home artifact and the drill: re-size your last three real trades from the correct cell and log the delta between what you took and what the table allowed."
+     ]
+    },
+    {
+     "title": "Portfolio Heat: All Open Risk as One Number, Capped at 10%",
+     "minutes": 13,
+     "note": "Sum of (entry − stop) × shares over equity computed on a real five-position book against the 10% aggregate heat cap, plus why 5-10 names beats 30 for momentum swing. Then the correlation check: five AI names is one trade wearing five tickers — the same book computed naive and correlation-adjusted. Artifact: the heat worksheet.",
+     "chapters": [
+      "Five safe trades, one dangerous account — open with a book where every position honors the 2% ceiling individually yet the account is one bad gap from a brutal morning, and name the number that was never computed: heat.",
+      "The heat formula on a real book — compute sum of (entry − stop) × shares over equity across an actual five-position book on camera and check the result against the 10% aggregate cap.",
+      "Why 5-10 names beats 30 — make the concentration case for momentum swing: attention per name, the quality of the marginal idea, and the truth that 30 names is closet-indexing with none of the index's safety.",
+      "Five AI names is one trade wearing five tickers — rerun the same book correlation-adjusted, watch the heat number jump past the cap, and set the rule that correlated positions share one risk budget.",
+      "The heat worksheet, filled and armed — complete the artifact on the demo book, then install the nightly habit and its gate: compute your book's heat before every session, and no new buy while the number reads above 10%."
+     ]
+    },
+    {
+     "title": "Progressive Exposure and the Drawdown Protocol: Pilot → Half → Full → Overweight; De-Risk at −5% and −10%",
+     "minutes": 15,
+     "note": "The confirmation-gated ladder where every rung must be paid for by the rung below — the follow-through-day pilot-buy protocol after a regime turn, expanding only after the last rung paid — and the mirror-image down-ladder: at −5% of equity halve all new sizes, at −10% pilot-or-paper only, decided now while calm because it cannot be decided during. Artifact: the signed drawdown-protocol card plus a season-long equity curve showing the ladder expanding and the protocol contracting.",
+     "chapters": [
+      "One shape at three levels — open by laying the exposure ladder over a base breakout: contract, confirm, then expand is the same move at chart level, position level, and now account level, which is why full size on day one of a regime turn is a category error.",
+      "Pilot → Half → Full → Overweight, every rung paid for — teach the confirmation-gated up-ladder with the follow-through-day pilot-buy protocol after a regime turn: pilots go on first, and the next rung is bought only after the last rung's open profit is paying for it.",
+      "A real season up the ladder — narrate the season-long equity curve as pilots confirm and exposure expands rung by rung, marking on the curve exactly where each expansion was earned rather than wished for.",
+      "The mirror down-ladder, decided while calm — state the drawdown protocol verbatim (at −5% of equity halve all new sizes, at −10% pilot-or-paper only) and show the same curve's drawdown leg contracting on schedule, against the trader who tried to decide it during.",
+      "Sign the card — close by filling in and signing the drawdown-protocol card on camera with thresholds written in real dollars for the member's actual account, because a protocol you didn't pre-sign is just an opinion under stress."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M14 · The Inner Game and the Review Engine",
+   "lessons": [
+    {
+     "title": "Map Your Pattern First: The Trader's Self-Diagnostic",
+     "minutes": 12,
+     "note": "The 10-question diagnostic that locates each member's dominant failure pattern (fear family, tilt family, discipline family) before any fix is offered — with the instructor mapping one of his own real historical leaks on camera. Artifact: the completed pattern map the next two lessons and the capstone read from.",
+     "chapters": [
+      "You can't fix a leak you haven't found — open with two traders running the identical system to opposite P&L, and state this module's doctrine: diagnosis before any fix, self-assessment before any technique, every lesson.",
+      "The three failure families — draw the map of fear, tilt, and discipline with the signature behaviors of each, so members hear their own trading described before a single question is asked.",
+      "The 10-question diagnostic, taken live — run all ten questions on camera pause-and-answer style, showing which family each answer scores toward and why honest scoring beats flattering scoring.",
+      "The instructor's own leak, mapped — work one of my real historical failure patterns through the same diagnostic using my own journaled trades, landing on the family and the exact trigger that used to fire it.",
+      "The pattern map, completed — fill in the artifact with the member's dominant family, its trigger, and two evidence trades attached, and state the dependency out loud: the next two lessons and the capstone all read from this page."
+     ]
+    },
+    {
+     "title": "FOMO and the Fear Family: Signs, Subtypes, Corrections",
+     "minutes": 12,
+     "note": "The fear emotions on one template — nature, signs, subtypes, correction — with the FOMO tax quantified from journal data (average fill vs trigger price in basis points) and the two-candle wait rule as the correction. Includes one journaled real example: the trade seen, not taken, and what the tape did after.",
+     "chapters": [
+      "The FOMO tax, in basis points — open by quantifying it from real journal data, average fill versus trigger price on chased entries, so the fear has a dollar cost before it has a name.",
+      "One template for every fear — install the fixed structure (nature, signs, subtypes, correction) and run the fear family through it: FOMO, fear of loss, and fear of pulling the trigger as subtypes of the same emotion.",
+      "The trade seen and not taken — replay one journaled real example of a valid setup skipped out of fear, then roll the tape forward and read honestly what it did after, because the answer is the cure either way.",
+      "The two-candle wait rule — teach the correction mechanically: when the urgency spikes you may still take the trade, but only after two full candles close and the checklist re-passes, then show it defusing a chase on replay.",
+      "Your fear entry on the template — close with the member filling the fear-family template from their own pattern map, plus the standing measurement: log fill-versus-trigger in basis points on your next ten entries and watch your personal FOMO tax shrink."
+     ]
+    },
+    {
+     "title": "Tilt and Revenge: The Circuit Breaker and the Mental Hand History",
+     "minutes": 13,
+     "note": "The tilt subtypes and one hard mechanical rule — two consecutive stop-outs = flat for the rest of the day, platform closed, no appeal — plus the next-morning re-entry protocol so the breaker never becomes a week of avoidance, and the five-step written mental hand history that dismantles a recurring mistake at its logic error. Artifact: the circuit-breaker card and one complete worked hand history.",
+     "chapters": [
+      "The third trade is the expensive one — open with a real sequence where two ordinary stop-outs led to an oversized revenge trade, then name the tilt subtypes so each member can spot which one is theirs.",
+      "The circuit breaker, verbatim — state the hard rule with no softening: two consecutive stop-outs means flat for the rest of the day, platform closed, no appeal, and explain why it must be mechanical precisely because you are least rational when it fires.",
+      "The next-morning re-entry protocol — walk the specific return steps for the following open (review both stops, re-grade the setups, resume at normal size) so the breaker resets you for a day and never metastasizes into a week of avoidance.",
+      "One mental hand history, worked complete — write the five steps live on a real recurring mistake, drilling down to the logic error underneath it and the corrected logic that replaces it.",
+      "Sign the breaker, write the history — close with the two artifacts and the pass bar: the signed circuit-breaker card posted by the platform, and one complete written hand history on the dominant mistake from your pattern map."
+     ]
+    },
+    {
+     "title": "The Fixed-Field Journal: Seven Fields, Three Grades — No Free-Form",
+     "minutes": 14,
+     "note": "The firm's journal schema — date, setup tag, entry type, planned R, exit-vs-plan, the three-axis grade (idea, execution, preparation), annotated screenshot — set up live in the UCT Journal, because free-form notes cannot be aggregated into diagnosis and P&L is not a grade. One winner that grades poorly and one loser that grades well, entered on camera.",
+     "chapters": [
+      "Why free-form journaling fails — open with a page of eloquent free-form notes that cannot answer one aggregate question, and state the two doctrines: unstructured notes cannot be diagnosed, and P&L is not a grade.",
+      "The seven fields, one by one — walk the schema on screen (date, setup tag, entry type, planned R, exit-vs-plan, the three-axis grade, annotated screenshot) with what each field lets you aggregate later.",
+      "Set up live in the UCT Journal — build the fixed-field template inside the actual UCT Journal on camera, with setup tags matched to the catalog names so weekly stats can roll up by setup.",
+      "The winner that grades poorly, the loser that grades well — enter both real trades on camera with idea, execution, and preparation graded separately, and let the inversion land: the loss was a good trade and the win was a bad one.",
+      "Zero blank fields — close with the standing rule and pass bar: every trade journaled the day it closes, all seven fields filled, ten consecutive complete entries before the review cadence lesson has anything to review."
+     ]
+    },
+    {
+     "title": "The Review Cadence: Daily Tag, Weekly Stats, Monthly Audit — Narrated on a Real Month",
+     "minutes": 18,
+     "note": "Three nested loops feeding one artifact: daily tag at exit, weekly setup-level win-rate/avg-R rollup, and an actual month reviewed end-to-end on camera — equity curve, per-setup statistics, mistake-tag frequency, converted into next month's single focus — closed by the 21-mistakes audit scored against the last 20 trades. Artifact: the 4-pillar monthly review template.",
+     "chapters": [
+      "The engine that outlives the course — open with the claim this module exists to prove: three nested loops (daily tag, weekly stats, monthly audit) feeding one artifact are what turn your own trades into next month's curriculum.",
+      "The daily tag and the weekly rollup — demo the two fast loops live: the sixty-second tag at exit, then the weekly setup-level win-rate and average-R rollup that starts telling you which setups deserve your size.",
+      "A real month, end to end — narrate an actual month's review on camera in order: the equity curve, the per-setup statistics, and the mistake-tag frequency table, reading what each layer says the others can't.",
+      "One month, one focus — convert the month's data into next month's single focus item against the counter-example of the five-fix list that fixes nothing, then run the 21-mistakes audit scored against the last 20 trades to choose that focus honestly.",
+      "The 4-pillar monthly review template — close by filling the artifact (results versus target, setup-level stats, goal reflection, forward plan) from the month just reviewed, with the pass bar: one complete monthly review submitted before capstone entry."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M15 · The Options and Flow Overlay",
+   "lessons": [
+    {
+     "title": "Reading the Flow Tape — and the Veto Hierarchy: Confirmation, Never Signal",
+     "minutes": 16,
+     "note": "The Options Flow tab end-to-end — sweeps versus blocks, at-the-ask aggression, and unusual-versus-baseline — with ten real prints classified on camera into signal, hedge, and noise. Then the standing order of authority: regime and chart outrank flow, always — flow can upgrade conviction on a setup you already have, but hot flow on a failed-gate chart correctly stays a no-trade.",
+     "chapters": [
+      "Why flow comes second-to-last — open on a real screaming call sweep whose stock went nowhere, and name the trap this whole module exists to prevent: signal-chasing.",
+      "The anatomy of a print — walk the Options Flow tab end-to-end and define the vocabulary live on the tape: sweep versus block, at-the-ask aggression versus mid-fill, size and premium.",
+      "Unusual versus baseline — show the same $2M print landing on SPY and on a sleepy mid-cap, and teach that 'unusual' is always measured against that ticker's normal tape, never an absolute number.",
+      "Ten prints, classified live — pull ten real prints off today's tape and sort each on camera into signal, hedge, or noise, saying the tell out loud before revealing the verdict.",
+      "The veto hierarchy — state the standing order of authority (regime and chart outrank flow, always), then show hot call flow on a failed-gate chart and let it correctly die as a no-trade: flow's only legal job is upgrading conviction on a setup you already have."
+     ]
+    },
+    {
+     "title": "Expressing a Swing with Calls: Strike, Expiry, Delta — Same 2% Math",
+     "minutes": 16,
+     "note": "The defined-risk stock substitute with hard rules: roughly 0.70+ delta, expiry at least twice the expected holding period, and total premium at risk inside the same risk budget the formula would have allowed for shares. One identical swing built twice — shares versus calls — with risk, breakeven, and both P&L paths compared line by line at exit.",
+     "chapters": [
+      "The lottery ticket and the substitute — put a cheap OTM weekly next to a 0.70-delta three-month call on screen and name which one funds the options industry and which one is a defined-risk stock substitute.",
+      "Three hard rules — write the non-negotiables before any chain is opened: roughly 0.70+ delta, expiry at least twice the expected holding period, and total premium at risk inside the same risk budget the formula would have allowed for shares.",
+      "Same 2% math — re-run Account Risk % = Position Size % × Stop Distance % for the share version of the trade, then cap total call premium at that identical dollar risk so the 2% ceiling never moves when the instrument changes.",
+      "One swing, built twice — construct the identical real swing as shares and as calls on camera: same chart, same entry and stop, contract count sized against the budget, breakeven marked on both tickets.",
+      "The exit, line by line — replay both versions to the exit and compare the P&L paths side by side on the target-hit path and the stop-hit path, showing where calls outrun stock and where theta and the premium cap bite; members leave with the call-substitution checklist."
+     ]
+    },
+    {
+     "title": "Dealer Positioning and Gamma: Pins, Slingshots, and the Flow + EP Combination",
+     "minutes": 14,
+     "note": "Gamma context on the GEX view as the map of where dealers dampen versus accelerate price — one real pinned expiry and one slingshot through a level, both annotated, explicitly bounded as context for exits, never an entry system. Closes with the highest-conviction combination in the playbook: unusual call flow stacked on a qualifying Episodic Pivot, traced through all six LOOP stations.",
+     "chapters": [
+      "Why price sticks to some strikes — open on an expiry-Friday chart glued to a round strike all afternoon and name the invisible hand behind it: dealer hedging.",
+      "The GEX map — read the GEX view as the map of where dealers dampen versus accelerate price: positive-gamma zones absorb moves, negative-gamma zones amplify them.",
+      "A real pin, annotated — walk one real pinned expiry bar by bar, showing dealer hedging pressing price back into the heavy strike into the close.",
+      "A real slingshot, annotated — walk one real break through a negative-gamma level that accelerated instead of stalling, then bound the tool explicitly: gamma is context for exits and targets, never an entry system.",
+      "Flow + EP, the crown combination — stack unusual call flow on a qualifying Episodic Pivot (the neglected stock gapping on a true surprise) and trace the trade through all six LOOP stations, regime to review — the highest-conviction pattern in the playbook."
+     ]
+    }
+   ]
+  },
+  {
+   "label": "M16 · Capstone: Author Your Playbook",
+   "lessons": [
+    {
+     "title": "Choose Your Two: Match the Families to Your Drill Data — and Sign the Specialization Contract",
+     "minutes": 14,
+     "note": "The member mines their own family-drill scores, placement-drill results, and journal statistics from Modules 7-14 to pick a primary family and two setups — selection by data, not preference, with the anti-hopping doctrine stated plainly: traders fail by jumping between setups, not by picking the wrong one. Ends by signing the specialization contract on camera: one primary setup, two full earnings seasons, 40 journal-logged reps before any expansion. Artifact: the family-fit scorecard and the signed contract. Uses your own logged drill and field-week results as the data — the choice is read off your numbers, not your mood. This capstone is the single graduation gate for BOTH courses (UCT Foundations points here).",
+     "chapters": [
+      "The anti-hopping doctrine — open with the diagnosis that kills most traders: they fail by jumping between setups, not by picking the wrong one, so today the data picks and you commit.",
+      "Mine your own record — pull up your family-drill scores, your four-family placement-drill results, and your journal statistics from Modules 7 through 14: these logged numbers, not your mood, are the electorate.",
+      "The family-fit scorecard — fill the scorecard live on camera (accuracy per family, average R per family, reps per family) and read the primary family straight off the totals.",
+      "Two setups, chosen against preference — pick the primary and second setup inside the winning family, and work the honest case where data contradicts the heart (you love EPs, your numbers say pullbacks) — the data wins.",
+      "Sign the contract on camera — one primary setup, two full earnings seasons, 40 journal-logged reps before any expansion; the signed specialization contract plus the completed family-fit scorecard is the artifact, and this choice goes into your capstone folder — graduation itself hangs on the defended trade plan two lessons from now, the single gate both courses share."
+     ]
+    },
+    {
+     "title": "Write Your Playbook: The Five-Field Entries for Your Two Setups",
+     "minutes": 16,
+     "note": "Authoring both playbook entries on the firm's five-field card, extended with your size rule and management plan — template — context and regime conditions, entry trigger, stop and size rule, management plan, failure modes — modeled by the instructor writing one complete entry live. This document is the course's terminal artifact and the thing reviewed for graduation. Authored as a real artifact in the Journal's Notebook — not a worksheet that dies in a download folder. One playbook serves both courses.",
+     "chapters": [
+      "A playbook you wrote beats one you read — open with why this document is the course's terminal artifact and the thing actually reviewed for graduation, not a worksheet that dies in a download folder.",
+      "The five fields — walk the firm's template field by field: context and regime conditions, entry trigger, stop and size rule, management plan, failure modes — and the standard each must meet: numeric and falsifiable.",
+      "One entry, written live — the instructor authors a complete entry for a flagship setup in real time inside the Journal's Notebook, narrating every number as it lands on the page.",
+      "What a weak entry looks like — contrast with a vague entry ('buy strength, stop below support') and show how every unfalsifiable line becomes a mid-trade argument with yourself at the worst possible moment.",
+      "Now author yours — write both entries for your two contracted setups in the Journal's Notebook; pass bar: all five fields on both entries filled with numbers a stranger could trade from — this one document goes to graduation review and serves both courses."
+     ]
+    },
+    {
+     "title": "The Trade-Plan Defense: One Full Plan Through All Six Stations, Stress-Tested",
+     "minutes": 20,
+     "note": "The graduation gate: present one complete current-market trade plan — today's dial score and GREEN/YELLOW/ORANGE state, the scan source, the setup name and grade, the size from Account Risk % = Position Size % × Stop Distance % and the regime × grade table, both exit paths, and the review commitment — then defend it against the standard challenge rubric. Graduation hands off to the live loop: Morning Wire as your daily scorecard, Sunday Scans as your weekly review, and the Desk as the rep room where the 40 contracted reps happen. Submitted against a published rubric with a named grader: the plan goes to the owner for async review (Compass pre-grades it), and a pass is what graduation actually certifies — for this course and for UCT Foundations, which shares this gate.",
+     "chapters": [
+      "The gate, face up — put the published challenge rubric on screen first and say plainly what graduation certifies: a defended trade plan that passes a named grader's review, never percent-watched.",
+      "Stations one through four, on today's tape — build the plan live: today's dial score and GREEN/YELLOW/ORANGE state, the scan source that surfaced the name, the setup name and grade, and the size from Account Risk % = Position Size % × Stop Distance % plus the regime × grade table.",
+      "Stations five and six — write both exit paths (the wrong-path stop as an appointment, the right-path partials-and-trail plan) and the review commitment that closes the LOOP before a single share is bought.",
+      "The defense, stress-tested — run the standard challenges against the model plan on camera (gap through the stop, why this size in YELLOW, what invalidates the thesis, correlation to open positions), then show a plan failing the same rubric for contrast.",
+      "Submit and hand off — walk the submission flow (Compass pre-grades, the plan goes to the owner for async review, a pass certifies BOTH courses), then hand graduates to the live loop: Morning Wire as the daily scorecard, Sunday Scans as the weekly review, and the Desk as the rep room where the 40 contracted reps happen."
+     ]
+    }
+   ]
+  }
+ ]
+}

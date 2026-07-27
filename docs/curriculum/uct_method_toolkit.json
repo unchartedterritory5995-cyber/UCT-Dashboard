@@ -1,0 +1,499 @@
+[
+ {
+  "key": "loop-card",
+  "title": "THE LOOP CARD — The UCT Method · Lesson 1",
+  "tagline": "Regime → Scan → Setup → Size → Manage → Review: the six-station operating loop. Every trade runs all six, in order. Every lesson in this course plugs into exactly one of these boxes.",
+  "sections": [
+   {
+    "heading": "How this card works",
+    "kind": "prose",
+    "items": [
+     "Six stations, in order, every trade. The output of each station is the input of the next — the dial grants permission, the scan supplies the name, the catalog names the trade, the stop sets the size, the rules run the exit, the journal grades the loop. A trade that skips a station is not a UCT trade.",
+     "Every lesson from here on plugs into exactly one station, and you will be told which one before it starts. Print this card, keep it beside your platform, and re-fill the walk-through at the bottom for every trade until the loop is reflex."
+    ]
+   },
+   {
+    "heading": "The six stations",
+    "kind": "table",
+    "items": [
+     "# | STATION | GOVERNING QUESTION | THE TOOL / NUMBER THAT ANSWERS IT",
+     "1 | REGIME | What am I permitted to do today? | The 0-150 UCT Exposure Rating dial, read every morning. The score maps to a GREEN / YELLOW / ORANGE permission band — permission, not prediction. GREEN means more of your playbook is authorized, not that the market goes up.",
+     "2 | SCAN | Which names have earned a place on my list? | The nightly scan: Stage-2 pass → ADR% ≥ 4 → dollar-volume floor → RS trend up → ranges tightening. ~3,700 tickers to ~10 names in 20 minutes. A-list = at the pivot within 1-2 days, alert armed at the exact trigger price; B-list = right pattern, needs time.",
+     "3 | SETUP | What exactly is this trade, by catalog name? | The firm's setup catalog (4 families) + the five-field card: Context · Pattern · Trigger · Stop · Failure mode. Every entry fires as one of four triggers: BASE BREAKOUT · PREV DAY HIGH BREAK · PREV LOW RECLAIM · RED TO GREEN.",
+     "4 | SIZE | How much — derived from the stop, never from conviction? | Account Risk % = Position Size % × Stop Distance % — 2% hard max, under 1% preferred (at 1% risk: 5% stop → 20% position; 10% stop → 10% position). The table: GREEN+A+ 20-25% · YELLOW+A+ 15% · ORANGE+A+ 8% · B-in-ORANGE = skip. Portfolio heat = Σ(entry−stop)×shares ÷ equity, capped at 10% — no new buy above it.",
+     "5 | MANAGE | Is the plan intact — and which exit rule fires now? | The stop is an appointment, not a debate. Breakeven at roughly +1R or the first higher low. Partials: first third off at 2-3R into strength; trail the rest — 10-day for fast movers, 10/20-day for EPs, 20/50-day for position holds. Nothing happening for N days is itself an exit. Never add to losers.",
+     "6 | REVIEW | What did this trade teach, in a form I can aggregate? | The 7-field journal, filled the day the trade closes: Date · Setup tag · Entry type · Planned R · Exit-vs-plan · Three-axis grade (Idea / Execution / Preparation) · Annotated screenshot. Zero blank fields. P&L is not a grade."
+    ]
+   },
+   {
+    "heading": "Walk one trade through the loop (fill in before and as you trade)",
+    "kind": "fields",
+    "items": [
+     "Date: __________  Ticker: __________",
+     "1 REGIME — Dial score: ______ / 150  →  Band (circle one): GREEN · YELLOW · ORANGE",
+     "2 SCAN — From (circle one): A-list · B-list  ·  Alert armed at exact trigger: $________",
+     "3 SETUP — Catalog name: ______________  Family: ______________  Trigger (circle one): BASE BREAKOUT · PREV DAY HIGH · PREV LOW RECLAIM · RED TO GREEN",
+     "4 SIZE — Stop distance: ______%  ×  Position size: ______%  =  Account risk: ______% (max 2%)  ·  Book heat after entry: ______% (max 10%)",
+     "5 MANAGE — Stop (the appointment): $________  ·  Breakeven move at (~+1R): $________  ·  First-third target (2-3R): $________  ·  Trail (circle one): 10-day · 20-day · 50-day",
+     "6 REVIEW — Journaled day of close, all 7 fields (Y/N): ____  ·  Grade — Idea: ____  Execution: ____  Preparation: ____"
+    ]
+   }
+  ],
+  "footer_rule": "Run the loop in order, every trade, no exceptions — permission before tickers, name before size, stop before shares, journal before the next trade."
+ },
+ {
+  "key": "exposure-plan",
+  "title": "THE MONDAY MAX-EXPOSURE PLAN",
+  "tagline": "The UCT Method · Re-filled every Monday morning before the open, no exceptions — the dial decides what you are allowed to do this week; this page is where you write it down.",
+  "sections": [
+   {
+    "heading": "1 · TODAY'S DIAL READING",
+    "kind": "fields",
+    "items": [
+     "Week of Monday: ______",
+     "UCT Exposure Rating right now (0–150, read off the dashboard dial): ______",
+     "Band the dashboard shows (circle one): GREEN / YELLOW / ORANGE",
+     "What the inputs say — breadth participation: ______ · distribution-day count: ______ · index MA structure: ______"
+    ]
+   },
+   {
+    "heading": "2 · WHAT THIS BAND AUTHORIZES THIS WEEK",
+    "kind": "fields",
+    "items": [
+     "Max concurrent names: ______ (a 5–10 name book at full rights; fewer as the band worsens)",
+     "Max single-position size, from the table below at my best available grade: ______ %",
+     "New buys allowed this week? (circle) YES / PILOT-ONLY / NO",
+     "Grades I may size this week (circle all that apply): A+ / A / B — a B in ORANGE is always a skip",
+     "If ORANGE: exposure stays parked but the work does not — the nightly scan, five-number scorecard, and A-list still run daily; my replay-rep commitment this week: ______"
+    ]
+   },
+   {
+    "heading": "3 · THE REGIME SIZING TABLE — SIZE ONLY FROM A CELL",
+    "kind": "table",
+    "items": [
+     "Regime × Grade | Max single-position size | Notes",
+     "GREEN + A+ | 20–25% | full playbook authorized",
+     "YELLOW + A+ | 15% | rights reduced — trim count and size",
+     "ORANGE + A+ | 8% | best names only, smallest size",
+     "ORANGE + B | SKIP | no cell, no trade — non-negotiable",
+     "Every cell | Account Risk % = Position Size % × Stop Distance % | 2% hard max — prefer under 1%"
+    ]
+   },
+   {
+    "heading": "4 · PORTFOLIO HEAT vs THE 10% CAP",
+    "kind": "fields",
+    "items": [
+     "Account equity today: $______",
+     "Open risk = Σ (entry − stop) × shares across every open position: $______",
+     "Portfolio heat = open risk ÷ equity × 100 = ______ % (hard cap: 10%)",
+     "Correlation check — same-theme names counted as ONE risk budget (five AI names is one trade)? YES / NO → adjusted heat: ______ %",
+     "Heat headroom for new buys: 10% − adjusted heat = ______ % (no new buy while over the cap)",
+     "Drawdown protocol status — equity vs high-water mark: ______ % → (circle) NORMAL / −5%: halve all new sizes / −10%: pilot-or-paper only"
+    ]
+   },
+   {
+    "heading": "5 · MONDAY GATE — ALL BOXES OR NO ORDERS",
+    "kind": "checklist",
+    "items": [
+     "Dial read and band circled BEFORE any chart or ticker was opened",
+     "Sunday deep scan done — A-list charts annotated with exact entry and stop, alerts armed at trigger prices",
+     "Every A-list candidate carries a letter grade (no letter, no size)",
+     "Every planned position sized stop-first through the formula — never size first, stop back-fitted second",
+     "No single planned trade risks more than 2% of the account (under 1% preferred)",
+     "Heat computed, correlation-adjusted, and under 10% before any buy-stop goes in"
+    ]
+   },
+   {
+    "heading": "6 · WHAT CHANGES THIS PLAN MID-WEEK — BAND-FLIP TRIGGERS",
+    "kind": "prose",
+    "items": [
+     "This page is not a weekly contract — it dies the moment the band flips, and the new band's column applies immediately.",
+     "DOWNGRADE: a distribution-day cluster (4–6 inside ~25 sessions) legally ends an uptrend; a mid-week band drop revokes new-buy rights and re-keys every ceiling on this page — open positions get managed to plan, pending orders get cancelled.",
+     "UPGRADE: a follow-through day (day 4–7 off the low, up big on higher volume) re-opens buying at PILOT size only — first rung of Pilot → Half → Full → Overweight, each rung paid for by the last.",
+     "EQUITY TRIGGERS fire regardless of band: at −5% of equity halve all new sizes; at −10% go pilot-or-paper only — decided now, while calm, because it cannot be decided during.",
+     "My one sentence — what specifically flips this plan mid-week, written now while calm: ________________________________________________"
+    ]
+   }
+  ],
+  "footer_rule": "GREEN is permission, not prophecy — and when the band flips mid-week, this page gets re-written, not argued with."
+ },
+ {
+  "key": "r-ledger",
+  "title": "THE R-MULTIPLE LEDGER",
+  "tagline": "The UCT Method standing trade log — every trade priced in units of risk. 1R = the dollars you planned to lose if the stop hits. Nothing else.",
+  "sections": [
+   {
+    "heading": "HOW TO LOG",
+    "kind": "prose",
+    "items": [
+     "Fix 1R in dollars BEFORE entry: shares x stop distance. Check it with the formula — Account Risk % = Position Size % x Stop Distance %. Hard max 2% of equity per trade; under 1% is the preference.",
+     "The sum of every OPEN row's 1R is your portfolio heat. It never exceeds 10% of equity — if a new row would break 10%, the answer is no trade.",
+     "Record the exit in R, not dollars: risk $500, make $1,100 = +2.2R; stopped at plan = -1.0R. Rule Y/N asks one question only — did you follow the written plan, win or lose?",
+     "This ledger is the Review station of THE LOOP (Regime > Scan > Setup > Size > Manage > Review). Run the expectancy block below after every 20 rows — that number, not P&L, grades your system."
+    ]
+   },
+   {
+    "heading": "THE LEDGER",
+    "kind": "table",
+    "items": [
+     "Date | Ticker | Setup name | 1R ($ planned risk) | Exit date | Result (R) | Rule Y/N",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___",
+     "______ | ______ | ______________ | $______ | ______ | ______ R | ___"
+    ]
+   },
+   {
+    "heading": "EXPECTANCY SELF-CALC — run after every 20 trades",
+    "kind": "fields",
+    "items": [
+     "Trades logged (minimum 20): ______",
+     "Wins: ______  ·  Win rate = wins / trades: ______ %",
+     "Losses: ______  ·  Loss rate = losses / trades: ______ %",
+     "Avg win = sum of all winning R / number of wins: ______ R",
+     "Avg loss = sum of all losing R / number of losses (write as a positive number): ______ R",
+     "EXPECTANCY = (Win rate x Avg win R) - (Loss rate x Avg loss R) = ______ R per trade",
+     "Rule-followed rate = Y rows / total rows: ______ %"
+    ]
+   },
+   {
+    "heading": "READ YOUR NUMBER",
+    "kind": "prose",
+    "items": [
+     "Worked example: 45% x 2.0R - 55% x 1.0R = +0.35R/trade — a system that loses more often than it wins and still prints money. That is the casino math; you own the equation, not the next hand.",
+     "Positive expectancy + a Rule column full of Y = keep trading it. Negative expectancy, or a column of N's, = stop sizing up and return to the risk-math module before the next trade.",
+     "Never add to losers — averaging down is manually growing the Avg-loss term of your own equation."
+    ]
+   }
+  ],
+  "footer_rule": "A planned 1R loss taken on rule is the system working, not the system breaking — this ledger grades your process, because P&L is not a grade."
+ },
+ {
+  "key": "placement-diagnostic",
+  "title": "THE PLACEMENT DIAGNOSTIC — The Five Leaks",
+  "tagline": "The UCT Method · Module 1, Lesson 4 — ten honest answers locate the leak holding your equity curve at zero.",
+  "sections": [
+   {
+    "heading": "How to Take It",
+    "kind": "prose",
+    "items": [
+     "Answer every question Y or N against your last 20 real trades — pull the journal, not the memory. No journal to pull? Answer from what you can prove; the blanks are themselves data.",
+     "A Yes is not a verdict on you. It is a location: five leaks, ten questions, two per leak.",
+     "Score honestly. A flattered diagnostic sends the wrong leak to your capstone."
+    ]
+   },
+   {
+    "heading": "Before You Answer — Read the Dial",
+    "kind": "fields",
+    "items": [
+     "Name: ______",
+     "Date: ______",
+     "Today's UCT Exposure Rating (0–150): ______",
+     "Its band (GREEN / YELLOW / ORANGE): ______",
+     "If you had to look up how to find it, count that as your first data point."
+    ]
+   },
+   {
+    "heading": "The Ten Questions — Circle Y or N",
+    "kind": "table",
+    "items": [
+     "# | In my last 20 trades… | Y | N",
+     "1 | I opened at least one new trade without first reading that morning's 0–150 UCT Exposure Rating and naming its band | Y | N",
+     "2 | I chose at least one position size by conviction or feel instead of solving Account Risk % = Position Size % × Stop Distance % | Y | N",
+     "3 | I moved at least one stop farther from my entry after the trade was on | Y | N",
+     "4 | I traded three or more different setups in the last six weeks without 20 logged reps in any single one | Y | N",
+     "5 | My most recent closed trade has no journal entry — no screenshot, no setup tag, no one-line verdict | Y | N",
+     "6 | I have opened new longs on an ORANGE tape — or I honestly can't say, because the dial isn't part of my morning | Y | N",
+     "7 | At least one trade risked more than 2% of my account, or my total open risk (portfolio heat) passed the 10% cap — or I've never computed either number | Y | N",
+     "8 | I have exited at −2R or worse on a trade planned for −1R, because the stop got moved, widened, or ignored | Y | N",
+     "9 | I could not have named my last trade's setup — catalog name and family — before I hit buy | Y | N",
+     "10 | I cannot state my own win rate and average R over my last 20 trades without guessing | Y | N"
+    ]
+   },
+   {
+    "heading": "Score It — 2/2 on Any Leak Means That Leak Owns You",
+    "kind": "table",
+    "items": [
+     "Leak | Your questions | Yes count | Where it gets plugged",
+     "No regime filter | Q1 + Q6 | ___ / 2 | The Regime Engine (M3) — the dial is permission, not prediction",
+     "Oversizing | Q2 + Q7 | ___ / 2 | Risk Math (M5) — the formula, the 2% hard max, the 10% heat cap",
+     "Moved stops | Q3 + Q8 | ___ / 2 | M5 stop placement — invalidation first, size second, never the reverse",
+     "Setup-hopping | Q4 + Q9 | ___ / 2 | One family at a time — 20 reps per drill, then the specialization contract",
+     "No review | Q5 + Q10 | ___ / 2 | The Review Engine — screenshot, tag, verdict, weekly stats"
+    ]
+   },
+   {
+    "heading": "Your Result",
+    "kind": "fields",
+    "items": [
+     "Total Yes (0–10): ______",
+     "My primary leak (highest Yes count; any 2/2 owns you; ties go to the leak that cost the most dollars): ______",
+     "The LOOP station it breaks (Regime → Scan → Setup → Size → Manage → Review): ______",
+     "One evidence trade that proves it (ticker · date · cost in R): ______",
+     "The guardrail, signed — pilot size or paper ONLY until the M5 sizing gate clears, and no setup traded live until its family drill is passed (initials): ______"
+    ]
+   },
+   {
+    "heading": "File This Page",
+    "kind": "prose",
+    "items": [
+     "Filed pages get read back: Module 16 — Capstone: Author Your Playbook — opens by putting this exact sheet in front of you, and your playbook is not finished until your journal shows the primary leak plugged.",
+     "Retake this diagnostic after each family module's field week. The Yes column shrinks on evidence, not on optimism."
+    ]
+   }
+  ],
+  "footer_rule": "Breakeven is a diagnosis, not bad luck — name the leak, plug the leak, retest."
+ },
+ {
+  "key": "five-field-card",
+  "title": "THE FIVE-FIELD SETUP CARD",
+  "tagline": "The UCT Method · Fill one per setup studied, one per live candidate. Five falsifiable blanks — or no trade.",
+  "sections": [
+   {
+    "heading": "HOW THIS CARD WORKS",
+    "kind": "prose",
+    "items": [
+     "This card is THE LOOP's Setup and Size stations on paper: Regime → Scan → SETUP → SIZE → Manage → Review.",
+     "Every field must be a number or a level you can be proven wrong about. 'Looks strong' is not an entry.",
+     "A blank or hedged field is itself an answer: SKIP. File every finished card in your Journal — graded cards become your playbook."
+    ]
+   },
+   {
+    "heading": "CARD HEADER",
+    "kind": "fields",
+    "items": [
+     "1 · SETUP — name from the catalog: ______________  ·  Family (circle one): Bases & Breakouts / Momentum & Trend / Gaps & Catalysts / Reversals & Reclaims",
+     "2 · CONTEXT — what must ALREADY be true before this trade exists (regime band, stage, RS, prior move): ________________________________________",
+     "3 · PATTERN + TRIGGER — the structure on the chart, and which of the four triggers fires it (circle): BASE BREAKOUT · PREV DAY HIGH BREAK · PREV LOW RECLAIM · RED TO GREEN — exact trigger price: $________",
+     "4 · STOP — the structural invalidation (not comfort): $________  →  stop distance ______%  →  at 1% account risk, position size = ______%",
+     "5 · FAILURE MODE — how this setup dies, and the tell that it's dying: ________________________________________",
+     "The 2R check — nearest target $________ ÷ risk = ______R (under 2R = no trade)  ·  Honest grade (circle): A+ / A / B / C — a C is never sized"
+    ]
+   },
+   {
+    "heading": "THE FIVE FIELDS",
+    "kind": "fields",
+    "items": [
+     "1 · SETUP — Name: ______________  ·  Family (circle one): Bases & Breakouts / Momentum & Trend / Gaps & Catalysts / Reversals & Reclaims",
+     "2 · PRECONDITION — what must ALREADY be true before any trigger counts (structure, stage, tightness, dry-up): ________________________________________",
+     "3 · TRIGGER — circle ONE: BASE BREAKOUT / PREV DAY HIGH BREAK / PREV LOW RECLAIM / RED TO GREEN  ·  Exact order price: $________  ·  Volume witness required: Y / N",
+     "4 · STOP — structural invalidation price: $________  ·  Stop distance: ______%  ·  Why the thesis is DEAD there (structure, never comfort): ______________________",
+     "5 · TARGET / EXPECTANCY — First target: $________  ·  R at target = (target − entry) ÷ (entry − stop) = ______ R  ·  Under 2R → SKIP, do not shrink the stop to fix it"
+    ]
+   },
+   {
+    "heading": "GATES — every box or no order",
+    "kind": "checklist",
+    "items": [
+     "Stage-2 gate: all 8 yes/no criteria pass (fail one, skip the stock)",
+     "The weekly permits the daily — no entry against a weekly downtrend",
+     "Regime band grants new-buy rights today (permission, not prediction)",
+     "Trigger price is exact to the tick, with a buy-stop or alert armed at it",
+     "Stop is where the pattern is objectively broken — not back-fit to justify size",
+     "2R fits below the nearest overhead resistance",
+     "Account Risk % = Position Size % × Stop Distance % ≤ 2% hard max (prefer under 1%)",
+     "Portfolio heat AFTER this buy ≤ 10% — correlated names share one risk budget"
+    ]
+   },
+   {
+    "heading": "SIZE CEILING — regime × grade, verbatim",
+    "kind": "table",
+    "items": [
+     "Band + Grade | Max position size | Note",
+     "GREEN + A+ | 20-25% | Full playbook authorized",
+     "YELLOW + A+ | 15% | Reduced rights",
+     "ORANGE + A+ | 8% | Best setups only, small",
+     "ORANGE + B | SKIP | No cell is negotiable",
+     "My size: | ____% position × ____% stop = ____% account risk | ≤ 2% always"
+    ]
+   },
+   {
+    "heading": "WORKED EXAMPLE — FLAT BASE BREAKOUT",
+    "kind": "table",
+    "items": [
+     "Field | Example entry",
+     "Worked example — SETUP: Flat Base Breakout (Bases & Breakouts) · CONTEXT: GREEN band, Stage 2, RS line at highs, 5-week flat base under $50 · PATTERN+TRIGGER: tight range 46-49.80, BASE BREAKOUT over $50.00 on volume · STOP: $46.90 under the base low → 6.2% → 16% position at 1% risk · FAILURE MODE: closes back inside the base within 3 days on rising volume — exit, don't argue · 2R check: $56 target ÷ risk ≈ 2.0R — passes.",
+     "2 Precondition | Stage-2 pass; each pullback smaller than the last; volume dried up into the base; pivot drawn to the tick at $50.00",
+     "3 Trigger | BASE BREAKOUT — buy-stop $50.10, valid only on expanding volume through the pivot",
+     "4 Stop | $47.50, under the final contraction low = pattern objectively broken; 5.2% stop distance",
+     "5 Target / R | First target $55.30 under next resistance = 2.0R → meets the 2R minimum; at 1% account risk: 1% ÷ 5.2% ≈ 19% position — inside the GREEN + A+ 20-25% cap"
+    ]
+   }
+  ],
+  "footer_rule": "If any field is blank, hedged, or pays less than 2R, the card is already finished — it reads SKIP."
+ },
+ {
+  "key": "sizing-gate",
+  "title": "THE SIZING GATE — Module 5 Checkpoint",
+  "tagline": "Ten problems. 100% to pass. The course's hard gate on its most dangerous skill — a trader who sizes wrong one time in ten is not 90% safe, he is unsafe.",
+  "sections": [
+   {
+    "heading": "Member",
+    "kind": "fields",
+    "items": [
+     "Name: ______________________",
+     "Date: ____________",
+     "Attempt #: ______"
+    ]
+   },
+   {
+    "heading": "How This Gate Works",
+    "kind": "prose",
+    "items": [
+     "Fold this page to cover every ANSWER line. Solve each problem cold on scratch paper, then uncover and grade. Copying the printed work is passing someone else's gate.",
+     "The formula: Account Risk % = Position Size % × Stop Distance % — so Position Size % = Account Risk % ÷ Stop Distance %. Then Position $ = Position Size % × Account, and Shares = Position $ ÷ Entry (always round DOWN).",
+     "Sequence is law: stop first, distance second, size last. The stop marks the price where the thesis is wrong — you never pick a size and back-fit a stop inside the noise.",
+     "Hard limits on every problem: account risk ≤ 2% per trade (under 1% preferred) · regime ceiling from the table below · total portfolio heat ≤ 10%."
+    ]
+   },
+   {
+    "heading": "Regime Size Ceilings (check on every problem)",
+    "kind": "table",
+    "items": [
+     "Regime | A+ setup — max position size | B setup",
+     "GREEN | 20–25% | reduced (below A+)",
+     "YELLOW | 15% | reduced (below A+)",
+     "ORANGE | 8% | SKIP — no B setups in ORANGE"
+    ]
+   },
+   {
+    "heading": "The Ten Problems — find Stop Distance %, Position Size %, Position $, Shares, $ at Risk",
+    "kind": "problems",
+    "items": [
+     "1) Account $10,000 · GREEN · A+ · target account risk 1% · entry $50.00 · structural stop $47.50.",
+     "ANSWER: Stop = 5%. Size = 1% ÷ 5% = 20% → $2,000 → 40 shares → 40 × $2.50 = $100 at risk (1.0%). Under the 25% GREEN ceiling — the formula stands.",
+     "2) Account $10,000 · GREEN · A+ · target 1% · entry $20.00 · stop $18.00.",
+     "ANSWER: Stop = 10%. Size = 1% ÷ 10% = 10% → $1,000 → 50 shares → $100 at risk (1.0%). Twice the stop of #1, half the size, same dollars at risk.",
+     "3) Account $8,000 · YELLOW · A+ · target 0.5% · entry $25.00 · stop $24.00.",
+     "ANSWER: Stop = 4%. Size = 0.5% ÷ 4% = 12.5% → $1,000 → 40 shares → $40 at risk (0.5%). Under the 15% YELLOW ceiling.",
+     "4) Account $25,000 · GREEN · A+ · target 2% · entry $125.00 · stop $115.00.",
+     "ANSWER: Stop = 8%. Size = 2% ÷ 8% = 25% → $6,250 → 50 shares → $500 at risk (2.0%). At the 2% hard max AND the top of the GREEN ceiling — legal, but nothing may be added.",
+     "5) Account $50,000 · GREEN · A+ · target 1% · entry $80.00 · stop $76.80.",
+     "ANSWER: Stop = 4%. Size = 1% ÷ 4% = 25% → $12,500 → 156 shares (156.25 rounds DOWN) → 156 × $3.20 = $499 at risk (~1.0%).",
+     "6) Account $100,000 · ORANGE · A+ · target 0.5% · entry $50.00 · stop $46.00.",
+     "ANSWER: Stop = 8%. Size = 0.5% ÷ 8% = 6.25% → $6,250 → 125 shares → $500 at risk (0.5%). Fits under ORANGE's 8% ceiling — barely. In ORANGE, small and A+ or nothing.",
+     "7) Account $250,000 · GREEN · A+ · target 1% · entry $200.00 · stop $188.00.",
+     "ANSWER: Stop = 6%. Size = 1% ÷ 6% = 16.7% → $41,667 → 208 shares → 208 × $12 = $2,496 at risk (~1.0%). The formula does not care how big the account is.",
+     "8) Account $75,000 · GREEN · A+ · target 2% · entry $150.00 · stop $132.00.",
+     "ANSWER: Stop = 12%. Size = 2% ÷ 12% = 16.7% → $12,500 → 83 shares → 83 × $18 = $1,494 at risk (~2.0%).",
+     "9) Account $50,000 · GREEN · A+ · target 1.5% · entry $50.00 · stop $48.50. Check the ceiling table before you finalize.",
+     "ANSWER: Stop = 3%. The formula says 1.5% ÷ 3% = 50% position — but the GREEN + A+ ceiling is 25%. CAP IT: 25% → $12,500 → 250 shares → $375 at risk (0.75%). The table always outranks the formula: a tight stop never licenses a monster position, because a stop cannot catch an overnight gap — that gap risk is exactly why the ceiling exists.",
+     "10) Account $8,000 · GREEN · A+ chart · target 1% · entry $40.00 · honest structural stop $34.00 (under the base low). What do you do?",
+     "ANSWER: Stop = 15%. Formula: 1% ÷ 15% = 6.7% → $533 → 13 shares risking $78 — too small to matter. Sizing it to a meaningful 20% ($1,600 / 40 shares) would risk $240 = 3.0%, over the 2% hard max. Correct answer: SKIP. You never shrink the stop to force the trade — invalidation first, size second, and when the two can't agree the answer is no trade."
+    ]
+   },
+   {
+    "heading": "Self-Grade Before Scoring",
+    "kind": "checklist",
+    "items": [
+     "Every size was derived FROM the stop — I never picked a size first",
+     "No answer risks more than 2% of the account",
+     "Every share count was rounded DOWN",
+     "I checked the regime ceiling on all 10 problems (it decided #9)",
+     "#10 is marked SKIP — not a tighter stop"
+    ]
+   },
+   {
+    "heading": "Score & Retake",
+    "kind": "fields",
+    "items": [
+     "Score: ______ / 10 (pass = 10/10 — no partial credit)",
+     "Result — PASS ▢ / RETAKE ▢",
+     "If RETAKE: rewatch M5 · \"The Formula: Account Risk % = Position Size % × Stop Distance % — Worked Five Times,\" then retake with fresh numbers on (date): ____________",
+     "Gate cleared on (date): ____________ — nothing after Module 5 is traded live until this line is filled in"
+    ]
+   }
+  ],
+  "footer_rule": "Stop first, distance second, size last — and when the honest stop and the 2% ceiling can't agree, the answer is SKIP, not a tighter stop."
+ },
+ {
+  "key": "playbook-defense",
+  "title": "THE PLAYBOOK TEMPLATE + DEFENSE RUBRIC",
+  "tagline": "The UCT Method · Capstone (M16) — author your two setups from your own logged data, then defend one live plan through all six LOOP stations: Regime → Scan → Setup → Size → Manage → Review.",
+  "sections": [
+   {
+    "heading": "HOW THIS CARD WORKS",
+    "kind": "prose",
+    "items": [
+     "TOP: write the playbook entry for each of your two contracted setups. Your Module 7-14 drill scores and field-week logs pick them — the data votes, not your mood.",
+     "Every blank must be numeric and falsifiable — a number a stranger could trade from. \"Buy strength, stop below support\" fails review.",
+     "BOTTOM: build ONE current-market trade plan and score it against the rubric. Compass pre-grades, the owner reviews async — all six rows must read PASS to graduate."
+    ]
+   },
+   {
+    "heading": "SETUP 1 — FIVE-FIELD PLAYBOOK ENTRY",
+    "kind": "fields",
+    "items": [
+     "Setup name (from the setup catalog) + entry type (BASE BREAKOUT / PREV DAY HIGH BREAK / PREV LOW RECLAIM / RED TO GREEN): ______",
+     "1 · Context & regime conditions (what the chart must show + minimum permission band GREEN / YELLOW / ORANGE): ______",
+     "2 · Entry trigger (exact price logic, to the tick, + volume threshold): ______",
+     "3 · Stop & size rule (invalidation price + Account Risk % = Position Size % × Stop Distance % — 2% hard max, prefer <1%): ______",
+     "4 · Management plan (breakeven at ~+1R · a third off at 2-3R into strength · trail: 10-day fast mover / 20- or 50-day position hold): ______",
+     "5 · Failure modes (the two ways this setup dies, and the tell for each): ______",
+     "When I do NOT take it (band too low · grade below the table's cell · B in ORANGE · extended · inside the pre-report earnings window · book heat at 10%): ______",
+     "My stats — family-drill score: ____% · field-week reps logged: ____ · wins/losses: ____/____ · avg R: ____"
+    ]
+   },
+   {
+    "heading": "SETUP 2 — FIVE-FIELD PLAYBOOK ENTRY",
+    "kind": "fields",
+    "items": [
+     "Setup name (catalog) + entry type: ______",
+     "1 · Context & regime conditions (chart context + minimum band): ______",
+     "2 · Entry trigger (exact, to the tick): ______",
+     "3 · Stop & size rule (invalidation price + the formula, 2% hard max): ______",
+     "4 · Management plan (breakeven · partial at 2-3R · trail line): ______",
+     "5 · Failure modes (how it dies + the tell): ______",
+     "When I do NOT take it: ______",
+     "My stats — drill score: ____% · reps logged: ____ · wins/losses: ____/____ · avg R: ____"
+    ]
+   },
+   {
+    "heading": "THE SIZING TABLE — VERBATIM (row 4 of the rubric requires it)",
+    "kind": "table",
+    "items": [
+     "Regime + grade | Max position size",
+     "GREEN + A+ | 20-25%",
+     "YELLOW + A+ | 15%",
+     "ORANGE + A+ | 8%",
+     "B in ORANGE | SKIP — no trade",
+     "Every cell obeys | Account Risk % = Position Size % × Stop Distance % (2% hard max, prefer <1%) · portfolio heat = Σ(entry−stop)×shares ÷ equity, capped at 10%"
+    ]
+   },
+   {
+    "heading": "TRADE-PLAN DEFENSE RUBRIC — SIX ROWS, EACH PASS/FAIL, ALL SIX TO GRADUATE",
+    "kind": "table",
+    "items": [
+     "# · Station | The grader passes it only if | Verdict",
+     "1 · REGIME | Today's actual 0-150 UCT Exposure Rating is written down with its GREEN / YELLOW / ORANGE band — today's reading, not \"the market looks good\" | PASS ☐  FAIL ☐",
+     "2 · SCAN | The candidate came from a real scan — nightly Screener run, A-list, or weekend deep scan — and the source is cited | PASS ☐  FAIL ☐",
+     "3 · SETUP | The setup is named from the catalog AND graded A+/A/B/C, citing the rubric line that decided the letter (regime alignment · family score · RS rank · catalyst · clean stop) | PASS ☐  FAIL ☐",
+     "4 · SIZE | Size is shown BOTH ways and they agree: Account Risk % = Position Size % × Stop Distance % (≤2%) AND the regime × grade cell above — down to the share count | PASS ☐  FAIL ☐",
+     "5 · MANAGE | Both exit paths are pre-committed in writing: wrong = the stop price, an appointment not a debate; right = partial at 2-3R + the named trail line | PASS ☐  FAIL ☐",
+     "6 · REVIEW / STRESS | \"What makes this plan wrong tomorrow?\" is answered with a specific invalidation (gap through the stop, regime downgrade, correlation to open book) — not \"if it goes down\" | PASS ☐  FAIL ☐"
+    ]
+   },
+   {
+    "heading": "BEFORE YOU SUBMIT",
+    "kind": "checklist",
+    "items": [
+     "All five fields on BOTH entries hold numbers a stranger could trade from — zero vague lines",
+     "This plan's add keeps portfolio heat ≤ 10% (correlated names share one risk budget)",
+     "No new entry inside the pre-report earnings window — date checked on the Calendar",
+     "The dial reading cited is TODAY'S, and the plan dies if the band downgrades",
+     "Specialization contract signed: one primary setup · two full earnings seasons · 40 journal-logged reps before any expansion",
+     "All six rubric rows read PASS — five of six is a fail; remediate the failed station and resubmit"
+    ]
+   }
+  ],
+  "footer_rule": "Graduation certifies a defended plan, not videos watched — if any of the six rows fails, the plan fails, and a plan that cannot name what kills it tomorrow is a hope, not a plan."
+ }
+]

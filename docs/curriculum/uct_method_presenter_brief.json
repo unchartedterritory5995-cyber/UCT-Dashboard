@@ -1,0 +1,111 @@
+{
+ "title": "The Presenter's Brief",
+ "subtitle": "Read this once before recording anything. It is the whole system, the product you'll be showing, and the conventions the 79 lessons assume you already know.",
+ "sections": [
+  {
+   "heading": "1 · The system in one page",
+   "body": [
+    "UCT Intelligence teaches ONE operating loop, and every lesson in this course plugs into exactly one of its six stations: **Regime → Scan → Setup → Size → Manage → Review**. The output of each station is the input of the next. A trade that skips a station is not a UCT trade. If you internalize nothing else, internalize the loop — the course's whole architecture is that sentence.",
+    "**Regime — what am I permitted to do today?** The firm publishes a proprietary **UCT Exposure Rating**, a 0-150 score computed daily from breadth participation, the distribution-day count, and index moving-average structure. The score maps to a **permission band: GREEN / YELLOW / ORANGE**. The doctrine you must repeat correctly on camera: a band is *permission, not prediction*. GREEN does not mean the market will go up; it means more of the playbook is authorized. ORANGE does not forecast a crash; it revokes rights. Say it that way every time.",
+    "**Scan — which names earned a place on my list?** A nightly filter chain takes roughly 3,700 tickers to about ten names in twenty minutes: Stage-2 trend pass, ADR% of 4 or better, a dollar-volume floor, RS trend up, ranges tightening. Survivors split into an **A-list** (at the pivot within a day or two, alert armed at the exact trigger price) and a **B-list** (right pattern, needs time).",
+    "**Setup — what exactly is this trade?** Every trade is named from the firm's setup catalog, organized into four families: **Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims**. Every entry fires as one of exactly four triggers: **BASE BREAKOUT · PREV DAY HIGH BREAK · PREV LOW RECLAIM · RED TO GREEN**. Each setup is documented on the five-field card: Context · Pattern · Trigger · Stop · Failure mode.",
+    "**Size — how much, derived from the stop and never from conviction?** The formula is stated verbatim across the course: **Account Risk % = Position Size % × Stop Distance %**, with a **2% hard maximum per trade and a stated preference for under 1%**. Worked: 1% account risk with a 5% stop distance is a 20% position (0.01 ÷ 0.05 = 0.20). The regime × grade table caps it further — **GREEN + A+ = 20-25% · YELLOW + A+ = 15% · ORANGE + A+ = 8% · a B-grade setup in ORANGE = skip**. Across the whole book, **portfolio heat** — the sum of (entry − stop) × shares divided by equity — is **capped at 10%**, and no new buy goes on above the cap.",
+    "**Manage — is the plan intact, and which rule fires now?** The stop is an appointment, not a debate; it is placed where the pattern breaks and never moved lower. Breakeven at roughly +1R or the first higher low. First third off at 2-3R into strength. Trails are matched to what produced the trade: the 10-day for fast movers, the 10/20-day for Episodic Pivots, the 20 or 50-day for position holds. Never add to a loser.",
+    "**Review — what did this teach in a form I can aggregate?** A fixed seven-field journal entry, filled the day the trade closes: date, setup tag, entry type, planned R, exit-versus-plan, a three-axis grade (Idea / Execution / Preparation), annotated screenshot. Zero blank fields, and **P&L is not a grade**. Daily tag, weekly stats, monthly audit.",
+    "One more number you will state often: **R**. 1R is the dollars planned to be lost if the stop hits. Every trade in this course is priced in R, never in dollars, because dollars are not comparable across position sizes."
+   ]
+  },
+  {
+   "heading": "2 · The product you'll be showing",
+   "body": [
+    "This is a software product as much as a course, and the lessons screen-record real surfaces. Know what each one is before you point at it.",
+    "**The Exposure dial (Dashboard / Breadth)** — the live 0-150 UCT Exposure Rating and its band. Leaned on hardest in M1 (the early win), all of M3, and every Monday-plan reference thereafter.",
+    "**Morning Wire** — the firm's pre-market brief, published daily around 7:35 AM ET: regime read, leadership, catalysts, and the day's five-number scorecard. M4 and M6 are recorded *against* it — the teaching line is 'the Wire is your scorecard, filled in.'",
+    "**Screener / scanner** — the nightly candidate engine behind the scan chain. Central to M6; appears wherever a lesson says a name 'came off the scan.'",
+    "**Charts** — the charting workspace (TradingView-grade, in-product). The house template is the four-line MA stack: **9 EMA, 20 EMA, 50 SMA, 200 SMA**. Configure it once and record every chart with it.",
+    "**Journal (Journal 2.0)** — trade log, notebook, and the AI coach ('Compass'). The seven-field entry lives here; M14 and the capstone are recorded in it.",
+    "**Model Book** — a curated library of history's best stocks organized by year, with setups labeled on their charts. M2's Winners Gallery is built here, and it is the natural place to pull historical examples.",
+    "**Options Flow** — the live options tape. M15's overlay module only; treat flow as confirmation, never as signal.",
+    "**The Desk** — where the finished videos live (Videos = library + learning paths; Courses = this program)."
+   ]
+  },
+  {
+   "heading": "3 · Production conventions",
+   "body": [
+    "**The five gold markers per lesson are the video's literal chapter markers.** Speak through them in order. When the video posts, those five phrases become the chapters in the player, so the edit chapters itself if you stay in sequence.",
+    "**Speaker notes are content, not a teleprompter script.** Deliver them in your own cadence — but every number, formula, threshold and rule inside them is doctrine and must land exactly as written. When in doubt, say the number.",
+    "**ON SCREEN tells you what is displayed** for that chapter, and where a chart is needed the **example spec** gives you a real ticker, the period, what to find on it feature by feature, approximate levels marked with ≈, and the outcome in R. Verify exact levels on your own platform — the ≈ figures are there so you can confirm you're looking at the right bars, not to be read aloud as precise.",
+    "**\"(Upgrade: swap in a firm trade…)\"** means the public example works as-written. If the owner supplies a firm trade of the same setup, it is strictly better — but nothing is blocked without one.",
+    "**The seven toolkit cards are physical props.** Print them before the session. When a script says 'hand over the card' or 'hold up the plan,' the card is on camera. Printing the toolkit page yields one card per sheet and hides the sizing-gate answer key automatically.",
+    "**Target length is stated per lesson** (~8-25 minutes). Lessons over about 15 minutes are scripted in chaptered segments — record them in sittings if that's easier; the chapters are the seams.",
+    "**Tone:** direct, concrete, unglamorous. Real numbers over adjectives. Show a real loss taken at plan wherever the script calls for one — that requirement is deliberate and load-bearing for this audience. The firm's tagline is *\"Navigate the market, effectively.\"*"
+   ]
+  },
+  {
+   "heading": "4 · Before each session — the pre-flight",
+   "body": [
+    "Read the lesson's note and all five chapters end to end before recording anything.",
+    "Pull every chart named in the ON SCREEN lines and example specs; verify each one shows what the spec claims before you're live.",
+    "Set the charting template to the house stack: 9 EMA, 20 EMA, 50 SMA, 200 SMA.",
+    "Print the toolkit cards this lesson references (check the chapters for 'hand over' / 'hold up' cues).",
+    "Open the dashboard tabs the lesson uses — dial, Morning Wire, Screener, Journal, Model Book — and log in ahead of time so nothing is captured mid-load.",
+    "Check the promises made in earlier lessons: this course front-loads commitments ('you'll size this in Module 5', 'the capstone reads this page back'). If your lesson is the payoff, honor the exact wording.",
+    "Confirm the drill mechanics if this lesson closes with one: the rep count and the pass bar are stated in the script — 80% on family and regime drills, and 100% on the Module 5 sizing gate (that exception is deliberate).",
+    "Have the R math for any worked trade computed *before* recording, so the arithmetic is spoken cleanly rather than derived on camera.",
+    "Never state a total number of setups in the catalog, and never name fixed 0-150 score thresholds — see the next section.",
+    "Record a 10-second test for audio levels and screen legibility at the resolution members will watch (chart text must be readable on a laptop)."
+   ]
+  },
+  {
+   "heading": "5 · The two open decisions — what NOT to say on camera",
+   "body": [
+    "Two doctrine calls belong to the owner and are still open. The scripts are written to survive either outcome; keep them that way.",
+    "**The setup-catalog count.** The catalog is referred to as 'the firm's setup catalog' or 'the catalog' — never with a number. Do not say 'the 24 setups' or 'all 26 setups'. If a count is needed for a lesson, stop and ask.",
+    "**The regime score bands.** The specific 0-150 thresholds that separate GREEN, YELLOW and ORANGE are being finalized. Read today's score and band **off the live dashboard** and describe the mechanism ('the dial computes it from breadth, distribution days, and index structure; today it reads X, which the dashboard shows as GREEN'). Do not recite fixed cutoffs.",
+    "Everything else — the sizing formula, the 2% ceiling, the regime × grade percentages, the 10% heat cap, the four triggers, the family names, the journal fields, the trail rules — is settled and audited. State those with full confidence."
+   ]
+  }
+ ],
+ "glossary": [
+  {"term": "THE LOOP", "definition": "The firm's six-station operating cycle — Regime → Scan → Setup → Size → Manage → Review — that every trade and every lesson maps onto."},
+  {"term": "UCT Exposure Rating", "definition": "The firm's proprietary 0-150 daily score computed from breadth, distribution days and index MA structure; it is the number that grants trading permission."},
+  {"term": "Permission band", "definition": "The GREEN / YELLOW / ORANGE state the Exposure Rating maps to — it authorizes what you may do, and explicitly does not predict market direction."},
+  {"term": "Distribution day", "definition": "A higher-volume down day in a major index; a cluster of 4-6 within roughly 25 sessions is treated as the end of an uptrend."},
+  {"term": "Follow-through day", "definition": "The confirmation of a new uptrend — day 4-7 off a low, up big on higher volume; it re-opens buying at pilot size."},
+  {"term": "Stage 2", "definition": "The advancing phase of a stock's four-stage life cycle; the firm's mechanical eight-question Stage-2 gate must pass before a name is tradeable."},
+  {"term": "A-list / B-list", "definition": "A-list = scan survivors at their pivot within a day or two with alerts armed at the trigger price; B-list = right pattern, needs more time."},
+  {"term": "ADR%", "definition": "Average daily range as a percentage — the firm's volatility floor for candidates is 4%."},
+  {"term": "RS line", "definition": "Relative strength versus SPY plotted as a line; leadership shows there before it shows in price."},
+  {"term": "R / R-multiple", "definition": "One R is the dollars planned to be lost if the stop hits; every result is priced in R so trades of different sizes are comparable."},
+  {"term": "Expectancy", "definition": "(win% × average win in R) − (loss% × average loss in R) — the equation that decides whether a system pays, independent of win rate."},
+  {"term": "Account Risk %", "definition": "The share of the account risked on one trade — Position Size % × Stop Distance % — hard-capped at 2%, preferably under 1%."},
+  {"term": "The regime × grade table", "definition": "The sizing ceiling matrix: GREEN+A+ 20-25%, YELLOW+A+ 15%, ORANGE+A+ 8%, B-in-ORANGE = skip."},
+  {"term": "Portfolio heat", "definition": "Total open risk across all positions — Σ (entry − stop) × shares ÷ equity — capped at 10% for the whole book."},
+  {"term": "Progressive exposure", "definition": "The size ladder Pilot → Half → Full → Overweight, where each rung is earned by the performance of the last."},
+  {"term": "Drawdown protocol", "definition": "The pre-committed de-risking rules: halve new sizes at −5% of equity, pilot-or-paper only at −10%."},
+  {"term": "Five-field card", "definition": "The one-page setup document — Context · Pattern · Trigger · Stop · Failure mode — filled once per setup studied and once per live candidate."},
+  {"term": "The four entry triggers", "definition": "The only ways a UCT entry fires: BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM, RED TO GREEN."},
+  {"term": "Setup families", "definition": "The catalog's four groupings: Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims."},
+  {"term": "Episodic Pivot (EP)", "definition": "Day one of a new trend — a catalyst gap out of a base that re-rates the stock; trailed on the 10/20-day."},
+  {"term": "Power Earnings Gap (PEG)", "definition": "An earnings gap bought on its first controlled pullback into gap support rather than chased at the open."},
+  {"term": "Gap support", "definition": "The prior up-gap zone that price must defend on a pullback — the level the tape remembers."},
+  {"term": "High Volume Edge (HVC)", "definition": "The highest-volume day's close becomes the line the stock must hold; taught with gap support as one principle."},
+  {"term": "U&R (Undercut & Rally)", "definition": "The shakeout you buy — price undercuts a prior low, traps sellers, and reclaims it."},
+  {"term": "Remount", "definition": "A shakeout below a key line followed by retaking it with authority."},
+  {"term": "Slingshot", "definition": "Recapturing the 4-EMA of the highs — buying momentum resuming rather than the low."},
+  {"term": "2B Reversal / Oops", "definition": "A failed break of a prior extreme that snaps back; Oops is the same trap arriving via a gap open."},
+  {"term": "Go Signal", "definition": "A catalyst gap that digests into the 9 EMA and then engulfs — the resumption trigger."},
+  {"term": "Launchpad", "definition": "Consolidation sitting on top of the stacked averages (9>20>50>200) before launching."},
+  {"term": "Wedge Pop / Wedge Drop", "definition": "One descending-coil skeleton with two resolutions — the pop that starts an up-cycle, the drop that breaks a down-cycle open."},
+  {"term": "Kicker candle", "definition": "The trap that closes above the prior day's high, flipping the short-term control."},
+  {"term": "Field week", "definition": "The application week that closes each setup-family module: scan nightly, card 2-3 live candidates of that family, log them, grade against plan."},
+  {"term": "The sizing gate", "definition": "The Module 5 checkpoint — ten sizing problems at a 100% pass bar; nothing trades live until it clears."},
+  {"term": "Specialization contract", "definition": "The capstone commitment to two setup families, chosen from the member's own drill and field-week data."},
+  {"term": "Playbook defense", "definition": "The graduation gate — one complete trade plan run through all six stations, scored against a six-row rubric where every row must pass."},
+  {"term": "Morning Wire", "definition": "The firm's daily pre-market brief (~7:35 AM ET) carrying the regime read, leadership, catalysts and the five-number scorecard."},
+  {"term": "Sunday Scans", "definition": "The firm's weekend scan publication — the weekly deep pass over the universe."},
+  {"term": "UCT 20", "definition": "The firm's ranked leadership list of twenty names, rebuilt on the daily engine run."},
+  {"term": "Compass", "definition": "The Journal's built-in AI coach; it pre-grades the capstone trade plan before the owner's review."},
+  {"term": "Model Book", "definition": "The in-product library of history's best stocks by year with setups labeled — the source for the Winners Gallery and historical examples."}
+ ]
+}
