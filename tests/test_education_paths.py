@@ -442,3 +442,114 @@ def test_ensure_default_paths_respects_nonempty_table_no_dup(svc):
     assert [p["slug"] for p in paths] == ["custom"]
     flag = os.path.join(os.path.dirname(svc._DB_PATH), ".edu_paths_migrate_v1")
     assert os.path.exists(flag)
+
+
+# ── Planned lessons ("to be recorded" slots — 2026-07-27) ─────────────────────
+
+def test_planned_step_stores_gap_sentinel_and_round_trips(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [
+        {"youtube_id": "real1234567", "note": "watch this"},
+        {"planned_title": "Reading the Regime Dial", "note": "to record",
+         "module_label": "M3"},
+    ])
+    steps = svc.list_paths(include_disabled=True)[0]["steps"]
+    assert steps[0]["planned_title"] is None
+    assert steps[1] == {"youtube_id": "gap:1", "module_label": "M3",
+                        "note": "to record", "start_seconds": None,
+                        "end_seconds": None,
+                        "planned_title": "Reading the Regime Dial"}
+
+
+def test_planned_step_forces_canonical_sentinel_over_supplied_youtube_id(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [
+        {"youtube_id": "stale-id", "planned_title": "Planned"},
+    ])
+    step = svc.list_paths(include_disabled=True)[0]["steps"][0]
+    assert step["youtube_id"] == "gap:0"
+
+
+def test_planned_step_clears_clip_window(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [
+        {"planned_title": "Planned", "start_seconds": 90, "end_seconds": 300},
+    ])
+    step = svc.list_paths(include_disabled=True)[0]["steps"][0]
+    assert step["start_seconds"] is None and step["end_seconds"] is None
+
+
+def test_gap_sentinel_without_planned_title_rejected(svc):
+    p = _path(svc)
+    with pytest.raises(ValueError, match="planned_title"):
+        svc.replace_path_steps(p["id"], [{"youtube_id": "gap:0"}])
+
+
+def test_empty_step_still_rejected(svc):
+    p = _path(svc)
+    with pytest.raises(ValueError, match="youtube_id"):
+        svc.replace_path_steps(p["id"], [{"planned_title": "   "}])
+
+
+def test_attach_video_converts_planned_row(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [{"planned_title": "Planned"}])
+    svc.replace_path_steps(p["id"], [
+        {"youtube_id": "recorded1234", "note": "now real", "planned_title": None},
+    ])
+    step = svc.list_paths(include_disabled=True)[0]["steps"][0]
+    assert step["youtube_id"] == "recorded1234" and step["planned_title"] is None
+
+
+def test_bulk_apply_paths_carries_planned_steps(svc):
+    svc.bulk_apply_paths([
+        {"slug": "draft-course", "name": "Draft", "kind": "course", "enabled": False,
+         "steps": [
+             {"youtube_id": "real1234567", "module_label": "M1"},
+             {"planned_title": "Gap Lesson", "module_label": "M1", "note": "brief"},
+         ]},
+    ])
+    p = svc.list_paths(include_disabled=True)[0]
+    assert p["enabled"] == 0
+    assert p["steps"][1]["planned_title"] == "Gap Lesson"
+    assert p["steps"][1]["youtube_id"] == "gap:1"
+
+
+def test_bulk_apply_paths_planned_validation_is_all_or_nothing(svc):
+    svc.bulk_apply_paths([
+        {"slug": "keep", "name": "Keep", "kind": "track",
+         "steps": [{"youtube_id": "ok123456789"}]},
+    ])
+    with pytest.raises(ValueError):
+        svc.bulk_apply_paths([
+            {"slug": "keep", "name": "Clobbered", "kind": "track",
+             "steps": [{"planned_title": "fine"}]},
+            {"slug": "bad", "name": "Bad", "kind": "track",
+             "steps": [{"youtube_id": "gap:9"}]},
+        ])
+    p = svc.list_paths(include_disabled=True)[0]
+    assert p["name"] == "Keep" and p["steps"][0]["youtube_id"] == "ok123456789"
+
+
+def test_init_db_alters_planned_title_onto_a_pre_existing_table(tmp_path, monkeypatch):
+    import sqlite3
+    from api.services import education_service as es
+    db = str(tmp_path / "edu-old.db")
+    with contextlib.closing(sqlite3.connect(db)) as c:
+        c.executescript("""
+            CREATE TABLE edu_paths (id INTEGER PRIMARY KEY, slug TEXT UNIQUE,
+                name TEXT NOT NULL, blurb TEXT, kind TEXT NOT NULL DEFAULT 'track',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL, updated_at INTEGER);
+            CREATE TABLE edu_path_steps (id INTEGER PRIMARY KEY,
+                path_id INTEGER NOT NULL REFERENCES edu_paths(id) ON DELETE CASCADE,
+                youtube_id TEXT NOT NULL, sort_order INTEGER NOT NULL,
+                module_label TEXT, note TEXT);
+        """)
+        c.commit()
+    monkeypatch.setattr(es, "_DB_PATH", db)
+    es._init_db()
+    with contextlib.closing(es._connect()) as c:
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(edu_path_steps)")}
+    assert "planned_title" in cols and "start_seconds" in cols

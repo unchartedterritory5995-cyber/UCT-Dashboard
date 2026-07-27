@@ -92,7 +92,7 @@ def test_get_paths_includes_steps(paid_client, svc):
     r = paid_client.get("/api/education/paths")
     steps = r.json()["paths"][0]["steps"]
     assert steps == [{"youtube_id": "yt1", "module_label": "M1", "note": "n",
-                      "start_seconds": None, "end_seconds": None}]
+                      "start_seconds": None, "end_seconds": None, "planned_title": None}]
 
 
 # ── POST /paths — admin ──────────────────────────────────────────────────────
@@ -311,3 +311,66 @@ def test_paths_apply_upserts_by_slug(push_client, svc):
     assert r.status_code == 200
     paths = svc.list_paths(include_disabled=True)
     assert len(paths) == 1 and paths[0]["name"] == "New Name"
+
+
+# ── Planned lessons + admin drafts (?all=1) — 2026-07-27 ─────────────────────
+
+def test_get_paths_all_flag_is_ignored_for_paid_non_admin(paid_client, svc):
+    svc.create_path({"slug": "on", "name": "On", "kind": "track", "enabled": True})
+    svc.create_path({"slug": "draft", "name": "Draft", "kind": "course", "enabled": False})
+    r = paid_client.get("/api/education/paths?all=1")
+    assert r.status_code == 200
+    assert [p["slug"] for p in r.json()["paths"]] == ["on"]
+
+
+def test_get_paths_all_flag_returns_drafts_for_admin(svc):
+    app = _app()
+    admin = {"id": "a1", "email": "a@t.dev", "role": "admin"}
+    app.dependency_overrides[edu_router.require_paid] = lambda: admin
+    app.dependency_overrides[get_current_user] = lambda: admin
+    c = TestClient(app)
+    svc.create_path({"slug": "on", "name": "On", "kind": "track", "enabled": True})
+    svc.create_path({"slug": "draft", "name": "Draft", "kind": "course", "enabled": False})
+    r = c.get("/api/education/paths?all=1")
+    assert r.status_code == 200
+    slugs = {p["slug"] for p in r.json()["paths"]}
+    assert slugs == {"on", "draft"}
+    # without the flag even an admin gets the member view
+    r2 = c.get("/api/education/paths")
+    assert [p["slug"] for p in r2.json()["paths"]] == ["on"]
+
+
+def test_put_steps_accepts_planned_lesson(admin_client, svc):
+    p = svc.create_path({"slug": "c1", "name": "C1", "kind": "course"})
+    r = admin_client.put(f"/api/education/paths/{p['id']}/steps", json={"steps": [
+        {"youtube_id": "real1234567", "module_label": "M1"},
+        {"planned_title": "Gap Lesson", "module_label": "M1", "note": "brief line"},
+    ]})
+    assert r.status_code == 200 and r.json()["steps"] == 2
+    steps = svc.get_path(p["id"])["steps"]
+    assert steps[1]["planned_title"] == "Gap Lesson"
+    assert steps[1]["youtube_id"] == "gap:1"
+
+
+def test_put_steps_gap_sentinel_without_title_returns_400(admin_client, svc):
+    p = svc.create_path({"slug": "c2", "name": "C2", "kind": "course"})
+    r = admin_client.put(f"/api/education/paths/{p['id']}/steps", json={"steps": [
+        {"youtube_id": "gap:0"},
+    ]})
+    assert r.status_code == 400
+
+
+def test_paths_apply_carries_planned_steps(push_client, svc):
+    r = push_client.post("/api/education/paths-apply", json={"paths": [
+        {"slug": "uct-foundations", "name": "UCT Foundations", "kind": "course",
+         "enabled": False, "steps": [
+             {"youtube_id": "real1234567", "module_label": "M1 · Foundations"},
+             {"planned_title": "Welcome to UCT Foundations",
+              "module_label": "M1 · Foundations", "note": "record first"},
+         ]},
+    ]})
+    assert r.status_code == 200
+    assert r.json() == {"paths": 1, "steps": 2}
+    p = svc.list_paths(include_disabled=True)[0]
+    assert p["enabled"] == 0
+    assert p["steps"][1]["planned_title"] == "Welcome to UCT Foundations"

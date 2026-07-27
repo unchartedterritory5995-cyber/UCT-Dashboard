@@ -573,3 +573,98 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* ── Planned lessons ("to be recorded" slots — 2026-07-27) ─────────────── */
+/* View mode: same ledger geometry as .row, but inert — a div, not a button. */
+.rowPlanned {
+  cursor: default;
+  opacity: 0.75;
+}
+.rowTitlePlanned { color: var(--text-muted); }
+.plannedChip {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 2px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Editor: planned-title input sits where the row title sits. */
+.editFieldTitle { flex: 1; min-width: 0; }
+
+/* Per-row attach-video search — compact cousin of the add-lesson search. */
+.attachWrap {
+  position: relative;
+  display: block;
+  margin-top: 4px;
+  max-width: 420px;
+}
+.attachInput { width: 100%; border-style: dashed; }
+.attachInput:focus { border-style: solid; }
+.attachMatches {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.attachMatch {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+}
+.attachMatch:hover { background: var(--bg-surface); }
+.attachMatchTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "Add planned lesson" — quiet dashed affordance under the add search. */
+.addPlannedBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-md);
+  min-height: 36px;
+  padding: 6px 14px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.addPlannedBtn:hover:not(:disabled) { color: var(--text-bright); border-color: var(--ut-gold-glow); }
+.addPlannedBtn:disabled { opacity: 0.4; cursor: default; }
+@media (max-width: 1024px) {
+  .attachInput { min-height: var(--tap-min); }
+  .attachMatch { min-height: var(--tap-min); }
+  .addPlannedBtn { min-height: var(--tap-min); }
+}

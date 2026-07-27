@@ -77,6 +77,12 @@ const draftFromPath = (path) => ({
     note: st.note || '',
     start: st.start_seconds != null ? fmtSeekTime(st.start_seconds) : '',
     end: st.end_seconds != null ? fmtSeekTime(st.end_seconds) : '',
+    // Planned lesson ("to be recorded"): title lives here, youtube_id is the
+    // server's gap: sentinel until a real video is attached. `planned` is the
+    // editor's own flag — a NEW planned row starts with an empty title, so
+    // the title alone can't distinguish the shapes.
+    planned: !!st.planned_title,
+    planned_title: st.planned_title || '',
   })),
 })
 
@@ -95,14 +101,22 @@ export default function PathView({
   // path.videos is exactly path.steps resolved in order minus unknown ids, so
   // one pointer walk reconstructs the pairing — duplicates included, and a
   // step whose video didn't resolve is skipped without consuming a video.
+  // Planned steps (planned_title, no video yet) become placeholder rows in
+  // their authored position: they group under their module and keep the
+  // syllabus honest about what's coming, but never join the play queue —
+  // `index` stays the position within path.videos for playable rows only.
   const lessons = useMemo(() => {
     const videos = path.videos || []
     const out = []
     let vi = 0
     for (const st of path.steps || []) {
+      if (st.planned_title) {
+        out.push({ planned: true, video: null, step: st, index: -1, seq: out.length })
+        continue
+      }
       const v = videos[vi]
       if (v && v.youtube_id === st.youtube_id) {
-        out.push({ video: v, step: st, index: vi })
+        out.push({ video: v, step: st, index: vi, seq: out.length })
         vi += 1
       }
     }
@@ -111,6 +125,7 @@ export default function PathView({
       ? out
       : videos.map((v, i) => ({ video: v, step: {}, index: i }))
   }, [path])
+  const playable = useMemo(() => lessons.filter((l) => !l.planned), [lessons])
 
   // Consecutive runs of the same module_label form a group; a null label is a
   // headerless run (never merged INTO a labeled neighbor — runs stay intact).
@@ -131,23 +146,25 @@ export default function PathView({
   }, [lessons])
 
   const done = stats?.done ?? 0
-  const total = lessons.length
+  const total = playable.length
+  const plannedCount = lessons.length - playable.length
   const allDone = total > 0 && done >= total
 
   // "~Xh Ym left" = the durations of not-done lessons, shown ONLY under the
   // same ≥70% coverage rule the course cards use (a mostly-unknown remainder
-  // would be a lie) and never once everything is done.
+  // would be a lie) and never once everything is done. Planned rows have no
+  // video (nothing to watch yet) — they're outside every progress number.
   const remainingLabel = useMemo(() => {
     if (allDone || !total) return ''
-    const parsed = lessons.map((l) => parseDuration(l.video.duration))
+    const parsed = playable.map((l) => parseDuration(l.video.duration))
     if (parsed.filter((x) => x != null).length / total < DURATION_COVERAGE_MIN) return ''
-    const secs = lessons.reduce(
+    const secs = playable.reduce(
       (sum, l, i) =>
         !progress[l.video.youtube_id]?.done && parsed[i] != null ? sum + parsed[i] : sum,
       0,
     )
     return secs > 0 ? `${fmtCourseDuration(secs)} left` : ''
-  }, [lessons, progress, total, allDone])
+  }, [playable, progress, total, allDone])
 
   // CTA: all done → Rewatch from the top; started → Continue at the resume
   // step (courseStats.nextIndex — most recent in-progress, else first
@@ -159,7 +176,7 @@ export default function PathView({
   // its clip start when it hasn't been started yet. lessons[i].index === i by
   // construction (each lesson consumed exactly one video, in order).
   const ctaPlay = () => {
-    const opts = startAtOptsFor(lessons[resumeIndex], progress)
+    const opts = startAtOptsFor(playable[resumeIndex], progress)
     if (opts) onPlay(path.videos, resumeIndex, opts)
     else onPlay(path.videos, resumeIndex)
   }
@@ -206,6 +223,26 @@ export default function PathView({
       ...d,
       steps: [...d.steps, { youtube_id: video.youtube_id, module_label: '', note: '', start: '', end: '' }],
     }))
+  const addPlannedStep = () =>
+    setDraft((d) => ({
+      ...d,
+      steps: [
+        ...d.steps,
+        { youtube_id: '', module_label: '', note: '', start: '', end: '', planned: true, planned_title: '' },
+      ],
+    }))
+  // Recording done → the slot becomes a real lesson: the picked video's id
+  // replaces the sentinel and the planned title falls away (the video carries
+  // its own). Module/note curation survives the conversion.
+  const attachVideo = (i, video) =>
+    setDraft((d) => ({
+      ...d,
+      steps: d.steps.map((s, j) =>
+        j === i
+          ? { ...s, youtube_id: video.youtube_id, planned: false, planned_title: '' }
+          : s,
+      ),
+    }))
 
   // Save = PATCH meta only when something actually changed (partial body of
   // just the changed fields — slug is immutable and never sent), then PUT the
@@ -224,6 +261,22 @@ export default function PathView({
     const steps = []
     for (let i = 0; i < draft.steps.length; i++) {
       const s = draft.steps[i]
+      if (s.planned) {
+        const title = (s.planned_title || '').trim()
+        if (!title) {
+          setSaveErr(`Lesson ${i + 1}: a planned lesson needs a title.`)
+          return
+        }
+        steps.push({
+          youtube_id: '',
+          module_label: s.module_label.trim() || null,
+          note: s.note.trim() || null,
+          start_seconds: null,
+          end_seconds: null,
+          planned_title: title,
+        })
+        continue
+      }
       const start = parseTimeInput(s.start)
       const end = parseTimeInput(s.end)
       if (start === undefined || end === undefined) {
@@ -240,6 +293,7 @@ export default function PathView({
         note: s.note.trim() || null,
         start_seconds: start,
         end_seconds: end,
+        planned_title: null,
       })
     }
     setBusy(true)
@@ -355,22 +409,38 @@ export default function PathView({
             save; grouping while reordering across seams would mislead). */}
         <ol className={p.rows} aria-label="Lessons (draft order)">
           {draft.steps.map((st, i) => {
-            const v = videoById[st.youtube_id]
-            const title = v?.title || st.youtube_id
+            const v = st.planned ? null : videoById[st.youtube_id]
+            const title = st.planned
+              ? st.planned_title || 'Planned lesson'
+              : v?.title || st.youtube_id
             return (
-              <li key={`${st.youtube_id}-${i}`} className={p.rowItem}>
+              <li key={`${st.youtube_id || 'planned'}-${i}`} className={p.rowItem}>
                 <div className={p.editRow}>
                   <span className={p.rowIndex} aria-hidden="true">
-                    {i + 1}
+                    {st.planned ? '·' : i + 1}
                   </span>
                   <span className={p.editBody}>
-                    <span className={p.editTitleLine}>
-                      <span className={p.rowTitle}>{title}</span>
-                      {v?.duration ? (
-                        <span className={p.rowDuration}>{v.duration}</span>
-                      ) : null}
-                      {!v && <span className={p.editMissing}>not in library</span>}
-                    </span>
+                    {st.planned ? (
+                      <span className={p.editTitleLine}>
+                        <input
+                          className={`${p.editField} ${p.editFieldTitle}`}
+                          value={st.planned_title}
+                          onChange={(e) => setStep(i, 'planned_title', e.target.value)}
+                          placeholder="Planned lesson title"
+                          aria-label={`Title for planned lesson ${i + 1}`}
+                          disabled={busy}
+                        />
+                        <span className={p.plannedChip}>To record</span>
+                      </span>
+                    ) : (
+                      <span className={p.editTitleLine}>
+                        <span className={p.rowTitle}>{title}</span>
+                        {v?.duration ? (
+                          <span className={p.rowDuration}>{v.duration}</span>
+                        ) : null}
+                        {!v && <span className={p.editMissing}>not in library</span>}
+                      </span>
+                    )}
                     <span className={p.editFields}>
                       <input
                         className={p.editField}
@@ -390,26 +460,39 @@ export default function PathView({
                       />
                       {/* Clip window — where this lesson starts/ends inside
                           the video. Accepts mm:ss / h:mm:ss / bare seconds
-                          (parseTimeInput); blank = whole video. */}
-                      <input
-                        className={`${p.editField} ${p.editFieldTime}`}
-                        value={st.start}
-                        onChange={(e) => setStep(i, 'start', e.target.value)}
-                        placeholder="Start"
-                        title="Where this lesson starts — mm:ss, h:mm:ss, or seconds"
-                        aria-label={`Start time for lesson ${i + 1}`}
-                        disabled={busy}
-                      />
-                      <input
-                        className={`${p.editField} ${p.editFieldTime}`}
-                        value={st.end}
-                        onChange={(e) => setStep(i, 'end', e.target.value)}
-                        placeholder="End"
-                        title="Where this lesson ends (shown on the row; playback doesn’t auto-stop)"
-                        aria-label={`End time for lesson ${i + 1}`}
-                        disabled={busy}
-                      />
+                          (parseTimeInput); blank = whole video. Planned rows
+                          have no video, so no window to author. */}
+                      {!st.planned && (
+                        <>
+                          <input
+                            className={`${p.editField} ${p.editFieldTime}`}
+                            value={st.start}
+                            onChange={(e) => setStep(i, 'start', e.target.value)}
+                            placeholder="Start"
+                            title="Where this lesson starts — mm:ss, h:mm:ss, or seconds"
+                            aria-label={`Start time for lesson ${i + 1}`}
+                            disabled={busy}
+                          />
+                          <input
+                            className={`${p.editField} ${p.editFieldTime}`}
+                            value={st.end}
+                            onChange={(e) => setStep(i, 'end', e.target.value)}
+                            placeholder="End"
+                            title="Where this lesson ends (shown on the row; playback doesn’t auto-stop)"
+                            aria-label={`End time for lesson ${i + 1}`}
+                            disabled={busy}
+                          />
+                        </>
+                      )}
                     </span>
+                    {st.planned && (
+                      <AttachVideoSearch
+                        allVideos={allVideos}
+                        rowIndex={i}
+                        onPick={(video) => attachVideo(i, video)}
+                        disabled={busy}
+                      />
+                    )}
                   </span>
                   <span className={p.editOps}>
                     <button
@@ -458,6 +541,15 @@ export default function PathView({
           onAdd={addStep}
           disabled={busy}
         />
+        <button
+          type="button"
+          className={p.addPlannedBtn}
+          onClick={addPlannedStep}
+          disabled={busy}
+        >
+          <UIcon name="plus" size={12} gold={false} />
+          Add planned lesson (to record later)
+        </button>
       </section>
     )
   }
@@ -500,6 +592,7 @@ export default function PathView({
             </button>
             <span className={p.meta}>
               {done} of {total}
+              {plannedCount > 0 ? ` · ${plannedCount} to record` : ''}
               {remainingLabel ? ` · ${remainingLabel}` : ''}
             </span>
           </div>
@@ -522,15 +615,19 @@ export default function PathView({
                 (g.part ? `${path.name} lessons, part ${g.part}` : `${path.name} lessons`)
               }
             >
-              {g.lessons.map((lesson) => (
-                <LessonRow
-                  key={`${lesson.index}-${lesson.video.youtube_id}`}
-                  lesson={lesson}
-                  videos={path.videos}
-                  progress={progress}
-                  onPlay={onPlay}
-                />
-              ))}
+              {g.lessons.map((lesson) =>
+                lesson.planned ? (
+                  <PlannedRow key={`planned-${lesson.seq}`} step={lesson.step} />
+                ) : (
+                  <LessonRow
+                    key={`${lesson.index}-${lesson.video.youtube_id}`}
+                    lesson={lesson}
+                    videos={path.videos}
+                    progress={progress}
+                    onPlay={onPlay}
+                  />
+                ),
+              )}
             </ol>
           </div>
         ))}
@@ -605,6 +702,83 @@ function AddLessonSearch({ allVideos, existingIds, onAdd, disabled }) {
 // slot (gold check when done), title, mono clip chip when the lesson begins
 // mid-video, dim AI headline, italic per-step note, thin gold progress bar
 // while in progress, duration on the right.
+// Per-planned-row "attach video" search — the moment a recording lands in the
+// library, the admin types its title here and the slot becomes a real lesson.
+// Same filtered-dropdown idiom as AddLessonSearch, compact form.
+function AttachVideoSearch({ allVideos, rowIndex, onPick, disabled }) {
+  const [q, setQ] = useState('')
+  const matches = useMemo(() => {
+    const t = q.trim().toLowerCase()
+    if (!t) return []
+    return allVideos.filter((v) => (v.title || '').toLowerCase().includes(t)).slice(0, 6)
+  }, [q, allVideos])
+  const pick = (v) => {
+    onPick(v)
+    setQ('')
+  }
+  return (
+    <span className={p.attachWrap}>
+      <input
+        className={`${p.editField} ${p.attachInput}`}
+        type="text"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Attach video — search by title…"
+        aria-label={`Attach a video to planned lesson ${rowIndex + 1}`}
+        disabled={disabled}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation()
+            setQ('')
+          } else if (e.key === 'Enter' && matches.length > 0) {
+            e.preventDefault()
+            pick(matches[0])
+          }
+        }}
+      />
+      {matches.length > 0 && (
+        <span className={p.attachMatches} role="listbox" aria-label="Video matches">
+          {matches.map((v) => (
+            <button
+              key={v.youtube_id}
+              type="button"
+              className={p.attachMatch}
+              role="option"
+              aria-selected="false"
+              onClick={() => pick(v)}
+            >
+              <span className={p.attachMatchTitle}>{v.title}</span>
+              {v.duration ? <span className={p.rowDuration}>{v.duration}</span> : null}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
+  )
+}
+
+// A syllabus slot whose video hasn't been recorded yet: same ledger geometry
+// as LessonRow (index gutter, state column, body) but inert — a quiet
+// placeholder, not a button. It keeps the course honest about what's coming
+// without ever entering the play queue or the progress math.
+function PlannedRow({ step }) {
+  return (
+    <li className={p.rowItem}>
+      <div className={`${p.row} ${p.rowPlanned}`}>
+        <span className={p.rowIndex} aria-hidden="true">
+          ·
+        </span>
+        <span className={p.rowState} aria-hidden="true" />
+        <span className={p.rowBody}>
+          <span className={`${p.rowTitle} ${p.rowTitlePlanned}`}>{step.planned_title}</span>
+          {step.note ? <span className={p.rowNote}>{step.note}</span> : null}
+        </span>
+        <span className={p.plannedChip}>To record</span>
+      </div>
+    </li>
+  )
+}
+
 function LessonRow({ lesson, videos, progress, onPlay }) {
   const { video: v, step, index } = lesson
   const e = progress[v.youtube_id]

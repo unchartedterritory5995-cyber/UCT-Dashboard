@@ -31,12 +31,12 @@ vi.mock('swr', () => ({
     data:
       key === '/api/education/videos'
         ? mockData
-        : key === '/api/education/paths'
+        : String(key).startsWith('/api/education/paths')
           ? mockPaths
           : null,
     error: null,
     isLoading: false,
-    mutate: key === '/api/education/paths' ? (...a) => pathsMutate(...a) : () => {},
+    mutate: String(key).startsWith('/api/education/paths') ? (...a) => pathsMutate(...a) : () => {},
   }),
 }))
 
@@ -243,9 +243,9 @@ test('move down reorders the draft and the PUT carries the new whole-list order;
   const puts = callsTo('PUT', '/api/education/paths/1/steps')
   expect(puts).toHaveLength(1)
   expect(bodyOf(puts[0]).steps).toEqual([
-    { youtube_id: 'lib0000000b', module_label: null, note: null, start_seconds: null, end_seconds: null },
-    { youtube_id: 'lib0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null },
-    { youtube_id: 'lts0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null },
+    { youtube_id: 'lib0000000b', module_label: null, note: null, start_seconds: null, end_seconds: null, planned_title: null },
+    { youtube_id: 'lib0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null, planned_title: null },
+    { youtube_id: 'lts0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null, planned_title: null },
   ])
   expect(callsTo('PATCH', '/api/education/paths/1')).toHaveLength(0) // meta untouched
   expect(pathsMutate).toHaveBeenCalledTimes(1)
@@ -273,9 +273,9 @@ test('add via the predictive library search + remove a lesson — the PUT reflec
   const puts = callsTo('PUT', '/api/education/paths/1/steps')
   expect(puts).toHaveLength(1)
   expect(bodyOf(puts[0]).steps).toEqual([
-    { youtube_id: 'lib0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null },
-    { youtube_id: 'lts0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null },
-    { youtube_id: 'lib0000000c', module_label: 'Risk', note: 'Size before entries.', start_seconds: null, end_seconds: null },
+    { youtube_id: 'lib0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null, planned_title: null },
+    { youtube_id: 'lts0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null, planned_title: null },
+    { youtube_id: 'lib0000000c', module_label: 'Risk', note: 'Size before entries.', start_seconds: null, end_seconds: null, planned_title: null },
   ])
 })
 
@@ -370,9 +370,9 @@ test('an unresolvable step id is flagged in the editor and SURVIVES the round-tr
   await clickSave()
   const puts = callsTo('PUT', '/api/education/paths/2/steps')
   expect(bodyOf(puts[0]).steps).toEqual([
-    { youtube_id: 'lib0000000c', module_label: null, note: null, start_seconds: null, end_seconds: null },
-    { youtube_id: 'zzUNKNOWNzz', module_label: 'Legacy', note: 'Re-record this one.', start_seconds: null, end_seconds: null },
-    { youtube_id: 'evn0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null },
+    { youtube_id: 'lib0000000c', module_label: null, note: null, start_seconds: null, end_seconds: null, planned_title: null },
+    { youtube_id: 'zzUNKNOWNzz', module_label: 'Legacy', note: 'Re-record this one.', start_seconds: null, end_seconds: null, planned_title: null },
+    { youtube_id: 'evn0000000a', module_label: null, note: null, start_seconds: null, end_seconds: null, planned_title: null },
   ])
 })
 

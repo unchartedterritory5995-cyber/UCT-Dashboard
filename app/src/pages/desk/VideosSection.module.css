@@ -756,6 +756,16 @@
   color: var(--text-muted);
 }
 .pathKindCourse { color: var(--ut-gold); }
+/* Admin-only marker on unpublished (enabled=0) course cards. */
+.pathDraft {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+}
 .pathName {
   font-size: 14px;
   font-weight: 600;

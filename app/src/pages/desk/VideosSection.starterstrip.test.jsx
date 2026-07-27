@@ -23,7 +23,7 @@ vi.mock('swr', () => ({
     data:
       key === '/api/education/videos'
         ? mockData
-        : key === '/api/education/paths'
+        : String(key).startsWith('/api/education/paths')
           ? mockPaths
           : null,
     error: null,

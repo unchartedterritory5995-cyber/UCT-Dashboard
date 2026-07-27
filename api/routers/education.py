@@ -533,7 +533,10 @@ class PathPatchIn(BaseModel):
 
 
 class PathStepIn(BaseModel):
-    youtube_id: str
+    # youtube_id may be empty ONLY for planned lessons (planned_title set) —
+    # the service normalizes those to the canonical "gap:<pos>" sentinel and
+    # rejects every other empty/sentinel combination (ValueError → 400).
+    youtube_id: str = ""
     module_label: Optional[str] = None
     note: Optional[str] = None
     # Lesson clip window ("watch from 22:20"). Range/ordering rules live in the
@@ -541,6 +544,8 @@ class PathStepIn(BaseModel):
     # only the type gate (non-int → 422).
     start_seconds: Optional[int] = None
     end_seconds: Optional[int] = None
+    # Planned lesson ("to be recorded"): syllabus slot without a video yet.
+    planned_title: Optional[str] = None
 
 
 class PathStepsIn(BaseModel):
@@ -548,9 +553,13 @@ class PathStepsIn(BaseModel):
 
 
 @router.get("/paths")
-def get_paths(_user: dict = Depends(require_paid)):
-    """Enabled paths only (member-facing) — each with its steps ordered."""
-    return {"paths": svc.list_paths()}
+def get_paths(all: int = 0, _user: dict = Depends(require_paid)):
+    """Enabled paths only (member-facing) — each with its steps ordered.
+    `?all=1` additionally returns disabled (draft) paths, ADMIN ONLY — a paid
+    non-admin passing it silently gets the member view, so drafts can never
+    leak through a crafted query string."""
+    include_disabled = bool(all) and (_user or {}).get("role") == "admin"
+    return {"paths": svc.list_paths(include_disabled=include_disabled)}
 
 
 @router.post("/paths")
@@ -598,11 +607,12 @@ def put_path_steps(path_id: int, body: PathStepsIn, _admin: dict = Depends(requi
 
 
 class PathApplyStepIn(BaseModel):
-    youtube_id: str
+    youtube_id: str = ""
     module_label: Optional[str] = None
     note: Optional[str] = None
     start_seconds: Optional[int] = None
     end_seconds: Optional[int] = None
+    planned_title: Optional[str] = None
 
 
 class PathApplyIn(BaseModel):

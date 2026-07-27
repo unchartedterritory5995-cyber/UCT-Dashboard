@@ -360,7 +360,13 @@ export default function VideosSection() {
   // MEMBERS. Admins additionally see the unfiltered set (resolvedPaths) — the
   // editor must reach brand-new/sub-2-lesson paths, and the Delete sheet must
   // list them.
-  const { data: pathsData, error: pathsError, mutate: mutatePaths } = useSWR('/api/education/paths', fetcher)
+  // Admins also fetch disabled (draft) paths — courses being populated before
+  // members ever see them. The server ignores ?all=1 for non-admin roles, so
+  // the key split is a UX choice, not the security boundary.
+  const { data: pathsData, error: pathsError, mutate: mutatePaths } = useSWR(
+    isAdmin ? '/api/education/paths?all=1' : '/api/education/paths',
+    fetcher,
+  )
   const resolvedPaths = useMemo(() => {
     const list = Array.isArray(pathsData?.paths) ? pathsData.paths : []
     if (!list.length || !categories.length) return []
@@ -369,6 +375,9 @@ export default function VideosSection() {
     return list.map((p) => ({
       ...p,
       videos: (p.steps || []).map((st) => byId[st.youtube_id]).filter(Boolean),
+      // Planned lessons ("to be recorded" slots) never resolve to videos —
+      // they surface as placeholder rows and count separately on the card.
+      plannedCount: (p.steps || []).filter((st) => st.planned_title).length,
     }))
   }, [pathsData, categories])
   const paths = useMemo(
@@ -399,9 +408,12 @@ export default function VideosSection() {
   // not done (the store's own resume threshold). next = the most recently
   // touched in-progress lesson if any, else the first not-done one — the
   // truest "where I left off" in course order.
+  // Admin cards cover ALL paths (drafts included — the only route to a course
+  // being populated); member cards keep the publishable ≥2-lesson set.
+  const cardPaths = isAdmin ? resolvedPaths : paths
   const courseStats = useMemo(
     () =>
-      paths.map((p) => {
+      cardPaths.map((p) => {
         let done = 0
         let lastAt = 0
         let firstNotDone = -1
@@ -441,15 +453,19 @@ export default function VideosSection() {
               : '',
         }
       }),
-    [paths, progress],
+    [cardPaths, progress],
   )
 
   // The continue-strip surfaces ONE course: the most recently touched
   // mid-progress path (ties keep list order — course-first, then sort_order).
+  // Drafts (admin-only, enabled=0) never claim the strip — they're being
+  // authored, not taken.
   const continueCourse = useMemo(() => {
     let best = null
     for (const cs of courseStats) {
-      if (!cs.mid || cs.nextIndex === -1) continue
+      // enabled is absent on optimistic/legacy shapes — only an explicit 0
+      // (a draft) is excluded.
+      if (cs.path.enabled === 0 || !cs.mid || cs.nextIndex === -1) continue
       if (!best || cs.lastAt > best.lastAt) best = cs
     }
     return best
@@ -461,10 +477,10 @@ export default function VideosSection() {
   // kind='course' first, then sort_order, so a flagship course leads whenever
   // one exists and the first track leads otherwise. Any progress at all
   // (including a fully finished course — that member isn't new) hides it.
-  const starterCourse = useMemo(
-    () => (courseStats.length && courseStats.every((cs) => !cs.started) ? courseStats[0] : null),
-    [courseStats],
-  )
+  const starterCourse = useMemo(() => {
+    const live = courseStats.filter((cs) => cs.path.enabled !== 0)
+    return live.length && live.every((cs) => !cs.started) ? live[0] : null
+  }, [courseStats])
 
   // Course open lives in the URL: ?path=<slug>. DELIBERATE contrast with
   // ?cat's replace:true — a chip is a view filter (no history), but opening a
@@ -960,11 +976,13 @@ export default function VideosSection() {
                       className={`${s.pathKind} ${p.kind === 'course' ? s.pathKindCourse : ''}`}
                     >
                       {p.kind === 'course' ? 'COURSE' : 'TRACK'}
+                      {p.enabled === 0 && <span className={s.pathDraft}>DRAFT</span>}
                     </span>
                     <span className={s.pathName}>{p.name}</span>
                     {p.blurb && <span className={s.pathBlurb}>{p.blurb}</span>}
                     <span className={s.pathMeta}>
                       {count} lesson{count === 1 ? '' : 's'}
+                      {p.plannedCount > 0 ? ` · ${p.plannedCount} to record` : ''}
                       {durLabel ? ` · ${durLabel}` : ''}
                     </span>
                     {started && (

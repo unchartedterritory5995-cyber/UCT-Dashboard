@@ -158,6 +158,11 @@ def _migrate_columns(c: sqlite3.Connection) -> None:
 _PATH_STEP_EXTRA_COLUMNS = (
     ("start_seconds", "INTEGER"),
     ("end_seconds", "INTEGER"),
+    # Planned lesson ("to be recorded"): a syllabus slot with a title but no
+    # video yet. Such rows store youtube_id = "gap:<position>" (the column is
+    # NOT NULL) and are rendered as placeholders, never played. Attaching a
+    # real video simply replaces youtube_id and clears planned_title.
+    ("planned_title", "TEXT"),
 )
 
 
@@ -651,7 +656,7 @@ def _validate_path_input(slug: str, name: str, kind: str | None) -> tuple[str, s
 
 def _path_steps_conn(c: sqlite3.Connection, path_id: int) -> list[dict]:
     rows = c.execute(
-        "SELECT youtube_id, module_label, note, start_seconds, end_seconds "
+        "SELECT youtube_id, module_label, note, start_seconds, end_seconds, planned_title "
         "FROM edu_path_steps WHERE path_id = ? ORDER BY sort_order ASC, id ASC",
         (path_id,),
     ).fetchall()
@@ -676,6 +681,38 @@ def _validate_step_seconds(start, end, ctx: str) -> tuple[Optional[int], Optiona
     if s is not None and e is not None and e <= s:
         raise ValueError(f"{ctx} end_seconds must be greater than start_seconds")
     return s, e
+
+
+def _normalize_step(s: dict, i: int, ctx: str) -> dict:
+    """Shared per-step validation/normalization for replace_path_steps and
+    bulk_apply_paths. Two shapes:
+    - Planned lesson: non-empty planned_title → youtube_id is forced to the
+      canonical "gap:<position>" sentinel (whatever the caller sent) and the
+      clip window is cleared (nothing to seek in a video that doesn't exist).
+    - Real lesson: non-empty youtube_id required, and a "gap:" youtube_id
+      without a planned_title is rejected — an orphan sentinel would render
+      as a broken video row, not a placeholder. Raises ValueError."""
+    planned = (s.get("planned_title") or "").strip() or None
+    yt = (s.get("youtube_id") or "").strip()
+    if planned:
+        yt = f"gap:{i}"
+        start = end = None
+    else:
+        if not yt:
+            raise ValueError(f"{ctx} missing youtube_id")
+        if yt.startswith("gap:"):
+            raise ValueError(f"{ctx} has a gap: placeholder youtube_id but no planned_title")
+        start, end = _validate_step_seconds(
+            s.get("start_seconds"), s.get("end_seconds"), ctx)
+    return {
+        "youtube_id": yt,
+        "sort_order": i,
+        "module_label": (s.get("module_label") or None),
+        "note": (s.get("note") or None),
+        "start_seconds": start,
+        "end_seconds": end,
+        "planned_title": planned,
+    }
 
 
 def list_paths(include_disabled: bool = False) -> list[dict]:
@@ -783,26 +820,16 @@ def delete_path(path_id: int) -> bool:
 
 def replace_path_steps(path_id: int, steps: list[dict]) -> int:
     """Full replacement of a path's steps, sort_order assigned from array
-    order. Every step's youtube_id must be non-empty — validated BEFORE any
-    write, so a bad entry leaves the existing steps completely untouched.
-    Returns the new step count."""
+    order. Every step must be a real lesson (non-empty youtube_id) or a
+    planned one (non-empty planned_title) — validated BEFORE any write, so a
+    bad entry leaves the existing steps completely untouched. Returns the new
+    step count."""
     pid = int(path_id)
     clean = []
     for i, s in enumerate(steps or []):
-        yt = (s.get("youtube_id") or "").strip()
-        if not yt:
-            raise ValueError(f"step {i} missing youtube_id")
-        start, end = _validate_step_seconds(
-            s.get("start_seconds"), s.get("end_seconds"), f"step {i}")
-        clean.append({
-            "path_id": pid,
-            "youtube_id": yt,
-            "sort_order": i,
-            "module_label": (s.get("module_label") or None),
-            "note": (s.get("note") or None),
-            "start_seconds": start,
-            "end_seconds": end,
-        })
+        step = _normalize_step(s, i, f"step {i}")
+        step["path_id"] = pid
+        clean.append(step)
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         if c.execute("SELECT 1 FROM edu_paths WHERE id = ?", (pid,)).fetchone() is None:
             raise ValueError(f"path not found: {pid}")
@@ -810,9 +837,10 @@ def replace_path_steps(path_id: int, steps: list[dict]) -> int:
         for s in clean:
             c.execute(
                 """INSERT INTO edu_path_steps
-                   (path_id, youtube_id, sort_order, module_label, note, start_seconds, end_seconds)
+                   (path_id, youtube_id, sort_order, module_label, note, start_seconds,
+                    end_seconds, planned_title)
                    VALUES (:path_id, :youtube_id, :sort_order, :module_label, :note,
-                           :start_seconds, :end_seconds)""",
+                           :start_seconds, :end_seconds, :planned_title)""",
                 s,
             )
         c.commit()
@@ -857,21 +885,10 @@ def bulk_apply_paths(paths: list[dict]) -> dict:
     cleaned = []
     for p in items:
         slug, name = _validate_path_input(p.get("slug"), p.get("name"), p.get("kind"))
-        steps = []
-        for i, s in enumerate(p.get("steps") or []):
-            yt = (s.get("youtube_id") or "").strip()
-            if not yt:
-                raise ValueError(f"path {slug!r} step {i} missing youtube_id")
-            start, end = _validate_step_seconds(
-                s.get("start_seconds"), s.get("end_seconds"), f"path {slug!r} step {i}")
-            steps.append({
-                "youtube_id": yt,
-                "sort_order": i,
-                "module_label": s.get("module_label") or None,
-                "note": s.get("note") or None,
-                "start_seconds": start,
-                "end_seconds": end,
-            })
+        steps = [
+            _normalize_step(s, i, f"path {slug!r} step {i}")
+            for i, s in enumerate(p.get("steps") or [])
+        ]
         cleaned.append({
             "slug": slug,
             "name": name,
@@ -890,10 +907,11 @@ def bulk_apply_paths(paths: list[dict]) -> dict:
             for s in p["steps"]:
                 c.execute(
                     """INSERT INTO edu_path_steps
-                       (path_id, youtube_id, sort_order, module_label, note, start_seconds, end_seconds)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                       (path_id, youtube_id, sort_order, module_label, note, start_seconds,
+                        end_seconds, planned_title)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (path_id, s["youtube_id"], s["sort_order"], s["module_label"], s["note"],
-                     s["start_seconds"], s["end_seconds"]),
+                     s["start_seconds"], s["end_seconds"], s["planned_title"]),
                 )
                 step_count += 1
             path_count += 1
