@@ -130,34 +130,15 @@ export default function EarnCardsRender() {
   const w = Math.min(1200, Math.max(700, parseInt(sp.get('w') || '1000', 10)))
   const payload = useMemo(() => decodeData(sp.get('data') || ''), [sp])
   const [err, setErr] = useState('')
-  const [moves, setMoves] = useState({})   // {SYM: pct} — market-priced earnings move
 
   useEffect(() => {
     window.__panelReady = false
     if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
-    const rows = (payload && payload.rows) || []
-    const dates = Array.from(new Set(rows.map((r) => r.date).filter(Boolean))).slice(0, 7)
-    let done = false
-    const finish = () => { if (!done) { done = true; setTimeout(() => { window.__panelReady = true }, 2400) } }
-    if (dates.length === 0) { finish(); return }
-    // Owner call 7/26: show what the options market is PRICING for each report.
-    // Same enrichment the member calendar uses — implied straddle move per name.
-    fetch(`/api/calendar/enrichment-batch?dates=${dates.join(',')}`)
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((byDate) => {
-        const m = {}
-        for (const d of Object.keys(byDate || {})) {
-          for (const [sym, e] of Object.entries(byDate[d] || {})) {
-            const pct = e && e.expected_move && e.expected_move.pct
-            if (Number.isFinite(Number(pct))) m[sym.toUpperCase()] = Number(pct)
-          }
-        }
-        setMoves(m)
-      })
-      .catch(() => {})
-      .finally(finish)
-    const guard = setTimeout(finish, 20000)   // cold caches must never hang the shot
-    return () => clearTimeout(guard)
+    // The priced move arrives IN the payload (exp_move_pct, computed wire-side
+    // for just the shown names) — the full-day enrichment endpoint recomputes
+    // 78-120 names and can take minutes cold, which shot chip-less panels.
+    const t = setTimeout(() => { window.__panelReady = true }, 2400) // logos settle
+    return () => clearTimeout(t)
   }, [token, payload])
 
   if (err) return <div style={{ color: '#e74c3c', padding: 20 }}>{err}</div>
@@ -177,7 +158,7 @@ export default function EarnCardsRender() {
         </div>
         <div style={{ padding: '14px 18px 8px' }}>
           {rows.length === 0 && <div style={{ color: '#888', padding: 12 }}>No marquee reporters ahead.</div>}
-          {rows.map((e, i) => <Row key={e.sym || i} e={{ ...e, move_pct: moves[(e.sym || '').toUpperCase()] }} />)}
+          {rows.map((e, i) => <Row key={e.sym || i} e={{ ...e, move_pct: Number(e.exp_move_pct) }} />)}
         </div>
         <div style={{ height: 22, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 18px', color: '#666', fontSize: 10 }}>
           <span>Last quarter vs Wall St&apos;s estimate · growth vs last year · ±% = the move options are pricing</span>
