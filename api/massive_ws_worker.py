@@ -216,6 +216,10 @@ _q_cumulative_premium: dict = {}  # {contract_sym: int premium} — value-weight
                                   # slot budget, since Massive's 1000-cap prevents pool expansion.
 _q_pending_subscribe: list = []   # queued contracts to subscribe (added by event loop)
 _q_pending_unsubscribe: list = [] # queued contracts to unsubscribe (LRU evictions)
+_q_sticky_until: dict = {}        # {contract_sym: monotonic deadline} — a contract that just
+                                  # printed SIZE is pinned (eviction-protected) until this time,
+                                  # so a sweep/burst can't be churned out of the 950 cap mid-print
+                                  # (the thrash that silently dropped AMD 480C's $2.48M sweep 7/27).
 
 # 7/8: Q pool event log — persists subscribe/unsubscribe events to flow.db so
 # we can retroactively answer "was contract X in the pool at time T?" This is
@@ -263,6 +267,10 @@ _oi_fetch_seen: set = set()   # contracts we've already queued this session (ded
 # We leave a 50-slot headroom so churn doesn't immediately hit the ceiling
 # during subscribe-add cycles.
 MAX_Q_SUBSCRIPTIONS = 950
+# Size-print stickiness (2026-07-27): a print >= Q_STICKY_PREMIUM pins its contract
+# against eviction for Q_STICKY_SEC. Q_STICKY_SEC=0 disables. Env-tunable.
+Q_STICKY_PREMIUM = int(os.environ.get("Q_STICKY_PREMIUM", 1_000_000))
+Q_STICKY_SEC = float(os.environ.get("Q_STICKY_SEC", 90))
 
 # How fresh an NBBO needs to be (vs trade timestamp) to use for Side
 # classification. Stale quotes give wrong sides -- particularly in trending
@@ -1120,6 +1128,10 @@ def _queue_q_subscriptions_for_events(events: list) -> None:
         # contract is already subscribed or not. This keeps eviction priority
         # in sync with actual institutional-flow value across the session.
         _q_cumulative_premium[sym] = _q_cumulative_premium.get(sym, 0) + premium_i
+        # Size-print stickiness: pin a contract that just printed size so the 950-cap
+        # churn can't evict it mid-burst (root cause of the AMD 480C miss, 7/27).
+        if Q_STICKY_SEC > 0 and premium_i >= Q_STICKY_PREMIUM:
+            _q_sticky_until[sym] = time.monotonic() + Q_STICKY_SEC
         # Already subscribed (or pending) -- nothing more to do
         if sym in _q_subscribed or sym in _q_pending_subscribe:
             continue
@@ -1142,8 +1154,14 @@ def _queue_q_subscriptions_for_events(events: list) -> None:
         if not candidates:
             # Everything is already pending eviction -- skip and try next flush
             continue
-        candidates.sort(key=lambda kv: (kv[1], kv[2]))  # premium ASC, then LRU
-        evict_sym = candidates[0][0]
+        # Size-print pin: evict a NON-sticky contract first; only touch a pinned
+        # (recently-printed-size) one if every candidate is currently pinned.
+        _now_m = time.monotonic()
+        _nonsticky = [c for c in candidates if _q_sticky_until.get(c[0], 0) <= _now_m]
+        _pool = _nonsticky if _nonsticky else candidates
+        _pool.sort(key=lambda kv: (kv[1], kv[2]))  # premium ASC, then LRU
+        evict_sym = _pool[0][0]
+        _q_sticky_until.pop(evict_sym, None)
         _q_pending_unsubscribe.append(evict_sym)
         _q_pending_subscribe.append(sym)
         if is_big:
