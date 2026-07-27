@@ -701,6 +701,8 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
     return items.slice(0,15);
   },[universe,sortKey,sortDir]);
 
+  const maxBigN = Math.max(1, ...filtered.map(x=>x.bigPrintN||0));
+
   function toggleSort(key){
     if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
     else { setSortKey(key); setSortDir("desc"); }
@@ -771,8 +773,14 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
                   color:C.tx3,minWidth:52,textAlign:"right"}}>{(mktcapData[it.t]||0)>0?fmt(mktcapData[it.t]).replace("$",""):"—"}</span>
                 <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
                   fontWeight:600,minWidth:56,textAlign:"right"}}>{fP(it.bigPrint)}</span>
-                <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
-                  fontWeight:700,minWidth:60,textAlign:"right"}}>{fmt(it.bigPrintN)}</span>
+                <span style={{display:"inline-flex",flexDirection:"column",alignItems:"flex-end",gap:2,minWidth:60}}>
+                  <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.cyan,
+                    fontWeight:700}}>{fmt(it.bigPrintN)}</span>
+                  <span style={{width:"100%",height:3,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
+                    <span style={{display:"block",height:"100%",borderRadius:2,background:C.cyan,
+                      width:`${Math.max(4,Math.round((it.bigPrintN||0)/maxBigN*100))}%`}}/>
+                  </span>
+                </span>
                 <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,color:C.tx3,
                   minWidth:38,textAlign:"right"}}>{it.bigPrintDate||"—"}</span>
                 <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,
