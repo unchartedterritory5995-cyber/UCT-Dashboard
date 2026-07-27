@@ -72,11 +72,19 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
     (onBlocked || onClose)(widgetsRef.current)
   }, [onBlocked, onClose])
 
+  // Open at the full screen size so the grid (WidthProvider measures the container
+  // on mount) fills the monitor immediately — the window opened at 1400px before,
+  // leaving blank space on a wider screen, and WidthProvider doesn't re-measure a
+  // cross-document node on maximize. Capped so an ultrawide doesn't get absurd.
+  const scr = typeof window !== 'undefined' ? window.screen : null
+  const winW = scr?.availWidth ? Math.min(scr.availWidth, 3440) : 1400
+  const winH = scr?.availHeight ? Math.min(scr.availHeight, 1440) : 900
+
   return (
     <PopoutWindow
       title={title}
-      width={1400}
-      height={900}
+      width={winW}
+      height={winH}
       onClose={handleClose}
       onBlocked={handleBlocked}
     >

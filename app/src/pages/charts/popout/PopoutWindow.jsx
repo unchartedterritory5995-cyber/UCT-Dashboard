@@ -35,6 +35,9 @@ export default function PopoutWindow({
   useEffect(() => {
     const features = [
       `width=${width}`, `height=${height}`,
+      // Anchor at the screen's top-left so a full-size window isn't pushed partly
+      // off-screen (Chrome otherwise offsets a new popup from the opener).
+      'left=0', 'top=0',
       'popup=yes', 'menubar=no', 'toolbar=no',
       'location=no', 'status=no', 'resizable=yes', 'scrollbars=yes',
     ].join(',')
