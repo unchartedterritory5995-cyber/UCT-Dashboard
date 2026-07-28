@@ -221,3 +221,100 @@ def test_deleting_a_broker_linked_account_removes_its_mapping(db):
     ).fetchone()[0]
     conn.close()
     assert dangling == 0, "deleting an account must not strand its broker mapping"
+
+
+def test_reconnect_reuses_the_account_it_previously_mapped(db):
+    """Disconnect keeps an account that still holds trades (reverted to
+    manual). Reconnecting the SAME brokerage account must re-attach to it —
+    not mint 'Robinhood ••2364 (2)' and split the member's trade history
+    across two accounts."""
+    from api.services import auth_db
+
+    first = db.map_snaptrade_account("u1", _raw_account())
+    j2_id = first["j2AccountId"]
+
+    conn = auth_db.get_connection()
+    name_before = conn.execute("SELECT name FROM j2_accounts WHERE id = ?",
+                               (j2_id,)).fetchone()["name"]
+    conn.close()
+
+    # Disconnect kept the account (it holds trades) → reverted to manual.
+    from api.services.journal_two.broker import service
+    conn = auth_db.get_connection()
+    service._revert_to_manual(conn, "u1", j2_id)
+    conn.commit(); conn.close()
+    db.delete_broker_user("u1")
+
+    again = db.map_snaptrade_account("u1", _raw_account())
+
+    assert again["j2AccountId"] == j2_id, "must re-attach, not create a duplicate"
+    conn = auth_db.get_connection()
+    rows = conn.execute("SELECT id, name, balance_source FROM j2_accounts "
+                        "WHERE user_id = 'u1'").fetchall()
+    conn.close()
+    assert len(rows) == 1, f"expected one account, got {[r['name'] for r in rows]}"
+    assert rows[0]["name"] == name_before, "must not rename to '… (2)'"
+    assert rows[0]["balance_source"] == "broker", "re-attached account is broker again"
+
+
+def test_reconnect_after_full_removal_creates_a_fresh_account(db):
+    """When disconnect DELETED the account (nothing was logged against it),
+    there is nothing to re-attach to — a reconnect must build a clean one."""
+    from api.services import auth_db
+
+    first = db.map_snaptrade_account("u1", _raw_account())
+    conn = auth_db.get_connection()
+    conn.execute("DELETE FROM j2_accounts WHERE id = ?", (first["j2AccountId"],))
+    conn.commit(); conn.close()
+    db.delete_broker_user("u1")
+
+    again = db.map_snaptrade_account("u1", _raw_account())
+
+    assert again["j2AccountId"] != first["j2AccountId"]
+    conn = auth_db.get_connection()
+    n = conn.execute("SELECT COUNT(*) FROM j2_accounts WHERE user_id='u1'").fetchone()[0]
+    conn.close()
+    assert n == 1
+
+
+def test_integrity_report_counts_both_orphan_directions(db):
+    """The two orphan classes were invisible until a member noticed a wrong
+    number. This is the sweep that surfaces them."""
+    from api.services import auth_db
+
+    ba = db.map_snaptrade_account("u1", _raw_account())
+    assert db.integrity_report() == {"orphanedAccounts": 0, "danglingMappings": 0}
+
+    # Mapping deleted, account left flagged 'broker' → phantom balances.
+    conn = auth_db.get_connection()
+    conn.execute("DELETE FROM j2_broker_accounts WHERE id = ?", (ba["id"],))
+    conn.commit(); conn.close()
+    assert db.integrity_report()["orphanedAccounts"] == 1
+
+    # Account deleted, mapping left pointing at nothing.
+    ba2 = db.map_snaptrade_account("u2", _raw_account())
+    conn = auth_db.get_connection()
+    conn.execute("DELETE FROM j2_accounts WHERE id = ?", (ba2["j2AccountId"],))
+    conn.commit(); conn.close()
+    assert db.integrity_report()["danglingMappings"] == 1
+
+
+def test_remapping_backfills_the_reattach_ref(db):
+    """Accounts mapped before the ref column existed have it NULL — and would
+    still split into a duplicate on their first disconnect→reconnect. Any
+    re-map (the idempotent existing-mapping path) backfills it."""
+    from api.services import auth_db
+
+    ba = db.map_snaptrade_account("u1", _raw_account())
+    conn = auth_db.get_connection()
+    conn.execute("UPDATE j2_accounts SET snaptrade_account_ref = NULL WHERE id = ?",
+                 (ba["j2AccountId"],))
+    conn.commit(); conn.close()
+
+    db.map_snaptrade_account("u1", _raw_account())  # idempotent re-map
+
+    conn = auth_db.get_connection()
+    ref = conn.execute("SELECT snaptrade_account_ref FROM j2_accounts WHERE id = ?",
+                       (ba["j2AccountId"],)).fetchone()[0]
+    conn.close()
+    assert ref == ba["snaptradeAccountId"]

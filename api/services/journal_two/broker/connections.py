@@ -377,28 +377,48 @@ def map_snaptrade_account(
                  summary["account_type"], summary["currency"], _now_iso(),
                  existing["id"]),
             )
+            # Keep the re-attach ref current (also backfills accounts mapped
+            # before the column existed — without it their first disconnect
+            # would still strand them into a duplicate on reconnect).
+            try:
+                conn.execute(
+                    "UPDATE j2_accounts SET snaptrade_account_ref = ? "
+                    "WHERE id = ? AND user_id = ? AND "
+                    "(snaptrade_account_ref IS NULL OR snaptrade_account_ref <> ?)",
+                    (snap_id, existing["j2_account_id"], user_id, snap_id),
+                )
+            except sqlite3.OperationalError:
+                pass  # pre-migration schema
             conn.commit()
             return _row_to_broker_account(
                 conn.execute("SELECT * FROM j2_broker_accounts WHERE id = ?",
                              (existing["id"],)).fetchone()
             )
 
-        # New mapping → create a dedicated j2_account.
-        acct_name = _unique_account_name(user_id, summary, conn)
-        j2 = accounts_service.create_account(
-            user_id,
-            {
-                "name": acct_name,
-                "color": _next_color(user_id, conn),
-                "broker": summary["brokerage_name"] or "Brokerage",
-                "startingBalance": float(starting_balance),
-            },
-            conn=conn,
-        )
-        # Mark it broker-sourced so the balance resolver uses real equity.
+        # No live mapping. Before creating a fresh account, look for the one
+        # this SnapTrade account previously owned — a disconnect drops the
+        # mapping but leaves the account (reverted to manual) when it still
+        # holds trades. Re-attaching keeps the member's history in ONE account
+        # instead of splitting it across "Robinhood ••2364" and "… (2)".
+        j2_id = _reattachable_account_id(user_id, snap_id, conn)
+        if j2_id is None:
+            acct_name = _unique_account_name(user_id, summary, conn)
+            j2_id = accounts_service.create_account(
+                user_id,
+                {
+                    "name": acct_name,
+                    "color": _next_color(user_id, conn),
+                    "broker": summary["brokerage_name"] or "Brokerage",
+                    "startingBalance": float(starting_balance),
+                },
+                conn=conn,
+            )["id"]
+        # Mark it broker-sourced so the balance resolver uses real equity, and
+        # stamp the ref so a future reconnect can find it again.
         conn.execute(
-            "UPDATE j2_accounts SET balance_source = 'broker', updated_at = ? WHERE id = ? AND user_id = ?",
-            (_now_iso(), j2["id"], user_id),
+            "UPDATE j2_accounts SET balance_source = 'broker', "
+            "snaptrade_account_ref = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+            (snap_id, _now_iso(), j2_id, user_id),
         )
 
         new_id = str(uuid.uuid4())
@@ -413,12 +433,62 @@ def map_snaptrade_account(
             """,
             (new_id, user_id, snap_id, summary["brokerage_name"],
              summary["account_number_masked"], summary["account_type"],
-             summary["currency"], j2["id"], now, now),
+             summary["currency"], j2_id, now, now),
         )
         conn.commit()
         return _row_to_broker_account(
             conn.execute("SELECT * FROM j2_broker_accounts WHERE id = ?", (new_id,)).fetchone()
         )
+    finally:
+        if owned:
+            conn.close()
+
+
+def _reattachable_account_id(
+    user_id: str, snap_id: str, conn: sqlite3.Connection
+) -> str | None:
+    """The j2_account this SnapTrade account previously owned, if it is still
+    around and not already claimed by a live mapping. Returns None on a schema
+    without the ref column (pre-migration), so mapping still works."""
+    try:
+        row = conn.execute(
+            """
+            SELECT a.id FROM j2_accounts a
+             WHERE a.user_id = ? AND a.snaptrade_account_ref = ?
+               AND NOT EXISTS (SELECT 1 FROM j2_broker_accounts b
+                                WHERE b.j2_account_id = a.id)
+             ORDER BY a.created_at ASC LIMIT 1
+            """,
+            (user_id, snap_id),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    return row["id"] if row else None
+
+
+def integrity_report(conn: sqlite3.Connection | None = None) -> dict[str, int]:
+    """Count the two ways the account↔mapping link can rot. Both were
+    invisible until a member noticed a wrong number on screen.
+
+    orphanedAccounts  — j2_account still flagged 'broker' with no mapping:
+                        renders frozen balances nothing can refresh.
+    danglingMappings  — mapping pointing at a deleted j2_account: a reconnect
+                        matches it, skips account creation, and every balance
+                        write silently updates zero rows.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        orphaned = conn.execute(
+            "SELECT COUNT(*) FROM j2_accounts a WHERE a.balance_source = 'broker' "
+            "AND NOT EXISTS (SELECT 1 FROM j2_broker_accounts b "
+            "WHERE b.j2_account_id = a.id)"
+        ).fetchone()[0]
+        dangling = conn.execute(
+            "SELECT COUNT(*) FROM j2_broker_accounts b WHERE NOT EXISTS "
+            "(SELECT 1 FROM j2_accounts a WHERE a.id = b.j2_account_id)"
+        ).fetchone()[0]
+        return {"orphanedAccounts": orphaned, "danglingMappings": dangling}
     finally:
         if owned:
             conn.close()

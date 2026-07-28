@@ -663,6 +663,13 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_accounts ADD COLUMN broker_buying_power REAL",
     "ALTER TABLE j2_accounts ADD COLUMN broker_market_value REAL",
     "ALTER TABLE j2_accounts ADD COLUMN broker_balance_synced_at TEXT",
+    # Which SnapTrade account this j2_account was created for. Survives a
+    # disconnect (the j2_broker_accounts mapping does not), so reconnecting the
+    # same brokerage account re-attaches here instead of minting a duplicate
+    # "Robinhood ••2364 (2)" and splitting the member's trade history.
+    "ALTER TABLE j2_accounts ADD COLUMN snaptrade_account_ref TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_j2_accounts_snap_ref "
+    "ON j2_accounts(user_id, snaptrade_account_ref)",
     # Broker import "warming" — after connect, the scheduler runs short full
     # re-syncs until SnapTrade's async backfill stabilizes. Nullable; null = not
     # warming. See docs/superpowers/specs/2026-06-22-broker-seamless-onboarding-design.md

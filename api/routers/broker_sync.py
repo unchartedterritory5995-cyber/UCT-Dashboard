@@ -301,6 +301,9 @@ def admin_stats(user: dict = Depends(require_admin)) -> dict[str, Any]:
             "SELECT COUNT(*) AS n FROM j2_broker_accounts "
             "WHERE last_manual_refresh_at >= ?", (et_midnight_utc,)
         ).fetchone()["n"]
+        # Account↔mapping link rot. Both classes are silent by nature: they
+        # surface to a member as a wrong number, never as an error.
+        integrity = broker_conns.integrity_report(conn)
     finally:
         conn.close()
     # PAYG Daily pricing (verified 7/17): 5 free connected users, then
@@ -315,6 +318,7 @@ def admin_stats(user: dict = Depends(require_admin)) -> dict[str, Any]:
         "manualRefreshesToday": refreshes_today,
         "estMonthlyCostUsd": est_monthly,
         "recentErrors": recent_errors,
+        "integrity": integrity,
     }
 
 

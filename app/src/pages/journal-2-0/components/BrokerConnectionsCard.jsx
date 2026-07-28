@@ -362,10 +362,17 @@ export default function BrokerConnectionsCard() {
                       : ''}
                     {a.status === 'broken'
                       ? <span className={styles.broken}>Reconnect needed</span>
-                      : (a.lastSyncAt ? `Synced ${relTime(a.lastSyncAt)}` : 'Not synced yet')}
+                      : a.status === 'disabled'
+                        // Removed at the brokerage (or at SnapTrade). Saying
+                        // "Synced 3d ago" here reads as healthy when the
+                        // connection is actually gone and the account has been
+                        // reverted to manual — the member needs to know why
+                        // their balances stopped being live.
+                        ? <span className={styles.broken}>Connection removed — reconnect to resume syncing</span>
+                        : (a.lastSyncAt ? `Synced ${relTime(a.lastSyncAt)}` : 'Not synced yet')}
                   </span>
                 </div>
-                {a.status === 'broken' ? (
+                {a.status === 'broken' || a.status === 'disabled' ? (
                   <button className={styles.primaryBtn} disabled={busy}
                           onClick={() => setShowConsent(true)}
                           title="Re-authorize this brokerage">

@@ -147,3 +147,34 @@ describe('BrokerConnectionsCard — account nicknames (2026-07-17)', () => {
     expect(screen.getByText(/Schwab ••728/)).toBeInTheDocument()
   })
 })
+
+describe('BrokerConnectionsCard — connection removed at the broker (2026-07-28)', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/settings')
+    vi.restoreAllMocks()
+  })
+
+  const REMOVED = {
+    id: 'ba9', j2AccountId: 'j2-9', brokerageName: 'Robinhood',
+    accountNumberMasked: '••2364', status: 'disabled', syncEnabled: false,
+    lastSyncAt: '2026-07-25T07:40:23Z', warming: false,
+    lastError: 'Connection removed at SnapTrade (CONNECTION_DELETED)',
+  }
+
+  it('says the connection was removed instead of "Synced 3d ago"', async () => {
+    mockFetch([['/api/j2/broker/status', { body: { ...STATUS, accounts: [REMOVED] } }]])
+    render(<BrokerConnectionsCard />)
+
+    expect(await screen.findByText(/connection removed/i)).toBeInTheDocument()
+    // The misleading part: a dead connection must never read as freshly synced.
+    expect(screen.queryByText(/Synced\s/i)).not.toBeInTheDocument()
+  })
+
+  it('offers Reconnect rather than a sync toggle for a removed connection', async () => {
+    mockFetch([['/api/j2/broker/status', { body: { ...STATUS, accounts: [REMOVED] } }]])
+    render(<BrokerConnectionsCard />)
+
+    expect(await screen.findByRole('button', { name: /reconnect/i })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+})
