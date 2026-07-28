@@ -172,7 +172,7 @@ _AVGVOL_RE = re.compile(r"([0-9.]+)%\s*AvgVol")
 
 # ── Main aggregator ────────────────────────────────────────────────────
 
-def aggregate(days=None, all_data=False):
+def aggregate(days=None, all_data=False, table="darkpool_trades"):
     """
     Compute the dpData shape that DarkPool.jsx parseCSVtoD used to build
     client-side. Returns a dict ready for JSON serialization.
@@ -180,7 +180,12 @@ def aggregate(days=None, all_data=False):
     The steps mirror the JS implementation in DarkPool.jsx in the same
     order, with line refs in comments for cross-checking when porting bug
     fixes between the two.
+
+    ``table`` selects the source: the historical darkpool_trades (default) or
+    the ephemeral darkpool_today preview (via aggregate_today, always all_data).
     """
+    if table not in ("darkpool_trades", "darkpool_today"):
+        raise ValueError(f"unexpected table {table!r}")
     t0 = time.time()
 
     conn = sqlite3.connect(DB_PATH, timeout=30)
@@ -190,8 +195,8 @@ def aggregate(days=None, all_data=False):
     try:
         if all_data or days is None:
             cursor = conn.execute(
-                "SELECT date, ticker, price, notional, message, type, "
-                "security_type, industry, sector, avg30day FROM darkpool_trades"
+                f"SELECT date, ticker, price, notional, message, type, "
+                f"security_type, industry, sector, avg30day FROM {table}"
             )
         else:
             selected_dates = _resolve_dates(conn, days)
@@ -200,7 +205,7 @@ def aggregate(days=None, all_data=False):
             placeholders = ",".join(["?"] * len(selected_dates))
             cursor = conn.execute(
                 f"SELECT date, ticker, price, notional, message, type, "
-                f"security_type, industry, sector, avg30day FROM darkpool_trades "
+                f"security_type, industry, sector, avg30day FROM {table} "
                 f"WHERE date IN ({placeholders})",
                 selected_dates,
             )
@@ -861,3 +866,46 @@ def prewarm_if_cold():
         print("[darkpool_agg] prewarm complete")
 
     threading.Thread(target=_run, daemon=True, name="darkpool-prewarm").start()
+
+
+# ── Intraday "today" aggregate (isolated from the historical windows) ────
+# Reads the ephemeral darkpool_today table only. Kept COMPLETELY separate from
+# the historical window cache above: its own in-memory single slot, keyed by the
+# preview table's own signature, so a live insert every few minutes rebuilds ONLY
+# this (a cheap one-partial-day scan) and never disturbs the 90d/all caches.
+
+from api.darkpool_db import today_rows_signature as _today_sig
+
+_today_cache_lock = threading.Lock()
+_today_cache = {"sig": None, "payload": None}
+
+
+def aggregate_today():
+    """Aggregate the live preview table (darkpool_today) into the dpData shape.
+    Always all-rows (the table holds one partial session)."""
+    return aggregate(all_data=True, table="darkpool_today")
+
+
+def get_today_aggregated():
+    """Return today's live aggregate, rebuilding only when the preview table's
+    signature changes. In-memory single-slot cache (the payload is small and the
+    table is tiny) — no /data file churn, no interaction with the window caches.
+    Returns _empty_result() shape when the preview table is empty."""
+    sig = f"{AGG_CODE_VERSION}:{_today_sig()}"
+    cached = _today_cache
+    if cached["sig"] == sig and cached["payload"] is not None:
+        return cached["payload"]
+    with _today_cache_lock:
+        if _today_cache["sig"] == sig and _today_cache["payload"] is not None:
+            return _today_cache["payload"]
+        payload = aggregate_today()
+        _today_cache["sig"] = sig
+        _today_cache["payload"] = payload
+        return payload
+
+
+def invalidate_today_cache():
+    """Drop the in-memory today aggregate (called after clear_today())."""
+    with _today_cache_lock:
+        _today_cache["sig"] = None
+        _today_cache["payload"] = None

@@ -77,6 +77,36 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_dp_ticker ON darkpool_trades(ticker);
         CREATE INDEX IF NOT EXISTS idx_dp_type ON darkpool_trades(type);
         CREATE INDEX IF NOT EXISTS idx_dp_date_ticker ON darkpool_trades(date, ticker);
+
+        -- Ephemeral intraday preview table (2026-07-27). Live prints land HERE,
+        -- never in darkpool_trades, so the intraday poller can insert every few
+        -- minutes without bumping darkpool_aggregator's DB signature (which would
+        -- invalidate + rebuild every historical window — the 90d/all rebuild
+        -- storm). Same schema + dedup as darkpool_trades. This is a preview only:
+        -- the nightly 19:20 ET ingest writes the authoritative session into
+        -- darkpool_trades and then clear_today() rolls this table.
+        CREATE TABLE IF NOT EXISTS darkpool_today (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            timestamp TEXT,
+            ticker TEXT NOT NULL,
+            volume REAL,
+            price REAL,
+            pct_avg30 REAL,
+            notional REAL,
+            message TEXT,
+            type TEXT,
+            security_type TEXT,
+            industry TEXT,
+            sector TEXT,
+            avg30day REAL,
+            float_shares REAL,
+            earnings_date TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(date, timestamp, ticker, price, notional, message)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_dpt_ticker ON darkpool_today(ticker);
     """)
     conn.close()
 
@@ -107,11 +137,15 @@ def _resolve_dates(conn, days):
     return all_dates
 
 
-def insert_csv_rows(csv_text: str) -> dict:
+def _insert_rows(csv_text: str, table: str) -> dict:
     """
-    Parse CSV text and insert rows into the database.
-    Returns { inserted, duplicates, errors, total }.
+    Parse CSV text and insert rows into ``table`` (darkpool_trades or
+    darkpool_today — identical schema/dedup). Returns
+    { inserted, duplicates, errors, total }.
     """
+    if table not in ("darkpool_trades", "darkpool_today"):
+        raise ValueError(f"refusing to insert into unexpected table {table!r}")
+
     conn = get_conn()
     reader = csv.DictReader(io.StringIO(csv_text))
 
@@ -147,8 +181,8 @@ def insert_csv_rows(csv_text: str) -> dict:
             float_shares = _float(row.get("Float"))
             earnings_date = (row.get("EarningsDate") or "").strip()
 
-            cur = conn.execute("""
-                INSERT OR IGNORE INTO darkpool_trades
+            cur = conn.execute(f"""
+                INSERT OR IGNORE INTO {table}
                 (date, timestamp, ticker, volume, price, pct_avg30, notional,
                  message, type, security_type, industry, sector, avg30day,
                  float_shares, earnings_date)
@@ -167,13 +201,113 @@ def insert_csv_rows(csv_text: str) -> dict:
         except Exception as e:
             errors += 1
             if errors <= 3:
-                print(f"[darkpool_db] Row error: {e}")
+                print(f"[darkpool_db] Row error ({table}): {e}")
 
     conn.commit()
     conn.close()
 
-    print(f"[darkpool_db] Upload: {inserted} inserted, {duplicates} dupes, {errors} errors / {total} total")
+    print(f"[darkpool_db] {table} upload: {inserted} inserted, {duplicates} dupes, "
+          f"{errors} errors / {total} total")
     return {"inserted": inserted, "duplicates": duplicates, "errors": errors, "total": total}
+
+
+def insert_csv_rows(csv_text: str) -> dict:
+    """Parse CSV text and insert into darkpool_trades (the historical table)."""
+    return _insert_rows(csv_text, "darkpool_trades")
+
+
+# ── Intraday preview table (darkpool_today) ─────────────────────────────
+
+def insert_today_rows(csv_text: str) -> dict:
+    """Insert live intraday prints into the ephemeral darkpool_today table.
+
+    Same parse/dedup as insert_csv_rows but targets the preview table, so a
+    poll every few minutes never touches darkpool_trades (and thus never
+    invalidates the historical aggregation cache). Returns the insert summary.
+    """
+    return _insert_rows(csv_text, "darkpool_today")
+
+
+def today_rows_signature() -> str:
+    """Cheap fingerprint of darkpool_today (row_count, max_id). Used as the
+    today-aggregate cache key so it rebuilds only when new live prints land —
+    independent of the historical darkpool_trades signature."""
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) AS c, MAX(id) AS m FROM darkpool_today"
+        ).fetchone()
+        return f"{row['c']}-{row['m'] or 0}"
+    finally:
+        conn.close()
+
+
+def clear_today() -> int:
+    """Truncate the intraday preview table. Called at session roll and after
+    the nightly ingest folds the authoritative day into darkpool_trades.
+    Returns the number of rows removed."""
+    conn = get_conn()
+    try:
+        n = conn.execute("SELECT COUNT(*) AS c FROM darkpool_today").fetchone()["c"]
+        conn.execute("DELETE FROM darkpool_today")
+        conn.commit()
+        print(f"[darkpool_db] cleared darkpool_today ({n} rows)")
+        return n
+    finally:
+        conn.close()
+
+
+def get_today_stats() -> dict:
+    """Row/ticker/notional summary of the live preview table + its latest print
+    timestamp — feeds the intraday status endpoint and the frontend freshness
+    line. Cheap: one partial day of rows."""
+    conn = get_conn()
+    try:
+        total = conn.execute("SELECT COUNT(*) AS c FROM darkpool_today").fetchone()["c"]
+        tickers = conn.execute(
+            "SELECT COUNT(DISTINCT ticker) AS c FROM darkpool_today").fetchone()["c"]
+        row = conn.execute(
+            "SELECT MAX(date) AS d, SUM(notional) AS n FROM darkpool_today").fetchone()
+        last_ts = conn.execute(
+            "SELECT timestamp FROM darkpool_today ORDER BY id DESC LIMIT 1").fetchone()
+        return {
+            "total_rows": total,
+            "tickers": tickers,
+            "date": row["d"] if row else None,
+            "total_notional": row["n"] if row and row["n"] else 0,
+            "last_timestamp": last_ts["timestamp"] if last_ts else None,
+        }
+    finally:
+        conn.close()
+
+
+def stream_today_csv():
+    """Yield the darkpool_today rows as CSV (header first). Mirrors stream_csv
+    but for the preview table — the intraday aggregate consumes this."""
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.row_factory = sqlite3.Row
+    try:
+        cursor = conn.execute(
+            f"SELECT {_SELECT_COLS} FROM darkpool_today "
+            f"ORDER BY date DESC, timestamp DESC"
+        )
+        yield _HEADER_LINE
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        count = 0
+        for row in cursor:
+            writer.writerow(list(row))
+            count += 1
+            if count % _STREAM_BATCH == 0:
+                yield buf.getvalue()
+                buf.seek(0)
+                buf.truncate(0)
+        remainder = buf.getvalue()
+        if remainder:
+            yield remainder
+    finally:
+        conn.close()
 
 
 # ── Streaming CSV (preferred for /api/darkpool/data) ────────────────────

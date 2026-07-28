@@ -2763,6 +2763,78 @@ const fmtDatePill = (dateStr) => {
 };
 
 // ── App ───────────────────────────────────────────────────────────────────────
+// ── Live "Today" strip (intraday preview) ────────────────────────────────────
+// Reads /api/darkpool/today — the ephemeral preview populated by the intraday
+// poller (darkpool_intraday_ingest) every few minutes. Renders NOTHING until
+// there's data (pre-open, or the poller is disabled), so the historical page is
+// unchanged otherwise. Independent of the main dpData load: its own 60s poll,
+// paused while the tab is hidden.
+function DarkPoolTodayStrip(){
+  const [data,setData]=useState(null);
+  useEffect(()=>{
+    let cancelled=false;
+    const load=async()=>{
+      if(typeof document!=="undefined" && document.visibilityState==="hidden") return;
+      try{
+        const r=await fetch("/api/darkpool/today");
+        if(!r.ok) return;
+        const j=await r.json();
+        if(!cancelled) setData(j);
+      }catch{ /* transient — keep last good */ }
+    };
+    load();
+    const id=setInterval(load,60000);
+    const onVis=()=>{ if(document.visibilityState==="visible") load(); };
+    document.addEventListener("visibilitychange",onVis);
+    return ()=>{ cancelled=true; clearInterval(id); document.removeEventListener("visibilitychange",onVis); };
+  },[]);
+
+  const stats=data?.stats;
+  const items=data?.payload?.allItems||[];
+  if(!stats || !stats.total_rows) return null;  // nothing live yet → render nothing
+
+  const top=[...items].filter(i=>i.bigPrintN>0)
+    .sort((a,b)=>b.bigPrintN-a.bigPrintN).slice(0,8);
+
+  return (
+    <div style={{maxWidth:1400,margin:"0 auto",padding:"10px 20px 0"}}>
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,
+        borderLeft:`3px solid ${C.green}`,borderRadius:6,padding:"9px 14px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <span style={{width:8,height:8,borderRadius:"50%",background:C.green,
+            boxShadow:`0 0 6px ${C.green}`,display:"inline-block",flexShrink:0}}/>
+          <span style={{fontSize:12,fontWeight:800,color:C.tx,letterSpacing:"0.04em"}}>
+            LIVE · TODAY SO FAR
+          </span>
+          <span style={{fontSize:11,color:C.tx3}}>
+            {stats.date?`${stats.date} · `:""}
+            {(stats.total_rows||0).toLocaleString()} prints
+            {" · "}<span style={{color:C.cyan}}>{fmt(stats.total_notional||0)} premium</span>
+            {" · "}{(stats.tickers||0).toLocaleString()} tickers
+            {stats.last_timestamp?` · last ${stats.last_timestamp}`:""}
+          </span>
+          <span style={{fontSize:10,color:C.tx3,marginLeft:"auto"}}
+            title="Intraday preview, refreshed every few minutes. The authoritative session is folded in after the close.">
+            preview · updates every ~3 min
+          </span>
+        </div>
+        {top.length>0 && (
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+            {top.map(it=>(
+              <span key={it.t} style={{display:"inline-flex",alignItems:"baseline",gap:5,
+                background:C.bg,border:`1px solid ${C.bdr}`,borderRadius:5,
+                padding:"3px 8px",fontSize:11}}>
+                <span style={{fontWeight:800,color:CAT_COLORS[it.cat]||C.tx}}>{it.t}</span>
+                <span style={{color:C.cyan,fontWeight:600}}>{fmt(it.bigPrintN)}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DarkPool({embedded}){
   const [dpData,setDpData]=useState(null);
   const [loadErr,setLoadErr]=useState(null);
@@ -3059,6 +3131,9 @@ export default function DarkPool({embedded}){
         ::-webkit-scrollbar-thumb{background:${C.bdr2};border-radius:3px}
         input:focus{border-color:${C.amber} !important}
       `}</style>}
+
+      {/* Intraday live preview — renders null until the poller has today's data */}
+      {!embedded && <DarkPoolTodayStrip/>}
 
       {/* Header */}
       <div style={{background:C.bg2,borderBottom:`1px solid ${C.bdr}`,padding:"12px 20px"}}>

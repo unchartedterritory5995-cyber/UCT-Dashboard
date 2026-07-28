@@ -357,6 +357,48 @@ async def massive_ingest_status():
     return JSONResponse(get_run_state())
 
 
+# ── Public: Today's live intraday preview ─────────────────────────────────────
+@router.get("/today")
+async def get_darkpool_today():
+    """Aggregated view of TODAY's live off-exchange prints (the darkpool_today
+    preview table), refreshed by the intraday poller every few minutes.
+
+    Separate from /aggregated (which serves completed sessions from
+    darkpool_trades): this reads the ephemeral preview table and is empty
+    pre-open / when the intraday poller is disabled. The `stats` block carries
+    the freshness line the live strip renders (row/ticker counts + last print
+    timestamp).
+    """
+    try:
+        from api.darkpool_aggregator import get_today_aggregated
+        from api.darkpool_db import get_today_stats
+        payload = await run_in_threadpool(get_today_aggregated)
+        stats = await run_in_threadpool(get_today_stats)
+        body = json.dumps(
+            {"payload": payload, "stats": stats}, separators=(",", ":")
+        ).encode("utf-8")
+        # Short cache only — this is live data. Never CF-cache aggressively.
+        return Response(
+            content=body,
+            media_type="application/json",
+            headers={"Cache-Control": "public, max-age=30", "Vary": "Accept-Encoding"},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/intraday-ingest/status")
+async def intraday_ingest_status():
+    """Progress + last result of the intraday dark-pool poller (mirrors
+    /massive-ingest/status). `phase` shows the ticker currently being pulled;
+    `last_result` holds the last cycle's summary."""
+    try:
+        from api.darkpool_intraday_ingest import get_run_state
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"intraday module unavailable: {e}")
+    return JSONResponse(get_run_state())
+
+
 @router.get("/stats")
 async def darkpool_stats():
     """Return database statistics."""

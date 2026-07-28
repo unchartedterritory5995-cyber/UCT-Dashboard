@@ -2493,6 +2493,68 @@ async def lifespan(app: FastAPI):
         except Exception as _e_dpi:
             print(f"[startup] darkpool Massive ingest job skip: {_e_dpi}")
 
+        # -- Dark pool: intraday live-preview poller (2026-07-27) ---------------
+        # Near-real-time (~3 min) companion to the nightly ingest above. Polls
+        # off-exchange prints INCREMENTALLY during market hours into the
+        # EPHEMERAL darkpool_today table (never darkpool_trades — writing there
+        # every few minutes would invalidate + rebuild every historical
+        # aggregation window; see darkpool_intraday_ingest's docstring), so the
+        # Dark Pool page can show "today so far". Self-gates on
+        # DARKPOOL_INTRADAY_ENABLED=1. Every 3 min, weekdays, 9-16 ET (the tail
+        # hours catch the 16:00 closing-cross prints as they settle).
+        try:
+            from api.darkpool_intraday_ingest import (
+                scheduled_run as _dp_intraday_run,
+                roll_session as _dp_roll_session,
+            )
+            _scheduler.add_job(
+                _dp_intraday_run,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*/3", timezone=_ET),
+                id="darkpool_intraday_ingest", max_instances=1,
+                replace_existing=True, misfire_grace_time=120)
+            # Roll the preview after the close (well after the 19:20 nightly folds
+            # the authoritative session into darkpool_trades) so the live strip
+            # doesn't linger overnight. Harmless no-op when the table is empty.
+            _scheduler.add_job(
+                _dp_roll_session,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=20, minute=30,
+                                    timezone=_ET),
+                id="darkpool_intraday_roll", max_instances=1,
+                replace_existing=True, misfire_grace_time=3600)
+            print("[startup] darkpool intraday poller scheduled (weekdays every 3m, 9-16 ET)")
+        except Exception as _e_dpint:
+            print(f"[startup] darkpool intraday poller job skip: {_e_dpint}")
+
+        # -- Dark pool: nightly-ingest startup catch-up (2026-07-27) ------------
+        # APScheduler here has no jobstore, so a 19:20 ET run missed because the
+        # pod was mid-redeploy (or down) at fire time is LOST — misfire_grace only
+        # covers an in-process pause, not a restart. If we boot after 19:20 ET on
+        # a weekday and today's session isn't in darkpool_trades yet, fire the
+        # ingest once (re-runs are dedup-safe). Same flag as the cron job.
+        def _dp_nightly_catchup():
+            try:
+                time.sleep(90)  # let the DB seed + scheduler settle first
+                if os.environ.get("DARKPOOL_MASSIVE_INGEST_ENABLED", "0") != "1":
+                    return
+                now_et = datetime.now(_ET)
+                if now_et.weekday() > 4:                 # Sat/Sun — no session
+                    return
+                if (now_et.hour, now_et.minute) < (19, 20):
+                    return
+                from api import darkpool_db
+                today = f"{now_et.month}/{now_et.day}/{now_et.year}"
+                if today in set(darkpool_db.get_available_dates()):
+                    return
+                from api.darkpool_massive_ingest import run_ingest_background
+                print(f"[startup] darkpool nightly catch-up firing for {today} "
+                      "(missed the 19:20 run)")
+                run_ingest_background()
+            except Exception as _e_cu:
+                print(f"[startup] darkpool nightly catch-up skip: {_e_cu}")
+        threading.Thread(target=_dp_nightly_catchup, daemon=True,
+                         name="darkpool-nightly-catchup").start()
+
         # -- Nightly T+1 side-heal (2026-07-25) --------------------------------
         # After the close (and after the 19:20 darkpool ingest), re-side the
         # day's blank prints at EXACT-ns via REST /v3/quotes, reading ts_ns
