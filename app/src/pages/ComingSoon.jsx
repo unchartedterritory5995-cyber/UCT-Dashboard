@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import UTMark from '../components/brand/UTMark'
 import { track } from '../utils/landingTrack'
 import styles from './ComingSoon.module.css'
 
@@ -408,13 +409,28 @@ export default function ComingSoon() {
     <div className={`${styles.page} ${still ? styles.still : ''}`}>
       <div className={styles.grid} aria-hidden="true" />
       <Curve still={still} seam={seam} pathRef={pathRef} />
+
+      {/* The compass rose, where a chart puts one: bottom-right, bled off the
+          corner, under the plotted course. The page was already a cartographer's
+          sheet (cross-hatch ground, a course, a "you are here", a waypoint) with
+          the one instrument that makes it legible missing. This is the brand
+          mark doing the job it was drawn for rather than a logo parked on top. */}
+      <div className={styles.rose} aria-hidden="true">
+        <UTMark tone="gold" spin={!still} className={styles.roseMark} />
+      </div>
+
       <div className={styles.vignette} aria-hidden="true" />
       <CurveMarks still={still} terminus={terminus} herePoint={herePoint} />
 
       <header className={styles.top}>
+        {/* Stacked two-up, the way the real lockup sets it. The mark carries the
+            accessible name so the wordmark beside it isn't read out twice. */}
         <div className={styles.brand}>
-          <span className={styles.brandMark} aria-hidden="true">⊕</span>
-          <span className={styles.brandName}>Uncharted Territory</span>
+          <UTMark size={27} title="Uncharted Territory" className={styles.brandMark} />
+          <span className={styles.wordmark} aria-hidden="true">
+            <span className={styles.wordTop}>Uncharted</span>
+            <span className={styles.wordBot}>Territory</span>
+          </span>
         </div>
         <Link
           to="/login"

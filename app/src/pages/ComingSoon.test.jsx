@@ -32,6 +32,38 @@ describe('ComingSoon', () => {
     expect(screen.getByText('UCT Intelligence')).toBeInTheDocument()
   })
 
+  describe('brand', () => {
+    it('signs the page with the real mark, not a stand-in glyph', () => {
+      const { container } = renderPage()
+      expect(screen.getByRole('img', { name: /uncharted territory/i })).toBeInTheDocument()
+      // ⊕ (U+2295) stood in for the logo here for two months. If it ever comes
+      // back, that is a regression and not a placeholder anyone chose.
+      expect(container.textContent).not.toMatch(/⊕/)
+    })
+
+    it('carries the compass rose the chart is read against', () => {
+      const { container } = renderPage()
+      // Decorative, so it has no accessible name to query by — assert on the
+      // artifact instead: a second, larger copy of the mark on the page.
+      // Selected by role, not document order — the rose is painted into the
+      // background before the header, so index order is the reverse of reading
+      // order and would silently swap these two.
+      const marks = container.querySelectorAll('svg[viewBox="0 0 100 100"]')
+      expect(marks).toHaveLength(2)
+      const lockup = container.querySelector('svg[viewBox="0 0 100 100"][role="img"]')
+      const rose = container.querySelector('svg[viewBox="0 0 100 100"][aria-hidden="true"]')
+      expect(lockup).toBeTruthy()
+      expect(rose).toBeTruthy()
+
+      // The two say the mark in different registers, and that difference is the
+      // design: the lockup is the real logo, the rose is its gold restatement.
+      // Scoped to each svg — the curve behind them carries gradients of its own.
+      expect(lockup.querySelectorAll('linearGradient')).toHaveLength(0)
+      expect(lockup.querySelector('path').getAttribute('stroke')).toMatch(/#E23E23|#67DB44/i)
+      expect(rose.querySelectorAll('linearGradient')).toHaveLength(2)
+    })
+  })
+
   it('keeps a route to log in for existing members', () => {
     renderPage()
     expect(screen.getByRole('link', { name: /log in/i })).toHaveAttribute('href', '/login')

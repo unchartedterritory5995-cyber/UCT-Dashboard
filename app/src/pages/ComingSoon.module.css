@@ -24,7 +24,11 @@
 /* ── Ground ─────────────────────────────────────────────────────────────── */
 
 /* Cartographer's cross-hatch. Barely there — it reads as paper tooth, not
-   as a grid. Masked so it never reaches the edges. */
+   as a grid. Masked so it never reaches the edges.
+
+   Two rules, major over minor (68px / 17px), because a single lattice reads as
+   a UI grid while a ruled major-and-minor reads as chart paper — which is what
+   the compass rose below is sitting on. */
 .grid {
   position: absolute;
   inset: 0;
@@ -32,7 +36,9 @@
   pointer-events: none;
   background-image:
     repeating-linear-gradient(0deg,   rgba(201, 168, 76, 0.055) 0 1px, transparent 1px 68px),
-    repeating-linear-gradient(90deg,  rgba(201, 168, 76, 0.055) 0 1px, transparent 1px 68px);
+    repeating-linear-gradient(90deg,  rgba(201, 168, 76, 0.055) 0 1px, transparent 1px 68px),
+    repeating-linear-gradient(0deg,   rgba(201, 168, 76, 0.021) 0 1px, transparent 1px 17px),
+    repeating-linear-gradient(90deg,  rgba(201, 168, 76, 0.021) 0 1px, transparent 1px 17px);
   -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, #000 30%, transparent 100%);
   mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, #000 30%, transparent 100%);
   opacity: 0;
@@ -46,6 +52,34 @@
   pointer-events: none;
   background:
     radial-gradient(ellipse 120% 90% at 30% 40%, transparent 40%, rgba(6, 7, 6, 0.62) 100%);
+}
+
+/* ── The compass rose ───────────────────────────────────────────────────────
+
+   The brand mark at chart scale, bled off the bottom-right corner. It sits on
+   z-index 1 with the curve, so the vignette (z 2) rakes across it and the copy
+   (z 3) always wins — it can never compete with a word on the page.
+
+   Drawn WHOLE, in open space, not bled off the edge. A cropped mark reads as a
+   watermark; a complete rose sitting in the empty quarter below the course is
+   how an actual chart carries one — and it is the entire logo, which is the
+   point. Its position is the open water: right of the copy column, below the
+   curve, clear of the footer. */
+.rose {
+  position: absolute;
+  z-index: 1;
+  right: clamp(28px, 8vw, 134px);
+  bottom: clamp(30px, 9vh, 86px);
+  width: clamp(230px, 42vmin, 450px);
+  height: clamp(230px, 42vmin, 450px);
+  pointer-events: none;
+  opacity: 0;
+  animation: rose 2200ms ease-out 700ms forwards;
+}
+
+.roseMark {
+  width: 100%;
+  height: 100%;
 }
 
 /* ── The curve ──────────────────────────────────────────────────────────── */
@@ -225,20 +259,31 @@
   min-width: 0;
 }
 
+/* The one saturated thing on the page. Everything else is gold and bone, so
+   the real bull/bear colours land as a deliberate hit of brand rather than as
+   noise — and the mark stays the actual logo instead of a tinted copy of it. */
 .brandMark {
-  font-size: 17px;
-  line-height: 1;
-  color: var(--ut-gold, #c9a84c);
+  flex: none;
 }
 
-.brandName {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 2.4px;
+/* Two lines, tight, the way the real lockup stacks it — and tinted the same
+   way the headline is (bone over gold), so the lockup and the monument are
+   visibly the same idea at two scales. */
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 3.1px;
   text-transform: uppercase;
-  color: var(--text-muted, #8c8674);
   white-space: nowrap;
 }
+
+.wordTop { color: var(--text-muted, #8c8674); }
+.wordBot { color: var(--ut-gold, #c9a84c); }
 
 .login {
   flex: none;
@@ -666,6 +711,12 @@
   to { opacity: 0.42; }
 }
 
+/* Slow on purpose. The rose should already feel like it was printed on the
+   sheet by the time anyone notices it, not like it animated in. */
+@keyframes rose {
+  to { opacity: 0.115; }
+}
+
 @keyframes draw {
   to { stroke-dashoffset: 0; }
 }
@@ -739,6 +790,17 @@
 @media (min-width: 641px) and (max-width: 1024px) {
   .center { max-width: 520px; }
 
+  /* Portrait tablets are the tight case: the copy column still takes the left
+     half but the frame is much narrower, so the desktop rose lands squarely
+     under the "you are here" label and the founder links. Smaller and tucked
+     into the corner keeps it clear of both while it stays on the sheet. */
+  .rose {
+    right: clamp(16px, 2.6vw, 30px);
+    bottom: clamp(24px, 7vh, 78px);
+    width: clamp(180px, 24vmin, 250px);
+    height: clamp(180px, 24vmin, 250px);
+  }
+
   /* Tighter labels so they still clear the copy block at this width. */
   .hereLabel,
   .endDate { letter-spacing: 1.8px; }
@@ -769,6 +831,12 @@
      the curve line itself stays as background texture. */
   .here,
   .end { display: none; }
+
+  /* Same call as the markers above: the founder-access block owns this band on
+     a phone, and a half-screen rose behind its contact links is decoration
+     sitting on top of the page's most important tap targets. The header lockup
+     carries the brand at this size. */
+  .rose { display: none; }
 
   .contactLink { font-size: 14px; }
 
@@ -847,6 +915,14 @@
 .still .here,
 .still .end { opacity: 1; }
 .still .halo { opacity: 0.4; }
+
+/* Not in the `animation: none` list above — that would leave it at opacity 0.
+   The rose is composition, not an effect, so it has to be present when motion
+   is off; only its arrival and its turning are dropped. */
+.still .rose {
+  animation: none;
+  opacity: 0.115;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .page *,

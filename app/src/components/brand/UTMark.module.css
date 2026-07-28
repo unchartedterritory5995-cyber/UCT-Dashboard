@@ -1,0 +1,26 @@
+.mark {
+  display: block;
+  overflow: visible;
+}
+
+/* The bearing ring turns; the needle and the cardinal points do not (see the
+   note in UTMark.jsx). Slow enough to be atmosphere rather than an animation —
+   a full turn takes two minutes.
+
+   transform-box: view-box pins the origin to the 100×100 viewBox centre. The
+   default (border-box on an inner <g>) resolves against the group's own
+   bounding box, which is not exactly concentric with the ring because the arc
+   gaps are asymmetric — the mark would wobble off-centre as it turned. */
+.ring {
+  transform-box: view-box;
+  transform-origin: 50px 50px;
+  animation: utBearing 120s linear infinite;
+}
+
+@keyframes utBearing {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring { animation: none; }
+}

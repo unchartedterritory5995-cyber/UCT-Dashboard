@@ -33,6 +33,37 @@ PAST_D = (
 )
 AHEAD_D = "M 1140 330 C 1214 276, 1268 268, 1338 224 S 1418 190, 1450 176"
 
+# The Uncharted Territory mark. Same vector trace as
+# app/src/components/brand/UTMark.jsx — keep the three copies (that file, this
+# one, app/public/favicon.svg) in sync; UTMark.jsx holds the measurements and
+# the reasoning. Parameterised on colour so the card can state it twice: the
+# real bull/bear logo in the lockup, and a gold restatement as the chart's
+# compass rose.
+MARK_POINT = "M 50 1.75 Q 51.8 22 53.6 28 L 46.4 28 Q 48.2 22 50 1.75 Z"
+
+
+def mark_svg(bull: str, bear: str, size: int) -> str:
+    """Inline SVG for the mark at `size` px, in the given bull/bear colours."""
+    points = "".join(
+        f'<path d="{MARK_POINT}" fill="{bull if rot in (0, 180) else bear}"'
+        + (f' transform="rotate({rot} 50 50)"' if rot else "")
+        + "/>"
+        for rot in (0, 90, 180, 270)
+    )
+    return f"""<svg width="{size}" height="{size}" viewBox="0 0 100 100">
+  <g fill="none" stroke-width="11">
+    <path d="M 77.43 48.08 A 27.5 27.5 0 0 1 57.12 76.56" stroke="{bear}"/>
+    <path d="M 52.4 77.4 A 27.5 27.5 0 0 1 23.57 57.58" stroke="{bull}"/>
+    <path d="M 22.7 53.35 A 27.5 27.5 0 0 1 42.88 23.44" stroke="{bear}"/>
+    <path d="M 48.08 22.57 A 27.5 27.5 0 0 1 76.68 43.35" stroke="{bull}"/>
+  </g>
+  {points}
+  <rect x="48.75" y="30" width="2.5" height="20.6" fill="{bull}"/>
+  <rect x="48.75" y="50.6" width="2.5" height="20.4" fill="{bear}"/>
+  <path d="M 42.9 33.5 L 57.1 33.5 L 42.9 67.7 Z" fill="{bull}"/>
+  <path d="M 57.1 33.5 L 57.1 67.7 L 42.9 67.7 Z" fill="{bear}"/>
+</svg>"""
+
 HTML = """<!doctype html>
 <html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -52,18 +83,33 @@ HTML = """<!doctype html>
       repeating-linear-gradient(90deg, rgba(201,168,76,.055) 0 1px, transparent 1px 68px);
     -webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 45%, #000 30%, transparent 100%);
   }}
-  svg {{ position:absolute; inset:0; width:100%; height:100%; }}
+  /* Scoped to the curve on purpose. As a bare `svg` selector this also caught
+     the brand mark and the rose and blew both up to full-bleed. */
+  svg.curve {{ position:absolute; inset:0; width:100%; height:100%; }}
   .vig {{
     position:absolute; inset:0;
     background:radial-gradient(ellipse 120% 90% at 28% 42%, transparent 38%, rgba(6,7,6,.66) 100%);
   }}
   .wrap {{ position:absolute; inset:0; padding:56px 64px; display:flex; flex-direction:column; }}
-  .brand {{ display:flex; align-items:center; gap:11px; }}
-  .cmark {{ font-size:20px; color:#c9a84c; line-height:1; }}
+  .brand {{ display:flex; align-items:center; gap:12px; }}
+  .cmark {{ display:block; line-height:0; }}
+  .cmark svg {{ display:block; }}
+  /* Stacked two-up, matching the lockup on the page itself. */
   .bname {{
-    font-size:13px; font-weight:600; letter-spacing:3px;
-    text-transform:uppercase; color:#8c8674;
+    display:flex; flex-direction:column; gap:1px;
+    font-size:12.5px; font-weight:700; line-height:1.05; letter-spacing:3.6px;
+    text-transform:uppercase; white-space:nowrap;
   }}
+  .bname .t {{ color:#8c8674; }}
+  .bname .b {{ color:#c9a84c; }}
+  /* The chart's compass rose, in the open quarter below the course — the same
+     move the live page makes, so the card previews the page instead of
+     diverging from it. */
+  .rose {{
+    position:absolute; right:74px; bottom:64px;
+    width:212px; height:212px; opacity:.13; line-height:0;
+  }}
+  .rose svg {{ display:block; width:100%; height:100%; }}
   .body {{ flex:1; display:flex; flex-direction:column; justify-content:center; }}
   .eyebrow {{
     font-size:16px; font-weight:600; letter-spacing:6.5px;
@@ -105,7 +151,7 @@ HTML = """<!doctype html>
 </style></head>
 <body>
   <div class="grid"></div>
-  <svg viewBox="0 0 1600 800" preserveAspectRatio="none">
+  <svg class="curve" viewBox="0 0 1600 800" preserveAspectRatio="none">
     <defs>
       <linearGradient id="f" x1="0" y1="1" x2="0" y2="0">
         <stop offset="0%" stop-color="#c9a84c" stop-opacity="0"/>
@@ -124,6 +170,7 @@ HTML = """<!doctype html>
     <path d="{ahead}" fill="none" stroke="#c9a84c" stroke-width="1.9" stroke-linecap="round"
           stroke-dasharray="9 12" opacity=".42"/>
   </svg>
+  <div class="rose">{rose}</div>
   <div class="vig"></div>
 
   <div class="mk"><span class="dot" style="left:855px;top:260px"></span>
@@ -131,7 +178,8 @@ HTML = """<!doctype html>
                   <span class="dia"  style="left:1088px;top:139px"></span></div>
 
   <div class="wrap">
-    <div class="brand"><span class="cmark">&#8853;</span><span class="bname">Uncharted Territory</span></div>
+    <div class="brand"><span class="cmark">{mark}</span>
+      <span class="bname"><span class="t">Uncharted</span><span class="b">Territory</span></span></div>
     <div class="body">
       <div class="eyebrow">UCT Intelligence</div>
       <h1>Coming<span class="s">Soon</span></h1>
@@ -154,7 +202,13 @@ def main() -> int:
         print("playwright not installed — pip install playwright && playwright install chromium")
         return 1
 
-    html = HTML.format(past=PAST_D, ahead=AHEAD_D, date=args.date)
+    html = HTML.format(
+        past=PAST_D,
+        ahead=AHEAD_D,
+        date=args.date,
+        mark=mark_svg("#67DB44", "#E23E23", 30),   # the real logo, in the lockup
+        rose=mark_svg("#d6ba69", "#9a7a2c", 212),  # gold restatement, as the rose
+    )
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
