@@ -453,9 +453,7 @@ export default function ComingSoon() {
         <p className={styles.tagline}>Navigate the market, effectively.</p>
 
         <p className={styles.blurb}>
-          A daily intelligence desk for traders. The Morning Wire at 7:35, the
-          UCT&nbsp;20, live market breadth, and a coach that reviews every trade
-          you take.
+          The Trading Brain you need as a companion.
         </p>
 
         {/* Proof, not a claim. A stranger arriving from social has no reason to

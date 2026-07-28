@@ -15,9 +15,7 @@ import { fileURLToPath } from 'node:url'
 function comingSoonMeta() {
   const TITLE = 'UCT Intelligence — Coming soon'
   const DESC =
-    'A daily intelligence desk for traders. The Morning Wire at 7:35, the '
-    + 'UCT 20, live market breadth, and a coach that reviews every trade you '
-    + 'take. Join the launch list.'
+    'The Trading Brain you need as a companion. Join the launch list.'
   // A DIFFERENT filename, not a replacement of og-image.png: social platforms
   // cache preview images hard by URL, so a new path is what actually makes the
   // new card show up — and it leaves the launch card untouched for launch day.
@@ -42,9 +40,7 @@ function comingSoonMeta() {
     applicationCategory: 'FinanceApplication',
     url: 'https://uctintelligence.com/',
     description:
-      'A daily intelligence desk for traders — the Morning Wire brief at 7:35 AM, '
-      + 'the UCT 20, live market breadth, and a coach that reviews every trade. '
-      + 'Launching soon.',
+      'The Trading Brain you need as a companion. Launching soon.',
     publisher: {
       '@type': 'Organization',
       name: 'Uncharted Territory',
