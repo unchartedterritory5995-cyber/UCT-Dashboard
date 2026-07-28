@@ -60,22 +60,37 @@ flow_router = APIRouter(prefix="/api/flow", tags=["flow"])
 # while the origin had 111,046 rows through 3:24 PM. The page rendered Friday's
 # tape on a Monday afternoon and never corrected itself.
 #
-#   max-age=0, must-revalidate  the BROWSER may not reuse a body without asking.
-#                               Costs one conditional round-trip, NOT a 12MB
-#                               download, and is what stops a stale copy from
-#                               being pinned in the disk cache for hours.
+#   max-age=0                   the BROWSER may not reuse a body as FRESH; it
+#                               revalidates, which is what stops a stale copy
+#                               from being pinned in the disk cache for hours.
 #   s-maxage=60                 shared caches (Cloudflare) still absorb the herd,
 #                               so the ~2s origin build stays a ~60ms edge hit.
+#   stale-while-revalidate=600  a cache MAY serve the slightly-stale body while
+#                               it refreshes in the background.
 #
-# `stale-while-revalidate=86400` was REMOVED deliberately: it licensed ANY cache
-# to serve a day-old options tape instantly, with no signal to the user. For an
-# intraday tape, freshness IS the product.
+# ⚠️ THAT LAST ONE IS LOAD-BEARING — do not remove it again. The original value
+# was 86400, which licensed any cache to serve a DAY-OLD tape, so the first pass
+# at this fix deleted it outright. That was an over-correction: it made every
+# 60s edge expiry block a real user on a full origin rebuild. Measured right
+# after deploy: `cf-cache-status: MISS`, **TTFB 25.5s**, and the page rendered
+# "Failed to load flow data — Server returned 502". Serving stale is the
+# AVAILABILITY mechanism that keeps the 12MB build off the request path, and
+# removing it re-opens the 502/524 overload class.
+#
+# Bounded staleness is safe NOW in a way it was not before: X-Flow-Version means
+# the client can SEE that it holds an old payload and correct it. The danger was
+# never staleness itself — it was staleness the client could not detect. So the
+# window is bounded (600s, not 86400) and made self-correcting, rather than
+# traded away for a 25s cold build.
+#
+# `must-revalidate` is deliberately ABSENT: it forbids serving stale and would
+# cancel stale-while-revalidate outright.
 #
 # ⚠️ A Cloudflare Cache Rule can OVERRIDE both of these (prod was rewriting the
 # browser TTL to max-age=14400). That is why correctness does NOT rest on these
 # headers — `X-Flow-Version` below lets the client verify what it actually got.
 _FLOW_CACHE_HEADERS = {
-    "Cache-Control": "public, max-age=0, s-maxage=60, must-revalidate",
+    "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=600",
     "Vary": "Accept-Encoding",
 }
 

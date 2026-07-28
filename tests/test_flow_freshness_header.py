@@ -125,13 +125,11 @@ def test_cache_hit_reports_the_matching_version(monkeypatch):
 
 def test_cache_control_does_not_allow_a_stale_day_long_replay():
     cc = flow_router._FLOW_CACHE_HEADERS["Cache-Control"]
-    # `stale-while-revalidate=86400` let ANY cache serve a 24h-old options tape
-    # instantly. For an intraday tape, freshness is the product.
+    # `stale-while-revalidate=86400` let ANY cache serve a 24h-old options tape.
     assert "stale-while-revalidate=86400" not in cc
     # A long browser max-age is what pinned a stale body in the disk cache for
     # hours on prod (CF was rewriting this to 14400).
     assert "max-age=0" in cc
-    assert "must-revalidate" in cc
 
 
 def test_cache_control_still_lets_the_edge_absorb_the_herd():
@@ -139,6 +137,30 @@ def test_cache_control_still_lets_the_edge_absorb_the_herd():
     # re-open the 524 overload class. s-maxage keeps CF in front of it.
     cc = flow_router._FLOW_CACHE_HEADERS["Cache-Control"]
     assert "s-maxage=60" in cc
+
+
+def test_stale_serving_stays_enabled_because_it_is_the_availability_valve():
+    """Regression guard for an over-correction I actually shipped.
+
+    Deleting stale-while-revalidate outright (rather than bounding it) made
+    every 60s edge expiry block a real user on a full origin rebuild: measured
+    `cf-cache-status: MISS`, TTFB 25.5s, and the page showed "Failed to load
+    flow data — Server returned 502". Serving stale is what keeps the 12MB
+    build off the request path.
+
+    Bounded staleness is safe now only because X-Flow-Version lets the client
+    detect and correct it — so this asserts BOTH halves: stale serving is on,
+    and it is bounded well under the old 24h.
+    """
+    cc = flow_router._FLOW_CACHE_HEADERS["Cache-Control"]
+    assert "stale-while-revalidate=" in cc, "removing this re-opens the 502 class"
+
+    swr = int(cc.split("stale-while-revalidate=")[1].split(",")[0].strip())
+    assert 0 < swr <= 3600, f"stale window must be bounded, got {swr}s"
+
+    # `must-revalidate` forbids serving stale, which would silently cancel the
+    # directive above and reintroduce the 25s cold build.
+    assert "must-revalidate" not in cc
 
 
 def test_the_version_header_survives_the_worker_proxy():
