@@ -61,6 +61,14 @@ BLIND_WEB_AFTER = 5            # web-unreachable polls before we say anything
 BLIND_RATE_LIMIT_SEC = 3600.0  # blind-class alerts at most 1/hour
 DAILY_MSG_CAP = 10             # hard cap on monitor messages per ET day
 
+# Curated-feed wedge (2026-07-28 blind spot): flow.db can be LIVE (max_id
+# advancing → HEALTHY) while the curated /recent feed serves empty because its
+# fill hung. max_id can't see this; the `curated` block now on /status can.
+CURATED_STALE_SEC = float(os.environ.get("LIVEFLOW_CURATED_STALE_SEC", "180"))
+CURATED_FILL_HUNG_SEC = float(os.environ.get("LIVEFLOW_CURATED_FILL_HUNG_SEC", "90"))
+CURATED_WEDGE_AFTER = int(os.environ.get("LIVEFLOW_CURATED_WEDGE_POLLS", "3"))
+CURATED_RENAG_SEC = float(os.environ.get("LIVEFLOW_CURATED_RENAG_SEC", "1800"))
+
 # Classification labels
 HEALTHY = "healthy"
 WORKER_DOWN = "worker_down"
@@ -205,6 +213,75 @@ def _liveflow_alert_decision(prev: dict, cls: str, now: float,
             event = "blind_db"
 
     return s, event
+
+
+# --- Curated-feed wedge detection (pure) ------------------------------------
+# Distinct from the flow.db down machine above: this catches "flow.db live but
+# the curated /recent feed is empty/hung", which max_id-based classification
+# calls HEALTHY. A legit quiet tape (curated key cached, fresh, 0 alerts) is NOT
+# a wedge — only a NOT-cached / stale / hung-fill key while flow.db advances.
+
+def _curated_is_wedged(cur: dict,
+                       stale_sec: float = CURATED_STALE_SEC,
+                       hung_sec: float = CURATED_FILL_HUNG_SEC) -> bool:
+    """True when the canonical curated key looks wedged (not just a quiet tape)."""
+    if not isinstance(cur, dict):
+        return False                      # no signal → don't flag (blind handled elsewhere)
+    frs = cur.get("fill_running_sec")
+    if frs is not None and frs > hung_sec:
+        return True                       # a fill running past the hang window
+    if not cur.get("cached"):
+        return True                       # serving a warming stub while flow.db is live
+    age = cur.get("age_sec")
+    if age is not None and age > stale_sec:
+        return True                       # cached but the warmer's refills aren't landing
+    return False                          # cached + fresh (0 alerts = legit quiet tape)
+
+
+def initial_curated_state() -> dict:
+    return {"fails": 0, "wedged": False, "wedged_since": None, "last_nag_at": None}
+
+
+def _curated_wedge_decision(prev: dict, wedged_now: bool, now: float,
+                            *, wedge_after: int = CURATED_WEDGE_AFTER,
+                            renag_s: float = CURATED_RENAG_SEC):
+    """Pure. Returns (new_state, event): None | 'curated_wedged' | 'curated_still'
+    | 'curated_recovered'. Confirms over `wedge_after` consecutive polls (no flap),
+    renags every `renag_s`, and fires one recovery when it clears."""
+    s = dict(prev)
+    event = None
+    s["fails"] = s.get("fails", 0) + 1 if wedged_now else 0
+    if not s.get("wedged"):
+        if s["fails"] >= wedge_after:
+            s.update(wedged=True, wedged_since=now, last_nag_at=now)
+            event = "curated_wedged"
+    else:
+        if not wedged_now:
+            s.update(wedged=False, wedged_since=None, last_nag_at=None)
+            event = "curated_recovered"
+        elif s.get("last_nag_at") is not None and now - s["last_nag_at"] >= renag_s:
+            s["last_nag_at"] = now
+            event = "curated_still"
+    return s, event
+
+
+def _curated_alert_text(event: str, cur: dict, wedged_since, now: float) -> str:
+    dur = (now - wedged_since) / 60.0 if wedged_since else 0.0
+    age = (cur or {}).get("age_sec")
+    alerts = (cur or {}).get("alerts")
+    if event == "curated_wedged":
+        return ("\U0001F7E0 LIVE FLOW curated feed WEDGED -- flow.db is LIVE (max_id "
+                f"advancing) but /recent is serving empty (canonical key age={age}s, "
+                "cached=%s). Self-heal should steal the hung fill within the lease; if "
+                "it persists, restart flow-worker. (The 2026-07-28 blind spot.)"
+                % (cur or {}).get("cached"))
+    if event == "curated_still":
+        return (f"\U0001F7E0 LIVE FLOW curated feed STILL wedged ({dur:.0f} min) -- "
+                "/recent empty while flow.db is live.")
+    if event == "curated_recovered":
+        return (f"\U0001F7E2 LIVE FLOW curated feed recovered after ~{dur:.0f} min -- "
+                f"/recent serving alerts again ({alerts}).")
+    return ""
 
 
 # --- Scorecard grading (pure) -----------------------------------------------
@@ -412,6 +489,7 @@ _thread = None
 
 def _loop():
     state = initial_state()
+    curated_state = initial_curated_state()
     last_max_id = None
     last_advance_mono = time.monotonic()
     msgs_today = 0
@@ -454,10 +532,25 @@ def _loop():
                         _post_discord("\U0001F507 liveflow alerts muted until tomorrow "
                                       "(daily cap hit -- check the 4:15 scorecard)")
                         muted_notice_sent = True
+
+                # Curated-feed wedge — the 2026-07-28 blind spot. Only when flow.db
+                # itself is HEALTHY (an actual WORKER_DOWN already alarms above and
+                # would false-trigger this). Independent tracker + own cap budget.
+                cur = payload.get("curated") if (http_ok and isinstance(payload, dict)) else None
+                cur_wedged = (cls == HEALTHY) and _curated_is_wedged(cur)
+                curated_state, cevent = _curated_wedge_decision(
+                    curated_state, cur_wedged, time.time())
+                if cevent and msgs_today < DAILY_MSG_CAP:
+                    ctxt = _curated_alert_text(
+                        cevent, cur, curated_state.get("wedged_since"), time.time())
+                    if _post_discord(ctxt):
+                        msgs_today += 1
+                    log.warning("[liveflow-monitor] %s: %s", cevent, ctxt[:160])
             else:
                 # Outside the session the incident state resets (overnight
                 # staleness is normal) but the max_id tracker keeps running.
                 state = initial_state()
+                curated_state = initial_curated_state()
 
             if SCORECARD_ENABLED and _scorecard_due(
                     now_et, os.path.exists(_marker_path(now_et))):

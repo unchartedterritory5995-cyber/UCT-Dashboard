@@ -1751,8 +1751,16 @@ def status_shim():
     """
     Backward-compat: worker status dict, matches pre-consolidation contract.
     New frontend code should read `status` from GET /recent's response instead.
+
+    Also carries `curated` (canonical-key health) so the independent liveflow
+    monitor can detect a wedged curated feed — max_id liveness alone can't.
     """
-    return _get_worker_status()
+    st = _get_worker_status()
+    try:
+        st["curated"] = _curated_health()
+    except Exception:
+        pass  # never let the health add-on break the status contract
+    return st
 
 
 @router.get("/curated")
@@ -1799,6 +1807,26 @@ _RECENT_CACHE_TTL = float(os.environ.get("MASSIVE_RECENT_CACHE_TTL", "15"))
 _recent_fill_sem = threading.Semaphore(
     int(os.environ.get("MASSIVE_RECENT_FILL_CONCURRENCY", "2")))
 
+# ─── Self-heal (2026-07-28) ─────────────────────────────────────────────────
+# A fill thread holds the per-key lock + a semaphore slot and releases the lock
+# ONLY in its finally (on return/exception). A HANG — the 80K-row scan blocking
+# on flow.db write-contention and never returning — leaks both forever, so every
+# later /recent gets the empty warming stub; two hangs exhaust the semaphore and
+# wedge ALL keys. (Observed 2026-07-28: curated feed served alerts:[]/warming for
+# ~55 min mid-session while flow.db ingested normally; /status was blind because
+# it watches flow.db liveness, not the curated fill.) Fix = a fill LEASE (steal a
+# wedged key after the lease) + a LAST-GOOD fallback (never drop to empty once a
+# key has filled) + a bounded semaphore wait. All additive; kill-switch reverts.
+_RECENT_SELFHEAL = os.environ.get("MASSIVE_RECENT_SELFHEAL", "1") == "1"
+_RECENT_FILL_LEASE_SEC = float(os.environ.get("MASSIVE_RECENT_FILL_LEASE_SEC", "45"))
+_RECENT_SEM_WAIT_SEC = float(os.environ.get("MASSIVE_RECENT_SEM_WAIT_SEC", "20"))
+_recent_fill_started: dict = {}   # ck -> unix ts the current fill acquired the lock
+_recent_last_good: dict = {}      # ck -> last successful payload (never overwritten empty)
+# The key LiveFlowMassive.jsx actually loads (see flow_worker_main warmer KEYS):
+# curated, limit=10000, grade D, recent, no tier. The curated-health + watchdog
+# target THIS key so a wedge is visible even while flow.db (max_id) stays live.
+_CANON_CURATED_LIMIT = int(os.environ.get("MASSIVE_CANON_RECENT_LIMIT", "10000"))
+
 
 def _recent_lock_for(key):
     with _recent_cache_guard:
@@ -1807,6 +1835,57 @@ def _recent_lock_for(key):
             lk = threading.Lock()
             _recent_cache_locks[key] = lk
         return lk
+
+
+def _acquire_or_steal_fill(ck):
+    """Acquire the per-key fill lock to run a fill under. Returns (lock, True) when
+    we hold a lock to fill with; (None, False) when a LIVE fill already owns the key.
+
+    Self-heal: if the lock is held but its holder has been filling longer than the
+    lease (a HUNG fill whose finally-release never ran), swap in a FRESH lock and
+    take that — the orphaned hung thread later releases the old (now-detached) lock
+    harmlessly. This bounds a wedge to the lease instead of forever."""
+    lock = _recent_lock_for(ck)
+    if lock.acquire(blocking=False):
+        _recent_fill_started[ck] = time.time()
+        return lock, True
+    if _RECENT_SELFHEAL:
+        started = _recent_fill_started.get(ck)
+        if started is not None and (time.time() - started) > _RECENT_FILL_LEASE_SEC:
+            with _recent_cache_guard:
+                fresh = threading.Lock()
+                _recent_cache_locks[ck] = fresh
+            fresh.acquire()
+            _recent_fill_started[ck] = time.time()
+            logging.getLogger(__name__).warning(
+                "[massive] /recent fill lease expired (%.0fs) — stealing wedged key %s",
+                time.time() - started, ck)
+            return fresh, True
+    return None, False
+
+
+def _curated_health(today: str = None) -> dict:
+    """Health of the canonical curated /recent key — the one the dashboard loads.
+
+    /status otherwise reports ONLY flow.db liveness (max_id), which stays green
+    during a curated wedge (fill hung → /recent served empty for ~55 min on
+    2026-07-28 while max_id climbed). Exposing this lets the independent monitor
+    SEE the wedge (empty curated feed while flow.db is live) and alert."""
+    today = today or _today_mdyyyy()
+    ck = (today, _CANON_CURATED_LIMIT, "D", "recent", None, True)
+    now = time.time()
+    hit = _recent_cache.get(ck)
+    started = _recent_fill_started.get(ck)
+    alerts = len((hit[1].get("alerts") if hit else None) or []) if hit else 0
+    return {
+        "cached": hit is not None,
+        "age_sec": round(now - hit[0], 1) if hit else None,
+        "alerts": alerts,
+        "empty": alerts == 0,
+        "fill_running_sec": round(now - started, 1) if started is not None else None,
+        "has_last_good": ck in _recent_last_good,
+        "selfheal": _RECENT_SELFHEAL,
+    }
 
 
 def _warming_stub(today: str) -> dict:
@@ -1825,11 +1904,27 @@ def _warming_stub(today: str) -> dict:
 
 def _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated):
     """Heavy compute → cache store, bounded by the global fill semaphore so at
-    most MASSIVE_RECENT_FILL_CONCURRENCY curated scans run at once."""
-    with _recent_fill_sem:
+    most MASSIVE_RECENT_FILL_CONCURRENCY curated scans run at once.
+
+    Self-heal: acquire the semaphore with a BOUNDED wait so a full semaphore (two
+    hung fills) can't block a fresh fill indefinitely — give up and let the caller
+    release the lock. On success, also record the payload as last-good so the feed
+    can fall back to it instead of empty if a later fill wedges."""
+    got_sem = _recent_fill_sem.acquire(timeout=_RECENT_SEM_WAIT_SEC) if _RECENT_SELFHEAL \
+        else (_recent_fill_sem.acquire() or True)
+    if not got_sem:
+        logging.getLogger(__name__).warning(
+            "[massive] /recent fill gave up waiting %.0fs for a semaphore slot: %s",
+            _RECENT_SEM_WAIT_SEC, ck)
+        return None
+    try:
         payload = _compute_recent(today, limit, min_grade, sort_by, tier, curated)
         _recent_cache[ck] = (time.time(), payload)
-    return payload
+        if payload is not None:
+            _recent_last_good[ck] = payload
+        return payload
+    finally:
+        _recent_fill_sem.release()
 
 
 def _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock):
@@ -1845,6 +1940,7 @@ def _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock
         except Exception:
             logging.getLogger(__name__).exception("[massive] background /recent fill failed")
         finally:
+            _recent_fill_started.pop(ck, None)
             try:
                 lock.release()
             except Exception:
@@ -1870,13 +1966,18 @@ def warm_recent(*, limit, min_grade, sort_by, tier, curated, target_date=None):
     Returns (cache_key, n_alerts | None)."""
     today = target_date or _today_mdyyyy()
     ck = (today, limit, min_grade, sort_by, tier, curated)
-    lock = _recent_lock_for(ck)
-    if not lock.acquire(blocking=False):
-        return ck, None  # a request-path fill is already computing this key
+    # Lease-aware: if a prior fill wedged (hung, lock never released), STEAL the
+    # key so this warmer pass re-fills it. This is what makes the existing 25s
+    # flow-worker warmer the PROACTIVE self-recovery — without the steal it would
+    # skip a wedged key forever (warm_recent used a plain non-blocking acquire).
+    lock, got = _acquire_or_steal_fill(ck)
+    if not got:
+        return ck, None  # a live (within-lease) fill already owns this key
     try:
         payload = _compute_and_store(ck, today, limit, min_grade, sort_by, tier, curated)
-        return ck, len(payload.get("alerts") or [])
+        return ck, (len(payload.get("alerts") or []) if payload else None)
     finally:
+        _recent_fill_started.pop(ck, None)
         lock.release()
 
 
@@ -1948,14 +2049,24 @@ def recent_massive_alerts(
             _recent_cache[ck] = (time.time(), payload)
             return payload
     if hit is not None:
-        # TODAY, stale — serve it immediately; kick a background refresh if
-        # nobody else already holds the single-flight lock.
-        if lock.acquire(blocking=False):
-            _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock)
+        # TODAY, stale — serve it immediately; kick a background refresh. Lease-aware:
+        # a wedged (hung) fill gets stolen after the lease so refreshes never stall
+        # forever behind a leaked lock.
+        _fill_lock, _got = _acquire_or_steal_fill(ck)
+        if _got:
+            _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, _fill_lock)
         return hit[1]
-    # TODAY, cold — return a warming stub now; fill in the background.
-    if lock.acquire(blocking=False):
-        _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, lock)
+    # TODAY, cold — kick a fill (lease-aware). NEVER blank the feed once a key has
+    # filled once: serve last-good (marked warming) instead of an empty stub. This
+    # is the guarantee that a wedged fill can't leave the tape empty mid-session.
+    _fill_lock, _got = _acquire_or_steal_fill(ck)
+    if _got:
+        _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, _fill_lock)
+    _lg = _recent_last_good.get(ck) if _RECENT_SELFHEAL else None
+    if _lg is not None:
+        _out = dict(_lg)
+        _out["warming"] = True   # stale fallback served while the fresh fill runs
+        return _out
     return _warming_stub(today)
 
 
