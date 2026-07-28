@@ -714,17 +714,26 @@ def _carry_scripts(c: sqlite3.Connection, path_id: int, steps: list[dict]) -> No
     reorder still matches. Duplicate keys are consumed in order. MUST run before
     the DELETE that replaces the path's steps."""
     prior: dict = {}
+    by_pos: list = []
     for r in c.execute(
         "SELECT youtube_id, planned_title, script FROM edu_path_steps "
         "WHERE path_id = ? ORDER BY sort_order ASC, id ASC", (path_id,)
     ):
         key = r["planned_title"] or r["youtube_id"]
         prior.setdefault(key, []).append(r["script"])
-    for st in steps:
+        by_pos.append(r["script"])
+    for i, st in enumerate(steps):
         if st["script"] is not _PRESERVE:
             continue
         bucket = prior.get(st["planned_title"] or st["youtube_id"])
-        st["script"] = bucket.pop(0) if bucket else None
+        if bucket:
+            st["script"] = bucket.pop(0)
+        else:
+            # Identity miss — most often a RETITLED planned lesson (the
+            # curriculum source is edited, the apply re-runs). Fall back to the
+            # script that sat at this position, so rewording a lesson title
+            # doesn't silently discard its recording script.
+            st["script"] = by_pos[i] if i < len(by_pos) else None
 
 
 def _normalize_step(s: dict, i: int, ctx: str) -> dict:

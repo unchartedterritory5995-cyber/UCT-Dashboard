@@ -757,3 +757,35 @@ def test_a_brand_new_step_without_script_is_null_not_a_sentinel(svc):
     p = _path(svc)
     svc.replace_path_steps(p["id"], [{"youtube_id": "brandnew123"}])
     assert svc.get_path(p["id"])["steps"][0]["script"] is None
+
+
+def test_retitling_a_planned_lesson_keeps_its_script(svc):
+    """Identity is planned_title; rewording one must not discard its script —
+    fall back to the script that sat at the same position."""
+    svc.bulk_apply_paths([
+        {"slug": "p", "name": "P", "kind": "course", "steps": [
+            {"planned_title": "Reading the tape", "script": "S1"},
+            {"planned_title": "Sizing", "script": "S2"},
+        ]},
+    ])
+    svc.bulk_apply_paths([
+        {"slug": "p", "name": "P", "kind": "course", "steps": [
+            {"planned_title": "Reading the tape (v2)"},   # reworded
+            {"planned_title": "Sizing"},
+        ]},
+    ])
+    steps = svc.list_paths(include_disabled=True)[0]["steps"]
+    assert [s["script"] for s in steps] == ["S1", "S2"]
+
+
+def test_a_genuinely_new_trailing_lesson_gets_no_inherited_script(svc):
+    svc.bulk_apply_paths([
+        {"slug": "p", "name": "P", "kind": "course",
+         "steps": [{"planned_title": "A", "script": "SA"}]},
+    ])
+    svc.bulk_apply_paths([
+        {"slug": "p", "name": "P", "kind": "course",
+         "steps": [{"planned_title": "A"}, {"planned_title": "B brand new"}]},
+    ])
+    steps = svc.list_paths(include_disabled=True)[0]["steps"]
+    assert [s["script"] for s in steps] == ["SA", None]
