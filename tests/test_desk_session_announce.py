@@ -55,6 +55,20 @@ def test_show_allowed_matches_evening_only_by_default():
     assert not da.show_allowed("Workshop with Zen — July 9, 2026", "Workshops & Fireside Chats")
 
 
+def test_show_allowed_survives_the_real_double_space_webinar_name():
+    """REGRESSION (2026-07-27): the first live Evening Update webinar was
+    actually named 'Evening  Update from TSDR' — a hand-typed double space. A
+    raw substring test misses it and the drop silently never posts."""
+    assert da.show_allowed("Evening  Update from TSDR — July 27, 2026", "Evening Update")
+    assert da.show_allowed("evening\tupdate from tsdr", "")
+    assert da.show_allowed("  EVENING   UPDATE  FROM TSDR  ", "")
+
+
+def test_allowed_shows_normalises_env_entries(monkeypatch):
+    monkeypatch.setenv("DESK_TSDR_ANNOUNCE_SHOWS", "  Evening   Update ,  Sunday Scans ")
+    assert da.allowed_shows() == ["evening update", "sunday scans"]
+
+
 def test_show_allowed_env_override_is_a_comma_list(monkeypatch):
     monkeypatch.setenv("DESK_TSDR_ANNOUNCE_SHOWS", "evening update, sunday scans")
     assert da.show_allowed("Sunday Scans — July 26, 2026", "Sunday Scans")

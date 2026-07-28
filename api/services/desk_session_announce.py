@@ -26,6 +26,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -67,17 +68,29 @@ def _webhook_url() -> str:
     return os.environ.get("DISCORD_TSDR_WEBHOOK_URL", "").strip()
 
 
+_WS = re.compile(r"\s+")
+
+
+def _norm(s: str) -> str:
+    """Collapse runs of whitespace + lowercase. Show names come from a
+    hand-typed Zoom webinar title, so 'Evening  Update from TSDR' (a real
+    double space, shipped 2026-07-27) must still match 'evening update' —
+    a raw substring test silently skips it and the drop never posts."""
+    return _WS.sub(" ", (s or "")).strip().lower()
+
+
 def allowed_shows() -> list[str]:
-    """Lowercased substrings; a show announces only if one of them appears in
-    its title/section. Deliberately defaults to the evening show ALONE — see the
-    module docstring. A blank env value yields [] (announce nothing), so the
-    failure direction is silence, never leaking a paywalled session."""
+    """Whitespace-normalised substrings; a show announces only if one of them
+    appears in its title/section. Deliberately defaults to the evening show
+    ALONE — see the module docstring. A blank env value yields [] (announce
+    nothing), so the failure direction is silence, never leaking a paywalled
+    session."""
     raw = os.environ.get("DESK_TSDR_ANNOUNCE_SHOWS", "evening update")
-    return [s.strip().lower() for s in raw.split(",") if s.strip()]
+    return [n for s in raw.split(",") if (n := _norm(s))]
 
 
 def show_allowed(*labels: str) -> bool:
-    hay = " ".join(l or "" for l in labels).lower()
+    hay = _norm(" ".join(l or "" for l in labels))
     return any(s in hay for s in allowed_shows())
 
 
