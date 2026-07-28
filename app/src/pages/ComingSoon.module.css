@@ -375,12 +375,17 @@
   animation: riseIn 700ms ease-out 620ms forwards;
 }
 
+/* A positioning line now, not a paragraph of features — so it is set as a
+   statement rather than as body copy. Still a clear step below the tagline
+   (which keeps the gold rule, the extra weight and the brighter ink), but no
+   longer so quiet it reads as a caption hanging off the line above it. */
 .blurb {
-  margin: clamp(12px, 1.6vw, 16px) 0 0;
+  margin: clamp(11px, 1.4vw, 14px) 0 0;
   max-width: 46ch;
-  font-size: clamp(13px, 1.35vw, 15px);
-  line-height: 1.62;
-  color: var(--text-muted, #8c8674);
+  font-size: clamp(13.5px, 1.45vw, 16px);
+  line-height: 1.55;
+  letter-spacing: 0.1px;
+  color: var(--text, #b6b09d);
   opacity: 0;
   animation: riseIn 700ms ease-out 720ms forwards;
 }
