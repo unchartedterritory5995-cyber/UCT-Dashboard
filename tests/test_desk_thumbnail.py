@@ -317,3 +317,72 @@ def test_sunday_handles_a_long_eyebrow_without_clipping():
     data = t.render_session_thumbnail(
         "July 26, 2026", eyebrow_label="SUNDAY SCANS WITH THE WHOLE DESK TEAM AND FRIENDS")
     assert Image.open(io.BytesIO(data)).size == (1280, 720)
+
+
+# ── Evening: the skyline IS the day's candle chart ──────────────────────────
+
+def _candle_canvas(seed=11):
+    """Draw the candle skyline alone on black so the sunset can't confuse the
+    colour reads — isolates what the towers themselves put on the canvas."""
+    img = Image.new("RGBA", (t._W, t._H), (0, 0, 0, 255))
+    tops = t._candle_skyline(img, 518, 30, 160, seed=seed)
+    return img.convert("RGB"), tops
+
+
+def test_candle_skyline_draws_both_up_and_down_candles():
+    """The chart reading: towers are colour-coded by close-vs-prior-close, so a
+    normal session must produce BOTH green and red towers. A plain silhouette
+    (the pre-redesign card) produces neither."""
+    img, _ = _candle_canvas()
+    px = list(img.crop((0, 300, t._W, 518)).getdata())
+    green = sum(1 for r, g, b in px if g > r + 40 and g > 120)
+    red = sum(1 for r, g, b in px if r > g + 40 and r > 120)
+    assert green > 200, f"no up-candle edges drawn (green px={green})"
+    assert red > 200, f"no down-candle edges drawn (red px={red})"
+
+
+def test_candle_skyline_wicks_rise_above_every_body():
+    """Each tower carries a spire above its body — the candle's upper wick. A
+    body-only skyline would silently lose the candlestick read."""
+    img, tops = _candle_canvas()
+    assert len(tops) > 20
+    band = img.crop((0, 0, t._W, min(p[1] for p in tops)))   # strictly above all bodies
+    lit = sum(1 for r, g, b in band.getdata() if max(r, g, b) > 60)
+    assert lit > 100, "nothing drawn above the tallest body — wicks missing"
+
+
+def test_candle_skyline_bodies_are_rooted_at_the_waterline():
+    img, tops = _candle_canvas()
+    # Tower fill is near-black by design (a silhouette), so test coverage
+    # against the pure-black canvas rather than brightness.
+    row = list(img.crop((0, 512, t._W, 513)).getdata())      # just above waterline 518
+    assert sum(1 for p in row if p != (0, 0, 0)) > t._W * 0.8
+
+
+def test_evening_card_carries_green_candles_over_the_sunset():
+    """Artifact-level rail on the REAL card (JPEG, sunset and all): the dusk sky
+    has no green-dominant pixels, so green can only come from up-candles."""
+    data = t.render_session_thumbnail("July 27, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
+    px = list(Image.open(io.BytesIO(data)).convert("RGB").crop(
+        (0, 300, t._W, 518)).getdata())
+    green = sum(1 for r, g, b in px if g > r + 30 and g > 110)
+    assert green > 150, f"evening card lost its candle colouring (green px={green})"
+
+
+def test_evening_candles_stay_deterministic_per_episode():
+    a = t.render_session_thumbnail("July 27, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
+    b = t.render_session_thumbnail("July 27, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
+    c = t.render_session_thumbnail("July 28, 2026", eyebrow_label="EVENING UPDATE FROM TSDR")
+    assert a == b          # same episode -> byte-identical
+    assert a != c          # next episode -> a different skyline
+
+
+def test_candle_skyline_never_escapes_the_canvas():
+    """Every seed must keep wicks on-canvas — an off-canvas spire would crop to
+    a flat-topped tower and quietly break the candle read."""
+    for seed in range(200):
+        img = Image.new("RGBA", (t._W, t._H), (0, 0, 0, 255))
+        t._candle_skyline(img, 518, 30, 160, seed=seed)   # must not raise
+    img = Image.new("RGBA", (t._W, t._H), (0, 0, 0, 255))
+    tops = t._candle_skyline(img, 518, 30, 160, seed=3)
+    assert all(20 < y < 518 for _, y in tops)

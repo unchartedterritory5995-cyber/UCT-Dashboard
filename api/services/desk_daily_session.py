@@ -285,9 +285,11 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                     "category": section, "sort_order": 0})
             # Link the published video to its Zoom recording so the (async)
             # transcript → chapters backfill can find it later.
+            video_row_id = None
             try:
                 row = education_service.get_video_by_youtube_id(vid)
                 if row:
+                    video_row_id = row["id"]
                     education_service.set_meeting_uuid(row["id"], uuid)
                     if audio_key:
                         try:
@@ -315,6 +317,12 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                     community_seed.seed_for_youtube_id(vid)
                 except Exception as ce:
                     print(f"[desk-sessions] community seed failed (non-fatal): {ce}")
+                # Community Discord announcement (allowlisted shows only — the
+                # announcer itself gates on DESK_TSDR_ANNOUNCE_SHOWS; this
+                # channel is public and most shows are paywalled).
+                if video_row_id:
+                    from api.services import desk_session_announce
+                    desk_session_announce.maybe_announce(video_row_id)
         except Exception as e:
             desk_session_jobs.mark_error(uuid, e)
         finally:

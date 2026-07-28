@@ -865,6 +865,10 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
             # (has_chapters flips), so the recap can't double-post.
             from api.services import desk_session_recap
             desk_session_recap.maybe_post_recap(vid)
+            # Fold the brief recap into the community announcement posted at
+            # publish time (no-op unless this video was announced).
+            from api.services import desk_session_announce
+            desk_session_announce.maybe_attach_recap(vid)
             has_chapters = True
             results.append({"id": vid, "action": "generated", "source": source,
                             "chapters": len(ins["chapters"]),

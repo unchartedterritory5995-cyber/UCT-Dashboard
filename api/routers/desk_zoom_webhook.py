@@ -147,6 +147,35 @@ def post_discord_recap(video_id: int, request: Request):
         return {"ok": False, "error": str(e)[:400]}
 
 
+@router.post("/announce/{video_id}")
+def post_community_announce(video_id: int, request: Request):
+    """Admin: post (or re-post) the TSDR community announcement for a published
+    video, and fold in the brief recap if insights already exist. Works with the
+    scheduler flag off so the feature can be proven end-to-end before arming it,
+    and is the manual fallback when a publish lands outside a deploy window.
+
+    `?force=1` bypasses BOTH the show allowlist and the already-posted guard —
+    it is the only way to announce a non-allowlisted show, deliberately manual.
+    PUSH_SECRET bearer, mirroring /recap. Sync `def` on purpose: the render +
+    upload block, so FastAPI must run this in the threadpool."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_session_announce
+    force = request.query_params.get("force", "") in ("1", "true", "yes")
+    try:
+        out = desk_session_announce.announce_video(int(video_id), force=force)
+        if out.get("ok") and not out.get("already"):
+            try:
+                out["recap"] = desk_session_announce.attach_recap(int(video_id))
+            except Exception as re_:
+                out["recap"] = {"ok": False, "error": str(re_)[:200]}
+        return out
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:400]}
+
+
 @router.get("/recap-pending")
 def recap_pending(request: Request):
     """Read-only source list for the terminal/subscription daily-recap job:

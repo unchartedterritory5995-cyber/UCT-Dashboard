@@ -2128,6 +2128,45 @@ the **largest** MP4 (multi-segment recordings; a 2-min stub once shipped
 instead of the 1:23 workshop). Specs/plans:
 `docs/superpowers/{specs,plans}/2026-07-0{1,2}-*thumbnail*`.
 
+### Community announcement → TSDR Discord (2026-07-27)
+
+`api/services/desk_session_announce.py` posts ONE rich embed to the public TSDR
+community channel (`DISCORD_TSDR_WEBHOOK_URL`) the moment a session publishes —
+branded thumbnail attached, YouTube link, and the uctintelligence.com
+coming-soon tease — then **EDITS that same message** to fold in the brief recap
+once the insights pass produces a headline + takeaways. Post-then-edit because
+the Zoom transcript lands 15-40 min later and sometimes never: the drop is never
+held hostage, and the pre-recap copy reads complete on its own (it deliberately
+promises no recap it might not deliver).
+
+- **⚠️ SHOW ALLOWLIST is the load-bearing safety rail.** The publish pipeline has
+  NO allowlist by design (every cloud recording auto-publishes), this channel is
+  PUBLIC, and most shows are PAYWALLED. Announcing is opt-IN per show via
+  `DESK_TSDR_ANNOUNCE_SHOWS` (default `evening update`). **A blank value
+  announces NOTHING** — the failure direction is silence, never a leak.
+  Regression rail: `test_announce_refuses_a_paywalled_show_and_posts_nothing`
+  (mutation-checked — deleting the guard fails it).
+- **The recap costs no LLM call**: it reuses the editor-polished
+  `headline`/`summary`/`ticker_moments` the insights pass already stored, so it
+  is the same text the Desk player shows and adds no new failure mode.
+- **On edit, `attachments: [{id}]` MUST be sent** or Discord drops the uploaded
+  thumbnail — that's why `attachment_id` is stored alongside `message_id` in
+  `/data/desk_announce.db`. A rejected edit falls back to a follow-up post.
+- Hooks: `maybe_announce(video_row_id)` on the `created_now` publish path in
+  `desk_daily_session.process_pending_jobs`; `maybe_attach_recap(vid)` on the
+  insights `'generated'` path (runs once — `has_chapters` flips). Both gated by
+  `DESK_TSDR_ANNOUNCE_ENABLED` and never raise into the pipeline.
+- **Manual/backfill:** `POST /api/desk/announce/{video_id}` (PUSH_SECRET bearer)
+  runs the same path with the flag off; `?force=1` bypasses BOTH the allowlist
+  and the already-posted guard (the only way to announce a non-allowlisted show
+  — deliberately manual).
+- **Evening card redesign (same commit):** `_render_evening`'s skyline **IS the
+  day's candle chart** — every tower is a candlestick (body waterline→close,
+  antenna spire = upper wick, edge green on an up-close / red on a down-close,
+  a few windows lit in the candle's colour), threaded by a close-line and a
+  faint dashed price ladder. `_skyline` was replaced by `_candle_skyline`;
+  still `_episode_seed`-deterministic (same inputs = byte-identical).
+
 ## Performance & Scale — 2026-07-01 launch-hardening (do NOT regress)
 
 Big perf/scale pass ahead of the ~200-user launch. Full detail + remaining backlog

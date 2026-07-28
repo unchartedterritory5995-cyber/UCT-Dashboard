@@ -719,29 +719,78 @@ def _sky_gradient(stops: list, size: tuple) -> Image.Image:
     return img
 
 
-def _skyline(img: Image.Image, bottom: int, min_h: int, hspan: int,
-             color=(6, 5, 12), seed: int = 7) -> list:
-    """Dark city silhouette rooted at `bottom` (buildings rise upward from
-    there, e.g. a waterline) with scattered lit windows; returns rooftop
-    points. `min_h`/`hspan` set the shortest building height and the extra
-    height range layered on top of it. `seed` (per-episode) drives both the
-    building heights and lit-window placement — same visual ranges/density
-    as the old fixed pattern, just seeded per day instead of hardcoded."""
-    d = ImageDraw.Draw(img, "RGBA")
+# The skyline IS the day's candle chart: every tower is a candlestick — body
+# from the waterline up to its close, antenna spire = the upper wick, edge lit
+# green on an up-close and red on a down-close, windows warm gold with a few
+# picking up the candle's colour. Reads as a dusk cityscape from across the
+# room and as a chart on inspection.
+_CANDLE_UP = (104, 224, 158)
+_CANDLE_DOWN = (238, 108, 104)
+_TOWER_FILL = (7, 6, 14)
+
+
+def _candle_skyline(img: Image.Image, bottom: int, min_h: int, hspan: int,
+                    seed: int = 7) -> list:
+    """Candlestick city rooted at `bottom` (e.g. a waterline). `min_h`/`hspan`
+    set the shortest tower and the extra height layered on top; the close walks
+    a bounded random path so the rooftops trace a real-looking session. `seed`
+    (per-episode) drives closes, wick lengths and lit windows, so each day's
+    card is unique but deterministic. Returns the body-top points."""
     rng = random.Random(seed)
-    tops = []
     xs = list(range(-20, _W + 60, 46))
-    for i, x in enumerate(xs):
-        wdt = 46
-        hf = rng.uniform(0.42, 0.96)
-        top = bottom - min_h - int(hf * hspan)
-        d.rectangle([x, top, x + wdt - 4, bottom], fill=(*color, 255))
-        tops.append((x + wdt // 2, top))
-        for wy in range(top + 14, bottom - 10, 22):
-            for wx in range(x + 8, x + wdt - 10, 14):
-                if rng.random() < 0.2:
-                    d.rectangle([wx, wy, wx + 4, wy + 6], fill=(245, 205, 120, 170))
-    return tops
+    wdt = 42
+
+    # Geometry first, so the glow can be laid down BEHIND the solid towers.
+    towers = []
+    level = rng.uniform(0.35, 0.65)
+    for x in xs:
+        prev = level
+        level = min(0.98, max(0.16, level + rng.uniform(-0.21, 0.25)))
+        top = bottom - min_h - int(level * hspan)
+        towers.append({
+            "x": x,
+            "cx": x + wdt // 2,
+            "top": top,
+            "wick": top - int(rng.uniform(16, 76)),
+            "col": _CANDLE_UP if level >= prev else _CANDLE_DOWN,
+        })
+
+    glow = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    for t in towers:
+        gd.rectangle([t["x"], t["top"], t["x"] + wdt, bottom], outline=(*t["col"], 120), width=3)
+        gd.line([(t["cx"], t["wick"]), (t["cx"], t["top"])], fill=(*t["col"], 120), width=4)
+    img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(7)))
+
+    d = ImageDraw.Draw(img, "RGBA")
+    for t in towers:
+        x, top, col = t["x"], t["top"], t["col"]
+        d.line([(t["cx"], t["wick"]), (t["cx"], top)], fill=(*col, 190), width=3)
+        d.ellipse([t["cx"] - 3, t["wick"] - 3, t["cx"] + 3, t["wick"] + 3],
+                  fill=(*col, 235))                      # aviation beacon on the spire
+        d.rectangle([x, top, x + wdt, bottom], fill=(*_TOWER_FILL, 255),
+                    outline=(*col, 205), width=2)
+        for wy in range(top + 16, bottom - 10, 22):
+            for wx in range(x + 8, x + wdt - 8, 14):
+                if rng.random() < 0.22:
+                    lit = col if rng.random() < 0.28 else (245, 205, 120)
+                    d.rectangle([wx, wy, wx + 4, wy + 6], fill=(*lit, 175))
+    return [(t["cx"], t["top"]) for t in towers]
+
+
+def _price_ladder(img: Image.Image, level_y: int) -> None:
+    """A dashed gold level across the sky plus right-edge axis ticks — the quiet
+    detail that flips the skyline read into a chart read. Deliberately faint so
+    it never competes with the headline."""
+    lay = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    for x in range(40, _W - 40, 26):
+        d.line([(x, level_y), (x + 13, level_y)], fill=(250, 216, 140, 62), width=2)
+    for k in range(-2, 3):
+        y = level_y + k * 52
+        if 300 < y < _H - 150:
+            d.line([(_W - 30, y), (_W - 14, y)], fill=(250, 216, 140, 78), width=2)
+    img.alpha_composite(lay)
 
 
 def _gold_center(base: Image.Image, cx: int, y: int, text: str,
@@ -857,15 +906,19 @@ def _render_evening(theme: Theme, date_text: str, eyebrow_label: str, *,
     img = Image.alpha_composite(img, _radial(cx, waterline, 430, (255, 194, 96), 175))
     img = Image.alpha_composite(img, _radial(cx, waterline - 60, 150, (255, 228, 164), 195))
 
-    tops = _skyline(img, waterline, 30, 160, seed=seed)
+    tops = _candle_skyline(img, waterline, 30, 160, seed=seed)
 
-    # Subtle glowing gold uptrend tracing the rising rooftops (markets motif).
+    # Close-line threading the candle bodies' tops — the same data drawn a
+    # second way, and what makes the towers read as a session rather than a
+    # random skyline. Thinner/dimmer than the old rooftop trend: the candles
+    # are the hero now, this just ties them together.
     pts = [p for p in tops if 60 < p[0] < _W - 60]
-    rise = [(pts[i][0], min(p[1] for p in pts[max(0, i - 1):i + 2])) for i in range(len(pts))]
-    line = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
-    ImageDraw.Draw(line).line(rise, fill=(252, 226, 150, 150), width=4, joint="curve")
-    img = Image.alpha_composite(img, line.filter(ImageFilter.GaussianBlur(6)))
-    img = Image.alpha_composite(img, line)
+    if len(pts) > 1:
+        line = Image.new("RGBA", _SIZE, (0, 0, 0, 0))
+        ImageDraw.Draw(line).line(pts, fill=(252, 226, 150, 120), width=3, joint="curve")
+        img = Image.alpha_composite(img, line.filter(ImageFilter.GaussianBlur(6)))
+        img = Image.alpha_composite(img, line)
+        _price_ladder(img, sorted(p[1] for p in pts)[len(pts) // 2])
 
     _water_base(img, waterline)
     _water_reflections(img, waterline)
