@@ -90,7 +90,7 @@ def test_force_overrides_the_allowlist(monkeypatch):
                                     category="Live Trading Sessions"))
     _stub_thumb(monkeypatch)
     monkeypatch.setattr(da.requests, "post",
-                        lambda *a, **k: _Resp({"id": "999", "attachments": []}))
+                        lambda *a, **k: _Resp(_POSTED))
     assert da.announce_video(42, force=True)["ok"] is True
 
 
@@ -141,14 +141,21 @@ def test_embed_references_the_attachment_when_a_thumbnail_exists():
 
 # ── post → record → edit ─────────────────────────────────────────────────────
 
-def test_announce_posts_multipart_with_wait_and_records_ids(monkeypatch):
+_CDN = "https://cdn.discordapp.com/attachments/1/2/thumb.jpg?ex=deadbeef"
+
+# What the live API actually returns for an embed-consumed upload: `attachments`
+# comes back EMPTY and the file is resolved into the embed's image URL.
+_POSTED = {"id": "msg1", "attachments": [], "embeds": [{"image": {"url": _CDN}}]}
+
+
+def test_announce_posts_multipart_with_wait_and_records_the_resolved_image(monkeypatch):
     _stub_video(monkeypatch)
     _stub_thumb(monkeypatch)
     seen = {}
 
     def fake_post(url, **kw):
         seen.update(kw, url=url)
-        return _Resp({"id": "msg1", "attachments": [{"id": "att1"}]})
+        return _Resp(_POSTED)
     monkeypatch.setattr(da.requests, "post", fake_post)
 
     out = da.announce_video(42)
@@ -159,15 +166,14 @@ def test_announce_posts_multipart_with_wait_and_records_ids(monkeypatch):
     body = json.loads(seen["data"]["payload_json"])
     assert body["allowed_mentions"] == {"parse": []}
     rec = da.get_announcement(42)
-    assert rec["message_id"] == "msg1" and rec["attachment_id"] == "att1"
+    assert rec["message_id"] == "msg1" and rec["image_url"] == _CDN
 
 
 def test_announce_is_idempotent(monkeypatch):
     _stub_video(monkeypatch)
     _stub_thumb(monkeypatch)
     calls = []
-    monkeypatch.setattr(da.requests, "post", lambda *a, **k: calls.append(1) or _Resp(
-        {"id": "msg1", "attachments": []}))
+    monkeypatch.setattr(da.requests, "post", lambda *a, **k: calls.append(1) or _Resp(_POSTED))
     da.announce_video(42)
     out = da.announce_video(42)
     assert out["already"] is True and len(calls) == 1
@@ -177,20 +183,19 @@ def test_announce_without_a_thumbnail_still_posts_json(monkeypatch):
     _stub_video(monkeypatch)
     monkeypatch.setattr(da, "_thumbnail_bytes", lambda d, e: None)
     seen = {}
-    monkeypatch.setattr(da.requests, "post", lambda url, **kw: seen.update(kw) or _Resp(
-        {"id": "m", "attachments": []}))
+    monkeypatch.setattr(da.requests, "post", lambda url, **kw: seen.update(kw) or _Resp({"id": "m", "attachments": [], "embeds": [{}]}))
     assert da.announce_video(42)["thumbnail"] is False
     assert "files" not in seen and seen["json"]["embeds"][0].get("image") is None
 
 
-def test_attach_recap_edits_the_message_and_keeps_the_attachment(monkeypatch):
-    """`attachments` MUST name the kept attachment — omitting it makes Discord
-    drop the uploaded thumbnail, silently gutting the post on recap arrival."""
+def test_attach_recap_reuploads_the_thumbnail_so_the_edit_cannot_strip_it(monkeypatch):
+    """Verified against the live API: a JSON-only PATCH silently drops the
+    image, because an embed-consumed upload leaves no attachment id to hand
+    back. The edit MUST re-upload the card as multipart."""
     ins = {"headline": "Sellers faded the open.", "summary": ["QQQ lost 580."]}
     _stub_video(monkeypatch, _video(), ins)
     _stub_thumb(monkeypatch)
-    monkeypatch.setattr(da.requests, "post",
-                        lambda *a, **k: _Resp({"id": "msg1", "attachments": [{"id": "att1"}]}))
+    monkeypatch.setattr(da.requests, "post", lambda *a, **k: _Resp(_POSTED))
     da.announce_video(42)
 
     seen = {}
@@ -200,10 +205,30 @@ def test_attach_recap_edits_the_message_and_keeps_the_attachment(monkeypatch):
 
     assert out["mode"] == "edited"
     assert seen["url"] == "https://discord.test/hook/abc/messages/msg1"
-    assert seen["json"]["attachments"] == [{"id": "att1"}]
-    assert "Sellers faded the open." in seen["json"]["embeds"][0]["description"]
-    assert seen["json"]["embeds"][0]["image"] == {"url": "attachment://thumb.jpg"}
+    assert seen["files"]["files[0]"][1] == b"JPEGBYTES"        # re-uploaded
+    body = json.loads(seen["data"]["payload_json"])
+    assert body["attachments"] == [{"id": 0, "filename": "thumb.jpg"}]
+    assert body["embeds"][0]["image"] == {"url": "attachment://thumb.jpg"}
+    assert "Sellers faded the open." in body["embeds"][0]["description"]
     assert da.get_announcement(42)["recap_at"] is not None
+
+
+def test_attach_recap_falls_back_to_the_posted_cdn_url_when_rerender_fails(monkeypatch):
+    """A render that worked at post time but fails at edit time must not strip
+    the card down to bare text — reuse the URL Discord already resolved."""
+    ins = {"headline": "Chop.", "summary": ["Range day."]}
+    _stub_video(monkeypatch, _video(), ins)
+    _stub_thumb(monkeypatch)
+    monkeypatch.setattr(da.requests, "post", lambda *a, **k: _Resp(_POSTED))
+    da.announce_video(42)
+
+    monkeypatch.setattr(da, "_thumbnail_bytes", lambda d, e: None)
+    seen = {}
+    monkeypatch.setattr(da.requests, "patch",
+                        lambda url, **kw: seen.update(kw) or _Resp())
+    da.attach_recap(42)
+    assert "files" not in seen
+    assert seen["json"]["embeds"][0]["image"] == {"url": _CDN}
 
 
 def test_attach_recap_falls_back_to_a_followup_when_the_edit_fails(monkeypatch):
@@ -211,8 +236,7 @@ def test_attach_recap_falls_back_to_a_followup_when_the_edit_fails(monkeypatch):
     _stub_video(monkeypatch, _video(), ins)
     _stub_thumb(monkeypatch)
     posts = []
-    monkeypatch.setattr(da.requests, "post", lambda *a, **k: posts.append(k) or _Resp(
-        {"id": "msg1", "attachments": [{"id": "att1"}]}))
+    monkeypatch.setattr(da.requests, "post", lambda *a, **k: posts.append(k) or _Resp(_POSTED))
     da.announce_video(42)
     monkeypatch.setattr(da.requests, "patch", lambda *a, **k: _Resp(status=400))
 
@@ -226,7 +250,7 @@ def test_attach_recap_skips_when_no_insights_yet(monkeypatch):
     _stub_video(monkeypatch, _video(), {})
     _stub_thumb(monkeypatch)
     monkeypatch.setattr(da.requests, "post",
-                        lambda *a, **k: _Resp({"id": "msg1", "attachments": []}))
+                        lambda *a, **k: _Resp(_POSTED))
     da.announce_video(42)
     monkeypatch.setattr(da.requests, "patch", _boom)
     assert da.attach_recap(42)["skipped"] == "no recap available yet"

@@ -50,7 +50,7 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS desk_announcements (
   video_id      INTEGER PRIMARY KEY,
   message_id    TEXT NOT NULL,
-  attachment_id TEXT,
+  image_url     TEXT,
   posted_at     INTEGER NOT NULL,
   recap_at      INTEGER
 );
@@ -96,6 +96,9 @@ def _init_db() -> None:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(desk_announcements)")}
+        if "image_url" not in cols:      # pre-image_url table from an earlier build
+            c.execute("ALTER TABLE desk_announcements ADD COLUMN image_url TEXT")
         c.commit()
 
 
@@ -107,15 +110,15 @@ def get_announcement(video_id: int) -> dict | None:
         return dict(row) if row else None
 
 
-def _record(video_id: int, message_id: str, attachment_id: str | None) -> None:
+def _record(video_id: int, message_id: str, image_url: str | None) -> None:
     _init_db()
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute(
-            "INSERT INTO desk_announcements (video_id, message_id, attachment_id, posted_at) "
+            "INSERT INTO desk_announcements (video_id, message_id, image_url, posted_at) "
             "VALUES (?,?,?,?) ON CONFLICT(video_id) DO UPDATE SET "
-            "message_id=excluded.message_id, attachment_id=excluded.attachment_id, "
+            "message_id=excluded.message_id, image_url=excluded.image_url, "
             "posted_at=excluded.posted_at, recap_at=NULL",
-            (int(video_id), str(message_id), attachment_id, int(time.time())))
+            (int(video_id), str(message_id), image_url, int(time.time())))
         c.commit()
 
 
@@ -235,16 +238,27 @@ def _post(url: str, embed: dict, thumb: bytes | None) -> dict:
     return r.json()
 
 
-def _edit(url: str, message_id: str, embed: dict, attachment_id: str | None) -> None:
-    """PATCH the existing message. `attachments` must name the attachment we
-    want KEPT — omitting the field drops the uploaded thumbnail, which would
-    silently gut the post the moment the recap lands."""
-    body: dict = {"embeds": [embed], "allowed_mentions": {"parse": []}}
-    if attachment_id:
-        body["attachments"] = [{"id": str(attachment_id)}]
+def _edit(url: str, message_id: str, embed: dict, thumb: bytes | None) -> None:
+    """PATCH the existing message, RE-UPLOADING the thumbnail.
+
+    ⚠️ Verified against the live API: when an embed consumes an uploaded file
+    via `attachment://`, Discord empties the message's `attachments` array and
+    resolves the file into `embeds[0].image.url` — so there is no attachment id
+    to hand back on edit, and a JSON-only PATCH silently drops the image. The
+    fix is a multipart PATCH that re-uploads the file under the same filename
+    (`attachments:[{id:0,...}]` = "the message's files are exactly this one").
+    Renders are episode-deterministic, so the re-upload is byte-identical."""
+    payload: dict = {"embeds": [embed], "allowed_mentions": {"parse": []}}
+    endpoint = f"{url}/messages/{message_id}"
+    if thumb:
+        payload["attachments"] = [{"id": 0, "filename": "thumb.jpg"}]
+        r = requests.patch(
+            endpoint,
+            data={"payload_json": json.dumps(payload)},
+            files={"files[0]": ("thumb.jpg", thumb, "image/jpeg")},
+            timeout=_TIMEOUT)
     else:
-        embed.pop("image", None)
-    r = requests.patch(f"{url}/messages/{message_id}", json=body, timeout=_TIMEOUT)
+        r = requests.patch(endpoint, json=payload, timeout=_TIMEOUT)
     r.raise_for_status()
 
 
@@ -278,8 +292,11 @@ def announce_video(video_id: int, *, force: bool = False) -> dict:
                         image_ref="attachment://thumb.jpg" if thumb else "")
 
     msg = _post(url, embed, thumb)
-    atts = msg.get("attachments") or []
-    _record(video_id, msg.get("id"), (atts[0].get("id") if atts else None))
+    # Discord resolves an embed-consumed upload into the embed's image URL (the
+    # `attachments` array comes back EMPTY) — stash it as the fallback for an
+    # edit that can't re-render the card.
+    posted_img = ((msg.get("embeds") or [{}])[0].get("image") or {}).get("url")
+    _record(video_id, msg.get("id"), posted_img)
     print(f"[desk-announce] posted video {video_id} ({title!r}) msg={msg.get('id')}")
     return {"ok": True, "id": int(video_id), "message_id": msg.get("id"),
             "title": title, "thumbnail": bool(thumb)}
@@ -306,9 +323,15 @@ def attach_recap(video_id: int) -> dict:
 
     title = (v.get("title") or "").strip()
     youtube_id = (v.get("youtube_id") or "").strip()
-    embed = build_embed(title, youtube_id, ins)
+    show, date_text = split_title(title)
+    # Re-render (deterministic → byte-identical) so the PATCH can re-upload it.
+    # If that fails, fall back to the CDN URL Discord resolved at post time so
+    # the edit still can't strip the card down to bare text.
+    thumb = _thumbnail_bytes(date_text, show.upper())
+    image_ref = "attachment://thumb.jpg" if thumb else (rec.get("image_url") or "")
+    embed = build_embed(title, youtube_id, ins, image_ref=image_ref)
     try:
-        _edit(url, rec["message_id"], embed, rec.get("attachment_id"))
+        _edit(url, rec["message_id"], embed, thumb)
         mode = "edited"
     except Exception as e:
         print(f"[desk-announce] edit failed, posting follow-up instead: {e}")
