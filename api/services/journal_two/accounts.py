@@ -543,6 +543,45 @@ def _purge_account_scoped_data(
     return deleted
 
 
+def _drop_broker_mapping(
+    conn: sqlite3.Connection, user_id: str, account_id: str
+) -> None:
+    """Remove any broker mapping that points at an account being deleted, plus
+    its per-connection derived ledgers.
+
+    Without this the j2_broker_accounts row survives pointing at a row that no
+    longer exists — and it is NOT inert: on the next reconnect
+    `map_snaptrade_account` matches it by (user_id, snaptrade_account_id),
+    takes the 'existing' branch, and only refreshes descriptive fields, so the
+    missing j2_account is never recreated and every balance write silently
+    updates zero rows. Dropping the mapping makes a reconnect rebuild cleanly.
+
+    The raw activity ledger (`j2_broker_activities`) is deliberately KEPT: a
+    user may have moved this account's imported trades elsewhere before
+    deleting it, and those trades were reconstructed from that ledger — it is
+    their provenance. Only the balance-display artifacts, which are meaningless
+    once the connection is gone, are dropped alongside the mapping.
+
+    Caller owns the transaction. Tolerates schema drift."""
+    try:
+        rows = conn.execute(
+            "SELECT id FROM j2_broker_accounts WHERE user_id = ? AND j2_account_id = ?",
+            (user_id, account_id),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return  # broker sync tables not present in this schema revision
+    for row in rows:
+        for table in ("j2_broker_equity_snapshots", "j2_broker_cash_flows"):
+            try:
+                conn.execute(
+                    f"DELETE FROM {table} WHERE user_id = ? AND broker_account_id = ?",
+                    (user_id, row["id"]),
+                )
+            except sqlite3.OperationalError:
+                pass
+        conn.execute("DELETE FROM j2_broker_accounts WHERE id = ?", (row["id"],))
+
+
 def delete_account(
     user_id: str,
     account_id: str,
@@ -606,6 +645,7 @@ def delete_account(
             conn.execute("BEGIN")
             if purge:
                 _purge_account_scoped_data(conn, user_id, account_id)
+            _drop_broker_mapping(conn, user_id, account_id)
             conn.execute(
                 "DELETE FROM j2_accounts WHERE id = ? AND user_id = ?",
                 (account_id, user_id),

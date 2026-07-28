@@ -192,3 +192,32 @@ def test_reset_partner_auth_broken_is_a_noop_when_nothing_is_broken(db):
     db.map_snaptrade_account("u1", _raw_account())
     out = db.reset_partner_auth_broken()
     assert out["reset"] == 0 and out["skipped"] == 0
+
+
+def test_deleting_a_broker_linked_account_removes_its_mapping(db):
+    """Deleting a j2_account left its j2_broker_accounts mapping behind,
+    pointing at a row that no longer exists.
+
+    That dangling mapping is not inert: on the next reconnect
+    `map_snaptrade_account` matches it by (user_id, snaptrade_account_id),
+    takes the 'existing' branch, and only refreshes descriptive fields — it
+    never recreates the missing j2_account. Balance writes then update zero
+    rows, so the member's balances silently never reappear."""
+    from api.services import auth_db
+    from api.services.journal_two import accounts as accounts_service
+
+    ba = db.map_snaptrade_account("u1", _raw_account())
+    j2_id = ba["j2AccountId"]
+    # delete_account refuses to remove a user's only account
+    accounts_service.create_account("u1", {"name": "Second", "color": "blue",
+                                           "startingBalance": 1000.0})
+
+    accounts_service.delete_account("u1", j2_id, purge=True)
+
+    conn = auth_db.get_connection()
+    dangling = conn.execute(
+        "SELECT COUNT(*) FROM j2_broker_accounts b WHERE NOT EXISTS "
+        "(SELECT 1 FROM j2_accounts a WHERE a.id = b.j2_account_id)"
+    ).fetchone()[0]
+    conn.close()
+    assert dangling == 0, "deleting an account must not strand its broker mapping"

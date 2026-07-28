@@ -287,25 +287,54 @@ def _unlink_broker_accounts(user_id: str, account_ids: list[str]) -> dict[str, i
                     _reassign_coaching_rows(conn, user_id, account_id)
                 out["accountsRemoved"] += cur.rowcount
                 continue
-            cur = conn.execute(
-                """
-                UPDATE j2_accounts
-                   SET balance_source = 'manual',
-                       broker_total_equity = NULL,
-                       broker_cash = NULL,
-                       broker_buying_power = NULL,
-                       broker_market_value = NULL,
-                       broker_balance_synced_at = NULL,
-                       updated_at = ?
-                 WHERE id = ? AND user_id = ?
-                """,
-                (_now_iso(), account_id, user_id),
-            )
-            out["accountsReverted"] += cur.rowcount
+            out["accountsReverted"] += _revert_to_manual(conn, user_id, account_id)
         conn.commit()
     finally:
         conn.close()
     return out
+
+
+def _revert_to_manual(conn, user_id: str, account_id: str) -> int:
+    """Strip an account's broker identity: back to a plain manual account with
+    every cached broker balance cleared. The single chokepoint for "this is no
+    longer a broker account" — `balance_source` is what balance_resolver and
+    every broker surface gate on, and the broker_* columns are the stale values
+    they would otherwise keep rendering."""
+    return conn.execute(
+        """
+        UPDATE j2_accounts
+           SET balance_source = 'manual',
+               broker_total_equity = NULL,
+               broker_cash = NULL,
+               broker_buying_power = NULL,
+               broker_market_value = NULL,
+               broker_balance_synced_at = NULL,
+               updated_at = ?
+         WHERE id = ? AND user_id = ?
+        """,
+        (_now_iso(), account_id, user_id),
+    ).rowcount
+
+
+def demote_broker_accounts(user_id: str, account_ids: list[str]) -> int:
+    """Revert j2_accounts to manual WITHOUT deleting anything.
+
+    This is the webhook-safe half of `_unlink_broker_accounts`. When SnapTrade
+    reports a connection as gone (the member revoked access at their broker, or
+    the account left the connection) the stale broker balances must stop being
+    rendered — but the trigger is an inbound event we do not control, so a
+    spurious or replayed one must never destroy a member's account. Reverting
+    is idempotent and self-heals: a genuine reconnect re-flags the row."""
+    ids = [a for a in account_ids if a]
+    if not ids:
+        return 0
+    conn = get_connection()
+    try:
+        n = sum(_revert_to_manual(conn, user_id, a) for a in ids)
+        conn.commit()
+        return n
+    finally:
+        conn.close()
 
 
 def _snap_uid_no_decrypt(user_id: str) -> str | None:

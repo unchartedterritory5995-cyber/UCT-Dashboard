@@ -176,6 +176,71 @@ def test_account_removed_disables_single_account(env):
     assert ba["status"] == "disabled" and ba["syncEnabled"] is False
 
 
+def _seed_balances(j2_account_id: str) -> None:
+    c = auth_db.get_connection()
+    c.execute(
+        """UPDATE j2_accounts
+              SET broker_total_equity = 5868.63, broker_cash = -15227.32,
+                  broker_buying_power = 9077.15, broker_market_value = 20796.20,
+                  broker_balance_synced_at = '2026-07-25T07:40:23Z'
+            WHERE id = ?""",
+        (j2_account_id,),
+    )
+    c.commit(); c.close()
+
+
+def _j2_row(j2_account_id: str):
+    c = auth_db.get_connection()
+    try:
+        return c.execute("SELECT * FROM j2_accounts WHERE id = ?",
+                         (j2_account_id,)).fetchone()
+    finally:
+        c.close()
+
+
+@pytest.mark.parametrize("event,extra", [
+    ("CONNECTION_DELETED", {"brokerageAuthorizationId": "auth-1"}),
+    ("USER_DELETED", {}),
+    ("ACCOUNT_REMOVED", {"accountId": "S1"}),
+])
+def test_terminal_lifecycle_events_stop_showing_broker_balances(env, event, extra):
+    """A connection removed at SnapTrade (member revoked access at the broker,
+    or the account left the connection) is terminal — but the handler only
+    disabled the mapping, leaving j2_accounts.balance_source='broker' with the
+    last synced balances frozen on the row. Every broker surface then kept
+    rendering a stale net-liq that nothing could ever refresh."""
+    ba = connections.get_broker_account("u1", env["ba_id"])
+    j2_id = ba["j2AccountId"]
+    _seed_balances(j2_id)
+
+    r = _post(env["client"], _fresh_body(event, **extra))
+    assert r.status_code == 200
+
+    row = _j2_row(j2_id)
+    assert row is not None, "webhook must never delete the member's account"
+    assert row["balance_source"] == "manual"
+    for col in ("broker_total_equity", "broker_cash", "broker_buying_power",
+                "broker_market_value", "broker_balance_synced_at"):
+        assert row[col] is None, f"{col} must be cleared"
+
+
+def test_connection_broken_keeps_balances(env):
+    """CONNECTION_BROKEN is RECOVERABLE (reconnect fixes it), not terminal —
+    it must NOT strip the balances, or a transient auth blip would blank a
+    healthy member's account value."""
+    ba = connections.get_broker_account("u1", env["ba_id"])
+    j2_id = ba["j2AccountId"]
+    _seed_balances(j2_id)
+
+    r = _post(env["client"], _fresh_body(
+        "CONNECTION_BROKEN", brokerageAuthorizationId="auth-1"))
+    assert r.status_code == 200
+
+    row = _j2_row(j2_id)
+    assert row["balance_source"] == "broker"
+    assert row["broker_total_equity"] == 5868.63
+
+
 def test_trade_detection_schedules_sync(env, monkeypatch):
     called = []
 

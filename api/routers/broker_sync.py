@@ -620,6 +620,11 @@ def _handle_lifecycle_event(user_id: str, event: str, body: dict) -> str | None:
                     user_id, ba["id"], "disabled",
                     error=f"Connection removed at SnapTrade ({event})")
                 broker_conns.set_sync_enabled(user_id, ba["id"], False)
+            # Terminal, not recoverable: stop presenting the last synced
+            # balances as if they were live. Revert-only — never delete on an
+            # inbound event we don't control (see demote_broker_accounts).
+            broker_service.demote_broker_accounts(
+                user_id, [ba["j2AccountId"] for ba in accounts])
             return event.lower()
         if event == "ACCOUNT_REMOVED":
             snap_acct = str(body.get("accountId") or "")
@@ -630,6 +635,7 @@ def _handle_lifecycle_event(user_id: str, event: str, body: dict) -> str | None:
                     user_id, ba["id"], "disabled",
                     error="Account removed from the connection at SnapTrade")
                 broker_conns.set_sync_enabled(user_id, ba["id"], False)
+                broker_service.demote_broker_accounts(user_id, [ba["j2AccountId"]])
                 return "account_removed"
     except Exception:
         import logging
