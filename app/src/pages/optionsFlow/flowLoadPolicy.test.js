@@ -112,6 +112,78 @@ describe('adoptVersion — the base/version race', () => {
   })
 })
 
+describe('adoptVersion — X-Flow-Version defeats a stale cached payload', () => {
+  // THE PROD BUG (2026-07-27, observed live at 8:54 PM ET): the page rendered
+  // `7/24 · 862 confirmed of 21515` — Friday's tape — on a Monday night, while
+  // a cache:'no-store' fetch of the SAME url in the SAME tab returned 120,074
+  // rows all dated 7/27.
+  //
+  // Mechanism: Cloudflare served the version-stable url with max-age=14400, so
+  // the body replayed from the browser disk cache in 20ms while
+  // /api/flow/version took 921ms. `pending` was true, so the old rule adopted
+  // the CURRENT version onto FRIDAY's bytes. planDelta then saw
+  // baseFetchedVer === dataVersion and returned {action:'skip'} — permanently.
+  //
+  // The server now stamps X-Flow-Version on the payload, so the bytes describe
+  // themselves and the client stops guessing.
+
+  it('adopts the SERVED version, not the current one, when a cached body is replayed', () => {
+    // Exactly the prod arrangement: base landed first (pending), version known,
+    // but the bytes are old. Adopting `dataVersion` here is the bug.
+    const r = adoptVersion({
+      pending: true,
+      dataVersion: '29753023',   // what the server says is current NOW
+      current: null,
+      served: '29751200',        // what these BYTES actually are (stale)
+    })
+    expect(r).toEqual({ baseFetchedVer: '29751200', pending: false })
+    expect(r.baseFetchedVer).not.toBe('29753023')
+  })
+
+  it('END-TO-END: a stale served payload makes planDelta REFETCH instead of skip', () => {
+    // This is the assertion that would have caught the Friday-tape-on-Monday
+    // bug: adoptVersion feeds planDelta, and the pair must produce a refetch.
+    const { baseFetchedVer } = adoptVersion({
+      pending: true,
+      dataVersion: '29753023',
+      current: null,
+      served: '29751200',
+    })
+    const plan = planDelta({ ...base, dataVersion: '29753023', baseFetchedVer })
+    expect(plan.action).toBe('refetch-base')
+  })
+
+  it('a FRESH payload (served === current) still skips — no refetch storm', () => {
+    // The fix must not reintroduce the three-base-fetches-per-load regression.
+    const { baseFetchedVer } = adoptVersion({
+      pending: true,
+      dataVersion: '29753023',
+      current: null,
+      served: '29753023',
+    })
+    const plan = planDelta({ ...base, dataVersion: '29753023', baseFetchedVer })
+    expect(plan.action).toBe('skip')
+  })
+
+  it('falls back to the old inference when the header is absent', () => {
+    // An old edge object, or a proxy that strips unknown headers, must behave
+    // exactly as before rather than refetching forever.
+    expect(adoptVersion({ pending: true, dataVersion: '29750502', current: null, served: null }))
+      .toEqual({ baseFetchedVer: '29750502', pending: false })
+    expect(adoptVersion({ pending: true, dataVersion: '29750502', current: null, served: '' }))
+      .toEqual({ baseFetchedVer: '29750502', pending: false })
+  })
+
+  it('coerces a numeric header to string so === against dataVersion holds', () => {
+    // dataVersion is stored as a String(...) everywhere; a number here would
+    // make every comparison mismatch and refetch on a loop.
+    const r = adoptVersion({ pending: false, dataVersion: '29753023', current: null, served: 29753023 })
+    expect(r.baseFetchedVer).toBe('29753023')
+    expect(planDelta({ ...base, dataVersion: '29753023', baseFetchedVer: r.baseFetchedVer }).action)
+      .toBe('skip')
+  })
+})
+
 describe('baseFetchUrl — must be CF-cache correct', () => {
   it('uses the bare version-stable URL for first paint so the edge can serve it', () => {
     expect(baseFetchUrl('/api/flow/data?days=1', 0, '29750502')).toBe('/api/flow/data?days=1')

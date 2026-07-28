@@ -80,14 +80,36 @@ export function planDelta({
 /**
  * Resolve the version a freshly-landed base fetch represents.
  *
- * `/api/flow/data` is browser-cached (max-age=300), so the base can land in
- * ~50ms — BEFORE `/api/flow/version` resolves. Stamping `null` then reads as
- * "the base does not cover the current version" and triggers a full refetch;
- * on prod that produced three base fetches on a single page load. A base that
- * landed before the version was known IS current, so the first version we
- * learn is the one it represents.
+ * `served` is the server's `X-Flow-Version` response header — the version the
+ * BYTES WE ACTUALLY RECEIVED were built from. When present it is authoritative
+ * and ends the guesswork.
+ *
+ * ── Why the guess was wrong (prod bug, 2026-07-27) ─────────────────────────
+ * `/api/flow/data` is a version-STABLE URL so Cloudflare can cache it, and it
+ * was served with `max-age=14400`. So the base can land in ~20ms straight from
+ * the browser disk cache — BEFORE `/api/flow/version` resolves (~900ms).
+ *
+ * The old rule was "a base that landed before the version was known IS
+ * current, so adopt the first version we learn." That is true for a FRESH
+ * network fetch and FALSE for a replayed cache hit — and it stamped a stale
+ * body as current. `planDelta` then compared baseFetchedVer === dataVersion,
+ * saw a match, and returned {action:'skip'}. Forever.
+ *
+ * Observed live: the page rendered `7/24 · 862 confirmed of 21515` at 8:54 PM
+ * ET on 7/27 while a no-store fetch of the SAME url returned 120,074 rows, all
+ * dated 7/27. It polled /api/flow/version and still never refetched, because
+ * it believed Friday's bytes were the current version.
+ *
+ * Trusting `served` fixes that without reintroducing the original triple-fetch
+ * bug: a cache-replayed body reports its OWN (old) version -> mismatch ->
+ * exactly one versioned `no-store` refetch. The `pending` inference is kept
+ * only as a fallback for a response with no header (an old edge object, or a
+ * proxy that strips it).
  */
-export function adoptVersion({ pending, dataVersion, current }) {
+export function adoptVersion({ pending, dataVersion, current, served }) {
+  if (served != null && served !== '') {
+    return { baseFetchedVer: String(served), pending: false }
+  }
   if (pending && dataVersion != null) {
     return { baseFetchedVer: dataVersion, pending: false }
   }

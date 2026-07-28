@@ -1146,6 +1146,10 @@ export default function OptionsFlowDashboard() {
     // baseNonce never returns to 0, so keying off it alone gave every later range
     // switch a fresh per-60s cache key and defeated edge caching for that range.
     const versionedRefresh = sameRange && baseNonce > 0;
+    // The version the SERVER says these bytes were built from (X-Flow-Version).
+    // Captured here because it is only readable off the Response; it is what
+    // makes a cache-replayed body detectable. See adoptVersion() for the bug.
+    let servedVer = null;
     fetch(baseFetchUrl(csvFile, versionedRefresh ? baseNonce : 0, dataVersionRef.current),
           versionedRefresh ? { cache: "no-store" } : undefined)
         .then(res => {
@@ -1153,6 +1157,7 @@ export default function OptionsFlowDashboard() {
           if (!res.ok) throw new Error(`Server returned ${res.status} for ${csvFile}`);
           const ct = res.headers.get("content-type") || "";
           if (ct.includes("text/html")) throw new Error(`Got HTML instead of CSV — ${csvFile} not found.`);
+          servedVer = res.headers.get("X-Flow-Version");
           return res.text();
         })
         .then(text => {
@@ -1176,7 +1181,17 @@ export default function OptionsFlowDashboard() {
               return;
             }
             console.log(`[perf] CSV parsed: ${(performance.now()-t1).toFixed(0)}ms (${res.rowCount} rows${res.usedWorker ? ", worker" : ", MAIN THREAD"})`);
-            const ver = dataVersionRef.current;
+            // Prefer the SERVER's stamp over our own clock. These bytes may have
+            // been replayed from the browser disk cache or a stale Cloudflare
+            // object, in which case dataVersionRef is the CURRENT version and
+            // stamping it here would mark stale data "fresh" — planDelta would
+            // then skip forever (prod 7/27: Friday's tape shown Monday night).
+            // A mismatch here is what triggers the single corrective refetch.
+            const ver = servedVer != null ? String(servedVer) : dataVersionRef.current;
+            if (servedVer != null && dataVersionRef.current != null
+                && String(servedVer) !== String(dataVersionRef.current)) {
+              console.log(`[flow] stale payload served (v${servedVer} vs current v${dataVersionRef.current}) — refreshing`);
+            }
             _baseFetchedVer.current = ver;
             _baseVerPending.current = (ver == null);
             setLoadedVersion(ver);      // so a remount can restore it

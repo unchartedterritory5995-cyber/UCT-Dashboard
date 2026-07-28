@@ -52,8 +52,30 @@ db = FlowDB(DB_PATH)
 
 flow_router = APIRouter(prefix="/api/flow", tags=["flow"])
 
+# ── Freshness contract ──────────────────────────────────────────────────────
+# The bare `/api/flow/data?days=N` URL is version-STABLE so Cloudflare can cache
+# it. That means a client can be handed a body built minutes — or, through an
+# over-long edge TTL, HOURS — ago. Measured on prod 2026-07-27 15:41 ET: the
+# edge served a body with `Age: 21238` (5h54m) whose newest print was 9:48 AM,
+# while the origin had 111,046 rows through 3:24 PM. The page rendered Friday's
+# tape on a Monday afternoon and never corrected itself.
+#
+#   max-age=0, must-revalidate  the BROWSER may not reuse a body without asking.
+#                               Costs one conditional round-trip, NOT a 12MB
+#                               download, and is what stops a stale copy from
+#                               being pinned in the disk cache for hours.
+#   s-maxage=60                 shared caches (Cloudflare) still absorb the herd,
+#                               so the ~2s origin build stays a ~60ms edge hit.
+#
+# `stale-while-revalidate=86400` was REMOVED deliberately: it licensed ANY cache
+# to serve a day-old options tape instantly, with no signal to the user. For an
+# intraday tape, freshness IS the product.
+#
+# ⚠️ A Cloudflare Cache Rule can OVERRIDE both of these (prod was rewriting the
+# browser TTL to max-age=14400). That is why correctness does NOT rest on these
+# headers — `X-Flow-Version` below lets the client verify what it actually got.
 _FLOW_CACHE_HEADERS = {
-    "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+    "Cache-Control": "public, max-age=0, s-maxage=60, must-revalidate",
     "Vary": "Accept-Encoding",
 }
 
@@ -274,9 +296,16 @@ def _build_gzipped_csv(source: str, days, dates=None) -> bytes:
     return buf.getvalue()
 
 
-def _get_cached_or_build(source: str, days, dates=None) -> bytes:
-    """Returns gzipped CSV bytes for (source, days), using the in-memory cache
-    when version matches. LRU eviction at _RESPONSE_CACHE_MAX entries.
+def _get_cached_or_build(source: str, days, dates=None) -> tuple:
+    """Returns (version, gzipped_csv_bytes) for (source, days), using the
+    in-memory cache when version matches. LRU eviction at _RESPONSE_CACHE_MAX.
+
+    ⚠️ The returned version is the one the PAYLOAD WAS BUILT FROM — never simply
+    "the current version". The stale-serve branch below deliberately hands back
+    an OLDER payload, and `_serve_csv` stamps `X-Flow-Version` from this value,
+    so the bytes always describe themselves honestly. Stamping the current
+    version onto a stale payload is precisely the defect this header exists to
+    kill — do not "simplify" this back to a bare `_current_version()` read.
 
     Single-flight + stale-serve (2026-07-17), mirroring live_massive_router's
     /day-stats. WHY: _current_version() rolls every _VERSION_BUCKET_SEC (60s).
@@ -300,22 +329,24 @@ def _get_cached_or_build(source: str, days, dates=None) -> bytes:
     cached = _RESPONSE_CACHE.get(key)
     if cached and cached[0] == version:
         _RESPONSE_CACHE.move_to_end(key)  # touch — most recently used
-        return cached[1]
+        return version, cached[1]
 
     def _store(payload):
         if key not in _RESPONSE_CACHE and len(_RESPONSE_CACHE) >= _RESPONSE_CACHE_MAX:
             _RESPONSE_CACHE.popitem(last=False)  # evict LRU
         _RESPONSE_CACHE[key] = (version, payload)
         _RESPONSE_CACHE.move_to_end(key)
-        return payload
+        return version, payload
 
     if not _BUILD_LOCK.acquire(blocking=False):
         if cached:
-            return cached[1]        # serve stale rather than queue behind the build
+            # Serve stale rather than queue behind the build — but report the
+            # STALE payload's own version so the client can tell it is behind.
+            return cached[0], cached[1]
         with _BUILD_LOCK:           # first-ever for this key: must build once
             c2 = _RESPONSE_CACHE.get(key)
             if c2 and c2[0] == _current_version():
-                return c2[1]
+                return c2[0], c2[1]
             return _store(_build_gzipped_csv(source, days, dates))
     try:
         return _store(_build_gzipped_csv(source, days, dates))
@@ -328,20 +359,29 @@ def _serve_csv(source: str, days, request: Request, dates=None):
     appropriate encoding header. Always sets Content-Length implicitly via
     Response so CF can cache."""
     try:
-        gzipped = _get_cached_or_build(source, days, dates)
+        version, gzipped = _get_cached_or_build(source, days, dates)
     except Exception as e:
         return Response(content=f"Error: {e}", status_code=500, media_type="text/plain")
+
+    # Stamp the payload with the data version it was BUILT from, making the bytes
+    # self-describing. A client can now compare this against /api/flow/version and
+    # know for certain whether what it is holding is current — including when the
+    # body was replayed from the browser disk cache or a stale Cloudflare object,
+    # which is exactly the case the client could not previously detect. Cloudflare
+    # stores response headers alongside the cached body, so a stale edge copy
+    # carries its ORIGINAL (old) version and the mismatch is visible.
+    headers = {**_FLOW_CACHE_HEADERS, "X-Flow-Version": str(version)}
 
     accept = (request.headers.get("accept-encoding") or "").lower()
     if "gzip" in accept:
         return Response(
             content=gzipped,
             media_type="text/csv",
-            headers={**_FLOW_CACHE_HEADERS, "Content-Encoding": "gzip"},
+            headers={**headers, "Content-Encoding": "gzip"},
         )
     # Rare path: client doesn't accept gzip. Decompress before sending.
     content = gzip.decompress(gzipped)
-    return Response(content=content, media_type="text/csv", headers=_FLOW_CACHE_HEADERS)
+    return Response(content=content, media_type="text/csv", headers=headers)
 
 
 def _parse_query_days(request: Request):
