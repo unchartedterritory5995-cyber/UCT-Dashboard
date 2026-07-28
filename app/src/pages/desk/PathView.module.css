@@ -773,3 +773,25 @@
 @media (max-width: 640px) {
   .scriptWrap { margin-left: 0; }
 }
+
+/* Handout tables (kind: 'table') — pipe-delimited rows, first row is the head */
+.handoutTblWrap { overflow-x: auto; margin: 6px 0 10px; }
+.handoutTbl { border-collapse: collapse; width: 100%; font-size: 12px; }
+.handoutTbl th, .handoutTbl td {
+  border: 1px solid var(--border);
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.handoutTbl th { color: var(--ut-gold); font-weight: 600; }
+.handoutCheck { margin: 4px 0 4px 18px; font-size: 12.5px; line-height: 1.5; position: relative; }
+.handoutCheck::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 4px;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid var(--ut-gold);
+  border-radius: 3px;
+}

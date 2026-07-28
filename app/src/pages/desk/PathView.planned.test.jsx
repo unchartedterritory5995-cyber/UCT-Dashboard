@@ -297,3 +297,50 @@ test('the admin editor round-trips scripts — a Save cannot wipe them', async (
   expect(steps[0].script).toBe(SCRIPT) // recorded lesson keeps its script
   expect(steps[1].script).toBe(SCRIPT) // planned lesson keeps its script
 })
+
+/* ── Malformed production material must never take the syllabus down ─────
+   Closeout review found DossierPanel/ScriptPanel guarded JSON *syntax* but not
+   *shape*: a string where an array belongs threw inside .map. These pin the
+   shape guards (repros supplied by the reviewer). */
+
+test.each([
+  ['sections[].body is a string', { title: "The Presenter's Brief", sections: [{ heading: 'H', body: 'not an array' }] }],
+  ['glossary is a string', { glossary: 'THE LOOP' }],
+  ['sections is a string', { sections: 'nope' }],
+  ['artifacts[].sections[].items is a string', { artifacts: [{ title: 'CARD', sections: [{ heading: 'S', items: 'x' }] }] }],
+  ['dossier is a bare JSON string', 'just a string'],
+  ['dossier is a JSON number', 42],
+])('malformed dossier (%s) renders the syllabus without crashing', (_label, shape) => {
+  const d = withProduction()
+  d.paths[0].dossier = JSON.stringify(shape)
+  mockPaths = d
+  renderSection(['/desk?path=uct-foundations'])
+  expect(screen.getByRole('heading', { level: 2, name: 'UCT Foundations' })).toBeTruthy()
+})
+
+test.each([
+  ['chapters is a string', { chapters: 'nope' }],
+  ['chapters[] entries are strings', { chapters: ['a', 'b'] }],
+  ['script is a bare JSON string', 'hello'],
+])('malformed script (%s) renders the lesson without crashing', (_label, shape) => {
+  const d = withProduction()
+  d.paths[0].steps[0].script = JSON.stringify(shape)
+  mockPaths = d
+  renderSection(['/desk?path=uct-foundations'])
+  expect(screen.getByRole('heading', { level: 2, name: 'UCT Foundations' })).toBeTruthy()
+})
+
+test('a handout table section renders as a real table, not wrapped prose', () => {
+  const d = withProduction()
+  d.paths[0].dossier = JSON.stringify({
+    artifacts: [{
+      title: 'THE LOOP CARD',
+      sections: [{ heading: 'The six stations', kind: 'table',
+        items: ['# | STATION | QUESTION', '1 | REGIME | What am I permitted to do today?'] }],
+    }],
+  })
+  mockPaths = d
+  renderSection(['/desk?path=uct-foundations'])
+  expect(screen.getByRole('columnheader', { name: 'STATION' })).toBeTruthy()
+  expect(screen.getByRole('cell', { name: 'REGIME' })).toBeTruthy()
+})

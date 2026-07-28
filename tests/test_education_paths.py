@@ -691,3 +691,69 @@ def test_init_db_alters_script_and_dossier_onto_pre_existing_tables(tmp_path, mo
         path_cols = {r["name"] for r in c.execute("PRAGMA table_info(edu_paths)")}
     assert "script" in step_cols and "planned_title" in step_cols
     assert "dossier" in path_cols
+
+
+# ── script preserve-on-omit (closeout review, CRITICAL) ─────────────────────
+
+def test_apply_without_script_preserves_stored_scripts(svc):
+    """The catastrophic case: any apply that doesn't mention scripts (e.g. the
+    curriculum converter, which emits none) must NOT wipe them."""
+    svc.bulk_apply_paths([
+        {"slug": "prog", "name": "Program", "kind": "course", "enabled": False, "steps": [
+            {"planned_title": "L1", "script": '{"chapters":[1]}'},
+            {"planned_title": "L2", "script": '{"chapters":[2]}'},
+            {"youtube_id": "vid11111111", "script": '{"chapters":[3]}'},
+        ]},
+    ])
+    # Re-apply the SAME structure with no script key anywhere.
+    svc.bulk_apply_paths([
+        {"slug": "prog", "name": "Program", "kind": "course", "steps": [
+            {"planned_title": "L1"},
+            {"planned_title": "L2"},
+            {"youtube_id": "vid11111111"},
+        ]},
+    ])
+    steps = svc.list_paths(include_disabled=True)[0]["steps"]
+    assert [s["script"] for s in steps] == [
+        '{"chapters":[1]}', '{"chapters":[2]}', '{"chapters":[3]}']
+
+
+def test_scripts_survive_reorder_and_follow_their_lesson(svc):
+    svc.bulk_apply_paths([
+        {"slug": "prog", "name": "P", "kind": "course", "steps": [
+            {"planned_title": "A", "script": "SA"},
+            {"planned_title": "B", "script": "SB"},
+        ]},
+    ])
+    svc.bulk_apply_paths([
+        {"slug": "prog", "name": "P", "kind": "course", "steps": [
+            {"planned_title": "B"}, {"planned_title": "A"},
+        ]},
+    ])
+    steps = svc.list_paths(include_disabled=True)[0]["steps"]
+    assert [(s["planned_title"], s["script"]) for s in steps] == [("B", "SB"), ("A", "SA")]
+
+
+def test_empty_string_script_explicitly_clears(svc):
+    svc.bulk_apply_paths([
+        {"slug": "p", "name": "P", "kind": "course",
+         "steps": [{"planned_title": "L1", "script": "SOMETHING"}]},
+    ])
+    svc.bulk_apply_paths([
+        {"slug": "p", "name": "P", "kind": "course",
+         "steps": [{"planned_title": "L1", "script": ""}]},
+    ])
+    assert svc.list_paths(include_disabled=True)[0]["steps"][0]["script"] is None
+
+
+def test_replace_path_steps_also_preserves_scripts(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [{"planned_title": "L1", "script": "S1"}])
+    svc.replace_path_steps(p["id"], [{"planned_title": "L1"}])  # editor-style save
+    assert svc.get_path(p["id"])["steps"][0]["script"] == "S1"
+
+
+def test_a_brand_new_step_without_script_is_null_not_a_sentinel(svc):
+    p = _path(svc)
+    svc.replace_path_steps(p["id"], [{"youtube_id": "brandnew123"}])
+    assert svc.get_path(p["id"])["steps"][0]["script"] is None

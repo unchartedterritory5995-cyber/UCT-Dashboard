@@ -220,7 +220,18 @@ export default function PathView({
       return { ...d, steps }
     })
   const removeStep = (i) =>
-    setDraft((d) => ({ ...d, steps: d.steps.filter((_, j) => j !== i) }))
+    setDraft((d) => {
+      // A removed row takes its recording script with it — say so once rather
+      // than silently discarding authored production material.
+      const victim = d.steps[i]
+      if (victim?.script && typeof window !== 'undefined' && window.confirm) {
+        const label = victim.planned_title || videoById[victim.youtube_id]?.title || 'this lesson'
+        if (!window.confirm(`Remove "${label}"? Its recording script will be removed with it.`)) {
+          return d
+        }
+      }
+      return { ...d, steps: d.steps.filter((_, j) => j !== i) }
+    })
   const addStep = (video) =>
     setDraft((d) => ({
       ...d,
@@ -769,6 +780,9 @@ function AttachVideoSearch({ allVideos, rowIndex, onPick, disabled }) {
 // firm terms, and the printable member artifacts. ADMIN-ONLY (the server
 // withholds it from members) and collapsed by default — it sits above the
 // syllabus because it is what a presenter reads BEFORE any lesson.
+const arr = (x) => (Array.isArray(x) ? x : [])
+const str = (x) => (typeof x === 'string' ? x : '')
+
 function DossierPanel({ dossier }) {
   let d = null
   try {
@@ -776,7 +790,13 @@ function DossierPanel({ dossier }) {
   } catch {
     return null
   }
-  if (!d || (!d.sections?.length && !d.glossary?.length && !d.artifacts?.length)) return null
+  // Guard SHAPE, not just syntax: a string where an array belongs would throw
+  // inside .map and take the whole syllabus down with it.
+  if (!d || typeof d !== 'object') return null
+  const sections = arr(d.sections)
+  const glossary = arr(d.glossary)
+  const artifacts = arr(d.artifacts)
+  if (!sections.length && !glossary.length && !artifacts.length) return null
   return (
     <details className={p.dossier}>
       <summary className={p.dossierSummary}>
@@ -790,47 +810,72 @@ function DossierPanel({ dossier }) {
           ].filter(Boolean).join(' · ')}
         </span>
       </summary>
-      {d.subtitle && <p className={p.dossierSub}>{d.subtitle}</p>}
-      {(d.sections || []).map((s, i) => (
+      {str(d.subtitle) && <p className={p.dossierSub}>{d.subtitle}</p>}
+      {sections.map((s, i) => (
         <section key={i} className={p.dossierSec}>
-          <h4>{s.heading}</h4>
-          {(s.body || []).map((b, j) => (
+          <h4>{str(s?.heading)}</h4>
+          {arr(s?.body).map((b, j) => (
             <p key={j} className={p.dossierP}>{String(b).replace(/\*\*/g, '')}</p>
           ))}
         </section>
       ))}
-      {d.glossary?.length > 0 && (
+      {glossary.length > 0 && (
         <section className={p.dossierSec}>
           <h4>Glossary</h4>
-          {d.glossary.map((g, i) => (
+          {glossary.map((g, i) => (
             <p key={i} className={p.dossierP}>
-              <b>{g.term}</b> — {g.definition}
+              <b>{str(g?.term)}</b> — {str(g?.definition)}
             </p>
           ))}
         </section>
       )}
-      {d.artifacts?.length > 0 && (
+      {artifacts.length > 0 && (
         <section className={p.dossierSec}>
           <h4>Member handouts</h4>
-          {d.artifacts.map((a, i) => (
+          {artifacts.map((a, i) => (
             <details key={i} className={p.handout}>
-              <summary>{a.title}</summary>
-              {a.tagline && <p className={p.dossierSub}>{a.tagline}</p>}
-              {(a.sections || []).map((s, j) => (
+              <summary>{str(a?.title)}</summary>
+              {str(a?.tagline) && <p className={p.dossierSub}>{a.tagline}</p>}
+              {arr(a?.sections).map((s, j) => (
                 <div key={j}>
-                  <h5 className={p.handoutH}>{s.heading}</h5>
-                  {(s.items || []).map((it, k) => (
-                    <p key={k} className={p.handoutItem}>{it}</p>
-                  ))}
+                  <h5 className={p.handoutH}>{str(s?.heading)}</h5>
+                  <HandoutBody section={s} />
                 </div>
               ))}
-              {a.footer_rule && <p className={p.handoutRule}>{a.footer_rule}</p>}
+              {str(a?.footer_rule) && <p className={p.handoutRule}>{a.footer_rule}</p>}
             </details>
           ))}
         </section>
       )}
     </details>
   )
+}
+
+// A handout section rendered per its authored `kind`. Table sections store
+// pipe-delimited rows with the FIRST row as the header — rendering those as
+// paragraphs (the old behaviour) turned the LOOP card into unreadable prose.
+function HandoutBody({ section }) {
+  const items = arr(section?.items)
+  if (!items.length) return null
+  if (section?.kind === 'table') {
+    const [head, ...rows] = items.map((r) => String(r).split('|').map((c) => c.trim()))
+    return (
+      <div className={p.handoutTblWrap}>
+        <table className={p.handoutTbl}>
+          <thead>
+            <tr>{head.map((c, i) => <th key={i}>{c}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+  const cls = section?.kind === 'checklist' ? p.handoutCheck : p.handoutItem
+  return items.map((it, k) => <p key={k} className={cls}>{String(it)}</p>)
 }
 
 // Parse a stored production script (JSON string on the step) into chapters.
@@ -851,7 +896,9 @@ export const parseScript = (raw) => {
 // internal production material (the server withholds it from members), and it
 // stays collapsed so the syllabus keeps its shape.
 function ScriptPanel({ script }) {
-  const parsed = parseScript(script)
+  // Memoized: without this every LessonRow re-parsed its script on every
+  // render — hundreds of KB of JSON re-parsed on each progress tick.
+  const parsed = useMemo(() => parseScript(script), [script])
   if (!parsed) return null
   return (
     <details className={p.scriptWrap}>

@@ -562,15 +562,11 @@ def get_paths(all: int = 0, _user: dict = Depends(require_paid)):
     non-admin passing it silently gets the member view, so drafts can never
     leak through a crafted query string."""
     is_admin = (_user or {}).get("role") == "admin"
-    paths = svc.list_paths(include_disabled=bool(all) and is_admin)
-    if not is_admin:
-        # Production material (per-lesson scripts, course dossier) is internal
-        # and bulky — members never receive it, so the payload stays lean and
-        # stage directions can't leak into a member-facing surface.
-        for p in paths:
-            p.pop("dossier", None)
-            for st in p.get("steps") or []:
-                st.pop("script", None)
+    # Production material (per-lesson scripts, course dossier) is internal and
+    # bulky — members never receive it, so stage directions can't leak into a
+    # member-facing surface AND the rows are never even read from SQLite.
+    paths = svc.list_paths(include_disabled=bool(all) and is_admin,
+                           include_production=is_admin)
     return {"paths": paths}
 
 

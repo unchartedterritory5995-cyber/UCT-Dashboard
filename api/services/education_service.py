@@ -670,10 +670,15 @@ def _validate_path_input(slug: str, name: str, kind: str | None) -> tuple[str, s
     return sl, nm
 
 
-def _path_steps_conn(c: sqlite3.Connection, path_id: int) -> list[dict]:
+def _path_steps_conn(c: sqlite3.Connection, path_id: int,
+                     include_production: bool = True) -> list[dict]:
+    """`include_production=False` omits the `script` column from the SELECT —
+    member reads never materialize ~900KB of internal recording material just
+    to have the router discard it."""
+    cols = ("youtube_id, module_label, note, start_seconds, end_seconds, planned_title"
+            + (", script" if include_production else ""))
     rows = c.execute(
-        "SELECT youtube_id, module_label, note, start_seconds, end_seconds, planned_title, script "
-        "FROM edu_path_steps WHERE path_id = ? ORDER BY sort_order ASC, id ASC",
+        f"SELECT {cols} FROM edu_path_steps WHERE path_id = ? ORDER BY sort_order ASC, id ASC",
         (path_id,),
     ).fetchall()
     return [dict(r) for r in rows]
@@ -697,6 +702,29 @@ def _validate_step_seconds(start, end, ctx: str) -> tuple[Optional[int], Optiona
     if s is not None and e is not None and e <= s:
         raise ValueError(f"{ctx} end_seconds must be greater than start_seconds")
     return s, e
+
+
+# Sentinel for "the caller did not mention this field" (see _normalize_step).
+_PRESERVE = object()
+
+
+def _carry_scripts(c: sqlite3.Connection, path_id: int, steps: list[dict]) -> None:
+    """Resolve _PRESERVE scripts against what this path currently stores, keyed
+    by step identity (planned_title for planned rows, youtube_id otherwise) so a
+    reorder still matches. Duplicate keys are consumed in order. MUST run before
+    the DELETE that replaces the path's steps."""
+    prior: dict = {}
+    for r in c.execute(
+        "SELECT youtube_id, planned_title, script FROM edu_path_steps "
+        "WHERE path_id = ? ORDER BY sort_order ASC, id ASC", (path_id,)
+    ):
+        key = r["planned_title"] or r["youtube_id"]
+        prior.setdefault(key, []).append(r["script"])
+    for st in steps:
+        if st["script"] is not _PRESERVE:
+            continue
+        bucket = prior.get(st["planned_title"] or st["youtube_id"])
+        st["script"] = bucket.pop(0) if bucket else None
 
 
 def _normalize_step(s: dict, i: int, ctx: str) -> dict:
@@ -735,13 +763,16 @@ def _normalize_step(s: dict, i: int, ctx: str) -> dict:
         "start_seconds": start,
         "end_seconds": end,
         "planned_title": planned,
-        # Production script rides along untouched — the admin editor round-trips
-        # it so a Save can never silently destroy a lesson's recording script.
-        "script": (s.get("script") or None),
+        # Production script. TRI-STATE, mirroring `enabled`/`dossier`: None (the
+        # field absent from the payload) means PRESERVE whatever is stored —
+        # steps are FULL-REPLACED on every write, so without this any apply that
+        # doesn't mention scripts would silently destroy every lesson's script
+        # (the curriculum converter emits none). Pass an empty string to clear.
+        "script": (_PRESERVE if s.get("script") is None else (s.get("script") or None)),
     }
 
 
-def list_paths(include_disabled: bool = False) -> list[dict]:
+def list_paths(include_disabled: bool = False, include_production: bool = True) -> list[dict]:
     """Every path (kind='course' first, then sort_order, then name), each with
     its steps ordered by sort_order. `include_disabled=False` (default) hides
     enabled=0 rows — the member-facing /paths read; admin views pass True."""
@@ -753,7 +784,9 @@ def list_paths(include_disabled: bool = False) -> list[dict]:
         ).fetchall()
         paths = [dict(r) for r in rows]
         for p in paths:
-            p["steps"] = _path_steps_conn(c, p["id"])
+            if not include_production:
+                p.pop("dossier", None)
+            p["steps"] = _path_steps_conn(c, p["id"], include_production)
         return paths
 
 
@@ -859,6 +892,7 @@ def replace_path_steps(path_id: int, steps: list[dict]) -> int:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         if c.execute("SELECT 1 FROM edu_paths WHERE id = ?", (pid,)).fetchone() is None:
             raise ValueError(f"path not found: {pid}")
+        _carry_scripts(c, pid, clean)
         c.execute("DELETE FROM edu_path_steps WHERE path_id = ?", (pid,))
         for s in clean:
             c.execute(
@@ -947,6 +981,7 @@ def bulk_apply_paths(paths: list[dict]) -> dict:
             path_id = _upsert_path_conn(c, p["slug"], p["name"], p["blurb"],
                                         p["kind"], p["sort_order"], p["enabled"],
                                         p.get("dossier"))
+            _carry_scripts(c, path_id, p["steps"])
             c.execute("DELETE FROM edu_path_steps WHERE path_id = ?", (path_id,))
             for s in p["steps"]:
                 c.execute(
