@@ -125,8 +125,10 @@ async def refresh_accounts(user_id: str) -> list[dict[str, Any]]:
 
 
 async def disconnect(user_id: str, *, purge_trades: bool = False) -> dict[str, Any]:
-    """Revoke at SnapTrade (best-effort) and purge our credential rows.
-    Optionally also delete broker-imported trade data."""
+    """Revoke at SnapTrade (best-effort), purge our credential rows, and undo
+    the j2_accounts rows this connection created — an emptied one is deleted,
+    one still holding trades reverts to a plain manual account (see
+    `_unlink_broker_accounts`). Optionally also delete imported trade data."""
     bu = None
     try:
         bu = connections.get_broker_user(user_id)
