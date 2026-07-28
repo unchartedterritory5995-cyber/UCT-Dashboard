@@ -165,8 +165,15 @@ def _build_app() -> FastAPI:
     # own `railway up -s flow-worker`. Reads the mounted route objects only —
     # no request, no handler, no side effect (an anonymous probe would EXECUTE
     # the endpoint in exactly the case it exists to detect).
+    #
+    # The vouch endpoint mounts FIRST so it can serve whatever the audit finds:
+    # web proxies this pod's flow routers to the internet and cannot see their
+    # gates (they live here), so it classifies them DELEGATED and comes asking.
+    # Answering is what makes that classification a check instead of a mute —
+    # a web boot that gets no answer pages.
     try:
-        from api.auth_surface_check import run_startup_audit
+        from api.auth_surface_check import build_vouch_router, run_startup_audit
+        app.include_router(build_vouch_router())
         run_startup_audit(app, service="flow-worker")
     except Exception as e:
         print(f"[startup] auth-surface audit skipped: {e}")
