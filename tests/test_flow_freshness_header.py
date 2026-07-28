@@ -18,17 +18,38 @@ refreshing — the exact prod bug), while reporting one that is too OLD merely
 costs one extra refetch. So the version must always describe the BYTES, never
 the moment of the request.
 """
+import threading
+import time
+
 import pytest
 
 from api import flow_router
 
+_KEY = ("stocks", 1, None)
+
 
 @pytest.fixture(autouse=True)
 def _isolate_cache():
-    """Never let one test's cached payload leak into another."""
+    """Never let one test's cached payload — or a leaked lock — reach another."""
     flow_router._RESPONSE_CACHE.clear()
     yield
     flow_router._RESPONSE_CACHE.clear()
+    # A lock left held would silently send every later test down the
+    # serve-stale branch and make them pass for the wrong reason.
+    if flow_router._BUILD_LOCK.locked():
+        try:
+            flow_router._BUILD_LOCK.release()
+        except RuntimeError:
+            pass
+
+
+def _wait_until(pred, timeout=3.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if pred():
+            return True
+        time.sleep(0.02)
+    return False
 
 
 class _Req:
@@ -94,13 +115,29 @@ def test_stale_serve_reports_the_STALE_payload_version_not_the_current_one(monke
     assert version == 100, "stale bytes must report v100, NOT the current v200"
 
 
-def test_fresh_build_reports_the_current_version(monkeypatch):
-    _pin_build(monkeypatch)
+def test_a_rebuild_eventually_reports_the_new_version(monkeypatch):
+    """A version bump must reach callers — just not on the asking request.
+
+    This asserted `version == 200` on the very next call, which encoded the OLD
+    synchronous contract. Refreshing off the request path deliberately changed
+    that: the asking caller gets the stale v100 INSTANTLY (honestly labelled, so
+    the client can correct itself) and v200 lands behind it. Kept, rewritten to
+    the real contract — the bump must still arrive, or the cache would be frozen.
+    """
+    _pin_build(monkeypatch, b"V100")
     _pin_version(monkeypatch, 100)
-    flow_router._get_cached_or_build("stocks", 1)
+    assert flow_router._get_cached_or_build("stocks", 1) == (100, b"V100")
+
+    _pin_build(monkeypatch, b"V200")
     _pin_version(monkeypatch, 200)
-    version, _ = flow_router._get_cached_or_build("stocks", 1)
-    assert version == 200, "a rebuild at v200 must report v200"
+
+    # The asking caller is answered from the stale entry, not the rebuild.
+    assert flow_router._get_cached_or_build("stocks", 1) == (100, b"V100")
+
+    # ...but the refresh lands, and the NEXT caller sees v200.
+    assert _wait_until(lambda: flow_router._RESPONSE_CACHE.get(_KEY) == (200, b"V200")), \
+        "the version bump must reach the cache"
+    assert flow_router._get_cached_or_build("stocks", 1) == (200, b"V200")
 
 
 def test_cache_hit_reports_the_matching_version(monkeypatch):
@@ -161,6 +198,78 @@ def test_stale_serving_stays_enabled_because_it_is_the_availability_valve():
     # `must-revalidate` forbids serving stale, which would silently cancel the
     # directive above and reintroduce the 25s cold build.
     assert "must-revalidate" not in cc
+
+
+# ── the rebuild must not happen ON the request path ────────────────────────
+
+def test_stale_payload_is_served_instantly_and_refreshed_in_the_background(monkeypatch):
+    """The user asking for a stale file must NOT pay for rebuilding it.
+
+    Before: whoever won the build lock ate the full rebuild — measured 25.5s,
+    10s and 4.9s TTFB on prod against a 2.7GB SQLite, and Cloudflare could not
+    mask it because a Cache Rule overrides the edge directives.
+
+    Safe only because X-Flow-Version makes the stale copy VISIBLE to the client.
+    """
+    _pin_version(monkeypatch, 100)
+    _pin_build(monkeypatch, b"OLD")
+    assert flow_router._get_cached_or_build("stocks", 1) == (100, b"OLD")
+
+    started, release = threading.Event(), threading.Event()
+
+    def _slow_build(source, days, dates=None):
+        started.set()
+        release.wait(5)          # hold the rebuild open
+        return b"NEW"
+
+    monkeypatch.setattr(flow_router, "_build_gzipped_csv", _slow_build)
+    _pin_version(monkeypatch, 200)
+
+    t0 = time.monotonic()
+    version, payload = flow_router._get_cached_or_build("stocks", 1)
+    elapsed = time.monotonic() - t0
+
+    assert (version, payload) == (100, b"OLD"), "must serve the stale payload as-is"
+    assert elapsed < 1.0, f"must not block on the rebuild — took {elapsed:.2f}s"
+    assert started.wait(2), "the background refresh must actually run"
+
+    release.set()
+    assert _wait_until(lambda: flow_router._RESPONSE_CACHE.get(_KEY) == (200, b"NEW")), \
+        "the background refresh must land in the cache"
+    assert _wait_until(lambda: not flow_router._BUILD_LOCK.locked()), \
+        "the background thread must release the build lock"
+
+
+def test_a_cold_key_still_builds_synchronously(monkeypatch):
+    # Nothing cached means there is nothing to serve stale. Returning empty
+    # would be worse than waiting, so this path must still block.
+    _pin_version(monkeypatch, 100)
+    _pin_build(monkeypatch, b"FRESH")
+    assert flow_router._get_cached_or_build("stocks", 1) == (100, b"FRESH")
+
+
+def test_a_failed_background_refresh_keeps_the_last_good_payload_and_frees_the_lock(monkeypatch):
+    # A refresh that throws must not poison the cache or wedge the lock — that
+    # would turn one bad build into a permanent outage for this key.
+    _pin_version(monkeypatch, 100)
+    _pin_build(monkeypatch, b"GOOD")
+    flow_router._get_cached_or_build("stocks", 1)
+
+    exploded = threading.Event()
+
+    def _explode(source, days, dates=None):
+        exploded.set()
+        raise RuntimeError("build failed")
+
+    monkeypatch.setattr(flow_router, "_build_gzipped_csv", _explode)
+    _pin_version(monkeypatch, 200)
+
+    assert flow_router._get_cached_or_build("stocks", 1) == (100, b"GOOD")
+    assert exploded.wait(2)
+    assert _wait_until(lambda: not flow_router._BUILD_LOCK.locked()), \
+        "a failed refresh must still release the lock"
+    assert flow_router._RESPONSE_CACHE[_KEY] == (100, b"GOOD"), \
+        "the last good payload must survive a failed refresh"
 
 
 def test_the_version_header_survives_the_worker_proxy():

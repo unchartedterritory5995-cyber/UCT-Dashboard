@@ -363,6 +363,39 @@ def _get_cached_or_build(source: str, days, dates=None) -> tuple:
             if c2 and c2[0] == _current_version():
                 return c2[0], c2[1]
             return _store(_build_gzipped_csv(source, days, dates))
+
+    # ── We hold the build lock. ────────────────────────────────────────────
+    # A STALE-but-usable payload exists, so REFRESH IT OFF THE REQUEST PATH and
+    # answer this caller immediately. Previously whoever won this lock paid the
+    # full rebuild: measured 25.5s / 10s / 4.9s TTFB on prod against a 2.7GB
+    # SQLite. Cloudflare cannot mask it either — a Cache Rule is overriding the
+    # edge directives, so real users were eating the build.
+    #
+    # This is the "serve-stale-and-revalidate-in-background" fix that was noted
+    # as the right answer but was NOT SAFE to take before: handing back a stale
+    # body used to be undetectable by the client, which is the whole
+    # Friday's-tape-on-Monday bug. `X-Flow-Version` now stamps this payload with
+    # its OWN older version, so the page sees the mismatch and refetches. That
+    # is what makes trading latency for bounded, VISIBLE staleness correct here.
+    #
+    # The background thread owns the lock and must release it — threading.Lock
+    # is not owner-bound, so that is legal. A failed rebuild leaves the previous
+    # entry in place and frees the lock, so the next request simply retries.
+    if cached:
+        def _refresh_off_request_path():
+            try:
+                _store(_build_gzipped_csv(source, days, dates))
+            except Exception:
+                pass   # keep serving the last good payload; never wedge the lock
+            finally:
+                _BUILD_LOCK.release()
+        try:
+            threading.Thread(target=_refresh_off_request_path, daemon=True,
+                             name="flow-csv-refresh").start()
+        except RuntimeError:
+            pass       # could not spawn — fall through and build synchronously
+        else:
+            return cached[0], cached[1]
     try:
         return _store(_build_gzipped_csv(source, days, dates))
     finally:
