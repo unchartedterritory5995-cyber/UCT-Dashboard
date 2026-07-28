@@ -29,6 +29,7 @@ const revB = (m) => {
 }
 const eps = (v) => (Number.isFinite(Number(v)) ? `$${Number(v).toFixed(2)}` : '—')
 const pct = (v) => {
+  if (v == null) return null              // null/undefined YoY -> omit (Number(null) is 0 -> "+0%")
   const n = Number(v)
   if (!Number.isFinite(n)) return null
   return `${n > 0 ? '+' : ''}${Math.round(n)}%`
